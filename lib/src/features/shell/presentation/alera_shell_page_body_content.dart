@@ -9,7 +9,6 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
     required WorkspaceSourceControlScope? sourceControlScope,
     required List<WorkspaceTabRecord> tabs,
     required WorkbenchLayout? layout,
-    required bool browserTabsAvailable,
   }) {
     if (!bootstrapped && !hasProjects) {
       return const Center(child: CircularProgressIndicator());
@@ -67,14 +66,6 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
                 .sessionFor(workspace: workspace, tab: tab)
                 .requestFocus();
           },
-          onCreateBrowserTab: browserTabsAvailable
-              ? ({targetGroupId}) async {
-                  await controller.createBrowserTab(
-                    workspace,
-                    targetGroupId: targetGroupId,
-                  );
-                }
-              : null,
           onCreateCodexTab: ({targetGroupId}) async {
             await controller.createCodexTab(
               workspace,
@@ -110,36 +101,22 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
             if (!await _confirmCloseDirtyTabs(tabs, <String>[tabId])) {
               return;
             }
-            final closingTab = _workspaceTabById(tabs, tabId);
             // The controller disposes the terminal handle and editor document.
             await controller.closeWorkspaceTab(
               workspace: workspace,
               tabId: tabId,
             );
-            if (closingTab?.kind == WorkspaceTabKind.browser) {
-              await ref.read(browserSessionRegistryProvider).closePage(tabId);
-            }
           },
           onCloseTabs: (tabIds) async {
             if (!await _confirmCloseDirtyTabs(tabs, tabIds)) {
               return;
             }
-            final browserTabIds = <String>[
-              for (final tabId in tabIds)
-                if (_workspaceTabById(tabs, tabId)?.kind ==
-                    WorkspaceTabKind.browser)
-                  tabId,
-            ];
             // The controller disposes the terminal handles and editor
             // documents.
             await controller.closeWorkspaceTabs(
               workspace: workspace,
               tabIds: tabIds,
             );
-            await Future.wait(<Future<void>>[
-              for (final tabId in browserTabIds)
-                ref.read(browserSessionRegistryProvider).closePage(tabId),
-            ]);
           },
           onRenameTab: ({required tabId, required title}) async {
             await controller.renameWorkspaceTab(tabId: tabId, title: title);

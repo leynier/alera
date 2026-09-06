@@ -6,7 +6,7 @@
 # Adds the signed Alera package repository for the detected distribution and
 # installs the alera package with the system package manager. Alera never
 # installs Linux updates itself, because a raw dpkg or rpm transaction does not
-# resolve GTK, WebKit, and related system libraries; going through the package
+# resolve GTK and related system libraries; going through the package
 # manager is what keeps dependencies resolved. Re-running this script upgrades
 # an existing installation, so it is also the update path.
 #
@@ -132,7 +132,7 @@ require_supported_architecture() {
 # Detected by probing for the binary rather than by reading ID and ID_LIKE from
 # /etc/os-release, so a derivative distribution is handled by what it actually
 # ships. zypper is probed only to refuse it by name: the published RPM declares
-# Fedora dependency names (webkit2gtk4.1, gtk3) that openSUSE does not
+# Fedora dependency names (gtk3) that openSUSE does not
 # provide under those names, so configuring the repository there would end in an
 # unresolvable transaction rather than a working install.
 detect_package_manager() {
@@ -308,7 +308,7 @@ report_install_failure() {
       ;;
     rpm)
       die "$ALERA_EXIT_INSTALL" "Installing Alera failed." \
-        "Check that GTK 3 and WebKitGTK 4.1 are available from your repositories."
+        "Check that GTK 3 is available from your repositories."
       ;;
   esac
 }

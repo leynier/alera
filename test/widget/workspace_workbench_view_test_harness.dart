@@ -8,7 +8,6 @@ Future<void> _pumpWorkbenchView(
   required WorkbenchLayout? layout,
   required _FakeTerminalRuntime terminalRuntime,
   required List<String?> createdTabs,
-  List<String?>? createdBrowserTabs,
   List<String?>? createdCodexTabs,
   required List<_SelectedTabAction> selectedTabs,
   required List<String> closedTabs,
@@ -23,21 +22,13 @@ Future<void> _pumpWorkbenchView(
   Size size = const Size(420, 280),
   Map<String, AgentStatusEntry> agentStatuses =
       const <String, AgentStatusEntry>{},
-  FakeBrowserEngine? providedBrowserEngine,
   bool agentTitlesAvailable = false,
 }) async {
-  final browserEngine = providedBrowserEngine ?? FakeBrowserEngine();
-  final browserRegistry = BrowserSessionRegistry(engine: browserEngine);
-  addTearDown(browserEngine.dispose);
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         agentTitleAvailableProvider.overrideWith(
           (ref) async => agentTitlesAvailable,
-        ),
-        browserSessionRegistryProvider.overrideWithValue(browserRegistry),
-        browserProfileServiceProvider.overrideWithValue(
-          const _WorkbenchBrowserProfileService(),
         ),
       ],
       child: MaterialApp(
@@ -58,11 +49,6 @@ Future<void> _pumpWorkbenchView(
                 onCreateTab: ({String? targetGroupId}) async {
                   createdTabs.add(targetGroupId);
                 },
-                onCreateBrowserTab: createdBrowserTabs == null
-                    ? null
-                    : ({String? targetGroupId}) async {
-                        createdBrowserTabs.add(targetGroupId);
-                      },
                 onCreateCodexTab: createdCodexTabs == null
                     ? null
                     : ({String? targetGroupId}) async {
@@ -211,37 +197,6 @@ AgentStatusEntry _agentStatus(
     updatedAt: .utc(2026, 5, 22),
     stateStartedAt: .utc(2026, 5, 22),
   );
-}
-
-final class const _WorkbenchBrowserProfileService()
-    implements BrowserProfileService {
-  static final BrowserProfile _profile = BrowserProfile(
-    id: defaultBrowserProfileId,
-    label: 'Default',
-    kind: .defaultProfile,
-    createdAt: .fromMillisecondsSinceEpoch(0, isUtc: true),
-  );
-
-  @override
-  Future<List<BrowserProfile>> list() async => <BrowserProfile>[_profile];
-
-  @override
-  Future<bool> remove(String profileId) async => false;
-
-  @override
-  Future<void> validateRemoval(String profileId) async {}
-
-  @override
-  Future<BrowserProfile> upsert({
-    String? id,
-    required String name,
-    bool persistent = true,
-    BrowserProfileSource? source,
-  }) async => _profile;
-
-  @override
-  Stream<List<BrowserProfile>> watchAll() =>
-      Stream<List<BrowserProfile>>.value(<BrowserProfile>[_profile]);
 }
 
 WorkbenchLayout _splitLayout({

@@ -265,11 +265,6 @@ class const _WorkspaceTabLeadingIcon({
           showTooltip: false,
         ),
       ),
-      WorkspaceTabKind.browser => Icon(
-        AleraIcons.public,
-        size: 12,
-        color: color,
-      ),
     };
   }
 }
@@ -280,7 +275,7 @@ double _tabTitleMaxWidth(WorkspaceTabKind kind) {
     WorkspaceTabKind.markdownViewer ||
     WorkspaceTabKind.pdf ||
     WorkspaceTabKind.gitDiff => 180,
-    WorkspaceTabKind.terminal || WorkspaceTabKind.browser => 92,
+    WorkspaceTabKind.terminal => 92,
     WorkspaceTabKind.codex => 132,
   };
 }

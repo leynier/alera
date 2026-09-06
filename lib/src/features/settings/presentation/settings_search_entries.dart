@@ -299,45 +299,6 @@ const List<SettingsSearchEntry> keyboardSearchEntries = <SettingsSearchEntry>[
   ),
 ];
 
-final List<SettingsSearchEntry>
-browserSearchEntries = buildSettingsSearchEntryCatalog(const {
-  'general': {
-    'System Browser Engine': SettingsSearchEntryDetails(
-      description: 'Check the stable browser capability gate.',
-      keywords: <String>['browser', 'webview', 'webkit', 'webview2', 'engine'],
-    ),
-    'Browser Search Engine': SettingsSearchEntryDetails(
-      description: 'Choose the default address bar search provider.',
-      keywords: <String>['google', 'duckduckgo', 'bing', 'kagi', 'search'],
-    ),
-  },
-  'profiles': {
-    'Browser Profiles': SettingsSearchEntryDetails(
-      description: 'Manage isolated cookies, storage and permissions.',
-      keywords: <String>['browser', 'profile', 'cookies', 'storage', 'import'],
-    ),
-  },
-  'certificates': {
-    'Trusted Local Certificates': SettingsSearchEntryDetails(
-      description: 'Review or remove certificate trust for browser profiles.',
-      keywords: <String>[
-        'browser',
-        'certificate',
-        'tls',
-        'https',
-        'localhost',
-        'self signed',
-      ],
-    ),
-  },
-  'data': {
-    'Browser History': SettingsSearchEntryDetails(
-      description: 'Clear history and reopen recently closed tabs.',
-      keywords: <String>['browser', 'history', 'closed', 'tabs'],
-    ),
-  },
-});
-
 const List<SettingsSearchEntry> editorSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'Theme Preset',

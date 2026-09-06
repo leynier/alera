@@ -10,8 +10,7 @@ enum WorkspaceTabKind(this.key) {
   editor('editor'),
   markdownViewer('markdownViewer'),
   pdf('pdf'),
-  gitDiff('gitDiff'),
-  browser('browser');
+  gitDiff('gitDiff');
 
   final String key;
 
@@ -56,9 +55,6 @@ const String workspaceTabFilePathPayloadKey = 'filePath';
 const String workspaceTabFileRolePayloadKey = 'fileRole';
 const String workspaceTabFileRoleMermanPreview = 'mermanPreview';
 const String workspaceTabPreviewPayloadKey = 'preview';
-const String workspaceTabBrowserProfileIdPayloadKey = 'browserProfileId';
-const String workspaceTabBrowserUrlPayloadKey = 'browserUrl';
-const String workspaceTabBrowserRuntimeTitlePayloadKey = 'browserRuntimeTitle';
 const String workspaceTabGitDiffScopePayloadKey = 'gitDiffScope';
 const String workspaceTabGitDiffAreaPayloadKey = 'gitDiffArea';
 const String workspaceTabGitDiffRootPayloadKey = 'gitDiffRoot';
@@ -209,21 +205,9 @@ class WorkspaceTabRecord({
       WorkspaceTabKind.markdownViewer ||
       WorkspaceTabKind.pdf ||
       WorkspaceTabKind.gitDiff => true,
-      WorkspaceTabKind.terminal ||
-      WorkspaceTabKind.codex ||
-      WorkspaceTabKind.browser => false,
+      WorkspaceTabKind.terminal || WorkspaceTabKind.codex => false,
     };
   }
-
-  String get browserProfileId =>
-      _nonEmptyPayloadString(workspaceTabBrowserProfileIdPayloadKey) ??
-      'default';
-
-  String? get browserUrl =>
-      _nonEmptyPayloadString(workspaceTabBrowserUrlPayloadKey);
-
-  String? get browserRuntimeTitle =>
-      _nonEmptyPayloadString(workspaceTabBrowserRuntimeTitlePayloadKey);
 
   WorkspaceGitDiffScope? get gitDiffScope => WorkspaceGitDiffScope.fromJson(
     payload[workspaceTabGitDiffScopePayloadKey],

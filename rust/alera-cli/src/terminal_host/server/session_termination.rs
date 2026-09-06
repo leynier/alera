@@ -71,12 +71,6 @@ impl ServerActor {
             }
             self.terminate_terminal_sessions_for_workspace(&request.id)
                 .await;
-            for page in self.browser.pages() {
-                if page.workspace_id == request.id {
-                    shutdown.closed_tab_ids.push(page.tab_id.clone());
-                    self.handle_browser_tab_removed(&page.tab_id);
-                }
-            }
             return Ok(shutdown);
         } else if self
             .mutation_queue
@@ -90,7 +84,6 @@ impl ServerActor {
             .sessions
             .values()
             .any(|session| session.workspace_id == request.id && session.running())
-            || self.browser.has_pages_for_workspace(&request.id)
         {
             return Err(HostError::state("Workspace has live sessions"));
         }
@@ -126,7 +119,7 @@ impl ServerActor {
         }
         // Teardown is irreversible even if a later Git operation fails. Retire
         // only those tabs whose resources were closed, and notify every client
-        // so scrollback, browser pages and transcript watches are released.
+        // so scrollback and transcript watches are released.
         let mut stopped_tab_cleanup_error = None;
         for tab_id in &stopped_workspace_tab_ids {
             if let Err(error) = self.runtime_store.remove_workspace_tab(tab_id).await {
@@ -271,7 +264,6 @@ impl ServerActor {
                     server.forget_thread_hydration(&tab_id).await;
                 }
                 self.remove_codex_presence(&tab_id);
-                self.handle_browser_tab_removed(&tab_id);
                 self.terminate_terminal_sessions_for_tab(&tab_id).await;
                 self.broadcast_workspace_tabs_changed(workspace_id.as_deref());
             }

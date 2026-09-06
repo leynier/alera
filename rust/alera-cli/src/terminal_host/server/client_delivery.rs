@@ -197,7 +197,6 @@ impl ServerActor {
         };
         let mobile_disconnected = client.authenticated && matches!(client.kind, ClientKind::Mobile);
         self.orchestration_waiters.remove_client(client_id);
-        self.handle_browser_client_disconnect(client_id);
         self.cancel_queued_runtime_mutations(client_id);
         self.release_mobile_driver_for_client(client_id);
         self.cancel_mobile_prompt_file_uploads(client_id);
@@ -335,7 +334,6 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
             codex: None,
             codex_starting: None,
             codex_presence: HashMap::new(),

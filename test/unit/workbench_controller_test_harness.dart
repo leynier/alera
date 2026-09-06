@@ -89,7 +89,6 @@ class _WorkbenchHarness([ManagedWorkspaceRuntime? runtime]) {
         settingsControllerProvider.overrideWithValue(settings),
         terminalRuntimeProvider.overrideWithValue(terminalRuntime),
         agentHookReceiverProvider.overrideWithValue(hookReceiver),
-        browserSessionRegistryProvider.overrideWithValue(browserRegistry),
       ],
     );
     _controller = container.read(workbenchControllerProvider.notifier);
@@ -104,8 +103,6 @@ class _WorkbenchHarness([ManagedWorkspaceRuntime? runtime]) {
   late final _FakeWorktreeSetupRunner worktreeSetupRunner;
   late final _FakeTerminalRuntime terminalRuntime;
   final hookReceiver = _FakeAgentHookReceiver();
-  final browserEngine = FakeBrowserEngine();
-  late final browserRegistry = BrowserSessionRegistry(engine: browserEngine);
   late final ProviderContainer container;
   late final WorkbenchController _controller;
   Future<Project> addProject(String id, String name) async {
@@ -124,8 +121,6 @@ class _WorkbenchHarness([ManagedWorkspaceRuntime? runtime]) {
 
   Future<void> dispose() async {
     container.dispose();
-    await browserRegistry.dispose();
-    await browserEngine.dispose();
     await terminalRuntime.dispose();
     await projectRepository.dispose();
     await workbenchRepository.dispose();

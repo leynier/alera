@@ -19,7 +19,6 @@ use crate::terminal_host::session::Session;
 use alera_core::runtime::RuntimeStore;
 
 use super::account_push_state::AccountPushState;
-use super::browser_broker::BrowserBroker;
 use super::client_delivery::LocalClientRole;
 use super::{ClientKind, ClientState, ServerActor};
 
@@ -115,7 +114,6 @@ pub(super) async fn test_actor(
         coordinators: HashMap::new(),
         resources: ResourceMonitorState::default(),
         terminal_pulses: Default::default(),
-        browser: BrowserBroker::default(),
         codex: None,
         codex_starting: None,
         codex_presence: HashMap::new(),

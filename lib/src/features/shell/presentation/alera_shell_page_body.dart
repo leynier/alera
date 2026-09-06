@@ -26,10 +26,6 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     ref.watch(workspaceActivityCoordinatorProvider);
     ref.watch(terminalRuntimeActiveWorkspaceCoordinatorProvider);
     ref.watch(workspaceActivityPersistenceCoordinatorProvider);
-    ref.watch(browserEventDispatcherProvider);
-    final browserTabsAvailable =
-        ref.watch(browserAvailabilityProvider).asData?.value.meetsStableGate ==
-        true;
     final shell = ref.watch(
       workbenchControllerProvider.select((state) {
         final workspace = state.activeWorkspace;
@@ -103,7 +99,6 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                             sourceControlScope: sourceControlScope,
                             tabs: shell.tabs,
                             layout: shell.layout,
-                            browserTabsAvailable: browserTabsAvailable,
                           ),
                         ),
                         if (workspace != null && showContextSidebar)
@@ -268,7 +263,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
         ),
       ),
     );
-    return BrowserNativeCallbackScope(child: content);
+    return content;
   }
 
   Future<bool> _confirmCloseDirtyTabs(
@@ -314,16 +309,4 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
   void _showError(String message) {
     AleraToast.show(context, message: message, tone: .error);
   }
-}
-
-WorkspaceTabRecord? _workspaceTabById(
-  List<WorkspaceTabRecord> tabs,
-  String tabId,
-) {
-  for (final tab in tabs) {
-    if (tab.id == tabId) {
-      return tab;
-    }
-  }
-  return null;
 }

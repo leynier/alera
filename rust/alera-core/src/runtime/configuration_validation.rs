@@ -1,4 +1,4 @@
-use super::{BrowserSettings, RuntimeAiAssistSettings, RuntimeTextActionsSettings};
+use super::{RuntimeAiAssistSettings, RuntimeTextActionsSettings};
 use anyhow::{bail, Result};
 use serde_json::Value;
 
@@ -13,9 +13,6 @@ pub(super) fn validate_document(document: &Value) -> Result<()> {
     }
     if let Some(settings) = document.pointer("/desktop/settings") {
         validate_settings(settings)?;
-    }
-    if let Some(browser) = document.pointer("/desktop/browser") {
-        let _: BrowserSettings = serde_json::from_value(browser.clone())?;
     }
     if let Some(catalog) = document.pointer("/shared/textActions") {
         let actions = super::configuration_store::ordered_items(catalog)?;

@@ -175,9 +175,7 @@ extension WorkspaceTabPathMoves on WorkspaceTabService {
     WorkspaceTabKind.markdownViewer ||
     WorkspaceTabKind.pdf ||
     WorkspaceTabKind.gitDiff => true,
-    WorkspaceTabKind.terminal ||
-    WorkspaceTabKind.codex ||
-    WorkspaceTabKind.browser => false,
+    WorkspaceTabKind.terminal || WorkspaceTabKind.codex => false,
   };
 
   bool _isRetargetableFileBackedTab(WorkspaceTabRecord tab) {
@@ -208,9 +206,7 @@ extension WorkspaceTabPathMoves on WorkspaceTabService {
       isWorkspacePdfFilePath(nextPath)
           ? WorkspaceTabKind.pdf
           : WorkspaceTabKind.editor,
-    WorkspaceTabKind.terminal ||
-    WorkspaceTabKind.codex ||
-    WorkspaceTabKind.browser => null,
+    WorkspaceTabKind.terminal || WorkspaceTabKind.codex => null,
   };
 
   String? _replacePathPrefix({

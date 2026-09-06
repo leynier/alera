@@ -13,7 +13,7 @@ Thanks for contributing to Alera.
 
 All platforms require Flutter 3.47.2 or newer with Dart 3.13.2 or newer, Git, Rustup, and Zig 0.16.0. CI is pinned to Flutter 3.47.2. Run `make init-submodules` to initialize only the two source dependencies required by the Flutter package; the optional repositories under `reference_projects/` are not part of the build.
 
-All seven owned packages use Dart language version 3.13 through their Dart 3.13.2 SDK lower bounds. Run `flutter pub get` before formatting so the formatter reads the resolved package language version. Follow the [Dart modernization conventions](../docs/dart-3.13-modernization.md) when using primary constructors and typed collection APIs.
+Owned packages use Dart language version 3.13 through their Dart 3.13.2 SDK lower bounds. Run `flutter pub get` before formatting so the formatter reads the resolved package language version. Follow the [Dart modernization conventions](../docs/dart-3.13-modernization.md) when using primary constructors and typed collection APIs.
 
 ### Windows
 
@@ -39,18 +39,16 @@ sudo apt-get install -y \
   pkg-config \
   libgtk-3-dev \
   libayatana-appindicator3-dev \
-  libwebkit2gtk-4.1-dev \
   libjson-glib-dev \
   libsecret-1-dev \
   libsqlite3-dev \
   libssl-dev \
   libepoxy-dev \
-  libmpv-dev \
   libvulkan-dev \
   glslc
 ```
 
-These packages provide the compiler toolchain and the native browser, video, storage, security, and Vulkan compute libraries used by the desktop app. Cargo builds outside Flutter should set `VULKAN_SDK=/usr`.
+These packages provide the compiler toolchain and the GTK, storage, security, and Vulkan compute libraries used by the desktop app. Cargo builds outside Flutter should set `VULKAN_SDK=/usr`.
 
 ### Common setup
 

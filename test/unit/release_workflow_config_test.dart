@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('release workflow configuration', () {
-    test('packages the system browser engines required by desktop tabs', () {
+    test('packages GTK and system libraries without a browser engine', () {
       final setup = File('.github/actions/setup-flutter-workspace/action.yml')
           .readAsStringSync();
       final linuxPackage = File('tool/release/package_linux.sh')
@@ -13,17 +13,9 @@ void main() {
       final xcodeProject = File('macos/Runner.xcodeproj/project.pbxproj')
           .readAsStringSync();
       final macInfo = File('macos/Runner/Info.plist').readAsStringSync();
-      final windowsBrowserCmake = File(
-        'packages/alera_browser/windows/CMakeLists.txt',
-      ).readAsStringSync();
-      final windowsBrowserValues = File(
-        'packages/alera_browser/windows/browser_value.cpp',
-      ).readAsStringSync();
-      final macBrowserCore = File(
-        'packages/alera_browser/macos/Classes/BrowserCore.swift',
-      ).readAsStringSync();
 
-      expect(setup, contains('libwebkit2gtk-4.1-dev'));
+      expect(setup, isNot(contains('libwebkit2gtk-4.1-dev')));
+      expect(setup, isNot(contains('libmpv-dev')));
       expect(setup, contains('sdk.lunarg.com/sdk/download/'));
       expect(
         setup,
@@ -36,12 +28,12 @@ void main() {
         isNot(contains('KhronosGroup.VulkanSDK')),
         reason: 'Windows CI must not install Vulkan through WinGet',
       );
-      expect(linuxPackage, contains('libwebkit2gtk-4.1-0'));
+      expect(linuxPackage, isNot(contains('libwebkit2gtk-4.1-0')));
+      expect(linuxPackage, isNot(contains('webkit2gtk4.1')));
       expect(linuxPackage, contains('libjson-glib-1.0-0'));
       expect(linuxPackage, contains('libsecret-1-0'));
       expect(linuxPackage, contains('libsqlite3-0'));
       expect(linuxPackage, contains('libssl3'));
-      expect(linuxPackage, contains('Requires: webkit2gtk4.1'));
       expect(linuxPackage, contains('Requires: json-glib'));
       expect(linuxPackage, contains('Requires: libsecret'));
       expect(linuxPackage, contains('Requires: sqlite'));
@@ -52,9 +44,6 @@ void main() {
       expect(macInfo, contains('NSCameraUsageDescription'));
       expect(macInfo, contains('NSLocationUsageDescription'));
       expect(macInfo, contains('NSMicrophoneUsageDescription'));
-      expect(windowsBrowserCmake, contains('ALERA_BROWSER_STORAGE_NAME'));
-      expect(windowsBrowserValues, contains('ALERA_BROWSER_STORAGE_NAME'));
-      expect(macBrowserCore, contains('Bundle.main.bundleIdentifier'));
     });
 
     test('enables autonomous updates everywhere a package manager does not', () {

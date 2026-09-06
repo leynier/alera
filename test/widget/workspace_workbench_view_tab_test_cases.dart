@@ -316,37 +316,6 @@ void _registerWorkspaceWorkbenchViewTabTests() {
     expect(find.byType(AleraStatusDot), findsOneWidget);
   });
 
-  testWidgets('browser tabs use the browser icon in the chip', (tester) async {
-    final tab = _tab('tab-1', title: 'Browser', kind: .browser);
-
-    await _pumpWorkbenchView(
-      tester,
-      tabs: <WorkspaceTabRecord>[tab],
-      terminalRuntime: terminalRuntime,
-      layout: .single(workspaceId: _workspaceId, tabIds: <String>[tab.id]),
-      createdTabs: createdTabs,
-      selectedTabs: selectedTabs,
-      closedTabs: closedTabs,
-      closedTabGroups: closedTabGroups,
-      renamedTabs: renamedTabs,
-      movedTabs: movedTabs,
-      splitGroups: splitGroups,
-      mergedGroups: mergedGroups,
-      updatedRatios: updatedRatios,
-    );
-
-    expect(
-      find.byWidgetPredicate(
-        (widget) =>
-            widget is Icon &&
-            widget.icon == AleraIcons.public &&
-            widget.size == 12,
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('Start Browsing'), findsOneWidget);
-  });
-
   testWidgets('editor tabs use file icons in the chip', (tester) async {
     final terminalTab = _tab('tab-1', title: 'Terminal');
     final editorTab = _tab(

@@ -69,11 +69,6 @@ class const _WorkspaceTabContent({
         workspace: workspace,
         tab: tab,
       ),
-      WorkspaceTabKind.browser => BrowserTabSurface(
-        tab: tab,
-        autofocus: autofocus,
-        pageObscured: _WorkbenchTabDragScope.isActiveOf(context),
-      ),
     };
   }
 }

@@ -295,18 +295,15 @@ static void my_application_activate(GApplication* application) {
       project, self->dart_entrypoint_arguments);
 
   FlView* view = fl_view_new(project);
-  GtkWidget* flutter_overlay = gtk_overlay_new();
-  gtk_widget_set_hexpand(flutter_overlay, TRUE);
-  gtk_widget_set_vexpand(flutter_overlay, TRUE);
-  gtk_widget_show(flutter_overlay);
+  gtk_widget_set_hexpand(GTK_WIDGET(view), TRUE);
+  gtk_widget_set_vexpand(GTK_WIDGET(view), TRUE);
   GdkRGBA background_color;
   // Background defaults to black, override it here if necessary, e.g. #00000000
   // for transparent.
   gdk_rgba_parse(&background_color, "#000000");
   fl_view_set_background_color(view, &background_color);
   gtk_widget_show(GTK_WIDGET(view));
-  gtk_container_add(GTK_CONTAINER(flutter_overlay), GTK_WIDGET(view));
-  gtk_box_pack_start(GTK_BOX(box), flutter_overlay, TRUE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(box), GTK_WIDGET(view), TRUE, TRUE, 0);
 
   // Show the window when Flutter renders.
   // Requires the view to be realized so we can start rendering.

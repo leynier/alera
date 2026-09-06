@@ -30,36 +30,11 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
     expect(terminalRuntime.requestedTabIds, contains('tab-1'));
   });
 
-  testWidgets('shows the browser start surface for browser tabs', (
-    tester,
-  ) async {
-    final tab = _tab('tab-1', title: 'Browser', kind: .browser);
-
-    await _pumpWorkbenchView(
-      tester,
-      tabs: <WorkspaceTabRecord>[tab],
-      terminalRuntime: terminalRuntime,
-      layout: .single(workspaceId: _workspaceId, tabIds: <String>[tab.id]),
-      createdTabs: createdTabs,
-      selectedTabs: selectedTabs,
-      closedTabs: closedTabs,
-      closedTabGroups: closedTabGroups,
-      renamedTabs: renamedTabs,
-      movedTabs: movedTabs,
-      splitGroups: splitGroups,
-      mergedGroups: mergedGroups,
-      updatedRatios: updatedRatios,
-    );
-
-    expect(find.text('Start Browsing'), findsOneWidget);
-    expect(terminalRuntime.requestedTabIds, isEmpty);
-  });
-
   testWidgets('non-terminal tab title taps select without terminal focus', (
     tester,
   ) async {
     final terminalTab = _tab('tab-1', title: 'Terminal 1');
-    final editorTab = _tab('tab-2', title: 'Browser', kind: .browser);
+    final editorTab = _tab('tab-2', title: 'readme.md', kind: .editor);
 
     await _pumpWorkbenchView(
       tester,
@@ -81,7 +56,7 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
       updatedRatios: updatedRatios,
     );
 
-    await tester.tap(find.text('Browser'));
+    await tester.tap(find.text('readme.md'));
     await tester.pump();
 
     expect(selectedTabs, <_SelectedTabAction>[
@@ -371,7 +346,6 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
       groupId: 'group-a',
       tabIds: tabs.map((tab) => tab.id).toList(),
     );
-    final createdBrowserTabs = <String?>[];
     final createdCodexTabs = <String?>[];
 
     await _pumpWorkbenchView(
@@ -380,7 +354,6 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
       terminalRuntime: terminalRuntime,
       layout: layout,
       createdTabs: createdTabs,
-      createdBrowserTabs: createdBrowserTabs,
       createdCodexTabs: createdCodexTabs,
       selectedTabs: selectedTabs,
       closedTabs: closedTabs,
@@ -395,10 +368,6 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
     await tester.tap(find.byTooltip('New Tab'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('New Terminal'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('New Tab'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('New Browser Tab'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('New Tab'));
     await tester.pumpAndSettle();
@@ -418,7 +387,6 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
     await tester.pump();
 
     expect(createdTabs, <String?>['group-a']);
-    expect(createdBrowserTabs, <String?>['group-a']);
     expect(createdCodexTabs, <String?>['group-a']);
     expect(selectedTabs, <_SelectedTabAction>[
       const _SelectedTabAction('group-a', 'tab-1'),

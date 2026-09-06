@@ -20,17 +20,6 @@ mod automation_run_store;
 mod automation_schedule;
 mod automation_store;
 mod automation_templates;
-mod browser_certificate_store;
-#[cfg(test)]
-mod browser_certificate_store_tests;
-mod browser_models;
-mod browser_privacy;
-mod browser_session_store;
-#[cfg(test)]
-mod browser_session_store_tests;
-mod browser_store;
-#[cfg(test)]
-mod browser_store_tests;
 mod codex_chat_store;
 mod configuration_native_settings;
 mod configuration_profiles;
@@ -94,10 +83,6 @@ pub use automation_models::*;
 pub use automation_run_store::*;
 pub use automation_schedule::*;
 pub use automation_templates::*;
-pub use browser_models::*;
-pub use browser_privacy::{
-    browser_url_allows_title_persistence, normalize_browser_title, BROWSER_TITLE_MAX_BYTES,
-};
 pub use codex_chat_store::*;
 pub use models::*;
 pub use orchestration_dispatch_store::ORCHESTRATION_CIRCUIT_BREAKER_THRESHOLD;

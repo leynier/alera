@@ -22,20 +22,6 @@ mixin _WorkbenchControllerSync
             .clearTerminalSession(tab.terminalSessionId);
       }
     }
-    if (ref.exists(browserSessionRegistryProvider)) {
-      unawaited(
-        ref
-            .read(browserSessionRegistryProvider)
-            .closeWorkspace(workspaceId)
-            .catchError((Object error) {
-              if (!_disposed) {
-                state = state.copyWith(
-                  error: 'Could not close workspace browser pages: $error',
-                );
-              }
-            }),
-      );
-    }
   }
 
   void _onProjectsChanged(List<Project> projects) {
@@ -311,18 +297,6 @@ mixin _WorkbenchControllerSync
     for (final tab in removedTabs) {
       runtime.releaseTab(tab.id);
       editorSessions.forget(tab.id);
-      if (tab.kind == WorkspaceTabKind.browser &&
-          ref.exists(browserSessionRegistryProvider)) {
-        unawaited(
-          ref.read(browserSessionRegistryProvider).closePage(tab.id).catchError(
-            (Object error) {
-              if (ref.mounted) {
-                state = state.copyWith(error: error.toString());
-              }
-            },
-          ),
-        );
-      }
       if (tab.kind == WorkspaceTabKind.terminal &&
           ref.exists(agentHookReceiverProvider)) {
         // The host may already have stopped the process before the explicit

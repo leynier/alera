@@ -3,8 +3,6 @@ import 'dart:async';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
-import 'package:alera/src/features/browser/application/browser_providers.dart';
-import 'package:alera/src/features/browser/domain/browser_engine_models.dart';
 import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_command_palette_dialog.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
@@ -148,8 +146,6 @@ void main() {
 
     dispatcher.dispatch(.newTerminalTab);
     await tester.pump();
-    dispatcher.dispatch(.newBrowserTab);
-    await tester.pump();
 
     dispatcher.dispatch(.nextTab);
     dispatcher.dispatch(.previousTab);
@@ -161,7 +157,6 @@ void main() {
     await tester.pump();
 
     expect(controller.createdTerminalWorkspaceIds, <String>[workspace.id]);
-    expect(controller.createdBrowserWorkspaceIds, <String>[workspace.id]);
     expect(runtime.everFocusedTabIds, contains(newTab.id));
     expect(controller.selectedTabIds, <String>[
       firstTab.id,

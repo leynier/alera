@@ -29,15 +29,7 @@ mixin _WorkbenchControllerTabs
     try {
       _closingTabWorkspaceIds.add(workspace.id);
       for (final tabId in ids) {
-        final tab = state
-            .tabsFor(workspace.id)
-            .where((candidate) => candidate.id == tabId)
-            .firstOrNull;
-        if (tab?.kind == WorkspaceTabKind.browser) {
-          await _workspaceBrowserTabService.closeTab(tabId);
-        } else {
-          await _workspaceTabService.closeTab(tabId);
-        }
+        await _workspaceTabService.closeTab(tabId);
         final closedTab = closingTabs[tabId];
         if (closedTab != null) {
           await _releaseHostedReviewTab(workspace, closedTab);

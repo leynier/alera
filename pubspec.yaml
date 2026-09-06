@@ -49,8 +49,6 @@ dependencies:
   toml: ^0.18.0
   alera_native:
     path: rust_builder
-  alera_browser:
-    path: packages/alera_browser
   flutter_rust_bridge: 2.13.0
   flutter_directory_tree: ^1.0.0
   gpt_markdown: ^1.2.1

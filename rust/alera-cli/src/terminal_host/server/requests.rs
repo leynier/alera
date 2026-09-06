@@ -75,23 +75,6 @@ impl ServerActor {
                         );
                         return;
                     }
-                    if request_type.starts_with("browser.") {
-                        match self
-                            .handle_browser_request(client_id, id, &request_type, &payload)
-                            .await
-                        {
-                            // Routed calls are parked until the app driver
-                            // completes, times out, or disconnects.
-                            Ok(None) => return,
-                            Ok(Some(value)) => {
-                                self.client_write(client_id, ok_response(id, value));
-                            }
-                            Err(error) => {
-                                self.client_write(client_id, error_response(id, &error));
-                            }
-                        }
-                        return;
-                    }
                     match self
                         .try_start_deferred_request(client_id, id, &request_type, &payload)
                         .await
@@ -231,8 +214,7 @@ impl ServerActor {
                 let active_jobs = self.ssh_bootstrap_jobs.len()
                     + usize::from(self.managed_workspace_jobs > 0)
                     + self.coordinators.len()
-                    + self.mutation_queue.outstanding()
-                    + self.browser.active_jobs();
+                    + self.mutation_queue.outstanding();
                 let active_agents = self.agent_presence_items().as_array().map_or(0, Vec::len);
                 if !force {
                     if let Some(message) = host_shutdown_busy_message(
@@ -266,8 +248,7 @@ impl ServerActor {
                 let active_jobs = self.ssh_bootstrap_jobs.len()
                     + usize::from(self.managed_workspace_jobs > 0)
                     + self.coordinators.len()
-                    + self.mutation_queue.outstanding()
-                    + self.browser.active_jobs();
+                    + self.mutation_queue.outstanding();
                 let active_agents = self.agent_presence_items().as_array().map_or(0, Vec::len);
                 if !force {
                     if let Some(message) = host_shutdown_busy_message(

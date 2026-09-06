@@ -335,11 +335,6 @@ mixin _ProjectWorkbenchSidebarActions
         await ref
             .read(workbenchControllerProvider.notifier)
             .removeProject(project.id);
-        for (final workspace in workspaces) {
-          await ref
-              .read(browserSessionRegistryProvider)
-              .closeWorkspace(workspace.id);
-        }
         return _WorkbenchSidebarMutationResult.applied;
       },
     );

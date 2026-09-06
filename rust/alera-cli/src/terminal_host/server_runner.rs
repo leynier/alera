@@ -27,7 +27,7 @@ pub async fn run_terminal_host_server(
     let store = TerminalHostHistoryStore::open(&runtime_dir).await?;
     let runtime_store = RuntimeStore::open(&runtime_dir).await?;
     crate::hosted_review_retention::reconcile(&runtime_store).await;
-    runtime_store.ensure_default_browser_profile().await?;
+
     crate::automation_autostart::reconcile_runtime_autostart(&runtime_store, &runtime_dir).await;
     let account_push =
         account_push_state::AccountPushState::new(runtime_dir.clone(), runtime_store.clone())
@@ -62,6 +62,9 @@ pub async fn run_terminal_host_server(
     runtime_store
         .remove_workspace_tabs_with_kind("mobileEmulator")
         .await?;
+    runtime_store
+        .remove_workspace_tabs_with_kind("browser")
+        .await?;
     let mut actor = ServerActor {
         runtime_dir,
         control_file_path,
@@ -91,7 +94,6 @@ pub async fn run_terminal_host_server(
         coordinators: HashMap::new(),
         resources: ResourceMonitorState::default(),
         terminal_pulses: Default::default(),
-        browser: BrowserBroker::default(),
         codex: None,
         codex_starting: None,
         codex_presence: HashMap::new(),

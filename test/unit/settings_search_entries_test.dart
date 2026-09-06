@@ -21,7 +21,6 @@ void main() {
       'application': applicationSearchEntries,
       'agents': agentsSearchEntries,
       'keyboard': keyboardSearchEntries,
-      'browser': browserSearchEntries,
       'editor': editorSearchEntries,
       'aiAssist': aiAssistSearchEntries,
       'aiDictation': aiDictationSearchEntries,
@@ -31,7 +30,7 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      'f9ae765dc9bebbcefd6c05249678a86bb9d23f269d13fef6834cb5bb6132cb8a',
+      '1d4ae4abb19976bfd49c21b14c2f62e76ddd6f687bdd2d010de57be377f39a43',
     );
   });
 
@@ -101,13 +100,6 @@ void main() {
         query: 'sidebar',
         expected: <(String, String?)>[
           ('Show Tab Titles in Sidebar', 'behavior'),
-        ],
-      ),
-      (
-        entries: browserSearchEntries,
-        query: 'self signed',
-        expected: <(String, String?)>[
-          ('Trusted Local Certificates', 'certificates'),
         ],
       ),
       (

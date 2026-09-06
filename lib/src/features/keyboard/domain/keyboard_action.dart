@@ -59,7 +59,6 @@ enum KeyboardActionId {
   replaceInFiles,
   saveFile,
   newTerminalTab,
-  newBrowserTab,
   closeTab,
   nextTab,
   previousTab,
@@ -278,15 +277,6 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     description: 'Open a terminal tab in the active workspace.',
     defaultBindings: .uniform(<String>['Mod+T']),
     searchKeywords: <String>['terminal', 'shell'],
-  ),
-  KeybindingDefinition(
-    id: .newBrowserTab,
-    label: 'New Browser Tab',
-    group: .tabs,
-    description: 'Open a local browser tab in the active workspace.',
-    defaultBindings: .uniform(<String>['Mod+Shift+B']),
-    searchKeywords: <String>['browser', 'web', 'page'],
-    allowInTerminal: true,
   ),
   KeybindingDefinition(
     id: .closeTab,

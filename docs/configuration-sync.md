@@ -12,7 +12,7 @@ History lists the last 100 revisions. **Compare** loads an old revision into the
 
 ## Portable Data
 
-Desktop includes portable application preferences, terminal appearance and interaction, editor settings, keyboard overrides, browser search engine, AI preferences, text actions and agent profiles. The allowlist is `desktopPortableFields` in `packages/alera_configuration`. Keyboard defaults remain platform-specific; explicit `Mod` bindings remain portable. The runtime owns a persistent portable desktop document so a paired phone can operate without a desktop window after the desktop has seeded its preferences once.
+Desktop includes portable application preferences, terminal appearance and interaction, editor settings, keyboard overrides, AI preferences, text actions and agent profiles. The allowlist is `desktopPortableFields` in `packages/alera_configuration`. Keyboard defaults remain platform-specific; explicit `Mod` bindings remain portable. The runtime owns a persistent portable desktop document so a paired phone can operate without a desktop window after the desktop has seeded its preferences once.
 
 Phone configuration contains terminal quick keys, Codex preferences and portable dictation preferences. The most recently saved Codex preferences seed the phone's shared defaults; applying them also updates locally stored per-host preferences for subsequent use without uploading host ids. Active Codex conversations are not restarted. Desktop and phone blocks are distinct and unsupported blocks survive publishing from the other client.
 

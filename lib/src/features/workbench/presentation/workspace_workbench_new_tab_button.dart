@@ -1,11 +1,10 @@
 part of 'workspace_workbench_view.dart';
 
-enum _NewTabMenuAction { terminal, codex, browser }
+enum _NewTabMenuAction { terminal, codex }
 
 class const _NewTabButton({
   required final String groupId,
   required final VoidCallback onCreateTab,
-  required final VoidCallback? onCreateBrowserTab,
   required final VoidCallback? onCreateCodexTab,
 }) extends StatelessWidget {
   Future<void> _openMenu(BuildContext context) async {
@@ -50,16 +49,6 @@ class const _NewTabButton({
               ),
             ),
           ),
-        if (onCreateBrowserTab != null)
-          const AleraDropdownEntry<_NewTabMenuAction>(
-            value: .browser,
-            label: 'New Browser Tab',
-            leading: Icon(
-              AleraIcons.public,
-              size: 16,
-              color: AleraTokens.foregroundMuted,
-            ),
-          ),
       ],
     );
 
@@ -72,8 +61,6 @@ class const _NewTabButton({
         onCreateTab();
       case _NewTabMenuAction.codex:
         onCreateCodexTab?.call();
-      case _NewTabMenuAction.browser:
-        onCreateBrowserTab?.call();
     }
   }
 

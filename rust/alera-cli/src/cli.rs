@@ -5,13 +5,11 @@ use crate::terminal_host::protocol::{
 };
 mod agent_profile;
 mod automation;
-mod browser;
 mod mobile;
 mod workspace;
 
 pub use agent_profile::*;
 pub use automation::*;
-pub use browser::*;
 pub use mobile::*;
 pub use workspace::*;
 
@@ -65,9 +63,6 @@ pub enum Command {
 
     /// Manage mobile companion access and pairing.
     Mobile(MobileCommand),
-
-    /// Inspect and automate browser tabs owned by the Alera desktop app.
-    Browser(BrowserCommand),
 
     /// Manage runtime-local automations and their runs.
     Automation(AutomationCommand),

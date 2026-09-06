@@ -39,9 +39,6 @@ impl ServerActor {
         {
             blockers.push("Workspace has a live terminal session or process".to_string());
         }
-        if !close_sessions && self.browser.has_pages_for_workspace(&workspace_id) {
-            blockers.push("Workspace has a live browser session".to_string());
-        }
         self.managed_workspace_jobs += 1;
         self.cancel_shutdown_timer();
         let store = self.runtime_store.clone();

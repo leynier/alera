@@ -29,7 +29,7 @@ This file applies to release scripts, packaging helpers, updater manifest genera
 - `desktop_updater.yaml` owns pre-package platform signing and post-package descriptor signing. `release publish` produces one index fragment per platform, and `merge_desktop_update_indexes.dart` creates the three-platform channel index.
 - Alera never installs an update over an installation a package manager owns. Homebrew, Scoop, and Chocolatey are detected at runtime from the resolved executable path, and those installations take the same manual path Linux packages already take. Homebrew and Scoop additionally run their own upgrade command through a detached system shell that waits for Alera to exit and relaunches it; Chocolatey does not, because it needs elevation and the UAC prompt would appear with no window to explain it.
 - Stable auto-install is enabled for every platform except Linux, and does not wait on platform signing. The signed release descriptor and its per-artifact SHA-256 are what make an update safe to apply; a certificate changes what the OS shows on first launch, not whether the payload can be trusted.
-- Linux stable updates MUST remain manual, because a raw `dpkg` or `rpm` transaction does not resolve GTK, WebKit, and related system libraries.
+- Linux stable updates MUST remain manual, because a raw `dpkg` or `rpm` transaction does not resolve GTK and related system libraries.
 - RC or preview auto-install may be enabled only by explicit build flags.
 
 ## Signing Policy

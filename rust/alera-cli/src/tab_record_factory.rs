@@ -12,7 +12,6 @@ const SUPPORTED_TAB_KINDS: &[&str] = &[
     "markdownViewer",
     "pdf",
     "gitDiff",
-    "browser",
 ];
 
 pub(crate) fn tab_from_args(args: TabCreateArgs) -> Result<WorkspaceTabRecord, String> {
@@ -46,9 +45,6 @@ pub(crate) fn tab_from_args(args: TabCreateArgs) -> Result<WorkspaceTabRecord, S
         if args.spawn {
             payload.insert("spawnOnCreate".to_string(), json!(true));
         }
-    } else if kind == "browser" {
-        payload.insert("browserProfileId".to_string(), json!("default"));
-        payload.insert("browserUrl".to_string(), json!("about:blank"));
     }
     Ok(WorkspaceTabRecord {
         id: id.clone(),

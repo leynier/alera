@@ -43,7 +43,6 @@ use crate::terminal_host::sleep_detector::SleepDetector;
 
 use client_accept_loop::{display_socket_address, spawn_accept_loop};
 
-use browser_broker::BrowserBroker;
 use resource_requests::ResourceMonitorState;
 
 mod account_push_state;
@@ -86,17 +85,6 @@ mod automation_request_routes;
 mod automation_requests;
 mod automation_run_target_requests;
 mod automation_scheduler;
-mod browser_artifact_requests;
-mod browser_artifact_store;
-mod browser_broker;
-#[cfg(test)]
-mod browser_broker_tests;
-mod browser_catalog_requests;
-mod browser_driver_requests;
-mod browser_requests;
-mod browser_tab_requests;
-mod browser_tab_rollback;
-mod browser_url_privacy;
 mod client_accept_loop;
 mod client_delivery;
 mod codex_app_server;
@@ -280,7 +268,6 @@ struct ServerActor {
     coordinators: HashMap<String, CoordinatorHandle>,
     resources: ResourceMonitorState,
     terminal_pulses: terminal_pulse::TerminalPulseManager,
-    browser: BrowserBroker,
     codex: Option<codex_app_server::CodexAppServer>,
     codex_starting: Option<codex_server_startup::CodexServerStartup>,
     codex_presence: HashMap<String, Value>,
@@ -706,9 +693,6 @@ impl ServerActor {
                 self.handle_resource_sample_ready(snapshot)
             }
             ServerCommand::AutomationTick => self.handle_automation_tick().await,
-            ServerCommand::BrowserRequestTimeout { correlation_id } => {
-                self.handle_browser_timeout(&correlation_id)
-            }
             command @ (ServerCommand::CodexForkCreated { .. }
             | ServerCommand::CodexForkProjected { .. }
             | ServerCommand::CodexQueueStartupFinished { .. }
@@ -1212,7 +1196,6 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
             codex: None,
             codex_starting: None,
             codex_presence: HashMap::new(),
@@ -1294,7 +1277,6 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
             codex: None,
             codex_starting: None,
             codex_presence: HashMap::new(),
@@ -1394,7 +1376,6 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
             codex: None,
             codex_starting: None,
             codex_presence: HashMap::new(),
@@ -1489,7 +1470,6 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
             codex: None,
             codex_starting: None,
             codex_presence: HashMap::new(),
@@ -1606,7 +1586,6 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
             codex: None,
             codex_starting: None,
             codex_presence: HashMap::new(),
@@ -1696,7 +1675,6 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
             codex: None,
             codex_starting: None,
             codex_presence: HashMap::new(),

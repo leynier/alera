@@ -23,7 +23,6 @@ updates:
       - /
       - /mobile
       - /mobile/rust_builder
-      - /packages/alera_browser
       - /packages/alera_configuration
       - /rust_builder
       - /tool/release/runtime_packager

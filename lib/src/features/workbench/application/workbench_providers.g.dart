@@ -408,55 +408,6 @@ final class WorkspaceTabServiceProvider
 String _$workspaceTabServiceHash() =>
     r'fb00e54f6d99f27461ff806e7a51443a68e10bb6';
 
-@ProviderFor(workspaceBrowserTabService)
-final workspaceBrowserTabServiceProvider =
-    WorkspaceBrowserTabServiceProvider._();
-
-final class WorkspaceBrowserTabServiceProvider
-    extends
-        $FunctionalProvider<
-          WorkspaceBrowserTabService,
-          WorkspaceBrowserTabService,
-          WorkspaceBrowserTabService
-        >
-    with $Provider<WorkspaceBrowserTabService> {
-  WorkspaceBrowserTabServiceProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'workspaceBrowserTabServiceProvider',
-        isAutoDispose: false,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$workspaceBrowserTabServiceHash();
-
-  @$internal
-  @override
-  $ProviderElement<WorkspaceBrowserTabService> $createElement(
-    $ProviderPointer pointer,
-  ) => $ProviderElement(pointer);
-
-  @override
-  WorkspaceBrowserTabService create(Ref ref) {
-    return workspaceBrowserTabService(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(WorkspaceBrowserTabService value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<WorkspaceBrowserTabService>(value),
-    );
-  }
-}
-
-String _$workspaceBrowserTabServiceHash() =>
-    r'e0fe2e55a8cb5fb60c7e8c0364f4e45b1b550030';
-
 @ProviderFor(workspaceFileService)
 final workspaceFileServiceProvider = WorkspaceFileServiceProvider._();
 

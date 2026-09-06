@@ -31,17 +31,32 @@ void main() {
       expect(restored.isDisabled(.closeTab), isTrue);
     });
 
-    test('fromJson rejects unknown actions and invalid policy values', () {
+    test('fromJson rejects invalid policy values', () {
       expect(
         () => KeyboardShortcutSettings.fromJson(<String, Object?>{
           'terminalPolicy': 'nonsense',
           'overrides': <String, Object?>{
             'newTerminalTab': <String>['Mod+T'],
-            'thisActionDoesNotExist': <String>['Mod+Z'],
           },
         }),
         throwsA(isA<MapperException>()),
       );
+    });
+
+    test('fromJson skips unknown action overrides', () {
+      final restored = KeyboardShortcutSettings.fromJson(<String, Object?>{
+        'terminalPolicy': 'appFirst',
+        'overrides': <String, Object?>{
+          'newTerminalTab': <String>['Mod+T'],
+          'newBrowserTab': <String>['Mod+Shift+B'],
+        },
+      });
+      expect(restored.overrides.keys, <KeyboardActionId>[
+        KeyboardActionId.newTerminalTab,
+      ]);
+      expect(restored.overrides[KeyboardActionId.newTerminalTab], <String>[
+        'Mod+T',
+      ]);
     });
 
     test('copyWithOverride restores the default when given null', () {

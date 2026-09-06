@@ -3,8 +3,6 @@ import 'dart:io';
 
 import 'package:alera/src/features/agent_status/application/agent_status_providers.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_receiver.dart';
-import 'package:alera/src/features/browser/application/browser_providers.dart';
-import 'package:alera/src/features/browser/application/browser_session_registry.dart';
 import 'package:alera/src/app/dependencies.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/codex_chat/application/codex_composer_draft_store.dart';
@@ -33,7 +31,6 @@ import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
-import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native_files;
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
@@ -45,7 +42,6 @@ import 'package:path/path.dart' as p;
 
 import 'fake_git_backend.dart';
 import 'fake_project_config.dart';
-import 'features/browser/fake_browser_engine.dart';
 
 part 'workbench_controller_lifecycle_test_cases.dart';
 part 'workbench_controller_tab_focus_test_cases.dart';

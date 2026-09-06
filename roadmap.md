@@ -40,7 +40,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Terminal ligatures | 2 | 2 | Planned | Font ligature support in terminal rendering |
 | Ghostty settings import | 2 | 2 | Planned | Import terminal settings from Ghostty config files |
 | Terminal stream protocol | 4 | 3 | Shipped | Mobile companion streams terminal I/O over the runtime WebSocket gateway; desktop uses the host socket protocol |
-| Tab cycling & reopen closed tab | 2 | 4 | Partial | Next/previous tab and go-to-tab 1–9 shortcuts ship; browser tabs can reopen the 10 most recent closed pages, while general workspace-tab reopen remains |
+| Tab cycling & reopen closed tab | 2 | 4 | Partial | Next/previous tab and go-to-tab 1–9 shortcuts ship; general workspace-tab reopen remains |
 
 ---
 
@@ -101,16 +101,6 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Linear integration | 4 | 2 | Planned | Linear SDK, issue workspace, item drawer, team selection |
 | Alera account identity | 4 | 4 | Shipped | Optional Google and GitHub sign-in, linked verified identities, rotating Alera sessions, runtime ownership, mobile enrollment, and account deletion |
 | Multi-account support | 3 | 3 | Partial | Mobile retains multiple Alera account sessions; desktop provider-account switching and multiple simultaneous runtime identities are not implemented |
-
----
-
-## Browser
-
-| Feature | Difficulty | Utility | Status | Notes |
-|---|:---:|:---:|:---:|---|
-| Browser tab | 4 | 4 | Shipped | Persisted native browser tabs using WKWebView, WebView2, or WebKitGTK; Alera does not bundle Chromium or CEF |
-| Browser Use | 5 | 4 | Shipped | App-routed automation with snapshots, refs, click, fill, type, select, focus, hover, scroll, wait, local eval, screenshots, and PDF export |
-| Browser session profiles | 3 | 3 | Partial | Create, delete, switch, isolated storage, and atomic cookie import are shipped; profile cloning is not |
 
 ---
 
@@ -193,7 +183,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| Alera CLI | 4 | 4 | Shipped | Rust `alera` sidecar: `runtime`, `project`, `workspace`, `tag`, `tab`, `terminal`, `ssh-target`, `mobile`, `browser`, and `orchestration`; automations remain future |
+| Alera CLI | 4 | 4 | Shipped | Rust `alera` sidecar: `runtime`, `project`, `workspace`, `tag`, `tab`, `terminal`, `ssh-target`, `mobile`, and `orchestration`; automations remain future |
 
 ---
 
@@ -285,7 +275,7 @@ Features whose status or scope was checked against the current implementation:
 | Notification system | Partial |
 | Skills install controls | Partial |
 | Worktree metadata (rename/tags/pins) | Partial |
-| Tab cycling (browser reopen; general reopen pending) | Partial |
+| Tab cycling (general reopen pending) | Partial |
 | Open in file manager / browser | Partial |
 | External file watch foundation | Partial |
 | Activity projection (not full feed) | Partial |
@@ -293,9 +283,6 @@ Features whose status or scope was checked against the current implementation:
 | Agent registry (fixed set) | Partial |
 | Agent interrupt detection | Partial |
 | Managed agent profiles and trust controls | Shipped |
-| Browser tab | Shipped |
-| Browser Use | Shipped |
-| Browser session profiles | Partial |
 | Prompt-driven workspace creation | Shipped |
 | Crash reporting | Shipped |
 | Diagnostic bundles | Shipped |

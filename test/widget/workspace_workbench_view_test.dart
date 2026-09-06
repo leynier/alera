@@ -7,10 +7,6 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
-import 'package:alera/src/features/browser/application/browser_profile_service.dart';
-import 'package:alera/src/features/browser/application/browser_providers.dart';
-import 'package:alera/src/features/browser/application/browser_session_registry.dart';
-import 'package:alera/src/features/browser/domain/browser_profile.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_tab_attention.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
@@ -23,8 +19,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import '../unit/features/browser/fake_browser_engine.dart';
 
 part 'workspace_workbench_view_helper_test_cases.dart';
 part 'workspace_workbench_view_pane_test_cases.dart';

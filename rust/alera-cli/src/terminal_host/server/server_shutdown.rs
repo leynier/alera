@@ -1,4 +1,4 @@
-use super::{control_file, BrowserBroker, ServerActor};
+use super::{control_file, ServerActor};
 
 impl ServerActor {
     pub(super) async fn dispose(&mut self) {
@@ -16,7 +16,6 @@ impl ServerActor {
             handle.abort();
         }
         // Closing client handles ends their connection loops.
-        self.browser = BrowserBroker::default();
         self.clients.clear();
         let store = self.store.clone();
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();

@@ -68,38 +68,6 @@ mixin _WorkbenchControllerTabOpening
     }
   }
 
-  Future<WorkspaceTabRecord> createBrowserTab(
-    Workspace workspace, {
-    String? targetGroupId,
-    String? pageId,
-    String profileId = 'default',
-    String? initialUrl,
-  }) async {
-    try {
-      final previousTabs = state.tabsFor(workspace.id);
-      final layout = _layoutForMutation(workspace.id, previousTabs);
-      final tab = await _workspaceBrowserTabService.createTab(
-        workspace.id,
-        pageId: pageId,
-        profileId: profileId,
-        initialUrl: initialUrl,
-      );
-      final tabs = <WorkspaceTabRecord>[...previousTabs, tab];
-      _setTabsForWorkspace(workspace.id, tabs);
-      final groupId = targetGroupId ?? layout.activeGroupId;
-      final nextLayout = layout.addTabToGroup(groupId: groupId, tabId: tab.id);
-      await _applyLayout(nextLayout.sanitize(tabs), persist: true);
-      ref
-          .read(workspaceActivityControllerProvider.notifier)
-          .recordActivity(workspace.id, DateTime.now().toUtc());
-      state = state.copyWith(error: null);
-      return tab;
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
-      rethrow;
-    }
-  }
-
   Future<WorkspaceTabRecord> createCodexTab(
     Workspace workspace, {
     String? targetGroupId,

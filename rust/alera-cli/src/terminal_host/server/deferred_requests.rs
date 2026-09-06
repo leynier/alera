@@ -152,9 +152,6 @@ impl ServerActor {
                         "Workspace has a live terminal session or process",
                     ));
                 }
-                if !request.close_sessions && self.browser.has_pages_for_workspace(&request.id) {
-                    return Err(HostError::state("Workspace has a live browser session"));
-                }
                 let has_active_automation =
                     crate::managed_workspace::workspace_has_active_automation_owner(
                         &self.runtime_store,

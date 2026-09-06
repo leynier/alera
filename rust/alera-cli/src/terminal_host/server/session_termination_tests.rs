@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 
 use alera_core::runtime::WorkspaceTabRecord;
 use chrono::Utc;
@@ -8,7 +8,6 @@ use tokio::sync::mpsc::UnboundedReceiver;
 use crate::terminal_host::client::{ClientFrame, ClientHandle};
 
 use super::actor_test_harness::{local_client, test_actor};
-use super::browser_broker::{BrowserCall, BrowserDriver, BrowserPage};
 use super::{ServerActor, ServerCommand};
 
 fn workspace_tab(tab_id: &str, workspace_id: &str, kind: &str) -> WorkspaceTabRecord {
@@ -103,74 +102,4 @@ async fn tab_removal_deletes_the_record() {
 
     assert_eq!(response["ok"], true);
     assert!(!tab_exists(&actor, "editor-tab").await);
-}
-
-#[tokio::test]
-async fn successful_tab_removal_drains_pending_browser_calls() {
-    let dir = tempfile::tempdir().unwrap();
-    let mut tab = workspace_tab("browser-tab", "workspace", "browser");
-    tab.payload = json!({"browserProfileId": "default"});
-    let (mut actor, mut remover_rx) = actor_with_tab(&dir, &tab).await;
-    let (browser_handle, mut browser_rx) = ClientHandle::test_channels();
-    actor.clients.insert(2, local_client(browser_handle));
-    actor.browser.register_driver(BrowserDriver {
-        owner_client_id: 2,
-        app_instance_id: "app".to_string(),
-        driver_instance_id: "driver".to_string(),
-        engine: "test".to_string(),
-        platform: "test".to_string(),
-        capabilities: BTreeSet::new(),
-    });
-    let (page, _) = actor
-        .browser
-        .sync_page(
-            2,
-            BrowserPage {
-                tab_id: tab.id.clone(),
-                workspace_id: tab.workspace_id.clone(),
-                profile_id: "default".to_string(),
-                generation: 0,
-                document_generation: 1,
-                url: Some("https://example.com".to_string()),
-                title: Some("Example".to_string()),
-                capabilities: BTreeSet::new(),
-                owner_client_id: 2,
-            },
-        )
-        .unwrap();
-    actor
-        .browser
-        .enqueue(BrowserCall {
-            correlation_id: "pending-call".to_string(),
-            requester_client_id: 2,
-            requester_request_id: 91,
-            owner_client_id: 2,
-            request_type: "browser.snapshot".to_string(),
-            tab_id: tab.id.clone(),
-            generation: page.generation,
-            params: json!({"pageId": tab.id}),
-            deadline_at_ms: i64::MAX,
-        })
-        .unwrap();
-    let (inbox, mut inbox_rx) = tokio::sync::mpsc::unbounded_channel();
-    actor.inbox = inbox;
-
-    let response = request(
-        &mut actor,
-        &mut remover_rx,
-        &mut inbox_rx,
-        "tab.remove",
-        json!({"id": "browser-tab"}),
-    )
-    .await;
-
-    assert_eq!(response["ok"], true);
-    assert!(actor.browser.page("browser-tab").is_none());
-    assert_eq!(actor.browser.active_jobs(), 0);
-    let cancel = browser_rx.recv().await.unwrap().as_json().unwrap();
-    assert_eq!(cancel["event"], "browserDriverCancel");
-    assert_eq!(cancel["payload"]["correlationId"], "pending-call");
-    let failure = browser_rx.recv().await.unwrap().as_json().unwrap();
-    assert_eq!(failure["id"], 91);
-    assert_eq!(failure["payload"]["error"]["code"], "page_closed");
 }

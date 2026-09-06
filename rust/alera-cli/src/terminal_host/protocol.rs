@@ -127,14 +127,6 @@ pub const RUNTIME_HOST_DIAGNOSTICS_LOGS_CAPABILITY: &str = "hostDiagnosticsLogsV
 // restart. Additive, so clients feature-check this instead of the protocol
 // version; a host that lacks it is still fully usable.
 pub const RUNTIME_HOST_SHELL_ENVIRONMENT_RELOAD_CAPABILITY: &str = "shellEnvironmentReloadV1";
-/// Routes browser automation calls to the Flutter app connection that owns the
-/// live WebView page. This is additive and does not change terminal framing.
-pub const RUNTIME_HOST_BROWSER_AUTOMATION_ROUTING_CAPABILITY: &str = "browserAutomationRoutingV1";
-/// Stores browser profiles, history, closed tabs, permissions and typed search
-/// settings in the shared runtime catalog.
-pub const RUNTIME_HOST_BROWSER_PROFILES_CAPABILITY: &str = "browserProfilesV1";
-/// Stores exact local certificate fingerprints per browser profile.
-pub const RUNTIME_HOST_BROWSER_CERTIFICATE_TRUST_CAPABILITY: &str = "browserCertificateTrustV1";
 pub const RUNTIME_HOST_AUTOMATIONS_CAPABILITY: &str = "automationsV1";
 /// Native Codex chat tabs are additive. Clients advertise support for the tab
 /// kind separately so an older client never attempts to decode it.

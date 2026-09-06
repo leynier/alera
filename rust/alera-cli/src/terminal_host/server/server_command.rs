@@ -255,9 +255,6 @@ pub enum ServerCommand {
     },
     /// Wakes the durable automation scheduler to evaluate due occurrences.
     AutomationTick,
-    BrowserRequestTimeout {
-        correlation_id: String,
-    },
     /// A notification or server request emitted by the shared Codex process.
     CodexMessage {
         message: Value,

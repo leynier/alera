@@ -157,11 +157,6 @@ mixin _WorkbenchControllerProjects
       for (final tab in workspaceTabs) {
         ref.read(editorSessionRegistryProvider).forget(tab.id);
       }
-      if (ref.exists(browserSessionRegistryProvider)) {
-        await ref
-            .read(browserSessionRegistryProvider)
-            .closeWorkspace(workspace.id);
-      }
       for (final tab in workspaceTabs) {
         await _releaseHostedReviewTab(
           workspace,

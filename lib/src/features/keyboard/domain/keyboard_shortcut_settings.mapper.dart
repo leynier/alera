@@ -12,6 +12,9 @@ class KeyboardShortcutSettingsMapper
     extends ClassMapperBase<KeyboardShortcutSettings> {
   KeyboardShortcutSettingsMapper._();
 
+  @override
+  final MappingHook hook = const KeyboardShortcutSettingsDecodeHook();
+
   static KeyboardShortcutSettingsMapper? _instance;
   static KeyboardShortcutSettingsMapper ensureInitialized() {
     if (_instance == null) {

@@ -15,7 +15,6 @@ import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
-import 'package:alera/src/features/browser/presentation/browser_tab_surface.dart';
 import 'package:alera/src/features/codex_chat/presentation/codex_chat_surface.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_tab_attention.dart';
@@ -48,9 +47,6 @@ part 'workspace_workbench_tab_menu.dart';
 part 'workspace_workbench_resize_handle.dart';
 
 typedef CreateTerminalTabCallback = Future<void> Function({
-  String? targetGroupId,
-});
-typedef CreateBrowserTabCallback = Future<void> Function({
   String? targetGroupId,
 });
 typedef CreateCodexTabCallback = Future<void> Function({String? targetGroupId});
@@ -198,7 +194,6 @@ class const WorkspaceWorkbenchView({
   required final WorkbenchTabCompletionAcknowledgements
   completionAcknowledgements,
   required final CreateTerminalTabCallback onCreateTab,
-  required final CreateBrowserTabCallback? onCreateBrowserTab,
   final CreateCodexTabCallback? onCreateCodexTab,
   required final OpenFileTabCallback onOpenEditorTab,
   required final OpenFileTabCallback onOpenMarkdownViewerTab,
@@ -252,7 +247,6 @@ class _WorkspaceWorkbenchViewState extends State<WorkspaceWorkbenchView> {
           agentStatuses: widget.agentStatuses,
           completionAcknowledgements: widget.completionAcknowledgements,
           onCreateTab: widget.onCreateTab,
-          onCreateBrowserTab: widget.onCreateBrowserTab,
           onCreateCodexTab: widget.onCreateCodexTab,
           onOpenEditorTab: widget.onOpenEditorTab,
           onOpenMarkdownViewerTab: widget.onOpenMarkdownViewerTab,
@@ -316,14 +310,6 @@ class const _WorkbenchTabDragScope({
         .getElementForInheritedWidgetOfExactType<_WorkbenchTabDragScope>();
     final scope = element?.widget as _WorkbenchTabDragScope?;
     return scope!.notifier!;
-  }
-
-  static bool isActiveOf(BuildContext context) {
-    return context
-            .dependOnInheritedWidgetOfExactType<_WorkbenchTabDragScope>()
-            ?.notifier
-            ?.value ??
-        false;
   }
 }
 

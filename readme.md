@@ -160,7 +160,6 @@ Alera is shipping fast. A non-exhaustive list of what's on the roadmap:
 - **Mobile live transport expansion**: add file review and non-terminal tab surfaces to the mobile app
 - **Code editing with LSP support**: full editing with language-server autocomplete and diagnostics
 - **Git conflict resolution**: resolve merge conflicts visually with AI-assisted three-way merge
-- **Embedded browser & browser use**: give agents a real browser to drive
 - **More forge & tracker integrations**: Additional git forges, Linear, and issue-tracker linking per worktree
 - **Automations, MCP management, skills, and more**
 
@@ -172,7 +171,7 @@ See the full [roadmap](roadmap.md) for the complete picture, including difficult
 
 ### Linux
 
-Alera installs from a signed package repository so GTK, WebKit, and related system libraries resolve through your package manager. The same command installs and updates:
+Alera installs from a signed package repository so GTK and related system libraries resolve through your package manager. The same command installs and updates:
 
 ```bash
 curl -fsSL https://alera.build/install.sh | sh
@@ -184,7 +183,7 @@ Requires x86_64 and Ubuntu 24.04 or newer, Debian 13 or newer, or Fedora. openSU
 
 To add the repository by hand instead, see the manual setup on the [download page](https://alera.build/download). The signing key is published at `https://updates.alera.build/linux/alera-archive-keyring.asc` with fingerprint `5DE97E7CFE234A1C5869EC54708DA940734CF23A`.
 
-On a distribution with no package of ours, download `alera-<version>-linux-x64.tar.gz` from [GitHub Releases](https://github.com/leynier/alera/releases) and extract it somewhere you own, such as `~/.local/share/alera`. Install `webkit2gtk-4.1`, `gtk3`, and the Vulkan loader through your own package manager first, since a tarball declares no dependencies. Alera updates a tarball installation in place; a repository installation keeps updating through apt or dnf, which is what resolves those dependencies.
+On a distribution with no package of ours, download `alera-<version>-linux-x64.tar.gz` from [GitHub Releases](https://github.com/leynier/alera/releases) and extract it somewhere you own, such as `~/.local/share/alera`. Install `gtk3` and the Vulkan loader through your own package manager first, since a tarball declares no dependencies. Alera updates a tarball installation in place; a repository installation keeps updating through apt or dnf, which is what resolves those dependencies.
 
 ### macOS
 

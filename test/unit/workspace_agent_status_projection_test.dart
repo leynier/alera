@@ -77,18 +77,18 @@ void main() {
     });
 
     test('ignores non-terminal tabs and stale tab/session ids', () {
-      final browserTab = _tab('browser', kind: .browser);
+      final editorTab = _tab('editor', kind: .editor);
       final terminalTab = _tab('terminal');
       final mismatchedSessionTab = _tab('mismatched-session');
 
       final status = aggregateWorkspaceAgentStatus(
         tabs: <WorkspaceTabRecord>[
-          browserTab,
+          editorTab,
           terminalTab,
           mismatchedSessionTab,
         ],
         agentStatuses: <String, AgentStatusEntry>{
-          browserTab.terminalSessionId: _entry(browserTab, .blocked),
+          editorTab.terminalSessionId: _entry(editorTab, .blocked),
           terminalTab.terminalSessionId: _entry(
             terminalTab,
             .working,
