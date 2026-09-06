@@ -249,37 +249,6 @@ fn mobile_allowlist_includes_workspace_mutations() {
     assert!(mobile_request_allowed("mobile.promptImage.chunk"));
     assert!(mobile_request_allowed("mobile.promptImage.complete"));
     assert!(mobile_request_allowed("mobile.promptImage.cancel"));
-    for request in [
-        "codex.tab.create",
-        "codex.thread.open",
-        "codex.thread.list",
-        "codex.thread.resume",
-        "codex.thread.history",
-        "codex.thread.new",
-        "codex.thread.clear",
-        "codex.thread.snapshot",
-        "codex.thread.items.list",
-        "codex.goal.get",
-        "codex.goal.set",
-        "codex.goal.clear",
-        "codex.model.list",
-        "codex.collaborationModes.list",
-        "codex.skills.list",
-        "codex.apps.list",
-        "codex.turn.start",
-        "codex.turn.interrupt",
-        "codex.turn.steer",
-        "codex.thread.rename",
-        "codex.thread.compact",
-        "codex.review.branches",
-        "codex.review.start",
-        "codex.response",
-    ] {
-        assert!(
-            mobile_request_allowed(request),
-            "{request} should be allowed"
-        );
-    }
 }
 
 #[test]
@@ -298,6 +267,11 @@ fn mobile_allowlist_still_excludes_raw_and_admin_mutations() {
     assert!(!mobile_request_allowed("browser.capabilities"));
     assert!(!mobile_request_allowed("browser.tabs.open"));
     assert!(!mobile_request_allowed("browser.driver.register"));
+    assert!(!mobile_request_allowed("codex.tab.create"));
+    assert!(!mobile_request_allowed("codex.thread.open"));
+    assert!(!mobile_request_allowed("codex.thread.list"));
+    assert!(!mobile_request_allowed("codex.turn.start"));
+    assert!(!mobile_request_allowed("codex.response"));
     assert!(!mobile_request_allowed("account.status"));
     assert!(!mobile_request_allowed("account.signIn.start"));
     assert!(!mobile_request_allowed("account.signOut"));

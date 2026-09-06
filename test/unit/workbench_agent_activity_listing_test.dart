@@ -280,67 +280,6 @@ void main() {
     ]);
   });
 
-  test('an open Codex tab is active without a live agent status', () {
-    final prefs = WorkbenchViewPrefs.defaults.copyWith(
-      groupBy: .none,
-      workspaceSort: .activity,
-    );
-    final project = _project('p-alera', 'alera');
-    final active = _workspace('w-active', project.id, 'zebra');
-    final inactive = _workspace('w-inactive', project.id, 'alpha');
-    final state = WorkbenchState(
-      projects: <Project>[project],
-      workspacesByProject: <String, List<Workspace>>{
-        project.id: <Workspace>[inactive, active],
-      },
-      tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
-        active.id: <WorkspaceTabRecord>[_tab('c-active', active.id)],
-      },
-      viewPrefs: prefs,
-      bootstrapped: true,
-    );
-
-    expect(_workspaceIds(buildSidebarRows(state)), <String>[
-      'w-active',
-      'w-inactive',
-    ]);
-  });
-
-  test('a waiting Codex tab outranks a working terminal', () {
-    final prefs = WorkbenchViewPrefs.defaults.copyWith(
-      groupBy: .none,
-      workspaceSort: .activity,
-    );
-    final project = _project('p-alera', 'alera');
-    final working = _workspace('w-working', project.id, 'alpha');
-    final waiting = _workspace('w-waiting', project.id, 'zeta');
-    final workingTab = _tab('t-working', working.id);
-    final waitingTab = _tab('c-waiting', waiting.id);
-    final state = WorkbenchState(
-      projects: <Project>[project],
-      workspacesByProject: <String, List<Workspace>>{
-        project.id: <Workspace>[working, waiting],
-      },
-      tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
-        working.id: <WorkspaceTabRecord>[workingTab],
-        waiting.id: <WorkspaceTabRecord>[waitingTab],
-      },
-      viewPrefs: prefs,
-      bootstrapped: true,
-    );
-    final statuses = <String, AgentStatusEntry>{
-      workingTab.terminalSessionId: _status(workingTab, .working),
-      'codex:${waitingTab.id}': _status(waitingTab, .waiting),
-    };
-
-    expect(
-      _workspaceIds(
-        buildSidebarRows(state, agentStatuses: statuses, now: _now),
-      ),
-      <String>['w-waiting', 'w-working'],
-    );
-  });
-
   test('global pinned section keeps active workspaces first', () {
     final prefs = WorkbenchViewPrefs.defaults.copyWith(
       workspaceSort: .activity,
