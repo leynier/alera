@@ -60,8 +60,21 @@ async fn finish_spawn_validation(
 
 #[tokio::test]
 async fn workflow_launch_claim_restore_and_restart_never_duplicate_a_worker() {
-    let fixture = Fixture::with_command("", "echo workflow-launch-test").await;
+    let fixture =
+        Fixture::with_command("", "echo workflow-launch-test > workflow-launch-proof.txt").await;
     let (input, prepared) = prepared(&fixture).await;
+    let proof = std::path::PathBuf::from(
+        fixture
+            .store
+            .workflow_workspace(&input.workspace_id)
+            .await
+            .unwrap()
+            .identity
+            .workspace
+            .path,
+    )
+    .join("workflow-launch-proof.txt");
+    assert!(!proof.exists());
     let PreparedLaunch::Fresh {
         record,
         token,
@@ -129,25 +142,27 @@ async fn workflow_launch_claim_restore_and_restart_never_duplicate_a_worker() {
     // Run the real startup callback against a harmless echo command, never a model.
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
     let mut startup = false;
-    let mut echoed = false;
-    while let Ok(Some(event)) = tokio::time::timeout_at(deadline, events.recv()).await {
-        startup |= matches!(
-            event,
-            crate::terminal_host::server::ServerCommand::TerminalStartupInput { .. }
-        );
-        actor.handle(event).await;
-        echoed =
-            String::from_utf8_lossy(&actor.sessions[&record.terminal_handle].buffer.to_bytes())
-                .matches("workflow-launch-test")
-                .count()
-                >= 2;
-        if startup && echoed {
+    let mut executed = false;
+    while tokio::time::Instant::now() < deadline {
+        if let Ok(Some(event)) =
+            tokio::time::timeout(std::time::Duration::from_millis(50), events.recv()).await
+        {
+            startup |= matches!(
+                event,
+                crate::terminal_host::server::ServerCommand::TerminalStartupInput { .. }
+            );
+            actor.handle(event).await;
+        }
+        // ConPTY can repaint or suppress echoed input; a file proves execution
+        // without depending on the terminal's rendering or text encoding.
+        executed = std::fs::metadata(&proof).is_ok_and(|metadata| metadata.len() > 0);
+        if startup && executed {
             break;
         }
     }
     assert!(
-        startup && echoed,
-        "the harmless command must execute, not just create a PTY"
+        startup && executed,
+        "the harmless command must execute, not just create a PTY (startup={startup}, executed={executed})"
     );
     let dispatch = fixture
         .store
