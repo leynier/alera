@@ -15,8 +15,10 @@ use windows::Win32::System::Threading::{
     CreateEventW, SetEvent, TerminateProcess, WaitForSingleObject,
 };
 
+#[cfg(not(test))]
+use crate::pty_job_bootstrap::BOOTSTRAP_ARGUMENT;
 use crate::pty_job_bootstrap::{
-    BOOTSTRAP_ARGUMENT, BOOTSTRAP_EVENT_ENV, BOOTSTRAP_PARENT_PID_ENV, BOOTSTRAP_REQUEST_ENV,
+    BOOTSTRAP_EVENT_ENV, BOOTSTRAP_PARENT_PID_ENV, BOOTSTRAP_REQUEST_ENV,
 };
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::TerminalHostLaunch;
@@ -91,7 +93,16 @@ impl WindowsProcessJob {
         }))
         .map_err(|error| HostError::state(format!("failed to encode PTY launch: {error}")))?;
         let mut command = CommandBuilder::new(executable);
+        #[cfg(not(test))]
         command.arg(BOOTSTRAP_ARGUMENT);
+        // libtest replaces main, so route the child through a test entrypoint
+        // that executes the same gated bootstrap as the shipped binary.
+        #[cfg(test)]
+        {
+            command.arg("--exact");
+            command.arg("pty_job_bootstrap::tests::terminal_bootstrap_child");
+            command.arg("--nocapture");
+        }
         command.env_clear();
         for (key, value) in &launch.environment {
             command.env(key, value);

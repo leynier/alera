@@ -113,6 +113,14 @@ pub(crate) fn wait_for_release() -> Result<(), String> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn terminal_bootstrap_child() {
+        if std::env::var_os(BOOTSTRAP_REQUEST_ENV).is_none() {
+            return;
+        }
+        std::process::exit(run());
+    }
+
     /// Helper process for the Job Object integration test. A normal test run
     /// returns without spawning anything; the parent test opts in explicitly.
     #[test]
