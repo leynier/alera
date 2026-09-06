@@ -48,7 +48,9 @@ impl ServerActor {
             "workflows.catalog"
             | "workflows.recipe"
             | "workflows.validateRecipe"
-            | "workflows.savePersonalRecipe" => {
+            | "workflows.savePersonalRecipe"
+            | "workflows.previewRecipeExport"
+            | "workflows.applyRecipeExport" => {
                 self.start_workflow_catalog_request(client_id, request_id, request_type, payload)?;
                 Ok(true)
             }
