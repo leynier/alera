@@ -427,9 +427,6 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
   @override
   final String id = 'WorkbenchViewPrefs';
 
-  @override
-  final MappingHook hook = const WorkbenchViewPrefsDecodeHook();
-
   static WorkbenchSortBy _$sectionSort(WorkbenchViewPrefs v) => v.sectionSort;
   static const Field<WorkbenchViewPrefs, WorkbenchSortBy> _f$sectionSort =
       Field('sectionSort', _$sectionSort, opt: true, def: WorkbenchSortBy.name);
@@ -645,6 +642,8 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     #showActiveWorkspacesOnly: _f$showActiveWorkspacesOnly,
   };
 
+  @override
+  final MappingHook hook = const WorkbenchViewPrefsDecodeHook();
   static WorkbenchViewPrefs _instantiate(DecodingData data) {
     return WorkbenchViewPrefs(
       sectionSort: data.dec(_f$sectionSort),

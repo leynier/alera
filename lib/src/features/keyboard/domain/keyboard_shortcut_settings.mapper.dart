@@ -12,9 +12,6 @@ class KeyboardShortcutSettingsMapper
     extends ClassMapperBase<KeyboardShortcutSettings> {
   KeyboardShortcutSettingsMapper._();
 
-  @override
-  final MappingHook hook = const KeyboardShortcutSettingsDecodeHook();
-
   static KeyboardShortcutSettingsMapper? _instance;
   static KeyboardShortcutSettingsMapper ensureInitialized() {
     if (_instance == null) {
@@ -59,6 +56,8 @@ class KeyboardShortcutSettingsMapper
     #terminalPolicy: _f$terminalPolicy,
   };
 
+  @override
+  final MappingHook hook = const KeyboardShortcutSettingsDecodeHook();
   static KeyboardShortcutSettings _instantiate(DecodingData data) {
     return KeyboardShortcutSettings(
       overrides: data.dec(_f$overrides),
