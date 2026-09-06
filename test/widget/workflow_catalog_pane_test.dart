@@ -56,54 +56,65 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  for (final newerDraft in [false, true]) {
-    testWidgets('save after closing reconciles draft, newer=$newerDraft', (
-      tester,
-    ) async {
-      final pending = Completer<Map<String, Object?>>();
-      final repository = CatalogTestRepository()..pendingSave = pending;
-      final container = ProviderContainer(
-        overrides: [
-          workflowCatalogRepositoryProvider.overrideWithValue(repository),
-          workbenchControllerProvider.overrideWith(BoardTestWorkbench.new),
-        ],
-      );
-      addTearDown(container.dispose);
-      Widget app(Widget child) => UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          theme: buildAleraDarkTheme(),
-          home: Scaffold(body: child),
-        ),
-      );
-      await tester.pumpWidget(app(const WorkflowCatalogPane()));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Feature Delivery'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Edit Personal'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Save Personal'));
-      await tester.pump();
-      expect(repository.saves, 1);
-      await tester.pumpWidget(app(const SizedBox()));
-      if (newerDraft) {
+  for (final (newerDraft, copy) in [
+    (false, false),
+    (true, false),
+    (true, true),
+  ]) {
+    testWidgets(
+      'save after closing reconciles draft, newer=$newerDraft copy=$copy',
+      (tester) async {
+        final pending = Completer<Map<String, Object?>>();
+        final repository = CatalogTestRepository()..pendingSave = pending;
+        final container = ProviderContainer(
+          overrides: [
+            workflowCatalogRepositoryProvider.overrideWithValue(repository),
+            workbenchControllerProvider.overrideWith(BoardTestWorkbench.new),
+          ],
+        );
+        addTearDown(container.dispose);
+        Widget app(Widget child) => UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAleraDarkTheme(),
+            home: Scaffold(body: child),
+          ),
+        );
         await tester.pumpWidget(app(const WorkflowCatalogPane()));
         await tester.pumpAndSettle();
-        await tester.enterText(
-          find.widgetWithText(TextField, 'portable document'),
-          'newer draft',
+        await tester.tap(find.text('Feature Delivery'));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.text(copy ? 'Copy To Personal' : 'Edit Personal'),
         );
-      }
-      final retained = container.read(workflowCatalogDraftProvider);
-      pending.complete({...workflowCatalogRecord, 'catalogRevision': 4});
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-      expect(
-        container.read(workflowCatalogDraftProvider),
-        newerDraft ? same(retained) : isNull,
-      );
-      if (newerDraft) expect(find.text('newer draft'), findsOneWidget);
-    });
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Save Personal'));
+        await tester.pump();
+        expect(repository.saves, 1);
+        await tester.pumpWidget(app(const SizedBox()));
+        await tester.pumpWidget(app(const WorkflowCatalogPane()));
+        await tester.pumpAndSettle();
+        if (newerDraft) {
+          await tester.enterText(
+            find.widgetWithText(TextField, 'portable document'),
+            'newer draft',
+          );
+        }
+        pending.complete({...workflowCatalogRecord, 'catalogRevision': 4});
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(container.read(workflowCatalogDraftProvider)!.revision, 4);
+        expect(find.textContaining('Catalog Revision 4'), findsOneWidget);
+        if (newerDraft) expect(find.text('newer draft'), findsOneWidget);
+        repository.pendingSave = null;
+        repository.requiredRevision = 4;
+        await tester.tap(find.text('Save Personal'));
+        await tester.pumpAndSettle();
+        expect(repository.savedRevisions, [copy ? null : 3, 4]);
+        expect(find.text('Personal recipe saved.'), findsOneWidget);
+        expect(container.read(workflowCatalogDraftProvider), isNull);
+      },
+    );
   }
 
   testWidgets('failed save preserves edit and navigation retains draft', (

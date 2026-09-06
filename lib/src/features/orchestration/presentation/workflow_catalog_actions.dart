@@ -4,6 +4,7 @@ extension _WorkflowCatalogActions on _WorkflowCatalogPaneState {
   void _beginEdit({required bool copy}) {
     _change(() {
       _editing = true;
+      _editSession = Object();
       _editRevision = copy ? null : _selected!['catalogRevision'] as int?;
       _notice = copy
           ? 'Choose a unique recipe id before saving if a Personal recipe already uses this id.'
@@ -35,7 +36,7 @@ extension _WorkflowCatalogActions on _WorkflowCatalogPaneState {
       }
     }
     final record = await repository.save(text, revision);
-    drafts.clearIfCurrent(submitted);
+    final reconciled = drafts.reconcileSaved(submitted, record);
     if (!mounted) return;
     final document = await repository.document(record['recipe']);
     if (!mounted) return;
@@ -45,6 +46,7 @@ extension _WorkflowCatalogActions on _WorkflowCatalogPaneState {
       _document.text = document;
       _notice = 'Personal recipe saved.';
     });
+    drafts.clearIfCurrent(reconciled);
     final catalog = await _repository.list(_workspaceId);
     if (mounted) {
       _change(

@@ -43,6 +43,8 @@ class CatalogTestRepository extends WorkflowCatalogRepository {
   String? validatedId;
   Completer<Map<String, Object?>>? pendingSave;
   List<Map<String, Object?>>? entries;
+  final savedRevisions = <int?>[];
+  int? requiredRevision;
   @override
   Future<Map<String, Object?>> list(String? workspaceId) async {
     if (failure != null) throw failure!;
@@ -70,9 +72,13 @@ class CatalogTestRepository extends WorkflowCatalogRepository {
   @override
   Future<Map<String, Object?>> save(String document, int? revision) async {
     saves++;
+    savedRevisions.add(revision);
     if (pendingSave != null) return pendingSave!.future;
+    if (requiredRevision != null && revision != requiredRevision) {
+      throw StateError('Stale revision');
+    }
     if (failure != null) throw failure!;
-    return workflowCatalogRecord;
+    return {...workflowCatalogRecord, 'catalogRevision': (revision ?? 0) + 1};
   }
 }
 

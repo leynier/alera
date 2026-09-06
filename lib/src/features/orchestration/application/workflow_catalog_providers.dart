@@ -14,11 +14,13 @@ class WorkflowCatalogEdit {
     this.document,
     this.revision,
     this.workspaceId,
+    this.session,
   );
   final Map<String, Object?> record;
   final String document;
   final int? revision;
   final String? workspaceId;
+  final Object session;
 }
 
 // One user-owned draft survives navigating between Settings sections. It is
@@ -29,6 +31,30 @@ class WorkflowCatalogDraft extends _$WorkflowCatalogDraft {
   WorkflowCatalogEdit? build() => null;
 
   void retain(WorkflowCatalogEdit? draft) => state = draft;
+
+  WorkflowCatalogEdit? reconcileSaved(
+    WorkflowCatalogEdit? submitted,
+    Map<String, Object?> record,
+  ) {
+    if (!ref.mounted) return null;
+    final current = state;
+    if (submitted == null ||
+        current == null ||
+        !identical(current.session, submitted.session) ||
+        !identical(current.record, submitted.record) ||
+        current.revision != submitted.revision) {
+      return null;
+    }
+    final reconciled = WorkflowCatalogEdit(
+      record,
+      current.document,
+      record['catalogRevision']! as int,
+      current.workspaceId,
+      current.session,
+    );
+    state = reconciled;
+    return reconciled;
+  }
 
   void clearIfCurrent(WorkflowCatalogEdit? submitted) {
     if (ref.mounted && identical(state, submitted)) state = null;

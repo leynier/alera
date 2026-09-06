@@ -36,6 +36,7 @@ class _WorkflowCatalogPaneState extends ConsumerState<WorkflowCatalogPane> {
   bool _editing = false;
   bool _exporting = false;
   int? _editRevision;
+  Object _editSession = Object();
 
   WorkflowCatalogRepository get _repository =>
       ref.read(workflowCatalogRepositoryProvider);
@@ -51,6 +52,7 @@ class _WorkflowCatalogPaneState extends ConsumerState<WorkflowCatalogPane> {
       _selected = draft.record;
       _document.text = draft.document;
       _editRevision = draft.revision;
+      _editSession = draft.session;
       _workspaceId = draft.workspaceId;
       _editing = true;
     }
@@ -68,6 +70,7 @@ class _WorkflowCatalogPaneState extends ConsumerState<WorkflowCatalogPane> {
             _document.text,
             _editRevision,
             _workspaceId,
+            _editSession,
           ),
         );
   }
@@ -125,6 +128,18 @@ class _WorkflowCatalogPaneState extends ConsumerState<WorkflowCatalogPane> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(workflowCatalogDraftProvider, (previous, next) {
+      if (!_editing || next == null || !identical(next.session, _editSession)) {
+        return;
+      }
+      if (!identical(next.record, _selected) ||
+          next.revision != _editRevision) {
+        setState(() {
+          _selected = next.record;
+          _editRevision = next.revision;
+        });
+      }
+    });
     final state = ref.watch(workbenchControllerProvider);
     final workspaces = state.workspacesByProject.values
         .expand((items) => items)
