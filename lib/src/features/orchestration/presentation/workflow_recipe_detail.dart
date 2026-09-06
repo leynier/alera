@@ -22,6 +22,11 @@ class WorkflowRecipeDetail extends StatelessWidget {
     required this.onApply,
     required this.onFilenameChanged,
     required this.onOpen,
+    this.recovery,
+    this.onReviewCurrent,
+    this.onKeepDraft,
+    this.onUseCurrent,
+    this.onCancelReview,
   });
 
   final Map<String, Object?> record;
@@ -34,6 +39,11 @@ class WorkflowRecipeDetail extends StatelessWidget {
   final VoidCallback onEdit, onCopy, onValidate, onSave, onCancel;
   final VoidCallback? onExport, onPreview, onApply, onOpen;
   final ValueChanged<String> onFilenameChanged;
+  final Map<String, Object?>? recovery;
+  final VoidCallback? onReviewCurrent,
+      onKeepDraft,
+      onUseCurrent,
+      onCancelReview;
 
   @override
   Widget build(BuildContext context) {
@@ -99,13 +109,18 @@ class WorkflowRecipeDetail extends StatelessWidget {
               runSpacing: AleraTokens.space8,
               children: [
                 FilledButton(
-                  onPressed: busy ? null : onSave,
+                  onPressed: busy || recovery != null ? null : onSave,
                   child: const Text('Save Personal'),
                 ),
                 OutlinedButton(
                   onPressed: busy ? null : onValidate,
                   child: const Text('Validate'),
                 ),
+                if (onReviewCurrent != null)
+                  OutlinedButton(
+                    onPressed: busy ? null : onReviewCurrent,
+                    child: const Text('Review Current Recipe'),
+                  ),
                 TextButton(
                   onPressed: busy ? null : onCancel,
                   child: const Text('Discard Edit'),
@@ -113,9 +128,45 @@ class WorkflowRecipeDetail extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AleraTokens.space12),
+            if (recovery != null) ...[
+              SelectableText(
+                '${_map(_map(recovery!['record'])['source'])['id']}',
+                style: AleraTokens.monoStyle,
+              ),
+              Text(
+                'Current Personal Revision ${_map(recovery!['record'])['catalogRevision']}',
+              ),
+              const Text(
+                'Review the current version against your draft. Keeping your draft changes only its base revision until you save.',
+              ),
+              const SizedBox(height: AleraTokens.space8),
+              SelectableText(
+                recovery!['diff'] as String? ?? '',
+                style: AleraTokens.monoStyle,
+              ),
+              Wrap(
+                spacing: AleraTokens.space8,
+                runSpacing: AleraTokens.space8,
+                children: [
+                  FilledButton(
+                    onPressed: busy ? null : onKeepDraft,
+                    child: const Text('Keep My Draft'),
+                  ),
+                  OutlinedButton(
+                    onPressed: busy ? null : onUseCurrent,
+                    child: const Text('Use Current Version'),
+                  ),
+                  TextButton(
+                    onPressed: busy ? null : onCancelReview,
+                    child: const Text('Cancel Review'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AleraTokens.space12),
+            ],
             TextField(
               controller: document,
-              readOnly: busy,
+              readOnly: busy || recovery != null,
               minLines: 12,
               maxLines: 24,
               style: AleraTokens.monoStyle,

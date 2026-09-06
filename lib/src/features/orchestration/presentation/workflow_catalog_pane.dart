@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'workflow_recipe_detail.dart';
 
 part 'workflow_catalog_actions.dart';
+part 'workflow_catalog_recovery.dart';
 
 class WorkflowCatalogPane extends ConsumerStatefulWidget {
   const WorkflowCatalogPane({super.key});
@@ -27,6 +28,8 @@ class _WorkflowCatalogPaneState extends ConsumerState<WorkflowCatalogPane> {
   List<Map<String, Object?>> _entries = [];
   Map<String, Object?>? _selected;
   Map<String, Object?>? _preview;
+  Map<String, Object?>? _recovery;
+  WorkflowCatalogEdit? _recoveryDraft;
   String? _workspaceId;
   String? _error;
   String? _projectError;
@@ -137,6 +140,8 @@ class _WorkflowCatalogPaneState extends ConsumerState<WorkflowCatalogPane> {
         setState(() {
           _selected = next.record;
           _editRevision = next.revision;
+          _recovery = null;
+          _recoveryDraft = null;
         });
       }
     });
@@ -197,6 +202,14 @@ class _WorkflowCatalogPaneState extends ConsumerState<WorkflowCatalogPane> {
             onOpen: _object(selected['source'])['origin'] == 'project'
                 ? _open
                 : null,
+            recovery: _recovery,
+            onReviewCurrent: _reviewCurrent,
+            onKeepDraft: () => _useReviewedRecipe(useCurrent: false),
+            onUseCurrent: () => _useReviewedRecipe(useCurrent: true),
+            onCancelReview: () => setState(() {
+              _recovery = null;
+              _recoveryDraft = null;
+            }),
           );
     return Padding(
       padding: const EdgeInsets.all(AleraTokens.space16),

@@ -45,6 +45,11 @@ class CatalogTestRepository extends WorkflowCatalogRepository {
   List<Map<String, Object?>>? entries;
   final savedRevisions = <int?>[];
   int? requiredRevision;
+  Map<String, Object?>? personalReview;
+  Completer<Map<String, Object?>>? pendingReview;
+  @override
+  Future<Map<String, Object?>> reviewPersonal(String draft) async =>
+      pendingReview?.future ?? personalReview!;
   @override
   Future<Map<String, Object?>> list(String? workspaceId) async {
     if (failure != null) throw failure!;

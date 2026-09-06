@@ -5,6 +5,55 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  for (final (exists, matches) in [
+    (false, false),
+    (true, false),
+    (true, true),
+  ]) {
+    test(
+      'personal recovery reads candidate id, exists=$exists matches=$matches',
+      () async {
+        final client = _Client()
+          ..responses = {
+            'workflows.validateRecipe': {
+              'recipe': {'id': 'candidate'},
+              'digest': 'draft',
+            },
+            'workflows.catalog': {
+              'entries': [
+                if (exists)
+                  {
+                    'source': {'origin': 'personal', 'id': 'candidate'},
+                  },
+              ],
+            },
+            'workflows.recipe': {
+              'source': {'origin': 'personal', 'id': 'candidate'},
+              'recipe': {'id': 'candidate'},
+              'catalogRevision': 4,
+              'digest': matches ? 'draft' : 'different',
+            },
+          };
+        final result = await WorkflowCatalogRepository(client)
+            .reviewPersonal('draft');
+        expect(client.verbs, [
+          'workflows.validateRecipe',
+          'workflows.catalog',
+          if (exists) 'workflows.recipe',
+        ]);
+        expect(result['id'], 'candidate');
+        if (exists) {
+          expect(client.payload, {
+            'source': {'origin': 'personal', 'id': 'candidate'},
+          });
+          expect(result['matches'], matches);
+        } else {
+          expect(result['missing'], true);
+        }
+      },
+    );
+  }
+
   test('large portable documents fall back to compact UTF-8 JSON', () async {
     final recipe = {
       'contracts': [
@@ -82,6 +131,7 @@ class _Client implements RuntimeHostClient, RuntimeHostCapabilityClient {
   final verbs = <String>[];
   Map<String, Object?> payload = {};
   Map<String, Object?> response = {};
+  Map<String, Map<String, Object?>> responses = {};
   @override
   Future<bool> supportsRuntimeCapability(String capability) async {
     capabilities.add(capability);
@@ -96,7 +146,7 @@ class _Client implements RuntimeHostClient, RuntimeHostCapabilityClient {
   ]) async {
     verbs.add(verb);
     this.payload = payload;
-    return response;
+    return responses[verb] ?? response;
   }
 
   @override

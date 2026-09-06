@@ -5,6 +5,8 @@ extension _WorkflowCatalogActions on _WorkflowCatalogPaneState {
     _change(() {
       _editing = true;
       _editSession = Object();
+      _recovery = null;
+      _recoveryDraft = null;
       _editRevision = copy ? null : _selected!['catalogRevision'] as int?;
       _notice = copy
           ? 'Choose a unique recipe id before saving if a Personal recipe already uses this id.'
@@ -63,6 +65,8 @@ extension _WorkflowCatalogActions on _WorkflowCatalogPaneState {
         _editing = false;
         _exporting = false;
         _preview = null;
+        _recovery = null;
+        _recoveryDraft = null;
       });
       ref.read(workflowCatalogDraftProvider.notifier).retain(null);
     }

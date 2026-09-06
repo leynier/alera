@@ -31,8 +31,12 @@ void main() {
           ..addFont(rootBundle.load('assets/fonts/JetBrainsMono-Variable.ttf')))
         .load();
   });
-  for (final width in [1100.0, 420.0]) {
-    testWidgets('catalog visual at $width', (tester) async {
+  for (final (width, recovery) in [
+    (1100.0, false),
+    (420.0, false),
+    (420.0, true),
+  ]) {
+    testWidgets('catalog visual at $width recovery=$recovery', (tester) async {
       await tester.binding.setSurfaceSize(Size(width, 850));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       final boundaryKey = GlobalKey();
@@ -40,7 +44,14 @@ void main() {
         ProviderScope(
           overrides: [
             workflowCatalogRepositoryProvider.overrideWithValue(
-              CatalogTestRepository(),
+              CatalogTestRepository()
+                ..personalReview = {
+                  'id': 'feature-delivery',
+                  'record': {...workflowCatalogRecord, 'catalogRevision': 4},
+                  'document': 'Current definition',
+                  'diff': '-Purpose: Review the foundation\n+Purpose: Validate the complete product',
+                  'matches': false,
+                },
             ),
             workbenchControllerProvider.overrideWith(BoardTestWorkbench.new),
           ],
@@ -62,6 +73,16 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Feature Delivery'));
       await tester.pumpAndSettle();
+      if (recovery) {
+        await tester.ensureVisible(find.text('Edit Personal'));
+        await tester.tap(find.text('Edit Personal'));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('Review Current Recipe'));
+        await tester.tap(find.text('Review Current Recipe'));
+        await tester.pumpAndSettle();
+          await tester.ensureVisible(find.text('feature-delivery'));
+        await tester.pumpAndSettle();
+      }
       expect(tester.takeException(), isNull);
       final directory = Platform.environment['ALERA_WORKFLOW_VISUAL_DIR'];
       if (directory == null) return;
@@ -72,8 +93,9 @@ void main() {
         final image = await boundary.toImage();
         final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
         await Directory(directory).create(recursive: true);
-        await File('$directory/catalog-${width.toInt()}.png')
-            .writeAsBytes(bytes!.buffer.asUint8List());
+        await File(
+          '$directory/catalog-${recovery ? 'recovery-' : ''}${width.toInt()}.png',
+        ).writeAsBytes(bytes!.buffer.asUint8List());
         image.dispose();
       });
     });

@@ -51,6 +51,31 @@ class WorkflowCatalogRepository {
     {'document': document, 'expectedRevision': ?revision},
   );
 
+  Future<Map<String, Object?>> reviewPersonal(String draft) async {
+    final validated = await validate(draft);
+    final id = (validated['recipe']! as Map)['id']! as String;
+    final catalog = await list(null);
+    final exists = (catalog['entries']! as List).any((entry) {
+      final source = (entry as Map)['source']! as Map;
+      return source['origin'] == 'personal' && source['id'] == id;
+    });
+    if (!exists) return {'id': id, 'missing': true};
+    final record = await read({'origin': 'personal', 'id': id});
+    final current = await document(record['recipe']);
+    final proposed = await document(validated['recipe']);
+    return {
+      'id': id,
+      'record': record,
+      'document': current,
+      'matches':
+          record['digest'] is String && record['digest'] == validated['digest'],
+      'diff': await compute(_exportDiff, {
+        'before': current,
+        'after': proposed,
+      }),
+    };
+  }
+
   Future<Map<String, Object?>> export({
     required String workspaceId,
     required String filename,
