@@ -41,7 +41,6 @@ part 'mobile_runtime_relay_authorization.dart';
 part 'mobile_runtime_dictation_requests.dart';
 part 'mobile_runtime_terminal_requests.dart';
 part 'mobile_terminal_output_resync.dart';
-part 'mobile_runtime_codex_requests.dart';
 part 'mobile_runtime_codex_workspace_requests.dart';
 
 class MobileRuntimeClient._(
@@ -57,13 +56,11 @@ class MobileRuntimeClient._(
         MobileRuntimeDictationRequests,
         MobileRuntimeTerminalRequests,
         MobileRuntimeTerminalOutputResync,
-        MobileRuntimeCodexRequests,
         MobileRuntimeCodexWorkspaceRequests
     implements
         MobileTerminalClient,
         MobileWorkspaceClient,
         MobileAgentTitleClient,
-        MobileCodexClient,
         MobileCodexWorkspaceClient {
   this {
     _subscription = _channel.stream.listen(
@@ -188,18 +185,6 @@ class MobileRuntimeClient._(
   @override
   bool get supportsPromptImageUpload =>
       _runtimeCapabilities.contains(mobilePromptImageUploadCapability);
-  @override
-  bool get supportsCodexChat =>
-      _runtimeCapabilities.contains(codexChatTabCapability);
-  @override
-  bool get supportsCodexGoals =>
-      _runtimeCapabilities.contains(codexGoalsCapability);
-  @override
-  bool get supportsCodexSessions =>
-      _runtimeCapabilities.contains(mobileCodexSessionsCapability);
-  @override
-  bool get supportsCodexTurnPolicy =>
-      _runtimeCapabilities.contains(codexTurnPolicyCapability);
 
   bool get supportsAutomations =>
       _runtimeCapabilities.contains(automationsCapability);
@@ -217,7 +202,7 @@ class MobileRuntimeClient._(
       'deviceToken': deviceToken,
       'cloudDeviceId': ?cloudDeviceId,
       'binaryFrames': true,
-      'supportedTabKinds': const <String>['codex'],
+      'supportedTabKinds': const <String>[],
     });
     _runtimeCapabilities = payload.stringList('runtimeCapabilities').toSet();
     // The response decides, not the request: an older runtime simply omits it

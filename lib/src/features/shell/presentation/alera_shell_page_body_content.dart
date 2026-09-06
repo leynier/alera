@@ -66,12 +66,6 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
                 .sessionFor(workspace: workspace, tab: tab)
                 .requestFocus();
           },
-          onCreateCodexTab: ({targetGroupId}) async {
-            await controller.createCodexTab(
-              workspace,
-              targetGroupId: targetGroupId,
-            );
-          },
           onOpenEditorTab: ({required relativePath, targetGroupId}) async {
             await controller.openEditorTab(
               workspace: workspace,

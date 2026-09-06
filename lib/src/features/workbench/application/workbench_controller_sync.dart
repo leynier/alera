@@ -10,7 +10,6 @@ mixin _WorkbenchControllerSync
   /// termination request for sessions this client no longer owns.
   void _releaseRetiredWorkspaceSessions(String workspaceId) {
     _tabFocusHistory.forget(workspaceId);
-    _removeCodexDrafts(state.tabsFor(workspaceId));
     ref.read(terminalRuntimeProvider).releaseWorkspace(workspaceId);
     final editorSessions = ref.read(editorSessionRegistryProvider);
     for (final tab in state.tabsFor(workspaceId)) {
@@ -306,7 +305,6 @@ mixin _WorkbenchControllerSync
             .clearTerminalSession(tab.terminalSessionId);
       }
     }
-    _removeMissingCodexDrafts(workspaceId, tabs);
     final nextTabs = Map<String, List<WorkspaceTabRecord>>.from(
       state.tabsByWorkspace,
     )..[workspaceId] = tabs;

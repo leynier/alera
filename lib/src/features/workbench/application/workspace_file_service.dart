@@ -45,10 +45,6 @@ class const WorkspaceFileService() {
     return native.stopWorkspaceQuickOpenSession(session: session);
   }
 
-  Future<List<native.CodexSavedPrompt>> listCodexSavedPrompts({
-    required String workspacePath,
-  }) => native.listCodexSavedPrompts(workspacePath: workspacePath);
-
   List<native.WorkspaceFileEntry> applyGitStatusSnapshot(
     List<native.WorkspaceFileEntry> entries,
     GitExplorerStatusSnapshot snapshot,

@@ -42,7 +42,8 @@ pub const RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY: &str = "mobileProm
 /// Codex prompts without receiving unrestricted host filesystem access.
 pub const RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY: &str =
     "mobileCodexWorkspaceFilesV1";
-/// A paired phone can list, resume, reset, clear, and rename Codex threads.
+/// Retained name. Codex chat sessions are gone; older phones still feature-detect this string.
+#[allow(dead_code)]
 pub const RUNTIME_HOST_MOBILE_CODEX_SESSIONS_CAPABILITY: &str = "mobileCodexSessionsV1";
 /// A paired phone can upload bounded general files into the runtime-owned
 /// prompt attachment store using the same offset-checked chunking as images.
@@ -128,18 +129,6 @@ pub const RUNTIME_HOST_DIAGNOSTICS_LOGS_CAPABILITY: &str = "hostDiagnosticsLogsV
 // version; a host that lacks it is still fully usable.
 pub const RUNTIME_HOST_SHELL_ENVIRONMENT_RELOAD_CAPABILITY: &str = "shellEnvironmentReloadV1";
 pub const RUNTIME_HOST_AUTOMATIONS_CAPABILITY: &str = "automationsV1";
-/// Native Codex chat tabs are additive. Clients advertise support for the tab
-/// kind separately so an older client never attempts to decode it.
-pub const RUNTIME_HOST_CODEX_CHAT_CAPABILITY: &str = "codexChatTabV1";
-/// Codex goals are additive and bridged through the app-server thread goal API.
-pub const RUNTIME_HOST_CODEX_GOALS_CAPABILITY: &str = "codexGoalsV1";
-/// Native Codex session management is additive. Desktop clients negotiate it
-/// before exposing thread list, resume, new, and clear actions.
-pub const RUNTIME_HOST_CODEX_SESSIONS_CAPABILITY: &str = "codexSessionsV1";
-/// Codex turn requests accept the app-server's split approval reviewer and
-/// sandbox policy fields instead of relying on the legacy approval mode.
-pub const RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY: &str = "codexTurnPolicyV2";
-pub const CODEX_TAB_KIND: &str = "codex";
 // Retained for the later packaging/resolver phase (sidecar discovery).
 #[allow(dead_code)]
 pub const CLI_EXECUTABLE_NAME: &str = "alera";

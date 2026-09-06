@@ -1,4 +1,3 @@
-import 'package:alera_mobile/src/features/codex_chat/application/mobile_codex_controller.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
@@ -9,11 +8,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/fake_mobile_codex_client.dart';
 import 'support/fake_terminal_client.dart';
 
 void main() {
-  for (final kind in ['terminal', 'codex']) {
+  for (final kind in ['terminal']) {
     for (final mode in [
       'unsupported',
       'generate',
@@ -38,9 +36,7 @@ void main() {
               },
             ),
           ];
-        final codex = FakeMobileCodexClient();
         addTearDown(client.dispose);
-        addTearDown(codex.dispose);
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
@@ -48,8 +44,6 @@ void main() {
                   .overrideWith((ref) async => client),
               workspaceClientProvider('host')
                   .overrideWith((ref) async => client),
-              mobileCodexClientProvider('host')
-                  .overrideWith((ref) async => codex),
             ],
             child: const MaterialApp(
               home: WorkspaceTabsScreen(

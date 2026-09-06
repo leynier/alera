@@ -1,5 +1,3 @@
-import 'package:alera/src/features/codex_chat/presentation/codex_queue_close_confirmation.dart';
-
 import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
@@ -180,10 +178,6 @@ class const KeyboardCommandDispatcher({
         }
       }
       if (!context.mounted) return;
-      if (tab.kind == WorkspaceTabKind.codex &&
-          !await confirmCodexQueueClose(context, ref, tab.id)) {
-        return;
-      }
       // The controller disposes the terminal handle and editor document.
       await ref
           .read(workbenchControllerProvider.notifier)

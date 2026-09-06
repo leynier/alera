@@ -186,29 +186,6 @@ void main() {
 
       expect(pendingReviewAgentCount(runs), 3);
     });
-
-    test('matches Codex tabs through their synthetic presence handle', () {
-      final tab = _tab('codex-tab', kind: .codex);
-      final handle = 'codex:${tab.id}';
-      final entry = _entry(tab, .working, terminalSessionId: handle);
-
-      expect(
-        matchingAgentStatusForTab(
-          tab: tab,
-          agentStatuses: <String, AgentStatusEntry>{handle: entry},
-        ),
-        same(entry),
-      );
-      expect(
-        matchingAgentStatusForTab(
-          tab: tab,
-          agentStatuses: <String, AgentStatusEntry>{
-            handle: _entry(tab, .working, terminalSessionId: 'stale-session'),
-          },
-        ),
-        isNull,
-      );
-    });
   });
 }
 

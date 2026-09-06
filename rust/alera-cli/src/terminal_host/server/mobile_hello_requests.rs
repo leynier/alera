@@ -183,10 +183,6 @@ impl ServerActor {
                 .cloud_device_id
                 .filter(|cloud_device_id| !cloud_device_id.trim().is_empty())
                 .or_else(|| client.relay_client_id.clone());
-            client.supports_codex_tab_kind = request
-                .supported_tab_kinds
-                .iter()
-                .any(|kind| kind == crate::terminal_host::protocol::CODEX_TAB_KIND);
         }
         self.cancel_shutdown_timer();
         if binary_frames {

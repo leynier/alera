@@ -7,9 +7,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::terminal_host::client::{ClientFrame, ClientHandle};
 use crate::terminal_host::protocol::{
-    CODEX_TAB_KIND, PROTOCOL_VERSION, RUNTIME_HOST_ACCOUNT_CAPABILITY,
-    RUNTIME_HOST_CLOUD_PUSH_CAPABILITY, RUNTIME_HOST_CODEX_GOALS_CAPABILITY,
-    RUNTIME_HOST_CODEX_SESSIONS_CAPABILITY, RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY,
+    PROTOCOL_VERSION, RUNTIME_HOST_ACCOUNT_CAPABILITY, RUNTIME_HOST_CLOUD_PUSH_CAPABILITY,
     RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
 };
 
@@ -75,7 +73,7 @@ fn codex_tab() -> WorkspaceTabRecord {
     WorkspaceTabRecord {
         id: "codex-1".to_string(),
         workspace_id: "workspace-1".to_string(),
-        kind: CODEX_TAB_KIND.to_string(),
+        kind: "codex".to_string(),
         title: "Codex".to_string(),
         created_at: now,
         updated_at: now,
@@ -229,7 +227,7 @@ async fn terminal_attach_and_restart_responses_use_client_tab_projection() {
 }
 
 #[tokio::test]
-async fn tab_reads_hide_codex_from_clients_without_tab_support() {
+async fn tab_reads_hide_leftover_codex_tabs() {
     let dir = tempfile::tempdir().unwrap();
     let (legacy_handle, mut legacy_rx) = ClientHandle::test_channels();
     let (modern_handle, mut modern_rx) = ClientHandle::test_channels();
@@ -266,7 +264,6 @@ async fn tab_reads_hide_codex_from_clients_without_tab_support() {
         json!({
             "protocolVersion": PROTOCOL_VERSION,
             "token": "token",
-            "supportedTabKinds": [CODEX_TAB_KIND],
         }),
         &mut modern_rx,
     )
@@ -311,8 +308,8 @@ async fn tab_reads_hide_codex_from_clients_without_tab_support() {
 
     assert_eq!(legacy_list, json!([]));
     assert_eq!(legacy_find, Value::Null);
-    assert_eq!(modern_list, json!([tab.clone()]));
-    assert_eq!(modern_find, json!(tab.clone()));
+    assert_eq!(modern_list, json!([]));
+    assert_eq!(modern_find, Value::Null);
     assert_eq!(
         actor
             .runtime_store
@@ -471,9 +468,6 @@ async fn status_advertises_additive_capabilities_without_a_protocol_version_chan
     for capability in [
         RUNTIME_HOST_ACCOUNT_CAPABILITY,
         RUNTIME_HOST_CLOUD_PUSH_CAPABILITY,
-        RUNTIME_HOST_CODEX_SESSIONS_CAPABILITY,
-        RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY,
-        RUNTIME_HOST_CODEX_GOALS_CAPABILITY,
         RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
     ] {
         assert!(capabilities.contains(&json!(capability)));

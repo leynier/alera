@@ -8,7 +8,6 @@ Future<void> _pumpWorkbenchView(
   required WorkbenchLayout? layout,
   required _FakeTerminalRuntime terminalRuntime,
   required List<String?> createdTabs,
-  List<String?>? createdCodexTabs,
   required List<_SelectedTabAction> selectedTabs,
   required List<String> closedTabs,
   required List<List<String>> closedTabGroups,
@@ -49,11 +48,6 @@ Future<void> _pumpWorkbenchView(
                 onCreateTab: ({String? targetGroupId}) async {
                   createdTabs.add(targetGroupId);
                 },
-                onCreateCodexTab: createdCodexTabs == null
-                    ? null
-                    : ({String? targetGroupId}) async {
-                        createdCodexTabs.add(targetGroupId);
-                      },
                 onOpenEditorTab:
                     ({required relativePath, targetGroupId}) async {
                       selectedTabs.add(

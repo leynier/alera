@@ -11,9 +11,9 @@ Widget aleraActionSheetPreview() => const AleraActionSheet<String>(
       leading: Icon(Icons.terminal),
     ),
     AleraActionSheetEntry<String>(
-      value: 'codex',
-      label: 'New Codex Chat',
-      leading: Icon(Icons.chat_bubble_outline),
+      value: 'editor',
+      label: 'New Editor',
+      leading: Icon(Icons.edit_outlined),
     ),
   ],
 );

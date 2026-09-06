@@ -3,10 +3,9 @@ use std::path::{Path, PathBuf};
 
 use alera_core::runtime::{RuntimeStore, Workspace};
 use alera_core::workspace_files::{
-    is_protected_workspace_path, list_codex_saved_prompts, open_workspace_file_root,
-    read_workspace_file_range_from_root, search_workspace_quick_open_session,
-    start_workspace_quick_open_session_without_symlinks, stop_workspace_quick_open_session,
-    CodexSavedPromptScope, WorkspaceFileRoot, WorkspaceQuickOpenSession,
+    is_protected_workspace_path, open_workspace_file_root, read_workspace_file_range_from_root,
+    search_workspace_quick_open_session, start_workspace_quick_open_session_without_symlinks,
+    stop_workspace_quick_open_session, WorkspaceFileRoot, WorkspaceQuickOpenSession,
 };
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
@@ -106,9 +105,6 @@ async fn handle_mobile_workspace_file_request(
         "mobile.workspaceQuickOpen.search" => search_mobile_workspace_quick_open(payload).await,
         "mobile.workspaceFile.read" => read_mobile_workspace_file(&runtime_store, payload).await,
         "mobile.promptAttachment.read" => read_mobile_prompt_attachment(runtime_dir, payload).await,
-        "mobile.codexSavedPrompts.list" => {
-            list_mobile_codex_saved_prompts(&runtime_store, payload).await
-        }
         _ => Err(HostError::state(
             "Unsupported mobile workspace file operation.",
         )),
@@ -221,30 +217,6 @@ async fn read_mobile_prompt_attachment(runtime_dir: PathBuf, payload: &Value) ->
         let range = read_workspace_file_range_from_root(&root, &relative_path, offset, length)
             .map_err(workspace_file_error)?;
         Ok(workspace_range_response(relative_path, range))
-    })
-    .await
-}
-
-async fn list_mobile_codex_saved_prompts(
-    runtime_store: &RuntimeStore,
-    payload: &Value,
-) -> HostResult<Value> {
-    let workspace = workspace_for_mobile_file_request(runtime_store, payload).await?;
-    let root = mobile_workspace_file_root(runtime_store, payload, &workspace).await?;
-    spawn_blocking_workspace("Saved prompt discovery", move || {
-        let prompts = list_codex_saved_prompts(root).map_err(workspace_file_error)?;
-        Ok(json!({
-            "items": prompts.into_iter().map(|prompt| json!({
-                "name": prompt.name,
-                "description": prompt.description,
-                "argumentHint": prompt.argument_hint,
-                "body": prompt.body,
-                "scope": match prompt.scope {
-                    CodexSavedPromptScope::User => "user",
-                    CodexSavedPromptScope::Repo => "repo",
-                },
-            })).collect::<Vec<_>>(),
-        }))
     })
     .await
 }

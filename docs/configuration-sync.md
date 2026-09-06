@@ -14,7 +14,7 @@ History lists the last 100 revisions. **Compare** loads an old revision into the
 
 Desktop includes portable application preferences, terminal appearance and interaction, editor settings, keyboard overrides, AI preferences, text actions and agent profiles. The allowlist is `desktopPortableFields` in `packages/alera_configuration`. Keyboard defaults remain platform-specific; explicit `Mod` bindings remain portable. The runtime owns a persistent portable desktop document so a paired phone can operate without a desktop window after the desktop has seeded its preferences once.
 
-Phone configuration contains terminal quick keys, Codex preferences and portable dictation preferences. The most recently saved Codex preferences seed the phone's shared defaults; applying them also updates locally stored per-host preferences for subsequent use without uploading host ids. Active Codex conversations are not restarted. Desktop and phone blocks are distinct and unsupported blocks survive publishing from the other client.
+Phone configuration contains terminal quick keys and portable dictation preferences. Desktop and phone blocks are distinct and unsupported blocks survive publishing from the other client.
 
 Credentials, external account state, pairing secrets, workspace paths, per-host quotas, consent records, hooks installation, downloaded models and runtime lifecycle/resource budgets remain local. Custom commands, descriptions and prompts are user-authored text and can contain embedded secrets: review them before uploading. Importing a profile does not launch a process, install tools or grant OS permissions. Existing profile reference checks block destructive imports; the synchronization flow never changes automations or closes tabs to make an import succeed.
 

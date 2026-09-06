@@ -101,7 +101,6 @@ impl ServerActor {
         } = finished;
         let RuntimeMutationOutcome {
             result,
-            pending_codex_cleanup,
             ended_pointer_tab_ids,
             mut closed_session_tab_ids,
             committed_tab_ids,
@@ -128,49 +127,9 @@ impl ServerActor {
                         "Failed to retire stopped workspace tab: {error}"
                     )));
             }
-            self.remove_codex_presence(tab_id);
         }
         if !stopped_workspace_tab_ids.is_empty() {
             self.broadcast_workspace_tabs_changed(None);
-        }
-        let mut pending_tab_ids = pending_codex_cleanup
-            .iter()
-            .map(|entry| entry.tab_id.clone())
-            .collect::<Vec<_>>();
-        pending_tab_ids.sort_unstable();
-        pending_tab_ids.dedup();
-        for tab_id in pending_tab_ids {
-            self.handle_codex_force_flush(&tab_id).await;
-        }
-        let cleanup_result = super::codex_runtime_cleanup::apply_cleanup_activity(
-            &self.runtime_store,
-            &pending_codex_cleanup,
-        )
-        .await;
-        let cleaned_codex_tab_ids = match &cleanup_result {
-            Ok(tab_ids) => tab_ids.clone(),
-            Err(error) => {
-                self.broadcast_codex_server_error(error.wire_message());
-                Vec::new()
-            }
-        };
-        let cleaned_codex_state = !cleaned_codex_tab_ids.is_empty();
-        for tab_id in cleaned_codex_tab_ids {
-            if let Ok(Some(tab)) = self.runtime_store.find_workspace_tab(&tab_id).await {
-                self.refresh_codex_presence(&tab);
-                self.broadcast_authenticated(event(
-                    "codexThreadChanged",
-                    json!({
-                        "tabId": tab.id,
-                        "workspaceId": tab.workspace_id,
-                        "threadId": super::codex_state::tab_thread_id(&tab),
-                        "snapshot": super::codex_state::snapshot(&tab),
-                    }),
-                ));
-            }
-        }
-        if cleaned_codex_state {
-            self.schedule_codex_presence_changed();
         }
         let _ = ended_pointer_tab_ids;
         closed_session_tab_ids.extend(committed_tab_ids);
@@ -181,9 +140,7 @@ impl ServerActor {
             Ok(completion) => {
                 let _ = completion.closed_tab_ids;
                 self.apply_runtime_mutation_effect(completion.effect).await;
-                self.reconcile_codex_presence().await;
-                self.schedule_codex_presence_changed();
-                if let Some(error) = stopped_tab_cleanup_error.or_else(|| cleanup_result.err()) {
+                if let Some(error) = stopped_tab_cleanup_error {
                     self.client_write(client_id, error_response(request_id, &error));
                 } else {
                     self.client_write(client_id, ok_response(request_id, completion.response));
@@ -197,13 +154,6 @@ impl ServerActor {
             }
         }
         self.complete_runtime_mutation();
-        for tab_id in self.codex_delivery_active.clone() {
-            if self.codex_tab(&tab_id).await.is_ok() {
-                self.schedule_codex_queue(&tab_id);
-            } else {
-                self.codex_delivery_active.remove(&tab_id);
-            }
-        }
         self.schedule_shutdown_if_idle();
     }
 
@@ -263,7 +213,6 @@ impl ServerActor {
                 if let Some(server) = self.codex.as_ref() {
                     server.forget_thread_hydration(&tab_id).await;
                 }
-                self.remove_codex_presence(&tab_id);
                 self.terminate_terminal_sessions_for_tab(&tab_id).await;
                 self.broadcast_workspace_tabs_changed(workspace_id.as_deref());
             }

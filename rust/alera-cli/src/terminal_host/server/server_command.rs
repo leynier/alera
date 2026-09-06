@@ -12,36 +12,6 @@ use super::{account_requests, push_delivery, runtime_mutations, ClientKind};
 /// Messages processed serially by the single server actor. Every state mutation
 /// happens here, which keeps session/client transitions deterministic.
 pub enum ServerCommand {
-    CodexForkCreated {
-        job: Box<super::codex_fork_jobs::CodexForkJob>,
-        result: HostResult<Value>,
-    },
-    CodexForkProjected {
-        job: Box<super::codex_fork_jobs::CodexForkJob>,
-        result: HostResult<Option<super::codex_state::CodexTurnHistoryPage>>,
-    },
-    CodexQueueStartupFinished {
-        job: Box<super::codex_queue_startup::CodexQueueStartupJob>,
-        result: HostResult<Option<super::codex_queue_startup::CodexQueueResume>>,
-    },
-    CodexHistoryScanFinished {
-        job: Box<super::codex_history_scans::CodexHistoryScanJob>,
-        result: HostResult<super::codex_history_scans::CodexHistoryScan>,
-    },
-    CodexQueueDelivered {
-        tab_id: String,
-        thread_id: String,
-        message_id: String,
-        result: crate::terminal_host::host_error::HostResult<serde_json::Value>,
-    },
-    CodexQueueAdvance {
-        tab_id: String,
-    },
-    CodexEditFinished {
-        tab_id: String,
-        operation_id: String,
-        result: HostResult<Value>,
-    },
     RelayActivity {
         generation: u64,
         at: chrono::DateTime<chrono::Utc>,
@@ -257,6 +227,7 @@ pub enum ServerCommand {
     AutomationTick,
     /// A notification or server request emitted by the shared Codex process.
     CodexMessage {
+        #[allow(dead_code)]
         message: Value,
     },
     CodexProcessExited {
@@ -264,16 +235,6 @@ pub enum ServerCommand {
     },
     CodexMalformed {
         reason: String,
-    },
-    CodexPresenceTick,
-    CodexFlush {
-        tab_id: String,
-    },
-    CodexAutoResolve {
-        tab_id: String,
-        thread_id: String,
-        request_id: Value,
-        server_instance: std::sync::Arc<()>,
     },
     Account(account_requests::AccountCommand),
     Push(push_delivery::PushCommand),

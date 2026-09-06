@@ -76,7 +76,6 @@ impl ServerActor {
             || !self.coordinators.is_empty()
             || self.account_push.active_subscriptions > 0
             || self.automations_active
-            || !self.codex_delivery_active.is_empty()
         {
             self.cancel_shutdown_timer();
             return;

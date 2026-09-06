@@ -5,7 +5,6 @@ import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
-import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_tab_attention.dart';
@@ -39,15 +38,6 @@ late List<String> mergedGroups;
 late List<_UpdatedSplitRatioAction> updatedRatios;
 
 void main() {
-  test('Codex tabs display their conversation title', () {
-    expect(
-      workspaceTabTitleForTesting(
-        _tab('codex-title', title: 'Generated thread title', kind: .codex),
-      ),
-      'Generated thread title',
-    );
-  });
-
   _registerWorkspaceWorkbenchViewHelperTests();
   group('WorkspaceWorkbenchView', () {
     setUp(() {

@@ -75,28 +75,6 @@ mixin MobileRuntimeCodexWorkspaceRequests {
     });
   }
 
-  Future<List<MobileCodexSavedPrompt>> listCodexSavedPrompts(
-    String workspaceId, {
-    String? cwd,
-  }) async {
-    _requireWorkspaceFiles();
-    final normalizedCwd = cwd?.trim();
-    final payload = await requestMap(
-      'mobile.codexSavedPrompts.list',
-      <String, Object?>{
-        'workspaceId': workspaceId,
-        if (normalizedCwd != null && normalizedCwd.isNotEmpty)
-          'cwd': normalizedCwd,
-      },
-    );
-    return <MobileCodexSavedPrompt>[
-      if (payload['items'] is List)
-        for (final item in payload['items']! as List)
-          if (item is Map)
-            MobileCodexSavedPrompt.fromJson(Map<String, Object?>.from(item)),
-    ];
-  }
-
   Future<MobileWorkspaceFileRange> readWorkspaceFile({
     required String workspaceId,
     required String relativePath,

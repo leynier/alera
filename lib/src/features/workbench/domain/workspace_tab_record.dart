@@ -6,7 +6,6 @@ part 'workspace_tab_record.mapper.dart';
 @MappableEnum()
 enum WorkspaceTabKind(this.key) {
   terminal('terminal'),
-  codex('codex'),
   editor('editor'),
   markdownViewer('markdownViewer'),
   pdf('pdf'),
@@ -43,9 +42,6 @@ enum WorkspaceTabKind(this.key) {
 
 const String workspaceTabManualTitlePayloadKey = 'manualTitle';
 const String workspaceTabTerminalSessionIdPayloadKey = 'terminalSessionId';
-const String workspaceTabCodexThreadIdPayloadKey = 'codexThreadId';
-const String workspaceTabCodexSnapshotPayloadKey = 'codexSnapshot';
-const String workspaceTabCodexActiveTurnIdPayloadKey = 'codexActiveTurnId';
 const String workspaceTabInitialCommandPayloadKey = 'initialCommand';
 const String workspaceTabInitialCommandOncePayloadKey = 'initialCommandOnce';
 const String workspaceTabSpawnOnCreatePayloadKey = 'spawnOnCreate';
@@ -142,20 +138,6 @@ class WorkspaceTabRecord({
     return value is String && value.trim().isNotEmpty ? value : id;
   }
 
-  String? get codexThreadId =>
-      _nonEmptyPayloadString(workspaceTabCodexThreadIdPayloadKey);
-
-  Map<String, Object?> get codexSnapshot {
-    final value = payload[workspaceTabCodexSnapshotPayloadKey];
-    if (value is Map) {
-      return Map<String, Object?>.from(value);
-    }
-    return const <String, Object?>{};
-  }
-
-  String? get codexActiveTurnId =>
-      _nonEmptyPayloadString(workspaceTabCodexActiveTurnIdPayloadKey);
-
   /// Command written into the terminal after the shell starts, e.g. an agent
   /// CLI launched by an orchestration coordinator. Runs once for each newly
   /// created PTY, including a transparent remint after host recovery.
@@ -205,7 +187,7 @@ class WorkspaceTabRecord({
       WorkspaceTabKind.markdownViewer ||
       WorkspaceTabKind.pdf ||
       WorkspaceTabKind.gitDiff => true,
-      WorkspaceTabKind.terminal || WorkspaceTabKind.codex => false,
+      WorkspaceTabKind.terminal => false,
     };
   }
 

@@ -60,7 +60,6 @@ impl ServerActor {
                 handle,
                 authenticated: false,
                 binary_frames: false,
-                supports_codex_tab_kind: false,
                 kind: ClientKind::Mobile,
                 local_role: client_delivery::LocalClientRole::Cli,
                 mobile_device_id: None,

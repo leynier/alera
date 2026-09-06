@@ -20,7 +20,6 @@ mod automation_run_store;
 mod automation_schedule;
 mod automation_store;
 mod automation_templates;
-mod codex_chat_store;
 mod configuration_native_settings;
 mod configuration_profiles;
 mod configuration_store;
@@ -83,7 +82,6 @@ pub use automation_models::*;
 pub use automation_run_store::*;
 pub use automation_schedule::*;
 pub use automation_templates::*;
-pub use codex_chat_store::*;
 pub use models::*;
 pub use orchestration_dispatch_store::ORCHESTRATION_CIRCUIT_BREAKER_THRESHOLD;
 pub use orchestration_message_store::{
@@ -102,6 +100,4 @@ pub use text_actions_validation::{validate_text_actions_settings, AI_ASSIST_AGEN
 pub use workbench_shared_state_models::*;
 pub use worktree_setup_models::*;
 
-#[cfg(test)]
-mod codex_chat_store_tests;
 pub use workspace_section_store::WorkspaceSection;

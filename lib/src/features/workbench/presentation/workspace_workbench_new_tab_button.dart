@@ -1,11 +1,10 @@
 part of 'workspace_workbench_view.dart';
 
-enum _NewTabMenuAction { terminal, codex }
+enum _NewTabMenuAction { terminal }
 
 class const _NewTabButton({
   required final String groupId,
   required final VoidCallback onCreateTab,
-  required final VoidCallback? onCreateCodexTab,
 }) extends StatelessWidget {
   Future<void> _openMenu(BuildContext context) async {
     final button = context.findRenderObject()! as RenderBox;
@@ -35,20 +34,6 @@ class const _NewTabButton({
             color: AleraTokens.foregroundMuted,
           ),
         ),
-        if (onCreateCodexTab != null)
-          const AleraDropdownEntry<_NewTabMenuAction>(
-            value: .codex,
-            label: 'New Codex Chat',
-            leading: ExcludeSemantics(
-              child: AgentIdentityIcon(
-                key: ValueKey<String>('new-tab-codex-icon'),
-                agentType: .codex,
-                size: 16,
-                color: AleraTokens.foregroundMuted,
-                showTooltip: false,
-              ),
-            ),
-          ),
       ],
     );
 
@@ -59,8 +44,6 @@ class const _NewTabButton({
     switch (selected) {
       case _NewTabMenuAction.terminal:
         onCreateTab();
-      case _NewTabMenuAction.codex:
-        onCreateCodexTab?.call();
     }
   }
 

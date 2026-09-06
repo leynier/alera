@@ -178,10 +178,7 @@ impl ServerActor {
                 self.handle_configuration_request(client_id, request, payload)
                     .await
             }
-            request_type if request_type.starts_with("codex.") => {
-                self.handle_codex_request(client_id, request_type, payload)
-                    .await
-            }
+
             "mobile.workspaceQuickOpen.stop" => self.stop_mobile_workspace_quick_open(payload),
             "configure" => {
                 self.require_auth(client_id)?;

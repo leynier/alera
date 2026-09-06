@@ -65,6 +65,9 @@ pub async fn run_terminal_host_server(
     runtime_store
         .remove_workspace_tabs_with_kind("browser")
         .await?;
+    runtime_store
+        .remove_workspace_tabs_with_kind("codex")
+        .await?;
     let mut actor = ServerActor {
         runtime_dir,
         control_file_path,
@@ -96,19 +99,12 @@ pub async fn run_terminal_host_server(
         terminal_pulses: Default::default(),
         codex: None,
         codex_starting: None,
-        codex_presence: HashMap::new(),
-        codex_delivery_active: HashSet::new(),
-        codex_history_scans: HashSet::new(),
-        codex_presence_scheduled: false,
-        codex_pending_messages: HashMap::new(),
-        codex_flush_scheduled: HashSet::new(),
         inbox,
         next_client_id,
         mobile_gateway: None,
         shutdown_gen: 0,
         disposed: false,
     };
-    actor.reconcile_codex_presence().await;
     let hook_settings = actor.runtime_store.agent_status_hook_settings().await?;
     let hook_runtime_dir = actor.runtime_dir.clone();
     let hook_warnings = tokio::task::spawn_blocking(move || {
@@ -144,7 +140,6 @@ pub async fn run_terminal_host_server(
             .list_active_automation_runs()
             .await?
             .is_empty();
-    actor.restore_codex_queues().await?;
     actor.schedule_shutdown_if_idle();
 
     // Lives with the loop rather than the actor: it describes the machine the

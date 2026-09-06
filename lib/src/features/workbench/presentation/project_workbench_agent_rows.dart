@@ -93,9 +93,7 @@ class _AgentRunRowState extends ConsumerState<_AgentRunRow> {
                           left: AleraTokens.space4,
                         ),
                         child: AleraIconButton(
-                          tooltip: widget.tab.kind == WorkspaceTabKind.codex
-                              ? 'Close Codex'
-                              : 'Close Terminal',
+                          tooltip: 'Close Terminal',
                           onPressed: widget.onClose,
                           icon: AleraIcons.close,
                           iconSize: 12,

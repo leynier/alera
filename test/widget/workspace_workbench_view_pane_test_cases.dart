@@ -346,15 +346,12 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
       groupId: 'group-a',
       tabIds: tabs.map((tab) => tab.id).toList(),
     );
-    final createdCodexTabs = <String?>[];
-
     await _pumpWorkbenchView(
       tester,
       tabs: tabs,
       terminalRuntime: terminalRuntime,
       layout: layout,
       createdTabs: createdTabs,
-      createdCodexTabs: createdCodexTabs,
       selectedTabs: selectedTabs,
       closedTabs: closedTabs,
       closedTabGroups: closedTabGroups,
@@ -369,66 +366,13 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('New Terminal'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('New Tab'));
-    await tester.pumpAndSettle();
-    final codexIcon = find.byKey(const ValueKey<String>('new-tab-codex-icon'));
-    expect(codexIcon, findsOneWidget);
-    expect(
-      tester.widget<AgentIdentityIcon>(codexIcon).agentType,
-      AgentType.codex,
-    );
-    expect(
-      find.ancestor(of: codexIcon, matching: find.byType(ExcludeSemantics)),
-      findsOneWidget,
-    );
-    await tester.tap(find.text('New Codex Chat'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('Terminal 1'));
     await tester.pump();
 
     expect(createdTabs, <String?>['group-a']);
-    expect(createdCodexTabs, <String?>['group-a']);
     expect(selectedTabs, <_SelectedTabAction>[
       const _SelectedTabAction('group-a', 'tab-1'),
     ]);
     expect(terminalRuntime.focusRequestsByTab['tab-1'], 1);
-  });
-
-  testWidgets('Codex tabs use the Codex identity icon', (tester) async {
-    final codexTab = _tab('codex-tab', title: 'Generated title', kind: .codex);
-    await _pumpWorkbenchView(
-      tester,
-      tabs: <WorkspaceTabRecord>[codexTab],
-      terminalRuntime: terminalRuntime,
-      layout: .single(
-        workspaceId: _workspaceId,
-        groupId: 'group-a',
-        tabIds: <String>[codexTab.id],
-      ),
-      createdTabs: createdTabs,
-      selectedTabs: selectedTabs,
-      closedTabs: closedTabs,
-      closedTabGroups: closedTabGroups,
-      renamedTabs: renamedTabs,
-      movedTabs: movedTabs,
-      splitGroups: splitGroups,
-      mergedGroups: mergedGroups,
-      updatedRatios: updatedRatios,
-    );
-
-    expect(find.text('Generated title'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey<String>('workspace-tab-codex-icon-codex-tab')),
-      findsOneWidget,
-    );
-    expect(
-      find.ancestor(
-        of: find.byKey(
-          const ValueKey<String>('workspace-tab-codex-icon-codex-tab'),
-        ),
-        matching: find.byType(ExcludeSemantics),
-      ),
-      findsOneWidget,
-    );
   });
 }

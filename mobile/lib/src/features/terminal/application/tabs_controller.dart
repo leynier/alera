@@ -88,16 +88,6 @@ class TabsController extends _$TabsController {
     return session.tab.id;
   }
 
-  Future<String> createCodexTab() async {
-    final client = await ref.read(terminalClientProvider(hostId).future);
-    if (client is! MobileCodexClient) {
-      throw UnsupportedError('This mobile client cannot create Codex tabs.');
-    }
-    final tab = await (client as MobileCodexClient).createCodexTab(workspaceId);
-    ref.invalidateSelf();
-    return tab.id;
-  }
-
   Future<bool> closeTab(WorkspaceTabSummary tab) async {
     final client = await ref.read(terminalClientProvider(hostId).future);
     if (!ref.mounted) {

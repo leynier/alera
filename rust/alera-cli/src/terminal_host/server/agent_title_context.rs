@@ -1,5 +1,3 @@
-use serde_json::Value;
-
 use crate::terminal_host::host_error::{HostError, HostResult};
 
 pub(super) fn prefix(text: &str, bytes: usize) -> &str {
@@ -64,36 +62,6 @@ pub(super) fn clean_terminal(text: &str) -> String {
         }
     }
     lines.join("\n")
-}
-
-pub(super) fn codex_context(snapshot: &Value) -> String {
-    let mut parts = Vec::new();
-    let mut bytes = 0;
-    if let Some(cells) = snapshot.get("timelineCells").and_then(Value::as_array) {
-        for cell in cells.iter().rev() {
-            if cell.pointer("/metadata/noticeType").and_then(Value::as_str)
-                == Some("threadBoundary")
-            {
-                break;
-            }
-            if !matches!(
-                cell.get("kind").and_then(Value::as_str),
-                Some("userMessage" | "agentMessage" | "assistantMessage" | "toolCall")
-            ) {
-                continue;
-            }
-            if let Some(text) = cell.get("markdownText").and_then(Value::as_str) {
-                let text = tail(text, 12 * 1024 - bytes);
-                bytes += text.len();
-                parts.push(text);
-                if bytes >= 12 * 1024 {
-                    break;
-                }
-            }
-        }
-    }
-    parts.reverse();
-    parts.join("\n")
 }
 
 pub(super) fn title_prompt(initial: &str, recent: &str, instructions: &str) -> HostResult<String> {

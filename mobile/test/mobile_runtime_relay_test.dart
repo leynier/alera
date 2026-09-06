@@ -122,7 +122,7 @@ void main() {
     expect(client.isConnectionUsable, isFalse);
   });
 
-  test('Relay authenticates, preserves Codex support and reconnects with fresh encryption', () async {
+  test('Relay authenticates and reconnects with fresh encryption', () async {
     final runtimeIdentity = await RelayIdentityKeyPair.generate();
     final mobileIdentity = await RelayIdentityKeyPair.generate();
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -161,7 +161,7 @@ void main() {
         identity: mobileIdentity,
       );
       await client.authenticateRelay(cloudDeviceId: 'phone');
-      expect(hellos.last['supportedTabKinds'], ['codex']);
+      expect(hellos.last['supportedTabKinds'], <String>[]);
       expect(hellos.last['cloudDeviceId'], 'phone');
       final messages = List.generate(
         4,

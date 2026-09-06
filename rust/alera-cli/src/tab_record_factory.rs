@@ -5,14 +5,7 @@ use uuid::Uuid;
 
 use crate::cli::TabCreateArgs;
 
-const SUPPORTED_TAB_KINDS: &[&str] = &[
-    "terminal",
-    "codex",
-    "editor",
-    "markdownViewer",
-    "pdf",
-    "gitDiff",
-];
+const SUPPORTED_TAB_KINDS: &[&str] = &["terminal", "editor", "markdownViewer", "pdf", "gitDiff"];
 
 pub(crate) fn tab_from_args(args: TabCreateArgs) -> Result<WorkspaceTabRecord, String> {
     let now = Utc::now();

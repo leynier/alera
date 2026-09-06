@@ -1,4 +1,3 @@
-import 'package:alera/src/features/codex_chat/presentation/codex_queue_close_confirmation.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_section_dialog.dart';
 
 import 'dart:async';

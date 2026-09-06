@@ -58,13 +58,11 @@ WorkspaceTabRecord _tab(
 }
 
 AgentStatusEntry _status(WorkspaceTabRecord tab, AgentStatusState state) {
-  final isCodex = tab.kind == WorkspaceTabKind.codex;
-  final handle = isCodex ? 'codex:${tab.id}' : tab.terminalSessionId;
   return AgentStatusEntry(
-    terminalSessionId: handle,
+    terminalSessionId: tab.terminalSessionId,
     workspaceId: tab.workspaceId,
     tabId: tab.id,
-    agentType: isCodex ? AgentType.codex : AgentType.claude,
+    agentType: AgentType.claude,
     state: state,
     prompt: state.name,
     updatedAt: _now,
@@ -296,9 +294,7 @@ void main() {
         project.id: <Workspace>[inactive, active],
       },
       tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
-        active.id: <WorkspaceTabRecord>[
-          _tab('c-active', active.id, kind: .codex),
-        ],
+        active.id: <WorkspaceTabRecord>[_tab('c-active', active.id)],
       },
       viewPrefs: prefs,
       bootstrapped: true,
@@ -319,7 +315,7 @@ void main() {
     final working = _workspace('w-working', project.id, 'alpha');
     final waiting = _workspace('w-waiting', project.id, 'zeta');
     final workingTab = _tab('t-working', working.id);
-    final waitingTab = _tab('c-waiting', waiting.id, kind: .codex);
+    final waitingTab = _tab('c-waiting', waiting.id);
     final state = WorkbenchState(
       projects: <Project>[project],
       workspacesByProject: <String, List<Workspace>>{

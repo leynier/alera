@@ -256,15 +256,6 @@ class const _WorkspaceTabLeadingIcon({
         size: 12,
         color: color,
       ),
-      WorkspaceTabKind.codex => ExcludeSemantics(
-        child: AgentIdentityIcon(
-          key: ValueKey<String>('workspace-tab-codex-icon-${tab.id}'),
-          agentType: .codex,
-          size: 12,
-          color: color,
-          showTooltip: false,
-        ),
-      ),
     };
   }
 }
@@ -276,7 +267,6 @@ double _tabTitleMaxWidth(WorkspaceTabKind kind) {
     WorkspaceTabKind.pdf ||
     WorkspaceTabKind.gitDiff => 180,
     WorkspaceTabKind.terminal => 92,
-    WorkspaceTabKind.codex => 132,
   };
 }
 

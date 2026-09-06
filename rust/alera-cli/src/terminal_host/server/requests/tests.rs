@@ -16,9 +16,7 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_BACKENDS_CAPABILITY, RUNTIME_HOST_AI_DICTATION_MODELS_CAPABILITY,
     RUNTIME_HOST_BINARY_FRAMES_CAPABILITY, RUNTIME_HOST_CLOUD_PUSH_CAPABILITY,
-    RUNTIME_HOST_CODEX_CHAT_CAPABILITY, RUNTIME_HOST_CODEX_GOALS_CAPABILITY,
-    RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY, RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
+    RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY, RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY, RUNTIME_HOST_RESTART_CAPABILITY,
     RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
     RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
@@ -74,7 +72,7 @@ async fn soft_shutdown_counts_a_queued_runtime_mutation() {
 }
 
 #[tokio::test]
-async fn stale_codex_tab_removal_does_not_depend_on_remote_cleanup() {
+async fn stale_tab_removal_does_not_depend_on_remote_cleanup() {
     let dir = tempfile::tempdir().unwrap();
     let (handle, mut receiver) = crate::terminal_host::client::ClientHandle::test_channels();
     let mut actor = crate::terminal_host::server::actor_test_harness::test_actor(
@@ -90,16 +88,13 @@ async fn stale_codex_tab_removal_does_not_depend_on_remote_cleanup() {
     actor
         .runtime_store
         .upsert_workspace_tab(alera_core::runtime::WorkspaceTabRecord {
-            id: "stale-codex-tab".to_string(),
+            id: "stale-tab".to_string(),
             workspace_id: "missing-workspace".to_string(),
-            kind: crate::terminal_host::protocol::CODEX_TAB_KIND.to_string(),
-            title: "Codex Chat".to_string(),
+            kind: "terminal".to_string(),
+            title: "Terminal".to_string(),
             created_at: now,
             updated_at: now,
-            payload: serde_json::json!({
-                "codexThreadId": "thread-stale",
-                "codexThreadOwnedByAlera": true,
-            }),
+            payload: serde_json::json!({}),
         })
         .await
         .unwrap();
@@ -112,7 +107,7 @@ async fn stale_codex_tab_removal_does_not_depend_on_remote_cleanup() {
             serde_json::json!({
                 "id": 1,
                 "type": "tab.remove",
-                "payload": {"id": "stale-codex-tab"},
+                "payload": {"id": "stale-tab"},
             })
             .to_string(),
         )
@@ -129,7 +124,7 @@ async fn stale_codex_tab_removal_does_not_depend_on_remote_cleanup() {
     assert_eq!(response["ok"], true);
     assert!(actor
         .runtime_store
-        .find_workspace_tab("stale-codex-tab")
+        .find_workspace_tab("stale-tab")
         .await
         .unwrap()
         .is_none());
@@ -375,9 +370,6 @@ fn mobile_hello_advertises_deferred_terminal_input() {
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_RESTART_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY));
-    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_CODEX_CHAT_CAPABILITY));
-    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_CODEX_GOALS_CAPABILITY));
-    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_AI_DICTATION_MODELS_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_AI_DICTATION_BACKENDS_CAPABILITY));
     assert!(mobile_request_allowed("mobile.aiDictation.capabilities"));

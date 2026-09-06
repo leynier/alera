@@ -4,7 +4,6 @@ use crate::terminal_host::host_error::HostError;
 use crate::terminal_host::protocol::error_response;
 use crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown;
 
-use super::codex_requests::CodexCleanupPlan;
 use super::runtime_mutations::{
     run_runtime_mutation, RuntimeMutationFinished, RuntimeMutationOutcome, RuntimeMutationRequest,
 };
@@ -16,7 +15,6 @@ struct QueuedMutation {
     client_id: u64,
     request_id: i64,
     mutation: RuntimeMutationRequest,
-    codex_cleanup: Option<CodexCleanupPlan>,
 }
 
 #[derive(Default)]
@@ -40,12 +38,11 @@ impl RuntimeMutationQueue {
 }
 
 impl ServerActor {
-    pub(super) fn start_runtime_mutation_after_codex_cleanup(
+    pub(super) fn start_runtime_mutation(
         &mut self,
         client_id: u64,
         request_id: i64,
         mutation: RuntimeMutationRequest,
-        codex_cleanup: Option<CodexCleanupPlan>,
     ) {
         if self.mutation_queue.outstanding() >= MAX_MUTATIONS {
             let error = HostError::state(
@@ -60,7 +57,6 @@ impl ServerActor {
             client_id,
             request_id,
             mutation,
-            codex_cleanup,
         });
         self.start_next_runtime_mutation();
     }
@@ -79,19 +75,16 @@ impl ServerActor {
             .retain(|queued| queued.client_id != client_id);
         let removed = before - self.mutation_queue.pending.len();
         self.mutation_queue.in_flight = self.mutation_queue.in_flight.saturating_sub(removed);
-        if removed > 0 && !self.mutation_queue.has_runtime_mutations() {
-            for tab_id in self.codex_delivery_active.clone() {
-                self.schedule_codex_queue(&tab_id);
-            }
-        }
     }
 
     #[cfg(test)]
+    #[allow(dead_code)]
     pub(super) fn park_runtime_mutations(&mut self) {
         self.mutation_queue.parked = true;
     }
 
     #[cfg(test)]
+    #[allow(dead_code)]
     pub(super) fn unpark_runtime_mutations(&mut self) {
         self.mutation_queue.parked = false;
         self.start_next_runtime_mutation();
@@ -158,13 +151,9 @@ impl ServerActor {
                 Err(error) => Err(error),
             };
             let mut outcome = match prepared {
-                Ok(()) => {
-                    run_runtime_mutation(runtime_store, request.mutation, request.codex_cleanup)
-                        .await
-                }
+                Ok(()) => run_runtime_mutation(runtime_store, request.mutation).await,
                 Err(error) => RuntimeMutationOutcome {
                     result: Err(error),
-                    pending_codex_cleanup: Vec::new(),
                     ended_pointer_tab_ids: Vec::new(),
                     closed_session_tab_ids: Vec::new(),
                     committed_tab_ids: Vec::new(),

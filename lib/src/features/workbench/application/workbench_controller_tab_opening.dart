@@ -68,32 +68,6 @@ mixin _WorkbenchControllerTabOpening
     }
   }
 
-  Future<WorkspaceTabRecord> createCodexTab(
-    Workspace workspace, {
-    String? targetGroupId,
-  }) async {
-    try {
-      final previousTabs = state.tabsFor(workspace.id);
-      final layout = _layoutForMutation(workspace.id, previousTabs);
-      final tab = await _workspaceTabService.createCodexTab(workspace.id);
-      final tabs = <WorkspaceTabRecord>[...previousTabs, tab];
-      _setTabsForWorkspace(workspace.id, tabs);
-      final groupId = targetGroupId ?? layout.activeGroupId;
-      await _applyLayout(
-        layout.addTabToGroup(groupId: groupId, tabId: tab.id).sanitize(tabs),
-        persist: true,
-      );
-      ref
-          .read(workspaceActivityControllerProvider.notifier)
-          .recordActivity(workspace.id, DateTime.now().toUtc());
-      state = state.copyWith(error: null);
-      return tab;
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
-      rethrow;
-    }
-  }
-
   Future<WorkspaceTabRecord> openMermanPreviewTab({
     required Workspace workspace,
     required String relativePath,

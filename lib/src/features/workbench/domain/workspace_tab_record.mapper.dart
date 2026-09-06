@@ -29,8 +29,6 @@ class WorkspaceTabKindMapper extends EnumMapper<WorkspaceTabKind> {
     switch (value) {
       case r'terminal':
         return WorkspaceTabKind.terminal;
-      case r'codex':
-        return WorkspaceTabKind.codex;
       case r'editor':
         return WorkspaceTabKind.editor;
       case r'markdownViewer':
@@ -49,8 +47,6 @@ class WorkspaceTabKindMapper extends EnumMapper<WorkspaceTabKind> {
     switch (self) {
       case WorkspaceTabKind.terminal:
         return r'terminal';
-      case WorkspaceTabKind.codex:
-        return r'codex';
       case WorkspaceTabKind.editor:
         return r'editor';
       case WorkspaceTabKind.markdownViewer:

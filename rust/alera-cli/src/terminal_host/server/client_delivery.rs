@@ -1,5 +1,5 @@
 use super::*;
-use crate::terminal_host::protocol::{CODEX_TAB_KIND, PROTOCOL_VERSION};
+use crate::terminal_host::protocol::PROTOCOL_VERSION;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum LocalClientRole {
@@ -56,18 +56,9 @@ impl ServerActor {
             .and_then(Value::as_bool)
             .unwrap_or(false);
         let local_role = requested_local_role(payload);
-        let supports_codex_tab_kind = payload
-            .get("supportedTabKinds")
-            .and_then(Value::as_array)
-            .is_some_and(|kinds| {
-                kinds
-                    .iter()
-                    .any(|kind| kind.as_str() == Some(CODEX_TAB_KIND))
-            });
         if let Some(client) = self.clients.get_mut(&client_id) {
             client.authenticated = true;
             client.binary_frames = binary_frames;
-            client.supports_codex_tab_kind = supports_codex_tab_kind;
             if client.kind == ClientKind::Local {
                 client.local_role = local_role;
             }
@@ -315,7 +306,6 @@ mod tests {
                     handle: ClientHandle::new(control_out, terminal_out),
                     authenticated: true,
                     binary_frames: false,
-                    supports_codex_tab_kind: false,
                     kind: ClientKind::Local,
                     local_role: LocalClientRole::Cli,
                     mobile_device_id: None,
@@ -336,12 +326,6 @@ mod tests {
             terminal_pulses: Default::default(),
             codex: None,
             codex_starting: None,
-            codex_presence: HashMap::new(),
-            codex_delivery_active: HashSet::new(),
-            codex_history_scans: HashSet::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,

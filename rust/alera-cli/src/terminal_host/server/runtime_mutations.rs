@@ -5,9 +5,6 @@ use crate::hosted_review_retention;
 use crate::managed_workspace::{remove_managed_workspace, ManagedWorkspaceRemoveRequest};
 use crate::terminal_host::host_error::{HostError, HostResult};
 
-use super::codex_requests::CodexCleanupPlan;
-use super::codex_runtime_cleanup::CodexCleanupEntry;
-
 #[path = "runtime_mutation_hosted_review_retention.rs"]
 mod hosted_review_retentions;
 #[cfg(test)]
@@ -47,7 +44,6 @@ pub(crate) struct RuntimeMutationCompletion {
 
 pub(crate) struct RuntimeMutationOutcome {
     pub(crate) result: HostResult<RuntimeMutationCompletion>,
-    pub(super) pending_codex_cleanup: Vec<CodexCleanupEntry>,
     pub(super) ended_pointer_tab_ids: Vec<String>,
     pub(super) closed_session_tab_ids: Vec<String>,
     pub(super) committed_tab_ids: Vec<String>,
@@ -98,29 +94,9 @@ pub(super) enum RuntimeMutationEffect {
 pub(super) async fn run_runtime_mutation(
     runtime_store: RuntimeStore,
     request: RuntimeMutationRequest,
-    codex_cleanup: Option<CodexCleanupPlan>,
 ) -> RuntimeMutationOutcome {
     let hosted_review_retentions =
         hosted_review_retentions::for_request(&runtime_store, &request).await;
-    let mut prepared_codex_cleanup = if let Some(cleanup) = codex_cleanup {
-        match cleanup.prepare().await {
-            Ok(prepared) => Some(prepared),
-            Err(error) => {
-                return RuntimeMutationOutcome {
-                    result: Err(error),
-                    pending_codex_cleanup: Vec::new(),
-                    ended_pointer_tab_ids: Vec::new(),
-                    closed_session_tab_ids: Vec::new(),
-                    committed_tab_ids: Vec::new(),
-                    effect_on_error: None,
-                    stopped_workspace_tab_ids: Vec::new(),
-                    pending_workspace_shutdown: None,
-                };
-            }
-        }
-    } else {
-        None
-    };
     let committed_tab_ids = Vec::new();
     let mut effect_on_error = None;
     let result = async {
@@ -232,20 +208,11 @@ pub(super) async fn run_runtime_mutation(
         }
     }
     .await;
-    if result.is_ok() {
-        if let Some(cleanup) = prepared_codex_cleanup.as_mut() {
-            cleanup.delete_threads_after_commit();
-        }
-    }
     if result.is_ok() || effect_on_error.is_some() {
         hosted_review_retention::release(hosted_review_retentions);
     }
-    let pending_codex_cleanup = prepared_codex_cleanup
-        .map(|cleanup| cleanup.into_entries())
-        .unwrap_or_default();
     RuntimeMutationOutcome {
         result,
-        pending_codex_cleanup,
         ended_pointer_tab_ids: Vec::new(),
         closed_session_tab_ids: Vec::new(),
         committed_tab_ids,

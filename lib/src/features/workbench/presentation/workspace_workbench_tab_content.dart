@@ -41,11 +41,6 @@ class const _WorkspaceTabContent({
   Widget build(BuildContext context) {
     return switch (tab.kind) {
       WorkspaceTabKind.terminal => _buildTerminal(),
-      WorkspaceTabKind.codex => CodexChatSurface(
-        workspace: workspace,
-        tab: tab,
-        autofocus: autofocus,
-      ),
       WorkspaceTabKind.editor => _WorkspaceFileTabContent(
         workspace: workspace,
         sourceControlScope: sourceControlScope,

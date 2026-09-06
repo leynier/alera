@@ -13,9 +13,7 @@ import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
-import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
-import 'package:alera/src/features/codex_chat/presentation/codex_chat_surface.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_tab_attention.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
@@ -49,7 +47,6 @@ part 'workspace_workbench_resize_handle.dart';
 typedef CreateTerminalTabCallback = Future<void> Function({
   String? targetGroupId,
 });
-typedef CreateCodexTabCallback = Future<void> Function({String? targetGroupId});
 typedef OpenFileTabCallback = Future<void> Function({
   required String relativePath,
   String? targetGroupId,
@@ -88,14 +85,7 @@ typedef OpenWorkspaceFileCallback = Future<void> Function(String relativePath);
 String workspaceTabTitleForTesting(WorkspaceTabRecord tab) =>
     _workspaceTabTitle(tab);
 
-String _workspaceTabTitle(WorkspaceTabRecord tab) {
-  if (tab.kind == WorkspaceTabKind.codex &&
-      (tab.title.trim().isEmpty ||
-          (tab.title == 'Codex' && tab.payload['manualTitle'] != true))) {
-    return 'Codex Chat';
-  }
-  return tab.title;
-}
+String _workspaceTabTitle(WorkspaceTabRecord tab) => tab.title;
 
 @visibleForTesting
 int splitRatioFlexForTesting(double ratio) =>
@@ -194,7 +184,6 @@ class const WorkspaceWorkbenchView({
   required final WorkbenchTabCompletionAcknowledgements
   completionAcknowledgements,
   required final CreateTerminalTabCallback onCreateTab,
-  final CreateCodexTabCallback? onCreateCodexTab,
   required final OpenFileTabCallback onOpenEditorTab,
   required final OpenFileTabCallback onOpenMarkdownViewerTab,
   required final SelectWorkspaceTabCallback onSelectTab,
@@ -247,7 +236,6 @@ class _WorkspaceWorkbenchViewState extends State<WorkspaceWorkbenchView> {
           agentStatuses: widget.agentStatuses,
           completionAcknowledgements: widget.completionAcknowledgements,
           onCreateTab: widget.onCreateTab,
-          onCreateCodexTab: widget.onCreateCodexTab,
           onOpenEditorTab: widget.onOpenEditorTab,
           onOpenMarkdownViewerTab: widget.onOpenMarkdownViewerTab,
           onSelectTab: widget.onSelectTab,

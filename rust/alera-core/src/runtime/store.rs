@@ -67,9 +67,6 @@ impl RuntimeStore {
         for statement in RUNTIME_SCHEMA {
             sqlx::query(*statement).execute(&self.pool).await?;
         }
-        for statement in super::codex_chat_store::CODEX_CHAT_SCHEMA {
-            sqlx::query(*statement).execute(&self.pool).await?;
-        }
         for statement in super::workspace_section_store::SECTION_SCHEMA {
             sqlx::query(*statement).execute(&self.pool).await?;
         }
@@ -90,6 +87,7 @@ impl RuntimeStore {
             "DROP TABLE IF EXISTS browserClosedTabs",
             "DROP TABLE IF EXISTS browserHistory",
             "DROP TABLE IF EXISTS browserProfiles",
+            "DROP TABLE IF EXISTS codexChatState",
         ] {
             sqlx::query(statement).execute(&self.pool).await?;
         }

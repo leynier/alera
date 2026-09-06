@@ -34,9 +34,6 @@ mixin _WorkbenchControllerTabs
         if (closedTab != null) {
           await _releaseHostedReviewTab(workspace, closedTab);
         }
-        if (closingTabs[tabId]?.kind == WorkspaceTabKind.codex) {
-          ref.read(codexComposerDraftStoreProvider).remove(tabId);
-        }
         // Every close path must drop the live terminal handle and the editor
         // document, or the xterm scrollback buffer outlives the tab. This is
         // deliberately centralized here: callers used to pair these calls at

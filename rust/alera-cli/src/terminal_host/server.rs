@@ -88,37 +88,9 @@ mod automation_scheduler;
 mod client_accept_loop;
 mod client_delivery;
 mod codex_app_server;
-mod codex_app_server_history;
 mod codex_app_server_session_state;
-mod codex_attachment_retention;
-mod codex_commands;
 mod codex_dictation;
-mod codex_edit_input;
-mod codex_edit_recovery;
-mod codex_event_routing;
-mod codex_events;
-mod codex_fork_install;
-mod codex_fork_jobs;
-mod codex_goal_requests;
-mod codex_history_actions;
-mod codex_history_edit;
-mod codex_history_scans;
-mod codex_nonblocking_questions;
-mod codex_presence;
-mod codex_process_exit;
-mod codex_queue;
-mod codex_queue_attachments;
-mod codex_queue_cancellation;
-mod codex_queue_delivery;
-mod codex_queue_startup;
-mod codex_requests;
-mod codex_runtime_cleanup;
 mod codex_server_startup;
-mod codex_state;
-mod codex_tab_lifecycle;
-mod codex_thread_identity;
-mod codex_user_messages;
-mod codex_workspace_inputs;
 mod configuration_requests;
 mod configuration_transfers;
 mod mobile_gateway_replacement;
@@ -221,7 +193,6 @@ struct ClientState {
     handle: ClientHandle,
     authenticated: bool,
     binary_frames: bool,
-    supports_codex_tab_kind: bool,
     kind: ClientKind,
     local_role: client_delivery::LocalClientRole,
     mobile_device_id: Option<String>,
@@ -270,12 +241,6 @@ struct ServerActor {
     terminal_pulses: terminal_pulse::TerminalPulseManager,
     codex: Option<codex_app_server::CodexAppServer>,
     codex_starting: Option<codex_server_startup::CodexServerStartup>,
-    codex_presence: HashMap<String, Value>,
-    codex_delivery_active: HashSet<String>,
-    codex_history_scans: HashSet<String>,
-    codex_presence_scheduled: bool,
-    codex_pending_messages: HashMap<String, Vec<Value>>,
-    codex_flush_scheduled: HashSet<String>,
     inbox: UnboundedSender<ServerCommand>,
     next_client_id: Arc<AtomicU64>,
     mobile_gateway: Option<JoinHandle<()>>,
@@ -442,7 +407,6 @@ impl ServerActor {
                         handle,
                         authenticated: false,
                         binary_frames: false,
-                        supports_codex_tab_kind: false,
                         kind,
                         local_role: client_delivery::LocalClientRole::Cli,
                         mobile_device_id: None,
@@ -693,19 +657,15 @@ impl ServerActor {
                 self.handle_resource_sample_ready(snapshot)
             }
             ServerCommand::AutomationTick => self.handle_automation_tick().await,
-            command @ (ServerCommand::CodexForkCreated { .. }
-            | ServerCommand::CodexForkProjected { .. }
-            | ServerCommand::CodexQueueStartupFinished { .. }
-            | ServerCommand::CodexHistoryScanFinished { .. }
-            | ServerCommand::CodexQueueDelivered { .. }
-            | ServerCommand::CodexQueueAdvance { .. }
-            | ServerCommand::CodexEditFinished { .. }
-            | ServerCommand::CodexMessage { .. }
-            | ServerCommand::CodexProcessExited { .. }
-            | ServerCommand::CodexMalformed { .. }
-            | ServerCommand::CodexPresenceTick
-            | ServerCommand::CodexFlush { .. }
-            | ServerCommand::CodexAutoResolve { .. }) => self.handle_codex_command(command).await,
+            ServerCommand::CodexMessage { .. } => {}
+            ServerCommand::CodexMalformed { reason } => {
+                tracing::warn!(reason, "Codex app-server returned malformed JSON");
+            }
+            ServerCommand::CodexProcessExited { reason } => {
+                tracing::warn!(reason, "Codex app-server exited");
+                self.codex = None;
+                self.codex_starting = None;
+            }
             ServerCommand::Account(command) => self.handle_account_command(command).await,
             ServerCommand::Push(command) => self.handle_push_command(command),
         }
@@ -1198,12 +1158,6 @@ mod tests {
             terminal_pulses: Default::default(),
             codex: None,
             codex_starting: None,
-            codex_presence: HashMap::new(),
-            codex_delivery_active: HashSet::new(),
-            codex_history_scans: HashSet::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,
@@ -1279,12 +1233,6 @@ mod tests {
             terminal_pulses: Default::default(),
             codex: None,
             codex_starting: None,
-            codex_presence: HashMap::new(),
-            codex_delivery_active: HashSet::new(),
-            codex_history_scans: HashSet::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1378,12 +1326,6 @@ mod tests {
             terminal_pulses: Default::default(),
             codex: None,
             codex_starting: None,
-            codex_presence: HashMap::new(),
-            codex_delivery_active: HashSet::new(),
-            codex_history_scans: HashSet::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1472,12 +1414,6 @@ mod tests {
             terminal_pulses: Default::default(),
             codex: None,
             codex_starting: None,
-            codex_presence: HashMap::new(),
-            codex_delivery_active: HashSet::new(),
-            codex_history_scans: HashSet::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1588,12 +1524,6 @@ mod tests {
             terminal_pulses: Default::default(),
             codex: None,
             codex_starting: None,
-            codex_presence: HashMap::new(),
-            codex_delivery_active: HashSet::new(),
-            codex_history_scans: HashSet::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1677,12 +1607,6 @@ mod tests {
             terminal_pulses: Default::default(),
             codex: None,
             codex_starting: None,
-            codex_presence: HashMap::new(),
-            codex_delivery_active: HashSet::new(),
-            codex_history_scans: HashSet::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,
@@ -1742,9 +1666,3 @@ mod tests {
         assert!(actor.agent_presence.is_injection_ready("term-1"));
     }
 }
-
-#[cfg(test)]
-mod codex_queue_tests;
-
-#[cfg(test)]
-mod codex_history_tests;
