@@ -2,6 +2,8 @@
 
 Alera writes rotating log files on the machine so an error can be reviewed after it happened. Logging is always on; sending anything off the machine is opt-in and off by default.
 
+If a v0.81.0 runtime log reports `no such table: main.codexChatState` during startup, the feature-removal migration left a legacy trigger on `workspaceTabs`. The corrected host removes that trigger before removing the obsolete table, including when a previous startup already removed the table. This cleanup and removal of retired tabs run in one transaction after acquiring runtime ownership and before publishing the control file. Ordinary database opens, including `alera runtime status`, preserve the legacy tables so an older running host can continue using them. Keep the existing runtime database: clearing it is unnecessary and would discard supported workspace state.
+
 ## Where Logs Live
 
 | Surface | Directory | Base name |
