@@ -73,6 +73,18 @@ pub(super) fn spawn_pty(
         .master
         .take_writer()
         .map_err(|error| HostError::state(error.to_string()))?;
+    #[cfg(windows)]
+    let writer = {
+        use std::io::Write;
+        let mut writer = writer;
+        // portable-pty enables INHERIT_CURSOR. A new private console starts at
+        // home; answer before startup input so headless workers do not wait for UI.
+        writer
+            .write_all(super::conpty_startup::INITIAL_CURSOR)
+            .and_then(|()| writer.flush())
+            .map_err(|error| HostError::state(error.to_string()))?;
+        writer
+    };
     Ok(SpawnedPty {
         child,
         master: pair.master,

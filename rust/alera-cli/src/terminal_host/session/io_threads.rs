@@ -70,14 +70,18 @@ pub(super) fn spawn_reader(
         .name("alera-pty-reader".to_string())
         .spawn(move || {
             let mut buffer = vec![0u8; READ_CHUNK_BYTES];
+            let mut startup = super::conpty_startup::ConptyStartupOutput::default();
             loop {
                 match reader.read(&mut buffer) {
                     Ok(0) => break,
                     Ok(read) => {
-                        if reader_tx
-                            .send(WindowsReaderEvent::Output(buffer[..read].to_vec()))
-                            .is_err()
-                        {
+                        // The host already answered ConPTY's initial cursor query.
+                        // Do not expose it to UI clients that would answer twice.
+                        let output = startup.feed(&buffer[..read]);
+                        if output.is_empty() {
+                            continue;
+                        }
+                        if reader_tx.send(WindowsReaderEvent::Output(output)).is_err() {
                             return;
                         }
                     }
@@ -86,6 +90,10 @@ pub(super) fn spawn_reader(
                         break;
                     }
                 }
+            }
+            let remaining = startup.finish();
+            if !remaining.is_empty() {
+                let _ = reader_tx.send(WindowsReaderEvent::Output(remaining));
             }
             let _ = reader_tx.send(WindowsReaderEvent::ReaderClosed);
         })

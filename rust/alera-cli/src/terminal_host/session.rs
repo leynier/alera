@@ -17,6 +17,8 @@ use crate::terminal_host::resources::ShellProcess;
 use crate::terminal_host::resources::seal_shell_process;
 
 mod checkpoint_restore;
+#[cfg(any(windows, test))]
+mod conpty_startup;
 #[cfg(test)]
 mod driver_test_stub;
 mod input_queue;
