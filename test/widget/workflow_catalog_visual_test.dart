@@ -80,7 +80,7 @@ void main() {
         await tester.ensureVisible(find.text('Review Current Recipe'));
         await tester.tap(find.text('Review Current Recipe'));
         await tester.pumpAndSettle();
-          await tester.ensureVisible(find.text('feature-delivery'));
+        await tester.ensureVisible(find.text('feature-delivery'));
         await tester.pumpAndSettle();
       }
       expect(tester.takeException(), isNull);
