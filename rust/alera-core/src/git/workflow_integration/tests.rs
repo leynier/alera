@@ -18,10 +18,16 @@ struct Fixture {
 
 impl Fixture {
     fn new() -> Self {
+        Self::with_autocrlf(false)
+    }
+
+    fn with_autocrlf(autocrlf: bool) -> Self {
         let directory = tempfile::tempdir().unwrap();
         let repo_path = directory.path().join("repo");
         let repo = Repository::init(&repo_path).unwrap();
         let mut config = repo.config().unwrap();
+        // Fixture bytes must not depend on the runner's global Git settings.
+        config.set_bool("core.autocrlf", autocrlf).unwrap();
         config.set_str("user.name", "Workflow Test").unwrap();
         config
             .set_str("user.email", "workflow@example.invalid")
@@ -108,6 +114,9 @@ fn prepared(request: &WorkflowIntegrationRequest) -> WorkflowIntegrationReceipt 
         other => panic!("expected preparation, got {other:?}"),
     }
 }
+
+#[path = "line_ending_tests.rs"]
+mod line_ending_tests;
 
 #[test]
 fn workflow_integration_squashes_exact_result_and_preserves_source_changes() {
