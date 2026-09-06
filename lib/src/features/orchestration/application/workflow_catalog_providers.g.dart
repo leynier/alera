@@ -90,7 +90,7 @@ final class WorkflowCatalogDraftProvider
 }
 
 String _$workflowCatalogDraftHash() =>
-    r'ec1d387753180f0aca954b25fbfd200eda3309e8';
+    r'0fe450e76d4cb4b16bbbb29f74dc5cec1aaf5458';
 
 abstract class _$WorkflowCatalogDraft extends $Notifier<WorkflowCatalogEdit?> {
   WorkflowCatalogEdit? build();

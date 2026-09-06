@@ -38,8 +38,8 @@ extension _WorkflowCatalogActions on _WorkflowCatalogPaneState {
       }
     }
     final record = await repository.save(text, revision);
-    final reconciled = drafts.reconcileSaved(submitted, record);
-    if (!mounted) return;
+    final reconciled = await drafts.reconcileSaved(submitted, record);
+    if (!mounted || reconciled == null) return;
     final document = await repository.document(record['recipe']);
     if (!mounted) return;
     _change(() {

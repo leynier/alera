@@ -28,14 +28,14 @@ extension _WorkflowCatalogRecovery on _WorkflowCatalogPaneState {
       _recoveryDraft = submitted;
     });
     if (review['matches'] == true) {
-      _useReviewedRecipe(useCurrent: true, alreadySaved: true);
+      await _useReviewedRecipe(useCurrent: true, alreadySaved: true);
     }
   });
 
-  void _useReviewedRecipe({
+  Future<void> _useReviewedRecipe({
     required bool useCurrent,
     bool alreadySaved = false,
-  }) {
+  }) async {
     final review = _recovery;
     final submitted = _recoveryDraft;
     if (review == null ||
@@ -45,8 +45,12 @@ extension _WorkflowCatalogRecovery on _WorkflowCatalogPaneState {
     }
     final record = _object(review['record']);
     final drafts = ref.read(workflowCatalogDraftProvider.notifier);
-    final reconciled = drafts.reconcileSaved(submitted, record);
-    if (reconciled == null) return;
+    final reconciled = await drafts.reconcileSaved(submitted, record);
+    if (!mounted ||
+        reconciled == null ||
+        !identical(ref.read(workflowCatalogDraftProvider), reconciled)) {
+      return;
+    }
     _change(() {
       _selected = record;
       _editRevision = record['catalogRevision']! as int;

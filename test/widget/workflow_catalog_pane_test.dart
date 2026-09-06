@@ -56,13 +56,14 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  for (final (newerDraft, copy) in [
-    (false, false),
-    (true, false),
-    (true, true),
+  for (final (newerDraft, copy, renamed) in [
+    (false, false, false),
+    (true, false, false),
+    (true, true, false),
+    (true, true, true),
   ]) {
     testWidgets(
-      'save after closing reconciles draft, newer=$newerDraft copy=$copy',
+      'save after closing reconciles draft, newer=$newerDraft copy=$copy renamed=$renamed',
       (tester) async {
         final pending = Completer<Map<String, Object?>>();
         final repository = CatalogTestRepository()..pendingSave = pending;
@@ -100,17 +101,27 @@ void main() {
             'newer draft',
           );
         }
+        if (renamed) repository.validatedId = 'renamed-copy';
         pending.complete({...workflowCatalogRecord, 'catalogRevision': 4});
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
-        expect(container.read(workflowCatalogDraftProvider)!.revision, 4);
-        expect(find.textContaining('Catalog Revision 4'), findsOneWidget);
+        expect(
+          container.read(workflowCatalogDraftProvider)!.revision,
+          renamed ? null : 4,
+        );
+        expect(
+          find.textContaining('Catalog Revision ${renamed ? 3 : 4}'),
+          findsOneWidget,
+        );
         if (newerDraft) expect(find.text('newer draft'), findsOneWidget);
         repository.pendingSave = null;
-        repository.requiredRevision = 4;
+        repository.requiredRevision = renamed ? null : 4;
         await tester.tap(find.text('Save Personal'));
         await tester.pumpAndSettle();
-        expect(repository.savedRevisions, [copy ? null : 3, 4]);
+        expect(repository.savedRevisions, [
+          copy ? null : 3,
+          renamed ? null : 4,
+        ]);
         expect(find.text('Personal recipe saved.'), findsOneWidget);
         expect(container.read(workflowCatalogDraftProvider), isNull);
       },

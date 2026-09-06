@@ -41,6 +41,8 @@ class CatalogTestRepository extends WorkflowCatalogRepository {
   Object? failure;
   int saves = 0;
   String? validatedId;
+  Object? validationFailure;
+  Completer<Map<String, Object?>>? pendingValidation;
   Completer<Map<String, Object?>>? pendingSave;
   List<Map<String, Object?>>? entries;
   final savedRevisions = <int?>[];
@@ -71,9 +73,14 @@ class CatalogTestRepository extends WorkflowCatalogRepository {
   @override
   Future<String> document(Object? recipe) async => 'portable document';
   @override
-  Future<Map<String, Object?>> validate(String document) async => {
-    'recipe': {'id': validatedId ?? 'feature-delivery'},
-  };
+  Future<Map<String, Object?>> validate(String document) async {
+    if (validationFailure != null) throw validationFailure!;
+    return pendingValidation?.future ??
+        {
+          'recipe': {'id': validatedId ?? 'feature-delivery'},
+        };
+  }
+
   @override
   Future<Map<String, Object?>> save(String document, int? revision) async {
     saves++;

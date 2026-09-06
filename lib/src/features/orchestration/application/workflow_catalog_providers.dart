@@ -32,10 +32,10 @@ class WorkflowCatalogDraft extends _$WorkflowCatalogDraft {
 
   void retain(WorkflowCatalogEdit? draft) => state = draft;
 
-  WorkflowCatalogEdit? reconcileSaved(
+  Future<WorkflowCatalogEdit?> reconcileSaved(
     WorkflowCatalogEdit? submitted,
     Map<String, Object?> record,
-  ) {
+  ) async {
     if (!ref.mounted) return null;
     final current = state;
     if (submitted == null ||
@@ -44,6 +44,23 @@ class WorkflowCatalogDraft extends _$WorkflowCatalogDraft {
         !identical(current.record, submitted.record) ||
         current.revision != submitted.revision) {
       return null;
+    }
+    if (submitted.revision == null && current.document != submitted.document) {
+      try {
+        final validated = await ref
+            .read(workflowCatalogRepositoryProvider)
+            .validate(current.document);
+        if (!ref.mounted ||
+            !identical(state, current) ||
+            (validated['recipe']! as Map)['id'] !=
+                (record['recipe']! as Map)['id']) {
+          return null;
+        }
+      } catch (_) {
+        // An invalid or renamed copy must remain create-only until the user
+        // explicitly saves or reconciles that newer document.
+        return null;
+      }
     }
     final reconciled = WorkflowCatalogEdit(
       record,
