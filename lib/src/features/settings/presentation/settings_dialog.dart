@@ -1,4 +1,5 @@
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_catalog_pane.dart';
 import 'package:alera/src/features/configuration_sync/presentation/configuration_sync_pane.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
@@ -217,6 +218,28 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     ];
 
     final sections = <SettingsSectionData>[
+      SettingsSectionData(
+        id: 'workflows',
+        title: 'Workflows',
+        description: 'Reusable recipes, stages and portable role contracts.',
+        icon: AleraIcons.workspaceChildren,
+        navGroup: SettingsNavGroup.resources,
+        entries: const [
+          SettingsSearchEntry(
+            title: 'Workflow Recipes',
+            keywords: [
+              'catalog',
+              'personal',
+              'project',
+              'built-in',
+              'yaml',
+              'contracts',
+              'export',
+            ],
+          ),
+        ],
+        builder: (_) => const WorkflowCatalogPane(),
+      ),
       SettingsSectionData(
         id: 'configurationSync',
         title: 'Configuration Sync',

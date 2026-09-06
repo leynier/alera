@@ -102,6 +102,9 @@ mod workflow_catalog;
 mod workflow_catalog_store;
 #[cfg(test)]
 mod workflow_catalog_tests;
+mod workflow_export;
+#[cfg(test)]
+mod workflow_export_tests;
 mod workflow_gate_evidence;
 #[cfg(test)]
 mod workflow_gate_tests;
@@ -199,6 +202,7 @@ pub use workbench_shared_state_models::*;
 pub use workflow_approval_store::WorkflowDecisionReceipt;
 pub use workflow_builtins::builtin_workflow_recipes;
 pub use workflow_catalog::{WorkflowCatalog, WorkflowCatalogEntry, WorkflowCatalogRecipe};
+pub use workflow_export::{WorkflowExportPreview, WorkflowExportRequest};
 pub use workflow_integration::*;
 pub use workflow_launch::*;
 pub use workflow_plan::*;

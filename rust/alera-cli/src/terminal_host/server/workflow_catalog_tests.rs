@@ -17,6 +17,8 @@ async fn workflow_catalog_rpc_is_authenticated_local_only_and_rejects_actor_spoo
         "workflows.recipe",
         "workflows.validateRecipe",
         "workflows.savePersonalRecipe",
+        "workflows.previewRecipeExport",
+        "workflows.applyRecipeExport",
     ] {
         assert!(actor
             .start_workflow_catalog_request(1, 1, verb, &json!({"actor":"app"}))

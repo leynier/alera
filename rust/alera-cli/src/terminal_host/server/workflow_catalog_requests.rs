@@ -2,7 +2,8 @@ use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use alera_core::runtime::{
-    compile_workflow_recipe, RuntimeStore, WorkflowRecipeSource, WORKFLOW_DOCUMENT_MAX_BYTES,
+    compile_workflow_recipe, RuntimeStore, WorkflowExportRequest, WorkflowRecipeSource,
+    WORKFLOW_DOCUMENT_MAX_BYTES,
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -44,6 +45,7 @@ enum CatalogRequest {
     Get(RecipeQuery),
     Validate(ValidateRecipe),
     Save(SaveRecipe),
+    Export(WorkflowExportRequest, bool),
 }
 
 struct CatalogResponse {
@@ -81,6 +83,8 @@ impl ServerActor {
             "workflows.recipe" => CatalogRequest::Get(parse(payload)?),
             "workflows.validateRecipe" => CatalogRequest::Validate(parse(payload)?),
             "workflows.savePersonalRecipe" => CatalogRequest::Save(parse(payload)?),
+            "workflows.previewRecipeExport" => CatalogRequest::Export(parse(payload)?, false),
+            "workflows.applyRecipeExport" => CatalogRequest::Export(parse(payload)?, true),
             _ => return Err(HostError::format("unknown workflow catalog request")),
         };
         static QUEUE: OnceLock<Arc<Semaphore>> = OnceLock::new();
@@ -124,6 +128,12 @@ impl ServerActor {
 impl CatalogRequest {
     async fn execute(self, store: RuntimeStore) -> HostResult<CatalogResponse> {
         let value = match self {
+            Self::Export(query, apply) => serde_json::to_value(
+                store
+                    .export_workflow_recipe(query, apply)
+                    .await
+                    .map_err(state)?,
+            ),
             Self::List(query) => serde_json::to_value(
                 store
                     .workflow_catalog(query.workspace_id.as_deref())

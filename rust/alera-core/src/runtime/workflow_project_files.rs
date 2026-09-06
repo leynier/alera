@@ -66,7 +66,7 @@ pub(super) fn read_project_workflow_documents(
     Ok(documents)
 }
 
-fn optional_directory(parent: &Dir, name: &str) -> Result<Option<Dir>> {
+pub(super) fn optional_directory(parent: &Dir, name: &str) -> Result<Option<Dir>> {
     match parent.symlink_metadata(name) {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(error) => return Err(error.into()),
@@ -78,7 +78,7 @@ fn optional_directory(parent: &Dir, name: &str) -> Result<Option<Dir>> {
     Ok(Some(parent.open_dir_nofollow(name)?))
 }
 
-fn read_document(directory: &Dir, name: &str) -> Result<String> {
+pub(super) fn read_document(directory: &Dir, name: &str) -> Result<String> {
     artifact_path(name)?;
     if name.contains('/') {
         bail!("workflow filename must be a single component");
