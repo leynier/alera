@@ -1,8 +1,35 @@
+import 'dart:convert';
+
 import 'package:alera/src/features/orchestration/infra/workflow_catalog_repository.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('large portable documents fall back to compact UTF-8 JSON', () async {
+    final recipe = {
+      'contracts': [
+        {'instructions': List.filled(131050, 'é').join()},
+      ],
+    };
+    final compact = jsonEncode(recipe);
+    final pretty = const JsonEncoder.withIndent('  ').convert(recipe);
+    expect(utf8.encode(compact).length, lessThanOrEqualTo(256 * 1024));
+    expect(utf8.encode(pretty).length, greaterThan(256 * 1024));
+    expect(pretty.length, lessThan(256 * 1024));
+    final document = await WorkflowCatalogRepository(_Client())
+        .document(recipe);
+    expect(document, compact);
+    expect(jsonDecode(document), recipe);
+  });
+
+  test('small portable documents retain readable formatting', () async {
+    const recipe = {'id': 'small'};
+    expect(
+      await WorkflowCatalogRepository(_Client()).document(recipe),
+      const JsonEncoder.withIndent('  ').convert(recipe),
+    );
+  });
+
   test('catalog and export negotiate independent capabilities', () async {
     final client = _Client();
     final repository = WorkflowCatalogRepository(client);

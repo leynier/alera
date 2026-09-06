@@ -77,8 +77,11 @@ class WorkflowCatalogRepository {
   Future<String> document(Object? recipe) => compute(_encodeDocument, recipe);
 }
 
-String _encodeDocument(Object? recipe) =>
-    const JsonEncoder.withIndent('  ').convert(recipe);
+String _encodeDocument(Object? recipe) {
+  final pretty = const JsonEncoder.withIndent('  ').convert(recipe);
+  // Match the runtime's portable document limit, including multibyte text.
+  return utf8.encode(pretty).length <= 256 * 1024 ? pretty : jsonEncode(recipe);
+}
 
 String _exportDiff(Map<String, Object?> preview) {
   final before = (preview['before'] as String?)?.split('\n') ?? <String>[];
