@@ -51,6 +51,8 @@ mod project_clone_models;
 mod runtime_file_security;
 mod runtime_schema;
 mod schema_migrations;
+#[cfg(test)]
+mod schema_migrations_tests;
 mod settings_models;
 mod settings_store;
 #[cfg(test)]

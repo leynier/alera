@@ -77,20 +77,6 @@ impl RuntimeStore {
         for statement in super::orchestration_message_store::ORCHESTRATION_SCHEMA {
             sqlx::query(*statement).execute(&self.pool).await?;
         }
-        for statement in [
-            "DROP TABLE IF EXISTS agentCanvasEvents",
-            "DROP TABLE IF EXISTS agentCanvasDecisions",
-            "DROP TABLE IF EXISTS agentCanvasRevisions",
-            "DROP TABLE IF EXISTS agentCanvases",
-            "DROP TABLE IF EXISTS browserTrustedCertificates",
-            "DROP TABLE IF EXISTS browserPermissions",
-            "DROP TABLE IF EXISTS browserClosedTabs",
-            "DROP TABLE IF EXISTS browserHistory",
-            "DROP TABLE IF EXISTS browserProfiles",
-            "DROP TABLE IF EXISTS codexChatState",
-        ] {
-            sqlx::query(statement).execute(&self.pool).await?;
-        }
         self.set_metadata(
             "orchestration.schemaVersion",
             super::orchestration_message_store::ORCHESTRATION_SCHEMA_VERSION,
@@ -929,14 +915,6 @@ impl RuntimeStore {
             self.remove_workspace(&workspace.id, true).await?;
         }
         Ok(())
-    }
-
-    pub async fn remove_workspace_tabs_with_kind(&self, kind: &str) -> Result<u64> {
-        let result = sqlx::query("DELETE FROM workspaceTabs WHERE kind = ?")
-            .bind(kind)
-            .execute(&self.pool)
-            .await?;
-        Ok(result.rows_affected())
     }
 
     pub async fn list_workspace_tabs(&self, workspace_id: &str) -> Result<Vec<WorkspaceTabRecord>> {

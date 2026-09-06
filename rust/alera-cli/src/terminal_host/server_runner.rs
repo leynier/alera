@@ -26,6 +26,7 @@ pub async fn run_terminal_host_server(
     };
     let store = TerminalHostHistoryStore::open(&runtime_dir).await?;
     let runtime_store = RuntimeStore::open(&runtime_dir).await?;
+    runtime_store.retire_removed_features().await?;
     crate::hosted_review_retention::reconcile(&runtime_store).await;
 
     crate::automation_autostart::reconcile_runtime_autostart(&runtime_store, &runtime_dir).await;
@@ -59,15 +60,6 @@ pub async fn run_terminal_host_server(
         let _ = crate::login_shell_environment::login_shell_path_segments().await;
     });
 
-    runtime_store
-        .remove_workspace_tabs_with_kind("mobileEmulator")
-        .await?;
-    runtime_store
-        .remove_workspace_tabs_with_kind("browser")
-        .await?;
-    runtime_store
-        .remove_workspace_tabs_with_kind("codex")
-        .await?;
     let mut actor = ServerActor {
         runtime_dir,
         control_file_path,
