@@ -441,7 +441,6 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.handle_resource_snapshot(payload)
             }
-            ty if ty.starts_with("agentCanvas.") => self.canvas(client_id, ty, payload).await,
             _ if request_type.starts_with("automation.") => {
                 self.handle_automation_request(client_id, request_type, payload)
                     .await

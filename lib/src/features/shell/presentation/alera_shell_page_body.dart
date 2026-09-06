@@ -17,7 +17,6 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
   Widget build(BuildContext context) {
     ref.watch(terminalHostWarmupCoordinatorProvider);
     ref.watch(runtimeAgentStatusSyncProvider);
-    ref.watch(agentCanvasRuntimeSyncProvider);
     ref.watch(agentStatusNotificationCoordinatorProvider);
     ref.watch(workspacePullRequestMonitorControllerProvider.notifier);
     ref.watch(workspacePullRequestFailureNotificationCoordinatorProvider);
@@ -75,7 +74,6 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
       workspace: workspace,
       prefs: shell.viewPrefs,
     );
-    final terminalRuntime = ref.read(terminalRuntimeProvider);
 
     final content = AleraAppMenuScope(
       child: Scaffold(
@@ -249,51 +247,6 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                     newRelativePath: newRelativePath,
                                   );
                                 },
-                            onFocusTerminal: (terminalSessionId) {
-                              final tab = _workspaceTabByTerminalSession(
-                                shell.tabs,
-                                terminalSessionId,
-                              );
-                              if (tab == null) {
-                                AleraToast.show(
-                                  context,
-                                  message: 'The Agent Canvas terminal is no longer open.',
-                                  tone: .error,
-                                );
-                                return;
-                              }
-                              controller.setActiveTab(
-                                workspaceId: workspace.id,
-                                tabId: tab.id,
-                              );
-                              terminalRuntime
-                                  .sessionFor(workspace: workspace, tab: tab)
-                                  .requestFocus();
-                            },
-                            onOpenPullRequest: () {
-                              controller.setContextPanelTab(.pullRequests);
-                            },
-                            onOpenArtifact: (artifactId) {
-                              AleraToast.show(
-                                context,
-                                message:
-                                    'Artifact $artifactId is registered for this Agent Canvas.',
-                              );
-                            },
-                            onSourceControlAction: sourceControlScope == null
-                                ? null
-                                : (kind, action) async {
-                                    await _runAgentCanvasSourceControlAction(
-                                      ref: ref,
-                                      workspace: workspace,
-                                      sourceControlScope: sourceControlScope,
-                                      kind: kind,
-                                      action: action,
-                                      terminalRuntime: terminalRuntime,
-                                      controller: controller,
-                                      tabs: shell.tabs,
-                                    );
-                                  },
                           ),
                       ],
                     ),
@@ -373,74 +326,4 @@ WorkspaceTabRecord? _workspaceTabById(
     }
   }
   return null;
-}
-
-WorkspaceTabRecord? _workspaceTabByTerminalSession(
-  List<WorkspaceTabRecord> tabs,
-  String terminalSessionId,
-) {
-  for (final tab in tabs) {
-    if (tab.kind == WorkspaceTabKind.terminal &&
-        tab.terminalSessionId == terminalSessionId) {
-      return tab;
-    }
-  }
-  return null;
-}
-
-Future<void> _runAgentCanvasSourceControlAction({
-  required WidgetRef ref,
-  required Workspace workspace,
-  required WorkspaceSourceControlScope sourceControlScope,
-  required String kind,
-  required Map<String, Object?> action,
-  required TerminalRuntime terminalRuntime,
-  required WorkbenchController controller,
-  required List<WorkspaceTabRecord> tabs,
-}) async {
-  final sourceController = ref.read(
-    workspaceSourceControlControllerProvider(sourceControlScope.path).notifier,
-  );
-  final rawPath = action['relativePath'];
-  final sourceRelativePath = rawPath is String
-      ? sourceControlScope.toSourceRelativePath(rawPath)
-      : null;
-  if (rawPath is String && sourceRelativePath == null) {
-    throw StateError(
-      'The action path is outside the active source control root.',
-    );
-  }
-  switch (kind) {
-    case 'stage':
-      await sourceController.stage(sourceRelativePath);
-    case 'unstage':
-      await sourceController.unstage(sourceRelativePath);
-    case 'discard':
-      await sourceController.discard(sourceRelativePath);
-    case 'commit':
-      final message = action['message'];
-      if (message is! String || message.trim().isEmpty) {
-        throw StateError('A commit message is required.');
-      }
-      await sourceController.commit(message);
-    case 'pull':
-      await sourceController.pull();
-    case 'push':
-      await sourceController.push();
-    case 'terminateTerminal':
-      final terminalSessionId = action['terminalSessionId'];
-      if (terminalSessionId is! String) {
-        throw StateError('The terminal session id is required.');
-      }
-      final tab = _workspaceTabByTerminalSession(tabs, terminalSessionId);
-      if (tab == null) {
-        throw StateError('The Agent Canvas terminal is no longer open.');
-      }
-      // The controller disposes the terminal handle alongside the tab record.
-      await controller.closeWorkspaceTab(workspace: workspace, tabId: tab.id);
-    default:
-      throw StateError(
-        'This Agent Canvas action has no registered controller.',
-      );
-  }
 }

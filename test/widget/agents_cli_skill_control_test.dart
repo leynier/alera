@@ -4,7 +4,6 @@ import 'package:alera/src/features/agent_status/application/agent_hook_reconcili
 import 'package:alera/src/features/agent_status/infra/managed_agent_hook_installer.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/infra/alera_cli_skill_service.dart';
-import 'package:alera/src/features/settings/presentation/panes/alera_agent_canvas_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_agent_profiles_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_all_skills_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_orchestration_skill_control.dart';
@@ -148,29 +147,6 @@ void main() {
 
     expect(reconciler.settings?.codex, isTrue);
     expect(find.text('Selected hooks ready'), findsOneWidget);
-  });
-
-  testWidgets('Agent Canvas control installs the Agent Canvas skill', (
-    tester,
-  ) async {
-    final runtime = FakeCommandTerminalRuntime(running: false);
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [terminalRuntimeProvider.overrideWithValue(runtime)],
-        child: MaterialApp(
-          theme: buildAleraDarkTheme(),
-          home: const Scaffold(body: AleraAgentCanvasSkillControl()),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('Install / Update'));
-    await tester.pumpAndSettle();
-
-    expect(
-      runtime.lastTab?.initialCommand,
-      aleraCliSkillInstallCommand(runner: .auto, skill: .agentCanvas),
-    );
   });
 
   testWidgets('Agent Profiles control installs the optional profile skill', (

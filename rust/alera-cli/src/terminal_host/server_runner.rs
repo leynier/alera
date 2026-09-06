@@ -27,8 +27,6 @@ pub async fn run_terminal_host_server(
     let store = TerminalHostHistoryStore::open(&runtime_dir).await?;
     let runtime_store = RuntimeStore::open(&runtime_dir).await?;
     crate::hosted_review_retention::reconcile(&runtime_store).await;
-    runtime_store.cleanup_agent_canvases().await?;
-    runtime_store.expire_agent_canvas_decisions().await?;
     runtime_store.ensure_default_browser_profile().await?;
     crate::automation_autostart::reconcile_runtime_autostart(&runtime_store, &runtime_dir).await;
     let account_push =

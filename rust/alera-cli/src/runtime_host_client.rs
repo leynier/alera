@@ -15,8 +15,6 @@ use tokio::time::{sleep, timeout, Instant};
 use uuid::Uuid;
 
 mod persistence;
-#[path = "runtime_host_agent_canvas.rs"]
-mod runtime_host_agent_canvas;
 
 use crate::terminal_host::protocol::{
     DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS, DEFAULT_EMPTY_SHUTDOWN_DELAY_SECONDS,

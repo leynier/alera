@@ -32,24 +32,6 @@ impl ServerActor {
             scope_payload("projectId", project_id),
         ));
     }
-
-    pub(super) fn broadcast_agent_canvas_changed(
-        &self,
-        workspace_id: &str,
-        canvas_id: &str,
-        revision: i64,
-        reason: &str,
-    ) {
-        self.broadcast_authenticated(event(
-            "agentCanvasChanged",
-            json!({
-                "workspaceId": workspace_id,
-                "canvasId": canvas_id,
-                "revision": revision,
-                "reason": reason,
-            }),
-        ));
-    }
 }
 
 /// Pulls a scope id out of a record payload that is about to be handed back.

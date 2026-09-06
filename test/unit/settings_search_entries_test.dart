@@ -31,7 +31,7 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      '3f5bcd1ea73ed8210cdd50a9f4de90b15f1b9a019a9d6842d3637a20631edc22',
+      'f9ae765dc9bebbcefd6c05249678a86bb9d23f269d13fef6834cb5bb6132cb8a',
     );
   });
 
@@ -144,16 +144,6 @@ void main() {
     );
 
     expect(entry.matches('orchestration'), isTrue);
-    expect(entry.groupId, 'cliSkill');
-  });
-
-  test('Agent Canvas skill is searchable in the agents skill group', () {
-    final entry = agentsSearchEntries.singleWhere(
-      (candidate) => candidate.title == 'Agent Canvas Skill',
-    );
-
-    expect(entry.matches('canvas'), isTrue);
-    expect(entry.matches('decision'), isTrue);
     expect(entry.groupId, 'cliSkill');
   });
 

@@ -6,14 +6,12 @@ use crate::terminal_host::protocol::{
 mod agent_profile;
 mod automation;
 mod browser;
-mod canvas;
 mod mobile;
 mod workspace;
 
 pub use agent_profile::*;
 pub use automation::*;
 pub use browser::*;
-pub use canvas::*;
 pub use mobile::*;
 pub use workspace::*;
 
@@ -70,9 +68,6 @@ pub enum Command {
 
     /// Inspect and automate browser tabs owned by the Alera desktop app.
     Browser(BrowserCommand),
-
-    /// Publish and inspect Agent Canvas surfaces owned by terminal sessions.
-    Canvas(CanvasCommand),
 
     /// Manage runtime-local automations and their runs.
     Automation(AutomationCommand),

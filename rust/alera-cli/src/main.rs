@@ -7,7 +7,6 @@ mod automation_autostart;
 mod automation_commands;
 mod automation_ssh_precheck;
 mod browser_commands;
-mod canvas_commands;
 mod cli;
 mod cli_async_runtime;
 mod cli_orchestration;
@@ -131,7 +130,6 @@ async fn run(cli: Cli) -> i32 {
         Command::Mobile(command) => run_mobile_command(command).await,
 
         Command::Browser(command) => browser_commands::run(command).await,
-        Command::Canvas(command) => canvas_commands::run(command).await,
         Command::Automation(command) => automation_commands::run(command).await,
         Command::AgentProfile(command) => agent_profile_commands::run(command).await,
         Command::Orchestration(command) => {

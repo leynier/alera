@@ -299,5 +299,4 @@ const Set<String> runtimeHostEventNames = <String>{
   'agentPresenceChanged',
   'codexThreadChanged',
   'codexServerChanged',
-  'agentCanvasChanged',
 };

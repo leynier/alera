@@ -437,9 +437,9 @@ void main() {
       skills: const <String, Object?>{
         'data': <Object?>[
           <String, Object?>{
-            'name': 'Agent Canvas',
-            'path': '/skills/alera-agent-canvas',
-            'description': 'Publish structured canvas updates.',
+            'name': 'Alera CLI',
+            'path': '/skills/alera-cli',
+            'description': 'Operate Alera-managed workspace lifecycle.',
           },
         ],
       },

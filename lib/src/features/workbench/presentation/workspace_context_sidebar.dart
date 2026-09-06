@@ -2,7 +2,6 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
-import 'package:alera/src/features/agent_canvas/presentation/agent_canvas_panel.dart';
 import 'package:alera/src/features/pull_requests/presentation/workspace_pull_requests_panel.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -37,10 +36,6 @@ class const WorkspaceContextSidebar({
     String newRelativePath,
   )
   onPathMoved,
-  final AgentCanvasTerminalFocuser? onFocusTerminal,
-  final VoidCallback? onOpenPullRequest,
-  final AgentCanvasArtifactOpener? onOpenArtifact,
-  final AgentCanvasSourceControlAction? onSourceControlAction,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -120,30 +115,6 @@ class const WorkspaceContextSidebar({
                                 repoPath: sourceControlScope.path,
                                 gitDiffRoot: sourceControlScope.relativeRoot,
                               ),
-                      WorkbenchContextPanelTab.agentCanvas => AgentCanvasPanel(
-                        workspace: workspace,
-                        onOpenFile: (relativePath) async {
-                          (onOpenFilePermanently ?? onOpenFile)(relativePath);
-                        },
-                        onOpenDiff: (relativePath) async {
-                          final sourceRelativePath = sourceControlScope
-                              ?.toSourceRelativePath(relativePath);
-                          if (sourceControlScope == null ||
-                              sourceRelativePath == null) {
-                            return;
-                          }
-                          await onOpenGitDiff(
-                            relativePath: sourceRelativePath,
-                            gitDiffRoot: sourceControlScope.relativeRoot,
-                            scope: .file,
-                          );
-                        },
-                        onFocusTerminal: onFocusTerminal ?? (_) {},
-                        onOpenPullRequest: onOpenPullRequest ?? () {},
-                        onOpenArtifact: onOpenArtifact ?? (_) {},
-                        onSwitchContextPanel: onSetContextPanelTab,
-                        onSourceControlAction: onSourceControlAction,
-                      ),
                     },
                   ),
                 ],
@@ -244,14 +215,6 @@ class const _CollapsedContextRail({
             icon: AleraIcons.gitPullRequest,
             onPressed: () => onOpenTab(.pullRequests),
           ),
-          const SizedBox(height: AleraTokens.space6),
-          _ContextTabButton(
-            tab: .agentCanvas,
-            activeTab: activeTab,
-            tooltip: 'Agent Canvas',
-            icon: AleraIcons.agent,
-            onPressed: () => onOpenTab(.agentCanvas),
-          ),
           const Spacer(),
           Padding(
             padding: const EdgeInsets.only(bottom: AleraTokens.space8),
@@ -315,14 +278,6 @@ class const _ContextTabHeader({
                 tooltip: 'Pull Request',
                 icon: AleraIcons.gitPullRequest,
                 onPressed: () => onSetActiveTab(.pullRequests),
-              ),
-              const SizedBox(width: AleraTokens.space6),
-              _ContextTabButton(
-                tab: .agentCanvas,
-                activeTab: activeTab,
-                tooltip: 'Agent Canvas',
-                icon: AleraIcons.agent,
-                onPressed: () => onSetActiveTab(.agentCanvas),
               ),
               const Spacer(),
               AleraIconButton(

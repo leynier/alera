@@ -138,8 +138,6 @@ class WorkbenchContextPanelTabMapper
         return WorkbenchContextPanelTab.gitDiff;
       case r'pullRequests':
         return WorkbenchContextPanelTab.pullRequests;
-      case r'agentCanvas':
-        return WorkbenchContextPanelTab.agentCanvas;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -156,8 +154,6 @@ class WorkbenchContextPanelTabMapper
         return r'gitDiff';
       case WorkbenchContextPanelTab.pullRequests:
         return r'pullRequests';
-      case WorkbenchContextPanelTab.agentCanvas:
-        return r'agentCanvas';
     }
   }
 }
@@ -430,6 +426,9 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
 
   @override
   final String id = 'WorkbenchViewPrefs';
+
+  @override
+  final MappingHook hook = const WorkbenchViewPrefsDecodeHook();
 
   static WorkbenchSortBy _$sectionSort(WorkbenchViewPrefs v) => v.sectionSort;
   static const Field<WorkbenchViewPrefs, WorkbenchSortBy> _f$sectionSort =

@@ -1,5 +1,3 @@
-mod agent_canvas_models;
-mod agent_canvas_store;
 mod agent_profile_launch_receipt_store;
 #[cfg(test)]
 mod agent_profile_launch_receipt_store_tests;
@@ -84,8 +82,6 @@ mod workspace_section_store;
 mod workspace_section_store_tests;
 mod worktree_setup_models;
 
-pub use agent_canvas_models::*;
-pub use agent_canvas_store::{AgentCanvasDecisionInput, AgentCanvasPublishResult};
 pub use agent_profile_launch_receipt_store::*;
 pub use agent_profile_models::*;
 pub use agent_quota_settings_models::*;

@@ -52,7 +52,6 @@ mod account_requests;
 mod account_requests_tests;
 #[cfg(test)]
 mod actor_test_harness;
-mod agent_canvas_requests;
 mod agent_hook_events;
 mod agent_profile_launch_requests;
 mod agent_prompt_composition;

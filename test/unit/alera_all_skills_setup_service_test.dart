@@ -22,7 +22,7 @@ void main() {
     expect(hookReconciler.settings, hooks);
     expect(result.succeeded, isTrue);
     expect(result.needsAttention, isFalse);
-    expect(result.summary, 'All 3 Alera skills installed / updated');
+    expect(result.summary, 'All 2 Alera skills installed / updated');
     for (final skill in coreAleraAgentSkills) {
       expect(result.detail, contains(skill.name));
     }
@@ -38,11 +38,10 @@ void main() {
     expect(skillService.skills, coreAleraAgentSkills);
     expect(result.succeeded, isFalse);
     expect(result.needsAttention, isTrue);
-    expect(result.succeededCount, 2);
-    expect(result.summary, '2 of 3 Alera skills installed / updated');
+    expect(result.succeededCount, 1);
+    expect(result.summary, '1 of 2 Alera skills installed / updated');
     expect(result.detail, contains('alera-orchestration'));
     expect(result.detail, contains('installer unavailable'));
-    expect(result.detail, contains('alera-agent-canvas'));
   });
 }
 

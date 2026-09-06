@@ -76,13 +76,6 @@ void main() {
       );
     });
 
-    test('builds the Agent Canvas skill command without confirmation', () {
-      expect(
-        aleraCliSkillInstallCommand(runner: .npx, skill: .agentCanvas),
-        'npx skills add https://github.com/leynier/alera --skill alera-agent-canvas --agent codex --global --yes',
-      );
-    });
-
     test('builds the optional Agent Profiles skill command', () {
       expect(
         aleraCliSkillInstallCommand(runner: .bunx, skill: .agentProfiles),

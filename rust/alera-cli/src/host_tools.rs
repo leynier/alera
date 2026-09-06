@@ -120,7 +120,6 @@ pub(crate) async fn install_cli_registration(runtime_dir: &Path) -> Result<CliRe
 pub(crate) enum SkillKind {
     Cli,
     Orchestration,
-    AgentCanvas,
 }
 
 impl SkillKind {
@@ -128,7 +127,6 @@ impl SkillKind {
         match value {
             "cli" => Some(Self::Cli),
             "orchestration" => Some(Self::Orchestration),
-            "alera-agent-canvas" | "agent-canvas" | "canvas" => Some(Self::AgentCanvas),
             _ => None,
         }
     }
@@ -137,7 +135,6 @@ impl SkillKind {
         match self {
             Self::Cli => "alera-cli",
             Self::Orchestration => "alera-orchestration",
-            Self::AgentCanvas => "alera-agent-canvas",
         }
     }
 }
@@ -406,13 +403,5 @@ mod tests {
         let tail = output_tail(&output);
         assert_eq!(tail.chars().count(), 1_000);
         assert!(tail.ends_with('ñ'));
-    }
-
-    #[test]
-    fn agent_canvas_skill_uses_its_repository_package_name() {
-        for alias in ["alera-agent-canvas", "agent-canvas", "canvas"] {
-            let kind = SkillKind::parse(alias).expect(alias);
-            assert_eq!(kind.package_name(), "alera-agent-canvas");
-        }
     }
 }

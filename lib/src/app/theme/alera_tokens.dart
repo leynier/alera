@@ -27,7 +27,6 @@ abstract final class AleraTokens {
   static const double masterDetailMinWidth = 180.0;
   static const double masterDetailMaxWidth = 420.0;
   static const double masterDetailMinDetailWidth = 240.0;
-  static const double agentCanvasListWidth = 148.0;
   static const double emptyStateMaxWidth = 520.0;
   static const double conversationMaxWidth = 760.0;
   static const double codexConversationMaxWidth = 720.0;

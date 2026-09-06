@@ -137,10 +137,7 @@ TerminalSearchOverlayLayout terminalSearchOverlayLayout({
   );
 }
 
-int terminalToolbarButtonCount({
-  required bool supportsPulse,
-  required bool hasCanvas,
-}) {
+int terminalToolbarButtonCount({required bool supportsPulse}) {
   // Move handle, composer, and refresh are always present.
-  return 3 + (supportsPulse ? 1 : 0) + (hasCanvas ? 1 : 0);
+  return 3 + (supportsPulse ? 1 : 0);
 }

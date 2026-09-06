@@ -64,10 +64,6 @@ pub const RUNTIME_HOST_CLOUD_PUSH_CAPABILITY: &str = "cloudPushNotificationsV1";
 // Advertised additively: older hosts stay usable for non-orchestration verbs,
 // so clients must feature-check this capability instead of the protocol version.
 pub const RUNTIME_HOST_ORCHESTRATION_CAPABILITY: &str = "orchestration";
-/// Advertised once the runtime host persists and serves Agent Canvas state.
-/// This is additive so a new app can explain compatibility against an older
-/// live host without treating the existing terminal connection as unusable.
-pub const RUNTIME_HOST_AGENT_CANVAS_CAPABILITY: &str = "agentCanvasV1";
 pub const RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY: &str =
     "orchestrationTerminalInspectionV1";
 pub const RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY: &str = "orchestrationWaitV1";

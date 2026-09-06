@@ -87,6 +87,19 @@ void main() {
       );
     });
 
+    test('fromJson maps retired Agent Canvas prefs to explorer', () {
+      final restored = WorkbenchViewPrefs.fromJson(<String, Object?>{
+        'groupBy': 'project',
+        'projectSort': 'name',
+        'workspaceSort': 'name',
+        'selectedProjectIds': <String>[],
+        'collapsedProjectIds': <String>[],
+        'expandedWorkspaceIds': <String>[],
+        'activeContextPanelTab': 'agentCanvas',
+      });
+      expect(restored.activeContextPanelTab, WorkbenchContextPanelTab.explorer);
+    });
+
     test('fromJson rejects unknown enum names', () {
       expect(
         () => WorkbenchViewPrefs.fromJson(<String, Object?>{
