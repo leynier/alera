@@ -9,7 +9,6 @@ import 'package:dart_mappable/dart_mappable.dart';
 import 'package:flutter/foundation.dart';
 
 part 'agent_quota_settings.dart';
-part 'codex_chat_settings.dart';
 part 'alera_settings.mapper.dart';
 
 @MappableEnum()
@@ -441,7 +440,6 @@ class const AleraSettings({
   this.textActions = TextActionsSettings.defaults,
   this.editor = EditorSettings.defaults,
   this.diagnostics = DiagnosticsSettings.defaults,
-  this.codexChat = CodexChatSettings.defaults,
   required this.terminal,
   required this.keyboard,
 }) with AleraSettingsMappable {
@@ -454,7 +452,6 @@ class const AleraSettings({
   final TextActionsSettings textActions;
   final EditorSettings editor;
   final DiagnosticsSettings diagnostics;
-  final CodexChatSettings codexChat;
   final TerminalSettings terminal;
   final KeyboardShortcutSettings keyboard;
 
@@ -465,7 +462,6 @@ class const AleraSettings({
     aiDictation: .defaults,
     editor: .defaults,
     diagnostics: .defaults,
-    codexChat: .defaults,
     terminal: .defaults,
     keyboard: .defaults,
   );

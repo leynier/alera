@@ -86,11 +86,6 @@ class SettingsController extends _$SettingsController
     await _save(state.copyWith(textActions: edit(state.textActions)));
   });
 
-  Future<void> updateCodexChat(CodexChatSettings settings) =>
-      _serialize(() async {
-        await _save(state.copyWith(codexChat: settings));
-      });
-
   Future<void> resetTextActions() => _serialize(() async {
     await _save(state.copyWith(textActions: .defaults));
   });

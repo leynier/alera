@@ -37,7 +37,6 @@ pub(super) fn validate_settings(settings: &Value) -> Result<()> {
                 | "agents"
                 | "aiTextGeneration"
                 | "aiDictation"
-                | "codexChat"
         ) {
             continue;
         }

@@ -63,13 +63,6 @@ const desktopPortableFields = <String, List<String>>{
     'remoteProvider',
     'timeoutSeconds',
   ],
-  'codexChat': [
-    'selectedModel',
-    'reasoningEffort',
-    'speedMode',
-    'permissionMode',
-    'planMode',
-  ],
 };
 
 JsonMap portableDesktopSettings(JsonMap settings) => {

@@ -49,13 +49,6 @@ void main() {
             AiAssistOperation.commitMessage: 'Use conventional commits.',
           },
         ),
-        codexChat: CodexChatSettings(
-          selectedModel: 'gpt-current',
-          reasoningEffort: 'xhigh',
-          speedMode: 'fast',
-          permissionMode: 'never',
-          planMode: true,
-        ),
         terminal: TerminalSettings(
           fontFamily: 'SF Mono',
           fontSize: 15,
@@ -126,11 +119,6 @@ void main() {
         restored.aiAssist.instructionsFor(.commitMessage),
         'Use conventional commits.',
       );
-      expect(restored.codexChat.selectedModel, 'gpt-current');
-      expect(restored.codexChat.reasoningEffort, 'xhigh');
-      expect(restored.codexChat.speedMode, 'fast');
-      expect(restored.codexChat.permissionMode, 'never');
-      expect(restored.codexChat.planMode, isTrue);
       expect(restored.terminal.fontFamily, 'SF Mono');
       expect(restored.terminal.fontSize, 15);
       expect(restored.terminal.fontWeight, 500);
