@@ -1,5 +1,6 @@
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
+use std::os::windows::process::CommandExt;
 use std::process::Command;
 
 use serde::Deserialize;
@@ -48,8 +49,9 @@ fn run_inner() -> Result<i32, String> {
     // must inherit both, so CREATE_NO_WINDOW from the normal command boundary
     // is intentionally not applicable here.
     #[allow(clippy::disallowed_methods)]
-    let status = Command::new(&request.shell)
-        .args(&request.arguments)
+    let mut command = Command::new(&request.shell);
+    append_shell_arguments(&mut command, &request);
+    let status = command
         .env_remove(BOOTSTRAP_EVENT_ENV)
         .env_remove(BOOTSTRAP_PARENT_PID_ENV)
         .env_remove(BOOTSTRAP_REQUEST_ENV)
@@ -58,6 +60,23 @@ fn run_inner() -> Result<i32, String> {
         .wait()
         .map_err(|error| format!("failed to wait for {}: {error}", request.shell))?;
     Ok(status.code().unwrap_or(1))
+}
+
+fn append_shell_arguments(command: &mut Command, request: &BootstrapRequest) {
+    let executable = request.shell.rsplit(['/', '\\']).next().unwrap_or_default();
+    let command_index = request.arguments.iter().position(|argument| {
+        argument.eq_ignore_ascii_case("/c") || argument.eq_ignore_ascii_case("/k")
+    });
+    if executable.eq_ignore_ascii_case("cmd.exe") || executable.eq_ignore_ascii_case("cmd") {
+        if let Some(index) = command_index.filter(|index| *index + 2 == request.arguments.len()) {
+            // cmd parses shell syntax, not CRT argv: escaping its embedded quotes
+            // with backslashes breaks the workspace cd command.
+            command.args(&request.arguments[..=index]);
+            command.raw_arg(format!("\"{}\"", request.arguments[index + 1]));
+            return;
+        }
+    }
+    command.args(&request.arguments);
 }
 
 fn install_control_handler() -> Result<(), String> {
@@ -112,6 +131,34 @@ pub(crate) fn wait_for_release() -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn workflow_bootstrap_cmd_preserves_quoted_working_directory() {
+        let root = tempfile::tempdir().unwrap();
+        let directory = root.path().join("workspace with spaces & symbols");
+        std::fs::create_dir(&directory).unwrap();
+        let request = BootstrapRequest {
+            shell: "cmd.exe".into(),
+            arguments: vec![
+                "/d".into(),
+                "/s".into(),
+                "/c".into(),
+                format!("cd /d \"{}\" && cd", directory.display()),
+            ],
+        };
+        let mut command = alera_core::child_process::windowless_command(&request.shell);
+        append_shell_arguments(&mut command, &request);
+        let output = command.output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            String::from_utf8_lossy(&output.stdout).trim(),
+            directory.to_str().unwrap()
+        );
+    }
 
     #[test]
     fn terminal_bootstrap_child() {
