@@ -23,6 +23,7 @@ class WorkflowCatalogPane extends ConsumerStatefulWidget {
 class _WorkflowCatalogPaneState extends ConsumerState<WorkflowCatalogPane> {
   final _document = TextEditingController();
   final _filename = TextEditingController();
+  final _searchController = TextEditingController();
   List<Map<String, Object?>> _entries = [];
   Map<String, Object?>? _selected;
   Map<String, Object?>? _preview;
@@ -75,6 +76,7 @@ class _WorkflowCatalogPaneState extends ConsumerState<WorkflowCatalogPane> {
   void dispose() {
     _document.dispose();
     _filename.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -141,6 +143,7 @@ class _WorkflowCatalogPaneState extends ConsumerState<WorkflowCatalogPane> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         AleraSearchField(
+          controller: _searchController,
           hintText: 'Search Recipes',
           onChanged: (value) => setState(() => _search = value.toLowerCase()),
         ),

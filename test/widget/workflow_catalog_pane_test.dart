@@ -12,6 +12,50 @@ import '../support/run_board_widget_harness.dart';
 import '../support/workflow_catalog_fixture.dart';
 
 void main() {
+  testWidgets('compact navigation preserves visible search and clear', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(420, 850));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final repository = CatalogTestRepository()
+      ..entries = [
+        {'source': workflowCatalogRecord['source'], 'name': 'Feature Delivery'},
+        {
+          'source': {'origin': 'builtin', 'id': 'quick-fix'},
+          'name': 'Quick Fix',
+        },
+      ];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          workflowCatalogRepositoryProvider.overrideWithValue(repository),
+          workbenchControllerProvider.overrideWith(BoardTestWorkbench.new),
+        ],
+        child: MaterialApp(
+          theme: buildAleraDarkTheme(),
+          home: const Scaffold(body: WorkflowCatalogPane()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Quick Fix'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Feature');
+    await tester.pumpAndSettle();
+    expect(find.text('Quick Fix'), findsNothing);
+    await tester.tap(find.text('Feature Delivery'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Recipes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Feature'), findsOneWidget);
+    expect(find.text('Quick Fix'), findsNothing);
+    expect(find.byTooltip('Clear'), findsOneWidget);
+    await tester.tap(find.byTooltip('Clear'));
+    await tester.pumpAndSettle();
+    expect(find.text('Quick Fix'), findsOneWidget);
+    expect(find.text('Feature Delivery'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final newerDraft in [false, true]) {
     testWidgets('save after closing reconciles draft, newer=$newerDraft', (
       tester,

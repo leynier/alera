@@ -42,13 +42,19 @@ class CatalogTestRepository extends WorkflowCatalogRepository {
   int saves = 0;
   String? validatedId;
   Completer<Map<String, Object?>>? pendingSave;
+  List<Map<String, Object?>>? entries;
   @override
   Future<Map<String, Object?>> list(String? workspaceId) async {
     if (failure != null) throw failure!;
     return {
-      'entries': [
-        {'source': workflowCatalogRecord['source'], 'name': 'Feature Delivery'},
-      ],
+      'entries':
+          entries ??
+          [
+            {
+              'source': workflowCatalogRecord['source'],
+              'name': 'Feature Delivery',
+            },
+          ],
     };
   }
 
