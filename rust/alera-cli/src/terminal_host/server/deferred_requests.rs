@@ -326,17 +326,6 @@ impl ServerActor {
                 self.start_skill_install_request(client_id, request_id, payload)?;
                 Ok(true)
             }
-            _ if request_type.starts_with("emulator.") => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                self.start_emulator_request(
-                    client_id,
-                    request_id,
-                    request_type.to_string(),
-                    payload.clone(),
-                );
-                Ok(true)
-            }
             _ => Ok(false),
         }
     }

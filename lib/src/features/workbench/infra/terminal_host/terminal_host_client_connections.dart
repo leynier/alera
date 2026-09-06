@@ -218,7 +218,6 @@ extension _SocketTerminalHostClientConnections on SocketTerminalHostClient {
           'token': control.token,
           'clientKind': 'app',
           'supportedTabKinds': const <String>[
-            aleraMobileEmulatorTabKind,
             aleraCodexTabKind,
           ],
           if (control.supportsBinaryFrames) 'binaryFrames': true,

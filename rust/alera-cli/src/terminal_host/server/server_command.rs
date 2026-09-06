@@ -7,10 +7,7 @@ use crate::terminal_host::host_error::HostResult;
 use crate::terminal_host::session::PtyEvent;
 use alera_core::runtime::SshBootstrapStatus;
 
-use super::{
-    account_requests, emulator_request_payloads, emulator_request_queue, push_delivery,
-    runtime_mutations, ClientKind,
-};
+use super::{account_requests, push_delivery, runtime_mutations, ClientKind};
 
 /// Messages processed serially by the single server actor. Every state mutation
 /// happens here, which keeps session/client transitions deterministic.
@@ -190,23 +187,12 @@ pub enum ServerCommand {
         operation_id: Option<String>,
         skill: Option<String>,
     },
-    EmulatorRequestFinished {
-        client_id: u64,
-        request_id: i64,
-        completion: emulator_request_payloads::EmulatorRequestCompletion,
-    },
-    EmulatorMaintenanceFinished(emulator_request_queue::EmulatorMaintenanceCompletion),
     RuntimeMutationFinished(runtime_mutations::RuntimeMutationFinished),
     PrepareRuntimeMutation {
         request: runtime_mutations::RuntimeMutationRequest,
         completion: tokio::sync::oneshot::Sender<
             HostResult<crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown>,
         >,
-    },
-    EmulatorPointerTimeout {
-        tab_id: String,
-        client_id: u64,
-        generation: u64,
     },
     /// A parked `check --wait`/`ask` request hit its server-side deadline.
     OrchestrationWaitTimeout {

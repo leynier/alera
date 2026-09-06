@@ -12,8 +12,7 @@ impl ServerActor {
     }
 
     async fn advance_codex_queue_inner(&mut self, tab_id: &str) -> HostResult<()> {
-        if self.emulator_requests.has_runtime_mutations()
-            || self.codex_history_scans.contains(tab_id)
+        if self.mutation_queue.has_runtime_mutations() || self.codex_history_scans.contains(tab_id)
         {
             return Ok(());
         }

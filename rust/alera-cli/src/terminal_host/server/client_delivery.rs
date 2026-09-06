@@ -1,5 +1,5 @@
 use super::*;
-use crate::terminal_host::protocol::{CODEX_TAB_KIND, MOBILE_EMULATOR_TAB_KIND, PROTOCOL_VERSION};
+use crate::terminal_host::protocol::{CODEX_TAB_KIND, PROTOCOL_VERSION};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum LocalClientRole {
@@ -56,14 +56,6 @@ impl ServerActor {
             .and_then(Value::as_bool)
             .unwrap_or(false);
         let local_role = requested_local_role(payload);
-        let supports_mobile_emulator_tab_kind = payload
-            .get("supportedTabKinds")
-            .and_then(Value::as_array)
-            .is_some_and(|kinds| {
-                kinds
-                    .iter()
-                    .any(|kind| kind.as_str() == Some(MOBILE_EMULATOR_TAB_KIND))
-            });
         let supports_codex_tab_kind = payload
             .get("supportedTabKinds")
             .and_then(Value::as_array)
@@ -75,7 +67,6 @@ impl ServerActor {
         if let Some(client) = self.clients.get_mut(&client_id) {
             client.authenticated = true;
             client.binary_frames = binary_frames;
-            client.supports_mobile_emulator_tab_kind = supports_mobile_emulator_tab_kind;
             client.supports_codex_tab_kind = supports_codex_tab_kind;
             if client.kind == ClientKind::Local {
                 client.local_role = local_role;
@@ -204,11 +195,10 @@ impl ServerActor {
         let Some(client) = self.clients.get(&client_id) else {
             return;
         };
-        let release_emulator = client.authenticated && matches!(client.kind, ClientKind::Local);
         let mobile_disconnected = client.authenticated && matches!(client.kind, ClientKind::Mobile);
         self.orchestration_waiters.remove_client(client_id);
         self.handle_browser_client_disconnect(client_id);
-        self.cancel_queued_emulator_requests(client_id);
+        self.cancel_queued_runtime_mutations(client_id);
         self.release_mobile_driver_for_client(client_id);
         self.cancel_mobile_prompt_file_uploads(client_id);
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
@@ -223,9 +213,6 @@ impl ServerActor {
         self.configuration_transfers.disconnect(client_id);
         if mobile_disconnected {
             self.broadcast_authenticated(event("mobileDevicesChanged", json!({})));
-        }
-        if release_emulator {
-            self.queue_emulator_client_release(client_id, !self.has_authenticated_clients());
         }
         self.schedule_shutdown_if_idle();
     }
@@ -319,7 +306,7 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
+            mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
             account_push,
@@ -329,7 +316,6 @@ mod tests {
                     handle: ClientHandle::new(control_out, terminal_out),
                     authenticated: true,
                     binary_frames: false,
-                    supports_mobile_emulator_tab_kind: false,
                     supports_codex_tab_kind: false,
                     kind: ClientKind::Local,
                     local_role: LocalClientRole::Cli,
@@ -350,7 +336,6 @@ mod tests {
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
             browser: BrowserBroker::default(),
-            emulators: None,
             codex: None,
             codex_starting: None,
             codex_presence: HashMap::new(),

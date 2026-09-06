@@ -156,9 +156,6 @@ mixin _WorkbenchControllerProjects
       ref.read(terminalRuntimeProvider).closeWorkspace(workspace.id);
       for (final tab in workspaceTabs) {
         ref.read(editorSessionRegistryProvider).forget(tab.id);
-        if (tab.kind == WorkspaceTabKind.mobileEmulator) {
-          ref.read(mobileEmulatorLeaseCoordinatorProvider).close(tab.id);
-        }
       }
       if (ref.exists(browserSessionRegistryProvider)) {
         await ref

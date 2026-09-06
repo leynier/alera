@@ -185,8 +185,6 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
 | SSH | 5 | 4 | Partial | SSH targets, signed remote runtime bootstrap, Settings → Remote Hosts, `alera ssh-target`, and host-aware workspace metadata; full remote PTY/filesystem/git worktrees as local are not complete |
-| Computer Use | 5 | 3 | Partial | `alera computer` reads and drives application windows through AT-SPI, UI Automation, or AXUIElement on Linux, Windows, and macOS; synthetic input and screen capture are not offered yet |
-| Mobile emulator tabs | 5 | 4 | Shipped | Workspace tabs for Android emulators and iOS simulators with capability-gated streaming, observation, input, install/launch, and platform-specific diagnostics; availability depends on the host SDK/backend |
 | Mobile App | 5 | 3 | Shipped | Pairing and terminal foundation plus sidebar parity, secure multi-account enrollment, FCM receipt and tap routing, settings/hooks/quotas, and managed workspace actions; richer non-terminal tab surfaces planned |
 
 ---
@@ -195,7 +193,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| Alera CLI | 4 | 4 | Shipped | Rust `alera` sidecar: `runtime`, `project`, `workspace`, `tag`, `tab`, `terminal`, `ssh-target`, `mobile`, `computer`, `browser`, `emulator`, and `orchestration`; automations remain future |
+| Alera CLI | 4 | 4 | Shipped | Rust `alera` sidecar: `runtime`, `project`, `workspace`, `tag`, `tab`, `terminal`, `ssh-target`, `mobile`, `browser`, and `orchestration`; automations remain future |
 
 ---
 
@@ -298,8 +296,6 @@ Features whose status or scope was checked against the current implementation:
 | Browser tab | Shipped |
 | Browser Use | Shipped |
 | Browser session profiles | Partial |
-| Computer Use | Partial |
-| Mobile emulator tabs | Shipped |
 | Prompt-driven workspace creation | Shipped |
 | Crash reporting | Shipped |
 | Diagnostic bundles | Shipped |

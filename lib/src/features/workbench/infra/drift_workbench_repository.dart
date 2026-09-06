@@ -127,7 +127,22 @@ class DriftWorkbenchRepository(final AleraDatabase _db)
                 (table) => OrderingTerm.asc(table.createdAt),
               ]))
             .get();
-    return rows.map(_workspaceTabFromRow).toList(growable: false);
+    final tabs = <WorkspaceTabRecord>[];
+    final retiredIds = <String>[];
+    for (final row in rows) {
+      final tab = _workspaceTabFromRow(row);
+      if (tab == null) {
+        retiredIds.add(row.id);
+      } else {
+        tabs.add(tab);
+      }
+    }
+    if (retiredIds.isNotEmpty) {
+      await (_db.delete(
+        _db.workspaceTabsTable,
+      )..where((table) => table.id.isIn(retiredIds))).go();
+    }
+    return tabs;
   }
 
   @override
@@ -138,7 +153,10 @@ class DriftWorkbenchRepository(final AleraDatabase _db)
         (table) => OrderingTerm.asc(table.createdAt),
       ]);
     return query.watch().map(
-      (rows) => rows.map(_workspaceTabFromRow).toList(growable: false),
+      (rows) => rows
+          .map(_workspaceTabFromRow)
+          .whereType<WorkspaceTabRecord>()
+          .toList(growable: false),
     );
   }
 
@@ -257,7 +275,11 @@ WorkspacesTableCompanion _workspaceCompanion(Workspace workspace) {
   );
 }
 
-WorkspaceTabRecord _workspaceTabFromRow(WorkspaceTabsTableData row) {
+WorkspaceTabRecord? _workspaceTabFromRow(WorkspaceTabsTableData row) {
+  final kind = WorkspaceTabKind.tryParse(row.kind);
+  if (kind == null) {
+    return null;
+  }
   final decoded = jsonDecode(row.payloadJson);
   final payload = decoded is Map<String, dynamic>
       ? Map<String, Object?>.from(decoded)
@@ -265,7 +287,7 @@ WorkspaceTabRecord _workspaceTabFromRow(WorkspaceTabsTableData row) {
   return WorkspaceTabRecord(
     id: row.id,
     workspaceId: row.workspaceId,
-    kind: WorkspaceTabKind.fromJson(row.kind),
+    kind: kind,
     title: row.title,
     createdAt: row.createdAt.toUtc(),
     updatedAt: row.updatedAt.toUtc(),

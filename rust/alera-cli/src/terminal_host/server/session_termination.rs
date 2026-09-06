@@ -1,9 +1,5 @@
-use std::sync::Arc;
-
 use serde_json::json;
-use tokio::sync::Mutex;
 
-use crate::terminal_host::emulator::EmulatorManager;
 use crate::terminal_host::protocol::{error_response, event, ok_response};
 use crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown;
 
@@ -24,7 +20,7 @@ impl ServerActor {
         }
         // Check when the queued operation starts, not when it was enqueued:
         // an earlier removal may have just failed and retained a shutdown.
-        for workspace_id in self.emulator_requests.pending_workspace_shutdowns.keys() {
+        for workspace_id in self.mutation_queue.pending_workspace_shutdowns.keys() {
             let removes_owner = match request {
                 RuntimeMutationRequest::RemoveWorkspace {
                     workspace_id: target,
@@ -67,7 +63,7 @@ impl ServerActor {
             )
             .await?;
             if let Some(pending) = self
-                .emulator_requests
+                .mutation_queue
                 .pending_workspace_shutdowns
                 .remove(&request.id)
             {
@@ -83,7 +79,7 @@ impl ServerActor {
             }
             return Ok(shutdown);
         } else if self
-            .emulator_requests
+            .mutation_queue
             .pending_workspace_shutdowns
             .contains_key(&request.id)
         {
@@ -124,7 +120,7 @@ impl ServerActor {
             let (workspace_id, shutdown) = *pending;
             // Sessions are already gone. Keep their process ownership for the
             // next attempt instead of letting an empty recapture permit deletion.
-            self.emulator_requests
+            self.mutation_queue
                 .pending_workspace_shutdowns
                 .insert(workspace_id, shutdown);
         }
@@ -183,24 +179,14 @@ impl ServerActor {
         if cleaned_codex_state {
             self.schedule_codex_presence_changed();
         }
-        for tab_id in ended_pointer_tab_ids {
-            self.emulator_requests.active_pointers.remove(&tab_id);
-        }
+        let _ = ended_pointer_tab_ids;
         closed_session_tab_ids.extend(committed_tab_ids);
         closed_session_tab_ids.sort_unstable();
         closed_session_tab_ids.dedup();
-        for tab_id in &closed_session_tab_ids {
-            self.emulator_requests.active_pointers.remove(tab_id);
-            self.broadcast_mobile_emulator_changed(Some(tab_id), None, "shutdown");
-        }
+        let _ = closed_session_tab_ids;
         match result {
             Ok(completion) => {
-                for tab_id in completion.closed_tab_ids {
-                    self.emulator_requests.active_pointers.remove(&tab_id);
-                    if !closed_session_tab_ids.contains(&tab_id) {
-                        self.broadcast_mobile_emulator_changed(Some(&tab_id), None, "shutdown");
-                    }
-                }
+                let _ = completion.closed_tab_ids;
                 self.apply_runtime_mutation_effect(completion.effect).await;
                 self.reconcile_codex_presence().await;
                 self.schedule_codex_presence_changed();
@@ -319,7 +305,6 @@ impl ServerActor {
 
     pub(super) async fn terminate_sessions_for_tab(&mut self, tab_id: &str) {
         self.cancel_agent_title_job(tab_id);
-        close_emulator_tab_deferred(self.emulators.clone(), tab_id.to_string());
         self.terminate_terminal_sessions_for_tab(tab_id).await;
     }
 
@@ -378,15 +363,4 @@ impl ServerActor {
         }
         self.schedule_shutdown_if_idle();
     }
-}
-
-fn close_emulator_tab_deferred(emulators: Option<Arc<Mutex<EmulatorManager>>>, tab_id: String) {
-    let Some(emulators) = emulators else {
-        return;
-    };
-    tokio::spawn(async move {
-        for warning in emulators.lock().await.close_tab(&tab_id).await {
-            tracing::warn!("alera emulator cleanup warning: {warning}");
-        }
-    });
 }

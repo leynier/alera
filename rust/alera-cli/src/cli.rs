@@ -7,8 +7,6 @@ mod agent_profile;
 mod automation;
 mod browser;
 mod canvas;
-mod computer;
-mod emulator;
 mod mobile;
 mod workspace;
 
@@ -16,8 +14,6 @@ pub use agent_profile::*;
 pub use automation::*;
 pub use browser::*;
 pub use canvas::*;
-pub use computer::*;
-pub use emulator::*;
 pub use mobile::*;
 pub use workspace::*;
 
@@ -72,14 +68,8 @@ pub enum Command {
     /// Manage mobile companion access and pairing.
     Mobile(MobileCommand),
 
-    /// Read and drive local desktop application UI.
-    Computer(ComputerCommand),
-
     /// Inspect and automate browser tabs owned by the Alera desktop app.
     Browser(BrowserCommand),
-
-    /// Inspect and automate Android emulators and iOS simulators.
-    Emulator(EmulatorCommand),
 
     /// Publish and inspect Agent Canvas surfaces owned by terminal sessions.
     Canvas(CanvasCommand),

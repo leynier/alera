@@ -131,11 +131,6 @@ pub const RUNTIME_HOST_DIAGNOSTICS_LOGS_CAPABILITY: &str = "hostDiagnosticsLogsV
 // restart. Additive, so clients feature-check this instead of the protocol
 // version; a host that lacks it is still fully usable.
 pub const RUNTIME_HOST_SHELL_ENVIRONMENT_RELOAD_CAPABILITY: &str = "shellEnvironmentReloadV1";
-// Advertised once the host answers `computer.*`: reading and driving local
-// desktop UI through the platform accessibility layer. Additive, so clients
-// feature-check this instead of comparing protocol versions; a host that lacks
-// it is still fully usable for everything else.
-pub const RUNTIME_HOST_COMPUTER_USE_CAPABILITY: &str = "computerUseV1";
 /// Routes browser automation calls to the Flutter app connection that owns the
 /// live WebView page. This is additive and does not change terminal framing.
 pub const RUNTIME_HOST_BROWSER_AUTOMATION_ROUTING_CAPABILITY: &str = "browserAutomationRoutingV1";
@@ -144,12 +139,7 @@ pub const RUNTIME_HOST_BROWSER_AUTOMATION_ROUTING_CAPABILITY: &str = "browserAut
 pub const RUNTIME_HOST_BROWSER_PROFILES_CAPABILITY: &str = "browserProfilesV1";
 /// Stores exact local certificate fingerprints per browser profile.
 pub const RUNTIME_HOST_BROWSER_CERTIFICATE_TRUST_CAPABILITY: &str = "browserCertificateTrustV1";
-// Advertised once the host can manage embedded Android and iOS emulator tabs.
-// Additive: older hosts remain usable, and clients feature-check before
-// sending emulator verbs.
-pub const RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY: &str = "mobileEmulatorV1";
 pub const RUNTIME_HOST_AUTOMATIONS_CAPABILITY: &str = "automationsV1";
-pub const MOBILE_EMULATOR_TAB_KIND: &str = "mobileEmulator";
 /// Native Codex chat tabs are additive. Clients advertise support for the tab
 /// kind separately so an older client never attempts to decode it.
 pub const RUNTIME_HOST_CODEX_CHAT_CAPABILITY: &str = "codexChatTabV1";
@@ -162,12 +152,6 @@ pub const RUNTIME_HOST_CODEX_SESSIONS_CAPABILITY: &str = "codexSessionsV1";
 /// sandbox policy fields instead of relying on the legacy approval mode.
 pub const RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY: &str = "codexTurnPolicyV2";
 pub const CODEX_TAB_KIND: &str = "codex";
-/// Version of the computer-use skill guide this binary's command surface matches.
-/// Reported by `alera version` so a stale installed skill is detectable.
-pub const COMPUTER_USE_SKILL_VERSION: i64 = 1;
-/// Version of the mobile-emulator skill guide this binary's command surface matches.
-pub const EMULATOR_SKILL_VERSION: i64 = 1;
-
 // Retained for the later packaging/resolver phase (sidecar discovery).
 #[allow(dead_code)]
 pub const CLI_EXECUTABLE_NAME: &str = "alera";

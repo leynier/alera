@@ -238,7 +238,7 @@ async fn managed_workspace_git_failure_retires_stopped_tabs_and_notifies_clients
         .events
         .iter()
         .any(|value| value["event"] == "workspaceTabsChanged"));
-    assert!(!fixture.actor.emulator_requests.has_runtime_mutations());
+    assert!(!fixture.actor.mutation_queue.has_runtime_mutations());
 }
 
 #[tokio::test]
@@ -290,7 +290,7 @@ async fn managed_workspace_removal_closes_only_owned_sessions_before_deleting_re
         .has_pages_for_workspace("another-workspace"));
     assert!(fixture.actor.browser.call("browser").is_none());
     assert!(fixture.actor.browser.call("other-browser").is_some());
-    assert!(!fixture.actor.emulator_requests.has_runtime_mutations());
+    assert!(!fixture.actor.mutation_queue.has_runtime_mutations());
 }
 
 #[tokio::test]
@@ -330,7 +330,7 @@ async fn managed_workspace_cleanup_rejects_main_before_stopping_sessions() {
 async fn managed_workspace_cleanup_holds_barrier_until_terminal_shutdown_and_deletion_finish() {
     let mut fixture = Fixture::new().await;
     fixture.actor.handle_line(1, json!({"id": 1, "type": "workspace.removeManaged", "payload": {"id": "workspace", "closeSessions": true}}).to_string()).await;
-    assert!(fixture.actor.emulator_requests.has_runtime_mutations());
+    assert!(fixture.actor.mutation_queue.has_runtime_mutations());
     let prepare = tokio::time::timeout(Duration::from_secs(5), fixture.commands.recv())
         .await
         .unwrap()
@@ -341,7 +341,7 @@ async fn managed_workspace_cleanup_holds_barrier_until_terminal_shutdown_and_del
     ));
     fixture.actor.handle(prepare).await;
     assert!(!fixture.actor.sessions.contains_key("terminal"));
-    assert!(fixture.actor.emulator_requests.has_runtime_mutations());
+    assert!(fixture.actor.mutation_queue.has_runtime_mutations());
     let completion = tokio::time::timeout(Duration::from_secs(5), fixture.commands.recv())
         .await
         .unwrap()
@@ -351,5 +351,5 @@ async fn managed_workspace_cleanup_holds_barrier_until_terminal_shutdown_and_del
         ServerCommand::RuntimeMutationFinished(_)
     ));
     fixture.actor.handle(completion).await;
-    assert!(!fixture.actor.emulator_requests.has_runtime_mutations());
+    assert!(!fixture.actor.mutation_queue.has_runtime_mutations());
 }

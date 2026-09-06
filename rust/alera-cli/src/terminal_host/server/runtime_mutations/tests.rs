@@ -5,7 +5,6 @@ use alera_core::runtime::{
 use chrono::Utc;
 use serde_json::json;
 
-use crate::terminal_host::protocol::MOBILE_EMULATOR_TAB_KIND;
 use crate::terminal_host::server::codex_runtime_cleanup::{
     apply_cleanup_activity, CodexCleanupEntry, CodexCleanupPlan,
 };
@@ -88,7 +87,6 @@ async fn removing_tab_releases_its_hosted_review_refs() {
         .unwrap();
 
     let outcome = run_runtime_mutation(
-        None,
         store,
         RuntimeMutationRequest::RemoveTab {
             tab_id: "diff-tab".into(),
@@ -115,7 +113,7 @@ async fn sleep_reports_committed_effect_when_activity_recording_fails() {
         .upsert_workspace_tab(WorkspaceTabRecord {
             id: "emulator-tab".into(),
             workspace_id: "force-activity-failure".into(),
-            kind: MOBILE_EMULATOR_TAB_KIND.into(),
+            kind: "terminal".into(),
             title: "Android".into(),
             payload: json!({}),
             created_at: Utc::now(),
@@ -125,7 +123,6 @@ async fn sleep_reports_committed_effect_when_activity_recording_fails() {
         .unwrap();
 
     let outcome = run_runtime_mutation(
-        None,
         store.clone(),
         RuntimeMutationRequest::SleepWorkspace {
             workspace_id: "force-activity-failure".into(),
@@ -135,7 +132,7 @@ async fn sleep_reports_committed_effect_when_activity_recording_fails() {
     .await;
 
     assert!(outcome.result.is_err());
-    assert_eq!(outcome.committed_tab_ids, ["emulator-tab"]);
+    assert!(outcome.committed_tab_ids.is_empty());
     assert!(matches!(
         outcome.effect_on_error,
         Some(RuntimeMutationEffect::WorkspaceSlept { workspace_id })
@@ -222,7 +219,6 @@ async fn surviving_codex_tab_is_repaired_after_competing_event_persistence() {
     };
 
     let outcome = run_runtime_mutation(
-        None,
         store.clone(),
         RuntimeMutationRequest::RemoveWorkspace {
             workspace_id: "removed".into(),

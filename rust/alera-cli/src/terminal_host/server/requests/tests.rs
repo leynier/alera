@@ -25,7 +25,7 @@ use crate::terminal_host::protocol::{
 };
 
 #[tokio::test]
-async fn soft_shutdown_counts_a_runtime_mutation_without_an_emulator_manager() {
+async fn soft_shutdown_counts_a_queued_runtime_mutation() {
     let dir = tempfile::tempdir().unwrap();
     let (handle, mut receiver) = crate::terminal_host::client::ClientHandle::test_channels();
     let mut actor = crate::terminal_host::server::actor_test_harness::test_actor(
@@ -37,7 +37,6 @@ async fn soft_shutdown_counts_a_runtime_mutation_without_an_emulator_manager() {
         std::collections::HashMap::new(),
     )
     .await;
-    actor.emulators = None;
     let (inbox, mut inbox_receiver) = tokio::sync::mpsc::unbounded_channel();
     actor.inbox = inbox;
 
@@ -52,7 +51,7 @@ async fn soft_shutdown_counts_a_runtime_mutation_without_an_emulator_manager() {
             .to_string(),
         )
         .await;
-    assert_eq!(actor.emulator_requests.outstanding(), 1);
+    assert_eq!(actor.mutation_queue.outstanding(), 1);
     actor
         .handle_line(
             1,
@@ -309,28 +308,6 @@ fn mobile_allowlist_still_excludes_raw_and_admin_mutations() {
     assert!(!mobile_request_allowed("account.signOut"));
     assert!(!mobile_request_allowed("terminal.pulse.status"));
     assert!(!mobile_request_allowed("terminal.pulse.configure"));
-}
-
-#[test]
-fn mobile_allowlist_excludes_emulator_verbs() {
-    for request in [
-        "emulator.capabilities",
-        "emulator.list",
-        "emulator.attach",
-        "emulator.detach",
-        "emulator.tap",
-        "emulator.gesture",
-        "emulator.type",
-        "emulator.key",
-        "emulator.button",
-        "emulator.rotate",
-        "emulator.shutdown",
-    ] {
-        assert!(
-            !mobile_request_allowed(request),
-            "{request} must stay desktop-only"
-        );
-    }
 }
 
 #[test]

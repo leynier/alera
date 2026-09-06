@@ -144,7 +144,7 @@ impl ServerActor {
                 let has_live_browser = self.browser.has_pages_for_workspace(workspace_id);
                 if has_live_session
                     || has_live_browser
-                    || self.emulator_requests.has_runtime_mutations()
+                    || self.mutation_queue.has_runtime_mutations()
                 {
                     let reason = if has_live_session {
                         "managed workspace still has a live terminal session or process"

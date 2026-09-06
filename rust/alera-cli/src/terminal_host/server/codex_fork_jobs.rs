@@ -267,7 +267,7 @@ impl ServerActor {
         let tab = self.codex_tab(&job.tab.id).await?;
         let state = self.codex_delivery_state(&tab).await?;
         let server = job.startup.peek().and_then(|result| result.as_ref().ok());
-        if self.emulator_requests.has_runtime_mutations()
+        if self.mutation_queue.has_runtime_mutations()
             || tab_thread_id(&tab).as_deref() != Some(&job.thread_id)
             || tab.workspace_id != job.tab.workspace_id
             || state.history_revision != job.history_revision

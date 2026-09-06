@@ -16,10 +16,6 @@ mod cli_orchestration_terminal;
 mod cli_orchestration_timeouts;
 #[cfg(test)]
 mod cli_tests;
-mod computer_commands;
-mod computer_output;
-mod computer_use;
-mod emulator_commands;
 mod host_tools;
 mod hosted_review_retention;
 mod login_shell_environment;
@@ -133,9 +129,8 @@ async fn run(cli: Cli) -> i32 {
         Command::Terminal(command) => run_terminal_command(command).await,
         Command::SshTarget(command) => run_ssh_target_command(command).await,
         Command::Mobile(command) => run_mobile_command(command).await,
-        Command::Computer(command) => computer_commands::run(command).await,
+
         Command::Browser(command) => browser_commands::run(command).await,
-        Command::Emulator(command) => emulator_commands::run(command).await,
         Command::Canvas(command) => canvas_commands::run(command).await,
         Command::Automation(command) => automation_commands::run(command).await,
         Command::AgentProfile(command) => agent_profile_commands::run(command).await,
@@ -244,8 +239,6 @@ async fn run_version_command(command: crate::cli::VersionCommand) -> i32 {
         "dispatchPreambleVersion": terminal_host::protocol::DISPATCH_PREAMBLE_VERSION,
         "runtimeHostDispatchPreambleVersion": host_status.as_ref().and_then(|value| value.get("dispatchPreambleVersion")),
         "skillVersion": terminal_host::protocol::ORCHESTRATION_SKILL_VERSION,
-        "computerUseSkillVersion": terminal_host::protocol::COMPUTER_USE_SKILL_VERSION,
-        "emulatorSkillVersion": terminal_host::protocol::EMULATOR_SKILL_VERSION,
         "runtimeHostSkillVersion": host_status.as_ref().and_then(|value| value.get("skillVersion")),
     });
     print_value(&payload, command.output.json, "Alera version information");

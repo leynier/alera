@@ -7,8 +7,6 @@ import 'package:alera/src/features/settings/infra/alera_cli_skill_service.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_agent_canvas_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_agent_profiles_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_all_skills_control.dart';
-import 'package:alera/src/features/settings/presentation/panes/alera_computer_use_skill_control.dart';
-import 'package:alera/src/features/settings/presentation/panes/alera_emulator_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_orchestration_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/agents_cli_skill_control.dart';
 import 'package:alera/src/shared/infra/process/command_environment_resolver.dart';
@@ -150,47 +148,6 @@ void main() {
 
     expect(reconciler.settings?.codex, isTrue);
     expect(find.text('Selected hooks ready'), findsOneWidget);
-  });
-
-  testWidgets('emulator control installs the emulator skill', (tester) async {
-    final runtime = FakeCommandTerminalRuntime(running: false);
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [terminalRuntimeProvider.overrideWithValue(runtime)],
-        child: MaterialApp(
-          theme: buildAleraDarkTheme(),
-          home: const Scaffold(body: AleraEmulatorSkillControl()),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('Install / Update'));
-    await tester.pumpAndSettle();
-
-    expect(runtime.lastTab?.initialCommand, contains('--skill alera-emulator'));
-  });
-
-  testWidgets('computer use control installs the computer use skill', (
-    tester,
-  ) async {
-    final runtime = FakeCommandTerminalRuntime(running: false);
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [terminalRuntimeProvider.overrideWithValue(runtime)],
-        child: MaterialApp(
-          theme: buildAleraDarkTheme(),
-          home: const Scaffold(body: AleraComputerUseSkillControl()),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('Install / Update'));
-    await tester.pumpAndSettle();
-
-    expect(
-      runtime.lastTab?.initialCommand,
-      contains('--skill alera-computer-use'),
-    );
   });
 
   testWidgets('Agent Canvas control installs the Agent Canvas skill', (

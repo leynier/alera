@@ -64,7 +64,6 @@ class _WorkbenchHarness([ManagedWorkspaceRuntime? runtime]) {
       ),
     );
     terminalRuntime = _FakeTerminalRuntime();
-    final emulatorService = MobileEmulatorService(emulatorRuntimeClient);
     container = ProviderContainer(
       overrides: [
         gitBackendProvider.overrideWithValue(gitBackend),
@@ -91,7 +90,6 @@ class _WorkbenchHarness([ManagedWorkspaceRuntime? runtime]) {
         terminalRuntimeProvider.overrideWithValue(terminalRuntime),
         agentHookReceiverProvider.overrideWithValue(hookReceiver),
         browserSessionRegistryProvider.overrideWithValue(browserRegistry),
-        mobileEmulatorServiceProvider.overrideWithValue(emulatorService),
       ],
     );
     _controller = container.read(workbenchControllerProvider.notifier);
@@ -108,7 +106,6 @@ class _WorkbenchHarness([ManagedWorkspaceRuntime? runtime]) {
   final hookReceiver = _FakeAgentHookReceiver();
   final browserEngine = FakeBrowserEngine();
   late final browserRegistry = BrowserSessionRegistry(engine: browserEngine);
-  final emulatorRuntimeClient = _FakeWorkbenchEmulatorRuntimeClient();
   late final ProviderContainer container;
   late final WorkbenchController _controller;
   Future<Project> addProject(String id, String name) async {

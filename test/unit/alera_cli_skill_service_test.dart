@@ -76,20 +76,6 @@ void main() {
       );
     });
 
-    test('builds the computer use skill command', () {
-      expect(
-        aleraCliSkillInstallCommand(runner: .bunx, skill: .computerUse),
-        'bunx skills add https://github.com/leynier/alera --skill alera-computer-use --agent codex --global --yes',
-      );
-    });
-
-    test('builds the emulator skill command', () {
-      expect(
-        aleraCliSkillInstallCommand(runner: .npx, skill: .emulator),
-        'npx skills add https://github.com/leynier/alera --skill alera-emulator --agent codex --global --yes',
-      );
-    });
-
     test('builds the Agent Canvas skill command without confirmation', () {
       expect(
         aleraCliSkillInstallCommand(runner: .npx, skill: .agentCanvas),

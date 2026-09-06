@@ -33,10 +33,6 @@ final class _DebugContext(final _Options _options) {
     }
     final destinationDir = Directory(_absoluteBuildOutputPath(outputDir));
     await destinationDir.create(recursive: true);
-    final helperExit = await _prepareCliNativeHelpers(destinationDir);
-    if (helperExit != 0) {
-      return helperExit;
-    }
     final destination = File(_join(destinationDir.path, _cliExecutableName));
     final staged = File(
       '${destination.path}.stage-$pid-${DateTime.now().microsecondsSinceEpoch}',
@@ -55,16 +51,6 @@ final class _DebugContext(final _Options _options) {
       }
     }
     return 0;
-  }
-
-  Future<int> _prepareCliNativeHelpers(Directory destinationDir) {
-    return _run(Platform.resolvedExecutable, <String>[
-      'tool/native_helpers/prepare_native_helpers.dart',
-      '--platform',
-      Platform.operatingSystem,
-      '--output',
-      _join(destinationDir.path, 'emulator'),
-    ]);
   }
 
   Future<int> cliHelp() async {
@@ -306,8 +292,8 @@ final class _DebugContext(final _Options _options) {
     return _join(_cliBundlePathFor(_options.bundleDir), _cliExecutableName);
   }
 
-  // The Rust sidecar and its `emulator` assets are staged directly in the
-  // bundle dir, so ALERA_CLI_BUNDLE_DIR points at the directory holding both.
+  // The Rust sidecar is staged directly in the bundle dir, so
+  // ALERA_CLI_BUNDLE_DIR points at the directory holding the binary.
   String _cliBundlePathFor(String buildOutputDir) {
     return _absoluteBuildOutputPath(buildOutputDir);
   }

@@ -2,7 +2,7 @@
 
 use alera_core::runtime::WorkspaceTabRecord;
 
-use crate::terminal_host::protocol::{CODEX_TAB_KIND, MOBILE_EMULATOR_TAB_KIND};
+use crate::terminal_host::protocol::CODEX_TAB_KIND;
 
 use super::terminal_pulse::TERMINAL_PULSE_PAYLOAD_KEY;
 use super::{ClientKind, ServerActor};
@@ -81,10 +81,7 @@ impl ServerActor {
         mut tab: WorkspaceTabRecord,
     ) -> Option<WorkspaceTabRecord> {
         let client = self.clients.get(&client_id);
-        let supports_mobile_emulator = client.is_some_and(|client| {
-            client.kind == ClientKind::Mobile || client.supports_mobile_emulator_tab_kind
-        });
-        if tab.kind == MOBILE_EMULATOR_TAB_KIND && !supports_mobile_emulator {
+        if tab.kind == "mobileEmulator" {
             return None;
         }
         let supports_codex = client.is_some_and(|client| client.supports_codex_tab_kind);

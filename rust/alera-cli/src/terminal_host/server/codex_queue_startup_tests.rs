@@ -205,17 +205,11 @@ async fn stale_startup_cannot_overwrite_stop_or_replace_a_new_server() {
 
 #[tokio::test]
 async fn canceling_the_last_removal_reawakens_delivery_without_clients() {
-    use crate::terminal_host::emulator::EmulatorManager;
-    let (dir, mut actor, backend, mut rx) = fixture().await;
+    let (_dir, mut actor, backend, mut rx) = fixture().await;
     let _first = connect(&mut actor, 1);
     let _second = connect(&mut actor, 2);
     pending(&mut actor, "queued").await;
-    let manager = Arc::new(tokio::sync::Mutex::new(
-        EmulatorManager::new(dir.path()).await.unwrap(),
-    ));
-    actor.emulators = Some(manager.clone());
-    let guard = manager.lock().await;
-    actor.queue_emulator_park_all();
+    actor.park_runtime_mutations();
     for client in [1, 2] {
         actor
             .handle_line(
@@ -225,7 +219,7 @@ async fn canceling_the_last_removal_reawakens_delivery_without_clients() {
             )
             .await;
     }
-    assert!(actor.emulator_requests.has_runtime_mutations());
+    assert!(actor.mutation_queue.has_runtime_mutations());
     actor.handle_codex_message(json!({"method":"turn/completed","params":{"threadId":"thread","turn":{"id":"third","status":"completed"}}})).await;
     while let Ok(command) = rx.try_recv() {
         actor.handle(command).await;
@@ -237,13 +231,13 @@ async fn canceling_the_last_removal_reawakens_delivery_without_clients() {
         .iter()
         .any(|(method, _)| method == "turn/start"));
     actor.dispose_client(1).await;
-    assert!(actor.emulator_requests.has_runtime_mutations());
+    assert!(actor.mutation_queue.has_runtime_mutations());
     while let Ok(command) = rx.try_recv() {
         assert!(!matches!(command, ServerCommand::CodexQueueAdvance { .. }));
         actor.handle(command).await;
     }
     actor.dispose_client(2).await;
-    assert!(!actor.emulator_requests.has_runtime_mutations());
+    assert!(!actor.mutation_queue.has_runtime_mutations());
     assert!(actor.clients.is_empty());
     wait_for_status(&mut actor, &mut rx, "accepted").await;
     assert_eq!(
@@ -256,7 +250,6 @@ async fn canceling_the_last_removal_reawakens_delivery_without_clients() {
             .count(),
         1
     );
-    drop(guard);
 }
 
 struct ResumeRelease(Arc<(Mutex<bool>, std::sync::Condvar)>);

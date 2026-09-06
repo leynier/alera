@@ -177,8 +177,7 @@ extension WorkspaceTabPathMoves on WorkspaceTabService {
     WorkspaceTabKind.gitDiff => true,
     WorkspaceTabKind.terminal ||
     WorkspaceTabKind.codex ||
-    WorkspaceTabKind.browser ||
-    WorkspaceTabKind.mobileEmulator => false,
+    WorkspaceTabKind.browser => false,
   };
 
   bool _isRetargetableFileBackedTab(WorkspaceTabRecord tab) {
@@ -211,8 +210,7 @@ extension WorkspaceTabPathMoves on WorkspaceTabService {
           : WorkspaceTabKind.editor,
     WorkspaceTabKind.terminal ||
     WorkspaceTabKind.codex ||
-    WorkspaceTabKind.browser ||
-    WorkspaceTabKind.mobileEmulator => null,
+    WorkspaceTabKind.browser => null,
   };
 
   String? _replacePathPrefix({

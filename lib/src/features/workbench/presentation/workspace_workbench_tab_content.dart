@@ -74,11 +74,6 @@ class const _WorkspaceTabContent({
         autofocus: autofocus,
         pageObscured: _WorkbenchTabDragScope.isActiveOf(context),
       ),
-      WorkspaceTabKind.mobileEmulator => MobileEmulatorSurface(
-        workspace: workspace,
-        tab: tab,
-        autofocus: autofocus,
-      ),
     };
   }
 }

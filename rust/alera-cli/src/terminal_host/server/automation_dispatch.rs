@@ -34,7 +34,7 @@ impl ServerActor {
         // Runtime mutations may delete a workspace on a worker while this
         // actor remains responsive. Do not create a new durable run or owner
         // after the mutation's ownership checks have started.
-        if self.emulator_requests.has_runtime_mutations() {
+        if self.mutation_queue.has_runtime_mutations() {
             return;
         }
         let maintenance_now = Utc::now();

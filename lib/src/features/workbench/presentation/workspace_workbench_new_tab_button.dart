@@ -1,6 +1,6 @@
 part of 'workspace_workbench_view.dart';
 
-enum _NewTabMenuAction { terminal, codex, browser, mobileEmulator }
+enum _NewTabMenuAction { terminal, codex, browser }
 
 class const _NewTabButton({
   required final String groupId,
@@ -9,7 +9,6 @@ class const _NewTabButton({
   required final VoidCallback? onCreateCodexTab,
 }) extends StatelessWidget {
   Future<void> _openMenu(BuildContext context) async {
-    final onOpenMobileEmulator = _MobileEmulatorOpenScope.maybeOf(context);
     final button = context.findRenderObject()! as RenderBox;
     final overlay =
         Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
@@ -61,16 +60,6 @@ class const _NewTabButton({
               color: AleraTokens.foregroundMuted,
             ),
           ),
-        AleraDropdownEntry<_NewTabMenuAction>(
-          value: .mobileEmulator,
-          label: 'New Mobile Emulator',
-          enabled: onOpenMobileEmulator != null,
-          leading: const Icon(
-            AleraIcons.mobileDevice,
-            size: 16,
-            color: AleraTokens.foregroundMuted,
-          ),
-        ),
       ],
     );
 
@@ -85,11 +74,6 @@ class const _NewTabButton({
         onCreateCodexTab?.call();
       case _NewTabMenuAction.browser:
         onCreateBrowserTab?.call();
-      case _NewTabMenuAction.mobileEmulator:
-        final open = onOpenMobileEmulator;
-        if (open != null) {
-          unawaited(open(targetGroupId: groupId));
-        }
     }
   }
 

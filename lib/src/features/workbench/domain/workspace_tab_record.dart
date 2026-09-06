@@ -11,24 +11,34 @@ enum WorkspaceTabKind(this.key) {
   markdownViewer('markdownViewer'),
   pdf('pdf'),
   gitDiff('gitDiff'),
-  browser('browser'),
-  mobileEmulator('mobileEmulator');
+  browser('browser');
 
   final String key;
 
   static WorkspaceTabKind fromJson(Object? value) {
+    return tryParse(value) ??
+        (throw StateError(
+          value == null
+              ? 'Workspace tab record has invalid kind'
+              : value is! String
+              ? 'Workspace tab record has invalid kind'
+              : 'Workspace tab record has unknown kind "$value"',
+        ));
+  }
+
+  static WorkspaceTabKind? tryParse(Object? value) {
     if (value == null) {
       return WorkspaceTabKind.terminal;
     }
     if (value is! String) {
-      throw StateError('Workspace tab record has invalid kind');
+      return null;
     }
     for (final kind in WorkspaceTabKind.values) {
       if (kind.key == value) {
         return kind;
       }
     }
-    throw StateError('Workspace tab record has unknown kind "$value"');
+    return null;
   }
 }
 
@@ -65,57 +75,6 @@ const String workspaceTabGitDiffPullRequestNumberPayloadKey =
 const String workspaceTabGitDiffHostedReviewRetentionIdPayloadKey =
     'gitDiffHostedReviewRetentionId';
 const String workspaceTabGitDiffOldPathPayloadKey = 'gitDiffOldPath';
-const String workspaceTabMobileEmulatorPayloadKey = 'mobileEmulator';
-
-enum MobileEmulatorPlatform(this.key, this.label) {
-  android('android', 'Android'),
-  ios('ios', 'iOS');
-
-  final String key;
-  final String label;
-
-  static MobileEmulatorPlatform? fromJson(Object? value) {
-    for (final platform in values) {
-      if (platform.key == value) {
-        return platform;
-      }
-    }
-    return null;
-  }
-}
-
-class const WorkspaceMobileEmulatorPayload({
-  required this.platform,
-  required this.deviceId,
-}) {
-  static const int schemaVersion = 1;
-
-  final MobileEmulatorPlatform platform;
-  final String deviceId;
-
-  Map<String, Object?> toJson() => <String, Object?>{
-    'schemaVersion': schemaVersion,
-    'platform': platform.key,
-    'deviceId': deviceId,
-  };
-
-  static WorkspaceMobileEmulatorPayload? fromJson(Object? value) {
-    if (value is! Map ||
-        value['schemaVersion'] != schemaVersion ||
-        value['deviceId'] is! String) {
-      return null;
-    }
-    final platform = MobileEmulatorPlatform.fromJson(value['platform']);
-    final deviceId = (value['deviceId'] as String).trim();
-    if (platform == null || deviceId.isEmpty) {
-      return null;
-    }
-    return WorkspaceMobileEmulatorPayload(
-      platform: platform,
-      deviceId: deviceId,
-    );
-  }
-}
 
 enum WorkspaceGitDiffSource(this.key) {
   workingTree('workingTree'),
@@ -252,8 +211,7 @@ class WorkspaceTabRecord({
       WorkspaceTabKind.gitDiff => true,
       WorkspaceTabKind.terminal ||
       WorkspaceTabKind.codex ||
-      WorkspaceTabKind.browser ||
-      WorkspaceTabKind.mobileEmulator => false,
+      WorkspaceTabKind.browser => false,
     };
   }
 
@@ -266,11 +224,6 @@ class WorkspaceTabRecord({
 
   String? get browserRuntimeTitle =>
       _nonEmptyPayloadString(workspaceTabBrowserRuntimeTitlePayloadKey);
-
-  WorkspaceMobileEmulatorPayload? get mobileEmulator =>
-      WorkspaceMobileEmulatorPayload.fromJson(
-        payload[workspaceTabMobileEmulatorPayloadKey],
-      );
 
   WorkspaceGitDiffScope? get gitDiffScope => WorkspaceGitDiffScope.fromJson(
     payload[workspaceTabGitDiffScopePayloadKey],

@@ -19,9 +19,6 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
   WorkspaceBrowserTabService get _workspaceBrowserTabService =>
       ref.read(workspaceBrowserTabServiceProvider);
 
-  MobileEmulatorService get _mobileEmulatorService =>
-      ref.read(mobileEmulatorServiceProvider);
-
   WorkbenchViewPrefsRepository? get _viewPrefsRepository =>
       ref.read(workbenchViewPrefsRepositoryProvider);
 

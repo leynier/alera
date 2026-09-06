@@ -12,7 +12,7 @@ pub(super) fn is_serialized_runtime_mutation(request_type: &str) -> bool {
 }
 
 pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
-    if request_type.starts_with("emulator.") || is_serialized_runtime_mutation(request_type) {
+    if is_serialized_runtime_mutation(request_type) {
         return false;
     }
     mutates_codex_runtime_state(request_type)
@@ -152,7 +152,6 @@ mod tests {
         for read_or_serialized_mutation in [
             "tab.list",
             "terminal.read",
-            "emulator.list",
             "tab.remove",
             "browser.settings.get",
             "browser.profiles.list",

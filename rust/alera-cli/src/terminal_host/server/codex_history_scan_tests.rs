@@ -168,18 +168,11 @@ async fn scans_reject_changed_context_before_mutating_history() {
 
 #[tokio::test]
 async fn client_scans_cannot_create_work_after_removal_captures_cleanup() {
-    use crate::terminal_host::emulator::EmulatorManager;
-
     for kind in ["codex.thread.fork", "codex.thread.edit"] {
         for removal in ["tab.remove", "workspace.remove"] {
-            let (dir, mut actor, backend, mut rx) = fixture().await;
+            let (_dir, mut actor, backend, mut rx) = fixture().await;
             let mut outbound = connect(&mut actor, 1);
-            let manager = Arc::new(tokio::sync::Mutex::new(
-                EmulatorManager::new(dir.path()).await.unwrap(),
-            ));
-            actor.emulators = Some(manager.clone());
-            let guard = manager.lock().await;
-            actor.queue_emulator_park_all();
+            actor.park_runtime_mutations();
             actor
                 .handle_line(
                     1,
@@ -203,7 +196,7 @@ async fn client_scans_cannot_create_work_after_removal_captures_cleanup() {
                     json!({"id":2,"type":removal,"payload":{"id":target}}).to_string(),
                 )
                 .await;
-            assert!(actor.emulator_requests.has_runtime_mutations());
+            assert!(actor.mutation_queue.has_runtime_mutations());
             assert!(response(&mut outbound, 2).is_none());
             finish_scan(&mut actor, &mut rx).await;
             let result = response(&mut outbound, 1).unwrap();
@@ -236,7 +229,7 @@ async fn client_scans_cannot_create_work_after_removal_captures_cleanup() {
                 )
             }));
 
-            drop(guard);
+            actor.unpark_runtime_mutations();
             loop {
                 let command = tokio::time::timeout(std::time::Duration::from_secs(3), rx.recv())
                     .await
@@ -331,9 +324,7 @@ async fn failed_history_scan_releases_an_idle_runtime() {
 
 #[tokio::test]
 async fn unrelated_removal_does_not_discard_startup_reconciliation() {
-    use crate::terminal_host::emulator::EmulatorManager;
-
-    let (dir, mut actor, backend, mut rx) = fixture().await;
+    let (_dir, mut actor, backend, mut rx) = fixture().await;
     backend.lock().unwrap().turns[2]["status"] = json!("completed");
     let mut state = CodexChatDeliveryState::new("tab", "thread");
     state.paused = true;
@@ -349,19 +340,14 @@ async fn unrelated_removal_does_not_discard_startup_reconciliation() {
     actor.restore_codex_queues().await.unwrap();
     assert!(actor.codex_history_scans.contains("tab"));
     let mut outbound = connect(&mut actor, 1);
-    let manager = Arc::new(tokio::sync::Mutex::new(
-        EmulatorManager::new(dir.path()).await.unwrap(),
-    ));
-    actor.emulators = Some(manager.clone());
-    let guard = manager.lock().await;
-    actor.queue_emulator_park_all();
+    actor.park_runtime_mutations();
     actor
         .handle_line(
             1,
             json!({"id":1,"type":"tab.remove","payload":{"id":"unrelated"}}).to_string(),
         )
         .await;
-    assert!(actor.emulator_requests.has_runtime_mutations());
+    assert!(actor.mutation_queue.has_runtime_mutations());
     finish_scan(&mut actor, &mut rx).await;
     assert!(!actor.codex_history_scans.contains("tab"));
     let state = actor
@@ -379,7 +365,7 @@ async fn unrelated_removal_does_not_discard_startup_reconciliation() {
         .calls
         .iter()
         .any(|(method, _)| method == "turn/start"));
-    drop(guard);
+    actor.unpark_runtime_mutations();
     while response(&mut outbound, 1).is_none() {
         let command = tokio::time::timeout(std::time::Duration::from_secs(3), rx.recv())
             .await

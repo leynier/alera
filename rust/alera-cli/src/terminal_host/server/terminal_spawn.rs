@@ -279,7 +279,7 @@ impl ServerActor {
         // and orchestration launches. Runtime mutations perform filesystem
         // cleanup concurrently with the actor, so no new terminal owner may
         // cross this fence while one is outstanding.
-        if self.emulator_requests.has_runtime_mutations() {
+        if self.mutation_queue.has_runtime_mutations() {
             return Err(HostError::state(
                 "A runtime mutation is in progress. Wait for it to finish and retry.",
             ));

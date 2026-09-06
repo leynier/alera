@@ -15,9 +15,6 @@ impl ServerActor {
         if let Some(handle) = self.mobile_gateway.take() {
             handle.abort();
         }
-        if let Some(emulators) = self.emulators.as_ref() {
-            emulators.lock().await.dispose().await;
-        }
         // Closing client handles ends their connection loops.
         self.browser = BrowserBroker::default();
         self.clients.clear();

@@ -13,7 +13,6 @@ use serde_json::{json, Value};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::mpsc::{self, UnboundedSender};
-use tokio::sync::Mutex;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
@@ -26,7 +25,6 @@ use crate::terminal_host::client::{
     connection_loop, ClientFrame, ClientHandle, CLIENT_TERMINAL_OUT_QUEUE_CAPACITY,
 };
 use crate::terminal_host::control_file;
-use crate::terminal_host::emulator::EmulatorManager;
 use crate::terminal_host::history_store::TerminalHostHistoryStore;
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::mobile_gateway::spawn_mobile_gateway_accept_loop;
@@ -134,8 +132,6 @@ mod codex_tab_lifecycle;
 mod codex_thread_identity;
 mod codex_user_messages;
 mod codex_workspace_inputs;
-mod computer_request_payloads;
-mod computer_requests;
 mod configuration_requests;
 mod configuration_transfers;
 mod mobile_gateway_replacement;
@@ -144,9 +140,6 @@ mod coordinator_requests;
 mod coordinator_stall_policy;
 mod declared_catalog_requests;
 mod deferred_requests;
-mod emulator_request_payloads;
-mod emulator_request_queue;
-mod emulator_requests;
 mod host_service_agent_quota;
 mod host_service_requests;
 mod host_status;
@@ -188,6 +181,7 @@ mod requests;
 mod resource_requests;
 mod runtime_change_broadcasts;
 mod runtime_mutation_barrier;
+mod runtime_mutation_queue;
 mod runtime_mutations;
 mod server_command;
 #[path = "server_runner.rs"]
@@ -240,7 +234,6 @@ struct ClientState {
     handle: ClientHandle,
     authenticated: bool,
     binary_frames: bool,
-    supports_mobile_emulator_tab_kind: bool,
     supports_codex_tab_kind: bool,
     kind: ClientKind,
     local_role: client_delivery::LocalClientRole,
@@ -273,7 +266,7 @@ struct ServerActor {
     project_clone_jobs: HashMap<String, tokio::sync::oneshot::Sender<()>>,
     agent_title_jobs: HashMap<String, agent_title_generation::AgentTitleJob>,
     managed_workspace_jobs: usize,
-    emulator_requests: emulator_request_queue::EmulatorRequestQueue,
+    mutation_queue: runtime_mutation_queue::RuntimeMutationQueue,
     agent_quota_cache: Option<(Instant, u64, Value)>,
     configuration_transfers: configuration_transfers::ConfigurationTransfers,
     account_push: account_push_state::AccountPushState,
@@ -289,7 +282,6 @@ struct ServerActor {
     resources: ResourceMonitorState,
     terminal_pulses: terminal_pulse::TerminalPulseManager,
     browser: BrowserBroker,
-    emulators: Option<Arc<Mutex<EmulatorManager>>>,
     codex: Option<codex_app_server::CodexAppServer>,
     codex_starting: Option<codex_server_startup::CodexServerStartup>,
     codex_presence: HashMap<String, Value>,
@@ -464,7 +456,6 @@ impl ServerActor {
                         handle,
                         authenticated: false,
                         binary_frames: false,
-                        supports_mobile_emulator_tab_kind: false,
                         supports_codex_tab_kind: false,
                         kind,
                         local_role: client_delivery::LocalClientRole::Cli,
@@ -487,11 +478,6 @@ impl ServerActor {
             } => {
                 self.finish_mobile_network_snapshot(client_id, request_id, payload);
             }
-            ServerCommand::EmulatorPointerTimeout {
-                tab_id,
-                client_id,
-                generation,
-            } => self.handle_emulator_pointer_timeout(&tab_id, client_id, generation),
             ServerCommand::Pty {
                 session_id,
                 event,
@@ -631,16 +617,6 @@ impl ServerActor {
                 operation_id,
                 skill,
             } => self.handle_host_tool_finished(client_id, request_id, result, operation_id, skill),
-            ServerCommand::EmulatorRequestFinished {
-                client_id,
-                request_id,
-                completion,
-            } => {
-                self.handle_emulator_request_finished(client_id, request_id, completion);
-            }
-            ServerCommand::EmulatorMaintenanceFinished(completion) => {
-                self.handle_emulator_maintenance_finished(completion)
-            }
             ServerCommand::RuntimeMutationFinished(finished) => {
                 self.handle_runtime_mutation_finished(finished).await
             }
@@ -1222,7 +1198,7 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
+            mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
@@ -1238,7 +1214,6 @@ mod tests {
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
             browser: BrowserBroker::default(),
-            emulators: None,
             codex: None,
             codex_starting: None,
             codex_presence: HashMap::new(),
@@ -1305,7 +1280,7 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
+            mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
@@ -1321,7 +1296,6 @@ mod tests {
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
             browser: BrowserBroker::default(),
-            emulators: None,
             codex: None,
             codex_starting: None,
             codex_presence: HashMap::new(),
@@ -1406,7 +1380,7 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
+            mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
@@ -1422,7 +1396,6 @@ mod tests {
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
             browser: BrowserBroker::default(),
-            emulators: None,
             codex: None,
             codex_starting: None,
             codex_presence: HashMap::new(),
@@ -1502,7 +1475,7 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
+            mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
@@ -1518,7 +1491,6 @@ mod tests {
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
             browser: BrowserBroker::default(),
-            emulators: None,
             codex: None,
             codex_starting: None,
             codex_presence: HashMap::new(),
@@ -1620,7 +1592,7 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
+            mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
@@ -1636,7 +1608,6 @@ mod tests {
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
             browser: BrowserBroker::default(),
-            emulators: None,
             codex: None,
             codex_starting: None,
             codex_presence: HashMap::new(),
@@ -1711,7 +1682,7 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
+            mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
@@ -1727,7 +1698,6 @@ mod tests {
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
             browser: BrowserBroker::default(),
-            emulators: None,
             codex: None,
             codex_starting: None,
             codex_presence: HashMap::new(),

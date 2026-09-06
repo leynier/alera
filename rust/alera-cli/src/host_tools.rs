@@ -119,7 +119,6 @@ pub(crate) async fn install_cli_registration(runtime_dir: &Path) -> Result<CliRe
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum SkillKind {
     Cli,
-    Emulator,
     Orchestration,
     AgentCanvas,
 }
@@ -128,7 +127,6 @@ impl SkillKind {
     pub(crate) fn parse(value: &str) -> Option<Self> {
         match value {
             "cli" => Some(Self::Cli),
-            "emulator" => Some(Self::Emulator),
             "orchestration" => Some(Self::Orchestration),
             "alera-agent-canvas" | "agent-canvas" | "canvas" => Some(Self::AgentCanvas),
             _ => None,
@@ -138,7 +136,6 @@ impl SkillKind {
     fn package_name(self) -> &'static str {
         match self {
             Self::Cli => "alera-cli",
-            Self::Emulator => "alera-emulator",
             Self::Orchestration => "alera-orchestration",
             Self::AgentCanvas => "alera-agent-canvas",
         }
@@ -409,12 +406,6 @@ mod tests {
         let tail = output_tail(&output);
         assert_eq!(tail.chars().count(), 1_000);
         assert!(tail.ends_with('ñ'));
-    }
-
-    #[test]
-    fn emulator_skill_uses_its_repository_package_name() {
-        let kind = SkillKind::parse("emulator").expect("emulator skill");
-        assert_eq!(kind.package_name(), "alera-emulator");
     }
 
     #[test]

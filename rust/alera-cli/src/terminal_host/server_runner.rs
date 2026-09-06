@@ -61,13 +61,9 @@ pub async fn run_terminal_host_server(
         let _ = crate::login_shell_environment::login_shell_path_segments().await;
     });
 
-    let emulators = match EmulatorManager::new(&runtime_dir).await {
-        Ok(manager) => Some(Arc::new(Mutex::new(manager))),
-        Err(error) => {
-            tracing::warn!("alera emulator manager unavailable: {}", error.message);
-            None
-        }
-    };
+    runtime_store
+        .remove_workspace_tabs_with_kind("mobileEmulator")
+        .await?;
     let mut actor = ServerActor {
         runtime_dir,
         control_file_path,
@@ -82,7 +78,7 @@ pub async fn run_terminal_host_server(
         project_clone_jobs: HashMap::new(),
         agent_title_jobs: HashMap::new(),
         managed_workspace_jobs: 0,
-        emulator_requests: Default::default(),
+        mutation_queue: Default::default(),
         agent_quota_cache: None,
         configuration_transfers: Default::default(),
         account_push,
@@ -98,7 +94,6 @@ pub async fn run_terminal_host_server(
         resources: ResourceMonitorState::default(),
         terminal_pulses: Default::default(),
         browser: BrowserBroker::default(),
-        emulators,
         codex: None,
         codex_starting: None,
         codex_presence: HashMap::new(),
@@ -164,7 +159,6 @@ pub async fn run_terminal_host_server(
                 "alera terminal host resumed after {}s of system sleep",
                 slept.as_secs()
             );
-            actor.queue_emulator_park_all();
         }
         if matches!(&command, ServerCommand::RequestedRestart) {
             exit = TerminalHostExit::Restart(actor.config);

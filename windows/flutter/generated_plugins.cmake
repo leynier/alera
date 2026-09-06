@@ -7,8 +7,6 @@ list(APPEND FLUTTER_PLUGIN_LIST
   desktop_drop
   desktop_updater
   file_selector_windows
-  media_kit_libs_windows_video
-  media_kit_video
   pasteboard
   record_windows
   screen_retriever_windows

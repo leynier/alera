@@ -966,6 +966,14 @@ impl RuntimeStore {
         Ok(())
     }
 
+    pub async fn remove_workspace_tabs_with_kind(&self, kind: &str) -> Result<u64> {
+        let result = sqlx::query("DELETE FROM workspaceTabs WHERE kind = ?")
+            .bind(kind)
+            .execute(&self.pool)
+            .await?;
+        Ok(result.rows_affected())
+    }
+
     pub async fn list_workspace_tabs(&self, workspace_id: &str) -> Result<Vec<WorkspaceTabRecord>> {
         let rows = sqlx::query(
             "SELECT id, workspaceId, kind, title, createdAt, updatedAt, payloadJson \

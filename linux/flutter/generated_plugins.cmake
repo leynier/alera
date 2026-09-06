@@ -7,8 +7,6 @@ list(APPEND FLUTTER_PLUGIN_LIST
   desktop_drop
   desktop_updater
   file_selector_linux
-  media_kit_libs_linux
-  media_kit_video
   pasteboard
   record_linux
   screen_retriever_linux

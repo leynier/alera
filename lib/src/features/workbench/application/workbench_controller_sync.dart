@@ -21,9 +21,6 @@ mixin _WorkbenchControllerSync
             .read(agentHookReceiverProvider)
             .clearTerminalSession(tab.terminalSessionId);
       }
-      if (tab.kind == WorkspaceTabKind.mobileEmulator) {
-        ref.read(mobileEmulatorLeaseCoordinatorProvider).close(tab.id);
-      }
     }
     if (ref.exists(browserSessionRegistryProvider)) {
       unawaited(

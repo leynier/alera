@@ -137,7 +137,6 @@ async fn failed_active_turn_cleanup_preserves_the_tab_binding() {
     };
 
     let outcome = super::super::super::runtime_mutations::run_runtime_mutation(
-        None,
         store.clone(),
         super::super::super::runtime_mutations::RuntimeMutationRequest::RemoveTab {
             tab_id: "tab".to_string(),

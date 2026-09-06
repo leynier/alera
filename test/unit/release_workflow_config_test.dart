@@ -240,8 +240,6 @@ void main() {
       final podfile = File('macos/Podfile').readAsStringSync();
       final xcodeProject = File('macos/Runner.xcodeproj/project.pbxproj')
           .readAsStringSync();
-      final helperAssets = File('tool/native_helpers/native_helper_assets.json')
-          .readAsStringSync();
       final releaseWorkflow = File('.github/workflows/release-cut.yml')
           .readAsStringSync();
       final buildWorkflow = File('.github/workflows/desktop-build.yml')
@@ -253,7 +251,6 @@ void main() {
       // The sidecar is pinned to the triple instead of inheriting the build
       // machine, so the shipped binary cannot depend on which runner ran.
       expect(xcodeProject, contains('aarch64-apple-darwin'));
-      expect(helperAssets, isNot(contains('"x86_64"')));
       for (final workflow in <String>[releaseWorkflow, buildWorkflow]) {
         expect(workflow, contains('verify_macos_arm64_only.sh'));
       }

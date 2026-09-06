@@ -41,8 +41,6 @@ class WorkspaceTabKindMapper extends EnumMapper<WorkspaceTabKind> {
         return WorkspaceTabKind.gitDiff;
       case r'browser':
         return WorkspaceTabKind.browser;
-      case r'mobileEmulator':
-        return WorkspaceTabKind.mobileEmulator;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -65,8 +63,6 @@ class WorkspaceTabKindMapper extends EnumMapper<WorkspaceTabKind> {
         return r'gitDiff';
       case WorkspaceTabKind.browser:
         return r'browser';
-      case WorkspaceTabKind.mobileEmulator:
-        return r'mobileEmulator';
     }
   }
 }

@@ -244,7 +244,7 @@ impl ServerActor {
     ) -> HostResult<Option<Value>> {
         // Recovery only reconciles persisted work, which already blocks removal
         // of its owner. Client actions can create work outside a cleanup plan.
-        if job.client.is_some() && self.emulator_requests.has_runtime_mutations() {
+        if job.client.is_some() && self.mutation_queue.has_runtime_mutations() {
             return Err(HostError::state(
                 "A runtime mutation is in progress. Wait for it to finish and retry.",
             ));

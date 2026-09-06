@@ -61,7 +61,7 @@ impl ServerActor {
                 restart_after_response = request_type == "host.restart";
                 shutdown_after_response = request_type == "host.shutdown";
                 if let Some(id) = request_id {
-                    if self.emulator_requests.has_runtime_mutations()
+                    if self.mutation_queue.has_runtime_mutations()
                         && conflicts_with_runtime_mutation(&request_type)
                     {
                         self.client_write(
@@ -231,12 +231,7 @@ impl ServerActor {
                 let active_jobs = self.ssh_bootstrap_jobs.len()
                     + usize::from(self.managed_workspace_jobs > 0)
                     + self.coordinators.len()
-                    + self.emulator_requests.outstanding()
-                    + self.emulators.as_ref().map_or(0, |emulators| {
-                        emulators
-                            .try_lock()
-                            .map_or(1, |manager| manager.active_count())
-                    })
+                    + self.mutation_queue.outstanding()
                     + self.browser.active_jobs();
                 let active_agents = self.agent_presence_items().as_array().map_or(0, Vec::len);
                 if !force {
@@ -271,12 +266,7 @@ impl ServerActor {
                 let active_jobs = self.ssh_bootstrap_jobs.len()
                     + usize::from(self.managed_workspace_jobs > 0)
                     + self.coordinators.len()
-                    + self.emulator_requests.outstanding()
-                    + self.emulators.as_ref().map_or(0, |emulators| {
-                        emulators
-                            .try_lock()
-                            .map_or(1, |manager| manager.active_count())
-                    })
+                    + self.mutation_queue.outstanding()
                     + self.browser.active_jobs();
                 let active_agents = self.agent_presence_items().as_array().map_or(0, Vec::len);
                 if !force {
@@ -464,16 +454,6 @@ impl ServerActor {
                     "pathEntryCount": path_count,
                     "variableCount": variable_count,
                 }))
-            }
-            _ if request_type.starts_with("computer.") => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                match self.handle_computer_request(request_type, payload).await? {
-                    Some(value) => Ok(value),
-                    None => Err(HostError::state(format!(
-                        "Unknown computer-use request: {request_type}"
-                    ))),
-                }
             }
             "runtimeMetadata.get" => {
                 self.require_auth(client_id)?;

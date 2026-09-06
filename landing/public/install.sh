@@ -6,9 +6,9 @@
 # Adds the signed Alera package repository for the detected distribution and
 # installs the alera package with the system package manager. Alera never
 # installs Linux updates itself, because a raw dpkg or rpm transaction does not
-# resolve the libmpv dependency closure; going through the package manager is
-# what keeps dependencies resolved. Re-running this script upgrades an existing
-# installation, so it is also the update path.
+# resolve GTK, WebKit, and related system libraries; going through the package
+# manager is what keeps dependencies resolved. Re-running this script upgrades
+# an existing installation, so it is also the update path.
 #
 # POSIX sh on purpose: piping to `sh` runs under dash on Debian and Ubuntu.
 # Everything lives in functions with `main "$@"` on the last line, so a download
@@ -132,7 +132,7 @@ require_supported_architecture() {
 # Detected by probing for the binary rather than by reading ID and ID_LIKE from
 # /etc/os-release, so a derivative distribution is handled by what it actually
 # ships. zypper is probed only to refuse it by name: the published RPM declares
-# Fedora dependency names (mpv-libs, webkit2gtk4.1, gtk3) that openSUSE does not
+# Fedora dependency names (webkit2gtk4.1, gtk3) that openSUSE does not
 # provide under those names, so configuring the repository there would end in an
 # unresolvable transaction rather than a working install.
 detect_package_manager() {
@@ -304,13 +304,11 @@ report_install_failure() {
   case "$package_family" in
     deb)
       die "$ALERA_EXIT_INSTALL" "Installing Alera failed." \
-        "If libmpv2 could not be found, this release is older than Alera supports." \
         "Alera needs Ubuntu 24.04 or newer, or Debian 13 or newer."
       ;;
     rpm)
       die "$ALERA_EXIT_INSTALL" "Installing Alera failed." \
-        "If mpv-libs could not be found, enable RPM Fusion first." \
-        "Fedora ships mpv-libs, but RHEL, Rocky, and AlmaLinux take it from RPM Fusion."
+        "Check that GTK 3 and WebKitGTK 4.1 are available from your repositories."
       ;;
   esac
 }

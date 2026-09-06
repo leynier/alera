@@ -38,8 +38,6 @@ const String aleraRuntimeHostTerminalDeferredInputCapability =
     'terminalDeferredInputV1';
 const String aleraRuntimeHostBrowserCertificateTrustCapability =
     'browserCertificateTrustV1';
-const String aleraRuntimeHostMobileEmulatorCapability = 'mobileEmulatorV1';
-const String aleraMobileEmulatorTabKind = 'mobileEmulator';
 const String aleraRuntimeHostCodexChatCapability = 'codexChatTabV1';
 const String aleraRuntimeHostCodexGoalsCapability = 'codexGoalsV1';
 const String aleraRuntimeHostRemoteAiDictationCapability =

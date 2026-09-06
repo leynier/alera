@@ -28,13 +28,6 @@ mixin _WorkbenchControllerTabs
     };
     try {
       _closingTabWorkspaceIds.add(workspace.id);
-      final emulatorLeases = ref.read(mobileEmulatorLeaseCoordinatorProvider);
-      final emulatorTabIds = <String>{
-        for (final tab in state.tabsFor(workspace.id))
-          if (ids.contains(tab.id) &&
-              tab.kind == WorkspaceTabKind.mobileEmulator)
-            tab.id,
-      };
       for (final tabId in ids) {
         final tab = state
             .tabsFor(workspace.id)
@@ -51,9 +44,6 @@ mixin _WorkbenchControllerTabs
         }
         if (closingTabs[tabId]?.kind == WorkspaceTabKind.codex) {
           ref.read(codexComposerDraftStoreProvider).remove(tabId);
-        }
-        if (emulatorTabIds.contains(tabId)) {
-          emulatorLeases.close(tabId);
         }
         // Every close path must drop the live terminal handle and the editor
         // document, or the xterm scrollback buffer outlives the tab. This is
