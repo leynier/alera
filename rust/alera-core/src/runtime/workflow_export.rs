@@ -147,11 +147,21 @@ pub(super) fn export_at(
         if before.as_deref() != Some(after.as_str()) {
             let alera = ensure_directory(&root, ".alera")?;
             let directory = ensure_directory(&alera, "workflows")?;
+            let existing =
+                super::workflow_project_files::read_project_workflow_documents(workspace)?;
             if before.is_none()
-                && super::workflow_project_files::read_project_workflow_documents(workspace)?.len()
-                    >= super::workflow_project_files::CATALOG_MAX_ENTRIES
+                && existing.len() >= super::workflow_project_files::CATALOG_MAX_ENTRIES
             {
                 bail!("project workflow catalog is full");
+            }
+            let other_bytes: usize = existing
+                .iter()
+                .filter(|entry| entry.path != format!(".alera/workflows/{name}"))
+                .filter_map(|entry| entry.source.as_ref().ok())
+                .map(String::len)
+                .sum();
+            if other_bytes + after.len() > super::workflow_project_files::CATALOG_MAX_BYTES {
+                bail!("export would exceed the project workflow catalog byte limit");
             }
             retained_path = replace_document(&directory, name, before.as_deref(), &after)?
                 .map(|name| format!(".alera/workflows/{name}"));

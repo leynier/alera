@@ -11,6 +11,46 @@ fn request() -> WorkflowExportRequest {
 }
 
 #[test]
+fn workflow_export_rejects_resulting_catalog_over_byte_limit_without_mutation() {
+    for replacing in [false, true] {
+        let root = tempfile::tempdir().unwrap();
+        let directory = root.path().join(".alera/workflows");
+        std::fs::create_dir_all(&directory).unwrap();
+        let target = directory.join("quick-fix.yaml");
+        if replacing {
+            std::fs::write(&target, "old").unwrap();
+        }
+        let mut request = request();
+        let preview = export_at(root.path(), "instance", request.clone(), false).unwrap();
+        let mut remaining =
+            super::workflow_project_files::CATALOG_MAX_BYTES - preview.after.len() + 1;
+        let mut index = 0;
+        while remaining > 0 {
+            let bytes = remaining.min(super::WORKFLOW_DOCUMENT_MAX_BYTES);
+            std::fs::write(
+                directory.join(format!("filler-{index}.yaml")),
+                vec![b' '; bytes],
+            )
+            .unwrap();
+            remaining -= bytes;
+            index += 1;
+        }
+        request.expected_digest = Some(preview.expected_digest);
+        let error = export_at(root.path(), "instance", request, true).unwrap_err();
+        assert!(error.to_string().contains("catalog byte limit"), "{error}");
+        if replacing {
+            assert_eq!(std::fs::read_to_string(target).unwrap(), "old");
+        } else {
+            assert!(!target.exists());
+        }
+        assert_eq!(
+            std::fs::read_dir(directory).unwrap().count(),
+            index + usize::from(replacing)
+        );
+    }
+}
+
+#[test]
 fn workflow_export_preview_is_read_only_and_apply_requires_exact_review() {
     let root = tempfile::tempdir().unwrap();
     let mut request = request();

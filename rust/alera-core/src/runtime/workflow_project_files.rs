@@ -10,7 +10,7 @@ use super::WORKFLOW_DOCUMENT_MAX_BYTES;
 
 pub(super) const CATALOG_MAX_ENTRIES: usize = 128;
 const DIRECTORY_MAX_ENTRIES: usize = 2048;
-const CATALOG_MAX_BYTES: usize = 8 * 1024 * 1024;
+pub(super) const CATALOG_MAX_BYTES: usize = 8 * 1024 * 1024;
 
 #[derive(Debug)]
 pub(super) struct ProjectWorkflowDocument {

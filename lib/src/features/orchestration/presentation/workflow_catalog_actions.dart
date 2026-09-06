@@ -20,25 +20,31 @@ extension _WorkflowCatalogActions on _WorkflowCatalogPaneState {
   });
 
   Future<void> _save() => _run(() async {
-    if (_editRevision != null) {
-      final validated = await _repository.validate(_document.text);
-      if (_object(validated['recipe'])['id'] !=
-          _object(_selected!['source'])['id']) {
+    final repository = _repository;
+    final drafts = ref.read(workflowCatalogDraftProvider.notifier);
+    final submitted = ref.read(workflowCatalogDraftProvider);
+    final text = _document.text;
+    final revision = _editRevision;
+    final sourceId = _object(_selected!['source'])['id'];
+    if (revision != null) {
+      final validated = await repository.validate(text);
+      if (_object(validated['recipe'])['id'] != sourceId) {
         throw StateError(
           'Keep the recipe id when editing. Use Copy To Personal for a new id.',
         );
       }
     }
-    final record = await _repository.save(_document.text, _editRevision);
-    final document = await _repository.document(record['recipe']);
+    final record = await repository.save(text, revision);
+    drafts.clearIfCurrent(submitted);
+    if (!mounted) return;
+    final document = await repository.document(record['recipe']);
     if (!mounted) return;
     _change(() {
       _selected = record;
-      _document.text = document;
       _editing = false;
+      _document.text = document;
       _notice = 'Personal recipe saved.';
     });
-    ref.read(workflowCatalogDraftProvider.notifier).retain(null);
     final catalog = await _repository.list(_workspaceId);
     if (mounted) {
       _change(

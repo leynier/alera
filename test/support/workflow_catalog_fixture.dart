@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera/src/features/orchestration/infra/workflow_catalog_repository.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
@@ -39,6 +41,7 @@ class CatalogTestRepository extends WorkflowCatalogRepository {
   Object? failure;
   int saves = 0;
   String? validatedId;
+  Completer<Map<String, Object?>>? pendingSave;
   @override
   Future<Map<String, Object?>> list(String? workspaceId) async {
     if (failure != null) throw failure!;
@@ -61,6 +64,7 @@ class CatalogTestRepository extends WorkflowCatalogRepository {
   @override
   Future<Map<String, Object?>> save(String document, int? revision) async {
     saves++;
+    if (pendingSave != null) return pendingSave!.future;
     if (failure != null) throw failure!;
     return workflowCatalogRecord;
   }

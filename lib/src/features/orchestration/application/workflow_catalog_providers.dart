@@ -29,4 +29,8 @@ class WorkflowCatalogDraft extends _$WorkflowCatalogDraft {
   WorkflowCatalogEdit? build() => null;
 
   void retain(WorkflowCatalogEdit? draft) => state = draft;
+
+  void clearIfCurrent(WorkflowCatalogEdit? submitted) {
+    if (ref.mounted && identical(state, submitted)) state = null;
+  }
 }
