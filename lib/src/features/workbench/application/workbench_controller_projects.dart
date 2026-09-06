@@ -71,7 +71,6 @@ mixin _WorkbenchControllerProjects
       _workspaceIdsWithClearedLayout.add(workspace.id);
       _tabFocusHistory.forget(workspace.id);
       await _repository.removeWorkspaceTabsForWorkspace(workspace.id);
-      _removeCodexDrafts(workspaceTabs);
       for (final tab in workspaceTabs) {
         await _releaseHostedReviewTab(workspace, tab);
       }
@@ -111,10 +110,6 @@ mixin _WorkbenchControllerProjects
 
   Future<void> removeProject(String projectId) async {
     try {
-      final removedTabs = <WorkspaceTabRecord>[
-        for (final workspace in state.workspacesFor(projectId))
-          ...state.tabsFor(workspace.id),
-      ];
       final removedWorkspaces = state.workspacesFor(projectId);
       await _projectsService.removeProject(projectId);
       for (final workspace in removedWorkspaces) {
@@ -123,7 +118,6 @@ mixin _WorkbenchControllerProjects
           await _releaseHostedReviewTab(workspace, tab);
         }
       }
-      _removeCodexDrafts(removedTabs);
       state = state.copyWith(error: null);
     } catch (error) {
       state = state.copyWith(error: error.toString());
@@ -156,14 +150,6 @@ mixin _WorkbenchControllerProjects
       ref.read(terminalRuntimeProvider).closeWorkspace(workspace.id);
       for (final tab in workspaceTabs) {
         ref.read(editorSessionRegistryProvider).forget(tab.id);
-        if (tab.kind == WorkspaceTabKind.mobileEmulator) {
-          ref.read(mobileEmulatorLeaseCoordinatorProvider).close(tab.id);
-        }
-      }
-      if (ref.exists(browserSessionRegistryProvider)) {
-        await ref
-            .read(browserSessionRegistryProvider)
-            .closeWorkspace(workspace.id);
       }
       for (final tab in workspaceTabs) {
         await _releaseHostedReviewTab(
@@ -172,7 +158,6 @@ mixin _WorkbenchControllerProjects
           fallbackWorkspacePath: project.repoPath,
         );
       }
-      _removeCodexDrafts(workspaceTabs);
       _tabFocusHistory.forget(workspace.id);
       ref
           .read(workspaceActivityControllerProvider.notifier)

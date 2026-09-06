@@ -7,9 +7,6 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, S
 use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
 
-use super::browser_privacy::{
-    browser_url_allows_title_persistence, normalize_browser_title, sanitize_browser_tab_payload,
-};
 use super::runtime_schema::RUNTIME_SCHEMA;
 use super::store_error::RuntimeStoreError;
 use super::{harden_sqlite_files, open_private_runtime_file, prepare_private_runtime_directory};
@@ -70,9 +67,6 @@ impl RuntimeStore {
         for statement in RUNTIME_SCHEMA {
             sqlx::query(*statement).execute(&self.pool).await?;
         }
-        for statement in super::codex_chat_store::CODEX_CHAT_SCHEMA {
-            sqlx::query(*statement).execute(&self.pool).await?;
-        }
         for statement in super::workspace_section_store::SECTION_SCHEMA {
             sqlx::query(*statement).execute(&self.pool).await?;
         }
@@ -83,8 +77,19 @@ impl RuntimeStore {
         for statement in super::orchestration_message_store::ORCHESTRATION_SCHEMA {
             sqlx::query(*statement).execute(&self.pool).await?;
         }
-        for statement in super::agent_canvas_store::AGENT_CANVAS_SCHEMA {
-            sqlx::query(*statement).execute(&self.pool).await?;
+        for statement in [
+            "DROP TABLE IF EXISTS agentCanvasEvents",
+            "DROP TABLE IF EXISTS agentCanvasDecisions",
+            "DROP TABLE IF EXISTS agentCanvasRevisions",
+            "DROP TABLE IF EXISTS agentCanvases",
+            "DROP TABLE IF EXISTS browserTrustedCertificates",
+            "DROP TABLE IF EXISTS browserPermissions",
+            "DROP TABLE IF EXISTS browserClosedTabs",
+            "DROP TABLE IF EXISTS browserHistory",
+            "DROP TABLE IF EXISTS browserProfiles",
+            "DROP TABLE IF EXISTS codexChatState",
+        ] {
+            sqlx::query(statement).execute(&self.pool).await?;
         }
         self.set_metadata(
             "orchestration.schemaVersion",
@@ -131,14 +136,6 @@ impl RuntimeStore {
             "TEXT NOT NULL DEFAULT 'ip'",
         )
         .await?;
-        self.ensure_column("browserProfiles", "sourceFamily", "TEXT")
-            .await?;
-        self.ensure_column("browserProfiles", "sourceProfileName", "TEXT")
-            .await?;
-        self.ensure_column("browserProfiles", "sourceImportedAt", "TEXT")
-            .await?;
-        self.ensure_column("browserHistory", "visitCount", "INTEGER NOT NULL DEFAULT 1")
-            .await?;
         self.ensure_column(
             "agentProfiles",
             "launchMode",
@@ -718,22 +715,6 @@ impl RuntimeStore {
                 .bind(&workspace_id)
                 .execute(&mut *tx)
                 .await?;
-            sqlx::query("DELETE FROM agentCanvasRevisions WHERE canvasId IN (SELECT id FROM agentCanvases WHERE workspaceId = ?)")
-                .bind(&workspace_id)
-                .execute(&mut *tx)
-                .await?;
-            sqlx::query("DELETE FROM agentCanvasDecisions WHERE canvasId IN (SELECT id FROM agentCanvases WHERE workspaceId = ?)")
-                .bind(&workspace_id)
-                .execute(&mut *tx)
-                .await?;
-            sqlx::query("DELETE FROM agentCanvasEvents WHERE workspaceId = ?")
-                .bind(&workspace_id)
-                .execute(&mut *tx)
-                .await?;
-            sqlx::query("DELETE FROM agentCanvases WHERE workspaceId = ?")
-                .bind(&workspace_id)
-                .execute(&mut *tx)
-                .await?;
             sqlx::query("DELETE FROM workbenchLayouts WHERE workspaceId = ?")
                 .bind(&workspace_id)
                 .execute(&mut *tx)
@@ -915,22 +896,6 @@ impl RuntimeStore {
                 .execute(&mut *tx)
                 .await?;
         }
-        sqlx::query("DELETE FROM agentCanvasRevisions WHERE canvasId IN (SELECT id FROM agentCanvases WHERE workspaceId = ?)")
-            .bind(workspace_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM agentCanvasDecisions WHERE canvasId IN (SELECT id FROM agentCanvases WHERE workspaceId = ?)")
-            .bind(workspace_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM agentCanvasEvents WHERE workspaceId = ?")
-            .bind(workspace_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM agentCanvases WHERE workspaceId = ?")
-            .bind(workspace_id)
-            .execute(&mut *tx)
-            .await?;
         sqlx::query("DELETE FROM linkedReviews WHERE workspaceId = ?")
             .bind(workspace_id)
             .execute(&mut *tx)
@@ -964,6 +929,14 @@ impl RuntimeStore {
             self.remove_workspace(&workspace.id, true).await?;
         }
         Ok(())
+    }
+
+    pub async fn remove_workspace_tabs_with_kind(&self, kind: &str) -> Result<u64> {
+        let result = sqlx::query("DELETE FROM workspaceTabs WHERE kind = ?")
+            .bind(kind)
+            .execute(&self.pool)
+            .await?;
+        Ok(result.rows_affected())
     }
 
     pub async fn list_workspace_tabs(&self, workspace_id: &str) -> Result<Vec<WorkspaceTabRecord>> {
@@ -1011,42 +984,6 @@ impl RuntimeStore {
     ) -> Result<WorkspaceTabRecord> {
         if tab.payload.is_null() {
             tab.payload = serde_json::json!({});
-        }
-        let browser_title_policy = (tab.kind == "browser").then(|| {
-            let manual = tab
-                .payload
-                .get("manualTitle")
-                .and_then(serde_json::Value::as_bool)
-                == Some(true);
-            let page_title_may_persist = tab
-                .payload
-                .get("browserUrl")
-                .and_then(serde_json::Value::as_str)
-                .is_some_and(browser_url_allows_title_persistence);
-            (manual, page_title_may_persist)
-        });
-        let prior_browser_title = if browser_title_policy
-            .is_some_and(|(manual, page_title_may_persist)| !manual && !page_title_may_persist)
-        {
-            self.find_workspace_tab(&tab.id)
-                .await?
-                .map(|existing| existing.title)
-        } else {
-            None
-        };
-        sanitize_browser_tab_payload(&tab.kind, &mut tab.payload);
-        if let Some((manual, page_title_may_persist)) = browser_title_policy {
-            let candidate = if manual || page_title_may_persist {
-                tab.title
-            } else {
-                prior_browser_title.unwrap_or_else(|| "New Tab".to_string())
-            };
-            let normalized = normalize_browser_title(&candidate);
-            tab.title = if normalized.is_empty() {
-                "New Tab".to_string()
-            } else {
-                normalized
-            };
         }
         sqlx::query(
             "INSERT INTO workspaceTabs (id, workspaceId, kind, title, createdAt, updatedAt, payloadJson) \

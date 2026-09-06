@@ -15,14 +15,12 @@ use tokio::time::{sleep, timeout, Instant};
 use uuid::Uuid;
 
 mod persistence;
-#[path = "runtime_host_agent_canvas.rs"]
-mod runtime_host_agent_canvas;
 
 use crate::terminal_host::protocol::{
     DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS, DEFAULT_EMPTY_SHUTDOWN_DELAY_SECONDS,
-    DEFAULT_SCROLLBACK_BYTES, MOBILE_EMULATOR_TAB_KIND, PROTOCOL_VERSION,
-    RUNTIME_HOST_BOOTSTRAP_CAPABILITY, RUNTIME_HOST_CAPABILITY,
-    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY, RUNTIME_HOST_MOBILE_CAPABILITY,
+    DEFAULT_SCROLLBACK_BYTES, PROTOCOL_VERSION, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+    RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CAPABILITY,
 };
 
 const CONTROL_FILE_NAME: &str = "host.json";
@@ -328,7 +326,6 @@ fn control_hello_payload(control: &RuntimeHostControl) -> Value {
         "protocolVersion": PROTOCOL_VERSION,
         "token": control.token,
         "clientKind": "cli",
-        "supportedTabKinds": [MOBILE_EMULATOR_TAB_KIND],
     })
 }
 
@@ -391,7 +388,7 @@ mod tests {
     }
 
     #[test]
-    fn cli_hello_declares_mobile_emulator_tab_support() {
+    fn cli_hello_identifies_the_cli_client() {
         let payload = control_hello_payload(&control(&[
             RUNTIME_HOST_CAPABILITY,
             RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
@@ -399,10 +396,7 @@ mod tests {
         ]));
 
         assert_eq!(payload["clientKind"], json!("cli"));
-        assert_eq!(
-            payload["supportedTabKinds"],
-            json!([MOBILE_EMULATOR_TAB_KIND])
-        );
+        assert!(payload.get("supportedTabKinds").is_none());
     }
 
     #[tokio::test]

@@ -10,7 +10,6 @@ mixin _WorkbenchControllerSync
   /// termination request for sessions this client no longer owns.
   void _releaseRetiredWorkspaceSessions(String workspaceId) {
     _tabFocusHistory.forget(workspaceId);
-    _removeCodexDrafts(state.tabsFor(workspaceId));
     ref.read(terminalRuntimeProvider).releaseWorkspace(workspaceId);
     final editorSessions = ref.read(editorSessionRegistryProvider);
     for (final tab in state.tabsFor(workspaceId)) {
@@ -21,23 +20,6 @@ mixin _WorkbenchControllerSync
             .read(agentHookReceiverProvider)
             .clearTerminalSession(tab.terminalSessionId);
       }
-      if (tab.kind == WorkspaceTabKind.mobileEmulator) {
-        ref.read(mobileEmulatorLeaseCoordinatorProvider).close(tab.id);
-      }
-    }
-    if (ref.exists(browserSessionRegistryProvider)) {
-      unawaited(
-        ref
-            .read(browserSessionRegistryProvider)
-            .closeWorkspace(workspaceId)
-            .catchError((Object error) {
-              if (!_disposed) {
-                state = state.copyWith(
-                  error: 'Could not close workspace browser pages: $error',
-                );
-              }
-            }),
-      );
     }
   }
 
@@ -314,18 +296,6 @@ mixin _WorkbenchControllerSync
     for (final tab in removedTabs) {
       runtime.releaseTab(tab.id);
       editorSessions.forget(tab.id);
-      if (tab.kind == WorkspaceTabKind.browser &&
-          ref.exists(browserSessionRegistryProvider)) {
-        unawaited(
-          ref.read(browserSessionRegistryProvider).closePage(tab.id).catchError(
-            (Object error) {
-              if (ref.mounted) {
-                state = state.copyWith(error: error.toString());
-              }
-            },
-          ),
-        );
-      }
       if (tab.kind == WorkspaceTabKind.terminal &&
           ref.exists(agentHookReceiverProvider)) {
         // The host may already have stopped the process before the explicit
@@ -335,7 +305,6 @@ mixin _WorkbenchControllerSync
             .clearTerminalSession(tab.terminalSessionId);
       }
     }
-    _removeMissingCodexDrafts(workspaceId, tabs);
     final nextTabs = Map<String, List<WorkspaceTabRecord>>.from(
       state.tabsByWorkspace,
     )..[workspaceId] = tabs;

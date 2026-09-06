@@ -61,7 +61,7 @@ impl ServerActor {
                 restart_after_response = request_type == "host.restart";
                 shutdown_after_response = request_type == "host.shutdown";
                 if let Some(id) = request_id {
-                    if self.emulator_requests.has_runtime_mutations()
+                    if self.mutation_queue.has_runtime_mutations()
                         && conflicts_with_runtime_mutation(&request_type)
                     {
                         self.client_write(
@@ -73,23 +73,6 @@ impl ServerActor {
                                 ),
                             ),
                         );
-                        return;
-                    }
-                    if request_type.starts_with("browser.") {
-                        match self
-                            .handle_browser_request(client_id, id, &request_type, &payload)
-                            .await
-                        {
-                            // Routed calls are parked until the app driver
-                            // completes, times out, or disconnects.
-                            Ok(None) => return,
-                            Ok(Some(value)) => {
-                                self.client_write(client_id, ok_response(id, value));
-                            }
-                            Err(error) => {
-                                self.client_write(client_id, error_response(id, &error));
-                            }
-                        }
                         return;
                     }
                     match self
@@ -195,10 +178,7 @@ impl ServerActor {
                 self.handle_configuration_request(client_id, request, payload)
                     .await
             }
-            request_type if request_type.starts_with("codex.") => {
-                self.handle_codex_request(client_id, request_type, payload)
-                    .await
-            }
+
             "mobile.workspaceQuickOpen.stop" => self.stop_mobile_workspace_quick_open(payload),
             "configure" => {
                 self.require_auth(client_id)?;
@@ -231,13 +211,7 @@ impl ServerActor {
                 let active_jobs = self.ssh_bootstrap_jobs.len()
                     + usize::from(self.managed_workspace_jobs > 0)
                     + self.coordinators.len()
-                    + self.emulator_requests.outstanding()
-                    + self.emulators.as_ref().map_or(0, |emulators| {
-                        emulators
-                            .try_lock()
-                            .map_or(1, |manager| manager.active_count())
-                    })
-                    + self.browser.active_jobs();
+                    + self.mutation_queue.outstanding();
                 let active_agents = self.agent_presence_items().as_array().map_or(0, Vec::len);
                 if !force {
                     if let Some(message) = host_shutdown_busy_message(
@@ -271,13 +245,7 @@ impl ServerActor {
                 let active_jobs = self.ssh_bootstrap_jobs.len()
                     + usize::from(self.managed_workspace_jobs > 0)
                     + self.coordinators.len()
-                    + self.emulator_requests.outstanding()
-                    + self.emulators.as_ref().map_or(0, |emulators| {
-                        emulators
-                            .try_lock()
-                            .map_or(1, |manager| manager.active_count())
-                    })
-                    + self.browser.active_jobs();
+                    + self.mutation_queue.outstanding();
                 let active_agents = self.agent_presence_items().as_array().map_or(0, Vec::len);
                 if !force {
                     if let Some(message) = host_shutdown_busy_message(
@@ -451,7 +419,6 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.handle_resource_snapshot(payload)
             }
-            ty if ty.starts_with("agentCanvas.") => self.canvas(client_id, ty, payload).await,
             _ if request_type.starts_with("automation.") => {
                 self.handle_automation_request(client_id, request_type, payload)
                     .await
@@ -464,16 +431,6 @@ impl ServerActor {
                     "pathEntryCount": path_count,
                     "variableCount": variable_count,
                 }))
-            }
-            _ if request_type.starts_with("computer.") => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                match self.handle_computer_request(request_type, payload).await? {
-                    Some(value) => Ok(value),
-                    None => Err(HostError::state(format!(
-                        "Unknown computer-use request: {request_type}"
-                    ))),
-                }
             }
             "runtimeMetadata.get" => {
                 self.require_auth(client_id)?;

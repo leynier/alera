@@ -21,7 +21,6 @@ use tokio::sync::{mpsc::UnboundedSender, oneshot, Mutex};
 use crate::login_shell_environment::apply_login_shell_path;
 use crate::terminal_host::host_error::{HostError, HostResult};
 
-use super::codex_app_server_history::ThreadHistoryCache;
 use super::codex_app_server_session_state::CodexAppServerSessionState;
 use super::ServerCommand;
 
@@ -43,13 +42,13 @@ pub(super) struct CodexAppServer {
     pending: PendingRequests,
     _child: Option<Arc<Mutex<Child>>>,
     next_id: Arc<AtomicI64>,
-    pub(super) thread_history: Arc<Mutex<ThreadHistoryCache>>,
     pub(super) session_state: Arc<CodexAppServerSessionState>,
     instance: Arc<()>,
 }
 
 impl CodexAppServer {
     #[cfg(test)]
+    #[allow(dead_code)]
     pub(super) fn mock(
         responder: impl Fn(&str, Value) -> HostResult<Value> + Send + Sync + 'static,
     ) -> Self {
@@ -59,7 +58,6 @@ impl CodexAppServer {
             responder: Some(Arc::new(responder)),
             pending: Arc::new(Mutex::new(HashMap::new())),
             next_id: Arc::new(AtomicI64::new(1)),
-            thread_history: Arc::new(Mutex::new(ThreadHistoryCache::default())),
             session_state: Arc::new(CodexAppServerSessionState::default()),
             instance: Arc::new(()),
         }
@@ -103,7 +101,6 @@ impl CodexAppServer {
             pending: Arc::new(Mutex::new(HashMap::new())),
             _child: Some(Arc::new(Mutex::new(child))),
             next_id: Arc::new(AtomicI64::new(1)),
-            thread_history: Arc::new(Mutex::new(ThreadHistoryCache::default())),
             session_state: Arc::new(CodexAppServerSessionState::default()),
             instance: Arc::new(()),
         };
@@ -180,6 +177,7 @@ impl CodexAppServer {
         .await
     }
 
+    #[allow(dead_code)]
     pub(super) async fn respond(
         &self,
         id: Value,

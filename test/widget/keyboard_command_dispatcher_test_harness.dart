@@ -44,7 +44,7 @@ class _DispatcherTestWorkbenchController(
 
   final Completer<WorkspaceTabRecord> _splitCompleter;
   final List<String> createdTerminalWorkspaceIds = <String>[];
-  final List<String> createdBrowserWorkspaceIds = <String>[];
+
   final List<String> closedTabIds = <String>[];
   final List<String> selectedTabIds = <String>[];
   final List<({String workspaceId, String groupId, WorkbenchDropZone zone})>
@@ -112,28 +112,6 @@ class _DispatcherTestWorkbenchController(
       },
     );
     return tab;
-  }
-
-  @override
-  Future<WorkspaceTabRecord> createBrowserTab(
-    Workspace workspace, {
-    String? targetGroupId,
-    String? pageId,
-    String profileId = 'default',
-    String? initialUrl,
-  }) async {
-    createdBrowserWorkspaceIds.add(workspace.id);
-    return WorkspaceTabRecord(
-      id: 'browser-tab-new',
-      workspaceId: workspace.id,
-      kind: .browser,
-      title: 'New Tab',
-      createdAt: .utc(2026),
-      updatedAt: .utc(2026),
-      payload: <String, Object?>{
-        workspaceTabBrowserProfileIdPayloadKey: profileId,
-      },
-    );
   }
 
   @override
@@ -344,9 +322,6 @@ Future<_DispatcherPumpHarness> _pumpDispatcherHarness(
       workbenchControllerProvider.overrideWith(() => controller),
       agentProfilesProvider.overrideWith(() => _DispatcherAgentProfiles()),
       terminalRuntimeProvider.overrideWith((ref) => runtime),
-      browserAvailabilityProvider.overrideWith(
-        (ref) => _stableBrowserCapabilities,
-      ),
       settingsControllerProvider.overrideWith(
         () => _DispatcherSettingsController(.defaults),
       ),
@@ -373,36 +348,6 @@ Future<_DispatcherPumpHarness> _pumpDispatcherHarness(
   await tester.pump();
   return _DispatcherPumpHarness(ref: dispatcherRef, context: dispatcherContext);
 }
-
-const BrowserEngineCapabilities _stableBrowserCapabilities =
-    BrowserEngineCapabilities(
-      engine: 'test',
-      engineAvailable: true,
-      pageSurface: true,
-      isolatedProfiles: true,
-      ephemeralProfiles: true,
-      deterministicPageClose: true,
-      navigation: true,
-      navigationEvents: true,
-      javascript: true,
-      basicCookies: true,
-      fullCookies: true,
-      permissionCallbacks: true,
-      tlsCallbacks: true,
-      tlsTrustScope: 'profileSession',
-      popupCallbacks: true,
-      downloadCallbacks: true,
-      domSnapshot: true,
-      domActions: true,
-      viewportScreenshot: true,
-      fullPageScreenshot: true,
-      pdf: true,
-      flutterOverlayOcclusion: true,
-      atomicCookieImport: true,
-      manualJsonCookieImport: true,
-      nativeCookieImportSources: <String>{'test', 'manualJson'},
-      requiredNativeCookieImportSources: <String>{'test', 'manualJson'},
-    );
 
 class _DispatcherSettingsController(final AleraSettings _seed)
     extends SettingsController {

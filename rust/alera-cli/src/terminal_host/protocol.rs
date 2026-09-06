@@ -42,7 +42,8 @@ pub const RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY: &str = "mobileProm
 /// Codex prompts without receiving unrestricted host filesystem access.
 pub const RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY: &str =
     "mobileCodexWorkspaceFilesV1";
-/// A paired phone can list, resume, reset, clear, and rename Codex threads.
+/// Retained name. Codex chat sessions are gone; older phones still feature-detect this string.
+#[allow(dead_code)]
 pub const RUNTIME_HOST_MOBILE_CODEX_SESSIONS_CAPABILITY: &str = "mobileCodexSessionsV1";
 /// A paired phone can upload bounded general files into the runtime-owned
 /// prompt attachment store using the same offset-checked chunking as images.
@@ -64,10 +65,6 @@ pub const RUNTIME_HOST_CLOUD_PUSH_CAPABILITY: &str = "cloudPushNotificationsV1";
 // Advertised additively: older hosts stay usable for non-orchestration verbs,
 // so clients must feature-check this capability instead of the protocol version.
 pub const RUNTIME_HOST_ORCHESTRATION_CAPABILITY: &str = "orchestration";
-/// Advertised once the runtime host persists and serves Agent Canvas state.
-/// This is additive so a new app can explain compatibility against an older
-/// live host without treating the existing terminal connection as unusable.
-pub const RUNTIME_HOST_AGENT_CANVAS_CAPABILITY: &str = "agentCanvasV1";
 pub const RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY: &str =
     "orchestrationTerminalInspectionV1";
 pub const RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY: &str = "orchestrationWaitV1";
@@ -131,43 +128,7 @@ pub const RUNTIME_HOST_DIAGNOSTICS_LOGS_CAPABILITY: &str = "hostDiagnosticsLogsV
 // restart. Additive, so clients feature-check this instead of the protocol
 // version; a host that lacks it is still fully usable.
 pub const RUNTIME_HOST_SHELL_ENVIRONMENT_RELOAD_CAPABILITY: &str = "shellEnvironmentReloadV1";
-// Advertised once the host answers `computer.*`: reading and driving local
-// desktop UI through the platform accessibility layer. Additive, so clients
-// feature-check this instead of comparing protocol versions; a host that lacks
-// it is still fully usable for everything else.
-pub const RUNTIME_HOST_COMPUTER_USE_CAPABILITY: &str = "computerUseV1";
-/// Routes browser automation calls to the Flutter app connection that owns the
-/// live WebView page. This is additive and does not change terminal framing.
-pub const RUNTIME_HOST_BROWSER_AUTOMATION_ROUTING_CAPABILITY: &str = "browserAutomationRoutingV1";
-/// Stores browser profiles, history, closed tabs, permissions and typed search
-/// settings in the shared runtime catalog.
-pub const RUNTIME_HOST_BROWSER_PROFILES_CAPABILITY: &str = "browserProfilesV1";
-/// Stores exact local certificate fingerprints per browser profile.
-pub const RUNTIME_HOST_BROWSER_CERTIFICATE_TRUST_CAPABILITY: &str = "browserCertificateTrustV1";
-// Advertised once the host can manage embedded Android and iOS emulator tabs.
-// Additive: older hosts remain usable, and clients feature-check before
-// sending emulator verbs.
-pub const RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY: &str = "mobileEmulatorV1";
 pub const RUNTIME_HOST_AUTOMATIONS_CAPABILITY: &str = "automationsV1";
-pub const MOBILE_EMULATOR_TAB_KIND: &str = "mobileEmulator";
-/// Native Codex chat tabs are additive. Clients advertise support for the tab
-/// kind separately so an older client never attempts to decode it.
-pub const RUNTIME_HOST_CODEX_CHAT_CAPABILITY: &str = "codexChatTabV1";
-/// Codex goals are additive and bridged through the app-server thread goal API.
-pub const RUNTIME_HOST_CODEX_GOALS_CAPABILITY: &str = "codexGoalsV1";
-/// Native Codex session management is additive. Desktop clients negotiate it
-/// before exposing thread list, resume, new, and clear actions.
-pub const RUNTIME_HOST_CODEX_SESSIONS_CAPABILITY: &str = "codexSessionsV1";
-/// Codex turn requests accept the app-server's split approval reviewer and
-/// sandbox policy fields instead of relying on the legacy approval mode.
-pub const RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY: &str = "codexTurnPolicyV2";
-pub const CODEX_TAB_KIND: &str = "codex";
-/// Version of the computer-use skill guide this binary's command surface matches.
-/// Reported by `alera version` so a stale installed skill is detectable.
-pub const COMPUTER_USE_SKILL_VERSION: i64 = 1;
-/// Version of the mobile-emulator skill guide this binary's command surface matches.
-pub const EMULATOR_SKILL_VERSION: i64 = 1;
-
 // Retained for the later packaging/resolver phase (sidecar discovery).
 #[allow(dead_code)]
 pub const CLI_EXECUTABLE_NAME: &str = "alera";

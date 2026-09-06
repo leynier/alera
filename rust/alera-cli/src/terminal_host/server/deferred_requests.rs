@@ -16,12 +16,6 @@ impl ServerActor {
         request_type: &str,
         payload: &Value,
     ) -> HostResult<bool> {
-        if self
-            .try_start_codex_history_scan(client_id, request_id, request_type, payload)
-            .await?
-        {
-            return Ok(true);
-        }
         if self.try_start_configuration_cloud(client_id, request_id, request_type, payload)? {
             return Ok(true);
         }
@@ -72,8 +66,7 @@ impl ServerActor {
             "mobile.workspaceQuickOpen.start"
             | "mobile.workspaceQuickOpen.search"
             | "mobile.workspaceFile.read"
-            | "mobile.promptAttachment.read"
-            | "mobile.codexSavedPrompts.list" => {
+            | "mobile.promptAttachment.read" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 self.start_mobile_workspace_file_request(
@@ -152,9 +145,6 @@ impl ServerActor {
                         "Workspace has a live terminal session or process",
                     ));
                 }
-                if !request.close_sessions && self.browser.has_pages_for_workspace(&request.id) {
-                    return Err(HostError::state("Workspace has a live browser session"));
-                }
                 let has_active_automation =
                     crate::managed_workspace::workspace_has_active_automation_owner(
                         &self.runtime_store,
@@ -179,12 +169,10 @@ impl ServerActor {
                 )
                 .await
                 .map_err(|error| HostError::state(error.to_string()))?;
-                let cleanup = self.plan_codex_workspace_cleanup(&request.id).await?;
-                self.start_runtime_mutation_after_codex_cleanup(
+                self.start_runtime_mutation(
                     client_id,
                     request_id,
                     RuntimeMutationRequest::RemoveManagedWorkspace { request },
-                    cleanup,
                 );
                 Ok(true)
             }
@@ -192,12 +180,10 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let project_id = require_string_key(payload, "id")?;
-                let cleanup = self.plan_codex_project_cleanup(&project_id).await?;
-                self.start_runtime_mutation_after_codex_cleanup(
+                self.start_runtime_mutation(
                     client_id,
                     request_id,
                     RuntimeMutationRequest::RemoveProject { project_id },
-                    cleanup,
                 );
                 Ok(true)
             }
@@ -205,19 +191,17 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let workspace_id = require_string_key(payload, "id")?;
-                let cleanup = self.plan_codex_workspace_cleanup(&workspace_id).await?;
                 let cascade_tabs = payload
                     .get("cascadeTabs")
                     .and_then(Value::as_bool)
                     .unwrap_or(true);
-                self.start_runtime_mutation_after_codex_cleanup(
+                self.start_runtime_mutation(
                     client_id,
                     request_id,
                     RuntimeMutationRequest::RemoveWorkspace {
                         workspace_id,
                         cascade_tabs,
                     },
-                    cleanup,
                 );
                 Ok(true)
             }
@@ -225,12 +209,10 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let project_id = require_string_key(payload, "projectId")?;
-                let cleanup = self.plan_codex_project_cleanup(&project_id).await?;
-                self.start_runtime_mutation_after_codex_cleanup(
+                self.start_runtime_mutation(
                     client_id,
                     request_id,
                     RuntimeMutationRequest::RemoveProjectWorkspaces { project_id },
-                    cleanup,
                 );
                 Ok(true)
             }
@@ -238,12 +220,10 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let workspace_id = require_string_key(payload, "workspaceId")?;
-                let cleanup = self.plan_codex_workspace_cleanup(&workspace_id).await?;
-                self.start_runtime_mutation_after_codex_cleanup(
+                self.start_runtime_mutation(
                     client_id,
                     request_id,
                     RuntimeMutationRequest::SleepWorkspace { workspace_id },
-                    cleanup,
                 );
                 Ok(true)
             }
@@ -252,12 +232,10 @@ impl ServerActor {
                 self.require_request_allowed(client_id, request_type)?;
                 let tab_id = require_string_key(payload, "id")?;
                 self.cancel_agent_title_job(&tab_id);
-                let cleanup = self.plan_codex_tab_cleanup(&tab_id).await?;
-                self.start_runtime_mutation_after_codex_cleanup(
+                self.start_runtime_mutation(
                     client_id,
                     request_id,
                     RuntimeMutationRequest::RemoveTab { tab_id },
-                    cleanup,
                 );
                 Ok(true)
             }
@@ -265,12 +243,10 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let workspace_id = require_string_key(payload, "workspaceId")?;
-                let cleanup = self.plan_codex_workspace_cleanup(&workspace_id).await?;
-                self.start_runtime_mutation_after_codex_cleanup(
+                self.start_runtime_mutation(
                     client_id,
                     request_id,
                     RuntimeMutationRequest::RemoveWorkspaceTabs { workspace_id },
-                    cleanup,
                 );
                 Ok(true)
             }
@@ -324,17 +300,6 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 self.start_skill_install_request(client_id, request_id, payload)?;
-                Ok(true)
-            }
-            _ if request_type.starts_with("emulator.") => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                self.start_emulator_request(
-                    client_id,
-                    request_id,
-                    request_type.to_string(),
-                    payload.clone(),
-                );
                 Ok(true)
             }
             _ => Ok(false),

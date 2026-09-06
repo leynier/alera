@@ -114,7 +114,10 @@ class RuntimeWorkbenchRepository(
     final payload = await _client.runtimeRequest('tab.list', <String, Object?>{
       'workspaceId': workspaceId,
     }, runtimeSnapshotRequestTimeout);
-    return _asList(payload).map(_tabFromJson).toList(growable: false);
+    return _asList(payload)
+        .map(_tabFromJson)
+        .whereType<WorkspaceTabRecord>()
+        .toList(growable: false);
   }
 
   @override
@@ -153,7 +156,8 @@ class RuntimeWorkbenchRepository(
           ? <String, Object?>{'id': tab.id, 'title': tab.title}
           : _tabToJson(tab),
     );
-    return _tabFromJson(_asMap(payload));
+    return _tabFromJson(_asMap(payload)) ??
+        (throw StateError('Workspace tab upsert returned a retired tab kind.'));
   }
 
   @override
@@ -286,11 +290,15 @@ Map<String, Object?> _workspaceToJson(Workspace workspace) {
   };
 }
 
-WorkspaceTabRecord _tabFromJson(Map<String, Object?> json) {
+WorkspaceTabRecord? _tabFromJson(Map<String, Object?> json) {
+  final kind = WorkspaceTabKind.tryParse(json['kind']);
+  if (kind == null) {
+    return null;
+  }
   return WorkspaceTabRecord(
     id: json['id'] as String,
     workspaceId: json['workspaceId'] as String,
-    kind: WorkspaceTabKind.fromJson(json['kind']),
+    kind: kind,
     title: json['title'] as String,
     createdAt: DateTime.parse(json['createdAt'] as String).toUtc(),
     updatedAt: DateTime.parse(json['updatedAt'] as String).toUtc(),

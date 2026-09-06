@@ -144,30 +144,11 @@ agentsSearchEntries = buildSettingsSearchEntryCatalog(const {
   'cliSkill': {
     'All Alera Skills': SettingsSearchEntryDetails(
       description: 'Install or update every core Alera agent skill.',
-      keywords: <String>[
-        'all',
-        'install',
-        'update',
-        'skills',
-        'computer use',
-        'emulator',
-        'orchestration',
-      ],
+      keywords: <String>['all', 'install', 'update', 'skills', 'orchestration'],
     ),
     'Alera CLI Skill': SettingsSearchEntryDetails(
       description: 'Install agent instructions for the Alera CLI.',
       keywords: <String>['codex', 'skill', 'cli', 'agent', 'workspace'],
-    ),
-    'Agent Canvas Skill': SettingsSearchEntryDetails(
-      description: 'Install agent instructions for publishing structured updates in Agent Canvas.',
-      keywords: <String>[
-        'agent canvas',
-        'canvas',
-        'skill',
-        'agent',
-        'publish',
-        'decision',
-      ],
     ),
     'Alera Orchestration Skill': SettingsSearchEntryDetails(
       description: 'Install agent instructions for Alera orchestration.',
@@ -178,18 +159,6 @@ agentsSearchEntries = buildSettingsSearchEntryCatalog(const {
         'handoff',
         'task',
         'dispatch',
-      ],
-    ),
-    'Alera Computer Use Skill': SettingsSearchEntryDetails(
-      description: 'Install agent instructions for desktop computer use.',
-      keywords: <String>[
-        'computer use',
-        'desktop',
-        'accessibility',
-        'skill',
-        'agent',
-        'click',
-        'window',
       ],
     ),
   },
@@ -329,45 +298,6 @@ const List<SettingsSearchEntry> keyboardSearchEntries = <SettingsSearchEntry>[
     keywords: <String>['app first', 'terminal first', 'policy'],
   ),
 ];
-
-final List<SettingsSearchEntry>
-browserSearchEntries = buildSettingsSearchEntryCatalog(const {
-  'general': {
-    'System Browser Engine': SettingsSearchEntryDetails(
-      description: 'Check the stable browser capability gate.',
-      keywords: <String>['browser', 'webview', 'webkit', 'webview2', 'engine'],
-    ),
-    'Browser Search Engine': SettingsSearchEntryDetails(
-      description: 'Choose the default address bar search provider.',
-      keywords: <String>['google', 'duckduckgo', 'bing', 'kagi', 'search'],
-    ),
-  },
-  'profiles': {
-    'Browser Profiles': SettingsSearchEntryDetails(
-      description: 'Manage isolated cookies, storage and permissions.',
-      keywords: <String>['browser', 'profile', 'cookies', 'storage', 'import'],
-    ),
-  },
-  'certificates': {
-    'Trusted Local Certificates': SettingsSearchEntryDetails(
-      description: 'Review or remove certificate trust for browser profiles.',
-      keywords: <String>[
-        'browser',
-        'certificate',
-        'tls',
-        'https',
-        'localhost',
-        'self signed',
-      ],
-    ),
-  },
-  'data': {
-    'Browser History': SettingsSearchEntryDetails(
-      description: 'Clear history and reopen recently closed tabs.',
-      keywords: <String>['browser', 'history', 'closed', 'tabs'],
-    ),
-  },
-});
 
 const List<SettingsSearchEntry> editorSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(

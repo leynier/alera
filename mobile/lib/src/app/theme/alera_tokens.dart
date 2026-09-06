@@ -62,20 +62,6 @@ abstract final class AleraTokens {
   static const Duration durationMid = Duration(milliseconds: 180);
   static const Duration durationSlow = Duration(milliseconds: 280);
   static const Duration durationSpin = Duration(milliseconds: 1200);
-  static const Duration codexShimmerCadence = Duration(milliseconds: 80);
-  static const Duration codexShimmerCycle = Duration(milliseconds: 1600);
-  static const Duration codexElapsedTimeRefreshInterval = Duration(seconds: 1);
-  static const double codexPlanPreviewHeight = 248;
-  static const double codexPlanPreviewFadeHeight = space48 * 2;
-  static const double codexChatFooterMaxHeight =
-      codexPlanPreviewHeight + minTapTarget * 4;
-  static const double codexComposerRadius = radiusXl;
-  static const double codexComposerSingleRowMinWidth = 520;
-  static const double codexCatalogRowHeight = minTapTarget + space24;
-  static const int codexCatalogVisibleRowCount = 2;
-  static const double codexInlineEditorMaxHeight = minTapTarget * 3.5;
-  static const int codexRasterPreviewCacheDimension = 2048;
-  static const double codexPickerHeightFactor = 0.72;
 
   static const TextStyle monoStyle = TextStyle(
     fontFamily: 'JetBrains Mono',

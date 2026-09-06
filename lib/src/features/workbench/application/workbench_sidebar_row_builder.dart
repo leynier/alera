@@ -325,12 +325,7 @@ class _WorkbenchSidebarRowBuilder(
       return _activityByWorkspaceId[workspace.id];
     }
     final tabs = state.tabsFor(workspace.id);
-    final activity =
-        tabs.any(
-          (tab) =>
-              tab.kind == WorkspaceTabKind.terminal ||
-              tab.kind == WorkspaceTabKind.codex,
-        )
+    final activity = tabs.any((tab) => tab.kind == WorkspaceTabKind.terminal)
         ? agentActivityRank(
             attention: _attentionOf(workspace),
             fallback:

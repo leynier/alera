@@ -12,7 +12,7 @@ pub(super) fn is_serialized_runtime_mutation(request_type: &str) -> bool {
 }
 
 pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
-    if request_type.starts_with("emulator.") || is_serialized_runtime_mutation(request_type) {
+    if is_serialized_runtime_mutation(request_type) {
         return false;
     }
     mutates_codex_runtime_state(request_type)
@@ -55,21 +55,6 @@ pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
                 | "linkedReview.remove"
                 | "linkedReview.upsert"
                 | "workbenchViewPrefs.update"
-                | "browser.settings.set"
-                | "browser.profiles.upsert"
-                | "browser.profiles.remove"
-                | "browser.history.clear"
-                | "browser.closedTabs.remove"
-                | "browser.permissions.set"
-                | "browser.permissions.remove"
-                | "browser.certificates.trust"
-                | "browser.certificates.remove"
-                | "browser.tabs.open"
-                | "browser.tabs.close"
-                | "browser.tabs.reopen"
-                | "browser.closedTabs.reopen"
-                | "browser.driver.sync"
-                | "browser.driver.pageChanged"
                 | "automation.upsert"
                 | "automation.approve"
                 | "automation.resume"
@@ -122,21 +107,6 @@ mod tests {
             "codex.thread.resume",
             "codex.response",
             "orchestration.agentSpawn",
-            "browser.settings.set",
-            "browser.profiles.upsert",
-            "browser.profiles.remove",
-            "browser.history.clear",
-            "browser.closedTabs.remove",
-            "browser.permissions.set",
-            "browser.permissions.remove",
-            "browser.certificates.trust",
-            "browser.certificates.remove",
-            "browser.tabs.open",
-            "browser.tabs.close",
-            "browser.tabs.reopen",
-            "browser.closedTabs.reopen",
-            "browser.driver.sync",
-            "browser.driver.pageChanged",
             "automation.upsert",
             "automation.approve",
             "automation.resume",
@@ -152,13 +122,7 @@ mod tests {
         for read_or_serialized_mutation in [
             "tab.list",
             "terminal.read",
-            "emulator.list",
             "tab.remove",
-            "browser.settings.get",
-            "browser.profiles.list",
-            "browser.certificates.list",
-            "browser.tabs.list",
-            "browser.driver.register",
             "codex.thread.list",
             "codex.thread.history",
             "codex.thread.snapshot",

@@ -6,7 +6,7 @@ void _registerWorkbenchControllerNavigationTests() {
     () async {
       await _controller.bootstrap();
       final workspace = await _selectMainWorkspace(_controller, _harness);
-      final original = await _controller.createCodexTab(workspace);
+      final original = await _controller.createTerminalTab(workspace);
       await _flush();
       final fork = original.copyWith(id: 'fork-tab', title: 'Fork');
       final tabs = [

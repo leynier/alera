@@ -156,7 +156,7 @@ void main() {
         final tab = WorkspaceTabRecord(
           id: 'tab-1',
           workspaceId: workspace.id,
-          kind: .browser,
+          kind: .editor,
           title: 'Preview',
           payload: const <String, Object?>{'path': 'readme.md'},
           createdAt: now,
@@ -182,7 +182,7 @@ void main() {
         final normalized = await repository.findWorkspaceTabById('tab-invalid');
 
         expect(listed, watched);
-        expect(restored?.kind, WorkspaceTabKind.browser);
+        expect(restored?.kind, WorkspaceTabKind.editor);
         expect(restored?.payload, <String, Object?>{'path': 'readme.md'});
         expect(normalized?.payload, const <String, Object?>{});
 

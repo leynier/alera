@@ -67,10 +67,10 @@ void main() {
     },
   );
 
-  test('Closing a Codex tab removes it without terminal termination', () async {
+  test('Closing a non-terminal tab removes it without termination', () async {
     final client = FakeTerminalClient()
       ..tabs = <WorkspaceTabSummary>[
-        fakeTab(id: 'codex-1', title: 'Codex', kind: 'codex'),
+        fakeTab(id: 'editor-1', title: 'Notes', kind: 'editor'),
       ];
     final container = _container(client);
     final notifier = container.read(
@@ -82,7 +82,7 @@ void main() {
 
     expect(await notifier.closeTab(client.tabs.single), isTrue);
 
-    expect(client.calls, contains('removeTab codex-1'));
+    expect(client.calls, contains('removeTab editor-1'));
     expect(client.calls.where((call) => call.startsWith('terminate')), isEmpty);
   });
 
@@ -154,23 +154,10 @@ void main() {
       runtimeTitle: 'Ignored Runtime Title',
       manualTitle: true,
     );
-    final manualCodex = fakeTab(
-      id: 'codex-1',
-      title: 'Renamed Chat',
-      kind: 'codex',
-      manualTitle: true,
-    );
-    final automaticCodex = fakeTab(
-      id: 'codex-2',
-      title: 'Codex',
-      kind: 'codex',
-    );
 
     expect(automatic.displayTitle, 'Review Tests');
     expect(generic.displayTitle, 'Terminal 2');
     expect(manual.displayTitle, 'Pinned Title');
-    expect(manualCodex.displayTitle, 'Renamed Chat');
-    expect(automaticCodex.displayTitle, 'Codex Chat');
   });
 
   test('Loads the current runtime title from the initial tab list', () async {

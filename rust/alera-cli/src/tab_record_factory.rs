@@ -5,15 +5,7 @@ use uuid::Uuid;
 
 use crate::cli::TabCreateArgs;
 
-const SUPPORTED_TAB_KINDS: &[&str] = &[
-    "terminal",
-    "codex",
-    "editor",
-    "markdownViewer",
-    "pdf",
-    "gitDiff",
-    "browser",
-];
+const SUPPORTED_TAB_KINDS: &[&str] = &["terminal", "editor", "markdownViewer", "pdf", "gitDiff"];
 
 pub(crate) fn tab_from_args(args: TabCreateArgs) -> Result<WorkspaceTabRecord, String> {
     let now = Utc::now();
@@ -46,9 +38,6 @@ pub(crate) fn tab_from_args(args: TabCreateArgs) -> Result<WorkspaceTabRecord, S
         if args.spawn {
             payload.insert("spawnOnCreate".to_string(), json!(true));
         }
-    } else if kind == "browser" {
-        payload.insert("browserProfileId".to_string(), json!("default"));
-        payload.insert("browserUrl".to_string(), json!("about:blank"));
     }
     Ok(WorkspaceTabRecord {
         id: id.clone(),

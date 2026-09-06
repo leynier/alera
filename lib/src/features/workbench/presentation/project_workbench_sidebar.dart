@@ -1,4 +1,3 @@
-import 'package:alera/src/features/codex_chat/presentation/codex_queue_close_confirmation.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_section_dialog.dart';
 
 import 'dart:async';
@@ -18,8 +17,6 @@ import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
-import 'package:alera/src/features/browser/application/browser_providers.dart';
-import 'package:alera/src/features/browser/application/browser_session_registry.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_resize_handle.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_search_bar.dart';
 import 'package:alera/src/features/workbench/application/workbench_listing.dart';

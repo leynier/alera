@@ -9,6 +9,18 @@ use crate::terminal_host::protocol::event;
 pub(super) type CodexServerStartup = Shared<BoxFuture<'static, HostResult<CodexAppServer>>>;
 
 impl ServerActor {
+    pub(super) async fn ensure_codex_server(
+        &mut self,
+        cwd: Option<&str>,
+    ) -> HostResult<CodexAppServer> {
+        if let Some(server) = self.codex.as_ref() {
+            return Ok(server.clone());
+        }
+        let startup = self.codex_server_startup(cwd);
+        let result = startup.clone().await;
+        self.adopt_codex_startup(&startup, result)
+    }
+
     pub(super) fn codex_server_startup(&mut self, cwd: Option<&str>) -> CodexServerStartup {
         if let Some(server) = self.codex.clone() {
             return async move { Ok(server) }.boxed().shared();

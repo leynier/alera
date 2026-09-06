@@ -7,44 +7,11 @@ use crate::terminal_host::host_error::HostResult;
 use crate::terminal_host::session::PtyEvent;
 use alera_core::runtime::SshBootstrapStatus;
 
-use super::{
-    account_requests, emulator_request_payloads, emulator_request_queue, push_delivery,
-    runtime_mutations, ClientKind,
-};
+use super::{account_requests, push_delivery, runtime_mutations, ClientKind};
 
 /// Messages processed serially by the single server actor. Every state mutation
 /// happens here, which keeps session/client transitions deterministic.
 pub enum ServerCommand {
-    CodexForkCreated {
-        job: Box<super::codex_fork_jobs::CodexForkJob>,
-        result: HostResult<Value>,
-    },
-    CodexForkProjected {
-        job: Box<super::codex_fork_jobs::CodexForkJob>,
-        result: HostResult<Option<super::codex_state::CodexTurnHistoryPage>>,
-    },
-    CodexQueueStartupFinished {
-        job: Box<super::codex_queue_startup::CodexQueueStartupJob>,
-        result: HostResult<Option<super::codex_queue_startup::CodexQueueResume>>,
-    },
-    CodexHistoryScanFinished {
-        job: Box<super::codex_history_scans::CodexHistoryScanJob>,
-        result: HostResult<super::codex_history_scans::CodexHistoryScan>,
-    },
-    CodexQueueDelivered {
-        tab_id: String,
-        thread_id: String,
-        message_id: String,
-        result: crate::terminal_host::host_error::HostResult<serde_json::Value>,
-    },
-    CodexQueueAdvance {
-        tab_id: String,
-    },
-    CodexEditFinished {
-        tab_id: String,
-        operation_id: String,
-        result: HostResult<Value>,
-    },
     RelayActivity {
         generation: u64,
         at: chrono::DateTime<chrono::Utc>,
@@ -190,23 +157,12 @@ pub enum ServerCommand {
         operation_id: Option<String>,
         skill: Option<String>,
     },
-    EmulatorRequestFinished {
-        client_id: u64,
-        request_id: i64,
-        completion: emulator_request_payloads::EmulatorRequestCompletion,
-    },
-    EmulatorMaintenanceFinished(emulator_request_queue::EmulatorMaintenanceCompletion),
     RuntimeMutationFinished(runtime_mutations::RuntimeMutationFinished),
     PrepareRuntimeMutation {
         request: runtime_mutations::RuntimeMutationRequest,
         completion: tokio::sync::oneshot::Sender<
             HostResult<crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown>,
         >,
-    },
-    EmulatorPointerTimeout {
-        tab_id: String,
-        client_id: u64,
-        generation: u64,
     },
     /// A parked `check --wait`/`ask` request hit its server-side deadline.
     OrchestrationWaitTimeout {
@@ -269,11 +225,9 @@ pub enum ServerCommand {
     },
     /// Wakes the durable automation scheduler to evaluate due occurrences.
     AutomationTick,
-    BrowserRequestTimeout {
-        correlation_id: String,
-    },
     /// A notification or server request emitted by the shared Codex process.
     CodexMessage {
+        #[allow(dead_code)]
         message: Value,
     },
     CodexProcessExited {
@@ -281,16 +235,6 @@ pub enum ServerCommand {
     },
     CodexMalformed {
         reason: String,
-    },
-    CodexPresenceTick,
-    CodexFlush {
-        tab_id: String,
-    },
-    CodexAutoResolve {
-        tab_id: String,
-        thread_id: String,
-        request_id: Value,
-        server_instance: std::sync::Arc<()>,
     },
     Account(account_requests::AccountCommand),
     Push(push_delivery::PushCommand),

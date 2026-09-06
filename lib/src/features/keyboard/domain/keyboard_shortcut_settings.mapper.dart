@@ -56,6 +56,8 @@ class KeyboardShortcutSettingsMapper
     #terminalPolicy: _f$terminalPolicy,
   };
 
+  @override
+  final MappingHook hook = const KeyboardShortcutSettingsDecodeHook();
   static KeyboardShortcutSettings _instantiate(DecodingData data) {
     return KeyboardShortcutSettings(
       overrides: data.dec(_f$overrides),

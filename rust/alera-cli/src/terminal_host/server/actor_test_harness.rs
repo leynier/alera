@@ -19,7 +19,6 @@ use crate::terminal_host::session::Session;
 use alera_core::runtime::RuntimeStore;
 
 use super::account_push_state::AccountPushState;
-use super::browser_broker::BrowserBroker;
 use super::client_delivery::LocalClientRole;
 use super::{ClientKind, ClientState, ServerActor};
 
@@ -30,8 +29,6 @@ impl ClientState {
             handle,
             authenticated: true,
             binary_frames: false,
-            supports_mobile_emulator_tab_kind: false,
-            supports_codex_tab_kind: false,
             kind: ClientKind::Local,
             local_role: if app_client {
                 LocalClientRole::App
@@ -51,8 +48,6 @@ pub(super) fn mobile_client(handle: ClientHandle, device: &str) -> ClientState {
         handle,
         authenticated: true,
         binary_frames: false,
-        supports_mobile_emulator_tab_kind: false,
-        supports_codex_tab_kind: false,
         kind: ClientKind::Mobile,
         local_role: LocalClientRole::Cli,
         mobile_device_id: Some(device.to_string()),
@@ -67,8 +62,6 @@ pub(super) fn local_client(handle: ClientHandle) -> ClientState {
         handle,
         authenticated: true,
         binary_frames: false,
-        supports_mobile_emulator_tab_kind: false,
-        supports_codex_tab_kind: false,
         kind: ClientKind::Local,
         local_role: LocalClientRole::Cli,
         mobile_device_id: None,
@@ -103,7 +96,7 @@ pub(super) async fn test_actor(
         project_clone_jobs: HashMap::new(),
         agent_title_jobs: HashMap::new(),
         managed_workspace_jobs: 0,
-        emulator_requests: Default::default(),
+        mutation_queue: Default::default(),
         agent_quota_cache: None,
         configuration_transfers: Default::default(),
         account_push,
@@ -118,16 +111,8 @@ pub(super) async fn test_actor(
         coordinators: HashMap::new(),
         resources: ResourceMonitorState::default(),
         terminal_pulses: Default::default(),
-        browser: BrowserBroker::default(),
-        emulators: None,
         codex: None,
         codex_starting: None,
-        codex_presence: HashMap::new(),
-        codex_delivery_active: HashSet::new(),
-        codex_history_scans: HashSet::new(),
-        codex_presence_scheduled: false,
-        codex_pending_messages: HashMap::new(),
-        codex_flush_scheduled: HashSet::new(),
         inbox,
         next_client_id: Arc::new(AtomicU64::new(10)),
         mobile_gateway: None,

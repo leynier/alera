@@ -9,7 +9,6 @@ mod client_budget;
 pub mod control_file;
 pub mod demand_driven_ticker;
 pub mod diagnostics;
-pub mod emulator;
 pub mod frame_codec;
 pub mod history_store;
 pub mod host_error;

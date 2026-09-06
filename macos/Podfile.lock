@@ -1,6 +1,4 @@
 PODS:
-  - alera_browser (0.1.0):
-    - FlutterMacOS
   - alera_native (0.0.1):
     - FlutterMacOS
   - code_forge (10.12.0):
@@ -17,10 +15,6 @@ PODS:
   - flutter_local_notifications (0.0.1):
     - FlutterMacOS
   - FlutterMacOS (1.0.0)
-  - media_kit_libs_macos_video (1.0.4):
-    - FlutterMacOS
-  - media_kit_video (0.0.1):
-    - FlutterMacOS
   - package_info_plus (0.0.1):
     - FlutterMacOS
   - pasteboard (0.0.1):
@@ -47,7 +41,6 @@ PODS:
     - FlutterMacOS
 
 DEPENDENCIES:
-  - alera_browser (from `Flutter/ephemeral/.symlinks/plugins/alera_browser/macos`)
   - alera_native (from `Flutter/ephemeral/.symlinks/plugins/alera_native/macos`)
   - code_forge (from `Flutter/ephemeral/.symlinks/plugins/code_forge/macos`)
   - desktop_drop (from `Flutter/ephemeral/.symlinks/plugins/desktop_drop/macos`)
@@ -55,8 +48,6 @@ DEPENDENCIES:
   - file_selector_macos (from `Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos`)
   - flutter_local_notifications (from `Flutter/ephemeral/.symlinks/plugins/flutter_local_notifications/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
-  - media_kit_libs_macos_video (from `Flutter/ephemeral/.symlinks/plugins/media_kit_libs_macos_video/macos`)
-  - media_kit_video (from `Flutter/ephemeral/.symlinks/plugins/media_kit_video/macos`)
   - package_info_plus (from `Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos`)
   - pasteboard (from `Flutter/ephemeral/.symlinks/plugins/pasteboard/macos`)
   - path_provider_foundation (from `Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin`)
@@ -74,8 +65,6 @@ SPEC REPOS:
     - CwlCatchExceptionSupport
 
 EXTERNAL SOURCES:
-  alera_browser:
-    :path: Flutter/ephemeral/.symlinks/plugins/alera_browser/macos
   alera_native:
     :path: Flutter/ephemeral/.symlinks/plugins/alera_native/macos
   code_forge:
@@ -90,10 +79,6 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/flutter_local_notifications/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
-  media_kit_libs_macos_video:
-    :path: Flutter/ephemeral/.symlinks/plugins/media_kit_libs_macos_video/macos
-  media_kit_video:
-    :path: Flutter/ephemeral/.symlinks/plugins/media_kit_video/macos
   package_info_plus:
     :path: Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos
   pasteboard:
@@ -116,7 +101,6 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/window_manager/macos
 
 SPEC CHECKSUMS:
-  alera_browser: 7a246164ceb674c079a7154bdbc989a789749174
   alera_native: 1dd99c0cb550c5e2ae8cec060e705f1ac3d8a8c6
   code_forge: b5a5ab0b01a8de485a359a47ba30d6e40ec09fa8
   CwlCatchException: 7acc161b299a6de7f0a46a6ed741eae2c8b4d75a
@@ -126,8 +110,6 @@ SPEC CHECKSUMS:
   file_selector_macos: 3e56eaea051180007b900eacb006686fd54da150
   flutter_local_notifications: 14e285ca39907db50704f7f46c9ab7a526bd7ead
   FlutterMacOS: c232990155153907050900a2e175c7773903ba4e
-  media_kit_libs_macos_video: b3e2bbec2eef97c285f2b1baa7963c67c753fb82
-  media_kit_video: c75b07f14d59706c775778e4dd47dd027de8d1e5
   package_info_plus: 12f1c5c2cfe8727ca46cbd0b26677728972d9a5b
   pasteboard: f179698f095f9778bb5753a249027e697ba98953
   path_provider_foundation: 0b743cbb62d8e47eab856f09262bb8c1ddcfe6ba

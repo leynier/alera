@@ -1,4 +1,4 @@
-use super::{control_file, BrowserBroker, ServerActor};
+use super::{control_file, ServerActor};
 
 impl ServerActor {
     pub(super) async fn dispose(&mut self) {
@@ -15,11 +15,7 @@ impl ServerActor {
         if let Some(handle) = self.mobile_gateway.take() {
             handle.abort();
         }
-        if let Some(emulators) = self.emulators.as_ref() {
-            emulators.lock().await.dispose().await;
-        }
         // Closing client handles ends their connection loops.
-        self.browser = BrowserBroker::default();
         self.clients.clear();
         let store = self.store.clone();
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();

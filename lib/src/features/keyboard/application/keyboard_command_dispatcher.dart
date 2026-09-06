@@ -1,10 +1,7 @@
-import 'package:alera/src/features/codex_chat/presentation/codex_queue_close_confirmation.dart';
-
 import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
-import 'package:alera/src/features/browser/application/browser_providers.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_command_palette_dialog.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
@@ -63,8 +60,6 @@ class const KeyboardCommandDispatcher({
         _saveActiveEditor();
       case KeyboardActionId.newTerminalTab:
         _newTerminalTab();
-      case KeyboardActionId.newBrowserTab:
-        _newBrowserTab();
       case KeyboardActionId.closeTab:
         _closeActiveTab();
       case KeyboardActionId.nextTab:
@@ -108,22 +103,6 @@ class const KeyboardCommandDispatcher({
       final tab = await controller.createTerminalTab(workspace);
       runtime.sessionFor(workspace: workspace, tab: tab).requestFocus();
     }());
-  }
-
-  void _newBrowserTab() {
-    final availability = ref.read(browserAvailabilityProvider);
-    if (availability.asData?.value.meetsStableGate != true) {
-      return;
-    }
-    final workspace = ref.read(workbenchControllerProvider).activeWorkspace;
-    if (workspace == null) {
-      return;
-    }
-    unawaited(
-      ref
-          .read(workbenchControllerProvider.notifier)
-          .createBrowserTab(workspace),
-    );
   }
 
   void _showContextPanel(WorkbenchContextPanelTab tab) {
@@ -199,17 +178,10 @@ class const KeyboardCommandDispatcher({
         }
       }
       if (!context.mounted) return;
-      if (tab.kind == WorkspaceTabKind.codex &&
-          !await confirmCodexQueueClose(context, ref, tab.id)) {
-        return;
-      }
       // The controller disposes the terminal handle and editor document.
       await ref
           .read(workbenchControllerProvider.notifier)
           .closeWorkspaceTab(workspace: workspace, tabId: tab.id);
-      if (tab.kind == WorkspaceTabKind.browser) {
-        await ref.read(browserSessionRegistryProvider).closePage(tab.id);
-      }
     }());
   }
 

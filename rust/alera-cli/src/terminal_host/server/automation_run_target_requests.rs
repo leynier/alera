@@ -141,15 +141,9 @@ impl ServerActor {
                     .sessions
                     .values()
                     .any(|session| session.workspace_id == *workspace_id && session.running());
-                let has_live_browser = self.browser.has_pages_for_workspace(workspace_id);
-                if has_live_session
-                    || has_live_browser
-                    || self.emulator_requests.has_runtime_mutations()
-                {
+                if has_live_session || self.mutation_queue.has_runtime_mutations() {
                     let reason = if has_live_session {
                         "managed workspace still has a live terminal session or process"
-                    } else if has_live_browser {
-                        "managed workspace still has a live browser session"
                     } else {
                         "another runtime mutation is in progress"
                     };

@@ -68,7 +68,7 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
   /// absolute.
   String? get workspacePath => null;
 
-  /// The runtime-host identity used to select the matching Agent Canvas.
+  /// The runtime-host identity for this terminal session.
   /// Test and synthetic handles may omit it when they do not own a PTY.
   String? get terminalSessionId => null;
 

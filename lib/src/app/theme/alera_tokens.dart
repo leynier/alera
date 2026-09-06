@@ -27,29 +27,8 @@ abstract final class AleraTokens {
   static const double masterDetailMinWidth = 180.0;
   static const double masterDetailMaxWidth = 420.0;
   static const double masterDetailMinDetailWidth = 240.0;
-  static const double agentCanvasListWidth = 148.0;
   static const double emptyStateMaxWidth = 520.0;
   static const double conversationMaxWidth = 760.0;
-  static const double codexConversationMaxWidth = 720.0;
-  static const double codexQuestionCardMaxWidth =
-      codexConversationMaxWidth - (space16 * 2);
-  static const double codexQuestionCardMaxHeight = 340.0;
-  // Keeps the inline plan at roughly ten body lines; maximize reveals it all.
-  static const double codexPlanPreviewMaxHeight = 200.0;
-  static const double codexPlanPreviewFadeHeight = 96.0;
-  static const double codexPlanProgressMaxHeight = 280.0;
-  static const double codexPlanProgressCardWidth = 320.0;
-  static const double codexUserMessageLeftInset = 80.0;
-  static const double codexComposerOverlayMaxHeight = 220.0;
-  static const double codexRequestMaxHeight = 320.0;
-  static const double codexMenuItemHeight = 32.0;
-  static const double codexDraftChipHeight = 28.0;
-  static const double codexAttachmentRowHeight = 34.0;
-  static const double codexAttachmentPreviewSize = 26.0;
-  static const double codexAttachmentThumbnailSize = 60.0;
-  static const double codexToolPreviewWidth = 180.0;
-  static const double codexToolPreviewHeight = 120.0;
-  static const double codexStatusDotSize = 7.0;
   static const double imagePreviewMaxScale = 5.0;
   static const double chatBubbleMaxWidth = 620.0;
   static const double activityLogHeight = 160.0;
@@ -104,8 +83,6 @@ abstract final class AleraTokens {
   static const Color borderSubtle = Color(0xFF272727);
   static const Color accent = Color(0xFFE0E0E0);
   static const Color accentSubtle = Color(0x1AE0E0E0);
-  static const Color codexComposerDisabledOverlay = Color(0xCC202020);
-  static const Color codexSteeringBorder = Color(0x4DE0E0E0);
   static const Color onAccent = Color(0xFF101010);
   static const Color foreground = Color(0xFFF5F5F5);
   static const Color foregroundMuted = Color(0xFFA1A1A1);
@@ -129,15 +106,9 @@ abstract final class AleraTokens {
   static const Duration durationFast = Duration(milliseconds: 100);
   static const Duration durationMid = Duration(milliseconds: 180);
   static const Duration durationSlow = Duration(milliseconds: 280);
-  static const Duration codexPlanFlightDuration = Duration(milliseconds: 360);
-  static const Duration codexShimmerDuration = Duration(milliseconds: 1400);
-  static const Duration codexShimmerFrameInterval = Duration(milliseconds: 50);
-  static const Duration codexElapsedTimeRefreshInterval = Duration(seconds: 1);
 
   /// Full-turn period for continuously rotating progress indicators.
   static const Duration durationSpin = Duration(milliseconds: 1200);
-
-  static const double codexSteeringOpacity = 0.6;
 
   static const TextStyle monoStyle = TextStyle(
     fontFamily: 'JetBrains Mono',

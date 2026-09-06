@@ -489,16 +489,6 @@ jobs:
           rm -f "pages/updates/$CHANNEL/.desktop_updater_publish.json"
           echo "BUNDLE_DIR=$bundle_dir" >>"$GITHUB_ENV"
 
-      - name: Verify bundled helper and video runtimes
-        shell: bash
-        env:
-          PLATFORM: ${{ matrix.platform }}
-        run: |
-          set -euo pipefail
-          dart tool/native_helpers/verify_desktop_runtime_bundle.dart \
-            --platform "$PLATFORM" \
-            --bundle "$BUNDLE_DIR"
-
       - name: Stage native runtime input
         shell: bash
         env:
@@ -536,14 +526,10 @@ jobs:
             echo "::error::Missing bundled runtime binary at $runtime_root/$bin_name"
             exit 1
           }
-          dart tool/native_helpers/verify_native_helper_bundle.dart \
-            --platform "$PLATFORM" \
-            --emulator-root "$runtime_root/emulator"
 
           input_root="runtime-native-input/$PLATFORM/$NATIVE_ARCH"
           mkdir -p "$input_root"
           cp "$runtime_root/$bin_name" "$input_root/$bin_name"
-          cp -R "$runtime_root/emulator" "$input_root/emulator"
           tar -czf "runtime-native-${PLATFORM}-${NATIVE_ARCH}.tar.gz" \
             -C runtime-native-input "$PLATFORM"
 
@@ -559,9 +545,6 @@ jobs:
           RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
         run: |
           set -euo pipefail
-          dart tool/native_helpers/verify_desktop_runtime_bundle.dart \
-            --platform macos \
-            --bundle "$BUNDLE_DIR"
           # Only the app, never the directory that contains it. BUNDLE_DIR is
           # the Xcode products root on macOS (it is the runnable bundle itself
           # on Windows and Linux), so archiving `.` shipped every dSYM, every

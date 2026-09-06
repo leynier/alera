@@ -16,10 +16,8 @@ class const TerminalSurfaceToolbar({
   required final TerminalSessionHandle session,
   required final Size viewportSize,
   required final TerminalToolbarCorner corner,
-  required final bool hasCanvas,
   required final bool refreshing,
   required final VoidCallback onRefresh,
-  required final VoidCallback onShowAgentCanvas,
   final ValueChanged<TerminalToolbarCorner>? onCornerChanged,
 }) extends StatefulWidget {
   @override
@@ -177,14 +175,6 @@ class _TerminalSurfaceToolbarState extends State<TerminalSurfaceToolbar> {
         borderColor: AleraTokens.borderSubtle,
         onPressed: widget.refreshing ? null : widget.onRefresh,
       ),
-      if (widget.hasCanvas)
-        AleraIconButton(
-          tooltip: 'Agent Canvas',
-          icon: AleraIcons.agent,
-          backgroundColor: AleraTokens.surfaceElevated,
-          borderColor: AleraTokens.borderSubtle,
-          onPressed: widget.onShowAgentCanvas,
-        ),
     ];
     return GestureDetector(
       onSecondaryTapDown: (details) {

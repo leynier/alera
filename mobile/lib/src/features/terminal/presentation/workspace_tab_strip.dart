@@ -76,19 +76,6 @@ class const _NewTabButton({
             label: 'New Terminal',
           ),
         ),
-        const PopupMenuItem<_NewTabAction>(
-          value: .codex,
-          height: AleraTokens.minTapTarget,
-          child: _NewTabMenuRow(
-            leading: AgentIdentityIcon(
-              agentType: 'codex',
-              size: AleraTokens.space20,
-              color: AleraTokens.foreground,
-              showTooltip: false,
-            ),
-            label: 'New Codex Chat',
-          ),
-        ),
       ],
       child: SizedBox.square(
         dimension: AleraTokens.minTapTarget,
@@ -133,7 +120,7 @@ class const _TabChip({
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final interactive = tab.isTerminal || tab.isCodex;
+    final interactive = tab.isTerminal;
     final status = presence;
     return GestureDetector(
       onLongPress: () => onActions(tab),
@@ -141,16 +128,7 @@ class const _TabChip({
         // The fill already says which tab is active; a checkmark on top of it
         // spends width that the title needs on a phone.
         showCheckmark: false,
-        avatar: status != null
-            ? AgentRunStateIndicator(status: status)
-            : tab.isCodex
-            ? const AgentIdentityIcon(
-                agentType: 'codex',
-                size: AleraTokens.space16,
-                color: AleraTokens.foreground,
-                showTooltip: false,
-              )
-            : null,
+        avatar: status != null ? AgentRunStateIndicator(status: status) : null,
         label: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: _tabTitleMaxWidth(tab.kind)),
           child: Row(

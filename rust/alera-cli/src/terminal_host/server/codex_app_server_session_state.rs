@@ -4,6 +4,8 @@
 //! controller reopen a tab once without resuming the same Codex thread again,
 //! and keeps catalogue requests cheap without retaining per-tab UI listeners.
 
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};

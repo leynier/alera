@@ -181,40 +181,6 @@ void _registerWorkbenchControllerLifecycleTests() {
     expect(_controller.state.layoutFor(workspace.id)?.activeTabId, firstTab.id);
   });
 
-  test('closing a Codex tab purges its saved composer draft', () async {
-    await _controller.bootstrap();
-    final workspace = await _selectMainWorkspace(_controller, _harness);
-    final tab = await _controller.createCodexTab(workspace);
-    final drafts = _harness.container.read(codexComposerDraftStoreProvider);
-    drafts.write(
-      tab.id,
-      const CodexComposerDraft(value: TextEditingValue(text: 'Unsent draft')),
-    );
-
-    await _controller.closeWorkspaceTab(workspace: workspace, tabId: tab.id);
-    await _flush();
-
-    expect(drafts.read(tab.id).isEmpty, isTrue);
-  });
-
-  test('watched Codex tab removal purges its saved composer draft', () async {
-    await _controller.bootstrap();
-    final workspace = await _selectMainWorkspace(_controller, _harness);
-    final tab = await _controller.createCodexTab(workspace);
-    final drafts = _harness.container.read(codexComposerDraftStoreProvider);
-    drafts.write(
-      tab.id,
-      const CodexComposerDraft(
-        value: TextEditingValue(text: 'Draft from another client'),
-      ),
-    );
-
-    await _harness.workbenchRepository.removeWorkspaceTab(tab.id);
-    await _flush();
-
-    expect(drafts.read(tab.id).isEmpty, isTrue);
-  });
-
   test('hosted review refs follow their persisted pull request tab', () async {
     await _controller.bootstrap();
     final workspace = await _selectMainWorkspace(_controller, _harness);

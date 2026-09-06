@@ -57,7 +57,7 @@ flutter test integration_test/rust_process_runner_test.dart -d macos
 
 Use `-d linux` or `-d windows` on those platforms. Invoke each integration file separately because the desktop launcher cannot reliably restart multiple suites in one invocation. The checked-in E2E flow must use temporary directories, temporary databases, fake process runners, and fake terminal runtimes unless the test explicitly needs a native boundary.
 
-Shared packages under `packages/alera_browser` and `packages/alera_configuration` each run dependency resolution from their lockfile, formatting, analysis and tests. Resolve both native plugin manifests independently without modifying Cargokit. The standalone runtime packager uses `dart pub get` from `tool/release/runtime_packager`; `dart tool/ci/verify_runtime_packager.dart` verifies all six archive variants with temporary inputs and a Dart-only dependency graph.
+Shared packages under `packages/alera_configuration` each run dependency resolution from their lockfile, formatting, analysis and tests. Resolve both native plugin manifests independently without modifying Cargokit. The standalone runtime packager uses `dart pub get` from `tool/release/runtime_packager`; `dart tool/ci/verify_runtime_packager.dart` verifies all six archive variants with temporary inputs and a Dart-only dependency graph.
 
 ## Mobile Build Checks
 

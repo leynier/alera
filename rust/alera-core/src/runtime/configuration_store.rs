@@ -7,8 +7,7 @@ use sqlx::SqliteConnection;
 
 const DOCUMENT_KEY: &str = "configuration.portable.v1";
 const PROFILE_COLUMNS: &str = "id, name, agentType, command, sortOrder, launchMode, managedConfig, customPrompt, description, quotaGroup, revision, createdAt, updatedAt";
-const SHARED_SETTINGS: [(&str, &str); 5] = [
-    ("/desktop/browser", "browser.settings.v1"),
+const SHARED_SETTINGS: [(&str, &str); 4] = [
     (
         "/desktop/settings/general/confirmProjectRemoval",
         "settings.general.confirmProjectRemoval",
@@ -229,8 +228,6 @@ async fn snapshot_in(connection: &mut SqliteConnection) -> Result<Value> {
             set_pointer(&mut document, pointer, value);
         } else if key.ends_with("defaultAgentProfileId") {
             set_pointer(&mut document, pointer, Value::Null);
-        } else if key == "browser.settings.v1" {
-            set_pointer(&mut document, pointer, json!({"searchEngine": "google"}));
         }
     }
     let rows = sqlx::query(sqlx::AssertSqlSafe(format!(

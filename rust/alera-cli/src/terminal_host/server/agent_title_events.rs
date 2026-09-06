@@ -33,28 +33,6 @@ pub(super) fn conversation_id(payload: &Value) -> Option<&str> {
     })
 }
 
-pub(super) fn first_codex_prompt(tab: &WorkspaceTabRecord) -> String {
-    tab.payload
-        .pointer("/codexSnapshot/timelineCells")
-        .and_then(Value::as_array)
-        .and_then(|cells| {
-            let start = cells
-                .iter()
-                .rposition(|cell| {
-                    cell.pointer("/metadata/noticeType").and_then(Value::as_str)
-                        == Some("threadBoundary")
-                })
-                .map_or(0, |index| index + 1);
-            cells[start..]
-                .iter()
-                .find(|cell| cell["kind"] == "userMessage")
-        })
-        .and_then(|cell| cell.get("markdownText"))
-        .and_then(Value::as_str)
-        .map(|text| super::agent_title_context::prefix(text, 4096).to_string())
-        .unwrap_or_default()
-}
-
 impl ServerActor {
     pub(super) async fn initialize_agent_title_if_new(
         &self,

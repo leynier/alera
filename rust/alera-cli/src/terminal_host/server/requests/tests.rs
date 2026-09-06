@@ -16,16 +16,14 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_BACKENDS_CAPABILITY, RUNTIME_HOST_AI_DICTATION_MODELS_CAPABILITY,
     RUNTIME_HOST_BINARY_FRAMES_CAPABILITY, RUNTIME_HOST_CLOUD_PUSH_CAPABILITY,
-    RUNTIME_HOST_CODEX_CHAT_CAPABILITY, RUNTIME_HOST_CODEX_GOALS_CAPABILITY,
-    RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY, RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
+    RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY, RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY, RUNTIME_HOST_RESTART_CAPABILITY,
     RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
     RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
 };
 
 #[tokio::test]
-async fn soft_shutdown_counts_a_runtime_mutation_without_an_emulator_manager() {
+async fn soft_shutdown_counts_a_queued_runtime_mutation() {
     let dir = tempfile::tempdir().unwrap();
     let (handle, mut receiver) = crate::terminal_host::client::ClientHandle::test_channels();
     let mut actor = crate::terminal_host::server::actor_test_harness::test_actor(
@@ -37,7 +35,6 @@ async fn soft_shutdown_counts_a_runtime_mutation_without_an_emulator_manager() {
         std::collections::HashMap::new(),
     )
     .await;
-    actor.emulators = None;
     let (inbox, mut inbox_receiver) = tokio::sync::mpsc::unbounded_channel();
     actor.inbox = inbox;
 
@@ -52,7 +49,7 @@ async fn soft_shutdown_counts_a_runtime_mutation_without_an_emulator_manager() {
             .to_string(),
         )
         .await;
-    assert_eq!(actor.emulator_requests.outstanding(), 1);
+    assert_eq!(actor.mutation_queue.outstanding(), 1);
     actor
         .handle_line(
             1,
@@ -75,7 +72,7 @@ async fn soft_shutdown_counts_a_runtime_mutation_without_an_emulator_manager() {
 }
 
 #[tokio::test]
-async fn stale_codex_tab_removal_does_not_depend_on_remote_cleanup() {
+async fn stale_tab_removal_does_not_depend_on_remote_cleanup() {
     let dir = tempfile::tempdir().unwrap();
     let (handle, mut receiver) = crate::terminal_host::client::ClientHandle::test_channels();
     let mut actor = crate::terminal_host::server::actor_test_harness::test_actor(
@@ -91,16 +88,13 @@ async fn stale_codex_tab_removal_does_not_depend_on_remote_cleanup() {
     actor
         .runtime_store
         .upsert_workspace_tab(alera_core::runtime::WorkspaceTabRecord {
-            id: "stale-codex-tab".to_string(),
+            id: "stale-tab".to_string(),
             workspace_id: "missing-workspace".to_string(),
-            kind: crate::terminal_host::protocol::CODEX_TAB_KIND.to_string(),
-            title: "Codex Chat".to_string(),
+            kind: "terminal".to_string(),
+            title: "Terminal".to_string(),
             created_at: now,
             updated_at: now,
-            payload: serde_json::json!({
-                "codexThreadId": "thread-stale",
-                "codexThreadOwnedByAlera": true,
-            }),
+            payload: serde_json::json!({}),
         })
         .await
         .unwrap();
@@ -113,7 +107,7 @@ async fn stale_codex_tab_removal_does_not_depend_on_remote_cleanup() {
             serde_json::json!({
                 "id": 1,
                 "type": "tab.remove",
-                "payload": {"id": "stale-codex-tab"},
+                "payload": {"id": "stale-tab"},
             })
             .to_string(),
         )
@@ -130,7 +124,7 @@ async fn stale_codex_tab_removal_does_not_depend_on_remote_cleanup() {
     assert_eq!(response["ok"], true);
     assert!(actor
         .runtime_store
-        .find_workspace_tab("stale-codex-tab")
+        .find_workspace_tab("stale-tab")
         .await
         .unwrap()
         .is_none());
@@ -255,37 +249,6 @@ fn mobile_allowlist_includes_workspace_mutations() {
     assert!(mobile_request_allowed("mobile.promptImage.chunk"));
     assert!(mobile_request_allowed("mobile.promptImage.complete"));
     assert!(mobile_request_allowed("mobile.promptImage.cancel"));
-    for request in [
-        "codex.tab.create",
-        "codex.thread.open",
-        "codex.thread.list",
-        "codex.thread.resume",
-        "codex.thread.history",
-        "codex.thread.new",
-        "codex.thread.clear",
-        "codex.thread.snapshot",
-        "codex.thread.items.list",
-        "codex.goal.get",
-        "codex.goal.set",
-        "codex.goal.clear",
-        "codex.model.list",
-        "codex.collaborationModes.list",
-        "codex.skills.list",
-        "codex.apps.list",
-        "codex.turn.start",
-        "codex.turn.interrupt",
-        "codex.turn.steer",
-        "codex.thread.rename",
-        "codex.thread.compact",
-        "codex.review.branches",
-        "codex.review.start",
-        "codex.response",
-    ] {
-        assert!(
-            mobile_request_allowed(request),
-            "{request} should be allowed"
-        );
-    }
 }
 
 #[test]
@@ -304,33 +267,16 @@ fn mobile_allowlist_still_excludes_raw_and_admin_mutations() {
     assert!(!mobile_request_allowed("browser.capabilities"));
     assert!(!mobile_request_allowed("browser.tabs.open"));
     assert!(!mobile_request_allowed("browser.driver.register"));
+    assert!(!mobile_request_allowed("codex.tab.create"));
+    assert!(!mobile_request_allowed("codex.thread.open"));
+    assert!(!mobile_request_allowed("codex.thread.list"));
+    assert!(!mobile_request_allowed("codex.turn.start"));
+    assert!(!mobile_request_allowed("codex.response"));
     assert!(!mobile_request_allowed("account.status"));
     assert!(!mobile_request_allowed("account.signIn.start"));
     assert!(!mobile_request_allowed("account.signOut"));
     assert!(!mobile_request_allowed("terminal.pulse.status"));
     assert!(!mobile_request_allowed("terminal.pulse.configure"));
-}
-
-#[test]
-fn mobile_allowlist_excludes_emulator_verbs() {
-    for request in [
-        "emulator.capabilities",
-        "emulator.list",
-        "emulator.attach",
-        "emulator.detach",
-        "emulator.tap",
-        "emulator.gesture",
-        "emulator.type",
-        "emulator.key",
-        "emulator.button",
-        "emulator.rotate",
-        "emulator.shutdown",
-    ] {
-        assert!(
-            !mobile_request_allowed(request),
-            "{request} must stay desktop-only"
-        );
-    }
 }
 
 #[test]
@@ -398,9 +344,6 @@ fn mobile_hello_advertises_deferred_terminal_input() {
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_RESTART_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY));
-    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_CODEX_CHAT_CAPABILITY));
-    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_CODEX_GOALS_CAPABILITY));
-    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_AI_DICTATION_MODELS_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_AI_DICTATION_BACKENDS_CAPABILITY));
     assert!(mobile_request_allowed("mobile.aiDictation.capabilities"));

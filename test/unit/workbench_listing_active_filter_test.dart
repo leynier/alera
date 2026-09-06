@@ -27,7 +27,7 @@ void main() {
           terminal.id: <WorkspaceTabRecord>[
             _tab('t-terminal', terminal.id, .terminal),
           ],
-          codex.id: <WorkspaceTabRecord>[_tab('t-codex', codex.id, .codex)],
+          codex.id: <WorkspaceTabRecord>[_tab('t-codex', codex.id, .terminal)],
           editor.id: <WorkspaceTabRecord>[_tab('t-editor', editor.id, .editor)],
         },
         viewPrefs: WorkbenchViewPrefs.defaults.copyWith(
@@ -106,7 +106,7 @@ void main() {
         },
         tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
           activeChild.id: <WorkspaceTabRecord>[
-            _tab('t-child', activeChild.id, .codex),
+            _tab('t-child', activeChild.id, .terminal),
           ],
         },
         viewPrefs: WorkbenchViewPrefs.defaults.copyWith(

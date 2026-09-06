@@ -28,7 +28,7 @@ struct SetWorkspaceTagsRequest {
 
 impl ServerActor {
     pub(super) fn agent_presence_items(&self) -> Value {
-        let mut items = self.orchestration_terminals(&json!({}))["items"]
+        let items = self.orchestration_terminals(&json!({}))["items"]
             .as_array()
             .into_iter()
             .flatten()
@@ -38,7 +38,6 @@ impl ServerActor {
             })
             .cloned()
             .collect::<Vec<_>>();
-        items.extend(self.codex_presence.values().cloned());
         Value::Array(items)
     }
 

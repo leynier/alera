@@ -6,37 +6,42 @@ part 'workspace_tab_record.mapper.dart';
 @MappableEnum()
 enum WorkspaceTabKind(this.key) {
   terminal('terminal'),
-  codex('codex'),
   editor('editor'),
   markdownViewer('markdownViewer'),
   pdf('pdf'),
-  gitDiff('gitDiff'),
-  browser('browser'),
-  mobileEmulator('mobileEmulator');
+  gitDiff('gitDiff');
 
   final String key;
 
   static WorkspaceTabKind fromJson(Object? value) {
+    return tryParse(value) ??
+        (throw StateError(
+          value == null
+              ? 'Workspace tab record has invalid kind'
+              : value is! String
+              ? 'Workspace tab record has invalid kind'
+              : 'Workspace tab record has unknown kind "$value"',
+        ));
+  }
+
+  static WorkspaceTabKind? tryParse(Object? value) {
     if (value == null) {
       return WorkspaceTabKind.terminal;
     }
     if (value is! String) {
-      throw StateError('Workspace tab record has invalid kind');
+      return null;
     }
     for (final kind in WorkspaceTabKind.values) {
       if (kind.key == value) {
         return kind;
       }
     }
-    throw StateError('Workspace tab record has unknown kind "$value"');
+    return null;
   }
 }
 
 const String workspaceTabManualTitlePayloadKey = 'manualTitle';
 const String workspaceTabTerminalSessionIdPayloadKey = 'terminalSessionId';
-const String workspaceTabCodexThreadIdPayloadKey = 'codexThreadId';
-const String workspaceTabCodexSnapshotPayloadKey = 'codexSnapshot';
-const String workspaceTabCodexActiveTurnIdPayloadKey = 'codexActiveTurnId';
 const String workspaceTabInitialCommandPayloadKey = 'initialCommand';
 const String workspaceTabInitialCommandOncePayloadKey = 'initialCommandOnce';
 const String workspaceTabSpawnOnCreatePayloadKey = 'spawnOnCreate';
@@ -46,9 +51,6 @@ const String workspaceTabFilePathPayloadKey = 'filePath';
 const String workspaceTabFileRolePayloadKey = 'fileRole';
 const String workspaceTabFileRoleMermanPreview = 'mermanPreview';
 const String workspaceTabPreviewPayloadKey = 'preview';
-const String workspaceTabBrowserProfileIdPayloadKey = 'browserProfileId';
-const String workspaceTabBrowserUrlPayloadKey = 'browserUrl';
-const String workspaceTabBrowserRuntimeTitlePayloadKey = 'browserRuntimeTitle';
 const String workspaceTabGitDiffScopePayloadKey = 'gitDiffScope';
 const String workspaceTabGitDiffAreaPayloadKey = 'gitDiffArea';
 const String workspaceTabGitDiffRootPayloadKey = 'gitDiffRoot';
@@ -65,57 +67,6 @@ const String workspaceTabGitDiffPullRequestNumberPayloadKey =
 const String workspaceTabGitDiffHostedReviewRetentionIdPayloadKey =
     'gitDiffHostedReviewRetentionId';
 const String workspaceTabGitDiffOldPathPayloadKey = 'gitDiffOldPath';
-const String workspaceTabMobileEmulatorPayloadKey = 'mobileEmulator';
-
-enum MobileEmulatorPlatform(this.key, this.label) {
-  android('android', 'Android'),
-  ios('ios', 'iOS');
-
-  final String key;
-  final String label;
-
-  static MobileEmulatorPlatform? fromJson(Object? value) {
-    for (final platform in values) {
-      if (platform.key == value) {
-        return platform;
-      }
-    }
-    return null;
-  }
-}
-
-class const WorkspaceMobileEmulatorPayload({
-  required this.platform,
-  required this.deviceId,
-}) {
-  static const int schemaVersion = 1;
-
-  final MobileEmulatorPlatform platform;
-  final String deviceId;
-
-  Map<String, Object?> toJson() => <String, Object?>{
-    'schemaVersion': schemaVersion,
-    'platform': platform.key,
-    'deviceId': deviceId,
-  };
-
-  static WorkspaceMobileEmulatorPayload? fromJson(Object? value) {
-    if (value is! Map ||
-        value['schemaVersion'] != schemaVersion ||
-        value['deviceId'] is! String) {
-      return null;
-    }
-    final platform = MobileEmulatorPlatform.fromJson(value['platform']);
-    final deviceId = (value['deviceId'] as String).trim();
-    if (platform == null || deviceId.isEmpty) {
-      return null;
-    }
-    return WorkspaceMobileEmulatorPayload(
-      platform: platform,
-      deviceId: deviceId,
-    );
-  }
-}
 
 enum WorkspaceGitDiffSource(this.key) {
   workingTree('workingTree'),
@@ -187,20 +138,6 @@ class WorkspaceTabRecord({
     return value is String && value.trim().isNotEmpty ? value : id;
   }
 
-  String? get codexThreadId =>
-      _nonEmptyPayloadString(workspaceTabCodexThreadIdPayloadKey);
-
-  Map<String, Object?> get codexSnapshot {
-    final value = payload[workspaceTabCodexSnapshotPayloadKey];
-    if (value is Map) {
-      return Map<String, Object?>.from(value);
-    }
-    return const <String, Object?>{};
-  }
-
-  String? get codexActiveTurnId =>
-      _nonEmptyPayloadString(workspaceTabCodexActiveTurnIdPayloadKey);
-
   /// Command written into the terminal after the shell starts, e.g. an agent
   /// CLI launched by an orchestration coordinator. Runs once for each newly
   /// created PTY, including a transparent remint after host recovery.
@@ -250,27 +187,9 @@ class WorkspaceTabRecord({
       WorkspaceTabKind.markdownViewer ||
       WorkspaceTabKind.pdf ||
       WorkspaceTabKind.gitDiff => true,
-      WorkspaceTabKind.terminal ||
-      WorkspaceTabKind.codex ||
-      WorkspaceTabKind.browser ||
-      WorkspaceTabKind.mobileEmulator => false,
+      WorkspaceTabKind.terminal => false,
     };
   }
-
-  String get browserProfileId =>
-      _nonEmptyPayloadString(workspaceTabBrowserProfileIdPayloadKey) ??
-      'default';
-
-  String? get browserUrl =>
-      _nonEmptyPayloadString(workspaceTabBrowserUrlPayloadKey);
-
-  String? get browserRuntimeTitle =>
-      _nonEmptyPayloadString(workspaceTabBrowserRuntimeTitlePayloadKey);
-
-  WorkspaceMobileEmulatorPayload? get mobileEmulator =>
-      WorkspaceMobileEmulatorPayload.fromJson(
-        payload[workspaceTabMobileEmulatorPayloadKey],
-      );
 
   WorkspaceGitDiffScope? get gitDiffScope => WorkspaceGitDiffScope.fromJson(
     payload[workspaceTabGitDiffScopePayloadKey],

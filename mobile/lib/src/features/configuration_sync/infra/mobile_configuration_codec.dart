@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:alera_configuration/alera_configuration.dart';
 import 'package:alera_mobile/src/features/ai_dictation/domain/mobile_ai_dictation_settings.dart';
-import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_preferences.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_accessory_layout.dart';
 
 import 'mobile_configuration_quick_keys.dart';
@@ -33,10 +32,7 @@ ConfigurationLocalSnapshot decodeMobileConfigurationSnapshot(
           ? TerminalAccessoryLayout.defaults().toJson()
           : accessory,
     ),
-    'codex': {
-      ...jsonMap(retained['codex']),
-      ...MobileCodexPreferences.fromJson(codex).toJson(),
-    },
+    'codex': {...jsonMap(retained['codex']), ...jsonMap(codex)},
     'dictation': {
       ...jsonMap(retained['dictation']),
       ...pickFields(dictation.toJson(), mobileDictationFields),
@@ -75,14 +71,9 @@ Map<String, String> encodeMobileConfigurationApplication(
     ...pickFields(jsonMap(mobile['dictation']), mobileDictationFields),
   });
   final keys = TerminalAccessoryLayout.fromJson(jsonMap(mobile['quickKeys']));
-  final codex = MobileCodexPreferences.fromJson(jsonMap(mobile['codex']));
   _requireSupportedValues(
     pickFields(jsonMap(mobile['dictation']), mobileDictationFields),
     dictation.toJson(),
-  );
-  _requireSupportedValues(
-    pickFields(jsonMap(mobile['codex']), codex.toJson().keys),
-    codex.toJson(),
   );
   final keyVersion = jsonMap(mobile['quickKeys'])['version'];
   if (keyVersion != null && keyVersion != terminalAccessoryLayoutVersion) {
@@ -101,12 +92,10 @@ Map<String, String> encodeMobileConfigurationApplication(
       ...keys.toJson(),
       ...jsonMap(mobile['quickKeys']),
     }),
-    mobileConfigurationCodexKey: jsonEncode({
-      ...jsonMap(mobile['codex']),
-      ...codex.toJson(),
-    }),
+    mobileConfigurationCodexKey: jsonEncode(jsonMap(mobile['codex'])),
     'aiDictation.settings': jsonEncode(dictation.toJson()),
-    for (final key in input.hostPreferenceKeys) key: jsonEncode(codex.toJson()),
+    for (final key in input.hostPreferenceKeys)
+      key: jsonEncode(jsonMap(mobile['codex'])),
   };
 }
 

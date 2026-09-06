@@ -15,7 +15,7 @@ void main() {
         const WorkspaceTabSummary(
           id: 'tab',
           workspaceId: 'workspace',
-          kind: 'codex',
+          kind: 'terminal',
           title: 'Title',
           payload: {
             'agentTitleConversationId': 'conversation',
@@ -33,18 +33,16 @@ void main() {
     },
   );
 
-  test('generated titles override OSC and Codex generic labels', () {
-    for (final kind in ['terminal', 'codex']) {
-      final tab = WorkspaceTabSummary(
-        id: 'tab',
-        workspaceId: 'workspace',
-        kind: kind,
-        title: 'Fix Login With Google',
-        runtimeTitle: 'bash',
-        payload: const {'manualTitle': true, 'agentTitleSource': 'generated'},
-      );
-      expect(tab.displayTitle, 'Fix Login With Google');
-    }
+  test('generated titles override OSC generic labels', () {
+    final tab = WorkspaceTabSummary(
+      id: 'tab',
+      workspaceId: 'workspace',
+      kind: 'terminal',
+      title: 'Fix Login With Google',
+      runtimeTitle: 'bash',
+      payload: const {'manualTitle': true, 'agentTitleSource': 'generated'},
+    );
+    expect(tab.displayTitle, 'Fix Login With Google');
   });
 }
 

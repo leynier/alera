@@ -12,8 +12,6 @@ class const _WorkbenchPane({
   required final WorkbenchTabCompletionAcknowledgements
   completionAcknowledgements,
   required final CreateTerminalTabCallback onCreateTab,
-  required final CreateBrowserTabCallback? onCreateBrowserTab,
-  required final CreateCodexTabCallback? onCreateCodexTab,
   required final OpenFileTabCallback onOpenEditorTab,
   required final OpenFileTabCallback onOpenMarkdownViewerTab,
   required final SelectWorkspaceTabCallback onSelectTab,
@@ -81,15 +79,6 @@ class const _WorkbenchPane({
                 onRenameTab: onRenameTab,
                 onCreateTab: () =>
                     unawaited(onCreateTab(targetGroupId: groupId)),
-                onCreateBrowserTab: onCreateBrowserTab == null
-                    ? null
-                    : () => unawaited(
-                        onCreateBrowserTab!(targetGroupId: groupId),
-                      ),
-                onCreateCodexTab: onCreateCodexTab == null
-                    ? null
-                    : () =>
-                          unawaited(onCreateCodexTab!(targetGroupId: groupId)),
                 onSplitGroup: (zone) =>
                     unawaited(onSplitGroup(groupId: groupId, zone: zone)),
                 onMergeGroup: () => unawaited(onMergeGroup(groupId: groupId)),

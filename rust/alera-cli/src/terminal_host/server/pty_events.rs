@@ -330,27 +330,6 @@ impl ServerActor {
         session_id: &str,
         reason: &str,
     ) {
-        match self
-            .runtime_store
-            .orphan_agent_canvas_for_session(session_id)
-            .await
-        {
-            Ok(canvases) => {
-                for canvas in canvases {
-                    self.broadcast_agent_canvas_changed(
-                        &canvas.workspace_id,
-                        &canvas.id,
-                        canvas.revision,
-                        "orphaned",
-                    );
-                }
-            }
-            Err(error) => {
-                tracing::warn!(
-                    "failed to orphan Agent Canvas for closed session {session_id}: {error}"
-                );
-            }
-        }
         self.agent_presence.remove(session_id);
         self.forget_push_session(session_id);
         self.orchestration_activity_last_recorded.remove(session_id);

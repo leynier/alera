@@ -4,20 +4,14 @@ import 'package:alera/src/features/workbench/application/workspace_section_repos
 import 'dart:async';
 import 'dart:io';
 
-import 'package:alera/src/features/browser/application/browser_providers.dart';
-import 'package:alera/src/features/browser/application/browser_session_registry.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_providers.dart';
-import 'package:alera/src/features/codex_chat/application/codex_composer_draft_store.dart';
-import 'package:alera/src/features/mobile_emulator/application/mobile_emulator_providers.dart';
-import 'package:alera/src/features/mobile_emulator/infra/mobile_emulator_service.dart';
 import 'package:alera/src/features/projects/application/project_providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/projects/application/projects_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workspace_explorer_reveal.dart';
 import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
-import 'package:alera/src/features/workbench/application/workspace_browser_tab_service.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/application/workbench_listing.dart';
@@ -44,7 +38,6 @@ import 'package:uuid/uuid.dart';
 
 part 'workbench_controller.g.dart';
 part 'workbench_controller_internals.dart';
-part 'workbench_controller_browser.dart';
 part 'workbench_controller_projects.dart';
 part 'workbench_controller_navigation.dart';
 part 'workbench_controller_tab_opening.dart';
@@ -60,7 +53,6 @@ part 'workbench_controller_sections.dart';
 class WorkbenchController extends _$WorkbenchController
     with
         _WorkbenchControllerInternals,
-        _WorkbenchControllerBrowser,
         _WorkbenchControllerTabOpening,
         _WorkbenchControllerFileTabs,
         _WorkbenchControllerPullRequestDiffTabs,

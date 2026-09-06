@@ -3,11 +3,8 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
-import 'package:alera/src/features/settings/presentation/panes/alera_agent_canvas_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_agent_profiles_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_all_skills_control.dart';
-import 'package:alera/src/features/settings/presentation/panes/alera_computer_use_skill_control.dart';
-import 'package:alera/src/features/settings/presentation/panes/alera_emulator_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/agents_cli_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_orchestration_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
@@ -42,7 +39,7 @@ class const AgentsSettingsPane({
               ),
               AleraSettingRow(
                 title: 'All Alera Skills',
-                description: 'Install or update CLI, orchestration, computer use, emulator, and Agent Canvas skills. Reapplies selected status hooks.',
+                description: 'Install or update CLI and orchestration skills. Reapplies selected status hooks.',
                 controlWidth: 360,
                 child: AleraAllSkillsControl(),
               ),
@@ -53,28 +50,10 @@ class const AgentsSettingsPane({
                 child: AleraCliSkillControl(),
               ),
               AleraSettingRow(
-                title: 'Agent Canvas Skill',
-                description: 'Install agent instructions for publishing structured updates and waiting for decisions in Agent Canvas.',
-                controlWidth: 360,
-                child: AleraAgentCanvasSkillControl(),
-              ),
-              AleraSettingRow(
                 title: 'Alera Orchestration Skill',
                 description: 'Install or update orchestration and reapply selected status hooks.',
                 controlWidth: 360,
                 child: AleraOrchestrationSkillControl(),
-              ),
-              AleraSettingRow(
-                title: 'Alera Computer Use Skill',
-                description: 'Install the skill for reading and operating desktop applications.',
-                controlWidth: 360,
-                child: AleraComputerUseSkillControl(),
-              ),
-              AleraSettingRow(
-                title: 'Alera Emulator Skill',
-                description: 'Install the skill for Android and iOS emulator automation.',
-                controlWidth: 360,
-                child: AleraEmulatorSkillControl(),
               ),
             ],
           ),

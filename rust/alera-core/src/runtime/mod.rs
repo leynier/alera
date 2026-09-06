@@ -1,5 +1,3 @@
-mod agent_canvas_models;
-mod agent_canvas_store;
 mod agent_profile_launch_receipt_store;
 #[cfg(test)]
 mod agent_profile_launch_receipt_store_tests;
@@ -22,18 +20,6 @@ mod automation_run_store;
 mod automation_schedule;
 mod automation_store;
 mod automation_templates;
-mod browser_certificate_store;
-#[cfg(test)]
-mod browser_certificate_store_tests;
-mod browser_models;
-mod browser_privacy;
-mod browser_session_store;
-#[cfg(test)]
-mod browser_session_store_tests;
-mod browser_store;
-#[cfg(test)]
-mod browser_store_tests;
-mod codex_chat_store;
 mod configuration_native_settings;
 mod configuration_profiles;
 mod configuration_store;
@@ -84,8 +70,6 @@ mod workspace_section_store;
 mod workspace_section_store_tests;
 mod worktree_setup_models;
 
-pub use agent_canvas_models::*;
-pub use agent_canvas_store::{AgentCanvasDecisionInput, AgentCanvasPublishResult};
 pub use agent_profile_launch_receipt_store::*;
 pub use agent_profile_models::*;
 pub use agent_quota_settings_models::*;
@@ -98,11 +82,6 @@ pub use automation_models::*;
 pub use automation_run_store::*;
 pub use automation_schedule::*;
 pub use automation_templates::*;
-pub use browser_models::*;
-pub use browser_privacy::{
-    browser_url_allows_title_persistence, normalize_browser_title, BROWSER_TITLE_MAX_BYTES,
-};
-pub use codex_chat_store::*;
 pub use models::*;
 pub use orchestration_dispatch_store::ORCHESTRATION_CIRCUIT_BREAKER_THRESHOLD;
 pub use orchestration_message_store::{
@@ -121,6 +100,4 @@ pub use text_actions_validation::{validate_text_actions_settings, AI_ASSIST_AGEN
 pub use workbench_shared_state_models::*;
 pub use worktree_setup_models::*;
 
-#[cfg(test)]
-mod codex_chat_store_tests;
 pub use workspace_section_store::WorkspaceSection;

@@ -29,8 +29,6 @@ class WorkspaceTabKindMapper extends EnumMapper<WorkspaceTabKind> {
     switch (value) {
       case r'terminal':
         return WorkspaceTabKind.terminal;
-      case r'codex':
-        return WorkspaceTabKind.codex;
       case r'editor':
         return WorkspaceTabKind.editor;
       case r'markdownViewer':
@@ -39,10 +37,6 @@ class WorkspaceTabKindMapper extends EnumMapper<WorkspaceTabKind> {
         return WorkspaceTabKind.pdf;
       case r'gitDiff':
         return WorkspaceTabKind.gitDiff;
-      case r'browser':
-        return WorkspaceTabKind.browser;
-      case r'mobileEmulator':
-        return WorkspaceTabKind.mobileEmulator;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -53,8 +47,6 @@ class WorkspaceTabKindMapper extends EnumMapper<WorkspaceTabKind> {
     switch (self) {
       case WorkspaceTabKind.terminal:
         return r'terminal';
-      case WorkspaceTabKind.codex:
-        return r'codex';
       case WorkspaceTabKind.editor:
         return r'editor';
       case WorkspaceTabKind.markdownViewer:
@@ -63,10 +55,6 @@ class WorkspaceTabKindMapper extends EnumMapper<WorkspaceTabKind> {
         return r'pdf';
       case WorkspaceTabKind.gitDiff:
         return r'gitDiff';
-      case WorkspaceTabKind.browser:
-        return r'browser';
-      case WorkspaceTabKind.mobileEmulator:
-        return r'mobileEmulator';
     }
   }
 }

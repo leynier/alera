@@ -1,6 +1,3 @@
-import 'package:alera_mobile/src/features/codex_chat/infra/local_mobile_codex_preferences_repository.dart';
-import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_preferences.dart';
-
 import 'dart:convert';
 
 import 'package:alera_configuration/alera_configuration.dart';
@@ -207,10 +204,6 @@ void main() {
         base: null,
         pending: null,
       );
-      await LocalMobileCodexPreferencesRepository().save(
-        'host',
-        const MobileCodexPreferences(planMode: true),
-      );
       final keys = LocalAccessoryLayoutRepository();
       final current = await keys.load();
       await keys.save(
@@ -218,7 +211,6 @@ void main() {
       );
       final saved = jsonMap((await phone.read()).document.json['mobile']);
       expect(jsonMap(saved['codex'])['futureMode'], 'keep');
-      expect(jsonMap(saved['codex'])['planMode'], true);
       final layout = jsonMap(saved['quickKeys']);
       expect(layout['futureLayout'], true);
       expect(jsonMap((layout['customKeys'] as List).single)['futureKey'], 42);

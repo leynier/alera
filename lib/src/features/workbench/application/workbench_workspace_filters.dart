@@ -30,9 +30,5 @@ bool workspaceMatchesActiveFilter(
   if (!prefs.showActiveWorkspacesOnly) {
     return true;
   }
-  return tabs.any(
-    (tab) =>
-        tab.kind == WorkspaceTabKind.terminal ||
-        tab.kind == WorkspaceTabKind.codex,
-  );
+  return tabs.any((tab) => tab.kind == WorkspaceTabKind.terminal);
 }

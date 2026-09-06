@@ -142,9 +142,6 @@ jobs:
               ;;
           esac
           test -d "$bundle" || { echo "::error::Missing desktop bundle for $PLATFORM"; exit 1; }
-          dart tool/native_helpers/verify_desktop_runtime_bundle.dart \
-            --platform "$PLATFORM" \
-            --bundle "$bundle"
           if [[ "$PLATFORM" == "macos" ]]; then
             bash tool/release/verify_macos_arm64_only.sh "$bundle"
           fi

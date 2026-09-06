@@ -77,18 +77,18 @@ void main() {
     });
 
     test('ignores non-terminal tabs and stale tab/session ids', () {
-      final browserTab = _tab('browser', kind: .browser);
+      final editorTab = _tab('editor', kind: .editor);
       final terminalTab = _tab('terminal');
       final mismatchedSessionTab = _tab('mismatched-session');
 
       final status = aggregateWorkspaceAgentStatus(
         tabs: <WorkspaceTabRecord>[
-          browserTab,
+          editorTab,
           terminalTab,
           mismatchedSessionTab,
         ],
         agentStatuses: <String, AgentStatusEntry>{
-          browserTab.terminalSessionId: _entry(browserTab, .blocked),
+          editorTab.terminalSessionId: _entry(editorTab, .blocked),
           terminalTab.terminalSessionId: _entry(
             terminalTab,
             .working,
@@ -185,29 +185,6 @@ void main() {
       );
 
       expect(pendingReviewAgentCount(runs), 3);
-    });
-
-    test('matches Codex tabs through their synthetic presence handle', () {
-      final tab = _tab('codex-tab', kind: .codex);
-      final handle = 'codex:${tab.id}';
-      final entry = _entry(tab, .working, terminalSessionId: handle);
-
-      expect(
-        matchingAgentStatusForTab(
-          tab: tab,
-          agentStatuses: <String, AgentStatusEntry>{handle: entry},
-        ),
-        same(entry),
-      );
-      expect(
-        matchingAgentStatusForTab(
-          tab: tab,
-          agentStatuses: <String, AgentStatusEntry>{
-            handle: _entry(tab, .working, terminalSessionId: 'stale-session'),
-          },
-        ),
-        isNull,
-      );
     });
   });
 }

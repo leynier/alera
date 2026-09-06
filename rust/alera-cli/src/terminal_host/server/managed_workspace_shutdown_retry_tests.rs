@@ -25,7 +25,7 @@ async fn failed_workspace_shutdown_retains_ownership_until_a_verified_retry() {
         assert!(!fixture.actor.sessions.contains_key("terminal"));
         assert!(fixture
             .actor
-            .emulator_requests
+            .mutation_queue
             .pending_workspace_shutdowns
             .contains_key("workspace"));
         assert!(fixture.actor.sessions["other"].running());
@@ -82,7 +82,7 @@ async fn failed_workspace_shutdown_retains_ownership_until_a_verified_retry() {
             .is_some());
         assert!(fixture
             .actor
-            .emulator_requests
+            .mutation_queue
             .pending_workspace_shutdowns
             .contains_key("workspace"));
         assert!(std::path::Path::new(&fixture.workspace.path).exists());
@@ -119,7 +119,7 @@ async fn failed_workspace_shutdown_retains_ownership_until_a_verified_retry() {
     assert!(!std::path::Path::new(&fixture.workspace.path).exists());
     assert!(fixture
         .actor
-        .emulator_requests
+        .mutation_queue
         .pending_workspace_shutdowns
         .is_empty());
     assert!(!fixture.actor.sessions.contains_key("new"));

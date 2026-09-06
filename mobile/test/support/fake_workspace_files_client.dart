@@ -90,12 +90,6 @@ mixin FakeWorkspaceFilesClient implements MobileCodexWorkspaceClient {
   ) async => stoppedQuickOpenSessions.add(session);
 
   @override
-  Future<List<MobileCodexSavedPrompt>> listCodexSavedPrompts(
-    String workspaceId, {
-    String? cwd,
-  }) async => const <MobileCodexSavedPrompt>[];
-
-  @override
   Future<MobileWorkspaceFileRange> readWorkspaceFile({
     required String workspaceId,
     required String relativePath,

@@ -27,9 +27,7 @@ pub async fn run_terminal_host_server(
     let store = TerminalHostHistoryStore::open(&runtime_dir).await?;
     let runtime_store = RuntimeStore::open(&runtime_dir).await?;
     crate::hosted_review_retention::reconcile(&runtime_store).await;
-    runtime_store.cleanup_agent_canvases().await?;
-    runtime_store.expire_agent_canvas_decisions().await?;
-    runtime_store.ensure_default_browser_profile().await?;
+
     crate::automation_autostart::reconcile_runtime_autostart(&runtime_store, &runtime_dir).await;
     let account_push =
         account_push_state::AccountPushState::new(runtime_dir.clone(), runtime_store.clone())
@@ -61,13 +59,15 @@ pub async fn run_terminal_host_server(
         let _ = crate::login_shell_environment::login_shell_path_segments().await;
     });
 
-    let emulators = match EmulatorManager::new(&runtime_dir).await {
-        Ok(manager) => Some(Arc::new(Mutex::new(manager))),
-        Err(error) => {
-            tracing::warn!("alera emulator manager unavailable: {}", error.message);
-            None
-        }
-    };
+    runtime_store
+        .remove_workspace_tabs_with_kind("mobileEmulator")
+        .await?;
+    runtime_store
+        .remove_workspace_tabs_with_kind("browser")
+        .await?;
+    runtime_store
+        .remove_workspace_tabs_with_kind("codex")
+        .await?;
     let mut actor = ServerActor {
         runtime_dir,
         control_file_path,
@@ -82,7 +82,7 @@ pub async fn run_terminal_host_server(
         project_clone_jobs: HashMap::new(),
         agent_title_jobs: HashMap::new(),
         managed_workspace_jobs: 0,
-        emulator_requests: Default::default(),
+        mutation_queue: Default::default(),
         agent_quota_cache: None,
         configuration_transfers: Default::default(),
         account_push,
@@ -97,23 +97,14 @@ pub async fn run_terminal_host_server(
         coordinators: HashMap::new(),
         resources: ResourceMonitorState::default(),
         terminal_pulses: Default::default(),
-        browser: BrowserBroker::default(),
-        emulators,
         codex: None,
         codex_starting: None,
-        codex_presence: HashMap::new(),
-        codex_delivery_active: HashSet::new(),
-        codex_history_scans: HashSet::new(),
-        codex_presence_scheduled: false,
-        codex_pending_messages: HashMap::new(),
-        codex_flush_scheduled: HashSet::new(),
         inbox,
         next_client_id,
         mobile_gateway: None,
         shutdown_gen: 0,
         disposed: false,
     };
-    actor.reconcile_codex_presence().await;
     let hook_settings = actor.runtime_store.agent_status_hook_settings().await?;
     let hook_runtime_dir = actor.runtime_dir.clone();
     let hook_warnings = tokio::task::spawn_blocking(move || {
@@ -149,7 +140,6 @@ pub async fn run_terminal_host_server(
             .list_active_automation_runs()
             .await?
             .is_empty();
-    actor.restore_codex_queues().await?;
     actor.schedule_shutdown_if_idle();
 
     // Lives with the loop rather than the actor: it describes the machine the
@@ -164,7 +154,6 @@ pub async fn run_terminal_host_server(
                 "alera terminal host resumed after {}s of system sleep",
                 slept.as_secs()
             );
-            actor.queue_emulator_park_all();
         }
         if matches!(&command, ServerCommand::RequestedRestart) {
             exit = TerminalHostExit::Restart(actor.config);

@@ -13,7 +13,6 @@ use serde_json::{json, Value};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::mpsc::{self, UnboundedSender};
-use tokio::sync::Mutex;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
@@ -26,7 +25,6 @@ use crate::terminal_host::client::{
     connection_loop, ClientFrame, ClientHandle, CLIENT_TERMINAL_OUT_QUEUE_CAPACITY,
 };
 use crate::terminal_host::control_file;
-use crate::terminal_host::emulator::EmulatorManager;
 use crate::terminal_host::history_store::TerminalHostHistoryStore;
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::mobile_gateway::spawn_mobile_gateway_accept_loop;
@@ -45,7 +43,6 @@ use crate::terminal_host::sleep_detector::SleepDetector;
 
 use client_accept_loop::{display_socket_address, spawn_accept_loop};
 
-use browser_broker::BrowserBroker;
 use resource_requests::ResourceMonitorState;
 
 mod account_push_state;
@@ -54,7 +51,6 @@ mod account_requests;
 mod account_requests_tests;
 #[cfg(test)]
 mod actor_test_harness;
-mod agent_canvas_requests;
 mod agent_hook_events;
 mod agent_profile_launch_requests;
 mod agent_prompt_composition;
@@ -89,53 +85,12 @@ mod automation_request_routes;
 mod automation_requests;
 mod automation_run_target_requests;
 mod automation_scheduler;
-mod browser_artifact_requests;
-mod browser_artifact_store;
-mod browser_broker;
-#[cfg(test)]
-mod browser_broker_tests;
-mod browser_catalog_requests;
-mod browser_driver_requests;
-mod browser_requests;
-mod browser_tab_requests;
-mod browser_tab_rollback;
-mod browser_url_privacy;
 mod client_accept_loop;
 mod client_delivery;
 mod codex_app_server;
-mod codex_app_server_history;
 mod codex_app_server_session_state;
-mod codex_attachment_retention;
-mod codex_commands;
 mod codex_dictation;
-mod codex_edit_input;
-mod codex_edit_recovery;
-mod codex_event_routing;
-mod codex_events;
-mod codex_fork_install;
-mod codex_fork_jobs;
-mod codex_goal_requests;
-mod codex_history_actions;
-mod codex_history_edit;
-mod codex_history_scans;
-mod codex_nonblocking_questions;
-mod codex_presence;
-mod codex_process_exit;
-mod codex_queue;
-mod codex_queue_attachments;
-mod codex_queue_cancellation;
-mod codex_queue_delivery;
-mod codex_queue_startup;
-mod codex_requests;
-mod codex_runtime_cleanup;
 mod codex_server_startup;
-mod codex_state;
-mod codex_tab_lifecycle;
-mod codex_thread_identity;
-mod codex_user_messages;
-mod codex_workspace_inputs;
-mod computer_request_payloads;
-mod computer_requests;
 mod configuration_requests;
 mod configuration_transfers;
 mod mobile_gateway_replacement;
@@ -144,9 +99,6 @@ mod coordinator_requests;
 mod coordinator_stall_policy;
 mod declared_catalog_requests;
 mod deferred_requests;
-mod emulator_request_payloads;
-mod emulator_request_queue;
-mod emulator_requests;
 mod host_service_agent_quota;
 mod host_service_requests;
 mod host_status;
@@ -188,6 +140,7 @@ mod requests;
 mod resource_requests;
 mod runtime_change_broadcasts;
 mod runtime_mutation_barrier;
+mod runtime_mutation_queue;
 mod runtime_mutations;
 mod server_command;
 #[path = "server_runner.rs"]
@@ -240,8 +193,6 @@ struct ClientState {
     handle: ClientHandle,
     authenticated: bool,
     binary_frames: bool,
-    supports_mobile_emulator_tab_kind: bool,
-    supports_codex_tab_kind: bool,
     kind: ClientKind,
     local_role: client_delivery::LocalClientRole,
     mobile_device_id: Option<String>,
@@ -273,7 +224,7 @@ struct ServerActor {
     project_clone_jobs: HashMap<String, tokio::sync::oneshot::Sender<()>>,
     agent_title_jobs: HashMap<String, agent_title_generation::AgentTitleJob>,
     managed_workspace_jobs: usize,
-    emulator_requests: emulator_request_queue::EmulatorRequestQueue,
+    mutation_queue: runtime_mutation_queue::RuntimeMutationQueue,
     agent_quota_cache: Option<(Instant, u64, Value)>,
     configuration_transfers: configuration_transfers::ConfigurationTransfers,
     account_push: account_push_state::AccountPushState,
@@ -288,16 +239,8 @@ struct ServerActor {
     coordinators: HashMap<String, CoordinatorHandle>,
     resources: ResourceMonitorState,
     terminal_pulses: terminal_pulse::TerminalPulseManager,
-    browser: BrowserBroker,
-    emulators: Option<Arc<Mutex<EmulatorManager>>>,
     codex: Option<codex_app_server::CodexAppServer>,
     codex_starting: Option<codex_server_startup::CodexServerStartup>,
-    codex_presence: HashMap<String, Value>,
-    codex_delivery_active: HashSet<String>,
-    codex_history_scans: HashSet<String>,
-    codex_presence_scheduled: bool,
-    codex_pending_messages: HashMap<String, Vec<Value>>,
-    codex_flush_scheduled: HashSet<String>,
     inbox: UnboundedSender<ServerCommand>,
     next_client_id: Arc<AtomicU64>,
     mobile_gateway: Option<JoinHandle<()>>,
@@ -464,8 +407,6 @@ impl ServerActor {
                         handle,
                         authenticated: false,
                         binary_frames: false,
-                        supports_mobile_emulator_tab_kind: false,
-                        supports_codex_tab_kind: false,
                         kind,
                         local_role: client_delivery::LocalClientRole::Cli,
                         mobile_device_id: None,
@@ -487,11 +428,6 @@ impl ServerActor {
             } => {
                 self.finish_mobile_network_snapshot(client_id, request_id, payload);
             }
-            ServerCommand::EmulatorPointerTimeout {
-                tab_id,
-                client_id,
-                generation,
-            } => self.handle_emulator_pointer_timeout(&tab_id, client_id, generation),
             ServerCommand::Pty {
                 session_id,
                 event,
@@ -631,16 +567,6 @@ impl ServerActor {
                 operation_id,
                 skill,
             } => self.handle_host_tool_finished(client_id, request_id, result, operation_id, skill),
-            ServerCommand::EmulatorRequestFinished {
-                client_id,
-                request_id,
-                completion,
-            } => {
-                self.handle_emulator_request_finished(client_id, request_id, completion);
-            }
-            ServerCommand::EmulatorMaintenanceFinished(completion) => {
-                self.handle_emulator_maintenance_finished(completion)
-            }
             ServerCommand::RuntimeMutationFinished(finished) => {
                 self.handle_runtime_mutation_finished(finished).await
             }
@@ -731,22 +657,15 @@ impl ServerActor {
                 self.handle_resource_sample_ready(snapshot)
             }
             ServerCommand::AutomationTick => self.handle_automation_tick().await,
-            ServerCommand::BrowserRequestTimeout { correlation_id } => {
-                self.handle_browser_timeout(&correlation_id)
+            ServerCommand::CodexMessage { .. } => {}
+            ServerCommand::CodexMalformed { reason } => {
+                tracing::warn!(reason, "Codex app-server returned malformed JSON");
             }
-            command @ (ServerCommand::CodexForkCreated { .. }
-            | ServerCommand::CodexForkProjected { .. }
-            | ServerCommand::CodexQueueStartupFinished { .. }
-            | ServerCommand::CodexHistoryScanFinished { .. }
-            | ServerCommand::CodexQueueDelivered { .. }
-            | ServerCommand::CodexQueueAdvance { .. }
-            | ServerCommand::CodexEditFinished { .. }
-            | ServerCommand::CodexMessage { .. }
-            | ServerCommand::CodexProcessExited { .. }
-            | ServerCommand::CodexMalformed { .. }
-            | ServerCommand::CodexPresenceTick
-            | ServerCommand::CodexFlush { .. }
-            | ServerCommand::CodexAutoResolve { .. }) => self.handle_codex_command(command).await,
+            ServerCommand::CodexProcessExited { reason } => {
+                tracing::warn!(reason, "Codex app-server exited");
+                self.codex = None;
+                self.codex_starting = None;
+            }
             ServerCommand::Account(command) => self.handle_account_command(command).await,
             ServerCommand::Push(command) => self.handle_push_command(command),
         }
@@ -1222,7 +1141,7 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
+            mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
@@ -1237,16 +1156,8 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
-            emulators: None,
             codex: None,
             codex_starting: None,
-            codex_presence: HashMap::new(),
-            codex_delivery_active: HashSet::new(),
-            codex_history_scans: HashSet::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,
@@ -1305,7 +1216,7 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
+            mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
@@ -1320,16 +1231,8 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
-            emulators: None,
             codex: None,
             codex_starting: None,
-            codex_presence: HashMap::new(),
-            codex_delivery_active: HashSet::new(),
-            codex_history_scans: HashSet::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1406,7 +1309,7 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
+            mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
@@ -1421,16 +1324,8 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
-            emulators: None,
             codex: None,
             codex_starting: None,
-            codex_presence: HashMap::new(),
-            codex_delivery_active: HashSet::new(),
-            codex_history_scans: HashSet::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1502,7 +1397,7 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
+            mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
@@ -1517,16 +1412,8 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
-            emulators: None,
             codex: None,
             codex_starting: None,
-            codex_presence: HashMap::new(),
-            codex_delivery_active: HashSet::new(),
-            codex_history_scans: HashSet::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1620,7 +1507,7 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
+            mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
@@ -1635,16 +1522,8 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
-            emulators: None,
             codex: None,
             codex_starting: None,
-            codex_presence: HashMap::new(),
-            codex_delivery_active: HashSet::new(),
-            codex_history_scans: HashSet::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1711,7 +1590,7 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
+            mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
@@ -1726,16 +1605,8 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
-            emulators: None,
             codex: None,
             codex_starting: None,
-            codex_presence: HashMap::new(),
-            codex_delivery_active: HashSet::new(),
-            codex_history_scans: HashSet::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,
@@ -1795,9 +1666,3 @@ mod tests {
         assert!(actor.agent_presence.is_injection_ready("term-1"));
     }
 }
-
-#[cfg(test)]
-mod codex_queue_tests;
-
-#[cfg(test)]
-mod codex_history_tests;

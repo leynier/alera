@@ -96,17 +96,13 @@ libc = "0.2.189"
 [target.'cfg(target_os = "linux")'.dependencies]
 keyring-core = "1.0.0"
 dbus-secret-service-keyring-store = { version = "1.0.1", features = ["crypto-rust", "vendored"] }
-atspi = { version = "0.30.0", default-features = false, features = ["proxies", "connection", "tokio"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 keyring = { version = "3.6.3", features = ["windows-native"] }
-uiautomation = "0.25.0"
-windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Console", "Win32_System_JobObjects", "Win32_System_RemoteDesktop", "Win32_System_Threading"] }
+windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Console", "Win32_System_JobObjects", "Win32_System_Threading"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 keyring = { version = "3.6.3", features = ["apple-native"] }
-objc2-application-services = "0.3.2"
-objc2-core-foundation = "0.3.2"
 whisper-rs = { version = "0.16.0", features = ["coreml", "metal"] }
 
 [dev-dependencies]

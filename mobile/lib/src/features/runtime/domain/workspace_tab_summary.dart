@@ -10,16 +10,11 @@ class const WorkspaceTabSummary({
 }) {
   bool get isTerminal => kind == 'terminal';
 
-  bool get isCodex => kind == 'codex';
-
   bool get hasManualTitle => payload['manualTitle'] == true;
 
   String get displayTitle {
     if (hasManualTitle) {
       return title;
-    }
-    if (isCodex) {
-      return title.trim().isEmpty || title == 'Codex' ? 'Codex Chat' : title;
     }
     final automaticTitle = runtimeTitle?.trim() ?? '';
     if (automaticTitle.isEmpty || automaticTitle == 'Terminal') {

@@ -65,9 +65,8 @@ void main() {
           final binaryName = platform == 'windows' ? 'alera.exe' : 'alera';
           expect(entries.keys, contains(binaryName));
           expect(entries[binaryName]!.unixPermissions, 0x1ed);
-          expect(entries.keys, contains('emulator/manifest.json'));
-          expect(entries.keys, contains('emulator/bin/helper'));
           expect(entries.keys, contains('runtime-manifest.json'));
+          expect(entries.keys, isNot(contains('emulator/manifest.json')));
 
           final manifest = jsonDecode(
             utf8.decode(entries['runtime-manifest.json']!.content),
@@ -78,12 +77,8 @@ void main() {
             'platform': platform,
             'arch': architecture,
             'entrypoint': binaryName,
-            'emulatorHelpers': 'emulator/manifest.json',
           });
           expect(entries['runtime-manifest.json']!.unixPermissions, 0x1a4);
-          if (!Platform.isWindows) {
-            expect(entries['emulator/bin/helper']!.unixPermissions, 0x1ed);
-          }
         }
       }
     });
@@ -132,33 +127,6 @@ void main() {
       );
     });
 
-    test('rejects duplicate or incomplete helper bundles', () async {
-      final fixture = await _RuntimeFixture.create();
-      addTearDown(fixture.dispose);
-      final duplicate = Directory(
-        p.join(fixture.input.path, 'macos', 'x64', 'emulator'),
-      )..createSync(recursive: true);
-      File(p.join(duplicate.path, 'manifest.json'))
-          .writeAsStringSync('{"schemaVersion":1}');
-
-      expect(
-        () => packageRuntimeSidecars(
-          version: '1.2.3',
-          inputDirectory: fixture.input,
-          outputDirectory: fixture.output,
-        ),
-        throwsA(
-          isA<StateError>().having(
-            (error) => error.message,
-            'message',
-            contains(
-              'Expected exactly one native helper bundle for macos, found 2',
-            ),
-          ),
-        ),
-      );
-    });
-
     test('rejects an absent runtime binary', () async {
       final fixture = await _RuntimeFixture.create();
       addTearDown(fixture.dispose);
@@ -194,33 +162,13 @@ final class const _RuntimeFixture({
     );
     final input = Directory(p.join(root.path, 'input'));
     final output = Directory(p.join(root.path, 'output'));
-    for (final entry in _nativeArchitectures.entries) {
-      final platform = entry.key;
-      final nativeArchitecture = entry.value;
+    for (final platform in _nativeArchitectures.keys) {
       for (final architecture in <String>['x64', 'arm64']) {
         final directory = Directory(p.join(input.path, platform, architecture))
           ..createSync(recursive: true);
         final binaryName = platform == 'windows' ? 'alera.exe' : 'alera';
         File(p.join(directory.path, binaryName))
             .writeAsStringSync('$platform/$architecture');
-        if (architecture != nativeArchitecture) {
-          continue;
-        }
-        final helpers = Directory(p.join(directory.path, 'emulator', 'bin'))
-          ..createSync(recursive: true);
-        File(p.join(directory.path, 'emulator', 'manifest.json'))
-            .writeAsStringSync('{"schemaVersion":1}');
-        final helper = File(p.join(helpers.path, 'helper'))
-          ..writeAsStringSync('helper');
-        if (!Platform.isWindows) {
-          final result = await Process.run('chmod', <String>[
-            '755',
-            helper.path,
-          ]);
-          if (result.exitCode != 0) {
-            throw StateError('Unable to mark helper executable.');
-          }
-        }
       }
     }
     return _RuntimeFixture(root: root, input: input, output: output);

@@ -30,9 +30,6 @@ dependencies:
   record: ^7.1.1
   speech_to_text: ^7.4.0
   image: ^4.9.2
-  media_kit: 1.2.6
-  media_kit_libs_video: 1.0.7
-  media_kit_video: 2.0.1
   package_info_plus: ^10.2.1
   url_launcher: ^6.3.2
   flutter_colorpicker: ^1.1.0
@@ -52,8 +49,6 @@ dependencies:
   toml: ^0.18.0
   alera_native:
     path: rust_builder
-  alera_browser:
-    path: packages/alera_browser
   flutter_rust_bridge: 2.13.0
   flutter_directory_tree: ^1.0.0
   gpt_markdown: ^1.2.1

@@ -10,13 +10,7 @@ enum WorkbenchGroupBy { none, project, section }
 enum WorkbenchSortBy { name, recent, activity }
 
 @MappableEnum()
-enum WorkbenchContextPanelTab {
-  explorer,
-  search,
-  gitDiff,
-  pullRequests,
-  agentCanvas,
-}
+enum WorkbenchContextPanelTab { explorer, search, gitDiff, pullRequests }
 
 @MappableEnum()
 enum WorkspaceExplorerMode { hideIgnored, showAll }
@@ -38,7 +32,22 @@ enum PullRequestCreateAction { publish, draft }
 @MappableEnum()
 enum WorkspaceKindFilter { all, defaultOnly, nonDefaultOnly }
 
-@MappableClass()
+class WorkbenchViewPrefsDecodeHook extends MappingHook {
+  const WorkbenchViewPrefsDecodeHook();
+
+  @override
+  Object? beforeDecode(Object? value) {
+    if (value is! Map || value['activeContextPanelTab'] != 'agentCanvas') {
+      return value;
+    }
+    return <String, dynamic>{
+      for (final entry in value.entries) entry.key.toString(): entry.value,
+      'activeContextPanelTab': 'explorer',
+    };
+  }
+}
+
+@MappableClass(hook: WorkbenchViewPrefsDecodeHook())
 class const WorkbenchViewPrefs({
   this.sectionSort = WorkbenchSortBy.name,
   this.collapsedSectionIds = const <String>{},
