@@ -101,6 +101,18 @@ void main() {
     }
   });
 
+  test('cold Windows validation has a bounded complete-job budget', () {
+    final build = jobs['build'] as YamlMap;
+    expect(build['timeout-minutes'], r'${{ matrix.timeout_minutes }}');
+    final platforms = (build['strategy']['matrix']['include'] as YamlList)
+        .cast<YamlMap>();
+    expect(
+      {for (final row in platforms) row['platform']: row['timeout_minutes']},
+      {'macos': 90, 'windows': 120, 'linux': 90},
+    );
+    expect(build['continue-on-error'], isNull);
+  });
+
   test('desktop builds execute workflow tests on every platform', () {
     final workflows = step(
       'build',

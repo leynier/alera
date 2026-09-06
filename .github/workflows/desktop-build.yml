@@ -87,17 +87,22 @@ jobs:
   build:
     needs: revision
     name: build ${{ matrix.platform }}
-    timeout-minutes: 90
+    # Cold Windows builds plus native validation can consume 90 minutes before
+    # cache persistence. Keep the gate intact and budget for the complete job.
+    timeout-minutes: ${{ matrix.timeout_minutes }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: macos
             os: macos-latest
+            timeout_minutes: 90
           - platform: windows
             os: windows-latest
+            timeout_minutes: 120
           - platform: linux
             os: ubuntu-latest
+            timeout_minutes: 90
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
