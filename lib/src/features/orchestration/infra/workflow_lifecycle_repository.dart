@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:alera/src/features/orchestration/domain/workflow_review_snapshot.dart';
+import 'package:alera/src/features/orchestration/domain/workflow_run_controls.dart';
 import 'package:alera/src/features/orchestration/infra/workflow_decision_signer.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:flutter/foundation.dart';
@@ -49,6 +50,25 @@ class WorkflowLifecycleRepository {
 
   Future<Map<String, Object?>> plan(String runId) =>
       request('workflows.plan', {'runId': runId});
+
+  Future<WorkflowRunControls> controls(String runId, int revision) async {
+    final controls = WorkflowRunControls.fromJson(
+      await request('workflows.execution', {
+        'runId': runId,
+        'revision': revision,
+      }),
+    );
+    if (controls.runId != runId || controls.revision != revision) {
+      throw const FormatException(
+        'Workflow controls do not match the selected run.',
+      );
+    }
+    return controls;
+  }
+
+  Future<void> controlExecution(String document) async {
+    await request('workflows.controlExecution', {'document': document});
+  }
 
   Future<Map<String, Object?>> source(String workspaceId) =>
       request('workflows.source', {'workspaceId': workspaceId});

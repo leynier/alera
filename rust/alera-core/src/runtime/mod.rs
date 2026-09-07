@@ -106,6 +106,10 @@ mod workflow_coordinator;
 #[cfg(test)]
 mod workflow_coordinator_tests;
 mod workflow_execution;
+mod workflow_run_controls;
+#[cfg(test)]
+mod workflow_run_controls_tests;
+pub use workflow_run_controls::{WorkflowRunControls, WorkflowStageControl};
 mod workflow_execution_completion;
 mod workflow_execution_step;
 #[cfg(test)]

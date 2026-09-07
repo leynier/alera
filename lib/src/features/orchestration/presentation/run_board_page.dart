@@ -13,6 +13,7 @@ import 'package:alera/src/features/orchestration/presentation/run_board_read_sta
 import 'package:alera/src/features/orchestration/presentation/run_board_workspace_actions.dart';
 import 'package:alera/src/features/orchestration/presentation/run_task_inspector.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_review_page.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_run_control_section.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_new_run_page.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_proposal_page.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
@@ -325,6 +326,14 @@ class _RunBoardSelection extends ConsumerWidget {
     }
     return RunBoardDetail(
       snapshot: data.data,
+      workflowControls: workflowRevision == null
+          ? null
+          : WorkflowRunControlSection(
+              key: ValueKey('controls:$runId:$workflowRevision'),
+              runId: runId,
+              revision: workflowRevision,
+              onReview: navigation.review,
+            ),
       onReviewPlan:
           workflowRevision != null && data.data.run.workflowStatus == 'prepared'
           ? () => navigation.review('plan')

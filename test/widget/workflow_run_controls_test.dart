@@ -1,0 +1,201 @@
+import 'dart:async';
+import 'dart:typed_data';
+
+import 'package:alera/src/app/theme/alera_dark_theme.dart';
+import 'package:alera/src/features/orchestration/application/workflow_lifecycle_providers.dart';
+import 'package:alera/src/features/orchestration/domain/workflow_run_controls.dart';
+import 'package:alera/src/features/orchestration/infra/workflow_decision_signer.dart';
+import 'package:alera/src/features/orchestration/infra/workflow_lifecycle_repository.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_run_control_panel.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_run_control_section.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import '../support/workflow_controls_fixture.dart';
+
+void main() {
+  testWidgets('only eligible human gates open review at compact text scale', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(420, 780);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    String? scope;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: aleraDarkTheme,
+        home: Scaffold(
+          body: MediaQuery(
+            data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+            child: SingleChildScrollView(
+              child: WorkflowRunControlPanel(
+                controls: WorkflowRunControls.fromJson(
+                  workflowControlsFixture(),
+                ),
+                onControl: (_) {},
+                onRefresh: () {},
+                onReview: (value) => scope = value,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Review Foundation Gate'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Review Foundation Gate'));
+    expect(scope, 'stage:foundation');
+    await tester.scrollUntilVisible(
+      find.text('Review Product Gate'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, 'Review Product Gate'),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  Future<void> mount(WidgetTester tester, _Client client) async {
+    addTearDown(client.events.close);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          workflowLifecycleRepositoryProvider.overrideWithValue(
+            WorkflowLifecycleRepository(client, client),
+          ),
+        ],
+        child: MaterialApp(
+          theme: aleraDarkTheme,
+          home: Scaffold(
+            body: ListView(
+              children: [
+                WorkflowRunControlSection(
+                  runId: 'run',
+                  revision: 1,
+                  onReview: (_) {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets(
+    'response loss retries the exact command and closing releases reads',
+    (tester) async {
+      final client = _Client()..fail = true;
+      await mount(tester, client);
+      await tester.tap(find.text('Start Workflow'));
+      await tester.pumpAndSettle();
+      expect(find.text('Retry Same Command'), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Start Workflow'),
+            )
+            .onPressed,
+        isNull,
+      );
+      client.fail = false;
+      client.snapshot = workflowControlsFixture(
+        sequence: 1,
+        executionStatus: 'running',
+      );
+      await tester.tap(find.text('Retry Same Command'));
+      await tester.pumpAndSettle();
+      expect(client.documents.length, 2);
+      expect(client.documents[0], client.documents[1]);
+      expect(find.text('Pause Workflow'), findsOneWidget);
+      expect(find.text('Retry Same Command'), findsNothing);
+      expect(client.events.hasListener, isTrue);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
+      expect(client.events.hasListener, isFalse);
+    },
+  );
+
+  testWidgets(
+    'observing a newer sequence releases an obsolete uncertain command',
+    (tester) async {
+      final client = _Client()..fail = true;
+      await mount(tester, client);
+      await tester.tap(find.text('Start Workflow'));
+      await tester.pumpAndSettle();
+      client.snapshot = workflowControlsFixture(sequence: 2);
+      await tester.tap(find.text('Refresh Workflow'));
+      await tester.pumpAndSettle();
+      expect(find.text('Retry Same Command'), findsNothing);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Start Workflow'),
+            )
+            .onPressed,
+        isNotNull,
+      );
+      expect(client.documents.length, 1);
+    },
+  );
+
+  testWidgets('incompatible host has no executable fallback', (tester) async {
+    final client = _Client()..supported = false;
+    await mount(tester, client);
+    expect(find.text('Update Required'), findsOneWidget);
+    expect(find.text('Start Workflow'), findsNothing);
+    expect(client.calls, isEmpty);
+  });
+}
+
+class _Client
+    implements
+        RuntimeHostClient,
+        RuntimeHostCapabilityClient,
+        WorkflowDecisionSigner {
+  final events = StreamController<RuntimeHostEvent>.broadcast();
+  final calls = <String>[];
+  final documents = <String>[];
+  var snapshot = workflowControlsFixture();
+  bool supported = true;
+  bool fail = false;
+  @override
+  Stream<RuntimeHostEvent> get runtimeEvents => events.stream;
+  @override
+  Future<bool> supportsRuntimeCapability(String capability) async => supported;
+  @override
+  Future<Uint8List> sign(String statementJson) async =>
+      throw UnimplementedError('Execution controls must not sign approvals.');
+  @override
+  Future<Object?> runtimeRequest(
+    String verb, [
+    Map<String, Object?> payload = const {},
+    Duration? timeout,
+  ]) async {
+    calls.add(verb);
+    if (verb == 'workflows.execution') return snapshot;
+    if (verb == 'workflows.controlExecution') {
+      documents.add(payload['document']! as String);
+      if (fail) throw StateError('Response lost');
+      return {'execution': snapshot['execution']};
+    }
+    throw StateError('Unexpected request: $verb');
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}

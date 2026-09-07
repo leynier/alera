@@ -14,6 +14,7 @@ class RunBoardDetail extends StatelessWidget {
     required this.onBack,
     this.onOpenWorkspace,
     this.onReviewPlan,
+    this.workflowControls,
     required this.footer,
   });
   final RunSnapshot snapshot;
@@ -21,6 +22,7 @@ class RunBoardDetail extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback? onOpenWorkspace;
   final VoidCallback? onReviewPlan;
+  final Widget? workflowControls;
   final Widget footer;
   @override
   Widget build(BuildContext context) {
@@ -45,7 +47,18 @@ class RunBoardDetail extends StatelessWidget {
       padding: const EdgeInsets.all(AleraTokens.space16),
       itemCount: rows.length + 2,
       itemBuilder: (context, index) {
-        if (index == 0) return _header(context);
+        if (index == 0) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _header(context),
+              if (workflowControls != null) ...[
+                const SizedBox(height: AleraTokens.space16),
+                workflowControls!,
+              ],
+            ],
+          );
+        }
         if (index == rows.length + 1) return footer;
         final row = rows[index - 1];
         if (row is String) {
