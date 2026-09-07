@@ -192,8 +192,8 @@ async fn resolve_identity(
 ) -> Result<(String, String)> {
     let mut branch = nonempty(branch);
     let mut name = nonempty(name);
-    if branch.is_some() && name.is_some() {
-        return Ok((branch.unwrap(), name.unwrap()));
+    if let (Some(branch), Some(name)) = (branch.as_ref(), name.as_ref()) {
+        return Ok((branch.clone(), name.clone()));
     }
     match generate_identity(client, project_id, prompt).await {
         Ok((generated_name, generated_branch)) => {
@@ -209,7 +209,9 @@ async fn resolve_identity(
         }
         Err(_) => {}
     }
-    let branch = branch.expect("branch is present after generation or the error above");
+    let branch = branch.ok_or_else(|| {
+        anyhow!("--branch is required because workspace identity generation failed")
+    })?;
     Ok((branch.clone(), name.unwrap_or(branch)))
 }
 
