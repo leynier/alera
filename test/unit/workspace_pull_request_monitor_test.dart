@@ -118,6 +118,80 @@ void main() {
     },
   );
 
+  test('hides a merged or closed branch PR when the workspace has no linked review', () async {
+    final forge = _FakeBatchForge(
+      batch: ForgeReviewBatch(
+        byBranch: <String, ForgeReviewSnapshot>{
+          'feat/old': _snapshot(number: 9, branch: 'feat/old', state: .merged),
+        },
+        byNumber: <int, ForgeReviewSnapshot>{
+          9: _snapshot(number: 9, branch: 'feat/old', state: .merged),
+        },
+      ),
+    );
+    final loader = WorkspacePullRequestMonitorLoader(
+      _FakeGitBackend(),
+      ForgeProviderRegistry(<ForgeProvider>[forge]),
+      _FakeLinkedReviewRepository(),
+    );
+
+    final result = await loader.load(
+      targets: const <WorkspacePullRequestMonitorTarget>[
+        WorkspacePullRequestMonitorTarget(
+          projectId: 'project',
+          projectName: 'Alera',
+          workspaceId: 'workspace',
+          workspaceName: 'Workspace',
+          repoPath: '/repo',
+          branch: 'feat/old',
+        ),
+      ],
+    );
+
+    expect(result.summaries, isEmpty);
+    expect(forge.lastBranches, <String>{'feat/old'});
+    expect(forge.lastReviewNumbers, isEmpty);
+  });
+
+  test('keeps a previously shown review after the branch lookup stops returning it', () async {
+    final previous = <String, WorkspacePullRequestSummary>{
+      'workspace': WorkspacePullRequestSummary.fromChecks(
+        review: _review(number: 42, branch: 'feat/status'),
+        checks: const <ReviewCheck>[_pendingCheck],
+      ),
+    };
+    final merged = _snapshot(number: 42, branch: 'feat/status', state: .merged);
+    final forge = _FakeBatchForge(
+      batch: ForgeReviewBatch(byNumber: <int, ForgeReviewSnapshot>{42: merged}),
+    );
+    final loader = WorkspacePullRequestMonitorLoader(
+      _FakeGitBackend(),
+      ForgeProviderRegistry(<ForgeProvider>[forge]),
+      _FakeLinkedReviewRepository(),
+    );
+
+    final result = await loader.load(
+      targets: const <WorkspacePullRequestMonitorTarget>[
+        WorkspacePullRequestMonitorTarget(
+          projectId: 'project',
+          projectName: 'Alera',
+          workspaceId: 'workspace',
+          workspaceName: 'Workspace',
+          repoPath: '/repo',
+          branch: 'feat/status',
+        ),
+      ],
+      previous: previous,
+    );
+
+    expect(result.summaries['workspace']!.review.number, 42);
+    expect(
+      result.summaries['workspace']!.review.state,
+      HostedReviewState.merged,
+    );
+    expect(forge.lastReviewNumbers, <int>{42});
+  });
+
   test(
     'preserves the last snapshot and reports provider errors for backoff',
     () async {
@@ -167,20 +241,25 @@ const ReviewCheck _pendingCheck = ReviewCheck(
 ForgeReviewSnapshot _snapshot({
   required int number,
   required String branch,
+  HostedReviewState state = HostedReviewState.open,
   List<ReviewCheck> checks = const <ReviewCheck>[],
 }) {
   return ForgeReviewSnapshot(
-    review: _review(number: number, branch: branch),
+    review: _review(number: number, branch: branch, state: state),
     checks: checks,
   );
 }
 
-HostedReview _review({required int number, required String branch}) {
+HostedReview _review({
+  required int number,
+  required String branch,
+  HostedReviewState state = HostedReviewState.open,
+}) {
   return HostedReview(
     provider: .github,
     number: number,
     title: 'PR $number',
-    state: .open,
+    state: state,
     url: 'https://github.com/acme/app/pull/$number',
     headBranch: branch,
     headSha: 'sha-$number',

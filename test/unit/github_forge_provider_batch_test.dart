@@ -42,10 +42,13 @@ void main() {
     expect(call.workingDirectory, '/repo');
     expect(call.arguments, contains('branch0=feature'));
     expect(call.arguments, contains('number0=77'));
-    expect(
-      call.arguments.firstWhere((argument) => argument.startsWith('query=')),
-      contains('statusCheckRollup'),
+    final query = call.arguments.firstWhere(
+      (argument) => argument.startsWith('query='),
     );
+    expect(query, contains('statusCheckRollup'));
+    expect(query, contains('states:[OPEN]'));
+    expect(query, isNot(contains('MERGED')));
+    expect(query, isNot(contains('CLOSED')));
 
     final feature = batch.byBranch['feature'];
     expect(feature, isNotNull);
