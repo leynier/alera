@@ -24,12 +24,17 @@ val releaseSigningAvailable = keystorePropertiesFile.exists()
 // Read this at Project scope. Inside defaultConfig, findProperty hits the
 // flavor extras and never sees -PaleraAbiFilters.
 //
-// The Flutter Gradle plugin's configureAbiWithoutSplits() then clears
-// ndk.abiFilters and writes [armeabi-v7a, arm64-v8a, x86_64] whenever
-// --split-per-abi is off. --target-platform only controls engine/app
-// compilation, so plugin JNI for the other ABIs still lands in the APK.
-// afterEvaluate plus jniLibs excludes keep the default APK arm64-only
-// without dropping split builds or emulator flutter run.
+// Flutter's configureAbiWithoutSplits() runs during plugin apply, before
+// this file's android {} block, and writes PLATFORM_ABI_LIST
+// ([armeabi-v7a, arm64-v8a, x86_64]) whenever --split-per-abi is off.
+// --target-platform only controls engine/app compilation, so plugin JNI
+// for the other ABIs still lands in the APK. Flutter's own
+// gradle_jni_packaging_test shows the override that wins: defaultConfig
+// must clear() then addAll(). += unions with PLATFORM_ABI_LIST.
+// afterEvaluate is too late: AGP already copied defaultConfig into
+// variants. CI also passes -Pdisable-abi-filtering=true so Flutter
+// never writes PLATFORM_ABI_LIST. Omit both properties for
+// --split-per-abi and emulator flutter run.
 val aleraAbiFilters = (findProperty("aleraAbiFilters") as String?)
     ?.split(',')
     ?.map(String::trim)
@@ -37,6 +42,9 @@ val aleraAbiFilters = (findProperty("aleraAbiFilters") as String?)
     .orEmpty()
 val aleraExcludedJniAbis = listOf("armeabi", "armeabi-v7a", "x86", "x86_64", "arm64-v8a")
     .filter { it !in aleraAbiFilters }
+
+fun aleraJniExcludePatterns(abi: String): List<String> =
+    listOf("lib/$abi/**", "$abi/**", "**/$abi/**", "**/$abi/*.so")
 
 android {
     namespace = "dev.leynier.alera_mobile"
@@ -88,7 +96,8 @@ android {
         versionName = flutter.versionName
         if (aleraAbiFilters.isNotEmpty()) {
             ndk {
-                abiFilters += aleraAbiFilters
+                abiFilters.clear()
+                abiFilters.addAll(aleraAbiFilters)
             }
         }
     }
@@ -97,7 +106,7 @@ android {
         jniLibs {
             if (aleraAbiFilters.isNotEmpty()) {
                 for (abi in aleraExcludedJniAbis) {
-                    excludes += "lib/$abi/**"
+                    excludes.addAll(aleraJniExcludePatterns(abi))
                 }
             }
         }
@@ -123,6 +132,17 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+androidComponents {
+    onVariants { variant ->
+        if (aleraAbiFilters.isEmpty()) {
+            return@onVariants
+        }
+        for (abi in aleraExcludedJniAbis) {
+            variant.packaging.jniLibs.excludes.addAll(aleraJniExcludePatterns(abi))
+        }
+    }
 }
 
 afterEvaluate {

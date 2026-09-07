@@ -20,10 +20,15 @@ void main() {
         ),
       );
       expect(workflow, contains('--target-platform android-arm64'));
+      expect(workflow, contains('-Pdisable-abi-filtering=true'));
       expect(workflow, contains('-PaleraAbiFilters=arm64-v8a'));
       expect(
         File('.github/workflows/mobile-build.yml').readAsStringSync(),
         contains('--target-platform android-arm64'),
+      );
+      expect(
+        File('.github/workflows/mobile-build.yml').readAsStringSync(),
+        contains('-Pdisable-abi-filtering=true'),
       );
       expect(
         File('.github/workflows/mobile-build.yml').readAsStringSync(),
@@ -39,9 +44,17 @@ void main() {
         gradle.indexOf('val aleraAbiFilters'),
         lessThan(gradle.indexOf('\nandroid {')),
       );
+      final defaultConfig = gradle
+          .split('defaultConfig {')
+          .last
+          .split('packaging {')
+          .first;
+      expect(defaultConfig, contains('abiFilters.clear()'));
+      expect(defaultConfig, contains('abiFilters.addAll(aleraAbiFilters)'));
+      expect(gradle, contains('androidComponents'));
+      expect(gradle, contains('aleraJniExcludePatterns'));
       expect(gradle, contains('afterEvaluate'));
       expect(gradle, contains('abiFilters.clear()'));
-      expect(gradle, contains(r'excludes += "lib/$abi/**"'));
       expect(
         workflow,
         isNot(contains(r'find "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt"')),

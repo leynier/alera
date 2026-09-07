@@ -61,7 +61,7 @@ Run the unified **Cut Release** GitHub Actions workflow to create releases. It d
 
 iOS publishing remains disabled until Apple signing and provisioning are configured; the generated iOS icon and splash resources continue to be maintained in the project.
 
-Release APKs are signed with the stable upload keystore stored in the `ALERA_ANDROID_*` repository secrets (see `docs/release-trust.md`), and the workflow fails if they are missing. Local `flutter build apk --release --target-platform android-arm64 -PaleraAbiFilters=arm64-v8a` without `android/key.properties` falls back to the debug key; such APKs cannot update over release-signed installs. `--target-platform` alone still packs plugin JNI for other ABIs. Omit `-PaleraAbiFilters` for `--split-per-abi` and for emulator `flutter run`.
+Release APKs are signed with the stable upload keystore stored in the `ALERA_ANDROID_*` repository secrets (see `docs/release-trust.md`), and the workflow fails if they are missing. Local `flutter build apk --release --target-platform android-arm64 -Pdisable-abi-filtering=true -PaleraAbiFilters=arm64-v8a` without `android/key.properties` falls back to the debug key; such APKs cannot update over release-signed installs. `--target-platform` alone still packs plugin JNI for other ABIs. Omit `-PaleraAbiFilters` and `-Pdisable-abi-filtering` for `--split-per-abi` and for emulator `flutter run`.
 
 Pairing payloads come from the runtime profile:
 
