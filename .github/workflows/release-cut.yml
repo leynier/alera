@@ -959,7 +959,7 @@ jobs:
           # and landing page offer. Split APKs stay available for 32-bit
           # and x86_64. Copy the default aside: --split-per-abi writes
           # into the same output directory.
-          flutter build apk --release --target-platform android-arm64 "${firebase_defines[@]}"
+          flutter build apk --release --target-platform android-arm64 -PaleraAbiFilters=arm64-v8a "${firebase_defines[@]}"
           cp build/app/outputs/flutter-apk/app-release.apk "$RUNNER_TEMP/app-release-arm64.apk"
           flutter build apk --release --split-per-abi "${firebase_defines[@]}"
           cp "$RUNNER_TEMP/app-release-arm64.apk" build/app/outputs/flutter-apk/app-release.apk

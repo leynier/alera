@@ -8,10 +8,10 @@ set -euo pipefail
 #   loader rejects the library before dictation can start.
 # - 64-bit ELF LOAD segments aligned below 16 KB. Android 15 16 KB page-size
 #   phones refuse those APKs at install time.
-# - The default `app-release.apk` embedding armeabi-v7a. ML Kit's barhopper
-#   (and historically the Rust cdylib) stay 4 KB aligned on 32-bit, and a fat
-#   APK that includes them fails on those same 16 KB phones even when the
-#   arm64 libraries are aligned.
+# - The default `app-release.apk` embedding any ABI other than arm64-v8a.
+#   Flutter --target-platform does not strip plugin JNI (ML Kit barhopper is
+#   4 KB aligned on 32-bit), so a default APK that still contains those
+#   objects fails on 16 KB phones even when the arm64 libraries are aligned.
 #
 # The check lives here instead of inline in the workflow so it can be run
 # against fixtures: the previous inline version looked up llvm-readelf with
@@ -103,8 +103,8 @@ for apk in "${apks[@]}"; do
     printf '%s\n' "$listing" >&2
     exit 1
   fi
-  if [[ "$apk_name" == "app-release.apk" ]] && grep -E -q '^lib/armeabi-v7a/' <<<"$listing"; then
-    echo "::error::$apk_name is the default APK and must not embed 32-bit libraries. A fat APK that includes 4 KB-aligned armeabi-v7a objects fails to install on 16 KB page-size phones." >&2
+  if [[ "$apk_name" == "app-release.apk" ]] && grep -E -q '^lib/(armeabi-v7a|armeabi|x86_64|x86)/' <<<"$listing"; then
+    echo "::error::$apk_name is the default APK and must contain only arm64-v8a native libraries. Flutter --target-platform does not strip plugin JNI from other ABIs; ndk.abiFilters must." >&2
     printf '%s\n' "$listing" >&2
     exit 1
   fi

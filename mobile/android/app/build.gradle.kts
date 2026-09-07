@@ -69,6 +69,20 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Flutter --target-platform only limits engine, app, and Rust artifacts.
+        // Plugin AARs (ML Kit barhopper, Sentry, JNI helpers) still merge every
+        // ABI unless ndk.abiFilters is set. Keep this gated: --split-per-abi and
+        // emulator `flutter run` still need the other ABIs.
+        val abiFilterList = (findProperty("aleraAbiFilters") as String?)
+            ?.split(',')
+            ?.map(String::trim)
+            ?.filter(String::isNotEmpty)
+            .orEmpty()
+        if (abiFilterList.isNotEmpty()) {
+            ndk {
+                abiFilters += abiFilterList
+            }
+        }
     }
 
     buildTypes {

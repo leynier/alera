@@ -20,13 +20,22 @@ void main() {
         ),
       );
       expect(workflow, contains('--target-platform android-arm64'));
+      expect(workflow, contains('-PaleraAbiFilters=arm64-v8a'));
       expect(
         File('.github/workflows/mobile-build.yml').readAsStringSync(),
         contains('--target-platform android-arm64'),
       );
       expect(
+        File('.github/workflows/mobile-build.yml').readAsStringSync(),
+        contains('-PaleraAbiFilters=arm64-v8a'),
+      );
+      expect(
         File('mobile/android/app/build.gradle.kts').readAsStringSync(),
         contains('enableV1Signing = true'),
+      );
+      expect(
+        File('mobile/android/app/build.gradle.kts').readAsStringSync(),
+        contains('aleraAbiFilters'),
       );
       expect(
         workflow,
@@ -184,7 +193,50 @@ void main() {
 
     final result = Process.runSync('bash', <String>[script.path, temp.path]);
     expect(result.exitCode, isNot(0), reason: result.stdout.toString());
-    expect(result.stderr, contains('must not embed 32-bit libraries'));
+    expect(
+      result.stderr,
+      contains('must contain only arm64-v8a native libraries'),
+    );
+  });
+
+  test('rejects a default APK that embeds x86_64 plugin JNI', () {
+    if (Platform.isWindows) {
+      return;
+    }
+    final gcc = _gcc();
+    if (gcc == null) {
+      return;
+    }
+
+    final temp = Directory.systemTemp.createTempSync(
+      'alera-android-native-verify-fat-x64-',
+    );
+    addTearDown(() => temp.deleteSync(recursive: true));
+    final runtime = _compileSharedLibrary(
+      gcc: gcc,
+      directory: temp,
+      name: 'libc++_shared.so',
+      needed: const <String>[],
+    );
+    final native = _compileSharedLibrary(
+      gcc: gcc,
+      directory: temp,
+      name: 'libalera_mobile_native.so',
+      needed: <String>[runtime.path],
+    );
+    final apk = File(p.join(temp.path, 'app-release.apk'));
+    _zipApk(apk, <String, File>{
+      'lib/arm64-v8a/libalera_mobile_native.so': native,
+      'lib/arm64-v8a/libc++_shared.so': runtime,
+      'lib/x86_64/libbarhopper_v3.so': native,
+    });
+
+    final result = Process.runSync('bash', <String>[script.path, temp.path]);
+    expect(result.exitCode, isNot(0), reason: result.stdout.toString());
+    expect(
+      result.stderr,
+      contains('must contain only arm64-v8a native libraries'),
+    );
   });
 
   test('rejects a 64-bit library aligned below 16 KB', () {
