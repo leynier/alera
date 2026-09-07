@@ -124,16 +124,26 @@ class _WorkflowReviewPanelState extends State<WorkflowReviewPanel> {
                 _task(context, frozen),
             const SizedBox(height: AleraTokens.space16),
           ],
-        if (!planReview) ...[
+        if (!planReview || review.tasks.isNotEmpty) ...[
           Text(
-            correctionReview ? 'Current Task Evidence' : 'Integrated Evidence',
+            planReview
+                ? 'Referenced Task Evidence'
+                : correctionReview
+                ? 'Current Task Evidence'
+                : 'Integrated Evidence',
             style: Theme.of(context).textTheme.titleMedium,
           ),
+          if (planReview)
+            const Text(
+              'Approval also binds this prior task evidence. Changed results require another review; original tasks remain in history.',
+            ),
           for (final evidence in review.tasks) ...[
             const SizedBox(height: AleraTokens.space12),
             Text(evidence['logicalId']! as String),
-            if (correctionReview) Text('Task status: ${evidence['status']}'),
-            if (correctionReview && evidence['integrationState'] != null) ...[
+            if (correctionReview || planReview)
+              Text('Task status: ${evidence['status']}'),
+            if ((correctionReview || planReview) &&
+                evidence['integrationState'] != null) ...[
               Text('Integration: ${evidence['integrationState']}'),
               for (final path in evidence['conflictPaths']! as List)
                 Text(path as String, style: AleraTokens.monoCompactStyle),
