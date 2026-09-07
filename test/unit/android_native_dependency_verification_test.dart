@@ -9,9 +9,8 @@ void main() {
   test(
     'release cuts verify Android native dependencies through the script',
     () {
-      final workflow = File(
-        '.github/workflows/release-cut.yml',
-      ).readAsStringSync();
+      final workflow = File('.github/workflows/release-cut.yml')
+          .readAsStringSync();
 
       expect(
         workflow,
