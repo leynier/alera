@@ -33,6 +33,8 @@ fn alera(runtime_dir: &Path, args: &[&str]) -> Output {
         .arg(runtime_dir)
         .arg("--json")
         .args(rest)
+        .env_remove("ALERA_WORKSPACE_ID")
+        .env_remove("ALERA_TERMINAL_HANDLE")
         .output()
         .expect("failed to run alera")
 }
@@ -243,6 +245,79 @@ fn workspace_start_rejects_unknown_profile_before_creating_a_worktree() {
             .iter()
             .all(|workspace| { workspace["branch"].as_str() != Some("feat/missing-profile") }),
         "unknown profile created a workspace: {listed}"
+    );
+}
+
+#[test]
+fn workspace_start_rejects_missing_source_branch_before_identity_generation() {
+    let temp = tempfile::tempdir().unwrap();
+    let runtime_dir = temp.path().join("runtime");
+    std::fs::create_dir_all(&runtime_dir).unwrap();
+    let _guard = RuntimeGuard {
+        runtime_dir: runtime_dir.clone(),
+    };
+    let repo = temp.path().join("repo");
+    std::fs::create_dir(&repo).unwrap();
+    init_git_repo(&repo);
+    let marker = temp.path().join("should-not-launch.txt");
+    let recorder = write_recorder(temp.path(), &marker);
+    let project = success_json(
+        &runtime_dir,
+        &[
+            "project",
+            "add",
+            "--name",
+            "Missing Source Branch Project",
+            "--repo-path",
+            repo.to_str().unwrap(),
+            "--kind",
+            "git-repository",
+        ],
+    );
+    let project_id = project["id"].as_str().unwrap();
+    success_json(
+        &runtime_dir,
+        &[
+            "agent-profile",
+            "create",
+            "--name",
+            "Recorder",
+            "--agent-type",
+            "codex",
+            "--launch-mode",
+            "command",
+            "--command",
+            recorder.to_str().unwrap(),
+        ],
+    );
+    let failed = alera(
+        &runtime_dir,
+        &[
+            "workspace",
+            "start",
+            "--profile",
+            "Recorder",
+            "--prompt",
+            "Should not generate identity",
+            "--project-id",
+            project_id,
+            "--no-parent",
+            "--workspace-root",
+            temp.path().join("workspaces").to_str().unwrap(),
+        ],
+    );
+    let stderr = String::from_utf8_lossy(&failed.stderr);
+    assert!(
+        !failed.status.success(),
+        "missing source branch should fail: {stderr}"
+    );
+    assert!(
+        stderr.contains("--source-branch is required"),
+        "expected source-branch error, got {stderr}"
+    );
+    assert!(
+        !stderr.contains("--branch is required"),
+        "should not report missing branch first: {stderr}"
     );
 }
 

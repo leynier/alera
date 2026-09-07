@@ -146,7 +146,10 @@ pub async fn create_inferred_workspace(
     let source_branch = first_non_empty([
         request.source_branch.as_deref(),
         context.as_ref().and_then(WorkspaceContext::source_branch),
-    ]);
+    ])
+    .ok_or_else(|| {
+        anyhow!("--source-branch is required (or run inside a workspace that has a branch).")
+    })?;
     let parent_workspace_id = if request.no_parent {
         None
     } else {
@@ -163,9 +166,6 @@ pub async fn create_inferred_workspace(
         request.name,
     )
     .await?;
-    let source_branch = source_branch.ok_or_else(|| {
-        anyhow!("--source-branch is required (or run inside a workspace that has a branch).")
-    })?;
     let payload = json!({
         "id": request.id,
         "projectId": project_id,
