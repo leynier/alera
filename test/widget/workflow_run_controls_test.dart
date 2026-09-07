@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:typed_data';
+import 'dart:convert';
 
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/orchestration/application/workflow_lifecycle_providers.dart';
@@ -10,6 +10,7 @@ import 'package:alera/src/features/orchestration/presentation/workflow_run_contr
 import 'package:alera/src/features/orchestration/presentation/workflow_run_control_section.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -160,6 +161,57 @@ void main() {
     expect(find.text('Start Workflow'), findsNothing);
     expect(client.calls, isEmpty);
   });
+
+  testWidgets(
+    'cancellation requires confirmation and retains an uncertain command before approval',
+    (tester) async {
+      final client = _Client()..fail = true;
+      client.snapshot = {
+        ...workflowControlsFixture(),
+        'status': 'prepared',
+        'canControl': false,
+      };
+      await mount(tester, client);
+      await tester.tap(find.text('Cancel Workflow'));
+      await tester.pumpAndSettle();
+      expect(client.documents, isEmpty);
+      expect(
+        find.textContaining('This run cannot be resumed.'),
+        findsOneWidget,
+      );
+      expect(
+        FocusManager.instance.primaryFocus?.debugLabel,
+        'workflow-cancel-keep',
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(FocusManager.instance.primaryFocus?.debugLabel, 'workflow-cancel');
+      expect(find.text('Confirm Cancellation'), findsNothing);
+      await tester.tap(find.text('Cancel Workflow'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Confirm Cancellation'));
+      await tester.pumpAndSettle();
+      expect(jsonDecode(client.documents.single)['action'], 'cancel');
+      await tester.tap(find.text('Refresh Workflow'));
+      await tester.pumpAndSettle();
+      expect(find.text('Retry Same Command'), findsOneWidget);
+      client.fail = false;
+      client.snapshot = {
+        ...workflowControlsFixture(sequence: 1),
+        'status': 'cancelled',
+        'canControl': false,
+        'canCancel': false,
+      };
+      await tester.tap(find.text('Retry Same Command'));
+      await tester.pumpAndSettle();
+      expect(client.documents.length, 2);
+      expect(client.documents.first, client.documents.last);
+      expect(find.text('Cancelled'), findsOneWidget);
+      expect(find.text('Start Workflow'), findsNothing);
+      expect(find.text('Cancel Workflow'), findsNothing);
+      expect(find.text('Retry Same Command'), findsNothing);
+    },
+  );
 }
 
 class _Client

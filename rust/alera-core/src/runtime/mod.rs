@@ -98,6 +98,7 @@ mod workbench_shared_state_store;
 mod workbench_shared_state_store_tests;
 mod workflow_approval_store;
 mod workflow_builtins;
+mod workflow_cancellation;
 mod workflow_catalog;
 mod workflow_catalog_store;
 #[cfg(test)]
@@ -106,6 +107,7 @@ mod workflow_coordinator;
 #[cfg(test)]
 mod workflow_coordinator_tests;
 mod workflow_execution;
+pub use workflow_cancellation::WorkflowCancellationTarget;
 mod workflow_run_controls;
 #[cfg(test)]
 mod workflow_run_controls_tests;

@@ -39,6 +39,7 @@ class _WorkflowRunControlSectionState
   WorkflowRunControls? _controls;
   Object? _error;
   String? _pending;
+  String? _pendingAction;
   int? _pendingSequence;
   bool _busy = false;
   int _generation = 0;
@@ -84,11 +85,14 @@ class _WorkflowRunControlSectionState
       final current = result.$2;
       if (current != null &&
           _pending != null &&
-          (!current.canControl ||
+          (!(_pendingAction == 'cancel'
+                  ? current.canCancel
+                  : current.canControl) ||
               (current.execution?.sequence ?? 0) > _pendingSequence!)) {
         // A late copy of this command is now fenced by revision/sequence CAS.
         _pending = null;
         _pendingSequence = null;
+        _pendingAction = null;
       }
       _error = result.$3;
     });
@@ -102,11 +106,13 @@ class _WorkflowRunControlSectionState
     if (_busy ||
         _pending != null ||
         _error != null ||
-        _controls?.canControl != true) {
+        (action == 'cancel' ? _controls?.canCancel : _controls?.canControl) !=
+            true) {
       return;
     }
     final controls = _controls!;
     _pendingSequence = controls.execution?.sequence ?? 0;
+    _pendingAction = action;
     _pending = jsonEncode({
       'requestId': const Uuid().v4(),
       'runId': controls.runId,
@@ -128,6 +134,7 @@ class _WorkflowRunControlSectionState
       if (!mounted) return;
       _pending = null;
       _pendingSequence = null;
+      _pendingAction = null;
       await _refresh();
     } on Object catch (error) {
       if (mounted) setState(() => _error = error);

@@ -23,52 +23,66 @@ void main() {
       await (FontLoader(family)..addFont(rootBundle.load(asset))).load();
     }
   });
-  for (final compact in [false, true]) {
-    testWidgets('execution controls visual compact=$compact', (tester) async {
-      await tester.binding.setSurfaceSize(Size(compact ? 420 : 760, 900));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      final key = GlobalKey();
-      await tester.pumpWidget(
-        MaterialApp(
-          debugShowCheckedModeBanner: false,
-          theme: buildAleraDarkTheme(),
-          home: MediaQuery(
-            data: MediaQueryData(
-              textScaler: TextScaler.linear(compact ? 2 : 1),
-            ),
-            child: RepaintBoundary(
-              key: key,
-              child: Scaffold(
-                body: SingleChildScrollView(
-                  padding: const EdgeInsets.all(AleraTokens.space16),
-                  child: WorkflowRunControlPanel(
-                    controls: WorkflowRunControls.fromJson(
-                      workflowControlsFixture(executionStatus: 'running'),
+  for (final (compact, confirmation) in [
+    (false, false),
+    (true, false),
+    (true, true),
+  ]) {
+    testWidgets(
+      'execution controls visual compact=$compact confirmation=$confirmation',
+      (tester) async {
+        await tester.binding.setSurfaceSize(Size(compact ? 420 : 760, 900));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final key = GlobalKey();
+        await tester.pumpWidget(
+          MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: buildAleraDarkTheme(),
+            home: MediaQuery(
+              data: MediaQueryData(
+                textScaler: TextScaler.linear(compact ? 2 : 1),
+              ),
+              child: RepaintBoundary(
+                key: key,
+                child: Scaffold(
+                  body: SingleChildScrollView(
+                    padding: const EdgeInsets.all(AleraTokens.space16),
+                    child: WorkflowRunControlPanel(
+                      controls: WorkflowRunControls.fromJson(
+                        workflowControlsFixture(executionStatus: 'running'),
+                      ),
+                      onControl: (_) {},
+                      onReview: (_) {},
+                      onRefresh: () {},
                     ),
-                    onControl: (_) {},
-                    onReview: (_) {},
-                    onRefresh: () {},
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-      final directory = Platform.environment['ALERA_WORKFLOW_VISUAL_DIR'];
-      if (directory == null) return;
-      final boundary =
-          key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
-      await tester.runAsync(() async {
-        final image = await boundary.toImage();
-        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-        await Directory(directory).create(recursive: true);
-        await File('$directory/controls-${compact ? 'compact' : 'desktop'}.png')
-            .writeAsBytes(bytes!.buffer.asUint8List());
-        image.dispose();
-      });
-    });
+        );
+        await tester.pumpAndSettle();
+        if (confirmation) {
+          await tester.tap(find.text('Cancel Workflow'));
+          await tester.pumpAndSettle();
+          await tester.ensureVisible(find.textContaining('Cancellation stops'));
+          await tester.pumpAndSettle();
+        }
+        expect(tester.takeException(), isNull);
+        final directory = Platform.environment['ALERA_WORKFLOW_VISUAL_DIR'];
+        if (directory == null) return;
+        final boundary =
+            key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+        await tester.runAsync(() async {
+          final image = await boundary.toImage();
+          final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+          await Directory(directory).create(recursive: true);
+          await File(
+            '$directory/controls-${compact ? 'compact' : 'desktop'}${confirmation ? '-cancel' : ''}.png',
+          ).writeAsBytes(bytes!.buffer.asUint8List());
+          image.dispose();
+        });
+      },
+    );
   }
 }

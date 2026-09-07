@@ -6,6 +6,7 @@ use crate::workflow_approval::WorkflowDecision;
 mod cancellation_capacity_tests;
 mod execution_control_tests;
 mod run_board_projection_tests;
+mod run_cancellation_tests;
 mod stall_recovery_tests;
 
 async fn prepared() -> (tempfile::TempDir, RuntimeStore, LaunchWorkflowTask) {

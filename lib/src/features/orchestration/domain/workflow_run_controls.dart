@@ -4,6 +4,9 @@ class WorkflowRunControls {
       revision = json['revision']! as int,
       status = json['status']! as String,
       canControl = json['canControl']! as bool,
+      canCancel = json['canCancel']! as bool,
+      cancellationPending = json['cancellationPending']! as int,
+      cancellationError = json['cancellationError'] as String?,
       integrationSha = json['integrationSha']! as String,
       sourceSha = json['sourceSha']! as String,
       recipeName = json['recipeName']! as String,
@@ -28,6 +31,9 @@ class WorkflowRunControls {
   final int revision;
   final String status;
   final bool canControl;
+  final bool canCancel;
+  final int cancellationPending;
+  final String? cancellationError;
   final String integrationSha;
   final String sourceSha;
   final String recipeName;

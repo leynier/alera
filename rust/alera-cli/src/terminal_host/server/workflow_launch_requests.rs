@@ -17,6 +17,8 @@ use crate::terminal_host::orchestration::dispatch_preamble::build_dispatch_boots
 use super::orchestration_profile_spawn::launch_for_profile;
 use super::ServerActor;
 
+#[path = "workflow_cancellation_requests.rs"]
+mod cancellation;
 #[path = "workflow_execution_pump.rs"]
 pub(super) mod execution;
 
@@ -29,6 +31,11 @@ pub(crate) enum WorkflowLaunchReply {
 mod tests;
 
 pub(crate) enum WorkflowLaunchCommand {
+    CancellationFinished(HostResult<bool>),
+    CancelTerminal {
+        target: alera_core::runtime::WorkflowCancellationTarget,
+        reply: tokio::sync::oneshot::Sender<HostResult<()>>,
+    },
     ExecutionWake,
     ExecutionFinished(execution::ExecutionPass),
     CoordinatorPrepared {
@@ -83,6 +90,13 @@ impl WorkflowLaunchPermit {
 impl ServerActor {
     pub(super) async fn handle_workflow_launch_command(&mut self, command: WorkflowLaunchCommand) {
         match command {
+            WorkflowLaunchCommand::CancellationFinished(result) => {
+                self.finish_workflow_cancellation(result).await
+            }
+            WorkflowLaunchCommand::CancelTerminal { target, reply } => {
+                let result = self.cancel_workflow_terminal(&target).await;
+                let _ = reply.send(result);
+            }
             WorkflowLaunchCommand::ExecutionWake => self.wake_workflow_execution(),
             WorkflowLaunchCommand::ExecutionFinished(pass) => {
                 self.finish_workflow_execution_pass(pass).await

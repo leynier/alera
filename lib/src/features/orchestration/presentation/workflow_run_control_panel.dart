@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:alera/src/features/orchestration/domain/workflow_run_controls.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_cancellation_control.dart';
 import 'package:flutter/material.dart';
 
 class WorkflowRunControlPanel extends StatelessWidget {
@@ -44,6 +45,12 @@ class WorkflowRunControlPanel extends StatelessWidget {
             AleraBadge(
               label: controls.status == 'completed'
                   ? 'Completed'
+                  : controls.status == 'cancelled'
+                  ? controls.cancellationError != null
+                        ? 'Attention'
+                        : controls.cancellationPending > 0
+                        ? 'Cancelling'
+                        : 'Cancelled'
                   : running
                   ? 'Running'
                   : 'Not Running',
@@ -54,6 +61,10 @@ class WorkflowRunControlPanel extends StatelessWidget {
         Text(
           controls.status == 'completed'
               ? 'All results are integrated and required human gates are approved. Worktrees and branches are retained.'
+              : controls.status == 'cancelled'
+              ? controls.cancellationPending > 0
+                    ? 'New tasks are blocked. ${controls.cancellationPending} agent terminals await settlement.'
+                    : 'The run is cancelled and its agent terminals are stopped. Worktrees, branches and results are retained.'
               : running
               ? 'The runtime continues while this Board is closed. Pause stops new workers; active workers keep their work.'
               : controls.canControl
@@ -103,6 +114,12 @@ class WorkflowRunControlPanel extends StatelessWidget {
               'The command outcome is uncertain. Retry keeps the same identity and cannot start duplicate workers.',
             ),
           ),
+        WorkflowCancellationControl(
+          key: ValueKey('cancel:${controls.runId}:${controls.revision}'),
+          controls: controls,
+          enabled: enabled,
+          onCancel: () => onControl('cancel'),
+        ),
         const SizedBox(height: AleraTokens.space16),
         ExpansionTile(
           key: PageStorageKey('workflow-commits:${controls.runId}'),

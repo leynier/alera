@@ -20,6 +20,7 @@ pub struct ControlWorkflowExecution {
 pub enum WorkflowExecutionAction {
     Start,
     Pause,
+    Cancel,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -74,6 +75,7 @@ impl RuntimeStore {
         .await?;
         sqlx::query("CREATE INDEX IF NOT EXISTS workflowExecutionRunning ON workflowExecution(status,run_id)")
             .execute(&mut *tx).await?;
+        super::workflow_cancellation::migrate(&mut tx).await?;
         tx.commit().await?;
         Ok(())
     }
@@ -81,7 +83,7 @@ impl RuntimeStore {
     pub async fn workflow_execution(&self, run: &str) -> Result<Option<WorkflowExecutionState>> {
         workflow_text(run, 160)?;
         sqlx::query("SELECT e.run_id,e.revision,e.sequence,
-            CASE WHEN w.status='completed' THEN 'completed' ELSE e.status END AS status,i.reason AS attention FROM workflowExecution e
+            CASE WHEN w.status IN ('completed','cancelled') THEN w.status ELSE e.status END AS status,i.reason AS attention FROM workflowExecution e
             JOIN workflowRuns w ON w.run_id=e.run_id
             LEFT JOIN workflowExecutionIssues i ON i.run_id=e.run_id AND i.revision=e.revision AND i.sequence=e.sequence
             WHERE e.run_id = ?")
@@ -167,17 +169,21 @@ impl RuntimeStore {
             }
             return Ok(serde_json::from_str(&row.try_get::<String, _>("receipt")?)?);
         }
-        let approved: bool = sqlx::query_scalar(
+        let allowed: bool = sqlx::query_scalar(
             "SELECT EXISTS(SELECT 1 FROM workflowRuns w
                 JOIN orchestrationCoordinatorRuns c ON c.id = w.run_id
-                WHERE w.run_id = ? AND w.revision = ? AND w.status = 'approved'
-                AND c.status IN ('idle','running'))",
+                WHERE w.run_id = ? AND w.revision = ? AND
+                ((? AND w.status <> 'completed') OR (w.status = 'approved' AND c.status IN ('idle','running'))))",
         )
         .bind(&request.run_id)
         .bind(request.revision)
+        .bind(matches!(request.action, WorkflowExecutionAction::Cancel))
         .fetch_one(&mut *tx)
         .await?;
-        if !approved {
+        if !allowed {
+            if matches!(request.action, WorkflowExecutionAction::Cancel) {
+                bail!("cancellation requires the current unfinished workflow revision");
+            }
             bail!("execution requires the current approved workflow plan");
         }
         let current: Option<i64> =
@@ -195,12 +201,17 @@ impl RuntimeStore {
         let status = match request.action {
             WorkflowExecutionAction::Start => "running",
             WorkflowExecutionAction::Pause => "paused",
+            WorkflowExecutionAction::Cancel => "paused",
         };
         let receipt = WorkflowExecutionState {
             run_id: request.run_id.clone(),
             revision: request.revision,
             sequence,
-            status: status.into(),
+            status: if matches!(request.action, WorkflowExecutionAction::Cancel) {
+                "cancelled".into()
+            } else {
+                status.into()
+            },
             attention: None,
         };
         sqlx::query(
@@ -214,6 +225,9 @@ impl RuntimeStore {
         .bind(status)
         .execute(&mut *tx)
         .await?;
+        if matches!(request.action, WorkflowExecutionAction::Cancel) {
+            super::workflow_cancellation::cancel(&mut tx, &request.run_id).await?;
+        }
         sqlx::query("DELETE FROM workflowExecutionIssues WHERE run_id=?")
             .bind(&request.run_id)
             .execute(&mut *tx)

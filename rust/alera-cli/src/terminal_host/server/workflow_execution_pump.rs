@@ -14,6 +14,8 @@ mod tests;
 #[derive(Default)]
 pub(in crate::terminal_host) struct ExecutionPump {
     pub(in crate::terminal_host::server) ready: bool,
+    pub(in crate::terminal_host::server) cancelling: bool,
+    pub(in crate::terminal_host::server) cancellation_dirty: bool,
     busy: bool,
     dirty: bool,
     cursor: Option<String>,
@@ -31,6 +33,7 @@ impl ServerActor {
         if self.disposed || !self.workflow_execution.ready {
             return;
         }
+        self.wake_workflow_cancellation();
         if self.workflow_execution.busy {
             self.workflow_execution.dirty = true;
             return;

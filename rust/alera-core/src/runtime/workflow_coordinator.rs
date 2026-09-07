@@ -79,6 +79,15 @@ impl RuntimeStore {
         if submitted && !existing {
             bail!("workflow proposal already has a prepared plan");
         }
+        if !existing {
+            if let Some(run) = &draft.request.run_id {
+                let allowed: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM workflowRuns WHERE run_id=? AND revision=? AND status IN ('prepared','changesRequested','rejected'))")
+                    .bind(run).bind(draft.request.expected_revision).fetch_one(&mut *tx).await?;
+                if !allowed {
+                    bail!("workflow correction is no longer open for proposal");
+                }
+            }
+        }
         let tab_id = uuid::Uuid::new_v4().to_string();
         let created = sqlx::query("INSERT INTO workflowCoordinators(proposal_id,tab_id,workspace_id,status) VALUES(?,?,?,'reserved') ON CONFLICT(proposal_id) DO NOTHING")
             .bind(&draft.id).bind(&tab_id).bind(&draft.request.workspace_id).execute(&mut *tx).await?.rows_affected() == 1;

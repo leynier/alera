@@ -17,6 +17,9 @@ pub struct WorkflowRunControls {
     pub revision: i64,
     pub status: String,
     pub can_control: bool,
+    pub can_cancel: bool,
+    pub cancellation_pending: i64,
+    pub cancellation_error: Option<String>,
     pub integration_sha: String,
     pub source_sha: String,
     pub recipe_name: String,
@@ -65,6 +68,12 @@ impl RuntimeStore {
             bail!("workflow plan snapshot is invalid");
         }
         let status: String = row.try_get("status")?;
+        let cancellation = sqlx::query("SELECT COUNT(*) AS pending,MIN(error) AS error FROM workflowCancellationTargets WHERE run_id=? AND state<>'settled'")
+            .bind(run).fetch_one(&mut *tx).await?;
+        let cancellation_pending = cancellation.try_get("pending")?;
+        let cancellation_error: Option<String> = cancellation.try_get("error")?;
+        let can_cancel =
+            status != "completed" && (status != "cancelled" || cancellation_error.is_some());
         let can_control = status == "approved"
             && matches!(
                 row.try_get::<String, _>("coordinator_status")?.as_str(),
@@ -77,8 +86,8 @@ impl RuntimeStore {
                     run_id: run.into(),
                     revision,
                     sequence,
-                    status: if status == "completed" {
-                        "completed".into()
+                    status: if matches!(status.as_str(), "completed" | "cancelled") {
+                        status.clone()
                     } else {
                         row.try_get("execution_status")?
                     },
@@ -182,6 +191,9 @@ impl RuntimeStore {
             revision,
             status,
             can_control,
+            can_cancel,
+            cancellation_pending,
+            cancellation_error,
             integration_sha: row.try_get("integration_sha")?,
             source_sha: plan.source_sha,
             recipe_name: plan.recipe.recipe.name,

@@ -33,6 +33,7 @@ impl RuntimeStore {
             "workflowLaunches",
             "workflowExecution",
             "workflowExecutionIssues",
+            "workflowCancellationTargets",
         ] {
             for operation in ["INSERT", "UPDATE", "DELETE"] {
                 sqlx::query(sqlx::AssertSqlSafe(format!(
@@ -102,6 +103,9 @@ const BOARD_SCHEMA: &[&str] = &[
          COALESCE(g.pending_gate_count, 0) AS pending_gate_count,
          CASE
              WHEN r.status IN ('completed','stopped') THEN 'history'
+             WHEN workflow.status = 'cancelled' AND EXISTS(SELECT 1 FROM workflowCancellationTargets
+                 WHERE run_id=r.id AND state='attention') THEN 'attention'
+             WHEN workflow.status = 'cancelled' THEN 'active'
              WHEN r.status = 'failed'
                  OR r.execution_policy_status IN ('draft','rejected')
                  OR COALESCE(t.failed_count, 0) > 0

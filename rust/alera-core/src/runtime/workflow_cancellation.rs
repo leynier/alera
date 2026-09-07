@@ -1,0 +1,148 @@
+use anyhow::{bail, Result};
+use serde::Serialize;
+use sqlx::{Row, Sqlite, Transaction};
+
+use super::RuntimeStore;
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowCancellationTarget {
+    pub launch_id: Option<String>,
+    pub proposal_id: Option<String>,
+    pub run_id: String,
+    pub terminal_handle: String,
+    pub workspace_id: String,
+}
+
+pub(super) async fn migrate(tx: &mut Transaction<'_, Sqlite>) -> Result<()> {
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS workflowCancellationTargets (
+        id TEXT PRIMARY KEY,
+        launch_id TEXT UNIQUE REFERENCES workflowLaunches(id),
+        proposal_id TEXT UNIQUE REFERENCES workflowCoordinators(proposal_id),
+        run_id TEXT NOT NULL REFERENCES workflowRuns(run_id),
+        state TEXT NOT NULL CHECK(state IN ('pending','settled','attention')),
+        error TEXT, CHECK((launch_id IS NULL) <> (proposal_id IS NULL)))",
+    )
+    .execute(&mut **tx)
+    .await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS workflowCancellationPending ON workflowCancellationTargets(state,run_id,id)")
+        .execute(&mut **tx).await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS workflowCancellationRun ON workflowCancellationTargets(run_id,state)")
+        .execute(&mut **tx).await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS workflowProposalRun ON workflowProposalDrafts(json_extract(document,'$.request.runId'))")
+        .execute(&mut **tx).await?;
+    Ok(())
+}
+
+/// The caller holds the execution-command writer fence. No process or Git
+/// mutation happens until this durable dispatch barrier has committed.
+pub(super) async fn cancel(tx: &mut Transaction<'_, Sqlite>, run: &str) -> Result<()> {
+    sqlx::query("UPDATE workflowRuns SET status='cancelled' WHERE run_id=?")
+        .bind(run)
+        .execute(&mut **tx)
+        .await?;
+    sqlx::query(
+        "INSERT OR IGNORE INTO workflowCancellationTargets(id,launch_id,run_id,state)
+        SELECT 'worker:'||id,id,run_id,'pending' FROM workflowLaunches WHERE run_id=?",
+    )
+    .bind(run)
+    .execute(&mut **tx)
+    .await?;
+    sqlx::query("INSERT OR IGNORE INTO workflowCancellationTargets(id,proposal_id,run_id,state)
+        SELECT 'coordinator:'||c.proposal_id,c.proposal_id,p.run_id,'pending'
+        FROM workflowCoordinators c JOIN workflowPlanRevisions p ON p.request_id=c.proposal_id WHERE p.run_id=?")
+        .bind(run).execute(&mut **tx).await?;
+    sqlx::query("INSERT OR IGNORE INTO workflowCancellationTargets(id,proposal_id,run_id,state)
+        SELECT 'coordinator:'||c.proposal_id,c.proposal_id,?,'pending' FROM workflowProposalDrafts d
+        JOIN workflowCoordinators c ON c.proposal_id=d.id WHERE json_extract(d.document,'$.request.runId')=?")
+        .bind(run).bind(run).execute(&mut **tx).await?;
+    // Only a new, sequence-checked Cancel command retries an identity failure.
+    sqlx::query("UPDATE workflowCancellationTargets SET state='pending',error=NULL WHERE run_id=? AND state='attention'")
+        .bind(run).execute(&mut **tx).await?;
+    sqlx::query("UPDATE orchestrationTasks SET status='cancelled',cancelled_at=datetime('now'),completed_at=datetime('now')
+        WHERE run_id=? AND status NOT IN ('completed','failed','cancelled')")
+        .bind(run).execute(&mut **tx).await?;
+    sqlx::query(
+        "UPDATE orchestrationDispatchContexts SET status='cancelled',completed_at=datetime('now')
+        WHERE run_id=? AND status IN ('pending','dispatched','awaiting_acceptance','stalled')",
+    )
+    .bind(run)
+    .execute(&mut **tx)
+    .await?;
+    sqlx::query("UPDATE orchestrationCoordinatorRuns SET status='stopping',stop_reason='Workflow cancelled by the user.' WHERE id=?")
+        .bind(run).execute(&mut **tx).await?;
+    finish(tx, run).await
+}
+
+async fn finish(tx: &mut Transaction<'_, Sqlite>, run: &str) -> Result<()> {
+    sqlx::query("UPDATE orchestrationCoordinatorRuns SET status='stopped',completed_at=datetime('now')
+        WHERE id=? AND EXISTS(SELECT 1 FROM workflowRuns WHERE run_id=? AND status='cancelled')
+        AND NOT EXISTS(SELECT 1 FROM workflowCancellationTargets WHERE run_id=? AND state<>'settled')")
+        .bind(run).bind(run).bind(run).execute(&mut **tx).await?;
+    Ok(())
+}
+
+impl RuntimeStore {
+    pub async fn workflow_cancellation_page(&self) -> Result<Vec<WorkflowCancellationTarget>> {
+        sqlx::query("SELECT c.launch_id,c.proposal_id,c.run_id,COALESCE(l.workspace_id,p.workspace_id) AS workspace_id,
+            COALESCE(l.terminal_handle,p.tab_id) AS terminal_handle
+            FROM workflowCancellationTargets c LEFT JOIN workflowLaunches l ON l.id=c.launch_id AND l.run_id=c.run_id
+            LEFT JOIN workflowCoordinators p ON p.proposal_id=c.proposal_id
+            JOIN workflowRuns w ON w.run_id=c.run_id WHERE c.state='pending' AND w.status='cancelled'
+            ORDER BY c.run_id,c.id LIMIT 25")
+            .fetch_all(self.pool()).await?.into_iter().map(|row| Ok(WorkflowCancellationTarget {
+                launch_id: row.try_get("launch_id")?, proposal_id: row.try_get("proposal_id")?, run_id: row.try_get("run_id")?,
+                workspace_id: row.try_get("workspace_id")?, terminal_handle: row.try_get("terminal_handle")?,
+            })).collect()
+    }
+
+    pub async fn settle_workflow_cancellation(
+        &self,
+        target: &WorkflowCancellationTarget,
+        error: Option<&str>,
+    ) -> Result<()> {
+        let mut tx = self.pool().begin().await?;
+        sqlx::query("UPDATE workflowRuns SET revision=revision WHERE run_id=?")
+            .bind(&target.run_id)
+            .execute(&mut *tx)
+            .await?;
+        validate(&mut tx, target, false).await?;
+        sqlx::query("UPDATE workflowCancellationTargets SET state=?,error=? WHERE launch_id IS ? AND proposal_id IS ? AND state='pending'")
+            .bind(if error.is_some() { "attention" } else { "settled" })
+            .bind(error.map(|value| value.chars().take(1000).collect::<String>()))
+            .bind(&target.launch_id).bind(&target.proposal_id).execute(&mut *tx).await?;
+        finish(&mut tx, &target.run_id).await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    pub async fn require_workflow_cancellation_target(
+        &self,
+        target: &WorkflowCancellationTarget,
+    ) -> Result<()> {
+        let mut tx = self.pool().begin().await?;
+        validate(&mut tx, target, true).await
+    }
+}
+
+async fn validate(
+    tx: &mut Transaction<'_, Sqlite>,
+    target: &WorkflowCancellationTarget,
+    pending_only: bool,
+) -> Result<()> {
+    let valid: bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM workflowCancellationTargets c
+        LEFT JOIN workflowLaunches l ON l.id=c.launch_id AND l.run_id=c.run_id
+        LEFT JOIN workflowCoordinators p ON p.proposal_id=c.proposal_id
+        JOIN workflowRuns w ON w.run_id=c.run_id
+        WHERE c.launch_id IS ? AND c.proposal_id IS ? AND c.run_id=? AND COALESCE(l.workspace_id,p.workspace_id)=?
+        AND COALESCE(l.terminal_handle,p.tab_id)=? AND w.status='cancelled' AND (?=0 OR c.state='pending')
+        AND (c.proposal_id IS NULL OR EXISTS(SELECT 1 FROM workflowPlanRevisions r WHERE r.run_id=c.run_id AND r.request_id=c.proposal_id)
+            OR EXISTS(SELECT 1 FROM workflowProposalDrafts d WHERE d.id=c.proposal_id AND json_extract(d.document,'$.request.runId')=c.run_id)))")
+        .bind(&target.launch_id).bind(&target.proposal_id).bind(&target.run_id).bind(&target.workspace_id).bind(&target.terminal_handle).bind(pending_only)
+        .fetch_one(&mut **tx).await?;
+    if !valid {
+        bail!("workflow cancellation identity changed");
+    }
+    Ok(())
+}
