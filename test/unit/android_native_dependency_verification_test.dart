@@ -33,10 +33,15 @@ void main() {
         File('mobile/android/app/build.gradle.kts').readAsStringSync(),
         contains('enableV1Signing = true'),
       );
+      final gradle = File('mobile/android/app/build.gradle.kts')
+          .readAsStringSync();
       expect(
-        File('mobile/android/app/build.gradle.kts').readAsStringSync(),
-        contains('aleraAbiFilters'),
+        gradle.indexOf('val aleraAbiFilters'),
+        lessThan(gradle.indexOf('\nandroid {')),
       );
+      expect(gradle, contains('afterEvaluate'));
+      expect(gradle, contains('abiFilters.clear()'));
+      expect(gradle, contains(r'excludes += "lib/$abi/**"'));
       expect(
         workflow,
         isNot(contains(r'find "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt"')),
