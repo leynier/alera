@@ -26,14 +26,22 @@ fn selectors_accept_ids_and_case_insensitive_names() {
     let by_id = AgentProfileSelectorArgs {
         profile_id: Some("prof_1".to_string()),
         profile_name: None,
+        profile: None,
     };
     let by_name = AgentProfileSelectorArgs {
         profile_id: None,
         profile_name: Some("codex sol".to_string()),
+        profile: None,
+    };
+    let by_alias = AgentProfileSelectorArgs {
+        profile_id: None,
+        profile_name: None,
+        profile: Some("CODEX SOL".to_string()),
     };
 
     assert_eq!(select_profile(&profiles, &by_id).unwrap().id, "prof_1");
     assert_eq!(select_profile(&profiles, &by_name).unwrap().id, "prof_1");
+    assert_eq!(select_profile(&profiles, &by_alias).unwrap().id, "prof_1");
 }
 
 #[test]

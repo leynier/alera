@@ -28,6 +28,7 @@ fn update_args() -> AgentProfileUpdateArgs {
             selector: AgentProfileSelectorArgs {
                 profile_id: Some("prof_1".to_string()),
                 profile_name: None,
+                profile: None,
             },
             expected_revision: None,
         },

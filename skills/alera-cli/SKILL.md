@@ -173,6 +173,13 @@ This command is the same from Bash, PowerShell, and CMD:
 alera workspace add --project-id <project-id> --branch <existing-branch> --reuse-existing-branch --name "<display-name>"
 ```
 
+Create a managed workspace and launch a declared agent profile in one step. From an Alera terminal this infers project, source branch, and parent from `ALERA_WORKSPACE_ID`. Pass `--branch` and `--name` to skip identity generation, and `--no-parent` to skip the parent link:
+
+```bash
+alera workspace --json start --profile "Codex Sol" --prompt "Add dark mode"
+alera workspace --json start --profile "Codex Sol" --prompt "Add dark mode" --project-id <project-id> --source-branch main --branch feat/dark-mode --name "Dark Mode" --no-parent
+```
+
 Remove a managed workspace:
 
 This command is the same from Bash, PowerShell, and CMD:
@@ -251,6 +258,13 @@ Inspect the user-approved launch catalog:
 ```bash
 alera agent-profile list
 alera agent-profile --json show --profile-name "Codex Sol"
+```
+
+Launch a declared profile in an existing workspace. The workspace defaults to `ALERA_WORKSPACE_ID`. `--profile` is an alias for `--profile-name`:
+
+```bash
+alera agent-profile --json launch --profile "Codex Sol" --prompt "Fix the flaky test"
+alera agent-profile --json launch --workspace <workspace-id> --profile-id <profile-id> --prompt-file prompt.txt
 ```
 
 Create Command or Managed profiles through the authenticated runtime host:

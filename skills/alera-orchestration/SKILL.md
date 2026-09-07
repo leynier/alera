@@ -19,11 +19,15 @@ Use this skill for structured multi-agent work in Alera. The runtime-host owns l
 ## Coordinator Workflow
 
 ```bash
+alera orchestration --json delegate --profile "Codex Sol" --spec "Review automated test coverage"
+alera orchestration --json delegate --profile "Codex Sol" --spec "Implement the API" --new-workspace
 alera orchestration --json task-create --task-title "Review Tests" --spec "Review automated test coverage"
 alera orchestration --json run --agent codex --spec "Audit the repository"
 alera orchestration --json run-list --workspace <workspace-id>
 alera orchestration --json status --id <run-id>
 ```
+
+`delegate` creates the task and spawns the declared profile. `--new-workspace` creates a child worktree first, inferring project, source branch, and parent from `ALERA_WORKSPACE_ID` or `--from-workspace`. Keep `task-create` plus `agent-spawn` when you need the primitives.
 
 Use `--agent codex|claude|copilot|cursor|agy|opencode|opencode2|pi|amp|grok`. The runtime may create workers through the built-in adapter registry.
 
@@ -59,7 +63,7 @@ Pick each stage's profile by reading the catalog descriptions; every profile nam
 
 A proposed plan holds scheduling until the user resolves it, so propose before creating stage-bound tasks and then wait. Do not approve your own plan: approval is the user's decision. A plan is revised by proposing again, not by re-approving.
 
-For direct assignment:
+For direct assignment, prefer `delegate` when the profile already exists. The primitive form is:
 
 ```bash
 alera orchestration --json agent-spawn --agent codex --task <task-id> --title "Review Tests" --timeout-ms 90000

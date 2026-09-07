@@ -21,7 +21,7 @@ Use the top-level `alera agent-profile ...` commands to administer profiles. `al
 6. Prefer Managed mode when Alera can express the needed flags. Use Command mode only for an unsupported launch shape, and explain what Managed cannot represent.
 7. Apply only the approved mutations. Use `--expected-revision` for scripted updates after reading a profile. Pass `--confirm-reduced-protections` only when the user approved the protection reduction.
 8. Re-read the catalog and verify the persisted configuration and generated command.
-9. When requested, run one bounded smoke test per changed profile with a prompt that names the selected model and forbids file edits. Verify process startup, model selection, response, tab existence, and agent status separately.
+9. When requested, run one bounded smoke test per changed profile with a prompt that names the selected model and forbids file edits. Prefer `alera agent-profile --json launch --profile "<name>" --prompt "..."` in the target workspace. Verify process startup, model selection, response, tab existence, and agent status separately.
 
 For current Managed keys, mutation examples, and adapter-specific launch traps, read [references/managed-profiles.md](references/managed-profiles.md).
 
