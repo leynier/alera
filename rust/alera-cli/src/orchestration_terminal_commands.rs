@@ -150,7 +150,7 @@ fn terminal_wait_text(value: &Value) -> (String, bool) {
     }
 }
 
-async fn reconcile_agent_spawn_failure(runtime: &RuntimeDirArgs, terminal: &str) {
+pub(crate) async fn reconcile_agent_spawn_failure(runtime: &RuntimeDirArgs, terminal: &str) {
     let _ = request_value(
         runtime,
         "orchestration.agentSpawnTimeout",

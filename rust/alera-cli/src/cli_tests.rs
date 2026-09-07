@@ -1,6 +1,8 @@
 use clap::Parser;
 
-use crate::cli::{Cli, Command, IdArgs, TerminalHostArgs, WorkspaceAction, WorkspaceCommand};
+use crate::cli::{
+    AgentProfileAction, Cli, Command, IdArgs, TerminalHostArgs, WorkspaceAction, WorkspaceCommand,
+};
 use crate::cli_orchestration::{OrchestrationAction, OrchestrationCommand};
 
 #[test]
@@ -108,6 +110,137 @@ fn agent_profile_cli_rejects_ambiguous_or_unconfirmed_input() {
     ] {
         assert!(Cli::try_parse_from(args).is_err());
     }
+}
+
+#[test]
+fn convenience_launch_verbs_parse_profile_and_prompt_sources() {
+    let launch = Cli::try_parse_from([
+        "alera",
+        "agent-profile",
+        "launch",
+        "--profile",
+        "Codex Sol",
+        "--prompt",
+        "Fix the flaky test",
+    ])
+    .unwrap();
+    match launch.command {
+        Command::AgentProfile(command) => match command.action {
+            AgentProfileAction::Launch(args) => {
+                assert_eq!(args.selector.profile.as_deref(), Some("Codex Sol"));
+                assert_eq!(args.prompt.prompt.as_deref(), Some("Fix the flaky test"));
+            }
+            other => panic!("expected launch, got {other:?}"),
+        },
+        other => panic!("expected agent-profile, got {other:?}"),
+    }
+
+    let start = Cli::try_parse_from([
+        "alera",
+        "workspace",
+        "start",
+        "--profile-name",
+        "Codex Sol",
+        "--prompt",
+        "Add dark mode",
+        "--no-parent",
+    ])
+    .unwrap();
+    match start.command {
+        Command::Workspace(WorkspaceCommand {
+            action: WorkspaceAction::Start(args),
+            ..
+        }) => {
+            assert_eq!(args.selector.profile_name.as_deref(), Some("Codex Sol"));
+            assert!(args.no_parent);
+        }
+        other => panic!("expected workspace start, got {other:?}"),
+    }
+
+    let delegate = Cli::try_parse_from([
+        "alera",
+        "orchestration",
+        "delegate",
+        "--profile",
+        "Codex Sol",
+        "--spec",
+        "Review test coverage",
+    ])
+    .unwrap();
+    match delegate.command {
+        Command::Orchestration(OrchestrationCommand {
+            action: OrchestrationAction::Delegate(args),
+            ..
+        }) => {
+            assert_eq!(args.selector.profile.as_deref(), Some("Codex Sol"));
+            assert_eq!(args.spec.spec.as_deref(), Some("Review test coverage"));
+            assert!(!args.new_workspace);
+        }
+        other => panic!("expected orchestration delegate, got {other:?}"),
+    }
+
+    let isolated = Cli::try_parse_from([
+        "alera",
+        "orchestration",
+        "delegate",
+        "--profile-id",
+        "prof_1",
+        "--spec",
+        "Implement the API",
+        "--new-workspace",
+    ])
+    .unwrap();
+    match isolated.command {
+        Command::Orchestration(OrchestrationCommand {
+            action: OrchestrationAction::Delegate(args),
+            ..
+        }) => {
+            assert_eq!(args.selector.profile_id.as_deref(), Some("prof_1"));
+            assert!(args.new_workspace);
+        }
+        other => panic!("expected isolated delegate, got {other:?}"),
+    }
+}
+
+#[test]
+fn convenience_launch_verbs_reject_conflicting_sources() {
+    assert!(Cli::try_parse_from([
+        "alera",
+        "agent-profile",
+        "launch",
+        "--profile",
+        "Codex Sol",
+        "--prompt",
+        "one",
+        "--prompt-file",
+        "prompt.txt",
+    ])
+    .is_err());
+    assert!(Cli::try_parse_from([
+        "alera",
+        "orchestration",
+        "delegate",
+        "--profile",
+        "Codex Sol",
+        "--spec",
+        "Review",
+        "--workspace",
+        "ws-1",
+        "--new-workspace",
+    ])
+    .is_err());
+    assert!(Cli::try_parse_from([
+        "alera",
+        "workspace",
+        "add",
+        "--project-id",
+        "proj",
+        "--branch",
+        "feat/x",
+        "--source-branch",
+        "main",
+    ])
+    .is_ok());
 }
 
 #[test]

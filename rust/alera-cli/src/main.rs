@@ -1,5 +1,6 @@
 mod agent_profile_commands;
 mod agent_profile_input;
+mod agent_profile_launch;
 mod agent_prompt_stdin_script;
 mod agent_quota;
 mod agent_status;
@@ -25,6 +26,7 @@ mod native_credential_entry;
 mod netbird;
 mod orchestration_command_summaries;
 mod orchestration_commands;
+mod orchestration_delegate;
 mod orchestration_terminal_commands;
 mod project_config_toml;
 mod project_management;
@@ -40,9 +42,11 @@ mod tab_record_factory;
 mod tailscale;
 mod terminal_alias_commands;
 mod terminal_host;
+mod workspace_context;
 mod workspace_pinning;
 mod workspace_registration;
 mod workspace_setup_command;
+mod workspace_start;
 mod worktree_copy;
 mod worktree_include;
 mod worktree_setup;
@@ -321,6 +325,9 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
                 ),
                 Err(error) => return print_error(error),
             }
+        }
+        WorkspaceAction::Start(args) => {
+            return workspace_start::run(runtime, args, json_output).await;
         }
         WorkspaceAction::Add(args) => {
             let payload = match workspace_add_payload(args) {
@@ -1216,7 +1223,9 @@ fn workspace_add_payload(args: WorkspaceAddArgs) -> anyhow::Result<Value> {
     }))
 }
 
-fn host_accessible_optional_string_path(value: Option<String>) -> anyhow::Result<Option<String>> {
+pub(crate) fn host_accessible_optional_string_path(
+    value: Option<String>,
+) -> anyhow::Result<Option<String>> {
     let Some(value) = value else {
         return Ok(None);
     };

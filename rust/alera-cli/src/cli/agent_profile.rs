@@ -1,6 +1,6 @@
 use clap::{ArgGroup, Args, Subcommand, ValueEnum};
 
-use super::{OutputArgs, RuntimeDirArgs};
+use super::{OutputArgs, PromptSourceArgs, RuntimeDirArgs};
 
 #[derive(Debug, Args)]
 pub struct AgentProfileCommand {
@@ -29,6 +29,8 @@ pub enum AgentProfileAction {
     Remove(AgentProfileRemoveArgs),
     /// Replace the complete profile catalog order.
     Reorder(AgentProfileReorderArgs),
+    /// Launch a declared profile in a workspace.
+    Launch(AgentProfileLaunchArgs),
 }
 
 #[derive(Debug, Args)]
@@ -36,7 +38,7 @@ pub enum AgentProfileAction {
     ArgGroup::new("profile-selector")
         .required(true)
         .multiple(false)
-        .args(["profile_id", "profile_name"])
+        .args(["profile_id", "profile_name", "profile"])
 ))]
 pub struct AgentProfileSelectorArgs {
     /// Stable profile id.
@@ -45,6 +47,19 @@ pub struct AgentProfileSelectorArgs {
     /// Unique profile name, matched case-insensitively.
     #[arg(long = "profile-name", value_name = "name")]
     pub profile_name: Option<String>,
+    /// Unique profile name. Alias for --profile-name.
+    #[arg(long = "profile", value_name = "name")]
+    pub profile: Option<String>,
+}
+
+impl AgentProfileSelectorArgs {
+    pub fn profile_name_or_alias(&self) -> Option<&str> {
+        self.profile_name
+            .as_deref()
+            .or(self.profile.as_deref())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+    }
 }
 
 #[derive(Debug, Args)]
@@ -174,4 +189,18 @@ pub struct AgentProfileReorderArgs {
     /// Override a fetched revision as ID=REVISION. May be repeated.
     #[arg(long = "expected-revision", value_name = "id=revision")]
     pub expected_revisions: Vec<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct AgentProfileLaunchArgs {
+    #[command(flatten)]
+    pub selector: AgentProfileSelectorArgs,
+    /// Workspace that receives the new agent tab. Defaults to ALERA_WORKSPACE_ID.
+    #[arg(long = "workspace", value_name = "workspace_id")]
+    pub workspace: Option<String>,
+    #[command(flatten)]
+    pub prompt: PromptSourceArgs,
+    /// Stable mutation id used to retry an identical launch.
+    #[arg(long = "client-mutation-id", value_name = "id")]
+    pub client_mutation_id: Option<String>,
 }

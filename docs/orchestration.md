@@ -22,12 +22,16 @@ Runs and tasks carry `workspaceId`, `runId`, `coordinatorHandle`, and `assigneeH
 Coordinator authority resolves from the run or task, never from whichever terminal calls dispatch. `dispatch` rejects `from == to` unless `--allow-self-dispatch` is present. Stopping runs, interrupting dispatches, recovering tasks, cancellation, and ownership transfer require the current coordinator or an audited `--force --reason` action. A task attached to a run cannot transfer independently; transfer the run so its durable tasks, active dispatches, and in-memory coordinator remain aligned.
 
 ```bash
+alera orchestration delegate --profile "Codex Sol" --spec "Review tests"
+alera orchestration delegate --profile "Codex Sol" --spec "Implement the API" --new-workspace
 alera orchestration task-create --workspace <workspace-id> --spec "Review tests"
 alera orchestration run --workspace <workspace-id> --agent codex --spec "Audit the repository"
 alera orchestration run-list --workspace <workspace-id>
 alera orchestration run-show --id <run-id>
 alera orchestration run-stop --id <run-id> [--cancel-active] --reason "Stopped by coordinator"
 ```
+
+`delegate` is the one-command form of `task-create` plus `agent-spawn --profile`. `--new-workspace` creates a child worktree first. The workspace, project, and parent default from `ALERA_WORKSPACE_ID`.
 
 `task-create`, `agent-spawn`, and `run` default `--workspace` from `ALERA_WORKSPACE_ID`. Use `alera orchestration current` to inspect the current workspace and terminal identity.
 
@@ -127,6 +131,8 @@ alera orchestration terminal-wait --terminal <handle> --for dispatch-accepted --
 ```
 
 The built-in registry supports `codex`, `claude`, `copilot`, `cursor`, `agy`, `opencode`, `opencode2`, `pi`, `amp`, `grok`, and `fx`, with matching default commands except Cursor, which launches `cursor-agent`. `agent-spawn --command` overrides the default without changing the agent type.
+
+`alera agent-profile launch --profile <name> --prompt "..."` launches that catalog entry in an existing workspace without creating an orchestration task. `alera workspace start --profile <name> --prompt "..."` creates a managed worktree and then launches it, which is the CLI form of New Workspace from Prompt.
 
 `agent-spawn --profile <name>` resolves the adapter and the command from the catalog instead. It replaces `--agent`, which becomes optional, and conflicts with `--agent` and `--command` so there is never a second source of truth for how a worker is launched. An unknown profile is refused by name. The dispatch records `agent_profile` and `agent_quota_group`, so `task-show` reports how each attempt was launched and fallback selection can read the attempt history.
 

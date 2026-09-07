@@ -30,6 +30,9 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
     let json_output = command.output.json;
     match command.action {
         OrchestrationAction::AgentSpawn(args) => run_agent_spawn(&runtime, args, json_output).await,
+        OrchestrationAction::Delegate(args) => {
+            crate::orchestration_delegate::run(&runtime, args, json_output).await
+        }
         OrchestrationAction::Send(args) => match build_send_payload(args) {
             Ok(payload) => {
                 request(&runtime, "orchestration.send", payload, json_output, None).await

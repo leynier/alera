@@ -6,11 +6,13 @@ use crate::terminal_host::protocol::{
 mod agent_profile;
 mod automation;
 mod mobile;
+mod text_source;
 mod workspace;
 
 pub use agent_profile::*;
 pub use automation::*;
 pub use mobile::*;
+pub use text_source::*;
 pub use workspace::*;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
@@ -67,7 +69,7 @@ pub enum Command {
     /// Manage runtime-local automations and their runs.
     Automation(AutomationCommand),
 
-    /// Create, inspect, update, remove, and reorder agent profiles.
+    /// Create, inspect, update, remove, reorder, and launch agent profiles.
     #[command(name = "agent-profile")]
     AgentProfile(AgentProfileCommand),
 

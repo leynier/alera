@@ -24,6 +24,8 @@ pub enum OrchestrationAction {
     /// Create or select a worker terminal and dispatch once the agent is ready.
     #[command(name = "agent-spawn")]
     AgentSpawn(OrchestrationAgentSpawnArgs),
+    /// Create a task and spawn a declared profile to accept it.
+    Delegate(OrchestrationDelegateArgs),
     /// Send a message to a terminal handle or @group address.
     Send(OrchestrationSendArgs),
     /// Read messages for a terminal (unread by default; marks them read).
