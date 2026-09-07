@@ -27,10 +27,18 @@ android {
     compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
-    if (releaseSigningAvailable) {
-        val keystoreProperties = Properties()
-        keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
-        signingConfigs {
+    signingConfigs {
+        // AGP 8 omits v1 when minSdk >= 24. Sideload installers on several
+        // OEMs still look for the JAR signature and reject a v2-only APK
+        // with a generic "App not installed".
+        getByName("debug") {
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+        }
+        if (releaseSigningAvailable) {
+            val keystoreProperties = Properties()
+            keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
             create("release") {
                 keyAlias = keystoreProperties.getProperty("keyAlias")
                 keyPassword = keystoreProperties.getProperty("keyPassword")
@@ -39,6 +47,9 @@ android {
                         ?: keystoreProperties.getProperty("storeFile"),
                 )
                 storePassword = keystoreProperties.getProperty("storePassword")
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
             }
         }
     }

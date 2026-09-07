@@ -53,6 +53,10 @@ void main() {
           'set(ANDROID_ABI [=[${target.android}]=] CACHE STRING [[]] FORCE)',
         ),
       );
+      expect(
+        environment['CARGO_ENCODED_RUSTFLAGS'],
+        contains('max-page-size=16384'),
+      );
     }
   });
 

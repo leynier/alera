@@ -953,8 +953,16 @@ jobs:
             --dart-define "ALERA_FIREBASE_MESSAGING_SENDER_ID=$ALERA_FIREBASE_MESSAGING_SENDER_ID"
             --dart-define "ALERA_FIREBASE_PROJECT_ID=$ALERA_FIREBASE_PROJECT_ID"
           )
-          flutter build apk --release "${firebase_defines[@]}"
+          # The default APK is arm64-only. A fat APK that also embeds
+          # 32-bit libraries (ML Kit's barhopper is 4 KB aligned) fails to
+          # install on 16 KB page-size phones, which is the asset the app
+          # and landing page offer. Split APKs stay available for 32-bit
+          # and x86_64. Copy the default aside: --split-per-abi writes
+          # into the same output directory.
+          flutter build apk --release --target-platform android-arm64 "${firebase_defines[@]}"
+          cp build/app/outputs/flutter-apk/app-release.apk "$RUNNER_TEMP/app-release-arm64.apk"
           flutter build apk --release --split-per-abi "${firebase_defines[@]}"
+          cp "$RUNNER_TEMP/app-release-arm64.apk" build/app/outputs/flutter-apk/app-release.apk
 
       - name: Verify Android native dependencies
         shell: bash

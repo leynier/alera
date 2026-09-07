@@ -9,8 +9,9 @@ void main() {
   test(
     'release cuts verify Android native dependencies through the script',
     () {
-      final workflow = File('.github/workflows/release-cut.yml')
-          .readAsStringSync();
+      final workflow = File(
+        '.github/workflows/release-cut.yml',
+      ).readAsStringSync();
 
       expect(
         workflow,
@@ -18,6 +19,15 @@ void main() {
           'bash tool/release/verify_android_native_dependencies.sh '
           'mobile/build/app/outputs/flutter-apk',
         ),
+      );
+      expect(workflow, contains('--target-platform android-arm64'));
+      expect(
+        File('.github/workflows/mobile-build.yml').readAsStringSync(),
+        contains('--target-platform android-arm64'),
+      );
+      expect(
+        File('mobile/android/app/build.gradle.kts').readAsStringSync(),
+        contains('enableV1Signing = true'),
       );
       expect(
         workflow,
@@ -97,7 +107,7 @@ void main() {
     expect(result.stderr, contains('does not declare NEEDED libc++_shared.so'));
   });
 
-  test('accepts APKs that bundle libc++_shared.so for every ABI', () {
+  test('accepts a 16 KB-aligned arm64 APK that bundles libc++_shared.so', () {
     if (Platform.isWindows) {
       return;
     }
@@ -131,14 +141,89 @@ void main() {
       _zipApk(apk, <String, File>{
         'lib/arm64-v8a/libalera_mobile_native.so': native,
         'lib/arm64-v8a/libc++_shared.so': runtime,
-        'lib/armeabi-v7a/libalera_mobile_native.so': native,
-        'lib/armeabi-v7a/libc++_shared.so': runtime,
       });
     }
 
     final result = Process.runSync('bash', <String>[script.path, temp.path]);
     expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
     expect(result.stdout, contains('links against bundled libc++_shared.so'));
+    expect(result.stdout, contains('is 16 KB page-aligned'));
+  });
+
+  test('rejects a default APK that embeds 32-bit libraries', () {
+    if (Platform.isWindows) {
+      return;
+    }
+    final gcc = _gcc();
+    if (gcc == null) {
+      return;
+    }
+
+    final temp = Directory.systemTemp.createTempSync(
+      'alera-android-native-verify-fat-32bit-',
+    );
+    addTearDown(() => temp.deleteSync(recursive: true));
+    final runtime = _compileSharedLibrary(
+      gcc: gcc,
+      directory: temp,
+      name: 'libc++_shared.so',
+      needed: const <String>[],
+    );
+    final native = _compileSharedLibrary(
+      gcc: gcc,
+      directory: temp,
+      name: 'libalera_mobile_native.so',
+      needed: <String>[runtime.path],
+    );
+    final apk = File(p.join(temp.path, 'app-release.apk'));
+    _zipApk(apk, <String, File>{
+      'lib/arm64-v8a/libalera_mobile_native.so': native,
+      'lib/arm64-v8a/libc++_shared.so': runtime,
+      'lib/armeabi-v7a/libalera_mobile_native.so': native,
+      'lib/armeabi-v7a/libc++_shared.so': runtime,
+    });
+
+    final result = Process.runSync('bash', <String>[script.path, temp.path]);
+    expect(result.exitCode, isNot(0), reason: result.stdout.toString());
+    expect(result.stderr, contains('must not embed 32-bit libraries'));
+  });
+
+  test('rejects a 64-bit library aligned below 16 KB', () {
+    if (Platform.isWindows) {
+      return;
+    }
+    final gcc = _gcc();
+    if (gcc == null) {
+      return;
+    }
+
+    final temp = Directory.systemTemp.createTempSync(
+      'alera-android-native-verify-4kb-',
+    );
+    addTearDown(() => temp.deleteSync(recursive: true));
+    final runtime = _compileSharedLibrary(
+      gcc: gcc,
+      directory: temp,
+      name: 'libc++_shared.so',
+      needed: const <String>[],
+      pageAlign16Kb: false,
+    );
+    final native = _compileSharedLibrary(
+      gcc: gcc,
+      directory: temp,
+      name: 'libalera_mobile_native.so',
+      needed: <String>[runtime.path],
+      pageAlign16Kb: false,
+    );
+    final apk = File(p.join(temp.path, 'app-arm64-v8a-release.apk'));
+    _zipApk(apk, <String, File>{
+      'lib/arm64-v8a/libalera_mobile_native.so': native,
+      'lib/arm64-v8a/libc++_shared.so': runtime,
+    });
+
+    final result = Process.runSync('bash', <String>[script.path, temp.path]);
+    expect(result.exitCode, isNot(0), reason: result.stdout.toString());
+    expect(result.stderr, contains('is below 16 KB'));
   });
 }
 
@@ -155,6 +240,7 @@ File _compileSharedLibrary({
   required Directory directory,
   required String name,
   required List<String> needed,
+  bool pageAlign16Kb = true,
 }) {
   final marker = name.replaceAll(RegExp('[^A-Za-z]'), '_');
   final source = File(p.join(directory.path, '$name.c'))
@@ -168,6 +254,10 @@ File _compileSharedLibrary({
     output.path,
     source.path,
   ];
+  args.addAll(<String>[
+    '-Wl,-z,max-page-size=${pageAlign16Kb ? 16384 : 4096}',
+    '-Wl,-z,common-page-size=${pageAlign16Kb ? 16384 : 4096}',
+  ]);
   if (needed.isNotEmpty) {
     args.add('-Wl,--no-as-needed');
     for (final library in needed) {
