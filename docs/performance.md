@@ -50,8 +50,6 @@ The report under `.dart_tool/performance/resources_<scenario>.json` contains 250
 
 Capture idle, a common workbench flow, a terminal-output burst, a quota refresh, and representative agent launches independently. Do not run `build_runner` during final captures. Its memory is development tooling and must be reported separately from the shipped app.
 
-The latest detailed macOS investigation and before/after results are recorded in [`performance-resource-profile-2026-07-19.md`](performance-resource-profile-2026-07-19.md).
-
 ## Resource Sampling Cadence
 
 The sidecar's own process-table sweep is demand-driven: nothing samples until a client asks, and the ticker stops itself once they stop asking. The cadence is not fixed in the host. Each `resources.snapshot` request states the interval the caller polls at (`intervalMs`), and the host both samples at that interval and sizes its idle window around it. Closing the resource panel therefore makes the host proportionally cheaper rather than merely making the app ask less often.

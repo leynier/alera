@@ -25,4 +25,4 @@ The `ghostty_vte` package names remain owned and published by the upstream proje
 
 The inherited `autotag.yml` workflow is disabled in both xterm forks so a mirror sync cannot create tags. Fork-owned build and asset-hash updates target `next`. The `dart_terminal:master` mirror can contain a newer SDK than Alera supports; upgrading `next` remains a separate decision.
 
-See [the migration validation report](xterm2-migration-validation.md) and [branch preservation manifest](terminal-fork-branches.json) for the audited bases, conservation evidence, validation and recovery details.
+See [branch preservation manifest](terminal-fork-branches.json) for the audited bases, conservation evidence, validation and recovery details.
