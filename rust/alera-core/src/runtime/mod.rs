@@ -102,6 +102,9 @@ mod workflow_catalog;
 mod workflow_catalog_store;
 #[cfg(test)]
 mod workflow_catalog_tests;
+mod workflow_coordinator;
+#[cfg(test)]
+mod workflow_coordinator_tests;
 mod workflow_export;
 #[cfg(test)]
 mod workflow_export_tests;
@@ -133,15 +136,23 @@ mod workflow_plan_tests;
 mod workflow_project_files;
 #[cfg(test)]
 mod workflow_project_files_tests;
+mod workflow_proposal;
+mod workflow_proposal_store;
+#[cfg(test)]
+mod workflow_proposal_tests;
 mod workflow_recipe;
 mod workflow_recipe_compilation;
 #[cfg(test)]
 mod workflow_recipe_tests;
+mod workflow_review;
+#[cfg(test)]
+mod workflow_review_tests;
 mod workflow_schema;
 #[cfg(test)]
 mod workflow_schema_tests;
 mod workflow_setup_report;
 mod workflow_source_identity;
+mod workflow_source_snapshot;
 mod workflow_workspace;
 mod workflow_workspace_eligibility;
 mod workflow_workspace_schema;
@@ -202,11 +213,15 @@ pub use workbench_shared_state_models::*;
 pub use workflow_approval_store::WorkflowDecisionReceipt;
 pub use workflow_builtins::builtin_workflow_recipes;
 pub use workflow_catalog::{WorkflowCatalog, WorkflowCatalogEntry, WorkflowCatalogRecipe};
+pub use workflow_coordinator::*;
 pub use workflow_export::{WorkflowExportPreview, WorkflowExportRequest};
 pub use workflow_integration::*;
 pub use workflow_launch::*;
 pub use workflow_plan::*;
+pub use workflow_proposal::*;
 pub use workflow_recipe::*;
+pub use workflow_review::*;
+pub use workflow_source_snapshot::*;
 pub use workflow_workspace::*;
 pub use workflow_workspace_snapshot::*;
 pub use workflow_yaml::{parse_workflow_yaml, WORKFLOW_DOCUMENT_MAX_BYTES};

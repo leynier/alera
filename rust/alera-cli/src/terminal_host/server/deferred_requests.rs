@@ -23,6 +23,10 @@ impl ServerActor {
             return Ok(true);
         }
         match request_type {
+            "workflows.startCoordinator" => {
+                self.start_workflow_coordinator_request(client_id, request_id, payload)?;
+                Ok(true)
+            }
             "workflows.prepareWorkspace"
             | "workflows.launchTask"
             | "workflows.launches"
@@ -39,8 +43,14 @@ impl ServerActor {
                 Ok(true)
             }
             "workflows.preparePlan"
+            | "workflows.source"
+            | "workflows.createProposal"
+            | "workflows.proposal"
+            | "workflows.proposalStatus"
+            | "workflows.submitProposal"
             | "workflows.plan"
             | "workflows.approvalChallenge"
+            | "workflows.review"
             | "workflows.decide" => {
                 self.start_workflow_plan_request(client_id, request_id, request_type, payload)?;
                 Ok(true)

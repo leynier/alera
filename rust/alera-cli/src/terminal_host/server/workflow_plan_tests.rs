@@ -11,14 +11,42 @@ use super::client_delivery::LocalClientRole;
 use crate::terminal_host::client::ClientHandle;
 
 #[tokio::test]
+async fn workflow_plan_rpc_rejects_unbounded_source_queries_before_queueing() {
+    let dir = tempfile::tempdir().unwrap();
+    let (handle, _responses) = ClientHandle::test_channels();
+    let actor = test_actor(
+        &dir,
+        HashMap::from([(1, local_client(handle))]),
+        HashMap::new(),
+    )
+    .await;
+    for payload in [
+        json!({"workspaceId": "x".repeat(161)}),
+        json!({"workspaceId": {"nested": []}}),
+        json!({"workspaceId":"workspace","extra":true}),
+        json!({"workspaceId": []}),
+    ] {
+        assert!(actor
+            .start_workflow_plan_request(1, 1, "workflows.source", &payload)
+            .is_err());
+    }
+}
+
+#[tokio::test]
 async fn workflow_plan_rpc_rejects_mobile_and_unauthenticated_clients() {
     let dir = tempfile::tempdir().unwrap();
     let (handle, _rx) = ClientHandle::test_channels();
     let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
     for verb in [
         "workflows.preparePlan",
+        "workflows.source",
         "workflows.plan",
         "workflows.approvalChallenge",
+        "workflows.review",
+        "workflows.createProposal",
+        "workflows.proposal",
+        "workflows.proposalStatus",
+        "workflows.submitProposal",
         "workflows.decide",
     ] {
         assert!(actor

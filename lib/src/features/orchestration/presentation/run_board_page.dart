@@ -12,6 +12,7 @@ import 'package:alera/src/features/orchestration/presentation/run_board_list.dar
 import 'package:alera/src/features/orchestration/presentation/run_board_read_state.dart';
 import 'package:alera/src/features/orchestration/presentation/run_board_workspace_actions.dart';
 import 'package:alera/src/features/orchestration/presentation/run_task_inspector.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_review_page.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -286,8 +287,26 @@ class _RunBoardSelection extends ConsumerWidget {
         () => navigation.selectRun(null),
       );
     }
+    final reviewScope = ref.watch(
+      runBoardNavigationProvider.select((location) => location.reviewScope),
+    );
+    final workflowRevision = data.data.run.workflowRevision;
+    if (reviewScope != null && workflowRevision != null) {
+      return WorkflowReviewPage(
+        key: ValueKey('review:$runId:$reviewScope'),
+        runId: runId,
+        revision: workflowRevision,
+        scope: reviewScope,
+        onBack: () => navigation.review(null),
+        onInspectTask: navigation.selectTask,
+      );
+    }
     return RunBoardDetail(
       snapshot: data.data,
+      onReviewPlan:
+          workflowRevision != null && data.data.run.workflowStatus == 'prepared'
+          ? () => navigation.review('plan')
+          : null,
       onTask: navigation.selectTask,
       onBack: () => navigation.selectRun(null),
       onOpenWorkspace: runBoardWorkspaceAction(

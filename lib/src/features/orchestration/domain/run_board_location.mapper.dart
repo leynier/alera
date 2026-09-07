@@ -67,6 +67,12 @@ class RunBoardLocationMapper extends ClassMapperBase<RunBoardLocation> {
     _$taskId,
     opt: true,
   );
+  static String? _$reviewScope(RunBoardLocation v) => v.reviewScope;
+  static const Field<RunBoardLocation, String> _f$reviewScope = Field(
+    'reviewScope',
+    _$reviewScope,
+    opt: true,
+  );
 
   @override
   final MappableFields<RunBoardLocation> fields = const {
@@ -77,6 +83,7 @@ class RunBoardLocationMapper extends ClassMapperBase<RunBoardLocation> {
     #bucket: _f$bucket,
     #runId: _f$runId,
     #taskId: _f$taskId,
+    #reviewScope: _f$reviewScope,
   };
 
   static RunBoardLocation _instantiate(DecodingData data) {
@@ -88,6 +95,7 @@ class RunBoardLocationMapper extends ClassMapperBase<RunBoardLocation> {
       bucket: data.dec(_f$bucket),
       runId: data.dec(_f$runId),
       taskId: data.dec(_f$taskId),
+      reviewScope: data.dec(_f$reviewScope),
     );
   }
 
@@ -161,6 +169,7 @@ abstract class RunBoardLocationCopyWith<$R, $In extends RunBoardLocation, $Out>
     RunBoardBucket? bucket,
     String? runId,
     String? taskId,
+    String? reviewScope,
   });
   RunBoardLocationCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -184,6 +193,7 @@ class _RunBoardLocationCopyWithImpl<$R, $Out>
     Object? bucket = $none,
     Object? runId = $none,
     Object? taskId = $none,
+    Object? reviewScope = $none,
   }) => $apply(
     FieldCopyWithData({
       if (visible != null) #visible: visible,
@@ -193,6 +203,7 @@ class _RunBoardLocationCopyWithImpl<$R, $Out>
       if (bucket != $none) #bucket: bucket,
       if (runId != $none) #runId: runId,
       if (taskId != $none) #taskId: taskId,
+      if (reviewScope != $none) #reviewScope: reviewScope,
     }),
   );
   @override
@@ -204,6 +215,7 @@ class _RunBoardLocationCopyWithImpl<$R, $Out>
     bucket: data.get(#bucket, or: $value.bucket),
     runId: data.get(#runId, or: $value.runId),
     taskId: data.get(#taskId, or: $value.taskId),
+    reviewScope: data.get(#reviewScope, or: $value.reviewScope),
   );
 
   @override

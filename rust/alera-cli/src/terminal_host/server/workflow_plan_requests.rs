@@ -16,6 +16,9 @@ use crate::terminal_host::protocol::{error_response, ok_response};
 
 use super::{ClientKind, ServerActor, ServerCommand};
 
+#[path = "workflow_coordinator_requests.rs"]
+mod coordinator;
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Document {
@@ -44,10 +47,42 @@ struct DecisionQuery {
     proof: Vec<u8>,
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProposalQuery {
+    id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ProposalCreation {
+    request: PrepareWorkflowPlan,
+    expected_source: alera_core::runtime::WorkflowSourceWorkspace,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct SourceQuery {
+    workspace_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProposalSubmission {
+    id: String,
+    tasks: Vec<alera_core::runtime::WorkflowPlanTask>,
+}
+
 enum PlanRequest {
+    Source(SourceQuery),
+    CreateProposal(String),
+    Proposal(ProposalQuery),
+    ProposalStatus(ProposalQuery),
+    SubmitProposal(String),
     Prepare(String),
     Get(PlanQuery),
     Challenge(ChallengeQuery),
+    Review(ChallengeQuery),
     Decide(String),
 }
 
@@ -70,11 +105,21 @@ impl ServerActor {
             ));
         }
         let request = match request_type {
+            "workflows.source" => PlanRequest::Source(parse(payload)?),
+            "workflows.createProposal" => {
+                PlanRequest::CreateProposal(document(payload, WORKFLOW_PLAN_MAX_BYTES)?)
+            }
+            "workflows.proposal" => PlanRequest::Proposal(parse(payload)?),
+            "workflows.proposalStatus" => PlanRequest::ProposalStatus(parse(payload)?),
+            "workflows.submitProposal" => {
+                PlanRequest::SubmitProposal(document(payload, WORKFLOW_PLAN_MAX_BYTES)?)
+            }
             "workflows.preparePlan" => {
                 PlanRequest::Prepare(document(payload, WORKFLOW_PLAN_MAX_BYTES)?)
             }
             "workflows.plan" => PlanRequest::Get(parse(payload)?),
             "workflows.approvalChallenge" => PlanRequest::Challenge(parse(payload)?),
+            "workflows.review" => PlanRequest::Review(parse(payload)?),
             "workflows.decide" => {
                 PlanRequest::Decide(document(payload, APPROVAL_MESSAGE_MAX_BYTES + 256)?)
             }
@@ -99,6 +144,50 @@ impl ServerActor {
             let _permit = permit;
             let result = tokio::time::timeout(Duration::from_secs(25), async {
                 match request {
+                    PlanRequest::Source(query) => serde_json::to_value(
+                        store
+                            .workflow_source_snapshot(&query.workspace_id)
+                            .await
+                            .map_err(state)?,
+                    )
+                    .map_err(state),
+                    PlanRequest::CreateProposal(document) => {
+                        let input: ProposalCreation = serde_json::from_str(&document)
+                            .map_err(|_| HostError::format("invalid workflow proposal document"))?;
+                        serde_json::to_value(
+                            store
+                                .create_workflow_proposal_at_source(
+                                    input.request,
+                                    validate_profile,
+                                    Some(input.expected_source),
+                                )
+                                .await
+                                .map_err(state)?,
+                        )
+                        .map_err(state)
+                    }
+                    PlanRequest::Proposal(query) => serde_json::to_value(
+                        store.workflow_proposal(&query.id).await.map_err(state)?,
+                    )
+                    .map_err(state),
+                    PlanRequest::ProposalStatus(query) => serde_json::to_value(
+                        store
+                            .workflow_proposal_status(&query.id)
+                            .await
+                            .map_err(state)?,
+                    )
+                    .map_err(state),
+                    PlanRequest::SubmitProposal(document) => {
+                        let request: ProposalSubmission = serde_json::from_str(&document)
+                            .map_err(|_| HostError::format("invalid workflow proposal tasks"))?;
+                        serde_json::to_value(
+                            store
+                                .submit_workflow_proposal(&request.id, request.tasks)
+                                .await
+                                .map_err(state)?,
+                        )
+                        .map_err(state)
+                    }
                     PlanRequest::Prepare(document) => {
                         let request: PrepareWorkflowPlan = serde_json::from_str(&document)
                             .map_err(|_| HostError::format("invalid workflow plan document"))?;
@@ -125,6 +214,13 @@ impl ServerActor {
                                 &query.scope,
                                 &audience,
                             )
+                            .await
+                            .map_err(state)?,
+                    )
+                    .map_err(state),
+                    PlanRequest::Review(query) => serde_json::to_value(
+                        store
+                            .workflow_review(&query.run_id, query.revision, &query.scope, &audience)
                             .await
                             .map_err(state)?,
                     )
@@ -186,6 +282,26 @@ fn document(payload: &Value, limit: usize) -> HostResult<String> {
 }
 
 fn parse<T: serde::de::DeserializeOwned>(payload: &Value) -> HostResult<T> {
+    if payload.as_object().is_none_or(|fields| {
+        fields.len() > 3
+            || fields.iter().any(|(key, value)| {
+                key.len() > 32
+                    || match value {
+                        Value::String(text) => {
+                            text.len()
+                                > if key == "document" {
+                                    WORKFLOW_PLAN_MAX_BYTES
+                                } else {
+                                    160
+                                }
+                        }
+                        Value::Null | Value::Number(_) => false,
+                        _ => true,
+                    }
+            })
+    }) {
+        return Err(HostError::format("invalid or oversized workflow request"));
+    }
     serde_json::from_value(payload.clone())
         .map_err(|_| HostError::format("invalid workflow request"))
 }

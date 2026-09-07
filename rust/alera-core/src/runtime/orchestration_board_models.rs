@@ -74,6 +74,8 @@ pub struct OrchestrationRunSummary {
     pub created_at: String,
     pub last_activity_at: String,
     pub policy_status: String,
+    pub workflow_revision: Option<i64>,
+    pub workflow_status: Option<String>,
     pub task_count: i64,
     pub completed_count: i64,
     pub running_count: i64,

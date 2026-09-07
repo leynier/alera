@@ -24,6 +24,17 @@ impl ServerActor {
         client_id: Option<u64>,
         payload: &Value,
     ) -> HostResult<Value> {
+        self.launch_agent_profile_snapshot(client_id, payload, None)
+            .await
+    }
+
+    pub(super) async fn launch_agent_profile_snapshot(
+        &mut self,
+        client_id: Option<u64>,
+        payload: &Value,
+        workflow_snapshot: Option<(alera_core::runtime::AgentProfile, String)>,
+    ) -> HostResult<Value> {
+        let frozen_workflow = workflow_snapshot.is_some();
         let workspace_id = required_non_blank(payload, "workspaceId")?;
         let profile_id = required_non_blank(payload, "profileId")?;
         let prompt = required_non_blank(payload, "prompt")?;
@@ -119,17 +130,34 @@ impl ServerActor {
                 "Could not load project configuration: {error}"
             )));
         }
-        let profile = self
-            .runtime_store
-            .find_agent_profile(&profile_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-            .ok_or_else(|| HostError::state(format!("Agent profile not found: {profile_id}")))?;
+        let (profile, reserved_tab_id) = if let Some((profile, tab_id)) = workflow_snapshot {
+            if profile.id != profile_id || client_mutation_id.is_some() {
+                return Err(HostError::state("invalid workflow coordinator snapshot"));
+            }
+            (profile, Some(tab_id))
+        } else {
+            (
+                self.runtime_store
+                    .find_agent_profile(&profile_id)
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?
+                    .ok_or_else(|| {
+                        HostError::state(format!("Agent profile not found: {profile_id}"))
+                    })?,
+                None,
+            )
+        };
         let title_prompt = prompt.clone();
         let prompt = compose_agent_prompt(
             &prompt,
             &profile.custom_prompt,
-            &effective_config.config.new_workspace.prompt_append,
+            // Workflow instructions come from its frozen recipe and profile,
+            // not project prompt edits made after the proposal was created.
+            if frozen_workflow {
+                ""
+            } else {
+                &effective_config.config.new_workspace.prompt_append
+            },
         );
         let adapter = adapter_for(&profile.agent_type).ok_or_else(|| {
             HostError::format(format!("Unsupported agent type: {}", profile.agent_type))
@@ -145,7 +173,7 @@ impl ServerActor {
         .map_err(HostError::format)?;
         let prompt_after_ready = launch_snapshot.initial_delivery.mechanism
             == AgentInitialDeliveryMechanismV1::TerminalAfterReady;
-        let id = uuid::Uuid::new_v4().to_string();
+        let id = reserved_tab_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
         let now = chrono::Utc::now();
         let mut tab_payload = json!({
             "terminalSessionId": id,

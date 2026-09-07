@@ -80,6 +80,8 @@ class RunSummary {
     required this.createdAt,
     required this.lastActivityAt,
     required this.policyStatus,
+    this.workflowRevision,
+    this.workflowStatus,
     required this.taskCount,
     required this.completedCount,
     required this.runningCount,
@@ -104,6 +106,8 @@ class RunSummary {
     createdAt: json['created_at'] as String,
     lastActivityAt: json['last_activity_at'] as String,
     policyStatus: json['policy_status'] as String,
+    workflowRevision: json['workflow_revision'] as int?,
+    workflowStatus: json['workflow_status'] as String?,
     taskCount: json['task_count'] as int,
     completedCount: json['completed_count'] as int,
     runningCount: json['running_count'] as int,
@@ -124,6 +128,8 @@ class RunSummary {
   final String createdAt;
   final String lastActivityAt;
   final String policyStatus;
+  final int? workflowRevision;
+  final String? workflowStatus;
   final int taskCount;
   final int completedCount;
   final int runningCount;

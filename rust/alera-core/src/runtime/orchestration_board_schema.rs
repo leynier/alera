@@ -90,6 +90,7 @@ const BOARD_SCHEMA: &[&str] = &[
          w.projectId AS project_id, substr(p.name, 1, 256) AS project_name,
          r.created_at, r.last_activity_at,
          r.execution_policy_status AS policy_status,
+         workflow.revision AS workflow_revision, workflow.status AS workflow_status,
          COALESCE(t.task_count, 0) AS task_count,
          COALESCE(t.completed_count, 0) AS completed_count,
          COALESCE(t.running_count, 0) AS running_count,
@@ -130,6 +131,7 @@ const BOARD_SCHEMA: &[&str] = &[
              ELSE 'active'
          END AS bucket
      FROM orchestrationCoordinatorRuns r
+     LEFT JOIN workflowRuns workflow ON workflow.run_id = r.id
      LEFT JOIN tasks t ON t.run_id = r.id
      LEFT JOIN gates g ON g.run_id = r.id
      LEFT JOIN workspaces w ON w.id = r.workspace_id

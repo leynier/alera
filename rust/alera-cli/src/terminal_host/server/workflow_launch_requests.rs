@@ -21,6 +21,11 @@ use super::ServerActor;
 mod tests;
 
 pub(crate) enum WorkflowLaunchCommand {
+    CoordinatorPrepared {
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Box<alera_core::runtime::WorkflowProposalDraft>>,
+    },
     Prepared {
         client_id: u64,
         request_id: i64,
@@ -29,7 +34,7 @@ pub(crate) enum WorkflowLaunchCommand {
     Claimed {
         client_id: u64,
         request_id: i64,
-        record: WorkflowLaunchRecord,
+        record: Box<WorkflowLaunchRecord>,
         token: String,
         locks: [File; 2],
         result: Box<HostResult<WorkflowLaunchInputs>>,
@@ -66,6 +71,14 @@ impl WorkflowLaunchPermit {
 impl ServerActor {
     pub(super) async fn handle_workflow_launch_command(&mut self, command: WorkflowLaunchCommand) {
         match command {
+            WorkflowLaunchCommand::CoordinatorPrepared {
+                client_id,
+                request_id,
+                result,
+            } => {
+                self.handle_workflow_coordinator_prepared(client_id, request_id, result)
+                    .await;
+            }
             WorkflowLaunchCommand::Prepared {
                 client_id,
                 request_id,
@@ -83,7 +96,7 @@ impl ServerActor {
                 result,
             } => {
                 self.handle_workflow_launch_claimed(
-                    client_id, request_id, record, token, locks, *result,
+                    client_id, request_id, *record, token, locks, *result,
                 )
                 .await;
             }
@@ -154,7 +167,7 @@ impl ServerActor {
                 WorkflowLaunchCommand::Claimed {
                     client_id,
                     request_id,
-                    record,
+                    record: Box::new(record),
                     token,
                     locks,
                     result: Box::new(result),

@@ -13,6 +13,7 @@ class RunBoardLocation with RunBoardLocationMappable {
     this.bucket,
     this.runId,
     this.taskId,
+    this.reviewScope,
   });
   final bool visible;
   final String? projectId;
@@ -21,4 +22,5 @@ class RunBoardLocation with RunBoardLocationMappable {
   final RunBoardBucket? bucket;
   final String? runId;
   final String? taskId;
+  final String? reviewScope;
 }

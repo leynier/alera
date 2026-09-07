@@ -11,7 +11,10 @@ class RunBoardNavigation extends _$RunBoardNavigation {
   RunBoardLocation build() => const RunBoardLocation();
   void open() => state = state.copyWith(visible: true);
   void close() => state = state.copyWith(visible: false);
-  void selectRun(String? id) => state = state.copyWith(runId: id, taskId: null);
+  void selectRun(String? id) =>
+      state = state.copyWith(runId: id, taskId: null, reviewScope: null);
+  void review(String? scope) =>
+      state = state.copyWith(reviewScope: scope, taskId: null);
   void selectTask(String? id) => state = state.copyWith(taskId: id);
   void search(String value) => state = state.copyWith(search: value);
   void selectBucket(RunBoardBucket? bucket) =>

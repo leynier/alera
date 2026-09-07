@@ -11,13 +11,12 @@ use super::{
     WORKFLOW_PLAN_MAX_TASKS,
 };
 
-pub(super) fn compile_plan(
-    proposal: WorkflowPlanProposal,
-    recipe: WorkflowRecipeSnapshot,
-    profiles: BTreeMap<String, AgentProfile>,
-    source_workspace: super::WorkflowSourceWorkspace,
-) -> Result<WorkflowPlanSnapshot> {
-    bounded_json(&serde_json::to_value(&proposal)?, WORKFLOW_PLAN_MAX_BYTES)?;
+pub(super) fn validate_selection(
+    proposal: &WorkflowPlanProposal,
+    recipe: &WorkflowRecipeSnapshot,
+    profiles: &BTreeMap<String, AgentProfile>,
+) -> Result<()> {
+    bounded_json(&serde_json::to_value(proposal)?, WORKFLOW_PLAN_MAX_BYTES)?;
     recipe.validate()?;
     workflow_text(&proposal.objective, 16384)?;
     if proposal.source_sha.len() != 40
@@ -28,11 +27,8 @@ pub(super) fn compile_plan(
     {
         bail!("workflow source must be an exact lowercase commit SHA");
     }
-    if !(1..=16).contains(&proposal.max_concurrent)
-        || proposal.tasks.is_empty()
-        || proposal.tasks.len() > WORKFLOW_PLAN_MAX_TASKS
-    {
-        bail!("workflow requires 1-128 tasks and 1-16 concurrent workers");
+    if !(1..=16).contains(&proposal.max_concurrent) {
+        bail!("workflow requires 1-16 concurrent workers");
     }
     if proposal.recipe_source != recipe.source
         || proposal.expected_recipe_digest != recipe.recipe.content_digest()?
@@ -63,7 +59,7 @@ pub(super) fn compile_plan(
     if profiles.keys().cloned().collect::<BTreeSet<_>>() != required_profiles {
         bail!("workflow references a missing profile");
     }
-    for (id, profile) in &profiles {
+    for (id, profile) in profiles {
         if id != &profile.id || profile.revision < 0 {
             bail!("workflow profile identity or revision is invalid");
         }
@@ -74,6 +70,19 @@ pub(super) fn compile_plan(
         {
             bail!("managed workflow profile requires launch configuration");
         }
+    }
+    Ok(())
+}
+
+pub(super) fn compile_plan(
+    proposal: WorkflowPlanProposal,
+    recipe: WorkflowRecipeSnapshot,
+    profiles: BTreeMap<String, AgentProfile>,
+    source_workspace: super::WorkflowSourceWorkspace,
+) -> Result<WorkflowPlanSnapshot> {
+    validate_selection(&proposal, &recipe, &profiles)?;
+    if proposal.tasks.is_empty() || proposal.tasks.len() > WORKFLOW_PLAN_MAX_TASKS {
+        bail!("workflow requires 1-128 tasks");
     }
     let stages = recipe
         .recipe

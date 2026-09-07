@@ -126,6 +126,7 @@ pub async fn run_terminal_host_server(
     }
     actor.restart_remote_relay().await;
     actor.reconcile_interrupted_project_clones().await;
+    actor.runtime_store.recover_workflow_coordinators().await?;
     actor.start_workflow_workspace_recovery();
     actor.reconcile_workflow_launches().await;
     actor.reconcile_spawn_on_create_tabs().await;

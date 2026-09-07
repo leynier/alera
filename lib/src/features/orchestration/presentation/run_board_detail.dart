@@ -13,12 +13,14 @@ class RunBoardDetail extends StatelessWidget {
     required this.onTask,
     required this.onBack,
     this.onOpenWorkspace,
+    this.onReviewPlan,
     required this.footer,
   });
   final RunSnapshot snapshot;
   final ValueChanged<String> onTask;
   final VoidCallback onBack;
   final VoidCallback? onOpenWorkspace;
+  final VoidCallback? onReviewPlan;
   final Widget footer;
   @override
   Widget build(BuildContext context) {
@@ -92,6 +94,16 @@ class RunBoardDetail extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AleraTokens.space16),
+        if (onReviewPlan != null) ...[
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton(
+              onPressed: onReviewPlan,
+              child: const Text('Review Plan'),
+            ),
+          ),
+          const SizedBox(height: AleraTokens.space12),
+        ],
         Text('Run Overview', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: AleraTokens.space12),
         Wrap(
