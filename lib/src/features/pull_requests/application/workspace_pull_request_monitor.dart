@@ -171,16 +171,12 @@ class const WorkspacePullRequestMonitorLoader(
     final summaries = <String, WorkspacePullRequestSummary>{};
     for (final target in targets) {
       final linked = linkedByWorkspace[target.workspaceId];
-      ForgeReviewSnapshot? snapshot;
-      if (linked?.hasReview == true) {
-        snapshot = batch.byNumber[linked!.number];
-      } else {
-        snapshot = batch.byBranch[target.branch];
-        final previousNumber = previous[target.workspaceId]?.review.number;
-        snapshot ??= previousNumber == null
-            ? null
-            : batch.byNumber[previousNumber];
-      }
+      final snapshot = _snapshotForTarget(
+        target: target,
+        linked: linked,
+        batch: batch,
+        previous: previous,
+      );
       if (snapshot == null || _isDismissed(linked, snapshot, identity)) {
         continue;
       }
@@ -190,6 +186,27 @@ class const WorkspacePullRequestMonitorLoader(
       );
     }
     return summaries;
+  }
+
+  /// Branch lookup only auto-detects open reviews, matching
+  /// [ForgeProvider.getReviewForBranch]. Merged or closed reviews stay visible
+  /// when the workspace linked that number, or when this session already showed
+  /// it (so a merge mid-poll still reaches the terminal state).
+  ForgeReviewSnapshot? _snapshotForTarget({
+    required WorkspacePullRequestMonitorTarget target,
+    required LinkedReview? linked,
+    required ForgeReviewBatch batch,
+    required Map<String, WorkspacePullRequestSummary> previous,
+  }) {
+    if (linked?.hasReview == true) {
+      return batch.byNumber[linked!.number];
+    }
+    final detected = batch.byBranch[target.branch];
+    if (detected != null && detected.review.isOpen) {
+      return detected;
+    }
+    final previousNumber = previous[target.workspaceId]?.review.number;
+    return previousNumber == null ? null : batch.byNumber[previousNumber];
   }
 
   Future<ForgeReviewBatch> _loadSequentially({

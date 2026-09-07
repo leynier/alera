@@ -121,10 +121,13 @@ String _buildReviewBatchQuery({
     for (var index = 0; index < reviewNumberCount; index++)
       '\$number$index:Int!',
   ];
+  // Branch lookup is open-only. Merged/closed PRs are fetched by number when
+  // linked or already shown, so a historical PR cannot appear on a workspace
+  // that only shares the branch name.
   final selections = <String>[
     for (var index = 0; index < branchCount; index++)
       'branch$index:pullRequests(first:1,headRefName:\$branch$index,'
-          'states:[OPEN,MERGED,CLOSED],'
+          'states:[OPEN],'
           'orderBy:{field:CREATED_AT,direction:DESC})'
           '{nodes{...ReviewStatus}}',
     for (var index = 0; index < reviewNumberCount; index++)
