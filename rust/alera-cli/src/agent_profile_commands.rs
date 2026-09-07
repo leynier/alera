@@ -162,6 +162,10 @@ async fn run_command(command: AgentProfileCommand) -> Result<()> {
                 println!("agent profile was already absent: {}", profile.id);
             }
         }
+        AgentProfileAction::Launch(args) => {
+            crate::agent_profile_launch::run(&command.runtime, &mut client, args, json_output)
+                .await?;
+        }
         AgentProfileAction::Reorder(args) => {
             let (_, profiles) = list_profiles(&mut client).await?;
             let expected_revisions = reorder_revisions(&profiles, &args)?;
@@ -190,7 +194,9 @@ async fn run_command(command: AgentProfileCommand) -> Result<()> {
     Ok(())
 }
 
-async fn list_profiles(client: &mut RuntimeHostRpcClient) -> Result<(Value, Vec<AgentProfile>)> {
+pub(crate) async fn list_profiles(
+    client: &mut RuntimeHostRpcClient,
+) -> Result<(Value, Vec<AgentProfile>)> {
     let payload = client
         .request_value("agentProfile.list", &json!({}))
         .await?;
@@ -212,7 +218,7 @@ fn profiles_from_payload(payload: &Value) -> Result<Vec<AgentProfile>> {
         .collect()
 }
 
-fn select_profile<'a>(
+pub(crate) fn select_profile<'a>(
     profiles: &'a [AgentProfile],
     selector: &AgentProfileSelectorArgs,
 ) -> Result<&'a AgentProfile> {
@@ -227,10 +233,7 @@ fn select_profile<'a>(
             .ok_or_else(|| anyhow!("agent profile not found: {id}"));
     }
     let name = selector
-        .profile_name
-        .as_deref()
-        .map(str::trim)
-        .filter(|name| !name.is_empty())
+        .profile_name_or_alias()
         .ok_or_else(|| anyhow!("profile name cannot be empty"))?;
     profiles
         .iter()
@@ -238,7 +241,10 @@ fn select_profile<'a>(
         .ok_or_else(|| anyhow!("agent profile not found: {name}"))
 }
 
-async fn ensure_capabilities(client: &mut RuntimeHostRpcClient, required: &[&str]) -> Result<()> {
+pub(crate) async fn ensure_capabilities(
+    client: &mut RuntimeHostRpcClient,
+    required: &[&str],
+) -> Result<()> {
     if required.is_empty() {
         return Ok(());
     }
@@ -372,7 +378,7 @@ fn print_removal_impact(value: &Value, profile_name: &str) -> Result<()> {
     Ok(())
 }
 
-fn print_json(value: &impl Serialize) -> Result<()> {
+pub(crate) fn print_json(value: &impl Serialize) -> Result<()> {
     println!(
         "{}",
         serde_json::to_string_pretty(value).context("failed to render JSON output")?

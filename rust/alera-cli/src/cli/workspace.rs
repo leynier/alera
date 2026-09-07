@@ -1,6 +1,6 @@
 use clap::{Args, Subcommand, ValueEnum};
 
-use super::{IdArgs, OutputArgs, RuntimeDirArgs};
+use super::{AgentProfileSelectorArgs, IdArgs, OutputArgs, PromptSourceArgs, RuntimeDirArgs};
 
 #[derive(Debug, Args)]
 pub struct WorkspaceCommand {
@@ -18,6 +18,8 @@ pub enum WorkspaceAction {
     List(WorkspaceListArgs),
     /// Create an Alera-managed Git worktree workspace.
     Add(WorkspaceAddArgs),
+    /// Create a managed workspace and launch a declared agent profile.
+    Start(WorkspaceStartArgs),
     /// Remove an Alera-managed Git worktree workspace.
     Remove(WorkspaceRemoveArgs),
     /// Apply the project's worktree setup to an existing workspace.
@@ -70,6 +72,39 @@ pub struct WorkspaceAddArgs {
     pub path: Option<String>,
     #[arg(long = "parent-workspace-id")]
     pub parent_workspace_id: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceStartArgs {
+    #[command(flatten)]
+    pub selector: AgentProfileSelectorArgs,
+    #[command(flatten)]
+    pub prompt: PromptSourceArgs,
+    /// Workspace used to infer project, source branch, and parent. Defaults to ALERA_WORKSPACE_ID.
+    #[arg(long = "workspace", value_name = "workspace_id")]
+    pub workspace: Option<String>,
+    #[arg(long)]
+    pub id: Option<String>,
+    #[arg(long = "project-id")]
+    pub project_id: Option<String>,
+    #[arg(long)]
+    pub branch: Option<String>,
+    #[arg(long = "source-branch")]
+    pub source_branch: Option<String>,
+    #[arg(long)]
+    pub name: Option<String>,
+    #[arg(long = "workspace-root", conflicts_with = "path")]
+    pub workspace_root: Option<String>,
+    #[arg(long, conflicts_with = "workspace_root")]
+    pub path: Option<String>,
+    #[arg(long = "parent-workspace-id", conflicts_with = "no_parent")]
+    pub parent_workspace_id: Option<String>,
+    /// Do not link the new workspace to the current workspace.
+    #[arg(long = "no-parent")]
+    pub no_parent: bool,
+    /// Stable mutation id used to retry the profile launch.
+    #[arg(long = "client-mutation-id", value_name = "id")]
+    pub client_mutation_id: Option<String>,
 }
 
 #[derive(Debug, Args)]
