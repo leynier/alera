@@ -54,6 +54,11 @@ pub(super) async fn approval_state(
             bail!("workflow plan is not awaiting approval");
         }
         workflow_digest(&serde_json::json!([plan.digest, integration_sha]))?
+    } else if scope == "correction" {
+        if status != "approved" {
+            bail!("only an approved workflow can request an execution correction");
+        }
+        super::workflow_correction_evidence::correction_evidence(tx, run_id, revision).await?
     } else {
         if status != "approved" {
             bail!("workflow plan is not approved");

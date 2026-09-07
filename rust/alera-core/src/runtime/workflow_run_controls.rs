@@ -19,6 +19,7 @@ pub struct WorkflowRunControls {
     pub can_control: bool,
     pub can_cancel: bool,
     pub can_correct: bool,
+    pub can_request_changes: bool,
     pub cancellation_pending: i64,
     pub cancellation_error: Option<String>,
     pub integration_sha: String,
@@ -144,6 +145,17 @@ impl RuntimeStore {
         .collect::<Result<BTreeMap<_, _>>>()?;
         let unsettled:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM workflowIntegrations WHERE run_id=? AND state IN ('pending','prepared','attention'))")
             .bind(run).fetch_one(&mut *tx).await?;
+        let can_request_changes = can_control
+            && !unsettled
+            && execution
+                .as_ref()
+                .is_none_or(|state| state.status != "running")
+            && !tasks.iter().any(|task| {
+                matches!(
+                    task.get::<String, _>("status").as_str(),
+                    "dispatched" | "stalled"
+                )
+            });
         let stages = plan
             .recipe
             .recipe
@@ -201,6 +213,7 @@ impl RuntimeStore {
             can_control,
             can_cancel,
             can_correct,
+            can_request_changes,
             cancellation_pending,
             cancellation_error,
             integration_sha: row.try_get("integration_sha")?,

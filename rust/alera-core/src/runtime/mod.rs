@@ -105,6 +105,9 @@ mod workflow_catalog_store;
 mod workflow_catalog_tests;
 mod workflow_coordinator;
 mod workflow_correction;
+mod workflow_correction_evidence;
+#[cfg(test)]
+mod workflow_correction_review_tests;
 pub use workflow_correction::{CreateWorkflowCorrection, WorkflowCorrectionContext};
 #[cfg(test)]
 mod workflow_coordinator_tests;

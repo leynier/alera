@@ -75,6 +75,10 @@ impl RuntimeStore {
     ) -> Result<WorkflowDecisionReceipt> {
         let statement = verified.statement();
         let challenge = &statement.challenge;
+        if challenge.scope == "correction" && statement.decision != WorkflowDecision::RequestChanges
+        {
+            bail!("a correction review can only request changes");
+        }
         let digest = workflow_digest(statement)?;
         let mut tx = self.pool().begin().await?;
         sqlx::query("UPDATE orchestrationBoardRevision SET revision = revision WHERE id = 1")

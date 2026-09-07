@@ -6,6 +6,7 @@ class WorkflowRunControls {
       canControl = json['canControl']! as bool,
       canCancel = json['canCancel']! as bool,
       canCorrect = json['canCorrect']! as bool,
+      canRequestChanges = json['canRequestChanges']! as bool,
       cancellationPending = json['cancellationPending']! as int,
       cancellationError = json['cancellationError'] as String?,
       integrationSha = json['integrationSha']! as String,
@@ -34,6 +35,7 @@ class WorkflowRunControls {
   final bool canControl;
   final bool canCancel;
   final bool canCorrect;
+  final bool canRequestChanges;
   final int cancellationPending;
   final String? cancellationError;
   final String integrationSha;

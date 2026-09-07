@@ -26,6 +26,10 @@ pub struct WorkflowReviewTask {
     pub result_digest: Option<String>,
     pub artifact_digest: Option<String>,
     pub integration_sha: Option<String>,
+    pub integration_state: Option<String>,
+    pub conflict_paths: Vec<String>,
+    pub conflicts_truncated: bool,
+    pub integration_error: Option<String>,
 }
 
 impl RuntimeStore {
@@ -53,9 +57,11 @@ impl RuntimeStore {
             "SELECT p.task_id, p.logical_id, t.stage_id, t.status,
             substr(t.result, 1, 1024) AS result_preview,
             COALESCE(length(t.result) > 1024, 0) AS result_truncated,
-            e.result_digest, e.artifact_digest, e.integration_sha
+            e.result_digest, e.artifact_digest, e.integration_sha,
+            i.state AS integration_state,i.conflict_paths,i.conflicts_truncated,i.error AS integration_error
             FROM workflowPlanTasks p JOIN orchestrationTasks t ON t.id = p.task_id
             LEFT JOIN workflowTaskEvidence e ON e.task_id = p.task_id
+            LEFT JOIN workflowIntegrations i ON i.sequence=(SELECT MAX(sequence) FROM workflowIntegrations WHERE task_id=p.task_id)
             WHERE p.run_id = ? AND p.revision = ? ORDER BY p.logical_id LIMIT 129",
         )
         .bind(run_id)
@@ -91,11 +97,21 @@ impl RuntimeStore {
                     result_digest: row.try_get("result_digest")?,
                     artifact_digest: row.try_get("artifact_digest")?,
                     integration_sha: row.try_get("integration_sha")?,
+                    integration_state: row.try_get("integration_state")?,
+                    conflict_paths: serde_json::from_str(
+                        row.try_get::<Option<String>, _>("conflict_paths")?
+                            .as_deref()
+                            .unwrap_or("[]"),
+                    )?,
+                    conflicts_truncated: row
+                        .try_get::<Option<bool>, _>("conflicts_truncated")?
+                        .unwrap_or(false),
+                    integration_error: row.try_get("integration_error")?,
                 })
             })
             .collect::<Result<Vec<_>>>()?
             .into_iter()
-            .filter(|task| stages.contains(&task.stage_id))
+            .filter(|task| scope == "correction" || stages.contains(&task.stage_id))
             .collect();
         tx.commit().await?;
         Ok(WorkflowReview {

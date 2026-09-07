@@ -9,6 +9,7 @@ Map<String, Object?> workflowControlsFixture({
   'canControl': true,
   'canCancel': true,
   'canCorrect': false,
+  'canRequestChanges': false,
   'cancellationPending': 0,
   'cancellationError': null,
   'sourceSha': 'a' * 40,

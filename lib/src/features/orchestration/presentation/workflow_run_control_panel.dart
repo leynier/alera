@@ -98,6 +98,11 @@ class WorkflowRunControlPanel extends StatelessWidget {
                     : null,
                 child: Text(running ? 'Pause Workflow' : 'Start Workflow'),
               ),
+            if (controls.canRequestChanges)
+              OutlinedButton(
+                onPressed: enabled ? () => onReview('correction') : null,
+                child: const Text('Review Changes Needed'),
+              ),
             if (controls.canCorrect && onCorrection != null)
               FilledButton(
                 onPressed: enabled ? onCorrection : null,

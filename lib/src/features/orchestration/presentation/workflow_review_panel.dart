@@ -53,6 +53,7 @@ class _WorkflowReviewPanelState extends State<WorkflowReviewPanel> {
     final stages = recipe['stages']! as List;
     final tasks = plan['tasks']! as List;
     final planReview = review.scope == 'plan';
+    final correctionReview = review.scope == 'correction';
     final enabled = !widget.busy && !widget.invalidated;
     return ListView(
       padding: const EdgeInsets.all(AleraTokens.space16),
@@ -65,7 +66,11 @@ class _WorkflowReviewPanelState extends State<WorkflowReviewPanel> {
           ),
         ),
         Text(
-          planReview ? 'Review Plan' : 'Review Stage Gate',
+          planReview
+              ? 'Review Plan'
+              : correctionReview
+              ? 'Review Changes Needed'
+              : 'Review Stage Gate',
           style: Theme.of(context).textTheme.titleLarge,
         ),
         const SizedBox(height: AleraTokens.space12),
@@ -95,13 +100,17 @@ class _WorkflowReviewPanelState extends State<WorkflowReviewPanel> {
         ),
         const SizedBox(height: AleraTokens.space8),
         Text(
-          planReview
+          correctionReview
+              ? 'Requesting changes creates a new revision for a corrective plan. Completed work and retained worktrees are preserved. This action does not approve or launch workers.'
+              : planReview
               ? 'Approval freezes this plan. Workers start only when you explicitly start execution.'
               : 'Approval applies only to this revision, integrated results and artifact evidence. Changed evidence requires another review.',
         ),
         const SizedBox(height: AleraTokens.space16),
         for (final stage in stages.cast<Map>())
-          if (planReview || review.scope == 'stage:${stage['id']}') ...[
+          if (planReview ||
+              correctionReview ||
+              review.scope == 'stage:${stage['id']}') ...[
             Text(
               stage['name']! as String,
               style: Theme.of(context).textTheme.titleMedium,
@@ -117,12 +126,24 @@ class _WorkflowReviewPanelState extends State<WorkflowReviewPanel> {
           ],
         if (!planReview) ...[
           Text(
-            'Integrated Evidence',
+            correctionReview ? 'Current Task Evidence' : 'Integrated Evidence',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           for (final evidence in review.tasks) ...[
             const SizedBox(height: AleraTokens.space12),
             Text(evidence['logicalId']! as String),
+            if (correctionReview) Text('Task status: ${evidence['status']}'),
+            if (correctionReview && evidence['integrationState'] != null) ...[
+              Text('Integration: ${evidence['integrationState']}'),
+              for (final path in evidence['conflictPaths']! as List)
+                Text(path as String, style: AleraTokens.monoCompactStyle),
+              if (evidence['conflictsTruncated'] == true)
+                const Text(
+                  'More conflicts are available in the task inspector.',
+                ),
+              if (evidence['integrationError'] case final String error)
+                SelectableText(error),
+            ],
             SelectableText(
               evidence['resultPreview'] as String? ?? 'No text result.',
             ),
@@ -178,15 +199,16 @@ class _WorkflowReviewPanelState extends State<WorkflowReviewPanel> {
           spacing: AleraTokens.space8,
           runSpacing: AleraTokens.space8,
           children: [
-            FilledButton(
-              onPressed: enabled
-                  ? () => widget.onDecision(
-                      WorkflowHumanDecision.approve,
-                      _reason.text,
-                    )
-                  : null,
-              child: Text(planReview ? 'Approve Plan' : 'Approve Gate'),
-            ),
+            if (!correctionReview)
+              FilledButton(
+                onPressed: enabled
+                    ? () => widget.onDecision(
+                        WorkflowHumanDecision.approve,
+                        _reason.text,
+                      )
+                    : null,
+                child: Text(planReview ? 'Approve Plan' : 'Approve Gate'),
+              ),
             OutlinedButton(
               onPressed: enabled && _reason.text.trim().isNotEmpty
                   ? () => widget.onDecision(
@@ -196,15 +218,16 @@ class _WorkflowReviewPanelState extends State<WorkflowReviewPanel> {
                   : null,
               child: const Text('Request Changes'),
             ),
-            TextButton(
-              onPressed: enabled && _reason.text.trim().isNotEmpty
-                  ? () => widget.onDecision(
-                      WorkflowHumanDecision.reject,
-                      _reason.text,
-                    )
-                  : null,
-              child: const Text('Reject'),
-            ),
+            if (!correctionReview)
+              TextButton(
+                onPressed: enabled && _reason.text.trim().isNotEmpty
+                    ? () => widget.onDecision(
+                        WorkflowHumanDecision.reject,
+                        _reason.text,
+                      )
+                    : null,
+                child: const Text('Reject'),
+              ),
           ],
         ),
       ],

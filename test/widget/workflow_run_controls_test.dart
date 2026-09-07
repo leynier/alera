@@ -34,7 +34,7 @@ void main() {
             child: SingleChildScrollView(
               child: WorkflowRunControlPanel(
                 controls: WorkflowRunControls.fromJson(
-                  workflowControlsFixture(),
+                  workflowControlsFixture()..['canRequestChanges'] = true,
                 ),
                 onControl: (_) {},
                 onRefresh: () {},
@@ -46,6 +46,13 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Review Changes Needed'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Review Changes Needed'));
+    expect(scope, 'correction');
     await tester.scrollUntilVisible(
       find.text('Review Foundation Gate'),
       300,

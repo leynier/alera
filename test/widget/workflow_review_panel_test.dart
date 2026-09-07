@@ -4,66 +4,106 @@ import 'package:alera/src/features/orchestration/presentation/workflow_review_pa
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-WorkflowReviewSnapshot _review() => WorkflowReviewSnapshot.fromJson({
-  'challenge': {
-    'version': 1,
-    'runId': 'run',
-    'revision': 2,
-    'scope': 'plan',
-    'planDigest': 'digest',
-    'integrationSha': 'a' * 40,
-    'expiresAt': 2000000000,
-  },
-  'plan': {
-    'digest': 'digest',
-    'objective': 'Add reviewed workflow execution',
-    'recipe': {
-      'source': {'origin': 'builtIn', 'id': 'quick-fix'},
-      'recipe': {
-        'name': 'Quick Fix',
-        'stages': [
-          {
-            'id': 'fix',
-            'name': 'Fix',
-            'purpose': 'Make the scoped correction.',
-            'dependsOn': [],
-          },
-        ],
+WorkflowReviewSnapshot _review({String scope = 'plan'}) =>
+    WorkflowReviewSnapshot.fromJson({
+      'challenge': {
+        'version': 1,
+        'runId': 'run',
+        'revision': 2,
+        'scope': scope,
+        'planDigest': 'digest',
+        'integrationSha': 'a' * 40,
+        'expiresAt': 2000000000,
       },
-    },
-    'profiles': {
-      'profile': {'name': 'Selected Agent'},
-    },
-    'tasks': [
-      {
-        'profileId': 'profile',
-        'task': {
-          'id': 'task',
-          'title': 'Update the workflow',
-          'spec': 'Preserve existing behavior.',
-          'roleId': 'implementer',
-          'stageId': 'fix',
-          'dependsOn': [],
-        },
-        'contract': {
-          'contract': {
-            'name': 'Implementation',
-            'revision': 1,
-            'purpose': 'Implement the change.',
-            'instructions': 'Run focused tests.',
-            'requiredArtifacts': ['test-report'],
-            'checklist': [
-              {'description': 'Tests pass.'},
+      'plan': {
+        'digest': 'digest',
+        'objective': 'Add reviewed workflow execution',
+        'recipe': {
+          'source': {'origin': 'builtIn', 'id': 'quick-fix'},
+          'recipe': {
+            'name': 'Quick Fix',
+            'stages': [
+              {
+                'id': 'fix',
+                'name': 'Fix',
+                'purpose': 'Make the scoped correction.',
+                'dependsOn': [],
+              },
             ],
           },
         },
+        'profiles': {
+          'profile': {'name': 'Selected Agent'},
+        },
+        'tasks': [
+          {
+            'profileId': 'profile',
+            'task': {
+              'id': 'task',
+              'title': 'Update the workflow',
+              'spec': 'Preserve existing behavior.',
+              'roleId': 'implementer',
+              'stageId': 'fix',
+              'dependsOn': [],
+            },
+            'contract': {
+              'contract': {
+                'name': 'Implementation',
+                'revision': 1,
+                'purpose': 'Implement the change.',
+                'instructions': 'Run focused tests.',
+                'requiredArtifacts': ['test-report'],
+                'checklist': [
+                  {'description': 'Tests pass.'},
+                ],
+              },
+            },
+          },
+        ],
       },
-    ],
-  },
-  'tasks': [],
-});
+      'tasks': [],
+    });
 
 void main() {
+  testWidgets('correction review cannot approve or reject the existing plan', (
+    tester,
+  ) async {
+    final decisions = <WorkflowHumanDecision>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: aleraDarkTheme,
+        home: Scaffold(
+          body: WorkflowReviewPanel(
+            review: _review(scope: 'correction'),
+            onDecision: (decision, _) => decisions.add(decision),
+            onBack: () {},
+            onRefresh: () {},
+            onInspectTask: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Review Changes Needed'), findsOneWidget);
+    expect(find.text('Update the workflow'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byType(TextField),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.enterText(
+      find.byType(TextField),
+      'Resolve the integration conflict.',
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Request Changes'));
+    expect(find.text('Approve Gate'), findsNothing);
+    expect(find.text('Approve Plan'), findsNothing);
+    expect(find.text('Reject'), findsNothing);
+    await tester.tap(find.text('Request Changes'));
+    expect(decisions, [WorkflowHumanDecision.requestChanges]);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('decisions require explicit action and notes for changes', (
     tester,
   ) async {
