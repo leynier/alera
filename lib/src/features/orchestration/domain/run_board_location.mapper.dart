@@ -86,6 +86,12 @@ class RunBoardLocationMapper extends ClassMapperBase<RunBoardLocation> {
     _$proposalId,
     opt: true,
   );
+  static int? _$correctionRevision(RunBoardLocation v) => v.correctionRevision;
+  static const Field<RunBoardLocation, int> _f$correctionRevision = Field(
+    'correctionRevision',
+    _$correctionRevision,
+    opt: true,
+  );
 
   @override
   final MappableFields<RunBoardLocation> fields = const {
@@ -99,6 +105,7 @@ class RunBoardLocationMapper extends ClassMapperBase<RunBoardLocation> {
     #reviewScope: _f$reviewScope,
     #newRun: _f$newRun,
     #proposalId: _f$proposalId,
+    #correctionRevision: _f$correctionRevision,
   };
 
   static RunBoardLocation _instantiate(DecodingData data) {
@@ -113,6 +120,7 @@ class RunBoardLocationMapper extends ClassMapperBase<RunBoardLocation> {
       reviewScope: data.dec(_f$reviewScope),
       newRun: data.dec(_f$newRun),
       proposalId: data.dec(_f$proposalId),
+      correctionRevision: data.dec(_f$correctionRevision),
     );
   }
 
@@ -189,6 +197,7 @@ abstract class RunBoardLocationCopyWith<$R, $In extends RunBoardLocation, $Out>
     String? reviewScope,
     bool? newRun,
     String? proposalId,
+    int? correctionRevision,
   });
   RunBoardLocationCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -215,6 +224,7 @@ class _RunBoardLocationCopyWithImpl<$R, $Out>
     Object? reviewScope = $none,
     bool? newRun,
     Object? proposalId = $none,
+    Object? correctionRevision = $none,
   }) => $apply(
     FieldCopyWithData({
       if (visible != null) #visible: visible,
@@ -227,6 +237,7 @@ class _RunBoardLocationCopyWithImpl<$R, $Out>
       if (reviewScope != $none) #reviewScope: reviewScope,
       if (newRun != null) #newRun: newRun,
       if (proposalId != $none) #proposalId: proposalId,
+      if (correctionRevision != $none) #correctionRevision: correctionRevision,
     }),
   );
   @override
@@ -241,6 +252,10 @@ class _RunBoardLocationCopyWithImpl<$R, $Out>
     reviewScope: data.get(#reviewScope, or: $value.reviewScope),
     newRun: data.get(#newRun, or: $value.newRun),
     proposalId: data.get(#proposalId, or: $value.proposalId),
+    correctionRevision: data.get(
+      #correctionRevision,
+      or: $value.correctionRevision,
+    ),
   );
 
   @override

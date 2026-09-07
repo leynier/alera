@@ -138,6 +138,7 @@ impl RuntimeStore {
                 id: frozen_request.request_id.clone(),
                 request: frozen_request,
                 selection,
+                correction: None,
             })
         })
         .await?;
@@ -196,7 +197,7 @@ impl RuntimeStore {
             .ok_or_else(|| anyhow!("workflow proposal receipt is unavailable"))
     }
 
-    async fn proposal_receipt(
+    pub(super) async fn proposal_receipt(
         &self,
         id: &str,
         digest: &str,

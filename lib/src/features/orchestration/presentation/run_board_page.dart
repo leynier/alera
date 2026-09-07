@@ -13,6 +13,7 @@ import 'package:alera/src/features/orchestration/presentation/run_board_read_sta
 import 'package:alera/src/features/orchestration/presentation/run_board_workspace_actions.dart';
 import 'package:alera/src/features/orchestration/presentation/run_task_inspector.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_review_page.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_correction_page.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_run_control_section.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_new_run_page.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_proposal_page.dart';
@@ -251,6 +252,20 @@ class _RunBoardSelection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final navigation = ref.read(runBoardNavigationProvider.notifier);
     final selectedTask = taskId;
+    final correctionRevision = ref.watch(
+      runBoardNavigationProvider.select(
+        (location) => location.correctionRevision,
+      ),
+    );
+    if (correctionRevision != null) {
+      return WorkflowCorrectionPage(
+        key: ValueKey('correction:$runId:$correctionRevision'),
+        runId: runId,
+        revision: correctionRevision,
+        onBack: () => navigation.review(null),
+        onCreated: navigation.selectProposal,
+      );
+    }
     if (selectedTask != null) {
       final provider = runTaskInspectionPageProvider(runId, selectedTask);
       final page = ref.watch(provider);
@@ -333,6 +348,8 @@ class _RunBoardSelection extends ConsumerWidget {
               runId: runId,
               revision: workflowRevision,
               onReview: navigation.review,
+              onCorrection: () =>
+                  navigation.prepareCorrection(workflowRevision),
             ),
       onReviewPlan:
           workflowRevision != null && data.data.run.workflowStatus == 'prepared'

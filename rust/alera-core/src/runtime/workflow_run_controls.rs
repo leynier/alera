@@ -18,6 +18,7 @@ pub struct WorkflowRunControls {
     pub status: String,
     pub can_control: bool,
     pub can_cancel: bool,
+    pub can_correct: bool,
     pub cancellation_pending: i64,
     pub cancellation_error: Option<String>,
     pub integration_sha: String,
@@ -79,6 +80,13 @@ impl RuntimeStore {
                 row.try_get::<String, _>("coordinator_status")?.as_str(),
                 "idle" | "running"
             );
+        let can_correct = matches!(
+            status.as_str(),
+            "prepared" | "rejected" | "changesRequested"
+        ) && matches!(
+            row.try_get::<String, _>("coordinator_status")?.as_str(),
+            "idle" | "running"
+        );
         let sequence: Option<i64> = row.try_get("sequence")?;
         let execution = sequence
             .map(|sequence| -> Result<WorkflowExecutionState> {
@@ -192,6 +200,7 @@ impl RuntimeStore {
             status,
             can_control,
             can_cancel,
+            can_correct,
             cancellation_pending,
             cancellation_error,
             integration_sha: row.try_get("integration_sha")?,

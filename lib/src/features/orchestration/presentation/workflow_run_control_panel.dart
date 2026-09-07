@@ -14,6 +14,7 @@ class WorkflowRunControlPanel extends StatelessWidget {
     this.busy = false,
     this.error,
     this.onRetry,
+    this.onCorrection,
   });
   final WorkflowRunControls controls;
   final ValueChanged<String> onControl;
@@ -22,6 +23,7 @@ class WorkflowRunControlPanel extends StatelessWidget {
   final bool busy;
   final Object? error;
   final VoidCallback? onRetry;
+  final VoidCallback? onCorrection;
 
   @override
   Widget build(BuildContext context) {
@@ -95,6 +97,11 @@ class WorkflowRunControlPanel extends StatelessWidget {
                     ? () => onControl(running ? 'pause' : 'start')
                     : null,
                 child: Text(running ? 'Pause Workflow' : 'Start Workflow'),
+              ),
+            if (controls.canCorrect && onCorrection != null)
+              FilledButton(
+                onPressed: enabled ? onCorrection : null,
+                child: const Text('Prepare Correction'),
               ),
             if (onRetry != null)
               OutlinedButton(

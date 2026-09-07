@@ -20,10 +20,12 @@ class WorkflowRunControlSection extends ConsumerStatefulWidget {
     required this.runId,
     required this.revision,
     required this.onReview,
+    this.onCorrection,
   });
   final String runId;
   final int revision;
   final ValueChanged<String> onReview;
+  final VoidCallback? onCorrection;
   @override
   ConsumerState<WorkflowRunControlSection> createState() =>
       _WorkflowRunControlSectionState();
@@ -178,6 +180,7 @@ class _WorkflowRunControlSectionState
       controls: controls,
       onControl: _control,
       onReview: widget.onReview,
+      onCorrection: widget.onCorrection,
       onRefresh: _refresh,
       busy: _busy,
       error: _error,

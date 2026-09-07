@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:alera/src/features/orchestration/domain/workflow_review_snapshot.dart';
+import 'package:alera/src/features/orchestration/domain/workflow_correction_selection.dart';
 import 'package:alera/src/features/orchestration/domain/workflow_run_controls.dart';
 import 'package:alera/src/features/orchestration/infra/workflow_decision_signer.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
@@ -50,6 +51,21 @@ class WorkflowLifecycleRepository {
 
   Future<Map<String, Object?>> plan(String runId) =>
       request('workflows.plan', {'runId': runId});
+
+  Future<WorkflowCorrectionSelection> correctionSelection(
+    String runId,
+    int revision,
+  ) async {
+    final selection = await compute(
+      _correctionSelection,
+      await request('workflows.plan', {'runId': runId, 'revision': revision}),
+    );
+    selection.requireCurrent(runId, revision);
+    return selection;
+  }
+
+  Future<Map<String, Object?>> createCorrection(String document) =>
+      request('workflows.createCorrection', {'document': document});
 
   Future<WorkflowRunControls> controls(String runId, int revision) async {
     final controls = WorkflowRunControls.fromJson(
@@ -178,6 +194,9 @@ class WorkflowLifecycleRepository {
 
 WorkflowReviewSnapshot _reviewSnapshot(Map<String, Object?> value) =>
     WorkflowReviewSnapshot.fromJson(value);
+
+WorkflowCorrectionSelection _correctionSelection(Map<String, Object?> value) =>
+    WorkflowCorrectionSelection.fromJson(value);
 
 String _proposalDocument(Map<String, Object?> value) {
   final request = value['request']! as Map;

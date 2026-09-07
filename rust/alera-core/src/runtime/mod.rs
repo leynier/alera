@@ -104,8 +104,12 @@ mod workflow_catalog_store;
 #[cfg(test)]
 mod workflow_catalog_tests;
 mod workflow_coordinator;
+mod workflow_correction;
+pub use workflow_correction::{CreateWorkflowCorrection, WorkflowCorrectionContext};
 #[cfg(test)]
 mod workflow_coordinator_tests;
+#[cfg(test)]
+mod workflow_correction_tests;
 mod workflow_execution;
 pub use workflow_cancellation::WorkflowCancellationTarget;
 mod workflow_run_controls;

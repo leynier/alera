@@ -45,6 +45,7 @@ impl ServerActor {
             "workflows.preparePlan"
             | "workflows.execution"
             | "workflows.controlExecution"
+            | "workflows.createCorrection"
             | "workflows.source"
             | "workflows.createProposal"
             | "workflows.proposal"

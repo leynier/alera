@@ -42,7 +42,7 @@ final class RunBoardNavigationProvider
 }
 
 String _$runBoardNavigationHash() =>
-    r'04fe1681da1c61bbc21ec66129fe4cfb090a3629';
+    r'46cb075a9b9787a326cd2bfb2ea4d98b3defacb8';
 
 abstract class _$RunBoardNavigation extends $Notifier<RunBoardLocation> {
   RunBoardLocation build();

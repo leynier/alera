@@ -31,6 +31,15 @@ async fn workflow_plan_rpc_rejects_unbounded_source_queries_before_queueing() {
             .is_err());
     }
     for payload in [
+        json!({"document":"x".repeat(8193)}),
+        json!({"document": {"reason":"fix"}}),
+        json!({"document":"{}","actor":"app"}),
+    ] {
+        assert!(actor
+            .start_workflow_plan_request(1, 1, "workflows.createCorrection", &payload)
+            .is_err());
+    }
+    for payload in [
         json!({"document":"x".repeat(4097)}),
         json!({"document": {"action":"start"}}),
         json!({"document":"{}","actor":"app"}),
@@ -50,6 +59,7 @@ async fn workflow_plan_rpc_rejects_mobile_and_unauthenticated_clients() {
         "workflows.preparePlan",
         "workflows.execution",
         "workflows.controlExecution",
+        "workflows.createCorrection",
         "workflows.source",
         "workflows.plan",
         "workflows.approvalChallenge",

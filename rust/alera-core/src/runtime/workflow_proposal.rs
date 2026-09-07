@@ -10,6 +10,8 @@ pub struct WorkflowProposalDraft {
     pub id: String,
     pub request: PrepareWorkflowPlan,
     pub selection: WorkflowPlanSnapshot,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub correction: Option<super::WorkflowCorrectionContext>,
 }
 
 #[derive(Debug, Serialize)]

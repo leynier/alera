@@ -12,6 +12,7 @@ class RunBoardNavigation extends _$RunBoardNavigation {
   void open() => state = state.copyWith(visible: true);
   void close() => state = state.copyWith(visible: false);
   void selectRun(String? id) => state = state.copyWith(
+    correctionRevision: null,
     runId: id,
     taskId: null,
     reviewScope: null,
@@ -19,6 +20,7 @@ class RunBoardNavigation extends _$RunBoardNavigation {
     proposalId: null,
   );
   void createRun() => state = state.copyWith(
+    correctionRevision: null,
     newRun: true,
     runId: null,
     taskId: null,
@@ -26,14 +28,23 @@ class RunBoardNavigation extends _$RunBoardNavigation {
     proposalId: null,
   );
   void selectProposal(String id) => state = state.copyWith(
+    correctionRevision: null,
     newRun: false,
     proposalId: id,
     runId: null,
     taskId: null,
     reviewScope: null,
   );
-  void review(String? scope) =>
-      state = state.copyWith(reviewScope: scope, taskId: null);
+  void review(String? scope) => state = state.copyWith(
+    reviewScope: scope,
+    taskId: null,
+    correctionRevision: null,
+  );
+  void prepareCorrection(int revision) => state = state.copyWith(
+    correctionRevision: revision,
+    reviewScope: null,
+    taskId: null,
+  );
   void selectTask(String? id) => state = state.copyWith(taskId: id);
   void search(String value) => state = state.copyWith(search: value);
   void selectBucket(RunBoardBucket? bucket) =>

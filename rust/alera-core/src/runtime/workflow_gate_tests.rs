@@ -181,6 +181,39 @@ async fn workflow_stage_gate_binds_artifact_evidence_and_preserves_completed_cor
         .await
         .unwrap();
     assert_eq!(audits, 3);
+    let current = store
+        .workflow_plan_revision(&plan.run_id, None)
+        .await
+        .unwrap();
+    let correction = store
+        .create_workflow_correction(
+            super::CreateWorkflowCorrection {
+                request_id: "gate-correction".into(),
+                run_id: plan.run_id.clone(),
+                revision: current.revision,
+                plan_digest: current.plan.digest.clone(),
+                reason: "Add missing coverage".into(),
+            },
+            valid_profile,
+        )
+        .await
+        .unwrap();
+    let context = correction.correction.unwrap();
+    assert_eq!(context.prior_tasks.len(), 3);
+    assert!(context.prior_tasks.iter().all(|task| {
+        task.status == "completed"
+            && task.result_preview.as_deref() == Some("{\"summary\":\"Completed\"}")
+            && task.integration_sha.as_deref() == Some(plan.integration_sha.as_str())
+    }));
+    assert!(correction.selection.tasks.is_empty());
+    let complete_after: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM orchestrationTasks WHERE run_id = ? AND status = 'completed'",
+    )
+    .bind(&plan.run_id)
+    .fetch_one(store.pool())
+    .await
+    .unwrap();
+    assert_eq!(complete_after, complete);
 }
 
 #[tokio::test]

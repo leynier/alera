@@ -39,6 +39,56 @@ void main() {
   });
 
   test(
+    'correction selection crosses the isolate and rejects obsolete identity',
+    () async {
+      final client = _Client()
+        ..response = {
+          'runId': 'run',
+          'revision': 1,
+          'currentRevision': 1,
+          'status': 'changesRequested',
+          'changeReason': 'Fix regression',
+          'plan': {
+            'digest': 'digest',
+            'sourceSha': 'a' * 40,
+            'objective': 'Deliver feature',
+            'recipe': {
+              'recipe': {'name': 'Feature Delivery'},
+            },
+            'profiles': {
+              'p': {
+                'name': 'Frozen Agent',
+                'revision': 7,
+                'command': 'private command',
+              },
+            },
+          },
+        };
+      final repository = WorkflowLifecycleRepository(client, _Signer());
+      final selection = await repository.correctionSelection('run', 1);
+      expect(selection.reason, 'Fix regression');
+      expect(selection.profileNames, ['Frozen Agent (Revision 7)']);
+      expect(
+        () => selection.profileNames.add('changed'),
+        throwsUnsupportedError,
+      );
+      await expectLater(
+        repository.correctionSelection('other', 1),
+        throwsStateError,
+      );
+      await expectLater(
+        repository.correctionSelection('run', 2),
+        throwsStateError,
+      );
+      (client.response as Map)['currentRevision'] = 2;
+      await expectLater(
+        repository.correctionSelection('run', 1),
+        throwsStateError,
+      );
+    },
+  );
+
+  test(
     'new run document binds source, origin and roles without executable tasks',
     () async {
       final client = _Client();

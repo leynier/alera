@@ -16,6 +16,7 @@ class RunBoardLocation with RunBoardLocationMappable {
     this.reviewScope,
     this.newRun = false,
     this.proposalId,
+    this.correctionRevision,
   });
   final bool visible;
   final String? projectId;
@@ -27,4 +28,5 @@ class RunBoardLocation with RunBoardLocationMappable {
   final String? reviewScope;
   final bool newRun;
   final String? proposalId;
+  final int? correctionRevision;
 }
