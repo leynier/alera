@@ -178,3 +178,92 @@ async fn correction_review_refuses_running_execution_and_active_tasks() {
         .await
         .is_err());
 }
+
+#[tokio::test]
+async fn corrective_plan_approval_rechecks_referenced_task_results() {
+    let (dir, store, request) = fixture(false).await;
+    let plan = store
+        .prepare_workflow_plan(request, valid_profile)
+        .await
+        .unwrap();
+    decision(dir.path(), &store, &plan, WorkflowDecision::Approve).await;
+    let review = store
+        .workflow_review(&plan.run_id, 1, "correction", "desktop")
+        .await
+        .unwrap();
+    let prior_id = review.tasks[0].task_id.clone();
+    let key = DesktopWorkflowCredential::load_or_create(dir.path()).unwrap();
+    let statement = WorkflowApprovalStatement {
+        challenge: review.challenge,
+        decision: WorkflowDecision::RequestChanges,
+        reason: "Correct the implementation".into(),
+    };
+    let proof = key.sign(&statement).unwrap();
+    store
+        .decide_workflow(key.verify(statement, &proof).unwrap(), "desktop")
+        .await
+        .unwrap();
+    let draft = store
+        .create_workflow_correction(
+            CreateWorkflowCorrection {
+                request_id: "corrective-plan".into(),
+                run_id: plan.run_id.clone(),
+                revision: 2,
+                plan_digest: plan.plan.digest.clone(),
+                reason: "Correct the implementation".into(),
+            },
+            valid_profile,
+        )
+        .await
+        .unwrap();
+    let mut tasks = plan
+        .plan
+        .tasks
+        .iter()
+        .map(|task| task.task.clone())
+        .collect::<Vec<_>>();
+    tasks[0].corrects_task_id = Some(prior_id.clone());
+    let next = store
+        .submit_workflow_proposal(&draft.id, tasks)
+        .await
+        .unwrap();
+    let reviewed = store
+        .workflow_review(&plan.run_id, next.revision, "plan", "desktop")
+        .await
+        .unwrap();
+    assert_eq!(reviewed.tasks.len(), 1);
+    assert_eq!(reviewed.tasks[0].task_id, prior_id);
+    let statement = WorkflowApprovalStatement {
+        challenge: store
+            .workflow_approval_challenge(&plan.run_id, next.revision, "plan", "desktop")
+            .await
+            .unwrap(),
+        decision: WorkflowDecision::Approve,
+        reason: String::new(),
+    };
+    let proof = key.sign(&statement).unwrap();
+    sqlx::query("UPDATE orchestrationTasks SET result='changed prior result' WHERE id=?")
+        .bind(&prior_id)
+        .execute(store.pool())
+        .await
+        .unwrap();
+    assert!(store
+        .decide_workflow(key.verify(statement, &proof).unwrap(), "desktop")
+        .await
+        .is_err());
+    assert_eq!(
+        store
+            .workflow_plan_revision(&plan.run_id, None)
+            .await
+            .unwrap()
+            .status,
+        "prepared"
+    );
+    decision(dir.path(), &store, &next, WorkflowDecision::Approve).await;
+    let status: String = sqlx::query_scalar("SELECT status FROM orchestrationTasks WHERE id=?")
+        .bind(prior_id)
+        .fetch_one(store.pool())
+        .await
+        .unwrap();
+    assert_eq!(status, "cancelled");
+}

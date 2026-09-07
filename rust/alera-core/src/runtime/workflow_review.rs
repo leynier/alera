@@ -53,6 +53,12 @@ impl RuntimeStore {
         {
             bail!("workflow evidence changed while opening review; refresh the review");
         }
+        let referenced = state
+            .plan
+            .tasks
+            .iter()
+            .filter_map(|task| task.task.corrects_task_id.as_ref())
+            .collect::<Vec<_>>();
         let rows = sqlx::query(
             "SELECT p.task_id, p.logical_id, t.stage_id, t.status,
             substr(t.result, 1, 1024) AS result_preview,
@@ -62,10 +68,14 @@ impl RuntimeStore {
             FROM workflowPlanTasks p JOIN orchestrationTasks t ON t.id = p.task_id
             LEFT JOIN workflowTaskEvidence e ON e.task_id = p.task_id
             LEFT JOIN workflowIntegrations i ON i.sequence=(SELECT MAX(sequence) FROM workflowIntegrations WHERE task_id=p.task_id)
-            WHERE p.run_id = ? AND p.revision = ? ORDER BY p.logical_id LIMIT 129",
+            WHERE p.run_id = ? AND ((? <> 'plan' AND p.revision = ?) OR (? = 'plan' AND p.task_id IN (SELECT value FROM json_each(?))))
+            ORDER BY p.logical_id LIMIT 129",
         )
         .bind(run_id)
+        .bind(scope)
         .bind(revision)
+        .bind(scope)
+        .bind(serde_json::to_string(&referenced)?)
         .fetch_all(&mut *tx)
         .await?;
         if rows.len() > super::WORKFLOW_PLAN_MAX_TASKS {
@@ -111,7 +121,9 @@ impl RuntimeStore {
             })
             .collect::<Result<Vec<_>>>()?
             .into_iter()
-            .filter(|task| scope == "correction" || stages.contains(&task.stage_id))
+            .filter(|task| {
+                matches!(scope, "plan" | "correction") || stages.contains(&task.stage_id)
+            })
             .collect();
         tx.commit().await?;
         Ok(WorkflowReview {
