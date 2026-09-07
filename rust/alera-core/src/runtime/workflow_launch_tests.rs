@@ -4,6 +4,7 @@ use super::*;
 use crate::workflow_approval::WorkflowDecision;
 
 mod cancellation_capacity_tests;
+mod execution_control_tests;
 mod run_board_projection_tests;
 mod stall_recovery_tests;
 

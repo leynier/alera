@@ -105,6 +105,7 @@ mod workflow_catalog_tests;
 mod workflow_coordinator;
 #[cfg(test)]
 mod workflow_coordinator_tests;
+mod workflow_execution;
 mod workflow_export;
 #[cfg(test)]
 mod workflow_export_tests;
@@ -149,6 +150,9 @@ mod workflow_review;
 #[cfg(test)]
 mod workflow_review_tests;
 mod workflow_schema;
+pub use workflow_execution::{
+    ControlWorkflowExecution, WorkflowExecutionAction, WorkflowExecutionState,
+};
 #[cfg(test)]
 mod workflow_schema_tests;
 mod workflow_setup_report;

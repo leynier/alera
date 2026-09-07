@@ -12,6 +12,7 @@ pub(super) async fn inputs(
     dispatched: bool,
 ) -> Result<WorkflowLaunchInputs> {
     let (plan, _) = approved_plan(tx, &request.run_id, request.revision).await?;
+    super::workflow_execution::require_running(tx, &request.run_id, request.revision).await?;
     let unsettled: bool = sqlx::query_scalar(
         "SELECT EXISTS(SELECT 1 FROM workflowIntegrations
         WHERE run_id = ? AND state IN ('pending','prepared','attention'))",

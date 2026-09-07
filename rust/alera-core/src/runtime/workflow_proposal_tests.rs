@@ -2,6 +2,51 @@ use super::workflow_plan_tests::{fixture, valid_profile};
 use super::*;
 
 #[tokio::test]
+async fn approved_desktop_proposal_requires_explicit_start() {
+    let (dir, store, mut request) = fixture(false).await;
+    let tasks = std::mem::take(&mut request.proposal.tasks);
+    let draft = store
+        .create_workflow_proposal(request, valid_profile)
+        .await
+        .unwrap();
+    let plan = store
+        .submit_workflow_proposal(&draft.id, tasks)
+        .await
+        .unwrap();
+    assert!(store
+        .workflow_execution(&plan.run_id)
+        .await
+        .unwrap()
+        .is_none());
+    super::workflow_plan_tests::decision(
+        dir.path(),
+        &store,
+        &plan,
+        crate::workflow_approval::WorkflowDecision::Approve,
+    )
+    .await;
+    let execution = store
+        .workflow_execution(&plan.run_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(execution.status, "paused");
+    assert_eq!(execution.revision, plan.revision);
+    assert_eq!(execution.sequence, 0);
+    let started = store
+        .control_workflow_execution(&ControlWorkflowExecution {
+            request_id: "explicit-start".into(),
+            run_id: plan.run_id,
+            revision: plan.revision,
+            expected_sequence: execution.sequence,
+            action: WorkflowExecutionAction::Start,
+        })
+        .await
+        .unwrap();
+    assert_eq!(started.status, "running");
+}
+
+#[tokio::test]
 async fn workflow_proposal_listing_is_bounded_and_resumable() {
     let (_dir, store, mut request) = fixture(false).await;
     request.proposal.tasks.clear();
