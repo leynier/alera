@@ -74,6 +74,7 @@ struct ProposalSubmission {
 }
 
 enum PlanRequest {
+    Proposals(alera_core::runtime::WorkflowProposalQuery),
     Source(SourceQuery),
     CreateProposal(String),
     Proposal(ProposalQuery),
@@ -105,6 +106,7 @@ impl ServerActor {
             ));
         }
         let request = match request_type {
+            "workflows.proposals" => PlanRequest::Proposals(parse(payload)?),
             "workflows.source" => PlanRequest::Source(parse(payload)?),
             "workflows.createProposal" => {
                 PlanRequest::CreateProposal(document(payload, WORKFLOW_PLAN_MAX_BYTES)?)
@@ -144,6 +146,10 @@ impl ServerActor {
             let _permit = permit;
             let result = tokio::time::timeout(Duration::from_secs(25), async {
                 match request {
+                    PlanRequest::Proposals(query) => {
+                        serde_json::to_value(store.workflow_proposals(query).await.map_err(state)?)
+                            .map_err(state)
+                    }
                     PlanRequest::Source(query) => serde_json::to_value(
                         store
                             .workflow_source_snapshot(&query.workspace_id)

@@ -46,6 +46,7 @@ impl ServerActor {
             | "workflows.source"
             | "workflows.createProposal"
             | "workflows.proposal"
+            | "workflows.proposals"
             | "workflows.proposalStatus"
             | "workflows.submitProposal"
             | "workflows.plan"

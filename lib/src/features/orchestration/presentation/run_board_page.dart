@@ -13,6 +13,8 @@ import 'package:alera/src/features/orchestration/presentation/run_board_read_sta
 import 'package:alera/src/features/orchestration/presentation/run_board_workspace_actions.dart';
 import 'package:alera/src/features/orchestration/presentation/run_task_inspector.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_review_page.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_new_run_page.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_proposal_page.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -121,7 +123,19 @@ class RunBoardPage extends ConsumerWidget {
         location.workspaceId != null ||
         location.search.isNotEmpty ||
         location.bucket != null;
-    final detail = location.runId == null
+    final detail = location.newRun
+        ? WorkflowNewRunPage(
+            onCreated: navigation.selectProposal,
+            onBack: () => navigation.selectRun(null),
+          )
+        : location.proposalId != null
+        ? WorkflowProposalPage(
+            key: ValueKey(location.proposalId),
+            id: location.proposalId!,
+            onBack: () => navigation.selectRun(null),
+            onOpenRun: navigation.selectRun,
+          )
+        : location.runId == null
         ? data == null
               ? RunBoardReadState(
                   error: page.error,
@@ -170,6 +184,10 @@ class RunBoardPage extends ConsumerWidget {
                   'Run Board',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
+                FilledButton(
+                  onPressed: navigation.createRun,
+                  child: const Text('New Run'),
+                ),
                 TextButton.icon(
                   onPressed: navigation.close,
                   icon: const Icon(AleraIcons.back),
@@ -202,7 +220,11 @@ class RunBoardPage extends ConsumerWidget {
                   final scale = MediaQuery.textScalerOf(context).scale(1);
                   if (constraints.maxWidth <
                       AleraTokens.wideContentBreakpoint * scale) {
-                    return location.runId == null ? master() : detail;
+                    return location.runId == null &&
+                            !location.newRun &&
+                            location.proposalId == null
+                        ? master()
+                        : detail;
                   }
                   return AleraMasterDetail(
                     masterTitle: 'Runs',

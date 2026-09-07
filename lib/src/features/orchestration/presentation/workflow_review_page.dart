@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/orchestration/application/workflow_lifecycle_providers.dart';
 import 'package:alera/src/features/orchestration/domain/workflow_review_snapshot.dart';
 import 'package:alera/src/features/orchestration/infra/workflow_lifecycle_repository.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_review_panel.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
-import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -42,8 +42,8 @@ class _WorkflowReviewPageState extends ConsumerState<WorkflowReviewPage> {
   @override
   void initState() {
     super.initState();
-    final client = ref.read(runtimeHostClientProvider);
-    _repository = WorkflowLifecycleRepository(client, client);
+    _repository = ref.read(workflowLifecycleRepositoryProvider);
+    final client = _repository.client;
     _events = client.runtimeEvents.listen(
       (event) {
         if ({

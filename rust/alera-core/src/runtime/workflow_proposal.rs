@@ -47,6 +47,8 @@ impl super::RuntimeStore {
         )
         .execute(self.pool())
         .await?;
+        sqlx::query("CREATE INDEX IF NOT EXISTS workflowProposalPage ON workflowProposalDrafts(created_at DESC,id DESC)")
+            .execute(self.pool()).await?;
         sqlx::query(
             "CREATE TRIGGER IF NOT EXISTS workflowProposalImmutable
             BEFORE UPDATE ON workflowProposalDrafts

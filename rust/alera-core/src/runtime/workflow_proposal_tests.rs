@@ -2,6 +2,51 @@ use super::workflow_plan_tests::{fixture, valid_profile};
 use super::*;
 
 #[tokio::test]
+async fn workflow_proposal_listing_is_bounded_and_resumable() {
+    let (_dir, store, mut request) = fixture(false).await;
+    request.proposal.tasks.clear();
+    request.proposal.objective = "Long objective ".repeat(100);
+    for index in 0..27 {
+        request.request_id = format!("proposal-{index:03}");
+        store
+            .create_workflow_proposal(request.clone(), valid_profile)
+            .await
+            .unwrap();
+    }
+    let first = store
+        .workflow_proposals(WorkflowProposalQuery::default())
+        .await
+        .unwrap();
+    assert_eq!(first.entries.len(), 25);
+    assert!(first.has_more);
+    assert!(first
+        .entries
+        .iter()
+        .all(|entry| entry.objective.chars().count() == 256));
+    let cursor = first.entries.last().unwrap();
+    let second = store
+        .workflow_proposals(WorkflowProposalQuery {
+            before_created_at: Some(cursor.created_at.clone()),
+            before_id: Some(cursor.id.clone()),
+        })
+        .await
+        .unwrap();
+    assert_eq!(second.entries.len(), 2);
+    assert!(!second.has_more);
+    assert!(second
+        .entries
+        .iter()
+        .all(|entry| !first.entries.iter().any(|previous| previous.id == entry.id)));
+    assert!(store
+        .workflow_proposals(WorkflowProposalQuery {
+            before_id: Some("invalid".into()),
+            before_created_at: None
+        })
+        .await
+        .is_err());
+}
+
+#[tokio::test]
 async fn workflow_source_preview_excludes_dirty_files_and_binds_workspace_identity() {
     let (_dir, store, mut request) = fixture(false).await;
     request.proposal.tasks.clear();

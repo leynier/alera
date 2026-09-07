@@ -11,8 +11,27 @@ class RunBoardNavigation extends _$RunBoardNavigation {
   RunBoardLocation build() => const RunBoardLocation();
   void open() => state = state.copyWith(visible: true);
   void close() => state = state.copyWith(visible: false);
-  void selectRun(String? id) =>
-      state = state.copyWith(runId: id, taskId: null, reviewScope: null);
+  void selectRun(String? id) => state = state.copyWith(
+    runId: id,
+    taskId: null,
+    reviewScope: null,
+    newRun: false,
+    proposalId: null,
+  );
+  void createRun() => state = state.copyWith(
+    newRun: true,
+    runId: null,
+    taskId: null,
+    reviewScope: null,
+    proposalId: null,
+  );
+  void selectProposal(String id) => state = state.copyWith(
+    newRun: false,
+    proposalId: id,
+    runId: null,
+    taskId: null,
+    reviewScope: null,
+  );
   void review(String? scope) =>
       state = state.copyWith(reviewScope: scope, taskId: null);
   void selectTask(String? id) => state = state.copyWith(taskId: id);

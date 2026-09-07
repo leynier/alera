@@ -137,6 +137,7 @@ mod workflow_project_files;
 #[cfg(test)]
 mod workflow_project_files_tests;
 mod workflow_proposal;
+mod workflow_proposal_listing;
 mod workflow_proposal_store;
 #[cfg(test)]
 mod workflow_proposal_tests;
@@ -219,6 +220,7 @@ pub use workflow_integration::*;
 pub use workflow_launch::*;
 pub use workflow_plan::*;
 pub use workflow_proposal::*;
+pub use workflow_proposal_listing::*;
 pub use workflow_recipe::*;
 pub use workflow_review::*;
 pub use workflow_source_snapshot::*;

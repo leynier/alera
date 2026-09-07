@@ -73,6 +73,19 @@ class RunBoardLocationMapper extends ClassMapperBase<RunBoardLocation> {
     _$reviewScope,
     opt: true,
   );
+  static bool _$newRun(RunBoardLocation v) => v.newRun;
+  static const Field<RunBoardLocation, bool> _f$newRun = Field(
+    'newRun',
+    _$newRun,
+    opt: true,
+    def: false,
+  );
+  static String? _$proposalId(RunBoardLocation v) => v.proposalId;
+  static const Field<RunBoardLocation, String> _f$proposalId = Field(
+    'proposalId',
+    _$proposalId,
+    opt: true,
+  );
 
   @override
   final MappableFields<RunBoardLocation> fields = const {
@@ -84,6 +97,8 @@ class RunBoardLocationMapper extends ClassMapperBase<RunBoardLocation> {
     #runId: _f$runId,
     #taskId: _f$taskId,
     #reviewScope: _f$reviewScope,
+    #newRun: _f$newRun,
+    #proposalId: _f$proposalId,
   };
 
   static RunBoardLocation _instantiate(DecodingData data) {
@@ -96,6 +111,8 @@ class RunBoardLocationMapper extends ClassMapperBase<RunBoardLocation> {
       runId: data.dec(_f$runId),
       taskId: data.dec(_f$taskId),
       reviewScope: data.dec(_f$reviewScope),
+      newRun: data.dec(_f$newRun),
+      proposalId: data.dec(_f$proposalId),
     );
   }
 
@@ -170,6 +187,8 @@ abstract class RunBoardLocationCopyWith<$R, $In extends RunBoardLocation, $Out>
     String? runId,
     String? taskId,
     String? reviewScope,
+    bool? newRun,
+    String? proposalId,
   });
   RunBoardLocationCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -194,6 +213,8 @@ class _RunBoardLocationCopyWithImpl<$R, $Out>
     Object? runId = $none,
     Object? taskId = $none,
     Object? reviewScope = $none,
+    bool? newRun,
+    Object? proposalId = $none,
   }) => $apply(
     FieldCopyWithData({
       if (visible != null) #visible: visible,
@@ -204,6 +225,8 @@ class _RunBoardLocationCopyWithImpl<$R, $Out>
       if (runId != $none) #runId: runId,
       if (taskId != $none) #taskId: taskId,
       if (reviewScope != $none) #reviewScope: reviewScope,
+      if (newRun != null) #newRun: newRun,
+      if (proposalId != $none) #proposalId: proposalId,
     }),
   );
   @override
@@ -216,6 +239,8 @@ class _RunBoardLocationCopyWithImpl<$R, $Out>
     runId: data.get(#runId, or: $value.runId),
     taskId: data.get(#taskId, or: $value.taskId),
     reviewScope: data.get(#reviewScope, or: $value.reviewScope),
+    newRun: data.get(#newRun, or: $value.newRun),
+    proposalId: data.get(#proposalId, or: $value.proposalId),
   );
 
   @override
