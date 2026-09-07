@@ -74,6 +74,8 @@ struct ProposalSubmission {
 }
 
 enum PlanRequest {
+    Execution(PlanQuery),
+    ControlExecution(String),
     Proposals(alera_core::runtime::WorkflowProposalQuery),
     Source(SourceQuery),
     CreateProposal(String),
@@ -106,6 +108,8 @@ impl ServerActor {
             ));
         }
         let request = match request_type {
+            "workflows.execution" => PlanRequest::Execution(parse(payload)?),
+            "workflows.controlExecution" => PlanRequest::ControlExecution(document(payload, 4096)?),
             "workflows.proposals" => PlanRequest::Proposals(parse(payload)?),
             "workflows.source" => PlanRequest::Source(parse(payload)?),
             "workflows.createProposal" => {
@@ -146,6 +150,18 @@ impl ServerActor {
             let _permit = permit;
             let result = tokio::time::timeout(Duration::from_secs(25), async {
                 match request {
+                    PlanRequest::Execution(query) => {
+                        let execution = store.workflow_execution(&query.run_id).await.map_err(state)?;
+                        if query.revision.is_some_and(|revision| execution.as_ref().is_some_and(|value| value.revision != revision)) {
+                            return Err(HostError::state("workflow execution revision changed"));
+                        }
+                        Ok(serde_json::json!({"execution":execution}))
+                    }
+                    PlanRequest::ControlExecution(document) => {
+                        let request = serde_json::from_str(&document)
+                            .map_err(|_| HostError::format("invalid workflow execution command"))?;
+                        Ok(serde_json::json!({"execution":store.control_workflow_execution(&request).await.map_err(state)?}))
+                    }
                     PlanRequest::Proposals(query) => {
                         serde_json::to_value(store.workflow_proposals(query).await.map_err(state)?)
                             .map_err(state)

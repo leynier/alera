@@ -29,11 +29,15 @@ pub struct WorkflowExecutionState {
     pub revision: i64,
     pub sequence: i64,
     pub status: String,
+    #[serde(default)]
+    pub attention: Option<String>,
 }
 
 impl RuntimeStore {
     pub(super) async fn migrate_workflow_execution(&self) -> Result<()> {
         let mut tx = self.pool().begin().await?;
+        sqlx::query("CREATE INDEX IF NOT EXISTS workflowIntegrationWorkspaceSequence ON workflowIntegrations(workspace_id,sequence DESC)")
+            .execute(&mut *tx).await?;
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS workflowExecution (
                 run_id TEXT PRIMARY KEY REFERENCES workflowRuns(run_id) ON DELETE CASCADE,
@@ -61,18 +65,76 @@ impl RuntimeStore {
         )
         .execute(&mut *tx)
         .await?;
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS workflowExecutionIssues (
+            run_id TEXT PRIMARY KEY REFERENCES workflowRuns(run_id) ON DELETE CASCADE,
+            revision INTEGER NOT NULL, sequence INTEGER NOT NULL, reason TEXT NOT NULL)",
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query("CREATE INDEX IF NOT EXISTS workflowExecutionRunning ON workflowExecution(status,run_id)")
+            .execute(&mut *tx).await?;
         tx.commit().await?;
         Ok(())
     }
 
     pub async fn workflow_execution(&self, run: &str) -> Result<Option<WorkflowExecutionState>> {
         workflow_text(run, 160)?;
-        sqlx::query("SELECT * FROM workflowExecution WHERE run_id = ?")
+        sqlx::query("SELECT e.run_id,e.revision,e.sequence,
+            CASE WHEN w.status='completed' THEN 'completed' ELSE e.status END AS status,i.reason AS attention FROM workflowExecution e
+            JOIN workflowRuns w ON w.run_id=e.run_id
+            LEFT JOIN workflowExecutionIssues i ON i.run_id=e.run_id AND i.revision=e.revision AND i.sequence=e.sequence
+            WHERE e.run_id = ?")
             .bind(run)
             .fetch_optional(self.pool())
             .await?
             .map(decode)
             .transpose()
+    }
+
+    pub async fn workflow_execution_page(
+        &self,
+        after: Option<&str>,
+    ) -> Result<Vec<WorkflowExecutionState>> {
+        sqlx::query("SELECT e.*,NULL AS attention FROM workflowExecution e JOIN workflowRuns w ON w.run_id=e.run_id
+            WHERE e.status='running' AND w.status='approved' AND w.revision=e.revision
+            AND (? IS NULL OR e.run_id>?) ORDER BY e.run_id LIMIT 25")
+            .bind(after).bind(after).fetch_all(self.pool()).await?.into_iter().map(decode).collect()
+    }
+
+    pub async fn pause_workflow_execution_for_attention(
+        &self,
+        run: &str,
+        revision: i64,
+        sequence: i64,
+        reason: &str,
+    ) -> Result<bool> {
+        let next_sequence = sequence
+            .checked_add(1)
+            .ok_or_else(|| anyhow!("workflow execution sequence exhausted"))?;
+        let reason = reason.chars().take(1000).collect::<String>();
+        let mut tx = self.pool().begin().await?;
+        let changed = sqlx::query(
+            "UPDATE workflowExecution SET status='paused',sequence=sequence+1
+            WHERE run_id=? AND revision=? AND sequence=? AND status='running'",
+        )
+        .bind(run)
+        .bind(revision)
+        .bind(sequence)
+        .execute(&mut *tx)
+        .await?
+        .rows_affected()
+            == 1;
+        if changed {
+            sqlx::query("INSERT INTO workflowExecutionIssues(run_id,revision,sequence,reason) VALUES (?,?,?,?)
+                ON CONFLICT(run_id) DO UPDATE SET revision=excluded.revision,sequence=excluded.sequence,reason=excluded.reason")
+                .bind(run).bind(revision).bind(next_sequence).bind(reason).execute(&mut *tx).await?;
+            sqlx::query("UPDATE orchestrationBoardRevision SET revision=revision+1 WHERE id=1")
+                .execute(&mut *tx)
+                .await?;
+        }
+        tx.commit().await?;
+        Ok(changed)
     }
 
     /// Commands retain their original receipts. Replaying Start after a later
@@ -139,6 +201,7 @@ impl RuntimeStore {
             revision: request.revision,
             sequence,
             status: status.into(),
+            attention: None,
         };
         sqlx::query(
             "INSERT INTO workflowExecution(run_id,revision,sequence,status) VALUES (?,?,?,?)
@@ -151,6 +214,10 @@ impl RuntimeStore {
         .bind(status)
         .execute(&mut *tx)
         .await?;
+        sqlx::query("DELETE FROM workflowExecutionIssues WHERE run_id=?")
+            .bind(&request.run_id)
+            .execute(&mut *tx)
+            .await?;
         sqlx::query(
             "INSERT INTO workflowExecutionCommands(request_id,request_digest,run_id,receipt)
                 VALUES (?,?,?,?)",
@@ -191,5 +258,6 @@ fn decode(row: sqlx::sqlite::SqliteRow) -> Result<WorkflowExecutionState> {
         revision: row.try_get("revision")?,
         sequence: row.try_get("sequence")?,
         status: row.try_get("status")?,
+        attention: row.try_get("attention")?,
     })
 }

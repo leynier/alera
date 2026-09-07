@@ -17,10 +17,20 @@ use crate::terminal_host::orchestration::dispatch_preamble::build_dispatch_boots
 use super::orchestration_profile_spawn::launch_for_profile;
 use super::ServerActor;
 
+#[path = "workflow_execution_pump.rs"]
+pub(super) mod execution;
+
+pub(crate) enum WorkflowLaunchReply {
+    Client(u64, i64),
+    Execution(tokio::sync::oneshot::Sender<HostResult<serde_json::Value>>),
+}
+
 #[cfg(test)]
 mod tests;
 
 pub(crate) enum WorkflowLaunchCommand {
+    ExecutionWake,
+    ExecutionFinished(execution::ExecutionPass),
     CoordinatorPrepared {
         client_id: u64,
         request_id: i64,
@@ -31,9 +41,12 @@ pub(crate) enum WorkflowLaunchCommand {
         request_id: i64,
         result: HostResult<Box<PreparedLaunch>>,
     },
+    ExecutionPrepared {
+        reply: tokio::sync::oneshot::Sender<HostResult<serde_json::Value>>,
+        result: HostResult<Box<PreparedLaunch>>,
+    },
     Claimed {
-        client_id: u64,
-        request_id: i64,
+        reply: WorkflowLaunchReply,
         record: Box<WorkflowLaunchRecord>,
         token: String,
         locks: [File; 2],
@@ -49,8 +62,7 @@ pub(super) struct WorkflowLaunchPermit {
 }
 
 pub(crate) struct ValidatedWorkflowLaunch {
-    client_id: u64,
-    request_id: i64,
+    reply: WorkflowLaunchReply,
     record: WorkflowLaunchRecord,
     token: String,
     locks: [File; 2],
@@ -71,6 +83,10 @@ impl WorkflowLaunchPermit {
 impl ServerActor {
     pub(super) async fn handle_workflow_launch_command(&mut self, command: WorkflowLaunchCommand) {
         match command {
+            WorkflowLaunchCommand::ExecutionWake => self.wake_workflow_execution(),
+            WorkflowLaunchCommand::ExecutionFinished(pass) => {
+                self.finish_workflow_execution_pass(pass).await
+            }
             WorkflowLaunchCommand::CoordinatorPrepared {
                 client_id,
                 request_id,
@@ -88,17 +104,20 @@ impl ServerActor {
                     .await;
             }
             WorkflowLaunchCommand::Claimed {
-                client_id,
-                request_id,
+                reply,
                 record,
                 token,
                 locks,
                 result,
             } => {
-                self.handle_workflow_launch_claimed(
-                    client_id, request_id, *record, token, locks, *result,
-                )
-                .await;
+                self.handle_workflow_launch_claimed(reply, *record, token, locks, *result)
+                    .await;
+            }
+            WorkflowLaunchCommand::ExecutionPrepared { reply, result } => {
+                self.managed_workspace_jobs += 1;
+                self.cancel_shutdown_timer();
+                self.launch_prepared_for(WorkflowLaunchReply::Execution(reply), result)
+                    .await;
             }
             WorkflowLaunchCommand::SpawnValidated(validated) => {
                 self.handle_workflow_launch_spawn_validated(*validated)
@@ -115,34 +134,35 @@ impl ServerActor {
         request_id: i64,
         result: HostResult<Box<PreparedLaunch>>,
     ) {
+        self.launch_prepared_for(WorkflowLaunchReply::Client(client_id, request_id), result)
+            .await;
+    }
+
+    async fn launch_prepared_for(
+        &mut self,
+        reply: WorkflowLaunchReply,
+        result: HostResult<Box<PreparedLaunch>>,
+    ) {
         match result {
             Err(error) => {
-                self.handle_workflow_workspace_finished(client_id, request_id, Err(error), true)
-                    .await;
+                self.reply_workflow_launch(reply, Err(error)).await;
             }
             Ok(prepared) => match *prepared {
                 PreparedLaunch::Replay(record) => {
-                    self.handle_workflow_workspace_finished(
-                        client_id,
-                        request_id,
-                        Ok(json!(record)),
-                        true,
-                    )
-                    .await;
+                    self.reply_workflow_launch(reply, Ok(json!(record))).await;
                 }
                 PreparedLaunch::Fresh {
                     record,
                     token,
                     locks,
-                } => self.start_workflow_launch_claim(client_id, request_id, record, token, locks),
+                } => self.start_workflow_launch_claim(reply, record, token, locks),
             },
         }
     }
 
     fn start_workflow_launch_claim(
         &self,
-        client_id: u64,
-        request_id: i64,
+        reply: WorkflowLaunchReply,
         record: WorkflowLaunchRecord,
         token: String,
         locks: [File; 2],
@@ -165,8 +185,7 @@ impl ServerActor {
             .and_then(|result| result.map_err(|error| HostError::state(error.to_string())));
             let _ = inbox.send(super::ServerCommand::WorkflowLaunch(
                 WorkflowLaunchCommand::Claimed {
-                    client_id,
-                    request_id,
+                    reply,
                     record: Box::new(record),
                     token,
                     locks,
@@ -178,19 +197,18 @@ impl ServerActor {
 
     async fn handle_workflow_launch_claimed(
         &mut self,
-        client_id: u64,
-        request_id: i64,
+        reply: WorkflowLaunchReply,
         record: WorkflowLaunchRecord,
         token: String,
         locks: [File; 2],
         result: HostResult<WorkflowLaunchInputs>,
     ) {
         match result {
-            Ok(frozen) => self.start_workflow_launch_spawn_validation(
-                client_id, request_id, record, token, locks, frozen,
-            ),
+            Ok(frozen) => {
+                self.start_workflow_launch_spawn_validation(reply, record, token, locks, frozen)
+            }
             Err(error) => {
-                self.finish_workflow_launch(client_id, request_id, record, locks, Err(error))
+                self.finish_workflow_launch(reply, record, locks, Err(error))
                     .await;
             }
         }
@@ -198,8 +216,7 @@ impl ServerActor {
 
     fn start_workflow_launch_spawn_validation(
         &self,
-        client_id: u64,
-        request_id: i64,
+        reply: WorkflowLaunchReply,
         record: WorkflowLaunchRecord,
         token: String,
         locks: [File; 2],
@@ -223,8 +240,7 @@ impl ServerActor {
             .and_then(|result| result.map_err(|error| HostError::state(error.to_string())));
             let _ = inbox.send(super::ServerCommand::WorkflowLaunch(
                 WorkflowLaunchCommand::SpawnValidated(Box::new(ValidatedWorkflowLaunch {
-                    client_id,
-                    request_id,
+                    reply,
                     record,
                     token,
                     locks,
@@ -243,20 +259,13 @@ impl ServerActor {
             }
             Err(error) => Err(error),
         };
-        self.finish_workflow_launch(
-            validated.client_id,
-            validated.request_id,
-            validated.record,
-            validated.locks,
-            result,
-        )
-        .await;
+        self.finish_workflow_launch(validated.reply, validated.record, validated.locks, result)
+            .await;
     }
 
     async fn finish_workflow_launch(
         &mut self,
-        client_id: u64,
-        request_id: i64,
+        reply: WorkflowLaunchReply,
         record: WorkflowLaunchRecord,
         locks: [File; 2],
         result: HostResult<WorkflowLaunchRecord>,
@@ -291,8 +300,27 @@ impl ServerActor {
             }
         };
         drop(locks);
-        self.handle_workflow_workspace_finished(client_id, request_id, result, true)
-            .await;
+        self.reply_workflow_launch(reply, result).await;
+    }
+
+    async fn reply_workflow_launch(
+        &mut self,
+        reply: WorkflowLaunchReply,
+        result: HostResult<serde_json::Value>,
+    ) {
+        match reply {
+            WorkflowLaunchReply::Client(client, request) => {
+                self.handle_workflow_workspace_finished(client, request, result, true)
+                    .await
+            }
+            WorkflowLaunchReply::Execution(reply) => {
+                self.managed_workspace_jobs = self.managed_workspace_jobs.saturating_sub(1);
+                self.broadcast_workspaces_changed(None);
+                self.broadcast_orchestration_board_change().await;
+                let _ = reply.send(result);
+                self.schedule_shutdown_if_idle();
+            }
+        }
     }
 
     async fn spawn_workflow_launch(

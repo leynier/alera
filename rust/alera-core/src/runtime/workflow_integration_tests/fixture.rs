@@ -4,7 +4,7 @@ use super::*;
 use crate::runtime::workflow_plan_tests::{decision, fixture, valid_profile};
 use crate::workflow_approval::WorkflowDecision;
 
-pub(super) struct Fixture {
+pub(in crate::runtime) struct Fixture {
     pub directory: tempfile::TempDir,
     pub store: RuntimeStore,
     pub plan: WorkflowPlanRevision,

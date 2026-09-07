@@ -249,6 +249,8 @@ impl ServerActor {
     }
 
     pub(super) async fn handle_workflow_workspace_recovery_finished(&mut self) {
+        self.workflow_execution.ready = true;
+        self.wake_workflow_execution();
         self.managed_workspace_jobs = self.managed_workspace_jobs.saturating_sub(1);
         self.broadcast_workspaces_changed(None);
         self.broadcast_orchestration_board_change().await;

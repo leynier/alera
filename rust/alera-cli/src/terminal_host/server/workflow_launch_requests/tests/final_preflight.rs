@@ -192,7 +192,13 @@ async fn workflow_launch_does_not_spawn_after_claim_is_cancelled() {
     actor.inbox = inbox;
 
     actor
-        .handle_workflow_launch_claimed(1, 1, record.clone(), token, locks, Ok(frozen))
+        .handle_workflow_launch_claimed(
+            WorkflowLaunchReply::Client(1, 1),
+            record.clone(),
+            token,
+            locks,
+            Ok(frozen),
+        )
         .await;
     finish_spawn_validation(&mut actor, &mut commands).await;
 
@@ -253,7 +259,13 @@ async fn workflow_launch_rechecks_attempt_commit_at_spawn_boundary() {
     actor.inbox = inbox;
 
     actor
-        .handle_workflow_launch_claimed(1, 1, record.clone(), token, locks, Ok(frozen))
+        .handle_workflow_launch_claimed(
+            WorkflowLaunchReply::Client(1, 1),
+            record.clone(),
+            token,
+            locks,
+            Ok(frozen),
+        )
         .await;
     finish_spawn_validation(&mut actor, &mut commands).await;
 
@@ -307,7 +319,13 @@ async fn workflow_launch_rechecks_dirty_attempt_at_spawn_boundary() {
     actor.inbox = inbox;
 
     actor
-        .handle_workflow_launch_claimed(1, 1, record.clone(), token, locks, Ok(frozen))
+        .handle_workflow_launch_claimed(
+            WorkflowLaunchReply::Client(1, 1),
+            record.clone(),
+            token,
+            locks,
+            Ok(frozen),
+        )
         .await;
     finish_spawn_validation(&mut actor, &mut commands).await;
 

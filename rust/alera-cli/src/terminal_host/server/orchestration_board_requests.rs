@@ -69,6 +69,9 @@ impl ServerActor {
     pub(super) async fn broadcast_orchestration_board_change(&self) {
         match self.runtime_store.take_orchestration_board_change().await {
             Ok(Some(revision)) => {
+                let _ = self.inbox.send(super::ServerCommand::WorkflowLaunch(
+                    super::workflow_launch_requests::WorkflowLaunchCommand::ExecutionWake,
+                ));
                 let payload = event("orchestrationBoardChanged", json!({ "revision": revision }));
                 for client in self
                     .clients

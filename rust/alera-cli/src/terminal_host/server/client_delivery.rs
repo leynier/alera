@@ -319,6 +319,7 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            workflow_execution: Default::default(),
             emulator_requests: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),

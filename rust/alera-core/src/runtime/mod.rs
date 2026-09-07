@@ -106,6 +106,11 @@ mod workflow_coordinator;
 #[cfg(test)]
 mod workflow_coordinator_tests;
 mod workflow_execution;
+mod workflow_execution_completion;
+mod workflow_execution_step;
+#[cfg(test)]
+mod workflow_execution_step_tests;
+pub use workflow_execution_step::WorkflowExecutionStep;
 mod workflow_export;
 #[cfg(test)]
 mod workflow_export_tests;

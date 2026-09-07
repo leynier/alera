@@ -30,6 +30,15 @@ async fn workflow_plan_rpc_rejects_unbounded_source_queries_before_queueing() {
             .start_workflow_plan_request(1, 1, "workflows.source", &payload)
             .is_err());
     }
+    for payload in [
+        json!({"document":"x".repeat(4097)}),
+        json!({"document": {"action":"start"}}),
+        json!({"document":"{}","actor":"app"}),
+    ] {
+        assert!(actor
+            .start_workflow_plan_request(1, 1, "workflows.controlExecution", &payload)
+            .is_err());
+    }
 }
 
 #[tokio::test]
@@ -39,6 +48,8 @@ async fn workflow_plan_rpc_rejects_mobile_and_unauthenticated_clients() {
     let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
     for verb in [
         "workflows.preparePlan",
+        "workflows.execution",
+        "workflows.controlExecution",
         "workflows.source",
         "workflows.plan",
         "workflows.approvalChallenge",

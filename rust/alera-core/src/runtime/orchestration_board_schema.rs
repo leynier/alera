@@ -31,6 +31,8 @@ impl RuntimeStore {
             "workflowWorkspaces",
             "workflowIntegrations",
             "workflowLaunches",
+            "workflowExecution",
+            "workflowExecutionIssues",
         ] {
             for operation in ["INSERT", "UPDATE", "DELETE"] {
                 sqlx::query(sqlx::AssertSqlSafe(format!(
@@ -106,6 +108,8 @@ const BOARD_SCHEMA: &[&str] = &[
                  OR COALESCE(t.stalled_count, 0) > 0
                  OR COALESCE(t.blocked_count, 0) > 0
                  OR COALESCE(g.pending_gate_count, 0) > 0
+                 OR EXISTS(SELECT 1 FROM workflowExecutionIssues i JOIN workflowExecution e ON e.run_id=i.run_id
+                     WHERE i.run_id=r.id AND i.revision=e.revision AND i.sequence=e.sequence)
                  OR EXISTS(SELECT 1 FROM workflowLaunches l JOIN workflowRuns wr ON wr.run_id = l.run_id
                      WHERE l.run_id = r.id AND l.revision = wr.revision AND l.status = 'attention'
                        AND NOT EXISTS(SELECT 1 FROM workflowTaskEvidence e WHERE e.task_id = l.task_id)

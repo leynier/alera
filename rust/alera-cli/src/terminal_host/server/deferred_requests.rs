@@ -43,6 +43,8 @@ impl ServerActor {
                 Ok(true)
             }
             "workflows.preparePlan"
+            | "workflows.execution"
+            | "workflows.controlExecution"
             | "workflows.source"
             | "workflows.createProposal"
             | "workflows.proposal"

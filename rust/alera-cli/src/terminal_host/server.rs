@@ -275,6 +275,7 @@ struct ServerActor {
     project_clone_jobs: HashMap<String, tokio::sync::oneshot::Sender<()>>,
     agent_title_jobs: HashMap<String, agent_title_generation::AgentTitleJob>,
     managed_workspace_jobs: usize,
+    workflow_execution: workflow_launch_requests::execution::ExecutionPump,
     emulator_requests: emulator_request_queue::EmulatorRequestQueue,
     agent_quota_cache: Option<(Instant, u64, Value)>,
     configuration_transfers: configuration_transfers::ConfigurationTransfers,
@@ -1226,60 +1227,22 @@ mod tests {
     #[tokio::test]
     async fn stale_ssh_bootstrap_progress_is_not_broadcast() {
         let dir = tempfile::tempdir().unwrap();
-        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
-        let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
-        let (inbox, _rx) = mpsc::unbounded_channel();
         let (handle, mut out_rx) = ClientHandle::test_channels();
-        let mut actor = ServerActor {
-            runtime_dir: dir.path().to_path_buf(),
-            control_file_path: dir.path().join("runtime-host.json"),
-            token: "token".to_string(),
-            config: TerminalHostConfig::default(),
-            store,
-            runtime_store: runtime_store.clone(),
-            automation_wake: Arc::new(Notify::new()),
-            automations_active: false,
-            sessions: HashMap::new(),
-            ssh_bootstrap_jobs: HashMap::from([(
-                "remote".to_string(),
-                SshBootstrapJobState {
-                    job_id: "active-job".to_string(),
-                    target_id: "remote".to_string(),
-                    status: SshBootstrapStatus::Installing,
-                    handle: tokio::spawn(async {}),
-                },
-            )]),
-            project_clone_jobs: HashMap::new(),
-            agent_title_jobs: HashMap::new(),
-            managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
-            agent_quota_cache: None,
-            configuration_transfers: Default::default(),
-            account_push: account_push_for_test(&dir, &runtime_store).await,
-            clients: HashMap::from([(1, ClientState::local(handle, true))]),
-            mobile_prompt_file_uploads: HashMap::new(),
-            pending_output_writes: HashMap::new(),
-            agent_presence: AgentPresenceRegistry::default(),
-            orchestration_waiters: MessageWaiterRegistry::default(),
-            orchestration_delivery_in_flight: HashSet::new(),
-            orchestration_delivery_backpressured: HashSet::new(),
-            orchestration_activity_last_recorded: HashMap::new(),
-            coordinators: HashMap::new(),
-            resources: ResourceMonitorState::default(),
-            terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
-            emulators: None,
-            codex: None,
-            codex_presence: HashMap::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
-            inbox,
-            next_client_id: Arc::new(AtomicU64::new(2)),
-            mobile_gateway: None,
-            shutdown_gen: 0,
-            disposed: false,
-        };
+        let mut actor = actor_test_harness::test_actor(
+            &dir,
+            HashMap::from([(1, ClientState::local(handle, true))]),
+            HashMap::new(),
+        )
+        .await;
+        actor.ssh_bootstrap_jobs.insert(
+            "remote".into(),
+            SshBootstrapJobState {
+                job_id: "active-job".into(),
+                target_id: "remote".into(),
+                status: SshBootstrapStatus::Installing,
+                handle: tokio::spawn(async {}),
+            },
+        );
 
         actor.handle_ssh_bootstrap_progress(SshTargetBootstrapProgress {
             job_id: "stale-job".to_string(),
@@ -1332,6 +1295,7 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            workflow_execution: Default::default(),
             emulator_requests: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
@@ -1430,6 +1394,7 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            workflow_execution: Default::default(),
             emulator_requests: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
@@ -1523,6 +1488,7 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            workflow_execution: Default::default(),
             emulator_requests: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
@@ -1638,6 +1604,7 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            workflow_execution: Default::default(),
             emulator_requests: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
@@ -1763,6 +1730,7 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            workflow_execution: Default::default(),
             emulator_requests: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
