@@ -276,6 +276,11 @@ final class const TerminalHostPulseChangedEvent(
 ) extends TerminalHostEvent;
 
 /// Broadcast event names surfaced on the runtime host event stream.
+///
+/// The runtime client drops any other name before it reaches `runtimeEvents`.
+/// New watchers MUST add their host event name here. Missing
+/// `aleraAccountChanged` left Account settings signed-out after OAuth until
+/// the next app start.
 const Set<String> runtimeHostEventNames = <String>{
   'projectsChanged',
   'workspacesChanged',
@@ -283,6 +288,8 @@ const Set<String> runtimeHostEventNames = <String>{
   'workspaceTagsChanged',
   'workspaceRelationsChanged',
   'runtimeSettingsChanged',
+  'aleraAccountChanged',
+  'aleraAccountSignInFailed',
   'agentQuotasChanged',
   'agentSkillInstallProgress',
   'workbenchViewPrefsChanged',
