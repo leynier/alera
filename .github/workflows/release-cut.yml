@@ -953,16 +953,10 @@ jobs:
             --dart-define "ALERA_FIREBASE_MESSAGING_SENDER_ID=$ALERA_FIREBASE_MESSAGING_SENDER_ID"
             --dart-define "ALERA_FIREBASE_PROJECT_ID=$ALERA_FIREBASE_PROJECT_ID"
           )
-          # The default APK is arm64-only. A fat APK that also embeds
-          # 32-bit libraries (ML Kit's barhopper is 4 KB aligned) fails to
-          # install on 16 KB page-size phones, which is the asset the app
-          # and landing page offer. Split APKs stay available for 32-bit
-          # and x86_64. Copy the default aside: --split-per-abi writes
-          # into the same output directory.
+          # One arm64 APK. A fat APK that also embeds 32-bit libraries
+          # (ML Kit's barhopper is 4 KB aligned) fails to install on
+          # 16 KB page-size phones.
           flutter build apk --release --target-platform android-arm64 -Pdisable-abi-filtering=true -PaleraAbiFilters=arm64-v8a "${firebase_defines[@]}"
-          cp build/app/outputs/flutter-apk/app-release.apk "$RUNNER_TEMP/app-release-arm64.apk"
-          flutter build apk --release --split-per-abi "${firebase_defines[@]}"
-          cp "$RUNNER_TEMP/app-release-arm64.apk" build/app/outputs/flutter-apk/app-release.apk
 
       - name: Verify Android native dependencies
         shell: bash
@@ -987,9 +981,6 @@ jobs:
           source_dir="mobile/build/app/outputs/flutter-apk"
           mkdir -p mobile-release-assets
           cp "$source_dir/app-release.apk" "mobile-release-assets/alera-${RELEASE_VERSION}-android.apk"
-          cp "$source_dir/app-arm64-v8a-release.apk" "mobile-release-assets/alera-${RELEASE_VERSION}-android-arm64-v8a.apk"
-          cp "$source_dir/app-armeabi-v7a-release.apk" "mobile-release-assets/alera-${RELEASE_VERSION}-android-armeabi-v7a.apk"
-          cp "$source_dir/app-x86_64-release.apk" "mobile-release-assets/alera-${RELEASE_VERSION}-android-x86_64.apk"
 
           for asset in mobile-release-assets/*.apk; do
             asset_name="$(basename "$asset")"
@@ -1080,17 +1071,14 @@ jobs:
           set -euo pipefail
           expected=(
             "alera-${RELEASE_VERSION}-android.apk"
-            "alera-${RELEASE_VERSION}-android-arm64-v8a.apk"
-            "alera-${RELEASE_VERSION}-android-armeabi-v7a.apk"
-            "alera-${RELEASE_VERSION}-android-x86_64.apk"
           )
           for asset in "${expected[@]}"; do
             test -s "mobile-release-assets/$asset" || { echo "::error::Missing $asset"; exit 1; }
             test -s "mobile-release-assets/$asset.sha256" || { echo "::error::Missing $asset.sha256"; exit 1; }
           done
           actual_count="$(find mobile-release-assets -maxdepth 1 -type f | wc -l)"
-          if [[ "$actual_count" -ne 8 ]]; then
-            echo "::error::Expected 8 mobile release files, found $actual_count."
+          if [[ "$actual_count" -ne 2 ]]; then
+            echo "::error::Expected 2 mobile release files, found $actual_count."
             find mobile-release-assets -maxdepth 1 -type f -print
             exit 1
           fi

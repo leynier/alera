@@ -73,12 +73,11 @@ class const MobileVersion(final int major, final int minor, final int patch)
   String toString() => '$major.$minor.$patch';
 }
 
-/// The default APK, the only asset the app offers.
+/// The published APK, the only Android asset the app offers.
 ///
-/// The filename stays `alera-$version-android.apk`. The file itself is arm64
-/// only: a fat APK that also embeds 32-bit libraries fails to install on 16 KB
-/// page-size phones, and picking a per-ABI asset would mean guessing the
-/// device's ABI. 32-bit and x86_64 remain separate GitHub assets.
+/// The filename stays `alera-$version-android.apk`. The file is arm64 only: a
+/// fat APK that also embeds 32-bit libraries fails to install on 16 KB
+/// page-size phones.
 String universalApkAssetName(MobileVersion version) {
   return 'alera-$version-android.apk';
 }

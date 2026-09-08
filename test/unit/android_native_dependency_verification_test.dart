@@ -22,6 +22,10 @@ void main() {
       expect(workflow, contains('--target-platform android-arm64'));
       expect(workflow, contains('-Pdisable-abi-filtering=true'));
       expect(workflow, contains('-PaleraAbiFilters=arm64-v8a'));
+      expect(workflow, isNot(contains('--split-per-abi')));
+      expect(workflow, isNot(contains('android-armeabi-v7a.apk')));
+      expect(workflow, isNot(contains('android-x86_64.apk')));
+      expect(workflow, contains('Expected 2 mobile release files'));
       expect(
         File('.github/workflows/mobile-build.yml').readAsStringSync(),
         contains('--target-platform android-arm64'),
@@ -53,7 +57,7 @@ void main() {
       expect(defaultConfig, contains('abiFilters.addAll(aleraAbiFilters)'));
       expect(gradle, contains('androidComponents'));
       expect(gradle, contains('aleraJniExcludePatterns'));
-      expect(gradle, contains('afterEvaluate'));
+      expect(gradle, isNot(contains('afterEvaluate')));
       expect(gradle, contains('abiFilters.clear()'));
       expect(
         workflow,
@@ -159,16 +163,11 @@ void main() {
       needed: <String>[runtime.path],
     );
 
-    for (final apkName in <String>[
-      'app-release.apk',
-      'app-arm64-v8a-release.apk',
-    ]) {
-      final apk = File(p.join(temp.path, apkName));
-      _zipApk(apk, <String, File>{
-        'lib/arm64-v8a/libalera_mobile_native.so': native,
-        'lib/arm64-v8a/libc++_shared.so': runtime,
-      });
-    }
+    final apk = File(p.join(temp.path, 'app-release.apk'));
+    _zipApk(apk, <String, File>{
+      'lib/arm64-v8a/libalera_mobile_native.so': native,
+      'lib/arm64-v8a/libc++_shared.so': runtime,
+    });
 
     final result = Process.runSync('bash', <String>[script.path, temp.path]);
     expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');

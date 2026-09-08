@@ -8,10 +8,10 @@ set -euo pipefail
 #   loader rejects the library before dictation can start.
 # - 64-bit ELF LOAD segments aligned below 16 KB. Android 15 16 KB page-size
 #   phones refuse those APKs at install time.
-# - The default `app-release.apk` embedding any ABI other than arm64-v8a.
-#   Flutter --target-platform does not strip plugin JNI (ML Kit barhopper is
-#   4 KB aligned on 32-bit), so a default APK that still contains those
-#   objects fails on 16 KB phones even when the arm64 libraries are aligned.
+# - `app-release.apk` embedding any ABI other than arm64-v8a. Flutter
+#   --target-platform does not strip plugin JNI (ML Kit barhopper is 4 KB
+#   aligned on 32-bit), so a fat APK fails on 16 KB phones even when the
+#   arm64 libraries are aligned. Releases ship that one APK only.
 #
 # The check lives here instead of inline in the workflow so it can be run
 # against fixtures: the previous inline version looked up llvm-readelf with

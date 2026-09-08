@@ -21,20 +21,11 @@ if (file("google-services.json").exists()) {
 val keystorePropertiesFile = rootProject.file("key.properties")
 val releaseSigningAvailable = keystorePropertiesFile.exists()
 
-// Read this at Project scope. Inside defaultConfig, findProperty hits the
-// flavor extras and never sees -PaleraAbiFilters.
-//
-// Flutter's configureAbiWithoutSplits() runs during plugin apply, before
-// this file's android {} block, and writes PLATFORM_ABI_LIST
-// ([armeabi-v7a, arm64-v8a, x86_64]) whenever --split-per-abi is off.
-// --target-platform only controls engine/app compilation, so plugin JNI
-// for the other ABIs still lands in the APK. Flutter's own
-// gradle_jni_packaging_test shows the override that wins: defaultConfig
-// must clear() then addAll(). += unions with PLATFORM_ABI_LIST.
-// afterEvaluate is too late: AGP already copied defaultConfig into
-// variants. CI also passes -Pdisable-abi-filtering=true so Flutter
-// never writes PLATFORM_ABI_LIST. Omit both properties for
-// --split-per-abi and emulator flutter run.
+// Read at Project scope: defaultConfig.findProperty hits flavor extras
+// and misses -PaleraAbiFilters. clear() then addAll() because += unions
+// with Flutter's PLATFORM_ABI_LIST. CI passes -Pdisable-abi-filtering=true
+// so Flutter never writes that list. Omit both properties for emulator
+// flutter run.
 val aleraAbiFilters = (findProperty("aleraAbiFilters") as String?)
     ?.split(',')
     ?.map(String::trim)
@@ -99,6 +90,7 @@ android {
                 abiFilters.clear()
                 abiFilters.addAll(aleraAbiFilters)
             }
+            println("INFO: packaging only ${aleraAbiFilters.joinToString()} native libraries")
         }
     }
 
@@ -142,16 +134,6 @@ androidComponents {
         for (abi in aleraExcludedJniAbis) {
             variant.packaging.jniLibs.excludes.addAll(aleraJniExcludePatterns(abi))
         }
-    }
-}
-
-afterEvaluate {
-    if (aleraAbiFilters.isNotEmpty()) {
-        android.defaultConfig.ndk {
-            abiFilters.clear()
-            abiFilters.addAll(aleraAbiFilters)
-        }
-        println("INFO: packaging only ${aleraAbiFilters.joinToString()} native libraries")
     }
 }
 

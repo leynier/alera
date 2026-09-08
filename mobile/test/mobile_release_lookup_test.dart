@@ -83,8 +83,8 @@ void main() {
     });
 
     test('never offers a per-abi apk', () {
-      // Resolving the device ABI is a guess that fails on a device reporting
-      // several, so a release without the default arm64 build is skipped.
+      // Older GitHub releases still carry split APKs. The app only offers
+      // alera-$version-android.apk, so a tag without that file is skipped.
       final release = latestMobileRelease(<dynamic>[
         _release(
           'v0.10.0-mobile',
