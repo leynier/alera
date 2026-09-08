@@ -108,16 +108,7 @@ pub async fn hand_on_managed_workspace(
         .await?
         .ok_or_else(|| anyhow!("Project not found: {}", child.project_id))?;
     let mut main = find_main_workspace(store, &project.id).await?;
-    let branch = child
-        .branch
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| anyhow!("Child workspace has no branch to bring onto main"))?
-        .to_string();
-    if branch == "HEAD" {
-        bail!("Cannot hand on a detached HEAD");
-    }
+    let branch = require_live_child_branch(&child)?;
     if !core_git::is_worktree_clean(&main.path)? {
         bail!("The main worktree has local changes. Commit, stash, or discard them before handing on.");
     }
@@ -309,6 +300,23 @@ fn filesystem_entry_is_missing(path: &str) -> bool {
         std::fs::symlink_metadata(path),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound
     )
+}
+
+fn require_live_child_branch(child: &Workspace) -> Result<String> {
+    let live = core_git::current_branch(&child.path)?;
+    if live == "HEAD" {
+        bail!("Cannot hand on a detached HEAD");
+    }
+    let expected = child
+        .branch
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| anyhow!("Child workspace has no branch to bring onto main"))?;
+    if expected != live {
+        bail!("Workspace branch does not match live worktree: expected {expected}, found {live}");
+    }
+    Ok(live)
 }
 
 fn require_trimmed(value: &str, message: &str) -> Result<String> {
