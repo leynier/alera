@@ -4,6 +4,108 @@ use super::*;
 use crate::workflow_approval::WorkflowDecision;
 
 #[tokio::test]
+async fn cleanup_claims_are_exclusive_and_retire_each_resource_independently() {
+    let (dir, store, proposal) = fixture(false).await;
+    let plan = store
+        .prepare_workflow_plan(proposal, valid_profile)
+        .await
+        .unwrap();
+    decision(dir.path(), &store, &plan, WorkflowDecision::Approve).await;
+    let integration = ready_workspace(&dir, &store, &plan, None).await;
+    let task: String = sqlx::query_scalar(
+        "SELECT task_id FROM workflowPlanTasks WHERE run_id=? AND logical_id='fix'",
+    )
+    .bind(&plan.run_id)
+    .fetch_one(store.pool())
+    .await
+    .unwrap();
+    let task = ready_workspace(&dir, &store, &plan, Some(task)).await;
+    store
+        .control_workflow_execution(&ControlWorkflowExecution {
+            request_id: "cancel-for-cleanup-claims".into(),
+            run_id: plan.run_id.clone(),
+            revision: 1,
+            expected_sequence: 0,
+            action: WorkflowExecutionAction::Cancel,
+        })
+        .await
+        .unwrap();
+    let items = [integration, task]
+        .into_iter()
+        .map(|resource| WorkflowCleanupItem {
+            identity: resource.identity,
+            git: crate::git::WorkflowCleanupGitPreview {
+                head_sha: plan.integration_sha.clone(),
+                dirty: false,
+                operation_in_progress: false,
+                locked: false,
+                changed_paths: vec![],
+                paths_truncated: false,
+            },
+            remove_branch: false,
+        })
+        .collect::<Vec<_>>();
+    let first = store
+        .publish_workflow_cleanup_preview(
+            &uuid::Uuid::new_v4().to_string(),
+            &plan.run_id,
+            items.clone(),
+        )
+        .await
+        .unwrap();
+    let second = store
+        .publish_workflow_cleanup_preview(
+            &uuid::Uuid::new_v4().to_string(),
+            &plan.run_id,
+            items.clone(),
+        )
+        .await
+        .unwrap();
+    let reopened = RuntimeStore::open(dir.path()).await.unwrap();
+    let (a, b) = tokio::join!(
+        store.claim_workflow_cleanup(&first.id, &first.digest),
+        reopened.claim_workflow_cleanup(&second.id, &second.digest),
+    );
+    assert_ne!(a.is_ok(), b.is_ok());
+    let winner = a.or(b).unwrap().preview;
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM workflowCleanupResources")
+        .fetch_one(store.pool())
+        .await
+        .unwrap();
+    assert_eq!(count, 2);
+    let one = &items[0].identity.workspace.id;
+    store
+        .record_workflow_cleanup_retirement(&winner.id, &winner.digest, one)
+        .await
+        .unwrap();
+    let state: String = sqlx::query_scalar("SELECT state FROM workflowCleanup WHERE id=?")
+        .bind(&winner.id)
+        .fetch_one(store.pool())
+        .await
+        .unwrap();
+    assert_eq!(state, "applying");
+    let replay = reopened
+        .claim_workflow_cleanup(&winner.id, &winner.digest)
+        .await
+        .unwrap();
+    assert_eq!(replay.retired_workspace_ids, vec![one.clone()]);
+    let two = &items[1].identity.workspace.id;
+    reopened
+        .record_workflow_cleanup_retirement(&winner.id, &winner.digest, two)
+        .await
+        .unwrap();
+    let state: String = sqlx::query_scalar("SELECT state FROM workflowCleanup WHERE id=?")
+        .bind(&winner.id)
+        .fetch_one(store.pool())
+        .await
+        .unwrap();
+    assert_eq!(state, "retired");
+    // The ledger never erases historical workspace identities.
+    assert!(store.workflow_workspace(one).await.is_ok());
+    assert!(store.workflow_workspace(two).await.is_ok());
+}
+
+#[tokio::test]
 async fn cleanup_preview_requires_a_closed_run_and_preserves_its_exact_receipt() {
     let (dir, store, proposal) = fixture(false).await;
     let plan = store
@@ -82,4 +184,78 @@ async fn cleanup_preview_requires_a_closed_run_and_preserves_its_exact_receipt()
         .workflow_workspace(&first.items[0].identity.workspace.id)
         .await
         .is_ok());
+    let workspace_id = &first.items[0].identity.workspace.id;
+    assert!(store
+        .record_workflow_cleanup_retirement(&id, &first.digest, workspace_id)
+        .await
+        .is_err());
+    assert!(store.claim_workflow_cleanup(&id, "stale").await.is_err());
+    let overlapping = store
+        .publish_workflow_cleanup_preview(
+            &uuid::Uuid::new_v4().to_string(),
+            &plan.run_id,
+            first.items.clone(),
+        )
+        .await
+        .unwrap();
+    let mut dirty = first.items.clone();
+    dirty[0].git.dirty = true;
+    let dirty = store
+        .publish_workflow_cleanup_preview(&uuid::Uuid::new_v4().to_string(), &plan.run_id, dirty)
+        .await
+        .unwrap();
+    assert!(store
+        .claim_workflow_cleanup(&dirty.id, &dirty.digest)
+        .await
+        .is_err());
+    let claimed = store
+        .claim_workflow_cleanup(&id, &first.digest)
+        .await
+        .unwrap();
+    assert!(claimed.retired_workspace_ids.is_empty());
+    assert!(reopened
+        .claim_workflow_cleanup(&overlapping.id, &overlapping.digest)
+        .await
+        .is_err());
+    // Expiry fences a new confirmation, not recovery of an existing claim.
+    sqlx::query("UPDATE workflowCleanup SET expires_at=0")
+        .execute(store.pool())
+        .await
+        .unwrap();
+    assert!(reopened
+        .claim_workflow_cleanup(&overlapping.id, &overlapping.digest)
+        .await
+        .unwrap_err()
+        .to_string()
+        .contains("expired"));
+    let replay = reopened
+        .claim_workflow_cleanup(&id, &first.digest)
+        .await
+        .unwrap();
+    assert_eq!(replay.preview.digest, first.digest);
+    assert!(reopened
+        .record_workflow_cleanup_retirement(&id, &first.digest, "foreign-workspace")
+        .await
+        .is_err());
+    reopened
+        .record_workflow_cleanup_retirement(&id, &first.digest, workspace_id)
+        .await
+        .unwrap();
+    reopened
+        .record_workflow_cleanup_retirement(&id, &first.digest, workspace_id)
+        .await
+        .unwrap();
+    let retired = store
+        .claim_workflow_cleanup(&id, &first.digest)
+        .await
+        .unwrap();
+    assert_eq!(retired.retired_workspace_ids, vec![workspace_id.clone()]);
+    assert_eq!(
+        sqlx::query_scalar::<_, String>("SELECT state FROM workflowCleanup WHERE id=?")
+            .bind(&id)
+            .fetch_one(store.pool())
+            .await
+            .unwrap(),
+        "retired"
+    );
 }
