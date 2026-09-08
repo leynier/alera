@@ -96,11 +96,56 @@ void main() {
 
     await notifier.refreshViewport();
 
+    final pulse = terminalViewportRefreshPulseSize(80, 24);
     expect(
       client.calls.where((call) => call.startsWith('resize ')).toList(),
-      <String>['resize session-tab-1 79 24', 'resize session-tab-1 80 24'],
+      <String>[
+        'resize session-tab-1 ${pulse.$1} ${pulse.$2}',
+        'resize session-tab-1 80 24',
+      ],
     );
   });
+
+  test(
+    'Refresh uses a 30 percent bump, not the one-column layout pulse',
+    () async {
+      final client = FakeTerminalClient()
+        ..tabs = <WorkspaceTabSummary>[
+          fakeTab(id: 'tab-1', title: 'Terminal 1'),
+        ];
+      final container = _container(client);
+      final subscription = container.listen(
+        terminalSessionControllerProvider('host-1', 'tab-1'),
+        (_, _) {},
+      );
+      addTearDown(subscription.close);
+      await container.read(
+        terminalSessionControllerProvider('host-1', 'tab-1').future,
+      );
+      final notifier = container.read(
+        terminalSessionControllerProvider('host-1', 'tab-1').notifier,
+      );
+      await notifier.resize(80, 24);
+      client.calls.removeWhere((call) => call.startsWith('resize '));
+
+      await notifier.refreshViewport();
+
+      final refresh = terminalViewportRefreshPulseSize(80, 24);
+      final layout = terminalViewportPulseSize(80, 24);
+      expect(refresh, isNot(layout));
+      expect(
+        client.calls.where((call) => call.startsWith('resize ')).toList(),
+        <String>[
+          'resize session-tab-1 ${refresh.$1} ${refresh.$2}',
+          'resize session-tab-1 80 24',
+        ],
+      );
+      expect(
+        client.calls,
+        isNot(contains('resize session-tab-1 ${layout.$1} ${layout.$2}')),
+      );
+    },
+  );
 }
 
 ProviderContainer _container(FakeTerminalClient client) {

@@ -75,7 +75,7 @@ void main() {
       expect(focusNode.hasFocus, isTrue);
       expect(client.writes, isEmpty);
       expect(client.calls, isNot(contains('restart tab-1')));
-      final pulse = terminalViewportPulseSize(
+      final refreshPulse = terminalViewportRefreshPulseSize(
         before.viewWidth,
         before.viewHeight,
       );
@@ -85,7 +85,7 @@ void main() {
           before.viewWidth,
           before.viewHeight,
         ),
-        'resize session-tab-1 ${pulse.$1} ${before.viewHeight}',
+        'resize session-tab-1 ${refreshPulse.$1} ${refreshPulse.$2}',
         'resize session-tab-1 ${before.viewWidth} ${before.viewHeight}',
       ]);
       expect(find.byTooltip('Refresh Terminal'), findsOneWidget);
@@ -421,7 +421,7 @@ List<String> _pulsedResizeCalls(String sessionId, int cols, int rows) {
   final pulse = terminalViewportPulseSize(cols, rows);
   return <String>[
     'resize $sessionId $cols $rows',
-    'resize $sessionId ${pulse.$1} $rows',
+    'resize $sessionId ${pulse.$1} ${pulse.$2}',
     'resize $sessionId $cols $rows',
   ];
 }
