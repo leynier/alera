@@ -111,10 +111,7 @@ void main() {
       resizes.last,
       'resize session-tab-1 ${landscape.viewWidth} ${landscape.viewHeight}',
     );
-    expect(
-      resizes,
-      contains('resize session-tab-1 ${pulse.$1} ${landscape.viewHeight}'),
-    );
+    expect(resizes, contains('resize session-tab-1 ${pulse.$1} ${pulse.$2}'));
   });
 
   testWidgets(

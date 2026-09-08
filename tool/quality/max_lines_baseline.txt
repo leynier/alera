@@ -24,6 +24,7 @@
 510	rust/alera-cli/src/runtime_archive.rs
 540	rust/alera-cli/src/terminal_host/session.rs
 512	lib/src/features/settings/presentation/panes/projects_pane.dart
+513	rust/alera-core/src/runtime/automation_catalog_store.rs
 520	test/widget/workbench_dialog_launchers_test.dart
 521	lib/src/features/workbench/presentation/workspace_git_diff_surface.dart
 522	lib/src/features/workbench/application/workspace_service.dart

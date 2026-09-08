@@ -48,17 +48,27 @@ extension TerminalSessionInput on TerminalSessionController {
       (client, sessionId) => client.resizeTerminal(sessionId, cols, rows),
     );
     if (shouldPulseNow) {
-      await refreshViewport();
+      await _pulseAdjacentViewport();
       return;
     }
     _scheduleViewportPulse();
   }
 
-  /// Briefly applies an adjacent PTY size before restoring the measured size.
+  /// Briefly applies a ~30% PTY size before restoring the measured size.
   ///
-  /// This forces full-screen agent TUIs to redraw without changing the Flutter
-  /// view or replacing the emulator. Same pulse as desktop `refreshViewport`.
-  Future<void> refreshViewport() async {
+  /// This forces a stuck full-screen agent TUI to redraw without changing the
+  /// Flutter view or replacing the emulator. Two ordinary `resize` calls, no
+  /// new protocol verb. Layout and orientation keep the cheaper one-column
+  /// pulse; only explicit Refresh uses the wide bump.
+  Future<void> refreshViewport() =>
+      _pulseViewport(terminalViewportRefreshPulseSize);
+
+  Future<void> _pulseAdjacentViewport() =>
+      _pulseViewport(terminalViewportPulseSize);
+
+  Future<void> _pulseViewport(
+    (int cols, int rows) Function(int cols, int rows) pulseSizeOf,
+  ) async {
     _viewportPulseTimer?.cancel();
     _viewportPulseTimer = null;
     if (!_canPulseViewport) {
@@ -69,7 +79,7 @@ extension TerminalSessionInput on TerminalSessionController {
     if (cols == null || rows == null || cols <= 0 || rows <= 0) {
       return;
     }
-    final pulse = terminalViewportPulseSize(cols, rows);
+    final pulse = pulseSizeOf(cols, rows);
     try {
       await _runAttachedOperation((client, sessionId) async {
         try {
@@ -109,7 +119,7 @@ extension TerminalSessionInput on TerminalSessionController {
       if (_disposed || pending != (_cols, _rows)) {
         return;
       }
-      unawaited(refreshViewport());
+      unawaited(_pulseAdjacentViewport());
     });
   }
 }
