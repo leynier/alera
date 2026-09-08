@@ -24,6 +24,9 @@ pub(super) async fn for_request(
         RuntimeMutationRequest::RemoveManagedWorkspace { request } => {
             hosted_review_retention::for_workspace(runtime_store, &request.id).await
         }
+        RuntimeMutationRequest::HandOnWorkspace { request } => {
+            hosted_review_retention::for_workspace(runtime_store, &request.id).await
+        }
         RuntimeMutationRequest::RemoveTab { tab_id } => {
             hosted_review_retention::for_tab(runtime_store, tab_id).await
         }

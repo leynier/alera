@@ -10,6 +10,9 @@ use crate::managed_workspace::{
     create_managed_workspace, measure_workspace_storage, workspace_has_active_automation_owner,
     ManagedWorkspaceCreateRequest,
 };
+use crate::managed_workspace_handoff::{
+    hand_off_managed_workspace, ManagedWorkspaceHandOffRequest,
+};
 use crate::terminal_host::host_error::HostResult;
 use crate::terminal_host::protocol::{error_response, ok_response};
 use crate::worktree_setup::run_workspace_setup;
@@ -116,6 +119,26 @@ impl ServerActor {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             let result = json_result(create_managed_workspace(&store, request).await);
+            let _ = inbox.send(ServerCommand::ManagedWorkspaceCreated {
+                client_id,
+                request_id,
+                result,
+            });
+        });
+    }
+
+    pub(super) fn start_managed_workspace_hand_off(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        request: ManagedWorkspaceHandOffRequest,
+    ) {
+        self.managed_workspace_jobs += 1;
+        self.cancel_shutdown_timer();
+        let store = self.runtime_store.clone();
+        let inbox = self.inbox.clone();
+        tokio::spawn(async move {
+            let result = json_result(hand_off_managed_workspace(&store, request).await);
             let _ = inbox.send(ServerCommand::ManagedWorkspaceCreated {
                 client_id,
                 request_id,

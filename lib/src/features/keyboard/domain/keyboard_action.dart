@@ -51,6 +51,8 @@ enum KeyboardActionId {
   addProject,
   toggleSidebar,
   createWorkspace,
+  handOffWorkspace,
+  handOnWorkspace,
   navigateBack,
   navigateForward,
   findInFiles,
@@ -200,6 +202,26 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     description: 'Create a linked workspace for the active Git project.',
     defaultBindings: .uniform(<String>['Mod+Shift+N']),
     searchKeywords: <String>['worktree', 'branch'],
+    allowInTerminal: true,
+  ),
+  KeybindingDefinition(
+    id: .handOffWorkspace,
+    label: 'Hand Off',
+    group: .workspace,
+    description:
+        'Move the main worktree\'s current work into a new child workspace.',
+    defaultBindings: .uniform(<String>[]),
+    searchKeywords: <String>['worktree', 'child', 'move'],
+    allowInTerminal: true,
+  ),
+  KeybindingDefinition(
+    id: .handOnWorkspace,
+    label: 'Hand On',
+    group: .workspace,
+    description:
+        'Bring a child worktree\'s current work back onto the main worktree.',
+    defaultBindings: .uniform(<String>[]),
+    searchKeywords: <String>['worktree', 'main', 'move'],
     allowInTerminal: true,
   ),
   KeybindingDefinition(

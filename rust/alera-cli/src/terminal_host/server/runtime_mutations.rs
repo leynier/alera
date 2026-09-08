@@ -3,6 +3,7 @@ use serde_json::{json, Value};
 
 use crate::hosted_review_retention;
 use crate::managed_workspace::{remove_managed_workspace, ManagedWorkspaceRemoveRequest};
+use crate::managed_workspace_handoff::{hand_on_managed_workspace, ManagedWorkspaceHandOnRequest};
 use crate::terminal_host::host_error::{HostError, HostResult};
 
 #[path = "runtime_mutation_hosted_review_retention.rs"]
@@ -24,6 +25,9 @@ pub(crate) enum RuntimeMutationRequest {
     },
     RemoveManagedWorkspace {
         request: ManagedWorkspaceRemoveRequest,
+    },
+    HandOnWorkspace {
+        request: ManagedWorkspaceHandOnRequest,
     },
     RemoveTab {
         tab_id: String,
@@ -153,6 +157,21 @@ pub(super) async fn run_runtime_mutation(
                 let project_id = workspace.project_id.clone();
                 Ok(RuntimeMutationCompletion {
                     response: serde_json::to_value(workspace).map_err(runtime_store_error)?,
+                    effect: RuntimeMutationEffect::ManagedWorkspaceRemoved {
+                        project_id,
+                        workspace_id,
+                    },
+                    closed_tab_ids: Vec::new(),
+                })
+            }
+            RuntimeMutationRequest::HandOnWorkspace { request } => {
+                let workspace_id = request.id.clone();
+                let result = hand_on_managed_workspace(&runtime_store, request)
+                    .await
+                    .map_err(runtime_store_error)?;
+                let project_id = result.workspace.project_id.clone();
+                Ok(RuntimeMutationCompletion {
+                    response: serde_json::to_value(result).map_err(runtime_store_error)?,
                     effect: RuntimeMutationEffect::ManagedWorkspaceRemoved {
                         project_id,
                         workspace_id,

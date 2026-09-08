@@ -31,6 +31,20 @@ class const _FakeManagedWorkspaceRuntime()
   }) async {}
 
   @override
+  Future<WorkspaceCreationResult> handOffWorkspace({
+    required Workspace workspace,
+    required String branch,
+    required bool reuseExistingBranch,
+    String? name,
+  }) => throw UnsupportedError('Hand off is not used by shell tests');
+
+  @override
+  Future<WorkspaceHandOnResult> handOnWorkspace({
+    required Workspace workspace,
+    String? activeWorkspaceId,
+  }) => throw UnsupportedError('Hand on is not used by shell tests');
+
+  @override
   Future<WorkspaceStorageImpact> storageImpact({
     required String workspaceId,
     String? activeWorkspaceId,

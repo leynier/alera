@@ -221,6 +221,8 @@ async fn authenticated_mobile_client_can_request_a_safe_runtime_restart() {
 fn mobile_allowlist_includes_workspace_mutations() {
     assert!(mobile_request_allowed("workspace.setPinned"));
     assert!(mobile_request_allowed("workspace.createManaged"));
+    assert!(mobile_request_allowed("workspace.handOff"));
+    assert!(mobile_request_allowed("workspace.handOn"));
     assert!(mobile_request_allowed("workspace.storageImpact"));
     assert!(mobile_request_allowed("workspace.removeManaged"));
     assert!(mobile_request_allowed("workspaceRelation.link"));

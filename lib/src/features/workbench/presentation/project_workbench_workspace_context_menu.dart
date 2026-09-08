@@ -21,10 +21,16 @@ extension _WorkspaceContextMenu on _WorkspaceRowState {
         canRemove: widget.onDelete != null,
         isPinned: widget.workspace.isPinned,
         hasDescendants: widget.onPinWorkspaceTree != null,
+        canHandOff: widget.onHandOff != null,
+        canHandOn: widget.onHandOn != null,
       ),
     );
 
-    if (selected == _openProjectSettingsAction) {
+    if (selected == _handOffAction) {
+      widget.onHandOff?.call();
+    } else if (selected == _handOnAction) {
+      widget.onHandOn?.call();
+    } else if (selected == _openProjectSettingsAction) {
       widget.onOpenProjectSettings();
     } else if (selected == _renameAction) {
       widget.onRename();

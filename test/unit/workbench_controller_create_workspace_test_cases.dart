@@ -231,6 +231,24 @@ class const _ManagedWorkspaceRuntimeWithoutWatcher()
     bool? deleteBranch,
     String? activeWorkspaceId,
   }) async {}
+
+  @override
+  Future<WorkspaceCreationResult> handOffWorkspace({
+    required Workspace workspace,
+    required String branch,
+    required bool reuseExistingBranch,
+    String? name,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<WorkspaceHandOnResult> handOnWorkspace({
+    required Workspace workspace,
+    String? activeWorkspaceId,
+  }) {
+    throw UnimplementedError();
+  }
 }
 
 /// Stands in for a host that prepared the worktree setup instead of running it.
@@ -272,4 +290,22 @@ class const _ManagedWorkspaceRuntimeWithDeferredSetup(
     bool? deleteBranch,
     String? activeWorkspaceId,
   }) async {}
+
+  @override
+  Future<WorkspaceCreationResult> handOffWorkspace({
+    required Workspace workspace,
+    required String branch,
+    required bool reuseExistingBranch,
+    String? name,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<WorkspaceHandOnResult> handOnWorkspace({
+    required Workspace workspace,
+    String? activeWorkspaceId,
+  }) {
+    throw UnimplementedError();
+  }
 }

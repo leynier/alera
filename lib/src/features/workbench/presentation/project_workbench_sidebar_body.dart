@@ -16,6 +16,9 @@ class const _SidebarBody({
   required final Future<void> Function(Project project) onOpenProjectSettings,
   required final Future<void> Function(Project project, Workspace workspace)
   onDeleteWorkspace,
+  required final Future<void> Function(Workspace workspace) onHandOffWorkspace,
+  required final Future<void> Function(Project project, Workspace workspace)
+  onHandOnWorkspace,
   required final Future<void> Function(Project project) onRenameProject,
   required final Future<void> Function(Project project) onRemoveProject,
   required final Future<void> Function(Workspace workspace) onRenameWorkspace,
@@ -167,6 +170,14 @@ class const _SidebarBody({
           onDelete: row.workspace.isMain
               ? null
               : () => onDeleteWorkspace(row.project, row.workspace),
+          onHandOff:
+              row.workspace.isMain && row.project.supportsLinkedWorkspaces
+              ? () => unawaited(onHandOffWorkspace(row.workspace))
+              : null,
+          onHandOn:
+              !row.workspace.isMain && row.project.supportsLinkedWorkspaces
+              ? () => unawaited(onHandOnWorkspace(row.project, row.workspace))
+              : null,
         ),
       );
     }

@@ -9,6 +9,7 @@ import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_hand_off_launchers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -44,6 +45,10 @@ class const KeyboardCommandDispatcher({
         unawaited(
           showCreateWorkspaceFlow(context, ref, initialProject: project),
         );
+      case KeyboardActionId.handOffWorkspace:
+        unawaited(_handOffActiveWorkspace());
+      case KeyboardActionId.handOnWorkspace:
+        unawaited(_handOnActiveWorkspace());
       case KeyboardActionId.navigateBack:
         unawaited(ref.read(workbenchControllerProvider.notifier).goBack());
       case KeyboardActionId.navigateForward:
@@ -84,6 +89,29 @@ class const KeyboardCommandDispatcher({
       case KeyboardActionId.closeSplit:
         _closeSplit();
     }
+  }
+
+  Future<void> _handOffActiveWorkspace() async {
+    final workspace = ref.read(workbenchControllerProvider).activeWorkspace;
+    if (workspace == null || !workspace.isMain) {
+      return;
+    }
+    await showHandOffWorkspaceFlow(context, ref, workspace: workspace);
+  }
+
+  Future<void> _handOnActiveWorkspace() async {
+    final state = ref.read(workbenchControllerProvider);
+    final workspace = state.activeWorkspace;
+    final project = state.activeProject;
+    if (workspace == null || project == null || workspace.isMain) {
+      return;
+    }
+    await showHandOnWorkspaceFlow(
+      context,
+      ref,
+      project: project,
+      workspace: workspace,
+    );
   }
 
   void _toggleSidebar() {

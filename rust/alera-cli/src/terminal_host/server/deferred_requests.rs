@@ -1,6 +1,9 @@
 use serde_json::Value;
 
 use crate::managed_workspace::{ManagedWorkspaceCreateRequest, ManagedWorkspaceRemoveRequest};
+use crate::managed_workspace_handoff::{
+    ManagedWorkspaceHandOffRequest, ManagedWorkspaceHandOnRequest,
+};
 use crate::terminal_host::host_error::{HostError, HostResult};
 
 use super::request_payloads::parse_payload;
@@ -97,6 +100,52 @@ impl ServerActor {
                 let mut request: ManagedWorkspaceCreateRequest = parse_payload(payload)?;
                 request.setup_script_directory = self.setup_script_directory();
                 self.start_managed_workspace_create(client_id, request_id, request);
+                Ok(true)
+            }
+            "workspace.handOff" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                let mut request: ManagedWorkspaceHandOffRequest = parse_payload(payload)?;
+                request.setup_script_directory = self.setup_script_directory();
+                self.start_managed_workspace_hand_off(client_id, request_id, request);
+                Ok(true)
+            }
+            "workspace.handOn" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                let request: ManagedWorkspaceHandOnRequest = parse_payload(payload)?;
+                if !request.close_sessions
+                    && request.active_workspace_id.as_deref() == Some(request.id.as_str())
+                {
+                    return Err(HostError::state("Workspace is active in the workbench"));
+                }
+                if !request.close_sessions
+                    && self
+                        .sessions
+                        .values()
+                        .any(|session| session.workspace_id == request.id && session.running())
+                {
+                    return Err(HostError::state(
+                        "Workspace has a live terminal session or process",
+                    ));
+                }
+                let has_active_automation =
+                    crate::managed_workspace::workspace_has_active_automation_owner(
+                        &self.runtime_store,
+                        &request.id,
+                    )
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?;
+                if has_active_automation {
+                    return Err(HostError::state(
+                        "Workspace is owned by an active automation",
+                    ));
+                }
+                self.start_runtime_mutation(
+                    client_id,
+                    request_id,
+                    RuntimeMutationRequest::HandOnWorkspace { request },
+                );
                 Ok(true)
             }
             "workspace.runSetup" => {

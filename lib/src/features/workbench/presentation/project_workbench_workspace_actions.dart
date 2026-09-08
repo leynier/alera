@@ -20,6 +20,8 @@ const String _clearParentAction = 'clear-parent';
 const String _setSectionAction = 'set-section';
 const String _clearSectionAction = 'clear-section';
 const String _removeAction = 'remove';
+const String _handOffAction = 'hand-off';
+const String _handOnAction = 'hand-on';
 
 /// Builds the right-click menu entries for a workspace row. [hasClearParent]
 /// gates the "Clear Parent Workspace" item and [canRemove] disables the remove
@@ -32,6 +34,8 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
   required bool canRemove,
   required bool isPinned,
   bool hasDescendants = false,
+  bool canHandOff = false,
+  bool canHandOn = false,
 }) {
   return <PopupMenuEntry<String>>[
     const AleraDropdownEntry<String>(
@@ -39,6 +43,18 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
       leading: Icon(AleraIcons.edit, size: 16),
       label: 'Rename',
     ),
+    if (canHandOff)
+      const AleraDropdownEntry<String>(
+        value: _handOffAction,
+        leading: Icon(AleraIcons.gitFork, size: 16),
+        label: 'Hand Off',
+      ),
+    if (canHandOn)
+      const AleraDropdownEntry<String>(
+        value: _handOnAction,
+        leading: Icon(AleraIcons.workspaceMain, size: 16),
+        label: 'Hand On',
+      ),
     AleraDropdownEntry<String>(
       value: _togglePinAction,
       leading: Icon(isPinned ? AleraIcons.pinOff : AleraIcons.pin, size: 16),

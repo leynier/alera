@@ -2,6 +2,7 @@ pub(super) fn is_serialized_runtime_mutation(request_type: &str) -> bool {
     matches!(
         request_type,
         "workspace.removeManaged"
+            | "workspace.handOn"
             | "project.remove"
             | "workspace.remove"
             | "workspace.removeForProject"
@@ -19,6 +20,7 @@ pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
         || matches!(
             request_type,
             "workspace.createManaged"
+                | "workspace.handOff"
                 | "workspace.runSetup"
                 | "createOrAttach"
                 | "write"

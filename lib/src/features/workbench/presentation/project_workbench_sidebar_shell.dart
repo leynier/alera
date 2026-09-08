@@ -118,6 +118,8 @@ class _ProjectWorkbenchSidebarState
                                 onCreateWorkspace: _createWorkspace,
                                 onOpenProjectSettings: _openProjectSettings,
                                 onDeleteWorkspace: _deleteWorkspace,
+                                onHandOffWorkspace: _handOffWorkspace,
+                                onHandOnWorkspace: _handOnWorkspace,
                                 onRenameProject: _renameProject,
                                 onRemoveProject: _removeProject,
                                 onRenameWorkspace: _renameWorkspace,
