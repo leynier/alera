@@ -14,6 +14,7 @@ import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
 import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch.dart';
 import 'package:alera/src/features/pull_requests/domain/review_stack_workspace_models.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
@@ -26,6 +27,7 @@ import 'package:alera/src/features/pull_requests/presentation/pull_request_stack
 import 'package:flutter/material.dart';
 
 part 'pull_request_review_actions.dart';
+part 'pull_request_review_agent_actions.dart';
 part 'pull_request_review_comments.dart';
 
 /// Presentational body for a linked review: header, inline title/base-branch
@@ -70,6 +72,11 @@ class const PullRequestReviewView({
   onUpdate,
   required final Future<ReviewCheckDetails?> Function(ReviewCheck check)
   onLoadCheckDetails,
+  final PullRequestAgentWatchMode? agentWatchMode,
+  final VoidCallback? onFixFailedChecks,
+  final VoidCallback? onWatchAndFix,
+  final VoidCallback? onWatchFixAndMerge,
+  final VoidCallback? onStopAgentWatch,
 }) extends StatefulWidget {
   @override
   State<PullRequestReviewView> createState() => _PullRequestReviewViewState();
@@ -192,13 +199,18 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
                   ),
                 ],
                 const SizedBox(height: AleraTokens.space16),
-                Text(
-                  widget.checks.isEmpty
-                      ? 'Checks'
-                      : 'Checks (${widget.checks.length})',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: AleraTokens.foregroundMuted,
-                  ),
+                _PullRequestCheckAgentHeader(
+                  checkCount: widget.checks.length,
+                  checksFailed:
+                      deriveReviewChecksRollup(widget.checks) ==
+                      ReviewChecksRollup.failure,
+                  reviewIsOpen: review.isOpen,
+                  busy: _busy,
+                  watchMode: widget.agentWatchMode,
+                  onFixFailedChecks: widget.onFixFailedChecks,
+                  onWatchAndFix: widget.onWatchAndFix,
+                  onWatchFixAndMerge: widget.onWatchFixAndMerge,
+                  onStopAgentWatch: widget.onStopAgentWatch,
                 ),
                 const SizedBox(height: AleraTokens.space8),
                 if (widget.checks.isEmpty)

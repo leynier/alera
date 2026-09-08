@@ -27,6 +27,18 @@ enum AgentType(this.key) {
   fx('fx');
 
   final String key;
+
+  static AgentType? tryParse(Object? value) {
+    if (value is! String) {
+      return null;
+    }
+    for (final type in AgentType.values) {
+      if (type.key == value) {
+        return type;
+      }
+    }
+    return null;
+  }
 }
 
 class const AgentHookEvent({

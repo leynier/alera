@@ -66,8 +66,11 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
       <String, _PendingReviewCommentSave>{};
   final Set<String> _savingCommentIds = <String>{};
   var _panelViewCount = 0;
+  var _watcherCount = 0;
   bool _visible = false;
   bool _disposed = false;
+
+  bool get _shouldPoll => !_disposed && (_visible || _watcherCount > 0);
 
   @override
   Future<WorkspacePullRequestState> build(
@@ -162,7 +165,30 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
       return;
     }
     _visible = false;
-    _pollTimer?.cancel();
+    if (!_shouldPoll) {
+      _pollTimer?.cancel();
+    }
+  }
+
+  /// Keeps check polling alive for Watch and Fix after the panel closes.
+  void attachWatcher() {
+    if (_disposed) {
+      return;
+    }
+    _watcherCount++;
+    if (_watcherCount == 1 && !_visible) {
+      _resetPollInterval();
+      _schedulePoll(scope);
+    }
+  }
+
+  void detachWatcher() {
+    if (_watcherCount > 0) {
+      _watcherCount--;
+    }
+    if (!_shouldPoll) {
+      _pollTimer?.cancel();
+    }
   }
 
   /// Links the workspace to the review named by [reference] (`#123` or a URL).
@@ -374,7 +400,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
   }
 
   Future<void> _refresh({required _RefreshOrigin origin}) {
-    if (_disposed || !_visible) {
+    if (!_shouldPoll) {
       return Future<void>.value();
     }
     final current = state.value;
@@ -458,7 +484,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
   }) {
     _pollTimer?.cancel();
     final current = snapshot ?? state.value;
-    if (_disposed || !_visible || current == null || current.isBusy) {
+    if (!_shouldPoll || current == null || current.isBusy) {
       return;
     }
     // Missing identity or auth can heal outside the app (the user signs in,
