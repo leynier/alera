@@ -1467,10 +1467,15 @@ impl RuntimeStore {
     }
 
     pub async fn remove_ssh_target(&self, target_id: &str) -> Result<()> {
-        sqlx::query("DELETE FROM sshTargets WHERE id = ?")
+        let result = sqlx::query("DELETE FROM sshTargets WHERE id = ?")
             .bind(target_id)
             .execute(&self.pool)
             .await?;
+        if result.rows_affected() == 0 {
+            return Err(anyhow::anyhow!(RuntimeStoreError::Message(format!(
+                "ssh target not found: {target_id}"
+            ))));
+        }
         Ok(())
     }
 
@@ -2145,5 +2150,24 @@ mod tests {
         assert!(missing
             .to_string()
             .contains("ssh target not found: missing"));
+    }
+
+    #[tokio::test]
+    async fn remove_ssh_target_rejects_missing_id_and_deletes_existing() {
+        let (_dir, store) = store().await;
+        store.upsert_ssh_target(ssh_target("remote")).await.unwrap();
+
+        store.remove_ssh_target("remote").await.unwrap();
+        assert!(store.find_ssh_target("remote").await.unwrap().is_none());
+
+        let missing = store.remove_ssh_target("missing").await.unwrap_err();
+        assert!(missing
+            .to_string()
+            .contains("ssh target not found: missing"));
+
+        let already_gone = store.remove_ssh_target("remote").await.unwrap_err();
+        assert!(already_gone
+            .to_string()
+            .contains("ssh target not found: remote"));
     }
 }

@@ -33,6 +33,12 @@ Add a target:
 alera ssh-target --json add --alias build-mac --host mac.example.test --username leynier --auth agent
 ```
 
+Remove a saved target. Unknown ids fail with `ssh target not found`, matching `status` and `bootstrap-plan`:
+
+```bash
+alera ssh-target --json remove --id <target-id>
+```
+
 Probe live SSH connectivity and, when an install directory is known, the remote runtime sidecar. The command persists `lastStatus` (`reachable`, `unreachable`, or `runtimeReady`) and updates `lastCheckedAt` on every call. Unknown ids still fail with `ssh target not found`:
 
 ```bash

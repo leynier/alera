@@ -253,12 +253,13 @@ JSON list commands return a consistent `{ "kind": "...", "items": [...], "filter
 
 ## SSH Targets
 
-List saved hosts, or probe live connectivity and persist `lastStatus` (`reachable`, `unreachable`, or `runtimeReady`) plus `lastCheckedAt`:
+List saved hosts, probe live connectivity, or remove a saved target. Status persists `lastStatus` (`reachable`, `unreachable`, or `runtimeReady`) plus `lastCheckedAt`:
 
 ```bash
 alera ssh-target --json list
 alera ssh-target --json status
 alera ssh-target --json status --id <target-id>
+alera ssh-target --json remove --id <target-id>
 ```
 
 Unknown ids fail with `ssh target not found`. `status` without `--id` probes every saved target and returns a JSON array.
