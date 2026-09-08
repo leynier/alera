@@ -13,6 +13,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_accessory_layout_controller.dart';
 import 'package:xterm2/xterm.dart';
 
+import 'package:alera_mobile/src/features/terminal/domain/terminal_viewport_pulse.dart';
+
 import 'support/fake_terminal_client.dart';
 import 'support/memory_accessory_layout_repository.dart';
 
@@ -42,7 +44,6 @@ void main() {
       );
       focusNode.requestFocus();
       await tester.pump();
-      final callsBefore = List<String>.of(client.calls);
       final terminalRect = tester.getRect(find.byType(TerminalView));
       final refreshRect = tester.getRect(find.byTooltip('Refresh Terminal'));
       expect(
@@ -72,9 +73,21 @@ void main() {
       expect(viewAfter.focusNode, same(focusNode));
       expect(controller.selection, isNotNull);
       expect(focusNode.hasFocus, isTrue);
-      expect(client.calls, callsBefore);
       expect(client.writes, isEmpty);
       expect(client.calls, isNot(contains('restart tab-1')));
+      final pulse = terminalViewportPulseSize(
+        before.viewWidth,
+        before.viewHeight,
+      );
+      expect(_resizeCalls(client), <String>[
+        ..._pulsedResizeCalls(
+          'session-tab-1',
+          before.viewWidth,
+          before.viewHeight,
+        ),
+        'resize session-tab-1 ${pulse.$1} ${before.viewHeight}',
+        'resize session-tab-1 ${before.viewWidth} ${before.viewHeight}',
+      ]);
       expect(find.byTooltip('Refresh Terminal'), findsOneWidget);
     },
   );
@@ -184,10 +197,16 @@ void main() {
     // Parsed at any narrower width, the cursor move clamps to that width and
     // TAIL lands there instead of at the column the host wrote it at.
     expect(joined.indexOf('TAIL'), 179);
-    // The phone's own size is claimed once, and only once it is real.
+    // The phone's own size is claimed once it is real, then pulsed so a
+    // full-screen agent redraws at that geometry rather than keeping the
+    // host's.
     expect(
-      client.calls.where((call) => call.startsWith('resize ')),
-      hasLength(1),
+      _resizeCalls(client),
+      _pulsedResizeCalls(
+        'session-tab-1',
+        terminal.viewWidth,
+        terminal.viewHeight,
+      ),
     );
   });
 
@@ -276,11 +295,18 @@ void main() {
 
     expect(client.attachments.single.cols, isNull);
     expect(client.attachments.single.rows, isNull);
-    // The measured size still reaches the host, just once and only when real.
-    final resize = client.calls.firstWhere(
-      (call) => call.startsWith('resize '),
+    // The measured size still reaches the host, only when real, then a
+    // one-column pulse asks the running TUI to redraw at that size.
+    final terminal = _terminalOf(tester);
+    expect(
+      _resizeCalls(client),
+      _pulsedResizeCalls(
+        'session-tab-1',
+        terminal.viewWidth,
+        terminal.viewHeight,
+      ),
     );
-    expect(resize, isNot(endsWith(' 80 24')));
+    expect(_resizeCalls(client).first, isNot(endsWith(' 80 24')));
   });
 
   testWidgets('Paste quick action writes clipboard text without Enter', (
@@ -385,6 +411,19 @@ void main() {
 
 Terminal _terminalOf(WidgetTester tester) {
   return tester.widget<TerminalView>(find.byType(TerminalView)).terminal;
+}
+
+List<String> _resizeCalls(FakeTerminalClient client) {
+  return client.calls.where((call) => call.startsWith('resize ')).toList();
+}
+
+List<String> _pulsedResizeCalls(String sessionId, int cols, int rows) {
+  final pulse = terminalViewportPulseSize(cols, rows);
+  return <String>[
+    'resize $sessionId $cols $rows',
+    'resize $sessionId ${pulse.$1} $rows',
+    'resize $sessionId $cols $rows',
+  ];
 }
 
 /// Pumps until the restore has drained and the view is back.

@@ -8,6 +8,7 @@ import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.da
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_tab_session.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_compose_delivery.dart';
+import 'package:alera_mobile/src/features/terminal/domain/terminal_viewport_pulse.dart';
 import 'package:flutter/widgets.dart';
 import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -34,8 +35,20 @@ class TerminalSessionController extends _$TerminalSessionController {
   // live PTY, so a guess here is a resize to a size nobody is looking at.
   int? _cols;
   int? _rows;
+  // After attach/restore, the first measured viewport is applied and then
+  // pulsed so a full-screen agent TUI redraws at the phone size instead of
+  // keeping the previous geometry in both the live screen and scrollback.
+  bool _pulseAfterLayout = true;
 
   bool get supportsRestart => _client?.supportsTerminalRestart ?? false;
+
+  bool get _canPulseViewport =>
+      !_disposed &&
+      _client != null &&
+      _sessionId != null &&
+      _cols != null &&
+      _rows != null &&
+      state is AsyncData<TerminalTabSession>;
 
   @override
   Future<TerminalTabSession> build(String hostId, String tabId) async {
@@ -170,6 +183,7 @@ class TerminalSessionController extends _$TerminalSessionController {
     }
     _client = client;
     _sessionId = sessionId;
+    _pulseAfterLayout = true;
     _driverSub = client.events.listen(
       (event) {
         if (_disposed ||

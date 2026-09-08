@@ -198,6 +198,14 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
     }
     setState(() => _refreshing = true);
     try {
+      await ref
+          .read(
+            terminalSessionControllerProvider(
+              widget.hostId,
+              widget.tabId,
+            ).notifier,
+          )
+          .refreshViewport();
       await _surfaceKey.currentState?.refreshRendering();
     } finally {
       if (mounted) {
@@ -261,6 +269,7 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
   bool _outputEnded = false;
   int _viewGeneration = 0;
   (int, int)? _suppressedViewportSize;
+  bool _ignoreViewportResize = false;
 
   @override
   void initState() {
@@ -382,8 +391,15 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
     if (cols != null && rows != null) {
       // The PTY is already this size; echoing it back would be a pointless
       // round trip, and a wrong one once the view states the real viewport.
-      _suppressedViewportSize = (cols, rows);
-      _terminal.resize(cols, rows);
+      // Guard the callback rather than a one-shot expected size: a no-op
+      // resize (already at this geometry) never fires onResize, and a stuck
+      // expected size would swallow the phone's own viewport if it matched.
+      _ignoreViewportResize = true;
+      try {
+        _terminal.resize(cols, rows);
+      } finally {
+        _ignoreViewportResize = false;
+      }
     }
     _batcher!.addSnapshot(text);
   }
@@ -405,6 +421,9 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
   }
 
   void _handleViewportResize(int width, int height) {
+    if (_ignoreViewportResize) {
+      return;
+    }
     final suppressed = _suppressedViewportSize;
     _suppressedViewportSize = null;
     if (suppressed == (width, height)) {
@@ -458,8 +477,13 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
                       readOnly: !direct,
                       autofocus: direct && _viewGeneration == 0,
                       backgroundOpacity: 0,
+                      // OS font scale would change the cell size and therefore
+                      // the PTY cols/rows, which is what made agent TUIs draw
+                      // to a geometry that no longer matched the chrome.
+                      textScaler: TextScaler.noScaling,
                       textStyle: const TerminalStyle(
                         fontFamily: AleraTokens.monoFontFamily,
+                        fontSize: AleraTokens.monoFontSize,
                       ),
                       padding: const .all(AleraTokens.spaceSm),
                     ),
