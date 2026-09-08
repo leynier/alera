@@ -33,11 +33,14 @@ pub(crate) struct LiveSshTargetProbe;
 
 impl SshTargetProbe for LiveSshTargetProbe {
     async fn probe_connectivity(&self, target: &SshTarget) -> Option<RemoteShellKind> {
-        if ssh_target_answers_posix(target).await {
-            return Some(RemoteShellKind::Posix);
-        }
-        if ssh_target_answers_windows(target).await {
-            return Some(RemoteShellKind::Windows);
+        for shell in connectivity_shell_order(target) {
+            let answered = match shell {
+                RemoteShellKind::Posix => ssh_target_answers_posix(target).await,
+                RemoteShellKind::Windows => ssh_target_answers_windows(target).await,
+            };
+            if answered {
+                return Some(shell);
+            }
         }
         None
     }
@@ -102,15 +105,28 @@ pub(crate) async fn probe_ssh_target_status<P: SshTargetProbe>(
     }
 }
 
-fn runtime_probe_platform(target: &SshTarget, shell: RemoteShellKind) -> String {
-    let configured = target
+fn configured_status_platform(target: &SshTarget) -> Option<String> {
+    target
         .runtime_platform
         .as_deref()
         .or(target.platform.as_deref())
-        .map(normalize_platform);
-    match (configured.as_deref(), shell) {
-        (Some("windows"), RemoteShellKind::Windows) => "windows".to_string(),
-        (Some(platform), RemoteShellKind::Posix) if platform != "windows" => platform.to_string(),
+        .map(normalize_platform)
+}
+
+fn connectivity_shell_order(target: &SshTarget) -> [RemoteShellKind; 2] {
+    // Windows OpenSSH + Git for Windows `sh` answers posix; try PowerShell first.
+    if configured_status_platform(target).as_deref() == Some("windows") {
+        [RemoteShellKind::Windows, RemoteShellKind::Posix]
+    } else {
+        [RemoteShellKind::Posix, RemoteShellKind::Windows]
+    }
+}
+
+fn runtime_probe_platform(target: &SshTarget, shell: RemoteShellKind) -> String {
+    match (configured_status_platform(target).as_deref(), shell) {
+        // Same false-posix fingerprint: keep the stored windows runtime path.
+        (Some("windows"), _) => "windows".to_string(),
+        (Some(platform), RemoteShellKind::Posix) => platform.to_string(),
         (_, RemoteShellKind::Windows) => "windows".to_string(),
         (_, RemoteShellKind::Posix) => "linux".to_string(),
     }
