@@ -40,13 +40,8 @@ WorkspaceAgentCommentLineRange? workspaceAgentCommentLineRangeForSelection({
   final start = from <= to ? from : to;
   final end = from <= to ? to : from;
   final startLine = _lineNumberAt(text, start);
-  final endLine = start == end
-      ? startLine
-      : _lineNumberAt(text, end > start ? end - 1 : end);
-  return WorkspaceAgentCommentLineRange(
-    startLine: startLine,
-    endLine: endLine < startLine ? startLine : endLine,
-  );
+  final endLine = start == end ? startLine : _lineNumberAt(text, end - 1);
+  return WorkspaceAgentCommentLineRange(startLine: startLine, endLine: endLine);
 }
 
 String? workspaceAgentCommentSnippetForSelection({
@@ -63,12 +58,8 @@ String? workspaceAgentCommentSnippetForSelection({
     );
     return capWorkspaceAgentCommentSnippet(_lineTextAt(text, offset));
   }
-  final from = selection.start < selection.end
-      ? selection.start
-      : selection.end;
-  final to = selection.start < selection.end ? selection.end : selection.start;
-  final start = from.clamp(0, text.length);
-  final end = to.clamp(0, text.length);
+  final start = selection.start.clamp(0, text.length);
+  final end = selection.end.clamp(0, text.length);
   if (start >= end) {
     return null;
   }
