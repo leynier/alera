@@ -13,6 +13,7 @@ mixin _FakeGitBackendWorkspaceState {
 
   GitException? createAndCheckoutBranchError;
   GitException? checkoutBranchError;
+  String? checkoutBranchResult;
   final Map<String, String> currentBranchesByPath = <String, String>{};
   final Map<String, Map<String, String?>> remotesByPath =
       <String, Map<String, String?>>{};
@@ -68,9 +69,7 @@ mixin _FakeGitBackendWorkspaceState {
     if (error != null) {
       throw error;
     }
-    final resolved = branch.contains('/') && !sourceBranches.contains(branch)
-        ? branch.split('/').skip(1).join('/')
-        : branch;
+    final resolved = checkoutBranchResult ?? branch;
     headBranch = resolved;
     currentBranchesByPath[path] = resolved;
     gitRepositoryStateResult = GitRepositoryState(

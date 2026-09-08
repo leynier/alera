@@ -214,10 +214,13 @@ class WorkspaceSourceControlController
     (backend) => backend.stashPop(path: workspacePath, stashIndex: stashIndex),
   );
 
-  Future<void> checkoutBranch(String branch) => _run(
-    .checkout,
-    (backend) => backend.checkoutBranch(path: workspacePath, branch: branch),
-  );
+  Future<String> checkoutBranch(String branch) async {
+    await _run(
+      .checkout,
+      (backend) => backend.checkoutBranch(path: workspacePath, branch: branch),
+    );
+    return state.requireValue.repositoryState.branch;
+  }
 
   Future<void> createAndCheckoutBranch(String branch) => _run(
     .createBranch,

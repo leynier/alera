@@ -201,7 +201,7 @@ void main() {
       final (container, controller) = await _boot(backend, watcher);
       final provider = workspaceSourceControlControllerProvider(_workspacePath);
 
-      await controller.checkoutBranch('feature');
+      final activeBranch = await controller.checkoutBranch('feature');
 
       expect(
         backend.calls
@@ -214,6 +214,7 @@ void main() {
         container.read(provider).requireValue.repositoryState.branch,
         'feature',
       );
+      expect(activeBranch, 'feature');
     },
   );
 

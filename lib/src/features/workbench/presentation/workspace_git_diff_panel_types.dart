@@ -23,7 +23,8 @@ String _messageFor(Object? error) {
     return 'Nothing to commit.';
   }
   if (error is GitConflictException) {
-    return 'Resolve conflicts before continuing.';
+    final context = error.context.trim();
+    return context.isEmpty ? 'Resolve conflicts before continuing.' : context;
   }
   if (error is AiAssistException) {
     return error.message;

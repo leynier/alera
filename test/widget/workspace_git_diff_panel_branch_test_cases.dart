@@ -46,6 +46,57 @@ void _registerWorkspaceGitDiffPanelBranchTests() {
     expect(find.text('feature'), findsWidgets);
   });
 
+  testWidgets('remote checkout reports the local branch that became active', (
+    tester,
+  ) async {
+    final toasts = <AleraToastData>[];
+    final subscription = AleraToast.stream.listen(toasts.add);
+    addTearDown(subscription.cancel);
+    final backend = FakeGitBackend()
+      ..sourceBranches = <String>['main', 'origin/feature']
+      ..checkoutBranchResult = 'feature'
+      ..gitRepositoryStateResult = const GitRepositoryState(branch: 'main');
+
+    await _pumpPanel(tester, backend: backend);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Switch Branch'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('origin/feature'));
+    await tester.pumpAndSettle();
+
+    expect(toasts.last.message, 'Switched to feature');
+    expect(toasts.last.tone, AleraToastTone.success);
+  });
+
+  testWidgets('branch checkout shows conflict guidance from Git', (
+    tester,
+  ) async {
+    final toasts = <AleraToastData>[];
+    final subscription = AleraToast.stream.listen(toasts.add);
+    addTearDown(subscription.cancel);
+    final backend = FakeGitBackend()
+      ..sourceBranches = <String>['main', 'feature']
+      ..checkoutBranchError = const GitConflictException(
+        'commit or stash local changes before switching branches',
+      )
+      ..gitRepositoryStateResult = const GitRepositoryState(branch: 'main');
+
+    await _pumpPanel(tester, backend: backend);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Switch Branch'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('feature'));
+    await tester.pumpAndSettle();
+
+    expect(
+      toasts.last.message,
+      'commit or stash local changes before switching branches',
+    );
+    expect(toasts.last.tone, AleraToastTone.error);
+  });
+
   testWidgets('creating a branch from source control checks it out', (
     tester,
   ) async {

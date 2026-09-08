@@ -363,15 +363,30 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
         if (branch == currentBranch) {
           return;
         }
-        await _run(
-          () => _notifier.checkoutBranch(branch),
-          successMessage: 'Switched to $branch',
-        );
+        await _switchBranch(branch);
       case _CreateBranchResult(:final branch):
         await _run(
           () => _notifier.createAndCheckoutBranch(branch),
           successMessage: 'Created $branch',
         );
+    }
+  }
+
+  Future<void> _switchBranch(String branch) async {
+    try {
+      final activeBranch = await _notifier.checkoutBranch(branch);
+      if (mounted) {
+        AleraToast.show(
+          context,
+          message: 'Switched to $activeBranch',
+          tone: .success,
+        );
+        _invalidateGitHistoryAfterMutation();
+      }
+    } catch (error) {
+      if (mounted) {
+        AleraToast.show(context, message: _messageFor(error), tone: .error);
+      }
     }
   }
 

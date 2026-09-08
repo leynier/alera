@@ -105,10 +105,31 @@ pub fn checkout_branch(path: &str, branch: &str) -> Result<(), GitError> {
 
     if repo.find_branch(branch, BranchType::Remote).is_ok() {
         let local_name = local_name_for_remote_branch(&repo, branch)?;
-        if current == local_name {
-            return Ok(());
-        }
-        if repo.find_branch(&local_name, BranchType::Local).is_ok() {
+        if let Ok(local) = repo.find_branch(&local_name, BranchType::Local) {
+            let remote = repo
+                .find_branch(branch, BranchType::Remote)
+                .map_err(GitError::from_git2)?;
+            let local_oid = local
+                .get()
+                .peel_to_commit()
+                .map_err(GitError::from_git2)?
+                .id();
+            let remote_oid = remote
+                .get()
+                .peel_to_commit()
+                .map_err(GitError::from_git2)?
+                .id();
+            if local_oid != remote_oid {
+                return Err(GitError::new(
+                    GitErrorKind::Conflict,
+                    format!(
+                        "local branch \"{local_name}\" differs from \"{branch}\"; switch to the local branch or rename it first"
+                    ),
+                ));
+            }
+            if current == local_name {
+                return Ok(());
+            }
             return checkout_local_branch(&repo, &local_name);
         }
         create_local_tracking_branch(&repo, branch, &local_name)?;
