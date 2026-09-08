@@ -178,6 +178,14 @@ pub fn read_workspace_file_range_from_root(
     })
 }
 
+pub fn open_workspace_file_nofollow(
+    workspace_path: &str,
+    relative_path: &str,
+) -> Result<(fs::File, PathBuf), WorkspaceFileError> {
+    let root = open_workspace_file_root(workspace_path)?;
+    open_workspace_file_without_symlinks(&root, relative_path)
+}
+
 fn open_workspace_file_without_symlinks(
     root: &WorkspaceFileRoot,
     relative_path: &str,

@@ -1,5 +1,6 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::io::Read;
+use std::path::Path;
 
 use alera_core::git_cli::git_in_dir;
 use alera_core::runtime::RuntimeStore;
@@ -194,16 +195,16 @@ fn numstat_map(root: &str) -> std::collections::HashMap<String, (u32, u32)> {
 }
 
 fn git_diff_snapshot(root: &str, path: &str, area: &str) -> HostResult<Value> {
-    let contained = alera_core::workspace_files::contained_workspace_relative_path(root, path)
-        .map_err(|error| HostError::state(error.to_string()))?;
-    let relative_path = contained.relative_path;
     let area = match area {
         "staged" | "unstaged" | "untracked" => area,
         _ => "unstaged",
     };
     if area == "untracked" {
-        return untracked_diff(contained.absolute_path, &relative_path);
+        return untracked_diff(root, path);
     }
+    let contained = alera_core::workspace_files::contained_workspace_relative_path(root, path)
+        .map_err(|error| HostError::state(error.to_string()))?;
+    let relative_path = contained.relative_path;
     let args: Vec<&str> = if area == "staged" {
         vec!["diff", "--cached", "--", &relative_path]
     } else {
@@ -224,12 +225,28 @@ fn diff_is_binary(output: &str) -> bool {
     output.contains("Binary files ") || output.contains("Binary file ")
 }
 
-fn untracked_diff(absolute: PathBuf, path: &str) -> HostResult<Value> {
-    let metadata = fs::metadata(&absolute)
+fn untracked_diff(root: &str, path: &str) -> HostResult<Value> {
+    // Never Path::join the client path onto the workspace root: an absolute
+    // path replaces the root (`root.join("/etc/passwd")` is `/etc/passwd`).
+    let contained = alera_core::workspace_files::contained_workspace_relative_path(root, path)
+        .map_err(|error| HostError::state(error.to_string()))?;
+    let relative_path = contained.relative_path;
+    let canonical_root = fs::canonicalize(root)
+        .map_err(|error| HostError::state(format!("Workspace root is unavailable: {error}")))?;
+    if let Ok(canonical) = fs::canonicalize(&contained.absolute_path) {
+        if !canonical.starts_with(&canonical_root) {
+            return Err(HostError::state("Diff path is outside the workspace."));
+        }
+    }
+    let (mut file, _) =
+        alera_core::workspace_files::open_workspace_file_nofollow(root, &relative_path)
+            .map_err(|error| HostError::state(format!("Untracked file is unavailable: {error}")))?;
+    let metadata = file
+        .metadata()
         .map_err(|error| HostError::state(format!("Untracked file is unavailable: {error}")))?;
     if metadata.len() > MAX_UNTRACKED_BYTES {
         return Ok(json!({
-            "path": path,
+            "path": relative_path,
             "area": "untracked",
             "isBinary": false,
             "truncated": true,
@@ -239,11 +256,12 @@ fn untracked_diff(absolute: PathBuf, path: &str) -> HostResult<Value> {
             }],
         }));
     }
-    let bytes = fs::read(&absolute)
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes)
         .map_err(|error| HostError::state(format!("Untracked file is unavailable: {error}")))?;
     if bytes.contains(&0) || std::str::from_utf8(&bytes).is_err() {
         return Ok(json!({
-            "path": path,
+            "path": relative_path,
             "area": "untracked",
             "isBinary": true,
             "truncated": false,
@@ -254,12 +272,12 @@ fn untracked_diff(absolute: PathBuf, path: &str) -> HostResult<Value> {
         }));
     }
     let text = String::from_utf8_lossy(&bytes);
-    let mut lines = vec![json!({"kind": "header", "text": format!("+++ {path}")})];
+    let mut lines = vec![json!({"kind": "header", "text": format!("+++ {relative_path}")})];
     for line in text.lines().take(MAX_DIFF_LINES) {
         lines.push(json!({"kind": "addition", "text": format!("+{line}")}));
     }
     Ok(json!({
-        "path": path,
+        "path": relative_path,
         "area": "untracked",
         "isBinary": false,
         "truncated": text.lines().count() > MAX_DIFF_LINES,
@@ -370,16 +388,32 @@ mod tests {
     #[test]
     fn diff_rejects_absolute_paths() {
         let workspace = tempfile::tempdir().unwrap();
-        assert!(git_diff_snapshot(
-            &workspace.path().to_string_lossy(),
-            "/etc/passwd",
-            "unstaged",
-        )
-        .is_err());
-        assert!(
-            git_diff_snapshot(&workspace.path().to_string_lossy(), "../secret", "unstaged")
-                .is_err()
-        );
+        let root = workspace.path().to_string_lossy();
+        for area in ["unstaged", "untracked"] {
+            assert!(
+                git_diff_snapshot(&root, "/etc/passwd", area).is_err(),
+                "absolute path must be rejected for {area}",
+            );
+            assert!(
+                git_diff_snapshot(&root, "../secret", area).is_err(),
+                "parent path must be rejected for {area}",
+            );
+        }
+    }
+
+    #[test]
+    fn untracked_diff_allows_in_tree_relative_path() {
+        let workspace = tempfile::tempdir().unwrap();
+        git2::Repository::init(workspace.path()).unwrap();
+        fs::write(workspace.path().join("new.txt"), "fresh\n").unwrap();
+        let snapshot =
+            git_diff_snapshot(&workspace.path().to_string_lossy(), "new.txt", "untracked").unwrap();
+        assert_eq!(snapshot["path"], "new.txt");
+        assert_eq!(snapshot["isBinary"], false);
+        let lines = snapshot["lines"].as_array().unwrap();
+        assert!(lines
+            .iter()
+            .any(|line| line["text"].as_str() == Some("+fresh")));
     }
 
     #[cfg(unix)]

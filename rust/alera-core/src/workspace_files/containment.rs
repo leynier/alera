@@ -26,7 +26,10 @@ pub fn contained_workspace_relative_path(
     }
     let root = workspace_root(workspace_path)?;
     let relative = Path::new(relative_path);
+    // Absolute and rooted paths must not reach Path::join: they replace the
+    // workspace root (`/etc/passwd` joined onto a root is `/etc/passwd`).
     if relative.is_absolute()
+        || relative.has_root()
         || relative
             .components()
             .any(|component| !matches!(component, Component::Normal(_) | Component::CurDir))
@@ -76,6 +79,21 @@ pub fn contained_workspace_relative_path(
             relative_path,
         ));
     }
+    if !missing {
+        match fs::canonicalize(&current) {
+            Ok(canonical) if canonical.starts_with(&root) => {}
+            Ok(_) => {
+                return Err(WorkspaceFileError::new(
+                    WorkspaceFileErrorKind::OutsideWorkspace,
+                    relative_path,
+                ));
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(WorkspaceFileError::from_io(error, relative_path));
+            }
+        }
+    }
     Ok(ContainedWorkspacePath {
         relative_path: parts.join("/"),
         absolute_path: current,
@@ -103,6 +121,17 @@ mod tests {
                 .kind,
             WorkspaceFileErrorKind::InvalidPath
         );
+    }
+
+    #[test]
+    fn canonicalize_keeps_existing_in_tree_files() {
+        let workspace = tempfile::tempdir().unwrap();
+        fs::write(workspace.path().join("inside.txt"), "hello").unwrap();
+        let contained =
+            contained_workspace_relative_path(&workspace.path().to_string_lossy(), "inside.txt")
+                .unwrap();
+        assert_eq!(contained.relative_path, "inside.txt");
+        assert!(contained.absolute_path.ends_with("inside.txt"));
     }
 
     #[test]
