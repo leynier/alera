@@ -1280,8 +1280,6 @@ printf '%s\n' "$install_dir"
         assert!(!resolved.contains("/~/"));
     }
 
-    }
-
     #[test]
     fn truncate_error_handles_multibyte_text() {
         let message = "falló ".repeat(200);
