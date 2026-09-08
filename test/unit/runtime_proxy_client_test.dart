@@ -65,8 +65,33 @@ void main() {
     );
 
     expect(runner.arguments!.last, contains('powershell -NoProfile'));
-    expect(runner.arguments!.last, contains(r'current\alera.exe'));
+    expect(runner.arguments!.last, contains('Get-Content -Raw -Path'));
+    expect(runner.arguments!.last, contains('current.txt'));
+    expect(runner.arguments!.last, contains(r"Join-Path $current 'alera.exe'"));
     expect(runner.arguments!.last, contains('runtime-proxy'));
+    expect(runner.arguments!.last, isNot(contains(r'current\alera.exe')));
+  });
+
+  test('resolves a custom Windows install dir through current.txt', () async {
+    final runner = _RecordingRunner();
+    final client = RuntimeProxyClient(processRunner: runner);
+
+    await client.request(
+      hostId: 'windows',
+      target: _target(
+        runtimePlatform: 'windows',
+        installDir: r"D:\Alera's runtime",
+      ),
+      type: 'agentQuota.fetch',
+      payload: const <String, Object?>{},
+    );
+
+    expect(
+      runner.arguments!.last,
+      contains(r"Join-Path ('D:\Alera''s runtime') 'current.txt'"),
+    );
+    expect(runner.arguments!.last, contains(r"Join-Path $current 'alera.exe'"));
+    expect(runner.arguments!.last, isNot(contains(r'current\alera.exe')));
   });
 
   test(
@@ -387,7 +412,7 @@ class _RecordingRuntimeHostClient({
   }
 }
 
-SshTarget _target({required String runtimePlatform}) {
+SshTarget _target({required String runtimePlatform, String? installDir}) {
   final now = DateTime.utc(2026);
   return SshTarget(
     id: runtimePlatform,
@@ -398,6 +423,7 @@ SshTarget _target({required String runtimePlatform}) {
     authKind: .key,
     createdAt: now,
     updatedAt: now,
+    installDir: installDir,
     runtimePlatform: runtimePlatform,
     bootstrapStatus: .installed,
   );
