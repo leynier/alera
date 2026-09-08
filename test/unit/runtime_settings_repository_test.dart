@@ -369,7 +369,8 @@ final class _RecordingRuntimeHostClient
 
   @override
   Future<bool> supportsRuntimeCapability(String capability) async =>
-      configurationSupported && capability == 'configurationSyncV1';
+      configurationSupported &&
+      capability == aleraRuntimeHostConfigurationSyncCapability;
 
   @override
   Stream<RuntimeHostEvent> get runtimeEvents => const Stream.empty();
