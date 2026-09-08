@@ -81,6 +81,17 @@ The command is delivered once. After it is on its way the host drops it from the
 
 `alera workspace add` keeps running the setup inline and reporting it, because the CLI has no terminal tab to show it in. `alera workspace setup --id <workspace>` applies a project's setup to an existing workspace, with `--copies-only` for just the copy actions. An older runtime host that does not understand `deferSetup` ignores it and runs the setup inline, which is the behavior described in the rest of this page.
 
+## Automation declaration
+
+Scheduled and manual automation execution require an explicit repository opt-in in `alera.toml`. Draft create, edit, trash, restore, and approve do not.
+
+```toml
+[automation]
+declared = true
+```
+
+Alera also accepts the top-level form `automation_declared = true`. `[automation] enabled = true` is an alias of `declared`. The host reads the workspace checkout first, then the project repository root. Settings shows this as a read-only switch; it cannot be granted from the UI. Agent profile execution opt-in (`mayExecute`) is a separate policy.
+
 ## Git hosting provider
 
 The same config carries the project's git hosting provider, used by the Pull Requests panel to talk to `gh` (GitHub), `glab` (GitLab), or `az` (Azure DevOps). Authenticate first with the corresponding CLI. It can be set in **Settings > Projects** (UI override) or in `alera.toml`:
