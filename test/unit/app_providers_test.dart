@@ -606,25 +606,10 @@ void main() {
       });
       final home = Directory(p.join(root.path, 'home'))
         ..createSync(recursive: true);
-      final support = Directory(p.join(root.path, 'support'))
-        ..createSync(recursive: true);
       final managedService = ManagedAgentHookInstallService(
         homeDirectory: home.path,
         platform: .posix,
         environment: <String, String>{'HOME': home.path},
-      );
-      final codexRuntimeHome = CodexRuntimeHomeService(
-        homeDirectory: home.path,
-        applicationSupportDirectory: () async => support,
-        platform: .posix,
-        environment: <String, String>{'HOME': home.path},
-      );
-      final claudeRuntimeHome = ClaudeRuntimeHomeService(
-        homeDirectory: home.path,
-        applicationSupportDirectory: () async => support,
-        platform: .posix,
-        environment: <String, String>{'HOME': home.path},
-        syncMacOSKeychainCredentials: false,
       );
       final settingsController = _TestSettingsController(
         AleraSettings.defaults.copyWith(
@@ -639,8 +624,6 @@ void main() {
           managedAgentHookInstallServiceProvider.overrideWithValue(
             managedService,
           ),
-          codexRuntimeHomeServiceProvider.overrideWithValue(codexRuntimeHome),
-          claudeRuntimeHomeServiceProvider.overrideWithValue(claudeRuntimeHome),
         ],
       );
       addTearDown(container.dispose);
@@ -668,31 +651,12 @@ void main() {
       expect(
         File(p.join(home.path, '.alera', 'agent-hooks', 'alera-codex-hook.sh'))
             .existsSync(),
-        isTrue,
+        isFalse,
       );
       expect(
         File(p.join(home.path, '.alera', 'agent-hooks', 'alera-claude-hook.sh'))
             .existsSync(),
-        isTrue,
-      );
-
-      settingsController.setState(
-        settingsController.state.copyWith(
-          agents: settingsController.state.agents.copyWith(
-            agentStatusHooks: const AgentStatusHookSettings(),
-          ),
-        ),
-      );
-      await Future.pause(.zero);
-      await Future.pause(.zero);
-
-      expect(
-        (await codexRuntimeHome.status()).state,
-        ManagedAgentHookInstallState.notInstalled,
-      );
-      expect(
-        (await claudeRuntimeHome.status()).state,
-        ManagedAgentHookInstallState.notInstalled,
+        isFalse,
       );
     });
 
@@ -724,218 +688,43 @@ void main() {
       );
     });
 
-    test(
-      'terminal launch environment composes enabled hook runtimes',
-      () async {
-        final root = await Directory.systemTemp.createTemp(
-          'alera-provider-launch-env-',
-        );
-        addTearDown(() async {
-          if (await root.exists()) {
-            await root.delete(recursive: true);
-          }
-        });
-        final home = Directory(p.join(root.path, 'home'))
-          ..createSync(recursive: true);
-        final support = Directory(p.join(root.path, 'support'))
-          ..createSync(recursive: true);
-        final receiver = AgentHookReceiver(
-          statusSink: _FakeStatusSink(),
-          applicationSupportDirectory: () async => support,
-          token: 'token-1',
-          hookServer: _FakeAgentHookServer(),
-        );
-        addTearDown(receiver.dispose);
+    test('terminal launch environment carries runtime identity only', () async {
+      final root = await Directory.systemTemp.createTemp(
+        'alera-provider-launch-env-',
+      );
+      addTearDown(() async {
+        if (await root.exists()) {
+          await root.delete(recursive: true);
+        }
+      });
+      final support = Directory(p.join(root.path, 'support'))
+        ..createSync(recursive: true);
+      final receiver = AgentHookReceiver(
+        statusSink: _FakeStatusSink(),
+        applicationSupportDirectory: () async => support,
+        token: 'token-1',
+        hookServer: _FakeAgentHookServer(),
+      );
+      addTearDown(receiver.dispose);
 
-        final environment = await terminalLaunchEnvironmentFor(
-          agentHookReceiver: receiver,
-          codexRuntimeHome: CodexRuntimeHomeService(
-            homeDirectory: home.path,
-            applicationSupportDirectory: () async => support,
-            platform: .posix,
-            environment: <String, String>{'HOME': home.path},
-          ),
-          claudeRuntimeHome: ClaudeRuntimeHomeService(
-            homeDirectory: home.path,
-            applicationSupportDirectory: () async => support,
-            platform: .posix,
-            environment: <String, String>{'HOME': home.path},
-            syncMacOSKeychainCredentials: false,
-          ),
-          agentRuntimeOverlay: AgentRuntimeOverlayService(
-            homeDirectory: home.path,
-            platform: .posix,
-            environment: <String, String>{
-              'HOME': home.path,
-              'SHELL': '/bin/zsh',
-            },
-            applicationSupportDirectory: () async => support,
-          ),
-          hooks: const AgentStatusHookSettings(
-            codex: true,
-            claude: true,
-            copilot: true,
-            cursor: true,
-            opencode: true,
-            pi: true,
-            amp: true,
-          ),
-          terminalSessionId: 'session-1',
-          workspaceId: 'workspace-1',
-          tabId: 'tab-1',
-        );
+      final environment = await terminalLaunchEnvironmentFor(
+        agentHookReceiver: receiver,
+        terminalSessionId: 'session-1',
+        workspaceId: 'workspace-1',
+        tabId: 'tab-1',
+      );
 
-        expect(
-          environment,
-          containsPair('ALERA_TERMINAL_SESSION_ID', 'session-1'),
-        );
-        expect(environment, contains('CODEX_HOME'));
-        expect(environment, contains('CLAUDE_CONFIG_DIR'));
-        expect(environment, contains('COPILOT_HOME'));
-        // Cursor is intentionally absent: the runtime host builds its
-        // per-session plugin, because anything injected here is stripped again
-        // by the host's launch-environment sanitisation.
-        expect(environment, isNot(contains('ALERA_CURSOR_PLUGIN_DIR')));
-        expect(environment, contains('OPENCODE_CONFIG_DIR'));
-        expect(environment, contains('PI_CODING_AGENT_DIR'));
-        expect(environment, contains('ALERA_AMP_CONFIG_DIR'));
-      },
-    );
+      expect(
+        environment,
+        containsPair('ALERA_TERMINAL_SESSION_ID', 'session-1'),
+      );
+      expect(environment, isNot(contains('CODEX_HOME')));
+      expect(environment, isNot(contains('CLAUDE_CONFIG_DIR')));
+      expect(environment, isNot(contains('ALERA_CURSOR_PLUGIN_DIR')));
+      expect(environment, isNot(contains('OPENCODE_CONFIG_DIR')));
+    });
 
     _registerAppProvidersWrapperPathTests();
-
-    test(
-      'terminal launch environment clears overlays for every overlay hook kind',
-      () async {
-        final root = await Directory.systemTemp.createTemp(
-          'alera-provider-launch-env-overlays-',
-        );
-        addTearDown(() async {
-          if (await root.exists()) {
-            await root.delete(recursive: true);
-          }
-        });
-        final home = Directory(p.join(root.path, 'home'))
-          ..createSync(recursive: true);
-        final support = Directory(p.join(root.path, 'support'))
-          ..createSync(recursive: true);
-        final receiver = AgentHookReceiver(
-          statusSink: _FakeStatusSink(),
-          applicationSupportDirectory: () async => support,
-          token: 'token-1',
-          hookServer: _FakeAgentHookServer(),
-        );
-        addTearDown(receiver.dispose);
-        final overlay = AgentRuntimeOverlayService(
-          homeDirectory: home.path,
-          platform: .posix,
-          environment: <String, String>{'HOME': home.path, 'SHELL': '/bin/zsh'},
-          applicationSupportDirectory: () async => support,
-        );
-        final codex = CodexRuntimeHomeService(
-          homeDirectory: home.path,
-          applicationSupportDirectory: () async => support,
-          platform: .posix,
-          environment: <String, String>{'HOME': home.path},
-        );
-        final claude = ClaudeRuntimeHomeService(
-          homeDirectory: home.path,
-          applicationSupportDirectory: () async => support,
-          platform: .posix,
-          environment: <String, String>{'HOME': home.path},
-          syncMacOSKeychainCredentials: false,
-        );
-
-        for (final hooks in const <AgentStatusHookSettings>[
-          AgentStatusHookSettings(copilot: true),
-          AgentStatusHookSettings(opencode: true),
-          AgentStatusHookSettings(pi: true),
-          AgentStatusHookSettings(amp: true),
-        ]) {
-          final environment = await terminalLaunchEnvironmentFor(
-            agentHookReceiver: receiver,
-            codexRuntimeHome: codex,
-            claudeRuntimeHome: claude,
-            agentRuntimeOverlay: overlay,
-            hooks: hooks,
-            terminalSessionId: 'session-${hooks.hashCode}',
-            workspaceId: 'workspace-1',
-            tabId: 'tab-1',
-          );
-
-          expect(environment, isNotNull);
-        }
-      },
-    );
-
-    test(
-      'terminal launch environment keeps hook metadata on runtime errors',
-      () async {
-        final root = await Directory.systemTemp.createTemp(
-          'alera-provider-launch-error-',
-        );
-        addTearDown(() async {
-          if (await root.exists()) {
-            await root.delete(recursive: true);
-          }
-        });
-        final home = Directory(p.join(root.path, 'home'))
-          ..createSync(recursive: true);
-        final support = Directory(p.join(root.path, 'support'))
-          ..createSync(recursive: true);
-        final receiver = AgentHookReceiver(
-          statusSink: _FakeStatusSink(),
-          applicationSupportDirectory: () async => support,
-          token: 'token-1',
-          hookServer: _FakeAgentHookServer(),
-        );
-        addTearDown(receiver.dispose);
-        Future<Directory> failingSupport() async => throw StateError('boom');
-
-        final environment = await terminalLaunchEnvironmentFor(
-          agentHookReceiver: receiver,
-          codexRuntimeHome: CodexRuntimeHomeService(
-            homeDirectory: home.path,
-            applicationSupportDirectory: failingSupport,
-            platform: .posix,
-            environment: <String, String>{'HOME': home.path},
-          ),
-          claudeRuntimeHome: ClaudeRuntimeHomeService(
-            homeDirectory: home.path,
-            applicationSupportDirectory: failingSupport,
-            platform: .posix,
-            environment: <String, String>{'HOME': home.path},
-            syncMacOSKeychainCredentials: false,
-          ),
-          agentRuntimeOverlay: AgentRuntimeOverlayService(
-            homeDirectory: home.path,
-            platform: .posix,
-            environment: <String, String>{'HOME': home.path},
-            applicationSupportDirectory: failingSupport,
-          ),
-          hooks: const AgentStatusHookSettings(
-            codex: true,
-            claude: true,
-            copilot: true,
-            cursor: true,
-            opencode: true,
-            pi: true,
-            amp: true,
-          ),
-          terminalSessionId: 'session-1',
-          workspaceId: 'workspace-1',
-          tabId: 'tab-1',
-        );
-
-        expect(
-          environment,
-          containsPair('ALERA_TERMINAL_SESSION_ID', 'session-1'),
-        );
-        expect(environment, isNot(contains('CODEX_HOME')));
-        expect(environment, isNot(contains('CLAUDE_CONFIG_DIR')));
-        expect(environment, isNot(contains('ALERA_AMP_CONFIG_DIR')));
-      },
-    );
 
     test(
       'exit coordinator closes runtime tabs when the workspace is missing',

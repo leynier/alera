@@ -56,7 +56,7 @@ fn claude_settings_cleanup_paths(home: &Path) -> Vec<PathBuf> {
     ]
 }
 
-fn read_jsonc_object(path: &Path) -> anyhow::Result<Option<Map<String, Value>>> {
+pub(super) fn read_jsonc_object(path: &Path) -> anyhow::Result<Option<Map<String, Value>>> {
     let contents = match std::fs::read_to_string(path) {
         Ok(contents) => contents,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),

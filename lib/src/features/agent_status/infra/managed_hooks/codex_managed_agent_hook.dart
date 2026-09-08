@@ -1,6 +1,6 @@
 // coverage:ignore-file
-// Codex user-config descriptors are intentionally inactive: Codex hooks are
-// installed only in Alera-managed runtime homes.
+// Codex user-config descriptors are intentionally inactive: the runtime host
+// writes ~/.codex/hooks.json and the matching config.toml trust records.
 part of '../managed_agent_hook_installer.dart';
 
 extension _CodexManagedAgentHook on ManagedAgentHookInstallService {

@@ -42,7 +42,7 @@ fn agy_bundle(config: &Map<String, Value>) -> &Map<String, Value> {
 fn agy_bundle_uses_the_documented_lifecycle_and_tool_schemas() {
     let mut config = Map::new();
 
-    apply_agy_bundle(
+    super::json::apply_agy_bundle(
         &mut config,
         Path::new("/home/user/.alera/agent-hooks/hook.sh"),
     );
@@ -79,7 +79,7 @@ fn agy_bundle_keeps_user_entries_and_drops_alera_ones() {
         }),
     )]);
 
-    apply_agy_bundle(
+    super::json::apply_agy_bundle(
         &mut config,
         Path::new("/home/user/.alera/agent-hooks/hook.sh"),
     );
@@ -108,7 +108,7 @@ fn agy_bundle_drops_desktop_windows_wrapper_handlers() {
         }),
     )]);
 
-    apply_agy_bundle(
+    super::json::apply_agy_bundle(
         &mut config,
         Path::new("C:\\Users\\u\\.alera\\agent-hooks\\hook.cmd"),
     );
@@ -445,4 +445,21 @@ fn claude_user_hooks_install_refreshes_a_stale_script_path() {
     let hooks = settings["hooks"].to_string();
     assert!(hooks.contains("/new/alera-runtime-agent-hook.sh"));
     assert!(!hooks.contains("/old/alera-runtime-agent-hook.sh"));
+}
+
+#[test]
+fn start_clears_legacy_runtime_homes_and_overlays() {
+    let runtime = tempfile::tempdir().unwrap();
+    let leftover_home = runtime.path().join("agent-runtime-homes/codex/home");
+    let leftover_overlay = runtime
+        .path()
+        .join("agent-runtime-overlays/cursor/session/plugin");
+    std::fs::create_dir_all(&leftover_home).unwrap();
+    std::fs::create_dir_all(&leftover_overlay).unwrap();
+    std::fs::write(leftover_home.join("hooks.json"), "{}\n").unwrap();
+
+    clear_legacy_runtime_state(runtime.path()).unwrap();
+
+    assert!(!runtime.path().join("agent-runtime-homes").exists());
+    assert!(!runtime.path().join("agent-runtime-overlays").exists());
 }

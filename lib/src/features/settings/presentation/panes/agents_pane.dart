@@ -84,30 +84,28 @@ class const AgentsSettingsPane({
             children: <Widget>[
               SettingsSwitchRow(
                 title: 'Codex Hooks',
-                description: 'Use an Alera-managed Codex runtime home with status hooks.',
+                description: 'Install Alera-managed Codex hooks in the user Codex config. Disable to remove only Alera-managed entries.',
                 value: agents.agentStatusHooks.codex,
                 onChanged: (value) =>
                     controller.setAgentStatusHookEnabled(.codex, value),
               ),
               SettingsSwitchRow(
                 title: 'Claude Code Hooks',
-                description: 'Use an Alera-managed Claude Code config with status hooks.',
+                description: 'Install Alera-managed Claude Code hooks in ~/.claude/settings.json. Disable to remove only Alera-managed entries.',
                 value: agents.agentStatusHooks.claude,
                 onChanged: (value) =>
                     controller.setAgentStatusHookEnabled(.claude, value),
               ),
               SettingsSwitchRow(
                 title: 'GitHub Copilot Hooks',
-                description:
-                    'Use an Alera-managed GitHub Copilot home overlay.',
+                description: 'Install Alera-managed GitHub Copilot hooks in a dedicated global file. Disable to remove that file.',
                 value: agents.agentStatusHooks.copilot,
                 onChanged: (value) =>
                     controller.setAgentStatusHookEnabled(.copilot, value),
               ),
               SettingsSwitchRow(
                 title: 'Cursor Hooks',
-                description:
-                    'Use an Alera-managed Cursor agent plugin wrapper.',
+                description: 'Install Alera-managed Cursor hooks in ~/.cursor/hooks.json. Disable to remove only Alera-managed entries.',
                 value: agents.agentStatusHooks.cursor,
                 onChanged: (value) =>
                     controller.setAgentStatusHookEnabled(.cursor, value),
@@ -121,35 +119,35 @@ class const AgentsSettingsPane({
               ),
               SettingsSwitchRow(
                 title: 'OpenCode Hooks',
-                description: 'Use an Alera-managed OpenCode config overlay with status plugin.',
+                description: 'Install the Alera OpenCode status plugin in the user OpenCode config. Disable to remove only the Alera plugin file.',
                 value: agents.agentStatusHooks.opencode,
                 onChanged: (value) =>
                     controller.setAgentStatusHookEnabled(.opencode, value),
               ),
               SettingsSwitchRow(
                 title: 'OpenCode 2 Hooks',
-                description: 'Use an Alera-managed OpenCode 2 config overlay with the v2 status plugin.',
+                description: 'Install the Alera OpenCode 2 status plugin in the user OpenCode config. Disable to remove only the Alera v2 plugin file.',
                 value: agents.agentStatusHooks.opencode2,
                 onChanged: (value) =>
                     controller.setAgentStatusHookEnabled(.opencode2, value),
               ),
               SettingsSwitchRow(
                 title: 'Pi Hooks',
-                description: 'Use an Alera-managed Pi agent overlay with status extension.',
+                description: 'Install the Alera Pi status extension in the user Pi config. Disable to remove only the Alera extension file.',
                 value: agents.agentStatusHooks.pi,
                 onChanged: (value) =>
                     controller.setAgentStatusHookEnabled(.pi, value),
               ),
               SettingsSwitchRow(
                 title: 'Amp Hooks',
-                description: 'Use an Alera-managed Amp config overlay.',
+                description: 'Install the Alera Amp status plugin in the user Amp config. Disable to remove only the Alera plugin file.',
                 value: agents.agentStatusHooks.amp,
                 onChanged: (value) =>
                     controller.setAgentStatusHookEnabled(.amp, value),
               ),
               SettingsSwitchRow(
                 title: 'Grok Build Hooks',
-                description: 'Install Alera-managed Grok build hooks in a dedicated global file.',
+                description: 'Install Alera-managed Grok Build hooks in a dedicated global file. Disable to remove that file.',
                 value: agents.agentStatusHooks.grok,
                 onChanged: (value) =>
                     controller.setAgentStatusHookEnabled(.grok, value),

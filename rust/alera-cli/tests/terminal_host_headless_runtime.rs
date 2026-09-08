@@ -372,14 +372,14 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
     let token = "agent-hook-token";
     let (_guard, port) = spawn_host(dir.path(), token);
     let test_home = dir.path().join("test-home");
-    let claude_settings = dir
-        .path()
-        .join("agent-runtime-homes/claude/home/settings.json");
+    let claude_settings = test_home.join(".claude/settings.json");
     let grok_hooks = test_home.join(".grok/hooks/alera-status.json");
+    let cursor_hooks = test_home.join(".cursor/hooks.json");
     for integration in [
-        dir.path().join("agent-runtime-homes/codex/home/hooks.json"),
+        test_home.join(".codex/hooks.json"),
         claude_settings.clone(),
         test_home.join(".copilot/hooks/alera.json"),
+        cursor_hooks.clone(),
         test_home.join(".gemini/config/hooks.json"),
         grok_hooks.clone(),
         test_home.join(".config/opencode/plugins/alera-agent-status.js"),
@@ -389,9 +389,11 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
     ] {
         wait_for_path(&integration);
     }
-    for hooks in [&claude_settings, &grok_hooks] {
+    for hooks in [&claude_settings, &grok_hooks, &cursor_hooks] {
         assert_no_null_matchers(hooks);
     }
+    assert!(!dir.path().join("agent-runtime-homes").exists());
+    assert!(!dir.path().join("agent-runtime-overlays").exists());
     let (mut writer, mut reader) = connect(port, token);
     send(
         &mut writer,
@@ -402,14 +404,6 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
         }}),
     );
     assert_eq!(read_response(&mut reader, 1)["ok"], json!(true));
-
-    // Cursor is delivered as a per-session plugin the launch mints, never as an
-    // entry in the user's own hooks.json.
-    wait_for_path(
-        &dir.path()
-            .join("agent-runtime-overlays/cursor/hook-session/plugin/hooks/hooks.json"),
-    );
-    assert!(!test_home.join(".cursor/hooks.json").exists());
 
     for (index, (agent, event_name, done_event)) in [
         ("codex", "UserPromptSubmit", "Stop"),

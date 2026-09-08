@@ -19,31 +19,68 @@ pub(super) fn codex_trusted_hash(event_label: &str, command: &str) -> String {
     )
 }
 
-pub(super) fn remap_codex_source_hook_trust(
+pub(super) fn upsert_codex_hook_trust(
     state: &mut toml::map::Map<String, toml::Value>,
-    source_hooks_path: &Path,
-    runtime_hooks_path: &Path,
+    hooks_path: &Path,
+    entries: &[(&str, usize, String)],
 ) {
-    let source_prefixes = codex_hook_path_key_prefixes(source_hooks_path);
-    if source_prefixes.is_empty() {
-        return;
+    let prefix = format!("{}:", hooks_path.display());
+    for (label, index, command) in entries {
+        let key = format!("{prefix}{label}:{index}:0");
+        let mut entry = toml::map::Map::new();
+        entry.insert("enabled".to_string(), toml::Value::Boolean(true));
+        entry.insert(
+            "trusted_hash".to_string(),
+            toml::Value::String(codex_trusted_hash(label, command)),
+        );
+        state.insert(key, toml::Value::Table(entry));
     }
-    let runtime_prefix = format!("{}:", runtime_hooks_path.display());
-    let mut remaps = Vec::new();
-    for key in state.keys() {
-        for source_prefix in &source_prefixes {
-            let old_prefix = format!("{source_prefix}:");
-            if let Some(suffix) = key.strip_prefix(&old_prefix) {
-                remaps.push((key.clone(), format!("{runtime_prefix}{suffix}")));
-                break;
+}
+
+/// Drops Alera-owned Codex trust records and leftover runtime-home keys.
+///
+/// User trust entries whose event index still exists after Alera definitions
+/// were stripped from `hooks.json` are left alone. Alera always appends, so
+/// removing from the end does not shift those indices.
+pub(super) fn remove_alera_codex_hook_trust(
+    state: &mut toml::map::Map<String, toml::Value>,
+    hooks_path: &Path,
+    remaining_counts: Vec<(String, usize)>,
+) {
+    let prefixes = codex_hook_path_key_prefixes(hooks_path);
+    let remaining: BTreeMap<String, usize> = remaining_counts.into_iter().collect();
+    let stale = state
+        .keys()
+        .filter(|key| {
+            if is_legacy_runtime_home_key(key) {
+                return true;
             }
-        }
+            let Some((label, index)) = parse_trust_key_suffix(key, &prefixes) else {
+                return false;
+            };
+            remaining.get(&label).is_some_and(|count| index >= *count)
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    for key in stale {
+        state.remove(&key);
     }
-    for (old_key, new_key) in remaps {
-        if let Some(entry) = state.remove(&old_key) {
-            state.insert(new_key, entry);
-        }
-    }
+}
+
+fn is_legacy_runtime_home_key(key: &str) -> bool {
+    key.contains("agent-runtime-homes/codex") || key.contains("agent-runtime-homes\\codex")
+}
+
+fn parse_trust_key_suffix(key: &str, prefixes: &[String]) -> Option<(String, usize)> {
+    let prefix = prefixes
+        .iter()
+        .find(|prefix| key.starts_with(&format!("{prefix}:")))?;
+    let suffix = key.get(prefix.len() + 1..)?;
+    let mut parts = suffix.rsplitn(3, ':');
+    let _handler = parts.next()?;
+    let index = parts.next()?.parse::<usize>().ok()?;
+    let label = parts.next()?.to_string();
+    Some((label, index))
 }
 
 fn codex_hook_path_key_prefixes(path: &Path) -> Vec<String> {
@@ -69,59 +106,45 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
-    fn remaps_trusted_source_hook_records_to_runtime_hooks_path() {
-        let source_hooks = PathBuf::from("/home/user/.codex/hooks.json");
-        let runtime_hooks =
-            PathBuf::from("/tmp/alera-runtime/agent-runtime-homes/codex/home/hooks.json");
-        let source_key = format!("{}:session_start:0:0", source_hooks.display());
-        let runtime_key = format!("{}:session_start:0:0", runtime_hooks.display());
+    fn upserts_enabled_trust_records_for_alera_commands() {
+        let hooks = PathBuf::from("/home/user/.codex/hooks.json");
         let mut state = toml::map::Map::new();
-        let mut entry = toml::map::Map::new();
-        entry.insert("enabled".to_string(), toml::Value::Boolean(true));
-        entry.insert(
-            "trusted_hash".to_string(),
-            toml::Value::String("sha256:source-trusted".to_string()),
+        upsert_codex_hook_trust(
+            &mut state,
+            &hooks,
+            &[("session_start", 1, "alera-runtime-agent-hook.sh".into())],
         );
-        state.insert(source_key.clone(), toml::Value::Table(entry));
 
-        remap_codex_source_hook_trust(&mut state, &source_hooks, &runtime_hooks);
-
-        assert!(!state.contains_key(&source_key));
-        let remapped = state
-            .get(&runtime_key)
-            .and_then(toml::Value::as_table)
-            .expect("remapped trust entry");
+        let key = format!("{}:session_start:1:0", hooks.display());
+        let entry = state.get(&key).and_then(toml::Value::as_table).unwrap();
         assert_eq!(
-            remapped.get("enabled").and_then(toml::Value::as_bool),
+            entry.get("enabled").and_then(toml::Value::as_bool),
             Some(true)
         );
         assert_eq!(
-            remapped.get("trusted_hash").and_then(toml::Value::as_str),
-            Some("sha256:source-trusted")
+            entry.get("trusted_hash").and_then(toml::Value::as_str),
+            Some(codex_trusted_hash("session_start", "alera-runtime-agent-hook.sh").as_str())
         );
     }
 
     #[test]
-    fn leaves_untrusted_source_hooks_without_runtime_trust_records() {
-        let source_hooks = PathBuf::from("/home/user/.codex/hooks.json");
-        let runtime_hooks =
-            PathBuf::from("/tmp/alera-runtime/agent-runtime-homes/codex/home/hooks.json");
+    fn removes_alera_and_legacy_runtime_home_keys_and_keeps_user_trust() {
+        let hooks = PathBuf::from("/home/user/.codex/hooks.json");
+        let user_key = format!("{}:session_start:0:0", hooks.display());
+        let alera_key = format!("{}:session_start:1:0", hooks.display());
+        let leftover =
+            "/tmp/alera-runtime/agent-runtime-homes/codex/home/hooks.json:stop:0:0".to_string();
         let mut state = toml::map::Map::new();
-        let unrelated_key = "/other/hooks.json:stop:0:0".to_string();
-        let mut unrelated = toml::map::Map::new();
-        unrelated.insert("enabled".to_string(), toml::Value::Boolean(false));
-        unrelated.insert(
-            "trusted_hash".to_string(),
-            toml::Value::String("sha256:other".to_string()),
-        );
-        state.insert(unrelated_key.clone(), toml::Value::Table(unrelated));
+        for key in [&user_key, &alera_key, &leftover] {
+            let mut entry = toml::map::Map::new();
+            entry.insert("enabled".to_string(), toml::Value::Boolean(true));
+            state.insert(key.clone(), toml::Value::Table(entry));
+        }
 
-        remap_codex_source_hook_trust(&mut state, &source_hooks, &runtime_hooks);
+        remove_alera_codex_hook_trust(&mut state, &hooks, vec![("session_start".into(), 1)]);
 
-        assert_eq!(state.len(), 1);
-        assert!(state.contains_key(&unrelated_key));
-        assert!(!state
-            .keys()
-            .any(|key| { key.starts_with(&format!("{}:", runtime_hooks.display())) }));
+        assert!(state.contains_key(&user_key));
+        assert!(!state.contains_key(&alera_key));
+        assert!(!state.contains_key(&leftover));
     }
 }

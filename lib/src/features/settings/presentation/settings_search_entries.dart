@@ -179,19 +179,22 @@ agentsSearchEntries = buildSettingsSearchEntryCatalog(const {
   },
   'hooks': {
     'Codex Hooks': SettingsSearchEntryDetails(
-      description: 'Use Alera-managed Codex runtime hooks.',
+      description:
+          'Install Alera-managed Codex hooks in the user Codex config.',
       keywords: <String>['codex', 'agent', 'status', 'hooks'],
     ),
     'Claude Code Hooks': SettingsSearchEntryDetails(
-      description: 'Use an Alera-managed Claude Code config with status hooks.',
+      description:
+          'Install Alera-managed Claude Code hooks in the user settings file.',
       keywords: <String>['claude', 'agent', 'status', 'hooks'],
     ),
     'GitHub Copilot Hooks': SettingsSearchEntryDetails(
-      description: 'Use an Alera-managed GitHub Copilot home overlay.',
+      description: 'Install Alera-managed GitHub Copilot hooks in a dedicated global file.',
       keywords: <String>['copilot', 'github', 'agent', 'status', 'hooks'],
     ),
     'Cursor Hooks': SettingsSearchEntryDetails(
-      description: 'Use an Alera-managed Cursor agent plugin wrapper.',
+      description:
+          'Install Alera-managed Cursor hooks in the user Cursor config.',
       keywords: <String>['cursor', 'agent', 'status', 'hooks', 'cli'],
     ),
     'Antigravity Hooks': SettingsSearchEntryDetails(
@@ -219,7 +222,8 @@ agentsSearchEntries = buildSettingsSearchEntryCatalog(const {
       keywords: <String>['pi', 'agent', 'status', 'hooks', 'extension'],
     ),
     'Amp Hooks': SettingsSearchEntryDetails(
-      description: 'Use an Alera-managed Amp config overlay.',
+      description:
+          'Install the Alera Amp status plugin in the user Amp config.',
       keywords: <String>['amp', 'agent', 'status', 'hooks', 'plugin'],
     ),
     'Grok Build Hooks': SettingsSearchEntryDetails(

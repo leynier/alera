@@ -85,8 +85,6 @@ AgentRuntimeOverlayService agentRuntimeOverlayService(Ref ref) {
 AgentHookReconciler agentHookReconciliationService(Ref ref) {
   return AgentHookReconciliationService(
     managedHooks: ref.watch(managedAgentHookInstallServiceProvider),
-    codexRuntimeHome: ref.watch(codexRuntimeHomeServiceProvider),
-    claudeRuntimeHome: ref.watch(claudeRuntimeHomeServiceProvider),
   );
 }
 
@@ -207,114 +205,22 @@ void agentHookInstallerCoordinator(Ref ref) {
   );
 }
 
-/// Timings the notification coordinator buffers bursts with. A provider so
-
+/// Terminal identity the host already injects. Overlay env vars are no longer
+/// minted here; global agent config is written by the runtime host.
 Future<Map<String, String>?> terminalLaunchEnvironmentFor({
   required AgentHookReceiver agentHookReceiver,
-  required CodexRuntimeHomeService codexRuntimeHome,
-  required ClaudeRuntimeHomeService claudeRuntimeHome,
-  required AgentRuntimeOverlayService agentRuntimeOverlay,
-  required AgentStatusHookSettings hooks,
   required String terminalSessionId,
   required String workspaceId,
   required String tabId,
-}) async {
-  final environment = <String, String>{};
-  final hookEnvironment = await agentHookReceiver.launchEnvironmentFor(
+}) {
+  return agentHookReceiver.launchEnvironmentFor(
     terminalSessionId: terminalSessionId,
     workspaceId: workspaceId,
     tabId: tabId,
   );
-  if (hookEnvironment != null) {
-    environment.addAll(hookEnvironment);
-  }
-  if (hooks.copilot ||
-      hooks.opencode ||
-      hooks.opencode2 ||
-      hooks.pi ||
-      hooks.amp) {
-    try {
-      await agentRuntimeOverlay.clearTerminalOverlays(terminalSessionId);
-    } on Object catch (error, stackTrace) {
-      _agentHookLog.warning(
-        'failed to clear terminal overlays for $terminalSessionId; '
-        'a stale overlay may shadow the new one',
-        error,
-        stackTrace,
-      );
-    }
-  }
-  if (hooks.codex) {
-    await _addAgentHookEnvironment(environment, 'Codex', () async {
-      return (await codexRuntimeHome.prepareForTerminalLaunch()).environment;
-    });
-  }
-  if (hooks.claude) {
-    await _addAgentHookEnvironment(environment, 'Claude', () async {
-      return (await claudeRuntimeHome.prepareForTerminalLaunch()).environment;
-    });
-  }
-  if (hooks.copilot) {
-    await _addAgentHookEnvironment(environment, 'Copilot', () async {
-      return (await agentRuntimeOverlay.prepareCopilotForTerminalLaunch(
-        terminalSessionId: terminalSessionId,
-      )).environment;
-    });
-  }
-  // Cursor is deliberately absent: the runtime host builds its per-session
-  // plugin and `cursor-agent` wrapper, because anything this side injects is
-  // stripped again by the host's launch-environment sanitisation.
-  if (hooks.opencode || hooks.opencode2) {
-    await _addAgentHookEnvironment(environment, 'OpenCode', () async {
-      return (await agentRuntimeOverlay.prepareOpenCodeForTerminalLaunch(
-        terminalSessionId: terminalSessionId,
-        includeV1Plugin: hooks.opencode,
-        includeV2Plugin: hooks.opencode2,
-      )).environment;
-    });
-  }
-  if (hooks.pi) {
-    await _addAgentHookEnvironment(environment, 'Pi', () async {
-      return (await agentRuntimeOverlay.preparePiForTerminalLaunch(
-        terminalSessionId: terminalSessionId,
-      )).environment;
-    });
-  }
-  if (hooks.amp) {
-    await _addAgentHookEnvironment(environment, 'Amp', () async {
-      return (await agentRuntimeOverlay.prepareAmpForTerminalLaunch(
-        terminalSessionId: terminalSessionId,
-      )).environment;
-    });
-  }
-  return environment.isEmpty ? null : environment;
 }
 
 final Logger _agentHookLog = Logger('AgentHookLaunchEnvironment');
-
-/// Merges one agent's launch environment, keeping a failure from blocking the
-/// terminal.
-///
-/// A failure here is silent by design: the terminal must still open. That is
-/// exactly why it has to be recorded. The user turned this hook on in Settings,
-/// so without a log the agent simply never reports status and nothing explains
-/// why the setting appears to do nothing.
-Future<void> _addAgentHookEnvironment(
-  Map<String, String> environment,
-  String agent,
-  Future<Map<String, String>> Function() prepare,
-) async {
-  try {
-    environment.addAll(await prepare());
-  } on Object catch (error, stackTrace) {
-    _agentHookLog.warning(
-      'failed to prepare the $agent hook environment; '
-      'the terminal starts without agent status',
-      error,
-      stackTrace,
-    );
-  }
-}
 
 bool isAgentStatusHookEnabled(
   AgentStatusHookSettings settings,
