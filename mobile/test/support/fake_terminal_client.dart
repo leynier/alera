@@ -1,17 +1,12 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
-import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
-import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
-import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
-import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
-import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dart';
 
 import 'fake_workspace_files_client.dart';
+import 'fake_workspace_lifecycle_client.dart';
 import 'fake_workspace_panels_client.dart';
 
 WorkspaceTabSummary fakeTab({
@@ -40,7 +35,10 @@ WorkspaceTabSummary fakeTab({
 /// In-memory stand-in for the runtime gateway covering both the terminal and
 /// workspace client surfaces. Records calls as readable strings.
 class FakeTerminalClient
-    with FakeWorkspaceFilesClient, FakeWorkspacePanelsClient
+    with
+        FakeWorkspaceFilesClient,
+        FakeWorkspaceLifecycleClient,
+        FakeWorkspacePanelsClient
     implements
         MobileTerminalClient,
         MobileWorkspaceClient,
@@ -69,19 +67,6 @@ class FakeTerminalClient
   int? attachmentSnapshotCols;
   int? attachmentSnapshotRows;
   List<WorkspaceTabSummary> tabs = <WorkspaceTabSummary>[];
-  List<String> projectBranches = const <String>[];
-  List<AgentProfileSummary> agentProfiles = const <AgentProfileSummary>[
-    AgentProfileSummary(id: 'profile-1', name: 'Codex', agentType: 'codex'),
-  ];
-  GeneratedWorkspaceIdentity generatedWorkspaceIdentity =
-      const GeneratedWorkspaceIdentity(
-        workspaceName: 'Generated Workspace',
-        branchName: 'feat/generated-workspace',
-      );
-  String? deferredSetupCommand;
-  Object? linkError;
-  int launchFailuresRemaining = 0;
-  final List<String> agentLaunchMutationIds = <String>[];
   int _createdTabs = 0;
 
   void emitEvent(String name) {
@@ -167,31 +152,6 @@ class FakeTerminalClient
 
   @override
   bool supportsPromptImageUpload = true;
-
-  @override
-  Future<WorkspaceSidebarSnapshot> workspaceSidebarSnapshot() async {
-    return const WorkspaceSidebarSnapshot(
-      projects: <ProjectSummary>[],
-      workspaces: <WorkspaceSummary>[],
-      tags: <WorkspaceTagSummary>[],
-      activity: <String, DateTime>{},
-      viewPrefs: MobileViewPrefs(),
-      confirmWorkspaceRemoval: true,
-    );
-  }
-
-  @override
-  Future<MobileViewPrefs> loadWorkbenchViewPrefs() async =>
-      const MobileViewPrefs();
-
-  @override
-  Future<MobileViewPrefs> updateWorkbenchViewPrefs(
-    MobileViewPrefs prefs,
-  ) async => prefs.copyWith(revision: prefs.revision + 1);
-
-  @override
-  Future<List<AgentPresenceSummary>> listAgentPresence() async =>
-      const <AgentPresenceSummary>[];
 
   /// Fails the foreground connection probe, so a test can drive the branch
   /// that still needs a re-attach.
@@ -323,124 +283,6 @@ class FakeTerminalClient
   }
 
   @override
-  Future<List<ProjectSummary>> listProjects() async {
-    return const <ProjectSummary>[];
-  }
-
-  @override
-  Future<ProjectBranches> listBranches(String projectId) async {
-    return ProjectBranches(
-      projectId: projectId,
-      branches: projectBranches,
-      localBranches: projectBranches,
-    );
-  }
-
-  @override
-  Future<List<AgentProfileSummary>> listAgentProfiles() async {
-    return agentProfiles;
-  }
-
-  @override
-  Future<GeneratedWorkspaceIdentity> generateWorkspaceIdentity({
-    required String operationId,
-    required String projectId,
-    required String prompt,
-  }) async {
-    calls.add('generateWorkspaceIdentity $projectId');
-    return generatedWorkspaceIdentity;
-  }
-
-  @override
-  Future<void> cancelWorkspaceIdentity(String operationId) async {
-    calls.add('cancelWorkspaceIdentity $operationId');
-  }
-
-  @override
-  Future<AgentProfileLaunchResult> launchAgentProfile({
-    required String workspaceId,
-    required String profileId,
-    required String prompt,
-    required String clientMutationId,
-  }) async {
-    agentLaunchMutationIds.add(clientMutationId);
-    calls.add('launchAgentProfile $workspaceId $profileId $prompt');
-    if (launchFailuresRemaining > 0) {
-      launchFailuresRemaining -= 1;
-      throw StateError('launch response was lost');
-    }
-    return const AgentProfileLaunchResult(
-      tabId: 'agent-tab',
-      agentType: 'codex',
-    );
-  }
-
-  @override
-  Future<List<WorkspaceSummary>> listWorkspaces() async {
-    return const <WorkspaceSummary>[];
-  }
-
-  @override
-  Future<void> setWorkspacePinned(String workspaceId, bool isPinned) async {
-    calls.add('setPinned $workspaceId $isPinned');
-  }
-
-  @override
-  Future<void> linkWorkspaces({
-    required String parentWorkspaceId,
-    required String childWorkspaceId,
-  }) async {
-    calls.add('link $parentWorkspaceId $childWorkspaceId');
-    final error = linkError;
-    if (error != null) {
-      throw error;
-    }
-  }
-
-  @override
-  Future<void> unlinkWorkspaces({
-    required String parentWorkspaceId,
-    required String childWorkspaceId,
-  }) async {
-    calls.add('unlink $parentWorkspaceId $childWorkspaceId');
-  }
-
-  @override
-  Future<WorkspaceCreationResult> createManagedWorkspace({
-    required String projectId,
-    required String branch,
-    String? sourceBranch,
-    bool reuseExistingBranch = false,
-    String? name,
-    String? parentWorkspaceId,
-  }) async {
-    calls.add('createWorkspace $projectId $branch');
-    return WorkspaceCreationResult(
-      workspace: WorkspaceSummary(
-        id: 'created',
-        projectId: projectId,
-        name: name ?? branch,
-        path: '/tmp/created',
-      ),
-      steps: const <WorkspaceSetupStep>[],
-      deferredSetupCommand: deferredSetupCommand,
-    );
-  }
-
-  @override
-  Future<void> removeManagedWorkspace(
-    String workspaceId, {
-    bool? deleteBranch,
-  }) async {
-    calls.add('removeWorkspace $workspaceId $deleteBranch');
-  }
-
-  @override
-  Future<List<String>> cascadePreview(String workspaceId) async {
-    return <String>[workspaceId];
-  }
-
-  @override
   Future<void> removeTab(String tabId) async {
     calls.add('removeTab $tabId');
     await removeTabCompletion;
@@ -468,36 +310,4 @@ class FakeTerminalClient
     ];
     return renamed;
   }
-
-  @override
-  Future<WorkspaceSummary> renameWorkspace(String id, String name) async =>
-      WorkspaceSummary(id: id, projectId: 'p1', name: name, path: '/tmp/$id');
-
-  @override
-  Future<void> sleepWorkspace(String workspaceId) async {}
-
-  @override
-  Future<String?> workspaceRepositoryRemoteUrl(String workspaceId) async =>
-      null;
-
-  @override
-  Future<WorkspaceTagSummary> createWorkspaceTag(
-    String name, {
-    String? color,
-  }) async => WorkspaceTagSummary(id: name, name: name, color: color);
-
-  @override
-  Future<void> removeWorkspaceTag(String tagId) async {}
-
-  @override
-  Future<WorkspaceSummary> setWorkspaceTags(
-    String workspaceId,
-    List<String> tagIds,
-  ) async => WorkspaceSummary(
-    id: workspaceId,
-    projectId: 'p1',
-    name: workspaceId,
-    path: '/tmp/$workspaceId',
-    tagIds: tagIds,
-  );
 }

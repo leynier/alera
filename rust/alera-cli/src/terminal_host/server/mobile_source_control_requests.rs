@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use alera_core::git_cli::git_in_dir;
 use alera_core::runtime::RuntimeStore;
@@ -194,39 +194,37 @@ fn numstat_map(root: &str) -> std::collections::HashMap<String, (u32, u32)> {
 }
 
 fn git_diff_snapshot(root: &str, path: &str, area: &str) -> HostResult<Value> {
-    if path.is_empty()
-        || path.contains('\0')
-        || Path::new(path)
-            .components()
-            .any(|component| matches!(component, std::path::Component::ParentDir))
-    {
-        return Err(HostError::state("Diff path is invalid."));
-    }
+    let contained = alera_core::workspace_files::contained_workspace_relative_path(root, path)
+        .map_err(|error| HostError::state(error.to_string()))?;
+    let relative_path = contained.relative_path;
     let area = match area {
         "staged" | "unstaged" | "untracked" => area,
         _ => "unstaged",
     };
     if area == "untracked" {
-        return untracked_diff(root, path);
+        return untracked_diff(contained.absolute_path, &relative_path);
     }
     let args: Vec<&str> = if area == "staged" {
-        vec!["diff", "--cached", "--", path]
+        vec!["diff", "--cached", "--", &relative_path]
     } else {
-        vec!["diff", "--", path]
+        vec!["diff", "--", &relative_path]
     };
     let output =
         git_in_dir(Path::new(root), &args).map_err(|error| HostError::state(error.message))?;
     Ok(json!({
-        "path": path,
+        "path": relative_path,
         "area": area,
-        "isBinary": output.contains("Binary files ") || output.contains("differ\n"),
+        "isBinary": diff_is_binary(&output),
         "truncated": output.len() > MAX_DIFF_BYTES,
         "lines": parse_unified_diff(&output),
     }))
 }
 
-fn untracked_diff(root: &str, path: &str) -> HostResult<Value> {
-    let absolute = Path::new(root).join(path);
+fn diff_is_binary(output: &str) -> bool {
+    output.contains("Binary files ") || output.contains("Binary file ")
+}
+
+fn untracked_diff(absolute: PathBuf, path: &str) -> HostResult<Value> {
     let metadata = fs::metadata(&absolute)
         .map_err(|error| HostError::state(format!("Untracked file is unavailable: {error}")))?;
     if metadata.len() > MAX_UNTRACKED_BYTES {
@@ -334,6 +332,81 @@ mod tests {
             .collect::<Vec<_>>();
         assert!(paths.contains(&("tracked.txt".into(), "unstaged".into())));
         assert!(paths.contains(&("new.txt".into(), "untracked".into())));
+    }
+
+    #[test]
+    fn diff_allows_in_tree_relative_path() {
+        let workspace = tempfile::tempdir().unwrap();
+        git2::Repository::init(workspace.path()).unwrap();
+        fs::write(workspace.path().join("tracked.txt"), "one\n").unwrap();
+        run_git(workspace.path(), &["add", "tracked.txt"]);
+        run_git(
+            workspace.path(),
+            &[
+                "-c",
+                "user.name=Alera",
+                "-c",
+                "user.email=alera@example.com",
+                "commit",
+                "-m",
+                "init",
+            ],
+        );
+        fs::write(workspace.path().join("tracked.txt"), "two\n").unwrap();
+        let snapshot = git_diff_snapshot(
+            &workspace.path().to_string_lossy(),
+            "tracked.txt",
+            "unstaged",
+        )
+        .unwrap();
+        assert_eq!(snapshot["path"], "tracked.txt");
+        assert_eq!(snapshot["isBinary"], false);
+        let lines = snapshot["lines"].as_array().unwrap();
+        assert!(lines
+            .iter()
+            .any(|line| line["text"].as_str() == Some("+two")));
+    }
+
+    #[test]
+    fn diff_rejects_absolute_paths() {
+        let workspace = tempfile::tempdir().unwrap();
+        assert!(git_diff_snapshot(
+            &workspace.path().to_string_lossy(),
+            "/etc/passwd",
+            "unstaged",
+        )
+        .is_err());
+        assert!(
+            git_diff_snapshot(&workspace.path().to_string_lossy(), "../secret", "unstaged")
+                .is_err()
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn diff_rejects_symlink_escape() {
+        let workspace = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let secret = outside.path().join("secret.txt");
+        fs::write(&secret, "secret\n").unwrap();
+        std::os::unix::fs::symlink(&secret, workspace.path().join("link.txt")).unwrap();
+        assert!(
+            git_diff_snapshot(&workspace.path().to_string_lossy(), "link.txt", "untracked")
+                .is_err()
+        );
+        assert!(
+            git_diff_snapshot(&workspace.path().to_string_lossy(), "link.txt", "unstaged").is_err()
+        );
+    }
+
+    #[test]
+    fn binary_marker_does_not_match_plain_differ_lines() {
+        assert!(!diff_is_binary("diff --git a/readme.md b/readme.md\n--- a/readme.md\n+++ b/readme.md\n@@ -1 +1 @@\n-hello\n+hello there\n"));
+        assert!(!diff_is_binary("files a/foo and b/foo differ\n"));
+        assert!(diff_is_binary(
+            "Binary files a/logo.png and b/logo.png differ\n"
+        ));
+        assert!(diff_is_binary("Binary file logo.png differs\n"));
     }
 
     fn run_git(path: &Path, args: &[&str]) {

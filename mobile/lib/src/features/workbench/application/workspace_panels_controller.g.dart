@@ -59,7 +59,7 @@ final class WorkspacePanelCapabilitiesControllerProvider
 }
 
 String _$workspacePanelCapabilitiesControllerHash() =>
-    r'37659e4f31284e06e55136e24925748b4c1b22ad';
+    r'e08ecd891d3197e53aae096ff89bb952cbf07a73';
 
 final class WorkspacePanelCapabilitiesControllerFamily extends $Family
     with

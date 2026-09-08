@@ -51,7 +51,7 @@ final class ExplorerControllerProvider
 }
 
 String _$explorerControllerHash() =>
-    r'5bbcb65fee81d158930f1e6a32645f56844a50fe';
+    r'c54a65ce49110a6664d4082092a6e7094ba09f0f';
 
 final class ExplorerControllerFamily extends $Family
     with
