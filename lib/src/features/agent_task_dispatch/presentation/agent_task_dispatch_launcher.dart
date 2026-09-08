@@ -6,12 +6,21 @@ import 'package:alera/src/features/agent_task_dispatch/presentation/agent_task_d
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Opens the shared agent picker and injects [request]'s prompt into the
-/// chosen running agent or a newly opened profile tab.
+/// Picker result before injection. Watch binds this without sending until
+/// checks fail; Fix Failed Checks injects immediately.
+class const AgentTaskDispatchChoice({
+  required final AgentTaskDispatchRequest request,
+  required final AgentTaskDispatchCatalog catalog,
+  required final AgentTaskDispatchSelection selection,
+  required final AgentTaskDispatchBinding binding,
+});
+
+/// Shared picker: running workspace agent or a profile for a new tab.
 ///
 /// Callers own the prompt. This is the reuse point for later features such as
-/// file and diff comments.
-Future<AgentTaskDispatchResult?> showAgentTaskDispatchFlow(
+/// file and diff comments. It does not inject; [showAgentTaskDispatchFlow]
+/// and [completeAgentTaskDispatch] are the inject step.
+Future<AgentTaskDispatchChoice?> chooseAgentTaskDispatchTarget(
   BuildContext context,
   WidgetRef ref, {
   required AgentTaskDispatchRequest request,
@@ -44,11 +53,39 @@ Future<AgentTaskDispatchResult?> showAgentTaskDispatchFlow(
   if (selection == null || !context.mounted) {
     return null;
   }
+  final service = readAgentTaskDispatchService(
+    ref,
+    catalog: catalog,
+    workspaceId: normalized.workspaceId,
+  );
+  return AgentTaskDispatchChoice(
+    request: normalized,
+    catalog: catalog,
+    selection: selection,
+    binding: service.bindingFor(selection),
+  );
+}
+
+/// Opens the shared picker and injects [request]'s prompt into the chosen
+/// running agent or a newly opened profile tab.
+Future<AgentTaskDispatchResult?> showAgentTaskDispatchFlow(
+  BuildContext context,
+  WidgetRef ref, {
+  required AgentTaskDispatchRequest request,
+}) async {
+  final choice = await chooseAgentTaskDispatchTarget(
+    context,
+    ref,
+    request: request,
+  );
+  if (choice == null || !context.mounted) {
+    return null;
+  }
   return completeAgentTaskDispatch(
     ref: ref,
-    request: normalized,
-    selection: selection,
-    catalog: catalog,
+    request: choice.request,
+    selection: choice.selection,
+    catalog: choice.catalog,
   );
 }
 

@@ -29,6 +29,10 @@ class const PullRequestAgentWatchEvaluation({
   final String? headSha,
 });
 
+bool pullRequestAgentWatchInjectsOnStart(ReviewChecksRollup rollup) {
+  return rollup == ReviewChecksRollup.failure;
+}
+
 String pullRequestAgentWatchFailureSignature({
   required int reviewNumber,
   required String? headSha,

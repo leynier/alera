@@ -1,5 +1,3 @@
-import 'package:alera/src/design_system/feedback/alera_toast.dart';
-import 'package:alera/src/features/agent_task_dispatch/application/agent_task_dispatch_providers.dart';
 import 'package:alera/src/features/agent_task_dispatch/domain/agent_task_dispatch.dart';
 import 'package:alera/src/features/agent_task_dispatch/presentation/agent_task_dispatch_launcher.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_agent_watch_providers.dart';
@@ -36,44 +34,29 @@ Future<void> startPullRequestAgentWatch({
   required PullRequestAgentWatchMode mode,
   ReviewChecksRollup checksRollup = ReviewChecksRollup.none,
 }) async {
-  final request = AgentTaskDispatchRequest(
-    workspaceId: scope.workspaceId,
-    prompt: pullRequestAgentWatchPrompt(review.number),
-    title: mode == PullRequestAgentWatchMode.fixAndMerge
-        ? 'Watch, Fix and Merge'
-        : 'Watch and Fix',
-    message: 'Choose a running agent or open a new tab from a profile.',
-  );
-  final catalog = readAgentTaskDispatchCatalog(ref, scope.workspaceId);
-  if (catalog.isEmpty) {
-    AleraToast.show(
-      context,
-      message: 'Add an agent profile in Settings before sending work.',
-      tone: .error,
-    );
-    return;
-  }
-  final selection = await showAgentTaskDispatchPicker(
+  final choice = await chooseAgentTaskDispatchTarget(
     context,
-    request: request,
-    catalog: catalog,
+    ref,
+    request: AgentTaskDispatchRequest(
+      workspaceId: scope.workspaceId,
+      prompt: pullRequestAgentWatchPrompt(review.number),
+      title: mode == PullRequestAgentWatchMode.fixAndMerge
+          ? 'Watch, Fix and Merge'
+          : 'Watch and Fix',
+      message: 'Choose a running agent or open a new tab from a profile.',
+    ),
   );
-  if (selection == null || !context.mounted) {
+  if (choice == null || !context.mounted) {
     return;
   }
-  final service = readAgentTaskDispatchService(
-    ref,
-    catalog: catalog,
-    workspaceId: scope.workspaceId,
-  );
-  var binding = service.bindingFor(selection);
+  var binding = choice.binding;
   String? dispatchedSignature;
-  if (checksRollup == ReviewChecksRollup.failure) {
+  if (pullRequestAgentWatchInjectsOnStart(checksRollup)) {
     final result = await completeAgentTaskDispatch(
       ref: ref,
-      request: request,
-      selection: selection,
-      catalog: catalog,
+      request: choice.request,
+      selection: choice.selection,
+      catalog: choice.catalog,
     );
     if (result != null) {
       binding = result.binding;

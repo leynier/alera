@@ -22,6 +22,7 @@ void main() {
     test('names the pull request and omits check logs', () {
       final prompt = pullRequestFailedChecksPrompt(42);
       expect(prompt, contains('Pull request #42 checks failed'));
+      expect(prompt, contains('Please fix them.'));
       expect(prompt.toLowerCase(), isNot(contains('log')));
       expect(prompt.toLowerCase(), isNot(contains('payload')));
       expect(prompt, isNot(contains('ci.yml')));
@@ -36,6 +37,15 @@ void main() {
         pullRequestAgentWatchModeLabel(.fixAndMerge),
         'Watching: Fix and Merge',
       );
+    });
+  });
+
+  group('pullRequestAgentWatchInjectsOnStart', () {
+    test('injects only when checks have already failed', () {
+      expect(pullRequestAgentWatchInjectsOnStart(.failure), isTrue);
+      expect(pullRequestAgentWatchInjectsOnStart(.none), isFalse);
+      expect(pullRequestAgentWatchInjectsOnStart(.pending), isFalse);
+      expect(pullRequestAgentWatchInjectsOnStart(.success), isFalse);
     });
   });
 

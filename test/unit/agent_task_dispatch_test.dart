@@ -131,6 +131,34 @@ void main() {
       expect(result.label, 'Codex Builder');
     });
 
+    test('bindingFor records a running tab or a profile without injecting', () {
+      final tab = _tab('tab-1');
+      final profile = _profile('profile-1', 'Codex Builder', now);
+      final service = _service(
+        catalog: buildAgentTaskDispatchCatalog(
+          tabs: <WorkspaceTabRecord>[tab],
+          agentStatuses: <String, AgentStatusEntry>{
+            tab.terminalSessionId: _entry(tab, .done),
+          },
+          profiles: <AgentProfile>[profile],
+        ),
+        workspace: _workspace(),
+        tab: tab,
+      );
+
+      final running = service.bindingFor(
+        const AgentTaskDispatchRunningAgentSelection(tabId: 'tab-1'),
+      );
+      expect(running.tabId, 'tab-1');
+      expect(running.label, 'Codex');
+
+      final profileBinding = service.bindingFor(
+        const AgentTaskDispatchNewTabSelection(profileId: 'profile-1'),
+      );
+      expect(profileBinding.profileId, 'profile-1');
+      expect(profileBinding.label, 'Codex Builder');
+    });
+
     test('reuses a binding tab when it is still present', () async {
       final tab = _tab('tab-1');
       var submits = 0;
