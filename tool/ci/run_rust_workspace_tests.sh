@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Compiles the workspace once, then runs tests with the PTY-heavy
-# orchestration_review_regressions binary isolated. That binary drives real
-# PTYs and flakes when cargo runs it in parallel with other integration
-# binaries (see AGENTS.md). Serializing only that binary keeps the rest of
-# the suite parallel.
+# Compiles the workspace once under the full feature set, then runs
+# orchestration_review_regressions alone. That binary drives real PTYs and
+# flakes when cargo runs it in parallel with other integration binaries (see
+# AGENTS.md). Serializing only that binary keeps the rest of the suite
+# parallel.
+#
+# Every cargo test invocation MUST keep `--workspace`. Dropping alera-cli
+# from the package set (`--exclude` or a later `-p alera-cli`) changes
+# feature unification and relinks shared crates. On PR Checks run
+# 34191563476 that added ~3m 15s plus ~2m 36s after a 3m 30s `--no-run`.
 root="$(git rev-parse --show-toplevel)"
 cd "$root/rust"
-
-cargo test --workspace --locked --no-run
-cargo test --workspace --locked --exclude alera-cli
-# alera-cli is a bin-only package; --lib would fail.
-cargo test --locked -p alera-cli --bins
 
 other_integration_tests=()
 for file in alera-cli/tests/*.rs; do
@@ -22,8 +22,9 @@ for file in alera-cli/tests/*.rs; do
   fi
   other_integration_tests+=(--test "$name")
 done
-if ((${#other_integration_tests[@]} > 0)); then
-  cargo test --locked -p alera-cli "${other_integration_tests[@]}"
-fi
 
-cargo test --locked -p alera-cli --test orchestration_review_regressions -- --test-threads=1
+cargo test --workspace --locked --lib --bins --doc \
+  "${other_integration_tests[@]}"
+
+cargo test --workspace --locked --test orchestration_review_regressions \
+  -- --test-threads=1

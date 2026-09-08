@@ -58,7 +58,8 @@ runs:
 
     # Isolates orchestration_review_regressions after the rest of the suite:
     # that binary drives real PTYs and flakes under cargo's default parallel
-    # test-target scheduling. Compile still happens once via --no-run.
+    # test-target scheduling. Both cargo test invocations keep --workspace so
+    # feature unification does not relink shared crates.
     - name: Test
       if: inputs.check == 'test' || inputs.check == 'all'
       shell: bash

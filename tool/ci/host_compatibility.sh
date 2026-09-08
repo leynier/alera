@@ -119,11 +119,13 @@ fi
 
 (
   cd "$root/rust"
+  # `--workspace` keeps the same feature unification as
+  # run_rust_workspace_tests.sh so this ignored test does not relink.
   ALERA_PREVIOUS_HOST_BINARY="$previous_binary" \
   ALERA_PREVIOUS_HOST_VERSION="$previous_version" \
     cargo test \
+      --workspace \
       --locked \
-      -p alera-cli \
       --test host_version_compatibility \
       v049_host_accepts_current_baseline_client \
       -- --exact --ignored

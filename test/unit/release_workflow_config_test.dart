@@ -403,6 +403,28 @@ void main() {
       expect(rustChecks, contains('tool/ci/run_rust_workspace_tests.sh'));
       expect(rustTests, contains('--test-threads=1'));
       expect(rustTests, contains('orchestration_review_regressions'));
+      expect(rustTests, contains('--lib --bins --doc'));
+      final cargoTests = rustTests
+          .split('\n')
+          .map((line) => line.trim())
+          .where((line) => line.startsWith('cargo test'))
+          .toList(growable: false);
+      expect(cargoTests, isNotEmpty);
+      for (final command in cargoTests) {
+        expect(command, contains('--workspace'));
+        expect(command, contains('--locked'));
+        expect(command, isNot(contains('--exclude')));
+        expect(command, isNot(contains('--no-run')));
+        expect(command, isNot(contains('-p alera-cli')));
+      }
+      expect(
+        cargoTests,
+        contains(
+          'cargo test --workspace --locked --test orchestration_review_regressions \\',
+        ),
+      );
+      expect(hostCompat, contains('--workspace'));
+      expect(hostCompat, isNot(contains('-p alera-cli')));
     });
 
     test('desktop builds opt disposable native tests into clipboard access', () {
