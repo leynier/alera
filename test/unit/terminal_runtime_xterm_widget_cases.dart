@@ -32,21 +32,13 @@ void _registerXtermRuntimeWidgetTests() {
         fakeSession.writes.clear();
         writeTerminalOutputForTesting(session, 'preserved output');
         final bufferBefore = terminalBufferTextForTesting(session);
+        final sizeBefore = terminalEmulatorViewSizeForTesting(session);
 
         await session.refreshRendering();
         await tester.pump(const Duration(milliseconds: 200));
 
-        expect(fakeSession.resizeCalls, hasLength(2));
-        expect(
-          fakeSession.resizeCalls.first.cols,
-          fakeSession.resizeCalls.last.cols - 1,
-        );
-        expect(
-          fakeSession.resizeCalls.first.rows,
-          fakeSession.resizeCalls.last.rows,
-        );
-        expect(fakeSession.resizeCalls.last.cols, greaterThan(0));
-        expect(fakeSession.resizeCalls.last.rows, greaterThan(0));
+        expect(fakeSession.resizeCalls, isEmpty);
+        expect(terminalEmulatorViewSizeForTesting(session), sizeBefore);
         expect(terminalBufferTextForTesting(session), bufferBefore);
         expect(runtime.peekSession('tab-1'), same(session));
         expect(fakeSession.writes, isEmpty);
@@ -107,15 +99,7 @@ void _registerXtermRuntimeWidgetTests() {
 
       await tester.pump();
 
-      expect(fakeSession.resizeCalls, hasLength(2));
-      expect(
-        fakeSession.resizeCalls.first.cols,
-        fakeSession.resizeCalls.last.cols - 1,
-      );
-      expect(
-        fakeSession.resizeCalls.first.rows,
-        fakeSession.resizeCalls.last.rows,
-      );
+      expect(fakeSession.resizeCalls, isEmpty);
       expect(terminalBufferTextForTesting(session), bufferBeforeRefresh);
       expect(runtime.peekSession('tab-1'), same(session));
       expect(fakeSession.writes, isEmpty);
@@ -175,7 +159,7 @@ void _registerXtermRuntimeWidgetTests() {
 
       await tester.pump();
 
-      expect(fakeSession.resizeCalls, hasLength(2));
+      expect(fakeSession.resizeCalls, isEmpty);
     } finally {
       visibility.dispose();
       runtime.dispose();
