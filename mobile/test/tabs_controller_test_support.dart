@@ -16,13 +16,3 @@ ProviderContainer _container(FakeTerminalClient client) {
   addTearDown(subscription.close);
   return container;
 }
-
-Future<void> _waitUntil(bool Function() condition) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 5));
-  while (!condition()) {
-    if (DateTime.now().isAfter(deadline)) {
-      throw TimeoutException('Condition was not reached.');
-    }
-    await Future.pause(const Duration(milliseconds: 10));
-  }
-}
