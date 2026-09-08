@@ -359,6 +359,51 @@ void main() {
     expect(event.payload, <String, Object?>{'projectId': 'project-1'});
   });
 
+  test('forwards Alera account auth events to runtimeEvents', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'alera-host-client-account-events-',
+    );
+    addTearDown(() async {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+    final server = await _TerminalHostTestServer.start();
+    addTearDown(server.dispose);
+    final client = SocketTerminalHostClient(
+      launcher: _FakeTerminalHostLauncher(server: server),
+      applicationSupportDirectory: () async => tempDir,
+    );
+    addTearDown(client.dispose);
+
+    await client.ensureStarted(config: .defaults);
+    final changed = client.runtimeEvents.firstWhere(
+      (event) => event.name == 'aleraAccountChanged',
+    );
+    final failed = client.runtimeEvents.firstWhere(
+      (event) => event.name == 'aleraAccountSignInFailed',
+    );
+
+    server.send(<String, Object?>{
+      'event': 'aleraAccountChanged',
+      'payload': <String, Object?>{
+        'connected': true,
+        'account': <String, Object?>{'email': 'user@example.com'},
+      },
+    });
+    server.send(<String, Object?>{
+      'event': 'aleraAccountSignInFailed',
+      'payload': <String, Object?>{'message': 'Provider rejected the request'},
+    });
+
+    final changedEvent = await changed;
+    expect(changedEvent.name, 'aleraAccountChanged');
+    expect(changedEvent.payload['connected'], isTrue);
+    final failedEvent = await failed;
+    expect(failedEvent.name, 'aleraAccountSignInFailed');
+    expect(failedEvent.payload['message'], 'Provider rejected the request');
+  });
+
   test(
     'configure updates connected hosts but does not start idle ones',
     () async {
