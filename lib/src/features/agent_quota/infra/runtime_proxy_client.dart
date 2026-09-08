@@ -157,11 +157,12 @@ class RuntimeProxyClient({
   }
 
   String _remoteCommand(SshTarget target) {
+    // Keep in sync with rust/alera-cli/src/ssh_bootstrap.rs default_install_dir.
     final installDir =
         target.installDir ??
         (target.runtimePlatform == 'windows'
             ? r'%LOCALAPPDATA%\Alera\runtime'
-            : '~/.alera/runtime');
+            : '~/.alera/sidecar');
     if (target.runtimePlatform == 'windows' || target.platform == 'windows') {
       final localAppDataSuffix = installDir
           .substring(
