@@ -33,6 +33,13 @@ Add a target:
 alera ssh-target --json add --alias build-mac --host mac.example.test --username leynier --auth agent
 ```
 
+Probe live SSH connectivity and, when an install directory is known, the remote runtime sidecar. The command persists `lastStatus` (`reachable`, `unreachable`, or `runtimeReady`) and updates `lastCheckedAt` on every call. Unknown ids still fail with `ssh target not found`:
+
+```bash
+alera ssh-target --json status
+alera ssh-target --json status --id <target-id>
+```
+
 Preview a bootstrap:
 
 ```bash
@@ -72,7 +79,7 @@ The generated pairing payload can be pasted or scanned in the Flutter app under 
 
 ## Settings
 
-Settings includes a **Remote Hosts** section for adding SSH targets, choosing optional platform/architecture/install directory overrides, previewing the bootstrap plan, starting bootstrap, and cancelling an active job. Bootstrap progress is delivered through runtime-host events and the persisted target status records the install directory, runtime version, platform, architecture, timestamps, and last redacted error.
+Settings includes a **Remote Hosts** section for adding SSH targets, choosing optional platform/architecture/install directory overrides, previewing the bootstrap plan, starting bootstrap, and cancelling an active job. Bootstrap progress is delivered through runtime-host events and the persisted target status records the install directory, runtime version, platform, architecture, timestamps, and last redacted error. A successful bootstrap also stamps `lastStatus` as `runtimeReady`. `alera ssh-target status` then refreshes that live check independently of bootstrap.
 
 Settings also includes a **Mobile Devices** section covering the full mobile companion lifecycle: gateway enable/bind host/port, pairing QR generation, active offer management, and paired device rename/revocation/deletion, all backed by the local runtime host.
 

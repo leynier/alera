@@ -38,6 +38,7 @@ mod runtime_commands;
 mod runtime_host_client;
 mod runtime_host_command;
 mod ssh_bootstrap;
+mod ssh_target_status;
 mod tab_record_factory;
 mod tailscale;
 mod terminal_alias_commands;
@@ -85,6 +86,7 @@ use crate::runtime_host_client::RuntimeHostRpcClient;
 use crate::ssh_bootstrap::{
     build_ssh_bootstrap_plan, new_bootstrap_job_id, run_ssh_bootstrap, SshTargetBootstrapRequest,
 };
+use crate::ssh_target_status::{collect_ssh_target_status, LiveSshTargetProbe};
 use crate::tab_record_factory::tab_from_args;
 
 /// Usage-error exit code, matching the Dart CLI (`_usageExitCode`).
@@ -655,21 +657,11 @@ async fn run_ssh_target_command(command: SshTargetCommand) -> i32 {
                 Ok(store) => store,
                 Err(error) => return print_error(error),
             };
-            let value = if let Some(id) = id {
-                match store.find_ssh_target(&id).await {
-                    Ok(Some(target)) => json!(target),
-                    Ok(None) => {
-                        eprintln!("ssh target not found: {id}");
-                        return 1;
-                    }
+            let value =
+                match collect_ssh_target_status(&store, id.as_deref(), &LiveSshTargetProbe).await {
+                    Ok(value) => value,
                     Err(error) => return print_error(error),
-                }
-            } else {
-                match store.list_ssh_targets().await {
-                    Ok(targets) => json!(targets),
-                    Err(error) => return print_error(error),
-                }
-            };
+                };
             print_value(&value, json_output, "ssh target status ready");
         }
         SshTargetAction::BootstrapPlan(args) => {

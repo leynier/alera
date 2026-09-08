@@ -4,6 +4,7 @@ use std::process::Stdio;
 use alera_core::child_process::windowless_async_command;
 use alera_core::runtime::{
     RuntimeStore, SshAuthKind, SshBootstrapStatus, SshTarget, SshTargetBootstrapStateUpdate,
+    SshTargetLastStatus,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use base64::prelude::*;
@@ -362,7 +363,9 @@ where
             },
         )
         .await?;
-    let installed = store.mark_ssh_target_checked(&installed.id).await?;
+    let installed = store
+        .mark_ssh_target_checked(&installed.id, SshTargetLastStatus::RuntimeReady)
+        .await?;
     emit(progress(
         &job_id,
         &target.id,
@@ -596,7 +599,7 @@ async fn install_runtime_artifact(
     Ok(())
 }
 
-async fn validate_remote_runtime(
+pub(crate) async fn validate_remote_runtime(
     target: &SshTarget,
     platform: &str,
     install_dir: &str,
@@ -740,6 +743,18 @@ set "ALERA_RUNTIME_DIR=%~dp0..\data"
         staging_archive = powershell_string(staging_archive),
         entrypoint = powershell_string(entrypoint),
     )
+}
+
+pub(crate) async fn ssh_target_answers_posix(target: &SshTarget) -> bool {
+    run_remote_command(target, "posix", "printf ready")
+        .await
+        .is_ok()
+}
+
+pub(crate) async fn ssh_target_answers_windows(target: &SshTarget) -> bool {
+    run_remote_command(target, "windows", "Write-Output ready")
+        .await
+        .is_ok()
 }
 
 async fn run_remote_command(
