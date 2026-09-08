@@ -11,6 +11,7 @@ impl RuntimeStore {
         self.migrate_workflow_launches().await?;
         self.migrate_workflow_proposals().await?;
         self.migrate_workflow_coordinators().await?;
-        self.migrate_workflow_execution().await
+        self.migrate_workflow_execution().await?;
+        self.migrate_workflow_cleanup().await
     }
 }
