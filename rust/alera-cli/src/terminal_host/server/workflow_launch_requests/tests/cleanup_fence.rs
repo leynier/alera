@@ -138,7 +138,7 @@ async fn workflow_cleanup_claim_blocks_new_terminal_owners_after_restart() {
         .runtime_store
         .upsert_workspace_tab(WorkspaceTabRecord {
             id: "new-tab".into(),
-            workspace_id: workspace.id,
+            workspace_id: workspace.id.clone(),
             kind: "terminal".into(),
             title: "Must Not Appear".into(),
             created_at: now,
@@ -148,4 +148,150 @@ async fn workflow_cleanup_claim_blocks_new_terminal_owners_after_restart() {
         .await
         .is_err());
     assert!(std::path::Path::new(&workspace.path).exists());
+    assert!(actor
+        .inspect_workflow_cleanup_owners(&preview.id, "forged", &workspace.id)
+        .await
+        .is_err());
+    let mut live = crate::terminal_host::session::Session::driver_test_stub("live-cleanup", 80, 24);
+    live.workspace_id = workspace.id.clone();
+    actor.sessions.insert("live-cleanup".into(), live);
+    assert!(actor
+        .inspect_workflow_cleanup_owners(&preview.id, &preview.digest, &workspace.id)
+        .await
+        .unwrap_err()
+        .wire_message()
+        .contains("live terminal or process"));
+    assert!(actor.sessions["live-cleanup"].running());
+    actor.sessions.remove("live-cleanup");
+    actor
+        .browser
+        .sync_page(
+            1,
+            crate::terminal_host::server::browser_broker::BrowserPage {
+                tab_id: "saved-browser".into(),
+                workspace_id: workspace.id.clone(),
+                profile_id: "default".into(),
+                generation: 0,
+                document_generation: 0,
+                url: None,
+                title: None,
+                capabilities: Default::default(),
+                owner_client_id: 1,
+            },
+        )
+        .unwrap();
+    assert!(actor
+        .inspect_workflow_cleanup_owners(&preview.id, &preview.digest, &workspace.id)
+        .await
+        .unwrap_err()
+        .wire_message()
+        .contains("live browser page"));
+    actor.browser.remove_page_owned(1, "saved-browser").unwrap();
+    actor.managed_workspace_jobs = 2;
+    assert!(actor
+        .inspect_workflow_cleanup_owners(&preview.id, &preview.digest, &workspace.id)
+        .await
+        .is_err());
+    actor.managed_workspace_jobs = 0;
+    let locked = crate::managed_workspace::workflow::cleanup::prepare(
+        &fixture.store,
+        &fixture.runtime,
+        &preview.id,
+        &preview.digest,
+    )
+    .await
+    .unwrap();
+    apply_and_wait(&mut actor, &preview, false).await;
+    assert!(std::path::Path::new(&workspace.path).exists());
+    drop(locked);
+    apply_and_wait(&mut actor, &preview, true).await;
+    assert!(!std::path::Path::new(&workspace.path).exists());
+    assert!(fixture
+        .store
+        .find_workspace(&workspace.id)
+        .await
+        .unwrap()
+        .is_none());
+    assert!(fixture
+        .store
+        .workflow_workspace(&workspace.id)
+        .await
+        .is_ok());
+    apply_and_wait(&mut actor, &preview, true).await;
+    assert_eq!(actor.managed_workspace_jobs, 0);
+}
+
+#[tokio::test]
+async fn workflow_cleanup_rpc_rejects_untrusted_and_expanded_selections() {
+    use crate::terminal_host::server::actor_test_harness::mobile_client;
+    let dir = tempfile::tempdir().unwrap();
+    let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
+    let (client, _responses) = ClientHandle::test_channels();
+    let payload = json!({"id":uuid::Uuid::new_v4().to_string(),"digest":"a".repeat(64)});
+    assert!(actor
+        .start_workflow_cleanup_request(1, 1, &payload)
+        .is_err());
+    actor
+        .clients
+        .insert(1, mobile_client(client.clone(), "device"));
+    assert!(actor
+        .start_workflow_cleanup_request(1, 1, &payload)
+        .is_err());
+    actor.clients.insert(1, local_client(client));
+    actor.clients.get_mut(&1).unwrap().authenticated = false;
+    assert!(actor
+        .start_workflow_cleanup_request(1, 1, &payload)
+        .is_err());
+    actor.clients.get_mut(&1).unwrap().authenticated = true;
+    for invalid in [
+        json!({"id":"invalid","digest":"x"}),
+        json!({"id":payload["id"],"digest":"a".repeat(161)}),
+        json!({"id":payload["id"],"digest":{},"path":"/foreign"}),
+        json!({"id":payload["id"],"digest":payload["digest"],"removeBranch":true}),
+    ] {
+        assert!(actor
+            .start_workflow_cleanup_request(1, 1, &invalid)
+            .is_err());
+    }
+    assert_eq!(actor.managed_workspace_jobs, 0);
+}
+
+async fn apply_and_wait(
+    actor: &mut ServerActor,
+    preview: &alera_core::runtime::WorkflowCleanupPreview,
+    expected_ok: bool,
+) {
+    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    actor.inbox = inbox;
+    assert!(actor
+        .try_start_deferred_request(
+            1,
+            99,
+            "workflows.applyCleanup",
+            &json!({"id":preview.id,"digest":preview.digest})
+        )
+        .await
+        .unwrap());
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        let command = tokio::time::timeout_at(deadline, commands.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        let finished =
+            if let crate::terminal_host::server::ServerCommand::WorkflowWorkspaceFinished {
+                result,
+                ..
+            } = &command
+            {
+                assert_eq!(result.is_ok(), expected_ok, "{result:?}");
+                true
+            } else {
+                false
+            };
+        actor.handle(command).await;
+        if finished {
+            return;
+        }
+    }
 }

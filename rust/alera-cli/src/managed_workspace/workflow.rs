@@ -7,6 +7,7 @@ use alera_core::runtime::{
 };
 
 use super::*;
+pub(crate) mod cleanup;
 mod destination;
 pub(crate) mod integration;
 pub(crate) mod launch;

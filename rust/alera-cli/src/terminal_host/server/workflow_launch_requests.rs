@@ -19,6 +19,8 @@ use super::ServerActor;
 
 #[path = "workflow_cancellation_requests.rs"]
 mod cancellation;
+#[path = "workflow_cleanup_owners.rs"]
+mod cleanup_owners;
 #[path = "workflow_execution_pump.rs"]
 pub(super) mod execution;
 
@@ -31,6 +33,12 @@ pub(crate) enum WorkflowLaunchReply {
 mod tests;
 
 pub(crate) enum WorkflowLaunchCommand {
+    InspectCleanupOwners {
+        cleanup_id: String,
+        digest: String,
+        workspace_id: String,
+        reply: tokio::sync::oneshot::Sender<HostResult<()>>,
+    },
     CancellationFinished(HostResult<bool>),
     CancelProposalTerminal {
         target: alera_core::runtime::WorkflowProposalCancellation,
@@ -94,6 +102,17 @@ impl WorkflowLaunchPermit {
 impl ServerActor {
     pub(super) async fn handle_workflow_launch_command(&mut self, command: WorkflowLaunchCommand) {
         match command {
+            WorkflowLaunchCommand::InspectCleanupOwners {
+                cleanup_id,
+                digest,
+                workspace_id,
+                reply,
+            } => {
+                let result = self
+                    .inspect_workflow_cleanup_owners(&cleanup_id, &digest, &workspace_id)
+                    .await;
+                let _ = reply.send(result);
+            }
             WorkflowLaunchCommand::CancelProposalTerminal { target, reply } => {
                 let result = self.cancel_workflow_proposal_terminal(&target).await;
                 let _ = reply.send(result);

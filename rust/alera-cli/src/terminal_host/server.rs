@@ -204,6 +204,7 @@ mod terminal_startup_delivery;
 mod workflow_catalog_requests;
 #[cfg(test)]
 mod workflow_catalog_tests;
+mod workflow_cleanup_requests;
 mod workflow_launch_recovery;
 mod workflow_launch_requests;
 mod workflow_plan_requests;

@@ -12,6 +12,20 @@ pub struct WorkflowCleanupClaim {
 }
 
 impl RuntimeStore {
+    pub async fn require_claimed_cleanup_resource(
+        &self,
+        id: &str,
+        digest: &str,
+        workspace_id: &str,
+    ) -> Result<()> {
+        let claimed: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM workflowCleanup c JOIN workflowCleanupResources r ON r.cleanup_id=c.id WHERE c.id=? AND c.digest=? AND c.state='applying' AND r.workspace_id=? AND r.retired=0)")
+            .bind(id).bind(digest).bind(workspace_id).fetch_one(self.pool()).await?;
+        if !claimed {
+            bail!("cleanup resource has no active matching claim");
+        }
+        Ok(())
+    }
+
     /// New runtime owners must stop at this fence. Cleanup's actor-side live
     /// owner check must follow its durable claim to cover in-flight spawns.
     pub async fn require_workspace_outside_cleanup(&self, workspace_id: &str) -> Result<()> {
