@@ -22,6 +22,75 @@ import 'package:flutter_test/flutter_test.dart';
 import '../support/run_board_widget_harness.dart';
 
 void main() {
+  testWidgets(
+    'proposal cancellation confirms and retries without restarting a coordinator',
+    (tester) async {
+      final client = _Client();
+      addTearDown(client.events.close);
+      var fail = true;
+      String? cancellation;
+      client.read = () async {
+        if (client.calls.last == 'workflows.cancelProposal') {
+          if (fail) throw StateError('Response lost');
+          cancellation = 'pending';
+          return {'status': cancellation};
+        }
+        return {
+          'id': 'proposal',
+          if (cancellation != null) 'cancellation': {'status': cancellation},
+        };
+      };
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            workflowLifecycleRepositoryProvider.overrideWithValue(
+              WorkflowLifecycleRepository(client, client),
+            ),
+          ],
+          child: MaterialApp(
+            theme: aleraDarkTheme,
+            home: Scaffold(
+              body: WorkflowProposalPage(
+                id: 'proposal',
+                onBack: () {},
+                onOpenRun: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel Proposal'));
+      await tester.pumpAndSettle();
+      expect(client.calls, ['workflows.proposalStatus']);
+      await tester.tap(find.text('Keep Proposal'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel Proposal'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Confirm Cancellation'));
+      await tester.pumpAndSettle();
+      expect(find.text('Start Coordinator'), findsNothing);
+      fail = false;
+      await tester.tap(find.text('Retry Cancellation'));
+      await tester.pumpAndSettle();
+      expect(find.text('Cancelling Proposal'), findsOneWidget);
+      expect(find.text('Proposal Cancelled'), findsNothing);
+      cancellation = 'settled';
+      await tester.tap(find.text('Refresh Proposal'));
+      await tester.pumpAndSettle();
+      expect(find.text('Proposal Cancelled'), findsOneWidget);
+      expect(find.text('Start Coordinator'), findsNothing);
+      final cancellations = [
+        for (var i = 0; i < client.calls.length; i++)
+          if (client.calls[i] == 'workflows.cancelProposal') client.payloads[i],
+      ];
+      expect(cancellations, [
+        {'id': 'proposal'},
+        {'id': 'proposal'},
+      ]);
+      expect(client.calls.contains('workflows.startCoordinator'), isFalse);
+    },
+  );
   testWidgets('opening saved proposals retains the unsaved objective', (
     tester,
   ) async {

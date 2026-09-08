@@ -32,6 +32,8 @@ class _WorkflowProposalPageState extends ConsumerState<WorkflowProposalPage> {
   Map<String, Object?>? _status;
   Object? _error;
   bool _busy = false;
+  bool _confirmCancel = false;
+  bool _cancelRequested = false;
   int _generation = 0;
 
   @override
@@ -86,9 +88,27 @@ class _WorkflowProposalPageState extends ConsumerState<WorkflowProposalPage> {
   }
 
   Future<void> _start() async {
+    if (_busy || _cancelRequested || _status?['cancellation'] != null) return;
     setState(() => _busy = true);
     try {
       await _repository.startCoordinator(widget.id);
+      await _refresh();
+    } on Object catch (error) {
+      if (mounted) setState(() => _error = error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _cancel() async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _cancelRequested = true;
+      _error = null;
+    });
+    try {
+      await _repository.cancelProposal(widget.id);
       await _refresh();
     } on Object catch (error) {
       if (mounted) setState(() => _error = error);
@@ -108,6 +128,8 @@ class _WorkflowProposalPageState extends ConsumerState<WorkflowProposalPage> {
     final coordinator = _status?['coordinator'] as Map?;
     final run = _status?['runId'] as String?;
     final state = coordinator?['status'] as String?;
+    final cancellation = _status?['cancellation'] as Map?;
+    final cancelState = cancellation?['status'] as String?;
     return ListView(
       padding: const EdgeInsets.all(AleraTokens.space16),
       children: [
@@ -119,7 +141,13 @@ class _WorkflowProposalPageState extends ConsumerState<WorkflowProposalPage> {
           ),
         ),
         Text(
-          run != null
+          cancelState == 'settled'
+              ? 'Proposal Cancelled'
+              : cancelState == 'pending'
+              ? 'Cancelling Proposal'
+              : cancelState == 'attention'
+              ? 'Cancellation Needs Attention'
+              : run != null
               ? 'Plan Prepared'
               : state == 'attention'
               ? 'Proposal Needs Attention'
@@ -130,7 +158,13 @@ class _WorkflowProposalPageState extends ConsumerState<WorkflowProposalPage> {
         SelectableText(widget.id, style: AleraTokens.monoCompactStyle),
         const SizedBox(height: AleraTokens.space12),
         Text(
-          run != null
+          cancelState == 'settled'
+              ? 'The proposal is cancelled. Its selection and history are retained; it cannot launch a coordinator or submit a plan.'
+              : cancelState == 'pending'
+              ? 'Cancellation is saved. The runtime is stopping the coordinator; its process has not yet been confirmed stopped.'
+              : cancelState == 'attention'
+              ? 'The runtime could not confirm that the coordinator stopped. Inspect the retained terminal. The cancelled proposal cannot submit a plan.'
+              : run != null
               ? 'The coordinator submitted a plan. Open the run to review its revision before starting any workers.'
               : state == 'started'
               ? 'The coordinator is preparing the task plan. Workers have not been started by this proposal.'
@@ -140,6 +174,8 @@ class _WorkflowProposalPageState extends ConsumerState<WorkflowProposalPage> {
               ? 'Coordinator launch needs inspection. Its receipt is retained to prevent duplicate launches.'
               : 'The selection is saved. Start the coordinator to propose a concrete plan.',
         ),
+        if (cancellation?['error'] case final String error)
+          SelectableText(error),
         if (coordinator?['error'] case final String error) ...[
           const SizedBox(height: AleraTokens.space12),
           SelectableText(error),
@@ -158,7 +194,11 @@ class _WorkflowProposalPageState extends ConsumerState<WorkflowProposalPage> {
                 onPressed: () => widget.onOpenRun(run),
                 child: const Text('Open Prepared Run'),
               ),
-            if (_status != null && coordinator == null && run == null)
+            if (_status != null &&
+                coordinator == null &&
+                run == null &&
+                cancellation == null &&
+                !_cancelRequested)
               FilledButton(
                 onPressed: _busy || _error != null ? null : _start,
                 child: const Text('Start Coordinator'),
@@ -178,8 +218,50 @@ class _WorkflowProposalPageState extends ConsumerState<WorkflowProposalPage> {
               onPressed: _busy ? null : _refresh,
               child: const Text('Refresh Proposal'),
             ),
+            if (_status != null &&
+                run == null &&
+                cancellation == null &&
+                !_confirmCancel)
+              TextButton(
+                onPressed: _busy || _error != null
+                    ? null
+                    : () => setState(() => _confirmCancel = true),
+                child: const Text('Cancel Proposal'),
+              ),
           ],
         ),
+        if (_confirmCancel && run == null && cancellation == null) ...[
+          const SizedBox(height: AleraTokens.space12),
+          const Text(
+            'Cancel this proposal and stop its coordinator. The saved selection and source changes are retained. This does not cancel any other run.',
+          ),
+          if (_cancelRequested)
+            const Text(
+              'If the response was lost, retry sends cancellation for the same proposal.',
+            ),
+          Wrap(
+            spacing: AleraTokens.space8,
+            runSpacing: AleraTokens.space8,
+            children: [
+              OutlinedButton(
+                onPressed: _busy ? null : _cancel,
+                child: Text(
+                  _cancelRequested
+                      ? 'Retry Cancellation'
+                      : 'Confirm Cancellation',
+                ),
+              ),
+              if (!_cancelRequested)
+                TextButton(
+                  autofocus: true,
+                  onPressed: _busy
+                      ? null
+                      : () => setState(() => _confirmCancel = false),
+                  child: const Text('Keep Proposal'),
+                ),
+            ],
+          ),
+        ],
       ],
     );
   }

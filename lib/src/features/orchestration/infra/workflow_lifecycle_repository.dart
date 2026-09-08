@@ -89,6 +89,9 @@ class WorkflowLifecycleRepository {
   Future<Map<String, Object?>> prepareRetry(Map<String, Object?> payload) =>
       request('workflows.prepareWorkspace', payload);
 
+  Future<Map<String, Object?>> cancelProposal(String id) =>
+      request('workflows.cancelProposal', {'id': id});
+
   Future<Map<String, Object?>> source(String workspaceId) =>
       request('workflows.source', {'workspaceId': workspaceId});
 

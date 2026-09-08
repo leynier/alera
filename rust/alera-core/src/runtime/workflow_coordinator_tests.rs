@@ -38,6 +38,14 @@ async fn workflow_proposal_cancellation_fences_launch_and_late_submission_after_
     );
     assert_eq!(one.unwrap().status, "settled");
     assert_eq!(two.unwrap().status, "settled");
+    let page = store
+        .workflow_proposals(WorkflowProposalQuery::default())
+        .await
+        .unwrap();
+    assert_eq!(
+        page.entries[0].cancellation_status.as_deref(),
+        Some("settled")
+    );
     let reopened = RuntimeStore::open(dir.path()).await.unwrap();
     assert!(reopened.reserve_workflow_coordinator(&draft).await.is_err());
     assert!(reopened

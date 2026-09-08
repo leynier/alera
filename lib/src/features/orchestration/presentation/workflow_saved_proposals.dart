@@ -109,7 +109,12 @@ class _WorkflowSavedProposalsState extends State<WorkflowSavedProposals> {
       return AleraActivityRow(
         title: entry['objective']! as String,
         subtitle: entry['workspaceName'] as String? ?? 'Unavailable Workspace',
-        metadata: entry['createdAt']! as String,
+        metadata: switch (entry['cancellationStatus']) {
+          'pending' => 'Cancelling',
+          'settled' => 'Cancelled',
+          'attention' => 'Cancellation Needs Attention',
+          _ => entry['createdAt']! as String,
+        },
         onPressed: () => widget.onSelect(entry['id']! as String),
       );
     },

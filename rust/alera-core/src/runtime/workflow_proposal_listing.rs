@@ -19,6 +19,7 @@ pub struct WorkflowProposalSummary {
     pub workspace_name: Option<String>,
     pub run_id: Option<String>,
     pub coordinator_status: Option<String>,
+    pub cancellation_status: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -46,11 +47,12 @@ impl super::RuntimeStore {
             "SELECT d.id,d.created_at,
             substr(json_extract(d.document,'$.request.proposal.objective'),1,256) AS objective,
             json_extract(d.document,'$.request.workspaceId') AS workspace_id,
-            substr(w.name,1,256) AS workspace_name,p.run_id,c.status AS coordinator_status
+            substr(w.name,1,256) AS workspace_name,p.run_id,c.status AS coordinator_status,k.status AS cancellation_status
             FROM workflowProposalDrafts d
             LEFT JOIN workspaces w ON w.id = json_extract(d.document,'$.request.workspaceId')
             LEFT JOIN workflowPlanRevisions p ON p.request_id = d.id
             LEFT JOIN workflowCoordinators c ON c.proposal_id = d.id
+            LEFT JOIN workflowProposalCancellations k ON k.proposal_id = d.id
             WHERE ? IS NULL OR d.created_at < ? OR (d.created_at = ? AND d.id < ?)
             ORDER BY d.created_at DESC,d.id DESC LIMIT 26",
         )
@@ -73,6 +75,7 @@ impl super::RuntimeStore {
                     workspace_name: row.try_get("workspace_name")?,
                     run_id: row.try_get("run_id")?,
                     coordinator_status: row.try_get("coordinator_status")?,
+                    cancellation_status: row.try_get("cancellation_status")?,
                 })
             })
             .collect::<Result<_>>()?;
