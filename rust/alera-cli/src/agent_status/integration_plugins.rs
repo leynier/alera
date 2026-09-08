@@ -100,6 +100,19 @@ fn home_dir() -> anyhow::Result<PathBuf> {
     dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not resolve the user home directory."))
 }
 
+
+fn env_path(key: &str) -> Option<PathBuf> {
+    std::env::var_os(key)
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+}
+
+
+const OPENCODE_PLUGIN: &str = include_str!("integration_plugins/opencode.js");
+const OPENCODE2_PLUGIN: &str = include_str!("integration_plugins/opencode2.js");
+const PI_PLUGIN: &str = include_str!("integration_plugins/pi.ts");
+const AMP_PLUGIN: &str = include_str!("integration_plugins/amp.ts");
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -126,14 +139,3 @@ mod tests {
         remove_managed_plugin_file(&root.path().join("missing.js")).unwrap();
     }
 }
-
-fn env_path(key: &str) -> Option<PathBuf> {
-    std::env::var_os(key)
-        .filter(|value| !value.is_empty())
-        .map(PathBuf::from)
-}
-
-const OPENCODE_PLUGIN: &str = include_str!("integration_plugins/opencode.js");
-const OPENCODE2_PLUGIN: &str = include_str!("integration_plugins/opencode2.js");
-const PI_PLUGIN: &str = include_str!("integration_plugins/pi.ts");
-const AMP_PLUGIN: &str = include_str!("integration_plugins/amp.ts");
