@@ -1,3 +1,10 @@
+/// How long a later viewport change waits before pulsing.
+///
+/// Matches the desktop PTY resize debounce. The first measured size pulses
+/// immediately; rotation and keyboard-driven resizes settle first so a TUI
+/// is not redrawn at every intermediate geometry.
+const Duration terminalViewportPulseDebounce = Duration(milliseconds: 150);
+
 /// Adjacent PTY size used to force a full-screen agent TUI to redraw.
 ///
 /// Same one-column pulse as desktop `TerminalHostPtySession.refreshViewport`:

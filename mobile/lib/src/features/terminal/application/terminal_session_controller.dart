@@ -39,6 +39,8 @@ class TerminalSessionController extends _$TerminalSessionController {
   // pulsed so a full-screen agent TUI redraws at the phone size instead of
   // keeping the previous geometry in both the live screen and scrollback.
   bool _pulseAfterLayout = true;
+  (int, int)? _lastPulsedSize;
+  Timer? _viewportPulseTimer;
 
   bool get supportsRestart => _client?.supportsTerminalRestart ?? false;
 
@@ -142,6 +144,8 @@ class TerminalSessionController extends _$TerminalSessionController {
     _cleanupRegistered = true;
     ref.onDispose(() {
       _disposed = true;
+      _viewportPulseTimer?.cancel();
+      _viewportPulseTimer = null;
       unawaited(_driverSub?.cancel());
       final client = _client;
       final sessionId = _sessionId;
@@ -184,6 +188,9 @@ class TerminalSessionController extends _$TerminalSessionController {
     _client = client;
     _sessionId = sessionId;
     _pulseAfterLayout = true;
+    _lastPulsedSize = null;
+    _viewportPulseTimer?.cancel();
+    _viewportPulseTimer = null;
     _driverSub = client.events.listen(
       (event) {
         if (_disposed ||

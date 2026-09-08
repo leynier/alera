@@ -472,9 +472,12 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
                       scrollController: _scrollController,
                       focusNode: _focusNode,
                       // Compose mode keeps the terminal read-only so tapping it
-                      // scrolls instead of raising the soft keyboard; direct
-                      // mode streams keys.
+                      // does not raise the soft keyboard. Application scroll
+                      // for a hidden-cursor TUI still goes to the PTY, because
+                      // walking the cell buffer through previous TUI frames
+                      // desyncs the live layout.
                       readOnly: !direct,
+                      applicationScrollWhenCursorHidden: true,
                       autofocus: direct && _viewGeneration == 0,
                       backgroundOpacity: 0,
                       // OS font scale would change the cell size and therefore

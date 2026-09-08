@@ -42,14 +42,16 @@ extension TerminalSessionInput on TerminalSessionController {
     }
     _cols = cols;
     _rows = rows;
-    final shouldPulse = _pulseAfterLayout;
+    final shouldPulseNow = _pulseAfterLayout;
     _pulseAfterLayout = false;
     await _runAttachedOperation(
       (client, sessionId) => client.resizeTerminal(sessionId, cols, rows),
     );
-    if (shouldPulse) {
+    if (shouldPulseNow) {
       await refreshViewport();
+      return;
     }
+    _scheduleViewportPulse();
   }
 
   /// Briefly applies an adjacent PTY size before restoring the measured size.
@@ -57,6 +59,8 @@ extension TerminalSessionInput on TerminalSessionController {
   /// This forces full-screen agent TUIs to redraw without changing the Flutter
   /// view or replacing the emulator. Same pulse as desktop `refreshViewport`.
   Future<void> refreshViewport() async {
+    _viewportPulseTimer?.cancel();
+    _viewportPulseTimer = null;
     if (!_canPulseViewport) {
       return;
     }
@@ -81,8 +85,31 @@ extension TerminalSessionInput on TerminalSessionController {
           }
         }
       });
+      _lastPulsedSize = (cols, rows);
     } on Object catch (error, stackTrace) {
       _logger.warning('terminal viewport pulse failed', error, stackTrace);
     }
+  }
+
+  void _scheduleViewportPulse() {
+    _viewportPulseTimer?.cancel();
+    final pendingCols = _cols;
+    final pendingRows = _rows;
+    if (pendingCols == null || pendingRows == null) {
+      _viewportPulseTimer = null;
+      return;
+    }
+    final pending = (pendingCols, pendingRows);
+    if (pending == _lastPulsedSize) {
+      _viewportPulseTimer = null;
+      return;
+    }
+    _viewportPulseTimer = Timer(terminalViewportPulseDebounce, () {
+      _viewportPulseTimer = null;
+      if (_disposed || pending != (_cols, _rows)) {
+        return;
+      }
+      unawaited(refreshViewport());
+    });
   }
 }
