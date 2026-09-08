@@ -25,14 +25,40 @@ pub struct WorkflowCleanupPreview {
 
 impl RuntimeStore {
     pub(super) async fn migrate_workflow_cleanup(&self) -> Result<()> {
+        let mut tx = self.pool().begin().await?;
         sqlx::query("CREATE TABLE IF NOT EXISTS workflowCleanup (
             id TEXT PRIMARY KEY,run_id TEXT NOT NULL,digest TEXT NOT NULL,document TEXT NOT NULL,
             expires_at INTEGER NOT NULL,state TEXT NOT NULL CHECK(state IN ('preview','applying','retired','attention')),
-            error TEXT)").execute(self.pool()).await?;
+            error TEXT)").execute(&mut *tx).await?;
         sqlx::query("CREATE TABLE IF NOT EXISTS workflowCleanupResources (
             workspace_id TEXT PRIMARY KEY REFERENCES workflowWorkspaces(id),
             cleanup_id TEXT NOT NULL REFERENCES workflowCleanup(id),retired INTEGER NOT NULL DEFAULT 0)")
-            .execute(self.pool()).await?;
+            .execute(&mut *tx).await?;
+        sqlx::query("DROP TRIGGER IF EXISTS workflowLaunchTabRetained")
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("CREATE TRIGGER workflowLaunchTabRetained BEFORE DELETE ON workspaceTabs
+            WHEN EXISTS(SELECT 1 FROM workflowLaunches l WHERE l.terminal_handle=OLD.id)
+              AND NOT EXISTS(SELECT 1 FROM workflowCleanupResources r WHERE r.workspace_id=OLD.workspaceId AND r.retired=1)
+            BEGIN SELECT RAISE(ABORT, 'workflow terminals require reviewed cleanup'); END")
+            .execute(&mut *tx).await?;
+        sqlx::query("CREATE TRIGGER IF NOT EXISTS workflowRetiredWorkspaceInsert BEFORE INSERT ON workspaces
+            WHEN EXISTS(SELECT 1 FROM workflowCleanupResources WHERE workspace_id=NEW.id AND retired=1)
+            BEGIN SELECT RAISE(ABORT, 'retired workflow workspace cannot be recreated'); END")
+            .execute(&mut *tx).await?;
+        sqlx::query("CREATE TRIGGER IF NOT EXISTS workflowRetiredWorkspaceTabInsert BEFORE INSERT ON workspaceTabs
+            WHEN EXISTS(SELECT 1 FROM workflowCleanupResources WHERE workspace_id=NEW.workspaceId AND retired=1)
+            BEGIN SELECT RAISE(ABORT, 'retired workflow workspace cannot receive tabs'); END")
+            .execute(&mut *tx).await?;
+        sqlx::query("CREATE TRIGGER IF NOT EXISTS workflowRetiredWorkspaceUpdate BEFORE UPDATE OF id ON workspaces
+            WHEN EXISTS(SELECT 1 FROM workflowCleanupResources WHERE workspace_id=NEW.id AND retired=1)
+            BEGIN SELECT RAISE(ABORT, 'retired workflow workspace cannot be recreated'); END")
+            .execute(&mut *tx).await?;
+        sqlx::query("CREATE TRIGGER IF NOT EXISTS workflowRetiredWorkspaceTabUpdate BEFORE UPDATE OF workspaceId ON workspaceTabs
+            WHEN EXISTS(SELECT 1 FROM workflowCleanupResources WHERE workspace_id=NEW.workspaceId AND retired=1)
+            BEGIN SELECT RAISE(ABORT, 'retired workflow workspace cannot receive tabs'); END")
+            .execute(&mut *tx).await?;
+        tx.commit().await?;
         Ok(())
     }
 

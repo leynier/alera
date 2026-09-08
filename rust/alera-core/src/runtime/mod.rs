@@ -198,6 +198,7 @@ mod workflow_yaml_tests;
 mod workspace_pin_store;
 #[cfg(test)]
 mod workspace_pin_store_tests;
+mod workspace_retirement;
 mod workspace_section_store;
 #[cfg(test)]
 mod workspace_section_store_tests;

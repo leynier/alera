@@ -75,8 +75,8 @@ impl RuntimeStore {
         })
     }
 
-    /// Records a host-verified retirement after Git and managed metadata have
-    /// settled. This receipt is not permission to delete a resource.
+    /// After host-verified Git retirement, atomically retires managed metadata
+    /// and records settlement. This does not authorize filesystem removal.
     pub async fn record_workflow_cleanup_retirement(
         &self,
         id: &str,
@@ -87,10 +87,26 @@ impl RuntimeStore {
         sqlx::query("UPDATE orchestrationBoardRevision SET revision=revision WHERE id=1")
             .execute(&mut *tx)
             .await?;
-        let owned: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM workflowCleanup c JOIN workflowCleanupResources r ON r.cleanup_id=c.id WHERE c.id=? AND c.digest=? AND c.state IN ('applying','retired') AND r.workspace_id=?)")
-            .bind(id).bind(digest).bind(workspace_id).fetch_one(&mut *tx).await?;
-        if !owned {
-            bail!("cleanup retirement does not match a claimed resource");
+        let row = sqlx::query("SELECT c.document,r.retired FROM workflowCleanup c JOIN workflowCleanupResources r ON r.cleanup_id=c.id WHERE c.id=? AND c.digest=? AND c.state IN ('applying','retired') AND r.workspace_id=?")
+            .bind(id).bind(digest).bind(workspace_id).fetch_optional(&mut *tx).await?
+            .ok_or_else(|| anyhow::anyhow!("cleanup retirement does not match a claimed resource"))?;
+        if row.try_get::<bool, _>("retired")? {
+            return Ok(());
+        }
+        let preview: WorkflowCleanupPreview =
+            serde_json::from_str(&row.try_get::<String, _>("document")?)?;
+        let workspace = &preview
+            .items
+            .iter()
+            .find(|item| item.identity.workspace.id == workspace_id)
+            .ok_or_else(|| anyhow::anyhow!("cleanup resource is absent from its preview"))?
+            .identity
+            .workspace;
+        let changed: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM workspaces WHERE id=? AND (instanceId IS NOT ? OR projectId IS NOT ? OR hostId IS NOT ? OR path IS NOT ? OR branch IS NOT ? OR kind IS NOT ?))")
+            .bind(workspace_id).bind(&workspace.instance_id).bind(&workspace.project_id).bind(&workspace.host_id)
+            .bind(&workspace.path).bind(&workspace.branch).bind(workspace.kind.as_str()).fetch_one(&mut *tx).await?;
+        if changed {
+            bail!("cleanup workspace registration changed");
         }
         sqlx::query(
             "UPDATE workflowCleanupResources SET retired=1 WHERE cleanup_id=? AND workspace_id=?",
@@ -99,8 +115,13 @@ impl RuntimeStore {
         .bind(workspace_id)
         .execute(&mut *tx)
         .await?;
+        super::workspace_retirement::remove_workspace_in_transaction(&mut tx, workspace_id, true)
+            .await?;
         sqlx::query("UPDATE workflowCleanup SET state='retired' WHERE id=? AND NOT EXISTS(SELECT 1 FROM workflowCleanupResources WHERE cleanup_id=? AND retired=0)")
             .bind(id).bind(id).execute(&mut *tx).await?;
+        sqlx::query("UPDATE orchestrationBoardRevision SET revision=revision+1 WHERE id=1")
+            .execute(&mut *tx)
+            .await?;
         tx.commit().await?;
         Ok(())
     }

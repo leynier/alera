@@ -914,51 +914,12 @@ impl RuntimeStore {
 
     pub async fn remove_workspace(&self, workspace_id: &str, cascade_tabs: bool) -> Result<()> {
         let mut tx = self.pool.begin().await?;
-        if cascade_tabs {
-            sqlx::query("DELETE FROM workspaceTabs WHERE workspaceId = ?")
-                .bind(workspace_id)
-                .execute(&mut *tx)
-                .await?;
-        }
-        sqlx::query("DELETE FROM agentCanvasRevisions WHERE canvasId IN (SELECT id FROM agentCanvases WHERE workspaceId = ?)")
-            .bind(workspace_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM agentCanvasDecisions WHERE canvasId IN (SELECT id FROM agentCanvases WHERE workspaceId = ?)")
-            .bind(workspace_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM agentCanvasEvents WHERE workspaceId = ?")
-            .bind(workspace_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM agentCanvases WHERE workspaceId = ?")
-            .bind(workspace_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM linkedReviews WHERE workspaceId = ?")
-            .bind(workspace_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM workbenchLayouts WHERE workspaceId = ?")
-            .bind(workspace_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM workspaceTagAssignments WHERE workspaceId = ?")
-            .bind(workspace_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query(
-            "DELETE FROM workspaceRelations WHERE parentWorkspaceId = ? OR childWorkspaceId = ?",
+        super::workspace_retirement::remove_workspace_in_transaction(
+            &mut tx,
+            workspace_id,
+            cascade_tabs,
         )
-        .bind(workspace_id)
-        .bind(workspace_id)
-        .execute(&mut *tx)
         .await?;
-        sqlx::query("DELETE FROM workspaces WHERE id = ?")
-            .bind(workspace_id)
-            .execute(&mut *tx)
-            .await?;
         tx.commit().await?;
         Ok(())
     }

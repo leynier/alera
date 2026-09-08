@@ -74,6 +74,24 @@ async fn cleanup_claims_are_exclusive_and_retire_each_resource_independently() {
         .unwrap();
     assert_eq!(count, 2);
     let one = &items[0].identity.workspace.id;
+    sqlx::query("CREATE TRIGGER testRejectCleanupWorkspaceDelete BEFORE DELETE ON workspaces BEGIN SELECT RAISE(ABORT, 'injected retirement failure'); END")
+        .execute(store.pool()).await.unwrap();
+    assert!(store
+        .record_workflow_cleanup_retirement(&winner.id, &winner.digest, one)
+        .await
+        .is_err());
+    let retired: bool =
+        sqlx::query_scalar("SELECT retired FROM workflowCleanupResources WHERE workspace_id=?")
+            .bind(one)
+            .fetch_one(store.pool())
+            .await
+            .unwrap();
+    assert!(!retired);
+    assert!(store.find_workspace(one).await.unwrap().is_some());
+    sqlx::query("DROP TRIGGER testRejectCleanupWorkspaceDelete")
+        .execute(store.pool())
+        .await
+        .unwrap();
     store
         .record_workflow_cleanup_retirement(&winner.id, &winner.digest, one)
         .await
@@ -103,6 +121,12 @@ async fn cleanup_claims_are_exclusive_and_retire_each_resource_independently() {
     // The ledger never erases historical workspace identities.
     assert!(store.workflow_workspace(one).await.is_ok());
     assert!(store.workflow_workspace(two).await.is_ok());
+    assert!(store.find_workspace(one).await.unwrap().is_none());
+    assert!(store.find_workspace(two).await.unwrap().is_none());
+    assert!(store
+        .upsert_workspace(items[0].identity.workspace.clone())
+        .await
+        .is_err());
 }
 
 #[tokio::test]
