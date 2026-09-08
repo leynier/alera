@@ -161,6 +161,40 @@ void main() {
       );
     });
 
+    test('keeps prior signatures when a successful result omits them', () {
+      const prior = PullRequestAgentWatchSession(
+        workspaceId: 'workspace-1',
+        reviewNumber: 42,
+        mode: .fixAndMerge,
+        binding: AgentTaskDispatchBinding(tabId: 'tab-1'),
+        scope: scope,
+        lastDispatchedFailureSignature: '42:oldsha',
+        lastMergedHeadSha: 'oldsha',
+      );
+      const result = AgentTaskDispatchResult(
+        workspaceId: 'workspace-1',
+        tabId: 'tab-2',
+        openedNewTab: false,
+        label: 'Codex',
+      );
+      expect(
+        pullRequestAgentWatchAfterDispatch(
+          session: prior,
+          result: result,
+          failureSignature: null,
+        ).lastDispatchedFailureSignature,
+        '42:oldsha',
+      );
+      expect(
+        pullRequestAgentWatchAfterMerge(
+          session: prior,
+          merged: true,
+          headSha: null,
+        ).lastMergedHeadSha,
+        'oldsha',
+      );
+    });
+
     test('stops when the pull request is merged or unlinked', () {
       expect(
         evaluatePullRequestAgentWatch(
