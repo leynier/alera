@@ -15,6 +15,7 @@ class RunTaskInspector extends StatelessWidget {
     this.onOpenTerminal,
     this.onOpenDiff,
     required this.footer,
+    this.retryControl,
   });
   final TaskInspection task;
   final List<TaskHistoryEntry> history;
@@ -23,6 +24,7 @@ class RunTaskInspector extends StatelessWidget {
   final VoidCallback? onOpenTerminal;
   final VoidCallback? onOpenDiff;
   final Widget footer;
+  final Widget? retryControl;
 
   @override
   Widget build(BuildContext context) => ListView.builder(
@@ -82,6 +84,10 @@ class RunTaskInspector extends StatelessWidget {
       if (task.workflow != null) ...[
         const SizedBox(height: AleraTokens.space12),
         _WorkflowOutcome(workflow: task.workflow!),
+      ],
+      if (retryControl != null) ...[
+        const SizedBox(height: AleraTokens.space12),
+        retryControl!,
       ],
       const SizedBox(height: AleraTokens.space12),
       SelectableText(task.taskId, style: AleraTokens.monoCompactStyle),

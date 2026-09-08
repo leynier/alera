@@ -12,6 +12,7 @@ import 'package:alera/src/features/orchestration/presentation/run_board_list.dar
 import 'package:alera/src/features/orchestration/presentation/run_board_read_state.dart';
 import 'package:alera/src/features/orchestration/presentation/run_board_workspace_actions.dart';
 import 'package:alera/src/features/orchestration/presentation/run_task_inspector.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_retry_control.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_review_page.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_correction_page.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_run_control_section.dart';
@@ -283,6 +284,18 @@ class _RunBoardSelection extends ConsumerWidget {
           task.workflow?.executionWorkspaceId ?? task.workspaceId;
       return RunTaskInspector(
         task: task,
+        retryControl:
+            task.workflow?.canRetry == true &&
+                task.workflow?.planRevision != null
+            ? WorkflowRetryControl(
+                key: ValueKey('retry:$selectedTask:$executionWorkspaceId'),
+                runId: runId,
+                taskId: selectedTask,
+                revision: task.workflow!.planRevision!,
+                workspaceId: executionWorkspaceId,
+                onPrepared: () => ref.invalidate(provider),
+              )
+            : null,
         history: data.data.history,
         onBack: () => navigation.selectTask(null),
         onOpenWorkspace: runBoardWorkspaceAction(

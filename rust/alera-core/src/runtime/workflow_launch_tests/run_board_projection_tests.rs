@@ -136,6 +136,18 @@ async fn workflow_retry_workspace_supersedes_attention_from_its_failed_launch() 
         .workflow_workspace(&request.workspace_id)
         .await
         .unwrap();
+    let inspection = store
+        .orchestration_task_inspection(&OrchestrationTaskInspectionQuery {
+            run_id: request.run_id.clone(),
+            task_id: request.task_id.clone(),
+            cursor: None,
+            limit: None,
+        })
+        .await
+        .unwrap();
+    let workflow = inspection.workflow.unwrap();
+    assert!(workflow.can_retry);
+    assert_eq!(workflow.plan_revision, request.revision);
     let other_task: String = sqlx::query_scalar(
         "SELECT task_id FROM workflowPlanTasks WHERE run_id = ? AND logical_id = 'verify'",
     )
@@ -181,6 +193,39 @@ async fn workflow_retry_workspace_supersedes_attention_from_its_failed_launch() 
         .into_owned();
     candidate.branch = Some(format!("alera/workflows/{}", candidate.id));
     candidate.kind = WorkspaceKind::Linked;
+    store
+        .control_workflow_execution(&ControlWorkflowExecution {
+            request_id: "start-before-retry".into(),
+            run_id: request.run_id.clone(),
+            revision: request.revision,
+            expected_sequence: 0,
+            action: WorkflowExecutionAction::Start,
+        })
+        .await
+        .unwrap();
+    assert!(store
+        .reserve_workflow_workspace(
+            &PrepareWorkflowWorkspace {
+                request_id: "retry-while-running".into(),
+                run_id: request.run_id.clone(),
+                revision: request.revision,
+                task_id: Some(request.task_id.clone()),
+                retry_of: Some(previous.identity.workspace.id.clone()),
+            },
+            candidate.clone()
+        )
+        .await
+        .is_err());
+    store
+        .control_workflow_execution(&ControlWorkflowExecution {
+            request_id: "pause-before-retry".into(),
+            run_id: request.run_id.clone(),
+            revision: request.revision,
+            expected_sequence: 1,
+            action: WorkflowExecutionAction::Pause,
+        })
+        .await
+        .unwrap();
     let retry = store
         .reserve_workflow_workspace(
             &PrepareWorkflowWorkspace {

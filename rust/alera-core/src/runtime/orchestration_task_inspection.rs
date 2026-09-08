@@ -53,6 +53,8 @@ pub struct OrchestrationTaskInspection {
 
 #[derive(Debug, Serialize)]
 pub struct TaskWorkflowInspection {
+    pub plan_revision: i64,
+    pub can_retry: bool,
     pub state: String,
     pub integration_id: Option<String>,
     pub launch_id: Option<String>,
@@ -252,7 +254,11 @@ async fn inspect_workflow_task(
     run: &str,
     task: &str,
 ) -> Result<Option<TaskWorkflowInspection>> {
-    let Some(row) = sqlx::query("SELECT x.id AS workspace_id, x.phase AS workspace_phase,
+    let Some(row) = sqlx::query("SELECT p.revision AS plan_revision,
+            (r.revision=p.revision AND r.status='approved' AND c.status IN ('idle','running')
+             AND x.phase='attention' AND t.status IN ('pending','ready') AND i.id IS NULL
+             AND NOT EXISTS(SELECT 1 FROM workflowExecution WHERE run_id=p.run_id AND status='running')) AS can_retry,
+            x.id AS workspace_id, x.phase AS workspace_phase,
             x.error AS workspace_error, w.path, w.branch,
             json_extract(x.identity, '$.baseSha') AS base_sha,
             l.id AS launch_id, l.status AS launch_status, l.error AS launch_error,
@@ -260,6 +266,8 @@ async fn inspect_workflow_task(
             i.conflict_paths, i.conflicts_truncated, i.error AS integration_error,
             e.task_id AS evidence_id, t.status AS task_status, t.result IS NOT NULL AS has_result
         FROM workflowPlanTasks p JOIN orchestrationTasks t ON t.id = p.task_id
+        JOIN workflowRuns r ON r.run_id=p.run_id
+        JOIN orchestrationCoordinatorRuns c ON c.id=p.run_id
         JOIN workflowWorkspaces x ON x.sequence = (SELECT MAX(sequence) FROM workflowWorkspaces WHERE task_id = p.task_id)
         LEFT JOIN workspaces w ON w.id = x.id
         LEFT JOIN workflowLaunches l ON l.workspace_id = x.id
@@ -310,6 +318,8 @@ async fn inspect_workflow_task(
         .and_then(|raw| serde_json::from_str::<Vec<String>>(&raw).ok())
         .unwrap_or_default();
     Ok(Some(TaskWorkflowInspection {
+        plan_revision: row.try_get("plan_revision")?,
+        can_retry: row.try_get("can_retry")?,
         state: state.into(),
         integration_id: row.try_get("integration_id")?,
         launch_id: row.try_get("launch_id")?,

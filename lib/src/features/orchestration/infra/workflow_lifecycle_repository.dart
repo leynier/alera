@@ -86,6 +86,9 @@ class WorkflowLifecycleRepository {
     await request('workflows.controlExecution', {'document': document});
   }
 
+  Future<Map<String, Object?>> prepareRetry(Map<String, Object?> payload) =>
+      request('workflows.prepareWorkspace', payload);
+
   Future<Map<String, Object?>> source(String workspaceId) =>
       request('workflows.source', {'workspaceId': workspaceId});
 

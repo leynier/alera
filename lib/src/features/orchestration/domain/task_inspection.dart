@@ -151,6 +151,8 @@ class TaskInspection {
 
 class TaskWorkflowInspection {
   const TaskWorkflowInspection({
+    this.planRevision,
+    this.canRetry = false,
     required this.state,
     required this.executionWorkspaceId,
     this.integrationId,
@@ -166,6 +168,8 @@ class TaskWorkflowInspection {
 
   factory TaskWorkflowInspection.fromJson(Map<String, Object?> json) =>
       TaskWorkflowInspection(
+        planRevision: json['plan_revision'] as int?,
+        canRetry: json['can_retry'] as bool? ?? false,
         state: json['state'] as String,
         executionWorkspaceId: json['execution_workspace_id'] as String,
         integrationId: json['integration_id'] as String?,
@@ -182,6 +186,8 @@ class TaskWorkflowInspection {
       );
 
   final String state;
+  final int? planRevision;
+  final bool canRetry;
   final String executionWorkspaceId;
   final String? integrationId;
   final String? launchId;

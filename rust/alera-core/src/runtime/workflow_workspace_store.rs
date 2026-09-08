@@ -109,6 +109,13 @@ impl RuntimeStore {
         }
         let (plan, integration_sha) =
             approved_plan(&mut tx, &request.run_id, request.revision).await?;
+        if request.retry_of.is_some() {
+            let running: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM workflowExecution WHERE run_id=? AND status='running')")
+                .bind(&request.run_id).fetch_one(&mut *tx).await?;
+            if running {
+                bail!("pause workflow execution before preparing a fresh attempt");
+            }
+        }
         let mut attempt = 0;
         let mut existing_id = None;
         if let Some(task) = &request.task_id {
