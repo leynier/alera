@@ -1375,6 +1375,22 @@ impl RuntimeStore {
     }
 
     pub async fn upsert_ssh_target(&self, target: SshTarget) -> Result<SshTarget> {
+        // Pre-check instead of relying on the unique index, so a duplicate alias
+        // reports the attempted alias rather than a SQLite error.
+        if sqlx::query(
+            "SELECT id FROM sshTargets WHERE alias = ? COLLATE NOCASE AND id <> ? LIMIT 1",
+        )
+        .bind(&target.alias)
+        .bind(&target.id)
+        .fetch_optional(&self.pool)
+        .await?
+        .is_some()
+        {
+            anyhow::bail!(RuntimeStoreError::Message(format!(
+                "ssh target alias already exists: {}",
+                target.alias
+            )));
+        }
         sqlx::query(
             "INSERT INTO sshTargets \
              (id, alias, host, port, username, platform, arch, authKind, createdAt, updatedAt, lastStatus, \
