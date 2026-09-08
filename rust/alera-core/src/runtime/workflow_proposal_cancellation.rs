@@ -30,6 +30,56 @@ pub(super) async fn require_open_proposal(
 }
 
 impl RuntimeStore {
+    pub async fn pending_workflow_proposal_cancellations(
+        &self,
+    ) -> Result<Vec<WorkflowProposalCancellation>> {
+        sqlx::query("SELECT * FROM workflowProposalCancellations WHERE status='pending' ORDER BY proposal_id LIMIT 25")
+            .fetch_all(self.pool()).await?.into_iter().map(|row| Ok(WorkflowProposalCancellation {
+                proposal_id: row.try_get("proposal_id")?, tab_id: row.try_get("tab_id")?,
+                workspace_id: row.try_get("workspace_id")?, status: row.try_get("status")?, error: row.try_get("error")?,
+            })).collect()
+    }
+
+    pub async fn require_workflow_proposal_cancellation_target(
+        &self,
+        target: &WorkflowProposalCancellation,
+    ) -> Result<()> {
+        let valid: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM workflowProposalCancellations p
+            JOIN workflowCoordinators c ON c.proposal_id=p.proposal_id
+            WHERE p.proposal_id=? AND p.status='pending' AND p.tab_id=? AND p.workspace_id=?
+            AND c.tab_id=p.tab_id AND c.workspace_id=p.workspace_id)",
+        )
+        .bind(&target.proposal_id)
+        .bind(&target.tab_id)
+        .bind(&target.workspace_id)
+        .fetch_one(self.pool())
+        .await?;
+        if !valid {
+            bail!("proposal cancellation target is no longer pending or its identity changed");
+        }
+        Ok(())
+    }
+
+    pub async fn settle_workflow_proposal_cancellation(
+        &self,
+        target: &WorkflowProposalCancellation,
+        error: Option<&str>,
+    ) -> Result<()> {
+        self.require_workflow_proposal_cancellation_target(target)
+            .await?;
+        let mut tx = self.pool().begin().await?;
+        sqlx::query("UPDATE workflowProposalCancellations SET status=?,error=? WHERE proposal_id=? AND status='pending' AND tab_id=? AND workspace_id=?")
+            .bind(if error.is_some() { "attention" } else { "settled" })
+            .bind(error.map(|value| value.chars().take(1024).collect::<String>()))
+            .bind(&target.proposal_id).bind(&target.tab_id).bind(&target.workspace_id).execute(&mut *tx).await?;
+        sqlx::query("UPDATE orchestrationBoardRevision SET revision=revision+1 WHERE id=1")
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
     pub async fn cancel_workflow_proposal(&self, id: &str) -> Result<WorkflowProposalCancellation> {
         super::workflow_plan::workflow_text(id, 160)?;
         let mut tx = self.pool().begin().await?;
@@ -52,6 +102,9 @@ impl RuntimeStore {
         sqlx::query("INSERT INTO workflowProposalCancellations(proposal_id,tab_id,workspace_id,status) VALUES(?,?,?,?) ON CONFLICT(proposal_id) DO NOTHING")
             .bind(id).bind(&tab).bind(row.try_get::<String,_>("workspace_id")?)
             .bind(if tab.is_some() { "pending" } else { "settled" }).execute(&mut *tx).await?;
+        sqlx::query("UPDATE orchestrationBoardRevision SET revision=revision+1 WHERE id=1")
+            .execute(&mut *tx)
+            .await?;
         tx.commit().await?;
         self.workflow_proposal_cancellation(id)
             .await?

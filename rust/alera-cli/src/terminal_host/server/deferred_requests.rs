@@ -51,6 +51,7 @@ impl ServerActor {
             | "workflows.proposal"
             | "workflows.proposals"
             | "workflows.proposalStatus"
+            | "workflows.cancelProposal"
             | "workflows.submitProposal"
             | "workflows.plan"
             | "workflows.approvalChallenge"

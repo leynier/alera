@@ -102,5 +102,36 @@ async fn workflow_coordinator_launch_replays_one_terminal_with_frozen_profile() 
     let serialized = serde_json::to_string(&saved.payload).unwrap();
     assert!(serialized.contains("echo workflow-coordinator-test"));
     assert!(!serialized.contains("must-not-run-edited-profile"));
-    actor.terminate_sessions_for_tab(tab).await;
+    let cancellation = fixture
+        .store
+        .cancel_workflow_proposal("coordinator-proposal")
+        .await
+        .unwrap();
+    let mut forged = cancellation.clone();
+    forged.workspace_id = "different-owner".into();
+    assert!(actor
+        .cancel_workflow_proposal_terminal(&forged)
+        .await
+        .is_err());
+    assert!(actor.sessions.contains_key(tab));
+    actor
+        .cancel_workflow_proposal_terminal(&cancellation)
+        .await
+        .unwrap();
+    assert!(!actor.sessions.contains_key(tab));
+    fixture
+        .store
+        .settle_workflow_proposal_cancellation(&cancellation, None)
+        .await
+        .unwrap();
+    assert!(fixture
+        .store
+        .pending_workflow_proposal_cancellations()
+        .await
+        .unwrap()
+        .is_empty());
+    assert!(actor
+        .cancel_workflow_proposal_terminal(&cancellation)
+        .await
+        .is_err());
 }

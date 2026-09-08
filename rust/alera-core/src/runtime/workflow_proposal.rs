@@ -21,6 +21,7 @@ pub struct WorkflowProposalStatus {
     pub run_id: Option<String>,
     pub revision: Option<i64>,
     pub coordinator: Option<super::WorkflowCoordinatorReceipt>,
+    pub cancellation: Option<super::WorkflowProposalCancellation>,
 }
 
 impl super::RuntimeStore {
@@ -38,6 +39,7 @@ impl super::RuntimeStore {
             run_id: row.try_get("run_id")?,
             revision: row.try_get("revision")?,
             coordinator: self.workflow_coordinator(id).await?,
+            cancellation: self.workflow_proposal_cancellation(id).await?,
         })
     }
     pub(super) async fn migrate_workflow_proposals(&self) -> Result<()> {

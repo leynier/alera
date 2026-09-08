@@ -32,6 +32,10 @@ mod tests;
 
 pub(crate) enum WorkflowLaunchCommand {
     CancellationFinished(HostResult<bool>),
+    CancelProposalTerminal {
+        target: alera_core::runtime::WorkflowProposalCancellation,
+        reply: tokio::sync::oneshot::Sender<HostResult<()>>,
+    },
     CancelTerminal {
         target: alera_core::runtime::WorkflowCancellationTarget,
         reply: tokio::sync::oneshot::Sender<HostResult<()>>,
@@ -90,6 +94,10 @@ impl WorkflowLaunchPermit {
 impl ServerActor {
     pub(super) async fn handle_workflow_launch_command(&mut self, command: WorkflowLaunchCommand) {
         match command {
+            WorkflowLaunchCommand::CancelProposalTerminal { target, reply } => {
+                let result = self.cancel_workflow_proposal_terminal(&target).await;
+                let _ = reply.send(result);
+            }
             WorkflowLaunchCommand::CancellationFinished(result) => {
                 self.finish_workflow_cancellation(result).await
             }

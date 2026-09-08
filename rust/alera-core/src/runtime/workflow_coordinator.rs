@@ -35,6 +35,8 @@ impl RuntimeStore {
         )
         .execute(self.pool())
         .await?;
+        sqlx::query("CREATE INDEX IF NOT EXISTS workflowProposalCancellationQueue ON workflowProposalCancellations(status,proposal_id)")
+            .execute(self.pool()).await?;
         Ok(())
     }
 

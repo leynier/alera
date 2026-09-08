@@ -20,7 +20,28 @@ impl ServerActor {
         tokio::spawn(async move {
             let result = async {
                 let targets = store.workflow_cancellation_page().await?;
-                let progress = !targets.is_empty();
+                let proposals = store.pending_workflow_proposal_cancellations().await?;
+                let progress = !targets.is_empty() || !proposals.is_empty();
+                for target in proposals {
+                    let (reply, done) = tokio::sync::oneshot::channel();
+                    inbox
+                        .send(ServerCommand::WorkflowLaunch(
+                            WorkflowLaunchCommand::CancelProposalTerminal {
+                                target: target.clone(),
+                                reply,
+                            },
+                        ))
+                        .map_err(|_| {
+                            anyhow::anyhow!("runtime closed before proposal cancellation")
+                        })?;
+                    let result = done.await.map_err(|_| {
+                        anyhow::anyhow!("runtime closed during proposal cancellation")
+                    })?;
+                    let error = result.err().map(|error| error.wire_message());
+                    store
+                        .settle_workflow_proposal_cancellation(&target, error.as_deref())
+                        .await?;
+                }
                 for target in targets {
                     let (reply, done) = tokio::sync::oneshot::channel();
                     inbox
@@ -91,6 +112,33 @@ impl ServerActor {
         self.terminate_sessions_for_tab(&target.terminal_handle)
             .await;
         self.remove_dispatch_context(&target.terminal_handle);
+        Ok(())
+    }
+
+    pub(in crate::terminal_host::server) async fn cancel_workflow_proposal_terminal(
+        &mut self,
+        target: &alera_core::runtime::WorkflowProposalCancellation,
+    ) -> HostResult<()> {
+        self.runtime_store
+            .require_workflow_proposal_cancellation_target(target)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
+        let tab = target
+            .tab_id
+            .as_ref()
+            .ok_or_else(|| HostError::state("proposal cancellation has no terminal target"))?;
+        if self.sessions.iter().any(|(id, session)| {
+            (id == tab || &session.tab_id == tab)
+                && (id != tab
+                    || &session.tab_id != tab
+                    || session.workspace_id != target.workspace_id)
+        }) {
+            return Err(HostError::state(
+                "The proposal terminal identity changed. Inspect the retained coordinator.",
+            ));
+        }
+        self.terminate_sessions_for_tab(tab).await;
+        self.remove_dispatch_context(tab);
         Ok(())
     }
 }

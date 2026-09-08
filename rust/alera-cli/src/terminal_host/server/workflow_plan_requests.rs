@@ -82,6 +82,7 @@ enum PlanRequest {
     CreateProposal(String),
     Proposal(ProposalQuery),
     ProposalStatus(ProposalQuery),
+    CancelProposal(ProposalQuery),
     SubmitProposal(String),
     Prepare(String),
     Get(PlanQuery),
@@ -119,6 +120,7 @@ impl ServerActor {
             }
             "workflows.proposal" => PlanRequest::Proposal(parse(payload)?),
             "workflows.proposalStatus" => PlanRequest::ProposalStatus(parse(payload)?),
+            "workflows.cancelProposal" => PlanRequest::CancelProposal(parse(payload)?),
             "workflows.submitProposal" => {
                 PlanRequest::SubmitProposal(document(payload, WORKFLOW_PLAN_MAX_BYTES)?)
             }
@@ -152,6 +154,7 @@ impl ServerActor {
             let _permit = permit;
             let result = tokio::time::timeout(Duration::from_secs(25), async {
                 match request {
+                    PlanRequest::CancelProposal(query) => serde_json::to_value(store.cancel_workflow_proposal(&query.id).await.map_err(state)?).map_err(state),
                     PlanRequest::Execution(query) => {
                         let runtime=tokio::runtime::Handle::current();
                         tokio::task::spawn_blocking(move || runtime.block_on(async {
