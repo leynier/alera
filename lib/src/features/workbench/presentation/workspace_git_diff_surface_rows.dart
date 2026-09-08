@@ -1,11 +1,17 @@
 part of 'workspace_git_diff_surface.dart';
 
+typedef _DiffLineCommentCallback = void Function(
+  GitDiffFile file,
+  int lineIndex,
+);
+
 class const _DiffFileList({
   required final GitDiffResult result,
   required final String sourcePath,
   final String? sourceLabel,
   final String? commitOid,
   final String? parentOid,
+  final _DiffLineCommentCallback? onCommentLine,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -15,6 +21,7 @@ class const _DiffFileList({
       sourceLabel: sourceLabel,
       commitOid: commitOid,
       parentOid: parentOid,
+      onCommentLine: onCommentLine,
     );
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: AleraTokens.space16),
@@ -31,6 +38,7 @@ class const _DiffRows(final List<_DiffRow> items) {
     String? sourceLabel,
     String? commitOid,
     String? parentOid,
+    _DiffLineCommentCallback? onCommentLine,
   }) {
     final items = <_DiffRow>[
       if (result.truncated) const _BannerRow('Diff truncated for preview.'),
@@ -53,8 +61,15 @@ class const _DiffRows(final List<_DiffRow> items) {
       } else if (file.lines.isEmpty) {
         items.add(const _BannerRow('No text diff for this file.'));
       } else {
-        for (final line in file.lines) {
-          items.add(_DiffLineRow(line));
+        for (var lineIndex = 0; lineIndex < file.lines.length; lineIndex += 1) {
+          items.add(
+            _DiffLineRow(
+              file.lines[lineIndex],
+              onComment: onCommentLine == null
+                  ? null
+                  : () => onCommentLine(file, lineIndex),
+            ),
+          );
         }
         if (file.linePreviewTruncated) {
           items.add(const _BannerRow('Diff line preview truncated.'));
@@ -129,9 +144,13 @@ class const _ImageDiffRow({
   );
 }
 
-class const _DiffLineRow(final GitDiffLine text) extends _DiffRow {
+class const _DiffLineRow(
+  final GitDiffLine text, {
+  final VoidCallback? onComment,
+}) extends _DiffRow {
   @override
-  Widget build(BuildContext context) => _DiffLine(line: text);
+  Widget build(BuildContext context) =>
+      _DiffLine(line: text, onComment: onComment);
 }
 
 class const _DiffStats({required final GitDiffFile file})
@@ -159,8 +178,10 @@ class const _DiffStats({required final GitDiffFile file})
   }
 }
 
-class const _DiffLine({required final GitDiffLine line})
-    extends StatelessWidget {
+class const _DiffLine({
+  required final GitDiffLine line,
+  final VoidCallback? onComment,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (color, background) = switch (line.kind) {
@@ -178,19 +199,27 @@ class const _DiffLine({required final GitDiffLine line})
         Colors.transparent,
       ),
     };
-    return DecoratedBox(
-      decoration: BoxDecoration(color: background),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AleraTokens.space12,
-          vertical: AleraTokens.space2,
-        ),
-        child: Text(
-          line.text,
-          maxLines: 1,
-          overflow: .visible,
-          softWrap: false,
-          style: AleraTokens.monoStyle.copyWith(fontSize: 12, color: color),
+    return MouseRegion(
+      cursor: onComment == null ? MouseCursor.defer : SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: .translucent,
+        onSecondaryTap: onComment,
+        onLongPress: onComment,
+        child: DecoratedBox(
+          decoration: BoxDecoration(color: background),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AleraTokens.space12,
+              vertical: AleraTokens.space2,
+            ),
+            child: Text(
+              line.text,
+              maxLines: 1,
+              overflow: .visible,
+              softWrap: false,
+              style: AleraTokens.monoStyle.copyWith(fontSize: 12, color: color),
+            ),
+          ),
         ),
       ),
     );

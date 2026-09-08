@@ -440,6 +440,31 @@ void main() {
     expect(service.createdFiles, <String>['root.txt']);
   });
 
+  testWidgets('context menu comments on a file and shows the draft bar', (
+    tester,
+  ) async {
+    final service = _FakeWorkspaceFileService()
+      ..childrenByDirectory[''] = <native.WorkspaceFileEntry>[
+        _file('readme.md'),
+      ];
+    await _pumpExplorer(tester, service);
+
+    await tester.tap(find.text('readme.md'), buttons: kSecondaryMouseButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Comment on File'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Comment on File'), findsWidgets);
+    await tester.enterText(find.byType(TextField).last, 'Explain this file.');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Add Comment'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 Comment'), findsOneWidget);
+    expect(find.text('Send to Agent'), findsOneWidget);
+    expect(find.text('Explain this file.'), findsOneWidget);
+  });
+
   testWidgets('context menu copies relative paths and duplicates entries', (
     tester,
   ) async {

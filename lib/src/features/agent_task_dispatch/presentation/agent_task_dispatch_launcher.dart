@@ -17,9 +17,9 @@ class const AgentTaskDispatchChoice({
 
 /// Shared picker: running workspace agent or a profile for a new tab.
 ///
-/// Callers own the prompt. This is the reuse point for later features such as
-/// file and diff comments. It does not inject; [showAgentTaskDispatchFlow]
-/// and [completeAgentTaskDispatch] are the inject step.
+/// Callers own the prompt. File and diff comments reuse this picker. It does
+/// not inject; [showAgentTaskDispatchFlow] and [completeAgentTaskDispatch] are
+/// the inject step.
 Future<AgentTaskDispatchChoice?> chooseAgentTaskDispatchTarget(
   BuildContext context,
   WidgetRef ref, {

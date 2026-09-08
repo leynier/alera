@@ -13,6 +13,7 @@ class const _GitDiffGroups({
   required final ValueChanged<GitChangeEntry> onToggleSubmodule,
   required final OpenGitDiffTabCallback onOpenGitDiff,
   final ValueChanged<String>? onOpenFile,
+  required final ValueChanged<GitChangeEntry> onComment,
   required final ValueChanged<String> onRevealInExplorer,
   required final ValueChanged<GitChangeEntry> onStage,
   required final ValueChanged<GitChangeEntry> onUnstage,
@@ -46,6 +47,7 @@ class const _GitDiffGroups({
             onToggleSubmodule: onToggleSubmodule,
             onOpenGitDiff: onOpenGitDiff,
             onOpenFile: onOpenFile,
+            onComment: onComment,
             onRevealInExplorer: onRevealInExplorer,
             onStage: onStage,
             onUnstage: onUnstage,
@@ -75,6 +77,7 @@ class const _GitDiffGroup({
   required final ValueChanged<GitChangeEntry> onToggleSubmodule,
   required final OpenGitDiffTabCallback onOpenGitDiff,
   final ValueChanged<String>? onOpenFile,
+  required final ValueChanged<GitChangeEntry> onComment,
   required final ValueChanged<String> onRevealInExplorer,
   required final ValueChanged<GitChangeEntry> onStage,
   required final ValueChanged<GitChangeEntry> onUnstage,
@@ -138,6 +141,7 @@ class const _GitDiffGroup({
                   onOpenFile: onOpenFile == null
                       ? null
                       : () => onOpenFile!(entry.path),
+                  onComment: () => onComment(entry),
                   onRevealInExplorer: () => onRevealInExplorer(entry.path),
                   onStage: onStage,
                   onUnstage: onUnstage,
@@ -164,6 +168,7 @@ class const _GitDiffGroup({
                     busy: busy,
                     onOpenGitDiff: onOpenGitDiff,
                     onOpenFile: onOpenFile,
+                    onComment: onComment,
                     onRevealInExplorer: onRevealInExplorer,
                   ),
               ]
@@ -179,6 +184,7 @@ class const _GitDiffGroup({
                 onToggleSubmodule: onToggleSubmodule,
                 onOpenGitDiff: onOpenGitDiff,
                 onOpenFile: onOpenFile,
+                onComment: onComment,
                 onRevealInExplorer: onRevealInExplorer,
                 onStage: onStage,
                 onUnstage: onUnstage,

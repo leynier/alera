@@ -43,6 +43,15 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
           await Clipboard.setData(ClipboardData(text: entry.relativePath));
           _showInfo('Relative path copied');
         }
+      case _ExplorerAction.comment:
+        if (entry != null && !_isDirectoryEntry(entry)) {
+          await composeWorkspaceAgentFileComment(
+            context,
+            ref,
+            workspaceId: widget.workspace.id,
+            path: entry.relativePath,
+          );
+        }
       case _ExplorerAction.duplicate:
         if (entry != null) {
           await _duplicate(entry);
