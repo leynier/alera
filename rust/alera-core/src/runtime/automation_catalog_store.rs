@@ -143,6 +143,20 @@ impl RuntimeStore {
         })
     }
 
+    pub async fn list_automation_agent_policies(&self) -> Result<Vec<AutomationAgentPolicy>> {
+        let rows = sqlx::query(
+            "SELECT dataJson FROM automationAgentPolicies ORDER BY profileId COLLATE NOCASE ASC",
+        )
+        .fetch_all(self.pool())
+        .await?;
+        rows.into_iter()
+            .map(|row| {
+                let data: String = row.try_get("dataJson")?;
+                Ok(serde_json::from_str(&data)?)
+            })
+            .collect()
+    }
+
     pub async fn set_automation_project_policy(
         &self,
         policy: AutomationProjectPolicy,
@@ -180,6 +194,20 @@ impl RuntimeStore {
                 updated_at: Utc::now(),
             },
         })
+    }
+
+    pub async fn list_automation_project_policies(&self) -> Result<Vec<AutomationProjectPolicy>> {
+        let rows = sqlx::query(
+            "SELECT dataJson FROM automationProjectPolicies ORDER BY projectId COLLATE NOCASE ASC",
+        )
+        .fetch_all(self.pool())
+        .await?;
+        rows.into_iter()
+            .map(|row| {
+                let data: String = row.try_get("dataJson")?;
+                Ok(serde_json::from_str(&data)?)
+            })
+            .collect()
     }
 
     pub async fn export_automation_catalog(&self) -> Result<AutomationExportBundle> {

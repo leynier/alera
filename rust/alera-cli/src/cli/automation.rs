@@ -51,7 +51,7 @@ pub enum AutomationAction {
     Extend(AutomationExtendArgs),
     /// Complete a run with a required summary.
     Complete(AutomationCompleteArgs),
-    /// List or upsert prompt templates.
+    /// List prompt templates, or upsert from JSON. updatedAt is optional on upsert.
     Templates(AutomationCatalogFileArgs),
     /// List or upsert tags and assignments.
     Tags(AutomationCatalogFileArgs),
@@ -59,7 +59,7 @@ pub enum AutomationAction {
     Import(AutomationImportArgs),
     /// Export a runtime-local automation catalog.
     Export(AutomationExportArgs),
-    /// Show or update an agent/project automation policy.
+    /// List, show, or update agent and project automation policies.
     Policy(AutomationPolicyArgs),
 }
 
@@ -232,7 +232,7 @@ pub struct AutomationExportArgs {
 
 #[derive(Debug, Args)]
 pub struct AutomationPolicyArgs {
-    /// Policy kind: show, agent, or project.
+    /// Policy kind: show (list all, or one agent/project when ids are passed), agent, or project.
     #[arg(long, default_value = "show", value_parser = ["show", "agent", "project"])]
     pub kind: String,
     #[arg(long = "profile-id")]
@@ -341,5 +341,37 @@ mod tests {
             "done",
         ])
         .is_err());
+    }
+
+    #[test]
+    fn policy_defaults_to_show_without_ids() {
+        let parsed = Cli::try_parse_from(["alera", "automation", "policy"]).unwrap();
+        match parsed.command {
+            Command::Automation(command) => match command.action {
+                AutomationAction::Policy(args) => {
+                    assert_eq!(args.kind, "show");
+                    assert!(args.profile_id.is_none());
+                    assert!(args.project_id.is_none());
+                    assert!(args.file.is_none());
+                }
+                other => panic!("expected policy, got {other:?}"),
+            },
+            other => panic!("expected automation, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn templates_accepts_file_without_other_flags() {
+        let parsed =
+            Cli::try_parse_from(["alera", "automation", "templates", "--file", "t.json"]).unwrap();
+        match parsed.command {
+            Command::Automation(command) => match command.action {
+                AutomationAction::Templates(args) => {
+                    assert_eq!(args.file.as_deref(), Some("t.json"));
+                }
+                other => panic!("expected templates, got {other:?}"),
+            },
+            other => panic!("expected automation, got {other:?}"),
+        }
     }
 }

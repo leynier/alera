@@ -1,5 +1,6 @@
-use alera_core::runtime::{AutomationActor, AutomationImportBundle};
-use serde_json::{json, Value};
+use alera_core::runtime::{AutomationActor, AutomationImportBundle, AutomationTemplate};
+use chrono::Utc;
+use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
@@ -10,9 +11,7 @@ use super::ServerActor;
 impl ServerActor {
     pub(super) async fn automation_templates_request(&self, payload: &Value) -> HostResult<Value> {
         if let Some(value) = payload.get("template") {
-            let template = serde_json::from_value(value.clone()).map_err(|error| {
-                HostError::format(format!("invalid automation template: {error}"))
-            })?;
+            let template = decode_automation_template(value)?;
             let saved = self
                 .runtime_store
                 .upsert_automation_template(template)
@@ -348,6 +347,22 @@ fn normalize_portable_tags(bundle: &mut Value) -> HostResult<BTreeMap<String, St
     Ok(tag_ids)
 }
 
+fn decode_automation_template(value: &Value) -> HostResult<AutomationTemplate> {
+    let mut object = value
+        .as_object()
+        .cloned()
+        .ok_or_else(|| HostError::format("automation template must be a JSON object"))?;
+    fill_timestamp(&mut object, "updatedAt");
+    serde_json::from_value(Value::Object(object))
+        .map_err(|error| HostError::format(format!("invalid automation template: {error}")))
+}
+
+fn fill_timestamp(object: &mut Map<String, Value>, key: &str) {
+    object
+        .entry(key.to_string())
+        .or_insert_with(|| json!(Utc::now()));
+}
+
 fn remap_value(
     remap: &std::collections::BTreeMap<String, String>,
     key: &str,
@@ -367,7 +382,7 @@ fn remap_value(
 mod tests {
     use std::collections::BTreeMap;
 
-    use super::normalize_portable_import;
+    use super::{decode_automation_template, normalize_portable_import};
     use serde_json::json;
 
     #[test]
@@ -432,5 +447,40 @@ mod tests {
         assert_eq!(normalized["templates"][0]["tagIds"][0], tag_id);
         assert_eq!(normalized["templates"][0]["projectId"], "project");
         assert!(normalized["definitions"][0].get("tagKeys").is_none());
+    }
+
+    #[test]
+    fn template_upsert_payload_accepts_missing_updated_at() {
+        let template = decode_automation_template(&json!({
+            "id": "t",
+            "name": "T",
+            "promptTemplate": "ping",
+            "createdAt": "2026-09-08T00:00:00Z",
+            "createdBy": {"kind": "localCli"}
+        }))
+        .unwrap();
+        assert_eq!(template.id, "t");
+        assert_eq!(template.name, "T");
+        assert_eq!(template.prompt_template, "ping");
+        assert!(template.updated_at.timestamp() > 0);
+    }
+
+    #[test]
+    fn template_upsert_payload_keeps_supplied_updated_at() {
+        let template = decode_automation_template(&json!({
+            "id": "t",
+            "name": "T",
+            "promptTemplate": "ping",
+            "createdAt": "2026-09-08T00:00:00Z",
+            "updatedAt": "2026-01-02T03:04:05Z",
+            "createdBy": {"kind": "localCli"}
+        }))
+        .unwrap();
+        assert_eq!(
+            template.updated_at,
+            "2026-01-02T03:04:05Z"
+                .parse::<chrono::DateTime<chrono::Utc>>()
+                .unwrap()
+        );
     }
 }

@@ -71,8 +71,13 @@ impl ServerActor {
                 serde_json::to_value(policy).map_err(|error| HostError::state(error.to_string()))
             }
             "show" => {
+                let profile_id = optional_id(payload, "profileId");
+                let project_id = optional_id(payload, "projectId");
+                if profile_id.is_none() && project_id.is_none() {
+                    return self.list_all_automation_policies().await;
+                }
                 let mut result = Map::new();
-                if let Some(profile_id) = payload.get("profileId").and_then(Value::as_str) {
+                if let Some(profile_id) = profile_id {
                     let policy = self
                         .runtime_store
                         .automation_agent_policy(profile_id)
@@ -84,7 +89,7 @@ impl ServerActor {
                             .map_err(|error| HostError::state(error.to_string()))?,
                     );
                 }
-                if let Some(project_id) = payload.get("projectId").and_then(Value::as_str) {
+                if let Some(project_id) = project_id {
                     let policy = self.effective_project_policy(project_id).await?;
                     result.insert(
                         "project".to_string(),
@@ -92,20 +97,13 @@ impl ServerActor {
                             .map_err(|error| HostError::state(error.to_string()))?,
                     );
                 }
-                if result.is_empty() {
-                    return Err(HostError::format(
-                        "policy show requires profileId or projectId",
-                    ));
-                }
-                if let Some(profile_id) = payload.get("profileId").and_then(Value::as_str) {
+                if let Some(profile_id) = profile_id {
                     let policy = self
                         .runtime_store
                         .automation_agent_policy(profile_id)
                         .await
                         .map_err(|error| HostError::state(error.to_string()))?;
-                    let project = if let Some(project_id) =
-                        payload.get("projectId").and_then(Value::as_str)
-                    {
+                    let project = if let Some(project_id) = project_id {
                         Some(self.effective_project_policy(project_id).await?)
                     } else {
                         None
@@ -301,6 +299,33 @@ impl ServerActor {
         Ok(policy)
     }
 
+    async fn list_all_automation_policies(&self) -> HostResult<Value> {
+        let agents = self
+            .runtime_store
+            .list_automation_agent_policies()
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
+        let projects = self
+            .runtime_store
+            .list_automation_project_policies()
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
+        let mut projects_json = Vec::with_capacity(projects.len());
+        for mut policy in projects {
+            policy.repo_declared = self
+                .repository_declared_for_project(&policy.project_id)
+                .await?;
+            projects_json.push(
+                serde_json::to_value(policy)
+                    .map_err(|error| HostError::state(error.to_string()))?,
+            );
+        }
+        Ok(json!({
+            "agents": agents,
+            "projects": projects_json,
+        }))
+    }
+
     async fn repository_declared_for_project(&self, project_id: &str) -> HostResult<bool> {
         let Some(project) = self
             .runtime_store
@@ -398,6 +423,14 @@ fn policy_object(value: &Value, kind: &str) -> HostResult<Map<String, Value>> {
         .as_object()
         .cloned()
         .ok_or_else(|| HostError::format(format!("{kind} policy must be a JSON object")))
+}
+
+fn optional_id<'a>(payload: &'a Value, key: &str) -> Option<&'a str> {
+    payload
+        .get(key)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
 }
 
 #[cfg(test)]

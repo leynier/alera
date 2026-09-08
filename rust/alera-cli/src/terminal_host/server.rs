@@ -77,11 +77,15 @@ mod ai_dictation_remote_requests;
 mod ai_dictation_requests;
 mod automation_actor;
 mod automation_catalog_requests;
+#[cfg(test)]
+mod automation_catalog_requests_tests;
 mod automation_definition_requests;
 #[cfg(test)]
 mod automation_definition_requests_tests;
 mod automation_dispatch;
 mod automation_policy_requests;
+#[cfg(test)]
+mod automation_policy_requests_tests;
 mod automation_request_authorization;
 mod automation_request_routes;
 mod automation_requests;
