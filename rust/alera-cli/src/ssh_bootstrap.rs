@@ -511,20 +511,7 @@ Write-Output $install
             .map(windows_sftp_path)
             .ok_or_else(|| anyhow!("remote Windows install directory probe returned no path."));
     }
-    let script = format!(
-        r#"
-set -eu
-install_dir={install_dir}
-case "$install_dir" in
-  "~") install_dir="$HOME" ;;
-  "~/"*) install_dir="$HOME/${{install_dir#~/}}" ;;
-esac
-mkdir -p "$install_dir"
-command -v tar >/dev/null 2>&1 || {{ echo "tar is required on the remote host." >&2; exit 11; }}
-printf '%s\n' "$install_dir"
-"#,
-        install_dir = shell_quote(install_dir),
-    );
+    let script = posix_resolve_install_dir_script(install_dir);
     let output = run_remote_command(target, platform, &script).await?;
     output
         .stdout
@@ -905,6 +892,26 @@ fn configured_bootstrap_arch(
         .map(normalize_arch)
 }
 
+fn posix_resolve_install_dir_script(install_dir: &str) -> String {
+    // Quote/escape the `~/` prefix strip. Unquoted `#~/` tilde-expands the
+    // pattern on macOS /bin/sh and Linux dash, so the strip no-ops and the
+    // path becomes `$HOME/~/.alera/...` (literal `~` directory). See #666.
+    format!(
+        r#"
+set -eu
+install_dir={install_dir}
+case "$install_dir" in
+  "~") install_dir="$HOME" ;;
+  "~/"*) install_dir="$HOME/${{install_dir#"~/"}}" ;;
+esac
+mkdir -p "$install_dir"
+command -v tar >/dev/null 2>&1 || {{ echo "tar is required on the remote host." >&2; exit 11; }}
+printf '%s\n' "$install_dir"
+"#,
+        install_dir = shell_quote(install_dir),
+    )
+}
+
 fn remote_join(platform: &str, base: &str, parts: &[&str]) -> String {
     let separator = "/";
     let mut value = if platform == "windows" {
@@ -1198,6 +1205,79 @@ mod tests {
             remote_join("linux", "/home/me/.alera/runtime", &["staging", "job"]),
             "/home/me/.alera/runtime/staging/job"
         );
+    }
+
+    #[test]
+    fn posix_resolve_install_dir_script_escapes_tilde_prefix_strip() {
+        let script = posix_resolve_install_dir_script("~/.alera/runtime");
+        assert!(
+            script.contains(r#"${install_dir#"~/"}"#),
+            "script must quote the ~/ strip pattern: {script}"
+        );
+        assert!(
+            !script.contains("${install_dir#~/}"),
+            "unquoted #~/ tilde-expands on dash/macOS sh: {script}"
+        );
+        assert!(script.contains(r#"mkdir -p "$install_dir""#));
+    }
+
+    #[test]
+    fn posix_resolve_install_dir_script_resolves_tilde_under_dash() {
+        let script = posix_resolve_install_dir_script("~/.alera/sidecar-runtime");
+        // Drive only the case/strip logic under dash with a fake HOME.
+        let probe = r#"
+HOME=/tmp/alera-tilde-home-666
+install_dir='~/.alera/sidecar-runtime'
+case "$install_dir" in
+  "~") install_dir="$HOME" ;;
+  "~/"*) install_dir="$HOME/${install_dir#"~/"}" ;;
+esac
+printf '%s\n' "$install_dir"
+"#;
+        let output = alera_core::child_process::windowless_command("dash")
+            .arg("-c")
+            .arg(probe)
+            .output()
+            .expect("dash should be available to run the regression probe");
+        assert!(
+            output.status.success(),
+            "dash probe failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let resolved = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        assert_eq!(resolved, "/tmp/alera-tilde-home-666/.alera/sidecar-runtime");
+        assert!(
+            !resolved.contains("/~/"),
+            "resolved path must not contain a literal /~ segment: {resolved}"
+        );
+        // Keep the generated remote script aligned with the probe pattern.
+        assert!(script.contains(r#"${install_dir#"~/"}"#));
+    }
+
+    #[test]
+    fn posix_resolve_install_dir_script_resolves_tilde_under_sh() {
+        let probe = r#"
+HOME=/tmp/alera-tilde-home-666
+install_dir='~/.alera/runtime'
+case "$install_dir" in
+  "~") install_dir="$HOME" ;;
+  "~/"*) install_dir="$HOME/${install_dir#"~/"}" ;;
+esac
+printf '%s\n' "$install_dir"
+"#;
+        let output = alera_core::child_process::windowless_command("sh")
+            .arg("-c")
+            .arg(probe)
+            .output()
+            .expect("sh should be available to run the regression probe");
+        assert!(
+            output.status.success(),
+            "sh probe failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let resolved = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        assert_eq!(resolved, "/tmp/alera-tilde-home-666/.alera/runtime");
+        assert!(!resolved.contains("/~/"));
     }
 
     #[test]
