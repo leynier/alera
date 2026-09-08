@@ -287,14 +287,7 @@ impl ServerActor {
                 } else {
                     AutomationRunStatus::Timeout
                 };
-                if cancellation_expired && run.owned_tab && !run.taken_over {
-                    if let Some(tab_id) = &run.tab_id {
-                        self.terminate_sessions_for_tab(tab_id).await;
-                    }
-                    if let Some(tab_id) = &run.setup_tab_id {
-                        self.terminate_sessions_for_tab(tab_id).await;
-                    }
-                }
+                self.terminate_owned_automation_sessions(&run).await;
                 let _ = self
                     .runtime_store
                     .update_automation_run_status(
@@ -357,6 +350,18 @@ impl ServerActor {
             }
         }
     }
+
+    async fn terminate_owned_automation_sessions(&mut self, run: &AutomationRun) {
+        if !run.owned_tab || run.taken_over {
+            return;
+        }
+        if let Some(tab_id) = &run.tab_id {
+            self.terminate_sessions_for_tab(tab_id).await;
+        }
+        if let Some(tab_id) = &run.setup_tab_id {
+            self.terminate_sessions_for_tab(tab_id).await;
+        }
+    }
 }
 
 pub(super) fn is_non_retryable_dispatch_error(error: &HostError) -> bool {
@@ -374,6 +379,10 @@ pub(super) fn is_non_retryable_reason(reason: &str) -> bool {
         || message.contains("ssh authentication")
         || message.contains("ssh target is missing")
 }
+
+#[cfg(test)]
+#[path = "automation_run_lifecycle_tests.rs"]
+mod expire_tests;
 
 #[cfg(test)]
 mod tests {
