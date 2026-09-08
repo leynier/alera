@@ -25,6 +25,17 @@ void main() {
       expect(prompt.toLowerCase(), isNot(contains('log')));
       expect(prompt.toLowerCase(), isNot(contains('payload')));
       expect(prompt, isNot(contains('ci.yml')));
+      expect(pullRequestAgentWatchPrompt(42), prompt);
+    });
+  });
+
+  group('pullRequestAgentWatchModeLabel', () {
+    test('labels both watch modes', () {
+      expect(pullRequestAgentWatchModeLabel(.fix), 'Watching: Fix');
+      expect(
+        pullRequestAgentWatchModeLabel(.fixAndMerge),
+        'Watching: Fix and Merge',
+      );
     });
   });
 
@@ -75,6 +86,71 @@ void main() {
       expect(evaluation.headSha, 'abc123');
     });
 
+    test('does not merge the same head sha twice', () {
+      final evaluation = evaluatePullRequestAgentWatch(
+        session: const PullRequestAgentWatchSession(
+          workspaceId: 'workspace-1',
+          reviewNumber: 42,
+          mode: .fixAndMerge,
+          binding: AgentTaskDispatchBinding(profileId: 'profile-1'),
+          scope: scope,
+          lastMergedHeadSha: 'abc123',
+        ),
+        snapshot: PullRequestAgentWatchSnapshot(
+          review: _review(mergeable: .mergeable),
+          checksRollup: .success,
+        ),
+      );
+      expect(evaluation.action, PullRequestAgentWatchAction.none);
+    });
+
+    test('keeps the watch eligible after a failed dispatch or merge', () {
+      const result = AgentTaskDispatchResult(
+        workspaceId: 'workspace-1',
+        tabId: 'tab-2',
+        openedNewTab: true,
+        label: 'Codex Builder',
+        profileId: 'profile-1',
+      );
+      expect(
+        identical(
+          pullRequestAgentWatchAfterDispatch(
+            session: session,
+            result: null,
+            failureSignature: '42:abc123',
+          ),
+          session,
+        ),
+        isTrue,
+      );
+      final dispatched = pullRequestAgentWatchAfterDispatch(
+        session: session,
+        result: result,
+        failureSignature: '42:abc123',
+      );
+      expect(dispatched.lastDispatchedFailureSignature, '42:abc123');
+      expect(dispatched.binding.tabId, 'tab-2');
+      expect(
+        identical(
+          pullRequestAgentWatchAfterMerge(
+            session: session,
+            merged: false,
+            headSha: 'abc123',
+          ),
+          session,
+        ),
+        isTrue,
+      );
+      expect(
+        pullRequestAgentWatchAfterMerge(
+          session: session,
+          merged: true,
+          headSha: 'abc123',
+        ).lastMergedHeadSha,
+        'abc123',
+      );
+    });
+
     test('stops when the pull request is merged or unlinked', () {
       expect(
         evaluatePullRequestAgentWatch(
@@ -82,6 +158,16 @@ void main() {
           snapshot: PullRequestAgentWatchSnapshot(
             review: _review(state: .merged),
             checksRollup: .success,
+          ),
+        ).action,
+        PullRequestAgentWatchAction.stop,
+      );
+      expect(
+        evaluatePullRequestAgentWatch(
+          session: session,
+          snapshot: PullRequestAgentWatchSnapshot(
+            review: _review(state: .closed),
+            checksRollup: .failure,
           ),
         ).action,
         PullRequestAgentWatchAction.stop,

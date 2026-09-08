@@ -6,21 +6,20 @@ mixin _WorkspacePullRequestReviewActions on _$WorkspacePullRequestController {
 
   /// Merges the linked review and keeps it linked so the terminal state remains
   /// visible after the provider no longer returns it as an open branch review.
-  Future<void> mergeReview(ReviewMergeMethod method) async {
+  Future<bool> mergeReview(ReviewMergeMethod method) async {
     final current = state.value;
     final review = current?.review;
     if (current?.stack != null) {
-      await _controller.mergeCurrentReviewStack(method);
-      return;
+      return _controller.mergeCurrentReviewStack(method);
     }
     if (current == null ||
         review == null ||
         review.state != HostedReviewState.open ||
         !current.mergeMethods.contains(method)) {
       _surfaceActionError('This pull request cannot be merged.');
-      return;
+      return false;
     }
-    await _runReviewMutation(
+    return _runReviewMutation(
       current: current,
       action: .merge,
       mutate: (forge, identity) => forge.mergeReview(
@@ -327,7 +326,7 @@ mixin _WorkspacePullRequestReviewActions on _$WorkspacePullRequestController {
     return error is ForgeException ? error.message : error.toString();
   }
 
-  Future<void> _runReviewMutation({
+  Future<bool> _runReviewMutation({
     required WorkspacePullRequestState current,
     required PullRequestAction action,
     required Future<void> Function(ForgeProvider, GitRemoteIdentity) mutate,
@@ -340,9 +339,9 @@ mixin _WorkspacePullRequestReviewActions on _$WorkspacePullRequestController {
         : controller._registry.forProvider(identity.provider);
     if (identity == null || review == null || forge == null) {
       _surfaceActionError('No linked pull request to update.');
-      return;
+      return false;
     }
-    await controller._run(
+    return controller._run(
       scope: controller.scope,
       action: action,
       body: () async {

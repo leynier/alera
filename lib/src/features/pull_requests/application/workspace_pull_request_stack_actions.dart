@@ -289,7 +289,7 @@ mixin _WorkspacePullRequestStackActions on _$WorkspacePullRequestController {
 
   /// Merges every unmerged member at or below the current pull request using
   /// GitHub's atomic stack merge operation.
-  Future<void> mergeCurrentReviewStack(ReviewMergeMethod method) async {
+  Future<bool> mergeCurrentReviewStack(ReviewMergeMethod method) async {
     final controller = _stackController;
     final current = state.value;
     final identity = current?.identity;
@@ -307,17 +307,17 @@ mixin _WorkspacePullRequestStackActions on _$WorkspacePullRequestController {
         stack == null ||
         stackProvider == null) {
       _surfaceStackError('No pull request stack is available to merge.');
-      return;
+      return false;
     }
     if (!current.mergeMethods.contains(method) ||
         method == ReviewMergeMethod.providerDefault) {
       _surfaceStackError('This stack cannot use the selected merge method.');
-      return;
+      return false;
     }
     final affected = stack.entriesThrough(review.number);
     if (affected.isEmpty) {
       _surfaceStackError('The current pull request is not in this stack.');
-      return;
+      return false;
     }
     final blocked = affected.where(
       (entry) =>
@@ -329,10 +329,10 @@ mixin _WorkspacePullRequestStackActions on _$WorkspacePullRequestController {
       _surfaceStackError(
         'Pull request #$number must be open and ready before merging the stack.',
       );
-      return;
+      return false;
     }
 
-    await controller._run(
+    return controller._run(
       scope: controller.scope,
       action: .mergeStack,
       reloadAfterFailure: true,

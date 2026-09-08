@@ -36,6 +36,25 @@ void main() {
       expect(catalog.defaultProfileId, 'profile-1');
       expect(catalog.isEmpty, isFalse);
     });
+
+    test('is empty when there are no running agents or profiles', () {
+      expect(const AgentTaskDispatchCatalog().isEmpty, isTrue);
+    });
+  });
+
+  group('AgentTaskDispatchResult.binding', () {
+    test('carries the tab, profile, and label', () {
+      const result = AgentTaskDispatchResult(
+        workspaceId: 'workspace-1',
+        tabId: 'tab-1',
+        openedNewTab: false,
+        label: 'Codex',
+        profileId: 'profile-1',
+      );
+      expect(result.binding.tabId, 'tab-1');
+      expect(result.binding.profileId, 'profile-1');
+      expect(result.binding.label, 'Codex');
+    });
   });
 
   group('AgentTaskDispatchService', () {
@@ -140,6 +159,60 @@ void main() {
       );
 
       expect(submits, 1);
+    });
+
+    test(
+      'opens a new tab from the binding profile when the tab is gone',
+      () async {
+        final workspace = _workspace();
+        final profile = _profile('profile-1', 'Codex Builder', now);
+        String? launchedPrompt;
+        final service = _service(
+          catalog: AgentTaskDispatchCatalog(profiles: <AgentProfile>[profile]),
+          workspace: workspace,
+          onLaunch: (prompt) {
+            launchedPrompt = prompt;
+            return const AgentProfileLaunchResult(
+              tabId: 'tab-new',
+              agentType: 'codex',
+              profileId: 'profile-1',
+              idempotent: true,
+            );
+          },
+        );
+
+        final result = await service.dispatchBinding(
+          const AgentTaskDispatchRequest(
+            workspaceId: 'workspace-1',
+            prompt: 'Fix the failing checks.',
+          ),
+          const AgentTaskDispatchBinding(
+            tabId: 'tab-missing',
+            profileId: 'profile-1',
+          ),
+        );
+
+        expect(launchedPrompt, 'Fix the failing checks.');
+        expect(result.openedNewTab, isTrue);
+        expect(result.tabId, 'tab-new');
+      },
+    );
+
+    test('rejects a binding with no remaining agent', () async {
+      final service = _service(
+        catalog: const AgentTaskDispatchCatalog(),
+        workspace: _workspace(),
+      );
+      expect(
+        () => service.dispatchBinding(
+          const AgentTaskDispatchRequest(
+            workspaceId: 'workspace-1',
+            prompt: 'Fix the failing checks.',
+          ),
+          const AgentTaskDispatchBinding(tabId: 'tab-missing'),
+        ),
+        throwsA(isA<AgentTaskDispatchException>()),
+      );
     });
 
     test('rejects an empty prompt', () async {

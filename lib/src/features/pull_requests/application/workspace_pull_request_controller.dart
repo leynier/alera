@@ -38,6 +38,7 @@ import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'workspace_pull_request_controller.g.dart';
+part 'workspace_pull_request_polling.dart';
 part 'workspace_pull_request_review_actions.dart';
 part 'workspace_pull_request_review_editing.dart';
 part 'workspace_pull_request_ship_actions.dart';
@@ -50,7 +51,8 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
         _WorkspacePullRequestReviewActions,
         _WorkspacePullRequestReviewEditing,
         _WorkspacePullRequestShipActions,
-        _WorkspacePullRequestStackActions {
+        _WorkspacePullRequestStackActions,
+        _WorkspacePullRequestPolling {
   static const Duration _minPollInterval = Duration(seconds: 30);
   static const Duration _maxPollInterval = Duration(seconds: 120);
 
@@ -316,7 +318,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
   }
 
   /// Runs an action that mutates persisted state, then reloads.
-  Future<void> _run({
+  Future<bool> _run({
     required WorkspacePullRequestScope scope,
     required PullRequestAction action,
     required Future<void> Function() body,
@@ -325,6 +327,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
     _pollTimer?.cancel();
     final current = state.value ?? const WorkspacePullRequestState();
     state = AsyncData(current.copyWith(action: action, clearError: true));
+    var succeeded = false;
     try {
       await body();
       final reloaded = await _loader.load(scope);
@@ -333,6 +336,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
         _resetPollInterval();
         _refreshWorkspacePullRequestMonitor();
       }
+      succeeded = true;
     } on _ActionError catch (error) {
       await _recordActionFailure(
         scope: scope,
@@ -363,6 +367,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
       );
     }
     _schedulePoll(scope);
+    return succeeded;
   }
 
   Future<void> _recordActionFailure({
@@ -398,112 +403,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
       );
     }
   }
-
-  Future<void> _refresh({required _RefreshOrigin origin}) {
-    if (!_shouldPoll) {
-      return Future<void>.value();
-    }
-    final current = state.value;
-    if (current == null ||
-        (current.isBusy && current.action != PullRequestAction.refresh)) {
-      return Future<void>.value();
-    }
-    final inFlight = _refreshInFlight;
-    if (inFlight != null) {
-      return inFlight;
-    }
-
-    final operation = _performRefresh(current: current, origin: origin);
-    _refreshInFlight = operation;
-    return operation.whenComplete(() {
-      if (identical(_refreshInFlight, operation)) {
-        _refreshInFlight = null;
-      }
-    });
-  }
-
-  Future<void> _performRefresh({
-    required WorkspacePullRequestState current,
-    required _RefreshOrigin origin,
-  }) async {
-    _pollTimer?.cancel();
-    if (origin != _RefreshOrigin.poll) {
-      _resetPollInterval();
-    }
-    state = AsyncData(current.copyWith(action: .refresh, clearError: true));
-
-    try {
-      final reloaded = await _loader.load(scope);
-      if (_disposed) {
-        return;
-      }
-      final failed = reloaded.errorMessage != null;
-      final visibleReload = _applyPendingCommentBodies(reloaded);
-      state = AsyncData(
-        failed
-            ? current.copyWith(
-                clearAction: true,
-                errorMessage: reloaded.errorMessage,
-              )
-            : visibleReload,
-      );
-      if (origin == _RefreshOrigin.poll) {
-        _advancePollInterval(
-          changed:
-              !failed && visibleReload.pollSignature != current.pollSignature,
-        );
-      }
-    } catch (error) {
-      if (!_disposed) {
-        state = AsyncData(
-          current.copyWith(clearAction: true, errorMessage: error.toString()),
-        );
-        if (origin == _RefreshOrigin.poll) {
-          _advancePollInterval(changed: false);
-        }
-      }
-    } finally {
-      _schedulePoll(scope);
-    }
-  }
-
-  void _resetPollInterval() => _pollInterval = _minPollInterval;
-
-  void _advancePollInterval({required bool changed}) {
-    if (changed) {
-      _resetPollInterval();
-      return;
-    }
-    final doubled = _pollInterval * 2;
-    _pollInterval = doubled > _maxPollInterval ? _maxPollInterval : doubled;
-  }
-
-  void _schedulePoll(
-    WorkspacePullRequestScope scope, {
-    WorkspacePullRequestState? snapshot,
-  }) {
-    _pollTimer?.cancel();
-    final current = snapshot ?? state.value;
-    if (!_shouldPoll || current == null || current.isBusy) {
-      return;
-    }
-    // Missing identity or auth can heal outside the app (the user signs in,
-    // adds a remote); keep polling slowly instead of never retrying.
-    final degraded =
-        current.identity == null ||
-        current.authStatus != ForgeAuthStatus.authenticated;
-    _pollTimer = Timer(degraded ? _maxPollInterval : _pollInterval, () {
-      unawaited(_pollTick(scope));
-    });
-  }
-
-  Future<void> _pollTick(WorkspacePullRequestScope scope) async {
-    _pollTimer = null;
-    await _refresh(origin: .poll);
-  }
 }
-
-enum _RefreshOrigin { manual, poll, resume }
 
 class const _ActionError(final String message) implements Exception;
 

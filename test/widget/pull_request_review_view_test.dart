@@ -1,7 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
-import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
 import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
@@ -49,11 +48,6 @@ Widget _wrap(
   bool canCloseReview = true,
   bool canChangeDraftStatus = true,
   bool canComment = true,
-  PullRequestAgentWatchMode? agentWatchMode,
-  VoidCallback? onFixFailedChecks,
-  VoidCallback? onWatchAndFix,
-  VoidCallback? onWatchFixAndMerge,
-  VoidCallback? onStopAgentWatch,
 }) {
   return MaterialApp(
     home: Scaffold(
@@ -85,11 +79,6 @@ Widget _wrap(
           return callbacks.updateResult;
         },
         onLoadCheckDetails: (_) async => const ReviewCheckDetails(),
-        agentWatchMode: agentWatchMode,
-        onFixFailedChecks: onFixFailedChecks,
-        onWatchAndFix: onWatchAndFix,
-        onWatchFixAndMerge: onWatchFixAndMerge,
-        onStopAgentWatch: onStopAgentWatch,
       ),
     ),
   );
@@ -133,54 +122,6 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Create Merge Commit'));
     await tester.pumpAndSettle();
     expect(callbacks.mergeMethod, ReviewMergeMethod.mergeCommit);
-  });
-
-  testWidgets('offers failed-check dispatch and watch actions', (tester) async {
-    var fixCalls = 0;
-    var watchFixCalls = 0;
-    var watchMergeCalls = 0;
-    await tester.pumpWidget(
-      _wrap(
-        _Callbacks(),
-        checks: const <ReviewCheck>[
-          ReviewCheck(name: 'build', status: .completed, conclusion: .failure),
-        ],
-        onFixFailedChecks: () => fixCalls++,
-        onWatchAndFix: () => watchFixCalls++,
-        onWatchFixAndMerge: () => watchMergeCalls++,
-      ),
-    );
-
-    expect(find.text('Fix Failed Checks'), findsOneWidget);
-    await tester.tap(find.text('Fix Failed Checks'));
-    await tester.pump();
-    expect(fixCalls, 1);
-
-    await tester.tap(find.byTooltip('Ask Agent'));
-    await tester.pumpAndSettle();
-    expect(find.text('Watch and Fix'), findsOneWidget);
-    expect(find.text('Watch, Fix and Merge'), findsOneWidget);
-    await tester.tap(find.text('Watch and Fix'));
-    await tester.pumpAndSettle();
-    expect(watchFixCalls, 1);
-    expect(watchMergeCalls, 0);
-  });
-
-  testWidgets('shows stop watching while a watch is active', (tester) async {
-    var stopCalls = 0;
-    await tester.pumpWidget(
-      _wrap(
-        _Callbacks(),
-        agentWatchMode: .fix,
-        onStopAgentWatch: () => stopCalls++,
-      ),
-    );
-
-    expect(find.text('Watching: Fix'), findsOneWidget);
-    expect(find.text('Fix Failed Checks'), findsNothing);
-    await tester.tap(find.text('Stop Watching'));
-    await tester.pump();
-    expect(stopCalls, 1);
   });
 
   testWidgets('selecting a merge method only changes the primary action', (

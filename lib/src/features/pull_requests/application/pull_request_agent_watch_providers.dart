@@ -187,18 +187,17 @@ class PullRequestAgentWatchController
     if (latest == null) {
       return;
     }
+    final next = pullRequestAgentWatchAfterDispatch(
+      session: latest,
+      result: result,
+      failureSignature: failureSignature,
+    );
+    if (identical(next, latest)) {
+      return;
+    }
     state = <String, PullRequestAgentWatchSession>{
       ...state,
-      session.workspaceId: PullRequestAgentWatchSession(
-        workspaceId: latest.workspaceId,
-        reviewNumber: latest.reviewNumber,
-        mode: latest.mode,
-        binding: result?.binding ?? latest.binding,
-        scope: latest.scope,
-        lastDispatchedFailureSignature:
-            failureSignature ?? latest.lastDispatchedFailureSignature,
-        lastMergedHeadSha: latest.lastMergedHeadSha,
-      ),
+      session.workspaceId: next,
     };
   }
 
@@ -218,24 +217,24 @@ class PullRequestAgentWatchController
       );
       return;
     }
-    await ref
+    final merged = await ref
         .read(workspacePullRequestControllerProvider(session.scope).notifier)
         .mergeReview(method);
     final latest = state[session.workspaceId];
     if (latest == null) {
       return;
     }
+    final next = pullRequestAgentWatchAfterMerge(
+      session: latest,
+      merged: merged,
+      headSha: headSha,
+    );
+    if (identical(next, latest)) {
+      return;
+    }
     state = <String, PullRequestAgentWatchSession>{
       ...state,
-      session.workspaceId: PullRequestAgentWatchSession(
-        workspaceId: latest.workspaceId,
-        reviewNumber: latest.reviewNumber,
-        mode: latest.mode,
-        binding: latest.binding,
-        scope: latest.scope,
-        lastDispatchedFailureSignature: latest.lastDispatchedFailureSignature,
-        lastMergedHeadSha: headSha ?? latest.lastMergedHeadSha,
-      ),
+      session.workspaceId: next,
     };
   }
 

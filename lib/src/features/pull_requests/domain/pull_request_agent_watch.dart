@@ -43,6 +43,47 @@ String pullRequestAgentWatchModeLabel(PullRequestAgentWatchMode mode) {
   };
 }
 
+/// Keep the watch eligible to retry when dispatch did not actually send.
+PullRequestAgentWatchSession pullRequestAgentWatchAfterDispatch({
+  required PullRequestAgentWatchSession session,
+  required AgentTaskDispatchResult? result,
+  required String? failureSignature,
+}) {
+  if (result == null) {
+    return session;
+  }
+  return PullRequestAgentWatchSession(
+    workspaceId: session.workspaceId,
+    reviewNumber: session.reviewNumber,
+    mode: session.mode,
+    binding: result.binding,
+    scope: session.scope,
+    lastDispatchedFailureSignature:
+        failureSignature ?? session.lastDispatchedFailureSignature,
+    lastMergedHeadSha: session.lastMergedHeadSha,
+  );
+}
+
+/// Keep the watch eligible to retry when the forge merge did not succeed.
+PullRequestAgentWatchSession pullRequestAgentWatchAfterMerge({
+  required PullRequestAgentWatchSession session,
+  required bool merged,
+  required String? headSha,
+}) {
+  if (!merged) {
+    return session;
+  }
+  return PullRequestAgentWatchSession(
+    workspaceId: session.workspaceId,
+    reviewNumber: session.reviewNumber,
+    mode: session.mode,
+    binding: session.binding,
+    scope: session.scope,
+    lastDispatchedFailureSignature: session.lastDispatchedFailureSignature,
+    lastMergedHeadSha: headSha ?? session.lastMergedHeadSha,
+  );
+}
+
 PullRequestAgentWatchEvaluation evaluatePullRequestAgentWatch({
   required PullRequestAgentWatchSession session,
   required PullRequestAgentWatchSnapshot? snapshot,
