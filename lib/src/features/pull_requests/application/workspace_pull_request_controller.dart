@@ -39,6 +39,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'workspace_pull_request_controller.g.dart';
 part 'workspace_pull_request_polling.dart';
+part 'workspace_pull_request_watchers.dart';
 part 'workspace_pull_request_review_actions.dart';
 part 'workspace_pull_request_review_editing.dart';
 part 'workspace_pull_request_ship_actions.dart';
@@ -52,7 +53,8 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
         _WorkspacePullRequestReviewEditing,
         _WorkspacePullRequestShipActions,
         _WorkspacePullRequestStackActions,
-        _WorkspacePullRequestPolling {
+        _WorkspacePullRequestPolling,
+        _WorkspacePullRequestWatchers {
   static const Duration _minPollInterval = Duration(seconds: 30);
   static const Duration _maxPollInterval = Duration(seconds: 120);
 
@@ -68,11 +70,8 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
       <String, _PendingReviewCommentSave>{};
   final Set<String> _savingCommentIds = <String>{};
   var _panelViewCount = 0;
-  var _watcherCount = 0;
   bool _visible = false;
   bool _disposed = false;
-
-  bool get _shouldPoll => !_disposed && (_visible || _watcherCount > 0);
 
   @override
   Future<WorkspacePullRequestState> build(
@@ -167,27 +166,6 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
       return;
     }
     _visible = false;
-    if (!_shouldPoll) {
-      _pollTimer?.cancel();
-    }
-  }
-
-  /// Keeps check polling alive for Watch and Fix after the panel closes.
-  void attachWatcher() {
-    if (_disposed) {
-      return;
-    }
-    _watcherCount++;
-    if (_watcherCount == 1 && !_visible) {
-      _resetPollInterval();
-      _schedulePoll(scope);
-    }
-  }
-
-  void detachWatcher() {
-    if (_watcherCount > 0) {
-      _watcherCount--;
-    }
     if (!_shouldPoll) {
       _pollTimer?.cancel();
     }
