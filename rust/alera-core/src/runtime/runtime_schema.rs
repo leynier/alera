@@ -315,15 +315,21 @@ pub(super) const AGENT_PROFILE_REFERENCE_TRIGGERS: &[&str] = &[
          WHERE id = json_extract(NEW.payloadJson, '$.agentProfileLaunchV1.profile.id')
        )
      BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
+    "DROP TRIGGER IF EXISTS automationsAgentProfileInsertGuard;",
+    "DROP TRIGGER IF EXISTS automationsAgentProfileUpdateGuard;",
     "CREATE TRIGGER IF NOT EXISTS automationsAgentProfileInsertGuard
      BEFORE INSERT ON automations
      WHEN COALESCE(
+       json_extract(NEW.dataJson, '$.target.freshTab.agentProfileId'),
        json_extract(NEW.dataJson, '$.target.freshTab.agent_profile_id'),
+       json_extract(NEW.dataJson, '$.target.managedWorkspace.agentProfileId'),
        json_extract(NEW.dataJson, '$.target.managedWorkspace.agent_profile_id')
      ) IS NOT NULL
        AND NOT EXISTS (
          SELECT 1 FROM agentProfiles WHERE id = COALESCE(
+           json_extract(NEW.dataJson, '$.target.freshTab.agentProfileId'),
            json_extract(NEW.dataJson, '$.target.freshTab.agent_profile_id'),
+           json_extract(NEW.dataJson, '$.target.managedWorkspace.agentProfileId'),
            json_extract(NEW.dataJson, '$.target.managedWorkspace.agent_profile_id')
          )
        )
@@ -331,12 +337,16 @@ pub(super) const AGENT_PROFILE_REFERENCE_TRIGGERS: &[&str] = &[
     "CREATE TRIGGER IF NOT EXISTS automationsAgentProfileUpdateGuard
      BEFORE UPDATE OF dataJson ON automations
      WHEN COALESCE(
+       json_extract(NEW.dataJson, '$.target.freshTab.agentProfileId'),
        json_extract(NEW.dataJson, '$.target.freshTab.agent_profile_id'),
+       json_extract(NEW.dataJson, '$.target.managedWorkspace.agentProfileId'),
        json_extract(NEW.dataJson, '$.target.managedWorkspace.agent_profile_id')
      ) IS NOT NULL
        AND NOT EXISTS (
          SELECT 1 FROM agentProfiles WHERE id = COALESCE(
+           json_extract(NEW.dataJson, '$.target.freshTab.agentProfileId'),
            json_extract(NEW.dataJson, '$.target.freshTab.agent_profile_id'),
+           json_extract(NEW.dataJson, '$.target.managedWorkspace.agentProfileId'),
            json_extract(NEW.dataJson, '$.target.managedWorkspace.agent_profile_id')
          )
        )

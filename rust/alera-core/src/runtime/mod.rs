@@ -16,6 +16,8 @@ mod alera_account_store;
 mod alera_account_store_tests;
 mod automation_catalog_store;
 mod automation_models;
+#[cfg(test)]
+mod automation_models_serde_tests;
 mod automation_run_store;
 mod automation_schedule;
 mod automation_store;

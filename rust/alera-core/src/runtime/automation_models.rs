@@ -71,7 +71,7 @@ impl AutomationScheduleKind {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum AutomationSchedule {
     OneTime {
         at: DateTime<Utc>,
@@ -80,11 +80,11 @@ pub enum AutomationSchedule {
     Recurring {
         cron: String,
         timezone: String,
-        #[serde(default)]
+        #[serde(default, alias = "start_at")]
         start_at: Option<DateTime<Utc>>,
-        #[serde(default)]
+        #[serde(default, alias = "end_at")]
         end_at: Option<DateTime<Utc>>,
-        #[serde(default)]
+        #[serde(default, alias = "max_scheduled_runs")]
         max_scheduled_runs: Option<i64>,
     },
 }
@@ -114,23 +114,30 @@ impl AutomationSchedule {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum AutomationTarget {
     ExistingTab {
+        #[serde(alias = "workspace_id")]
         workspace_id: String,
+        #[serde(alias = "tab_id")]
         tab_id: String,
-        #[serde(default)]
+        #[serde(default, alias = "conversation_id")]
         conversation_id: Option<String>,
     },
     FreshTab {
+        #[serde(alias = "workspace_id")]
         workspace_id: String,
+        #[serde(alias = "agent_profile_id")]
         agent_profile_id: String,
     },
     ManagedWorkspace {
+        #[serde(alias = "source_workspace_id")]
         source_workspace_id: String,
+        #[serde(alias = "source_branch")]
         source_branch: String,
-        #[serde(default = "default_name_template")]
+        #[serde(default = "default_name_template", alias = "name_template")]
         name_template: String,
+        #[serde(alias = "agent_profile_id")]
         agent_profile_id: String,
     },
 }
