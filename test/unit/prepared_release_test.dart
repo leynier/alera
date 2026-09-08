@@ -84,11 +84,8 @@ void main() {
     });
   });
 
-  test('main ruleset grants only Mergify bypass', () {
-    final ruleset = desiredMainRuleset(
-      mergifyAppId: 10562,
-      githubActionsAppId: 15368,
-    );
+  test('main ruleset requires pr-ready without a merge-queue bypass', () {
+    final ruleset = desiredMainRuleset(githubActionsAppId: 15368);
     final bypass = ruleset['bypass_actors']! as List<Object?>;
     final rules = ruleset['rules']! as List<Object?>;
     final checks =
@@ -99,9 +96,7 @@ void main() {
             ) as Map<String, Object?>)['parameters']!
             as Map<String, Object?>;
 
-    expect(bypass, [
-      {'actor_id': 10562, 'actor_type': 'Integration', 'bypass_mode': 'always'},
-    ]);
+    expect(bypass, isEmpty);
     expect(rules.map((rule) => (rule! as Map)['type']), [
       'deletion',
       'non_fast_forward',
@@ -110,7 +105,6 @@ void main() {
     ]);
     expect(checks['required_status_checks'], [
       {'context': 'pr-ready', 'integration_id': 15368},
-      {'context': 'queue-ready', 'integration_id': 15368},
     ]);
   });
 }

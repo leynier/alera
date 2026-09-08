@@ -281,9 +281,7 @@ jobs:
               echo "- Channel: \`$CHANNEL\`"
               echo "- Tags: \`$DESKTOP_TAG $MOBILE_TAG\`"
               echo
-              echo "Mergify must merge this pull request before any tag or release is created."
-              echo
-              echo "Refs #489"
+              echo "Squash-merge this pull request after \`pr-ready\` passes. The merge event starts the Cut Release publish job."
             } >"$body_file"
             pr_url="$(gh pr create \
               --repo "$GITHUB_REPOSITORY" \
