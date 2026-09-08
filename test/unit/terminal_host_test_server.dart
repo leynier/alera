@@ -337,6 +337,7 @@ Future<void> _writeControlFile({
   bool includeOrchestrationCapability = true,
   bool includeBinaryFramesCapability = false,
   bool includeWorkspaceSectionsCapability = false,
+  bool includeConfigurationSyncCapability = false,
 }) async {
   final runtimeDir = Directory(p.join(tempDir.path, 'terminal_host'));
   await runtimeDir.create(recursive: true);
@@ -356,6 +357,8 @@ Future<void> _writeControlFile({
       if (includeBinaryFramesCapability) aleraRuntimeHostBinaryFramesCapability,
       if (includeWorkspaceSectionsCapability)
         aleraRuntimeHostWorkspaceSectionsCapability,
+      if (includeConfigurationSyncCapability)
+        aleraRuntimeHostConfigurationSyncCapability,
     ],
   ];
   if (capabilities.isNotEmpty) {

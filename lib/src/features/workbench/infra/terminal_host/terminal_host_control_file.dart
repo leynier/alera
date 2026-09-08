@@ -130,6 +130,7 @@ Future<_TerminalHostControl?> _readControl(File file) async {
       supportsWorkspaceSections: capabilities.contains(
         aleraRuntimeHostWorkspaceSectionsCapability,
       ),
+      runtimeCapabilities: Set<String>.from(capabilities),
     );
   } catch (_) {
     return null;

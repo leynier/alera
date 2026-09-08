@@ -14,6 +14,8 @@ const String aleraRuntimeHostManagedWorkspaceCapability =
     'managedWorkspaceLifecycle';
 const String aleraRuntimeHostOrchestrationCapability = 'orchestration';
 const String aleraRuntimeHostAccountCapability = 'aleraAccountV1';
+const String aleraRuntimeHostConfigurationSyncCapability =
+    'configurationSyncV1';
 const String aleraRuntimeHostMobileCloudEnrollmentCapability =
     'mobileCloudEnrollmentV1';
 const String aleraRuntimeHostCloudPushCapability = 'cloudPushNotificationsV1';

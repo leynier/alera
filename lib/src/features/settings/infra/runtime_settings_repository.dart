@@ -122,7 +122,9 @@ class RuntimeSettingsRepository({
     final capabilityClient = client;
     return capabilityClient is RuntimeHostCapabilityClient &&
         await (capabilityClient as RuntimeHostCapabilityClient)
-            .supportsRuntimeCapability('configurationSyncV1');
+            .supportsRuntimeCapability(
+              aleraRuntimeHostConfigurationSyncCapability,
+            );
   }
 }
 
