@@ -407,6 +407,28 @@ impl SshBootstrapStatus {
     }
 }
 
+/// Live connectivity result persisted on `SshTarget.last_status`.
+///
+/// Distinct from `SshBootstrapStatus`, which records install progress rather
+/// than whether the host answers SSH or its runtime sidecar is usable.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum SshTargetLastStatus {
+    Unreachable,
+    Reachable,
+    RuntimeReady,
+}
+
+impl SshTargetLastStatus {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SshTargetLastStatus::Unreachable => "unreachable",
+            SshTargetLastStatus::Reachable => "reachable",
+            SshTargetLastStatus::RuntimeReady => "runtimeReady",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CascadePreview {

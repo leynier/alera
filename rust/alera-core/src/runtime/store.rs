@@ -13,8 +13,9 @@ use super::{harden_sqlite_files, open_private_runtime_file, prepare_private_runt
 use super::{
     CascadePreview, LinkedReview, MobileAccessSettings, MobileDevice, MobileDevicePermission,
     MobilePairingOffer, Project, ProjectConfig, ProjectConfigMap, ProjectConfigRecord, ProjectKind,
-    RuntimeSettings, SshAuthKind, SshBootstrapStatus, SshTarget, WorkbenchLayoutRecord, Workspace,
-    WorkspaceKind, WorkspaceRelation, WorkspaceStatus, WorkspaceTabRecord, WorkspaceTag,
+    RuntimeSettings, SshAuthKind, SshBootstrapStatus, SshTarget, SshTargetLastStatus,
+    WorkbenchLayoutRecord, Workspace, WorkspaceKind, WorkspaceRelation, WorkspaceStatus,
+    WorkspaceTabRecord, WorkspaceTag,
 };
 
 pub const RUNTIME_DATABASE_FILE_NAME: &str = "runtime.sqlite";
@@ -1443,14 +1444,21 @@ impl RuntimeStore {
         })
     }
 
-    pub async fn mark_ssh_target_checked(&self, target_id: &str) -> Result<SshTarget> {
+    pub async fn mark_ssh_target_checked(
+        &self,
+        target_id: &str,
+        last_status: SshTargetLastStatus,
+    ) -> Result<SshTarget> {
         let now = format_timestamp(Utc::now());
-        sqlx::query("UPDATE sshTargets SET lastCheckedAt = ?, updatedAt = ? WHERE id = ?")
-            .bind(&now)
-            .bind(&now)
-            .bind(target_id)
-            .execute(&self.pool)
-            .await?;
+        sqlx::query(
+            "UPDATE sshTargets SET lastStatus = ?, lastCheckedAt = ?, updatedAt = ? WHERE id = ?",
+        )
+        .bind(last_status.as_str())
+        .bind(&now)
+        .bind(&now)
+        .bind(target_id)
+        .execute(&self.pool)
+        .await?;
         self.find_ssh_target(target_id).await?.ok_or_else(|| {
             anyhow::anyhow!(RuntimeStoreError::Message(format!(
                 "ssh target not found: {target_id}"
@@ -2114,5 +2122,28 @@ mod tests {
             updated.install_dir.as_deref(),
             Some("/custom/alera/runtime")
         );
+    }
+
+    #[tokio::test]
+    async fn mark_ssh_target_checked_stamps_last_status_and_checked_at() {
+        let (_dir, store) = store().await;
+        store.upsert_ssh_target(ssh_target("remote")).await.unwrap();
+
+        let checked = store
+            .mark_ssh_target_checked("remote", SshTargetLastStatus::RuntimeReady)
+            .await
+            .unwrap();
+
+        assert_eq!(checked.last_status.as_deref(), Some("runtimeReady"));
+        assert!(checked.last_checked_at.is_some());
+        assert!(checked.updated_at >= checked.created_at);
+
+        let missing = store
+            .mark_ssh_target_checked("missing", SshTargetLastStatus::Unreachable)
+            .await
+            .unwrap_err();
+        assert!(missing
+            .to_string()
+            .contains("ssh target not found: missing"));
     }
 }
