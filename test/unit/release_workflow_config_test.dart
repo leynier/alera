@@ -385,7 +385,21 @@ void main() {
           'd0f29c75c2163e3764d7fbf2bb4e605007f2447a890e5bf1190f359516d86d13',
         ),
       );
+      expect(hostCompat, contains('reports crate version 0.1.0'));
       expect(hostCompat, isNot(contains('cargo build --locked -p alera-cli')));
+      final hostCompatTest = File(
+        'rust/alera-cli/tests/host_version_compatibility.rs',
+      ).readAsStringSync();
+      expect(
+        hostCompatTest,
+        contains('V049_PUBLISHED_HOST_VERSION: &str = "0.1.0"'),
+      );
+      expect(
+        hostCompatTest,
+        contains(
+          'V049_PUBLISHED_HOST_COMMIT: &str = "17a183f51debfc29114c0e682bc917ed4cdc58ae"',
+        ),
+      );
       expect(rustChecks, contains('tool/ci/run_rust_workspace_tests.sh'));
       expect(rustTests, contains('--test-threads=1'));
       expect(rustTests, contains('orchestration_review_regressions'));
