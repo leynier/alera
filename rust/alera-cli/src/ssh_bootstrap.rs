@@ -912,7 +912,6 @@ printf '%s\n' "$install_dir"
     )
 }
 
-
 fn remote_join(platform: &str, base: &str, parts: &[&str]) -> String {
     let separator = "/";
     let mut value = if platform == "windows" {
