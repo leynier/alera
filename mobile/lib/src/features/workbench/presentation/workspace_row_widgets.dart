@@ -7,6 +7,7 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snaps
 import 'package:alera_mobile/src/features/workbench/application/workspace_agent_run_groups.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/agent_identity_icon.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/agent_run_state_indicator.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/mobile_agent_run_labels.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/mobile_workspace_agent_compact_summary.dart';
 import 'package:flutter/material.dart';
 

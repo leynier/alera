@@ -184,6 +184,47 @@ async fn tab_rename_preserves_payload_and_marks_manual_title() {
 }
 
 #[tokio::test]
+async fn workspace_tab_titles_map_ids_to_titles() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = RuntimeStore::open(dir.path()).await.unwrap();
+    let now = Utc::now();
+    store
+        .upsert_workspace_tab(WorkspaceTabRecord {
+            id: "tab-1".to_string(),
+            workspace_id: "workspace-1".to_string(),
+            kind: "terminal".to_string(),
+            title: "Map Monetization".to_string(),
+            created_at: now,
+            updated_at: now,
+            payload: serde_json::json!({}),
+        })
+        .await
+        .unwrap();
+    store
+        .upsert_workspace_tab(WorkspaceTabRecord {
+            id: "tab-2".to_string(),
+            workspace_id: "workspace-1".to_string(),
+            kind: "terminal".to_string(),
+            title: "  Ready To Continue  ".to_string(),
+            created_at: now,
+            updated_at: now,
+            payload: serde_json::json!({}),
+        })
+        .await
+        .unwrap();
+
+    let titles = store.workspace_tab_titles().await.unwrap();
+    assert_eq!(
+        titles.get("tab-1").map(String::as_str),
+        Some("Map Monetization")
+    );
+    assert_eq!(
+        titles.get("tab-2").map(String::as_str),
+        Some("  Ready To Continue  ")
+    );
+}
+
+#[tokio::test]
 async fn workspace_tab_removal_is_idempotent() {
     let dir = tempfile::tempdir().unwrap();
     let store = RuntimeStore::open(dir.path()).await.unwrap();

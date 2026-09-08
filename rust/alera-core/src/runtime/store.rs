@@ -945,6 +945,20 @@ impl RuntimeStore {
         Ok(counts)
     }
 
+    pub async fn workspace_tab_titles(&self) -> Result<BTreeMap<String, String>> {
+        let rows = sqlx::query("SELECT id, title FROM workspaceTabs")
+            .fetch_all(&self.pool)
+            .await?;
+        let mut titles = BTreeMap::new();
+        for row in rows {
+            titles.insert(
+                row.try_get::<String, _>("id")?,
+                row.try_get::<String, _>("title")?,
+            );
+        }
+        Ok(titles)
+    }
+
     pub async fn find_workspace_tab(&self, tab_id: &str) -> Result<Option<WorkspaceTabRecord>> {
         let row = sqlx::query(
             "SELECT id, workspaceId, kind, title, createdAt, updatedAt, payloadJson \

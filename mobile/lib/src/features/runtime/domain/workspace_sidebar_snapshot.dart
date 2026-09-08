@@ -31,6 +31,9 @@ class const AgentPresenceSummary({
   final String? toolInput,
   final String? lastAssistantMessage,
   final bool? interrupted,
+
+  /// Workspace tab title. Additive: an older host omits it.
+  final String title = '',
 }) {
   factory fromJson(Map<String, Object?> json) {
     return AgentPresenceSummary(
@@ -49,6 +52,7 @@ class const AgentPresenceSummary({
       toolInput: json.optionalString('toolInput'),
       lastAssistantMessage: json.optionalString('lastAssistantMessage'),
       interrupted: json['interrupted'] as bool?,
+      title: json.optionalString('title') ?? '',
     );
   }
 }

@@ -497,7 +497,7 @@ impl ServerActor {
             "workspaceActivity.remove" => self.remove_workspace_activity(client_id, payload).await,
             "agentPresence.list" => {
                 self.require_auth(client_id)?;
-                Ok(self.agent_presence_items())
+                self.agent_presence_items_with_titles().await
             }
             "project.list" => {
                 self.require_auth(client_id)?;

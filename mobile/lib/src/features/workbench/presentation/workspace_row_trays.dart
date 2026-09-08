@@ -140,7 +140,8 @@ class const _AgentPresenceRow({
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final description = _agentRunDescription(status);
+    final title = mobileAgentRunTitle(status);
+    final activity = mobileAgentRunActivity(status);
     return InkWell(
       onTap: onTap,
       borderRadius: .circular(AleraTokens.radiusSm),
@@ -163,14 +164,30 @@ class const _AgentPresenceRow({
               ),
               const SizedBox(width: AleraTokens.space6),
               Expanded(
-                child: Text(
-                  description,
-                  maxLines: 1,
-                  overflow: .ellipsis,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: AleraTokens.foregroundMuted,
-                    fontWeight: .w500,
-                  ),
+                child: Column(
+                  crossAxisAlignment: .start,
+                  mainAxisSize: .min,
+                  children: <Widget>[
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: .ellipsis,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: AleraTokens.foreground,
+                        fontWeight: .w600,
+                      ),
+                    ),
+                    if (activity != null)
+                      Text(
+                        activity,
+                        maxLines: 1,
+                        overflow: .ellipsis,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: AleraTokens.foregroundMuted,
+                          fontWeight: .w500,
+                        ),
+                      ),
+                  ],
                 ),
               ),
               Padding(
@@ -202,24 +219,6 @@ List<String> _tagLabels(WorkspaceSummary workspace) {
       .map((tag) => tag.trim())
       .where((tag) => tag.isNotEmpty)
       .toList(growable: false);
-}
-
-String _agentRunDescription(AgentPresenceSummary status) {
-  if (status.state == 'working') {
-    final toolName = status.toolName?.trim() ?? '';
-    final toolInput = status.toolInput?.trim() ?? '';
-    if (toolName.isNotEmpty && toolInput.isNotEmpty) {
-      return '$toolName: $toolInput';
-    }
-    if (toolName.isNotEmpty) {
-      return toolName;
-    }
-  }
-  final assistantMessage = status.lastAssistantMessage?.trim() ?? '';
-  if (assistantMessage.isNotEmpty) {
-    return assistantMessage;
-  }
-  return '${agentDisplayName(status.agentType)} · ${agentRunStateLabel(status)}';
 }
 
 Color _stateColor(String state) => switch (state) {

@@ -41,6 +41,35 @@ impl ServerActor {
         Value::Array(items)
     }
 
+    /// Additive `title` from the workspace tab. Must not bump protocol versions:
+    /// older clients ignore the field, and older hosts omit it.
+    pub(super) async fn agent_presence_items_with_titles(&self) -> HostResult<Value> {
+        let mut items = match self.agent_presence_items() {
+            Value::Array(items) => items,
+            other => return Ok(other),
+        };
+        if items.is_empty() {
+            return Ok(Value::Array(items));
+        }
+        let titles = self
+            .runtime_store
+            .workspace_tab_titles()
+            .await
+            .map_err(state_error)?;
+        for item in &mut items {
+            let Some(tab_id) = item.get("tabId").and_then(Value::as_str).map(str::to_owned) else {
+                continue;
+            };
+            let Some(title) = titles.get(&tab_id).map(|value| value.trim().to_string()) else {
+                continue;
+            };
+            if !title.is_empty() {
+                item["title"] = json!(title);
+            }
+        }
+        Ok(Value::Array(items))
+    }
+
     pub(super) fn agent_presence_timestamp(&self, entry: &Value) -> chrono::DateTime<Utc> {
         entry
             .get("stateStartedAt")
@@ -87,6 +116,7 @@ impl ServerActor {
             .terminal_tab_counts_by_workspace()
             .await
             .map_err(state_error)?;
+        let agent_presence = self.agent_presence_items_with_titles().await?;
         Ok(json!({
             "projects": projects,
             "workspaces": workspaces,
@@ -95,7 +125,7 @@ impl ServerActor {
             "activity": activity,
             "viewPrefs": view_prefs,
             "runtimeSettings": runtime_settings,
-            "agentPresence": self.agent_presence_items(),
+            "agentPresence": agent_presence,
             "terminalTabCountByWorkspaceId": terminal_tab_count_by_workspace_id,
         }))
     }
