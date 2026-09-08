@@ -33,7 +33,7 @@ Quota checks need credentials, and credentials are where a feature like this can
 
 Alera stores environment variable *names* for API-based plans. Never values. Local desktop and mobile requests go through the runtime-host quota service, and for the local host, missing variables can be resolved from your login shell and held in memory without being persisted into quota responses.
 
-SSH workspaces query through `alera runtime-proxy` on the remote host, so credentials stay on the machine where the agent actually runs. They never travel to your laptop just so a widget can render.
+If a workspace record names an SSH host, quota lookups go through `alera runtime-proxy` on that host's installed sidecar, so credentials stay on the machine where the agent would run. They never travel to your laptop just so a widget can render. That path does not create or attach a managed remote worktree.
 
 ## Claude CCS Profiles
 

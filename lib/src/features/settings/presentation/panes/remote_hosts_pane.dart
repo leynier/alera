@@ -96,7 +96,7 @@ class _RemoteHostSettingsPaneState
               ? const AleraEmptyState(
                   icon: AleraIcons.host,
                   title: 'No remote hosts',
-                  message: 'Add an SSH target to bootstrap a runtime.',
+                  message: 'Add an SSH target to install the runtime sidecar. Bootstrap does not create remote workspaces.',
                 )
               : SingleChildScrollView(
                   child: AleraPanel(

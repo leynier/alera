@@ -61,4 +61,60 @@ void main() {
       SystemMouseCursors.click,
     );
   });
+
+  testWidgets('remote host editor states bootstrap is sidecar only', (
+    tester,
+  ) async {
+    final aliasController = TextEditingController();
+    final hostController = TextEditingController();
+    final portController = TextEditingController(text: '22');
+    final usernameController = TextEditingController();
+    final installDirController = TextEditingController();
+    addTearDown(aliasController.dispose);
+    addTearDown(hostController.dispose);
+    addTearDown(portController.dispose);
+    addTearDown(usernameController.dispose);
+    addTearDown(installDirController.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAleraDarkTheme(),
+        home: Scaffold(
+          body: RemoteHostEditor(
+            aliasController: aliasController,
+            hostController: hostController,
+            portController: portController,
+            usernameController: usernameController,
+            installDirController: installDirController,
+            platform: '',
+            arch: '',
+            authKind: .agent,
+            hasSelection: false,
+            saving: false,
+            planning: false,
+            bootstrapping: false,
+            onPlatformChanged: (_) {},
+            onArchChanged: (_) {},
+            onAuthKindChanged: (_) {},
+            onSave: () {},
+            onRemove: null,
+            onPlan: null,
+            onBootstrap: null,
+            onCancel: null,
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.text(
+        'Install the Alera runtime sidecar on this host. This does not create or attach a remote Git worktree.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text('SSH target used by the Home Runtime to install a sidecar.'),
+      findsOneWidget,
+    );
+  });
 }

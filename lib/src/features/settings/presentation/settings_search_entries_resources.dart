@@ -27,8 +27,17 @@ const List<SettingsSearchEntry> projectSearchEntries = <SettingsSearchEntry>[
 const List<SettingsSearchEntry> remoteHostSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'Remote Hosts',
-    description: 'Manage SSH targets and remote runtime bootstrap.',
-    keywords: <String>['ssh', 'remote', 'host', 'runtime', 'bootstrap'],
+    description: 'Register SSH targets and install the runtime sidecar. Bootstrap does not place workspaces on the remote machine.',
+    keywords: <String>[
+      'ssh',
+      'remote',
+      'host',
+      'runtime',
+      'bootstrap',
+      'sidecar',
+      'worktree',
+      'workspace',
+    ],
   ),
 ];
 

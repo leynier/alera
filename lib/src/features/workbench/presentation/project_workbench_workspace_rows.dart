@@ -263,7 +263,10 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                 if (hostId != null) ...<Widget>[
                                   const SizedBox(width: AleraTokens.space6),
                                   Tooltip(
-                                    message: 'Host: $hostId',
+                                    message:
+                                        WorkspaceGraphChips.hostMetadataTooltip(
+                                          hostId,
+                                        ),
                                     child: const Icon(
                                       AleraIcons.host,
                                       size: 12,

@@ -1,6 +1,8 @@
 # Remote Host Bootstrap
 
-Alera can register SSH targets in the Home Runtime and install the standalone `alera` runtime sidecar on those hosts. This is the first remote-host path for mobile and agent-driven workflows: Projects, Workspaces, Tabs, SSH target state, and mobile access state remain runtime-owned, while a remote machine can receive a verified runtime binary over SSH.
+Alera can register SSH targets in the Home Runtime and install the standalone `alera` runtime sidecar on those hosts. Bootstrap is sidecar only: it does not create or attach a managed Git worktree on the remote machine.
+
+`alera workspace register --host-id` is metadata only. It stamps a host id on a workspace record and does not create a remote Git worktree. `alera workspace add` has no `--host-id` and always creates the worktree locally. Desktop New Workspace has no remote-host picker. Managed remote workspaces are not implemented yet.
 
 ## Supported Targets
 
@@ -66,6 +68,8 @@ alera ssh-target --json bootstrap-cancel --id <target-id>
 
 When the runtime host is running, `bootstrap` starts a host job and returns immediately with a job id. Without a runtime host, the CLI performs the bootstrap in the foreground and prints progress to stderr.
 
+`alera ssh-target` has no connect or disconnect verbs, and bootstrap does not place a Git worktree on the remote host.
+
 ## Mobile Access
 
 Mobile companion pairing is managed from **Settings → Mobile Devices** in the desktop app: enable the gateway, tune bind host/port, generate a pairing offer rendered as a QR code (with a copy-JSON fallback), watch active offers with their expiry, and rename or revoke paired devices. The pane pre-validates custom endpoints with the same rules the runtime enforces and updates live through the `mobileSettingsChanged`, `mobilePairingsChanged`, `mobileDevicesChanged`, and `mobileGatewayChanged` events. The equivalent CLI surface remains available:
@@ -85,13 +89,13 @@ The generated pairing payload can be pasted or scanned in the Flutter app under 
 
 ## Settings
 
-Settings includes a **Remote Hosts** section for adding SSH targets, choosing optional platform/architecture/install directory overrides, previewing the bootstrap plan, starting bootstrap, and cancelling an active job. Bootstrap progress is delivered through runtime-host events and the persisted target status records the install directory, runtime version, platform, architecture, timestamps, and last redacted error. A successful bootstrap also stamps `lastStatus` as `runtimeReady`. `alera ssh-target status` then refreshes that live check independently of bootstrap.
+Settings includes a **Remote Hosts** section for adding SSH targets, choosing optional platform/architecture/install directory overrides, previewing the bootstrap plan, starting bootstrap, and cancelling an active job. The pane states that bootstrap installs the sidecar only and does not create remote workspaces. Bootstrap progress is delivered through runtime-host events and the persisted target status records the install directory, runtime version, platform, architecture, timestamps, and last redacted error. A successful bootstrap also stamps `lastStatus` as `runtimeReady`. `alera ssh-target status` then refreshes that live check independently of bootstrap.
 
 Settings also includes a **Mobile Devices** section covering the full mobile companion lifecycle: gateway enable/bind host/port, pairing QR generation, active offer management, and paired device rename/revocation/deletion, all backed by the local runtime host.
 
 ## Non-Goals For This Version
 
-Bootstrap installs and validates the runtime sidecar only. It does not install launchd, systemd, or Windows services; it does not persist identity-file paths; and it does not repair missing remote prerequisites beyond returning actionable failures.
+Bootstrap installs and validates the runtime sidecar only. It does not create remote Git worktrees, attach remote PTYs or filesystems to the local workbench, or add `--host-id` to `alera workspace add`. It does not install launchd, systemd, or Windows services; it does not persist identity-file paths; and it does not repair missing remote prerequisites beyond returning actionable failures.
 
 The installed sidecar can run autonomously without the desktop app:
 

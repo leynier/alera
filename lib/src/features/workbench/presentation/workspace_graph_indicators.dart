@@ -29,12 +29,16 @@ class const WorkspaceRoleBadge({super.key, required final Workspace workspace})
 }
 
 /// Wrap of low-emphasis chips describing a workspace's place in the graph:
-/// the host it runs on (when not local), how many children it has, and its
-/// tags. Renders nothing for a plain local workspace with no relationships or
-/// tags, so the common case adds no visual weight.
+/// host metadata when `hostId` is not local, how many children it has, and
+/// its tags. Renders nothing for a plain local workspace with no
+/// relationships or tags, so the common case adds no visual weight.
 class const WorkspaceGraphChips({super.key, required final Workspace workspace})
     extends StatelessWidget {
   static const int _maxVisibleTags = 3;
+
+  static String hostMetadataTooltip(String hostId) {
+    return 'Host metadata: $hostId. Remote worktrees are not supported yet.';
+  }
 
   /// Whether [workspace] has any graph metadata to render. Lets callers gate
   /// surrounding spacing without duplicating the chip logic.
@@ -59,7 +63,7 @@ class const WorkspaceGraphChips({super.key, required final Workspace workspace})
         AleraChip(
           leading: AleraIcons.host,
           label: hostId,
-          tooltip: 'Host: $hostId',
+          tooltip: hostMetadataTooltip(hostId),
         ),
       );
     }
