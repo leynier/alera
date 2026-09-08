@@ -255,6 +255,116 @@ async fn hand_on_rejects_a_dirty_main_worktree() {
     assert!(worktree_path.exists());
 }
 
+#[tokio::test]
+async fn hand_on_rejects_stale_metadata_when_child_checkout_moved() {
+    let fixture = Fixture::new().await;
+    let worktree_path = fixture.child_path("stale-child");
+    let created = hand_off_managed_workspace(
+        &fixture.store,
+        ManagedWorkspaceHandOffRequest {
+            id: "main".to_string(),
+            branch: "feat/stale-meta".to_string(),
+            name: Some("Stale Meta".to_string()),
+            reuse_existing_branch: false,
+            workspace_root: None,
+            path: Some(worktree_path.to_string_lossy().into_owned()),
+            defer_setup: false,
+            setup_script_directory: None,
+        },
+    )
+    .await
+    .unwrap();
+    run_git(&worktree_path, &["checkout", "-b", "feat/live-head"]);
+    std::fs::write(worktree_path.join("only-on-live.txt"), "do-not-move\n").unwrap();
+
+    let error = hand_on_managed_workspace(
+        &fixture.store,
+        ManagedWorkspaceHandOnRequest {
+            id: created.workspace.id.clone(),
+            close_sessions: true,
+            active_workspace_id: None,
+        },
+    )
+    .await
+    .unwrap_err()
+    .to_string();
+
+    assert!(error.to_lowercase().contains("does not match"), "{error}");
+    assert!(error.contains("feat/stale-meta"), "{error}");
+    assert!(error.contains("feat/live-head"), "{error}");
+    assert_eq!(
+        git::current_branch(worktree_path.to_str().unwrap()).unwrap(),
+        "feat/live-head"
+    );
+    assert_eq!(
+        std::fs::read_to_string(worktree_path.join("only-on-live.txt")).unwrap(),
+        "do-not-move\n"
+    );
+    assert!(!fixture.repo.join("only-on-live.txt").exists());
+    assert_eq!(
+        git::current_branch(fixture.repo.to_str().unwrap()).unwrap(),
+        "main"
+    );
+    assert!(worktree_path.exists());
+    assert!(fixture
+        .store
+        .find_workspace(&created.workspace.id)
+        .await
+        .unwrap()
+        .is_some());
+}
+
+#[tokio::test]
+async fn hand_on_rejects_a_detached_child_head() {
+    let fixture = Fixture::new().await;
+    let worktree_path = fixture.child_path("detached-child");
+    let created = hand_off_managed_workspace(
+        &fixture.store,
+        ManagedWorkspaceHandOffRequest {
+            id: "main".to_string(),
+            branch: "feat/detached".to_string(),
+            name: Some("Detached".to_string()),
+            reuse_existing_branch: false,
+            workspace_root: None,
+            path: Some(worktree_path.to_string_lossy().into_owned()),
+            defer_setup: false,
+            setup_script_directory: None,
+        },
+    )
+    .await
+    .unwrap();
+    run_git(&worktree_path, &["checkout", "--detach"]);
+
+    let error = hand_on_managed_workspace(
+        &fixture.store,
+        ManagedWorkspaceHandOnRequest {
+            id: created.workspace.id.clone(),
+            close_sessions: true,
+            active_workspace_id: None,
+        },
+    )
+    .await
+    .unwrap_err()
+    .to_string();
+
+    assert!(error.to_lowercase().contains("detached"), "{error}");
+    assert_eq!(
+        git::current_branch(worktree_path.to_str().unwrap()).unwrap(),
+        "HEAD"
+    );
+    assert_eq!(
+        git::current_branch(fixture.repo.to_str().unwrap()).unwrap(),
+        "main"
+    );
+    assert!(worktree_path.exists());
+    assert!(fixture
+        .store
+        .find_workspace(&created.workspace.id)
+        .await
+        .unwrap()
+        .is_some());
+}
+
 struct Fixture {
     store: RuntimeStore,
     repo: PathBuf,
