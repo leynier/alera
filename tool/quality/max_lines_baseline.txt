@@ -55,6 +55,7 @@
 653	test/unit/runtime_repositories_test.dart
 655	rust/alera-cli/src/mobile_access.rs
 522	rust/alera-core/src/runtime/models.rs
+513	rust/alera-core/src/runtime/automation_catalog_store.rs
 661	test/unit/agent_hook_event_normalizer_test.dart
 669	test/unit/app_providers_test_harness.dart
 675	rust/alera-core/src/git.rs
