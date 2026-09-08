@@ -162,6 +162,9 @@ impl ServerActor {
         Ok(actor)
     }
 
+    /// Agent and target checks for Active/Paused edits and for execution.
+    /// Repository declaration and restrictive local approval gate execution
+    /// only (`execute = true`). Do not call this for draft trash/restore.
     pub(super) async fn ensure_agent_policy(
         &self,
         definition: &AutomationDefinition,
@@ -238,6 +241,9 @@ impl ServerActor {
             return Err(HostError::state(
                 "managed workspace automations require a git repository project",
             ));
+        }
+        if !execute {
+            return Ok(());
         }
         let project_policy = self
             .runtime_store

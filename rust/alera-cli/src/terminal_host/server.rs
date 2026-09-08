@@ -78,6 +78,8 @@ mod ai_dictation_requests;
 mod automation_actor;
 mod automation_catalog_requests;
 mod automation_definition_requests;
+#[cfg(test)]
+mod automation_definition_requests_tests;
 mod automation_dispatch;
 mod automation_policy_requests;
 mod automation_request_authorization;

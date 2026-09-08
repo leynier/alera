@@ -244,13 +244,9 @@ impl ServerActor {
             .await
             .map_err(|error| HostError::state(error.to_string()))?
             .ok_or_else(|| HostError::state(format!("automation not found: {id}")))?;
-        if matches!(
-            state,
-            AutomationState::Active
-                | AutomationState::Paused
-                | AutomationState::Trashed
-                | AutomationState::Draft
-        ) {
+        // Trash and restore are recoverable draft lifecycle, not execution.
+        // Keep the repository declaration and agent policy on Active/Paused.
+        if matches!(state, AutomationState::Active | AutomationState::Paused) {
             self.ensure_agent_policy(&definition, &actor, false).await?;
         }
         if state == AutomationState::Paused {

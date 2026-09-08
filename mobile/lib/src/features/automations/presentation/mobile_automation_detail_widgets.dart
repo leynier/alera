@@ -120,10 +120,7 @@ class const MobileAutomationDetailSheet({
               ),
             if (!automation.isApproved)
               FilledButton(
-                onPressed: () async {
-                  await repository.approve(automation.id, automation.revision);
-                  onChanged();
-                },
+                onPressed: () => unawaited(_approve(context)),
                 child: const Text('Approve Revision'),
               ),
             FilledButton(
@@ -157,21 +154,39 @@ class const MobileAutomationDetailSheet({
               child: const Text('Cancel Active Runs'),
             ),
             OutlinedButton(
-              onPressed: () async {
-                if (automation.state == 'trashed') {
-                  await repository.restore(automation.id);
-                } else {
-                  await repository.trash(automation.id);
-                }
-                onChanged();
-                if (context.mounted) Navigator.pop(context);
-              },
+              onPressed: () => unawaited(_trashOrRestore(context)),
               child: Text(automation.state == 'trashed' ? 'Restore' : 'Trash'),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _approve(BuildContext context) async {
+    try {
+      await repository.approve(
+        detail.automation.id,
+        detail.automation.revision,
+      );
+      onChanged();
+    } on Object catch (error) {
+      if (context.mounted) _show(context, error.toString(), error: true);
+    }
+  }
+
+  Future<void> _trashOrRestore(BuildContext context) async {
+    try {
+      if (detail.automation.state == 'trashed') {
+        await repository.restore(detail.automation.id);
+      } else {
+        await repository.trash(detail.automation.id);
+      }
+      onChanged();
+      if (context.mounted) Navigator.pop(context);
+    } on Object catch (error) {
+      if (context.mounted) _show(context, error.toString(), error: true);
+    }
   }
 
   Future<void> _clone(BuildContext context) async {

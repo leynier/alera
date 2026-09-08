@@ -227,13 +227,13 @@ class _AutomationProjectPolicySectionState
     }
     return AleraSettingsGroup(
       title: 'Automation Policy',
-      description: 'Repository declaration is read from alera.toml. Local approval can only restrict execution.',
+      description: 'Repository declaration is [automation] declared = true in alera.toml. Local approval can only restrict execution.',
       children: <Widget>[
         SettingsSwitchRow(
           title: 'Repository Declares Automations',
           description: _repoDeclared
               ? 'The repository declares automation use in alera.toml.'
-              : 'Add an automation declaration to alera.toml before execution.',
+              : 'Add [automation] declared = true to alera.toml before scheduled or manual execution. Drafts and approval do not need it.',
           value: _repoDeclared,
           onChanged: null,
         ),
