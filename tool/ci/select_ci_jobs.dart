@@ -56,6 +56,8 @@ class const CiJobs({
   int get hashCode =>
       Object.hash(staticDart, packages, generation, test, mobile, rust);
 
+  /// Keys must stay in lockstep with `.github/actions/select-ci-jobs`
+  /// workflow_dispatch hardcoding.
   Map<String, String> get githubOutput {
     return <String, String>{
       'static_dart': '$staticDart',

@@ -1,0 +1,67 @@
+name: Select PR Checks jobs
+description: >-
+  Maps the pull request file list onto the PR Checks job flags. Unknown paths
+  fail open. workflow_dispatch enables every job without resolving Dart, because
+  those runs have no pull-request file list.
+
+outputs:
+  static_dart:
+    description: Whether format, max-lines, and analyze should run.
+    value: ${{ steps.select.outputs.static_dart }}
+  packages:
+    description: Whether shared package and packager checks should run.
+    value: ${{ steps.select.outputs.packages }}
+  generation:
+    description: Whether build_runner and goldens should run.
+    value: ${{ steps.select.outputs.generation }}
+  test:
+    description: Whether sharded Flutter tests should run.
+    value: ${{ steps.select.outputs.test }}
+  mobile:
+    description: Whether mobile format, analyze, and tests should run.
+    value: ${{ steps.select.outputs.mobile }}
+  rust:
+    description: Whether Rust clippy and tests should run.
+    value: ${{ steps.select.outputs.rust }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Dart
+      if: github.event_name == 'pull_request'
+      uses: dart-lang/setup-dart@v1
+      with:
+        sdk: 3.13.2
+        # Composite actions resolve add-matcher paths against this directory,
+        # not setup-dart's, so the default dart-analyzer.json 404s the job.
+        problem-matcher: false
+
+    - name: Select jobs
+      id: select
+      shell: bash
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        # Keys must stay in lockstep with CiJobs.githubOutput.
+        if [[ "$EVENT_NAME" != "pull_request" ]]; then
+          {
+            echo "static_dart=true"
+            echo "packages=true"
+            echo "generation=true"
+            echo "test=true"
+            echo "mobile=true"
+            echo "rust=true"
+          } >> "$GITHUB_OUTPUT"
+          echo "PR jobs: all (workflow_dispatch)"
+          exit 0
+        fi
+        gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files" \
+          --jq '.[] | .filename, (.previous_filename // empty)' \
+          > "$RUNNER_TEMP/changed-files.txt"
+        echo "Changed files:"
+        cat "$RUNNER_TEMP/changed-files.txt"
+        dart tool/ci/select_ci_jobs.dart --files-from "$RUNNER_TEMP/changed-files.txt" \
+          >> "$GITHUB_OUTPUT"
