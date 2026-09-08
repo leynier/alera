@@ -181,7 +181,11 @@ WorkspaceAgentCommentLineRange? workspaceAgentCommentRangeForDiffAnchor(
   }
   final oldLine = anchor.oldLine;
   if (oldLine != null) {
-    return WorkspaceAgentCommentLineRange(startLine: oldLine, endLine: oldLine);
+    return WorkspaceAgentCommentLineRange(
+      startLine: oldLine,
+      endLine: oldLine,
+      side: WorkspaceAgentCommentLineSide.oldSide,
+    );
   }
   return null;
 }
