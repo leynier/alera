@@ -63,9 +63,11 @@ abstract final class AleraTokens {
   static const Duration durationSlow = Duration(milliseconds: 280);
   static const Duration durationSpin = Duration(milliseconds: 1200);
 
+  static const double monoFontSize = 12;
+
   static const TextStyle monoStyle = TextStyle(
     fontFamily: 'JetBrains Mono',
-    fontSize: 12,
+    fontSize: monoFontSize,
     fontWeight: .w400,
     color: foregroundMuted,
   );
