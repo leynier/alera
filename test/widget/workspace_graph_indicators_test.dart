@@ -99,6 +99,12 @@ void main() {
       await pump(tester, WorkspaceGraphChips(workspace: ws));
 
       expect(find.text('remote-mac'), findsOneWidget);
+      expect(
+        find.byTooltip(
+          'Host metadata: remote-mac. Remote worktrees are not supported yet.',
+        ),
+        findsOneWidget,
+      );
       expect(find.text('2 Children'), findsOneWidget);
       expect(find.text('#alpha'), findsOneWidget);
       expect(find.text('#beta'), findsOneWidget);

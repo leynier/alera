@@ -381,7 +381,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsSectionData(
         id: 'remoteHosts',
         title: 'Remote Hosts',
-        description: 'SSH runtime targets.',
+        description: 'Install the Alera runtime sidecar on SSH hosts. This does not create remote workspaces.',
         icon: AleraIcons.host,
         entries: remoteHostSearchEntries,
         navGroup: .resources,

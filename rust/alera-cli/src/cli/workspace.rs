@@ -16,7 +16,7 @@ pub struct WorkspaceCommand {
 pub enum WorkspaceAction {
     /// List workspaces for one project or all projects.
     List(WorkspaceListArgs),
-    /// Create an Alera-managed Git worktree workspace.
+    /// Create a local Alera-managed Git worktree. There is no --host-id; this does not target SSH hosts.
     Add(WorkspaceAddArgs),
     /// Create a managed workspace and launch a declared agent profile.
     Start(WorkspaceStartArgs),
@@ -24,7 +24,7 @@ pub enum WorkspaceAction {
     Remove(WorkspaceRemoveArgs),
     /// Apply the project's worktree setup to an existing workspace.
     Setup(WorkspaceSetupArgs),
-    /// Register a workspace record without touching Git worktrees.
+    /// Register a workspace record without touching Git worktrees. --host-id is metadata only and does not create a remote worktree.
     Register(WorkspaceRegisterArgs),
     /// Remove a workspace record and related runtime records without touching Git worktrees.
     Unregister(IdArgs),
@@ -135,6 +135,7 @@ pub struct WorkspaceRegisterArgs {
     pub id: Option<String>,
     #[arg(long = "instance-id")]
     pub instance_id: Option<String>,
+    /// Metadata only. Does not create or attach a remote Git worktree.
     #[arg(long = "host-id")]
     pub host_id: Option<String>,
     #[arg(long = "project-id")]

@@ -407,6 +407,45 @@ void _registerSettingsDialogAdvancedTests() {
     },
   );
 
+  testWidgets('remote hosts copy states bootstrap is sidecar only', (
+    tester,
+  ) async {
+    final runtimeClient = _FakeRuntimeHostClient(const <SshTarget>[]);
+    addTearDown(runtimeClient.dispose);
+    await _pumpSettingsDialog(
+      tester,
+      starController: _FakeGitHubStarController(.hidden),
+      extraOverrides: <dynamic>[
+        sshTargetRepositoryProvider.overrideWithValue(
+          RuntimeSshTargetRepository(
+            runtimeClient,
+            coalescer: _immediateCoalescer(),
+          ),
+        ),
+      ],
+    );
+    await _selectRemoteHostsSection(tester);
+
+    expect(
+      find.text(
+        'Install the Alera runtime sidecar on SSH hosts. This does not create remote workspaces.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Add an SSH target to install the runtime sidecar. Bootstrap does not create remote workspaces.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Install the Alera runtime sidecar on this host. This does not create or attach a remote Git worktree.',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('remote host bootstrap saves edited connection before start', (
     tester,
   ) async {

@@ -59,7 +59,7 @@ pub enum Command {
     /// Inspect and write live terminal sessions.
     Terminal(TerminalCommand),
 
-    /// Manage SSH targets known by the Home Runtime.
+    /// Manage SSH targets known by the Home Runtime. Bootstrap installs the runtime sidecar only; it does not create remote workspaces.
     #[command(name = "ssh-target")]
     SshTarget(SshTargetCommand),
 
@@ -423,12 +423,19 @@ pub struct SshTargetCommand {
 
 #[derive(Debug, Subcommand)]
 pub enum SshTargetAction {
+    /// List saved SSH targets.
     List,
+    /// Add an SSH target record. Does not install a sidecar or create a remote workspace.
     Add(SshTargetAddArgs),
+    /// Remove a saved SSH target.
     Remove(IdArgs),
+    /// Probe SSH connectivity and, when known, the installed sidecar.
     Status(SshTargetStatusArgs),
+    /// Preview sidecar install steps. Does not create a remote worktree.
     BootstrapPlan(SshTargetBootstrapPlanArgs),
+    /// Install the runtime sidecar. Does not create a remote Git worktree.
     Bootstrap(SshTargetBootstrapArgs),
+    /// Cancel an in-progress sidecar bootstrap job.
     BootstrapCancel(IdArgs),
 }
 

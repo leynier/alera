@@ -9,6 +9,8 @@ mod automation_commands;
 mod automation_ssh_precheck;
 mod cli;
 mod cli_async_runtime;
+#[cfg(test)]
+mod cli_help_tests;
 mod cli_orchestration;
 mod cli_orchestration_runs;
 mod cli_orchestration_terminal;
