@@ -6,12 +6,16 @@ use cap_fs_ext::{DirExt, FollowSymlinks, OpenOptions, OpenOptionsFollowExt};
 use cap_std::{ambient_authority, fs::Dir};
 use same_file::Handle;
 
+mod containment;
+mod listing;
 mod mime;
 mod prompts;
 mod quick_open;
 
 use mime::{mime_type_for_path, path_has_binary_preview_mime};
 
+pub use containment::{contained_workspace_relative_path, ContainedWorkspacePath};
+pub use listing::{list_workspace_children, WorkspaceExplorerEntry, WorkspaceExplorerEntryKind};
 pub use prompts::{list_codex_saved_prompts, CodexSavedPrompt, CodexSavedPromptScope};
 pub use quick_open::{
     search_workspace_quick_open_session, start_workspace_quick_open_session,
@@ -172,6 +176,14 @@ pub fn read_workspace_file_range_from_root(
         mime_type,
         is_text,
     })
+}
+
+pub fn open_workspace_file_nofollow(
+    workspace_path: &str,
+    relative_path: &str,
+) -> Result<(fs::File, PathBuf), WorkspaceFileError> {
+    let root = open_workspace_file_root(workspace_path)?;
+    open_workspace_file_without_symlinks(&root, relative_path)
 }
 
 fn open_workspace_file_without_symlinks(

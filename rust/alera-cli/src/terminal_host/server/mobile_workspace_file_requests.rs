@@ -105,6 +105,30 @@ async fn handle_mobile_workspace_file_request(
         "mobile.workspaceQuickOpen.search" => search_mobile_workspace_quick_open(payload).await,
         "mobile.workspaceFile.read" => read_mobile_workspace_file(&runtime_store, payload).await,
         "mobile.promptAttachment.read" => read_mobile_prompt_attachment(runtime_dir, payload).await,
+        "mobile.workspaceExplorer.list" => {
+            super::mobile_explorer_requests::list_mobile_workspace_explorer(&runtime_store, payload)
+                .await
+        }
+        "mobile.workspaceSearch.run" => {
+            super::mobile_workspace_search_requests::search_mobile_workspace(
+                &runtime_store,
+                payload,
+            )
+            .await
+        }
+        "mobile.git.status" => {
+            super::mobile_source_control_requests::mobile_git_status(&runtime_store, payload).await
+        }
+        "mobile.git.diff" => {
+            super::mobile_source_control_requests::mobile_git_diff(&runtime_store, payload).await
+        }
+        "mobile.pullRequest.snapshot" => {
+            super::mobile_pull_request_requests::snapshot_mobile_pull_request(
+                &runtime_store,
+                payload,
+            )
+            .await
+        }
         _ => Err(HostError::state(
             "Unsupported mobile workspace file operation.",
         )),
@@ -236,7 +260,7 @@ fn workspace_range_response(
     })
 }
 
-async fn workspace_for_mobile_file_request(
+pub(super) async fn workspace_for_mobile_file_request(
     runtime_store: &RuntimeStore,
     payload: &Value,
 ) -> HostResult<Workspace> {
@@ -290,7 +314,7 @@ async fn known_workspace_paths(runtime_store: &RuntimeStore) -> HostResult<Vec<S
         .collect())
 }
 
-async fn spawn_blocking_workspace<T: Send + 'static>(
+pub(super) async fn spawn_blocking_workspace<T: Send + 'static>(
     operation: &'static str,
     task: impl FnOnce() -> HostResult<T> + Send + 'static,
 ) -> HostResult<T> {

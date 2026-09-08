@@ -66,7 +66,12 @@ impl ServerActor {
             "mobile.workspaceQuickOpen.start"
             | "mobile.workspaceQuickOpen.search"
             | "mobile.workspaceFile.read"
-            | "mobile.promptAttachment.read" => {
+            | "mobile.promptAttachment.read"
+            | "mobile.workspaceExplorer.list"
+            | "mobile.workspaceSearch.run"
+            | "mobile.git.status"
+            | "mobile.git.diff"
+            | "mobile.pullRequest.snapshot" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 self.start_mobile_workspace_file_request(

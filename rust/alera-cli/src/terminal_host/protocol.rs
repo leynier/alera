@@ -42,6 +42,16 @@ pub const RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY: &str = "mobileProm
 /// Codex prompts without receiving unrestricted host filesystem access.
 pub const RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY: &str =
     "mobileCodexWorkspaceFilesV1";
+/// A paired phone can browse a workspace directory tree through
+/// `mobile.workspaceExplorer.list`. Additive: older phones ignore the capability.
+pub const RUNTIME_HOST_MOBILE_EXPLORER_CAPABILITY: &str = "mobileExplorerV1";
+/// A paired phone can run workspace text search through `mobile.workspaceSearch.run`.
+pub const RUNTIME_HOST_MOBILE_WORKSPACE_SEARCH_CAPABILITY: &str = "mobileWorkspaceSearchV1";
+/// A paired phone can read git dirty status and a per-file diff. Write
+/// operations (stage, unstage, commit) stay desktop-only in this version.
+pub const RUNTIME_HOST_MOBILE_SOURCE_CONTROL_CAPABILITY: &str = "mobileSourceControlV1";
+/// A paired phone can load a usable current-branch pull-request snapshot.
+pub const RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY: &str = "mobilePullRequestV1";
 /// Retained name. Codex chat sessions are gone; older phones still feature-detect this string.
 #[allow(dead_code)]
 pub const RUNTIME_HOST_MOBILE_CODEX_SESSIONS_CAPABILITY: &str = "mobileCodexSessionsV1";

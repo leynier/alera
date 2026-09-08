@@ -4,6 +4,12 @@ import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
+import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/features/workbench/application/workspace_panels_controller.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/explorer_panel.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/pull_request_panel.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/source_control_panel.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_text_search_panel.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
@@ -229,6 +235,22 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
             .value
             ?.supportsTabRename ==
         true;
+    final panelCapabilities =
+        ref
+            .watch(workspacePanelCapabilitiesControllerProvider(widget.hostId))
+            .value ??
+        const WorkspacePanelCapabilities();
+    final destinations = panelCapabilities.destinations;
+    final selectedPanel = ref.watch(
+      selectedWorkspacePanelControllerProvider(
+        widget.hostId,
+        widget.workspace.id,
+      ),
+    );
+    final panel = destinations.contains(selectedPanel)
+        ? selectedPanel
+        : WorkspacePanelDestination.terminal;
+    final showTerminalChrome = panel == WorkspacePanelDestination.terminal;
     if (selectedTab case final WorkspaceTabSummary tab when tab.isTerminal) {
       // The desktop taking the viewport back sends this phone to the
       // workspace list; re-entering the tab simply claims again.
@@ -274,7 +296,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
             ],
           ),
         ],
-        bottom: tabs.value?.isNotEmpty == true
+        bottom: showTerminalChrome && tabs.value?.isNotEmpty == true
             ? PreferredSize(
                 preferredSize: const .fromHeight(AleraTokens.tabStripHeight),
                 child: _TabStrip(
@@ -299,36 +321,107 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
             : null,
       ),
       body: SafeArea(
-        // The last known tab list wins over a reload: reconnecting to the host
-        // rebuilds this provider, and swapping the body for a spinner disposes
-        // the tab's state along with anything it is waiting on, which silently
-        // dropped an attachment whose upload was still in flight.
-        child: switch (tabs) {
-          AsyncValue(value: final tabList?) => switch (_selectedTab(tabList)) {
-            final WorkspaceTabSummary tab => TerminalTabView(
-              key: ValueKey<String>(tab.id),
-              hostId: widget.hostId,
-              workspaceId: tab.workspaceId,
-              tabId: tab.id,
-            ),
-            null => _EmptyTabs(
-              creating: _creating,
-              onNewTab: () => unawaited(_createTabOfKind(.terminal)),
-              targetUnavailable:
-                  tabList.isNotEmpty && !widget.selectFallbackTab,
-            ),
-          },
-          AsyncError(:final error) => Center(
-            child: Padding(
-              padding: AleraTokens.contentPadding,
-              child: Text(error.toString(), textAlign: .center),
-            ),
-          ),
-          _ => const Center(child: CircularProgressIndicator()),
-        },
+        child: showTerminalChrome ? _terminalBody(tabs) : _panelBody(panel),
       ),
+      bottomNavigationBar: panelCapabilities.hasAny
+          ? NavigationBar(
+              selectedIndex: destinations.indexOf(panel),
+              onDestinationSelected: (index) {
+                ref
+                    .read(
+                      selectedWorkspacePanelControllerProvider(
+                        widget.hostId,
+                        widget.workspace.id,
+                      ).notifier,
+                    )
+                    .select(destinations[index]);
+              },
+              destinations: <NavigationDestination>[
+                for (final destination in destinations)
+                  NavigationDestination(
+                    icon: Icon(_panelIcon(destination)),
+                    label: _panelLabel(destination),
+                  ),
+              ],
+            )
+          : null,
     );
   }
+
+  Widget _terminalBody(AsyncValue<List<WorkspaceTabSummary>> tabs) {
+    // The last known tab list wins over a reload: reconnecting to the host
+    // rebuilds this provider, and swapping the body for a spinner disposes
+    // the tab's state along with anything it is waiting on, which silently
+    // dropped an attachment whose upload was still in flight.
+    return switch (tabs) {
+      AsyncValue(value: final tabList?) => switch (_selectedTab(tabList)) {
+        final WorkspaceTabSummary tab => TerminalTabView(
+          key: ValueKey<String>(tab.id),
+          hostId: widget.hostId,
+          workspaceId: tab.workspaceId,
+          tabId: tab.id,
+        ),
+        null => _EmptyTabs(
+          creating: _creating,
+          onNewTab: () => unawaited(_createTabOfKind(.terminal)),
+          targetUnavailable: tabList.isNotEmpty && !widget.selectFallbackTab,
+        ),
+      },
+      AsyncError(:final error) => Center(
+        child: Padding(
+          padding: AleraTokens.contentPadding,
+          child: Text(error.toString(), textAlign: .center),
+        ),
+      ),
+      _ => const Center(child: CircularProgressIndicator()),
+    };
+  }
+
+  Widget _panelBody(WorkspacePanelDestination panel) {
+    final hostId = widget.hostId;
+    final workspaceId = widget.workspace.id;
+    return switch (panel) {
+      WorkspacePanelDestination.explorer => ExplorerPanel(
+        hostId: hostId,
+        workspaceId: workspaceId,
+      ),
+      WorkspacePanelDestination.search => WorkspaceTextSearchPanel(
+        hostId: hostId,
+        workspaceId: workspaceId,
+      ),
+      WorkspacePanelDestination.sourceControl => SourceControlPanel(
+        hostId: hostId,
+        workspaceId: workspaceId,
+      ),
+      WorkspacePanelDestination.pullRequest => PullRequestPanel(
+        hostId: hostId,
+        workspaceId: workspaceId,
+      ),
+      WorkspacePanelDestination.terminal => _terminalBody(
+        ref.watch(tabsControllerProvider(widget.hostId, widget.workspace.id)),
+      ),
+    };
+  }
+}
+
+IconData _panelIcon(WorkspacePanelDestination destination) {
+  return switch (destination) {
+    WorkspacePanelDestination.terminal => AleraIcons.terminal,
+    WorkspacePanelDestination.explorer => AleraIcons.files,
+    WorkspacePanelDestination.search => AleraIcons.search,
+    WorkspacePanelDestination.sourceControl => AleraIcons.gitCompare,
+    WorkspacePanelDestination.pullRequest => AleraIcons.gitPullRequest,
+  };
+}
+
+String _panelLabel(WorkspacePanelDestination destination) {
+  return switch (destination) {
+    WorkspacePanelDestination.terminal => 'Terminal',
+    WorkspacePanelDestination.explorer => 'Explorer',
+    WorkspacePanelDestination.search => 'Search',
+    WorkspacePanelDestination.sourceControl => 'Source Control',
+    WorkspacePanelDestination.pullRequest => 'Pull Request',
+  };
 }
 
 enum _NewTabAction { terminal }

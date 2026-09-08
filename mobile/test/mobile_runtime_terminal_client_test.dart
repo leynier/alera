@@ -331,7 +331,9 @@ void main() {
     addTearDown(outputSub.cancel);
 
     await gateway.closeSockets();
-    await pumpEventQueue();
+    // The close travels over a real loopback socket, so one event-queue drain
+    // can finish before both broadcast controllers emit onDone.
+    await _waitUntil(() => eventsDone && outputDone);
 
     // Otherwise a dead socket is indistinguishable from an idle terminal.
     expect(eventsDone, isTrue);

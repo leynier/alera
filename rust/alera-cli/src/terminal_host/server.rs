@@ -108,15 +108,19 @@ mod lifecycle;
 #[cfg(test)]
 mod managed_workspace_cleanup_tests;
 mod managed_workspace_requests;
+mod mobile_explorer_requests;
 mod mobile_gateway_surface;
 mod mobile_hello_requests;
+mod mobile_pull_request_requests;
 #[cfg(test)]
 mod mobile_relay_presence_tests;
+mod mobile_source_control_requests;
 mod mobile_terminal_requests;
 #[cfg(test)]
 mod mobile_terminal_viewport_tests;
 mod mobile_workspace_file_paths;
 mod mobile_workspace_file_requests;
+mod mobile_workspace_search_requests;
 mod orchestration_agent_spawn_requests;
 mod orchestration_owned_spawn;
 mod orchestration_policy_requests;
