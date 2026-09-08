@@ -9,6 +9,7 @@ use chrono::Utc;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
+use crate::ssh_bootstrap::reject_new_password_ssh_target;
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::orchestration::agent_registry::{adapter_for, AGENT_ADAPTERS};
 use crate::terminal_host::orchestration::managed_agent_launch::build_managed_agent_launch;
@@ -31,15 +32,20 @@ impl ServerActor {
     pub(super) async fn ssh_target_upsert(&mut self, payload: &Value) -> HostResult<Value> {
         let mut target: SshTarget = serde_json::from_value(payload.clone())
             .map_err(|error| HostError::format(error.to_string()))?;
+        let existing = self
+            .runtime_store
+            .find_ssh_target(&target.id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
+        reject_new_password_ssh_target(
+            target.auth_kind,
+            existing.as_ref().map(|existing| existing.auth_kind),
+        )
+        .map_err(|error| HostError::state(error.to_string()))?;
         // An omitted installDir means "leave it alone", not "clear it": the app
         // only sends it when the user edited the bootstrap location.
         if payload.get("installDir").is_none() {
-            if let Some(existing) = self
-                .runtime_store
-                .find_ssh_target(&target.id)
-                .await
-                .map_err(|error| HostError::state(error.to_string()))?
-            {
+            if let Some(existing) = existing {
                 target.install_dir = existing.install_dir;
             }
         }

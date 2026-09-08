@@ -461,6 +461,9 @@ pub struct SshTargetAddArgs {
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum SshAuthKindArg {
+    /// Hidden so help does not advertise it; add still parses it and rejects
+    /// with the bootstrap product error.
+    #[value(hide = true)]
     Password,
     Key,
     Agent,

@@ -88,7 +88,8 @@ use crate::mobile_access::{
 };
 use crate::runtime_host_client::RuntimeHostRpcClient;
 use crate::ssh_bootstrap::{
-    build_ssh_bootstrap_plan, new_bootstrap_job_id, run_ssh_bootstrap, SshTargetBootstrapRequest,
+    build_ssh_bootstrap_plan, new_bootstrap_job_id, reject_password_ssh_bootstrap_auth,
+    run_ssh_bootstrap, SshTargetBootstrapRequest,
 };
 use crate::ssh_target_status::{collect_ssh_target_status, LiveSshTargetProbe};
 use crate::tab_record_factory::tab_from_args;
@@ -638,6 +639,9 @@ async fn run_ssh_target_command(command: SshTargetCommand) -> i32 {
         },
         SshTargetAction::Add(args) => {
             let target = ssh_target_from_args(args);
+            if let Err(error) = reject_password_ssh_bootstrap_auth(target.auth_kind) {
+                return print_error(error);
+            }
             match upsert_ssh_target_from_cli(&runtime, target).await {
                 Ok(target) => print_value(&target, json_output, "ssh target saved"),
                 Err(error) => return print_error(error),

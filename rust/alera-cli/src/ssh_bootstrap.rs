@@ -81,6 +81,32 @@ pub(crate) struct SshTargetBootstrapProgress {
     pub error: Option<String>,
 }
 
+pub(crate) const SSH_PASSWORD_BOOTSTRAP_UNSUPPORTED: &str =
+    "password SSH targets are not supported for bootstrap; configure SSH agent or key authentication.";
+
+pub(crate) fn reject_password_ssh_bootstrap_auth(auth_kind: SshAuthKind) -> Result<()> {
+    if matches!(auth_kind, SshAuthKind::Password) {
+        bail!("{SSH_PASSWORD_BOOTSTRAP_UNSUPPORTED}");
+    }
+    Ok(())
+}
+
+/// Rejects creating a password target or converting agent/key auth to
+/// password. An existing password target may be re-saved so Settings can
+/// still edit alias or host without forcing a conversion on every save.
+pub(crate) fn reject_new_password_ssh_target(
+    auth_kind: SshAuthKind,
+    existing_auth_kind: Option<SshAuthKind>,
+) -> Result<()> {
+    if !matches!(auth_kind, SshAuthKind::Password) {
+        return Ok(());
+    }
+    if matches!(existing_auth_kind, Some(SshAuthKind::Password)) {
+        return Ok(());
+    }
+    bail!("{SSH_PASSWORD_BOOTSTRAP_UNSUPPORTED}");
+}
+
 #[derive(Debug)]
 struct RemoteCommandOutput {
     stdout: String,
@@ -95,6 +121,7 @@ pub(crate) async fn build_ssh_bootstrap_plan(
     request: &SshTargetBootstrapRequest,
 ) -> Result<SshTargetBootstrapPlan> {
     let target = find_target(store, &request.target_id).await?;
+    reject_password_ssh_bootstrap_auth(target.auth_kind)?;
     let channel = parse_channel(request.channel.as_deref())?;
     let platform = request
         .platform
@@ -164,9 +191,7 @@ where
 {
     let target = find_target(&store, &request.target_id).await?;
     let result = async {
-        if matches!(target.auth_kind, SshAuthKind::Password) {
-            bail!("password SSH targets are not supported for bootstrap; configure SSH agent or key authentication.");
-        }
+        reject_password_ssh_bootstrap_auth(target.auth_kind)?;
         mark_ssh_bootstrap_installing(&store, &target.id).await?;
         emit(progress(
             &job_id,
