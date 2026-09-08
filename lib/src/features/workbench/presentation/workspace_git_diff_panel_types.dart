@@ -7,6 +7,15 @@ String _messageFor(Object? error) {
   if (error is DetachedHeadException) {
     return 'Cannot push from detached HEAD.';
   }
+  if (error is BranchAlreadyExistsException) {
+    return 'A branch named "${error.context}" already exists.';
+  }
+  if (error is BranchNotFoundException) {
+    return 'Branch "${error.context}" was not found.';
+  }
+  if (error is InvalidBranchNameException) {
+    return 'Enter a valid branch name.';
+  }
   if (error is RemoteNotFoundException) {
     return 'Remote origin was not found.';
   }
@@ -14,7 +23,8 @@ String _messageFor(Object? error) {
     return 'Nothing to commit.';
   }
   if (error is GitConflictException) {
-    return 'Resolve conflicts before continuing.';
+    final context = error.context.trim();
+    return context.isEmpty ? 'Resolve conflicts before continuing.' : context;
   }
   if (error is AiAssistException) {
     return error.message;

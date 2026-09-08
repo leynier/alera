@@ -111,6 +111,7 @@ class FakeGitBackend
   GitDiffResult gitCommitDiffResult = const GitDiffResult(files: []);
   GitRangeContext gitRangeContextResult = _defaultGitRangeContext();
   GitException? rangeContextError;
+  @override
   GitRepositoryState gitRepositoryStateResult = const GitRepositoryState(
     branch: 'main',
   );

@@ -190,6 +190,60 @@ void main() {
     expect(entry.canDiscardFromParent, isFalse);
   });
 
+  test(
+    'checkoutBranch switches the current branch and reloads state',
+    () async {
+      final backend = FakeGitBackend()
+        ..sourceBranches = <String>['main', 'feature']
+        ..gitRepositoryStateResult = const GitRepositoryState(branch: 'main');
+      final watcher = FakeSourceControlWatcher();
+      addTearDown(watcher.dispose);
+      final (container, controller) = await _boot(backend, watcher);
+      final provider = workspaceSourceControlControllerProvider(_workspacePath);
+
+      final activeBranch = await controller.checkoutBranch('feature');
+
+      expect(
+        backend.calls
+            .where((call) => call.method == 'checkoutBranch')
+            .single
+            .args,
+        <String, Object?>{'path': _workspacePath, 'branch': 'feature'},
+      );
+      expect(
+        container.read(provider).requireValue.repositoryState.branch,
+        'feature',
+      );
+      expect(activeBranch, 'feature');
+    },
+  );
+
+  test(
+    'createAndCheckoutBranch creates a branch from HEAD and reloads state',
+    () async {
+      final backend = FakeGitBackend()
+        ..gitRepositoryStateResult = const GitRepositoryState(branch: 'main');
+      final watcher = FakeSourceControlWatcher();
+      addTearDown(watcher.dispose);
+      final (container, controller) = await _boot(backend, watcher);
+      final provider = workspaceSourceControlControllerProvider(_workspacePath);
+
+      await controller.createAndCheckoutBranch('ship/login');
+
+      expect(
+        backend.calls
+            .where((call) => call.method == 'createAndCheckoutBranch')
+            .single
+            .args,
+        <String, Object?>{'path': _workspacePath, 'branch': 'ship/login'},
+      );
+      expect(
+        container.read(provider).requireValue.repositoryState.branch,
+        'ship/login',
+      );
+    },
+  );
+
   test('submodule provider loads lazily and prefixes child paths', () async {
     final backend = FakeGitBackend()
       ..gitSubmoduleStatusResult = const GitStatusResult(

@@ -26,7 +26,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Add Feature'), findsOneWidget);
-    expect(find.text('feat/settings-fullscreen-modal'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.ancestor(
+          of: find.text('Add Feature'),
+          matching: find.byType(InkWell),
+        ),
+        matching: find.text('feat/settings-fullscreen-modal'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('+2'), findsOneWidget);
   });
 
@@ -44,7 +53,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Add Feature'), findsOneWidget);
-    expect(find.text('feat/settings-fullscreen-modal'), findsNothing);
+    expect(
+      find.descendant(
+        of: find.ancestor(
+          of: find.text('Add Feature'),
+          matching: find.byType(InkWell),
+        ),
+        matching: find.text('feat/settings-fullscreen-modal'),
+      ),
+      findsNothing,
+    );
     expect(find.text('+4'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

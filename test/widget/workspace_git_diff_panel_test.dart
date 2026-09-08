@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
@@ -28,10 +29,12 @@ import '../unit/fake_source_control_watcher.dart';
 
 part 'workspace_git_diff_panel_preview_test_cases.dart';
 part 'workspace_git_diff_panel_context_menu_test_cases.dart';
+part 'workspace_git_diff_panel_branch_test_cases.dart';
 
 void main() {
   _registerWorkspaceGitDiffPanelPreviewTests();
   _registerWorkspaceGitDiffPanelContextMenuTests();
+  _registerWorkspaceGitDiffPanelBranchTests();
   testWidgets('git diff panel hides zero-valued line counts', (tester) async {
     final backend = FakeGitBackend()
       ..gitStatusResult = const GitStatusResult(

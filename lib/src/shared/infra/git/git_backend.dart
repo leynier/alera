@@ -30,6 +30,14 @@ abstract interface class GitBackend {
     required String branch,
   });
 
+  /// Checks out [branch] in the worktree at [path].
+  ///
+  /// Local branches switch in place. A remote-tracking name such as
+  /// `origin/feature` creates a local `feature` branch that tracks it when that
+  /// local name does not already exist. Local changes that would be overwritten
+  /// are rejected.
+  Future<void> checkoutBranch({required String path, required String branch});
+
   /// Whether a local branch named [branch] exists in [repoPath].
   Future<bool> branchExists(String repoPath, String branch);
 

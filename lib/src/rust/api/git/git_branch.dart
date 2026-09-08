@@ -22,6 +22,12 @@ Future<void> createAndCheckoutBranch({
   branch: branch,
 );
 
+Future<void> checkoutBranch({required String path, required String branch}) =>
+    RustLib.instance.api.crateApiGitGitBranchCheckoutBranch(
+      path: path,
+      branch: branch,
+    );
+
 Future<bool> branchExists({required String repoPath, required String branch}) =>
     RustLib.instance.api.crateApiGitGitBranchBranchExists(
       repoPath: repoPath,

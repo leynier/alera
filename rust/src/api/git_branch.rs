@@ -14,6 +14,10 @@ pub fn create_and_checkout_branch(path: String, branch: String) -> Result<(), Gi
     core_git::create_and_checkout_branch(&path, &branch).map_err(Into::into)
 }
 
+pub fn checkout_branch(path: String, branch: String) -> Result<(), GitError> {
+    core_git::checkout_branch(&path, &branch).map_err(Into::into)
+}
+
 pub fn branch_exists(repo_path: String, branch: String) -> Result<bool, GitError> {
     core_git::branch_exists(&repo_path, &branch).map_err(Into::into)
 }

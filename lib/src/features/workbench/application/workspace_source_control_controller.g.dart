@@ -58,7 +58,7 @@ final class WorkspaceSourceControlControllerProvider
 }
 
 String _$workspaceSourceControlControllerHash() =>
-    r'78b3d3cfcdf4aae2791abc49ea8f62e53a5d8f24';
+    r'18ed3fa0a2929fa602af03ade60d0e1888434d93';
 
 final class WorkspaceSourceControlControllerFamily extends $Family
     with

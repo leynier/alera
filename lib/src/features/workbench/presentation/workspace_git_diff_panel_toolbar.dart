@@ -25,6 +25,7 @@ class const _SourceControlToolbar({
   required final VoidCallback onOpenAll,
   required final ValueChanged<_SourceControlMenuAction> onPrimaryAction,
   required final ValueChanged<_SourceControlMenuAction> onSelectMenuAction,
+  required final VoidCallback onSelectBranch,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -44,6 +45,9 @@ class const _SourceControlToolbar({
       busy: busy,
       canCommit: canCommit,
     );
+    final branchDetails = data == null
+        ? ''
+        : _repoSummary(data, sourceControlRootLabel, includeBranch: false);
     return Padding(
       padding: const EdgeInsets.all(AleraTokens.space8),
       child: Column(
@@ -181,12 +185,11 @@ class const _SourceControlToolbar({
           const SizedBox(height: AleraTokens.space8),
           if (data case final state?) ...<Widget>[
             const SizedBox(height: AleraTokens.space6),
-            Text(
-              _repoSummary(state, sourceControlRootLabel),
-              maxLines: 1,
-              overflow: .ellipsis,
-              style: Theme.of(context).textTheme.labelSmall
-                  ?.copyWith(color: AleraTokens.foregroundFaint),
+            _SourceControlBranchSummary(
+              branch: state.repositoryState.branch,
+              details: branchDetails,
+              busy: busy,
+              onSelectBranch: onSelectBranch,
             ),
           ],
           if (filterVisible) ...<Widget>[
@@ -238,10 +241,14 @@ class const _SourceControlToolbar({
 
   String _repoSummary(
     WorkspaceSourceControlState state,
-    String? sourceControlRootLabel,
-  ) {
+    String? sourceControlRootLabel, {
+    bool includeBranch = true,
+  }) {
     final repo = state.repositoryState;
-    final parts = <String>[?sourceControlRootLabel, repo.branch];
+    final parts = <String>[
+      ?sourceControlRootLabel,
+      if (includeBranch) repo.branch,
+    ];
     if (repo.upstream case final upstream?) {
       parts.add(upstream);
     }
@@ -276,7 +283,77 @@ class const _SourceControlToolbar({
       WorkspaceSourceControlAction.sync => 'syncing',
       WorkspaceSourceControlAction.stash => 'stashing',
       WorkspaceSourceControlAction.stashPop => 'popping stash',
+      WorkspaceSourceControlAction.checkout => 'switching branches',
+      WorkspaceSourceControlAction.createBranch => 'creating branch',
     };
+  }
+}
+
+class const _SourceControlBranchSummary({
+  required final String branch,
+  required final String details,
+  required final bool busy,
+  required final VoidCallback onSelectBranch,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final labelStyle = Theme.of(context).textTheme.labelSmall
+        ?.copyWith(color: AleraTokens.foregroundFaint);
+    return Row(
+      children: <Widget>[
+        Flexible(
+          child: Tooltip(
+            message: 'Switch Branch',
+            child: InkWell(
+              onTap: busy ? null : onSelectBranch,
+              borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AleraTokens.space4,
+                  vertical: AleraTokens.space2,
+                ),
+                child: Row(
+                  mainAxisSize: .min,
+                  children: <Widget>[
+                    Icon(
+                      AleraIcons.gitBranch,
+                      size: 14,
+                      color: AleraTokens.foregroundFaint,
+                    ),
+                    const SizedBox(width: AleraTokens.space4),
+                    Flexible(
+                      child: Text(
+                        branch,
+                        maxLines: 1,
+                        overflow: .ellipsis,
+                        style: labelStyle,
+                      ),
+                    ),
+                    const SizedBox(width: AleraTokens.space2),
+                    Icon(
+                      AleraIcons.chevronDown,
+                      size: 12,
+                      color: AleraTokens.foregroundFaint,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (details.isNotEmpty) ...<Widget>[
+          const SizedBox(width: AleraTokens.space8),
+          Flexible(
+            child: Text(
+              details,
+              maxLines: 1,
+              overflow: .ellipsis,
+              style: labelStyle,
+            ),
+          ),
+        ],
+      ],
+    );
   }
 }
 
