@@ -455,15 +455,10 @@ async fn build_ssh_bootstrap_plan_rewrites_linux_home_on_macos_target() {
     let mut request = empty_plan_request(&target.id);
     request.install_dir = Some("/home/leynier/.alera/audit-637-home-probe".to_string());
     let plan = build_ssh_bootstrap_plan(&store, &request).await.unwrap();
+    // Avoid formatting install_dir into assert messages (CodeQL cleartext-logging FP on username paths).
     assert!(
         plan.install_dir == "~/.alera/audit-637-home-probe"
-            || plan.install_dir == "/Users/leynier/.alera/audit-637-home-probe",
-        "plan install_dir should be remote-home relative or /Users, got {}",
-        plan.install_dir
+            || plan.install_dir == "/Users/leynier/.alera/audit-637-home-probe"
     );
-    assert!(
-        !plan.install_dir.starts_with("/home/"),
-        "Linux /home must not reach a macOS target: {}",
-        plan.install_dir
-    );
+    assert!(!plan.install_dir.starts_with("/home/"));
 }
