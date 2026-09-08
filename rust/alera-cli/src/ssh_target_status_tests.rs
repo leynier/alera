@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use alera_core::runtime::{
     RuntimeStore, SshAuthKind, SshBootstrapStatus, SshTarget, SshTargetLastStatus,
@@ -8,8 +8,8 @@ use alera_core::runtime::{
 use chrono::Utc;
 
 use super::{
-    collect_ssh_target_status, probe_ssh_target_status, refresh_ssh_target_status,
-    runtime_probe_platform, RemoteShellKind, SshTargetProbe,
+    collect_ssh_target_status, connectivity_shell_order, probe_ssh_target_status,
+    refresh_ssh_target_status, runtime_probe_platform, RemoteShellKind, SshTargetProbe,
 };
 
 struct MapProbe {
@@ -81,6 +81,43 @@ fn target(id: &str) -> SshTarget {
     }
 }
 
+fn windows_runtime_target(id: &str) -> SshTarget {
+    let mut remote = target(id);
+    remote.install_dir = Some(r"%LOCALAPPDATA%\Alera\runtime".to_string());
+    remote.platform = Some("windows".to_string());
+    remote.runtime_platform = Some("windows".to_string());
+    remote
+}
+
+struct FalsePosixWindowsProbe {
+    runtime_ok_on_windows: bool,
+    probed_platform: Arc<Mutex<Option<String>>>,
+}
+
+impl FalsePosixWindowsProbe {
+    fn new(runtime_ok_on_windows: bool) -> Self {
+        Self {
+            runtime_ok_on_windows,
+            probed_platform: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    fn probed_platform(&self) -> Option<String> {
+        self.probed_platform.lock().unwrap().clone()
+    }
+}
+
+impl SshTargetProbe for FalsePosixWindowsProbe {
+    async fn probe_connectivity(&self, _target: &SshTarget) -> Option<RemoteShellKind> {
+        Some(RemoteShellKind::Posix)
+    }
+
+    async fn probe_runtime(&self, _target: &SshTarget, platform: &str, _install_dir: &str) -> bool {
+        *self.probed_platform.lock().unwrap() = Some(platform.to_string());
+        self.runtime_ok_on_windows && platform == "windows"
+    }
+}
+
 #[test]
 fn runtime_probe_platform_prefers_matching_configured_values() {
     let mut posix = target("remote");
@@ -99,16 +136,70 @@ fn runtime_probe_platform_prefers_matching_configured_values() {
 }
 
 #[test]
-fn runtime_probe_platform_falls_back_to_the_shell_that_answered() {
-    let mut mismatched = target("remote");
-    mismatched.platform = Some("windows".to_string());
+fn runtime_probe_platform_trusts_stored_windows_over_posix_shell() {
+    let mut stored = target("remote");
+    stored.platform = Some("windows".to_string());
     assert_eq!(
-        runtime_probe_platform(&mismatched, RemoteShellKind::Posix),
-        "linux"
+        runtime_probe_platform(&stored, RemoteShellKind::Posix),
+        "windows"
     );
+
+    let mut runtime = target("remote");
+    runtime.runtime_platform = Some("Windows_NT".to_string());
+    assert_eq!(
+        runtime_probe_platform(&runtime, RemoteShellKind::Posix),
+        "windows"
+    );
+}
+
+#[test]
+fn runtime_probe_platform_falls_back_to_the_shell_that_answered() {
     assert_eq!(
         runtime_probe_platform(&target("remote"), RemoteShellKind::Windows),
         "windows"
+    );
+    assert_eq!(
+        runtime_probe_platform(&target("remote"), RemoteShellKind::Posix),
+        "linux"
+    );
+}
+
+#[test]
+fn connectivity_shell_order_prefers_windows_when_stored_platform_is_windows() {
+    let mut stored = target("remote");
+    stored.platform = Some("windows".to_string());
+    assert_eq!(
+        connectivity_shell_order(&stored),
+        [RemoteShellKind::Windows, RemoteShellKind::Posix]
+    );
+
+    let mut runtime = target("remote");
+    runtime.runtime_platform = Some("MINGW64_NT-10.0".to_string());
+    assert_eq!(
+        connectivity_shell_order(&runtime),
+        [RemoteShellKind::Windows, RemoteShellKind::Posix]
+    );
+}
+
+#[test]
+fn connectivity_shell_order_prefers_posix_when_unknown_or_unix() {
+    assert_eq!(
+        connectivity_shell_order(&target("remote")),
+        [RemoteShellKind::Posix, RemoteShellKind::Windows]
+    );
+
+    let mut linux = target("remote");
+    linux.runtime_platform = Some("linux".to_string());
+    assert_eq!(
+        connectivity_shell_order(&linux),
+        [RemoteShellKind::Posix, RemoteShellKind::Windows]
+    );
+
+    let mut macos = target("remote");
+    macos.platform = Some("Darwin".to_string());
+    assert_eq!(
+        connectivity_shell_order(&macos),
+        [RemoteShellKind::Posix, RemoteShellKind::Windows]
     );
 }
 
@@ -199,6 +290,36 @@ async fn status_updates_last_checked_at_on_every_call() {
     assert_eq!(first["lastStatus"], "reachable");
     assert_eq!(second["lastStatus"], "reachable");
     assert_ne!(first["lastCheckedAt"], second["lastCheckedAt"]);
+}
+
+#[tokio::test]
+async fn windows_false_posix_shell_stamps_runtime_ready() {
+    let (_dir, store) = store().await;
+    store
+        .upsert_ssh_target(windows_runtime_target("remote"))
+        .await
+        .unwrap();
+    let probe = FalsePosixWindowsProbe::new(true);
+
+    let value = collect_ssh_target_status(&store, Some("remote"), &probe)
+        .await
+        .unwrap();
+
+    assert_eq!(value["lastStatus"], "runtimeReady");
+    assert_eq!(probe.probed_platform().as_deref(), Some("windows"));
+    let stored = store.find_ssh_target("remote").await.unwrap().unwrap();
+    assert_eq!(
+        stored.last_status.as_deref(),
+        Some(SshTargetLastStatus::RuntimeReady.as_str())
+    );
+}
+
+#[tokio::test]
+async fn windows_false_posix_shell_stays_reachable_when_windows_runtime_fails() {
+    let probe = FalsePosixWindowsProbe::new(false);
+    let status = probe_ssh_target_status(&windows_runtime_target("remote"), &probe).await;
+    assert_eq!(status, SshTargetLastStatus::Reachable);
+    assert_eq!(probe.probed_platform().as_deref(), Some("windows"));
 }
 
 #[tokio::test]
