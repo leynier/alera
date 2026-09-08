@@ -841,7 +841,9 @@ fn default_install_dir(platform: &str) -> String {
     if platform == "windows" {
         "%LOCALAPPDATA%\\Alera\\runtime".to_string()
     } else {
-        "~/.alera/runtime".to_string()
+        // Sidecar layout (current/, bin/, versions/, data/). Distinct from the
+        // CLI runtime profile at ~/.alera/runtime (runtime.sqlite, host json).
+        "~/.alera/sidecar".to_string()
     }
 }
 
@@ -1028,6 +1030,17 @@ mod tests {
     use super::*;
 
     #[test]
+    fn default_install_dir_uses_sidecar_layout_on_posix() {
+        assert_eq!(default_install_dir("linux"), "~/.alera/sidecar");
+        assert_eq!(default_install_dir("macos"), "~/.alera/sidecar");
+        assert_eq!(default_install_dir("auto"), "~/.alera/sidecar");
+        assert_eq!(
+            default_install_dir("windows"),
+            r"%LOCALAPPDATA%\Alera\runtime"
+        );
+    }
+
+    #[test]
     fn normalizes_common_platform_and_arch_values() {
         assert_eq!(normalize_platform("Darwin"), "macos");
         assert_eq!(normalize_platform("Windows_NT"), "windows");
@@ -1041,11 +1054,11 @@ mod tests {
     #[test]
     fn posix_install_script_repoints_current_symlink_and_runtime_data_dir() {
         let script = posix_install_script(
-            "/home/me/.alera/runtime",
+            "/home/me/.alera/sidecar",
             "1.2.3",
             "linux",
             "x64",
-            "/home/me/.alera/runtime/staging/job/alera-runtime.tar.gz",
+            "/home/me/.alera/sidecar/staging/job/alera-runtime.tar.gz",
             "alera",
         );
         assert!(script.contains("ln -sfn \"$version_dir\" \"$install_dir/current\""));
@@ -1202,14 +1215,14 @@ mod tests {
             "/C:/Users/leyni/AppData/Local/Alera/runtime/staging"
         );
         assert_eq!(
-            remote_join("linux", "/home/me/.alera/runtime", &["staging", "job"]),
-            "/home/me/.alera/runtime/staging/job"
+            remote_join("linux", "/home/me/.alera/sidecar", &["staging", "job"]),
+            "/home/me/.alera/sidecar/staging/job"
         );
     }
 
     #[test]
     fn posix_resolve_install_dir_script_escapes_tilde_prefix_strip() {
-        let script = posix_resolve_install_dir_script("~/.alera/runtime");
+        let script = posix_resolve_install_dir_script("~/.alera/sidecar");
         assert!(
             script.contains(r#"${install_dir#"~/"}"#),
             "script must quote the ~/ strip pattern: {script}"
@@ -1258,7 +1271,7 @@ printf '%s\n' "$install_dir"
     fn posix_resolve_install_dir_script_resolves_tilde_under_sh() {
         let probe = r#"
 HOME=/tmp/alera-tilde-home-666
-install_dir='~/.alera/runtime'
+install_dir='~/.alera/sidecar'
 case "$install_dir" in
   "~") install_dir="$HOME" ;;
   "~/"*) install_dir="$HOME/${install_dir#"~/"}" ;;
@@ -1276,7 +1289,7 @@ printf '%s\n' "$install_dir"
             String::from_utf8_lossy(&output.stderr)
         );
         let resolved = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        assert_eq!(resolved, "/tmp/alera-tilde-home-666/.alera/runtime");
+        assert_eq!(resolved, "/tmp/alera-tilde-home-666/.alera/sidecar");
         assert!(!resolved.contains("/~/"));
     }
 

@@ -48,7 +48,7 @@ void main() {
     expect(runner.arguments, contains('leynier@example.test'));
     expect(
       runner.arguments!.last,
-      contains(r'$HOME/.alera/runtime/current/alera'),
+      contains(r'$HOME/.alera/sidecar/current/alera'),
     );
     expect(runner.arguments!.last, contains('runtime-proxy'));
   });

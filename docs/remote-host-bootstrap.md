@@ -8,10 +8,10 @@ Bootstrap supports `x64` and `arm64` macOS, Linux, and Windows hosts reachable t
 
 Default install directories are:
 
-- macOS/Linux: `~/.alera/runtime`
+- macOS/Linux: `~/.alera/sidecar`
 - Windows: `%LOCALAPPDATA%\Alera\runtime`
 
-The install directory can be overridden from Settings or the CLI.
+The POSIX default is the sidecar layout (`current/`, `bin/`, `versions/`, `data/`). It is separate from the CLI runtime profile (`ALERA_RUNTIME_DIR` or `~/.alera/runtime`). The install directory can be overridden from Settings or the CLI.
 
 ## Artifact Trust
 
