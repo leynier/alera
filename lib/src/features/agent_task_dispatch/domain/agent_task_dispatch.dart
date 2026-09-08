@@ -6,7 +6,7 @@ import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 /// Caller-owned work to send through the shared agent picker.
 ///
 /// This feature owns listing running agents, opening a profile tab, and
-/// injecting [prompt]. Callers, including later file/diff comments, supply the
+/// injecting [prompt]. Callers, including file and diff comments, supply the
 /// prompt and any surrounding copy.
 class const AgentTaskDispatchRequest({
   required final String workspaceId,

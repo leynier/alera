@@ -284,6 +284,12 @@ class const _ExplorerMenuDelegate({
             label: 'Copy relative path',
             leading: Icon(AleraIcons.copy, size: 16),
           ),
+          if (node.type != tree.NodeType.folder)
+            const AleraDropdownEntry<_ExplorerAction>(
+              value: .comment,
+              label: 'Comment on File',
+              leading: Icon(AleraIcons.comment, size: 16),
+            ),
           const AleraDropdownEntry<_ExplorerAction>(
             value: .duplicate,
             label: 'Duplicate',
@@ -425,6 +431,7 @@ enum _ExplorerAction {
   paste,
   copyPath,
   copyRelativePath,
+  comment,
   duplicate,
   reveal,
   delete,

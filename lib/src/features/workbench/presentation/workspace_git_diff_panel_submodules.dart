@@ -7,6 +7,7 @@ class const _SubmoduleChanges({
   required final bool busy,
   required final OpenGitDiffTabCallback onOpenGitDiff,
   final ValueChanged<String>? onOpenFile,
+  required final ValueChanged<GitChangeEntry> onComment,
   required final ValueChanged<String> onRevealInExplorer,
 }) extends ConsumerWidget {
   @override
@@ -51,6 +52,7 @@ class const _SubmoduleChanges({
                 onOpenFile: onOpenFile == null
                     ? null
                     : () => onOpenFile!(child.path),
+                onComment: () => onComment(child),
                 onRevealInExplorer: () => onRevealInExplorer(child.path),
                 onStage: (_) {},
                 onUnstage: (_) {},

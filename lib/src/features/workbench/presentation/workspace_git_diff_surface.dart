@@ -19,6 +19,8 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_git_diff_image_row.dart';
+import 'package:alera/src/features/workspace_agent_comments/presentation/workspace_agent_comment_bar.dart';
+import 'package:alera/src/features/workspace_agent_comments/presentation/workspace_agent_comment_composer.dart';
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
@@ -120,6 +122,9 @@ class _WorkspaceGitDiffSurfaceState
             title: widget.tab.title,
             filePath: filePath,
             onRefresh: _load,
+            onComment: _commentableDiffFile == null
+                ? null
+                : () => unawaited(_commentOnFile(_commentableDiffFile!)),
             onOpenFile: _canOpenFile ? () => unawaited(_openFile()) : null,
             aiAssistEnabled: aiAssistEnabled,
             readingDiffReady: _readingDiffResult != null,
@@ -139,6 +144,7 @@ class _WorkspaceGitDiffSurfaceState
                   }),
           ),
           const Divider(height: 1, color: AleraTokens.borderSubtle),
+          WorkspaceAgentCommentDraftScope(workspaceId: widget.workspace.id),
           if (_readingDiffProgress case final progress?) ...<Widget>[
             ReadingDiffGenerationProgressView(
               progress: progress,
@@ -194,6 +200,15 @@ class _WorkspaceGitDiffSurfaceState
                         parentOid: isCommitDiff
                             ? widget.tab.gitDiffParentOid
                             : null,
+                        onCommentLine: (file, lineIndex) => unawaited(
+                          composeWorkspaceAgentDiffLineComment(
+                            context,
+                            ref,
+                            workspaceId: widget.workspace.id,
+                            file: file,
+                            lineIndex: lineIndex,
+                          ),
+                        ),
                       );
                     },
                   ),
@@ -208,6 +223,36 @@ class _WorkspaceGitDiffSurfaceState
       return false;
     }
     return _openableDiffFile != null;
+  }
+
+  GitDiffFile? get _commentableDiffFile {
+    final result = _loadedResult;
+    if (result == null || result.files.isEmpty) {
+      return null;
+    }
+    if (result.files.length == 1) {
+      return result.files.single;
+    }
+    final filePath = widget.tab.filePath;
+    if (filePath == null) {
+      return null;
+    }
+    for (final file in result.files) {
+      if (file.path == filePath) {
+        return file;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _commentOnFile(GitDiffFile file) {
+    return composeWorkspaceAgentDiffComment(
+      context,
+      ref,
+      workspaceId: widget.workspace.id,
+      path: file.path,
+      areaLabel: file.area.label,
+    );
   }
 
   GitDiffFile? get _openableDiffFile {

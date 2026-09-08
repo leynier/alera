@@ -20,6 +20,7 @@ import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_git_diff_surface.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -35,6 +36,47 @@ part 'workspace_git_diff_surface_test_support.dart';
 void main() {
   _registerWorkspaceGitDiffSurfacePullRequestTests();
   _registerWorkspaceGitDiffSurfaceReadingDiffTests();
+  testWidgets('diff line comments include the hunk and send-to-agent bar', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitDiffResult = const GitDiffResult(
+        files: <GitDiffFile>[
+          GitDiffFile(
+            path: 'lib/large.dart',
+            area: .unstaged,
+            status: .modified,
+            lines: <GitDiffLine>[
+              GitDiffLine.hunk('@@ -10,2 +12,3 @@ class Foo'),
+              GitDiffLine.context(' void start() {'),
+              GitDiffLine.addition('+  next();'),
+            ],
+            added: 1,
+            removed: 0,
+          ),
+        ],
+      );
+
+    await _pumpDiffSurface(tester, backend: backend);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('+  next();'), buttons: kSecondaryMouseButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Comment on Diff'), findsWidgets);
+
+    await tester.enterText(
+      find.byType(TextField).last,
+      'This addition looks wrong.',
+    );
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Add Comment'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 Comment'), findsOneWidget);
+    expect(find.textContaining('@@ -10,2 +12,3 @@ class Foo'), findsWidgets);
+    expect(find.text('This addition looks wrong.'), findsOneWidget);
+  });
+
   testWidgets('diff surface caps rendered line previews', (tester) async {
     final backend = FakeGitBackend()
       ..gitDiffResult = GitDiffResult(

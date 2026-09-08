@@ -16,6 +16,8 @@ import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
+import 'package:alera/src/features/workspace_agent_comments/presentation/workspace_agent_comment_bar.dart';
+import 'package:alera/src/features/workspace_agent_comments/presentation/workspace_agent_comment_composer.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_explorer_status.dart';
@@ -137,6 +139,7 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
           onNewFolder: () => unawaited(_createEntry(directory: true)),
         ),
         const Divider(height: 1, color: AleraTokens.borderSubtle),
+        WorkspaceAgentCommentDraftScope(workspaceId: widget.workspace.id),
         Expanded(
           child: _ExplorerBackgroundMenu(
             shouldSuppress: _consumeBackgroundMenuSuppression,

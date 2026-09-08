@@ -15,6 +15,8 @@ This document records the current product and code naming used by Alera. It is i
 - `WorkspaceTag`: a runtime-owned global label that can be assigned to multiple workspaces independently from parent/child relations.
 - `Sidebar Agent Section`: the in-card sidebar projection for supported agent executions detected inside terminal workspace tabs. The sidebar does not render terminal tabs that have no current agent status.
 - `AgentRun`: the in-memory UI projection of a supported agent status matched to a terminal workspace tab. It is not a persisted storage model.
+- `Agent task dispatch`: the shared desktop picker that sends a caller-owned prompt to a running workspace agent or opens a profile tab and injects. File and diff comments, pull request failed-check repair, and agent watch reuse `chooseAgentTaskDispatchTarget` / `completeAgentTaskDispatch`. They do not fork a one-off launcher.
+- `Workspace agent comment`: a desktop-only in-memory draft annotation on a file or git diff. Comments accumulate per workspace and send together through agent task dispatch. They are not hosted review comments, are not published to GitHub, and are out of scope on mobile.
 - `Design system`: the shared, presentational widget library in `lib/src/design_system/`, prefixed `Alera`, with co-located widget previews. See `docs/ui-styleguide.md`.
 
 ## Naming Rules

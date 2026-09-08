@@ -85,8 +85,8 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Conflict view and resolver | 4 | 4 | Planned | Conflicts are detected and block some git ops; no visual merge resolver UI yet |
 | Conflict resolution with AI | 4 | 3 | Planned | AI-assisted three-way merge conflict resolution |
 | Git history panel with graph | 4 | 4 | Shipped | Collapsible Source Control commits section with HEAD/upstream graph and commit diff tabs |
-| Diff annotations & inline comments | 4 | 3 | Planned | Comment threads on diff lines with popovers |
-| Send diff annotations to agent | 3 | 4 | Planned | Send annotated diffs directly to agents for action |
+| Diff annotations & inline comments | 4 | 3 | Partial | Desktop file and diff comments accumulate per workspace and send to an agent; hosted review threads and popover UI stay later |
+| Send diff annotations to agent | 3 | 4 | Shipped | File and diff comments send through the shared agent task dispatch picker |
 | Image diff | 3 | 2 | Shipped | Side-by-side before/after image comparison for binary diffs |
 
 ---

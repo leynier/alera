@@ -182,6 +182,7 @@ abstract final class const AleraIcons._() {
   static const IconData keyboard = LucideIcons.keyboard;
   // Prompt composer: write/send a message into the active terminal.
   static const IconData composer = LucideIcons.messageSquarePlus;
+  static const IconData comment = LucideIcons.messageSquare;
   static const IconData ai = LucideIcons.sparkles;
   static const IconData plan = LucideIcons.lightbulb;
   static const IconData planActive = LucideIcons.lightbulb600;

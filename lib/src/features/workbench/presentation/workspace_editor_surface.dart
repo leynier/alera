@@ -17,6 +17,9 @@ import 'package:alera/src/features/workbench/domain/workspace_source_control_sco
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
+import 'package:alera/src/features/workspace_agent_comments/domain/workspace_agent_comment_location.dart';
+import 'package:alera/src/features/workspace_agent_comments/presentation/workspace_agent_comment_bar.dart';
+import 'package:alera/src/features/workspace_agent_comments/presentation/workspace_agent_comment_composer.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:code_forge/code_forge.dart' as code_forge;
 import 'package:flutter/gestures.dart';
@@ -228,6 +231,9 @@ class _WorkspaceEditorSurfaceState
             ),
             dirty: _document.isDirty,
             saving: _saving,
+            onComment: !_loading && _loadError == null
+                ? () => unawaited(_openEditorComment(context))
+                : null,
             onViewDiff: !_loading ? () => unawaited(_openDiffForFile()) : null,
             onSave: _document.isDirty && !_loading && !_saving
                 ? () => unawaited(_save())
@@ -238,6 +244,7 @@ class _WorkspaceEditorSurfaceState
             onOpenPreview: _openPreviewActionFor(filePath),
           ),
           const Divider(height: 1, color: AleraTokens.borderSubtle),
+          WorkspaceAgentCommentDraftScope(workspaceId: widget.workspace.id),
           Expanded(child: content),
         ],
       ),

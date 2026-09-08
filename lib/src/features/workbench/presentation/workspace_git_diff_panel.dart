@@ -27,6 +27,8 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
+import 'package:alera/src/features/workspace_agent_comments/presentation/workspace_agent_comment_bar.dart';
+import 'package:alera/src/features/workspace_agent_comments/presentation/workspace_agent_comment_composer.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:alera/src/shared/infra/git/git_history_graph.dart';
@@ -194,6 +196,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
           onSelectBranch: () => unawaited(_openBranchSwitcher()),
         ),
         const Divider(height: 1, color: AleraTokens.borderSubtle),
+        WorkspaceAgentCommentDraftScope(workspaceId: widget.workspace.id),
         Expanded(
           child: Column(
             children: <Widget>[
@@ -228,6 +231,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
                       onOpenFile: widget.onOpenFile == null
                           ? null
                           : _openWorkspaceFile,
+                      onComment: _commentOnChange,
                       onRevealInExplorer: _revealInExplorer,
                       onStage: _stageEntry,
                       onUnstage: _unstageEntry,
@@ -256,6 +260,16 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _commentOnChange(GitChangeEntry entry) {
+    return composeWorkspaceAgentDiffComment(
+      context,
+      ref,
+      workspaceId: widget.workspace.id,
+      path: entry.path,
+      areaLabel: entry.area.label,
     );
   }
 
