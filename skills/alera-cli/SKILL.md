@@ -180,6 +180,27 @@ alera workspace --json start --profile "Codex Sol" --prompt "Add dark mode"
 alera workspace --json start --profile "Codex Sol" --prompt "Add dark mode" --project-id <project-id> --source-branch main --branch feat/dark-mode --name "Dark Mode" --no-parent
 ```
 
+Move the main worktree's current work into a new child workspace (hand off). From an Alera terminal this defaults to `ALERA_WORKSPACE_ID`:
+
+This command is the same from Bash, PowerShell, and CMD:
+
+```bash
+alera workspace hand-off --branch feat/isolated-change --name "Isolated Change"
+```
+
+Reuse the branch already checked out on main:
+
+```bash
+alera workspace hand-off --branch feat/current --reuse-existing-branch
+```
+
+Bring a child worktree's current work back onto main (hand on), then remove that child workspace. The branch is kept:
+
+```bash
+alera workspace hand-on
+alera workspace hand-on --id <child-workspace-id>
+```
+
 Remove a managed workspace:
 
 This command is the same from Bash, PowerShell, and CMD:

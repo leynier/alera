@@ -138,4 +138,59 @@ void _registerRuntimeManagedWorkspaceClientTests() {
       expect(result.setupReport.steps, hasLength(1));
     },
   );
+
+  test(
+    'RuntimeManagedWorkspaceClient hands off through the host RPC',
+    () async {
+      final client = _FakeRuntimeHostClient();
+      final repository = RuntimeManagedWorkspaceClient(client);
+      client.responses['workspace.handOff'] = <String, Object?>{
+        'workspace': _workspaceJson(id: 'workspace-child'),
+        'setupReport': <String, Object?>{'steps': <Object?>[]},
+        'deferredSetupCommand': '/bin/sh "/run/alera/worktree-setup-ws.sh"',
+      };
+
+      final result = await repository.handOffWorkspace(
+        workspace: _workspace(id: 'workspace-main', projectId: 'project-1'),
+        branch: 'feat/hand-off',
+        reuseExistingBranch: false,
+        name: 'Hand Off',
+      );
+
+      expect(result.workspace.id, 'workspace-child');
+      expect(
+        result.deferredSetupCommand,
+        '/bin/sh "/run/alera/worktree-setup-ws.sh"',
+      );
+      expect(client.payloads['workspace.handOff']!.single, <String, Object?>{
+        'id': 'workspace-main',
+        'branch': 'feat/hand-off',
+        'reuseExistingBranch': false,
+        'deferSetup': true,
+        'name': 'Hand Off',
+      });
+    },
+  );
+
+  test('RuntimeManagedWorkspaceClient hands on through the host RPC', () async {
+    final client = _FakeRuntimeHostClient();
+    final repository = RuntimeManagedWorkspaceClient(client);
+    client.responses['workspace.handOn'] = <String, Object?>{
+      'workspace': _workspaceJson(id: 'workspace-main'),
+      'removedWorkspaceId': 'workspace-child',
+    };
+
+    final result = await repository.handOnWorkspace(
+      workspace: _workspace(id: 'workspace-child', projectId: 'project-1'),
+      activeWorkspaceId: 'workspace-child',
+    );
+
+    expect(result.workspace.id, 'workspace-main');
+    expect(result.removedWorkspaceId, 'workspace-child');
+    expect(client.payloads['workspace.handOn']!.single, <String, Object?>{
+      'id': 'workspace-child',
+      'closeSessions': true,
+      'activeWorkspaceId': 'workspace-child',
+    });
+  });
 }

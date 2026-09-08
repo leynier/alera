@@ -2,6 +2,7 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
+import 'package:alera/src/features/workbench/domain/workspace_hand_on_result.dart';
 import 'package:alera/src/features/workbench/domain/workspace_storage_impact.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
@@ -94,6 +95,57 @@ class RuntimeManagedWorkspaceClient(
       'workspace.removeManaged',
       request,
       _managedWorkspaceRemoveTimeout,
+    );
+  }
+
+  @override
+  Future<WorkspaceCreationResult> handOffWorkspace({
+    required Workspace workspace,
+    required String branch,
+    required bool reuseExistingBranch,
+    String? name,
+  }) async {
+    await _ensureReady();
+    final request = <String, Object?>{
+      'id': workspace.id,
+      'branch': branch,
+      'reuseExistingBranch': reuseExistingBranch,
+      'deferSetup': true,
+    };
+    if (name != null) {
+      request['name'] = name;
+    }
+    final payload = await _client.runtimeRequest(
+      'workspace.handOff',
+      request,
+      _managedWorkspaceCreateTimeout,
+    );
+    return _creationResultFromJson(_asMap(payload));
+  }
+
+  @override
+  Future<WorkspaceHandOnResult> handOnWorkspace({
+    required Workspace workspace,
+    String? activeWorkspaceId,
+  }) async {
+    await _ensureReady();
+    final request = <String, Object?>{
+      'id': workspace.id,
+      'closeSessions': true,
+    };
+    if (activeWorkspaceId != null) {
+      request['activeWorkspaceId'] = activeWorkspaceId;
+    }
+    final json = _asMap(
+      await _client.runtimeRequest(
+        'workspace.handOn',
+        request,
+        _managedWorkspaceRemoveTimeout,
+      ),
+    );
+    return WorkspaceHandOnResult(
+      workspace: _workspaceFromJson(_asMap(json['workspace'])),
+      removedWorkspaceId: json['removedWorkspaceId'] as String,
     );
   }
 

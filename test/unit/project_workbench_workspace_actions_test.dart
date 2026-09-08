@@ -48,6 +48,29 @@ void main() {
     },
   );
 
+  test('hand off and hand on are first-class workspace actions', () {
+    expect(
+      workspaceContextMenuEntries(
+        fileManagerLabel: 'Files',
+        hasClearParent: false,
+        canRemove: false,
+        isPinned: false,
+        canHandOff: true,
+      ).whereType<AleraDropdownEntry<String>>().map((entry) => entry.label),
+      contains('Hand Off'),
+    );
+    expect(
+      workspaceContextMenuEntries(
+        fileManagerLabel: 'Files',
+        hasClearParent: false,
+        canRemove: true,
+        isPinned: false,
+        canHandOn: true,
+      ).whereType<AleraDropdownEntry<String>>().map((entry) => entry.label),
+      contains('Hand On'),
+    );
+  });
+
   test('workspace context menu places project settings with open actions', () {
     final entries = workspaceContextMenuEntries(
       fileManagerLabel: 'Files',

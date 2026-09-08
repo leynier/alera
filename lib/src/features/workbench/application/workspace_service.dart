@@ -7,6 +7,7 @@ import 'package:alera/src/features/workbench/application/workbench_repository.da
 import 'package:alera/src/features/workbench/application/worktree_setup_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
+import 'package:alera/src/features/workbench/domain/workspace_hand_on_result.dart';
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
@@ -14,6 +15,7 @@ import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
 part 'workspace_service_removal.dart';
+part 'workspace_service_handoff.dart';
 
 class WorkspaceException(final String message, {final String? stderr})
     implements Exception {
@@ -62,6 +64,18 @@ abstract interface class ManagedWorkspaceRuntime {
   Future<void> removeWorkspace({
     required Workspace workspace,
     bool? deleteBranch,
+    String? activeWorkspaceId,
+  });
+
+  Future<WorkspaceCreationResult> handOffWorkspace({
+    required Workspace workspace,
+    required String branch,
+    required bool reuseExistingBranch,
+    String? name,
+  });
+
+  Future<WorkspaceHandOnResult> handOnWorkspace({
+    required Workspace workspace,
     String? activeWorkspaceId,
   });
 }

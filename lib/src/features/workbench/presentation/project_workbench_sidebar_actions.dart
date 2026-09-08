@@ -132,6 +132,19 @@ mixin _ProjectWorkbenchSidebarActions
     );
   }
 
+  Future<void> _handOffWorkspace(Workspace workspace) {
+    return showHandOffWorkspaceFlow(context, ref, workspace: workspace);
+  }
+
+  Future<void> _handOnWorkspace(Project project, Workspace workspace) {
+    return showHandOnWorkspaceFlow(
+      context,
+      ref,
+      project: project,
+      workspace: workspace,
+    );
+  }
+
   Future<void> _deleteWorkspace(Project project, Workspace workspace) async {
     if (workspace.isMain) {
       return;

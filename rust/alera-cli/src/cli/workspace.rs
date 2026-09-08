@@ -42,6 +42,12 @@ pub enum WorkspaceAction {
     Untag(WorkspaceTagArgs),
     /// Preview opt-in cascade targets.
     CascadePreview(CascadePreviewArgs),
+    /// Move the main worktree's current work into a new child worktree.
+    #[command(name = "hand-off")]
+    HandOff(WorkspaceHandOffArgs),
+    /// Bring a child worktree's current work back onto main.
+    #[command(name = "hand-on")]
+    HandOn(WorkspaceHandOnArgs),
 }
 
 #[derive(Debug, Args)]
@@ -174,6 +180,30 @@ pub struct WorkspaceTagArgs {
     pub workspace_id: String,
     #[arg(long = "tag-id")]
     pub tag_id: String,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceHandOffArgs {
+    /// Main workspace to move work out of. Defaults to ALERA_WORKSPACE_ID.
+    #[arg(long)]
+    pub id: Option<String>,
+    #[arg(long)]
+    pub branch: String,
+    #[arg(long)]
+    pub name: Option<String>,
+    #[arg(long = "reuse-existing-branch")]
+    pub reuse_existing_branch: bool,
+    #[arg(long = "workspace-root", conflicts_with = "path")]
+    pub workspace_root: Option<String>,
+    #[arg(long, conflicts_with = "workspace_root")]
+    pub path: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceHandOnArgs {
+    /// Child workspace to bring back onto main. Defaults to ALERA_WORKSPACE_ID.
+    #[arg(long)]
+    pub id: Option<String>,
 }
 
 #[derive(Debug, Args)]

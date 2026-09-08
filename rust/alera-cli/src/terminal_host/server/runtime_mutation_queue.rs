@@ -118,6 +118,7 @@ impl ServerActor {
         tokio::spawn(async move {
             let prepared = match &request.mutation {
                 RuntimeMutationRequest::RemoveManagedWorkspace { .. }
+                | RuntimeMutationRequest::HandOnWorkspace { .. }
                 | RuntimeMutationRequest::RemoveWorkspace { .. }
                 | RuntimeMutationRequest::RemoveProject { .. }
                 | RuntimeMutationRequest::RemoveProjectWorkspaces { .. } => {
@@ -139,11 +140,17 @@ impl ServerActor {
                     stopped_workspace_tab_ids = std::mem::take(&mut shutdown.closed_tab_ids);
                     let result = shutdown.wait().await;
                     if result.is_err() {
-                        if let RuntimeMutationRequest::RemoveManagedWorkspace { request } =
-                            &request.mutation
-                        {
-                            pending_workspace_shutdown =
-                                Some(Box::new((request.id.clone(), shutdown)));
+                        let shutdown_workspace_id = match &request.mutation {
+                            RuntimeMutationRequest::RemoveManagedWorkspace { request } => {
+                                Some(request.id.clone())
+                            }
+                            RuntimeMutationRequest::HandOnWorkspace { request } => {
+                                Some(request.id.clone())
+                            }
+                            _ => None,
+                        };
+                        if let Some(workspace_id) = shutdown_workspace_id {
+                            pending_workspace_shutdown = Some(Box::new((workspace_id, shutdown)));
                         }
                     }
                     result

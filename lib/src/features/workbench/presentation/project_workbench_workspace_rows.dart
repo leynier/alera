@@ -35,6 +35,8 @@ class const _WorkspaceRow({
   final VoidCallback? onClearSection,
   final VoidCallback? onClearParent,
   final VoidCallback? onDelete,
+  final VoidCallback? onHandOff,
+  final VoidCallback? onHandOn,
 }) extends StatefulWidget {
   @override
   State<_WorkspaceRow> createState() => _WorkspaceRowState();

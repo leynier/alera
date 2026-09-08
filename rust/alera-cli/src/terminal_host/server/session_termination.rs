@@ -18,6 +18,15 @@ impl ServerActor {
         if let RuntimeMutationRequest::RemoveManagedWorkspace { request } = request {
             return self.prepare_managed_workspace_removal(request).await;
         }
+        if let RuntimeMutationRequest::HandOnWorkspace { request } = request {
+            let removal = crate::managed_workspace::ManagedWorkspaceRemoveRequest {
+                id: request.id.clone(),
+                delete_branch: Some(false),
+                active_workspace_id: request.active_workspace_id.clone(),
+                close_sessions: request.close_sessions,
+            };
+            return self.prepare_managed_workspace_removal(&removal).await;
+        }
         // Check when the queued operation starts, not when it was enqueued:
         // an earlier removal may have just failed and retained a shutdown.
         for workspace_id in self.mutation_queue.pending_workspace_shutdowns.keys() {

@@ -128,6 +128,8 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "workspace.sleep"
             | "workspace.repositoryWebUrl"
             | "workspace.createManaged"
+            | "workspace.handOff"
+            | "workspace.handOn"
             | "workspace.storageImpact"
             | "workspace.removeManaged"
             | "agentProfile.list"

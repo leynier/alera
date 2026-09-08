@@ -21,6 +21,7 @@ mod host_tools;
 mod hosted_review_retention;
 mod login_shell_environment;
 mod managed_workspace;
+mod managed_workspace_handoff;
 #[cfg(test)]
 mod managed_workspace_removal_tests;
 mod mobile_access;
@@ -46,6 +47,7 @@ mod tailscale;
 mod terminal_alias_commands;
 mod terminal_host;
 mod workspace_context;
+mod workspace_handoff;
 mod workspace_pinning;
 mod workspace_registration;
 mod workspace_setup_command;
@@ -332,6 +334,12 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
         }
         WorkspaceAction::Start(args) => {
             return workspace_start::run(runtime, args, json_output).await;
+        }
+        WorkspaceAction::HandOff(args) => {
+            return workspace_handoff::run_hand_off(runtime, args, json_output).await;
+        }
+        WorkspaceAction::HandOn(args) => {
+            return workspace_handoff::run_hand_on(runtime, args, json_output).await;
         }
         WorkspaceAction::Add(args) => {
             let payload = match workspace_add_payload(args) {

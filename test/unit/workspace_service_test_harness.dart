@@ -163,6 +163,24 @@ class _FakeManagedWorkspaceRuntime implements ManagedWorkspaceRuntime {
     removedWorkspace = workspace;
     this.deleteBranch = deleteBranch;
   }
+
+  @override
+  Future<WorkspaceCreationResult> handOffWorkspace({
+    required Workspace workspace,
+    required String branch,
+    required bool reuseExistingBranch,
+    String? name,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<WorkspaceHandOnResult> handOnWorkspace({
+    required Workspace workspace,
+    String? activeWorkspaceId,
+  }) {
+    throw UnimplementedError();
+  }
 }
 
 class const _FailingProjectConfigReader() implements ProjectConfigReader {
