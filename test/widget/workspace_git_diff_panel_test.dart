@@ -28,10 +28,12 @@ import '../unit/fake_source_control_watcher.dart';
 
 part 'workspace_git_diff_panel_preview_test_cases.dart';
 part 'workspace_git_diff_panel_context_menu_test_cases.dart';
+part 'workspace_git_diff_panel_branch_test_cases.dart';
 
 void main() {
   _registerWorkspaceGitDiffPanelPreviewTests();
   _registerWorkspaceGitDiffPanelContextMenuTests();
+  _registerWorkspaceGitDiffPanelBranchTests();
   testWidgets('git diff panel hides zero-valued line counts', (tester) async {
     final backend = FakeGitBackend()
       ..gitStatusResult = const GitStatusResult(

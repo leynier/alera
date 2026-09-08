@@ -8,8 +8,11 @@ mixin _FakeGitBackendWorkspaceState {
   List<String> get sourceBranches;
   Map<String, String?> get remotesByName;
   bool get listRemotesFails;
+  GitRepositoryState get gitRepositoryStateResult;
+  set gitRepositoryStateResult(GitRepositoryState value);
 
   GitException? createAndCheckoutBranchError;
+  GitException? checkoutBranchError;
   final Map<String, String> currentBranchesByPath = <String, String>{};
   final Map<String, Map<String, String?>> remotesByPath =
       <String, Map<String, String?>>{};
@@ -38,8 +41,48 @@ mixin _FakeGitBackendWorkspaceState {
     }
     headBranch = branch;
     currentBranchesByPath[path] = branch;
+    gitRepositoryStateResult = GitRepositoryState(
+      branch: branch,
+      upstream: gitRepositoryStateResult.upstream,
+      ahead: gitRepositoryStateResult.ahead,
+      behind: gitRepositoryStateResult.behind,
+      hasConflicts: gitRepositoryStateResult.hasConflicts,
+      headMessage: gitRepositoryStateResult.headMessage,
+    );
     if (!sourceBranches.contains(branch)) {
       sourceBranches.add(branch);
+    }
+  }
+
+  Future<void> checkoutBranch({
+    required String path,
+    required String branch,
+  }) async {
+    calls.add(
+      GitBackendCall('checkoutBranch', <String, Object?>{
+        'path': path,
+        'branch': branch,
+      }),
+    );
+    final error = checkoutBranchError;
+    if (error != null) {
+      throw error;
+    }
+    final resolved = branch.contains('/') && !sourceBranches.contains(branch)
+        ? branch.split('/').skip(1).join('/')
+        : branch;
+    headBranch = resolved;
+    currentBranchesByPath[path] = resolved;
+    gitRepositoryStateResult = GitRepositoryState(
+      branch: resolved,
+      upstream: gitRepositoryStateResult.upstream,
+      ahead: gitRepositoryStateResult.ahead,
+      behind: gitRepositoryStateResult.behind,
+      hasConflicts: gitRepositoryStateResult.hasConflicts,
+      headMessage: gitRepositoryStateResult.headMessage,
+    );
+    if (!sourceBranches.contains(resolved)) {
+      sourceBranches.add(resolved);
     }
   }
 

@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/forms/alera_search_field.dart';
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
+import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
@@ -38,6 +41,7 @@ part 'workspace_git_diff_panel_groups.dart';
 part 'workspace_git_diff_panel_rows.dart';
 part 'workspace_git_diff_panel_amend_dialog.dart';
 part 'workspace_git_diff_panel_stash_dialog.dart';
+part 'workspace_git_diff_panel_branch_dialog.dart';
 part 'workspace_git_diff_panel_toolbar.dart';
 part 'workspace_git_diff_panel_commit_message_field.dart';
 part 'workspace_git_diff_panel_tree.dart';
@@ -187,6 +191,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
           ),
           onPrimaryAction: (action) => unawaited(_runToolbarAction(action)),
           onSelectMenuAction: (action) => unawaited(_handleMenuAction(action)),
+          onSelectBranch: () => unawaited(_openBranchSwitcher()),
         ),
         const Divider(height: 1, color: AleraTokens.borderSubtle),
         Expanded(
@@ -313,6 +318,59 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
         await _run(
           () => _notifier.stashPop(stash.index),
           successMessage: 'Stash popped',
+        );
+    }
+  }
+
+  Future<void> _openBranchSwitcher() async {
+    final current = ref
+        .read(
+          workspaceSourceControlControllerProvider(
+            widget.sourceControlScope.path,
+          ),
+        )
+        .asData
+        ?.value;
+    if (current == null || current.isBusy) {
+      return;
+    }
+    final backend = ref.read(gitBackendProvider);
+    List<String> branches;
+    try {
+      branches = await backend.listBranches(widget.sourceControlScope.path);
+    } catch (error) {
+      if (mounted) {
+        AleraToast.show(context, message: _messageFor(error), tone: .error);
+      }
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+    final currentBranch = current.repositoryState.branch;
+    final selection = await showDialog<_BranchDialogResult>(
+      context: context,
+      builder: (_) => _SourceControlBranchDialog(
+        branches: branches,
+        currentBranch: currentBranch,
+      ),
+    );
+    if (selection == null || !mounted) {
+      return;
+    }
+    switch (selection) {
+      case _SwitchBranchResult(:final branch):
+        if (branch == currentBranch) {
+          return;
+        }
+        await _run(
+          () => _notifier.checkoutBranch(branch),
+          successMessage: 'Switched to $branch',
+        );
+      case _CreateBranchResult(:final branch):
+        await _run(
+          () => _notifier.createAndCheckoutBranch(branch),
+          successMessage: 'Created $branch',
         );
     }
   }

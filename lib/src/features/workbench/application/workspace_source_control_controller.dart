@@ -61,6 +61,8 @@ enum WorkspaceSourceControlAction {
   sync,
   stash,
   stashPop,
+  checkout,
+  createBranch,
 }
 
 @riverpod
@@ -210,6 +212,17 @@ class WorkspaceSourceControlController
   Future<void> stashPop(int stashIndex) => _run(
     .stashPop,
     (backend) => backend.stashPop(path: workspacePath, stashIndex: stashIndex),
+  );
+
+  Future<void> checkoutBranch(String branch) => _run(
+    .checkout,
+    (backend) => backend.checkoutBranch(path: workspacePath, branch: branch),
+  );
+
+  Future<void> createAndCheckoutBranch(String branch) => _run(
+    .createBranch,
+    (backend) =>
+        backend.createAndCheckoutBranch(path: workspacePath, branch: branch),
   );
 
   Future<WorkspaceSourceControlState> _load() async {

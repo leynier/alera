@@ -127,6 +127,11 @@ abstract class RustLibApi extends BaseApi {
     required String branch,
   });
 
+  Future<void> crateApiGitGitBranchCheckoutBranch({
+    required String path,
+    required String branch,
+  });
+
   Future<WorkspaceFileEntry> crateApiWorkspaceFilesCreateWorkspaceDirectory({
     required String workspacePath,
     required String parentRelativePath,
@@ -786,6 +791,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiGitGitBranchCreateAndCheckoutBranchConstMeta =>
       const TaskConstMeta(
         debugName: "create_and_checkout_branch",
+        argNames: ["path", "branch"],
+      );
+
+  @override
+  Future<void> crateApiGitGitBranchCheckoutBranch({
+    required String path,
+    required String branch,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          sse_encode_String(branch, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 93,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_git_error,
+        ),
+        constMeta: kCrateApiGitGitBranchCheckoutBranchConstMeta,
+        argValues: [path, branch],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGitGitBranchCheckoutBranchConstMeta =>
+      const TaskConstMeta(
+        debugName: "checkout_branch",
         argNames: ["path", "branch"],
       );
 
