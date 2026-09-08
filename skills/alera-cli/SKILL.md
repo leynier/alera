@@ -201,6 +201,8 @@ alera workspace hand-on
 alera workspace hand-on --id <child-workspace-id>
 ```
 
+After either move, live shells in the moved work are sent a best-effort `cd` to the new path, and awake agents are told `hand off`/`hand on` happened `X → Y`. A dead PTY or missing shell is skipped.
+
 Remove a managed workspace:
 
 This command is the same from Bash, PowerShell, and CMD:

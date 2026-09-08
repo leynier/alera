@@ -19,6 +19,7 @@ impl ServerActor {
             return self.prepare_managed_workspace_removal(request).await;
         }
         if let RuntimeMutationRequest::HandOnWorkspace { request } = request {
+            self.relocate_sessions_before_hand_on(&request.id).await;
             let removal = crate::managed_workspace::ManagedWorkspaceRemoveRequest {
                 id: request.id.clone(),
                 delete_branch: Some(false),

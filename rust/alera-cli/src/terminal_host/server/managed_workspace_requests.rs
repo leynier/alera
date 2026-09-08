@@ -123,6 +123,7 @@ impl ServerActor {
                 client_id,
                 request_id,
                 result,
+                handoff_source_workspace_id: None,
             });
         });
     }
@@ -137,12 +138,14 @@ impl ServerActor {
         self.cancel_shutdown_timer();
         let store = self.runtime_store.clone();
         let inbox = self.inbox.clone();
+        let handoff_source_workspace_id = Some(request.id.clone());
         tokio::spawn(async move {
             let result = json_result(hand_off_managed_workspace(&store, request).await);
             let _ = inbox.send(ServerCommand::ManagedWorkspaceCreated {
                 client_id,
                 request_id,
                 result,
+                handoff_source_workspace_id,
             });
         });
     }
@@ -168,11 +171,20 @@ impl ServerActor {
         client_id: u64,
         request_id: i64,
         result: HostResult<Value>,
+        handoff_source_workspace_id: Option<String>,
     ) {
         self.managed_workspace_jobs = self.managed_workspace_jobs.saturating_sub(1);
         match result {
             Ok(payload) => {
-                let project_id = string_scope(&payload, "projectId");
+                if let Some(source_workspace_id) = handoff_source_workspace_id {
+                    self.relocate_sessions_after_hand_off(&source_workspace_id, &payload)
+                        .await;
+                }
+                let project_id = string_scope(&payload, "projectId").or_else(|| {
+                    payload
+                        .get("workspace")
+                        .and_then(|workspace| string_scope(workspace, "projectId"))
+                });
                 self.client_write(client_id, ok_response(request_id, payload));
                 self.broadcast_workspaces_changed(project_id.as_deref());
             }
@@ -181,5 +193,34 @@ impl ServerActor {
             }
         }
         self.schedule_shutdown_if_idle();
+    }
+
+    async fn relocate_sessions_after_hand_off(
+        &mut self,
+        source_workspace_id: &str,
+        payload: &Value,
+    ) {
+        let Some(dest_path) = payload
+            .get("workspace")
+            .and_then(|workspace| workspace.get("path"))
+            .and_then(Value::as_str)
+        else {
+            return;
+        };
+        let Some(source) = self
+            .runtime_store
+            .find_workspace(source_workspace_id)
+            .await
+            .ok()
+            .flatten()
+        else {
+            return;
+        };
+        self.relocate_sessions_after_handoff(
+            super::workspace_handoff_relocate::WorkspaceHandoffDirection::HandOff,
+            source_workspace_id,
+            &source.path,
+            dest_path,
+        );
     }
 }

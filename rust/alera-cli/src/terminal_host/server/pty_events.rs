@@ -209,6 +209,15 @@ impl ServerActor {
                     self.broadcast_terminal_error(&session_id, message);
                 }
             }
+            PtyWriteCompletion::BestEffort => {
+                if let Some(message) = error {
+                    tracing::warn!(
+                        session_id,
+                        error = message,
+                        "ignored a failed best-effort terminal write"
+                    );
+                }
+            }
             PtyWriteCompletion::StartupPaste {
                 session_instance_id,
             } => {
