@@ -15,6 +15,8 @@ Default install directories are:
 
 The POSIX default is the sidecar layout (`current/`, `bin/`, `versions/`, `data/`). It is separate from the CLI runtime profile (`ALERA_RUNTIME_DIR` or `~/.alera/runtime`). The install directory can be overridden from Settings or the CLI.
 
+Quote `~/...` in the shell so the local Home Runtime does not expand it before Alera sees the path. Absolute install directories are checked against the detected remote platform: a Linux `/home/...` path is rewritten to `/Users/...` on macOS (where `/home` is autofs), and POSIX home paths are rejected on Windows. Bootstrap errors keep the real path for debugging and redact credentials only.
+
 ## Artifact Trust
 
 Release bootstrap uses a signed runtime archive from GitHub Releases. The archive lists each `alera-runtime-<version>-<platform>-<arch>.tar.gz` artifact with SHA-256 and size metadata, and the archive itself is signed with the same Ed25519 manifest key used by desktop update indexes. A release build passes that public key to the runtime host sidecar through `ALERA_RUNTIME_ARCHIVE_PUBLIC_KEY`.

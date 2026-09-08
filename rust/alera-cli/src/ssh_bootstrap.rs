@@ -3,8 +3,8 @@ use std::process::Stdio;
 
 use alera_core::child_process::windowless_async_command;
 use alera_core::runtime::{
-    RuntimeStore, SshAuthKind, SshBootstrapStatus, SshTarget, SshTargetBootstrapStateUpdate,
-    SshTargetLastStatus,
+    redact_known_patterns, RuntimeStore, SshAuthKind, SshBootstrapStatus, SshTarget,
+    SshTargetBootstrapStateUpdate, SshTargetLastStatus,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use base64::prelude::*;
@@ -16,6 +16,10 @@ use crate::runtime_archive::{
     resolve_runtime_artifact, ResolvedRuntimeArtifact, RuntimeArchiveChannel,
     RuntimeArtifactRequest, RuntimeArtifactTrust,
 };
+
+#[path = "ssh_bootstrap_install_dir.rs"]
+mod ssh_bootstrap_install_dir;
+use ssh_bootstrap_install_dir::{local_home_dir, prepare_remote_install_dir};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -137,11 +141,15 @@ pub(crate) async fn build_ssh_bootstrap_plan(
         .or(target.runtime_arch.as_deref())
         .map(normalize_arch)
         .unwrap_or_else(|| "auto".to_string());
-    let install_dir = request
-        .install_dir
-        .clone()
-        .or(target.install_dir.clone())
-        .unwrap_or_else(|| default_install_dir(&platform));
+    let install_dir = prepare_remote_install_dir(
+        &platform,
+        request
+            .install_dir
+            .as_deref()
+            .or(target.install_dir.as_deref())
+            .unwrap_or(""),
+        local_home_dir().as_deref(),
+    )?;
     let local_override = request.artifact_path.is_some();
     Ok(SshTargetBootstrapPlan {
         target_id: target.id,
@@ -215,7 +223,7 @@ where
     match result {
         Ok(target) => Ok(target),
         Err(error) => {
-            let redacted = redact_error(&error.to_string(), &target);
+            let redacted = redact_error(&error.to_string());
             let _ = store
                 .update_ssh_target_bootstrap_state(
                     &target.id,
@@ -297,11 +305,15 @@ where
     if !matches!(arch.as_str(), "x64" | "arm64") {
         bail!("unsupported remote architecture: {arch}");
     }
-    let install_dir_input = request
-        .install_dir
-        .clone()
-        .or(target.install_dir.clone())
-        .unwrap_or_else(|| default_install_dir(&platform));
+    let install_dir_input = prepare_remote_install_dir(
+        &platform,
+        request
+            .install_dir
+            .as_deref()
+            .or(target.install_dir.as_deref())
+            .unwrap_or(""),
+        local_home_dir().as_deref(),
+    )?;
     let install_dir = resolve_remote_install_dir(&target, &platform, &install_dir_input).await?;
 
     let installing = store
@@ -1045,12 +1057,11 @@ fn progress(
     }
 }
 
-fn redact_error(message: &str, target: &SshTarget) -> String {
-    truncate_error(
-        &message
-            .replace(&target.host, "<host>")
-            .replace(&target.username, "<user>"),
-    )
+fn redact_error(message: &str) -> String {
+    // Keep real paths such as `/home/leynier` so mkdir failures stay
+    // diagnosable. Replacing the SSH username used to turn that into
+    // `/home/<user>`, which looked like a template bug. See #675.
+    truncate_error(&redact_known_patterns(message))
 }
 
 fn truncate_error(message: &str) -> String {

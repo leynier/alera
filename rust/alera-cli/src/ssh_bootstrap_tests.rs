@@ -263,6 +263,96 @@ printf '%s\n' "$install_dir"
 }
 
 #[test]
+fn prepare_rewrites_linux_home_expansion_to_tilde_for_macos() {
+    let resolved = prepare_remote_install_dir(
+        "macos",
+        "/home/leynier/.alera/audit-637-home-probe",
+        Some("/home/leynier"),
+    )
+    .unwrap();
+    assert_eq!(resolved, "~/.alera/audit-637-home-probe");
+}
+
+#[test]
+fn prepare_rewrites_explicit_linux_home_to_users_on_macos() {
+    let resolved = prepare_remote_install_dir(
+        "macos",
+        "/home/leynier/.alera/audit-637-home-probe",
+        Some("/var/empty"),
+    )
+    .unwrap();
+    assert_eq!(resolved, "/Users/leynier/.alera/audit-637-home-probe");
+}
+
+#[test]
+fn prepare_rejects_linux_home_root_on_macos() {
+    let error = prepare_remote_install_dir("macos", "/home", Some("/var/empty"))
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("autofs"), "{error}");
+    assert!(error.contains("/Users"), "{error}");
+    assert!(!error.contains("<user>"), "{error}");
+}
+
+#[test]
+fn prepare_does_not_treat_homebrew_as_linux_home_on_macos() {
+    let resolved =
+        prepare_remote_install_dir("macos", "/homebrew/opt/alera", Some("/home/leynier")).unwrap();
+    assert_eq!(resolved, "/homebrew/opt/alera");
+}
+
+#[test]
+fn prepare_keeps_quoted_tilde_install_dir_on_macos() {
+    let resolved =
+        prepare_remote_install_dir("macos", "~/.alera/sidecar", Some("/home/leynier")).unwrap();
+    assert_eq!(resolved, "~/.alera/sidecar");
+}
+
+#[test]
+fn prepare_folds_macos_home_expansion_to_tilde_for_linux() {
+    let resolved = prepare_remote_install_dir(
+        "linux",
+        "/Users/leynier/.alera/sidecar",
+        Some("/Users/leynier"),
+    )
+    .unwrap();
+    assert_eq!(resolved, "~/.alera/sidecar");
+}
+
+#[test]
+fn prepare_rejects_linux_home_on_windows() {
+    let error = prepare_remote_install_dir(
+        "windows",
+        "/home/leynier/.alera/sidecar",
+        Some("/home/leynier"),
+    )
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("not valid on Windows"), "{error}");
+    assert!(error.contains("/home/leynier/.alera/sidecar"), "{error}");
+}
+
+#[test]
+fn redact_error_keeps_real_linux_home_path() {
+    let redacted = redact_error("ssh failed: mkdir: /home/leynier: Operation not supported");
+    assert!(redacted.contains("/home/leynier"), "{redacted}");
+    assert!(!redacted.contains("/home/<user>"), "{redacted}");
+    assert!(!redacted.contains("<user>"), "{redacted}");
+    assert!(!redacted.contains("<host>"), "{redacted}");
+}
+
+#[test]
+fn redact_error_redacts_credentials_only() {
+    let redacted = redact_error(
+        "ssh failed: mkdir: /home/leynier/.alera token=super-secret-value sk-secretvalue",
+    );
+    assert!(redacted.contains("/home/leynier/.alera"), "{redacted}");
+    assert!(!redacted.contains("super-secret-value"), "{redacted}");
+    assert!(!redacted.contains("sk-secretvalue"), "{redacted}");
+    assert!(redacted.contains("[redacted]"), "{redacted}");
+}
+
+#[test]
 fn truncate_error_handles_multibyte_text() {
     let message = "falló ".repeat(200);
     let truncated = truncate_error(&message);
@@ -350,4 +440,25 @@ async fn build_ssh_bootstrap_plan_rejects_password_target() {
         .await
         .unwrap_err();
     assert_eq!(error.to_string(), SSH_PASSWORD_BOOTSTRAP_UNSUPPORTED);
+}
+
+#[tokio::test]
+async fn build_ssh_bootstrap_plan_rewrites_linux_home_on_macos_target() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = RuntimeStore::open(dir.path()).await.unwrap();
+    let mut target = password_ssh_target("audit-675-macos");
+    target.auth_kind = SshAuthKind::Agent;
+    target.platform = Some("macos".to_string());
+    target.username = "leynier".to_string();
+    store.upsert_ssh_target(target.clone()).await.unwrap();
+
+    let mut request = empty_plan_request(&target.id);
+    request.install_dir = Some("/home/leynier/.alera/audit-637-home-probe".to_string());
+    let plan = build_ssh_bootstrap_plan(&store, &request).await.unwrap();
+    // Avoid formatting install_dir into assert messages (CodeQL cleartext-logging FP on username paths).
+    assert!(
+        plan.install_dir == "~/.alera/audit-637-home-probe"
+            || plan.install_dir == "/Users/leynier/.alera/audit-637-home-probe"
+    );
+    assert!(!plan.install_dir.starts_with("/home/"));
 }
