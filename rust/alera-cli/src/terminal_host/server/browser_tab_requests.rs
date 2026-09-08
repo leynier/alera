@@ -107,6 +107,10 @@ impl ServerActor {
             ));
         }
         let workspace_id = require_string_key(payload, "workspaceId")?;
+        self.runtime_store
+            .require_workspace_outside_cleanup(&workspace_id)
+            .await
+            .map_err(store_error)?;
         if self
             .runtime_store
             .find_workspace(&workspace_id)

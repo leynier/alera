@@ -343,6 +343,10 @@ impl ServerActor {
     ) -> HostResult<()> {
         self.require_workflow_spawn_permit(&session_id, &workspace_id, &tab_id, permit)
             .await?;
+        self.runtime_store
+            .require_workspace_outside_cleanup(&workspace_id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
         // This is the final owner-creation boundary for client, automation,
         // and orchestration launches. Runtime mutations perform filesystem
         // cleanup concurrently with the actor, so no new terminal owner may

@@ -1,5 +1,30 @@
 use super::*;
 
+pub(super) async fn finish_spawn_validation(
+    actor: &mut ServerActor,
+    commands: &mut tokio::sync::mpsc::UnboundedReceiver<
+        crate::terminal_host::server::ServerCommand,
+    >,
+) {
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        let command = tokio::time::timeout_at(deadline, commands.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        let validated = matches!(
+            &command,
+            crate::terminal_host::server::ServerCommand::WorkflowLaunch(
+                WorkflowLaunchCommand::SpawnValidated(_)
+            )
+        );
+        actor.handle(command).await;
+        if validated {
+            return;
+        }
+    }
+}
+
 async fn reject_after_prepare(
     fixture: &Fixture,
     input: &LaunchWorkflowTask,

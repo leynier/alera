@@ -37,6 +37,15 @@ impl RuntimeStore {
         sqlx::query("DROP TRIGGER IF EXISTS workflowLaunchTabRetained")
             .execute(&mut *tx)
             .await?;
+        sqlx::query("CREATE TRIGGER IF NOT EXISTS workflowCleanupTabInsert BEFORE INSERT ON workspaceTabs
+            WHEN EXISTS(SELECT 1 FROM workflowCleanupResources WHERE workspace_id=NEW.workspaceId AND retired=0)
+            BEGIN SELECT RAISE(ABORT, 'workspace is reserved for reviewed cleanup'); END")
+            .execute(&mut *tx).await?;
+        sqlx::query("CREATE TRIGGER IF NOT EXISTS workflowCleanupTabMove BEFORE UPDATE OF workspaceId ON workspaceTabs
+            WHEN OLD.workspaceId IS NOT NEW.workspaceId
+              AND EXISTS(SELECT 1 FROM workflowCleanupResources WHERE workspace_id=NEW.workspaceId AND retired=0)
+            BEGIN SELECT RAISE(ABORT, 'workspace is reserved for reviewed cleanup'); END")
+            .execute(&mut *tx).await?;
         sqlx::query("CREATE TRIGGER workflowLaunchTabRetained BEFORE DELETE ON workspaceTabs
             WHEN EXISTS(SELECT 1 FROM workflowLaunches l WHERE l.terminal_handle=OLD.id)
               AND NOT EXISTS(SELECT 1 FROM workflowCleanupResources r WHERE r.workspace_id=OLD.workspaceId AND r.retired=1)

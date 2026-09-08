@@ -12,6 +12,21 @@ pub struct WorkflowCleanupClaim {
 }
 
 impl RuntimeStore {
+    /// New runtime owners must stop at this fence. Cleanup's actor-side live
+    /// owner check must follow its durable claim to cover in-flight spawns.
+    pub async fn require_workspace_outside_cleanup(&self, workspace_id: &str) -> Result<()> {
+        let claimed: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM workflowCleanupResources WHERE workspace_id=?)",
+        )
+        .bind(workspace_id)
+        .fetch_one(self.pool())
+        .await?;
+        if claimed {
+            bail!("workspace is reserved for reviewed cleanup");
+        }
+        Ok(())
+    }
+
     /// Reserves only the immutable selection. The host must still hold resource
     /// locks and recheck live processes and Git state before each removal.
     pub async fn claim_workflow_cleanup(

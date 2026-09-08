@@ -136,6 +136,15 @@ impl ServerActor {
                 results.push(sync_failure(&page_id, "workspace_mismatch"));
                 continue;
             }
+            if self
+                .runtime_store
+                .require_workspace_outside_cleanup(&workspace_id)
+                .await
+                .is_err()
+            {
+                results.push(sync_failure(&page_id, "workspace_cleanup_pending"));
+                continue;
+            }
             let profile_id = optional_string_key(raw, "profileId")
                 .or_else(|| tab_profile_id(&tab))
                 .unwrap_or_else(|| "default".to_string());
