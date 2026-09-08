@@ -77,7 +77,8 @@ fi
 
 # The published runtime tarball is the host users actually ran. Rebuilding it
 # from source in CI added ~5.5 minutes on the PR Checks critical path after
-# `cargo test` had already compiled the current workspace.
+# `cargo test` had already compiled the current workspace. That artifact
+# reports crate version 0.1.0; product 0.49.0 is the tag plus this tarball.
 host_platform="${ALERA_PREVIOUS_HOST_PLATFORM:-$(_host_platform)}"
 host_arch="${ALERA_PREVIOUS_HOST_ARCH:-$(_host_arch)}"
 readonly asset_name="alera-runtime-${previous_version}-${host_platform}-${host_arch}.tar.gz"
