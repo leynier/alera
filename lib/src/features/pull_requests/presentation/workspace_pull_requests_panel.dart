@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
@@ -5,8 +7,11 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
+import 'package:alera/src/features/pull_requests/application/pull_request_agent_watch_providers.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_controller.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_agent_dispatch.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
@@ -172,6 +177,19 @@ class _VisiblePullRequestsPanelState
     final aiAssistSettings = ref.watch(
       settingsControllerProvider.select((settings) => settings.aiAssist),
     );
+    final agentWatchMode = ref.watch(
+      pullRequestAgentWatchControllerProvider.select(
+        (sessions) => sessions[widget.scope.workspaceId]?.mode,
+      ),
+    );
+    ref.listen(workspacePullRequestControllerProvider(widget.scope), (
+      previous,
+      next,
+    ) {
+      ref
+          .read(pullRequestAgentWatchControllerProvider.notifier)
+          .onPanelState(widget.scope.workspaceId, next.asData?.value);
+    });
     return async.when(
       loading: WorkspacePullRequestsPanel._loading,
       error: (error, _) =>
@@ -196,6 +214,8 @@ class _VisiblePullRequestsPanelState
           onCreateActionChanged: (action) => ref
               .read(workbenchControllerProvider.notifier)
               .setPullRequestCreateAction(action),
+          agentWatchMode: agentWatchMode,
+          ref: ref,
         );
       },
     );

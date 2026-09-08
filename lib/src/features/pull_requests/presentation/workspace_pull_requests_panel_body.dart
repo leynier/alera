@@ -12,6 +12,8 @@ class const _PullRequestBody({
   required final Future<void> Function(String url) onOpenUrl,
   required final ValueChanged<HostedReview>? onOpenDiff,
   required final ValueChanged<PullRequestCreateAction> onCreateActionChanged,
+  final PullRequestAgentWatchMode? agentWatchMode,
+  required final WidgetRef ref,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -85,6 +87,46 @@ class const _PullRequestBody({
         onToggleTask: controller.toggleReviewCommentTask,
         onUpdate: controller.updateReview,
         onLoadCheckDetails: controller.loadCheckDetails,
+        agentWatchMode: agentWatchMode,
+        onFixFailedChecks: review.isOpen
+            ? () => unawaited(
+                dispatchPullRequestFailedChecks(
+                  context: context,
+                  ref: ref,
+                  workspaceId: controller.scope.workspaceId,
+                  review: review,
+                ),
+              )
+            : null,
+        onWatchAndFix: review.isOpen
+            ? () => unawaited(
+                startPullRequestAgentWatch(
+                  context: context,
+                  ref: ref,
+                  scope: controller.scope,
+                  review: review,
+                  mode: .fix,
+                  checksRollup: state.checksRollup,
+                ),
+              )
+            : null,
+        onWatchFixAndMerge: review.isOpen
+            ? () => unawaited(
+                startPullRequestAgentWatch(
+                  context: context,
+                  ref: ref,
+                  scope: controller.scope,
+                  review: review,
+                  mode: .fixAndMerge,
+                  checksRollup: state.checksRollup,
+                ),
+              )
+            : null,
+        onStopAgentWatch: agentWatchMode == null
+            ? null
+            : () => ref
+                  .read(pullRequestAgentWatchControllerProvider.notifier)
+                  .stop(controller.scope.workspaceId),
       );
     }
     final canCreate = state.supportsCreation && state.currentBranch != null;
