@@ -33,10 +33,63 @@ env:
   TEST_SHARDS: 4
 
 jobs:
+  # Create→done critical path. Clippy-driver artifacts are not rustc artifacts,
+  # so clippy stays a second job, but it waits for `changes` so the first free
+  # runner goes here. This job must not `need` `changes`: on run 34191563476
+  # that serial gate plus the post-filter fan-out queued rust test for 6.6
+  # minutes before cargo started, which is what pushed create→done to 19.5m.
+  # Docs-only pull requests still skip cargo via the same selector; they occupy
+  # this runner for checkout plus select, not for a workspace compile.
+  rust-test:
+    name: rust test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ALERA_SCCACHE_R2_ACCOUNT_ID: ${{ vars.SCCACHE_R2_ACCOUNT_ID }}
+      ALERA_SCCACHE_R2_BUCKET: ${{ vars.SCCACHE_R2_BUCKET }}
+      ALERA_SCCACHE_R2_ACCESS_KEY_ID: ${{ secrets.SCCACHE_R2_ACCESS_KEY_ID }}
+      ALERA_SCCACHE_R2_SECRET_ACCESS_KEY: ${{ secrets.SCCACHE_R2_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          submodules: false
+
+      - name: Select jobs
+        id: select
+        uses: ./.github/actions/select-ci-jobs
+
+      - name: Setup Rust checks
+        if: steps.select.outputs.rust == 'true'
+        uses: ./.github/actions/setup-rust-checks
+        with:
+          check: test
+
+      # One pinned historical host on this job, not a version matrix. The
+      # script verifies the release tag's commit and the published linux-x64
+      # runtime tarball SHA-256 before exercising the current compatibility
+      # client. Rebuilding v0.49.0 from source here was ~5.5 minutes on the
+      # PR Checks critical path.
+      - name: Previous host conformance
+        if: steps.select.outputs.rust == 'true'
+        run: bash tool/ci/host_compatibility.sh
+
+      - name: Report sccache statistics
+        if: ${{ always() && steps.select.outputs.rust == 'true' }}
+        run: |
+          {
+            echo "### sccache Rust test"
+            echo '```text'
+            sccache --show-stats || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
   # Cheap path filter so docs-only and similar pull requests do not spend
   # ~11 minutes compiling Rust or Flutter tests that cannot fail. Unknown
   # paths fail open and enable every job. workflow_dispatch always runs all
-  # jobs because it has no pull-request file list.
+  # jobs because it has no pull-request file list. rust-test above does not
+  # wait for this job; everything else does.
   changes:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -54,30 +107,9 @@ jobs:
           fetch-depth: 1
           submodules: false
 
-      - name: Setup Dart
-        uses: dart-lang/setup-dart@v1
-        with:
-          sdk: 3.13.2
-
       - name: Select jobs
         id: select
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          if [[ "$EVENT_NAME" != "pull_request" ]]; then
-            dart tool/ci/select_ci_jobs.dart --all >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files" \
-            --jq '.[] | .filename, (.previous_filename // empty)' \
-            > "$RUNNER_TEMP/changed-files.txt"
-          echo "Changed files:"
-          cat "$RUNNER_TEMP/changed-files.txt"
-          dart tool/ci/select_ci_jobs.dart --files-from "$RUNNER_TEMP/changed-files.txt" \
-            >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/select-ci-jobs
 
   # Runs once for the whole repository rather than per shard. None of these
   # commands build the Linux desktop app or run native asset build hooks, so
@@ -334,24 +366,18 @@ jobs:
       - name: Test
         run: flutter test --no-pub
 
-  # Clippy-driver and rustc do not share rustc artifacts, so a sequential
-  # clippy-then-test job compiled the workspace twice (~6 min + ~7 min) while
-  # the tests themselves finished in a few seconds. Two legs is the same
-  # tradeoff as TEST_SHARDS: a third runner would spend more on setup than it
-  # would return. The composite owns the cargo flags so warm-cache.yml can
-  # populate matching sccache keys.
-  rust:
-    name: rust ${{ matrix.name }}
+  # Clippy-driver and rustc do not share rustc artifacts, so this stays a
+  # second job rather than running after rust-test. It waits for `changes` so
+  # it does not compete with rust-test for the first free runner. Do not add
+  # a third rust leg; the extra runner setup would cost more than it buys
+  # back. The composite owns the cargo flags so warm-cache.yml can populate
+  # matching sccache keys.
+  rust-clippy:
+    name: rust clippy
     needs: changes
     if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: clippy
-          - name: test
     env:
       # Same R2 compiler cache as warm-cache and release. Fork pull requests
       # omit secrets and the setup action falls back to runner-local disk.
@@ -368,22 +394,13 @@ jobs:
       - name: Setup Rust checks
         uses: ./.github/actions/setup-rust-checks
         with:
-          check: ${{ matrix.name }}
-
-      # One pinned historical host on the existing test leg, not a version
-      # matrix. The script verifies the release tag's commit and the published
-      # linux-x64 runtime tarball SHA-256 before exercising the current
-      # compatibility client. Rebuilding v0.49.0 from source here was ~5.5
-      # minutes on the PR Checks critical path.
-      - name: Previous host conformance
-        if: matrix.name == 'test'
-        run: bash tool/ci/host_compatibility.sh
+          check: clippy
 
       - name: Report sccache statistics
         if: always()
         run: |
           {
-            echo "### sccache Rust ${{ matrix.name }}"
+            echo "### sccache Rust clippy"
             echo '```text'
             sccache --show-stats || true
             echo '```'
@@ -393,6 +410,7 @@ jobs:
     name: pr-ready
     if: always()
     needs:
+      - rust-test
       - changes
       - static
       - packages
@@ -400,13 +418,14 @@ jobs:
       - test
       - coverage
       - mobile
-      - rust
+      - rust-clippy
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Require fast checks
         shell: bash
         env:
+          RUST_TEST_RESULT: ${{ needs.rust-test.result }}
           CHANGES_RESULT: ${{ needs.changes.result }}
           STATIC_RESULT: ${{ needs.static.result }}
           PACKAGES_RESULT: ${{ needs.packages.result }}
@@ -414,21 +433,22 @@ jobs:
           TEST_RESULT: ${{ needs.test.result }}
           COVERAGE_RESULT: ${{ needs.coverage.result }}
           MOBILE_RESULT: ${{ needs.mobile.result }}
-          RUST_RESULT: ${{ needs.rust.result }}
+          RUST_CLIPPY_RESULT: ${{ needs.rust-clippy.result }}
         run: |
           set -euo pipefail
           failed=0
           # Path filtering skips jobs that cannot fail for the change set.
-          # `changes` and `static` always run when the workflow runs, so a
-          # skip there means the filter itself failed and must not pass.
-          for result_name in CHANGES_RESULT STATIC_RESULT; do
+          # `changes`, `static`, and `rust-test` always run when the workflow
+          # runs, so a skip there means the filter itself failed and must not
+          # pass. rust-test still no-ops cargo when the selector says so.
+          for result_name in CHANGES_RESULT STATIC_RESULT RUST_TEST_RESULT; do
             result="${!result_name}"
             if [ "$result" != "success" ]; then
               echo "::error::${result_name} was ${result}"
               failed=1
             fi
           done
-          for result_name in PACKAGES_RESULT GENERATION_RESULT TEST_RESULT COVERAGE_RESULT MOBILE_RESULT RUST_RESULT; do
+          for result_name in PACKAGES_RESULT GENERATION_RESULT TEST_RESULT COVERAGE_RESULT MOBILE_RESULT RUST_CLIPPY_RESULT; do
             result="${!result_name}"
             if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
               echo "::error::${result_name} was ${result}"

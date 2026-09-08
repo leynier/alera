@@ -2,6 +2,21 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+String workflowJob(String yaml, String jobId) {
+  final lines = yaml.replaceAll('\r\n', '\n').split('\n');
+  final start = lines.indexWhere((line) => line == '  $jobId:');
+  expect(start, greaterThanOrEqualTo(0), reason: 'missing job $jobId');
+  var end = lines.length;
+  final nextJob = RegExp(r'^  [A-Za-z0-9_-]+:\s*$');
+  for (var i = start + 1; i < lines.length; i++) {
+    if (nextJob.hasMatch(lines[i])) {
+      end = i;
+      break;
+    }
+  }
+  return lines.sublist(start, end).join('\n');
+}
+
 void main() {
   group('release workflow configuration', () {
     test('packages GTK and system libraries without a browser engine', () {
@@ -367,11 +382,26 @@ void main() {
           .readAsStringSync();
       final rustTests = File('tool/ci/run_rust_workspace_tests.sh')
           .readAsStringSync();
+      final selectJobs = File('.github/actions/select-ci-jobs/action.yml')
+          .readAsStringSync();
+      final rustTestJob = workflowJob(pr, 'rust-test');
+      final rustClippyJob = workflowJob(pr, 'rust-clippy');
 
-      expect(pr, contains('tool/ci/select_ci_jobs.dart'));
+      expect(pr, contains('./.github/actions/select-ci-jobs'));
+      expect(selectJobs, contains('tool/ci/select_ci_jobs.dart'));
       expect(pr, contains('needs.changes.outputs.rust == \'true\''));
       expect(pr, contains('needs.changes.outputs.test == \'true\''));
       expect(pr, contains('CHANGES_RESULT'));
+      expect(pr, contains('RUST_TEST_RESULT'));
+      expect(pr, contains('RUST_CLIPPY_RESULT'));
+      expect(
+        RegExp(r'^\s+needs:', multiLine: true).hasMatch(rustTestJob),
+        isFalse,
+        reason:
+            'rust test is the create→done critical path and must not wait '
+            'for the path-filter job or the Flutter fan-out',
+      );
+      expect(rustClippyJob, contains('needs: changes'));
       expect(
         pr,
         contains(r'[ "$result" != "success" ] && [ "$result" != "skipped" ]'),

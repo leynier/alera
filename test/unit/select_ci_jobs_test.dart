@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../tool/ci/select_ci_jobs.dart';
@@ -103,6 +105,18 @@ void main() {
       ]),
       CiJobs.all,
     );
+    expect(
+      selectCiJobs(const <String>['.github/actions/select-ci-jobs/action.yml']),
+      CiJobs.all,
+    );
+  });
+
+  test('select-ci-jobs dispatch keys match CiJobs.all', () {
+    final action = File('.github/actions/select-ci-jobs/action.yml')
+        .readAsStringSync();
+    for (final key in CiJobs.all.githubOutput.keys) {
+      expect(action, contains('echo "$key=true"'));
+    }
   });
 
   test('unknown native paths fail open', () {
