@@ -2,6 +2,72 @@ use super::workflow_plan_tests::{fixture, valid_profile};
 use super::*;
 
 #[tokio::test]
+async fn workflow_proposal_cancel_and_submit_have_one_atomic_winner() {
+    let (_dir, store, mut request) = fixture(false).await;
+    let tasks = std::mem::take(&mut request.proposal.tasks);
+    let draft = store
+        .create_workflow_proposal(request, valid_profile)
+        .await
+        .unwrap();
+    let (cancel, submit) = tokio::join!(
+        store.cancel_workflow_proposal(&draft.id),
+        store.submit_workflow_proposal(&draft.id, tasks)
+    );
+    assert_ne!(cancel.is_ok(), submit.is_ok());
+    assert_eq!(
+        store
+            .workflow_proposal_cancellation(&draft.id)
+            .await
+            .unwrap()
+            .is_some(),
+        cancel.is_ok()
+    );
+}
+
+#[tokio::test]
+async fn workflow_proposal_cancellation_fences_launch_and_late_submission_after_restart() {
+    let (dir, store, mut request) = fixture(false).await;
+    let tasks = std::mem::take(&mut request.proposal.tasks);
+    let draft = store
+        .create_workflow_proposal(request, valid_profile)
+        .await
+        .unwrap();
+    let (one, two) = tokio::join!(
+        store.cancel_workflow_proposal(&draft.id),
+        store.cancel_workflow_proposal(&draft.id)
+    );
+    assert_eq!(one.unwrap().status, "settled");
+    assert_eq!(two.unwrap().status, "settled");
+    let reopened = RuntimeStore::open(dir.path()).await.unwrap();
+    assert!(reopened.reserve_workflow_coordinator(&draft).await.is_err());
+    assert!(reopened
+        .submit_workflow_proposal(&draft.id, tasks)
+        .await
+        .is_err());
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM workflowRuns")
+        .fetch_one(reopened.pool())
+        .await
+        .unwrap();
+    assert_eq!(count, 0);
+}
+
+#[tokio::test]
+async fn workflow_proposal_cancellation_retains_exact_coordinator_target() {
+    let (_dir, store, mut request) = fixture(false).await;
+    request.proposal.tasks.clear();
+    let draft = store
+        .create_workflow_proposal(request, valid_profile)
+        .await
+        .unwrap();
+    let (coordinator, _) = store.reserve_workflow_coordinator(&draft).await.unwrap();
+    let receipt = store.cancel_workflow_proposal(&draft.id).await.unwrap();
+    assert_eq!(receipt.status, "pending");
+    assert_eq!(receipt.tab_id.as_deref(), Some(coordinator.tab_id.as_str()));
+    assert_eq!(receipt.workspace_id, coordinator.workspace_id);
+    assert!(store.reserve_workflow_coordinator(&draft).await.is_err());
+}
+
+#[tokio::test]
 async fn workflow_coordinator_has_one_launch_winner_across_reconnect_and_restart() {
     let (dir, store, mut request) = fixture(false).await;
     request.proposal.tasks.clear();

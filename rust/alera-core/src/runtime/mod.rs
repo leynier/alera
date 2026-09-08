@@ -104,6 +104,8 @@ mod workflow_catalog_store;
 #[cfg(test)]
 mod workflow_catalog_tests;
 mod workflow_coordinator;
+mod workflow_proposal_cancellation;
+pub use workflow_proposal_cancellation::WorkflowProposalCancellation;
 mod workflow_correction;
 mod workflow_correction_evidence;
 #[cfg(test)]

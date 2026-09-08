@@ -26,6 +26,15 @@ impl RuntimeStore {
         )
         .execute(self.pool())
         .await?;
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS workflowProposalCancellations (
+            proposal_id TEXT PRIMARY KEY REFERENCES workflowProposalDrafts(id),
+            tab_id TEXT, workspace_id TEXT NOT NULL,
+            status TEXT NOT NULL CHECK(status IN ('pending','settled','attention')),
+            error TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))",
+        )
+        .execute(self.pool())
+        .await?;
         Ok(())
     }
 
@@ -59,6 +68,7 @@ impl RuntimeStore {
         sqlx::query("UPDATE orchestrationBoardRevision SET revision = revision WHERE id = 1")
             .execute(&mut *tx)
             .await?;
+        super::workflow_proposal_cancellation::require_open_proposal(&mut tx, &draft.id).await?;
         super::workflow_source_identity::require_source_workspace(
             &mut tx,
             &draft.selection.source_workspace,

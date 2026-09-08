@@ -147,6 +147,8 @@ impl RuntimeStore {
             tx.commit().await?;
             return self.workflow_plan_revision(&run_id, Some(revision)).await;
         }
+        super::workflow_proposal_cancellation::require_open_proposal(&mut tx, &request.request_id)
+            .await?;
         let run_id = request
             .run_id
             .clone()
