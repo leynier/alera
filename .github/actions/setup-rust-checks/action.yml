@@ -56,8 +56,10 @@ runs:
       working-directory: rust
       run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
+    # Isolates orchestration_review_regressions after the rest of the suite:
+    # that binary drives real PTYs and flakes under cargo's default parallel
+    # test-target scheduling. Compile still happens once via --no-run.
     - name: Test
       if: inputs.check == 'test' || inputs.check == 'all'
       shell: bash
-      working-directory: rust
-      run: cargo test --workspace --locked
+      run: bash tool/ci/run_rust_workspace_tests.sh

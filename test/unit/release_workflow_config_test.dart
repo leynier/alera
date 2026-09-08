@@ -360,6 +360,38 @@ void main() {
       },
     );
 
+    test('skips redundant PR Checks jobs and still gates on pr-ready', () {
+      final pr = File('.github/workflows/pr.yml').readAsStringSync();
+      final hostCompat = File('tool/ci/host_compatibility.sh')
+          .readAsStringSync();
+      final rustChecks = File('.github/actions/setup-rust-checks/action.yml')
+          .readAsStringSync();
+      final rustTests = File('tool/ci/run_rust_workspace_tests.sh')
+          .readAsStringSync();
+
+      expect(pr, contains('tool/ci/select_ci_jobs.dart'));
+      expect(pr, contains('needs.changes.outputs.rust == \'true\''));
+      expect(pr, contains('needs.changes.outputs.test == \'true\''));
+      expect(pr, contains('CHANGES_RESULT'));
+      expect(
+        pr,
+        contains(r'[ "$result" != "success" ] && [ "$result" != "skipped" ]'),
+      );
+      expect(pr, contains('flutter test --no-pub --coverage'));
+      expect(pr, contains('Previous host conformance'));
+      expect(hostCompat, contains(r'alera-runtime-${previous_version}'));
+      expect(
+        hostCompat,
+        contains(
+          'd0f29c75c2163e3764d7fbf2bb4e605007f2447a890e5bf1190f359516d86d13',
+        ),
+      );
+      expect(hostCompat, isNot(contains('cargo build --locked -p alera-cli')));
+      expect(rustChecks, contains('tool/ci/run_rust_workspace_tests.sh'));
+      expect(rustTests, contains('--test-threads=1'));
+      expect(rustTests, contains('orchestration_review_regressions'));
+    });
+
     test('keeps main ruleset activation behind a merged dry-run preflight', () {
       final script = File('tool/github/main_ruleset.dart').readAsStringSync();
       final contributing = File('.github/CONTRIBUTING.md').readAsStringSync();
