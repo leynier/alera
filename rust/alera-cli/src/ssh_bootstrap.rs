@@ -923,7 +923,19 @@ fn remote_join(platform: &str, base: &str, parts: &[&str]) -> String {
 }
 
 fn windows_sftp_path(value: &str) -> String {
-    value.replace('\\', "/")
+    // OpenSSH on Windows treats bare `C:/...` as relative to the remote home
+    // (nesting as `/C:/Users/<user>/C:/...`). Force the absolute SFTP form
+    // `/X:/...` so puts land at the intended drive path.
+    let normalized = value.replace('\\', "/");
+    let trimmed = normalized.trim_end_matches('/');
+    let without_leading = trimmed.trim_start_matches('/');
+    let mut chars = without_leading.chars();
+    match (chars.next(), chars.next()) {
+        (Some(drive), Some(':')) if drive.is_ascii_alphabetic() => {
+            format!("/{without_leading}")
+        }
+        _ => trimmed.to_string(),
+    }
 }
 
 pub(crate) fn shell_quote(value: &str) -> String {
@@ -1132,6 +1144,60 @@ mod tests {
         assert!(script.contains("current.txt"));
         assert!(script.contains("Join-Path $current 'alera.exe'"));
         assert!(!script.contains("current/alera.exe"));
+    }
+
+    #[test]
+    fn windows_sftp_path_forces_openssh_absolute_drive_form() {
+        assert_eq!(
+            windows_sftp_path(r"C:\Users\leyni\AppData\Local\Alera\runtime"),
+            "/C:/Users/leyni/AppData/Local/Alera/runtime"
+        );
+        assert_eq!(
+            windows_sftp_path("C:/Users/leyni/AppData/Local/Alera/runtime"),
+            "/C:/Users/leyni/AppData/Local/Alera/runtime"
+        );
+        assert_eq!(
+            windows_sftp_path("/C:/Users/leyni/AppData/Local/Alera/runtime"),
+            "/C:/Users/leyni/AppData/Local/Alera/runtime"
+        );
+        assert_eq!(
+            windows_sftp_path("//C:/Users/leyni/AppData/Local/Alera/runtime/"),
+            "/C:/Users/leyni/AppData/Local/Alera/runtime"
+        );
+        assert_eq!(windows_sftp_path("c:/Users/me"), "/c:/Users/me");
+        assert_eq!(windows_sftp_path("D:"), "/D:");
+    }
+
+    #[test]
+    fn remote_join_windows_builds_absolute_sftp_destinations() {
+        assert_eq!(
+            remote_join(
+                "windows",
+                r"C:\Users\leyni\AppData\Local\Alera\runtime",
+                &["staging", "job", "archive.tar.gz"],
+            ),
+            "/C:/Users/leyni/AppData/Local/Alera/runtime/staging/job/archive.tar.gz"
+        );
+        assert_eq!(
+            remote_join(
+                "windows",
+                "C:/Users/leyni/AppData/Local/Alera/runtime",
+                &["staging", "job"],
+            ),
+            "/C:/Users/leyni/AppData/Local/Alera/runtime/staging/job"
+        );
+        assert_eq!(
+            remote_join(
+                "windows",
+                "/C:/Users/leyni/AppData/Local/Alera/runtime",
+                &["staging"],
+            ),
+            "/C:/Users/leyni/AppData/Local/Alera/runtime/staging"
+        );
+        assert_eq!(
+            remote_join("linux", "/home/me/.alera/runtime", &["staging", "job"]),
+            "/home/me/.alera/runtime/staging/job"
+        );
     }
 
     #[test]
