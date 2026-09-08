@@ -403,7 +403,7 @@ void main() {
       expect(rustChecks, contains('tool/ci/run_rust_workspace_tests.sh'));
       expect(rustTests, contains('--test-threads=1'));
       expect(rustTests, contains('orchestration_review_regressions'));
-      expect(rustTests, contains('--lib --bins --doc'));
+      expect(rustTests, contains('--lib --bins'));
       final cargoTests = rustTests
           .split('\n')
           .map((line) => line.trim())
@@ -415,6 +415,7 @@ void main() {
         expect(command, contains('--locked'));
         expect(command, isNot(contains('--exclude')));
         expect(command, isNot(contains('--no-run')));
+        expect(command, isNot(contains('--doc')));
         expect(command, isNot(contains('-p alera-cli')));
       }
       expect(

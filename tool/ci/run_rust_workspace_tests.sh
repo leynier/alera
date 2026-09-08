@@ -23,7 +23,9 @@ for file in alera-cli/tests/*.rs; do
   other_integration_tests+=(--test "$name")
 done
 
-cargo test --workspace --locked --lib --bins --doc \
+# `--doc` cannot mix with other target selectors. This workspace has no
+# rustdoc tests, so omitting `--doc` drops nothing.
+cargo test --workspace --locked --lib --bins \
   "${other_integration_tests[@]}"
 
 cargo test --workspace --locked --test orchestration_review_regressions \
