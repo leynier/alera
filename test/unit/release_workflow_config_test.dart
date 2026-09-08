@@ -345,18 +345,17 @@ void main() {
       'dispatches exact-head checks for automation-created pull requests',
       () {
         final pr = File('.github/workflows/pr.yml').readAsStringSync();
-        final mergify = File('.mergify.yml').readAsStringSync();
+        final release = File('.github/workflows/release-cut.yml')
+            .readAsStringSync();
 
         expect(pr, contains('workflow_dispatch:'));
         expect(pr, contains('base_sha:'));
         expect(pr, contains('head_sha:'));
         expect(pr, contains(r'git diff --check "$BASE_SHA...$HEAD_SHA"'));
-        expect(mergify, contains('queue prepared release versions'));
-        expect(mergify, contains('author = github-actions[bot]'));
-        expect(mergify, contains('head ~= ^release/version-'));
-        expect(mergify, contains('check-success = @github-actions/pr-ready'));
-        expect(mergify, contains('min: 1'));
-        expect(mergify, contains('batch_max_wait_time: 10 min'));
+        expect(File('.mergify.yml').existsSync(), isFalse);
+        expect(File('.github/workflows/merge-queue.yml').existsSync(), isFalse);
+        expect(release, isNot(contains('Mergify')));
+        expect(release, contains('Squash-merge this pull request after'));
       },
     );
 
@@ -392,20 +391,48 @@ void main() {
       expect(rustTests, contains('orchestration_review_regressions'));
     });
 
+    test('desktop builds opt disposable native tests into clipboard access', () {
+      final workflow = File('.github/workflows/desktop-build.yml')
+          .readAsStringSync()
+          .replaceAll('\r\n', '\n');
+      final nativeFlow = workflow.substring(
+        workflow.indexOf(
+          '      - name: Verify native process boundary and workbench flow',
+        ),
+        workflow.indexOf(
+          '      - name: Verify macOS startup and desktop presence',
+        ),
+      );
+
+      expect(
+        nativeFlow,
+        contains(
+          "        env:\n          ALERA_FLAVOR: dev\n          ALERA_NATIVE_TEST_CLIPBOARD: '1'",
+        ),
+        reason:
+            'terminal_input_native_test owns the clipboard and only runs when '
+            'the disposable desktop job explicitly opts in',
+      );
+    });
+
     test('keeps main ruleset activation behind a merged dry-run preflight', () {
       final script = File('tool/github/main_ruleset.dart').readAsStringSync();
       final contributing = File('.github/CONTRIBUTING.md').readAsStringSync();
 
-      expect(script, contains("'bypass_mode': 'always'"));
+      expect(script, isNot(contains('mergify')));
+      expect(script, isNot(contains('queue-ready')));
       expect(script, contains("'context': 'pr-ready'"));
-      expect(script, contains("'context': 'queue-ready'"));
+      expect(script, contains("'bypass_actors'"));
       expect(script, contains("'required_review_thread_resolution': true"));
       expect(script, contains("'type': 'deletion'"));
       expect(script, contains("'type': 'non_fast_forward'"));
       expect(script, contains('if (!options.apply)'));
+      expect(script, contains("method: 'PUT'"));
       expect(contributing, contains('### Main Ruleset Rollout'));
       expect(contributing, contains('--dry-run-run-id <run-id>'));
-      expect(contributing, contains('Keep issue #489 open'));
+      expect(contributing, contains('squash-merge'));
+      expect(contributing, isNot(contains('Mergify')));
+      expect(contributing, isNot(contains('Keep issue #489 open')));
     });
 
     test('cleans closed pull request caches without a checkout', () {
