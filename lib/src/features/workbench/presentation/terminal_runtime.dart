@@ -12,6 +12,7 @@ import 'package:alera/src/features/workbench/presentation/terminal_link_resolver
 import 'package:alera/src/features/workbench/presentation/terminal_search_controller.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/workbench/domain/terminal_agent_prompt_injection.dart';
+import 'package:alera/src/features/workbench/domain/terminal_emulator_fake_resize.dart';
 import 'package:alera/src/features/workbench/domain/terminal_image_paste.dart';
 import 'package:alera/src/features/workbench/domain/terminal_mode_reset.dart';
 import 'package:alera/src/features/workbench/domain/terminal_osc52_clipboard.dart';
@@ -35,6 +36,7 @@ part 'terminal_runtime_posix_adapter.dart';
 part 'terminal_runtime_ghostty_adapter.dart';
 part 'terminal_runtime_xterm_runtime.dart';
 part 'terminal_runtime_session_handle.dart';
+part 'terminal_runtime_emulator_fake_resize.dart';
 part 'terminal_runtime_terminal_pulse.dart';
 part 'terminal_runtime_search.dart';
 part 'terminal_runtime_session_recovery.dart';
@@ -139,10 +141,11 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
     FocusOnKeyEventCallback? onKeyEvent,
   });
 
-  /// Pulses the mounted PTY viewport and schedules a one-shot repaint.
+  /// Bumps the mounted emulator by about 30% and restores it, then repaints.
   ///
   /// Handles without a measured view intentionally do nothing. Refreshing must
-  /// never replace the emulator or the PTY session.
+  /// never replace the emulator or the PTY session, and must not change PTY
+  /// dimensions.
   Future<void> refreshRendering() async {}
 
   /// Moves keyboard focus to this terminal's text input so subsequent
@@ -297,8 +300,9 @@ abstract interface class TerminalPtySession {
 
   /// Briefly applies an adjacent PTY size before restoring the measured size.
   ///
-  /// This forces full-screen terminal apps to redraw without resizing the
-  /// Flutter view or replacing the emulator.
+  /// Desktop Refresh no longer uses this path; it fake-resizes the emulator
+  /// instead so PTY dimensions stay put. Adapters keep the one-column pulse
+  /// for callers that still want a host-side redraw.
   Future<void> refreshViewport(
     int cols,
     int rows,

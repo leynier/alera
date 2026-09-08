@@ -34,6 +34,7 @@ part 'terminal_runtime_output_backpressure_cases.dart';
 part 'terminal_runtime_remint_cases.dart';
 part 'terminal_runtime_pulse_cases.dart';
 part 'terminal_runtime_xterm_widget_cases.dart';
+part 'terminal_runtime_emulator_fake_resize_cases.dart';
 part 'terminal_runtime_native_test_harness.dart';
 
 void main() {
@@ -50,5 +51,6 @@ void main() {
     _registerXtermRuntimeRemintTests();
     _registerTerminalRuntimePulseTests();
     _registerXtermRuntimeWidgetTests();
+    _registerXtermRuntimeEmulatorFakeResizeTests();
   });
 }

@@ -72,6 +72,19 @@ void resizeTerminalForTesting(
   (session as _XtermTerminalSessionHandle)._terminal.resize(width, height);
 }
 
+@visibleForTesting
+(int cols, int rows) terminalEmulatorViewSizeForTesting(
+  TerminalSessionHandle session,
+) {
+  final terminal = (session as _XtermTerminalSessionHandle)._terminal;
+  return (terminal.viewWidth, terminal.viewHeight);
+}
+
+@visibleForTesting
+void applyTerminalEmulatorFakeResizeForTesting(xterm.Terminal terminal) {
+  _applyTerminalEmulatorFakeResize(terminal);
+}
+
 /// Delivers a scheduled frame with production visibility checks intact.
 @visibleForTesting
 void deliverTerminalOutputFrameForTesting(TerminalSessionHandle session) {
