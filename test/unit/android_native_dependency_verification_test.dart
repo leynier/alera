@@ -19,6 +19,46 @@ void main() {
           'mobile/build/app/outputs/flutter-apk',
         ),
       );
+      expect(workflow, contains('--target-platform android-arm64'));
+      expect(workflow, contains('-Pdisable-abi-filtering=true'));
+      expect(workflow, contains('-PaleraAbiFilters=arm64-v8a'));
+      expect(workflow, isNot(contains('--split-per-abi')));
+      expect(workflow, isNot(contains('android-armeabi-v7a.apk')));
+      expect(workflow, isNot(contains('android-x86_64.apk')));
+      expect(workflow, contains('Expected 2 mobile release files'));
+      expect(
+        File('.github/workflows/mobile-build.yml').readAsStringSync(),
+        contains('--target-platform android-arm64'),
+      );
+      expect(
+        File('.github/workflows/mobile-build.yml').readAsStringSync(),
+        contains('-Pdisable-abi-filtering=true'),
+      );
+      expect(
+        File('.github/workflows/mobile-build.yml').readAsStringSync(),
+        contains('-PaleraAbiFilters=arm64-v8a'),
+      );
+      expect(
+        File('mobile/android/app/build.gradle.kts').readAsStringSync(),
+        contains('enableV1Signing = true'),
+      );
+      final gradle = File('mobile/android/app/build.gradle.kts')
+          .readAsStringSync();
+      expect(
+        gradle.indexOf('val aleraAbiFilters'),
+        lessThan(gradle.indexOf('\nandroid {')),
+      );
+      final defaultConfig = gradle
+          .split('defaultConfig {')
+          .last
+          .split('packaging {')
+          .first;
+      expect(defaultConfig, contains('abiFilters.clear()'));
+      expect(defaultConfig, contains('abiFilters.addAll(aleraAbiFilters)'));
+      expect(gradle, contains('androidComponents'));
+      expect(gradle, contains('aleraJniExcludePatterns'));
+      expect(gradle, isNot(contains('afterEvaluate')));
+      expect(gradle, contains('abiFilters.clear()'));
       expect(
         workflow,
         isNot(contains(r'find "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt"')),
@@ -97,7 +137,7 @@ void main() {
     expect(result.stderr, contains('does not declare NEEDED libc++_shared.so'));
   });
 
-  test('accepts APKs that bundle libc++_shared.so for every ABI', () {
+  test('accepts a 16 KB-aligned arm64 APK that bundles libc++_shared.so', () {
     if (Platform.isWindows) {
       return;
     }
@@ -123,22 +163,135 @@ void main() {
       needed: <String>[runtime.path],
     );
 
-    for (final apkName in <String>[
-      'app-release.apk',
-      'app-arm64-v8a-release.apk',
-    ]) {
-      final apk = File(p.join(temp.path, apkName));
-      _zipApk(apk, <String, File>{
-        'lib/arm64-v8a/libalera_mobile_native.so': native,
-        'lib/arm64-v8a/libc++_shared.so': runtime,
-        'lib/armeabi-v7a/libalera_mobile_native.so': native,
-        'lib/armeabi-v7a/libc++_shared.so': runtime,
-      });
-    }
+    final apk = File(p.join(temp.path, 'app-release.apk'));
+    _zipApk(apk, <String, File>{
+      'lib/arm64-v8a/libalera_mobile_native.so': native,
+      'lib/arm64-v8a/libc++_shared.so': runtime,
+    });
 
     final result = Process.runSync('bash', <String>[script.path, temp.path]);
     expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
     expect(result.stdout, contains('links against bundled libc++_shared.so'));
+    expect(result.stdout, contains('is 16 KB page-aligned'));
+  });
+
+  test('rejects a default APK that embeds 32-bit libraries', () {
+    if (Platform.isWindows) {
+      return;
+    }
+    final gcc = _gcc();
+    if (gcc == null) {
+      return;
+    }
+
+    final temp = Directory.systemTemp.createTempSync(
+      'alera-android-native-verify-fat-32bit-',
+    );
+    addTearDown(() => temp.deleteSync(recursive: true));
+    final runtime = _compileSharedLibrary(
+      gcc: gcc,
+      directory: temp,
+      name: 'libc++_shared.so',
+      needed: const <String>[],
+    );
+    final native = _compileSharedLibrary(
+      gcc: gcc,
+      directory: temp,
+      name: 'libalera_mobile_native.so',
+      needed: <String>[runtime.path],
+    );
+    final apk = File(p.join(temp.path, 'app-release.apk'));
+    _zipApk(apk, <String, File>{
+      'lib/arm64-v8a/libalera_mobile_native.so': native,
+      'lib/arm64-v8a/libc++_shared.so': runtime,
+      'lib/armeabi-v7a/libalera_mobile_native.so': native,
+      'lib/armeabi-v7a/libc++_shared.so': runtime,
+    });
+
+    final result = Process.runSync('bash', <String>[script.path, temp.path]);
+    expect(result.exitCode, isNot(0), reason: result.stdout.toString());
+    expect(
+      result.stderr,
+      contains('must contain only arm64-v8a native libraries'),
+    );
+  });
+
+  test('rejects a default APK that embeds x86_64 plugin JNI', () {
+    if (Platform.isWindows) {
+      return;
+    }
+    final gcc = _gcc();
+    if (gcc == null) {
+      return;
+    }
+
+    final temp = Directory.systemTemp.createTempSync(
+      'alera-android-native-verify-fat-x64-',
+    );
+    addTearDown(() => temp.deleteSync(recursive: true));
+    final runtime = _compileSharedLibrary(
+      gcc: gcc,
+      directory: temp,
+      name: 'libc++_shared.so',
+      needed: const <String>[],
+    );
+    final native = _compileSharedLibrary(
+      gcc: gcc,
+      directory: temp,
+      name: 'libalera_mobile_native.so',
+      needed: <String>[runtime.path],
+    );
+    final apk = File(p.join(temp.path, 'app-release.apk'));
+    _zipApk(apk, <String, File>{
+      'lib/arm64-v8a/libalera_mobile_native.so': native,
+      'lib/arm64-v8a/libc++_shared.so': runtime,
+      'lib/x86_64/libbarhopper_v3.so': native,
+    });
+
+    final result = Process.runSync('bash', <String>[script.path, temp.path]);
+    expect(result.exitCode, isNot(0), reason: result.stdout.toString());
+    expect(
+      result.stderr,
+      contains('must contain only arm64-v8a native libraries'),
+    );
+  });
+
+  test('rejects a 64-bit library aligned below 16 KB', () {
+    if (Platform.isWindows) {
+      return;
+    }
+    final gcc = _gcc();
+    if (gcc == null) {
+      return;
+    }
+
+    final temp = Directory.systemTemp.createTempSync(
+      'alera-android-native-verify-4kb-',
+    );
+    addTearDown(() => temp.deleteSync(recursive: true));
+    final runtime = _compileSharedLibrary(
+      gcc: gcc,
+      directory: temp,
+      name: 'libc++_shared.so',
+      needed: const <String>[],
+      pageAlign16Kb: false,
+    );
+    final native = _compileSharedLibrary(
+      gcc: gcc,
+      directory: temp,
+      name: 'libalera_mobile_native.so',
+      needed: <String>[runtime.path],
+      pageAlign16Kb: false,
+    );
+    final apk = File(p.join(temp.path, 'app-arm64-v8a-release.apk'));
+    _zipApk(apk, <String, File>{
+      'lib/arm64-v8a/libalera_mobile_native.so': native,
+      'lib/arm64-v8a/libc++_shared.so': runtime,
+    });
+
+    final result = Process.runSync('bash', <String>[script.path, temp.path]);
+    expect(result.exitCode, isNot(0), reason: result.stdout.toString());
+    expect(result.stderr, contains('is below 16 KB'));
   });
 }
 
@@ -155,6 +308,7 @@ File _compileSharedLibrary({
   required Directory directory,
   required String name,
   required List<String> needed,
+  bool pageAlign16Kb = true,
 }) {
   final marker = name.replaceAll(RegExp('[^A-Za-z]'), '_');
   final source = File(p.join(directory.path, '$name.c'))
@@ -168,6 +322,10 @@ File _compileSharedLibrary({
     output.path,
     source.path,
   ];
+  args.addAll(<String>[
+    '-Wl,-z,max-page-size=${pageAlign16Kb ? 16384 : 4096}',
+    '-Wl,-z,common-page-size=${pageAlign16Kb ? 16384 : 4096}',
+  ]);
   if (needed.isNotEmpty) {
     args.add('-Wl,--no-as-needed');
     for (final library in needed) {

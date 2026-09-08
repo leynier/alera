@@ -63,7 +63,7 @@ void main() {
   });
 
   group('latestMobileRelease', () {
-    test('picks the newest stable mobile tag with a universal apk', () {
+    test('picks the newest stable mobile tag with the default apk', () {
       final release = latestMobileRelease(<dynamic>[
         _release('v0.9.0-mobile', assets: <String>['alera-0.9.0-android.apk']),
         _release(
@@ -83,8 +83,8 @@ void main() {
     });
 
     test('never offers a per-abi apk', () {
-      // Resolving the device ABI is a guess that fails on a device reporting
-      // several, so a release without the universal build is skipped entirely.
+      // Older GitHub releases still carry split APKs. The app only offers
+      // alera-$version-android.apk, so a tag without that file is skipped.
       final release = latestMobileRelease(<dynamic>[
         _release(
           'v0.10.0-mobile',

@@ -42,6 +42,13 @@ void main() {
 
       expect(
         workflow,
+        contains(r'mobile-release-assets/alera-${RELEASE_VERSION}-android.apk'),
+      );
+      expect(workflow, isNot(contains('android-armeabi-v7a.apk')));
+      expect(workflow, isNot(contains('android-x86_64.apk')));
+
+      expect(
+        workflow,
         contains(r'release-assets/alera-${RELEASE_VERSION}-macos.tar.gz'),
       );
       expect(

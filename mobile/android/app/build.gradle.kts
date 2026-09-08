@@ -21,16 +21,40 @@ if (file("google-services.json").exists()) {
 val keystorePropertiesFile = rootProject.file("key.properties")
 val releaseSigningAvailable = keystorePropertiesFile.exists()
 
+// Read at Project scope: defaultConfig.findProperty hits flavor extras
+// and misses -PaleraAbiFilters. clear() then addAll() because += unions
+// with Flutter's PLATFORM_ABI_LIST. CI passes -Pdisable-abi-filtering=true
+// so Flutter never writes that list. Omit both properties for emulator
+// flutter run.
+val aleraAbiFilters = (findProperty("aleraAbiFilters") as String?)
+    ?.split(',')
+    ?.map(String::trim)
+    ?.filter(String::isNotEmpty)
+    .orEmpty()
+val aleraExcludedJniAbis = listOf("armeabi", "armeabi-v7a", "x86", "x86_64", "arm64-v8a")
+    .filter { it !in aleraAbiFilters }
+
+fun aleraJniExcludePatterns(abi: String): List<String> =
+    listOf("lib/$abi/**", "$abi/**", "**/$abi/**", "**/$abi/*.so")
+
 android {
     namespace = "dev.leynier.alera_mobile"
     // Secure storage v11 needs API 37; device support and target behavior stay unchanged.
     compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
-    if (releaseSigningAvailable) {
-        val keystoreProperties = Properties()
-        keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
-        signingConfigs {
+    signingConfigs {
+        // AGP 8 omits v1 when minSdk >= 24. Sideload installers on several
+        // OEMs still look for the JAR signature and reject a v2-only APK
+        // with a generic "App not installed".
+        getByName("debug") {
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+        }
+        if (releaseSigningAvailable) {
+            val keystoreProperties = Properties()
+            keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
             create("release") {
                 keyAlias = keystoreProperties.getProperty("keyAlias")
                 keyPassword = keystoreProperties.getProperty("keyPassword")
@@ -39,6 +63,9 @@ android {
                         ?: keystoreProperties.getProperty("storeFile"),
                 )
                 storePassword = keystoreProperties.getProperty("storePassword")
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
             }
         }
     }
@@ -58,6 +85,23 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        if (aleraAbiFilters.isNotEmpty()) {
+            ndk {
+                abiFilters.clear()
+                abiFilters.addAll(aleraAbiFilters)
+            }
+            println("INFO: packaging only ${aleraAbiFilters.joinToString()} native libraries")
+        }
+    }
+
+    packaging {
+        jniLibs {
+            if (aleraAbiFilters.isNotEmpty()) {
+                for (abi in aleraExcludedJniAbis) {
+                    excludes.addAll(aleraJniExcludePatterns(abi))
+                }
+            }
+        }
     }
 
     buildTypes {
@@ -80,6 +124,17 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+androidComponents {
+    onVariants { variant ->
+        if (aleraAbiFilters.isEmpty()) {
+            return@onVariants
+        }
+        for (abi in aleraExcludedJniAbis) {
+            variant.packaging.jniLibs.excludes.addAll(aleraJniExcludePatterns(abi))
+        }
+    }
 }
 
 dependencies {
