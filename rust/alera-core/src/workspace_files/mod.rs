@@ -6,12 +6,14 @@ use cap_fs_ext::{DirExt, FollowSymlinks, OpenOptions, OpenOptionsFollowExt};
 use cap_std::{ambient_authority, fs::Dir};
 use same_file::Handle;
 
+mod listing;
 mod mime;
 mod prompts;
 mod quick_open;
 
 use mime::{mime_type_for_path, path_has_binary_preview_mime};
 
+pub use listing::{list_workspace_children, WorkspaceExplorerEntry, WorkspaceExplorerEntryKind};
 pub use prompts::{list_codex_saved_prompts, CodexSavedPrompt, CodexSavedPromptScope};
 pub use quick_open::{
     search_workspace_quick_open_session, start_workspace_quick_open_session,

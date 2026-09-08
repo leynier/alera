@@ -37,6 +37,10 @@ abstract final class const AleraIcons._() {
   static const IconData external = LucideIcons.externalLink;
   static const IconData theme = LucideIcons.moon;
   static const IconData workspaces = LucideIcons.folders;
+  static const IconData terminal = LucideIcons.terminal;
+  static const IconData files = LucideIcons.files;
+  static const IconData gitPullRequest = LucideIcons.gitPullRequest;
+  static const IconData gitCompare = LucideIcons.gitCompare;
   static const IconData listView = LucideIcons.list;
   static const IconData viewImage = LucideIcons.image;
   static const IconData audio = LucideIcons.audioLines;

@@ -7,10 +7,12 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_resu
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
+import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dart';
 
 import 'fake_workspace_files_client.dart';
+import 'fake_workspace_panels_client.dart';
 
 WorkspaceTabSummary fakeTab({
   required String id,
@@ -38,8 +40,11 @@ WorkspaceTabSummary fakeTab({
 /// In-memory stand-in for the runtime gateway covering both the terminal and
 /// workspace client surfaces. Records calls as readable strings.
 class FakeTerminalClient
-    with FakeWorkspaceFilesClient
-    implements MobileTerminalClient, MobileWorkspaceClient {
+    with FakeWorkspaceFilesClient, FakeWorkspacePanelsClient
+    implements
+        MobileTerminalClient,
+        MobileWorkspaceClient,
+        MobileWorkspacePanelsClient {
   final StreamController<MobileRuntimeEvent> _events =
       StreamController<MobileRuntimeEvent>.broadcast();
   final StreamController<MobileTerminalOutputEvent> _output =
