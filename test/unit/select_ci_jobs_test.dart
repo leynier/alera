@@ -117,6 +117,13 @@ void main() {
     for (final key in CiJobs.all.githubOutput.keys) {
       expect(action, contains('echo "$key=true"'));
     }
+    expect(
+      action,
+      contains('problem-matcher: false'),
+      reason:
+          'setup-dart inside a composite looks for dart-analyzer.json next '
+          'to this action.yml and 404s unless the matcher is disabled',
+    );
   });
 
   test('unknown native paths fail open', () {

@@ -32,6 +32,9 @@ runs:
       uses: dart-lang/setup-dart@v1
       with:
         sdk: 3.13.2
+        # Composite actions resolve add-matcher paths against this directory,
+        # not setup-dart's, so the default dart-analyzer.json 404s the job.
+        problem-matcher: false
 
     - name: Select jobs
       id: select
