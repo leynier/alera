@@ -270,3 +270,84 @@ fn truncate_error_handles_multibyte_text() {
     assert!(truncated.ends_with("..."));
     assert_eq!(truncated.trim_end_matches("...").chars().count(), 600);
 }
+
+#[test]
+fn password_auth_is_rejected_for_new_targets_and_allowed_for_legacy_resave() {
+    assert!(reject_password_ssh_bootstrap_auth(SshAuthKind::Agent).is_ok());
+    assert!(reject_password_ssh_bootstrap_auth(SshAuthKind::Key).is_ok());
+    assert_eq!(
+        reject_password_ssh_bootstrap_auth(SshAuthKind::Password)
+            .unwrap_err()
+            .to_string(),
+        SSH_PASSWORD_BOOTSTRAP_UNSUPPORTED
+    );
+    assert!(
+        reject_new_password_ssh_target(SshAuthKind::Password, Some(SshAuthKind::Password)).is_ok()
+    );
+    assert_eq!(
+        reject_new_password_ssh_target(SshAuthKind::Password, None)
+            .unwrap_err()
+            .to_string(),
+        SSH_PASSWORD_BOOTSTRAP_UNSUPPORTED
+    );
+    assert_eq!(
+        reject_new_password_ssh_target(SshAuthKind::Password, Some(SshAuthKind::Agent))
+            .unwrap_err()
+            .to_string(),
+        SSH_PASSWORD_BOOTSTRAP_UNSUPPORTED
+    );
+    assert!(reject_new_password_ssh_target(SshAuthKind::Agent, None).is_ok());
+}
+
+fn password_ssh_target(id: &str) -> SshTarget {
+    let now = chrono::Utc::now();
+    SshTarget {
+        id: id.to_string(),
+        alias: id.to_string(),
+        host: "192.168.1.66".to_string(),
+        port: 22,
+        username: "alera".to_string(),
+        platform: None,
+        arch: None,
+        auth_kind: SshAuthKind::Password,
+        created_at: now,
+        updated_at: now,
+        last_status: None,
+        install_dir: None,
+        runtime_version: None,
+        runtime_platform: None,
+        runtime_arch: None,
+        bootstrap_status: SshBootstrapStatus::NotInstalled,
+        last_bootstrap_at: None,
+        last_checked_at: None,
+        last_error: None,
+    }
+}
+
+fn empty_plan_request(target_id: &str) -> SshTargetBootstrapRequest {
+    SshTargetBootstrapRequest {
+        target_id: target_id.to_string(),
+        channel: None,
+        version: None,
+        install_dir: None,
+        platform: None,
+        arch: None,
+        archive_url: None,
+        archive_path: None,
+        artifact_path: None,
+        manifest_public_key: None,
+    }
+}
+
+#[tokio::test]
+async fn build_ssh_bootstrap_plan_rejects_password_target() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = RuntimeStore::open(dir.path()).await.unwrap();
+    let target = password_ssh_target("audit-674-pass");
+    store.upsert_ssh_target(target.clone()).await.unwrap();
+
+    let error = build_ssh_bootstrap_plan(&store, &empty_plan_request(&target.id))
+        .await
+        .unwrap_err();
+    assert_eq!(error.to_string(), SSH_PASSWORD_BOOTSTRAP_UNSUPPORTED);
+}

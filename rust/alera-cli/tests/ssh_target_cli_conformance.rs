@@ -1,4 +1,5 @@
-//! CLI coverage for `alera ssh-target` missing-id and duplicate-alias errors.
+//! CLI coverage for `alera ssh-target` missing-id, duplicate-alias, and
+//! password-auth errors.
 
 mod agent_integration_home_isolation;
 
@@ -58,6 +59,60 @@ fn add_target_args<'a>(id: &'a str, alias: &'a str) -> [&'a str; 11] {
 
 fn add_target(runtime_dir: &Path, id: &str) -> Value {
     success_json(runtime_dir, &add_target_args(id, "Build Mac"))
+}
+
+const PASSWORD_BOOTSTRAP_UNSUPPORTED: &str =
+    "password SSH targets are not supported for bootstrap; configure SSH agent or key authentication.";
+
+fn password_add_args<'a>(id: &'a str, alias: &'a str) -> [&'a str; 11] {
+    [
+        "add",
+        "--id",
+        id,
+        "--alias",
+        alias,
+        "--host",
+        "192.168.1.66",
+        "--username",
+        "leynier",
+        "--auth",
+        "password",
+    ]
+}
+
+fn seed_password_target(runtime_dir: &Path, id: &str) {
+    let now = chrono::Utc::now();
+    let target = alera_core::runtime::SshTarget {
+        id: id.to_string(),
+        alias: id.to_string(),
+        host: "192.168.1.66".to_string(),
+        port: 22,
+        username: "leynier".to_string(),
+        platform: None,
+        arch: None,
+        auth_kind: alera_core::runtime::SshAuthKind::Password,
+        created_at: now,
+        updated_at: now,
+        last_status: None,
+        install_dir: None,
+        runtime_version: None,
+        runtime_platform: None,
+        runtime_arch: None,
+        bootstrap_status: Default::default(),
+        last_bootstrap_at: None,
+        last_checked_at: None,
+        last_error: None,
+    };
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(async {
+            let store = alera_core::runtime::RuntimeStore::open(runtime_dir)
+                .await
+                .unwrap();
+            store.upsert_ssh_target(target).await.unwrap();
+        });
 }
 
 fn assert_json_error(output: &Output, expected: &str) {
@@ -192,4 +247,49 @@ fn ssh_target_add_rejects_duplicate_alias_through_the_runtime_host() {
     let dir = tempfile::tempdir().unwrap();
     let _host = spawn_host(dir.path());
     reject_duplicate_aliases(dir.path());
+}
+
+fn reject_password_add(runtime_dir: &Path) {
+    let output = run_ssh_target(
+        runtime_dir,
+        &password_add_args("audit-674-pass", "audit-674-pass"),
+    );
+    assert_json_error(&output, PASSWORD_BOOTSTRAP_UNSUPPORTED);
+
+    let listed = success_json(runtime_dir, &["list"]);
+    assert_eq!(listed["items"], json!([]));
+}
+
+fn reject_password_bootstrap_plan(runtime_dir: &Path) {
+    seed_password_target(runtime_dir, "audit-674-pass");
+    let output = run_ssh_target(runtime_dir, &["bootstrap-plan", "--id", "audit-674-pass"]);
+    assert_json_error(&output, PASSWORD_BOOTSTRAP_UNSUPPORTED);
+}
+
+#[test]
+fn ssh_target_add_rejects_password_auth_through_the_store() {
+    let dir = tempfile::tempdir().unwrap();
+    reject_password_add(dir.path());
+}
+
+#[test]
+fn ssh_target_add_rejects_password_auth_through_the_runtime_host() {
+    let dir = tempfile::tempdir().unwrap();
+    let _host = spawn_host(dir.path());
+    reject_password_add(dir.path());
+}
+
+#[test]
+fn ssh_target_bootstrap_plan_rejects_password_auth_through_the_store() {
+    let dir = tempfile::tempdir().unwrap();
+    reject_password_bootstrap_plan(dir.path());
+}
+
+#[test]
+fn ssh_target_bootstrap_plan_rejects_password_auth_through_the_runtime_host() {
+    let dir = tempfile::tempdir().unwrap();
+    seed_password_target(dir.path(), "audit-674-pass");
+    let _host = spawn_host(dir.path());
+    let output = run_ssh_target(dir.path(), &["bootstrap-plan", "--id", "audit-674-pass"]);
+    assert_json_error(&output, PASSWORD_BOOTSTRAP_UNSUPPORTED);
 }

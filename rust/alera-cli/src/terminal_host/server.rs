@@ -5,8 +5,8 @@ use std::sync::{atomic::AtomicU64, Arc};
 use std::time::{Duration, Instant};
 
 use alera_core::runtime::{
-    prepare_private_runtime_directory, MobileAccessSettings, RuntimeStore, SshAuthKind,
-    SshBootstrapStatus, SshTarget,
+    prepare_private_runtime_directory, MobileAccessSettings, RuntimeStore, SshBootstrapStatus,
+    SshTarget,
 };
 use anyhow::Result;
 use serde_json::{json, Value};
@@ -18,8 +18,9 @@ use tokio::task::JoinHandle;
 
 use crate::agent_status::{start_agent_integrations, start_fx_herdr_receiver, start_hook_receiver};
 use crate::ssh_bootstrap::{
-    cancel_ssh_bootstrap, mark_ssh_bootstrap_installing, new_bootstrap_job_id, run_ssh_bootstrap,
-    SshTargetBootstrapJob, SshTargetBootstrapProgress, SshTargetBootstrapRequest,
+    cancel_ssh_bootstrap, mark_ssh_bootstrap_installing, new_bootstrap_job_id,
+    reject_password_ssh_bootstrap_auth, run_ssh_bootstrap, SshTargetBootstrapJob,
+    SshTargetBootstrapProgress, SshTargetBootstrapRequest,
 };
 use crate::terminal_host::client::{
     connection_loop, ClientFrame, ClientHandle, CLIENT_TERMINAL_OUT_QUEUE_CAPACITY,
@@ -899,11 +900,8 @@ impl ServerActor {
             .ok_or_else(|| {
                 HostError::state(format!("ssh target not found: {}", request.target_id))
             })?;
-        if matches!(target.auth_kind, SshAuthKind::Password) {
-            return Err(HostError::state(
-                "password SSH targets are not supported for bootstrap; configure SSH agent or key authentication.",
-            ));
-        }
+        reject_password_ssh_bootstrap_auth(target.auth_kind)
+            .map_err(|error| HostError::state(error.to_string()))?;
         let job_id = new_bootstrap_job_id();
         mark_ssh_bootstrap_installing(&self.runtime_store, &target.id)
             .await

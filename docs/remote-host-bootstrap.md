@@ -6,7 +6,7 @@ Alera can register SSH targets in the Home Runtime and install the standalone `a
 
 ## Supported Targets
 
-Bootstrap supports `x64` and `arm64` macOS, Linux, and Windows hosts reachable through the local OpenSSH tools. Authentication is intentionally limited to SSH agent or key configuration in `~/.ssh/config`; password bootstrap is rejected. Platform and architecture can be saved on the target or overridden per bootstrap, otherwise Alera probes the remote host.
+Bootstrap supports `x64` and `arm64` macOS, Linux, and Windows hosts reachable through the local OpenSSH tools. Authentication is intentionally limited to SSH agent or key configuration in `~/.ssh/config`. Password authentication is rejected at add, upsert, `bootstrap-plan`, and bootstrap with `password SSH targets are not supported for bootstrap; configure SSH agent or key authentication.` Settings keeps Password listed but disabled for new targets. Platform and architecture can be saved on the target or overridden per bootstrap, otherwise Alera probes the remote host.
 
 Default install directories are:
 
@@ -35,6 +35,8 @@ Add a target. Duplicate aliases, including different casing, fail with `ssh targ
 alera ssh-target --json add --alias build-mac --host mac.example.test --username leynier --auth agent
 ```
 
+`--auth password` is rejected with the same product error as bootstrap and does not persist the target.
+
 Remove a saved target. Unknown ids fail with `ssh target not found`, matching `status` and `bootstrap-plan`:
 
 ```bash
@@ -48,7 +50,7 @@ alera ssh-target --json status
 alera ssh-target --json status --id <target-id>
 ```
 
-Preview a bootstrap:
+Preview a bootstrap. Password targets fail with the same product error as bootstrap:
 
 ```bash
 alera ssh-target --json bootstrap-plan --id <target-id>
