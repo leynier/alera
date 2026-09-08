@@ -48,6 +48,7 @@ void main() {
           'toolInput': '{"environment":"production"}',
           'lastAssistantMessage': 'Waiting for approval',
           'interrupted': false,
+          'title': 'Map Monetization',
         },
       ],
     });
@@ -63,5 +64,28 @@ void main() {
     expect(status.toolName, 'request_user_input');
     expect(status.lastAssistantMessage, 'Waiting for approval');
     expect(status.interrupted, isFalse);
+    expect(status.title, 'Map Monetization');
+  });
+
+  test('Parses agent presence without a title from an older host', () {
+    final snapshot = WorkspaceSidebarSnapshot.fromJson(<String, Object?>{
+      'projects': <Object?>[],
+      'workspaces': <Object?>[],
+      'tags': <Object?>[],
+      'activity': <String, Object?>{},
+      'viewPrefs': <String, Object?>{},
+      'runtimeSettings': <String, Object?>{},
+      'agentPresence': <Object?>[
+        <String, Object?>{
+          'handle': 'session-1',
+          'workspaceId': 'workspace-1',
+          'tabId': 'tab-1',
+          'agentType': 'codex',
+          'agentState': 'waiting',
+        },
+      ],
+    });
+
+    expect(snapshot.agentPresence.single.title, isEmpty);
   });
 }

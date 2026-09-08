@@ -177,6 +177,8 @@ mod workspace_section_requests;
 #[cfg(test)]
 mod workspace_section_requests_tests;
 mod workspace_sidebar_requests;
+#[cfg(test)]
+mod workspace_sidebar_requests_tests;
 
 pub use server_command::ServerCommand;
 
