@@ -45,6 +45,12 @@ fi
 if [ "$ALERA_AGENT_TYPE" = "claude" ] && { [ -z "$CLAUDECODE" ] || [ -n "$GROK_HOOK_EVENT" ]; }; then
   exit 0
 fi
+# Cursor commands live in ~/.cursor/hooks.json, which Grok also scans. The
+# Alera terminal already sets GROK_CURSOR_HOOKS_ENABLED=false; this guard is
+# the same identity split as Claude if that flag is ignored.
+if [ "$ALERA_AGENT_TYPE" = "cursor" ] && [ -n "$GROK_HOOK_EVENT" ]; then
+  exit 0
+fi
 if [ -z "$ALERA_AGENT_HOOK_ENDPOINT" ] && [ -n "$ALERA_RUNTIME_DIR" ]; then
   ALERA_AGENT_HOOK_ENDPOINT="$ALERA_RUNTIME_DIR/agent-hooks/endpoint.env"
 fi
@@ -87,6 +93,9 @@ rem See the POSIX script: the Claude commands live in the user's settings.json,
 rem which Grok also scans. CLAUDECODE separates the two; CLAUDE_PROJECT_DIR does not.
 if /I "%ALERA_AGENT_TYPE%"=="claude" (
   if "%CLAUDECODE%"=="" exit /b 0
+  if not "%GROK_HOOK_EVENT%"=="" exit /b 0
+)
+if /I "%ALERA_AGENT_TYPE%"=="cursor" (
   if not "%GROK_HOOK_EVENT%"=="" exit /b 0
 )
 if not defined ALERA_AGENT_HOOK_ENDPOINT if defined ALERA_RUNTIME_DIR set "ALERA_AGENT_HOOK_ENDPOINT=%ALERA_RUNTIME_DIR%\agent-hooks\endpoint.cmd"
@@ -140,6 +149,16 @@ mod tests {
             .expect("claude guard");
         let post = POSIX_HOOK_SCRIPT.find("curl").expect("post");
         assert!(guard < post);
+    }
+
+    #[test]
+    fn managed_script_skips_cursor_hooks_during_a_grok_turn() {
+        assert!(POSIX_HOOK_SCRIPT.contains(r#"[ "$ALERA_AGENT_TYPE" = "cursor" ]"#));
+        let cursor_guard = POSIX_HOOK_SCRIPT
+            .find(r#"[ "$ALERA_AGENT_TYPE" = "cursor" ]"#)
+            .expect("cursor guard");
+        let post = POSIX_HOOK_SCRIPT.find("curl").expect("post");
+        assert!(cursor_guard < post);
     }
 
     #[test]

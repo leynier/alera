@@ -90,7 +90,7 @@ Effort support is model-specific. A Gemini profile may accept `--effort high` wh
 
 Cursor model ids can encode effort. Discover them with the installed CLI instead of composing slugs.
 
-Cursor status uses an Alera plugin wrapper. If the terminal answers but `agentType` is absent, compare the live process arguments with the expected wrapper launch. An interactive shell can prepend the real Cursor binary ahead of Alera's overlay in `PATH`, leaving out `--plugin-dir`. Report that as a status integration failure, not as a missing tab or failed model launch.
+Cursor status uses Alera-managed entries in `~/.cursor/hooks.json`. If the terminal answers but `agentType` is absent, confirm that file contains the Alera-marked commands and that `GROK_CURSOR_HOOKS_ENABLED=false` is set so a Grok turn cannot steal the identity. Report a missing hook file as a status integration failure, not as a missing tab or failed model launch.
 
 ## Smoke Tests
 

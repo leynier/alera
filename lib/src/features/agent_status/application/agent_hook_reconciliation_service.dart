@@ -1,6 +1,4 @@
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
-import 'package:alera/src/features/agent_status/infra/claude_runtime_home_service.dart';
-import 'package:alera/src/features/agent_status/infra/codex_runtime_home_service.dart';
 import 'package:alera/src/features/agent_status/infra/managed_agent_hook_installer.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 
@@ -10,33 +8,20 @@ abstract interface class AgentHookReconciler {
   );
 }
 
+/// Desktop-side status for the JSON installers that still share files with the
+/// host (Antigravity and Grok). The runtime host owns every other write and
+/// cleanup of user global agent config.
 class const AgentHookReconciliationService({
   required final ManagedAgentHookInstallService managedHooks,
-  required final CodexRuntimeHomeService codexRuntimeHome,
-  required final ClaudeRuntimeHomeService claudeRuntimeHome,
 }) implements AgentHookReconciler {
   @override
   Future<List<ManagedAgentHookInstallStatus>> reconcile(
     AgentStatusHookSettings settings,
-  ) async {
-    final results = await managedHooks.reconcile(
+  ) {
+    return managedHooks.reconcile(
       enabledAgentTypes: _enabledGlobalManagedAgentStatusHookTypes(settings),
       agentTypes: _globalManagedAgentTypes(),
     );
-    results.add(
-      settings.codex
-          ? await codexRuntimeHome.install()
-          : await codexRuntimeHome.remove(),
-    );
-    results.add(
-      settings.claude
-          ? await claudeRuntimeHome.install()
-          : await claudeRuntimeHome.remove(),
-    );
-    results.add(managedHooks.remove(.opencode));
-    results.add(managedHooks.remove(.opencode2));
-    results.add(managedHooks.remove(.pi));
-    return results;
   }
 }
 
