@@ -257,12 +257,13 @@ List saved hosts, probe live connectivity, or remove a saved target. Status pers
 
 ```bash
 alera ssh-target --json list
+alera ssh-target --json add --alias build-mac --host mac.example.test --username leynier --auth agent
 alera ssh-target --json status
 alera ssh-target --json status --id <target-id>
 alera ssh-target --json remove --id <target-id>
 ```
 
-Unknown ids fail with `ssh target not found`. `status` without `--id` probes every saved target and returns a JSON array.
+Unknown ids fail with `ssh target not found`. Duplicate aliases, including different casing, fail with `ssh target alias already exists`. `status` without `--id` probes every saved target and returns a JSON array.
 
 ## Agent Profiles
 

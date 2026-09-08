@@ -27,7 +27,7 @@ List targets:
 alera ssh-target --json list
 ```
 
-Add a target:
+Add a target. Duplicate aliases, including different casing, fail with `ssh target alias already exists: <alias>` using the attempted alias:
 
 ```bash
 alera ssh-target --json add --alias build-mac --host mac.example.test --username leynier --auth agent

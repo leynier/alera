@@ -1,4 +1,4 @@
-//! CLI coverage for `alera ssh-target remove` when the target is missing.
+//! CLI coverage for `alera ssh-target` missing-id and duplicate-alias errors.
 
 mod agent_integration_home_isolation;
 
@@ -40,30 +40,30 @@ fn success_json(runtime_dir: &Path, args: &[&str]) -> Value {
     serde_json::from_slice(&output.stdout).expect("command did not return JSON")
 }
 
-fn add_target(runtime_dir: &Path, id: &str) -> Value {
-    success_json(
-        runtime_dir,
-        &[
-            "add",
-            "--id",
-            id,
-            "--alias",
-            "Build Mac",
-            "--host",
-            "mac.example.test",
-            "--username",
-            "alera",
-            "--auth",
-            "agent",
-        ],
-    )
+fn add_target_args<'a>(id: &'a str, alias: &'a str) -> [&'a str; 11] {
+    [
+        "add",
+        "--id",
+        id,
+        "--alias",
+        alias,
+        "--host",
+        "mac.example.test",
+        "--username",
+        "alera",
+        "--auth",
+        "agent",
+    ]
 }
 
-fn assert_missing_id_error(output: &Output, id: &str) {
-    let expected = format!("ssh target not found: {id}");
+fn add_target(runtime_dir: &Path, id: &str) -> Value {
+    success_json(runtime_dir, &add_target_args(id, "Build Mac"))
+}
+
+fn assert_json_error(output: &Output, expected: &str) {
     assert!(
         !output.status.success(),
-        "missing-id command should fail: stdout={} stderr={}",
+        "command should fail: stdout={} stderr={}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
@@ -74,9 +74,24 @@ fn assert_missing_id_error(output: &Output, id: &str) {
     );
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains(&expected),
-        "stderr should match status/bootstrap-plan: {stderr}"
+        stderr.contains(expected),
+        "stderr should match the product error: {stderr}"
     );
+    let combined = format!("{}{}", String::from_utf8_lossy(&output.stdout), stderr);
+    assert!(
+        !combined.contains("UNIQUE")
+            && !combined.contains("2067")
+            && !combined.to_lowercase().contains("sqlite"),
+        "user-facing output leaked a SQLite unique-constraint: {combined}"
+    );
+}
+
+fn assert_missing_id_error(output: &Output, id: &str) {
+    assert_json_error(output, &format!("ssh target not found: {id}"));
+}
+
+fn assert_duplicate_alias_error(output: &Output, alias: &str) {
+    assert_json_error(output, &format!("ssh target alias already exists: {alias}"));
 }
 
 fn spawn_host(runtime_dir: &Path) -> HostGuard {
@@ -135,6 +150,24 @@ fn remove_existing_then_missing(runtime_dir: &Path) {
     assert_missing_id_error(&status, "definitely-missing-637");
 }
 
+fn reject_duplicate_aliases(runtime_dir: &Path) {
+    let added = success_json(runtime_dir, &add_target_args("remote-1", "audit-637-mac"));
+    assert_eq!(added["id"], json!("remote-1"));
+    assert_eq!(added["alias"], json!("audit-637-mac"));
+
+    let exact = run_ssh_target(runtime_dir, &add_target_args("remote-2", "audit-637-mac"));
+    assert_duplicate_alias_error(&exact, "audit-637-mac");
+
+    let nocase = run_ssh_target(runtime_dir, &add_target_args("remote-3", "Audit-637-mac"));
+    assert_duplicate_alias_error(&nocase, "Audit-637-mac");
+
+    let listed = success_json(runtime_dir, &["list"]);
+    assert_eq!(listed["items"].as_array().map(Vec::len), Some(1));
+
+    let free = success_json(runtime_dir, &add_target_args("remote-4", "build-linux"));
+    assert_eq!(free["alias"], json!("build-linux"));
+}
+
 #[test]
 fn ssh_target_remove_rejects_missing_id_through_the_store() {
     let dir = tempfile::tempdir().unwrap();
@@ -146,4 +179,17 @@ fn ssh_target_remove_rejects_missing_id_through_the_runtime_host() {
     let dir = tempfile::tempdir().unwrap();
     let _host = spawn_host(dir.path());
     remove_existing_then_missing(dir.path());
+}
+
+#[test]
+fn ssh_target_add_rejects_duplicate_alias_through_the_store() {
+    let dir = tempfile::tempdir().unwrap();
+    reject_duplicate_aliases(dir.path());
+}
+
+#[test]
+fn ssh_target_add_rejects_duplicate_alias_through_the_runtime_host() {
+    let dir = tempfile::tempdir().unwrap();
+    let _host = spawn_host(dir.path());
+    reject_duplicate_aliases(dir.path());
 }

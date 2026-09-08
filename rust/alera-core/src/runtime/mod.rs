@@ -59,6 +59,8 @@ mod settings_models;
 mod settings_store;
 #[cfg(test)]
 mod settings_store_tests;
+#[cfg(test)]
+mod ssh_target_store_tests;
 mod store;
 mod store_error;
 mod text_actions_validation;
