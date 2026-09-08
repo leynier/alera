@@ -78,7 +78,8 @@ fi
 # The published runtime tarball is the host users actually ran. Rebuilding it
 # from source in CI added ~5.5 minutes on the PR Checks critical path after
 # `cargo test` had already compiled the current workspace. That artifact
-# reports crate version 0.1.0; product 0.49.0 is the tag plus this tarball.
+# reports crate version 0.1.0 and commit 17a183f51debfc29114c0e682bc917ed4cdc58ae
+# (parent of this tag). Product 0.49.0 is the tag plus this tarball.
 host_platform="${ALERA_PREVIOUS_HOST_PLATFORM:-$(_host_platform)}"
 host_arch="${ALERA_PREVIOUS_HOST_ARCH:-$(_host_arch)}"
 readonly asset_name="alera-runtime-${previous_version}-${host_platform}-${host_arch}.tar.gz"
@@ -118,11 +119,13 @@ fi
 
 (
   cd "$root/rust"
+  # `--workspace` keeps the same feature unification as
+  # run_rust_workspace_tests.sh so this ignored test does not relink.
   ALERA_PREVIOUS_HOST_BINARY="$previous_binary" \
   ALERA_PREVIOUS_HOST_VERSION="$previous_version" \
     cargo test \
+      --workspace \
       --locked \
-      -p alera-cli \
       --test host_version_compatibility \
       v049_host_accepts_current_baseline_client \
       -- --exact --ignored

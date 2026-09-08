@@ -25,6 +25,7 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: read
 
 env:
   # Must match the number of shard entries in the test matrix below. Past four
@@ -32,10 +33,58 @@ env:
   TEST_SHARDS: 4
 
 jobs:
+  # Cheap path filter so docs-only and similar pull requests do not spend
+  # ~11 minutes compiling Rust or Flutter tests that cannot fail. Unknown
+  # paths fail open and enable every job. workflow_dispatch always runs all
+  # jobs because it has no pull-request file list.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      static_dart: ${{ steps.select.outputs.static_dart }}
+      packages: ${{ steps.select.outputs.packages }}
+      generation: ${{ steps.select.outputs.generation }}
+      test: ${{ steps.select.outputs.test }}
+      mobile: ${{ steps.select.outputs.mobile }}
+      rust: ${{ steps.select.outputs.rust }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          submodules: false
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: 3.13.2
+
+      - name: Select jobs
+        id: select
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
+            dart tool/ci/select_ci_jobs.dart --all >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files" \
+            --jq '.[] | .filename, (.previous_filename // empty)' \
+            > "$RUNNER_TEMP/changed-files.txt"
+          echo "Changed files:"
+          cat "$RUNNER_TEMP/changed-files.txt"
+          dart tool/ci/select_ci_jobs.dart --files-from "$RUNNER_TEMP/changed-files.txt" \
+            >> "$GITHUB_OUTPUT"
+
   # Runs once for the whole repository rather than per shard. None of these
   # commands build the Linux desktop app or run native asset build hooks, so
   # this job skips the desktop toolchain, Zig, native asset cache and preflight.
+  # Whitespace always runs. Format/analyze only run when Dart sources changed.
   static:
+    needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -59,6 +108,7 @@ jobs:
           git diff --check "$BASE_SHA...$HEAD_SHA"
 
       - name: Setup Flutter workspace
+        if: needs.changes.outputs.static_dart == 'true'
         uses: ./.github/actions/setup-flutter-workspace
         with:
           linux-toolchain: 'false'
@@ -66,18 +116,23 @@ jobs:
           preflight: 'false'
 
       - name: Format
+        if: needs.changes.outputs.static_dart == 'true'
         run: dart format --set-exit-if-changed lib test integration_test tool
 
       # `dart run` would resolve the package and fire the native asset build
       # hooks, which this job deliberately has no Zig for. The script imports
       # only dart:io, so run the file directly.
       - name: Max lines ratchet
+        if: needs.changes.outputs.static_dart == 'true'
         run: dart tool/quality/check_max_lines.dart
 
       - name: Analyze
+        if: needs.changes.outputs.static_dart == 'true'
         run: flutter analyze
 
   packages:
+    needs: changes
+    if: needs.changes.outputs.packages == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -127,6 +182,8 @@ jobs:
         run: dart tool/ci/verify_runtime_packager.dart
 
   generation:
+    needs: changes
+    if: needs.changes.outputs.generation == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -162,6 +219,8 @@ jobs:
 
   test:
     name: test ${{ matrix.name }}
+    needs: changes
+    if: needs.changes.outputs.test == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -204,7 +263,7 @@ jobs:
             exit 1
           fi
           echo "shard ${{ matrix.shard }}: ${#files[@]} test files"
-          flutter test --coverage --coverage-path "coverage/lcov-shard-${{ matrix.shard }}.info" "${files[@]}"
+          flutter test --no-pub --coverage --coverage-path "coverage/lcov-shard-${{ matrix.shard }}.info" "${files[@]}"
 
       - name: Upload shard coverage
         uses: actions/upload-artifact@v7
@@ -214,7 +273,8 @@ jobs:
           if-no-files-found: error
 
   # Only needs Dart: coverage_report.dart imports dart:io and nothing else, so
-  # setting up Flutter here would cost more than the gate itself.
+  # setting up Flutter here would cost more than the gate itself. GitHub skips
+  # this job automatically when `test` is skipped by the path filter.
   coverage:
     needs: test
     runs-on: ubuntu-latest
@@ -241,6 +301,8 @@ jobs:
         run: dart tool/quality/coverage_report.dart --input-dir coverage-shards --expect-inputs ${{ env.TEST_SHARDS }} --min-lines 100 --worst 25
 
   mobile:
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -270,7 +332,7 @@ jobs:
         run: flutter analyze
 
       - name: Test
-        run: flutter test
+        run: flutter test --no-pub
 
   # Clippy-driver and rustc do not share rustc artifacts, so a sequential
   # clippy-then-test job compiled the workspace twice (~6 min + ~7 min) while
@@ -280,6 +342,8 @@ jobs:
   # populate matching sccache keys.
   rust:
     name: rust ${{ matrix.name }}
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -307,8 +371,10 @@ jobs:
           check: ${{ matrix.name }}
 
       # One pinned historical host on the existing test leg, not a version
-      # matrix. The script verifies the release tag's commit and builds its
-      # locked source before exercising the current compatibility client.
+      # matrix. The script verifies the release tag's commit and the published
+      # linux-x64 runtime tarball SHA-256 before exercising the current
+      # compatibility client. Rebuilding v0.49.0 from source here was ~5.5
+      # minutes on the PR Checks critical path.
       - name: Previous host conformance
         if: matrix.name == 'test'
         run: bash tool/ci/host_compatibility.sh
@@ -327,6 +393,7 @@ jobs:
     name: pr-ready
     if: always()
     needs:
+      - changes
       - static
       - packages
       - generation
@@ -340,6 +407,7 @@ jobs:
       - name: Require fast checks
         shell: bash
         env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
           STATIC_RESULT: ${{ needs.static.result }}
           PACKAGES_RESULT: ${{ needs.packages.result }}
           GENERATION_RESULT: ${{ needs.generation.result }}
@@ -350,9 +418,19 @@ jobs:
         run: |
           set -euo pipefail
           failed=0
-          for result_name in STATIC_RESULT PACKAGES_RESULT GENERATION_RESULT TEST_RESULT COVERAGE_RESULT MOBILE_RESULT RUST_RESULT; do
+          # Path filtering skips jobs that cannot fail for the change set.
+          # `changes` and `static` always run when the workflow runs, so a
+          # skip there means the filter itself failed and must not pass.
+          for result_name in CHANGES_RESULT STATIC_RESULT; do
             result="${!result_name}"
             if [ "$result" != "success" ]; then
+              echo "::error::${result_name} was ${result}"
+              failed=1
+            fi
+          done
+          for result_name in PACKAGES_RESULT GENERATION_RESULT TEST_RESULT COVERAGE_RESULT MOBILE_RESULT RUST_RESULT; do
+            result="${!result_name}"
+            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
               echo "::error::${result_name} was ${result}"
               failed=1
             fi

@@ -2452,6 +2452,8 @@ fn cancelling_active_worker_interrupts_before_idle_banner_delivery() {
             "stty -echo; trap 'printf INTERRUPTED' INT; while :; do IFS= read -r line || continue; printf 'LINE:%s' \"$line\"; done",
         ],
     );
+    std::thread::sleep(Duration::from_millis(700));
+    let _ = collect_output(&mut reader, session_id, Duration::from_millis(400));
     expect_ok(request(
         &mut writer,
         &mut reader,
