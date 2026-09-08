@@ -261,7 +261,7 @@ async fn database_guards_reject_references_committed_after_profile_removal() {
     assert_eq!(
         serde_json::to_value(&definition)
             .unwrap()
-            .pointer("/target/freshTab/agent_profile_id"),
+            .pointer("/target/freshTab/agentProfileId"),
         Some(&json!("prof_a"))
     );
     let automation_error = store
