@@ -40,7 +40,7 @@ class const _Body({required final MobilePullRequestSnapshot snapshot})
     if (review == null) {
       return AleraEmptyState(
         icon: AleraIcons.gitPullRequest,
-        title: snapshot.branch == null ? 'Pull request' : snapshot.branch!,
+        title: snapshot.identity?.label ?? snapshot.branch ?? 'Pull request',
         message:
             snapshot.unavailableReason ??
             'No pull request is available for this workspace.',
@@ -49,6 +49,11 @@ class const _Body({required final MobilePullRequestSnapshot snapshot})
     return ListView(
       padding: AleraTokens.contentPadding,
       children: <Widget>[
+        if (snapshot.identity?.label != null)
+          Text(
+            snapshot.identity!.label!,
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
         Text(review.title, style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: AleraTokens.space8),
         Text(
@@ -60,6 +65,11 @@ class const _Body({required final MobilePullRequestSnapshot snapshot})
           const SizedBox(height: AleraTokens.space8),
           Text('${review.headRefName} into ${review.baseRefName}'),
         ],
+        const SizedBox(height: AleraTokens.space12),
+        Text(
+          'Comments are read-only. Reply, edit, and merge stay on desktop.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
         if (review.url.isNotEmpty) ...<Widget>[
           const SizedBox(height: AleraTokens.space16),
           FilledButton.icon(

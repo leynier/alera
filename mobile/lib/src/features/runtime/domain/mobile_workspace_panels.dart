@@ -112,6 +112,12 @@ class const MobileGitStatusSnapshot({
     ],
     writable: json['writable'] == true,
   );
+
+  int get changedFileCount => entries.length;
+  int get addedLineCount =>
+      entries.fold(0, (total, entry) => total + (entry.added ?? 0));
+  int get removedLineCount =>
+      entries.fold(0, (total, entry) => total + (entry.removed ?? 0));
 }
 
 class const MobileGitDiffLine({
@@ -213,6 +219,27 @@ class const MobilePullRequestReview({
   );
 }
 
+class const MobilePullRequestIdentity({
+  final String? provider,
+  final String? host,
+  final String? owner,
+  final String? repo,
+}) {
+  String? get label {
+    if (owner != null && repo != null) {
+      return '$owner/$repo';
+    }
+    return host ?? provider;
+  }
+
+  factory fromJson(Map<String, Object?> json) => MobilePullRequestIdentity(
+    provider: json.optionalString('provider'),
+    host: json.optionalString('host'),
+    owner: json.optionalString('owner'),
+    repo: json.optionalString('repo'),
+  );
+}
+
 class const MobilePullRequestSnapshot({
   final String? branch,
   final String? remoteUrl,
@@ -221,10 +248,12 @@ class const MobilePullRequestSnapshot({
   final String? unavailableReason,
   final int? linkedNumber,
   final String? linkedUrl,
+  final MobilePullRequestIdentity? identity,
   final MobilePullRequestReview? review,
 }) {
   factory fromJson(Map<String, Object?> json) {
     final linked = json.mapValue('linkedReview');
+    final identity = json.mapValue('identity');
     final review = json['review'];
     return MobilePullRequestSnapshot(
       branch: json.optionalString('branch'),
@@ -234,6 +263,9 @@ class const MobilePullRequestSnapshot({
       unavailableReason: json.optionalString('unavailableReason'),
       linkedNumber: (linked['number'] as num?)?.toInt(),
       linkedUrl: linked.optionalString('url'),
+      identity: identity.isEmpty
+          ? null
+          : MobilePullRequestIdentity.fromJson(identity),
       review: review is Map
           ? MobilePullRequestReview.fromJson(Map<String, Object?>.from(review))
           : null,

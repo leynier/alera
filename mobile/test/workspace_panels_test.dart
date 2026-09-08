@@ -57,10 +57,19 @@ void main() {
     });
     expect(git.writable, isFalse);
     expect(git.entries.single.status, 'modified');
+    expect(git.changedFileCount, 1);
+    expect(git.addedLineCount, 1);
+    expect(git.removedLineCount, 1);
     final pr = MobilePullRequestSnapshot.fromJson(const <String, Object?>{
       'branch': 'feat/panels',
       'provider': 'github',
       'authStatus': 'authenticated',
+      'identity': <String, Object?>{
+        'provider': 'github',
+        'host': 'github.com',
+        'owner': 'leynier',
+        'repo': 'alera',
+      },
       'review': <String, Object?>{
         'number': 639,
         'title': 'Add mobile panels',
@@ -79,8 +88,12 @@ void main() {
         ],
       },
     });
+    expect(pr.identity?.label, 'leynier/alera');
     expect(pr.review?.number, 639);
+    expect(pr.review?.title, 'Add mobile panels');
+    expect(pr.review?.state, 'OPEN');
     expect(pr.review?.checks.single.bucket, 'pass');
+    expect(pr.review?.comments.single.body, 'Looks good');
   });
 
   testWidgets('shows the four panels when the host advertises them', (

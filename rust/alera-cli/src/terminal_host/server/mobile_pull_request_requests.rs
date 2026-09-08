@@ -57,19 +57,26 @@ pub(super) async fn snapshot_mobile_pull_request(
     });
 
     if provider != Some("github") {
-        return Ok(json!({
-            "branch": branch,
-            "remoteUrl": remote_url,
-            "provider": provider,
-            "authStatus": if provider.is_some() { "unsupported" } else { "undetectable" },
-            "linkedReview": linked_json,
-            "review": Value::Null,
-            "unavailableReason": if provider.is_some() {
-                "This hosting provider is available on desktop. Mobile v1 loads GitHub pull requests through gh."
+        return Ok(snapshot_envelope(
+            branch,
+            remote_url,
+            provider,
+            if provider.is_some() {
+                "unsupported"
             } else {
-                "No GitHub remote was detected for this workspace."
+                "undetectable"
             },
-        }));
+            linked_json,
+            Value::Null,
+            Some(
+                if provider.is_some() {
+                    "This hosting provider is available on desktop. Mobile v1 loads GitHub pull requests through gh."
+                } else {
+                    "No GitHub remote was detected for this workspace."
+                }
+                .to_string(),
+            ),
+        ));
     }
     let identity = identity.unwrap();
 
@@ -83,30 +90,35 @@ pub(super) async fn snapshot_mobile_pull_request(
         Ok(_) => "notAuthenticated",
         Err(error) if looks_like_missing_cli(&error) => "cliMissing",
         Err(error) => {
-            return Ok(json!({
-                "branch": branch,
-                "remoteUrl": remote_url,
-                "provider": "github",
-                "authStatus": "cliMissing",
-                "linkedReview": linked_json,
-                "review": Value::Null,
-                "unavailableReason": error.wire_message(),
-            }));
+            return Ok(snapshot_envelope(
+                branch,
+                remote_url,
+                Some("github"),
+                "cliMissing",
+                linked_json,
+                Value::Null,
+                Some(error.wire_message()),
+            ));
         }
     };
     if auth_status != "authenticated" {
-        return Ok(json!({
-            "branch": branch,
-            "remoteUrl": remote_url,
-            "provider": "github",
-            "authStatus": auth_status,
-            "linkedReview": linked_json,
-            "review": Value::Null,
-            "unavailableReason": match auth_status {
-                "cliMissing" => "Install and authenticate the GitHub CLI (gh) on the paired computer.",
-                _ => "Sign in with gh auth login on the paired computer.",
-            },
-        }));
+        return Ok(snapshot_envelope(
+            branch,
+            remote_url,
+            Some("github"),
+            auth_status,
+            linked_json,
+            Value::Null,
+            Some(
+                match auth_status {
+                    "cliMissing" => {
+                        "Install and authenticate the GitHub CLI (gh) on the paired computer."
+                    }
+                    _ => "Sign in with gh auth login on the paired computer.",
+                }
+                .to_string(),
+            ),
+        ));
     }
 
     let review = if let Some(number) = linked.as_ref().and_then(|review| review.number) {
@@ -131,19 +143,51 @@ pub(super) async fn snapshot_mobile_pull_request(
         Value::Null
     };
 
-    Ok(json!({
+    let unavailable = if review_json.is_null() {
+        Some("No open pull request is linked to this branch.".to_string())
+    } else {
+        None
+    };
+    Ok(snapshot_envelope(
+        branch,
+        remote_url,
+        Some("github"),
+        auth_status,
+        linked_json,
+        review_json,
+        unavailable,
+    ))
+}
+
+fn snapshot_envelope(
+    branch: Option<String>,
+    remote_url: Option<String>,
+    provider: Option<&str>,
+    auth_status: &str,
+    linked_review: Option<Value>,
+    review: Value,
+    unavailable_reason: Option<String>,
+) -> Value {
+    json!({
         "branch": branch,
         "remoteUrl": remote_url,
-        "provider": "github",
+        "provider": provider,
+        "identity": remote_identity_json(remote_url.as_deref(), provider),
         "authStatus": auth_status,
-        "linkedReview": linked_json,
-        "review": review_json,
-        "unavailableReason": if review_json.is_null() {
-            Value::from("No open pull request is linked to this branch.")
-        } else {
-            Value::Null
-        },
-    }))
+        "linkedReview": linked_review,
+        "review": review,
+        "unavailableReason": unavailable_reason,
+    })
+}
+
+fn remote_identity_json(url: Option<&str>, provider: Option<&str>) -> Value {
+    let parsed = url.and_then(parse_remote_url);
+    json!({
+        "provider": provider,
+        "host": parsed.as_ref().map(|parsed| parsed.host.clone()),
+        "owner": parsed.as_ref().and_then(|parsed| parsed.segments.first()).cloned(),
+        "repo": parsed.as_ref().and_then(|parsed| parsed.segments.last()).cloned(),
+    })
 }
 
 struct GitHubIdentity {
@@ -432,5 +476,14 @@ mod tests {
             detect_provider(Some("https://gitlab.com/group/project.git")),
             Some("gitlab")
         );
+    }
+
+    #[test]
+    fn identity_json_includes_owner_and_repo() {
+        let value =
+            remote_identity_json(Some("https://github.com/leynier/alera.git"), Some("github"));
+        assert_eq!(value["provider"], "github");
+        assert_eq!(value["owner"], "leynier");
+        assert_eq!(value["repo"], "alera");
     }
 }

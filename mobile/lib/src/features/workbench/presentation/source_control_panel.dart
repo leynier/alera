@@ -85,6 +85,13 @@ class const _Body({
             title: Text(snapshot.branch!),
             subtitle: const Text('Current branch'),
           ),
+        ListTile(
+          leading: const Icon(AleraIcons.gitCompare),
+          title: Text(
+            '${snapshot.changedFileCount} ${snapshot.changedFileCount == 1 ? 'file' : 'files'} · +${snapshot.addedLineCount} -${snapshot.removedLineCount}',
+          ),
+          subtitle: const Text('Diff summary'),
+        ),
         ..._group(context, hostId, workspaceId, 'Staged', staged),
         ..._group(context, hostId, workspaceId, 'Unstaged', unstaged),
         ..._group(context, hostId, workspaceId, 'Untracked', untracked),
