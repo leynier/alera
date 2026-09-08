@@ -1,6 +1,8 @@
 import 'package:alera/src/features/workspace_agent_comments/application/workspace_agent_comment_controller.dart';
 import 'package:alera/src/features/workspace_agent_comments/domain/workspace_agent_comment.dart';
+import 'package:alera/src/features/workspace_agent_comments/domain/workspace_agent_comment_location.dart';
 import 'package:alera/src/features/workspace_agent_comments/domain/workspace_agent_comment_prompt.dart';
+import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -55,6 +57,48 @@ void main() {
       );
       expect(prompt, contains('+  return null;'));
       expect(prompt, contains('This looks wrong.'));
+    });
+
+    test('labels deletion-only diff anchors as old-side lines', () {
+      const lines = <GitDiffLine>[
+        GitDiffLine.hunk('@@ -4,2 +0,0 @@ class Gone'),
+        GitDiffLine.deletion('-old one'),
+      ];
+      final anchor = workspaceAgentDiffLineAnchors(lines)[1];
+      final prompt = workspaceAgentCommentPrompt(<WorkspaceAgentComment>[
+        WorkspaceAgentComment(
+          id: '1',
+          kind: WorkspaceAgentCommentKind.diff,
+          path: 'lib/gone.dart',
+          body: 'Keep this helper elsewhere before deleting it.',
+          hunkHeader: anchor.hunkHeader,
+          lineRange: workspaceAgentCommentRangeForDiffAnchor(anchor),
+          snippet: workspaceAgentCommentSnippetForDiffAnchor(
+            lines: lines,
+            anchor: anchor,
+          ),
+        ),
+      ]);
+      expect(
+        prompt,
+        contains(
+          '## 1. Diff `lib/gone.dart` hunk `@@ -4,2 +0,0 @@ class Gone` old line 4',
+        ),
+      );
+      expect(prompt, contains('-old one'));
+      expect(
+        workspaceAgentCommentLocationLabel(
+          WorkspaceAgentComment(
+            id: '1',
+            kind: WorkspaceAgentCommentKind.diff,
+            path: 'lib/gone.dart',
+            body: 'x',
+            hunkHeader: anchor.hunkHeader,
+            lineRange: workspaceAgentCommentRangeForDiffAnchor(anchor),
+          ),
+        ),
+        'lib/gone.dart · @@ -4,2 +0,0 @@ class Gone · old line 4',
+      );
     });
 
     test('omits blank area, hunk, range, and snippet from a file comment', () {
@@ -203,6 +247,23 @@ void main() {
         ),
         'lib/a.dart · (Unstaged) · @@ -1 +1 @@ · line 4',
       );
+      expect(
+        workspaceAgentCommentLocationLabel(
+          const WorkspaceAgentComment(
+            id: '1',
+            kind: WorkspaceAgentCommentKind.diff,
+            path: 'lib/gone.dart',
+            body: 'x',
+            hunkHeader: '@@ -4,2 +0,0 @@ class Gone',
+            lineRange: WorkspaceAgentCommentLineRange(
+              startLine: 4,
+              endLine: 5,
+              side: WorkspaceAgentCommentLineSide.oldSide,
+            ),
+          ),
+        ),
+        'lib/gone.dart · @@ -4,2 +0,0 @@ class Gone · old lines 4-5',
+      );
     });
 
     test('formats single and multi line ranges', () {
@@ -216,6 +277,30 @@ void main() {
       expect(
         const WorkspaceAgentCommentLineRange(startLine: 4, endLine: 4).label,
         'line 4',
+      );
+      expect(
+        const WorkspaceAgentCommentLineRange(
+          startLine: 4,
+          endLine: 4,
+          side: WorkspaceAgentCommentLineSide.oldSide,
+        ).label,
+        'old line 4',
+      );
+      expect(
+        const WorkspaceAgentCommentLineRange(
+          startLine: 4,
+          endLine: 6,
+          side: WorkspaceAgentCommentLineSide.oldSide,
+        ).label,
+        'old lines 4-6',
+      );
+      expect(
+        const WorkspaceAgentCommentLineRange(
+          startLine: 4,
+          endLine: 4,
+          side: WorkspaceAgentCommentLineSide.oldSide,
+        ),
+        isNot(const WorkspaceAgentCommentLineRange(startLine: 4, endLine: 4)),
       );
       expect(
         const WorkspaceAgentCommentLineRange(startLine: 4, endLine: 6),

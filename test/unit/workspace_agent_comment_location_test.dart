@@ -166,8 +166,22 @@ void main() {
         workspaceAgentCommentRangeForDiffAnchor(anchors[0]),
         const WorkspaceAgentCommentLineRange(startLine: 12, endLine: 14),
       );
+      expect(anchors[2].oldLine, 11);
+      expect(anchors[2].newLine, isNull);
+      expect(
+        workspaceAgentCommentRangeForDiffAnchor(anchors[2]),
+        const WorkspaceAgentCommentLineRange(
+          startLine: 11,
+          endLine: 11,
+          side: WorkspaceAgentCommentLineSide.oldSide,
+        ),
+      );
       expect(anchors[3].newLine, 13);
       expect(anchors[4].newLine, 14);
+      expect(
+        workspaceAgentCommentRangeForDiffAnchor(anchors[3]),
+        const WorkspaceAgentCommentLineRange(startLine: 13, endLine: 13),
+      );
       expect(
         workspaceAgentCommentSnippetForDiffAnchor(
           lines: lines,
@@ -187,6 +201,14 @@ void main() {
       expect(anchors[2].newLine, 1);
       expect(
         workspaceAgentCommentRangeForDiffAnchor(anchors[1]),
+        const WorkspaceAgentCommentLineRange(
+          startLine: 1,
+          endLine: 1,
+          side: WorkspaceAgentCommentLineSide.oldSide,
+        ),
+      );
+      expect(
+        workspaceAgentCommentRangeForDiffAnchor(anchors[2]),
         const WorkspaceAgentCommentLineRange(startLine: 1, endLine: 1),
       );
     });
@@ -220,10 +242,27 @@ void main() {
       expect(removed[0].hunkNewEnd, isNull);
       expect(workspaceAgentCommentRangeForDiffAnchor(removed[0]), isNull);
       expect(removed[1].oldLine, 4);
+      expect(removed[1].newLine, isNull);
       expect(removed[2].oldLine, 5);
       expect(
         workspaceAgentCommentRangeForDiffAnchor(removed[1]),
-        const WorkspaceAgentCommentLineRange(startLine: 4, endLine: 4),
+        const WorkspaceAgentCommentLineRange(
+          startLine: 4,
+          endLine: 4,
+          side: WorkspaceAgentCommentLineSide.oldSide,
+        ),
+      );
+      expect(
+        workspaceAgentCommentRangeForDiffAnchor(removed[2]),
+        const WorkspaceAgentCommentLineRange(
+          startLine: 5,
+          endLine: 5,
+          side: WorkspaceAgentCommentLineSide.oldSide,
+        ),
+      );
+      expect(
+        workspaceAgentCommentRangeForDiffAnchor(removed[1])!.label,
+        'old line 4',
       );
       expect(
         workspaceAgentCommentSnippetForDiffAnchor(
