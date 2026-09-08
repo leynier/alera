@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_accessory_layout_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
@@ -8,6 +9,7 @@ import 'package:alera_mobile/src/features/terminal/domain/terminal_viewport_puls
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_accessory_bar.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_compose_bar.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_tab_view.dart';
+import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -114,6 +116,116 @@ void main() {
       contains('resize session-tab-1 ${pulse.$1} ${landscape.viewHeight}'),
     );
   });
+
+  testWidgets(
+    'PTY size matches the phone viewport after chrome and safe areas',
+    (tester) async {
+      await _setPhoneSurface(
+        tester,
+        AleraTokens.previewPhoneSize,
+        padding: const FakeViewPadding(top: 47, bottom: 34),
+      );
+      final client = FakeTerminalClient()
+        ..tabs = <WorkspaceTabSummary>[
+          fakeTab(id: 'tab-1', title: 'Terminal 1'),
+        ];
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            terminalClientProvider('host-1')
+                .overrideWith((ref) async => client),
+            workspaceClientProvider('host-1')
+                .overrideWith((ref) async => client),
+            accessoryLayoutRepositoryProvider.overrideWithValue(
+              MemoryAccessoryLayoutRepository(),
+            ),
+          ],
+          child: const MaterialApp(
+            home: WorkspaceTabsScreen(
+              hostId: 'host-1',
+              workspace: WorkspaceSummary(
+                id: 'workspace-1',
+                projectId: 'project-1',
+                name: 'Workspace',
+                path: '/repo',
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final terminal = _terminalOf(tester);
+      final viewState = tester.state<TerminalViewState>(
+        find.byType(TerminalView),
+      );
+      final render = viewState.renderTerminal;
+      final cell = render.cellSize;
+      final innerWidth = render.size.width;
+      final innerHeight = render.size.height;
+      final expectedCols = innerWidth ~/ cell.width;
+      final expectedRows = innerHeight ~/ cell.height;
+
+      expect(find.byType(AppBar), findsOneWidget);
+      expect(find.byType(TerminalAccessoryBar), findsOneWidget);
+      expect(find.byType(TerminalComposeBar), findsOneWidget);
+      expect(terminal.viewWidth, expectedCols);
+      expect(terminal.viewHeight, expectedRows);
+      expect(terminal.viewWidth, isNot(80));
+      expect(terminal.viewHeight, isNot(24));
+      expect(innerWidth - expectedCols * cell.width, lessThan(cell.width));
+      expect(innerHeight - expectedRows * cell.height, lessThan(cell.height));
+      expect(
+        _resizeCalls(client).first,
+        'resize session-tab-1 $expectedCols $expectedRows',
+      );
+      final composeBottom = tester
+          .getRect(find.byType(TerminalComposeBar))
+          .bottom;
+      final screen = tester.getRect(find.byType(MaterialApp));
+      expect(composeBottom, lessThanOrEqualTo(screen.bottom - 34 + 0.5));
+    },
+  );
+
+  testWidgets(
+    'Scrolling restored history keeps upper rows intact at phone width',
+    (tester) async {
+      await _setPhoneSurface(tester, AleraTokens.previewPhoneSize);
+      final history = <String>[
+        for (var line = 0; line < 80; line++)
+          'ROW-${line.toString().padLeft(2, '0')}',
+      ];
+      final client = FakeTerminalClient()
+        ..tabs = <WorkspaceTabSummary>[
+          fakeTab(id: 'tab-1', title: 'Terminal 1'),
+        ]
+        ..attachmentSnapshot = utf8.encode('${history.join('\r\n')}\r\nLIVE')
+        ..attachmentSnapshotCols = 200
+        ..attachmentSnapshotRows = 50;
+      await _pumpTab(tester, client);
+
+      final terminal = _terminalOf(tester);
+      expect(terminal.viewWidth, lessThan(200));
+      expect(_resizeCalls(client).first, isNot(contains(' 200 50')));
+
+      final scroll = tester
+          .widget<TerminalView>(find.byType(TerminalView))
+          .scrollController!;
+      expect(scroll.position.maxScrollExtent, greaterThan(0));
+      scroll.jumpTo(0);
+      await tester.pump();
+
+      final rows = <String>[
+        for (var index = 0; index < terminal.buffer.lines.length; index++)
+          terminal.buffer.lines[index].toString().trim(),
+      ].where((line) => line.startsWith('ROW-')).toList();
+      expect(rows.first, 'ROW-00');
+      expect(rows.last, 'ROW-79');
+      expect(rows, history);
+      expect(terminal.buffer.getText(), contains('LIVE'));
+      expect(rows.where((line) => line.contains('ROW-00')).length, 1);
+    },
+  );
 }
 
 Terminal _terminalOf(WidgetTester tester) {
@@ -124,13 +236,23 @@ List<String> _resizeCalls(FakeTerminalClient client) {
   return client.calls.where((call) => call.startsWith('resize ')).toList();
 }
 
-Future<void> _setPhoneSurface(WidgetTester tester, Size size) async {
+Future<void> _setPhoneSurface(
+  WidgetTester tester,
+  Size size, {
+  FakeViewPadding? padding,
+}) async {
   await tester.binding.setSurfaceSize(size);
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
+  if (padding != null) {
+    tester.view.padding = padding;
+    tester.view.viewPadding = padding;
+  }
   addTearDown(() async {
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();
+    tester.view.resetPadding();
+    tester.view.resetViewPadding();
     await tester.binding.setSurfaceSize(null);
   });
 }
