@@ -29,12 +29,12 @@ class RuntimeAutomationRepository(final RuntimeHostClient _client) {
         .toList(growable: false);
   }
 
-  Stream<List<AutomationRecord>> watch() async* {
-    yield await list();
+  Stream<List<AutomationRecord>> watch({bool includeTrashed = false}) async* {
+    yield await list(includeTrashed: includeTrashed);
     await for (final event in _client.runtimeEvents) {
       if (event.name == 'automationsChanged' ||
           event.name == 'automationRunChanged') {
-        yield await list();
+        yield await list(includeTrashed: includeTrashed);
       }
     }
   }

@@ -76,7 +76,7 @@ class _AutomationsDialogState extends ConsumerState<AutomationsDialog> {
                     title: 'Automations unavailable',
                     message: error.toString(),
                     action: FilledButton(
-                      onPressed: () => ref.invalidate(automationListProvider),
+                      onPressed: _invalidateCatalog,
                       child: const Text('Retry'),
                     ),
                   ),

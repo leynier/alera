@@ -96,7 +96,7 @@ extension on _AutomationsDialogState {
       await ref
           .read(automationRepositoryProvider)
           .importCatalog(bundleMap, remap);
-      ref.invalidate(automationCatalogProvider(_includeTrashed));
+      _invalidateCatalog();
       _showMessage('Automation catalog imported as drafts');
     } catch (error) {
       _showMessage(error.toString(), error: true);
@@ -118,7 +118,7 @@ extension on _AutomationsDialogState {
         _selectedId = saved.id;
         _detailFuture = ref.read(automationRepositoryProvider).show(saved.id);
       });
-      ref.invalidate(automationListProvider);
+      _invalidateCatalog();
       _showMessage(message);
     } catch (error) {
       _showMessage(error.toString(), error: true);
@@ -131,7 +131,7 @@ extension on _AutomationsDialogState {
           .read(automationRepositoryProvider)
           .approve(automation.id, automation.revision);
       await _refresh(automation.id);
-      ref.invalidate(automationListProvider);
+      _invalidateCatalog();
       _showMessage('Automation approved');
     } catch (error) {
       _showMessage(error.toString(), error: true);
@@ -178,7 +178,7 @@ extension on _AutomationsDialogState {
           .read(automationRepositoryProvider)
           .setState(request, id, activeRuns: activeRuns);
       await _refresh(id);
-      ref.invalidate(automationListProvider);
+      _invalidateCatalog();
       _showMessage(
         request == 'automation.pause'
             ? 'Automation paused'
@@ -229,6 +229,10 @@ extension on _AutomationsDialogState {
     } catch (error) {
       _showMessage(error.toString(), error: true);
     }
+  }
+
+  void _invalidateCatalog() {
+    ref.invalidate(automationCatalogProvider(_includeTrashed));
   }
 
   Future<void> _refresh(String id) async {
