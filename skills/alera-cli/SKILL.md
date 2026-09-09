@@ -277,7 +277,7 @@ JSON list commands return a consistent `{ "kind": "...", "items": [...], "filter
 
 ## SSH Targets
 
-Register hosts and install the Alera runtime sidecar. Bootstrap is sidecar only; it does not create a remote Git worktree. After bootstrap, `alera workspace add --host-id <id>` creates the worktree on that host. Missing, not-bootstrapped, and unreachable hosts fail with an actionable error.
+Register hosts and install the Alera runtime sidecar. Bootstrap is sidecar only; it does not create a remote Git worktree. After bootstrap, `alera workspace add --host-id <id>` or Desktop New Workspace creates the worktree on that host. Terminals and `workspace.files.*` then attach over SSH. Missing, not-bootstrapped, and unreachable hosts fail with an actionable error.
 
 List saved hosts, probe live connectivity, or remove a saved target. Status persists `lastStatus` (`reachable`, `unreachable`, or `runtimeReady`) plus `lastCheckedAt`:
 
@@ -330,8 +330,8 @@ For model research, quota-aware catalog design, adapter-specific Managed configu
 ## Agent Rules
 
 - Prefer `alera workspace add/remove` over raw Git when operating Alera-managed workspaces.
-- Use metadata-only `register/unregister` only when intentionally avoiding filesystem or Git changes. `workspace register --host-id` is metadata only; `workspace add --host-id` creates the remote Git worktree.
-- Do not treat `alera ssh-target bootstrap` as creating a remote workspace. Bootstrap installs the runtime sidecar only.
+- Use metadata-only `register/unregister` only when intentionally avoiding filesystem or Git changes. `workspace register --host-id` is metadata only; `workspace add --host-id` or Desktop New Workspace creates the remote Git worktree.
+- Do not treat `alera ssh-target bootstrap` as creating a remote workspace. Bootstrap installs the runtime sidecar only. Use `alera workspace add --host-id` or New Workspace after the sidecar is installed.
 - Run list/status commands before destructive operations so you have the exact IDs.
 - Use `workspace pin/unpin` for the persisted desktop sidebar section instead of editing runtime metadata directly.
 - Keep user-created branches unless the user explicitly requests deletion or the workspace metadata shows Alera created the branch.

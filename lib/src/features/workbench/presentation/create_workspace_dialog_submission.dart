@@ -30,6 +30,16 @@ extension _CreateWorkspaceDialogSubmission on _CreateWorkspaceDialogState {
       return;
     }
 
+    final hostError = remoteWorkspaceHostSelectionError(
+      hostId: _selectedHostId,
+      targets: widget.sshTargets,
+      supportsRemoteSshWorkspaces: widget.supportsRemoteSshWorkspaces,
+    );
+    if (hostError != null) {
+      _update(() => _creationError = hostError);
+      return;
+    }
+
     _update(() {
       _creating = true;
       _creationError = null;
@@ -43,6 +53,7 @@ extension _CreateWorkspaceDialogSubmission on _CreateWorkspaceDialogState {
         reuseExistingBranch: _reuseExistingBranch,
         name: name.isEmpty ? null : name,
         parentWorkspaceId: _selectedParentWorkspaceId,
+        hostId: _selectedHostId,
       );
       if (!mounted) {
         return;
@@ -57,7 +68,7 @@ extension _CreateWorkspaceDialogSubmission on _CreateWorkspaceDialogState {
       if (mounted) {
         _update(() {
           _creating = false;
-          _creationError = error.toString();
+          _creationError = userFacingExceptionMessage(error);
         });
       }
     }

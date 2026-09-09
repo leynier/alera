@@ -265,6 +265,7 @@ void main() {
           reuseExistingBranch: false,
           name: 'feature/coverage',
           parentWorkspaceId: null,
+          hostId: null,
         ));
         expect(find.text('Workspace created'), findsOneWidget);
       },
@@ -427,7 +428,7 @@ void main() {
       await tester.tap(find.text('Create Workspace'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Exception: Workspace failed'), findsOneWidget);
+      expect(find.text('Workspace failed'), findsOneWidget);
     });
   });
 }

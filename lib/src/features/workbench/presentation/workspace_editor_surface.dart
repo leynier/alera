@@ -12,6 +12,7 @@ import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.d
 import 'package:alera/src/features/workbench/application/editor_autosave_controller.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_preview_kind.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
+import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -439,7 +440,7 @@ class _WorkspaceEditorSurfaceState
         _ => 'File operation failed',
       };
     }
-    return 'File operation failed';
+    return remoteWorkspaceErrorMessage(error) ?? 'File operation failed';
   }
 
   code_forge.ScrollbarDecoration _scrollbarDecoration() {

@@ -205,6 +205,7 @@ class const _ManagedWorkspaceRuntimeWithoutWatcher()
     required String newBranchName,
     required bool reuseExistingBranch,
     String? name,
+    String? hostId,
   }) async {
     final now = DateTime.utc(2026, 5, 22, 2);
     return WorkspaceCreationResult(
@@ -263,6 +264,7 @@ class const _ManagedWorkspaceRuntimeWithDeferredSetup(
     required String newBranchName,
     required bool reuseExistingBranch,
     String? name,
+    String? hostId,
   }) async {
     final now = DateTime.utc(2026, 5, 22, 3);
     return WorkspaceCreationResult(

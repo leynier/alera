@@ -6,6 +6,9 @@ import 'package:alera/src/design_system/feedback/alera_toast_host.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
+import 'package:alera/src/features/remote_hosts/infra/runtime_ssh_target_repository.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -30,6 +33,9 @@ Future<void> pumpFlowHarness(
           () => DialogLaunchersAgentProfiles(),
         ),
         gitBackendProvider.overrideWithValue(FakeGitBackend()),
+        sshTargetRepositoryProvider.overrideWithValue(
+          RuntimeSshTargetRepository(_HarnessRuntimeHostClient()),
+        ),
         settingsControllerProvider.overrideWith(
           () => DialogLaunchersSettingsController(.defaults),
         ),
@@ -117,6 +123,7 @@ class DialogLaunchersTestController(final WorkbenchState _seed)
     bool reuseExistingBranch,
     String? name,
     String? parentWorkspaceId,
+    String? hostId,
   })?
   createdWorkspaceCall;
 
@@ -166,6 +173,7 @@ class DialogLaunchersTestController(final WorkbenchState _seed)
     bool reuseExistingBranch = false,
     String? name,
     String? parentWorkspaceId,
+    String? hostId,
   }) async {
     if (createWorkspaceError case final Exception error) {
       throw error;
@@ -177,6 +185,7 @@ class DialogLaunchersTestController(final WorkbenchState _seed)
       reuseExistingBranch: reuseExistingBranch,
       name: name,
       parentWorkspaceId: parentWorkspaceId,
+      hostId: hostId,
     );
     return WorkspaceCreationResult(
       workspace: buildWorkspace(
@@ -194,4 +203,21 @@ class DialogLaunchersSettingsController(final AleraSettings _seed)
     extends SettingsController {
   @override
   AleraSettings build() => _seed;
+}
+
+class _HarnessRuntimeHostClient implements RuntimeHostClient {
+  @override
+  Stream<RuntimeHostEvent> get runtimeEvents => const Stream.empty();
+
+  @override
+  Future<Object?> runtimeRequest(
+    String type, [
+    Map<String, Object?> payload = const <String, Object?>{},
+    Duration? timeout,
+  ]) async {
+    if (type == 'sshTarget.list') {
+      return const <Object?>[];
+    }
+    return <String, Object?>{};
+  }
 }

@@ -32,6 +32,7 @@ import 'package:alera/src/features/workbench/infra/runtime_workspace_activity_re
 import 'package:alera/src/features/workbench/infra/runtime_workbench_view_prefs_repository.dart';
 import 'package:alera/src/features/workbench/infra/alera_cli_terminal_shim.dart';
 import 'package:alera/src/features/workbench/infra/runtime_managed_workspace_client.dart';
+import 'package:alera/src/features/workbench/infra/runtime_workspace_files_client.dart';
 import 'package:alera/src/features/workbench/infra/runtime_workspace_graph_repository.dart';
 import 'package:alera/src/features/workbench/infra/runtime_workbench_repository.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
@@ -153,7 +154,12 @@ WorkspaceTabService workspaceTabService(Ref ref) {
 
 @Riverpod(keepAlive: true)
 WorkspaceFileService workspaceFileService(Ref ref) {
-  return const WorkspaceFileService();
+  return WorkspaceFileService(
+    remoteFiles: RuntimeWorkspaceFilesClient(
+      ref.watch(runtimeHostClientProvider),
+      beforeAccess: ref.watch(runtimeStateMigrationProvider).ensureMigrated,
+    ),
+  );
 }
 
 @Riverpod(keepAlive: true)

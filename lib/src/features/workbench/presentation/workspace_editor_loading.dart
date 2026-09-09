@@ -21,8 +21,8 @@ extension _WorkspaceEditorLoading on _WorkspaceEditorSurfaceState {
     });
     try {
       final tabSize = _currentEditorTabSize();
-      final file = await _workspaceFiles.readEditorTextFile(
-        workspacePath: workspacePath,
+      final file = await _workspaceFiles.readWorkspaceEditorTextFile(
+        workspace: widget.workspace,
         relativePath: filePath,
         tabSize: tabSize,
       );

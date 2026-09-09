@@ -84,6 +84,7 @@ void main() {
                             required newBranchName,
                             required name,
                             parentWorkspaceId,
+                            hostId,
                           }) async {
                             createdBranch = newBranchName;
                             createdName = name;
@@ -219,6 +220,7 @@ void main() {
                           required newBranchName,
                           required name,
                           parentWorkspaceId,
+                          hostId,
                         }) async {
                           return WorkspaceCreationResult(
                             workspace: Workspace(
@@ -385,6 +387,7 @@ void main() {
                             required newBranchName,
                             required name,
                             parentWorkspaceId,
+                            hostId,
                           }) async {
                             createdParentWorkspaceId = parentWorkspaceId;
                             return WorkspaceCreationResult(

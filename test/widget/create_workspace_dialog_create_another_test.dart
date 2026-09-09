@@ -43,6 +43,7 @@ void main() {
                             required reuseExistingBranch,
                             name,
                             parentWorkspaceId,
+                            hostId,
                           }) async {
                             createdBranches.add(newBranchName);
                             return WorkspaceCreationResult(

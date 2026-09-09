@@ -120,8 +120,8 @@ extension _WorkspaceEditorSave on _WorkspaceEditorSurfaceState {
   Future<native.WorkspaceEditorTextFile> _write({
     required bool overwriteIfChanged,
   }) {
-    return _workspaceFiles.writeEditorTextFile(
-      workspacePath: widget.workspace.path,
+    return _workspaceFiles.writeWorkspaceEditorTextFile(
+      workspace: widget.workspace,
       relativePath: widget.tab.filePath!,
       currentDisplayContent: _controller.text,
       originalRawContent: _document.loadedRawText,

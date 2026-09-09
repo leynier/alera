@@ -13,9 +13,12 @@ import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_selection_order.dart';
+import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
+import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/domain/workspace_parent_selection_order.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_host_picker.dart';
 import 'package:flutter/material.dart';
 
 part 'create_workspace_dialog_pickers.dart';
@@ -37,6 +40,7 @@ class const CreateWorkspaceDialog({
     required bool reuseExistingBranch,
     String? name,
     String? parentWorkspaceId,
+    String? hostId,
   })
   onCreateWorkspace,
   required final Future<bool> Function(Project project, String branchName)
@@ -49,6 +53,8 @@ class const CreateWorkspaceDialog({
   final Project? initialProject,
   final VoidCallback? onAddProject,
   final ValueChanged<WorkspaceCreationResult>? onWorkspaceCreated,
+  final List<SshTarget> sshTargets = const <SshTarget>[],
+  final bool supportsRemoteSshWorkspaces = true,
 }) extends StatefulWidget {
   @override
   State<CreateWorkspaceDialog> createState() => _CreateWorkspaceDialogState();
@@ -81,6 +87,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   String? _sourceBranchError;
   String? _newBranchError;
   String? _selectedParentWorkspaceId;
+  String? _selectedHostId;
   bool _reuseExistingBranch = false;
   bool _createAnother = false;
 
@@ -447,6 +454,10 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
             parentCandidates: _parentCandidates,
             selectedParentWorkspaceId: _selectedParentWorkspaceId,
             onParentWorkspaceChanged: _setParentWorkspace,
+            sshTargets: widget.sshTargets,
+            selectedHostId: _selectedHostId,
+            supportsRemoteSshWorkspaces: widget.supportsRemoteSshWorkspaces,
+            onHostChanged: _setHost,
             creating: _creating,
             onSubmit: _submit,
           );

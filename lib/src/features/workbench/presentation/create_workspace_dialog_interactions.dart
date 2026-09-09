@@ -32,6 +32,13 @@ extension _CreateWorkspaceDialogInteractions on _CreateWorkspaceDialogState {
     _update(() => _selectedParentWorkspaceId = value);
   }
 
+  void _setHost(String? value) {
+    _update(() {
+      _selectedHostId = value;
+      _creationError = null;
+    });
+  }
+
   void _setCreateAnother(bool value) {
     _update(() => _createAnother = value);
   }

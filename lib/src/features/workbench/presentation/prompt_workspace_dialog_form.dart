@@ -82,6 +82,14 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
                   _update(() => _selectedParentWorkspaceId = workspaceId),
             ),
             const SizedBox(height: AleraTokens.space12),
+            WorkspaceHostPicker(
+              hostId: _selectedHostId,
+              sshTargets: widget.sshTargets,
+              supportsRemoteSshWorkspaces: widget.supportsRemoteSshWorkspaces,
+              enabled: !_working && created == null,
+              onChanged: (hostId) => _update(() => _selectedHostId = hostId),
+            ),
+            const SizedBox(height: AleraTokens.space12),
             AleraDropdownField<AgentProfile>(
               labelText: 'Agent Profile',
               hintText: widget.agentProfiles.isEmpty

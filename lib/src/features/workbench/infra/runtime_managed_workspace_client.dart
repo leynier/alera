@@ -1,5 +1,6 @@
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
+import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/domain/workspace_hand_on_result.dart';
@@ -49,8 +50,13 @@ class RuntimeManagedWorkspaceClient(
     required String newBranchName,
     required bool reuseExistingBranch,
     String? name,
+    String? hostId,
   }) async {
     await _ensureReady();
+    final remoteHostId = normalizedRemoteHostId(hostId);
+    if (remoteHostId != null) {
+      await _ensureRemoteWorkspaceCapability();
+    }
     final request = <String, Object?>{
       'projectId': project.id,
       'branch': newBranchName,
@@ -66,12 +72,19 @@ class RuntimeManagedWorkspaceClient(
     if (name != null) {
       request['name'] = name;
     }
-    final payload = await _client.runtimeRequest(
-      'workspace.createManaged',
-      request,
-      _managedWorkspaceCreateTimeout,
-    );
-    return _creationResultFromJson(_asMap(payload));
+    if (remoteHostId != null) {
+      request['hostId'] = remoteHostId;
+    }
+    try {
+      final payload = await _client.runtimeRequest(
+        'workspace.createManaged',
+        request,
+        _managedWorkspaceCreateTimeout,
+      );
+      return _creationResultFromJson(_asMap(payload));
+    } catch (error) {
+      throw WorkspaceException(userFacingExceptionMessage(error));
+    }
   }
 
   @override
@@ -153,6 +166,15 @@ class RuntimeManagedWorkspaceClient(
     final callback = beforeAccess;
     if (callback != null) {
       await callback();
+    }
+  }
+
+  Future<void> _ensureRemoteWorkspaceCapability() async {
+    final status = _asMap(await _client.runtimeRequest('status.get'));
+    final capabilities = status['runtimeCapabilities'];
+    if (capabilities is! List ||
+        !capabilities.contains(aleraRuntimeHostRemoteSshWorkspacesCapability)) {
+      throw WorkspaceException(remoteHostMissingCapabilityMessage());
     }
   }
 }

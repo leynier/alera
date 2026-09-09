@@ -5,6 +5,7 @@ import 'package:alera/src/features/projects/application/project_config_service.d
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/worktree_setup_service.dart';
+import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/domain/workspace_hand_on_result.dart';
@@ -59,6 +60,7 @@ abstract interface class ManagedWorkspaceRuntime {
     required String newBranchName,
     required bool reuseExistingBranch,
     String? name,
+    String? hostId,
   });
 
   Future<void> removeWorkspace({
@@ -185,6 +187,7 @@ class WorkspaceService._(
     required String newBranchName,
     bool reuseExistingBranch = false,
     String? name,
+    String? hostId,
   }) async {
     if (!project.supportsLinkedWorkspaces) {
       throw WorkspaceException(
@@ -200,6 +203,7 @@ class WorkspaceService._(
       throw WorkspaceException('New branch name is required');
     }
 
+    final remoteHostId = normalizedRemoteHostId(hostId);
     final managedRuntime = _managedRuntime;
     if (managedRuntime != null) {
       return managedRuntime.createLinkedWorkspace(
@@ -208,6 +212,12 @@ class WorkspaceService._(
         newBranchName: normalizedBranch,
         reuseExistingBranch: reuseExistingBranch,
         name: name,
+        hostId: remoteHostId,
+      );
+    }
+    if (remoteHostId != null) {
+      throw WorkspaceException(
+        'Remote workspaces require the Alera runtime host.',
       );
     }
 
