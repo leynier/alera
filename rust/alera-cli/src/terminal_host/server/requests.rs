@@ -678,6 +678,8 @@ impl ServerActor {
                         "agentTitleRevision",
                         "agentTitleSource",
                         "agentTitleStatus",
+                        crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_ID_KEY,
+                        crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_AGENT_KEY,
                     ] {
                         payload.remove(key);
                     }

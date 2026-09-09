@@ -3,21 +3,15 @@ use serde_json::Value;
 
 use crate::agent_status::prepare_launch_environment;
 use crate::terminal_host::host_error::{HostError, HostResult};
-use crate::terminal_host::orchestration::agent_profile_launch_snapshot::AgentInitialDeliveryMechanismV1;
-use crate::terminal_host::orchestration::agent_registry::adapter_for;
-use crate::terminal_host::orchestration::agent_startup_command::{
-    append_initial_prompt_argument_for, command_with_initial_prompt_for,
-};
 use crate::terminal_host::protocol::TerminalHostLaunch;
 use crate::terminal_host::session::{PtyWriteCompletion, Session};
 
 use super::pty_event_forwarder::forward_pty_event;
 use super::terminal_launch_defaults::default_terminal_launch;
+use super::terminal_spawn_command::{resolve_spawn_command, SpawnCommand};
 use super::terminal_startup_commands::{
-    agent_profile_id, auto_close_setup_command, auto_closes_on_success,
-    delivers_initial_command_once, delivers_initial_prompt_once, initial_command,
-    initial_delivery_mechanism as mechanism, initial_managed_agent_launch, initial_prompt,
-    pending_agent_type, tab_agent_type, terminal_session_id,
+    agent_profile_id, delivers_initial_command_once, delivers_initial_prompt_once,
+    pending_agent_type, terminal_session_id,
 };
 use super::{ServerActor, ServerCommand};
 
@@ -130,46 +124,12 @@ impl ServerActor {
             pending_agent_type(tab),
         )
         .await?;
-        let managed_launch = initial_managed_agent_launch(tab)?;
-        let prompt = initial_prompt(tab);
-        // The snapshot, or the adapter for a legacy tab, owns prompt shape.
-        let adapter = tab_agent_type(tab).and_then(adapter_for);
-        let delivery = mechanism(tab)?.or_else(|| adapter.map(|item| item.startup_prompt.into()));
-        let prompt_arguments = delivery.as_ref().zip(prompt.as_deref());
-        let command = if let Some(mut launch) = managed_launch {
-            if let Some((mechanism, prompt)) = prompt_arguments {
-                append_initial_prompt_argument_for(mechanism, &mut launch.arguments, prompt);
+        let command = match resolve_spawn_command(tab, &default_launch.interactive_shell)? {
+            Some(SpawnCommand::Stdin { command, prompt }) => {
+                Some(self.stdin_prompt_command(&session_id, &command, &prompt))
             }
-            Some(
-                crate::terminal_host::orchestration::managed_launch_shell_rendering::render_managed_launch(
-                    &launch,
-                    &default_launch.interactive_shell,
-                ),
-            )
-        } else {
-            initial_command(tab)?.map(|command| {
-                let command = prompt_arguments
-                    .map(|(mechanism, prompt)| {
-                        command_with_initial_prompt_for(
-                            mechanism,
-                            &command,
-                            prompt,
-                            &default_launch.interactive_shell,
-                        )
-                    })
-                    .unwrap_or(command);
-                if auto_closes_on_success(tab) {
-                    auto_close_setup_command(&command, &default_launch.interactive_shell)
-                } else {
-                    command
-                }
-            })
-        };
-        let command = match (prompt_arguments, command) {
-            (Some((AgentInitialDeliveryMechanismV1::StdinScript, prompt)), Some(command)) => {
-                Some(self.stdin_prompt_command(&session_id, &command, prompt))
-            }
-            (_, command) => command,
+            Some(SpawnCommand::Line(command)) => Some(command),
+            None => None,
         };
         if let Some(command) = command {
             let instance_id = self

@@ -5,7 +5,7 @@ use alera_core::runtime::WorkspaceTabRecord;
 use super::terminal_pulse::TERMINAL_PULSE_PAYLOAD_KEY;
 use super::{ClientKind, ServerActor};
 
-const HOST_OWNED_TAB_PAYLOAD_KEYS: [&str; 8] = [
+const HOST_OWNED_TAB_PAYLOAD_KEYS: [&str; 10] = [
     "agentProfileLaunchV1",
     "initialPrompt",
     "pendingAgentPrompt",
@@ -14,6 +14,8 @@ const HOST_OWNED_TAB_PAYLOAD_KEYS: [&str; 8] = [
     "agentTitleRevision",
     "agentTitleStatus",
     "agentTitleSource",
+    crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_ID_KEY,
+    crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_AGENT_KEY,
 ];
 
 /// Removes host-owned bootstrap text from a tab before it crosses the runtime
