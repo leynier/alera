@@ -135,6 +135,25 @@ pub(crate) fn ssh_terminal_launch(
     }
 }
 
+
+pub(crate) async fn remote_workspace_terminal_override(
+    store: &RuntimeStore,
+    workspace_id: &str,
+) -> Result<Option<(TerminalHostLaunch, String)>> {
+    let Some(workspace) = store.find_workspace(workspace_id).await? else {
+        return Ok(None);
+    };
+    if !is_remote_host_id(Some(&workspace.host_id)) {
+        return Ok(None);
+    }
+    let target = require_bootstrapped_ssh_target(store, &workspace.host_id).await?;
+    let windows = probe_or_unreachable(&LiveSshRemoteHost, &target).await?;
+    Ok(Some((
+        ssh_terminal_launch(&target, &workspace.path, windows),
+        workspace.path.clone(),
+    )))
+}
+
 pub(crate) fn ssh_pty_arguments(target: &SshTarget, remote_command: &str) -> Vec<String> {
     let mut args = ssh_args(target);
     let destination = args.pop().expect("ssh_args includes the destination");

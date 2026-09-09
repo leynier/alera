@@ -12,6 +12,7 @@ const String aleraRuntimeHostWorkspaceSectionsCapability =
 const String aleraRuntimeHostBootstrapCapability = 'sshTargetBootstrap';
 const String aleraRuntimeHostManagedWorkspaceCapability =
     'managedWorkspaceLifecycle';
+
 /// Feature-detect remote `workspace.createManaged` hostId plus SSH PTY/file
 /// attach. Additive: do not bump [aleraTerminalHostProtocolVersion].
 const String aleraRuntimeHostRemoteSshWorkspacesCapability =

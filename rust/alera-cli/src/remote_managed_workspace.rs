@@ -11,6 +11,7 @@ use chrono::Utc;
 use uuid::Uuid;
 
 use crate::managed_workspace::ManagedWorkspaceCreateRequest;
+use crate::remote_managed_workspace_git::write_git_bundle;
 use crate::ssh_bootstrap::{powershell_string, remote_join, shell_quote};
 use crate::ssh_remote::{
     probe_or_unreachable, require_bootstrapped_ssh_target, sftp_bundle_path, RemoteHostExecutor,
@@ -478,35 +479,6 @@ rm -rf "$WORKTREE"
             branch = branch,
         )
     }
-}
-
-struct GitBundle {
-    path: std::path::PathBuf,
-}
-
-impl Drop for GitBundle {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.path);
-    }
-}
-
-async fn write_git_bundle(repo_path: &str) -> Result<GitBundle> {
-    let repo_path = repo_path.to_string();
-    tokio::task::spawn_blocking(move || {
-        let path = std::env::temp_dir().join(format!("alera-ws-{}.bundle", Uuid::new_v4()));
-        let bundle_display = path
-            .to_str()
-            .ok_or_else(|| anyhow!("git bundle path is not valid UTF-8"))?
-            .to_string();
-        alera_core::git_cli::git_in_dir(
-            Path::new(&repo_path),
-            &["bundle", "create", &bundle_display, "--all"],
-        )
-        .map_err(|error| anyhow!(error.message))?;
-        Ok(GitBundle { path })
-    })
-    .await
-    .context("git bundle task failed")?
 }
 
 #[cfg(test)]

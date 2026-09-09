@@ -36,6 +36,7 @@ mod project_management;
 #[cfg(windows)]
 mod pty_job_bootstrap;
 mod remote_managed_workspace;
+mod remote_managed_workspace_git;
 mod remote_workspace_files;
 mod runtime_archive;
 mod runtime_clear;

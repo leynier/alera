@@ -7,8 +7,6 @@ use alera_core::workspace_files::{
     search_workspace_quick_open_session, start_workspace_quick_open_session_without_symlinks,
     stop_workspace_quick_open_session, WorkspaceFileRoot, WorkspaceQuickOpenSession,
 };
-use base64::engine::general_purpose::STANDARD;
-use base64::Engine as _;
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -195,23 +193,13 @@ async fn read_mobile_workspace_file(
     payload: &Value,
 ) -> HostResult<Value> {
     let workspace = workspace_for_mobile_file_request(runtime_store, payload).await?;
-    if crate::ssh_remote::is_remote_host_id(Some(&workspace.host_id)) {
-        let requested_path = require_string_key(payload, "relativePath")?;
-        let offset = payload.get("offset").and_then(Value::as_u64).unwrap_or(0);
-        let length = payload
-            .get("length")
-            .and_then(Value::as_u64)
-            .unwrap_or(alera_core::workspace_files::MAX_REMOTE_READ_BYTES);
-        let range = crate::remote_workspace_files::read_workspace_file(
-            runtime_store,
-            &workspace,
-            &requested_path,
-            offset,
-            length,
-        )
-        .await
-        .map_err(|error| HostError::state(error.to_string()))?;
-        return Ok(range.to_json());
+    if let Some(remote) = crate::remote_workspace_files::try_read_remote_from_payload(
+        runtime_store, &workspace, payload,
+    )
+    .await
+    .map_err(|error| HostError::state(error.to_string()))?
+    {
+        return Ok(remote);
     }
     let requested_path = require_string_key(payload, "relativePath")?;
     let candidate_root =
@@ -233,7 +221,7 @@ async fn read_mobile_workspace_file(
         };
         let range = read_workspace_file_range_from_root(&root, &relative_path, offset, length)
             .map_err(workspace_file_error)?;
-        Ok(workspace_range_response(relative_path, range))
+        Ok(super::mobile_workspace_file_helpers::workspace_range_response(relative_path, range))
     })
     .await
 }
@@ -260,25 +248,11 @@ async fn read_mobile_prompt_attachment(runtime_dir: PathBuf, payload: &Value) ->
             .to_string();
         let range = read_workspace_file_range_from_root(&root, &relative_path, offset, length)
             .map_err(workspace_file_error)?;
-        Ok(workspace_range_response(relative_path, range))
+        Ok(super::mobile_workspace_file_helpers::workspace_range_response(relative_path, range))
     })
     .await
 }
 
-fn workspace_range_response(
-    relative_path: String,
-    range: alera_core::workspace_files::WorkspaceFileRange,
-) -> Value {
-    json!({
-        "relativePath": relative_path,
-        "offset": range.offset,
-        "nextOffset": range.next_offset,
-        "totalBytes": range.total_bytes,
-        "mimeType": range.mime_type,
-        "isText": range.is_text,
-        "dataBase64": STANDARD.encode(range.bytes),
-    })
-}
 
 pub(super) async fn workspace_for_mobile_file_request(
     runtime_store: &RuntimeStore,

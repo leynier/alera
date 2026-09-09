@@ -100,6 +100,33 @@ impl RemoteFileRange {
     }
 }
 
+
+
+
+/// Host-request adapter: remote workspaces only. Returns `Ok(None)` for local.
+pub(crate) async fn try_read_remote_from_payload(
+    store: &RuntimeStore,
+    workspace: &Workspace,
+    payload: &Value,
+) -> Result<Option<Value>> {
+    if !is_remote_host_id(Some(&workspace.host_id)) {
+        return Ok(None);
+    }
+    let relative_path = payload
+        .get("relativePath")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| anyhow!("relativePath is required"))?;
+    let offset = payload.get("offset").and_then(Value::as_u64).unwrap_or(0);
+    let length = payload
+        .get("length")
+        .and_then(Value::as_u64)
+        .unwrap_or(MAX_READ_BYTES);
+    let range = read_workspace_file(store, workspace, relative_path, offset, length).await?;
+    Ok(Some(range.to_json()))
+}
+
 pub(crate) fn entries_to_json(entries: &[WorkspaceExplorerEntry]) -> Value {
     json!({
         "entries": entries
