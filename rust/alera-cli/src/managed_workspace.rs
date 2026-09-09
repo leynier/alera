@@ -16,9 +16,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::remote_managed_workspace::{
-    create_remote_managed_workspace, remove_remote_managed_workspace,
-};
+use crate::remote_managed_workspace::create_remote_managed_workspace;
 use crate::ssh_remote::{
     is_remote_host_id, normalized_host_id, LiveSshRemoteHost, RemoteHostExecutor,
 };
@@ -283,31 +281,13 @@ pub(crate) async fn remove_managed_workspace_with<E: RemoteHostExecutor>(
         bail!("The main workspace cannot be removed");
     }
     if is_remote_host_id(Some(&workspace.host_id)) {
-        let project = store
-            .find_project(&workspace.project_id)
-            .await?
-            .ok_or_else(|| anyhow!("Project not found: {}", workspace.project_id))?;
         if workspace_has_active_automation_owner(store, &workspace.id).await? {
             bail!("Workspace is owned by an active automation");
         }
-        let branch_to_delete = if request
-            .delete_branch
-            .unwrap_or(!workspace.reuses_existing_branch)
-        {
-            workspace.branch.clone()
-        } else {
-            None
-        };
-        remove_remote_managed_workspace(
-            store,
-            &workspace,
-            &project,
-            branch_to_delete.as_deref(),
-            executor,
+        return crate::remote_managed_workspace_remove::remove_remote_managed_workspace_request(
+            store, &request, &workspace, executor,
         )
-        .await?;
-        store.remove_workspace(&workspace.id, true).await?;
-        return Ok(workspace);
+        .await;
     }
     let removal = managed_workspace_removal(store, &request).await?;
     let workspace = removal.workspace;
@@ -665,13 +645,13 @@ async fn resolve_workspace_path(
             .filter(|value| !value.trim().is_empty())
             .unwrap_or_else(default_workspace_root),
     };
-    let project_slug = slugify(
+    let project_slug = crate::managed_workspace_slug::slugify(
         Path::new(&project.repo_path)
             .file_name()
             .and_then(|value| value.to_str())
             .unwrap_or(&project.name),
     )?;
-    let workspace_slug = slugify(display_name)?;
+    let workspace_slug = crate::managed_workspace_slug::slugify(display_name)?;
     Ok(PathBuf::from(root)
         .join(format!("{project_slug}-{}", project.id))
         .join(workspace_slug)
@@ -694,37 +674,6 @@ fn default_workspace_root() -> String {
         .join("workspaces")
         .to_string_lossy()
         .to_string()
-}
-
-pub(crate) fn slugify(input: &str) -> Result<String> {
-    let mut output = String::new();
-    let mut last_dash = false;
-    for ch in input.trim().to_lowercase().chars() {
-        let next = if ch.is_ascii_alphanumeric() {
-            last_dash = false;
-            Some(ch)
-        } else if ch.is_whitespace() || ch == '_' || ch == '/' || ch == '-' {
-            if last_dash {
-                None
-            } else {
-                last_dash = true;
-                Some('-')
-            }
-        } else if last_dash {
-            None
-        } else {
-            last_dash = true;
-            Some('-')
-        };
-        if let Some(next) = next {
-            output.push(next);
-        }
-    }
-    let trimmed = output.trim_matches('-').to_string();
-    if trimmed.is_empty() {
-        bail!("Workspace name must contain a letter or digit");
-    }
-    Ok(trimmed)
 }
 
 fn path_equals(left: &str, right: &str) -> bool {
@@ -761,13 +710,19 @@ mod tests {
     };
     use chrono::Utc;
 
-    use super::{create_managed_workspace, slugify, ManagedWorkspaceCreateRequest};
+    use super::{create_managed_workspace, ManagedWorkspaceCreateRequest};
 
     #[test]
     fn slugify_matches_workspace_path_segments() {
-        assert_eq!(slugify("Feature/Coverage").unwrap(), "feature-coverage");
-        assert_eq!(slugify("  Fix UI  State  ").unwrap(), "fix-ui-state");
-        assert!(slugify("///").is_err());
+        assert_eq!(
+            crate::managed_workspace_slug::slugify("Feature/Coverage").unwrap(),
+            "feature-coverage"
+        );
+        assert_eq!(
+            crate::managed_workspace_slug::slugify("  Fix UI  State  ").unwrap(),
+            "fix-ui-state"
+        );
+        assert!(crate::managed_workspace_slug::slugify("///").is_err());
     }
 
     #[tokio::test]

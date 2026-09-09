@@ -170,7 +170,7 @@ pub(crate) async fn remove_remote_managed_workspace<E: RemoteHostExecutor>(
             target.alias
         )
     })?;
-    let project_slug = crate::managed_workspace::slugify(
+    let project_slug = crate::managed_workspace_slug::slugify(
         Path::new(&project.repo_path)
             .file_name()
             .and_then(|value| value.to_str())
@@ -224,13 +224,13 @@ fn remote_layout(
     Ok(RemoteLayout {
         explicit_path,
         explicit_root,
-        project_slug: crate::managed_workspace::slugify(
+        project_slug: crate::managed_workspace_slug::slugify(
             Path::new(&project.repo_path)
                 .file_name()
                 .and_then(|value| value.to_str())
                 .unwrap_or(&project.name),
         )?,
-        workspace_slug: crate::managed_workspace::slugify(display_name)?,
+        workspace_slug: crate::managed_workspace_slug::slugify(display_name)?,
     })
 }
 

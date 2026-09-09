@@ -194,7 +194,9 @@ async fn read_mobile_workspace_file(
 ) -> HostResult<Value> {
     let workspace = workspace_for_mobile_file_request(runtime_store, payload).await?;
     if let Some(remote) = crate::remote_workspace_files::try_read_remote_from_payload(
-        runtime_store, &workspace, payload,
+        runtime_store,
+        &workspace,
+        payload,
     )
     .await
     .map_err(|error| HostError::state(error.to_string()))?
@@ -252,7 +254,6 @@ async fn read_mobile_prompt_attachment(runtime_dir: PathBuf, payload: &Value) ->
     })
     .await
 }
-
 
 pub(super) async fn workspace_for_mobile_file_request(
     runtime_store: &RuntimeStore,

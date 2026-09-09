@@ -100,9 +100,6 @@ impl RemoteFileRange {
     }
 }
 
-
-
-
 /// Host-request adapter: remote workspaces only. Returns `Ok(None)` for local.
 pub(crate) async fn try_read_remote_from_payload(
     store: &RuntimeStore,

@@ -135,7 +135,6 @@ pub(crate) fn ssh_terminal_launch(
     }
 }
 
-
 pub(crate) async fn remote_workspace_terminal_override(
     store: &RuntimeStore,
     workspace_id: &str,
