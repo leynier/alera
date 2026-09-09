@@ -19,7 +19,9 @@ impl ServerActor {
             return self.prepare_managed_workspace_removal(request).await;
         }
         if let RuntimeMutationRequest::HandOnWorkspace { request } = request {
-            self.relocate_sessions_before_hand_on(&request.id).await;
+            // Relocate after a successful hand-on, not here. A rejected
+            // prepare or failed git move must leave shells and agents as they
+            // were.
             let removal = crate::managed_workspace::ManagedWorkspaceRemoveRequest {
                 id: request.id.clone(),
                 delete_branch: Some(false),
@@ -149,6 +151,13 @@ impl ServerActor {
         match result {
             Ok(completion) => {
                 let _ = completion.closed_tab_ids;
+                if let Some(relocate) = completion.hand_on_relocate {
+                    self.relocate_sessions_after_hand_on(
+                        &relocate.source_workspace_id,
+                        &relocate.source_path,
+                        &relocate.dest_path,
+                    );
+                }
                 self.apply_runtime_mutation_effect(completion.effect).await;
                 if let Some(error) = stopped_tab_cleanup_error {
                     self.client_write(client_id, error_response(request_id, &error));

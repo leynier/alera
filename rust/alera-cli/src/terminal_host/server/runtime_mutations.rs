@@ -44,6 +44,13 @@ pub(crate) struct RuntimeMutationCompletion {
     pub(super) response: Value,
     pub(super) effect: RuntimeMutationEffect,
     pub(super) closed_tab_ids: Vec<String>,
+    pub(super) hand_on_relocate: Option<Box<HandOnSessionRelocate>>,
+}
+
+pub(super) struct HandOnSessionRelocate {
+    pub source_workspace_id: String,
+    pub source_path: String,
+    pub dest_path: String,
 }
 
 pub(crate) struct RuntimeMutationOutcome {
@@ -118,6 +125,7 @@ pub(super) async fn run_runtime_mutation(
                         workspace_ids,
                     },
                     closed_tab_ids: Vec::new(),
+                    hand_on_relocate: None,
                 })
             }
             RuntimeMutationRequest::RemoveWorkspace {
@@ -132,6 +140,7 @@ pub(super) async fn run_runtime_mutation(
                     response: json!({}),
                     effect: RuntimeMutationEffect::WorkspaceRemoved { workspace_id },
                     closed_tab_ids: Vec::new(),
+                    hand_on_relocate: None,
                 })
             }
             RuntimeMutationRequest::RemoveProjectWorkspaces { project_id } => {
@@ -147,6 +156,7 @@ pub(super) async fn run_runtime_mutation(
                         workspace_ids,
                     },
                     closed_tab_ids: Vec::new(),
+                    hand_on_relocate: None,
                 })
             }
             RuntimeMutationRequest::RemoveManagedWorkspace { request } => {
@@ -162,21 +172,36 @@ pub(super) async fn run_runtime_mutation(
                         workspace_id,
                     },
                     closed_tab_ids: Vec::new(),
+                    hand_on_relocate: None,
                 })
             }
             RuntimeMutationRequest::HandOnWorkspace { request } => {
                 let workspace_id = request.id.clone();
+                let source_path = runtime_store
+                    .find_workspace(&workspace_id)
+                    .await
+                    .ok()
+                    .flatten()
+                    .map(|workspace| workspace.path);
                 let result = hand_on_managed_workspace(&runtime_store, request)
                     .await
                     .map_err(runtime_store_error)?;
                 let project_id = result.workspace.project_id.clone();
+                let dest_path = result.workspace.path.clone();
                 Ok(RuntimeMutationCompletion {
                     response: serde_json::to_value(result).map_err(runtime_store_error)?,
                     effect: RuntimeMutationEffect::ManagedWorkspaceRemoved {
                         project_id,
-                        workspace_id,
+                        workspace_id: workspace_id.clone(),
                     },
                     closed_tab_ids: Vec::new(),
+                    hand_on_relocate: source_path.map(|source_path| {
+                        Box::new(HandOnSessionRelocate {
+                            source_workspace_id: workspace_id,
+                            source_path,
+                            dest_path,
+                        })
+                    }),
                 })
             }
             RuntimeMutationRequest::RemoveTab { tab_id } => {
@@ -196,6 +221,7 @@ pub(super) async fn run_runtime_mutation(
                         workspace_id,
                     },
                     closed_tab_ids: Vec::new(),
+                    hand_on_relocate: None,
                 })
             }
             RuntimeMutationRequest::RemoveWorkspaceTabs { workspace_id } => {
@@ -207,6 +233,7 @@ pub(super) async fn run_runtime_mutation(
                     response: json!({}),
                     effect: RuntimeMutationEffect::WorkspaceTabsRemoved { workspace_id },
                     closed_tab_ids: Vec::new(),
+                    hand_on_relocate: None,
                 })
             }
             RuntimeMutationRequest::SleepWorkspace { workspace_id } => {
@@ -222,6 +249,7 @@ pub(super) async fn run_runtime_mutation(
                     response: json!({}),
                     effect: RuntimeMutationEffect::WorkspaceSlept { workspace_id },
                     closed_tab_ids: Vec::new(),
+                    hand_on_relocate: None,
                 })
             }
         }

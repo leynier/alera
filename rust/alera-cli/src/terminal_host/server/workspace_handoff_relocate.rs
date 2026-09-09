@@ -173,30 +173,17 @@ impl ServerActor {
         session.working_directory = dest_path.to_string();
     }
 
-    pub(super) async fn relocate_sessions_before_hand_on(&mut self, child_workspace_id: &str) {
-        let Some(child) = self
-            .runtime_store
-            .find_workspace(child_workspace_id)
-            .await
-            .ok()
-            .flatten()
-        else {
-            return;
-        };
-        let Ok(workspaces) = self.runtime_store.list_workspaces(&child.project_id).await else {
-            return;
-        };
-        let Some(main) = workspaces.into_iter().find(|workspace| {
-            workspace.kind == alera_core::runtime::WorkspaceKind::Main
-                && workspace.status == alera_core::runtime::WorkspaceStatus::Active
-        }) else {
-            return;
-        };
+    pub(super) fn relocate_sessions_after_hand_on(
+        &mut self,
+        source_workspace_id: &str,
+        source_path: &str,
+        dest_path: &str,
+    ) {
         self.relocate_sessions_after_handoff(
             WorkspaceHandoffDirection::HandOn,
-            child_workspace_id,
-            &child.path,
-            &main.path,
+            source_workspace_id,
+            source_path,
+            dest_path,
         );
     }
 }
@@ -204,3 +191,6 @@ impl ServerActor {
 #[cfg(test)]
 #[path = "workspace_handoff_relocate_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "workspace_handoff_relocate_timing_tests.rs"]
+mod timing_tests;

@@ -172,12 +172,7 @@ async fn hand_on_chdirs_shells_on_the_child_and_main_shells_still_in_the_child_p
     )
     .await;
 
-    actor.relocate_sessions_after_handoff(
-        WorkspaceHandoffDirection::HandOn,
-        "child",
-        "/worktrees/feat",
-        "/repo",
-    );
+    actor.relocate_sessions_after_hand_on("child", "/worktrees/feat", "/repo");
 
     assert_eq!(recv_write(&child_rx).bytes, handoff_chdir_bytes("/repo"));
     assert_eq!(recv_write(&main_rx).bytes, handoff_chdir_bytes("/repo"));
@@ -200,12 +195,7 @@ async fn hand_on_notifies_an_idle_agent_with_deferred_enter() {
         .agent_presence
         .update("agent", "codex".into(), AgentPresenceState::Done);
 
-    actor.relocate_sessions_after_handoff(
-        WorkspaceHandoffDirection::HandOn,
-        "child",
-        "/worktrees/feat",
-        "/repo",
-    );
+    actor.relocate_sessions_after_hand_on("child", "/worktrees/feat", "/repo");
 
     let write = recv_write(&agent_rx);
     let expected = handoff_notify_message(
