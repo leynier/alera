@@ -12,6 +12,9 @@ import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
+import 'package:alera/src/features/remote_hosts/infra/runtime_ssh_target_repository.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/shell/presentation/alera_shell_page.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
@@ -89,6 +92,9 @@ Future<_ShellPumpHarness> _pumpShell(
         ),
         managedWorkspaceRuntimeProvider.overrideWithValue(
           const _FakeManagedWorkspaceRuntime(),
+        ),
+        sshTargetRepositoryProvider.overrideWithValue(
+          RuntimeSshTargetRepository(_ShellRuntimeHostClient()),
         ),
         terminalRuntimeProvider.overrideWith((ref) => runtime),
         if (editorSessionRegistry != null)

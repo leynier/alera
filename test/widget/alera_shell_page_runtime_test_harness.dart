@@ -12,6 +12,23 @@ class const _ShellPumpHarness({
   required final _ShellTestAgentStatusController agentStatus,
 });
 
+class _ShellRuntimeHostClient implements RuntimeHostClient {
+  @override
+  Stream<RuntimeHostEvent> get runtimeEvents => const Stream.empty();
+
+  @override
+  Future<Object?> runtimeRequest(
+    String type, [
+    Map<String, Object?> payload = const <String, Object?>{},
+    Duration? timeout,
+  ]) async {
+    if (type == 'sshTarget.list') {
+      return const <Object?>[];
+    }
+    return <String, Object?>{};
+  }
+}
+
 class const _FakeManagedWorkspaceRuntime()
     implements ManagedWorkspaceRuntime, WorkspaceStorageRuntime {
   @override
@@ -21,6 +38,7 @@ class const _FakeManagedWorkspaceRuntime()
     required String newBranchName,
     required bool reuseExistingBranch,
     String? name,
+    String? hostId,
   }) => throw UnsupportedError('Workspace creation is not used by shell tests');
 
   @override

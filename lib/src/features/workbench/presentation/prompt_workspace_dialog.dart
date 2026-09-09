@@ -10,9 +10,12 @@ import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_selection_order.dart';
+import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
+import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/domain/workspace_parent_selection_order.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_host_picker.dart';
 import 'package:alera/src/features/workbench/domain/terminal_image_paste.dart';
 import 'package:alera/src/features/workbench/infra/prompt_workspace_clipboard.dart';
 import 'package:alera/src/features/workbench/infra/prompt_workspace_runtime_client.dart';
@@ -55,6 +58,7 @@ class const PromptWorkspaceDialog({
     required String newBranchName,
     required String name,
     String? parentWorkspaceId,
+    String? hostId,
   })
   createWorkspace,
   required final Future<AgentProfileLaunchResult> Function({
@@ -70,6 +74,8 @@ class const PromptWorkspaceDialog({
       const NativePromptWorkspaceClipboard(),
   final Project? initialProject,
   final String? defaultAgentProfileId,
+  final List<SshTarget> sshTargets = const <SshTarget>[],
+  final bool supportsRemoteSshWorkspaces = true,
   final Future<void> Function({
     required WorkspaceCreationResult creation,
     required String agentTabId,
@@ -89,6 +95,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   List<String> _branches = const <String>[];
   String? _sourceBranch;
   String? _selectedParentWorkspaceId;
+  String? _selectedHostId;
   bool _loadingBranches = false;
   bool _working = false;
   String? _phase;
@@ -224,6 +231,15 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
       );
       return;
     }
+    final hostError = remoteWorkspaceHostSelectionError(
+      hostId: _selectedHostId,
+      targets: widget.sshTargets,
+      supportsRemoteSshWorkspaces: widget.supportsRemoteSshWorkspaces,
+    );
+    if (hostError != null) {
+      setState(() => _error = hostError);
+      return;
+    }
     setState(() {
       _working = true;
       _error = null;
@@ -273,6 +289,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
             newBranchName: identity.branchName,
             name: identity.workspaceName,
             parentWorkspaceId: _selectedParentWorkspaceId,
+            hostId: _selectedHostId,
           );
           break;
         } catch (error) {
@@ -318,7 +335,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
         setState(() {
           _working = false;
           _phase = null;
-          _error = error.toString();
+          _error = userFacingExceptionMessage(error);
         });
       }
     }

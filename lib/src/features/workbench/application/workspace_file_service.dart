@@ -1,5 +1,9 @@
 import 'dart:io';
 
+import 'package:alera/src/features/workbench/application/workspace_service.dart';
+import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/infra/runtime_workspace_files_client.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:alera/src/rust/api/merman_viewer.dart' as merman_native;
 import 'package:alera/src/shared/infra/git/git_explorer_status.dart';
@@ -8,7 +12,30 @@ import 'package:path/path.dart' as p;
 
 part 'editor_session_registry.dart';
 
-class const WorkspaceFileService() {
+class WorkspaceFileService {
+  const WorkspaceFileService({this.remoteFiles});
+
+  final RuntimeWorkspaceFiles? remoteFiles;
+
+  Future<List<native.WorkspaceFileEntry>> listWorkspaceChildren({
+    required Workspace workspace,
+    required String relativePath,
+    required bool hideIgnored,
+  }) {
+    if (workspace.isRemote) {
+      return _remoteFiles().listChildren(
+        workspaceId: workspace.id,
+        relativePath: relativePath,
+        hideIgnored: hideIgnored,
+      );
+    }
+    return listChildren(
+      workspacePath: workspace.path,
+      relativePath: relativePath,
+      hideIgnored: hideIgnored,
+    );
+  }
+
   Future<List<native.WorkspaceFileEntry>> listChildren({
     required String workspacePath,
     required String relativePath,
@@ -121,6 +148,22 @@ class const WorkspaceFileService() {
     return native.stopWorkspaceExplorerWatcher(handle: handle);
   }
 
+  Future<native.WorkspaceTextFile> readWorkspaceTextFile({
+    required Workspace workspace,
+    required String relativePath,
+  }) {
+    if (workspace.isRemote) {
+      return _remoteFiles().readTextFile(
+        workspaceId: workspace.id,
+        relativePath: relativePath,
+      );
+    }
+    return readTextFile(
+      workspacePath: workspace.path,
+      relativePath: relativePath,
+    );
+  }
+
   Future<native.WorkspaceTextFile> readTextFile({
     required String workspacePath,
     required String relativePath,
@@ -141,6 +184,24 @@ class const WorkspaceFileService() {
     );
   }
 
+  Future<native.WorkspaceEditorTextFile> readWorkspaceEditorTextFile({
+    required Workspace workspace,
+    required String relativePath,
+    required int tabSize,
+  }) {
+    if (workspace.isRemote) {
+      return _remoteFiles().readEditorTextFile(
+        workspaceId: workspace.id,
+        relativePath: relativePath,
+      );
+    }
+    return readEditorTextFile(
+      workspacePath: workspace.path,
+      relativePath: relativePath,
+      tabSize: tabSize,
+    );
+  }
+
   Future<native.WorkspaceEditorTextFile> readEditorTextFile({
     required String workspacePath,
     required String relativePath,
@@ -149,6 +210,33 @@ class const WorkspaceFileService() {
     return native.readWorkspaceEditorTextFile(
       workspacePath: workspacePath,
       relativePath: relativePath,
+      tabSize: tabSize,
+    );
+  }
+
+  Future<native.WorkspaceEditorTextFile> writeWorkspaceEditorTextFile({
+    required Workspace workspace,
+    required String relativePath,
+    required String currentDisplayContent,
+    required String? originalRawContent,
+    required String? originalDisplayContent,
+    required String? expectedContentToken,
+    required bool overwriteIfChanged,
+    required int tabSize,
+  }) {
+    if (workspace.isRemote) {
+      return Future<native.WorkspaceEditorTextFile>.error(
+        WorkspaceException(remoteWorkspaceWriteUnsupportedMessage()),
+      );
+    }
+    return writeEditorTextFile(
+      workspacePath: workspace.path,
+      relativePath: relativePath,
+      currentDisplayContent: currentDisplayContent,
+      originalRawContent: originalRawContent,
+      originalDisplayContent: originalDisplayContent,
+      expectedContentToken: expectedContentToken,
+      overwriteIfChanged: overwriteIfChanged,
       tabSize: tabSize,
     );
   }
@@ -314,6 +402,14 @@ class const WorkspaceFileService() {
       modifiedMicros: stat.modified.microsecondsSinceEpoch,
       length: stat.size,
     );
+  }
+
+  RuntimeWorkspaceFiles _remoteFiles() {
+    final remote = remoteFiles;
+    if (remote == null) {
+      throw WorkspaceException(remoteWorkspaceFilesMissingCapabilityMessage());
+    }
+    return remote;
   }
 
   String _normalizeRelativeFilePath(String relativePath) {

@@ -2,9 +2,12 @@ import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
+import 'package:alera/src/features/remote_hosts/infra/runtime_ssh_target_repository.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/features/workbench/presentation/welcome_dashboard.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,6 +34,9 @@ void main() {
           ),
           agentProfilesProvider.overrideWith(
             () => _WelcomeDashboardAgentProfiles(),
+          ),
+          sshTargetRepositoryProvider.overrideWithValue(
+            RuntimeSshTargetRepository(_WelcomeDashboardRuntimeHostClient()),
           ),
         ],
         child: const MaterialApp(home: WelcomeDashboard()),
@@ -162,4 +168,21 @@ class _WelcomeDashboardSettingsController(final AleraSettings _seed)
     extends SettingsController {
   @override
   AleraSettings build() => _seed;
+}
+
+class _WelcomeDashboardRuntimeHostClient implements RuntimeHostClient {
+  @override
+  Stream<RuntimeHostEvent> get runtimeEvents => const Stream.empty();
+
+  @override
+  Future<Object?> runtimeRequest(
+    String type, [
+    Map<String, Object?> payload = const <String, Object?>{},
+    Duration? timeout,
+  ]) async {
+    if (type == 'sshTarget.list') {
+      return const <Object?>[];
+    }
+    return <String, Object?>{};
+  }
 }

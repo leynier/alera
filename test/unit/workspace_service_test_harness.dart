@@ -150,6 +150,7 @@ class _FakeManagedWorkspaceRuntime implements ManagedWorkspaceRuntime {
     required String newBranchName,
     required bool reuseExistingBranch,
     String? name,
+    String? hostId,
   }) {
     throw UnimplementedError();
   }

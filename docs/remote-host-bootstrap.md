@@ -2,9 +2,9 @@
 
 Alera can register SSH targets in the Home Runtime and install the standalone `alera` runtime sidecar on those hosts. Bootstrap is sidecar only: it installs and validates the runtime sidecar and does not itself create a Git worktree.
 
-Create a managed Git worktree on a bootstrapped host with `alera workspace add --host-id <id>`. The Home Runtime copies the project as a git bundle, creates the worktree on that host (posix or Windows, using the same SSH path as bootstrap), and stores the workspace with that host id. Terminals for that workspace spawn `ssh` into the remote worktree. `workspace.files.list` and `workspace.files.read` read the remote tree over SSH.
+Create a managed Git worktree on a bootstrapped host with `alera workspace add --host-id <id>` or from Desktop New Workspace by picking that host. The Home Runtime copies the project as a git bundle, creates the worktree on that host (posix or Windows, using the same SSH path as bootstrap), and stores the workspace with that host id. Terminals for that workspace spawn `ssh` into the remote worktree. `workspace.files.list` and `workspace.files.read` read the remote tree over SSH.
 
-`alera workspace register --host-id` remains metadata only. It stamps a host id on a workspace record and does not create a remote Git worktree. Desktop New Workspace has no remote-host picker yet; Desktop attach UX for the explorer and New Workspace host picker lands after the Desktop follow-ups.
+`alera workspace register --host-id` remains metadata only. It stamps a host id on a workspace record and does not create a remote Git worktree.
 
 ## Supported Targets
 
@@ -66,7 +66,7 @@ Start a bootstrap:
 alera ssh-target --json bootstrap --id <target-id>
 ```
 
-Create a managed Git worktree on that host after bootstrap succeeds:
+Create a managed Git worktree on that host after bootstrap succeeds, from the CLI or Desktop New Workspace:
 
 ```bash
 alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --host-id <target-id>
@@ -82,7 +82,7 @@ alera ssh-target --json bootstrap-cancel --id <target-id>
 
 When the runtime host is running, `bootstrap` starts a host job and returns immediately with a job id. Without a runtime host, the CLI performs the bootstrap in the foreground and prints progress to stderr.
 
-`alera ssh-target` has no connect or disconnect verbs. Bootstrap still does not place a Git worktree; use `alera workspace add --host-id` for that.
+`alera ssh-target` has no connect or disconnect verbs. Bootstrap still does not place a Git worktree; use `alera workspace add --host-id` or New Workspace for that.
 
 ## Mobile Access
 
@@ -111,7 +111,7 @@ Settings also includes a **Mobile Devices** section covering the full mobile com
 
 Bootstrap installs and validates the runtime sidecar only. It does not install launchd, systemd, or Windows services; it does not persist identity-file paths; and it does not repair missing remote prerequisites beyond returning actionable failures.
 
-Managed remote workspaces are created with `alera workspace add --host-id` after the sidecar is installed. That command fails with an actionable error when the host is missing, not bootstrapped, or unreachable. The local runtime host rewrites terminal launches for those workspaces to SSH and serves `workspace.files.list` / `workspace.files.read` over the same path. Desktop New Workspace still has no remote-host picker; the Desktop explorer still uses the local filesystem API until that follow-up.
+Managed remote workspaces are created with `alera workspace add --host-id` or Desktop New Workspace after the sidecar is installed. Those flows fail with an actionable error when the host is missing, not bootstrapped, or unreachable. The local runtime host rewrites terminal launches for those workspaces to SSH and serves `workspace.files.list` / `workspace.files.read` over the same path. The Desktop explorer uses those verbs for a workspace whose `hostId` is not local.
 
 The installed sidecar can run autonomously without the desktop app:
 

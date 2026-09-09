@@ -37,6 +37,7 @@ void _registerPromptWorkspaceClipboardTests() {
                 required newBranchName,
                 required name,
                 parentWorkspaceId,
+                hostId,
               }) async => WorkspaceCreationResult(
                 workspace: _workspace(
                   id: 'workspace-1',

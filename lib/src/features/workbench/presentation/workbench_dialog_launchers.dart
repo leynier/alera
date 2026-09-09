@@ -9,6 +9,9 @@ import 'package:alera/src/features/agent_profiles/application/agent_profile_prov
 import 'package:alera/src/features/automations/presentation/automations_dialog.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
+import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
+
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -239,6 +242,7 @@ Future<void> showCreateWorkspaceFlow(
     ref.read(runtimeHostClientProvider),
     beforeAccess: ref.read(runtimeStateMigrationProvider).ensureMigrated,
   );
+  final sshTargets = await _loadSshTargets(ref);
   if (!context.mounted) {
     return;
   }
@@ -247,6 +251,7 @@ Future<void> showCreateWorkspaceFlow(
     builder: (_) => PromptWorkspaceDialog(
       projects: projects,
       agentProfiles: profiles,
+      sshTargets: sshTargets,
       defaultAgentProfileId: ref
           .read(settingsControllerProvider)
           .agents
@@ -279,6 +284,7 @@ Future<void> showCreateWorkspaceFlow(
             required newBranchName,
             required name,
             parentWorkspaceId,
+            hostId,
           }) {
             return controller.createWorkspaceForPrompt(
               project: project,
@@ -286,6 +292,7 @@ Future<void> showCreateWorkspaceFlow(
               newBranchName: newBranchName,
               name: name,
               parentWorkspaceId: parentWorkspaceId,
+              hostId: hostId,
             );
           },
       launchAgent: runtime.launchAgent,
@@ -314,6 +321,7 @@ Future<void> showCreateWorkspaceFlow(
         projects: projects,
         initialProject: resolvedInitialProject,
         parentCandidates: parentCandidates,
+        sshTargets: sshTargets,
         loadBranches: controller.listSourceBranches,
         getProjectActiveBranch: (project) {
           final state = ref.read(workbenchControllerProvider);
@@ -353,6 +361,7 @@ Future<void> showCreateWorkspaceFlow(
               required reuseExistingBranch,
               name,
               parentWorkspaceId,
+              hostId,
             }) async {
               return controller.createWorkspace(
                 project: project,
@@ -361,6 +370,7 @@ Future<void> showCreateWorkspaceFlow(
                 reuseExistingBranch: reuseExistingBranch,
                 name: name,
                 parentWorkspaceId: parentWorkspaceId,
+                hostId: hostId,
               );
             },
         onAddProject: () {
@@ -386,6 +396,14 @@ Future<void> showCreateWorkspaceFlow(
 
   if (result != null && context.mounted) {
     _showWorkspaceCreationToast(context, result);
+  }
+}
+
+Future<List<SshTarget>> _loadSshTargets(WidgetRef ref) async {
+  try {
+    return await ref.read(sshTargetRepositoryProvider).list();
+  } catch (_) {
+    return const <SshTarget>[];
   }
 }
 

@@ -99,6 +99,9 @@ extension _WorkspaceExplorerRefresh on _WorkspaceExplorerState {
   }
 
   Future<void> _startNativeWatcher() async {
+    if (widget.workspace.isRemote) {
+      return;
+    }
     try {
       final handle = await _workspaceFiles.startExplorerWatcher(
         workspacePath: widget.workspace.path,

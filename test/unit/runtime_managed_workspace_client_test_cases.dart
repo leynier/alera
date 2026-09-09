@@ -172,6 +172,53 @@ void _registerRuntimeManagedWorkspaceClientTests() {
     },
   );
 
+  test('RuntimeManagedWorkspaceClient sends hostId when the sidecar supports remote workspaces', () async {
+    final client = _FakeRuntimeHostClient();
+    final repository = RuntimeManagedWorkspaceClient(client);
+    client.responses['status.get'] = <String, Object?>{
+      'runtimeCapabilities': <String>[
+        aleraRuntimeHostRemoteSshWorkspacesCapability,
+      ],
+    };
+    client.responses['workspace.createManaged'] = <String, Object?>{
+      'workspace': _workspaceJson(id: 'workspace-remote'),
+      'setupReport': <String, Object?>{'steps': <Object?>[]},
+    };
+
+    await repository.createLinkedWorkspace(
+      project: _project(id: 'project-1', name: 'Alera'),
+      sourceBranch: 'main',
+      newBranchName: 'feature/remote',
+      reuseExistingBranch: false,
+      hostId: 'ssh-box',
+    );
+
+    expect(
+      client.payloads['workspace.createManaged']!.single['hostId'],
+      'ssh-box',
+    );
+  });
+
+  test('RuntimeManagedWorkspaceClient refuses hostId without remoteSshWorkspacesV1', () async {
+    final client = _FakeRuntimeHostClient();
+    final repository = RuntimeManagedWorkspaceClient(client);
+    client.responses['status.get'] = <String, Object?>{
+      'runtimeCapabilities': <String>[],
+    };
+
+    await expectLater(
+      repository.createLinkedWorkspace(
+        project: _project(id: 'project-1', name: 'Alera'),
+        sourceBranch: 'main',
+        newBranchName: 'feature/remote',
+        reuseExistingBranch: false,
+        hostId: 'ssh-box',
+      ),
+      throwsA(isA<WorkspaceException>()),
+    );
+    expect(client.payloads['workspace.createManaged'], isNull);
+  });
+
   test('RuntimeManagedWorkspaceClient hands on through the host RPC', () async {
     final client = _FakeRuntimeHostClient();
     final repository = RuntimeManagedWorkspaceClient(client);

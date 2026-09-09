@@ -15,6 +15,10 @@ class const _CreateWorkspaceSettingsStep({
   required final List<WorkspaceParentCandidate> parentCandidates,
   required final String? selectedParentWorkspaceId,
   required final ValueChanged<String?> onParentWorkspaceChanged,
+  required final List<SshTarget> sshTargets,
+  required final String? selectedHostId,
+  required final bool supportsRemoteSshWorkspaces,
+  required final ValueChanged<String?> onHostChanged,
   required final bool creating,
   required final VoidCallback onSubmit,
 }) extends StatelessWidget {
@@ -84,6 +88,14 @@ class const _CreateWorkspaceSettingsStep({
           onChanged: onParentWorkspaceChanged,
         ),
         const SizedBox(height: AleraTokens.space16),
+        WorkspaceHostPicker(
+          hostId: selectedHostId,
+          sshTargets: sshTargets,
+          supportsRemoteSshWorkspaces: supportsRemoteSshWorkspaces,
+          enabled: !creating,
+          onChanged: onHostChanged,
+        ),
+        const SizedBox(height: AleraTokens.space16),
         _WorkspaceCreationPreview(
           project: project,
           sourceBranch: sourceBranch,
@@ -94,6 +106,7 @@ class const _CreateWorkspaceSettingsStep({
             parentCandidates,
             selectedParentWorkspaceId,
           ),
+          hostLabel: _selectedHostLabel(sshTargets, selectedHostId),
         ),
       ],
     );
@@ -247,6 +260,7 @@ class const _WorkspaceCreationPreview({
   required final String workspaceName,
   required final bool reuseExistingBranch,
   required final String? parentLabel,
+  required final String hostLabel,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -297,6 +311,12 @@ class const _WorkspaceCreationPreview({
                   useMonoStyle: false,
                 ),
               ],
+              const SizedBox(height: AleraTokens.space6),
+              _PreviewRow(
+                icon: AleraIcons.host,
+                text: 'Host: $hostLabel',
+                useMonoStyle: false,
+              ),
               const SizedBox(height: AleraTokens.space6),
               const _PreviewRow(
                 icon: AleraIcons.terminal,
@@ -364,6 +384,19 @@ String? _selectedWorkspaceParentLabel(
     }
   }
   return null;
+}
+
+String _selectedHostLabel(List<SshTarget> targets, String? hostId) {
+  final remoteId = normalizedRemoteHostId(hostId);
+  if (remoteId == null) {
+    return 'This Device';
+  }
+  for (final target in targets) {
+    if (target.id == remoteId) {
+      return target.alias;
+    }
+  }
+  return remoteId;
 }
 
 String _previewWorkspacePath(

@@ -454,7 +454,7 @@ final class WorkspaceFileServiceProvider
 }
 
 String _$workspaceFileServiceHash() =>
-    r'caafbfd4f0d5e1241b84321d4ae06da175f89d9a';
+    r'409096931c5bc2be19e3f1e0ff0310ec02f5488a';
 
 @ProviderFor(workspaceSearchService)
 final workspaceSearchServiceProvider = WorkspaceSearchServiceProvider._();

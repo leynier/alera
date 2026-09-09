@@ -56,6 +56,11 @@ class const Workspace({
 
   bool get hasParentWorkspace => parentWorkspaceId?.trim().isNotEmpty ?? false;
 
+  bool get isRemote {
+    final value = hostId.trim();
+    return value.isNotEmpty && value != 'local';
+  }
+
   factory fromJson(Map<String, Object?> json) =>
       WorkspaceMapper.fromMap(Map<String, dynamic>.from(json));
 }

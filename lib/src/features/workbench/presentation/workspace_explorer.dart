@@ -13,6 +13,7 @@ import 'package:alera/src/features/workbench/application/workspace_explorer_reve
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_folder_opener.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
+import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
@@ -99,7 +100,8 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
   void didUpdateWidget(covariant WorkspaceExplorer oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.workspace.id != widget.workspace.id ||
-        oldWidget.workspace.path != widget.workspace.path) {
+        oldWidget.workspace.path != widget.workspace.path ||
+        oldWidget.workspace.hostId != widget.workspace.hostId) {
       _loading = true;
       _clipboard = null;
       _resetExplorerProjection();
@@ -300,8 +302,8 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
   }
 
   Future<void> _loadDirectory(String relativePath) async {
-    final rawChildren = await _workspaceFiles.listChildren(
-      workspacePath: widget.workspace.path,
+    final rawChildren = await _workspaceFiles.listWorkspaceChildren(
+      workspace: widget.workspace,
       relativePath: relativePath,
       hideIgnored: widget.mode == WorkspaceExplorerMode.hideIgnored,
     );
@@ -316,6 +318,10 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
   }
 
   Future<void> _refreshGitStatusSnapshot() async {
+    if (widget.workspace.isRemote) {
+      _gitStatusSnapshot = const GitExplorerStatusSnapshot.empty();
+      return;
+    }
     try {
       _gitStatusSnapshot = await _gitBackend.explorerStatusSnapshot(
         widget.workspace.path,

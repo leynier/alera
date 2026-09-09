@@ -51,8 +51,6 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('feature/orchestration'));
     await tester.pumpAndSettle();
-
-    // Tap Continue to go to Step 2
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
@@ -551,6 +549,7 @@ Future<void> _pumpDialogLauncher(
                             required reuseExistingBranch,
                             name,
                             parentWorkspaceId,
+                            hostId,
                           }) async {
                             onSubmit((
                               project: project,
