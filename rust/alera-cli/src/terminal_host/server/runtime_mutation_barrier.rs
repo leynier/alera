@@ -16,7 +16,8 @@ pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
     if is_serialized_runtime_mutation(request_type) {
         return false;
     }
-    mutates_codex_runtime_state(request_type)
+    request_type.starts_with("agentProfile.launch")
+        || mutates_codex_runtime_state(request_type)
         || matches!(
             request_type,
             "workspace.createManaged"

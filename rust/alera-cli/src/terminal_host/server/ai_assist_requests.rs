@@ -55,6 +55,10 @@ impl ServerActor {
         let operation_id = required_non_blank(payload, "operationId")?;
         let project_id = required_non_blank(payload, "projectId")?;
         let initial_prompt = required_non_blank(payload, "prompt")?;
+        let tab_id = payload
+            .get("tabId")
+            .and_then(Value::as_str)
+            .map(str::to_string);
         let project = self.runtime_store.clone();
         let inbox = self.inbox.clone();
         let (cancel_tx, cancel_rx) = oneshot::channel();
@@ -79,6 +83,26 @@ impl ServerActor {
                     .effective_ai_assist_settings()
                     .await
                     .map_err(|error| HostError::state(error.to_string()))?;
+                let mut initial_prompt = initial_prompt;
+                if let Some(tab_id) = tab_id {
+                    if let Some(tab) = project
+                        .find_workspace_tab(&tab_id)
+                        .await
+                        .map_err(|error| HostError::state(error.to_string()))?
+                    {
+                        let workspace = project
+                            .find_workspace(&tab.workspace_id)
+                            .await
+                            .map_err(|error| HostError::state(error.to_string()))?;
+                        if workspace.is_some_and(|workspace| workspace.project_id == project_id) {
+                            initial_prompt =
+                                super::ai_assist_workspace_identity::handoff_identity_context(
+                                    &initial_prompt,
+                                    &tab,
+                                );
+                        }
+                    }
+                }
                 generate_workspace_identity(
                     &project_record.repo_path,
                     &initial_prompt,

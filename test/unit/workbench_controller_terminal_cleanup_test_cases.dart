@@ -39,6 +39,7 @@ void _registerWorkbenchControllerTerminalCleanupTests() {
       await _controller.deleteWorkspace(
         project: _harness.project,
         workspace: workspace,
+        deleteBranch: false,
         activeWorkspaceId: workspace.id,
       );
       await _flush();

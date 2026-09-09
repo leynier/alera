@@ -44,3 +44,6 @@ Future<void> refreshSourceBranch({
   repoPath: repoPath,
   sourceBranch: sourceBranch,
 );
+
+Future<String> defaultBranch({required String path}) =>
+    RustLib.instance.api.crateApiGitGitBranchDefaultBranch(path: path);

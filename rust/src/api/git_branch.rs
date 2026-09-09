@@ -29,3 +29,6 @@ pub fn is_valid_branch_name(name: String) -> Result<bool, GitError> {
 pub fn refresh_source_branch(repo_path: String, source_branch: String) -> Result<(), GitError> {
     core_git::refresh_source_branch(&repo_path, &source_branch).map_err(Into::into)
 }
+pub fn default_branch(path: String) -> Result<String, super::GitError> {
+    alera_core::git::default_branch(&path).map_err(super::GitError::from)
+}

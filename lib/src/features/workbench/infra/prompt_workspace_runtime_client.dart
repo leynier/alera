@@ -26,6 +26,7 @@ class PromptWorkspaceRuntimeClient(
     required String operationId,
     required String projectId,
     required String prompt,
+    String? tabId,
   }) async {
     await beforeAccess?.call();
     final payload = _asMap(
@@ -35,6 +36,7 @@ class PromptWorkspaceRuntimeClient(
           'operationId': operationId,
           'projectId': projectId,
           'prompt': prompt,
+          'tabId': ?tabId,
         },
         const Duration(minutes: 11),
       ),

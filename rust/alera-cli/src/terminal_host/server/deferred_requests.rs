@@ -116,21 +116,6 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let request: ManagedWorkspaceHandOnRequest = parse_payload(payload)?;
-                if !request.close_sessions
-                    && request.active_workspace_id.as_deref() == Some(request.id.as_str())
-                {
-                    return Err(HostError::state("Workspace is active in the workbench"));
-                }
-                if !request.close_sessions
-                    && self
-                        .sessions
-                        .values()
-                        .any(|session| session.workspace_id == request.id && session.running())
-                {
-                    return Err(HostError::state(
-                        "Workspace has a live terminal session or process",
-                    ));
-                }
                 let has_active_automation =
                     crate::managed_workspace::workspace_has_active_automation_owner(
                         &self.runtime_store,

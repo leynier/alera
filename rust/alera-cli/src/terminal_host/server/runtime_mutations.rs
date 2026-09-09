@@ -49,6 +49,7 @@ pub(crate) struct RuntimeMutationCompletion {
 
 pub(super) struct HandOnSessionRelocate {
     pub source_workspace_id: String,
+    pub destination_workspace_id: String,
     pub source_path: String,
     pub dest_path: String,
 }
@@ -188,6 +189,7 @@ pub(super) async fn run_runtime_mutation(
                     .map_err(runtime_store_error)?;
                 let project_id = result.workspace.project_id.clone();
                 let dest_path = result.workspace.path.clone();
+                let destination_workspace_id = result.workspace.id.clone();
                 Ok(RuntimeMutationCompletion {
                     response: serde_json::to_value(result).map_err(runtime_store_error)?,
                     effect: RuntimeMutationEffect::ManagedWorkspaceRemoved {
@@ -198,6 +200,7 @@ pub(super) async fn run_runtime_mutation(
                     hand_on_relocate: source_path.map(|source_path| {
                         Box::new(HandOnSessionRelocate {
                             source_workspace_id: workspace_id,
+                            destination_workspace_id,
                             source_path,
                             dest_path,
                         })

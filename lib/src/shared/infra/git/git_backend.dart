@@ -23,6 +23,8 @@ abstract interface class GitBackend {
   /// The current branch short name, or `HEAD` when detached.
   Future<String> currentBranch(String path);
 
+  Future<String> defaultBranch(String path);
+
   /// Creates [branch] at the current HEAD and makes it the active branch for
   /// this checkout without changing the index or working tree.
   Future<void> createAndCheckoutBranch({

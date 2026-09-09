@@ -154,6 +154,7 @@ fn checkout_local_branch(repo: &Repository, branch: &str) -> Result<(), GitError
             _ => GitError::from_git2(error),
         })?;
     let mut checkout = CheckoutBuilder::new();
+    checkout.overwrite_ignored(false);
     repo.checkout_tree(&object, Some(&mut checkout))
         .map_err(|error| match error.code() {
             ErrorCode::Conflict => GitError::new(
@@ -228,14 +229,69 @@ pub fn is_valid_branch_name(name: &str) -> Result<bool, GitError> {
     Branch::name_is_valid(name).map_err(GitError::from_git2)
 }
 
-pub fn delete_branch(repo_path: &str, branch: &str, _force: bool) -> Result<(), GitError> {
+pub fn delete_branch(repo_path: &str, branch: &str, force: bool) -> Result<(), GitError> {
+    validate_branch_deletion(repo_path, branch, force, None)?;
     let repo = open_repo(repo_path)?;
     let mut target = repo
+        .find_branch(branch, BranchType::Local)
+        .map_err(GitError::from_git2)?;
+    target.delete().map_err(GitError::from_git2)
+}
+
+pub fn validate_branch_deletion(
+    repo_path: &str,
+    branch: &str,
+    force: bool,
+    removing_path: Option<&str>,
+) -> Result<(), GitError> {
+    let repo = open_repo(repo_path)?;
+    if let Some(occupied) = super::branch_checkout_path(repo_path, branch)? {
+        let allowed = removing_path.is_some_and(|path| {
+            std::fs::canonicalize(path)
+                .ok()
+                .zip(std::fs::canonicalize(&occupied).ok())
+                .is_some_and(|(a, b)| a == b)
+        });
+        if !allowed {
+            return Err(GitError::new(
+                GitErrorKind::Conflict,
+                "Branch is checked out in another worktree",
+            ));
+        }
+    }
+    let home = super::default_branch(repo_path)?;
+    if branch == home {
+        return Err(GitError::new(
+            GitErrorKind::Conflict,
+            "The default branch cannot be deleted",
+        ));
+    }
+    let target = repo
         .find_branch(branch, BranchType::Local)
         .map_err(|error| match error.code() {
             ErrorCode::NotFound => GitError::new(GitErrorKind::BranchNotFound, branch),
             _ => GitError::from_git2(error),
         })?;
-    target.delete().map_err(GitError::from_git2)?;
+    if !force {
+        let tip = target
+            .get()
+            .peel_to_commit()
+            .map_err(GitError::from_git2)?
+            .id();
+        let base = repo
+            .find_branch(&home, BranchType::Local)
+            .map_err(GitError::from_git2)?
+            .get()
+            .peel_to_commit()
+            .map_err(GitError::from_git2)?
+            .id();
+        if tip != base
+            && !repo
+                .graph_descendant_of(base, tip)
+                .map_err(GitError::from_git2)?
+        {
+            return Err(GitError::new(GitErrorKind::Conflict, "Branch has commits not merged into the default branch; keep it or explicitly confirm their loss separately"));
+        }
+    }
     Ok(())
 }

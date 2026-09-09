@@ -457,6 +457,17 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
     if (upsertWorkspaceTabError case final Object error) {
       throw error;
     }
+    // Tab IDs are globally unique in the authoritative runtime store.
+    for (final entry in _tabsByWorkspace.entries) {
+      if (entry.key == tab.workspaceId) continue;
+      final previousLength = entry.value.length;
+      entry.value.removeWhere((candidate) => candidate.id == tab.id);
+      if (entry.value.length != previousLength) {
+        _tabControllers[entry.key]?.add(
+          List<WorkspaceTabRecord>.from(entry.value),
+        );
+      }
+    }
     final current = List<WorkspaceTabRecord>.from(
       _tabsByWorkspace[tab.workspaceId] ?? const <WorkspaceTabRecord>[],
     );

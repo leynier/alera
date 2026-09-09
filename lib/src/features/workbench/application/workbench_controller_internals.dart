@@ -3,6 +3,12 @@ part of 'workbench_controller.dart';
 mixin _WorkbenchControllerInternals on _$WorkbenchController {
   final Uuid _uuid = const Uuid();
   bool _disposed = false;
+  bool _transferringWorkspace = false;
+  int _workspaceSelectionRevision = 0;
+  bool _refreshAfterTransfer = false;
+  Future<void> _workspaceSyncQueue = Future<void>.value();
+  final Map<String, String> _transferredTabOwners = {};
+  Future<void> _refreshProjectAfterTransfer(Project project);
 
   ProjectsService get _projectsService => ref.read(projectsServiceProvider);
 
@@ -392,5 +398,20 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     } finally {
       _ensuringMainWorkspaceProjectIds.remove(project.id);
     }
+  }
+
+  void _reconcileCreatedWorkspace(Project project, Workspace workspace) {
+    final workspaces = List<Workspace>.from(state.workspacesFor(project.id));
+    final index = workspaces.indexWhere((entry) => entry.id == workspace.id);
+    if (index == -1) {
+      workspaces.add(workspace);
+    } else {
+      workspaces[index] = workspace;
+    }
+    state = state.copyWith(
+      workspacesByProject: Map<String, List<Workspace>>.from(
+        state.workspacesByProject,
+      )..[project.id] = workspaces,
+    );
   }
 }

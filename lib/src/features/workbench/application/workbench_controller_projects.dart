@@ -439,6 +439,7 @@ mixin _WorkbenchControllerProjects
     required bool ensureInitialTerminal,
     bool recordHistory = true,
   }) async {
+    _workspaceSelectionRevision++;
     final prefs = state.viewPrefs;
     final nextPrefs = prefs;
     state = state.copyWith(
@@ -469,6 +470,7 @@ mixin _WorkbenchControllerProjects
   }
 
   Future<void> activateProject(Project project) async {
+    _workspaceSelectionRevision++;
     final prefs = state.viewPrefs;
     final nextPrefs = prefs;
     state = state.copyWith(

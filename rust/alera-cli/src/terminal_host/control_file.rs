@@ -61,6 +61,7 @@ pub fn write_control_file(
         "port": port,
         "token": token,
         "runtimeCapabilities": [
+            super::protocol::RUNTIME_HOST_SAFE_HANDOFF_CAPABILITY,
             "configurationSyncV1",
             RUNTIME_HOST_CAPABILITY,
             RUNTIME_HOST_ACCOUNT_CAPABILITY,
@@ -168,6 +169,7 @@ mod tests {
         assert_eq!(
             value["runtimeCapabilities"],
             json!([
+                super::super::protocol::RUNTIME_HOST_SAFE_HANDOFF_CAPABILITY,
                 "configurationSyncV1",
                 RUNTIME_HOST_CAPABILITY,
                 RUNTIME_HOST_ACCOUNT_CAPABILITY,

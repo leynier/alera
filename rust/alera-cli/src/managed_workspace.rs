@@ -22,6 +22,10 @@ use crate::ssh_remote::{
 };
 use crate::worktree_setup::{prepare_deferred_worktree_setup, run_worktree_setup};
 
+#[path = "managed_workspace_removal_preflight.rs"]
+mod removal_preflight;
+use removal_preflight::managed_workspace_removal;
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ManagedWorkspaceCreateRequest {
@@ -300,11 +304,15 @@ pub(crate) async fn remove_managed_workspace_with<E: RemoteHostExecutor>(
         Err(error) => return Err(error).context("git worktree remove failed"),
     }
     if let Some(branch) = branch_to_delete {
-        match core_git::delete_branch(&project.repo_path, &branch, true) {
+        match core_git::delete_branch(&project.repo_path, &branch, false) {
             Ok(()) => {}
             Err(error) if error.kind == GitErrorKind::BranchNotFound => {}
             Err(error) => {
-                return Err(error).with_context(|| format!("git branch -D {branch} failed"));
+                return Err(error).with_context(|| {
+                    format!(
+                        "Worktree removed; branch {branch} retained because safe deletion failed"
+                    )
+                });
             }
         }
     }
@@ -354,6 +362,48 @@ pub async fn validate_managed_workspace_removal(
     store: &RuntimeStore,
     request: &ManagedWorkspaceRemoveRequest,
 ) -> Result<()> {
+    let workspace = store
+        .find_workspace(&request.id)
+        .await?
+        .ok_or_else(|| anyhow!("Workspace not found"))?;
+    if is_remote_host_id(Some(&workspace.host_id)) && filesystem_entry_is_missing(&workspace.path)?
+    {
+        if workspace.kind == WorkspaceKind::Main {
+            bail!("The main workspace cannot be removed");
+        }
+        if workspace_has_active_automation_owner(store, &workspace.id).await? {
+            bail!("Workspace is owned by an active automation");
+        }
+        let delete = request
+            .delete_branch
+            .ok_or_else(|| anyhow!("Choose --keep-branch or --delete-branch before cleanup"))?;
+        if delete && workspace.reuses_existing_branch {
+            bail!("Keep the reused branch when removing the workspace");
+        }
+        let branch = if delete {
+            Some(
+                workspace
+                    .branch
+                    .as_deref()
+                    .filter(|branch| !branch.is_empty())
+                    .ok_or_else(|| anyhow!("Branch identity is unknown. Keep the branch."))?,
+            )
+        } else {
+            None
+        };
+        let project = store
+            .find_project(&workspace.project_id)
+            .await?
+            .ok_or_else(|| anyhow!("Project not found"))?;
+        return crate::remote_managed_workspace::validate_remote_workspace_removal(
+            store,
+            &workspace,
+            &project,
+            branch,
+            &LiveSshRemoteHost,
+        )
+        .await;
+    }
     managed_workspace_removal(store, request).await.map(drop)
 }
 
@@ -480,64 +530,6 @@ fn measure_tree_without_following_links(root: &Path) -> Result<(u64, u64)> {
         }
     }
     Ok((bytes, entries))
-}
-
-async fn managed_workspace_removal(
-    store: &RuntimeStore,
-    request: &ManagedWorkspaceRemoveRequest,
-) -> Result<ManagedWorkspaceRemoval> {
-    let workspace = store
-        .find_workspace(&request.id)
-        .await?
-        .ok_or_else(|| anyhow!("Workspace not found: {}", request.id))?;
-    if workspace.kind == WorkspaceKind::Main {
-        bail!("The main workspace cannot be removed");
-    }
-    if workspace.host_id != LOCAL_HOST_ID {
-        bail!("Workspace is not owned by the local host");
-    }
-    let project = store
-        .find_project(&workspace.project_id)
-        .await?
-        .ok_or_else(|| anyhow!("Project not found: {}", workspace.project_id))?;
-    let should_delete_branch = request
-        .delete_branch
-        .unwrap_or(!workspace.reuses_existing_branch);
-    let branch_to_delete = if should_delete_branch {
-        Some(
-            workspace
-                .branch
-                .as_deref()
-                .filter(|branch| !branch.is_empty())
-                .ok_or_else(|| anyhow!("Workspace Branch Is Required"))?
-                .to_string(),
-        )
-    } else {
-        None
-    };
-    validate_workspace_storage_ownership(store, &workspace, &project).await?;
-    if workspace_has_active_automation_owner(store, &workspace.id).await? {
-        bail!("Workspace is owned by an active automation");
-    }
-    if !filesystem_entry_is_missing(&workspace.path)? {
-        let registered = core_git::list_worktrees(&project.repo_path)?
-            .into_iter()
-            .find(|entry| path_equals(&entry.path, &workspace.path))
-            .ok_or_else(|| anyhow!("Workspace path is not a registered Git worktree"))?;
-        if let Some(expected_branch) = workspace.branch.as_deref() {
-            if registered.branch != expected_branch {
-                bail!(
-                    "Workspace branch does not match registered worktree: expected {expected_branch}, found {}",
-                    registered.branch
-                );
-            }
-        }
-    }
-    Ok(ManagedWorkspaceRemoval {
-        workspace,
-        project,
-        branch_to_delete,
-    })
 }
 
 async fn validate_workspace_storage_ownership(

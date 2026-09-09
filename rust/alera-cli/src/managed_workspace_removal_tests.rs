@@ -18,6 +18,34 @@ use crate::managed_workspace::{
 mod automation_tests;
 
 #[tokio::test]
+async fn unknown_branch_choice_refuses_without_removing_work() {
+    let fixture = RemovalFixture::new("unknown-choice").await;
+    let error = fixture
+        .remove_managed_workspace_with(None)
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("requires a choice"));
+    assert!(fixture.worktree_path.exists());
+    assert!(fixture.branch_exists());
+    assert!(fixture.workspace_record().await.is_some());
+}
+
+#[tokio::test]
+async fn unmerged_branch_is_refused_before_worktree_removal() {
+    let fixture = RemovalFixture::new("unmerged").await;
+    std::fs::write(fixture.worktree_path.join("feature.txt"), "unique commit").unwrap();
+    run_git(&fixture.worktree_path, &["add", "feature.txt"]);
+    run_git(&fixture.worktree_path, &["commit", "-m", "feature"]);
+    let error = fixture
+        .remove_managed_workspace_with(Some(true))
+        .await
+        .unwrap_err();
+    assert!(format!("{error:#}").contains("not merged"));
+    assert!(fixture.worktree_path.exists());
+    assert!(fixture.branch_exists());
+}
+
+#[tokio::test]
 async fn rejects_main_workspace_during_removal_validation() {
     let root = tempfile::tempdir().unwrap();
     let repo = root.path().join("repo");
@@ -80,13 +108,13 @@ async fn recovers_when_worktree_and_branch_are_missing() {
 }
 
 #[tokio::test]
-async fn deletes_branch_after_worktree_was_removed() {
+async fn keeps_branch_when_live_identity_cannot_be_verified() {
     let fixture = RemovalFixture::new("retry").await;
     fixture.remove_worktree();
 
     fixture.remove_managed_workspace().await.unwrap();
 
-    assert!(!fixture.branch_exists());
+    assert!(fixture.branch_exists());
     assert!(fixture.workspace_record().await.is_none());
 }
 
@@ -185,10 +213,13 @@ async fn rejects_path_registered_as_another_project_source() {
 async fn rejects_stale_branch_identity_before_cleanup() {
     let fixture = RemovalFixture::new("stale-branch").await;
     let mut workspace = fixture.workspace_record().await.unwrap();
-    workspace.branch = Some("main".to_string());
+    workspace.branch = Some("other-branch".to_string());
     fixture.store.upsert_workspace(workspace).await.unwrap();
 
-    let error = fixture.remove_managed_workspace().await.unwrap_err();
+    let error = fixture
+        .remove_managed_workspace_with(Some(true))
+        .await
+        .unwrap_err();
 
     assert!(error.to_string().contains("branch does not match"));
     assert!(fixture.worktree_path.exists());
@@ -276,7 +307,7 @@ async fn successful_cleanup_after_safe_impact_removes_worktree_and_record() {
 
     assert!(!fixture.worktree_path.exists());
     assert!(fixture.workspace_record().await.is_none());
-    assert!(!fixture.branch_exists());
+    assert!(fixture.branch_exists());
 }
 
 struct RemovalFixture {
@@ -350,7 +381,7 @@ impl RemovalFixture {
     }
 
     async fn remove_managed_workspace(&self) -> anyhow::Result<alera_core::runtime::Workspace> {
-        self.remove_managed_workspace_with(None).await
+        self.remove_managed_workspace_with(Some(false)).await
     }
 
     async fn remove_managed_workspace_with(

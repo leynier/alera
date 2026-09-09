@@ -3,7 +3,7 @@ use serde_json::{json, Value};
 use crate::cli::RuntimeDirArgs;
 use crate::orchestration_commands::{
     request_value, request_value_with_capability, terminal_handle_env, usage_error,
-    workspace_id_env, WAIT_CLIENT_GRACE_MS,
+    WAIT_CLIENT_GRACE_MS,
 };
 use crate::terminal_host::protocol::RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY;
 
@@ -15,7 +15,16 @@ pub(crate) async fn run_agent_spawn(
     let Some(from) = args.from.or_else(terminal_handle_env) else {
         return usage_error("--from is required (or set ALERA_TERMINAL_HANDLE).");
     };
-    let Some(workspace) = args.workspace.or_else(workspace_id_env) else {
+    let workspace = match crate::workspace_context::resolve_requested_workspace_id(
+        runtime,
+        args.workspace.as_deref(),
+    )
+    .await
+    {
+        Ok(workspace) => workspace,
+        Err(error) => return crate::print_error(error),
+    };
+    let Some(workspace) = workspace else {
         return usage_error(
             "--workspace is required (or run inside an Alera terminal where ALERA_WORKSPACE_ID is set).",
         );

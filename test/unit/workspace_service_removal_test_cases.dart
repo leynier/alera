@@ -2,6 +2,83 @@ part of 'workspace_service_test.dart';
 
 void _registerWorkspaceServiceRemovalTests() {
   test(
+    'verified branch deletion uses force false after safe preflight',
+    () async {
+      final workspace = (await service.createLinkedWorkspace(
+        project: project,
+        sourceBranch: 'main',
+        newBranchName: 'feature/verified',
+      )).workspace;
+      _configureVerifiedBranchDeletion(workspace);
+      await service.removeWorkspace(
+        project: project,
+        workspace: workspace,
+        deleteBranch: true,
+      );
+      final deletion = gitBackend.calls.singleWhere(
+        (call) => call.method == 'deleteBranch',
+      );
+      expect(deletion.args['force'], isFalse);
+      expect(
+        gitBackend.calls.indexWhere((call) => call.method == 'isAncestor'),
+        lessThan(
+          gitBackend.calls.indexWhere(
+            (call) => call.method == 'removeWorktree',
+          ),
+        ),
+      );
+      expect(await repository.findWorkspaceById(workspace.id), isNull);
+    },
+  );
+
+  for (final reason in ['unknown', 'unmerged', 'mismatch']) {
+    test(
+      'branch deletion refuses $reason safety before removing the worktree',
+      () async {
+        final workspace = (await service.createLinkedWorkspace(
+          project: project,
+          sourceBranch: 'main',
+          newBranchName: 'feature/refused',
+        )).workspace;
+        _configureVerifiedBranchDeletion(workspace);
+        switch (reason) {
+          case 'unknown':
+            gitBackend.headBranchFails = true;
+          case 'unmerged':
+            gitBackend.ancestorResults[(workspace.branch!, 'main')] = false;
+          case 'mismatch':
+            gitBackend.currentBranchesByPath[workspace.path] = 'other';
+        }
+        await expectLater(
+          service.removeWorkspace(
+            project: project,
+            workspace: workspace,
+            deleteBranch: true,
+          ),
+          throwsA(
+            predicate<Object>(
+              (error) => error.toString().contains(switch (reason) {
+                'unknown' => 'no head',
+                'unmerged' => 'unmerged',
+                _ => 'ownership is uncertain',
+              }),
+            ),
+          ),
+        );
+        expect(
+          gitBackend.calls.any(
+            (call) =>
+                call.method == 'removeWorktree' ||
+                call.method == 'deleteBranch',
+          ),
+          isFalse,
+        );
+        expect(await repository.findWorkspaceById(workspace.id), isNotNull);
+      },
+    );
+  }
+
+  test(
     'removeWorkspace deletes the workspace and cascades its workspace tabs',
     () async {
       gitBackend.sourceBranches = <String>['main'];
@@ -23,7 +100,7 @@ void _registerWorkspaceServiceRemovalTests() {
       await service.removeWorkspace(
         project: project,
         workspace: linkedWorkspace,
-        deleteBranch: true,
+        deleteBranch: false,
       );
 
       expect(
@@ -144,9 +221,19 @@ void _registerWorkspaceServiceRemovalTests() {
       service.removeWorkspace(
         project: project,
         workspace: linkedWorkspace,
-        deleteBranch: true,
+        deleteBranch: false,
       ),
-      throwsA(isA<WorkspaceException>()),
+      throwsA(
+        isA<WorkspaceException>().having(
+          (error) => error.toString(),
+          'worktree error',
+          contains('git worktree remove failed'),
+        ),
+      ),
+    );
+    expect(
+      gitBackend.calls.any((call) => call.method == 'removeWorktree'),
+      isTrue,
     );
   });
 
@@ -167,7 +254,7 @@ void _registerWorkspaceServiceRemovalTests() {
     await service.removeWorkspace(
       project: project,
       workspace: linkedWorkspace,
-      deleteBranch: true,
+      deleteBranch: false,
     );
 
     expect(
@@ -196,9 +283,15 @@ void _registerWorkspaceServiceRemovalTests() {
       service.removeWorkspace(
         project: project,
         workspace: linkedWorkspace,
-        deleteBranch: true,
+        deleteBranch: false,
       ),
-      throwsA(isA<WorkspaceException>()),
+      throwsA(
+        isA<WorkspaceException>().having(
+          (error) => error.toString(),
+          'worktree error',
+          contains('git worktree remove failed'),
+        ),
+      ),
     );
 
     expect(sentinel.existsSync(), isTrue);
@@ -224,6 +317,7 @@ void _registerWorkspaceServiceRemovalTests() {
     gitBackend.deleteBranchError = const BranchNotFoundException(
       'feature/missing-branch',
     );
+    _configureVerifiedBranchDeletion(linkedWorkspace);
 
     await service.removeWorkspace(
       project: project,
@@ -247,6 +341,7 @@ void _registerWorkspaceServiceRemovalTests() {
       newBranchName: 'feature/branch-failure',
     )).workspace;
     gitBackend.failingBranchDeletes.add('feature/branch-failure');
+    _configureVerifiedBranchDeletion(linkedWorkspace);
 
     await expectLater(
       service.removeWorkspace(
@@ -254,7 +349,17 @@ void _registerWorkspaceServiceRemovalTests() {
         workspace: linkedWorkspace,
         deleteBranch: true,
       ),
-      throwsA(isA<WorkspaceException>()),
+      throwsA(
+        isA<WorkspaceException>().having(
+          (error) => error.toString(),
+          'branch error',
+          contains('Safe deletion of branch'),
+        ),
+      ),
+    );
+    expect(
+      gitBackend.calls.any((call) => call.method == 'deleteBranch'),
+      isTrue,
     );
   });
 
@@ -316,4 +421,13 @@ void _registerWorkspaceServiceRemovalTests() {
     expect(workspace.updatedAt.isAfter(before), isTrue);
     expect(workspace.updatedAt.isBefore(after), isTrue);
   });
+}
+
+void _configureVerifiedBranchDeletion(Workspace workspace) {
+  gitBackend.currentBranchesByPath[workspace.path] = workspace.branch!;
+  gitBackend.ancestorResults[(
+        workspace.branch!,
+        gitBackend.defaultBranchName,
+      )] =
+      true;
 }

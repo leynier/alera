@@ -20,6 +20,37 @@ extension WorkspaceServiceRemoval on WorkspaceService {
       );
       return;
     }
+    if (shouldDeleteBranch) {
+      final branch = workspace.branch;
+      if (branch == null ||
+          branch.isEmpty ||
+          await _gitBackend.currentBranch(workspace.path) != branch) {
+        throw WorkspaceException(
+          'Live branch ownership is uncertain. Keep the branch when removing this workspace.',
+        );
+      }
+      final home = await _gitBackend.defaultBranch(project.repoPath);
+      if (branch == home ||
+          !await _gitBackend.isAncestor(
+            path: project.repoPath,
+            ancestorRef: branch,
+            descendantRef: home,
+          )) {
+        throw WorkspaceException(
+          'The branch is protected or has unmerged commits. Keep the branch.',
+        );
+      }
+      final worktrees = await _gitBackend.listWorktrees(project.repoPath);
+      if (worktrees.any(
+        (entry) =>
+            entry.branch == branch &&
+            p.normalize(entry.path) != p.normalize(workspace.path),
+      )) {
+        throw WorkspaceException(
+          'The branch is checked out in another worktree. Keep the branch.',
+        );
+      }
+    }
     try {
       await _gitBackend.removeWorktree(
         repoPath: project.repoPath,
@@ -48,13 +79,13 @@ extension WorkspaceServiceRemoval on WorkspaceService {
         await _gitBackend.deleteBranch(
           repoPath: project.repoPath,
           branch: branch,
-          force: true,
+          force: false,
         );
       } on BranchNotFoundException {
         // The requested final state already exists.
       } on GitException catch (error) {
         throw WorkspaceException(
-          'git branch -D $branch failed',
+          'Safe deletion of branch $branch failed',
           stderr: error.context,
         );
       }

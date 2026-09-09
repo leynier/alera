@@ -5,7 +5,10 @@ use alera_core::runtime::WorkspaceTabRecord;
 use super::terminal_pulse::TERMINAL_PULSE_PAYLOAD_KEY;
 use super::{ClientKind, ServerActor};
 
-const HOST_OWNED_TAB_PAYLOAD_KEYS: [&str; 10] = [
+const HANDOFF_SOURCE_WORKSPACE_IDS_KEY: &str = "handoffSourceWorkspaceIds";
+
+const HOST_OWNED_TAB_PAYLOAD_KEYS: [&str; 11] = [
+    HANDOFF_SOURCE_WORKSPACE_IDS_KEY,
     "agentProfileLaunchV1",
     "initialPrompt",
     "pendingAgentPrompt",
@@ -39,6 +42,17 @@ pub(super) fn preserve_host_owned_tab_payload(
     stored: &WorkspaceTabRecord,
     incoming: &mut WorkspaceTabRecord,
 ) {
+    // Only a host transfer can establish an old workspace identity. A stale
+    // projected record must neither erase that history nor invent one.
+    if stored
+        .payload
+        .get(HANDOFF_SOURCE_WORKSPACE_IDS_KEY)
+        .is_none()
+    {
+        if let Some(payload) = incoming.payload.as_object_mut() {
+            payload.remove(HANDOFF_SOURCE_WORKSPACE_IDS_KEY);
+        }
+    }
     let manual_rename = incoming.payload["manualTitle"] == true
         && (incoming.title != stored.title
             || (incoming.payload["agentTitleSource"] == "manual"
@@ -108,3 +122,7 @@ impl ServerActor {
             .collect()
     }
 }
+
+#[cfg(test)]
+#[path = "tab_compatibility_handoff_tests.rs"]
+mod handoff_tests;

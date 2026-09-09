@@ -1,7 +1,84 @@
 part of 'workbench_controller.dart';
 
 mixin _WorkbenchControllerSync
-    on _$WorkbenchController, _WorkbenchControllerInternals {
+    on
+        _$WorkbenchController,
+        _WorkbenchControllerInternals,
+        _WorkbenchControllerTransfer {
+  void _enqueueWorkspaceSync(Future<void> Function() update) {
+    if (_transferringWorkspace) {
+      _refreshAfterTransfer = true;
+      return;
+    }
+    _workspaceSyncQueue = _workspaceSyncQueue
+        .then((_) async {
+          if (_disposed) return;
+          if (_transferringWorkspace) {
+            _refreshAfterTransfer = true;
+            return;
+          }
+          await update();
+        })
+        .catchError((Object error) {
+          if (!_disposed) {
+            state = state.copyWith(
+              error: 'Could not reconcile workspace state: $error',
+            );
+          }
+        });
+  }
+
+  Future<void> _reconcileMigratedTabs(String workspaceId) async {
+    final selectionRevision = _workspaceSelectionRevision;
+    final source = _workspaceById(workspaceId);
+    if (source == null) return;
+    final destinations = <String, Set<String>>{};
+    for (final tab in state.tabsFor(workspaceId)) {
+      final live = await _repository.findWorkspaceTabById(tab.id);
+      if (live != null && live.workspaceId != workspaceId) {
+        destinations
+            .putIfAbsent(live.workspaceId, () => <String>{})
+            .add(tab.id);
+      }
+    }
+    for (final entry in destinations.entries) {
+      final destination = await _repository.findWorkspaceById(entry.key);
+      if (destination == null || _disposed) continue;
+      final wasActive = state.activeWorkspaceId == source.id;
+      _transferWorkspaceContents(source, destination, tabIds: entry.value);
+      final layout = await _repository.findWorkbenchLayout(destination.id);
+      if (layout != null) await _applyLayout(layout, persist: false);
+      final project = state.projects
+          .where((entry) => entry.id == destination.projectId)
+          .firstOrNull;
+      if (project != null) {
+        _reconcileCreatedWorkspace(project, destination);
+        if (wasActive &&
+            selectionRevision == _workspaceSelectionRevision &&
+            state.activeWorkspaceId == source.id) {
+          state = state.copyWith(activeWorkspaceId: destination.id);
+        }
+      }
+    }
+  }
+
+  @override
+  Future<void> _refreshProjectAfterTransfer(Project project) async {
+    for (final workspace in state.workspacesFor(project.id).toList()) {
+      await _reconcileMigratedTabs(workspace.id);
+    }
+    final workspaces = await _repository.listWorkspaces(project.id);
+    if (_disposed) return;
+    _applyWorkspacesChanged(project, workspaces);
+    for (final workspace in workspaces) {
+      final tabs = await _repository.listWorkspaceTabs(workspace.id);
+      final layout = await _repository.findWorkbenchLayout(workspace.id);
+      if (_disposed) return;
+      if (layout != null) await _applyLayout(layout, persist: false);
+      _applyTabsChanged(workspace.id, tabs);
+    }
+  }
+
   /// Frees the live terminal handles and editor documents of a workspace that
   /// no longer exists in persisted state.
   ///
@@ -159,6 +236,19 @@ mixin _WorkbenchControllerSync
   }
 
   void _onWorkspacesChanged(Project project, List<Workspace> workspaces) {
+    _enqueueWorkspaceSync(() async {
+      final ids = workspaces.map((workspace) => workspace.id).toSet();
+      if (state
+          .workspacesFor(project.id)
+          .any((workspace) => !ids.contains(workspace.id))) {
+        await _refreshProjectAfterTransfer(project);
+      } else {
+        _applyWorkspacesChanged(project, workspaces);
+      }
+    });
+  }
+
+  void _applyWorkspacesChanged(Project project, List<Workspace> workspaces) {
     final nextWorkspaces = Map<String, List<Workspace>>.from(
       state.workspacesByProject,
     )..[project.id] = workspaces;
@@ -276,6 +366,30 @@ mixin _WorkbenchControllerSync
   }
 
   void _onTabsChanged(String workspaceId, List<WorkspaceTabRecord> tabs) {
+    _enqueueWorkspaceSync(() async {
+      final incomingIds = tabs.map((tab) => tab.id).toSet();
+      final removed = state
+          .tabsFor(workspaceId)
+          .any((tab) => !incomingIds.contains(tab.id));
+      final staleOwner = tabs.any(
+        (tab) =>
+            _transferredTabOwners.containsKey(tab.id) &&
+            _transferredTabOwners[tab.id] != workspaceId,
+      );
+      if (!removed && !staleOwner) {
+        _applyTabsChanged(workspaceId, tabs);
+        return;
+      }
+      await _reconcileMigratedTabs(workspaceId);
+      final live = await _repository.listWorkspaceTabs(workspaceId);
+      final layout = await _repository.findWorkbenchLayout(workspaceId);
+      if (_disposed) return;
+      if (layout != null) await _applyLayout(layout, persist: false);
+      _applyTabsChanged(workspaceId, live);
+    });
+  }
+
+  void _applyTabsChanged(String workspaceId, List<WorkspaceTabRecord> tabs) {
     if (!_tabSubProjectIds.containsKey(workspaceId)) {
       return;
     }
@@ -294,6 +408,7 @@ mixin _WorkbenchControllerSync
     final runtime = ref.read(terminalRuntimeProvider);
     final editorSessions = ref.read(editorSessionRegistryProvider);
     for (final tab in removedTabs) {
+      _transferredTabOwners.remove(tab.id);
       runtime.releaseTab(tab.id);
       editorSessions.forget(tab.id);
       if (tab.kind == WorkspaceTabKind.terminal &&
