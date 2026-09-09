@@ -83,4 +83,3 @@ pub(super) async fn managed_workspace_removal(
         branch_to_delete,
     })
 }
-
