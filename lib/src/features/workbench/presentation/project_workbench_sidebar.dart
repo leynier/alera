@@ -2,6 +2,8 @@ import 'package:alera/src/features/workbench/presentation/workspace_section_dial
 
 import 'dart:async';
 
+import 'package:alera/src/features/workbench/domain/simple_workspace_panel.dart';
+
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_service.dart';

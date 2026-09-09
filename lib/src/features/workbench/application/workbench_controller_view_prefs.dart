@@ -235,6 +235,17 @@ mixin _WorkbenchControllerViewPrefs
       return;
     }
     _updateViewPrefs(state.viewPrefs.copyWith(rightSidebarVisible: visible));
+    if (!visible && state.isSimpleLayout && state.activeWorkspaceId != null) {
+      final id = state.activeWorkspaceId!;
+      final panel = state.simplePanelFor(id);
+      if (panel.primaryTabId case final String primary) {
+        _saveSimplePanel(
+          id,
+          panel.select(SimpleWorkspacePanel.tabKey(primary)),
+        );
+        ref.read(terminalRuntimeProvider).peekSession(primary)?.requestFocus();
+      }
+    }
   }
 
   void toggleRightSidebarVisible() {
@@ -242,6 +253,18 @@ mixin _WorkbenchControllerViewPrefs
   }
 
   void setRightSidebarWidth(double value) {
+    if (!value.isFinite) return;
+    if (state.isSimpleLayout) {
+      _updateViewPrefs(
+        state.viewPrefs.copyWith(
+          simpleRightSidebarWidth: value.clamp(
+            AleraTokens.sidebarMinWidth,
+            double.infinity,
+          ),
+        ),
+      );
+      return;
+    }
     final clamped = value.clamp(
       AleraTokens.sidebarMinWidth,
       AleraTokens.sidebarMaxWidth,
@@ -253,6 +276,22 @@ mixin _WorkbenchControllerViewPrefs
   }
 
   void setContextPanelTab(WorkbenchContextPanelTab tab) {
+    if (state.isSimpleLayout && state.activeWorkspaceId != null) {
+      final tool = switch (tab) {
+        WorkbenchContextPanelTab.explorer => SimpleWorkspaceTool.explorer,
+        WorkbenchContextPanelTab.search => SimpleWorkspaceTool.search,
+        WorkbenchContextPanelTab.gitDiff => SimpleWorkspaceTool.sourceControl,
+        WorkbenchContextPanelTab.pullRequests =>
+          SimpleWorkspaceTool.pullRequest,
+      };
+      final id = state.activeWorkspaceId!;
+      _saveSimplePanel(
+        id,
+        state.simplePanelFor(id).select(tool.key),
+        reveal: true,
+      );
+      return;
+    }
     if (state.viewPrefs.activeContextPanelTab == tab) {
       return;
     }
@@ -351,6 +390,7 @@ mixin _WorkbenchControllerViewPrefs
       ),
     );
     state = state.copyWith(error: null);
+    if (state.isSimpleLayout) setContextPanelTab(.gitDiff);
     return true;
   }
 

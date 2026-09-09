@@ -31,6 +31,12 @@ mixin _WorkbenchControllerTabOpening
       final groupId = targetGroupId ?? layout.activeGroupId;
       final nextLayout = layout.addTabToGroup(groupId: groupId, tabId: tab.id);
       await _applyLayout(nextLayout.sanitize(tabs), persist: true);
+      if (state.isSimpleLayout && state.activeWorkspaceId == workspace.id) {
+        ref
+            .read(terminalRuntimeProvider)
+            .sessionFor(workspace: workspace, tab: tab)
+            .requestFocus();
+      }
       ref
           .read(workspaceActivityControllerProvider.notifier)
           .recordActivity(workspace.id, DateTime.now().toUtc());

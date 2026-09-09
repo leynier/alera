@@ -11,6 +11,7 @@ import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart
 import 'package:alera/src/features/updater/presentation/update_settings_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:alera/src/features/workbench/domain/simple_workspace_panel.dart';
 
 /// App-level preferences: storage, safety confirmations, runtime lifecycle,
 /// updates, and the support row.
@@ -71,6 +72,45 @@ class const ApplicationSettingsPane({
             description:
                 'Tray icon and dock or taskbar badge while Alera is running.',
             children: <Widget>[
+              Consumer(
+                builder: (context, ref, _) {
+                  final layout = ref.watch(
+                    workbenchControllerProvider.select(
+                      (state) => state.viewPrefs.desktopLayout,
+                    ),
+                  );
+                  return Column(
+                    crossAxisAlignment: .start,
+                    children: <Widget>[
+                      Text(
+                        'Workspace Layout',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: AleraTokens.space8),
+                      SegmentedButton<DesktopWorkspaceLayout>(
+                        segments: const <ButtonSegment<DesktopWorkspaceLayout>>[
+                          ButtonSegment(
+                            value: DesktopWorkspaceLayout.classic,
+                            label: Text('Classic'),
+                          ),
+                          ButtonSegment(
+                            value: DesktopWorkspaceLayout.simple,
+                            label: Text('Simple'),
+                          ),
+                        ],
+                        selected: <DesktopWorkspaceLayout>{layout},
+                        onSelectionChanged: (selection) => ref
+                            .read(workbenchControllerProvider.notifier)
+                            .setDesktopWorkspaceLayout(selection.single),
+                      ),
+                      const SizedBox(height: AleraTokens.space8),
+                      const Text(
+                        'Applies to all workspaces. Simple keeps one primary terminal beside a tabbed panel.',
+                      ),
+                    ],
+                  );
+                },
+              ),
               SettingsSwitchRow(
                 title: 'Show Tray Icon',
                 description: 'Keep Alera in the menu extra (macOS), notification area (Windows), or status bar (Ubuntu). Closing the window hides it; Quit from the tray or the app menu exits.',

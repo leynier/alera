@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:alera/src/features/workbench/domain/simple_workspace_panel.dart';
+
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
@@ -185,6 +187,17 @@ class const KeyboardCommandDispatcher({
   void _closeActiveTab() {
     final state = ref.read(workbenchControllerProvider);
     final workspace = state.activeWorkspace;
+    if (state.isSimpleLayout && workspace != null) {
+      final tool = SimpleWorkspaceTool.forKey(
+        state.simplePanelFor(workspace.id).focusedKey,
+      );
+      if (tool != null) {
+        ref
+            .read(workbenchControllerProvider.notifier)
+            .closeSimpleTool(workspace.id, tool);
+        return;
+      }
+    }
     final tab = state.activeWorkspaceTab;
     if (workspace == null || tab == null) {
       return;
@@ -215,6 +228,14 @@ class const KeyboardCommandDispatcher({
 
   void _cycleTab(int delta) {
     final state = ref.read(workbenchControllerProvider);
+    if (state.isSimpleLayout && state.activeWorkspaceId != null) {
+      final panel = state.simplePanelFor(state.activeWorkspaceId!);
+      final keys = _simpleNavigationKeys;
+      if (keys.isEmpty) return;
+      final index = keys.indexOf(panel.focusedKey ?? '');
+      _goToTabIndex((index + delta) % keys.length);
+      return;
+    }
     final layout = state.activeLayout;
     final workspace = state.activeWorkspace;
     final group = layout?.activeGroup;
@@ -241,6 +262,15 @@ class const KeyboardCommandDispatcher({
 
   void _goToTabIndex(int index) {
     final state = ref.read(workbenchControllerProvider);
+    if (state.isSimpleLayout && state.activeWorkspaceId != null) {
+      final keys = _simpleNavigationKeys;
+      if (index >= 0 && index < keys.length) {
+        ref
+            .read(workbenchControllerProvider.notifier)
+            .selectSimplePanelKey(state.activeWorkspaceId!, keys[index]);
+      }
+      return;
+    }
     final layout = state.activeLayout;
     final workspace = state.activeWorkspace;
     final group = layout?.activeGroup;
@@ -260,6 +290,10 @@ class const KeyboardCommandDispatcher({
   }
 
   void _goToLastTab() {
+    if (ref.read(workbenchControllerProvider).isSimpleLayout) {
+      _goToTabIndex(_simpleNavigationKeys.length - 1);
+      return;
+    }
     final group = ref
         .read(workbenchControllerProvider)
         .activeLayout
@@ -272,6 +306,7 @@ class const KeyboardCommandDispatcher({
 
   void _split(WorkbenchDropZone zone) {
     final state = ref.read(workbenchControllerProvider);
+    if (state.isSimpleLayout) return;
     final workspace = state.activeWorkspace;
     final layout = state.activeLayout;
     if (workspace == null || layout == null) {
@@ -291,6 +326,7 @@ class const KeyboardCommandDispatcher({
 
   void _closeSplit() {
     final state = ref.read(workbenchControllerProvider);
+    if (state.isSimpleLayout) return;
     final workspace = state.activeWorkspace;
     final layout = state.activeLayout;
     if (workspace == null || layout == null || layout.groups.length < 2) {
@@ -304,5 +340,17 @@ class const KeyboardCommandDispatcher({
             groupId: layout.activeGroupId,
           ),
     );
+  }
+
+  List<String> get _simpleNavigationKeys {
+    final state = ref.read(workbenchControllerProvider);
+    final id = state.activeWorkspaceId;
+    if (id == null) return const <String>[];
+    final panel = state.simplePanelFor(id);
+    return <String>[
+      if (panel.primaryTabId case final String primary)
+        SimpleWorkspacePanel.tabKey(primary),
+      ...panel.tabKeys,
+    ];
   }
 }

@@ -238,10 +238,42 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     if (_closingTabWorkspaceIds.contains(workspace.id)) {
       return;
     }
+    if (state.isSimpleLayout &&
+        !state.tabsFor(workspace.id).any(isSimplePrimaryCandidate)) {
+      unawaited(_ensureSimplePrimary(workspace));
+    }
     if (state.tabsFor(workspace.id).isNotEmpty &&
         state.layoutFor(workspace.id) == null) {
       unawaited(_loadLayoutForWorkspace(workspace.id));
     }
+  }
+
+  final Map<String, Future<void>> _simplePrimaryLoads = {};
+
+  Future<void> _ensureSimplePrimary(Workspace workspace) {
+    // Selection and runtime notifications can request the same primary while
+    // its record is still being persisted. Every caller awaits the same work.
+    return _simplePrimaryLoads.putIfAbsent(workspace.id, () async {
+      try {
+        final tabs = await _workspaceTabService.listTabs(workspace.id);
+        if (_disposed ||
+            !state.isSimpleLayout ||
+            state.activeWorkspaceId != workspace.id ||
+            _closingTabWorkspaceIds.contains(workspace.id)) {
+          return;
+        }
+        if (tabs.any(isSimplePrimaryCandidate)) return;
+        await _workspaceTabService.createTerminalTab(workspace.id);
+        final current = await _workspaceTabService.listTabs(workspace.id);
+        if (_disposed) return;
+        _setTabsForWorkspace(workspace.id, current);
+        _saveSimplePanel(workspace.id, state.simplePanelFor(workspace.id));
+      } catch (error) {
+        if (!_disposed) state = state.copyWith(error: error.toString());
+      } finally {
+        _simplePrimaryLoads.remove(workspace.id);
+      }
+    });
   }
 
   Future<void> _loadLayoutForWorkspace(String workspaceId) async {
@@ -295,6 +327,30 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     WorkbenchLayout layout, {
     required bool persist,
   }) async {
+    if (state.isSimpleLayout) {
+      final panel =
+          (state.viewPrefs.simplePanels[layout.workspaceId] ??
+                  const SimpleWorkspacePanel())
+              .reconcile(
+                state.tabsFor(layout.workspaceId),
+                preferredPrimaryId: layout.activeTabId,
+              );
+      final active = layout.activeTabId;
+      final select =
+          persist &&
+          active != null &&
+          !_closingTabWorkspaceIds.contains(layout.workspaceId);
+      _saveSimplePanel(
+        layout.workspaceId,
+        select ? panel.select(SimpleWorkspacePanel.tabKey(active)) : panel,
+        reveal: select && active != panel.primaryTabId,
+      );
+      // Only reconcile real records into the saved Classic tree. Simple focus
+      // must not move tabs or replace the user's split arrangement.
+      layout = (state.layoutFor(layout.workspaceId) ?? layout).sanitize(
+        state.tabsFor(layout.workspaceId),
+      );
+    }
     final nextLayouts = Map<String, WorkbenchLayout>.from(
       state.layoutByWorkspace,
     )..[layout.workspaceId] = layout;
@@ -360,6 +416,15 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     required String tabId,
     String? groupId,
   }) {
+    if (state.isSimpleLayout) {
+      final panel = state.simplePanelFor(workspaceId);
+      _saveSimplePanel(
+        workspaceId,
+        panel.select(SimpleWorkspacePanel.tabKey(tabId)),
+        reveal: tabId != panel.primaryTabId,
+      );
+      return;
+    }
     final layout = state.layoutFor(workspaceId);
     final resolvedGroupId = groupId ?? layout?.groupIdForTab(tabId);
     if (layout != null && resolvedGroupId != null) {
@@ -392,5 +457,28 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     } finally {
       _ensuringMainWorkspaceProjectIds.remove(project.id);
     }
+  }
+
+  void _saveSimplePanel(
+    String workspaceId,
+    SimpleWorkspacePanel panel, {
+    bool reveal = false,
+  }) {
+    if (state.viewPrefs.simplePanels[workspaceId] == panel &&
+        (!reveal || state.viewPrefs.rightSidebarVisible)) {
+      return;
+    }
+    state = state.copyWith(
+      viewPrefs: state.viewPrefs.copyWith(
+        simplePanels: <String, SimpleWorkspacePanel>{
+          ...state.viewPrefs.simplePanels,
+          workspaceId: panel,
+        },
+        rightSidebarVisible: reveal
+            ? true
+            : state.viewPrefs.rightSidebarVisible,
+      ),
+    );
+    unawaited(_persistViewPrefs());
   }
 }

@@ -412,6 +412,8 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
   static WorkbenchViewPrefsMapper ensureInitialized() {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = WorkbenchViewPrefsMapper._());
+      DesktopWorkspaceLayoutMapper.ensureInitialized();
+      SimpleWorkspacePanelMapper.ensureInitialized();
       WorkbenchSortByMapper.ensureInitialized();
       WorkbenchGroupByMapper.ensureInitialized();
       WorkbenchContextPanelTabMapper.ensureInitialized();
@@ -427,6 +429,34 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
   @override
   final String id = 'WorkbenchViewPrefs';
 
+  static DesktopWorkspaceLayout _$desktopLayout(WorkbenchViewPrefs v) =>
+      v.desktopLayout;
+  static const Field<WorkbenchViewPrefs, DesktopWorkspaceLayout>
+  _f$desktopLayout = Field(
+    'desktopLayout',
+    _$desktopLayout,
+    opt: true,
+    def: DesktopWorkspaceLayout.classic,
+  );
+  static Map<String, SimpleWorkspacePanel> _$simplePanels(
+    WorkbenchViewPrefs v,
+  ) => v.simplePanels;
+  static const Field<WorkbenchViewPrefs, Map<String, SimpleWorkspacePanel>>
+  _f$simplePanels = Field(
+    'simplePanels',
+    _$simplePanels,
+    opt: true,
+    def: const <String, SimpleWorkspacePanel>{},
+  );
+  static double _$simpleRightSidebarWidth(WorkbenchViewPrefs v) =>
+      v.simpleRightSidebarWidth;
+  static const Field<WorkbenchViewPrefs, double> _f$simpleRightSidebarWidth =
+      Field(
+        'simpleRightSidebarWidth',
+        _$simpleRightSidebarWidth,
+        opt: true,
+        def: 280,
+      );
   static WorkbenchSortBy _$sectionSort(WorkbenchViewPrefs v) => v.sectionSort;
   static const Field<WorkbenchViewPrefs, WorkbenchSortBy> _f$sectionSort =
       Field('sectionSort', _$sectionSort, opt: true, def: WorkbenchSortBy.name);
@@ -615,6 +645,9 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
 
   @override
   final MappableFields<WorkbenchViewPrefs> fields = const {
+    #desktopLayout: _f$desktopLayout,
+    #simplePanels: _f$simplePanels,
+    #simpleRightSidebarWidth: _f$simpleRightSidebarWidth,
     #sectionSort: _f$sectionSort,
     #collapsedSectionIds: _f$collapsedSectionIds,
     #othersSectionCollapsed: _f$othersSectionCollapsed,
@@ -646,6 +679,9 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
   final MappingHook hook = const WorkbenchViewPrefsDecodeHook();
   static WorkbenchViewPrefs _instantiate(DecodingData data) {
     return WorkbenchViewPrefs(
+      desktopLayout: data.dec(_f$desktopLayout),
+      simplePanels: data.dec(_f$simplePanels),
+      simpleRightSidebarWidth: data.dec(_f$simpleRightSidebarWidth),
       sectionSort: data.dec(_f$sectionSort),
       collapsedSectionIds: data.dec(_f$collapsedSectionIds),
       othersSectionCollapsed: data.dec(_f$othersSectionCollapsed),
@@ -747,9 +783,19 @@ abstract class WorkbenchViewPrefsCopyWith<
   $Out
 >
     implements ClassCopyWith<$R, $In, $Out> {
+  MapCopyWith<
+    $R,
+    String,
+    SimpleWorkspacePanel,
+    SimpleWorkspacePanelCopyWith<$R, SimpleWorkspacePanel, SimpleWorkspacePanel>
+  >
+  get simplePanels;
   MapCopyWith<$R, String, String, ObjectCopyWith<$R, String, String>>
   get sourceControlRootByWorkspaceId;
   $R call({
+    DesktopWorkspaceLayout? desktopLayout,
+    Map<String, SimpleWorkspacePanel>? simplePanels,
+    double? simpleRightSidebarWidth,
     WorkbenchSortBy? sectionSort,
     Set<String>? collapsedSectionIds,
     bool? othersSectionCollapsed,
@@ -790,6 +836,18 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
   late final ClassMapperBase<WorkbenchViewPrefs> $mapper =
       WorkbenchViewPrefsMapper.ensureInitialized();
   @override
+  MapCopyWith<
+    $R,
+    String,
+    SimpleWorkspacePanel,
+    SimpleWorkspacePanelCopyWith<$R, SimpleWorkspacePanel, SimpleWorkspacePanel>
+  >
+  get simplePanels => MapCopyWith(
+    $value.simplePanels,
+    (v, t) => v.copyWith.$chain(t),
+    (v) => call(simplePanels: v),
+  );
+  @override
   MapCopyWith<$R, String, String, ObjectCopyWith<$R, String, String>>
   get sourceControlRootByWorkspaceId => MapCopyWith(
     $value.sourceControlRootByWorkspaceId,
@@ -798,6 +856,9 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
   );
   @override
   $R call({
+    DesktopWorkspaceLayout? desktopLayout,
+    Map<String, SimpleWorkspacePanel>? simplePanels,
+    double? simpleRightSidebarWidth,
     WorkbenchSortBy? sectionSort,
     Set<String>? collapsedSectionIds,
     bool? othersSectionCollapsed,
@@ -825,6 +886,10 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     bool? showActiveWorkspacesOnly,
   }) => $apply(
     FieldCopyWithData({
+      if (desktopLayout != null) #desktopLayout: desktopLayout,
+      if (simplePanels != null) #simplePanels: simplePanels,
+      if (simpleRightSidebarWidth != null)
+        #simpleRightSidebarWidth: simpleRightSidebarWidth,
       if (sectionSort != null) #sectionSort: sectionSort,
       if (collapsedSectionIds != null)
         #collapsedSectionIds: collapsedSectionIds,
@@ -868,6 +933,12 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
   );
   @override
   WorkbenchViewPrefs $make(CopyWithData data) => WorkbenchViewPrefs(
+    desktopLayout: data.get(#desktopLayout, or: $value.desktopLayout),
+    simplePanels: data.get(#simplePanels, or: $value.simplePanels),
+    simpleRightSidebarWidth: data.get(
+      #simpleRightSidebarWidth,
+      or: $value.simpleRightSidebarWidth,
+    ),
     sectionSort: data.get(#sectionSort, or: $value.sectionSort),
     collapsedSectionIds: data.get(
       #collapsedSectionIds,

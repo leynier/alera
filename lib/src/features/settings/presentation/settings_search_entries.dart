@@ -22,6 +22,17 @@ applicationSearchEntries = buildSettingsSearchEntryCatalog(const {
     ),
   },
   'desktop': {
+    'Workspace Layout': SettingsSearchEntryDetails(
+      description: 'Choose Classic or Simple for all desktop workspaces.',
+      keywords: <String>[
+        'primary',
+        'terminal',
+        'panel',
+        'tabs',
+        'simple',
+        'classic',
+      ],
+    ),
     'Show Tray Icon': SettingsSearchEntryDetails(
       description: 'Keep Alera in the menu extra, notification area, or Ubuntu status bar.',
       keywords: <String>[

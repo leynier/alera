@@ -296,6 +296,15 @@ mixin _WorkbenchControllerFileTabs
     required List<WorkspaceTabRecord> tabs,
     required String groupId,
   }) {
+    if (state.isSimpleLayout) {
+      final panel = state.simplePanelFor(layout.workspaceId);
+      final active = SimpleWorkspacePanel.tabId(panel.activeKey);
+      return tabs
+              .where((tab) => tab.id == active && tab.isFilePreviewSlot)
+              .firstOrNull
+              ?.id ??
+          tabs.where((tab) => tab.isFilePreviewSlot).firstOrNull?.id;
+    }
     final group = layout.groups[groupId];
     if (group == null) {
       return null;

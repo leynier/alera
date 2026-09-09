@@ -88,6 +88,12 @@ Motion:
 
 ## Surface Model
 
+Settings > Application > Desktop exposes one Workspace Layout choice for every desktop workspace. Classic is the default and retains its split layout. Simple displays a stable primary terminal in the center, with its agent identity and state on the workspace row. Other terminal agents remain child rows.
+
+Simple uses a right tab strip for auxiliary terminals, files, previews, diffs, and singleton Explorer, Search, Source Control, and Pull Request tools. The Add Tab menu also offers Terminal. An empty panel offers those five choices without opening a tool automatically. Each workspace retains its own panel order and selection in desktop view preferences. Hiding the panel preserves its tabs and returns terminal focus to the primary.
+
+Simple has a separate requested panel width, constrained at render time to leave the center minimum available. Switching layouts retains terminal handles and saved Classic splits; inactive terminal surfaces are unmounted and hold no visibility lease.
+
 - Surface layering should follow `bg` -> `surface` -> `surfaceVariant` -> `surfaceElevated`.
 - Container borders should use `border` or `borderSubtle` based on emphasis.
 - Card-like surfaces should use tokenized radii, typically `radiusLg` or `radiusMd`.

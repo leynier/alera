@@ -82,6 +82,9 @@ mixin _WorkbenchControllerTabs
       rethrow;
     } finally {
       _closingTabWorkspaceIds.remove(workspace.id);
+      if (state.isSimpleLayout && state.activeWorkspaceId == workspace.id) {
+        _ensureSelectionHasTab();
+      }
     }
   }
 
@@ -210,6 +213,7 @@ mixin _WorkbenchControllerTabs
     required WorkbenchDropZone zone,
     int? index,
   }) async {
+    if (state.isSimpleLayout) return;
     try {
       final tabs = state.tabsFor(workspaceId);
       final layout = _layoutForMutation(workspaceId, tabs);
@@ -235,6 +239,9 @@ mixin _WorkbenchControllerTabs
     required String groupId,
     required WorkbenchDropZone zone,
   }) async {
+    if (state.isSimpleLayout) {
+      throw StateError('Splits are available in Classic layout.');
+    }
     try {
       final previousTabs = state.tabsFor(workspace.id);
       final layout = _layoutForMutation(workspace.id, previousTabs);
@@ -265,6 +272,7 @@ mixin _WorkbenchControllerTabs
     required String workspaceId,
     required String groupId,
   }) async {
+    if (state.isSimpleLayout) return;
     try {
       final tabs = state.tabsFor(workspaceId);
       final layout = _layoutForMutation(
@@ -284,6 +292,7 @@ mixin _WorkbenchControllerTabs
     required List<int> nodePath,
     required double ratio,
   }) {
+    if (state.isSimpleLayout) return;
     final tabs = state.tabsFor(workspaceId);
     final layout = _layoutForMutation(
       workspaceId,

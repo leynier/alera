@@ -107,6 +107,15 @@ class const _SidebarBody({
       );
     }
     if (row is WorkbenchWorkspaceRow) {
+      final primaryId = state.isSimpleLayout
+          ? state.simplePanelFor(row.workspace.id).primaryTabId
+          : null;
+      final primaryRun = row.agentRuns
+          .where((run) => run.tab.id == primaryId)
+          .firstOrNull;
+      final secondaryRuns = state.isSimpleLayout
+          ? row.agentRuns.where((run) => run.tab.id != primaryId).toList()
+          : row.agentRuns;
       final leftPadding = _indentPadding(row.indent);
       final hasDescendants = _workspaceHasDescendants(state, row.workspace);
       return Padding(
@@ -114,12 +123,21 @@ class const _SidebarBody({
         child: _WorkspaceRow(
           project: row.project,
           workspace: row.workspace,
-          agentRuns: row.agentRuns,
-          agentRunGroups: row.agentRunGroups,
-          status: row.aggregateStatus,
+          agentRuns: secondaryRuns,
+          agentRunGroups: state.isSimpleLayout
+              ? groupWorkspaceAgentRuns(secondaryRuns)
+              : row.agentRunGroups,
+          status: state.isSimpleLayout
+              ? primaryRun?.status
+              : row.aggregateStatus,
+          primaryStatus: primaryRun?.status,
           hasTerminalTabs: row.hasTerminalTabs,
           isActive: row.workspace.id == state.activeWorkspaceId,
-          activeTabId: state.activeTabIdByWorkspace[row.workspace.id],
+          activeTabId: state.isSimpleLayout
+              ? SimpleWorkspacePanel.tabId(
+                  state.simplePanelFor(row.workspace.id).focusedKey,
+                )
+              : state.activeTabIdByWorkspace[row.workspace.id],
           showProject: row.showProjectChip,
           expanded: row.expanded,
           visibleChildCount: row.visibleChildCount,

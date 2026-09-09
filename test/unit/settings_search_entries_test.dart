@@ -30,8 +30,17 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      '238d8c022682403ed8c1d483302b121ca8d6f5a2915b4d76837424a29c36ee53',
+      '6aeb61281fe30c7810e8dca4c7b6d2012b90ae66ff1b174c1c3d9133133c7eb5',
     );
+  });
+
+  test('global workspace layout is searchable under Desktop', () {
+    final entry = applicationSearchEntries.singleWhere(
+      (entry) => entry.title == 'Workspace Layout',
+    );
+    expect(entry.groupId, 'desktop');
+    expect(entry.matches('simple'), isTrue);
+    expect(entry.matches('classic'), isTrue);
   });
 
   test('built search catalogs remain immutable', () {

@@ -36,8 +36,11 @@ import 'package:path/path.dart' as p;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../domain/simple_workspace_panel.dart';
+
 part 'workbench_controller.g.dart';
 part 'workbench_controller_internals.dart';
+part 'workbench_controller_simple_layout.dart';
 part 'workbench_controller_projects.dart';
 part 'workbench_controller_navigation.dart';
 part 'workbench_controller_tab_opening.dart';
@@ -53,6 +56,7 @@ part 'workbench_controller_sections.dart';
 class WorkbenchController extends _$WorkbenchController
     with
         _WorkbenchControllerInternals,
+        _WorkbenchControllerSimpleLayout,
         _WorkbenchControllerTabOpening,
         _WorkbenchControllerFileTabs,
         _WorkbenchControllerPullRequestDiffTabs,

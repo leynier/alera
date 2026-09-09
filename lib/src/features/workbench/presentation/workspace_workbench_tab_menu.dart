@@ -27,27 +27,29 @@ extension _WorkspaceTabMenu on _WorkspaceTabChip {
         Offset.zero & overlay.size,
       ),
       items: <PopupMenuEntry<_TabMenuAction>>[
-        const AleraDropdownEntry<_TabMenuAction>(
-          value: .splitUp,
-          label: 'Split Up',
-          leading: _SplitDirectionGlyph(zone: .up),
-        ),
-        const AleraDropdownEntry<_TabMenuAction>(
-          value: .splitDown,
-          label: 'Split Down',
-          leading: _SplitDirectionGlyph(zone: .down),
-        ),
-        const AleraDropdownEntry<_TabMenuAction>(
-          value: .splitLeft,
-          label: 'Split Left',
-          leading: _SplitDirectionGlyph(zone: .left),
-        ),
-        const AleraDropdownEntry<_TabMenuAction>(
-          value: .splitRight,
-          label: 'Split Right',
-          leading: _SplitDirectionGlyph(zone: .right),
-        ),
-        const PopupMenuDivider(height: AleraTokens.space8),
+        if (canSplit) ...<PopupMenuEntry<_TabMenuAction>>[
+          const AleraDropdownEntry<_TabMenuAction>(
+            value: .splitUp,
+            label: 'Split Up',
+            leading: _SplitDirectionGlyph(zone: .up),
+          ),
+          const AleraDropdownEntry<_TabMenuAction>(
+            value: .splitDown,
+            label: 'Split Down',
+            leading: _SplitDirectionGlyph(zone: .down),
+          ),
+          const AleraDropdownEntry<_TabMenuAction>(
+            value: .splitLeft,
+            label: 'Split Left',
+            leading: _SplitDirectionGlyph(zone: .left),
+          ),
+          const AleraDropdownEntry<_TabMenuAction>(
+            value: .splitRight,
+            label: 'Split Right',
+            leading: _SplitDirectionGlyph(zone: .right),
+          ),
+          const PopupMenuDivider(height: AleraTokens.space8),
+        ],
         if (tab.isPreview && _KeepPreviewTabScope.maybeOf(context) != null)
           const AleraDropdownEntry<_TabMenuAction>(
             value: .keepOpen,

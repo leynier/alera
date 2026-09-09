@@ -4,6 +4,7 @@ mixin _WorkbenchControllerProjects
     on
         _$WorkbenchController,
         _WorkbenchControllerInternals,
+        _WorkbenchControllerSimpleLayout,
         _WorkbenchControllerTabOpening {
   Future<List<String>> listSourceBranches(Project project) =>
       _workspaceService.listSourceBranches(project);
@@ -451,12 +452,25 @@ mixin _WorkbenchControllerProjects
       unawaited(_persistViewPrefs());
     }
     if (ensureInitialTerminal) {
-      await _workspaceTabService.ensureInitialTerminalTab(workspace.id);
+      if (state.isSimpleLayout) {
+        await _ensureSimplePrimary(workspace);
+      } else {
+        await _workspaceTabService.ensureInitialTerminalTab(workspace.id);
+      }
     }
     final tabs = await _workspaceTabService.listTabs(workspace.id);
     _setTabsForWorkspace(workspace.id, tabs);
     final layout = await _ensureWorkbenchLayout(workspace.id, tabs);
     await _applyLayout(layout, persist: false);
+    if (state.isSimpleLayout) {
+      final primaryId = state.simplePanelFor(workspace.id).primaryTabId;
+      if (primaryId != null) {
+        selectSimplePanelKey(
+          workspace.id,
+          SimpleWorkspacePanel.tabKey(primaryId),
+        );
+      }
+    }
     if (recordHistory &&
         _worktreeNavigationHistory.record(
           WorktreeNavigationTarget(

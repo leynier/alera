@@ -81,6 +81,38 @@ typedef RenameWorkspaceTabCallback = Future<void> Function({
 });
 typedef OpenWorkspaceFileCallback = Future<void> Function(String relativePath);
 
+Widget buildSimpleWorkspaceTabChip({
+  required WorkspaceTabRecord tab,
+  required List<WorkspaceTabRecord> tabs,
+  required bool active,
+  required TerminalRuntime runtime,
+  required AgentStatusEntry? status,
+  required WorkbenchTabCompletionAcknowledgements acknowledgements,
+  required VoidCallback onSelect,
+  required ValueChanged<List<String>> onCloseTabs,
+  required ValueChanged<String> onRename,
+  required ValueChanged<String> onKeep,
+}) {
+  if (active) acknowledgements.acknowledge(status);
+  return _KeepPreviewTabScope(
+    onKeep: onKeep,
+    child: _WorkspaceTabChip(
+      canSplit: false,
+      tab: tab,
+      terminalSession: runtime.peekSession(tab.id),
+      status: status,
+      completionAcknowledged: acknowledgements.isAcknowledged(status),
+      active: active,
+      groupTabs: tabs,
+      onTap: onSelect,
+      onClose: () => onCloseTabs(<String>[tab.id]),
+      onCloseTabs: onCloseTabs,
+      onRename: onRename,
+      onSplit: (_) {},
+    ),
+  );
+}
+
 @visibleForTesting
 String workspaceTabTitleForTesting(WorkspaceTabRecord tab) =>
     _workspaceTabTitle(tab);
@@ -198,6 +230,8 @@ class const WorkspaceWorkbenchView({
   required final ActivateWorkbenchGroupCallback onActivateGroup,
   required final UpdateWorkbenchSplitRatioCallback onUpdateSplitRatio,
   final ValueChanged<String>? onKeepPreviewTab,
+  final bool singleSurface = false,
+  final String? singleTabId,
 }) extends StatefulWidget {
   @override
   State<WorkspaceWorkbenchView> createState() => _WorkspaceWorkbenchViewState();
@@ -214,6 +248,41 @@ class _WorkspaceWorkbenchViewState extends State<WorkspaceWorkbenchView> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.singleSurface) {
+      final tab = widget.tabs
+          .where((tab) => tab.id == widget.singleTabId)
+          .firstOrNull;
+      if (tab == null) {
+        return Center(
+          child: TextButton(
+            onPressed: () => unawaited(widget.onCreateTab()),
+            child: const Text('New Terminal'),
+          ),
+        );
+      }
+      return Focus(
+        canRequestFocus: false,
+        onFocusChange: (focused) {
+          if (focused) widget.onSelectTab(groupId: '', tabId: tab.id);
+        },
+        child: _KeepPreviewTabScope(
+          onKeep: widget.onKeepPreviewTab,
+          child: _WorkspaceTabContent(
+            workspace: widget.workspace,
+            sourceControlScope: widget.sourceControlScope,
+            tab: tab,
+            autofocus: false,
+            terminalRuntime: widget.terminalRuntime,
+            mobileDriverPresence: widget.mobileDriverPresence,
+            onOpenEditorTab: (path) => unawaited(widget.onOpenEditor(path)),
+            onOpenMarkdownViewerTab: (path) =>
+                unawaited(widget.onOpenMarkdownViewerTab(relativePath: path)),
+            onOpenMermanPreview: (path) =>
+                unawaited(widget.onOpenMermanPreview(path)),
+          ),
+        ),
+      );
+    }
     final resolvedLayout =
         widget.layout ??
         WorkbenchLayout.single(
