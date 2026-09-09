@@ -20,8 +20,21 @@ impl ServerActor {
             event.workspace_id = session.workspace_id.clone();
             event.tab_id = session.tab_id.clone();
         }
-        if session.workspace_id != event.workspace_id || session.tab_id != event.tab_id {
+        if session.tab_id != event.tab_id {
             return;
+        }
+        if session.workspace_id != event.workspace_id {
+            let Ok(Some(tab)) = self.runtime_store.find_workspace_tab(&session.tab_id).await else {
+                return;
+            };
+            if !tab.payload["handoffSourceWorkspaceIds"]
+                .as_array()
+                .is_some_and(|ids| ids.contains(&json!(event.workspace_id)))
+            {
+                return;
+            }
+            // A live process keeps its launch environment after ownership moves.
+            event.workspace_id = session.workspace_id.clone();
         }
         let pending_prompt = self
             .runtime_store

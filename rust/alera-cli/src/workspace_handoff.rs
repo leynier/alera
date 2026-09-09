@@ -3,8 +3,8 @@ use serde_json::{json, Value};
 
 use crate::cli::{RuntimeDirArgs, WorkspaceHandOffArgs, WorkspaceHandOnArgs};
 use crate::runtime_host_client::RuntimeHostRpcClient;
-use crate::terminal_host::protocol::RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY;
-use crate::workspace_context::requested_workspace_id;
+use crate::terminal_host::protocol::RUNTIME_HOST_SAFE_HANDOFF_CAPABILITY;
+use crate::workspace_context::resolve_requested_workspace_id;
 
 pub async fn run_hand_off(
     runtime: RuntimeDirArgs,
@@ -33,11 +33,13 @@ async fn run_hand_off_inner(
     args: WorkspaceHandOffArgs,
     json_output: bool,
 ) -> Result<()> {
-    let id = requested_workspace_id(args.id.as_deref()).ok_or_else(|| {
-        anyhow!(
+    let id = resolve_requested_workspace_id(runtime, args.id.as_deref())
+        .await?
+        .ok_or_else(|| {
+            anyhow!(
             "--id is required (or run inside an Alera terminal where ALERA_WORKSPACE_ID is set)."
         )
-    })?;
+        })?;
     let payload = json!({
         "id": id,
         "branch": args.branch,
@@ -48,11 +50,11 @@ async fn run_hand_off_inner(
     });
     let mut client = RuntimeHostRpcClient::connect_or_start_with_required_capability(
         &crate::runtime_dir(runtime),
-        RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+        RUNTIME_HOST_SAFE_HANDOFF_CAPABILITY,
     )
     .await?;
     let value: Value = client.request_value("workspace.handOff", &payload).await?;
-    crate::print_value(&value, json_output, "workspace handed off");
+    crate::print_value(&value, json_output, "workspace handed off; any moved local changes remain backed up in Git Stashes as 'alera handoff recovery'");
     Ok(())
 }
 
@@ -61,21 +63,23 @@ async fn run_hand_on_inner(
     args: WorkspaceHandOnArgs,
     json_output: bool,
 ) -> Result<()> {
-    let id = requested_workspace_id(args.id.as_deref()).ok_or_else(|| {
-        anyhow!(
+    let id = resolve_requested_workspace_id(runtime, args.id.as_deref())
+        .await?
+        .ok_or_else(|| {
+            anyhow!(
             "--id is required (or run inside an Alera terminal where ALERA_WORKSPACE_ID is set)."
         )
-    })?;
+        })?;
     let payload = json!({
         "id": id,
         "closeSessions": true,
     });
     let mut client = RuntimeHostRpcClient::connect_or_start_with_required_capability(
         &crate::runtime_dir(runtime),
-        RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+        RUNTIME_HOST_SAFE_HANDOFF_CAPABILITY,
     )
     .await?;
     let value: Value = client.request_value("workspace.handOn", &payload).await?;
-    crate::print_value(&value, json_output, "workspace handed on");
+    crate::print_value(&value, json_output, "workspace handed on; any moved local changes remain backed up in Git Stashes as 'alera handoff recovery'");
     Ok(())
 }

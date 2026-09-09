@@ -217,6 +217,27 @@ class EditorSessionRegistry extends ChangeNotifier {
     }
   }
 
+  void transferDocuments(
+    Iterable<String> tabIds,
+    String sourcePath,
+    String destinationPath,
+  ) {
+    for (final id in tabIds) {
+      final document = _documents[id];
+      if (document != null &&
+          document.workspacePath == sourcePath &&
+          document.relativePath != null) {
+        final old = document.relativePath!;
+        final next =
+            p.isAbsolute(old) &&
+                (old == sourcePath || p.isWithin(sourcePath, old))
+            ? p.join(destinationPath, p.relative(old, from: sourcePath))
+            : old;
+        document.attachFile(workspacePath: destinationPath, relativePath: next);
+      }
+    }
+  }
+
   /// Drops a path notifier once nothing references its path anymore.
   ///
   /// Without this the map grows with every file ever opened for the lifetime

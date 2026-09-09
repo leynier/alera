@@ -42,8 +42,10 @@ pub struct ManagedWorkspaceHandOffRequest {
 pub struct ManagedWorkspaceHandOnRequest {
     pub id: String,
     #[serde(default)]
+    #[allow(dead_code)] // Retained for older callers; safe transfer never closes sessions.
     pub close_sessions: bool,
     #[serde(default)]
+    #[allow(dead_code)] // Retained as an additive compatibility field.
     pub active_workspace_id: Option<String>,
 }
 
@@ -52,6 +54,7 @@ pub struct ManagedWorkspaceHandOnRequest {
 pub struct WorkspaceHandOnResult {
     pub workspace: Workspace,
     pub removed_workspace_id: String,
+    pub recovery_stash_oid: Option<String>,
 }
 
 pub async fn hand_off_managed_workspace(
@@ -64,6 +67,10 @@ pub async fn hand_off_managed_workspace(
         .await?
         .ok_or_else(|| anyhow!("Project not found: {}", main.project_id))?;
     let branch = require_trimmed(&request.branch, "Branch name is required")?;
+    if !core_git::is_valid_branch_name(&branch)? {
+        bail!("Invalid branch name: {branch}");
+    }
+    core_git::validate_handoff_state(&main.path)?;
     let current = core_git::current_branch(&main.path)?;
     if current == "HEAD" {
         bail!("Cannot hand off a detached HEAD; create or check out a branch first");
@@ -103,54 +110,66 @@ pub async fn hand_on_managed_workspace(
         bail!("Workspace is not active: {}", child.id);
     }
     validate_workspace_storage_path(store, &child.id).await?;
+    validate_transfer_owner(store, &child).await?;
     let project = store
         .find_project(&child.project_id)
         .await?
         .ok_or_else(|| anyhow!("Project not found: {}", child.project_id))?;
     let mut main = find_main_workspace(store, &project.id).await?;
+    validate_transfer_owner(store, &main).await?;
     let branch = require_live_child_branch(&child)?;
+    core_git::validate_handoff_state(&main.path)?;
+    core_git::validate_handoff_state(&child.path)?;
+    core_git::validate_no_ignored_handoff_files(&child.path)?;
     if !core_git::is_worktree_clean(&main.path)? {
         bail!("The main worktree has local changes. Commit, stash, or discard them before handing on.");
     }
 
-    let stashed = core_git::stash_include_untracked(&child.path)
+    let stashed = core_git::stash_for_handoff(&child.path)
         .context("git stash on the child worktree failed")?;
     if let Err(error) = core_git::detach_head(&child.path) {
-        if stashed {
-            let _ = core_git::stash_pop(&child.path);
-        }
+        restore_stashed_main(&child.path, &stashed)?;
         return Err(error).context("could not free the child branch");
     }
     if let Err(error) = core_git::checkout_branch(&main.path, &branch) {
-        let _ = core_git::set_head_to_branch(&child.path, &branch);
-        if stashed {
-            let _ = core_git::stash_pop(&child.path);
-        }
+        core_git::set_head_to_branch(&child.path, &branch).with_context(|| {
+            format!(
+                "Checkout failed ({error}); child is retained at {}. Recovery stash: {stashed:?}",
+                child.path
+            )
+        })?;
+        restore_stashed_main(&child.path, &stashed)?;
         return Err(error).context("git checkout on the main worktree failed");
     }
-    if stashed {
-        if let Err(error) = core_git::stash_pop(&main.path) {
+    main.branch = Some(branch.clone());
+    main.updated_at = Utc::now();
+    let main = store.upsert_workspace(main).await?;
+    let mut detached_child = child.clone();
+    detached_child.branch = Some("HEAD".to_string());
+    store.upsert_workspace(detached_child).await?;
+    if let Some(ref oid) = stashed {
+        if let Err(error) = core_git::apply_handoff_stash(&main.path, oid) {
             return Err(error).context(
                 "brought the branch onto main, but uncommitted changes remain in the stash",
             );
         }
     }
 
-    match core_git::remove_worktree(&project.repo_path, &child.path, true) {
+    core_git::validate_handoff_removal(&child.path)?;
+    store.transfer_workspace_contents(&child, &main).await?;
+    match core_git::remove_worktree(&project.repo_path, &child.path, false) {
         Ok(()) => {}
         Err(error)
             if error.kind == GitErrorKind::WorktreeNotFound
                 && filesystem_entry_is_missing(&child.path) => {}
-        Err(error) => return Err(error).context("git worktree remove failed"),
+        Err(error) => return Err(error).context("Work moved onto main and its tabs persisted; empty child retained because worktree removal failed. Keep its branch when cleaning up"),
     }
-    store.remove_workspace(&child.id, true).await?;
+    store.remove_workspace(&child.id, false).await?;
 
-    main.branch = Some(branch);
-    main.updated_at = Utc::now();
-    let main = store.upsert_workspace(main).await?;
     Ok(WorkspaceHandOnResult {
         workspace: main,
         removed_workspace_id: child.id,
+        recovery_stash_oid: stashed,
     })
 }
 
@@ -161,28 +180,42 @@ async fn hand_off_new_branch(
     current: String,
     branch: String,
 ) -> Result<WorkspaceCreationResult> {
-    let stashed = core_git::stash_include_untracked(&main.path)
-        .context("git stash on the main worktree failed")?;
+    let home = core_git::default_branch(&main.path)?;
+    if let Some(path) = core_git::branch_checkout_path(&main.path, &home)? {
+        if !path_equals(&path, &main.path) {
+            bail!("Default branch {home} is checked out at {path}");
+        }
+    }
+    let stashed =
+        core_git::stash_for_handoff(&main.path).context("git stash on the main worktree failed")?;
     if let Err(error) = core_git::create_and_checkout_branch(&main.path, &branch) {
-        restore_stashed_main(&main.path, stashed);
+        restore_stashed_main(&main.path, &stashed)?;
         return Err(error).context("could not create the hand-off branch");
     }
-    if let Err(error) = core_git::checkout_branch(&main.path, &current) {
-        restore_created_branch(&main.path, &current, &branch, stashed);
+    if let Err(error) = core_git::checkout_branch(&main.path, &home) {
+        restore_created_branch(&main.path, &current, &branch, &stashed)?;
         return Err(error).context("could not return the main worktree to its original branch");
     }
+    main.branch = Some(home);
+    main.updated_at = Utc::now();
+    store.upsert_workspace(main.clone()).await?;
 
-    let created = match create_child_from_existing_branch(store, &request, &main, &branch).await {
+    let mut created = match create_child_from_existing_branch(store, &request, &main, &branch).await
+    {
         Ok(created) => created,
         Err(error) => {
-            let _ = core_git::delete_branch(&main.path, &branch, true);
-            restore_stashed_main(&main.path, stashed);
-            return Err(error);
+            return Err(error).context(format!("Main is on its default branch. Created branch {branch} and recovery stash {stashed:?} retained; retry creating the child with that branch"));
         }
     };
-    apply_stashed_changes(&created.workspace.path, stashed)?;
+    created.workspace.reuses_existing_branch = false;
+    created.workspace = store.upsert_workspace(created.workspace).await?;
+    apply_stashed_changes(&created.workspace.path, &stashed)?;
     main.updated_at = Utc::now();
-    store.upsert_workspace(main).await?;
+    store.upsert_workspace(main.clone()).await?;
+    store
+        .transfer_workspace_contents(&main, &created.workspace)
+        .await?;
+    report_recovery_stash(&mut created, &stashed);
     Ok(created)
 }
 
@@ -201,25 +234,32 @@ async fn hand_off_current_branch(
             bail!("Branch \"{home}\" is already checked out in another worktree");
         }
     }
-    let stashed = core_git::stash_include_untracked(&main.path)
-        .context("git stash on the main worktree failed")?;
+    let stashed =
+        core_git::stash_for_handoff(&main.path).context("git stash on the main worktree failed")?;
     if let Err(error) = core_git::checkout_branch(&main.path, &home) {
-        restore_stashed_main(&main.path, stashed);
+        restore_stashed_main(&main.path, &stashed)?;
         return Err(error).context("could not free the current branch on the main worktree");
     }
+    main.branch = Some(home.clone());
+    main.updated_at = Utc::now();
+    store.upsert_workspace(main.clone()).await?;
 
-    let created = match create_child_from_existing_branch(store, &request, &main, &current).await {
+    let mut created = match create_child_from_existing_branch(store, &request, &main, &current)
+        .await
+    {
         Ok(created) => created,
         Err(error) => {
-            let _ = core_git::checkout_branch(&main.path, &current);
-            restore_stashed_main(&main.path, stashed);
-            return Err(error);
+            return Err(error).context(format!("Main is on {home}; branch {current} and recovery stash {stashed:?} retained. Retry creating the child with that branch"));
         }
     };
-    apply_stashed_changes(&created.workspace.path, stashed)?;
+    apply_stashed_changes(&created.workspace.path, &stashed)?;
     main.branch = Some(home);
     main.updated_at = Utc::now();
-    store.upsert_workspace(main).await?;
+    store.upsert_workspace(main.clone()).await?;
+    store
+        .transfer_workspace_contents(&main, &created.workspace)
+        .await?;
+    report_recovery_stash(&mut created, &stashed);
     Ok(created)
 }
 
@@ -261,7 +301,19 @@ async fn require_main_workspace(store: &RuntimeStore, workspace_id: &str) -> Res
     if workspace.status != WorkspaceStatus::Active {
         bail!("Workspace is not active: {workspace_id}");
     }
+    validate_transfer_owner(store, &workspace).await?;
     Ok(workspace)
+}
+
+async fn validate_transfer_owner(store: &RuntimeStore, workspace: &Workspace) -> Result<()> {
+    if workspace.host_id != alera_core::runtime::LOCAL_HOST_ID {
+        bail!("Hand Off and Hand On require local worktrees");
+    }
+    if crate::managed_workspace::workspace_has_active_automation_owner(store, &workspace.id).await?
+    {
+        bail!("Workspace is owned by an active automation");
+    }
+    Ok(())
 }
 
 async fn find_main_workspace(store: &RuntimeStore, project_id: &str) -> Result<Workspace> {
@@ -275,25 +327,40 @@ async fn find_main_workspace(store: &RuntimeStore, project_id: &str) -> Result<W
         .ok_or_else(|| anyhow!("Main workspace not found for project {project_id}"))
 }
 
-fn apply_stashed_changes(path: &str, stashed: bool) -> Result<()> {
-    if !stashed {
-        return Ok(());
+fn apply_stashed_changes(path: &str, stashed: &Option<String>) -> Result<()> {
+    if let Some(oid) = stashed {
+        core_git::apply_handoff_stash(path, oid).with_context(|| {
+            format!("Worktree retained at {path}; recovery stash {oid} retained. Resolve conflicts and apply it with --index before retrying")
+        })?;
     }
-    core_git::stash_pop(path).with_context(|| {
-        format!("created the child worktree, but uncommitted changes remain in the stash ({path})")
-    })
+    Ok(())
 }
 
-fn restore_stashed_main(path: &str, stashed: bool) {
-    if stashed {
-        let _ = core_git::stash_pop(path);
+fn report_recovery_stash(result: &mut WorkspaceCreationResult, stash: &Option<String>) {
+    if let Some(oid) = stash {
+        result.setup_report.steps.push(alera_core::runtime::WorktreeSetupStepReport {
+            kind: alera_core::runtime::WorktreeSetupStepKind::Config,
+            label: "Recovery Stash".into(), succeeded: true,
+            message: Some(format!("Recovery stash {oid} retained as 'alera handoff recovery'. Remove it in Git Stashes after verifying the transferred work.")),
+            exit_code: None, stdout_tail: None, stderr_tail: None,
+        });
     }
 }
 
-fn restore_created_branch(path: &str, original: &str, created: &str, stashed: bool) {
-    let _ = core_git::checkout_branch(path, original);
-    let _ = core_git::delete_branch(path, created, true);
-    restore_stashed_main(path, stashed);
+fn restore_stashed_main(path: &str, stashed: &Option<String>) -> Result<()> {
+    apply_stashed_changes(path, stashed)
+}
+
+fn restore_created_branch(
+    path: &str,
+    original: &str,
+    _created: &str,
+    stashed: &Option<String>,
+) -> Result<()> {
+    core_git::checkout_branch(path, original).with_context(|| {
+        format!("Could not restore {original} at {path}; recovery stash {stashed:?} retained")
+    })?;
+    restore_stashed_main(path, stashed)
 }
 
 fn filesystem_entry_is_missing(path: &str) -> bool {

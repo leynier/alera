@@ -46,11 +46,61 @@ pub fn requested_workspace_id(explicit: Option<&str>) -> Option<String> {
         .or_else(workspace_id_env)
 }
 
+pub async fn resolve_requested_workspace_id(
+    runtime: &RuntimeDirArgs,
+    explicit: Option<&str>,
+) -> Result<Option<String>> {
+    if let Some(id) = explicit.map(str::trim).filter(|id| !id.is_empty()) {
+        return Ok(Some(id.to_string()));
+    }
+    let tab_id = std::env::var("ALERA_TAB_ID").ok();
+    let session_id = std::env::var("ALERA_TERMINAL_SESSION_ID").ok();
+    if tab_id.is_none() && session_id.is_none() {
+        return Ok(workspace_id_env());
+    }
+    let store = RuntimeStore::open(&crate::runtime_dir(runtime)).await?;
+    resolve_tab_workspace(
+        &store,
+        tab_id.as_deref(),
+        session_id.as_deref(),
+        workspace_id_env().as_deref(),
+    )
+    .await
+    .map(Some)
+}
+
+async fn resolve_tab_workspace(
+    store: &RuntimeStore,
+    tab_id: Option<&str>,
+    session_id: Option<&str>,
+    launched_workspace: Option<&str>,
+) -> Result<String> {
+    let (Some(tab_id), Some(session_id)) = (tab_id, session_id) else {
+        bail!("Terminal identity is incomplete. Pass an explicit workspace ID.");
+    };
+    let tab = store
+        .find_workspace_tab(tab_id)
+        .await?
+        .ok_or_else(|| anyhow!("Terminal tab no longer exists. Pass an explicit workspace ID."))?;
+    if tab.payload["terminalSessionId"].as_str().unwrap_or(&tab.id) != session_id {
+        bail!("Terminal session identity changed. Pass an explicit workspace ID.");
+    }
+    if launched_workspace.is_some_and(|id| {
+        id != tab.workspace_id
+            && !tab.payload["handoffSourceWorkspaceIds"]
+                .as_array()
+                .is_some_and(|ids| ids.iter().any(|value| value.as_str() == Some(id)))
+    }) {
+        bail!("Terminal workspace identity does not match the stored owner. Pass an explicit workspace ID.");
+    }
+    Ok(tab.workspace_id)
+}
+
 pub async fn resolve_workspace_context(
     runtime: &RuntimeDirArgs,
     workspace_id: Option<&str>,
 ) -> Result<WorkspaceContext> {
-    let Some(workspace_id) = requested_workspace_id(workspace_id) else {
+    let Some(workspace_id) = resolve_requested_workspace_id(runtime, workspace_id).await? else {
         bail!(
             "--workspace is required (or run inside an Alera terminal where ALERA_WORKSPACE_ID is set)."
         );
@@ -67,7 +117,10 @@ pub async fn resolve_optional_workspace_context(
     runtime: &RuntimeDirArgs,
     workspace_id: Option<&str>,
 ) -> Result<Option<WorkspaceContext>> {
-    if requested_workspace_id(workspace_id).is_none() {
+    if resolve_requested_workspace_id(runtime, workspace_id)
+        .await?
+        .is_none()
+    {
         return Ok(None);
     }
     resolve_workspace_context(runtime, workspace_id)

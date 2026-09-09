@@ -144,6 +144,9 @@ void _registerRuntimeManagedWorkspaceClientTests() {
     () async {
       final client = _FakeRuntimeHostClient();
       final repository = RuntimeManagedWorkspaceClient(client);
+      client.responses['status.get'] = <String, Object?>{
+        'runtimeCapabilities': <String>[aleraRuntimeHostSafeHandoffCapability],
+      };
       client.responses['workspace.handOff'] = <String, Object?>{
         'workspace': _workspaceJson(id: 'workspace-child'),
         'setupReport': <String, Object?>{'steps': <Object?>[]},
@@ -219,9 +222,47 @@ void _registerRuntimeManagedWorkspaceClientTests() {
     expect(client.payloads['workspace.createManaged'], isNull);
   });
 
+  for (final capabilities in <Object?>[
+    null,
+    <String>[],
+    <String>['unrelatedCapabilityV1'],
+    'safeWorkspaceHandoffV1',
+  ]) {
+    test(
+      'RuntimeManagedWorkspaceClient refuses unsafe transfer capabilities: $capabilities',
+      () async {
+        final client = _FakeRuntimeHostClient();
+        final repository = RuntimeManagedWorkspaceClient(client);
+        client.responses['status.get'] = <String, Object?>{
+          'runtimeCapabilities': capabilities,
+        };
+        final workspace = _workspace(id: 'workspace-1', projectId: 'project-1');
+
+        await expectLater(
+          repository.handOffWorkspace(
+            workspace: workspace,
+            branch: 'feature/safe-transfer',
+            reuseExistingBranch: false,
+          ),
+          throwsA(isA<WorkspaceException>()),
+        );
+        await expectLater(
+          repository.handOnWorkspace(workspace: workspace),
+          throwsA(isA<WorkspaceException>()),
+        );
+
+        expect(client.payloads['workspace.handOff'], isNull);
+        expect(client.payloads['workspace.handOn'], isNull);
+      },
+    );
+  }
+
   test('RuntimeManagedWorkspaceClient hands on through the host RPC', () async {
     final client = _FakeRuntimeHostClient();
     final repository = RuntimeManagedWorkspaceClient(client);
+    client.responses['status.get'] = <String, Object?>{
+      'runtimeCapabilities': <String>[aleraRuntimeHostSafeHandoffCapability],
+    };
     client.responses['workspace.handOn'] = <String, Object?>{
       'workspace': _workspaceJson(id: 'workspace-main'),
       'removedWorkspaceId': 'workspace-child',

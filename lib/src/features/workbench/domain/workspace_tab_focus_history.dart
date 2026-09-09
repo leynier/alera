@@ -41,6 +41,14 @@ class WorkspaceTabFocusHistory({this.limit = 50}) {
   /// goes away, so a removed workspace cannot leak focus into the id space of
   /// a later one.
   void forget(String workspaceId) => _byWorkspace.remove(workspaceId);
+
+  void transfer(String sourceId, String destinationId, Set<String> tabIds) {
+    final source = _byWorkspace[sourceId] ?? const <String>[];
+    for (final id in source.where(tabIds.contains).toList().reversed) {
+      record(destinationId, id);
+    }
+    _byWorkspace[sourceId]?.removeWhere(tabIds.contains);
+  }
 }
 
 /// [layout] with focus moved to the most recently used tab that is still open.

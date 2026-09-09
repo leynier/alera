@@ -12,6 +12,9 @@ use super::{
     ManagedWorkspaceHandOnRequest,
 };
 
+#[path = "managed_workspace_handoff_regressions.rs"]
+mod regressions;
+
 #[tokio::test]
 async fn hand_off_moves_dirty_main_work_into_a_child_worktree() {
     let fixture = Fixture::new().await;

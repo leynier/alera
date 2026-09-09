@@ -95,6 +95,7 @@ async fn hand_off_chdirs_a_live_shell_and_skips_a_dead_pty() {
     actor.relocate_sessions_after_handoff(
         WorkspaceHandoffDirection::HandOff,
         "main",
+        "child",
         "/repo",
         "/worktrees/feat",
     );
@@ -109,7 +110,7 @@ async fn hand_off_chdirs_a_live_shell_and_skips_a_dead_pty() {
     );
     assert_eq!(
         actor.sessions.get("dead").unwrap().working_directory,
-        "/repo"
+        "/worktrees/feat"
     );
 }
 
@@ -133,6 +134,7 @@ async fn hand_off_notifies_an_awake_agent_instead_of_sending_cd() {
     actor.relocate_sessions_after_handoff(
         WorkspaceHandoffDirection::HandOff,
         "main",
+        "child",
         "/repo",
         "/worktrees/feat",
     );
@@ -152,7 +154,7 @@ async fn hand_off_notifies_an_awake_agent_instead_of_sending_cd() {
 }
 
 #[tokio::test]
-async fn hand_on_chdirs_shells_on_the_child_and_main_shells_still_in_the_child_path() {
+async fn hand_on_moves_only_source_owned_sessions() {
     let dir = tempfile::tempdir().unwrap();
     let mut child_shell = Session::driver_test_stub("child-shell", 80, 24);
     child_shell.workspace_id = "child".into();
@@ -172,10 +174,11 @@ async fn hand_on_chdirs_shells_on_the_child_and_main_shells_still_in_the_child_p
     )
     .await;
 
-    actor.relocate_sessions_after_hand_on("child", "/worktrees/feat", "/repo");
+    actor.relocate_sessions_after_hand_on("child", "main", "/worktrees/feat", "/repo");
 
     assert_eq!(recv_write(&child_rx).bytes, handoff_chdir_bytes("/repo"));
-    assert_eq!(recv_write(&main_rx).bytes, handoff_chdir_bytes("/repo"));
+    assert!(main_rx.try_recv().is_err());
+    assert_eq!(actor.sessions["child-shell"].workspace_id, "main");
 }
 
 #[tokio::test]
@@ -195,7 +198,7 @@ async fn hand_on_notifies_an_idle_agent_with_deferred_enter() {
         .agent_presence
         .update("agent", "codex".into(), AgentPresenceState::Done);
 
-    actor.relocate_sessions_after_hand_on("child", "/worktrees/feat", "/repo");
+    actor.relocate_sessions_after_hand_on("child", "main", "/worktrees/feat", "/repo");
 
     let write = recv_write(&agent_rx);
     let expected = handoff_notify_message(
@@ -225,12 +228,13 @@ async fn relocate_does_not_fail_when_every_session_must_be_skipped() {
     actor.relocate_sessions_after_handoff(
         WorkspaceHandoffDirection::HandOff,
         "main",
+        "child",
         "/repo",
         "/worktrees/feat",
     );
 
     assert_eq!(
         actor.sessions.get("no-writer").unwrap().working_directory,
-        "."
+        "/worktrees/feat"
     );
 }

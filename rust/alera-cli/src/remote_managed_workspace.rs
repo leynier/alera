@@ -157,6 +157,27 @@ pub(crate) async fn remove_remote_managed_workspace<E: RemoteHostExecutor>(
     branch_to_delete: Option<&str>,
     executor: &E,
 ) -> Result<()> {
+    run_remote_workspace_removal(store, workspace, project, branch_to_delete, executor, false).await
+}
+
+pub(crate) async fn validate_remote_workspace_removal<E: RemoteHostExecutor>(
+    store: &RuntimeStore,
+    workspace: &Workspace,
+    project: &Project,
+    branch: Option<&str>,
+    executor: &E,
+) -> Result<()> {
+    run_remote_workspace_removal(store, workspace, project, branch, executor, true).await
+}
+
+async fn run_remote_workspace_removal<E: RemoteHostExecutor>(
+    store: &RuntimeStore,
+    workspace: &Workspace,
+    project: &Project,
+    branch_to_delete: Option<&str>,
+    executor: &E,
+    preflight_only: bool,
+) -> Result<()> {
     let target = require_bootstrapped_ssh_target(store, &workspace.host_id).await?;
     let windows = probe_or_unreachable(executor, &target).await?;
     let platform = if windows { "windows" } else { "posix" };
@@ -181,12 +202,12 @@ pub(crate) async fn remove_remote_managed_workspace<E: RemoteHostExecutor>(
         &workspace_root,
         &[&format!("{}-{}.git", project_slug, project.id)],
     );
-    let script = crate::remote_managed_workspace_remove_script::remove_worktree_script(
-        windows,
-        &repo_path,
-        &workspace.path,
-        branch_to_delete,
-    );
+    let script_builder = if preflight_only {
+        crate::remote_managed_workspace_remove_script::validate_worktree_removal_script
+    } else {
+        crate::remote_managed_workspace_remove_script::remove_worktree_script
+    };
+    let script = script_builder(windows, &repo_path, &workspace.path, branch_to_delete);
     executor
         .run(&target, windows, &script)
         .await

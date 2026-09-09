@@ -255,17 +255,13 @@ async fn prepare_hand_on_does_not_relocate_sessions() {
 }
 
 #[tokio::test]
-async fn prepare_hand_on_failure_does_not_relocate_sessions() {
+async fn prepare_hand_on_preserves_live_sessions_without_close_consent() {
     let mut fixture = Fixture::new().await;
     let child_rx = fixture.insert_live_child_shell();
     let shell_rx = fixture.insert_main_shell_in_child();
     let child_path = fixture.child.path.clone();
 
-    let error = match fixture.prepare_hand_on(false).await {
-        Err(error) => error,
-        Ok(_) => panic!("expected prepare to fail while a child session is live"),
-    };
-    assert!(error.to_string().to_lowercase().contains("live"), "{error}");
+    fixture.prepare_hand_on(false).await.unwrap();
 
     assert_no_write(&child_rx);
     assert_no_write(&shell_rx);
@@ -339,6 +335,9 @@ async fn successful_hand_on_relocates_and_notifies() {
     let mut fixture = Fixture::new().await;
     let shell_rx = fixture.insert_main_shell_in_child();
     let agent_rx = fixture.insert_main_agent_in_child();
+    for session in fixture.actor.sessions.values_mut() {
+        session.workspace_id = fixture.child.id.clone();
+    }
     let child_path = fixture.child.path.clone();
     let main_path = fixture.main_path.clone();
 

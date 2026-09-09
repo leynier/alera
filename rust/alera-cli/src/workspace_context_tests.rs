@@ -89,6 +89,65 @@ async fn resolve_loads_the_workspace_from_the_runtime_store() {
 
 struct EnvLock;
 
+#[tokio::test]
+async fn stable_terminal_identity_resolves_handoff_and_handon_owners() {
+    use alera_core::runtime::WorkspaceTabRecord;
+    use serde_json::json;
+    let dir = tempfile::tempdir().unwrap();
+    let store = RuntimeStore::open(dir.path()).await.unwrap();
+    let mut tab = WorkspaceTabRecord {
+        id: "stable-tab".into(),
+        workspace_id: "child".into(),
+        kind: "terminal".into(),
+        title: "Agent".into(),
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
+        payload: json!({"terminalSessionId":"pty", "handoffSourceWorkspaceIds":["main"]}),
+    };
+    store.upsert_workspace_tab(tab.clone()).await.unwrap();
+    assert_eq!(
+        super::resolve_tab_workspace(&store, Some("stable-tab"), Some("pty"), Some("main"))
+            .await
+            .unwrap(),
+        "child"
+    );
+    tab.workspace_id = "main".into();
+    tab.payload["handoffSourceWorkspaceIds"] = json!(["main", "child"]);
+    store.upsert_workspace_tab(tab).await.unwrap();
+    assert_eq!(
+        super::resolve_tab_workspace(&store, Some("stable-tab"), Some("pty"), Some("child"))
+            .await
+            .unwrap(),
+        "main"
+    );
+    assert!(super::resolve_tab_workspace(
+        &store,
+        Some("stable-tab"),
+        Some("another-pty"),
+        Some("child")
+    )
+    .await
+    .is_err());
+    assert!(super::resolve_tab_workspace(
+        &store,
+        Some("stable-tab"),
+        Some("pty"),
+        Some("unrelated")
+    )
+    .await
+    .is_err());
+    let runtime = crate::cli::RuntimeDirArgs {
+        runtime_dir: Some(dir.path().to_string_lossy().into_owned()),
+    };
+    assert_eq!(
+        super::resolve_requested_workspace_id(&runtime, Some("explicit"))
+            .await
+            .unwrap()
+            .as_deref(),
+        Some("explicit")
+    );
+}
+
 impl Drop for EnvLock {
     fn drop(&mut self) {
         std::env::remove_var("ALERA_WORKSPACE_ID");

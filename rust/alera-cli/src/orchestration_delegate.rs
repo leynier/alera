@@ -6,7 +6,7 @@ use crate::cli::RuntimeDirArgs;
 use crate::cli_orchestration::OrchestrationDelegateArgs;
 use crate::orchestration_commands::{
     request_value, request_value_with_capability, terminal_handle_env, usage_error,
-    workspace_id_env, WAIT_CLIENT_GRACE_MS,
+    WAIT_CLIENT_GRACE_MS,
 };
 use crate::orchestration_terminal_commands::{
     reconcile_agent_spawn_failure, terminal_wait_outcome,
@@ -93,7 +93,9 @@ async fn run_inner(
         .filter(|value| !value.is_empty())
     {
         workspace.to_string()
-    } else if let Some(workspace) = workspace_id_env() {
+    } else if let Some(workspace) =
+        crate::workspace_context::resolve_requested_workspace_id(runtime, None).await?
+    {
         workspace
     } else {
         return Ok(usage_error(

@@ -188,6 +188,21 @@ class AgentStatusController extends _$AgentStatusController
     state = next;
   }
 
+  void transferSessions(
+    String sourceId,
+    String destinationId,
+    Set<String> sessionIds,
+  ) {
+    state = {
+      for (final entry in state.entries)
+        entry.key:
+            entry.value.workspaceId == sourceId &&
+                sessionIds.contains(entry.key)
+            ? entry.value.copyWith(workspaceId: destinationId)
+            : entry.value,
+    };
+  }
+
   /// Merges the host's presence snapshot over local state.
   ///
   /// The host keeps a `working` presence for the life of the PTY when a

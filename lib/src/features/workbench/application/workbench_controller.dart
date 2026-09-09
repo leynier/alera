@@ -24,6 +24,7 @@ import 'package:alera/src/features/workbench/application/workspace_graph_reposit
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
+import 'package:alera/src/features/workbench/domain/workspace_transfer_layout.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
@@ -44,6 +45,7 @@ part 'workbench_controller_tab_opening.dart';
 part 'workbench_controller_file_tabs.dart';
 part 'workbench_controller_pull_request_diff_tabs.dart';
 part 'workbench_controller_workspace_creation.dart';
+part 'workbench_controller_transfer.dart';
 part 'workbench_controller_tabs.dart';
 part 'workbench_controller_view_prefs.dart';
 part 'workbench_controller_sync.dart';
@@ -61,6 +63,7 @@ class WorkbenchController extends _$WorkbenchController
         // Creation builds on project selection and tab opening so the prompt
         // flow can synchronize its agent before appending Setup.
         _WorkbenchControllerWorkspaceCreation,
+        _WorkbenchControllerTransfer,
         _WorkbenchControllerTabs,
         _WorkbenchControllerViewPrefs,
         _WorkbenchControllerSync,
