@@ -205,11 +205,14 @@ async fn rejects_workspace_owned_by_another_host() {
     let error = fixture.remove_managed_workspace().await.unwrap_err();
 
     assert!(
-        error.to_string().contains("ssh target not found"),
+        error
+            .to_string()
+            .contains("Workspace is not owned by the local host"),
         "{}",
         error
     );
     assert!(fixture.worktree_path.exists());
+    assert!(fixture.workspace_record().await.is_some());
 }
 
 #[cfg(unix)]

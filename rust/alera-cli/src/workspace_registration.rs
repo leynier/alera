@@ -1,12 +1,19 @@
 use alera_core::runtime::{Workspace, WorkspaceKind, WorkspaceStatus, LOCAL_HOST_ID};
+use anyhow::{bail, Result};
 use chrono::Utc;
 use uuid::Uuid;
 
 use crate::cli::{WorkspaceKindArg, WorkspaceRegisterArgs};
+use crate::ssh_remote::is_remote_host_id;
 
-pub fn from_args(args: WorkspaceRegisterArgs) -> Workspace {
+pub fn from_args(args: WorkspaceRegisterArgs) -> Result<Workspace> {
+    if is_remote_host_id(args.host_id.as_deref()) {
+        bail!(
+            "workspace register --host-id cannot stamp a remote SSH target; use `alera workspace add --host-id` to create a remote worktree"
+        );
+    }
     let now = Utc::now();
-    Workspace {
+    Ok(Workspace {
         id: args.id.unwrap_or_else(|| Uuid::new_v4().to_string()),
         instance_id: args
             .instance_id
@@ -31,5 +38,5 @@ pub fn from_args(args: WorkspaceRegisterArgs) -> Workspace {
         parent_workspace_id: None,
         section_id: None,
         child_count: 0,
-    }
+    })
 }

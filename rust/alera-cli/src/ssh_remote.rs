@@ -145,6 +145,10 @@ pub(crate) async fn remote_workspace_terminal_override(
     if !is_remote_host_id(Some(&workspace.host_id)) {
         return Ok(None);
     }
+    // Metadata-only foreign hostId on a local path must not rewrite to SSH.
+    if std::path::Path::new(&workspace.path).exists() {
+        return Ok(None);
+    }
     let target = require_bootstrapped_ssh_target(store, &workspace.host_id).await?;
     let windows = probe_or_unreachable(&LiveSshRemoteHost, &target).await?;
     Ok(Some((

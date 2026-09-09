@@ -280,14 +280,13 @@ pub(crate) async fn remove_managed_workspace_with<E: RemoteHostExecutor>(
     if workspace.kind == WorkspaceKind::Main {
         bail!("The main workspace cannot be removed");
     }
-    if is_remote_host_id(Some(&workspace.host_id)) {
-        if workspace_has_active_automation_owner(store, &workspace.id).await? {
-            bail!("Workspace is owned by an active automation");
-        }
-        return crate::remote_managed_workspace_remove::remove_remote_managed_workspace_request(
+    if let Some(removed) =
+        crate::remote_managed_workspace_remove::try_remove_remote_managed_workspace(
             store, &request, &workspace, executor,
         )
-        .await;
+        .await?
+    {
+        return Ok(removed);
     }
     let removal = managed_workspace_removal(store, &request).await?;
     let workspace = removal.workspace;
@@ -575,7 +574,7 @@ async fn validate_workspace_storage_ownership(
     Ok(())
 }
 
-fn filesystem_entry_is_missing(path: &str) -> Result<bool> {
+pub(crate) fn filesystem_entry_is_missing(path: &str) -> Result<bool> {
     match std::fs::symlink_metadata(path) {
         Ok(_) => Ok(false),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(true),

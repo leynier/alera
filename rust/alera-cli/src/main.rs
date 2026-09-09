@@ -387,7 +387,10 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
             print_value(&value, json_output, "workspace removed");
         }
         WorkspaceAction::Register(args) => {
-            let workspace = workspace_registration::from_args(args);
+            let workspace = match workspace_registration::from_args(args) {
+                Ok(workspace) => workspace,
+                Err(error) => return print_error(error),
+            };
             let fallback_workspace = workspace.clone();
             match runtime_host_or_store(
                 &runtime,
