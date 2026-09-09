@@ -130,9 +130,19 @@ class RuntimeWorkspaceFilesClient implements RuntimeWorkspaceFiles {
           'The remote file is larger than 2 MB and cannot be opened in the editor.',
         );
       }
-      final nextOffset = (payload['nextOffset'] as num?)?.toInt() ?? offset;
+      if (chunk.isEmpty) {
+        return collected;
+      }
+      final nextOffset = (payload['nextOffset'] as num?)?.toInt();
+      // A missing or non-advancing nextOffset would retry the same offset
+      // forever; the 2 MB cap only grows when later chunks append.
+      if (nextOffset == null || nextOffset <= offset) {
+        throw WorkspaceException(
+          'The remote host returned an invalid file read offset. Update the sidecar, then retry.',
+        );
+      }
       final totalBytes = (payload['totalBytes'] as num?)?.toInt() ?? nextOffset;
-      if (nextOffset >= totalBytes || chunk.isEmpty) {
+      if (nextOffset >= totalBytes) {
         return collected;
       }
       offset = nextOffset;

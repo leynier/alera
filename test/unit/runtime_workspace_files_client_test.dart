@@ -60,11 +60,7 @@ void main() {
 
   test('reads a remote text file through workspace.files.read', () async {
     final client = _FakeRuntimeHostClient()
-      ..responses['status.get'] = <String, Object?>{
-        'runtimeCapabilities': <String>[
-          aleraRuntimeHostRemoteSshWorkspacesCapability,
-        ],
-      }
+      ..responses['status.get'] = _filesCapabilityStatus()
       ..responses['workspace.files.read'] = <String, Object?>{
         'relativePath': 'readme.md',
         'offset': 0,
@@ -84,6 +80,121 @@ void main() {
     expect(file.displayContent, 'hello');
     expect(file.rawContent, 'hello');
   });
+
+  test(
+    'reads a remote text file across chunks with advancing nextOffset',
+    () async {
+      final client = _FakeRuntimeHostClient()
+        ..responses['status.get'] = _filesCapabilityStatus()
+        ..onRequest = (type, payload) {
+          if (type != 'workspace.files.read') {
+            return null;
+          }
+          final offset = payload['offset'] as int;
+          if (offset == 0) {
+            return <String, Object?>{
+              'relativePath': 'readme.md',
+              'offset': 0,
+              'nextOffset': 5,
+              'totalBytes': 11,
+              'mimeType': 'text/markdown',
+              'isText': true,
+              'dataBase64': base64Encode(utf8.encode('hello')),
+            };
+          }
+          expect(offset, 5);
+          return <String, Object?>{
+            'relativePath': 'readme.md',
+            'offset': 5,
+            'nextOffset': 11,
+            'totalBytes': 11,
+            'mimeType': 'text/markdown',
+            'isText': true,
+            'dataBase64': base64Encode(utf8.encode(' world')),
+          };
+        };
+      final files = RuntimeWorkspaceFilesClient(client);
+
+      final file = await files.readEditorTextFile(
+        workspaceId: 'workspace-1',
+        relativePath: 'readme.md',
+      );
+
+      expect(file.displayContent, 'hello world');
+      expect(file.rawContent, 'hello world');
+      expect(client.payloads['workspace.files.read'], hasLength(2));
+    },
+  );
+
+  test(
+    'throws when a remote read omits nextOffset after a non-empty chunk',
+    () async {
+      var readCalls = 0;
+      final client = _FakeRuntimeHostClient()
+        ..responses['status.get'] = _filesCapabilityStatus()
+        ..onRequest = (type, payload) {
+          if (type != 'workspace.files.read') {
+            return null;
+          }
+          readCalls += 1;
+          expect(readCalls, lessThan(4));
+          return <String, Object?>{
+            'relativePath': 'readme.md',
+            'offset': payload['offset'],
+            'totalBytes': 100,
+            'mimeType': 'text/markdown',
+            'isText': true,
+            'dataBase64': base64Encode(utf8.encode('hello')),
+          };
+        };
+      final files = RuntimeWorkspaceFilesClient(client);
+
+      await expectLater(
+        files.readEditorTextFile(
+          workspaceId: 'workspace-1',
+          relativePath: 'readme.md',
+        ),
+        throwsA(_invalidReadOffsetException),
+      );
+      expect(readCalls, 1);
+    },
+  );
+
+  test(
+    'throws when a remote read returns a non-advancing nextOffset',
+    () async {
+      var readCalls = 0;
+      final client = _FakeRuntimeHostClient()
+        ..responses['status.get'] = _filesCapabilityStatus()
+        ..onRequest = (type, payload) {
+          if (type != 'workspace.files.read') {
+            return null;
+          }
+          readCalls += 1;
+          expect(readCalls, lessThan(4));
+          final offset = payload['offset'] as int;
+          return <String, Object?>{
+            'relativePath': 'readme.md',
+            'offset': offset,
+            'nextOffset': offset,
+            'totalBytes': 100,
+            'mimeType': 'text/markdown',
+            'isText': true,
+            'dataBase64': base64Encode(utf8.encode('hello')),
+          };
+        };
+      final files = RuntimeWorkspaceFilesClient(client);
+
+      await expectLater(
+        files.readEditorTextFile(
+          workspaceId: 'workspace-1',
+          relativePath: 'readme.md',
+        ),
+        throwsA(_invalidReadOffsetException),
+      );
+      expect(readCalls, 1);
+    },
+  );
 
   test('WorkspaceFileService routes remote list and read', () async {
     final remote = _RecordingRemoteFiles();
@@ -122,6 +233,20 @@ void main() {
       throwsA(isA<WorkspaceException>()),
     );
   });
+}
+
+final Matcher _invalidReadOffsetException = isA<WorkspaceException>().having(
+  (error) => error.toString(),
+  'message',
+  contains('invalid file read offset'),
+);
+
+Map<String, Object?> _filesCapabilityStatus() {
+  return <String, Object?>{
+    'runtimeCapabilities': <String>[
+      aleraRuntimeHostRemoteSshWorkspacesCapability,
+    ],
+  };
 }
 
 Workspace _workspace({required String hostId}) {
@@ -186,6 +311,7 @@ class _RecordingRemoteFiles implements RuntimeWorkspaceFiles {
 final class _FakeRuntimeHostClient implements RuntimeHostClient {
   final responses = <String, Object?>{};
   final payloads = <String, List<Map<String, Object?>>>{};
+  Object? Function(String type, Map<String, Object?> payload)? onRequest;
   final _events = StreamController<RuntimeHostEvent>.broadcast();
 
   @override
@@ -198,6 +324,6 @@ final class _FakeRuntimeHostClient implements RuntimeHostClient {
     Duration? timeout,
   ]) async {
     payloads.putIfAbsent(type, () => <Map<String, Object?>>[]).add(payload);
-    return responses[type];
+    return onRequest?.call(type, payload) ?? responses[type];
   }
 }
