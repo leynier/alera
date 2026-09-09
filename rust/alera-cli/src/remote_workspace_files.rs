@@ -243,7 +243,12 @@ find . -maxdepth 1 -mindepth 1 -print | sort | while IFS= read -r entry; do
   elif [ -f "$name" ]; then kind=file
   else kind=other
   fi
-  size=$(wc -c < "$name" 2>/dev/null | tr -d ' ' || echo 0)
+  if [ -f "$name" ]; then
+    size=$(wc -c < "$name" 2>/dev/null | tr -d ' ')
+  else
+    size=0
+  fi
+  case "$size" in ''|*[!0-9]*) size=0 ;; esac
   hidden=false
   case "$name" in .* ) hidden=true ;; esac
   printf '{{"name":"%s","kind":"%s","size":%s,"isHidden":%s}}\n' "$(printf '%s' "$name" | sed 's/"/\\"/g')" "$kind" "$size" "$hidden"
@@ -377,6 +382,19 @@ fn parse_read_output(relative_path: &str, offset: u64, stdout: &str) -> Result<R
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn posix_list_script_emits_numeric_size_for_directories() {
+        let script = list_script(false, "/tmp");
+        assert!(
+            script.contains(r#"case "$size" in ''|*[!0-9]*) size=0 ;; esac"#),
+            "posix list script must coerce empty wc output to 0: {script}"
+        );
+        assert!(
+            script.contains(r#"if [ -f "$name" ]; then"#),
+            "posix list script must only wc regular files: {script}"
+        );
+    }
 
     #[test]
     fn parse_list_accepts_ndjson() {
