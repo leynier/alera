@@ -246,6 +246,18 @@ impl ServerActor {
         }
         self.disarm_terminal_pulse(&session_id);
         self.account_push.damper.reset_session(&session_id);
+        let mut working_directory = working_directory;
+        if let Some((remote_launch, remote_cwd)) =
+            crate::ssh_remote::remote_workspace_terminal_override(
+                &self.runtime_store,
+                &workspace_id,
+            )
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?
+        {
+            launch = remote_launch;
+            working_directory = remote_cwd;
+        }
         let mut agent_settings = self
             .runtime_store
             .agent_status_hook_settings()

@@ -24,6 +24,7 @@ mod managed_workspace;
 mod managed_workspace_handoff;
 #[cfg(test)]
 mod managed_workspace_removal_tests;
+mod managed_workspace_slug;
 mod mobile_access;
 mod native_credential_entry;
 mod netbird;
@@ -35,17 +36,24 @@ mod project_config_toml;
 mod project_management;
 #[cfg(windows)]
 mod pty_job_bootstrap;
+mod remote_managed_workspace;
+mod remote_managed_workspace_git;
+mod remote_managed_workspace_remove;
+mod remote_managed_workspace_remove_script;
+mod remote_workspace_files;
 mod runtime_archive;
 mod runtime_clear;
 mod runtime_commands;
 mod runtime_host_client;
 mod runtime_host_command;
 mod ssh_bootstrap;
+mod ssh_remote;
 mod ssh_target_status;
 mod tab_record_factory;
 mod tailscale;
 mod terminal_alias_commands;
 mod terminal_host;
+mod workspace_add;
 mod workspace_context;
 mod workspace_handoff;
 mod workspace_pinning;
@@ -76,7 +84,7 @@ use crate::cli::{
     CascadePreviewArgs, Cli, Command, IdArgs, ProjectAction, ProjectAddArgs, ProjectCommand,
     ProjectKindArg, RuntimeDirArgs, SshAuthKindArg, SshTargetAction, SshTargetAddArgs,
     SshTargetBootstrapArgs, SshTargetBootstrapPlanArgs, SshTargetCommand, SshTargetStatusArgs,
-    TabAction, TabCommand, WorkspaceAction, WorkspaceAddArgs, WorkspaceCommand,
+    TabAction, TabCommand, WorkspaceAction, WorkspaceCommand,
 };
 use crate::cli::{MobileAction, MobileCommand, MobileDevicesAction, MobilePairingAction};
 use crate::cli::{TerminalAction, TerminalCommand};
@@ -343,21 +351,7 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
             return workspace_handoff::run_hand_on(runtime, args, json_output).await;
         }
         WorkspaceAction::Add(args) => {
-            let payload = match workspace_add_payload(args) {
-                Ok(payload) => payload,
-                Err(error) => return print_error(error),
-            };
-            let value: Value = match runtime_host_required(&runtime).await {
-                Ok(mut client) => match client
-                    .request_value("workspace.createManaged", &payload)
-                    .await
-                {
-                    Ok(value) => value,
-                    Err(error) => return print_error(error),
-                },
-                Err(error) => return print_error(error),
-            };
-            print_value(&value, json_output, "workspace created");
+            return workspace_add::run(runtime, args, json_output).await;
         }
         WorkspaceAction::Setup(args) => {
             let client = match runtime_host_required(&runtime).await {
@@ -394,7 +388,10 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
             print_value(&value, json_output, "workspace removed");
         }
         WorkspaceAction::Register(args) => {
-            let workspace = workspace_registration::from_args(args);
+            let workspace = match workspace_registration::from_args(args) {
+                Ok(workspace) => workspace,
+                Err(error) => return print_error(error),
+            };
             let fallback_workspace = workspace.clone();
             match runtime_host_or_store(
                 &runtime,
@@ -979,7 +976,9 @@ where
     store_operation(open_store(args).await?).await
 }
 
-async fn runtime_host_required(args: &RuntimeDirArgs) -> anyhow::Result<RuntimeHostRpcClient> {
+pub(crate) async fn runtime_host_required(
+    args: &RuntimeDirArgs,
+) -> anyhow::Result<RuntimeHostRpcClient> {
     RuntimeHostRpcClient::connect_or_start(&runtime_dir(args)).await
 }
 
@@ -1215,20 +1214,6 @@ fn host_accessible_path(value: String, current_dir: &Path) -> PathBuf {
     }
 }
 
-fn workspace_add_payload(args: WorkspaceAddArgs) -> anyhow::Result<Value> {
-    Ok(json!({
-        "id": args.id,
-        "projectId": args.project_id,
-        "name": args.name,
-        "branch": args.branch,
-        "sourceBranch": args.source_branch,
-        "reuseExistingBranch": args.reuse_existing_branch,
-        "workspaceRoot": host_accessible_optional_string_path(args.workspace_root)?,
-        "path": host_accessible_optional_string_path(args.path)?,
-        "parentWorkspaceId": args.parent_workspace_id,
-    }))
-}
-
 pub(crate) fn host_accessible_optional_string_path(
     value: Option<String>,
 ) -> anyhow::Result<Option<String>> {
@@ -1246,7 +1231,7 @@ pub(crate) fn host_accessible_optional_string_path(
     ))
 }
 
-fn normalized_workspace_path_value(value: &str) -> Option<String> {
+pub(crate) fn normalized_workspace_path_value(value: &str) -> Option<String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
         None

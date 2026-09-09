@@ -282,6 +282,7 @@ impl ServerActor {
                     workspace_root: None,
                     path: None,
                     parent_workspace_id: Some(source_workspace.id.clone()),
+                    host_id: None,
                     defer_setup: definition.setup_policy != AutomationSetupPolicy::Wait,
                     skip_setup: definition.setup_policy == AutomationSetupPolicy::Skip,
                     setup_script_directory: (definition.setup_policy

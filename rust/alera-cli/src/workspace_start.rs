@@ -24,6 +24,7 @@ pub struct InferredWorkspaceCreate {
     pub parent_workspace_id: Option<String>,
     pub no_parent: bool,
     pub from_workspace: Option<String>,
+    pub host_id: Option<String>,
 }
 
 pub async fn run(runtime: RuntimeDirArgs, args: WorkspaceStartArgs, json_output: bool) -> i32 {
@@ -40,9 +41,14 @@ async fn run_inner(
     json_output: bool,
 ) -> Result<bool> {
     let prompt = args.prompt.read()?;
+    let required = if crate::ssh_remote::is_remote_host_id(args.host_id.as_deref()) {
+        crate::terminal_host::protocol::RUNTIME_HOST_REMOTE_SSH_WORKSPACES_CAPABILITY
+    } else {
+        RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY
+    };
     let mut client = RuntimeHostRpcClient::connect_or_start_with_required_capability(
         &crate::runtime_dir(runtime),
-        RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+        required,
     )
     .await?;
     let profile = resolve_selected_profile(&mut client, &args.selector).await?;
@@ -60,6 +66,7 @@ async fn run_inner(
             parent_workspace_id: args.parent_workspace_id,
             no_parent: args.no_parent,
             from_workspace: args.workspace,
+            host_id: args.host_id,
         },
         &prompt,
     )
@@ -166,6 +173,7 @@ pub async fn create_inferred_workspace(
         request.name,
     )
     .await?;
+    let remote = crate::ssh_remote::is_remote_host_id(request.host_id.as_deref());
     let payload = json!({
         "id": request.id,
         "projectId": project_id,
@@ -173,9 +181,18 @@ pub async fn create_inferred_workspace(
         "branch": branch,
         "sourceBranch": source_branch,
         "reuseExistingBranch": false,
-        "workspaceRoot": crate::host_accessible_optional_string_path(request.workspace_root)?,
-        "path": crate::host_accessible_optional_string_path(request.path)?,
+        "workspaceRoot": if remote {
+            request.workspace_root
+        } else {
+            crate::host_accessible_optional_string_path(request.workspace_root)?
+        },
+        "path": if remote {
+            request.path
+        } else {
+            crate::host_accessible_optional_string_path(request.path)?
+        },
         "parentWorkspaceId": parent_workspace_id,
+        "hostId": request.host_id,
     });
     client
         .request_value("workspace.createManaged", &payload)

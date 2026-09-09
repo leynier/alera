@@ -74,7 +74,9 @@ impl ServerActor {
             | "mobile.workspaceSearch.run"
             | "mobile.git.status"
             | "mobile.git.diff"
-            | "mobile.pullRequest.snapshot" => {
+            | "mobile.pullRequest.snapshot"
+            | "workspace.files.list"
+            | "workspace.files.read" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 self.start_mobile_workspace_file_request(

@@ -16,7 +16,7 @@ pub struct WorkspaceCommand {
 pub enum WorkspaceAction {
     /// List workspaces for one project or all projects.
     List(WorkspaceListArgs),
-    /// Create a local Alera-managed Git worktree. There is no --host-id; this does not target SSH hosts.
+    /// Create an Alera-managed Git worktree. Pass --host-id to create it on a bootstrapped SSH target.
     Add(WorkspaceAddArgs),
     /// Create a managed workspace and launch a declared agent profile.
     Start(WorkspaceStartArgs),
@@ -78,6 +78,9 @@ pub struct WorkspaceAddArgs {
     pub path: Option<String>,
     #[arg(long = "parent-workspace-id")]
     pub parent_workspace_id: Option<String>,
+    /// Bootstrapped SSH target that should own the Git worktree. Omit for the local host.
+    #[arg(long = "host-id")]
+    pub host_id: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -108,6 +111,9 @@ pub struct WorkspaceStartArgs {
     /// Do not link the new workspace to the current workspace.
     #[arg(long = "no-parent")]
     pub no_parent: bool,
+    /// Bootstrapped SSH target that should own the Git worktree. Omit for the local host.
+    #[arg(long = "host-id")]
+    pub host_id: Option<String>,
     /// Stable mutation id used to retry the profile launch.
     #[arg(long = "client-mutation-id", value_name = "id")]
     pub client_mutation_id: Option<String>,

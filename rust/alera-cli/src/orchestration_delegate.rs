@@ -70,6 +70,7 @@ async fn run_inner(
                     parent_workspace_id: args.parent_workspace_id,
                     no_parent: args.no_parent,
                     from_workspace: args.from_workspace,
+                    host_id: None,
                 },
                 &spec,
             )

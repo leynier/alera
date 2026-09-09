@@ -241,6 +241,7 @@ async fn create_child_from_existing_branch(
             workspace_root: request.workspace_root.clone(),
             path: request.path.clone(),
             parent_workspace_id: Some(main.id.clone()),
+            host_id: None,
             defer_setup: request.defer_setup,
             skip_setup: false,
             setup_script_directory: request.setup_script_directory.clone(),

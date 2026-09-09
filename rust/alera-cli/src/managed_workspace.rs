@@ -16,6 +16,10 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::remote_managed_workspace::create_remote_managed_workspace;
+use crate::ssh_remote::{
+    is_remote_host_id, normalized_host_id, LiveSshRemoteHost, RemoteHostExecutor,
+};
 use crate::worktree_setup::{prepare_deferred_worktree_setup, run_worktree_setup};
 
 #[derive(Debug, Deserialize)]
@@ -37,6 +41,10 @@ pub struct ManagedWorkspaceCreateRequest {
     pub path: Option<String>,
     #[serde(default)]
     pub parent_workspace_id: Option<String>,
+    /// SSH target id for a remote Git worktree. Omitted or `local` creates
+    /// the worktree on this machine. Additive: older hosts ignore the field.
+    #[serde(default)]
+    pub host_id: Option<String>,
     /// Asks the host to prepare the worktree setup instead of running it, so
     /// the caller can show it in a terminal. Defaults to running it inline,
     /// which is what the `alera` CLI and the mobile gateway still want.
@@ -84,6 +92,14 @@ struct ManagedWorkspaceRemoval {
 pub async fn create_managed_workspace(
     store: &RuntimeStore,
     request: ManagedWorkspaceCreateRequest,
+) -> Result<WorkspaceCreationResult> {
+    create_managed_workspace_with(store, request, &LiveSshRemoteHost).await
+}
+
+pub(crate) async fn create_managed_workspace_with<E: RemoteHostExecutor>(
+    store: &RuntimeStore,
+    request: ManagedWorkspaceCreateRequest,
+    executor: &E,
 ) -> Result<WorkspaceCreationResult> {
     let project = store
         .find_project(&request.project_id)
@@ -148,6 +164,10 @@ pub async fn create_managed_workspace(
         .filter(|value| !value.is_empty())
         .unwrap_or(&branch)
         .to_string();
+    let host_id = normalized_host_id(request.host_id.as_deref());
+    if is_remote_host_id(Some(&host_id)) {
+        return create_remote_managed_workspace(store, request, &project, &host_id, executor).await;
+    }
     let workspace_path = resolve_workspace_path(store, &project, &display_name, &request).await?;
     if workspaces
         .iter()
@@ -245,6 +265,29 @@ pub async fn remove_managed_workspace(
     store: &RuntimeStore,
     request: ManagedWorkspaceRemoveRequest,
 ) -> Result<Workspace> {
+    remove_managed_workspace_with(store, request, &LiveSshRemoteHost).await
+}
+
+pub(crate) async fn remove_managed_workspace_with<E: RemoteHostExecutor>(
+    store: &RuntimeStore,
+    request: ManagedWorkspaceRemoveRequest,
+    executor: &E,
+) -> Result<Workspace> {
+    let workspace = store
+        .find_workspace(&request.id)
+        .await?
+        .ok_or_else(|| anyhow!("Workspace not found: {}", request.id))?;
+    if workspace.kind == WorkspaceKind::Main {
+        bail!("The main workspace cannot be removed");
+    }
+    if let Some(removed) =
+        crate::remote_managed_workspace_remove::try_remove_remote_managed_workspace(
+            store, &request, &workspace, executor,
+        )
+        .await?
+    {
+        return Ok(removed);
+    }
     let removal = managed_workspace_removal(store, &request).await?;
     let workspace = removal.workspace;
     let project = removal.project;
@@ -531,7 +574,7 @@ async fn validate_workspace_storage_ownership(
     Ok(())
 }
 
-fn filesystem_entry_is_missing(path: &str) -> Result<bool> {
+pub(crate) fn filesystem_entry_is_missing(path: &str) -> Result<bool> {
     match std::fs::symlink_metadata(path) {
         Ok(_) => Ok(false),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(true),
@@ -601,13 +644,13 @@ async fn resolve_workspace_path(
             .filter(|value| !value.trim().is_empty())
             .unwrap_or_else(default_workspace_root),
     };
-    let project_slug = slugify(
+    let project_slug = crate::managed_workspace_slug::slugify(
         Path::new(&project.repo_path)
             .file_name()
             .and_then(|value| value.to_str())
             .unwrap_or(&project.name),
     )?;
-    let workspace_slug = slugify(display_name)?;
+    let workspace_slug = crate::managed_workspace_slug::slugify(display_name)?;
     Ok(PathBuf::from(root)
         .join(format!("{project_slug}-{}", project.id))
         .join(workspace_slug)
@@ -630,37 +673,6 @@ fn default_workspace_root() -> String {
         .join("workspaces")
         .to_string_lossy()
         .to_string()
-}
-
-fn slugify(input: &str) -> Result<String> {
-    let mut output = String::new();
-    let mut last_dash = false;
-    for ch in input.trim().to_lowercase().chars() {
-        let next = if ch.is_ascii_alphanumeric() {
-            last_dash = false;
-            Some(ch)
-        } else if ch.is_whitespace() || ch == '_' || ch == '/' || ch == '-' {
-            if last_dash {
-                None
-            } else {
-                last_dash = true;
-                Some('-')
-            }
-        } else if last_dash {
-            None
-        } else {
-            last_dash = true;
-            Some('-')
-        };
-        if let Some(next) = next {
-            output.push(next);
-        }
-    }
-    let trimmed = output.trim_matches('-').to_string();
-    if trimmed.is_empty() {
-        bail!("Workspace name must contain a letter or digit");
-    }
-    Ok(trimmed)
 }
 
 fn path_equals(left: &str, right: &str) -> bool {
@@ -697,13 +709,19 @@ mod tests {
     };
     use chrono::Utc;
 
-    use super::{create_managed_workspace, slugify, ManagedWorkspaceCreateRequest};
+    use super::{create_managed_workspace, ManagedWorkspaceCreateRequest};
 
     #[test]
     fn slugify_matches_workspace_path_segments() {
-        assert_eq!(slugify("Feature/Coverage").unwrap(), "feature-coverage");
-        assert_eq!(slugify("  Fix UI  State  ").unwrap(), "fix-ui-state");
-        assert!(slugify("///").is_err());
+        assert_eq!(
+            crate::managed_workspace_slug::slugify("Feature/Coverage").unwrap(),
+            "feature-coverage"
+        );
+        assert_eq!(
+            crate::managed_workspace_slug::slugify("  Fix UI  State  ").unwrap(),
+            "fix-ui-state"
+        );
+        assert!(crate::managed_workspace_slug::slugify("///").is_err());
     }
 
     #[tokio::test]
@@ -766,6 +784,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: false,
                 skip_setup: false,
                 setup_script_directory: None,
@@ -816,6 +835,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: Some("missing-parent".to_string()),
+                host_id: None,
                 defer_setup: false,
                 skip_setup: false,
                 setup_script_directory: None,
@@ -891,6 +911,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: Some("parent".to_string()),
+                host_id: None,
                 defer_setup: false,
                 skip_setup: false,
                 setup_script_directory: None,
@@ -933,6 +954,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: true,
                 skip_setup: false,
                 setup_script_directory: Some(scripts.clone()),
@@ -952,13 +974,14 @@ mod tests {
             "workspace-deferred",
             cfg!(windows),
         );
-        assert!(script.exists(), "{}", script.display());
-        assert!(command.contains(&script.display().to_string()), "{command}");
+        // Avoid formatting paths into assert messages (CodeQL cleartext-logging FP).
+        assert!(script.exists());
+        assert!(command.contains(&script.display().to_string()));
         let contents = std::fs::read_to_string(&script).unwrap();
-        assert!(contents.contains("pnpm install"), "{contents}");
-        assert!(contents.contains("pnpm build"), "{contents}");
-        assert!(contents.contains("--copies-only"), "{contents}");
-        assert!(!contents.contains("&&"), "{contents}");
+        assert!(contents.contains("pnpm install"));
+        assert!(contents.contains("pnpm build"));
+        assert!(contents.contains("--copies-only"));
+        assert!(!contents.contains("&&"));
     }
 
     #[tokio::test]
@@ -983,6 +1006,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: true,
                 skip_setup: false,
                 setup_script_directory: Some(scripts.clone()),
@@ -1018,6 +1042,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: true,
                 skip_setup: false,
                 setup_script_directory: Some(dir.path().join("scripts")),
@@ -1058,6 +1083,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: true,
                 skip_setup: false,
                 setup_script_directory: Some(dir.path().join("scripts")),
@@ -1107,6 +1133,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: true,
                 skip_setup: false,
                 setup_script_directory: Some(dir.path().join("scripts")),
@@ -1152,6 +1179,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: true,
                 skip_setup: false,
                 setup_script_directory: Some(scripts.clone()),
@@ -1166,10 +1194,11 @@ mod tests {
             "workspace-include-only",
             cfg!(windows),
         );
-        assert!(script.exists(), "{}", script.display());
-        assert!(command.contains(&script.display().to_string()), "{command}");
+        // Avoid formatting paths into assert messages (CodeQL cleartext-logging FP).
+        assert!(script.exists());
+        assert!(command.contains(&script.display().to_string()));
         let contents = std::fs::read_to_string(&script).unwrap();
-        assert!(contents.contains("--copies-only"), "{contents}");
+        assert!(contents.contains("--copies-only"));
     }
 
     async fn seed_project(root: &Path, repo: &Path) -> RuntimeStore {

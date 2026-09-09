@@ -101,7 +101,7 @@ void main() {
       expect(find.text('remote-mac'), findsOneWidget);
       expect(
         find.byTooltip(
-          'Host metadata: remote-mac. Remote worktrees are not supported yet.',
+          'Remote workspace on remote-mac. Terminals attach over SSH.',
         ),
         findsOneWidget,
       );
