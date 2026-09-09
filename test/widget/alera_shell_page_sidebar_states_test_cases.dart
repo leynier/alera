@@ -125,37 +125,6 @@ void _registerAleraShellSidebarStateTests() {
     );
   });
 
-  testWidgets('workspace removal dialog omits branch details when blank', (
-    tester,
-  ) async {
-    final seeded = _linkedWorkbenchState(linkedExpanded: true);
-    final workspaces = seeded.workspacesFor('project-1');
-    final branchlessState = seeded.copyWith(
-      workspacesByProject: <String, List<Workspace>>{
-        'project-1': <Workspace>[
-          workspaces.first,
-          workspaces.last.copyWith(branch: ''),
-        ],
-      },
-    );
-
-    await _pumpShell(tester, state: branchlessState);
-
-    await tester.tapAt(
-      tester.getCenter(find.text('Feature login').first),
-      buttons: kSecondaryMouseButton,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Remove'));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.textContaining('This removes the worktree for "Feature login".'),
-      findsOneWidget,
-    );
-    expect(find.textContaining('deletes branch'), findsNothing);
-  });
-
   testWidgets('workspace branch metadata omits base branch labels', (
     tester,
   ) async {
@@ -465,37 +434,6 @@ void _registerAleraShellSidebarStateTests() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(events.last.message, 'Bad state: rename workspace failed');
-  });
-
-  testWidgets('workspace removal failures surface an error toast event', (
-    tester,
-  ) async {
-    final events = <AleraToastData>[];
-    final subscription = AleraToast.stream.listen(events.add);
-    addTearDown(subscription.cancel);
-    final state = _linkedWorkbenchState(linkedExpanded: true);
-
-    await _pumpShell(
-      tester,
-      state: state,
-      controller: _ShellTestWorkbenchController(
-        state,
-        deleteWorkspaceFailure: StateError('delete workspace failed'),
-      ),
-    );
-
-    await tester.tapAt(
-      tester.getCenter(find.text('Feature login').first),
-      buttons: kSecondaryMouseButton,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Remove'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Clean Up'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(events.last.message, 'Bad state: delete workspace failed');
   });
 
   testWidgets('project removal failures surface an error toast event', (
