@@ -124,6 +124,7 @@ mod mobile_source_control_requests;
 mod mobile_terminal_requests;
 #[cfg(test)]
 mod mobile_terminal_viewport_tests;
+mod mobile_workspace_file_helpers;
 mod mobile_workspace_file_paths;
 mod mobile_workspace_file_requests;
 mod mobile_workspace_search_requests;
