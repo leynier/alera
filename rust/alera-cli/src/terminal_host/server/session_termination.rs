@@ -18,17 +18,9 @@ impl ServerActor {
         if let RuntimeMutationRequest::RemoveManagedWorkspace { request } = request {
             return self.prepare_managed_workspace_removal(request).await;
         }
-        if let RuntimeMutationRequest::HandOnWorkspace { request } = request {
-            // Relocate after a successful hand-on, not here. A rejected
-            // prepare or failed git move must leave shells and agents as they
-            // were.
-            let removal = crate::managed_workspace::ManagedWorkspaceRemoveRequest {
-                id: request.id.clone(),
-                delete_branch: Some(false),
-                active_workspace_id: request.active_workspace_id.clone(),
-                close_sessions: request.close_sessions,
-            };
-            return self.prepare_managed_workspace_removal(&removal).await;
+        if let RuntimeMutationRequest::HandOnWorkspace { .. } = request {
+            // Transfers retain the PTYs, including when Git later refuses the move.
+            return Ok(WorkspaceShutdown::default());
         }
         // Check when the queued operation starts, not when it was enqueued:
         // an earlier removal may have just failed and retained a shutdown.
@@ -154,9 +146,13 @@ impl ServerActor {
                 if let Some(relocate) = completion.hand_on_relocate {
                     self.relocate_sessions_after_hand_on(
                         &relocate.source_workspace_id,
+                        &relocate.destination_workspace_id,
                         &relocate.source_path,
                         &relocate.dest_path,
                     );
+                    self.checkpoint_transferred_workspace(&relocate.destination_workspace_id)
+                        .await;
+                    self.broadcast_workspace_tabs_changed(Some(&relocate.destination_workspace_id));
                 }
                 self.apply_runtime_mutation_effect(completion.effect).await;
                 if let Some(error) = stopped_tab_cleanup_error {
@@ -166,12 +162,17 @@ impl ServerActor {
                 }
             }
             Err(error) => {
+                self.reconcile_transferred_session_owners().await;
+                self.broadcast_workspaces_changed(None);
+                self.broadcast_workspace_tabs_changed(None);
                 if let Some(effect) = effect_on_error {
                     self.apply_runtime_mutation_effect(effect).await;
                 }
                 self.client_write(client_id, error_response(request_id, &error));
             }
         }
+        self.broadcast_authenticated(event("workbenchLayoutsChanged", json!({})));
+        self.broadcast_authenticated(event("workspaceActivityChanged", json!({})));
         self.complete_runtime_mutation();
         self.schedule_shutdown_if_idle();
     }

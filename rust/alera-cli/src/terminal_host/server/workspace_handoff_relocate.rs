@@ -51,6 +51,7 @@ pub(super) fn handoff_chdir_bytes(path: &str) -> Vec<u8> {
     }
 }
 
+#[cfg(test)]
 fn canonical_path(path: &str) -> String {
     let target = std::path::Path::new(path);
     if let Ok(resolved) = std::fs::canonicalize(target) {
@@ -62,6 +63,7 @@ fn canonical_path(path: &str) -> String {
     path.trim_end_matches(['/', '\\']).to_string()
 }
 
+#[cfg(test)]
 pub(super) fn path_is_same_or_within(path: &str, root: &str) -> bool {
     let path = canonical_path(path);
     let root = canonical_path(root);
@@ -74,28 +76,114 @@ pub(super) fn path_is_same_or_within(path: &str, root: &str) -> bool {
 }
 
 impl ServerActor {
+    pub(super) async fn reconcile_transferred_session_owners(&mut self) {
+        let sessions: Vec<_> = self
+            .sessions
+            .iter()
+            .map(|(id, session)| {
+                (
+                    id.clone(),
+                    session.tab_id.clone(),
+                    session.workspace_id.clone(),
+                    session.working_directory.clone(),
+                )
+            })
+            .collect();
+        for (id, tab_id, owner, source_path) in sessions {
+            let Ok(Some(tab)) = self.runtime_store.find_workspace_tab(&tab_id).await else {
+                continue;
+            };
+            if tab.workspace_id == owner {
+                continue;
+            }
+            let Ok(Some(destination)) = self.runtime_store.find_workspace(&tab.workspace_id).await
+            else {
+                continue;
+            };
+            if let Some(session) = self.sessions.get_mut(&id) {
+                session.workspace_id = destination.id;
+            }
+            let direction = if destination.kind == alera_core::runtime::WorkspaceKind::Main {
+                WorkspaceHandoffDirection::HandOn
+            } else {
+                WorkspaceHandoffDirection::HandOff
+            };
+            self.relocate_one_session(
+                &id,
+                &destination.path,
+                &handoff_notify_message(direction, &source_path, &destination.path),
+            );
+            if let Some(session) = self.sessions.get_mut(&id) {
+                session.working_directory = destination.path.clone();
+            }
+            self.immediate_checkpoint(&id).await;
+        }
+    }
+
+    pub(super) async fn checkpoint_transferred_workspace(&mut self, workspace_id: &str) {
+        let ids: Vec<_> = self
+            .sessions
+            .iter()
+            .filter(|(_, session)| session.workspace_id == workspace_id)
+            .map(|(id, _)| id.clone())
+            .collect();
+        for id in ids {
+            self.immediate_checkpoint(&id).await;
+        }
+    }
+
     pub(super) fn relocate_sessions_after_handoff(
         &mut self,
         direction: WorkspaceHandoffDirection,
         source_workspace_id: &str,
+        destination_workspace_id: &str,
         source_path: &str,
         dest_path: &str,
     ) {
-        if source_path == dest_path || dest_path.trim().is_empty() {
+        if dest_path.trim().is_empty() {
             return;
         }
         let message = handoff_notify_message(direction, source_path, dest_path);
         let session_ids: Vec<String> = self
             .sessions
             .iter()
-            .filter(|(_, session)| {
-                session.workspace_id == source_workspace_id
-                    || path_is_same_or_within(&session.working_directory, source_path)
-            })
+            .filter(|(_, session)| session.workspace_id == source_workspace_id)
             .map(|(session_id, _)| session_id.clone())
             .collect();
         for session_id in session_ids {
-            self.relocate_one_session(&session_id, dest_path, &message);
+            let target = self
+                .sessions
+                .get(&session_id)
+                .map(|session| {
+                    let cwd = std::path::Path::new(&session.working_directory);
+                    cwd.strip_prefix(source_path)
+                        .map(|relative| {
+                            if relative.as_os_str().is_empty() {
+                                dest_path.to_string()
+                            } else {
+                                std::path::Path::new(dest_path)
+                                    .join(relative)
+                                    .to_string_lossy()
+                                    .into_owned()
+                            }
+                        })
+                        .unwrap_or_else(|_| {
+                            if cwd.is_absolute() {
+                                session.working_directory.clone()
+                            } else {
+                                dest_path.to_string()
+                            }
+                        })
+                })
+                .unwrap_or_else(|| dest_path.to_string());
+            if let Some(session) = self.sessions.get_mut(&session_id) {
+                session.workspace_id = destination_workspace_id.to_string();
+            }
+            self.relocate_one_session(&session_id, &target, &message);
+            // Even a dead PTY must reconnect under the transferred directory.
+            if let Some(session) = self.sessions.get_mut(&session_id) {
+                session.working_directory = target;
+            }
         }
     }
 
@@ -176,12 +264,14 @@ impl ServerActor {
     pub(super) fn relocate_sessions_after_hand_on(
         &mut self,
         source_workspace_id: &str,
+        destination_workspace_id: &str,
         source_path: &str,
         dest_path: &str,
     ) {
         self.relocate_sessions_after_handoff(
             WorkspaceHandoffDirection::HandOn,
             source_workspace_id,
+            destination_workspace_id,
             source_path,
             dest_path,
         );

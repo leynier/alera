@@ -8,6 +8,126 @@ use super::{default_branch, detach_head, set_head_to_branch, stash_include_untra
 use crate::git::{current_branch, is_worktree_clean};
 
 #[test]
+fn immutable_stash_preserves_partial_index_and_other_stack_entries() {
+    let (_directory, repo) = init_repo();
+    let path = path_str(workdir(&repo));
+    fs::write(workdir(&repo).join("old.txt"), "older").unwrap();
+    let older = super::stash_for_handoff(path).unwrap().unwrap();
+    fs::write(workdir(&repo).join("tracked.txt"), "staged\n").unwrap();
+    let mut index = repo.index().unwrap();
+    index.add_path(Path::new("tracked.txt")).unwrap();
+    index.write().unwrap();
+    fs::write(workdir(&repo).join("tracked.txt"), "unstaged\n").unwrap();
+    fs::write(workdir(&repo).join("scratch.txt"), "mine").unwrap();
+    let owned = super::stash_for_handoff(path).unwrap().unwrap();
+    fs::write(workdir(&repo).join("newer.txt"), "newer").unwrap();
+    let newer = super::stash_for_handoff(path).unwrap().unwrap();
+    super::apply_handoff_stash(path, &owned).unwrap();
+    assert_eq!(
+        fs::read_to_string(workdir(&repo).join("tracked.txt")).unwrap(),
+        "unstaged\n"
+    );
+    let entry = repo
+        .index()
+        .unwrap()
+        .get_path(Path::new("tracked.txt"), 0)
+        .unwrap();
+    assert_eq!(repo.find_blob(entry.id).unwrap().content(), b"staged\n");
+    assert!(workdir(&repo).join("scratch.txt").exists());
+    assert!(!workdir(&repo).join("old.txt").exists());
+    assert!(!workdir(&repo).join("newer.txt").exists());
+    let mut repo = Repository::open(workdir(&repo)).unwrap();
+    let mut ids = Vec::new();
+    repo.stash_foreach(|_, _, id| {
+        ids.push(id.to_string());
+        true
+    })
+    .unwrap();
+    assert_eq!(ids, vec![newer, owned, older]);
+}
+
+#[test]
+fn failed_stash_apply_retains_immutable_recovery_commit() {
+    let (_directory, repo) = init_repo();
+    let path = path_str(workdir(&repo));
+    fs::write(workdir(&repo).join("tracked.txt"), "incoming\n").unwrap();
+    let owned = super::stash_for_handoff(path).unwrap().unwrap();
+    fs::write(workdir(&repo).join("tracked.txt"), "local\n").unwrap();
+    let error = super::apply_handoff_stash(path, &owned).unwrap_err();
+    assert!(error.to_string().contains(&owned));
+    assert_eq!(
+        fs::read_to_string(workdir(&repo).join("tracked.txt")).unwrap(),
+        "local\n"
+    );
+    assert!(repo
+        .find_commit(git2::Oid::from_str(&owned).unwrap())
+        .is_ok());
+}
+
+#[test]
+fn ignored_data_blocks_handoff_cleanup() {
+    let (_directory, repo) = init_repo();
+    fs::write(repo.path().join("info/exclude"), "local-secret\n").unwrap();
+    fs::write(workdir(&repo).join("local-secret"), "keep").unwrap();
+    let path = path_str(workdir(&repo));
+    assert!(is_worktree_clean(path).unwrap());
+    assert!(super::validate_no_ignored_handoff_files(path).is_err());
+    assert!(super::validate_handoff_removal(path).is_err());
+    assert_eq!(
+        fs::read_to_string(workdir(&repo).join("local-secret")).unwrap(),
+        "keep"
+    );
+}
+
+#[test]
+fn custom_remote_default_wins_over_main_name() {
+    let (_directory, repo) = init_repo();
+    let commit = repo.head().unwrap().peel_to_commit().unwrap();
+    repo.branch("trunk", &commit, false).unwrap();
+    repo.reference_symbolic(
+        "refs/remotes/origin/HEAD",
+        "refs/remotes/origin/trunk",
+        true,
+        "test",
+    )
+    .unwrap();
+    assert_eq!(default_branch(path_str(workdir(&repo))).unwrap(), "trunk");
+}
+
+#[test]
+fn checkout_preserves_ignored_collision() {
+    let (_directory, repo) = init_repo();
+    let path = path_str(workdir(&repo));
+    crate::git::create_and_checkout_branch(path, "feature").unwrap();
+    fs::write(workdir(&repo).join("secret"), "tracked incoming").unwrap();
+    let mut index = repo.index().unwrap();
+    index.add_path(Path::new("secret")).unwrap();
+    index.write().unwrap();
+    let tree_id = index.write_tree().unwrap();
+    let tree = repo.find_tree(tree_id).unwrap();
+    let parent = repo.head().unwrap().peel_to_commit().unwrap();
+    let signature = Signature::now("Test", "test@example.com").unwrap();
+    repo.commit(
+        Some("HEAD"),
+        &signature,
+        &signature,
+        "track secret",
+        &tree,
+        &[&parent],
+    )
+    .unwrap();
+    crate::git::checkout_branch(path, "main").unwrap();
+    fs::write(repo.path().join("info/exclude"), "secret\n").unwrap();
+    fs::write(workdir(&repo).join("secret"), "local ignored data").unwrap();
+    assert!(crate::git::checkout_branch(path, "feature").is_err());
+    assert_eq!(current_branch(path).unwrap(), "main");
+    assert_eq!(
+        fs::read_to_string(workdir(&repo).join("secret")).unwrap(),
+        "local ignored data"
+    );
+}
+
+#[test]
 fn stash_round_trips_tracked_and_untracked_files() {
     let (_directory, repo) = init_repo();
     let path = path_str(workdir(&repo));

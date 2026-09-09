@@ -49,6 +49,7 @@ void main() {
                 request = await showWorkspaceHandOffDialog(
                   context: context,
                   currentBranch: 'feat/current',
+                  defaultBranch: 'main',
                 );
               },
               child: const Text('Open'),

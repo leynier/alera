@@ -34,6 +34,10 @@ class const RustGitBackend()
       _guard(() => rust_branch.currentBranch(path: path));
 
   @override
+  Future<String> defaultBranch(String path) =>
+      _guard(() => rust_branch.defaultBranch(path: path));
+
+  @override
   Future<void> createAndCheckoutBranch({
     required String path,
     required String branch,

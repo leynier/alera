@@ -2,6 +2,35 @@ use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
+pub(super) fn handoff_identity_context(
+    context: &str,
+    tab: &alera_core::runtime::WorkspaceTabRecord,
+) -> String {
+    let bounded = |text: &str, max| text.chars().take(max).collect::<String>();
+    let profile = tab
+        .payload
+        .pointer("/agentProfileLaunchV1/profile/name")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let task = tab
+        .payload
+        .get("initialPrompt")
+        .and_then(Value::as_str)
+        .or_else(|| {
+            tab.payload
+                .pointer("/pendingAgentPrompt/prompt")
+                .and_then(Value::as_str)
+        })
+        .unwrap_or("");
+    format!(
+        "{}\nActive agent title: {}\nProfile: {}\nOriginal task (context only): {}",
+        bounded(context, 12000),
+        bounded(&tab.title, 200),
+        bounded(profile, 200),
+        bounded(task, 2000)
+    )
+}
+
 pub(super) fn workspace_identity_prompt(initial_prompt: &str, custom_instructions: &str) -> String {
     let mut sections = vec![
         "Generate the identity for a new development workspace from the user's task.".to_string(),

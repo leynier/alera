@@ -189,9 +189,20 @@ impl ServerActor {
                 self.broadcast_workspaces_changed(project_id.as_deref());
             }
             Err(error) => {
+                self.reconcile_transferred_session_owners().await;
+                self.broadcast_workspaces_changed(None);
+                self.broadcast_workspace_tabs_changed(None);
                 self.client_write(client_id, error_response(request_id, &error));
             }
         }
+        self.broadcast_authenticated(crate::terminal_host::protocol::event(
+            "workbenchLayoutsChanged",
+            serde_json::json!({}),
+        ));
+        self.broadcast_authenticated(crate::terminal_host::protocol::event(
+            "workspaceActivityChanged",
+            serde_json::json!({}),
+        ));
         self.schedule_shutdown_if_idle();
     }
 
@@ -219,8 +230,16 @@ impl ServerActor {
         self.relocate_sessions_after_handoff(
             super::workspace_handoff_relocate::WorkspaceHandoffDirection::HandOff,
             source_workspace_id,
+            payload["workspace"]["id"]
+                .as_str()
+                .unwrap_or(source_workspace_id),
             &source.path,
             dest_path,
         );
+        if let Some(destination_id) = payload["workspace"]["id"].as_str() {
+            self.checkpoint_transferred_workspace(destination_id).await;
+        }
+        self.broadcast_workspace_tabs_changed(Some(source_workspace_id));
+        self.broadcast_workspace_tabs_changed(payload["workspace"]["id"].as_str());
     }
 }

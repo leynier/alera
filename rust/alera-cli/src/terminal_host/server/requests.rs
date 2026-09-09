@@ -61,8 +61,13 @@ impl ServerActor {
                 restart_after_response = request_type == "host.restart";
                 shutdown_after_response = request_type == "host.shutdown";
                 if let Some(id) = request_id {
-                    if self.mutation_queue.has_runtime_mutations()
-                        && conflicts_with_runtime_mutation(&request_type)
+                    if (self.mutation_queue.has_runtime_mutations()
+                        && conflicts_with_runtime_mutation(&request_type))
+                        || (self.managed_workspace_jobs > 0
+                            && (conflicts_with_runtime_mutation(&request_type)
+                                || super::runtime_mutation_barrier::is_serialized_runtime_mutation(
+                                    &request_type,
+                                )))
                     {
                         self.client_write(
                             client_id,
@@ -667,12 +672,18 @@ impl ServerActor {
                     .await
                     .map_err(|error| HostError::state(error.to_string()))?
                 {
+                    if stored.workspace_id != tab.workspace_id {
+                        return Err(HostError::state(
+                            "This tab moved to another workspace. Refresh it before saving changes.",
+                        ));
+                    }
                     super::tab_compatibility::preserve_host_owned_tab_payload(&stored, &mut tab);
                     if tab.payload["agentTitleRevision"] != stored.payload["agentTitleRevision"] {
                         self.cancel_agent_title_job(&tab.id);
                     }
                 } else if let Some(payload) = tab.payload.as_object_mut() {
                     for key in [
+                        "handoffSourceWorkspaceIds",
                         "agentTitleStateV1",
                         "agentTitleConversationId",
                         "agentTitleRevision",

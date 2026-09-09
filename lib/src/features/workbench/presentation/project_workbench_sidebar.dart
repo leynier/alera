@@ -1,4 +1,5 @@
 import 'package:alera/src/features/workbench/presentation/workspace_section_dialog.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_branch_removal_dialog.dart';
 
 import 'dart:async';
 

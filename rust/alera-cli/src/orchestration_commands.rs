@@ -28,7 +28,26 @@ const LIFECYCLE_TYPES: &[&str] = &["worker_done", "heartbeat"];
 pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
     let runtime = command.runtime;
     let json_output = command.output.json;
-    match command.action {
+    let mut action = command.action;
+    let workspace = match &mut action {
+        OrchestrationAction::TaskCreate(args) => Some(&mut args.workspace),
+        OrchestrationAction::Run(args) => Some(&mut args.workspace),
+        OrchestrationAction::TerminalList(args) => Some(&mut args.workspace),
+        OrchestrationAction::TerminalPrune(args) => Some(&mut args.workspace),
+        _ => None,
+    };
+    if let Some(workspace) = workspace {
+        match crate::workspace_context::resolve_requested_workspace_id(
+            &runtime,
+            workspace.as_deref(),
+        )
+        .await
+        {
+            Ok(resolved) => *workspace = resolved,
+            Err(error) => return crate::print_error(error),
+        }
+    }
+    match action {
         OrchestrationAction::AgentSpawn(args) => run_agent_spawn(&runtime, args, json_output).await,
         OrchestrationAction::Delegate(args) => {
             crate::orchestration_delegate::run(&runtime, args, json_output).await
@@ -627,8 +646,16 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
             .await
         }
         OrchestrationAction::Current => {
+            let workspace = match crate::workspace_context::resolve_requested_workspace_id(
+                &runtime, None,
+            )
+            .await
+            {
+                Ok(workspace) => workspace,
+                Err(error) => return crate::print_error(error),
+            };
             let value = json!({
-                "workspaceId": workspace_id_env(),
+                "workspaceId": workspace,
                 "terminalHandle": terminal_handle_env(),
             });
             if json_output {

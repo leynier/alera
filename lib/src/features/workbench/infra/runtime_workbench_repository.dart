@@ -124,7 +124,10 @@ class RuntimeWorkbenchRepository(
   Stream<List<WorkspaceTabRecord>> watchWorkspaceTabs(String workspaceId) {
     return runtimeSnapshotStream(
       client: _client,
-      eventNames: const <String>{'workspaceTabsChanged'},
+      eventNames: const <String>{
+        'workspaceTabsChanged',
+        'workbenchLayoutsChanged',
+      },
       readSnapshot: () => listWorkspaceTabs(workspaceId),
       coalesceKey: 'tabs:$workspaceId',
       coalescer: _coalescer,

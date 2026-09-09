@@ -13,12 +13,13 @@ mod repository_metadata;
 mod worktree_handoff;
 pub use branch_operations::{
     branch_exists, checkout_branch, create_and_checkout_branch, delete_branch,
-    is_valid_branch_name, list_branches,
+    is_valid_branch_name, list_branches, validate_branch_deletion,
 };
 pub use repository_metadata::{current_branch, is_worktree_clean, repository_remote_url};
 pub use worktree_handoff::{
-    branch_checkout_path, default_branch, detach_head, set_head_to_branch, stash_include_untracked,
-    stash_pop,
+    apply_handoff_stash, branch_checkout_path, default_branch, detach_head, set_head_to_branch,
+    stash_for_handoff, stash_include_untracked, stash_pop, validate_handoff_removal,
+    validate_handoff_state, validate_no_ignored_handoff_files,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::Path;
 use std::time::Duration;
 
 use alera_core::runtime::{Project, ProjectKind, Workspace, WorkspaceKind, WorkspaceTabRecord};
@@ -108,7 +109,14 @@ impl Fixture {
         }
     }
 
-    async fn request(&mut self, request_type: &str, payload: Value) -> Value {
+    async fn request(&mut self, request_type: &str, mut payload: Value) -> Value {
+        if request_type == "workspace.removeManaged" {
+            payload
+                .as_object_mut()
+                .unwrap()
+                .entry("deleteBranch")
+                .or_insert(json!(false));
+        }
         self.actor
             .handle_line(
                 1,
@@ -156,7 +164,7 @@ async fn managed_workspace_git_failure_retires_stopped_tabs_and_notifies_clients
         .request(
             "workspace.removeManaged",
             json!({
-                "id": "workspace", "closeSessions": true,
+                "id": "workspace", "closeSessions": true, "deleteBranch": true,
             }),
         )
         .await;
@@ -263,9 +271,34 @@ async fn managed_workspace_cleanup_rejects_main_before_stopping_sessions() {
 }
 
 #[tokio::test]
+async fn unknown_branch_choice_keeps_live_sessions_and_records() {
+    let mut fixture = Fixture::new().await;
+    let response = fixture
+        .request(
+            "workspace.removeManaged",
+            json!({"id":"workspace","closeSessions":true,"deleteBranch":null}),
+        )
+        .await;
+    assert_eq!(response["ok"], false);
+    assert!(response["error"]
+        .as_str()
+        .unwrap()
+        .contains("requires a choice"));
+    assert!(fixture.actor.sessions["terminal"].running());
+    assert!(Path::new(&fixture.workspace.path).exists());
+    assert!(fixture
+        .actor
+        .runtime_store
+        .find_workspace("workspace")
+        .await
+        .unwrap()
+        .is_some());
+}
+
+#[tokio::test]
 async fn managed_workspace_cleanup_holds_barrier_until_terminal_shutdown_and_deletion_finish() {
     let mut fixture = Fixture::new().await;
-    fixture.actor.handle_line(1, json!({"id": 1, "type": "workspace.removeManaged", "payload": {"id": "workspace", "closeSessions": true}}).to_string()).await;
+    fixture.actor.handle_line(1, json!({"id": 1, "type": "workspace.removeManaged", "payload": {"id": "workspace", "closeSessions": true, "deleteBranch": false}}).to_string()).await;
     assert!(fixture.actor.mutation_queue.has_runtime_mutations());
     let prepare = tokio::time::timeout(Duration::from_secs(5), fixture.commands.recv())
         .await

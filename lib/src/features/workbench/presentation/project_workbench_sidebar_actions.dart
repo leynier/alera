@@ -150,7 +150,13 @@ mixin _ProjectWorkbenchSidebarActions
       return;
     }
     final branch = workspace.branch;
-    final deleteBranch = !workspace.reusesExistingBranch;
+    var deleteBranch = false;
+    if (!workspace.reusesExistingBranch) {
+      final choice = await showWorkspaceBranchRemovalDialog(context, branch);
+      if (choice == null || !mounted) return;
+      deleteBranch = choice;
+    }
+
     final managedRuntime = ref.read(managedWorkspaceRuntimeProvider);
     WorkspaceStorageImpact? impact;
     if (managedRuntime is WorkspaceStorageRuntime) {

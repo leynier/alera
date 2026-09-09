@@ -3,6 +3,12 @@ part of 'workbench_controller.dart';
 mixin _WorkbenchControllerInternals on _$WorkbenchController {
   final Uuid _uuid = const Uuid();
   bool _disposed = false;
+  bool _transferringWorkspace = false;
+  int _workspaceSelectionRevision = 0;
+  bool _refreshAfterTransfer = false;
+  Future<void> _workspaceSyncQueue = Future<void>.value();
+  final Map<String, String> _transferredTabOwners = {};
+  Future<void> _refreshProjectAfterTransfer(Project project);
 
   ProjectsService get _projectsService => ref.read(projectsServiceProvider);
 

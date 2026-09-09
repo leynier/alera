@@ -42,14 +42,17 @@ pub(crate) async fn remove_remote_managed_workspace_request<E: RemoteHostExecuto
     workspace: &Workspace,
     executor: &E,
 ) -> Result<Workspace> {
+    let delete_branch = request.delete_branch.ok_or_else(|| {
+        anyhow!("Choose --keep-branch (recommended) or --delete-branch before remote cleanup")
+    })?;
+    if delete_branch && workspace.reuses_existing_branch {
+        bail!("This workspace does not own its branch. Use --keep-branch");
+    }
     let project = store
         .find_project(&workspace.project_id)
         .await?
         .ok_or_else(|| anyhow!("Project not found: {}", workspace.project_id))?;
-    let branch_to_delete = if request
-        .delete_branch
-        .unwrap_or(!workspace.reuses_existing_branch)
-    {
+    let branch_to_delete = if delete_branch {
         workspace.branch.clone()
     } else {
         None

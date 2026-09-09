@@ -68,12 +68,14 @@ mod workbench_shared_state_models;
 mod workbench_shared_state_store;
 #[cfg(test)]
 mod workbench_shared_state_store_tests;
+mod workspace_content_transfer;
 mod workspace_pin_store;
 #[cfg(test)]
 mod workspace_pin_store_tests;
 mod workspace_section_store;
 #[cfg(test)]
 mod workspace_section_store_tests;
+mod workspace_transfer_layout;
 mod worktree_setup_models;
 
 pub use agent_profile_launch_receipt_store::*;

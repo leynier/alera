@@ -11,6 +11,10 @@ mixin _FakeGitBackendWorkspaceState {
   GitRepositoryState get gitRepositoryStateResult;
   set gitRepositoryStateResult(GitRepositoryState value);
 
+  String defaultBranchName = 'main';
+
+  Future<String> defaultBranch(String path) async => defaultBranchName;
+
   GitException? createAndCheckoutBranchError;
   GitException? checkoutBranchError;
   String? checkoutBranchResult;

@@ -72,6 +72,7 @@ void _registerWorkbenchControllerSelectionTests() {
       await _controller.deleteWorkspace(
         project: _harness.project,
         workspace: linked,
+        deleteBranch: false,
       );
       await _flush();
 
@@ -102,6 +103,7 @@ void _registerWorkbenchControllerSelectionTests() {
       await _controller.deleteWorkspace(
         project: _harness.project,
         workspace: linked,
+        deleteBranch: false,
       );
       await _flush();
 

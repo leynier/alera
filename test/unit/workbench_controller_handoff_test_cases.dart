@@ -1,6 +1,101 @@
 part of 'workbench_controller_test.dart';
 
 void _registerWorkbenchControllerHandoffTests() {
+  test('host initiated hand on retains the live dirty document and terminal handle', () async {
+    await _harness.dispose();
+    final runtime = _HandoffManagedWorkspaceRuntime();
+    _harness = _WorkbenchHarness(runtime);
+    _controller = _harness._controller;
+    await _controller.bootstrap();
+    final main = await _selectMainWorkspace(_controller, _harness);
+    final child = (await _controller.handOffWorkspace(
+      workspace: main,
+      branch: 'feat/live',
+    )).workspace;
+    final terminal = _controller.state.tabsFor(child.id).first;
+    final handle = _harness.terminalRuntime.sessionFor(
+      workspace: child,
+      tab: terminal,
+    );
+    final editor = await _controller.openEditorTab(
+      workspace: child,
+      relativePath: 'notes.txt',
+    );
+    final registry = _harness.container.read(editorSessionRegistryProvider);
+    final document = registry.documentFor(editor.id)
+      ..attachFile(workspacePath: child.path, relativePath: 'notes.txt')
+      ..acceptLoaded(
+        native_files.WorkspaceEditorTextFile(
+          rawContent: 'disk',
+          displayContent: 'disk',
+          contentToken: 'original-token',
+          modifiedMillis: 0,
+          size: .zero,
+        ),
+      )
+      ..updateCurrentText('not saved');
+    await runtime.persistTransfer(child, main, removeSource: true);
+    await _flushUntil(
+      () =>
+          _controller.state
+              .tabsFor(main.id)
+              .any((tab) => tab.id == editor.id) &&
+          document.workspacePath == main.path,
+    );
+    expect(document.currentText, 'not saved');
+    expect(document.contentToken, 'original-token');
+    expect(
+      identical(_harness.terminalRuntime.peekSession(terminal.id), handle),
+      isTrue,
+    );
+    expect(handle.workspaceId, main.id);
+    expect(_harness.terminalRuntime.closedWorkspaceIds, isEmpty);
+  });
+
+  test(
+    'hand on refuses unsaved main editors before the runtime call',
+    () async {
+      await _harness.dispose();
+      final runtime = _HandoffManagedWorkspaceRuntime();
+      _harness = _WorkbenchHarness(runtime);
+      _controller = _harness._controller;
+      await _controller.bootstrap();
+      final main = await _selectMainWorkspace(_controller, _harness);
+      final child = (await _controller.handOffWorkspace(
+        workspace: main,
+        branch: 'feat/live',
+      )).workspace;
+      final editor = await _controller.openEditorTab(
+        workspace: main,
+        relativePath: 'notes.txt',
+      );
+      final document =
+          _harness.container
+              .read(editorSessionRegistryProvider)
+              .documentFor(editor.id)
+            ..attachFile(workspacePath: main.path, relativePath: 'notes.txt')
+            ..acceptLoaded(
+              native_files.WorkspaceEditorTextFile(
+                rawContent: 'disk',
+                displayContent: 'disk',
+                contentToken: 'token',
+                modifiedMillis: 0,
+                size: .zero,
+              ),
+            )
+            ..updateCurrentText('main edit');
+      await expectLater(
+        _controller.handOnWorkspace(
+          project: _harness.project,
+          workspace: child,
+        ),
+        throwsStateError,
+      );
+      expect(runtime.handOnWorkspaceId, isNull);
+      expect(document.currentText, 'main edit');
+    },
+  );
+
   test('handOffWorkspace selects the new child workspace', () async {
     await _harness.dispose();
     final runtime = _HandoffManagedWorkspaceRuntime();
@@ -8,6 +103,28 @@ void _registerWorkbenchControllerHandoffTests() {
     _controller = _harness._controller;
     await _controller.bootstrap();
     final main = await _selectMainWorkspace(_controller, _harness);
+    final terminal = _controller.state.activeWorkspaceTab!;
+    final handle = _harness.terminalRuntime.sessionFor(
+      workspace: main,
+      tab: terminal,
+    );
+    final editor = await _controller.openEditorTab(
+      workspace: main,
+      relativePath: 'tracked.txt',
+    );
+    final registry = _harness.container.read(editorSessionRegistryProvider);
+    final document = registry.documentFor(editor.id)
+      ..attachFile(workspacePath: main.path, relativePath: 'tracked.txt')
+      ..acceptLoaded(
+        native_files.WorkspaceEditorTextFile(
+          rawContent: 'disk',
+          displayContent: 'disk',
+          contentToken: 'token',
+          modifiedMillis: 0,
+          size: .zero,
+        ),
+      )
+      ..updateCurrentText('unsaved buffer');
 
     final result = await _controller.handOffWorkspace(
       workspace: main,
@@ -19,6 +136,25 @@ void _registerWorkbenchControllerHandoffTests() {
     expect(_controller.state.activeWorkspaceId, result.workspace.id);
     expect(runtime.handOffWorkspaceId, main.id);
     expect(runtime.handOffBranch, 'feat/controller');
+    await _flush();
+    expect(
+      identical(_harness.terminalRuntime.peekSession(terminal.id), handle),
+      isTrue,
+    );
+    expect(handle.workspaceId, result.workspace.id);
+    expect(identical(registry.documentFor(editor.id), document), isTrue);
+    expect(document.workspacePath, result.workspace.path);
+    expect(document.currentText, 'unsaved buffer');
+    expect(document.contentToken, 'token');
+    expect(_controller.state.tabsFor(main.id), isEmpty);
+    expect(
+      _controller.state.tabsFor(result.workspace.id).map((tab) => tab.id),
+      containsAll([terminal.id, editor.id]),
+    );
+    expect(
+      _controller.state.activeTabIdByWorkspace[result.workspace.id],
+      editor.id,
+    );
   });
 
   test('handOnWorkspace selects main after removing the child', () async {
@@ -55,7 +191,10 @@ void _registerWorkbenchControllerHandoffTests() {
     expect(main.branch, 'feat/back');
     expect(_controller.state.activeWorkspaceId, main.id);
     expect(runtime.handOnWorkspaceId, child.id);
-    expect(_harness.terminalRuntime.closedWorkspaceIds, contains(child.id));
+    expect(
+      _harness.terminalRuntime.closedWorkspaceIds,
+      isNot(contains(child.id)),
+    );
   });
 }
 
@@ -63,6 +202,31 @@ class _HandoffManagedWorkspaceRuntime implements ManagedWorkspaceRuntime {
   String? handOffWorkspaceId;
   String? handOffBranch;
   String? handOnWorkspaceId;
+
+  Future<void> persistTransfer(
+    Workspace source,
+    Workspace destination, {
+    bool removeSource = false,
+  }) async {
+    final repository = _harness.workbenchRepository;
+    await repository.upsertWorkspace(destination);
+    final tabs = await repository.listWorkspaceTabs(source.id);
+    for (final tab in tabs) {
+      await repository.upsertWorkspaceTab(
+        tab.copyWith(workspaceId: destination.id),
+      );
+    }
+    final layout = await repository.findWorkbenchLayout(source.id);
+    if (layout != null) {
+      await repository.upsertWorkbenchLayout(
+        layout.copyWith(workspaceId: destination.id),
+      );
+      await repository.removeWorkbenchLayout(source.id);
+    }
+    if (removeSource) {
+      await repository.removeWorkspace(source.id, cascadeTabs: false);
+    }
+  }
 
   @override
   Future<WorkspaceCreationResult> createLinkedWorkspace({
@@ -93,7 +257,7 @@ class _HandoffManagedWorkspaceRuntime implements ManagedWorkspaceRuntime {
     handOffWorkspaceId = workspace.id;
     handOffBranch = branch;
     final now = DateTime.utc(2026, 5, 22, 4);
-    return WorkspaceCreationResult(
+    final result = WorkspaceCreationResult(
       workspace: Workspace(
         id: 'child-from-hand-off',
         projectId: workspace.projectId,
@@ -108,6 +272,8 @@ class _HandoffManagedWorkspaceRuntime implements ManagedWorkspaceRuntime {
       ),
       setupReport: .empty,
     );
+    await persistTransfer(workspace, result.workspace);
+    return result;
   }
 
   @override
@@ -120,9 +286,11 @@ class _HandoffManagedWorkspaceRuntime implements ManagedWorkspaceRuntime {
     final main = _controller.state
         .workspacesFor(workspace.projectId)
         .firstWhere((candidate) => candidate.isMain);
-    return WorkspaceHandOnResult(
+    final result = WorkspaceHandOnResult(
       workspace: main.copyWith(branch: workspace.branch, updatedAt: now),
       removedWorkspaceId: workspace.id,
     );
+    await persistTransfer(workspace, result.workspace, removeSource: true);
+    return result;
   }
 }

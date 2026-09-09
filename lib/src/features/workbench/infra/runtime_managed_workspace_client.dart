@@ -119,6 +119,7 @@ class RuntimeManagedWorkspaceClient(
     String? name,
   }) async {
     await _ensureReady();
+    await _ensureSafeHandoff();
     final request = <String, Object?>{
       'id': workspace.id,
       'branch': branch,
@@ -142,6 +143,7 @@ class RuntimeManagedWorkspaceClient(
     String? activeWorkspaceId,
   }) async {
     await _ensureReady();
+    await _ensureSafeHandoff();
     final request = <String, Object?>{
       'id': workspace.id,
       'closeSessions': true,
@@ -166,6 +168,17 @@ class RuntimeManagedWorkspaceClient(
     final callback = beforeAccess;
     if (callback != null) {
       await callback();
+    }
+  }
+
+  Future<void> _ensureSafeHandoff() async {
+    final status = _asMap(await _client.runtimeRequest('status.get'));
+    final capabilities = status['runtimeCapabilities'];
+    if (capabilities is! List ||
+        !capabilities.contains(aleraRuntimeHostSafeHandoffCapability)) {
+      throw WorkspaceException(
+        'The running runtime does not support safe workspace transfers. Update and restart the runtime before Hand Off or Hand On.',
+      );
     }
   }
 

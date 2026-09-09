@@ -126,7 +126,9 @@ class _WorkspaceEditorSurfaceState
       _editorSessions.unregister(oldWidget.tab.id, _sessionHandle);
       _document = _editorSessions.documentFor(widget.tab.id);
       if (oldWidget.tab.id == widget.tab.id &&
-          oldWidget.tab.filePath != widget.tab.filePath) {
+          oldWidget.tab.filePath != widget.tab.filePath &&
+          !(_document.workspacePath == widget.workspace.path &&
+              _document.relativePath == widget.tab.filePath)) {
         _document.clearSnapshot();
       }
       _registerSession(widget.tab.id);
