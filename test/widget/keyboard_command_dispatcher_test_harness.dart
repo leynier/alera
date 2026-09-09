@@ -325,6 +325,9 @@ Future<_DispatcherPumpHarness> _pumpDispatcherHarness(
       settingsControllerProvider.overrideWith(
         () => _DispatcherSettingsController(.defaults),
       ),
+      sshTargetRepositoryProvider.overrideWithValue(
+        RuntimeSshTargetRepository(_DispatcherRuntimeHostClient()),
+      ),
     ],
   );
   addTearDown(container.dispose);
@@ -353,4 +356,21 @@ class _DispatcherSettingsController(final AleraSettings _seed)
     extends SettingsController {
   @override
   AleraSettings build() => _seed;
+}
+
+class _DispatcherRuntimeHostClient implements RuntimeHostClient {
+  @override
+  Stream<RuntimeHostEvent> get runtimeEvents => const Stream.empty();
+
+  @override
+  Future<Object?> runtimeRequest(
+    String type, [
+    Map<String, Object?> payload = const <String, Object?>{},
+    Duration? timeout,
+  ]) async {
+    if (type == 'sshTarget.list') {
+      return const <Object?>[];
+    }
+    return <String, Object?>{};
+  }
 }
