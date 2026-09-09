@@ -93,35 +93,71 @@ void main() {
     );
   });
 
-  test(
-    'user-facing mapper maps unknown files/hostid requests to missing capability',
-    () {
-      expect(
-        userFacingExceptionMessage(
-          Exception('unknown terminal host request: workspace.files.list'),
+  test('picker labels mark hosts that are not ready', () {
+    expect(
+      sshTargetPickerLabel(_target(id: 'ssh-1', alias: 'Build Mac')),
+      'Build Mac',
+    );
+    expect(
+      sshTargetPickerLabel(
+        _target(
+          id: 'ssh-2',
+          alias: 'Office Linux',
+          bootstrapStatus: SshBootstrapStatus.notInstalled,
         ),
-        remoteWorkspaceFilesMissingCapabilityMessage(),
-      );
-      expect(
-        userFacingExceptionMessage(
-          StateError('unknown terminal host request: hostId is not supported'),
-        ),
-        remoteWorkspaceFilesMissingCapabilityMessage(),
-      );
-      expect(
-        remoteWorkspaceErrorMessage(
-          Exception('unknown terminal host request without a files verb'),
-        ),
-        isNull,
-      );
-      expect(
-        userFacingExceptionMessage(
-          Exception(remoteWorkspaceWriteUnsupportedMessage()),
-        ),
-        remoteWorkspaceWriteUnsupportedMessage(),
-      );
-    },
-  );
+      ),
+      'Office Linux (Not Bootstrapped)',
+    );
+    expect(
+      sshTargetPickerLabel(
+        _target(id: 'ssh-3', alias: 'Windows Box', lastStatus: 'unreachable'),
+      ),
+      'Windows Box (Unreachable)',
+    );
+  });
+
+  test('user-facing mapper maps unknown files/hostid requests to missing capability', () {
+    expect(
+      remoteWorkspaceFilesMissingCapabilityMessage(),
+      contains('cannot browse files on a remote workspace'),
+    );
+    expect(
+      userFacingExceptionMessage(
+        Exception('unknown terminal host request: workspace.files.list'),
+      ),
+      remoteWorkspaceFilesMissingCapabilityMessage(),
+    );
+    expect(
+      userFacingExceptionMessage(
+        Exception('unknown terminal host request: workspace.files.read'),
+      ),
+      remoteWorkspaceFilesMissingCapabilityMessage(),
+    );
+    expect(
+      userFacingExceptionMessage(
+        StateError('unknown terminal host request: hostId is not supported'),
+      ),
+      remoteWorkspaceFilesMissingCapabilityMessage(),
+    );
+    expect(
+      remoteWorkspaceErrorMessage(
+        Exception('unknown terminal host request without a files verb'),
+      ),
+      isNull,
+    );
+    expect(
+      userFacingExceptionMessage(
+        Exception(remoteWorkspaceFilesMissingCapabilityMessage()),
+      ),
+      remoteWorkspaceFilesMissingCapabilityMessage(),
+    );
+    expect(
+      userFacingExceptionMessage(
+        Exception(remoteWorkspaceWriteUnsupportedMessage()),
+      ),
+      remoteWorkspaceWriteUnsupportedMessage(),
+    );
+  });
 }
 
 Workspace _workspace({required String hostId}) {
