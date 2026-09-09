@@ -975,13 +975,14 @@ mod tests {
             "workspace-deferred",
             cfg!(windows),
         );
-        assert!(script.exists(), "{}", script.display());
-        assert!(command.contains(&script.display().to_string()), "{command}");
+        // Avoid formatting paths into assert messages (CodeQL cleartext-logging FP).
+        assert!(script.exists());
+        assert!(command.contains(&script.display().to_string()));
         let contents = std::fs::read_to_string(&script).unwrap();
-        assert!(contents.contains("pnpm install"), "{contents}");
-        assert!(contents.contains("pnpm build"), "{contents}");
-        assert!(contents.contains("--copies-only"), "{contents}");
-        assert!(!contents.contains("&&"), "{contents}");
+        assert!(contents.contains("pnpm install"));
+        assert!(contents.contains("pnpm build"));
+        assert!(contents.contains("--copies-only"));
+        assert!(!contents.contains("&&"));
     }
 
     #[tokio::test]
@@ -1194,10 +1195,11 @@ mod tests {
             "workspace-include-only",
             cfg!(windows),
         );
-        assert!(script.exists(), "{}", script.display());
-        assert!(command.contains(&script.display().to_string()), "{command}");
+        // Avoid formatting paths into assert messages (CodeQL cleartext-logging FP).
+        assert!(script.exists());
+        assert!(command.contains(&script.display().to_string()));
         let contents = std::fs::read_to_string(&script).unwrap();
-        assert!(contents.contains("--copies-only"), "{contents}");
+        assert!(contents.contains("--copies-only"));
     }
 
     async fn seed_project(root: &Path, repo: &Path) -> RuntimeStore {
