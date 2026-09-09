@@ -19,6 +19,8 @@ use crate::terminal_host::resources::seal_shell_process;
 mod checkpoint_restore;
 #[cfg(test)]
 mod driver_test_stub;
+#[cfg(test)]
+pub use driver_test_stub::TestQueuedWrite;
 mod input_queue;
 mod instance_state;
 mod io_threads;
@@ -93,6 +95,8 @@ pub enum PtyWriteCompletion {
         session_instance_id: u64,
         active: Arc<AtomicBool>,
     },
+    /// Host-originated write that must not fail the caller (hand off/on cwd).
+    BestEffort,
 }
 
 /// Raw PTY bytes, not an encoded payload.

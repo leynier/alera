@@ -116,11 +116,11 @@ fn login_shell_arguments(shell: &str) -> &'static [&'static str] {
     }
 }
 
-fn sh_quote(value: &str) -> String {
+pub(super) fn sh_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
 
-fn cmd_quote(value: &str) -> String {
+pub(super) fn cmd_quote(value: &str) -> String {
     format!("\"{}\"", value.replace('"', "\"\""))
 }
 

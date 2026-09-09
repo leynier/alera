@@ -173,6 +173,7 @@ mod terminal_pulse;
 mod terminal_session_requests;
 mod terminal_spawn;
 mod terminal_startup_commands;
+mod workspace_handoff_relocate;
 mod workspace_pinning;
 mod workspace_section_requests;
 #[cfg(test)]
@@ -483,9 +484,15 @@ impl ServerActor {
                 client_id,
                 request_id,
                 result,
+                handoff_source_workspace_id,
             } => {
-                self.handle_managed_workspace_created(client_id, request_id, result)
-                    .await
+                self.handle_managed_workspace_created(
+                    client_id,
+                    request_id,
+                    result,
+                    handoff_source_workspace_id,
+                )
+                .await
             }
             ServerCommand::WorkspaceStorageMeasured {
                 client_id,

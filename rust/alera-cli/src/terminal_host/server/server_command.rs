@@ -89,6 +89,9 @@ pub enum ServerCommand {
         client_id: u64,
         request_id: i64,
         result: HostResult<Value>,
+        /// When set, this create was a hand off: chdir+notify sessions on the
+        /// source workspace after the child exists.
+        handoff_source_workspace_id: Option<String>,
     },
     WorkspaceStorageMeasured {
         client_id: u64,
