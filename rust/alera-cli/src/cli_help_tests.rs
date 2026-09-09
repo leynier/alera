@@ -41,20 +41,16 @@ fn ssh_target_bootstrap_help_states_no_remote_worktree() {
 }
 
 #[test]
-fn workspace_add_help_has_no_host_id_flag_and_is_local_only() {
+fn workspace_add_help_documents_host_id_for_ssh_targets() {
     let help = clap_help(&["workspace", "add"]);
     let lower = help.to_lowercase();
     assert!(
-        lower.contains("local"),
-        "workspace add help should say the worktree is local: {help}"
+        help.contains("--host-id"),
+        "workspace add help should document --host-id: {help}"
     );
     assert!(
-        help.contains("There is no --host-id"),
-        "workspace add help should say there is no --host-id: {help}"
-    );
-    assert!(
-        !help.contains("--host-id <"),
-        "workspace add must not expose a --host-id flag: {help}"
+        lower.contains("ssh") || lower.contains("bootstrapped"),
+        "workspace add help should mention SSH targeting: {help}"
     );
 }
 

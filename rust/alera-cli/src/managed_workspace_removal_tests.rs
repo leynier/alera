@@ -204,7 +204,11 @@ async fn rejects_workspace_owned_by_another_host() {
 
     let error = fixture.remove_managed_workspace().await.unwrap_err();
 
-    assert!(error.to_string().contains("not owned by the local host"));
+    assert!(
+        error.to_string().contains("ssh target not found"),
+        "{}",
+        error
+    );
     assert!(fixture.worktree_path.exists());
 }
 
@@ -303,6 +307,7 @@ impl RemovalFixture {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: false,
                 skip_setup: false,
                 setup_script_directory: None,

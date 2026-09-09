@@ -16,6 +16,12 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::remote_managed_workspace::{
+    create_remote_managed_workspace, remove_remote_managed_workspace,
+};
+use crate::ssh_remote::{
+    is_remote_host_id, normalized_host_id, LiveSshRemoteHost, RemoteHostExecutor,
+};
 use crate::worktree_setup::{prepare_deferred_worktree_setup, run_worktree_setup};
 
 #[derive(Debug, Deserialize)]
@@ -37,6 +43,10 @@ pub struct ManagedWorkspaceCreateRequest {
     pub path: Option<String>,
     #[serde(default)]
     pub parent_workspace_id: Option<String>,
+    /// SSH target id for a remote Git worktree. Omitted or `local` creates
+    /// the worktree on this machine. Additive: older hosts ignore the field.
+    #[serde(default)]
+    pub host_id: Option<String>,
     /// Asks the host to prepare the worktree setup instead of running it, so
     /// the caller can show it in a terminal. Defaults to running it inline,
     /// which is what the `alera` CLI and the mobile gateway still want.
@@ -84,6 +94,14 @@ struct ManagedWorkspaceRemoval {
 pub async fn create_managed_workspace(
     store: &RuntimeStore,
     request: ManagedWorkspaceCreateRequest,
+) -> Result<WorkspaceCreationResult> {
+    create_managed_workspace_with(store, request, &LiveSshRemoteHost).await
+}
+
+pub(crate) async fn create_managed_workspace_with<E: RemoteHostExecutor>(
+    store: &RuntimeStore,
+    request: ManagedWorkspaceCreateRequest,
+    executor: &E,
 ) -> Result<WorkspaceCreationResult> {
     let project = store
         .find_project(&request.project_id)
@@ -148,6 +166,10 @@ pub async fn create_managed_workspace(
         .filter(|value| !value.is_empty())
         .unwrap_or(&branch)
         .to_string();
+    let host_id = normalized_host_id(request.host_id.as_deref());
+    if is_remote_host_id(Some(&host_id)) {
+        return create_remote_managed_workspace(store, request, &project, &host_id, executor).await;
+    }
     let workspace_path = resolve_workspace_path(store, &project, &display_name, &request).await?;
     if workspaces
         .iter()
@@ -245,6 +267,48 @@ pub async fn remove_managed_workspace(
     store: &RuntimeStore,
     request: ManagedWorkspaceRemoveRequest,
 ) -> Result<Workspace> {
+    remove_managed_workspace_with(store, request, &LiveSshRemoteHost).await
+}
+
+pub(crate) async fn remove_managed_workspace_with<E: RemoteHostExecutor>(
+    store: &RuntimeStore,
+    request: ManagedWorkspaceRemoveRequest,
+    executor: &E,
+) -> Result<Workspace> {
+    let workspace = store
+        .find_workspace(&request.id)
+        .await?
+        .ok_or_else(|| anyhow!("Workspace not found: {}", request.id))?;
+    if workspace.kind == WorkspaceKind::Main {
+        bail!("The main workspace cannot be removed");
+    }
+    if is_remote_host_id(Some(&workspace.host_id)) {
+        let project = store
+            .find_project(&workspace.project_id)
+            .await?
+            .ok_or_else(|| anyhow!("Project not found: {}", workspace.project_id))?;
+        if workspace_has_active_automation_owner(store, &workspace.id).await? {
+            bail!("Workspace is owned by an active automation");
+        }
+        let branch_to_delete = if request
+            .delete_branch
+            .unwrap_or(!workspace.reuses_existing_branch)
+        {
+            workspace.branch.clone()
+        } else {
+            None
+        };
+        remove_remote_managed_workspace(
+            store,
+            &workspace,
+            &project,
+            branch_to_delete.as_deref(),
+            executor,
+        )
+        .await?;
+        store.remove_workspace(&workspace.id, true).await?;
+        return Ok(workspace);
+    }
     let removal = managed_workspace_removal(store, &request).await?;
     let workspace = removal.workspace;
     let project = removal.project;
@@ -632,7 +696,7 @@ fn default_workspace_root() -> String {
         .to_string()
 }
 
-fn slugify(input: &str) -> Result<String> {
+pub(crate) fn slugify(input: &str) -> Result<String> {
     let mut output = String::new();
     let mut last_dash = false;
     for ch in input.trim().to_lowercase().chars() {
@@ -766,6 +830,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: false,
                 skip_setup: false,
                 setup_script_directory: None,
@@ -816,6 +881,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: Some("missing-parent".to_string()),
+                host_id: None,
                 defer_setup: false,
                 skip_setup: false,
                 setup_script_directory: None,
@@ -891,6 +957,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: Some("parent".to_string()),
+                host_id: None,
                 defer_setup: false,
                 skip_setup: false,
                 setup_script_directory: None,
@@ -933,6 +1000,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: true,
                 skip_setup: false,
                 setup_script_directory: Some(scripts.clone()),
@@ -983,6 +1051,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: true,
                 skip_setup: false,
                 setup_script_directory: Some(scripts.clone()),
@@ -1018,6 +1087,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: true,
                 skip_setup: false,
                 setup_script_directory: Some(dir.path().join("scripts")),
@@ -1058,6 +1128,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: true,
                 skip_setup: false,
                 setup_script_directory: Some(dir.path().join("scripts")),
@@ -1107,6 +1178,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: true,
                 skip_setup: false,
                 setup_script_directory: Some(dir.path().join("scripts")),
@@ -1152,6 +1224,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: true,
                 skip_setup: false,
                 setup_script_directory: Some(scripts.clone()),

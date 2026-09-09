@@ -115,6 +115,7 @@ This command is the same from Bash, PowerShell, and CMD when no explicit path is
 
 ```bash
 alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --name "<display-name>"
+alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --host-id <ssh-target-id>
 ```
 
 Create and link a child workspace in the same atomic operation:
@@ -276,7 +277,7 @@ JSON list commands return a consistent `{ "kind": "...", "items": [...], "filter
 
 ## SSH Targets
 
-Register hosts and install the Alera runtime sidecar. Bootstrap is sidecar only; it does not create a remote Git worktree or attach the local workbench. `alera workspace add` has no `--host-id` and always creates a local worktree. Managed remote workspaces are not available yet.
+Register hosts and install the Alera runtime sidecar. Bootstrap is sidecar only; it does not create a remote Git worktree. After bootstrap, `alera workspace add --host-id <id>` creates the worktree on that host. Missing, not-bootstrapped, and unreachable hosts fail with an actionable error.
 
 List saved hosts, probe live connectivity, or remove a saved target. Status persists `lastStatus` (`reachable`, `unreachable`, or `runtimeReady`) plus `lastCheckedAt`:
 
@@ -329,7 +330,7 @@ For model research, quota-aware catalog design, adapter-specific Managed configu
 ## Agent Rules
 
 - Prefer `alera workspace add/remove` over raw Git when operating Alera-managed workspaces.
-- Use metadata-only `register/unregister` only when intentionally avoiding filesystem or Git changes. `--host-id` is metadata only and does not create a remote worktree.
+- Use metadata-only `register/unregister` only when intentionally avoiding filesystem or Git changes. `workspace register --host-id` is metadata only; `workspace add --host-id` creates the remote Git worktree.
 - Do not treat `alera ssh-target bootstrap` as creating a remote workspace. Bootstrap installs the runtime sidecar only.
 - Run list/status commands before destructive operations so you have the exact IDs.
 - Use `workspace pin/unpin` for the persisted desktop sidebar section instead of editing runtime metadata directly.

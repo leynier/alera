@@ -35,12 +35,15 @@ mod project_config_toml;
 mod project_management;
 #[cfg(windows)]
 mod pty_job_bootstrap;
+mod remote_managed_workspace;
+mod remote_workspace_files;
 mod runtime_archive;
 mod runtime_clear;
 mod runtime_commands;
 mod runtime_host_client;
 mod runtime_host_command;
 mod ssh_bootstrap;
+mod ssh_remote;
 mod ssh_target_status;
 mod tab_record_factory;
 mod tailscale;
@@ -343,11 +346,21 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
             return workspace_handoff::run_hand_on(runtime, args, json_output).await;
         }
         WorkspaceAction::Add(args) => {
+            let remote = crate::ssh_remote::is_remote_host_id(args.host_id.as_deref());
             let payload = match workspace_add_payload(args) {
                 Ok(payload) => payload,
                 Err(error) => return print_error(error),
             };
-            let value: Value = match runtime_host_required(&runtime).await {
+            let client = if remote {
+                RuntimeHostRpcClient::connect_or_start_with_required_capability(
+                    &runtime_dir(&runtime),
+                    crate::terminal_host::protocol::RUNTIME_HOST_REMOTE_SSH_WORKSPACES_CAPABILITY,
+                )
+                .await
+            } else {
+                runtime_host_required(&runtime).await
+            };
+            let value: Value = match client {
                 Ok(mut client) => match client
                     .request_value("workspace.createManaged", &payload)
                     .await
@@ -1216,6 +1229,7 @@ fn host_accessible_path(value: String, current_dir: &Path) -> PathBuf {
 }
 
 fn workspace_add_payload(args: WorkspaceAddArgs) -> anyhow::Result<Value> {
+    let remote = crate::ssh_remote::is_remote_host_id(args.host_id.as_deref());
     Ok(json!({
         "id": args.id,
         "projectId": args.project_id,
@@ -1223,9 +1237,18 @@ fn workspace_add_payload(args: WorkspaceAddArgs) -> anyhow::Result<Value> {
         "branch": args.branch,
         "sourceBranch": args.source_branch,
         "reuseExistingBranch": args.reuse_existing_branch,
-        "workspaceRoot": host_accessible_optional_string_path(args.workspace_root)?,
-        "path": host_accessible_optional_string_path(args.path)?,
+        "workspaceRoot": if remote {
+            normalized_workspace_path_value(args.workspace_root.as_deref().unwrap_or(""))
+        } else {
+            host_accessible_optional_string_path(args.workspace_root)?
+        },
+        "path": if remote {
+            normalized_workspace_path_value(args.path.as_deref().unwrap_or(""))
+        } else {
+            host_accessible_optional_string_path(args.path)?
+        },
         "parentWorkspaceId": args.parent_workspace_id,
+        "hostId": args.host_id,
     }))
 }
 

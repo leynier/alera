@@ -19,6 +19,11 @@ pub const ORCHESTRATION_MAX_WAIT_TIMEOUT_MS: u64 = 600_000;
 pub const RUNTIME_HOST_CAPABILITY: &str = "runtimeStore";
 pub const RUNTIME_HOST_BOOTSTRAP_CAPABILITY: &str = "sshTargetBootstrap";
 pub const RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY: &str = "managedWorkspaceLifecycle";
+/// Home Runtime can create a Git worktree on a bootstrapped SSH target and
+/// attach terminals/files over SSH. Additive: older hosts ignore `hostId` on
+/// `workspace.createManaged` and would create a local worktree instead, so
+/// callers must feature-check this rather than the protocol version.
+pub const RUNTIME_HOST_REMOTE_SSH_WORKSPACES_CAPABILITY: &str = "remoteSshWorkspacesV1";
 pub const RUNTIME_HOST_MOBILE_CAPABILITY: &str = "mobileCompanionAccess";
 pub const RUNTIME_HOST_MOBILE_NETBIRD_CAPABILITY: &str = "mobileNetBirdGatewayV1";
 pub const RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY: &str = "workspaceSectionsV1";
@@ -454,6 +459,15 @@ mod tests {
         assert_eq!(
             RUNTIME_HOST_DIAGNOSTICS_LOGS_CAPABILITY,
             "hostDiagnosticsLogsV1"
+        );
+    }
+
+    #[test]
+    fn remote_ssh_workspaces_stayed_additive() {
+        assert_eq!(PROTOCOL_VERSION, 4);
+        assert_eq!(
+            RUNTIME_HOST_REMOTE_SSH_WORKSPACES_CAPABILITY,
+            "remoteSshWorkspacesV1"
         );
     }
 

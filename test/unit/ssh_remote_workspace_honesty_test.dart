@@ -15,27 +15,24 @@ void main() {
     expect(entry.matches('worktree'), isTrue);
   });
 
-  test('host metadata tooltip does not imply a live remote worktree', () {
+  test('host metadata tooltip describes a remote ssh worktree', () {
     expect(
       WorkspaceGraphChips.hostMetadataTooltip('audit-637-mac'),
-      'Host metadata: audit-637-mac. Remote worktrees are not supported yet.',
+      'Remote workspace on audit-637-mac. Terminals attach over SSH.',
     );
   });
 
   test(
-    'remote host bootstrap docs state sidecar-only and metadata-only register',
+    'remote host bootstrap docs keep sidecar-only bootstrap and document workspace add --host-id',
     () {
       final docs = File('docs/remote-host-bootstrap.md').readAsStringSync();
       final lower = docs.toLowerCase();
       expect(lower, contains('sidecar only'));
       expect(docs, contains('register --host-id'));
       expect(lower, contains('metadata only'));
-      expect(
-        lower,
-        contains('does not create or attach a managed git worktree'),
-      );
       expect(docs, contains('workspace add'));
-      expect(docs, contains('no `--host-id`'));
+      expect(docs, contains('--host-id'));
+      expect(lower, contains('bootstrapped'));
     },
   );
 }

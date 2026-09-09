@@ -103,9 +103,11 @@ async fn handle_mobile_workspace_file_request(
             .await
         }
         "mobile.workspaceQuickOpen.search" => search_mobile_workspace_quick_open(payload).await,
-        "mobile.workspaceFile.read" => read_mobile_workspace_file(&runtime_store, payload).await,
+        "mobile.workspaceFile.read" | "workspace.files.read" => {
+            read_mobile_workspace_file(&runtime_store, payload).await
+        }
         "mobile.promptAttachment.read" => read_mobile_prompt_attachment(runtime_dir, payload).await,
-        "mobile.workspaceExplorer.list" => {
+        "mobile.workspaceExplorer.list" | "workspace.files.list" => {
             super::mobile_explorer_requests::list_mobile_workspace_explorer(&runtime_store, payload)
                 .await
         }
@@ -193,6 +195,24 @@ async fn read_mobile_workspace_file(
     payload: &Value,
 ) -> HostResult<Value> {
     let workspace = workspace_for_mobile_file_request(runtime_store, payload).await?;
+    if crate::ssh_remote::is_remote_host_id(Some(&workspace.host_id)) {
+        let requested_path = require_string_key(payload, "relativePath")?;
+        let offset = payload.get("offset").and_then(Value::as_u64).unwrap_or(0);
+        let length = payload
+            .get("length")
+            .and_then(Value::as_u64)
+            .unwrap_or(alera_core::workspace_files::MAX_REMOTE_READ_BYTES);
+        let range = crate::remote_workspace_files::read_workspace_file(
+            runtime_store,
+            &workspace,
+            &requested_path,
+            offset,
+            length,
+        )
+        .await
+        .map_err(|error| HostError::state(error.to_string()))?;
+        return Ok(range.to_json());
+    }
     let requested_path = require_string_key(payload, "relativePath")?;
     let candidate_root =
         optional_string_key(payload, "cwd").unwrap_or_else(|| workspace.path.clone());

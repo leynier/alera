@@ -37,7 +37,7 @@ class const WorkspaceGraphChips({super.key, required final Workspace workspace})
   static const int _maxVisibleTags = 3;
 
   static String hostMetadataTooltip(String hostId) {
-    return 'Host metadata: $hostId. Remote worktrees are not supported yet.';
+    return 'Remote workspace on $hostId. Terminals attach over SSH.';
   }
 
   /// Whether [workspace] has any graph metadata to render. Lets callers gate

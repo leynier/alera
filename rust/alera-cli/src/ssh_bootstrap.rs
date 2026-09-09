@@ -112,8 +112,8 @@ pub(crate) fn reject_new_password_ssh_target(
 }
 
 #[derive(Debug)]
-struct RemoteCommandOutput {
-    stdout: String,
+pub(crate) struct RemoteCommandOutput {
+    pub(crate) stdout: String,
 }
 
 pub(crate) fn new_bootstrap_job_id() -> String {
@@ -794,7 +794,7 @@ pub(crate) async fn ssh_target_answers_windows(target: &SshTarget) -> bool {
         .is_ok()
 }
 
-async fn run_remote_command(
+pub(crate) async fn run_remote_command(
     target: &SshTarget,
     platform: &str,
     script: &str,
@@ -812,7 +812,11 @@ async fn run_remote_command(
     run_checked("ssh", &args).await
 }
 
-async fn run_sftp_put(target: &SshTarget, local_path: &Path, remote_path: &str) -> Result<()> {
+pub(crate) async fn run_sftp_put(
+    target: &SshTarget,
+    local_path: &Path,
+    remote_path: &str,
+) -> Result<()> {
     let mut command = windowless_async_command("sftp");
     command
         .arg("-P")
@@ -966,7 +970,7 @@ printf '%s\n' "$install_dir"
     )
 }
 
-fn remote_join(platform: &str, base: &str, parts: &[&str]) -> String {
+pub(crate) fn remote_join(platform: &str, base: &str, parts: &[&str]) -> String {
     let separator = "/";
     let mut value = if platform == "windows" {
         windows_sftp_path(base)
@@ -983,7 +987,7 @@ fn remote_join(platform: &str, base: &str, parts: &[&str]) -> String {
     value
 }
 
-fn windows_sftp_path(value: &str) -> String {
+pub(crate) fn windows_sftp_path(value: &str) -> String {
     // OpenSSH on Windows treats bare `C:/...` as relative to the remote home
     // (nesting as `/C:/Users/<user>/C:/...`). Force the absolute SFTP form
     // `/X:/...` so puts land at the intended drive path.
