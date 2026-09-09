@@ -11,6 +11,14 @@ void _registerWorkspaceGitDiffPanelBranchTests() {
     await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
+    final branchInkWell = tester.widget<InkWell>(
+      find.descendant(
+        of: find.byTooltip('Switch Branch'),
+        matching: find.byType(InkWell),
+      ),
+    );
+    expect(branchInkWell.mouseCursor, SystemMouseCursors.click);
+
     expect(find.byTooltip('Switch Branch'), findsOneWidget);
     await tester.tap(find.byTooltip('Switch Branch'));
     await tester.pumpAndSettle();
@@ -124,4 +132,39 @@ void _registerWorkspaceGitDiffPanelBranchTests() {
     );
     expect(find.text('ship/login'), findsWidgets);
   });
+
+  testWidgets('source control branch control uses basic cursor when busy', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitRepositoryStateResult = const GitRepositoryState(branch: 'main');
+
+    await _pumpPanel(
+      tester,
+      backend: backend,
+      sourceControlController: _BusyWorkspaceSourceControlController.new,
+    );
+    await tester.pumpAndSettle();
+
+    final branchInkWell = tester.widget<InkWell>(
+      find.descendant(
+        of: find.byTooltip('Switch Branch'),
+        matching: find.byType(InkWell),
+      ),
+    );
+    expect(branchInkWell.mouseCursor, SystemMouseCursors.basic);
+  });
+}
+
+class _BusyWorkspaceSourceControlController
+    extends WorkspaceSourceControlController {
+  @override
+  Future<WorkspaceSourceControlState> build(String workspacePath) async {
+    return const WorkspaceSourceControlState(
+      status: GitStatusResult(entries: <GitChangeEntry>[]),
+      repositoryState: GitRepositoryState(branch: 'main'),
+      stashes: <GitStashEntry>[],
+      action: WorkspaceSourceControlAction.refresh,
+    );
+  }
 }
