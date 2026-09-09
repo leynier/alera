@@ -1444,8 +1444,11 @@ Future<void> _pumpPanel(
   ValueChanged<String>? onOpenFile,
   ValueChanged<String>? onRevealInExplorer,
   VoidCallback? onClearSourceControlRoot,
+  WorkspaceSourceControlController Function()? sourceControlController,
 }) {
   final resolvedWorkspace = workspace ?? _workspace();
+  final resolvedScope =
+      sourceControlScope ?? _sourceControlScope(resolvedWorkspace);
   return tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -1457,6 +1460,9 @@ Future<void> _pumpPanel(
           () => _PanelSettingsController(settings),
         ),
         if (service != null) aiAssistServiceProvider.overrideWithValue(service),
+        if (sourceControlController != null)
+          workspaceSourceControlControllerProvider(resolvedScope.path)
+              .overrideWith(sourceControlController),
       ],
       child: MaterialApp(
         home: Scaffold(
@@ -1465,8 +1471,7 @@ Future<void> _pumpPanel(
             height: 520,
             child: WorkspaceGitDiffPanel(
               workspace: resolvedWorkspace,
-              sourceControlScope:
-                  sourceControlScope ?? _sourceControlScope(resolvedWorkspace),
+              sourceControlScope: resolvedScope,
               viewMode: viewMode,
               onViewModeChanged: (_) {},
               groupMode: groupMode,

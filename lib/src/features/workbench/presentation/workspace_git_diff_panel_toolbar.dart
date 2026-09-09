@@ -305,6 +305,9 @@ class const _SourceControlBranchSummary({
           child: Tooltip(
             message: 'Switch Branch',
             child: InkWell(
+              mouseCursor: busy
+                  ? SystemMouseCursors.basic
+                  : SystemMouseCursors.click,
               onTap: busy ? null : onSelectBranch,
               borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
               child: Padding(
