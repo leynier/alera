@@ -22,17 +22,14 @@ void main() {
     );
   });
 
-  test(
-    'remote host bootstrap docs keep sidecar-only bootstrap and document workspace add --host-id',
-    () {
-      final docs = File('docs/remote-host-bootstrap.md').readAsStringSync();
-      final lower = docs.toLowerCase();
-      expect(lower, contains('sidecar only'));
-      expect(docs, contains('register --host-id'));
-      expect(lower, contains('metadata only'));
-      expect(docs, contains('workspace add'));
-      expect(docs, contains('--host-id'));
-      expect(lower, contains('bootstrapped'));
-    },
-  );
+  test('remote host bootstrap docs keep sidecar-only bootstrap and document workspace add --host-id', () {
+    final docs = File('docs/remote-host-bootstrap.md').readAsStringSync();
+    final lower = docs.toLowerCase();
+    expect(lower, contains('sidecar only'));
+    expect(docs, contains('register --host-id'));
+    expect(lower, contains('metadata only'));
+    expect(docs, contains('workspace add'));
+    expect(docs, contains('--host-id'));
+    expect(lower, contains('bootstrapped'));
+  });
 }
