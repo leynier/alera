@@ -459,11 +459,14 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     }
   }
 
+  void _focusSimpleTerminal(String workspaceId, String? key);
+
   void _saveSimplePanel(
     String workspaceId,
     SimpleWorkspacePanel panel, {
     bool reveal = false,
   }) {
+    final previousFocus = state.viewPrefs.simplePanels[workspaceId]?.focusedKey;
     if (state.viewPrefs.simplePanels[workspaceId] == panel &&
         (!reveal || state.viewPrefs.rightSidebarVisible)) {
       return;
@@ -480,5 +483,8 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
       ),
     );
     unawaited(_persistViewPrefs());
+    if (previousFocus != panel.focusedKey) {
+      _focusSimpleTerminal(workspaceId, panel.focusedKey);
+    }
   }
 }

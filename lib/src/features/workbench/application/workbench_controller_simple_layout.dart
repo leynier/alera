@@ -34,19 +34,27 @@ mixin _WorkbenchControllerSimpleLayout
       panel.select(key),
       reveal: key != SimpleWorkspacePanel.tabKey(panel.primaryTabId ?? ''),
     );
+    if (panel.focusedKey == key) {
+      _focusSimpleTerminal(workspaceId, key);
+    }
+  }
+
+  @override
+  void _focusSimpleTerminal(String workspaceId, String? key) {
+    if (!state.isSimpleLayout || state.activeWorkspaceId != workspaceId) {
+      return;
+    }
     final id = SimpleWorkspacePanel.tabId(key);
-    if (id != null) {
-      final tab = state
-          .tabsFor(workspaceId)
-          .where((tab) => tab.id == id)
-          .firstOrNull;
-      final workspace = _workspaceById(workspaceId);
-      if (tab?.kind == WorkspaceTabKind.terminal && workspace != null) {
-        ref
-            .read(terminalRuntimeProvider)
-            .sessionFor(workspace: workspace, tab: tab!)
-            .requestFocus();
-      }
+    final tab = state
+        .tabsFor(workspaceId)
+        .where((tab) => tab.id == id)
+        .firstOrNull;
+    final workspace = _workspaceById(workspaceId);
+    if (tab?.kind == WorkspaceTabKind.terminal && workspace != null) {
+      ref
+          .read(terminalRuntimeProvider)
+          .sessionFor(workspace: workspace, tab: tab!)
+          .requestFocus();
     }
   }
 

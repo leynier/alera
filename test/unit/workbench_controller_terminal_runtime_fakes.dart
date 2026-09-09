@@ -152,6 +152,10 @@ class _FakeTerminalSessionHandle({
     return SizedBox(key: key);
   }
 
+  int requestFocusCalls = 0;
+
   @override
-  void requestFocus() {}
+  void requestFocus() {
+    requestFocusCalls += 1;
+  }
 }

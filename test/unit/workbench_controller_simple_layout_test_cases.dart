@@ -2,6 +2,28 @@ part of 'workbench_controller_test.dart';
 
 void _registerSimpleLayoutTests() {
   test(
+    'Simple closing its final tool returns keyboard focus to the primary',
+    () async {
+      await _controller.bootstrap();
+      final workspace = await _selectMainWorkspace(_controller, _harness);
+      final primary = _controller.state.activeWorkspaceTab!;
+      _controller.setDesktopWorkspaceLayout(DesktopWorkspaceLayout.simple);
+      _controller.selectSimplePanelKey(
+        workspace.id,
+        SimpleWorkspacePanel.tabKey(primary.id),
+      );
+      final handle = _harness.terminalRuntime.peekSession(
+        primary.id,
+      ) as _FakeTerminalSessionHandle;
+      _controller.setContextPanelTab(WorkbenchContextPanelTab.search);
+      final before = handle.requestFocusCalls;
+      _controller.closeSimpleTool(workspace.id, SimpleWorkspaceTool.search);
+      expect(handle.requestFocusCalls, greaterThan(before));
+      expect(_controller.state.activeWorkspaceTab?.id, primary.id);
+    },
+  );
+
+  test(
     'Simple focus and tools preserve Classic splits and terminal handles',
     () async {
       await _controller.bootstrap();
@@ -55,6 +77,12 @@ void _registerSimpleLayoutTests() {
     final primary = _controller.state.activeWorkspaceTab!;
     _controller.setDesktopWorkspaceLayout(DesktopWorkspaceLayout.simple);
     final secondary = await _controller.createTerminalTab(workspace);
+    expect(
+      (_harness.terminalRuntime.peekSession(
+        secondary.id,
+      ) as _FakeTerminalSessionHandle?)?.requestFocusCalls,
+      greaterThan(0),
+    );
     final setup = await _controller.createTerminalTab(
       workspace,
       title: 'Setup',
