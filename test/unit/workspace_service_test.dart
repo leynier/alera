@@ -23,7 +23,7 @@ part 'workspace_service_core_test_cases.dart';
 part 'workspace_service_removal_test_cases.dart';
 part 'workspace_service_handoff_test_cases.dart';
 part 'workspace_service_test_harness.dart';
-part 'workspace_service_remote_host_test.dart';
+part 'workspace_service_remote_host_test_cases.dart';
 
 late Directory tempDir;
 late _FakeWorkbenchRepository repository;
