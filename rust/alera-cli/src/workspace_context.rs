@@ -56,7 +56,7 @@ pub async fn resolve_requested_workspace_id(
     let tab_id = std::env::var("ALERA_TAB_ID").ok();
     let session_id = std::env::var("ALERA_TERMINAL_SESSION_ID").ok();
     if tab_id.is_none() && session_id.is_none() {
-        return Ok(workspace_id_env());
+        return Ok(requested_workspace_id(None));
     }
     let store = RuntimeStore::open(&crate::runtime_dir(runtime)).await?;
     resolve_tab_workspace(

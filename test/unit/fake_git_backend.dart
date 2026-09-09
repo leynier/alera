@@ -29,11 +29,6 @@ class FakeGitBackend
 
   bool isRepository = true;
 
-  String defaultBranchName = 'main';
-
-  @override
-  Future<String> defaultBranch(String path) async => defaultBranchName;
-
   GitException? isRepositoryError;
 
   Future<void> Function(String path)? beforeIsGitRepository;
