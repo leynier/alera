@@ -39,6 +39,7 @@ mod pty_job_bootstrap;
 mod remote_managed_workspace;
 mod remote_managed_workspace_git;
 mod remote_managed_workspace_remove;
+mod remote_managed_workspace_remove_script;
 mod remote_workspace_files;
 mod runtime_archive;
 mod runtime_clear;
