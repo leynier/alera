@@ -68,6 +68,33 @@ void main() {
     expect(bound.terminalSessionId, 'session-2');
   });
 
+  test('agent native session id is optional payload metadata', () {
+    final now = DateTime.utc(2026, 5, 25);
+    final missing = WorkspaceTabRecord(
+      id: 'tab-1',
+      workspaceId: 'workspace-1',
+      title: 'Codex',
+      createdAt: now,
+      updatedAt: now,
+    );
+    final stored = WorkspaceTabRecord(
+      id: 'tab-2',
+      workspaceId: 'workspace-1',
+      title: 'Codex',
+      createdAt: now,
+      updatedAt: now,
+      payload: const <String, Object?>{
+        workspaceTabAgentNativeSessionIdPayloadKey: 'sess-1',
+        workspaceTabAgentNativeSessionAgentPayloadKey: 'codex',
+      },
+    );
+
+    expect(missing.agentNativeSessionId, isNull);
+    expect(missing.agentNativeSessionAgent, isNull);
+    expect(stored.agentNativeSessionId, 'sess-1');
+    expect(stored.agentNativeSessionAgent, 'codex');
+  });
+
   test('terminal lifecycle flags reflect their payload values', () {
     final now = DateTime.utc(2026, 5, 25);
     final regular = WorkspaceTabRecord(

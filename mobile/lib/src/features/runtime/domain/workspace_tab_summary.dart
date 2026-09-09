@@ -28,6 +28,13 @@ class const WorkspaceTabSummary({
   String get terminalSessionId =>
       payload.optionalString('terminalSessionId') ?? id;
 
+  /// Provider conversation, session, or thread id captured by the runtime host.
+  String? get agentNativeSessionId =>
+      payload.optionalString('agentNativeSessionId');
+
+  String? get agentNativeSessionAgent =>
+      payload.optionalString('agentNativeSessionAgent');
+
   factory fromJson(Map<String, Object?> json) {
     return WorkspaceTabSummary(
       id: json.requiredString('id'),

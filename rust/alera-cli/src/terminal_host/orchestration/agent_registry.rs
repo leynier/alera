@@ -1,3 +1,5 @@
+use super::agent_session_resume::AgentSessionResumeShape;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AgentAdapter {
     pub agent_type: &'static str,
@@ -5,6 +7,7 @@ pub struct AgentAdapter {
     pub force_submit: bool,
     pub interrupt_bytes: &'static [u8],
     pub startup_prompt: AgentStartupPrompt,
+    pub session_resume: Option<AgentSessionResumeShape>,
 }
 
 /// How a freshly launched agent receives the prompt it is supposed to start
@@ -46,6 +49,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         force_submit: true,
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::PositionalAfterTerminator,
+        session_resume: Some(AgentSessionResumeShape::Subcommand(&["resume"])),
     },
     AgentAdapter {
         agent_type: "claude",
@@ -53,6 +57,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         force_submit: true,
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::PositionalAfterTerminator,
+        session_resume: Some(AgentSessionResumeShape::Flag("--resume")),
     },
     AgentAdapter {
         agent_type: "copilot",
@@ -60,6 +65,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         force_submit: true,
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::LongOption("--interactive"),
+        session_resume: Some(AgentSessionResumeShape::EqualsFlag("--resume")),
     },
     AgentAdapter {
         agent_type: "cursor",
@@ -67,6 +73,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         force_submit: true,
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::PositionalAfterTerminator,
+        session_resume: Some(AgentSessionResumeShape::Flag("--resume")),
     },
     AgentAdapter {
         agent_type: "agy",
@@ -74,6 +81,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         force_submit: true,
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::LongOption("--prompt-interactive"),
+        session_resume: Some(AgentSessionResumeShape::Flag("--conversation")),
     },
     AgentAdapter {
         agent_type: "opencode",
@@ -81,6 +89,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         force_submit: true,
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::LongOption("--prompt"),
+        session_resume: Some(AgentSessionResumeShape::Flag("--session")),
     },
     AgentAdapter {
         // OpenCode 2 installs as `opencode2` beside v1's `opencode`.
@@ -89,6 +98,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         force_submit: true,
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::LongOption("--prompt"),
+        session_resume: Some(AgentSessionResumeShape::Flag("--session")),
     },
     AgentAdapter {
         agent_type: "pi",
@@ -96,6 +106,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         force_submit: true,
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::Positional,
+        session_resume: Some(AgentSessionResumeShape::Flag("--session")),
     },
     AgentAdapter {
         agent_type: "amp",
@@ -103,6 +114,9 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         force_submit: true,
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::StdinScript,
+        session_resume: Some(AgentSessionResumeShape::Subcommand(&[
+            "threads", "continue",
+        ])),
     },
     AgentAdapter {
         agent_type: "grok",
@@ -110,6 +124,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         force_submit: true,
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::PositionalAfterTerminator,
+        session_resume: Some(AgentSessionResumeShape::Flag("--resume")),
     },
     AgentAdapter {
         agent_type: "fx",
@@ -117,6 +132,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         force_submit: true,
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::TerminalAfterReady,
+        session_resume: Some(AgentSessionResumeShape::Flag("--resume")),
     },
 ];
 
@@ -180,6 +196,44 @@ mod tests {
                 ("amp", AgentStartupPrompt::StdinScript),
                 ("grok", AgentStartupPrompt::PositionalAfterTerminator),
                 ("fx", AgentStartupPrompt::TerminalAfterReady),
+            ]
+        );
+    }
+
+    #[test]
+    fn every_spawnable_agent_declares_how_to_resume_a_native_session() {
+        let shapes: Vec<_> = AGENT_ADAPTERS
+            .iter()
+            .map(|adapter| (adapter.agent_type, adapter.session_resume))
+            .collect();
+        assert_eq!(
+            shapes,
+            [
+                (
+                    "codex",
+                    Some(AgentSessionResumeShape::Subcommand(&["resume"]))
+                ),
+                ("claude", Some(AgentSessionResumeShape::Flag("--resume"))),
+                (
+                    "copilot",
+                    Some(AgentSessionResumeShape::EqualsFlag("--resume"))
+                ),
+                ("cursor", Some(AgentSessionResumeShape::Flag("--resume"))),
+                ("agy", Some(AgentSessionResumeShape::Flag("--conversation"))),
+                ("opencode", Some(AgentSessionResumeShape::Flag("--session"))),
+                (
+                    "opencode2",
+                    Some(AgentSessionResumeShape::Flag("--session"))
+                ),
+                ("pi", Some(AgentSessionResumeShape::Flag("--session"))),
+                (
+                    "amp",
+                    Some(AgentSessionResumeShape::Subcommand(&[
+                        "threads", "continue"
+                    ]))
+                ),
+                ("grok", Some(AgentSessionResumeShape::Flag("--resume"))),
+                ("fx", Some(AgentSessionResumeShape::Flag("--resume"))),
             ]
         );
     }

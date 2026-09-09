@@ -3,6 +3,7 @@ use alera_core::runtime::WorkspaceTabRecord;
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::orchestration::agent_profile_launch_snapshot::AgentInitialDeliveryMechanismV1;
 
+use super::agent_native_session::native_session_resume;
 use super::terminal_startup_commands::{
     initial_delivery_mechanism, initial_prompt, replays_initial_prompt_on_restart, tab_agent_type,
 };
@@ -13,7 +14,8 @@ impl ServerActor {
         &mut self,
         tab: &WorkspaceTabRecord,
     ) -> HostResult<Option<WorkspaceTabRecord>> {
-        if !replays_initial_prompt_on_restart(tab)?
+        if native_session_resume(tab).is_some()
+            || !replays_initial_prompt_on_restart(tab)?
             || initial_delivery_mechanism(tab)?
                 != Some(AgentInitialDeliveryMechanismV1::TerminalAfterReady)
             || tab

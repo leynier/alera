@@ -15,22 +15,7 @@ struct TitleActivity {
 }
 
 pub(super) fn conversation_id(payload: &Value) -> Option<&str> {
-    [
-        "conversation_id",
-        "conversationId",
-        "session_id",
-        "sessionId",
-        "sessionID",
-        "thread_id",
-        "threadId",
-    ]
-    .iter()
-    .find_map(|key| {
-        payload
-            .get(key)
-            .and_then(Value::as_str)
-            .filter(|id| !id.is_empty())
-    })
+    crate::terminal_host::orchestration::agent_session_resume::native_session_id(payload)
 }
 
 impl ServerActor {
@@ -69,16 +54,9 @@ impl ServerActor {
             return;
         }
         // Child-agent hooks can share the parent's PTY identity.
-        if ["parent_session_id", "parentSessionId", "parentThreadId"]
-            .iter()
-            .any(|key| {
-                event
-                    .payload
-                    .get(key)
-                    .and_then(Value::as_str)
-                    .is_some_and(|id| !id.is_empty())
-            })
-        {
+        if crate::terminal_host::orchestration::agent_session_resume::hook_identifies_parent_session(
+            &event.payload,
+        ) {
             return;
         }
         if crate::agent_status::hook_event_closes_session(event) {

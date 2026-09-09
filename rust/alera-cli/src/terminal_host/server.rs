@@ -53,6 +53,7 @@ mod account_requests_tests;
 #[cfg(test)]
 mod actor_test_harness;
 mod agent_hook_events;
+mod agent_native_session;
 mod agent_profile_launch_requests;
 mod agent_prompt_composition;
 mod agent_title_context;
@@ -172,6 +173,7 @@ mod terminal_prompt_rearm;
 mod terminal_pulse;
 mod terminal_session_requests;
 mod terminal_spawn;
+mod terminal_spawn_command;
 mod terminal_startup_commands;
 mod workspace_handoff_relocate;
 mod workspace_pinning;

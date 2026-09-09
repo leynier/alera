@@ -44,6 +44,30 @@ void main() {
     );
     expect(tab.displayTitle, 'Fix Login With Google');
   });
+
+  test('native session id is optional tab payload metadata', () {
+    const missing = WorkspaceTabSummary(
+      id: 'tab',
+      workspaceId: 'workspace',
+      kind: 'terminal',
+      title: 'Codex',
+      payload: {},
+    );
+    const stored = WorkspaceTabSummary(
+      id: 'tab',
+      workspaceId: 'workspace',
+      kind: 'terminal',
+      title: 'Codex',
+      payload: {
+        'agentNativeSessionId': 'sess-1',
+        'agentNativeSessionAgent': 'codex',
+      },
+    );
+    expect(missing.agentNativeSessionId, isNull);
+    expect(missing.agentNativeSessionAgent, isNull);
+    expect(stored.agentNativeSessionId, 'sess-1');
+    expect(stored.agentNativeSessionAgent, 'codex');
+  });
 }
 
 class _Client with MobileRuntimeWorkspaceClient {

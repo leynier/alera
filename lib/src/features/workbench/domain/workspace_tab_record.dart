@@ -45,6 +45,10 @@ const String workspaceTabTerminalSessionIdPayloadKey = 'terminalSessionId';
 const String workspaceTabInitialCommandPayloadKey = 'initialCommand';
 const String workspaceTabInitialCommandOncePayloadKey = 'initialCommandOnce';
 const String workspaceTabSpawnOnCreatePayloadKey = 'spawnOnCreate';
+const String workspaceTabAgentNativeSessionIdPayloadKey =
+    'agentNativeSessionId';
+const String workspaceTabAgentNativeSessionAgentPayloadKey =
+    'agentNativeSessionAgent';
 const String workspaceTabAutoCloseOnSuccessPayloadKey = 'autoCloseOnSuccess';
 const String workspaceTabTerminalPulsePayloadKey = 'terminalPulse';
 const String workspaceTabFilePathPayloadKey = 'filePath';
@@ -154,6 +158,14 @@ class WorkspaceTabRecord({
   /// appears, without waiting for the tab to become visible.
   bool get spawnOnCreate =>
       payload[workspaceTabSpawnOnCreatePayloadKey] == true;
+
+  /// Provider conversation, session, or thread id captured from a supported
+  /// agent hook. The runtime host uses it to resume after the process is gone.
+  String? get agentNativeSessionId =>
+      _nonEmptyPayloadString(workspaceTabAgentNativeSessionIdPayloadKey);
+
+  String? get agentNativeSessionAgent =>
+      _nonEmptyPayloadString(workspaceTabAgentNativeSessionAgentPayloadKey);
 
   /// Whether a terminal whose one-shot command exits successfully should be
   /// removed automatically. Failed commands stay visible for inspection.
