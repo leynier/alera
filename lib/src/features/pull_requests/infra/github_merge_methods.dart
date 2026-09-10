@@ -31,11 +31,13 @@ bool? _optionalBool(Object? value) {
   return value is bool ? value : null;
 }
 
-/// Intersects `allowed_merge_methods` from active branch rules.
+/// Intersects merge-method constraints from active branch rules.
 ///
 /// Returns null when no rule constrains merge methods, so repository settings
 /// remain the authority. Multiple rules intersect: a method must appear in
-/// every declared list. Malformed payloads throw so callers fail closed.
+/// every declared list. A `pull_request` rule without `allowed_merge_methods`
+/// is unconstrained. `required_linear_history` forbids merge commits.
+/// Malformed payloads throw so callers fail closed.
 Set<ReviewMergeMethod>? mapGitHubRulesetAllowedMergeMethods(Object? decoded) {
   final entries = _flattenRuleEntries(decoded);
   Set<ReviewMergeMethod>? allowed;
@@ -86,10 +88,16 @@ Set<ReviewMergeMethod>? _allowedMergeMethodsFromRule(
       parameters == null) {
     throw const ForgeRequestFailed(_invalidMergeMethodsPayload);
   }
+  if (type == 'required_linear_history') {
+    return const <ReviewMergeMethod>{
+      ReviewMergeMethod.squash,
+      ReviewMergeMethod.rebase,
+    };
+  }
   if (type == 'pull_request' || type == 'merge_method') {
     return _parseAllowedMergeMethods(
       parameters?['allowed_merge_methods'],
-      required: true,
+      required: type == 'merge_method',
     );
   }
   return _parseAllowedMergeMethods(rule['allowed_merge_methods']);

@@ -130,6 +130,53 @@ void main() {
       );
     });
 
+    test('drops merge commits when linear history is required', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[
+        _ok('''
+{"mergeCommitAllowed":true,"squashMergeAllowed":true,"rebaseMergeAllowed":true}
+'''),
+        _ok('[{"type":"required_linear_history"}]'),
+      ]);
+      final provider = GitHubForgeProvider(runner);
+
+      final methods = await provider.allowedMergeMethods(
+        identity: _identity,
+        repoPath: '/repo',
+        baseBranch: 'main',
+      );
+
+      expect(methods, <ReviewMergeMethod>[
+        ReviewMergeMethod.squash,
+        ReviewMergeMethod.rebase,
+      ]);
+    });
+
+    test(
+      'keeps repository methods when a pull_request rule has no merge methods',
+      () async {
+        final runner = FakeRecordingProcessRunner(<Object>[
+          _ok('''
+{"mergeCommitAllowed":false,"squashMergeAllowed":true,"rebaseMergeAllowed":true}
+'''),
+          _ok('''
+[{"type":"pull_request","parameters":{"required_approving_review_count":1}}]
+'''),
+        ]);
+        final provider = GitHubForgeProvider(runner);
+
+        final methods = await provider.allowedMergeMethods(
+          identity: _identity,
+          repoPath: '/repo',
+          baseBranch: 'main',
+        );
+
+        expect(methods, <ReviewMergeMethod>[
+          ReviewMergeMethod.squash,
+          ReviewMergeMethod.rebase,
+        ]);
+      },
+    );
+
     test('keeps repository methods when the branch has no rules', () async {
       final runner = FakeRecordingProcessRunner(<Object>[
         _ok('''

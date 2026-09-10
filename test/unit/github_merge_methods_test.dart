@@ -191,15 +191,41 @@ void main() {
       );
     });
 
-    test('rejects a pull_request rule with no allowed_merge_methods', () {
+    test('ignores a pull_request rule with no allowed_merge_methods', () {
       expect(
-        () => mapGitHubRulesetAllowedMergeMethods(<Object>[
+        mapGitHubRulesetAllowedMergeMethods(<Object>[
           <String, Object?>{
             'type': 'pull_request',
-            'parameters': <String, Object?>{},
+            'parameters': <String, Object?>{
+              'required_approving_review_count': 1,
+            },
           },
         ]),
-        throwsA(isA<ForgeRequestFailed>()),
+        isNull,
+      );
+    });
+
+    test('drops merge commits when linear history is required', () {
+      expect(
+        mapGitHubRulesetAllowedMergeMethods(<Object>[
+          <String, Object?>{'type': 'required_linear_history'},
+        ]),
+        <ReviewMergeMethod>{ReviewMergeMethod.squash, ReviewMergeMethod.rebase},
+      );
+    });
+
+    test('intersects linear history with an explicit merge-method list', () {
+      expect(
+        mapGitHubRulesetAllowedMergeMethods(<Object>[
+          <String, Object?>{'type': 'required_linear_history'},
+          <String, Object?>{
+            'type': 'pull_request',
+            'parameters': <String, Object?>{
+              'allowed_merge_methods': <String>['merge', 'squash'],
+            },
+          },
+        ]),
+        <ReviewMergeMethod>{ReviewMergeMethod.squash},
       );
     });
 
