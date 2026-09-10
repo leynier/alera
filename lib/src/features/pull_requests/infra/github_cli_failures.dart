@@ -21,6 +21,32 @@ bool _looksUnauthenticated(String stderr) {
       lower.contains('gh auth login');
 }
 
+/// User-facing copy when GitHub rejects a merge method that the repository or
+/// a ruleset does not allow. Null when [stderr] is some other failure.
+String? mapGitHubDisallowedMergeMethodMessage(String stderr) {
+  final lower = stderr.toLowerCase();
+  if (lower.contains('merge commits are not allowed')) {
+    return 'Merge commits are not allowed on this repository. Use squash '
+        'and merge or rebase and merge instead.';
+  }
+  if (lower.contains('squash merges are not allowed') ||
+      lower.contains('squash merging is not allowed')) {
+    return 'Squash and merge is not allowed on this repository. Choose a '
+        'merge method that the repository permits.';
+  }
+  if (lower.contains('rebase merges are not allowed') ||
+      lower.contains('rebase merging is not allowed')) {
+    return 'Rebase and merge is not allowed on this repository. Choose a '
+        'merge method that the repository permits.';
+  }
+  if (lower.contains('merge method') &&
+      (lower.contains('not allowed') || lower.contains('is disabled'))) {
+    return 'That merge method is not allowed on this repository. Choose a '
+        'method enabled in the repository settings or branch ruleset.';
+  }
+  return null;
+}
+
 CreateReviewFailure mapGitHubCreateFailure(ProcessRunOutput result) {
   if (ghLooksLikeMissingCli(result)) {
     return const CreateReviewFailure(

@@ -18,6 +18,7 @@ import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 import 'package:alera/src/features/pull_requests/infra/github_cli_failures.dart';
+import 'package:alera/src/features/pull_requests/infra/github_merge_methods.dart';
 import 'package:alera/src/features/pull_requests/infra/github_review_mappers.dart';
 import 'package:alera/src/features/pull_requests/infra/github_stack_mappers.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
@@ -428,15 +429,18 @@ class const GitHubForgeProvider(@override final ProcessRunner _processRunner)
 
   @override
   Never _throwClassified(ProcessRunOutput result) {
-    final stderr = result.stderr.toLowerCase();
-    if (stderr.contains('not logged') ||
-        stderr.contains('authentication') ||
-        stderr.contains('gh auth login')) {
-      throw ForgeNotAuthenticated(result.stderr.trim());
+    final stderr = result.stderr.trim();
+    final lower = stderr.toLowerCase();
+    if (lower.contains('not logged') ||
+        lower.contains('authentication') ||
+        lower.contains('gh auth login')) {
+      throw ForgeNotAuthenticated(stderr);
     }
-    throw ForgeRequestFailed(
-      result.stderr.trim().isEmpty ? 'gh command failed' : result.stderr.trim(),
-    );
+    final disallowed = mapGitHubDisallowedMergeMethodMessage(stderr);
+    if (disallowed != null) {
+      throw ForgeRequestFailed(disallowed);
+    }
+    throw ForgeRequestFailed(stderr.isEmpty ? 'gh command failed' : stderr);
   }
 
   @override

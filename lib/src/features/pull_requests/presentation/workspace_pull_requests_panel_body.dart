@@ -27,6 +27,8 @@ class const _PullRequestBody({
         ),
         if (state.errorMessage != null)
           _ErrorBanner(message: state.errorMessage!),
+        if (state.mergeMethodsErrorMessage != null)
+          _ErrorBanner(message: state.mergeMethodsErrorMessage!),
         Expanded(child: _content(context)),
       ],
     );
