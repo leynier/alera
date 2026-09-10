@@ -106,6 +106,7 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
             customPrompt: _customPromptController.text.trim(),
             description: _descriptionController.text.trim(),
             quotaGroup: quotaGroup.isEmpty ? null : quotaGroup,
+            showInNewTabMenu: _showInNewTabMenu,
           );
       if (!mounted) {
         return;

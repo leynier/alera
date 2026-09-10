@@ -122,6 +122,7 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
         customPrompt TEXT NOT NULL DEFAULT '',
         description TEXT NOT NULL DEFAULT '',
         quotaGroup TEXT,
+        showInNewTabMenu INTEGER NOT NULL DEFAULT 0,
         revision INTEGER NOT NULL DEFAULT 0,
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL

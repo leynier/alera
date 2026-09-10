@@ -375,4 +375,67 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
     ]);
     expect(terminalRuntime.focusRequestsByTab['tab-1'], 1);
   });
+
+  testWidgets('new tab menu lists opted-in agent profiles after New Terminal', (
+    tester,
+  ) async {
+    final launched = <(String, String?)>[];
+    final now = DateTime.utc(2026, 9, 10);
+    await _pumpWorkbenchView(
+      tester,
+      tabs: <WorkspaceTabRecord>[_tab('tab-1', title: 'Terminal 1')],
+      terminalRuntime: terminalRuntime,
+      layout: .single(
+        workspaceId: _workspaceId,
+        groupId: 'group-a',
+        tabIds: <String>['tab-1'],
+      ),
+      createdTabs: createdTabs,
+      selectedTabs: selectedTabs,
+      closedTabs: closedTabs,
+      closedTabGroups: closedTabGroups,
+      renamedTabs: renamedTabs,
+      movedTabs: movedTabs,
+      splitGroups: splitGroups,
+      mergedGroups: mergedGroups,
+      updatedRatios: updatedRatios,
+      launchedProfiles: launched,
+      newTabMenuProfiles: <AgentProfile>[
+        AgentProfile(
+          id: 'profile-hidden',
+          name: 'Hidden Codex',
+          agentType: 'codex',
+          command: 'codex',
+          createdAt: now,
+          updatedAt: now,
+        ),
+        AgentProfile(
+          id: 'profile-shown',
+          name: 'Shown Codex',
+          agentType: 'codex',
+          command: 'codex',
+          showInNewTabMenu: true,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      ],
+    );
+
+    await tester.tap(find.byTooltip('New Tab'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('New Terminal'), findsOneWidget);
+    expect(find.text('Shown Codex'), findsOneWidget);
+    expect(find.text('Hidden Codex'), findsNothing);
+    expect(
+      tester.getTopLeft(find.text('New Terminal')).dy,
+      lessThan(tester.getTopLeft(find.text('Shown Codex')).dy),
+    );
+
+    await tester.tap(find.text('Shown Codex'));
+    await tester.pumpAndSettle();
+
+    expect(launched, <(String, String?)>[('profile-shown', 'group-a')]);
+    expect(createdTabs, isEmpty);
+  });
 }

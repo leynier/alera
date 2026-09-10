@@ -133,6 +133,9 @@ pub struct AgentProfileCreateArgs {
     pub description: Option<String>,
     #[arg(long = "quota-group", value_name = "name")]
     pub quota_group: Option<String>,
+    /// Show this profile in the workbench + menu next to New Terminal.
+    #[arg(long = "show-in-new-tab-menu")]
+    pub show_in_new_tab_menu: bool,
     /// Confirm newly enabled settings that reduce agent protections.
     #[arg(long = "confirm-reduced-protections")]
     pub confirm_reduced_protections: bool,
@@ -176,6 +179,9 @@ pub struct AgentProfileUpdateArgs {
     pub quota_group: Option<String>,
     #[arg(long = "clear-quota-group")]
     pub clear_quota_group: bool,
+    /// Show or hide this profile in the workbench + menu next to New Terminal.
+    #[arg(long = "show-in-new-tab-menu", value_name = "true|false")]
+    pub show_in_new_tab_menu: Option<bool>,
     /// Confirm newly enabled settings that reduce agent protections.
     #[arg(long = "confirm-reduced-protections")]
     pub confirm_reduced_protections: bool,

@@ -25,6 +25,7 @@ fn profile(id: &str, name: &str) -> AgentProfile {
         custom_prompt: String::new(),
         description: String::new(),
         quota_group: None,
+        show_in_new_tab_menu: false,
         revision: 0,
         created_at: now,
         updated_at: now,
@@ -46,6 +47,33 @@ async fn upserts_and_lists_profiles_in_saved_order() {
     let profiles = store.list_agent_profiles().await.unwrap();
     let names: Vec<_> = profiles.iter().map(|item| item.name.as_str()).collect();
     assert_eq!(names, ["Zed Runner", "Alpha Runner"]);
+}
+
+#[tokio::test]
+async fn persists_the_new_tab_menu_opt_in_off_by_default() {
+    let (_dir, store) = store().await;
+    let stored = store
+        .upsert_agent_profile(profile("prof_a", "Alpha Runner"), None)
+        .await
+        .unwrap();
+    assert!(!stored.show_in_new_tab_menu);
+
+    let mut opted_in = stored.clone();
+    opted_in.show_in_new_tab_menu = true;
+    let updated = store
+        .upsert_agent_profile(opted_in, Some(stored.revision))
+        .await
+        .unwrap();
+    assert!(updated.show_in_new_tab_menu);
+    assert_eq!(
+        store
+            .find_agent_profile("prof_a")
+            .await
+            .unwrap()
+            .unwrap()
+            .show_in_new_tab_menu,
+        true
+    );
 }
 
 #[tokio::test]

@@ -20,6 +20,7 @@ pub(crate) struct AgentProfileDraft {
     pub custom_prompt: String,
     pub description: String,
     pub quota_group: Option<String>,
+    pub show_in_new_tab_menu: bool,
 }
 
 impl AgentProfileDraft {
@@ -32,6 +33,10 @@ impl AgentProfileDraft {
             ("customPrompt".to_string(), json!(self.custom_prompt)),
             ("description".to_string(), json!(self.description)),
             ("quotaGroup".to_string(), json!(self.quota_group)),
+            (
+                "showInNewTabMenu".to_string(),
+                json!(self.show_in_new_tab_menu),
+            ),
         ]);
         if let Some(config) = self.managed_config {
             payload.insert("managedConfig".to_string(), config);
@@ -95,6 +100,7 @@ pub(crate) fn draft_for_create(
         custom_prompt: trimmed_or_default(args.custom_prompt.as_deref()),
         description: trimmed_or_default(args.description.as_deref()),
         quota_group: trimmed_optional(args.quota_group.as_deref()),
+        show_in_new_tab_menu: args.show_in_new_tab_menu,
     })
 }
 
@@ -155,6 +161,9 @@ pub(crate) fn draft_for_update(
         } else {
             existing.quota_group.clone()
         },
+        show_in_new_tab_menu: args
+            .show_in_new_tab_menu
+            .unwrap_or(existing.show_in_new_tab_menu),
     };
     if draft == draft_from_profile(existing) {
         bail!("agent profile update does not change any fields");
@@ -228,6 +237,7 @@ fn draft_from_profile(profile: &AgentProfile) -> AgentProfileDraft {
         custom_prompt: profile.custom_prompt.clone(),
         description: profile.description.clone(),
         quota_group: profile.quota_group.clone(),
+        show_in_new_tab_menu: profile.show_in_new_tab_menu,
     }
 }
 

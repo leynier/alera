@@ -303,7 +303,7 @@ mixin MobileRuntimeWorkspaceClient {
   Future<AgentProfileLaunchResult> launchAgentProfile({
     required String workspaceId,
     required String profileId,
-    required String prompt,
+    String prompt = '',
     required String clientMutationId,
   }) async {
     final requestType = supportsIdempotentAgentProfileLaunch

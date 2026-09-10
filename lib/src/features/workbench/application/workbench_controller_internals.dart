@@ -22,6 +22,13 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
   WorkspaceTabService get _workspaceTabService =>
       ref.read(workspaceTabServiceProvider);
 
+  PromptWorkspaceRuntimeClient get _promptWorkspaceRuntimeClient {
+    return PromptWorkspaceRuntimeClient(
+      ref.read(runtimeHostClientProvider),
+      beforeAccess: ref.read(runtimeStateMigrationProvider).ensureMigrated,
+    );
+  }
+
   WorkbenchViewPrefsRepository? get _viewPrefsRepository =>
       ref.read(workbenchViewPrefsRepositoryProvider);
 

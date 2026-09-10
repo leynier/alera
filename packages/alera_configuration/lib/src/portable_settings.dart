@@ -97,6 +97,7 @@ const portableProfileFields = [
   'customPrompt',
   'description',
   'quotaGroup',
+  'showInNewTabMenu',
 ];
 const mobileDictationFields = [
   'enabled',

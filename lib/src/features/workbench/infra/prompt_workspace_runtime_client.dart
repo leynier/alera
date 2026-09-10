@@ -57,7 +57,7 @@ class PromptWorkspaceRuntimeClient(
   Future<AgentProfileLaunchResult> launchAgent({
     required String workspaceId,
     required String profileId,
-    required String prompt,
+    String prompt = '',
     required String clientMutationId,
     required bool requireIdempotency,
   }) async {

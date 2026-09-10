@@ -14,6 +14,7 @@ fn profile(id: &str, name: &str, revision: i64) -> AgentProfile {
         custom_prompt: String::new(),
         description: String::new(),
         quota_group: None,
+        show_in_new_tab_menu: false,
         revision,
         created_at: Utc::now(),
         updated_at: Utc::now(),

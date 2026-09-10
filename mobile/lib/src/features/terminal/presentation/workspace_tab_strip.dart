@@ -9,6 +9,8 @@ class const _TabStrip({
   required final ValueChanged<WorkspaceTabSummary> onClose,
   required final ValueChanged<WorkspaceTabSummary> onActions,
   required final ValueChanged<_NewTabAction> onNewTab,
+  required final Future<List<AgentProfileSummary>> Function()
+  loadNewTabProfiles,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -45,7 +47,11 @@ class const _TabStrip({
           // overflow menu directly above it.
           Padding(
             padding: const EdgeInsets.only(left: AleraTokens.spaceSm),
-            child: _NewTabButton(creating: creating, onSelected: onNewTab),
+            child: _NewTabButton(
+              creating: creating,
+              onSelected: onNewTab,
+              loadProfiles: loadNewTabProfiles,
+            ),
           ),
         ],
       ),
@@ -59,36 +65,99 @@ class const _TabStrip({
 class const _NewTabButton({
   required final bool creating,
   required final ValueChanged<_NewTabAction> onSelected,
-}) extends StatelessWidget {
+  required final Future<List<AgentProfileSummary>> Function() loadProfiles,
+}) extends StatefulWidget {
   @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<_NewTabAction>(
-      tooltip: 'New Tab',
-      enabled: !creating,
-      position: .under,
-      onSelected: onSelected,
-      itemBuilder: (context) => <PopupMenuEntry<_NewTabAction>>[
+  State<_NewTabButton> createState() => _NewTabButtonState();
+}
+
+class _NewTabButtonState extends State<_NewTabButton> {
+  bool _openingMenu = false;
+
+  Future<void> _openMenu() async {
+    if (widget.creating || _openingMenu) {
+      return;
+    }
+    _openingMenu = true;
+    List<AgentProfileSummary> profiles = const <AgentProfileSummary>[];
+    try {
+      profiles = await widget.loadProfiles();
+    } on Object {
+      profiles = const <AgentProfileSummary>[];
+    }
+    if (!mounted || widget.creating) {
+      _openingMenu = false;
+      return;
+    }
+    final button = context.findRenderObject()! as RenderBox;
+    final overlay =
+        Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
+    final topLeft = button.localToGlobal(
+      button.size.bottomLeft(.zero),
+      ancestor: overlay,
+    );
+    final bottomRight = button.localToGlobal(
+      button.size.bottomRight(.zero),
+      ancestor: overlay,
+    );
+    final selected = await showMenu<_NewTabAction>(
+      context: context,
+      position: .fromRect(
+        .fromPoints(topLeft, bottomRight),
+        Offset.zero & overlay.size,
+      ),
+      items: <PopupMenuEntry<_NewTabAction>>[
         const PopupMenuItem<_NewTabAction>(
-          value: .terminal,
+          value: _NewTerminalTabAction(),
           height: AleraTokens.minTapTarget,
           child: _NewTabMenuRow(
             leading: Icon(Icons.terminal, size: AleraTokens.space20),
             label: 'New Terminal',
           ),
         ),
+        for (final profile in profiles)
+          PopupMenuItem<_NewTabAction>(
+            value: _NewAgentProfileTabAction(profile.id),
+            height: AleraTokens.minTapTarget,
+            child: _NewTabMenuRow(
+              leading: Icon(Icons.smart_toy, size: AleraTokens.space20),
+              label: profile.name,
+            ),
+          ),
       ],
-      child: SizedBox.square(
-        dimension: AleraTokens.minTapTarget,
-        child: creating
-            ? const Center(
-                child: SizedBox.square(
-                  dimension: AleraTokens.spaceLg,
-                  child: CircularProgressIndicator(
-                    strokeWidth: AleraTokens.strokeSm,
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _openingMenu = false;
+    });
+    if (selected != null) {
+      widget.onSelected(selected);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'New Tab',
+      child: InkWell(
+        onTap: widget.creating || _openingMenu
+            ? null
+            : () => unawaited(_openMenu()),
+        child: SizedBox.square(
+          dimension: AleraTokens.minTapTarget,
+          child: widget.creating
+              ? const Center(
+                  child: SizedBox.square(
+                    dimension: AleraTokens.spaceLg,
+                    child: CircularProgressIndicator(
+                      strokeWidth: AleraTokens.strokeSm,
+                    ),
                   ),
-                ),
-              )
-            : const Icon(Icons.add),
+                )
+              : const Icon(Icons.add),
+        ),
       ),
     );
   }

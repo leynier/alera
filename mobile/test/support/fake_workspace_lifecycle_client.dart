@@ -22,6 +22,8 @@ mixin FakeWorkspaceLifecycleClient {
   Object? linkError;
   int launchFailuresRemaining = 0;
   final List<String> agentLaunchMutationIds = <String>[];
+  Future<void>? listAgentProfilesDelay;
+  Object? listAgentProfilesError;
 
   Future<WorkspaceSidebarSnapshot> workspaceSidebarSnapshot() async {
     return const WorkspaceSidebarSnapshot(
@@ -57,6 +59,14 @@ mixin FakeWorkspaceLifecycleClient {
   }
 
   Future<List<AgentProfileSummary>> listAgentProfiles() async {
+    final delay = listAgentProfilesDelay;
+    if (delay != null) {
+      await delay;
+    }
+    final error = listAgentProfilesError;
+    if (error != null) {
+      throw error;
+    }
     return agentProfiles;
   }
 
@@ -76,7 +86,7 @@ mixin FakeWorkspaceLifecycleClient {
   Future<AgentProfileLaunchResult> launchAgentProfile({
     required String workspaceId,
     required String profileId,
-    required String prompt,
+    String prompt = '',
     required String clientMutationId,
   }) async {
     agentLaunchMutationIds.add(clientMutationId);

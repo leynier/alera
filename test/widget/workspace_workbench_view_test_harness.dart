@@ -8,6 +8,8 @@ Future<void> _pumpWorkbenchView(
   required WorkbenchLayout? layout,
   required _FakeTerminalRuntime terminalRuntime,
   required List<String?> createdTabs,
+  List<AgentProfile> newTabMenuProfiles = const <AgentProfile>[],
+  List<(String, String?)>? launchedProfiles,
   required List<_SelectedTabAction> selectedTabs,
   required List<String> closedTabs,
   required List<List<String>> closedTabGroups,
@@ -52,6 +54,12 @@ Future<void> _pumpWorkbenchView(
                 onCreateTab: ({String? targetGroupId}) async {
                   createdTabs.add(targetGroupId);
                 },
+                newTabMenuProfiles: newTabMenuProfiles,
+                onLaunchAgentProfile: launchedProfiles == null
+                    ? null
+                    : ({required profileId, targetGroupId}) async {
+                        launchedProfiles.add((profileId, targetGroupId));
+                      },
                 onOpenEditorTab:
                     ({required relativePath, targetGroupId}) async {
                       selectedTabs.add(

@@ -68,6 +68,11 @@ pub struct AgentProfile {
     /// fallback selection can prefer a candidate from a different bucket.
     #[serde(default)]
     pub quota_group: Option<String>,
+    /// When true, the workbench + menu offers this profile next to New
+    /// Terminal. Off by default so the catalog can stay large without crowding
+    /// that menu.
+    #[serde(default)]
+    pub show_in_new_tab_menu: bool,
     /// Monotonic concurrency token covering every persisted profile field,
     /// including its position in the catalog.
     #[serde(default)]

@@ -29,6 +29,15 @@ impl RuntimeStore {
         Ok(())
     }
 
+    pub(super) async fn ensure_agent_profile_new_tab_menu_column(&self) -> Result<()> {
+        self.ensure_column(
+            "agentProfiles",
+            "showInNewTabMenu",
+            "INTEGER NOT NULL DEFAULT 0",
+        )
+        .await
+    }
+
     pub(super) async fn ensure_column(
         &self,
         table: &str,

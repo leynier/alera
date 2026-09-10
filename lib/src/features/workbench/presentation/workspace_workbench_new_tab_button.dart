@@ -1,10 +1,19 @@
 part of 'workspace_workbench_view.dart';
 
-enum _NewTabMenuAction { terminal }
+sealed class _NewTabMenuAction {
+  const _NewTabMenuAction();
+}
+
+class const _NewTerminalMenuAction() extends _NewTabMenuAction {}
+
+class const _NewAgentProfileMenuAction(final String profileId)
+    extends _NewTabMenuAction {}
 
 class const _NewTabButton({
   required final String groupId,
   required final VoidCallback onCreateTab,
+  required final List<AgentProfile> profiles,
+  required final ValueChanged<String>? onLaunchAgentProfile,
 }) extends StatelessWidget {
   Future<void> _openMenu(BuildContext context) async {
     final button = context.findRenderObject()! as RenderBox;
@@ -26,7 +35,7 @@ class const _NewTabButton({
       ),
       items: <PopupMenuEntry<_NewTabMenuAction>>[
         const AleraDropdownEntry<_NewTabMenuAction>(
-          value: .terminal,
+          value: _NewTerminalMenuAction(),
           label: 'New Terminal',
           leading: Icon(
             AleraIcons.terminal,
@@ -34,6 +43,18 @@ class const _NewTabButton({
             color: AleraTokens.foregroundMuted,
           ),
         ),
+        for (final profile in profiles)
+          if (profile.showInNewTabMenu)
+            AleraDropdownEntry<_NewTabMenuAction>(
+              value: _NewAgentProfileMenuAction(profile.id),
+              label: profile.name,
+              leading: AgentIdentityIcon(
+                agentType:
+                    AgentType.tryParse(profile.agentType) ?? AgentType.codex,
+                size: 16,
+                showTooltip: false,
+              ),
+            ),
       ],
     );
 
@@ -42,8 +63,10 @@ class const _NewTabButton({
     }
 
     switch (selected) {
-      case _NewTabMenuAction.terminal:
+      case _NewTerminalMenuAction():
         onCreateTab();
+      case _NewAgentProfileMenuAction(:final profileId):
+        onLaunchAgentProfile?.call(profileId);
     }
   }
 

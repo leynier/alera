@@ -12,6 +12,8 @@ class const _WorkbenchPane({
   required final WorkbenchTabCompletionAcknowledgements
   completionAcknowledgements,
   required final CreateTerminalTabCallback onCreateTab,
+  required final List<AgentProfile> newTabMenuProfiles,
+  required final LaunchAgentProfileTabCallback? onLaunchAgentProfile,
   required final OpenFileTabCallback onOpenEditorTab,
   required final OpenFileTabCallback onOpenMarkdownViewerTab,
   required final SelectWorkspaceTabCallback onSelectTab,
@@ -79,6 +81,13 @@ class const _WorkbenchPane({
                 onRenameTab: onRenameTab,
                 onCreateTab: () =>
                     unawaited(onCreateTab(targetGroupId: groupId)),
+                newTabMenuProfiles: newTabMenuProfiles,
+                onLaunchAgentProfile: switch (onLaunchAgentProfile) {
+                  null => null,
+                  final launch => (profileId) => unawaited(
+                    launch(profileId: profileId, targetGroupId: groupId),
+                  ),
+                },
                 onSplitGroup: (zone) =>
                     unawaited(onSplitGroup(groupId: groupId, zone: zone)),
                 onMergeGroup: () => unawaited(onMergeGroup(groupId: groupId)),

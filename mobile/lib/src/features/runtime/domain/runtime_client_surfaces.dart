@@ -207,7 +207,7 @@ abstract interface class MobileWorkspaceClient {
   Future<AgentProfileLaunchResult> launchAgentProfile({
     required String workspaceId,
     required String profileId,
-    required String prompt,
+    String prompt = '',
     required String clientMutationId,
   });
   Future<List<WorkspaceSummary>> listWorkspaces();

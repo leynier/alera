@@ -241,6 +241,7 @@ pub(super) fn profile_from_payload(payload: &Value) -> HostResult<AgentProfile> 
         custom_prompt: optional_profile_string(payload, "customPrompt").unwrap_or_default(),
         description: optional_profile_string(payload, "description").unwrap_or_default(),
         quota_group: optional_profile_string(payload, "quotaGroup"),
+        show_in_new_tab_menu: optional_profile_bool(payload, "showInNewTabMenu")?,
         revision: 0,
         created_at: now,
         updated_at: now,
@@ -296,6 +297,15 @@ fn optional_profile_string(payload: &Value, key: &str) -> Option<String> {
         .map(str::to_string)
 }
 
+fn optional_profile_bool(payload: &Value, key: &str) -> HostResult<bool> {
+    match payload.get(key) {
+        None | Some(Value::Null) => Ok(false),
+        Some(value) => value
+            .as_bool()
+            .ok_or_else(|| HostError::format(format!("{key} must be a boolean."))),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use alera_core::runtime::AgentProfileLaunchMode;
@@ -316,6 +326,20 @@ mod tests {
         assert_eq!(profile.command, "codex --search");
         assert_eq!(profile.managed_config, None);
         assert_eq!(profile.custom_prompt, "");
+        assert!(!profile.show_in_new_tab_menu);
+    }
+
+    #[test]
+    fn profile_payload_reads_the_new_tab_menu_opt_in() {
+        let profile = profile_from_payload(&json!({
+            "name": "Codex",
+            "agentType": "codex",
+            "command": "codex --search",
+            "showInNewTabMenu": true
+        }))
+        .unwrap();
+
+        assert!(profile.show_in_new_tab_menu);
     }
 
     #[test]
