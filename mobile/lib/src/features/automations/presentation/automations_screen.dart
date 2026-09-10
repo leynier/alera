@@ -5,8 +5,9 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
 import 'package:alera_mobile/src/features/automations/domain/mobile_automation.dart';
 import 'package:alera_mobile/src/features/automations/infra/mobile_runtime_automation_repository.dart';
-import 'package:alera_mobile/src/features/automations/presentation/mobile_automation_editor.dart';
+import 'package:alera_mobile/src/features/automations/presentation/automations_screen_catalog.dart';
 import 'package:alera_mobile/src/features/automations/presentation/mobile_automation_detail_widgets.dart';
+import 'package:alera_mobile/src/features/automations/presentation/mobile_automation_editor.dart';
 import 'package:alera_mobile/src/features/automations/presentation/mobile_automation_widgets.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
@@ -17,6 +18,8 @@ import 'package:share_plus/share_plus.dart';
 class const AutomationsScreen({
   super.key,
   required final PairedHostProfile host,
+  final String? initialAutomationId,
+  final String? initialRunId,
 }) extends ConsumerStatefulWidget {
   @override
   ConsumerState<AutomationsScreen> createState() => _AutomationsScreenState();
@@ -29,6 +32,17 @@ class _AutomationsScreenState extends ConsumerState<AutomationsScreen> {
   final TextEditingController _tag = TextEditingController();
   String? _state;
   bool _includeTrashed = false;
+  bool _openedInitial = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialAutomationId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_openInitial());
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -73,7 +87,7 @@ class _AutomationsScreenState extends ConsumerState<AutomationsScreen> {
       body: SafeArea(
         child: automations.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => _ErrorState(error: error),
+          error: (error, _) => AutomationsErrorState(error: error),
           data: (items) {
             final visible = items.where(_matches).toList(growable: false);
             return Column(
@@ -177,7 +191,7 @@ class _AutomationsScreenState extends ConsumerState<AutomationsScreen> {
                 ),
                 Expanded(
                   child: visible.isEmpty
-                      ? const _EmptyState()
+                      ? const AutomationsEmptyState()
                       : ListView.separated(
                           padding: AleraTokens.pagePadding,
                           itemCount: visible.length,
@@ -242,6 +256,33 @@ class _AutomationsScreenState extends ConsumerState<AutomationsScreen> {
       await MobileRuntimeAutomationRepository(client).upsert(definition);
       _refresh();
       _message('Automation created');
+    } on Object catch (error) {
+      _message(error.toString(), error: true);
+    }
+  }
+
+  Future<void> _openInitial() async {
+    final id = widget.initialAutomationId;
+    if (id == null || _openedInitial || !mounted) return;
+    _openedInitial = true;
+    try {
+      final client = await ref.read(
+        hostConnectionControllerProvider(widget.host.id).future,
+      );
+      final repository = MobileRuntimeAutomationRepository(client);
+      final detail = await repository.show(id);
+      if (!mounted) return;
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => MobileAutomationDetailSheet(
+          detail: detail,
+          repository: repository,
+          client: client,
+          onChanged: _refresh,
+          initialRunId: widget.initialRunId,
+        ),
+      );
     } on Object catch (error) {
       _message(error.toString(), error: true);
     }
@@ -333,7 +374,7 @@ class _AutomationsScreenState extends ConsumerState<AutomationsScreen> {
     BuildContext context,
     Map<String, Object?> bundle,
   ) async {
-    final keys = _portableKeys(bundle).toList()..sort();
+    final keys = portableAutomationCatalogKeys(bundle).toList()..sort();
     if (keys.isEmpty) return const <String, String>{};
     final controller = TextEditingController(
       text: jsonEncode(<String, String>{for (final key in keys) key: ''}),
@@ -396,46 +437,6 @@ class _AutomationsScreenState extends ConsumerState<AutomationsScreen> {
   }
 }
 
-Set<String> _portableKeys(Map<String, Object?> bundle) {
-  final result = <String>{};
-  final definitions = bundle['definitions'];
-  if (definitions is List) {
-    for (final item in definitions.whereType<Map>()) {
-      final definition = <String, Object?>{
-        for (final entry in item.entries)
-          if (entry.key is String) entry.key as String: entry.value,
-      };
-      if (definition['projectKey'] is String) {
-        result.add(definition['projectKey']! as String);
-      }
-      final target = definition['target'];
-      if (target is! Map) continue;
-      for (final details in target.values.whereType<Map>()) {
-        for (final key in <String>[
-          'workspaceKey',
-          'sourceWorkspaceKey',
-          'tabKey',
-          'profileKey',
-          'conversationKey',
-        ]) {
-          final value = details[key];
-          if (value is String && value.trim().isNotEmpty) result.add(value);
-        }
-      }
-    }
-  }
-  final templates = bundle['templates'];
-  if (templates is List) {
-    for (final item in templates.whereType<Map>()) {
-      final projectKey = item['projectKey'];
-      if (projectKey is String && projectKey.trim().isNotEmpty) {
-        result.add(projectKey.trim());
-      }
-    }
-  }
-  return result;
-}
-
 Map<String, Object?>? _nested(Map<String, Object?> map, String? key) {
   final value = key == null ? null : map[key];
   return value is Map
@@ -448,28 +449,3 @@ Map<String, Object?>? _nested(Map<String, Object?> map, String? key) {
 
 String? _firstKey(Map<String, Object?> map) =>
     map.isEmpty ? null : map.keys.first;
-
-class const _EmptyState() extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => const Center(
-    child: Padding(
-      padding: AleraTokens.pagePadding,
-      child: Text('No automations are configured on this host.'),
-    ),
-  );
-}
-
-class const _ErrorState({required final Object error}) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: AleraTokens.pagePadding,
-      child: Text(
-        error is UnsupportedError
-            ? 'Update the runtime to manage automations from mobile.'
-            : error.toString(),
-        textAlign: .center,
-      ),
-    ),
-  );
-}

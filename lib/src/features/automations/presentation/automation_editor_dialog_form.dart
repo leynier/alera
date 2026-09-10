@@ -92,14 +92,12 @@ extension on _AutomationEditorDialogState {
       return;
     }
     if (_workspaceId.text.trim().isEmpty ||
-        (_targetKind == 'existingTab' &&
-            (_tabId.text.trim().isEmpty ||
-                _conversationId.text.trim().isEmpty)) ||
+        (_targetKind == 'existingTab' && _tabId.text.trim().isEmpty) ||
         (_targetKind != 'existingTab' && _profileId.text.trim().isEmpty)) {
       // ignore: invalid_use_of_protected_member
       setState(
         () => _error = _targetKind == 'existingTab'
-            ? 'The existing tab requires workspace, tab, and conversation ids.'
+            ? 'The existing tab requires workspace and tab ids.'
             : 'The selected target requires its ids.',
       );
       return;
@@ -110,7 +108,8 @@ extension on _AutomationEditorDialogState {
         'existingTab': <String, Object?>{
           'workspaceId': _workspaceId.text.trim(),
           'tabId': _tabId.text.trim(),
-          'conversationId': _conversationId.text.trim(),
+          if (_conversationId.text.trim().isNotEmpty)
+            'conversationId': _conversationId.text.trim(),
         },
       },
       'managedWorkspace' => <String, Object?>{

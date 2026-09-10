@@ -462,6 +462,7 @@ fn automation_definition(workspace_id: &str) -> AutomationDefinition {
         precheck: None,
         notify_on_success: false,
         circuit_opened: false,
+        circuit_opened_at: None,
         state: AutomationState::Draft,
         revision: 1,
         approved_revision: None,

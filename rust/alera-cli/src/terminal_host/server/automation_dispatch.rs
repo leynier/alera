@@ -59,6 +59,26 @@ impl ServerActor {
         {
             tracing::warn!("automation trash maintenance failed: {error}");
         }
+        match self
+            .runtime_store
+            .reset_expired_automation_circuits(maintenance_now, managed_actor())
+            .await
+        {
+            Ok((reset, errors)) => {
+                for error in errors {
+                    tracing::warn!("automation circuit reset failed: {error}");
+                }
+                if reset > 0 {
+                    self.automation_wake.notify_one();
+                    self.broadcast_authenticated(crate::terminal_host::protocol::event(
+                        "automationsChanged",
+                        serde_json::json!({}),
+                    ));
+                }
+            }
+            Err(error) => tracing::warn!("automation circuit reset failed: {error}"),
+        }
+        let previous_active = self.automations_active;
         let active_definitions = match self.runtime_store.has_active_automations().await {
             Ok(active) => active,
             Err(error) => {
@@ -71,24 +91,34 @@ impl ServerActor {
             .list_active_automation_runs()
             .await
             .unwrap_or_default();
-        self.automations_active = active_definitions || !active_runs.is_empty();
+        let pending_circuits = match self.runtime_store.has_pending_automation_work().await {
+            Ok(pending) => pending,
+            Err(error) => {
+                tracing::error!("could not inspect pending automation work: {error}");
+                previous_active || active_definitions || !active_runs.is_empty()
+            }
+        };
+        self.automations_active = pending_circuits;
         if active_definitions {
-            let definitions = match self.runtime_store.list_automations(false).await {
-                Ok(definitions) => definitions,
-                Err(error) => {
-                    tracing::error!("could not list automations: {error}");
-                    return;
+            match self.runtime_store.list_automations(false).await {
+                Ok(definitions) => {
+                    for definition in definitions.into_iter().filter(|definition| {
+                        definition.state == AutomationState::Active && definition.is_approved()
+                    }) {
+                        self.evaluate_automation(definition).await;
+                    }
                 }
-            };
-            for definition in definitions.into_iter().filter(|definition| {
-                definition.state == AutomationState::Active && definition.is_approved()
-            }) {
-                self.evaluate_automation(definition).await;
+                Err(error) => tracing::error!("could not list automations: {error}"),
             }
         }
         if self.automations_active {
             self.expire_inactive_automation_runs().await;
         }
+        self.automations_active = self
+            .runtime_store
+            .has_pending_automation_work()
+            .await
+            .unwrap_or(self.automations_active);
         self.schedule_shutdown_if_idle();
     }
 
@@ -166,7 +196,6 @@ impl ServerActor {
                         Some("maximum scheduled runs reached"),
                     )
                     .await;
-                self.automations_active = false;
                 return false;
             }
         }

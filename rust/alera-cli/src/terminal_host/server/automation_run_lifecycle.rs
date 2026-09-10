@@ -135,15 +135,12 @@ impl ServerActor {
                 Some(reason.to_string()),
             )
             .await;
-        let _ = self
-            .runtime_store
-            .set_automation_state(
-                &run.automation_id,
-                AutomationState::Blocked,
-                managed_actor(),
-                Some(reason),
-            )
-            .await;
+        self.block_automation_definition_if_active(
+            &run.automation_id,
+            managed_actor(),
+            Some(reason),
+        )
+        .await;
         self.broadcast_authenticated(crate::terminal_host::protocol::event(
             "automationAttentionRequired",
             json!({ "automationId": run.automation_id, "runId": run.id, "reason": reason }),
@@ -209,24 +206,12 @@ impl ServerActor {
                     .unwrap_or_default()
                     >= definition.circuit_failure_threshold
                 {
-                    let _ = self
-                        .runtime_store
-                        .set_automation_circuit_opened(
-                            &run.automation_id,
-                            true,
-                            managed_actor(),
-                            Some("automation circuit breaker opened"),
-                        )
-                        .await;
-                    let _ = self
-                        .runtime_store
-                        .set_automation_state(
-                            &run.automation_id,
-                            AutomationState::Blocked,
-                            managed_actor(),
-                            Some("automation circuit breaker opened"),
-                        )
-                        .await;
+                    self.open_automation_circuit(
+                        &run.automation_id,
+                        managed_actor(),
+                        "automation circuit breaker opened",
+                    )
+                    .await;
                 }
             }
         }
@@ -328,27 +313,51 @@ impl ServerActor {
                         .unwrap_or_default()
                         >= definition.circuit_failure_threshold
                 {
-                    let _ = self
-                        .runtime_store
-                        .set_automation_circuit_opened(
-                            &run.automation_id,
-                            true,
-                            managed_actor(),
-                            Some("automation circuit breaker opened after timeout"),
-                        )
-                        .await;
-                    let _ = self
-                        .runtime_store
-                        .set_automation_state(
-                            &run.automation_id,
-                            AutomationState::Blocked,
-                            managed_actor(),
-                            Some("automation circuit breaker opened"),
-                        )
-                        .await;
+                    self.open_automation_circuit(
+                        &run.automation_id,
+                        managed_actor(),
+                        "automation circuit breaker opened after timeout",
+                    )
+                    .await;
                 }
             }
         }
+    }
+
+    pub(in crate::terminal_host::server) async fn open_automation_circuit(
+        &mut self,
+        automation_id: &str,
+        actor: alera_core::runtime::AutomationActor,
+        reason: &str,
+    ) {
+        if let Err(error) = self
+            .runtime_store
+            .open_automation_circuit(automation_id, actor, Some(reason))
+            .await
+        {
+            tracing::warn!(automation_id, "could not open automation circuit: {error}");
+            return;
+        }
+        self.automations_active = true;
+        self.automation_wake.notify_one();
+    }
+
+    pub(in crate::terminal_host::server) async fn block_automation_definition_if_active(
+        &mut self,
+        automation_id: &str,
+        actor: alera_core::runtime::AutomationActor,
+        reason: Option<&str>,
+    ) {
+        let Ok(Some(definition)) = self.runtime_store.find_automation(automation_id).await else {
+            return;
+        };
+        if definition.state != AutomationState::Active {
+            return;
+        }
+        let _ = self
+            .runtime_store
+            .set_automation_state(automation_id, AutomationState::Blocked, actor, reason)
+            .await;
     }
 
     async fn terminate_owned_automation_sessions(&mut self, run: &AutomationRun) {
@@ -383,6 +392,10 @@ pub(super) fn is_non_retryable_reason(reason: &str) -> bool {
 #[cfg(test)]
 #[path = "automation_run_lifecycle_tests.rs"]
 mod expire_tests;
+
+#[cfg(test)]
+#[path = "automation_circuit_tests.rs"]
+mod circuit_tests;
 
 #[cfg(test)]
 mod tests {

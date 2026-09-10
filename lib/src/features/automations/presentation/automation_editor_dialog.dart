@@ -326,7 +326,10 @@ class _AutomationEditorDialogState
                         ],
                       ),
                       const SizedBox(height: AleraTokens.space12),
-                      _text(_conversationId, 'Agent Conversation ID'),
+                      _text(
+                        _conversationId,
+                        'Agent Conversation ID (Optional)',
+                      ),
                     ],
                     if (_targetKind != 'existingTab') ...<Widget>[
                       const SizedBox(height: AleraTokens.space12),
@@ -406,6 +409,8 @@ class _AutomationEditorDialogState
                         ),
                       ],
                     ),
+                    const SizedBox(height: AleraTokens.space12),
+                    _text(_misfireGrace, 'Misfire Grace (Seconds)'),
                     const SizedBox(height: AleraTokens.space12),
                     _text(_queueCap, 'Queue Cap (Maximum 10)'),
                     const SizedBox(height: AleraTokens.space12),

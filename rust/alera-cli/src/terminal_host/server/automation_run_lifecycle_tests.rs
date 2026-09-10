@@ -167,6 +167,7 @@ fn definition(inactivity_timeout_seconds: i64) -> AutomationDefinition {
         precheck: None,
         notify_on_success: false,
         circuit_opened: false,
+        circuit_opened_at: None,
         state: AutomationState::Active,
         revision: 1,
         approved_revision: Some(1),

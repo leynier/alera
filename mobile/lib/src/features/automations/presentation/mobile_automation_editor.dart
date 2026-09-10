@@ -255,12 +255,11 @@ class _MobileAutomationEditorState extends State<_MobileAutomationEditor> {
         _slug.text.trim().isEmpty ||
         _prompt.text.trim().isEmpty ||
         _workspace.text.trim().isEmpty ||
-        (_targetKind == 'existingTab' &&
-            (_tab.text.trim().isEmpty || _conversation.text.trim().isEmpty)) ||
+        (_targetKind == 'existingTab' && _tab.text.trim().isEmpty) ||
         (_targetKind != 'existingTab' && _profile.text.trim().isEmpty)) {
       setState(
         () => _error = _targetKind == 'existingTab'
-            ? 'The existing tab requires workspace, tab, and conversation ids.'
+            ? 'The existing tab requires workspace and tab ids.'
             : 'Name, slug, prompt, and target values are required.',
       );
       return;
@@ -360,7 +359,10 @@ class _MobileAutomationEditorState extends State<_MobileAutomationEditor> {
           ...?existing,
           'workspaceId': _workspace.text.trim(),
           'tabId': _tab.text.trim(),
-          'conversationId': _conversation.text.trim(),
+          if (_conversation.text.trim().isNotEmpty)
+            'conversationId': _conversation.text.trim()
+          else
+            'conversationId': null,
         },
       },
       'managedWorkspace' => <String, Object?>{

@@ -134,7 +134,7 @@ impl ServerActor {
             .map_err(|error| HostError::state(error.to_string()))?;
         self.automations_active = self
             .runtime_store
-            .has_active_automations()
+            .has_pending_automation_work()
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
         self.automation_wake.notify_one();
