@@ -124,32 +124,10 @@ WorkbenchDropZone resolveWorkbenchPaneDropZone({
   required Size paneSize,
   required Offset localPosition,
 }) {
-  if (paneSize.width <= 0 || paneSize.height <= 0) {
-    return WorkbenchDropZone.center;
-  }
-  final localX = localPosition.dx.clamp(0, paneSize.width);
-  final localY = localPosition.dy.clamp(0, paneSize.height);
-  final centerRect = _centerDropRect(paneSize);
-  final local = Offset(localX.toDouble(), localY.toDouble());
-  if (centerRect.contains(local)) {
-    return WorkbenchDropZone.center;
-  }
-
-  final horizontalOverflow = local.dx < centerRect.left
-      ? centerRect.left - local.dx
-      : math.max(0, local.dx - centerRect.right);
-  final verticalOverflow = local.dy < centerRect.top
-      ? centerRect.top - local.dy
-      : math.max(0, local.dy - centerRect.bottom);
-
-  if (horizontalOverflow >= verticalOverflow) {
-    return local.dx < paneSize.width / 2
-        ? WorkbenchDropZone.left
-        : WorkbenchDropZone.right;
-  }
-  return local.dy < paneSize.height / 2
-      ? WorkbenchDropZone.up
-      : WorkbenchDropZone.down;
+  return drop_zones.resolveWorkbenchPaneDropZone(
+    paneSize: paneSize,
+    localPosition: localPosition,
+  );
 }
 
 @visibleForTesting
@@ -157,33 +135,10 @@ Rect resolveWorkbenchDropOverlayRect({
   required WorkbenchDropZone zone,
   required Size paneSize,
 }) {
-  return switch (zone) {
-    WorkbenchDropZone.left => Rect.fromLTWH(
-      0,
-      0,
-      paneSize.width / 2,
-      paneSize.height,
-    ),
-    WorkbenchDropZone.right => Rect.fromLTWH(
-      paneSize.width / 2,
-      0,
-      paneSize.width / 2,
-      paneSize.height,
-    ),
-    WorkbenchDropZone.up => Rect.fromLTWH(
-      0,
-      0,
-      paneSize.width,
-      paneSize.height / 2,
-    ),
-    WorkbenchDropZone.down => Rect.fromLTWH(
-      0,
-      paneSize.height / 2,
-      paneSize.width,
-      paneSize.height / 2,
-    ),
-    WorkbenchDropZone.center => _centerDropRect(paneSize),
-  };
+  return drop_zones.resolveWorkbenchDropOverlayRect(
+    zone: zone,
+    paneSize: paneSize,
+  );
 }
 
 @visibleForTesting
@@ -193,13 +148,12 @@ bool isWorkbenchPaneDropActionEnabled({
   required int targetTabCount,
   required WorkbenchDropZone zone,
 }) {
-  if (sourceGroupId != targetGroupId) {
-    return true;
-  }
-  if (targetTabCount <= 1) {
-    return false;
-  }
-  return zone != WorkbenchDropZone.center;
+  return drop_zones.isWorkbenchPaneDropActionEnabled(
+    sourceGroupId: sourceGroupId,
+    targetGroupId: targetGroupId,
+    targetTabCount: targetTabCount,
+    zone: zone,
+  );
 }
 
 @visibleForTesting
@@ -219,25 +173,6 @@ bool workspaceTabUsesMermanPreviewForTesting(WorkspaceTabRecord tab) {
 @visibleForTesting
 bool workspaceTabUsesPdfViewerForTesting(WorkspaceTabRecord tab) {
   return tab.kind == WorkspaceTabKind.pdf;
-}
-
-Rect _centerDropRect(Size paneSize) {
-  const centerWidthFactor = 0.36;
-  const centerHeightFactor = 0.36;
-  final width = math.min(
-    paneSize.width,
-    math.max(AleraTokens.space48 * 2, paneSize.width * centerWidthFactor),
-  );
-  final height = math.min(
-    paneSize.height,
-    math.max(AleraTokens.space48 * 2, paneSize.height * centerHeightFactor),
-  );
-  return Rect.fromLTWH(
-    (paneSize.width - width) / 2,
-    (paneSize.height - height) / 2,
-    width,
-    height,
-  );
 }
 
 class const _PaneDropTarget({

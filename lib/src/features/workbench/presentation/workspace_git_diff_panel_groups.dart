@@ -237,24 +237,30 @@ class const _GitDiffGroupHeader({
           Expanded(
             child: Text(
               group.label,
+              maxLines: 1,
+              overflow: .ellipsis,
               style: Theme.of(context).textTheme.labelSmall
                   ?.copyWith(color: AleraTokens.foregroundMuted),
             ),
           ),
-          Text(
-            '${group.entries.length}',
-            style: Theme.of(context).textTheme.labelSmall
-                ?.copyWith(color: AleraTokens.foregroundFaint),
-          ),
-          const SizedBox(width: AleraTokens.space6),
-          _AreaActions(
-            busy: busy,
-            onStage: onStage,
-            onUnstage: onUnstage,
-            onDiscard: onDiscard,
-            canStage: canStage,
-            canUnstage: canUnstage,
-            canDiscard: canDiscard,
+          WorkbenchScrollableActions(
+            children: <Widget>[
+              Text(
+                '${group.entries.length}',
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: AleraTokens.foregroundFaint),
+              ),
+              const SizedBox(width: AleraTokens.space6),
+              _AreaActions(
+                busy: busy,
+                onStage: onStage,
+                onUnstage: onUnstage,
+                onDiscard: onDiscard,
+                canStage: canStage,
+                canUnstage: canUnstage,
+                canDiscard: canDiscard,
+              ),
+            ],
           ),
         ],
       ),

@@ -47,6 +47,7 @@ class _DispatcherTestWorkbenchController(
 
   final List<String> closedTabIds = <String>[];
   final List<String> selectedTabIds = <String>[];
+  final List<String> selectedExperimentalKeys = <String>[];
   final List<({String workspaceId, String groupId, WorkbenchDropZone zone})>
   splitRequests =
       <({String workspaceId, String groupId, WorkbenchDropZone zone})>[];
@@ -124,6 +125,15 @@ class _DispatcherTestWorkbenchController(
     // and the editor document for every closed tab.
     ref.read(terminalRuntimeProvider).closeTab(tabId);
     ref.read(editorSessionRegistryProvider).forget(tabId);
+  }
+
+  @override
+  void selectExperimentalPanelKey(
+    String workspaceId,
+    String key, {
+    String? groupId,
+  }) {
+    selectedExperimentalKeys.add(key);
   }
 
   @override

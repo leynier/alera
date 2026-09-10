@@ -104,6 +104,7 @@ void main() {
           );
 
       expect(layout.paneGroupIds, <String>[firstGroupId, 'group-2']);
+      expect(layout.topRightPaneGroupId, firstGroupId);
       expect(layout.root.axis, WorkbenchSplitAxis.vertical);
 
       final collapsed = layout.removeTab('tab-2');
@@ -413,6 +414,7 @@ void main() {
 
         expect(centered.groups[groupId]?.tabIds, <String>['tab-2', 'tab-1']);
         expect(split.paneGroupIds, <String>['group-2', groupId]);
+        expect(split.topRightPaneGroupId, groupId);
         expect(split.root.axis, WorkbenchSplitAxis.horizontal);
       },
     );
@@ -443,6 +445,7 @@ void main() {
                 ),
               );
 
+      expect(layout.topRightPaneGroupId, 'group-b');
       final mergedRoot = layout.mergeGroupIntoSibling(rootGroupId);
       final mergedNested = layout.mergeGroupIntoSibling('group-c');
 

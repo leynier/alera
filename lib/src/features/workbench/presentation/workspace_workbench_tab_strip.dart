@@ -258,22 +258,22 @@ class const _PaneMenuButton({
         const AleraDropdownEntry<_PaneMenuAction>(
           value: .splitRight,
           label: 'Split Right',
-          leading: _SplitDirectionGlyph(zone: .right),
+          leading: WorkbenchSplitDirectionGlyph(zone: .right),
         ),
         const AleraDropdownEntry<_PaneMenuAction>(
           value: .splitDown,
           label: 'Split Down',
-          leading: _SplitDirectionGlyph(zone: .down),
+          leading: WorkbenchSplitDirectionGlyph(zone: .down),
         ),
         const AleraDropdownEntry<_PaneMenuAction>(
           value: .splitLeft,
           label: 'Split Left',
-          leading: _SplitDirectionGlyph(zone: .left),
+          leading: WorkbenchSplitDirectionGlyph(zone: .left),
         ),
         const AleraDropdownEntry<_PaneMenuAction>(
           value: .splitUp,
           label: 'Split Up',
-          leading: _SplitDirectionGlyph(zone: .up),
+          leading: WorkbenchSplitDirectionGlyph(zone: .up),
         ),
         if (canCloseSplit) const PopupMenuDivider(height: AleraTokens.space8),
         if (canCloseSplit)
@@ -310,51 +310,5 @@ class const _PaneMenuButton({
       icon: AleraIcons.more,
       minSize: 28,
     );
-  }
-}
-
-class const _SplitDirectionGlyph({required final WorkbenchDropZone zone})
-    extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      size: const .square(14),
-      painter: _SplitDirectionPainter(zone: zone),
-    );
-  }
-}
-
-class const _SplitDirectionPainter({required final WorkbenchDropZone zone})
-    extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final outerRect = Rect.fromLTWH(0.5, 0.5, size.width - 1, size.height - 1);
-    final outerRRect = RRect.fromRectAndRadius(
-      outerRect,
-      const .circular(AleraTokens.radiusSm),
-    );
-
-    final fillRect = splitDirectionFillRectForTesting(zone, size);
-
-    if (!fillRect.isEmpty) {
-      canvas
-        ..save()
-        ..clipRRect(outerRRect)
-        ..drawRect(fillRect, Paint()..color = AleraTokens.foreground)
-        ..restore();
-    }
-
-    canvas.drawRRect(
-      outerRRect,
-      Paint()
-        ..color = AleraTokens.foregroundMuted
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _SplitDirectionPainter oldDelegate) {
-    return splitDirectionShouldRepaintForTesting(oldDelegate.zone, zone);
   }
 }

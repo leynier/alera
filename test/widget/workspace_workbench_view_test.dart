@@ -25,6 +25,7 @@ part 'workspace_workbench_view_tab_drop_test_cases.dart';
 part 'workspace_workbench_view_tab_test_cases.dart';
 part 'workspace_workbench_view_preview_tab_test_cases.dart';
 part 'workspace_workbench_view_test_harness.dart';
+part 'workspace_workbench_view_experimental_test_cases.dart';
 
 late _FakeTerminalRuntime terminalRuntime;
 late List<String?> createdTabs;
@@ -53,6 +54,7 @@ void main() {
       updatedRatios = <_UpdatedSplitRatioAction>[];
     });
 
+    _registerExperimentalWorkbenchViewTests();
     _registerWorkspaceWorkbenchViewPaneTests();
     _registerWorkspaceWorkbenchViewTabTests();
     _registerWorkspaceWorkbenchViewPreviewTabTests();

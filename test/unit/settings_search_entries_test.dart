@@ -30,8 +30,18 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      '238d8c022682403ed8c1d483302b121ca8d6f5a2915b4d76837424a29c36ee53',
+      'c333983d887ca2ea765cf72ca53b3667b04c1fb035b8ba771e711a2741e3053f',
     );
+  });
+
+  test('global experimental mode is searchable under Desktop', () {
+    final entry = applicationSearchEntries.singleWhere(
+      (entry) => entry.title == 'Experimental Mode',
+    );
+    expect(entry.groupId, 'desktop');
+    expect(entry.matches('experimental'), isTrue);
+    expect(entry.matches('classic'), isTrue);
+    expect(entry.matches('layout'), isTrue);
   });
 
   test('built search catalogs remain immutable', () {

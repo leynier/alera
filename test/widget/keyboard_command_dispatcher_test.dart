@@ -10,7 +10,9 @@ import 'package:alera/src/features/remote_hosts/application/ssh_target_providers
 import 'package:alera/src/features/remote_hosts/infra/runtime_ssh_target_repository.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
+import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
+import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
@@ -169,6 +171,48 @@ void main() {
     ]);
     expect(runtime.closedTabIds, <String>[newTab.id]);
     expect(controller.closedTabIds, <String>[newTab.id]);
+  });
+
+  testWidgets('experimental previousTab wraps from the first key', (
+    tester,
+  ) async {
+    final workspace = _workspace();
+    final firstTab = _tab(id: 'tab-1');
+    final secondTab = _tab(id: 'tab-2');
+    final thirdTab = _tab(id: 'tab-3');
+    final panel = const ExperimentalWorkspacePanel(
+      primaryTabId: 'tab-1',
+      tabKeys: ['tab:tab-2', 'tab:tab-3'],
+      focusedKey: 'tab:tab-1',
+    );
+    final controller = _DispatcherTestWorkbenchController(
+      WorkbenchState(
+        workspacesByProject: <String, List<Workspace>>{
+          workspace.projectId: <Workspace>[workspace],
+        },
+        tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
+          workspace.id: <WorkspaceTabRecord>[firstTab, secondTab, thirdTab],
+        },
+        activeWorkspaceId: workspace.id,
+        viewPrefs: WorkbenchViewPrefs.defaults.copyWith(
+          desktopLayout: DesktopWorkspaceLayout.experimental,
+          experimentalPanels: <String, ExperimentalWorkspacePanel>{
+            workspace.id: panel,
+          },
+        ),
+      ),
+    );
+    final harness = await _pumpDispatcherHarness(
+      tester,
+      controller: controller,
+      runtime: _FakeTerminalRuntime(),
+    );
+    final dispatcher = KeyboardCommandDispatcher(
+      ref: harness.ref,
+      context: harness.context,
+    );
+    dispatcher.dispatch(.previousTab);
+    expect(controller.selectedExperimentalKeys, <String>['tab:tab-3']);
   });
 
   testWidgets('worktree navigation commands use the controller history', (

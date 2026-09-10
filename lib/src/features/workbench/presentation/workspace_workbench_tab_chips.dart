@@ -82,6 +82,7 @@ class const _DraggableWorkspaceTabChip({
 }
 
 class const _WorkspaceTabChip({
+  final bool canSplit = true,
   required final WorkspaceTabRecord tab,
   required final TerminalSessionHandle? terminalSession,
   required final AgentStatusEntry? status,

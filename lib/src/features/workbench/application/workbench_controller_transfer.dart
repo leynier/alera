@@ -4,6 +4,7 @@ mixin _WorkbenchControllerTransfer
     on
         _$WorkbenchController,
         _WorkbenchControllerInternals,
+        _WorkbenchControllerWorkspaceReconciliation,
         _WorkbenchControllerTabOpening,
         _WorkbenchControllerProjects {
   Future<WorkspaceCreationResult> handOffWorkspace({

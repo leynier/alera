@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
+
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
@@ -185,6 +187,17 @@ class const KeyboardCommandDispatcher({
   void _closeActiveTab() {
     final state = ref.read(workbenchControllerProvider);
     final workspace = state.activeWorkspace;
+    if (state.isExperimentalLayout && workspace != null) {
+      final tool = ExperimentalWorkspaceTool.forKey(
+        state.experimentalPanelFor(workspace.id).focusedKey,
+      );
+      if (tool != null) {
+        ref
+            .read(workbenchControllerProvider.notifier)
+            .closeExperimentalTool(workspace.id, tool);
+        return;
+      }
+    }
     final tab = state.activeWorkspaceTab;
     if (workspace == null || tab == null) {
       return;
@@ -215,6 +228,17 @@ class const KeyboardCommandDispatcher({
 
   void _cycleTab(int delta) {
     final state = ref.read(workbenchControllerProvider);
+    if (state.isExperimentalLayout && state.activeWorkspaceId != null) {
+      final panel = state.experimentalPanelFor(state.activeWorkspaceId!);
+      final keys = _experimentalNavigationKeys;
+      if (keys.isEmpty) return;
+      final index = keys.indexOf(panel.focusedKey ?? '');
+      final base = index < 0 ? 0 : index;
+      final nextIndex = (base + delta) % keys.length;
+      final wrapped = nextIndex < 0 ? nextIndex + keys.length : nextIndex;
+      _goToTabIndex(wrapped);
+      return;
+    }
     final layout = state.activeLayout;
     final workspace = state.activeWorkspace;
     final group = layout?.activeGroup;
@@ -241,6 +265,15 @@ class const KeyboardCommandDispatcher({
 
   void _goToTabIndex(int index) {
     final state = ref.read(workbenchControllerProvider);
+    if (state.isExperimentalLayout && state.activeWorkspaceId != null) {
+      final keys = _experimentalNavigationKeys;
+      if (index >= 0 && index < keys.length) {
+        ref
+            .read(workbenchControllerProvider.notifier)
+            .selectExperimentalPanelKey(state.activeWorkspaceId!, keys[index]);
+      }
+      return;
+    }
     final layout = state.activeLayout;
     final workspace = state.activeWorkspace;
     final group = layout?.activeGroup;
@@ -260,6 +293,10 @@ class const KeyboardCommandDispatcher({
   }
 
   void _goToLastTab() {
+    if (ref.read(workbenchControllerProvider).isExperimentalLayout) {
+      _goToTabIndex(_experimentalNavigationKeys.length - 1);
+      return;
+    }
     final group = ref
         .read(workbenchControllerProvider)
         .activeLayout
@@ -273,12 +310,34 @@ class const KeyboardCommandDispatcher({
   void _split(WorkbenchDropZone zone) {
     final state = ref.read(workbenchControllerProvider);
     final workspace = state.activeWorkspace;
-    final layout = state.activeLayout;
-    if (workspace == null || layout == null) {
+    if (workspace == null) {
       return;
     }
     final controller = ref.read(workbenchControllerProvider.notifier);
     final runtime = ref.read(terminalRuntimeProvider);
+    if (state.isExperimentalLayout) {
+      final panel = state.experimentalPanelFor(workspace.id);
+      final tree =
+          panel.treeForKey(panel.focusedKey ?? '') ??
+          ExperimentalPanelTree.right;
+      final layout = tree == ExperimentalPanelTree.main
+          ? panel.ensuredMainLayout(workspace.id)
+          : panel.ensuredLayout(workspace.id);
+      final groupId = layout.activeGroupId;
+      unawaited(() async {
+        final tab = await controller.splitWorkbenchGroupWithTerminal(
+          workspace: workspace,
+          groupId: groupId,
+          zone: zone,
+        );
+        runtime.sessionFor(workspace: workspace, tab: tab).requestFocus();
+      }());
+      return;
+    }
+    final layout = state.activeLayout;
+    if (layout == null) {
+      return;
+    }
     unawaited(() async {
       final tab = await controller.splitWorkbenchGroupWithTerminal(
         workspace: workspace,
@@ -292,8 +351,32 @@ class const KeyboardCommandDispatcher({
   void _closeSplit() {
     final state = ref.read(workbenchControllerProvider);
     final workspace = state.activeWorkspace;
+    if (workspace == null) {
+      return;
+    }
+    if (state.isExperimentalLayout) {
+      final panel = state.experimentalPanelFor(workspace.id);
+      final tree =
+          panel.treeForKey(panel.focusedKey ?? '') ??
+          ExperimentalPanelTree.right;
+      final layout = tree == ExperimentalPanelTree.main
+          ? panel.ensuredMainLayout(workspace.id)
+          : panel.ensuredLayout(workspace.id);
+      if (layout.groups.length < 2) {
+        return;
+      }
+      unawaited(
+        ref
+            .read(workbenchControllerProvider.notifier)
+            .mergeWorkbenchGroupIntoSibling(
+              workspaceId: workspace.id,
+              groupId: layout.activeGroupId,
+            ),
+      );
+      return;
+    }
     final layout = state.activeLayout;
-    if (workspace == null || layout == null || layout.groups.length < 2) {
+    if (layout == null || layout.groups.length < 2) {
       return;
     }
     unawaited(
@@ -304,5 +387,17 @@ class const KeyboardCommandDispatcher({
             groupId: layout.activeGroupId,
           ),
     );
+  }
+
+  List<String> get _experimentalNavigationKeys {
+    final state = ref.read(workbenchControllerProvider);
+    final id = state.activeWorkspaceId;
+    if (id == null) return const <String>[];
+    final panel = state.experimentalPanelFor(id);
+    return <String>[
+      ...panel.mainKeys,
+      for (final key in panel.tabKeys)
+        if (!panel.mainKeys.contains(key)) key,
+    ];
   }
 }

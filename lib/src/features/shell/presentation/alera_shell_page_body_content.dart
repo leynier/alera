@@ -9,6 +9,8 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
     required WorkspaceSourceControlScope? sourceControlScope,
     required List<WorkspaceTabRecord> tabs,
     required WorkbenchLayout? layout,
+    bool singleSurface = false,
+    String? singleTabId,
   }) {
     if (!bootstrapped && !hasProjects) {
       return const Center(child: CircularProgressIndicator());
@@ -43,6 +45,9 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
           terminalDriverPresenceControllerProvider.notifier,
         );
         return WorkspaceWorkbenchView(
+          key: ValueKey((workspace.id, singleSurface, singleTabId)),
+          singleSurface: singleSurface,
+          singleTabId: singleTabId,
           project: project,
           workspace: workspace,
           sourceControlScope: sourceControlScope,

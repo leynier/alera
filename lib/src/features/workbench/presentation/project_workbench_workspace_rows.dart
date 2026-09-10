@@ -6,6 +6,7 @@ class const _WorkspaceRow({
   required final List<WorkspaceAgentRun> agentRuns,
   required final List<WorkspaceAgentRunGroup> agentRunGroups,
   required final AgentStatusEntry? status,
+  final AgentStatusEntry? primaryStatus,
   required final bool hasTerminalTabs,
   required final bool isActive,
   required final String? activeTabId,
@@ -141,6 +142,18 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                           ),
                         ),
                         const SizedBox(width: AleraTokens.space8),
+                        if (widget.primaryStatus
+                            case final AgentStatusEntry primary) ...<Widget>[
+                          Tooltip(
+                            message: _agentRunDescription(primary),
+                            child: AgentIdentityIcon(
+                              agentType: primary.agentType,
+                              size: AleraTokens.space16,
+                              color: AleraTokens.foregroundMuted,
+                            ),
+                          ),
+                          const SizedBox(width: AleraTokens.space6),
+                        ],
                         Expanded(
                           child: Align(
                             alignment: Alignment.centerLeft,

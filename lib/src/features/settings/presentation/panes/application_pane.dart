@@ -11,6 +11,7 @@ import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart
 import 'package:alera/src/features/updater/presentation/update_settings_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
 
 /// App-level preferences: storage, safety confirmations, runtime lifecycle,
 /// updates, and the support row.
@@ -71,6 +72,29 @@ class const ApplicationSettingsPane({
             description:
                 'Tray icon and dock or taskbar badge while Alera is running.',
             children: <Widget>[
+              Consumer(
+                builder: (context, ref, _) {
+                  final experimental = ref.watch(
+                    workbenchControllerProvider.select(
+                      (state) =>
+                          state.viewPrefs.desktopLayout ==
+                          DesktopWorkspaceLayout.experimental,
+                    ),
+                  );
+                  return SettingsSwitchRow(
+                    title: 'Experimental Mode',
+                    description: 'Use one primary terminal beside a tabbed panel. Applies to all workspaces.',
+                    value: experimental,
+                    onChanged: (value) => ref
+                        .read(workbenchControllerProvider.notifier)
+                        .setDesktopWorkspaceLayout(
+                          value
+                              ? DesktopWorkspaceLayout.experimental
+                              : DesktopWorkspaceLayout.classic,
+                        ),
+                  );
+                },
+              ),
               SettingsSwitchRow(
                 title: 'Show Tray Icon',
                 description: 'Keep Alera in the menu extra (macOS), notification area (Windows), or status bar (Ubuntu). Closing the window hides it; Quit from the tray or the app menu exits.',

@@ -262,20 +262,24 @@ class const _GitDiffDirectoryRow({
               ),
             ),
           ),
-          Text(
-            '${row.fileCount}',
-            style: Theme.of(context).textTheme.labelSmall
-                ?.copyWith(color: AleraTokens.foregroundFaint),
-          ),
-          const SizedBox(width: AleraTokens.space6),
-          _AreaActions(
-            busy: busy,
-            onStage: onStage,
-            onUnstage: onUnstage,
-            onDiscard: onDiscard,
-            canStage: canStage,
-            canUnstage: canUnstage,
-            canDiscard: canDiscard,
+          WorkbenchScrollableActions(
+            children: <Widget>[
+              Text(
+                '${row.fileCount}',
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: AleraTokens.foregroundFaint),
+              ),
+              const SizedBox(width: AleraTokens.space6),
+              _AreaActions(
+                busy: busy,
+                onStage: onStage,
+                onUnstage: onUnstage,
+                onDiscard: onDiscard,
+                canStage: canStage,
+                canUnstage: canUnstage,
+                canDiscard: canDiscard,
+              ),
+            ],
           ),
         ],
       ),
@@ -382,20 +386,24 @@ class const _GitDiffFileRow({
             ),
           if (entry.isSubmoduleWorktreeOnly)
             const SizedBox(width: AleraTokens.space4),
-          _GitStatusLabel(
-            status: entry.status,
-            area: entry.area,
-            showAreaMarker: showAreaMarker,
-          ),
-          const SizedBox(width: AleraTokens.space6),
-          _LineStats(added: entry.added, removed: entry.removed),
-          const SizedBox(width: AleraTokens.space4),
-          _GitFileActions(
-            entry: entry,
-            busy: busy,
-            onStage: onStage,
-            onUnstage: onUnstage,
-            onDiscard: onDiscard,
+          WorkbenchScrollableActions(
+            children: <Widget>[
+              _GitStatusLabel(
+                status: entry.status,
+                area: entry.area,
+                showAreaMarker: showAreaMarker,
+              ),
+              const SizedBox(width: AleraTokens.space6),
+              _LineStats(added: entry.added, removed: entry.removed),
+              const SizedBox(width: AleraTokens.space4),
+              _GitFileActions(
+                entry: entry,
+                busy: busy,
+                onStage: onStage,
+                onUnstage: onUnstage,
+                onDiscard: onDiscard,
+              ),
+            ],
           ),
         ],
       ),

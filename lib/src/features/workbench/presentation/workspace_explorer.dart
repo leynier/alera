@@ -17,6 +17,7 @@ import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_scrollable_actions.dart';
 import 'package:alera/src/features/workspace_agent_comments/presentation/workspace_agent_comment_bar.dart';
 import 'package:alera/src/features/workspace_agent_comments/presentation/workspace_agent_comment_composer.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;

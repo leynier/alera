@@ -7,6 +7,8 @@ extension WorkbenchLayoutMutations on WorkbenchLayout {
 
   List<String> get paneGroupIds => root.leafGroupIds();
 
+  String get topRightPaneGroupId => _topRightPaneGroupId(root);
+
   String? groupIdForTab(String tabId) {
     for (final group in groups.values) {
       if (group.tabIds.contains(tabId)) {
@@ -17,7 +19,13 @@ extension WorkbenchLayoutMutations on WorkbenchLayout {
   }
 
   WorkbenchLayout sanitize(List<WorkspaceTabRecord> tabs) {
-    final validTabIds = <String>{for (final tab in tabs) tab.id};
+    return sanitizeIds(<String>{for (final tab in tabs) tab.id});
+  }
+
+  WorkbenchLayout sanitizeIds(
+    Set<String> validTabIds, {
+    String? orphanGroupId,
+  }) {
     final nextGroups = <String, WorkbenchPaneGroup>{};
     final assignedTabIds = <String>{};
     for (final entry in groups.entries) {
@@ -37,8 +45,8 @@ extension WorkbenchLayoutMutations on WorkbenchLayout {
       );
     }
     final orphanTabIds = <String>[
-      for (final tab in tabs)
-        if (!assignedTabIds.contains(tab.id)) tab.id,
+      for (final tabId in validTabIds)
+        if (!assignedTabIds.contains(tabId)) tabId,
     ];
     if (nextGroups.isEmpty) {
       return WorkbenchLayout.single(
@@ -59,9 +67,13 @@ extension WorkbenchLayoutMutations on WorkbenchLayout {
     final leafGroupIds = prunedRoot.leafGroupIds();
     final firstGroupId = leafGroupIds.first;
     if (orphanTabIds.isNotEmpty) {
-      final group = nextGroups[firstGroupId]!;
+      final hostGroupId =
+          orphanGroupId != null && nextGroups.containsKey(orphanGroupId)
+          ? orphanGroupId
+          : firstGroupId;
+      final group = nextGroups[hostGroupId]!;
       final tabIds = <String>[...group.tabIds, ...orphanTabIds];
-      nextGroups[firstGroupId] = group.copyWith(
+      nextGroups[hostGroupId] = group.copyWith(
         tabIds: tabIds,
         activeTabId: group.activeTabId ?? tabIds.first,
       );
@@ -266,4 +278,15 @@ extension WorkbenchLayoutMutations on WorkbenchLayout {
   WorkbenchLayout updateSplitRatio(List<int> path, double ratio) {
     return copyWith(root: root.updateSplitRatio(path, ratio));
   }
+}
+
+String _topRightPaneGroupId(WorkbenchLayoutNode node) {
+  final groupId = node.groupId;
+  if (groupId != null) {
+    return groupId;
+  }
+  if (node.axis == WorkbenchSplitAxis.horizontal) {
+    return _topRightPaneGroupId(node.second!);
+  }
+  return _topRightPaneGroupId(node.first!);
 }

@@ -6,6 +6,8 @@ import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 
+import '../domain/experimental_workspace_panel.dart';
+
 part 'workbench_state.mapper.dart';
 
 @MappableClass()
@@ -39,6 +41,18 @@ class const WorkbenchState({
   final String? error;
   final String searchQuery;
   final bool collapsed;
+
+  bool get isExperimentalLayout =>
+      viewPrefs.desktopLayout == DesktopWorkspaceLayout.experimental;
+
+  ExperimentalWorkspacePanel experimentalPanelFor(String workspaceId) =>
+      (viewPrefs.experimentalPanels[workspaceId] ??
+              const ExperimentalWorkspacePanel())
+          .reconcile(
+            tabsFor(workspaceId),
+            preferredPrimaryId: layoutFor(workspaceId)?.activeTabId,
+            workspaceId: workspaceId,
+          );
 
   /// Project ids that are visually expanded in the sidebar. Computed as the
   /// inverse of [WorkbenchViewPrefs.collapsedProjectIds] over the currently
@@ -85,9 +99,12 @@ class const WorkbenchState({
     if (workspace == null) {
       return null;
     }
-    final tabId =
-        layoutByWorkspace[workspace.id]?.activeTabId ??
-        activeTabIdByWorkspace[workspace.id];
+    final tabId = isExperimentalLayout
+        ? ExperimentalWorkspacePanel.tabId(
+            experimentalPanelFor(workspace.id).focusedKey,
+          )
+        : layoutByWorkspace[workspace.id]?.activeTabId ??
+              activeTabIdByWorkspace[workspace.id];
     if (tabId == null) {
       return null;
     }

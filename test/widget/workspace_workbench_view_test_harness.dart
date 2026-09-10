@@ -22,6 +22,8 @@ Future<void> _pumpWorkbenchView(
   Map<String, AgentStatusEntry> agentStatuses =
       const <String, AgentStatusEntry>{},
   bool agentTitlesAvailable = false,
+  bool singleSurface = false,
+  String? singleTabId,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -41,6 +43,8 @@ Future<void> _pumpWorkbenchView(
                 workspace: _workspace(),
                 tabs: tabs,
                 layout: layout,
+                singleSurface: singleSurface,
+                singleTabId: singleTabId,
                 terminalRuntime: terminalRuntime,
                 agentStatuses: agentStatuses,
                 completionAcknowledgements:

@@ -4,9 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_service.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
-
-import 'dart:math' as math;
-
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
@@ -31,6 +28,9 @@ import 'package:alera/src/features/workbench/presentation/workspace_git_diff_sur
 import 'package:alera/src/features/workbench/presentation/workspace_image_preview_surface.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_merman_viewer_surface.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_pdf_viewer_surface.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_drop_zones.dart'
+    as drop_zones;
+import 'package:alera/src/features/workbench/presentation/workbench_split_glyphs.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
@@ -81,6 +81,47 @@ typedef RenameWorkspaceTabCallback = Future<void> Function({
 });
 typedef OpenWorkspaceFileCallback = Future<void> Function(String relativePath);
 
+Widget buildExperimentalWorkspaceTabChip({
+  required WorkspaceTabRecord tab,
+  required List<WorkspaceTabRecord> tabs,
+  required bool active,
+  required TerminalRuntime runtime,
+  required AgentStatusEntry? status,
+  required WorkbenchTabCompletionAcknowledgements acknowledgements,
+  required VoidCallback onSelect,
+  required ValueChanged<List<String>> onCloseTabs,
+  required ValueChanged<String> onRename,
+  required ValueChanged<String> onKeep,
+  ValueChanged<WorkbenchDropZone>? onSplit,
+}) {
+  if (active) acknowledgements.acknowledge(status);
+  return Padding(
+    padding: const EdgeInsets.only(right: AleraTokens.space8),
+    child: _KeepPreviewTabScope(
+      onKeep: onKeep,
+      child: _ExperimentalPreviewKeepTap(
+        tab: tab,
+        onSelect: onSelect,
+        onKeep: onKeep,
+        builder: (onTap) => _WorkspaceTabChip(
+          canSplit: onSplit != null,
+          tab: tab,
+          terminalSession: runtime.peekSession(tab.id),
+          status: status,
+          completionAcknowledged: acknowledgements.isAcknowledged(status),
+          active: active,
+          groupTabs: tabs,
+          onTap: onTap,
+          onClose: () => onCloseTabs(<String>[tab.id]),
+          onCloseTabs: onCloseTabs,
+          onRename: onRename,
+          onSplit: onSplit ?? (_) {},
+        ),
+      ),
+    ),
+  );
+}
+
 @visibleForTesting
 String workspaceTabTitleForTesting(WorkspaceTabRecord tab) =>
     _workspaceTabTitle(tab);
@@ -93,28 +134,7 @@ int splitRatioFlexForTesting(double ratio) =>
 
 @visibleForTesting
 Rect splitDirectionFillRectForTesting(WorkbenchDropZone zone, Size size) {
-  return switch (zone) {
-    WorkbenchDropZone.right => Rect.fromLTWH(
-      size.width * 0.6,
-      0,
-      size.width * 0.4,
-      size.height,
-    ),
-    WorkbenchDropZone.left => Rect.fromLTWH(
-      0,
-      0,
-      size.width * 0.4,
-      size.height,
-    ),
-    WorkbenchDropZone.down => Rect.fromLTWH(
-      0,
-      size.height * 0.6,
-      size.width,
-      size.height * 0.4,
-    ),
-    WorkbenchDropZone.up => Rect.fromLTWH(0, 0, size.width, size.height * 0.4),
-    WorkbenchDropZone.center => Rect.zero,
-  };
+  return workbenchSplitDirectionFillRect(zone, size);
 }
 
 @visibleForTesting
@@ -167,8 +187,8 @@ bool splitDirectionPainterShouldRepaintForTesting(
   WorkbenchDropZone previousZone,
   WorkbenchDropZone nextZone,
 ) {
-  return _SplitDirectionPainter(zone: nextZone)
-      .shouldRepaint(_SplitDirectionPainter(zone: previousZone));
+  return WorkbenchSplitDirectionPainter(zone: nextZone)
+      .shouldRepaint(WorkbenchSplitDirectionPainter(zone: previousZone));
 }
 
 class const WorkspaceWorkbenchView({
@@ -198,6 +218,8 @@ class const WorkspaceWorkbenchView({
   required final ActivateWorkbenchGroupCallback onActivateGroup,
   required final UpdateWorkbenchSplitRatioCallback onUpdateSplitRatio,
   final ValueChanged<String>? onKeepPreviewTab,
+  final bool singleSurface = false,
+  final String? singleTabId,
 }) extends StatefulWidget {
   @override
   State<WorkspaceWorkbenchView> createState() => _WorkspaceWorkbenchViewState();
@@ -214,6 +236,41 @@ class _WorkspaceWorkbenchViewState extends State<WorkspaceWorkbenchView> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.singleSurface) {
+      final tab = widget.tabs
+          .where((tab) => tab.id == widget.singleTabId)
+          .firstOrNull;
+      if (tab == null) {
+        return Center(
+          child: TextButton(
+            onPressed: () => unawaited(widget.onCreateTab()),
+            child: const Text('New Terminal'),
+          ),
+        );
+      }
+      return Focus(
+        canRequestFocus: false,
+        onFocusChange: (focused) {
+          if (focused) widget.onSelectTab(groupId: '', tabId: tab.id);
+        },
+        child: _KeepPreviewTabScope(
+          onKeep: widget.onKeepPreviewTab,
+          child: _WorkspaceTabContent(
+            workspace: widget.workspace,
+            sourceControlScope: widget.sourceControlScope,
+            tab: tab,
+            autofocus: false,
+            terminalRuntime: widget.terminalRuntime,
+            mobileDriverPresence: widget.mobileDriverPresence,
+            onOpenEditorTab: (path) => unawaited(widget.onOpenEditor(path)),
+            onOpenMarkdownViewerTab: (path) =>
+                unawaited(widget.onOpenMarkdownViewerTab(relativePath: path)),
+            onOpenMermanPreview: (path) =>
+                unawaited(widget.onOpenMermanPreview(path)),
+          ),
+        ),
+      );
+    }
     final resolvedLayout =
         widget.layout ??
         WorkbenchLayout.single(
@@ -299,6 +356,53 @@ class const _WorkbenchTabDragScope({
     final scope = element?.widget as _WorkbenchTabDragScope?;
     return scope!.notifier!;
   }
+}
+
+class _ExperimentalPreviewKeepTap extends StatefulWidget {
+  const _ExperimentalPreviewKeepTap({
+    required this.tab,
+    required this.onSelect,
+    required this.onKeep,
+    required this.builder,
+  });
+
+  final WorkspaceTabRecord tab;
+  final VoidCallback onSelect;
+  final ValueChanged<String> onKeep;
+  final Widget Function(VoidCallback onTap) builder;
+
+  @override
+  State<_ExperimentalPreviewKeepTap> createState() =>
+      _ExperimentalPreviewKeepTapState();
+}
+
+class _ExperimentalPreviewKeepTapState
+    extends State<_ExperimentalPreviewKeepTap> {
+  String? _lastId;
+  DateTime? _lastAt;
+
+  void _handleTap() {
+    widget.onSelect();
+    if (!widget.tab.isPreview) {
+      _lastId = null;
+      _lastAt = null;
+      return;
+    }
+    final now = DateTime.now();
+    if (_lastId == widget.tab.id &&
+        _lastAt != null &&
+        now.difference(_lastAt!) <= kDoubleTapTimeout) {
+      widget.onKeep(widget.tab.id);
+      _lastId = null;
+      _lastAt = null;
+      return;
+    }
+    _lastId = widget.tab.id;
+    _lastAt = now;
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(_handleTap);
 }
 
 class const _KeepPreviewTabScope({

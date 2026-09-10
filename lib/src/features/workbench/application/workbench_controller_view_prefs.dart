@@ -235,6 +235,19 @@ mixin _WorkbenchControllerViewPrefs
       return;
     }
     _updateViewPrefs(state.viewPrefs.copyWith(rightSidebarVisible: visible));
+    if (!visible &&
+        state.isExperimentalLayout &&
+        state.activeWorkspaceId != null) {
+      final id = state.activeWorkspaceId!;
+      final panel = state.experimentalPanelFor(id);
+      if (panel.primaryTabId case final String primary) {
+        _saveExperimentalPanel(
+          id,
+          panel.select(ExperimentalWorkspacePanel.tabKey(primary)),
+        );
+        ref.read(terminalRuntimeProvider).peekSession(primary)?.requestFocus();
+      }
+    }
   }
 
   void toggleRightSidebarVisible() {
@@ -242,6 +255,18 @@ mixin _WorkbenchControllerViewPrefs
   }
 
   void setRightSidebarWidth(double value) {
+    if (!value.isFinite) return;
+    if (state.isExperimentalLayout) {
+      _updateViewPrefs(
+        state.viewPrefs.copyWith(
+          experimentalRightSidebarWidth: value.clamp(
+            AleraTokens.sidebarMinWidth,
+            double.infinity,
+          ),
+        ),
+      );
+      return;
+    }
     final clamped = value.clamp(
       AleraTokens.sidebarMinWidth,
       AleraTokens.sidebarMaxWidth,
@@ -253,6 +278,23 @@ mixin _WorkbenchControllerViewPrefs
   }
 
   void setContextPanelTab(WorkbenchContextPanelTab tab) {
+    if (state.isExperimentalLayout && state.activeWorkspaceId != null) {
+      final tool = switch (tab) {
+        WorkbenchContextPanelTab.explorer => ExperimentalWorkspaceTool.explorer,
+        WorkbenchContextPanelTab.search => ExperimentalWorkspaceTool.search,
+        WorkbenchContextPanelTab.gitDiff =>
+          ExperimentalWorkspaceTool.sourceControl,
+        WorkbenchContextPanelTab.pullRequests =>
+          ExperimentalWorkspaceTool.pullRequest,
+      };
+      final id = state.activeWorkspaceId!;
+      _saveExperimentalPanel(
+        id,
+        state.experimentalPanelFor(id).select(tool.key),
+        reveal: true,
+      );
+      return;
+    }
     if (state.viewPrefs.activeContextPanelTab == tab) {
       return;
     }
@@ -351,6 +393,7 @@ mixin _WorkbenchControllerViewPrefs
       ),
     );
     state = state.copyWith(error: null);
+    if (state.isExperimentalLayout) setContextPanelTab(.gitDiff);
     return true;
   }
 

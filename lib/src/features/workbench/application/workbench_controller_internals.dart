@@ -244,11 +244,14 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     if (_closingTabWorkspaceIds.contains(workspace.id)) {
       return;
     }
+    _maybeEnsureExperimentalPrimary(workspace);
     if (state.tabsFor(workspace.id).isNotEmpty &&
         state.layoutFor(workspace.id) == null) {
       unawaited(_loadLayoutForWorkspace(workspace.id));
     }
   }
+
+  void _maybeEnsureExperimentalPrimary(Workspace workspace) {}
 
   Future<void> _loadLayoutForWorkspace(String workspaceId) async {
     if (!_loadingLayoutWorkspaceIds.add(workspaceId)) {
@@ -301,6 +304,36 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     WorkbenchLayout layout, {
     required bool persist,
   }) async {
+    if (state.isExperimentalLayout) {
+      final panel =
+          (state.viewPrefs.experimentalPanels[layout.workspaceId] ??
+                  const ExperimentalWorkspacePanel())
+              .reconcile(
+                state.tabsFor(layout.workspaceId),
+                preferredPrimaryId: layout.activeTabId,
+                workspaceId: layout.workspaceId,
+              );
+      final active = layout.activeTabId;
+      if (persist &&
+          active != null &&
+          !_closingTabWorkspaceIds.contains(layout.workspaceId)) {
+        final next = panel.select(ExperimentalWorkspacePanel.tabKey(active));
+        _saveExperimentalPanel(
+          layout.workspaceId,
+          next,
+          reveal:
+              next.treeForKey(ExperimentalWorkspacePanel.tabKey(active)) ==
+              ExperimentalPanelTree.right,
+        );
+      } else {
+        _saveExperimentalPanel(layout.workspaceId, panel);
+      }
+      // Only reconcile real records into the saved Classic tree. Experimental focus
+      // must not move tabs or replace the user's split arrangement.
+      layout = (state.layoutFor(layout.workspaceId) ?? layout).sanitize(
+        state.tabsFor(layout.workspaceId),
+      );
+    }
     final nextLayouts = Map<String, WorkbenchLayout>.from(
       state.layoutByWorkspace,
     )..[layout.workspaceId] = layout;
@@ -366,6 +399,17 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     required String tabId,
     String? groupId,
   }) {
+    if (state.isExperimentalLayout) {
+      final panel = state.experimentalPanelFor(workspaceId);
+      final key = ExperimentalWorkspacePanel.tabKey(tabId);
+      final next = panel.select(key);
+      _saveExperimentalPanel(
+        workspaceId,
+        next,
+        reveal: next.treeForKey(key) == ExperimentalPanelTree.right,
+      );
+      return;
+    }
     final layout = state.layoutFor(workspaceId);
     final resolvedGroupId = groupId ?? layout?.groupIdForTab(tabId);
     if (layout != null && resolvedGroupId != null) {
@@ -400,18 +444,33 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     }
   }
 
-  void _reconcileCreatedWorkspace(Project project, Workspace workspace) {
-    final workspaces = List<Workspace>.from(state.workspacesFor(project.id));
-    final index = workspaces.indexWhere((entry) => entry.id == workspace.id);
-    if (index == -1) {
-      workspaces.add(workspace);
-    } else {
-      workspaces[index] = workspace;
+  void _focusExperimentalTerminal(String workspaceId, String? key);
+
+  void _saveExperimentalPanel(
+    String workspaceId,
+    ExperimentalWorkspacePanel panel, {
+    bool reveal = false,
+  }) {
+    final previousFocus =
+        state.viewPrefs.experimentalPanels[workspaceId]?.focusedKey;
+    if (state.viewPrefs.experimentalPanels[workspaceId] == panel &&
+        (!reveal || state.viewPrefs.rightSidebarVisible)) {
+      return;
     }
     state = state.copyWith(
-      workspacesByProject: Map<String, List<Workspace>>.from(
-        state.workspacesByProject,
-      )..[project.id] = workspaces,
+      viewPrefs: state.viewPrefs.copyWith(
+        experimentalPanels: <String, ExperimentalWorkspacePanel>{
+          ...state.viewPrefs.experimentalPanels,
+          workspaceId: panel,
+        },
+        rightSidebarVisible: reveal
+            ? true
+            : state.viewPrefs.rightSidebarVisible,
+      ),
     );
+    unawaited(_persistViewPrefs());
+    if (previousFocus != panel.focusedKey) {
+      _focusExperimentalTerminal(workspaceId, panel.focusedKey);
+    }
   }
 }

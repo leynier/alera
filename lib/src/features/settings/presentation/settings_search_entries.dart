@@ -22,6 +22,19 @@ applicationSearchEntries = buildSettingsSearchEntryCatalog(const {
     ),
   },
   'desktop': {
+    'Experimental Mode': SettingsSearchEntryDetails(
+      description: 'Use one primary terminal beside a tabbed panel. Applies to all workspaces.',
+      keywords: <String>[
+        'workspace',
+        'layout',
+        'primary',
+        'terminal',
+        'panel',
+        'tabs',
+        'experimental',
+        'classic',
+      ],
+    ),
     'Show Tray Icon': SettingsSearchEntryDetails(
       description: 'Keep Alera in the menu extra, notification area, or Ubuntu status bar.',
       keywords: <String>[

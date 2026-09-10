@@ -4,6 +4,7 @@ mixin _WorkbenchControllerSync
     on
         _$WorkbenchController,
         _WorkbenchControllerInternals,
+        _WorkbenchControllerWorkspaceReconciliation,
         _WorkbenchControllerTransfer {
   void _enqueueWorkspaceSync(Future<void> Function() update) {
     if (_transferringWorkspace) {
@@ -462,6 +463,13 @@ mixin _WorkbenchControllerSync
     );
     if (layout != currentLayout) {
       _persistLayoutInBackground(layout);
+    }
+    if (state.isExperimentalLayout ||
+        state.viewPrefs.experimentalPanels.containsKey(workspaceId)) {
+      _saveExperimentalPanel(
+        workspaceId,
+        state.experimentalPanelFor(workspaceId),
+      );
     }
     _ensureSelectionHasTab();
   }

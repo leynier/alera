@@ -1,7 +1,10 @@
 part of 'workbench_controller.dart';
 
 mixin _WorkbenchControllerTabs
-    on _$WorkbenchController, _WorkbenchControllerInternals {
+    on
+        _$WorkbenchController,
+        _WorkbenchControllerInternals,
+        _WorkbenchControllerExperimentalLayout {
   Future<void> closeWorkspaceTab({
     required Workspace workspace,
     required String tabId,
@@ -82,6 +85,10 @@ mixin _WorkbenchControllerTabs
       rethrow;
     } finally {
       _closingTabWorkspaceIds.remove(workspace.id);
+      if (state.isExperimentalLayout &&
+          state.activeWorkspaceId == workspace.id) {
+        _ensureSelectionHasTab();
+      }
     }
   }
 
@@ -210,6 +217,21 @@ mixin _WorkbenchControllerTabs
     required WorkbenchDropZone zone,
     int? index,
   }) async {
+    if (state.isExperimentalLayout) {
+      final panel = state.experimentalPanelFor(workspaceId);
+      final key = _experimentalPaneKey(tabId);
+      await moveExperimentalPaneTab(
+        workspaceId: workspaceId,
+        tabId: tabId,
+        targetGroupId: targetGroupId,
+        zone: zone,
+        index: index,
+        source: panel.treeForKey(key) ?? ExperimentalPanelTree.right,
+        target:
+            panel.treeForGroup(targetGroupId) ?? ExperimentalPanelTree.right,
+      );
+      return;
+    }
     try {
       final tabs = state.tabsFor(workspaceId);
       final layout = _layoutForMutation(workspaceId, tabs);
@@ -235,6 +257,13 @@ mixin _WorkbenchControllerTabs
     required String groupId,
     required WorkbenchDropZone zone,
   }) async {
+    if (state.isExperimentalLayout) {
+      return splitExperimentalPaneWithTerminal(
+        workspace: workspace,
+        groupId: groupId,
+        zone: zone,
+      );
+    }
     try {
       final previousTabs = state.tabsFor(workspace.id);
       final layout = _layoutForMutation(workspace.id, previousTabs);
@@ -265,6 +294,13 @@ mixin _WorkbenchControllerTabs
     required String workspaceId,
     required String groupId,
   }) async {
+    if (state.isExperimentalLayout) {
+      mergeExperimentalPaneIntoSibling(
+        workspaceId: workspaceId,
+        groupId: groupId,
+      );
+      return;
+    }
     try {
       final tabs = state.tabsFor(workspaceId);
       final layout = _layoutForMutation(
@@ -284,6 +320,14 @@ mixin _WorkbenchControllerTabs
     required List<int> nodePath,
     required double ratio,
   }) {
+    if (state.isExperimentalLayout) {
+      updateExperimentalPaneSplitRatio(
+        workspaceId: workspaceId,
+        nodePath: nodePath,
+        ratio: ratio,
+      );
+      return;
+    }
     final tabs = state.tabsFor(workspaceId);
     final layout = _layoutForMutation(
       workspaceId,
