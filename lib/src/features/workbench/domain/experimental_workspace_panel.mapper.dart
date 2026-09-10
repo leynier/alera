@@ -152,8 +152,8 @@ class ExperimentalWorkspacePanelMapper
   );
   static WorkbenchLayout? _$paneLayout(ExperimentalWorkspacePanel v) =>
       v.paneLayout;
-  static const Field<ExperimentalWorkspacePanel, WorkbenchLayout> _f$paneLayout =
-      Field('paneLayout', _$paneLayout, opt: true);
+  static const Field<ExperimentalWorkspacePanel, WorkbenchLayout>
+  _f$paneLayout = Field('paneLayout', _$paneLayout, opt: true);
 
   @override
   final MappableFields<ExperimentalWorkspacePanel> fields = const {
