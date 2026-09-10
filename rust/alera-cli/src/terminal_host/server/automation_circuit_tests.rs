@@ -160,12 +160,17 @@ async fn expired_circuit_tick_broadcasts_automations_changed() {
     assert_eq!(restored.state, AutomationState::Active);
     let mut saw_change = false;
     while let Ok(frame) = events.try_recv() {
-        if let ClientFrame::Json(value) = frame {
-            if value.get("event").and_then(serde_json::Value::as_str) == Some("automationsChanged")
-            {
-                saw_change = true;
-                break;
-            }
+        let value = match frame {
+            ClientFrame::Json(value) => value,
+            ClientFrame::OrderedControl { frame, .. } => match *frame {
+                ClientFrame::Json(value) => value,
+                _ => continue,
+            },
+            _ => continue,
+        };
+        if value.get("event").and_then(serde_json::Value::as_str) == Some("automationsChanged") {
+            saw_change = true;
+            break;
         }
     }
     assert!(

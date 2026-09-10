@@ -1,6 +1,4 @@
-use alera_core::runtime::{
-    AutomationActor, AutomationActorKind, AutomationRunStatus, AutomationState,
-};
+use alera_core::runtime::{AutomationActor, AutomationActorKind, AutomationRunStatus};
 use chrono::Utc;
 use serde_json::{json, Value};
 
