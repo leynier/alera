@@ -41,8 +41,8 @@ mixin _FakeGitBackendWorkspaceState {
       GitBackendCall('createAndCheckoutBranch', <String, Object?>{
         'path': path,
         'branch': branch,
-        if (expectedHead != null) 'expectedHead': expectedHead,
-        if (expectedOid != null) 'expectedOid': expectedOid,
+        'expectedHead': ?expectedHead,
+        'expectedOid': ?expectedOid,
       }),
     );
     final error = createAndCheckoutBranchError;
@@ -75,7 +75,7 @@ mixin _FakeGitBackendWorkspaceState {
         'path': path,
         'branch': branch,
         'targetRef': targetRef,
-        if (expectedOid != null) 'expectedOid': expectedOid,
+        'expectedOid': ?expectedOid,
       }),
     );
     final error = resetBranchToRefError;

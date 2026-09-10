@@ -88,7 +88,7 @@ pub fn create_and_checkout_branch_from(
         if commit.id().to_string() != expected_oid {
             return Err(GitError::new(
                 GitErrorKind::Conflict,
-                format!("HEAD commit changed before creating the ship branch"),
+                "HEAD commit changed before creating the ship branch",
             ));
         }
     }
