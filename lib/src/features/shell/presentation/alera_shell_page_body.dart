@@ -4,6 +4,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
   String? _lastErrorMessage;
   final WorkbenchTabCompletionAcknowledgements _completionAcknowledgements =
       WorkbenchTabCompletionAcknowledgements();
+  Widget Function(WorkbenchContextPanelTab tab)? _experimentalToolFor;
 
   @override
   void initState() {
@@ -122,17 +123,34 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                 crossAxisAlignment: .stretch,
                                 children: <Widget>[
                                   Expanded(
-                                    child: _buildContent(
-                                      bootstrapped: shell.bootstrapped,
-                                      hasProjects: shell.hasProjects,
-                                      project: project,
-                                      workspace: workspace,
-                                      sourceControlScope: sourceControlScope,
-                                      tabs: shell.tabs,
-                                      layout: shell.layout,
-                                      singleSurface: experimental,
-                                      singleTabId: panel.primaryTabId,
-                                    ),
+                                    child: experimental && workspace != null
+                                        ? _buildExperimentalCenter(
+                                            workspace: workspace,
+                                            project: project,
+                                            panel: panel,
+                                            sourceControlScope:
+                                                sourceControlScope,
+                                            tabs: shell.tabs,
+                                            bootstrapped: shell.bootstrapped,
+                                            hasProjects: shell.hasProjects,
+                                            layout: shell.layout,
+                                            toolFor:
+                                                _experimentalToolFor ??
+                                                ((_) =>
+                                                    const SizedBox.shrink()),
+                                          )
+                                        : _buildContent(
+                                            bootstrapped: shell.bootstrapped,
+                                            hasProjects: shell.hasProjects,
+                                            project: project,
+                                            workspace: workspace,
+                                            sourceControlScope:
+                                                sourceControlScope,
+                                            tabs: shell.tabs,
+                                            layout: shell.layout,
+                                            singleSurface: experimental,
+                                            singleTabId: panel.primaryTabId,
+                                          ),
                                   ),
                                   if (workspace != null && showContextSidebar)
                                     WorkspaceContextSidebar(
@@ -149,20 +167,22 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                           ? maximumPanelWidth
                                           : AleraTokens.sidebarMaxWidth,
                                       panelBuilder: experimental
-                                          ? (
-                                              toolFor,
-                                            ) => _buildExperimentalPanelView(
-                                              workspace: workspace,
-                                              project: project,
-                                              panel: panel,
-                                              sourceControlScope:
-                                                  sourceControlScope,
-                                              tabs: shell.tabs,
-                                              bootstrapped: shell.bootstrapped,
-                                              hasProjects: shell.hasProjects,
-                                              layout: shell.layout,
-                                              toolFor: toolFor,
-                                            )
+                                          ? (toolFor) {
+                                              _experimentalToolFor = toolFor;
+                                              return _buildExperimentalPanelView(
+                                                workspace: workspace,
+                                                project: project,
+                                                panel: panel,
+                                                sourceControlScope:
+                                                    sourceControlScope,
+                                                tabs: shell.tabs,
+                                                bootstrapped:
+                                                    shell.bootstrapped,
+                                                hasProjects: shell.hasProjects,
+                                                layout: shell.layout,
+                                                toolFor: toolFor,
+                                              );
+                                            }
                                           : null,
                                       sourceControlScope: sourceControlScope,
                                       focusedSourceControlRoot:

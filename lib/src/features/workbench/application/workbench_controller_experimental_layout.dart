@@ -71,16 +71,15 @@ mixin _WorkbenchControllerExperimentalLayout
     String? groupId,
   }) {
     final panel = state.experimentalPanelFor(workspaceId);
-    if (!panel.tabKeys.contains(key) &&
-        key != ExperimentalWorkspacePanel.tabKey(panel.primaryTabId ?? '') &&
+    if (!panel.occupiedKeys.contains(key) &&
         ExperimentalWorkspaceTool.forKey(key) == null) {
       return;
     }
+    final next = panel.select(key, groupId: groupId);
     _saveExperimentalPanel(
       workspaceId,
-      panel.select(key, groupId: groupId),
-      reveal:
-          key != ExperimentalWorkspacePanel.tabKey(panel.primaryTabId ?? ''),
+      next,
+      reveal: next.treeForKey(key) == ExperimentalPanelTree.right,
     );
     if (panel.focusedKey == key) {
       _focusExperimentalTerminal(workspaceId, key);
@@ -138,18 +137,24 @@ mixin _WorkbenchControllerExperimentalLayout
               preferredPrimaryId: state.layoutFor(workspaceId)?.activeTabId,
               workspaceId: workspaceId,
             );
-    final layout = panel.ensuredLayout(workspaceId);
+    final main = panel.ensuredMainLayout(workspaceId);
+    final right = panel.ensuredLayout(workspaceId);
+    final addToMain =
+        targetGroupId != null && main.groups.containsKey(targetGroupId);
+    final layout = addToMain ? main : right;
     final groupId =
         targetGroupId != null && layout.groups.containsKey(targetGroupId)
         ? targetGroupId
         : layout.activeGroupId;
     final key = ExperimentalWorkspacePanel.tabKey(tab.id);
+    final placed = layout.addTabToGroup(groupId: groupId, tabId: key);
     _saveExperimentalPanel(
       workspaceId,
-      panel
-          .applyPaneLayout(layout.addTabToGroup(groupId: groupId, tabId: key))
+      (addToMain
+              ? panel.applyMainLayout(placed)
+              : panel.applyPaneLayout(placed))
           .copyWith(focusedKey: key),
-      reveal: true,
+      reveal: !addToMain,
     );
     final classic = _layoutForMutation(workspaceId, tabs);
     final nextLayouts = Map<String, WorkbenchLayout>.from(
@@ -167,25 +172,42 @@ mixin _WorkbenchControllerExperimentalLayout
     required String tabId,
     required String targetGroupId,
     required WorkbenchDropZone zone,
+    ExperimentalPanelTree source = ExperimentalPanelTree.right,
+    ExperimentalPanelTree target = ExperimentalPanelTree.right,
     int? index,
   }) async {
     final panel = state.experimentalPanelFor(workspaceId);
     final key = _experimentalPaneKey(tabId);
-    final next = panel.applyPaneLayout(
-      panel
-          .ensuredLayout(workspaceId)
-          .moveTab(
-            tabId: key,
-            targetGroupId: targetGroupId,
-            zone: zone,
-            newGroupId: _newPaneGroupId(),
-            index: index,
-          ),
-    );
+    final newGroupId = _newPaneGroupId();
+    final ExperimentalWorkspacePanel next;
+    if (source == target) {
+      final layout = source == ExperimentalPanelTree.main
+          ? panel.ensuredMainLayout(workspaceId)
+          : panel.ensuredLayout(workspaceId);
+      final moved = layout.moveTab(
+        tabId: key,
+        targetGroupId: targetGroupId,
+        zone: zone,
+        newGroupId: newGroupId,
+        index: index,
+      );
+      next = source == ExperimentalPanelTree.main
+          ? panel.applyMainLayout(moved)
+          : panel.applyPaneLayout(moved);
+    } else {
+      next = panel.moveKey(
+        key: key,
+        target: target,
+        targetGroupId: targetGroupId,
+        zone: zone,
+        newGroupId: newGroupId,
+        index: index,
+      );
+    }
     _saveExperimentalPanel(
       workspaceId,
       next.copyWith(focusedKey: key),
-      reveal: true,
+      reveal: target == ExperimentalPanelTree.right,
     );
   }
 
@@ -207,23 +229,25 @@ mixin _WorkbenchControllerExperimentalLayout
               workspaceId: workspace.id,
             );
     final key = ExperimentalWorkspacePanel.tabKey(tab.id);
-    final next = panel.applyPaneLayout(
-      panel
-          .ensuredLayout(workspace.id)
-          .splitWithGroup(
-            targetGroupId: groupId,
-            zone: zone,
-            newGroup: WorkbenchPaneGroup(
-              id: _newPaneGroupId(),
-              tabIds: <String>[key],
-              activeTabId: key,
-            ),
-          ),
+    final main = panel.ensuredMainLayout(workspace.id);
+    final addToMain = main.groups.containsKey(groupId);
+    final layout = addToMain ? main : panel.ensuredLayout(workspace.id);
+    final split = layout.splitWithGroup(
+      targetGroupId: groupId,
+      zone: zone,
+      newGroup: WorkbenchPaneGroup(
+        id: _newPaneGroupId(),
+        tabIds: <String>[key],
+        activeTabId: key,
+      ),
     );
+    final next = addToMain
+        ? panel.applyMainLayout(split)
+        : panel.applyPaneLayout(split);
     _saveExperimentalPanel(
       workspace.id,
       next.copyWith(focusedKey: key),
-      reveal: true,
+      reveal: !addToMain,
     );
     final classic = _layoutForMutation(workspace.id, tabs);
     final nextLayouts = Map<String, WorkbenchLayout>.from(
@@ -242,6 +266,17 @@ mixin _WorkbenchControllerExperimentalLayout
     required String groupId,
   }) {
     final panel = state.experimentalPanelFor(workspaceId);
+    final main = panel.ensuredMainLayout(workspaceId);
+    if (main.groups.containsKey(groupId)) {
+      if (main.groups.length < 2) {
+        return;
+      }
+      _saveExperimentalPanel(
+        workspaceId,
+        panel.applyMainLayout(main.mergeGroupIntoSibling(groupId)),
+      );
+      return;
+    }
     final layout = panel.ensuredLayout(workspaceId);
     if (layout.groups.length < 2) {
       return;
@@ -256,8 +291,20 @@ mixin _WorkbenchControllerExperimentalLayout
     required String workspaceId,
     required List<int> nodePath,
     required double ratio,
+    ExperimentalPanelTree tree = ExperimentalPanelTree.right,
   }) {
     final panel = state.experimentalPanelFor(workspaceId);
+    if (tree == ExperimentalPanelTree.main) {
+      _saveExperimentalPanel(
+        workspaceId,
+        panel.applyMainLayout(
+          panel
+              .ensuredMainLayout(workspaceId)
+              .updateSplitRatio(nodePath, ratio),
+        ),
+      );
+      return;
+    }
     _saveExperimentalPanel(
       workspaceId,
       panel.applyPaneLayout(

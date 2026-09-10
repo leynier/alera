@@ -1,5 +1,6 @@
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
+import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/presentation/experimental_workspace_panel_view.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -290,4 +291,209 @@ void main() {
     expect(find.text('Split Up'), findsOneWidget);
     expect(find.text('Close Split'), findsNothing);
   });
+
+  testWidgets('Hide Panel stays on the top-right split', (tester) async {
+    final selected = const ExperimentalWorkspacePanel().select('tool:explorer');
+    final layout = selected.ensuredLayout();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ExperimentalWorkspacePanelView(
+            panel: selected.applyPaneLayout(
+              layout.splitWithGroup(
+                targetGroupId: layout.activeGroupId,
+                zone: WorkbenchDropZone.down,
+                newGroup: WorkbenchPaneGroup(
+                  id: 'pane-b',
+                  tabIds: const ['tool:search'],
+                  activeTabId: 'tool:search',
+                ),
+              ),
+            ),
+            tabs: const [],
+            onSelect: (_) {},
+            onClose: (_) {},
+            onNewTerminal: () {},
+            onHide: () {},
+            onSplitGroup: (_, _) {},
+            content: const SizedBox.shrink(),
+          ),
+        ),
+      ),
+    );
+    expect(find.byTooltip('Hide Panel'), findsOneWidget);
+    expect(
+      tester.getCenter(find.byTooltip('Hide Panel')).dy,
+      lessThan(tester.getCenter(find.text('Search')).dy),
+    );
+  });
+
+  testWidgets('add tab omits tools that already sit in the main tree', (
+    tester,
+  ) async {
+    final panel = ExperimentalWorkspacePanel(
+      tabKeys: const ['tool:explorer'],
+      activeKey: 'tool:explorer',
+      mainLayout: WorkbenchLayout.single(
+        workspaceId: 'workspace',
+        tabIds: const ['tool:search'],
+        groupId: 'workspace/experimental-main',
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 800,
+              height: 500,
+              child: ExperimentalWorkspacePanelView(
+                workspaceId: 'workspace',
+                panel: panel,
+                tabs: const [],
+                onSelect: (_) {},
+                onClose: (_) {},
+                onNewTerminal: () {},
+                onHide: () {},
+                content: const Text('Selected Surface'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byTooltip('Add Tab'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AleraDropdownEntry<String>), findsNWidgets(3));
+    expect(find.text('Source Control'), findsOneWidget);
+    expect(find.text('Pull Request'), findsOneWidget);
+    expect(find.text('Terminal'), findsOneWidget);
+    expect(find.text('Search'), findsNothing);
+  });
+
+  testWidgets('main tree with two keys shows the strip without Hide Panel', (
+    tester,
+  ) async {
+    final panel = ExperimentalWorkspacePanel(
+      mainLayout: WorkbenchLayout.single(
+        workspaceId: 'workspace',
+        tabIds: const ['tab:primary', 'tool:search'],
+        groupId: 'workspace/experimental-main',
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ExperimentalWorkspacePanelView(
+            workspaceId: 'workspace',
+            panel: panel,
+            tabs: const [],
+            tree: ExperimentalPanelTree.main,
+            showHide: false,
+            onSelect: (_) {},
+            onClose: (_) {},
+            onNewTerminal: () {},
+            onHide: () {},
+            content: const Text('Main Surface'),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byTooltip('Add Tab'), findsOneWidget);
+    expect(find.text('Search'), findsOneWidget);
+    expect(find.byTooltip('Hide Panel'), findsNothing);
+  });
+
+  testWidgets(
+    'dropping a right-panel tab onto the main surface reports the move',
+    (tester) async {
+      final moves =
+          <
+            ({
+              String key,
+              String targetGroupId,
+              WorkbenchDropZone zone,
+              ExperimentalPanelTree source,
+            })
+          >[];
+      final panel = const ExperimentalWorkspacePanel(primaryTabId: 'primary')
+          .select('tool:search');
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 900,
+              height: 500,
+              child: Row(
+                children: <Widget>[
+                  SizedBox(
+                    width: 360,
+                    child: ExperimentalWorkspacePanelView(
+                      workspaceId: 'workspace',
+                      panel: panel,
+                      tabs: const [],
+                      onSelect: (_) {},
+                      onClose: (_) {},
+                      onNewTerminal: () {},
+                      onHide: () {},
+                      onMoveTab: ({
+                        required key,
+                        required targetGroupId,
+                        required zone,
+                        required source,
+                        index,
+                      }) {},
+                      content: const Text('Right Surface'),
+                    ),
+                  ),
+                  Expanded(
+                    child: ExperimentalMainDropSurface(
+                      workspaceId: 'workspace',
+                      groupId: 'workspace/experimental-main',
+                      onMoveTab:
+                          ({
+                            required key,
+                            required targetGroupId,
+                            required zone,
+                            required source,
+                            index,
+                          }) {
+                            moves.add((
+                              key: key,
+                              targetGroupId: targetGroupId,
+                              zone: zone,
+                              source: source,
+                            ));
+                          },
+                      child: const ColoredBox(
+                        color: Color(0xFF111111),
+                        child: Center(child: Text('Main Surface')),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      final chip = find.text('Search');
+      final gesture = await tester.startGesture(tester.getCenter(chip));
+      await tester.pump();
+      await gesture.moveBy(const Offset(0, 24));
+      await tester.pump(const Duration(milliseconds: 100));
+      await gesture.moveTo(tester.getCenter(find.text('Main Surface')));
+      await tester.pump(const Duration(milliseconds: 100));
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(moves, isNotEmpty);
+      expect(moves.single.key, 'tool:search');
+      expect(moves.single.source, ExperimentalPanelTree.right);
+      expect(moves.single.targetGroupId, 'workspace/experimental-main');
+    },
+  );
 }

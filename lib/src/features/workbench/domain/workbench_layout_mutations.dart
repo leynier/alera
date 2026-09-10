@@ -7,6 +7,8 @@ extension WorkbenchLayoutMutations on WorkbenchLayout {
 
   List<String> get paneGroupIds => root.leafGroupIds();
 
+  String get topRightPaneGroupId => _topRightPaneGroupId(root);
+
   String? groupIdForTab(String tabId) {
     for (final group in groups.values) {
       if (group.tabIds.contains(tabId)) {
@@ -276,4 +278,15 @@ extension WorkbenchLayoutMutations on WorkbenchLayout {
   WorkbenchLayout updateSplitRatio(List<int> path, double ratio) {
     return copyWith(root: root.updateSplitRatio(path, ratio));
   }
+}
+
+String _topRightPaneGroupId(WorkbenchLayoutNode node) {
+  final groupId = node.groupId;
+  if (groupId != null) {
+    return groupId;
+  }
+  if (node.axis == WorkbenchSplitAxis.horizontal) {
+    return _topRightPaneGroupId(node.second!);
+  }
+  return _topRightPaneGroupId(node.first!);
 }

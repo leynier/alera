@@ -154,6 +154,10 @@ class ExperimentalWorkspacePanelMapper
       v.paneLayout;
   static const Field<ExperimentalWorkspacePanel, WorkbenchLayout>
   _f$paneLayout = Field('paneLayout', _$paneLayout, opt: true);
+  static WorkbenchLayout? _$mainLayout(ExperimentalWorkspacePanel v) =>
+      v.mainLayout;
+  static const Field<ExperimentalWorkspacePanel, WorkbenchLayout>
+  _f$mainLayout = Field('mainLayout', _$mainLayout, opt: true);
 
   @override
   final MappableFields<ExperimentalWorkspacePanel> fields = const {
@@ -162,6 +166,7 @@ class ExperimentalWorkspacePanelMapper
     #activeKey: _f$activeKey,
     #focusedKey: _f$focusedKey,
     #paneLayout: _f$paneLayout,
+    #mainLayout: _f$mainLayout,
   };
 
   static ExperimentalWorkspacePanel _instantiate(DecodingData data) {
@@ -171,6 +176,7 @@ class ExperimentalWorkspacePanelMapper
       activeKey: data.dec(_f$activeKey),
       focusedKey: data.dec(_f$focusedKey),
       paneLayout: data.dec(_f$paneLayout),
+      mainLayout: data.dec(_f$mainLayout),
     );
   }
 
@@ -250,12 +256,14 @@ abstract class ExperimentalWorkspacePanelCopyWith<
     implements ClassCopyWith<$R, $In, $Out> {
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get tabKeys;
   WorkbenchLayoutCopyWith<$R, WorkbenchLayout, WorkbenchLayout>? get paneLayout;
+  WorkbenchLayoutCopyWith<$R, WorkbenchLayout, WorkbenchLayout>? get mainLayout;
   $R call({
     String? primaryTabId,
     List<String>? tabKeys,
     String? activeKey,
     String? focusedKey,
     WorkbenchLayout? paneLayout,
+    WorkbenchLayout? mainLayout,
   });
   ExperimentalWorkspacePanelCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -287,12 +295,17 @@ class _ExperimentalWorkspacePanelCopyWithImpl<$R, $Out>
   get paneLayout =>
       $value.paneLayout?.copyWith.$chain((v) => call(paneLayout: v));
   @override
+  WorkbenchLayoutCopyWith<$R, WorkbenchLayout, WorkbenchLayout>?
+  get mainLayout =>
+      $value.mainLayout?.copyWith.$chain((v) => call(mainLayout: v));
+  @override
   $R call({
     Object? primaryTabId = $none,
     List<String>? tabKeys,
     Object? activeKey = $none,
     Object? focusedKey = $none,
     Object? paneLayout = $none,
+    Object? mainLayout = $none,
   }) => $apply(
     FieldCopyWithData({
       if (primaryTabId != $none) #primaryTabId: primaryTabId,
@@ -300,6 +313,7 @@ class _ExperimentalWorkspacePanelCopyWithImpl<$R, $Out>
       if (activeKey != $none) #activeKey: activeKey,
       if (focusedKey != $none) #focusedKey: focusedKey,
       if (paneLayout != $none) #paneLayout: paneLayout,
+      if (mainLayout != $none) #mainLayout: mainLayout,
     }),
   );
   @override
@@ -310,6 +324,7 @@ class _ExperimentalWorkspacePanelCopyWithImpl<$R, $Out>
         activeKey: data.get(#activeKey, or: $value.activeKey),
         focusedKey: data.get(#focusedKey, or: $value.focusedKey),
         paneLayout: data.get(#paneLayout, or: $value.paneLayout),
+        mainLayout: data.get(#mainLayout, or: $value.mainLayout),
       );
 
   @override

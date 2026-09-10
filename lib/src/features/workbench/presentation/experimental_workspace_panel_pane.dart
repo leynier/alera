@@ -23,9 +23,11 @@ class const _ExperimentalPanelPane({
     required String key,
     required String targetGroupId,
     required WorkbenchDropZone zone,
+    required ExperimentalPanelTree source,
     int? index,
   })?
   onMoveTab,
+  final ExperimentalPanelTree tree = ExperimentalPanelTree.right,
 }) extends StatefulWidget {
   @override
   State<_ExperimentalPanelPane> createState() => _ExperimentalPanelPaneState();
@@ -115,6 +117,7 @@ class _ExperimentalPanelPaneState extends State<_ExperimentalPanelPane> {
       key: data.key,
       targetGroupId: widget.groupId,
       zone: WorkbenchDropZone.center,
+      source: data.tree,
       index: index,
     );
   }
@@ -157,6 +160,7 @@ class _ExperimentalPanelPaneState extends State<_ExperimentalPanelPane> {
           workspaceId: widget.workspaceId,
           sourceGroupId: widget.groupId,
           key: key,
+          tree: widget.tree,
         ),
         feedback: Material(color: Colors.transparent, child: chip),
         child: chip,
@@ -180,7 +184,7 @@ class _ExperimentalPanelPaneState extends State<_ExperimentalPanelPane> {
   @override
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) => _syncOverflow());
-    final openKeys = widget.panel.tabKeys.toSet();
+    final openKeys = widget.panel.occupiedKeys;
     final addButton = _ExperimentalPanelAddButton(
       availableTools: <ExperimentalWorkspaceTool>[
         for (final tool in ExperimentalWorkspaceTool.values)
@@ -202,6 +206,63 @@ class _ExperimentalPanelPaneState extends State<_ExperimentalPanelPane> {
               (activeKey == widget.panel.activeKey
                   ? widget.content
                   : const SizedBox.shrink()));
+    Widget header = SizedBox(
+      height: AleraTokens.sidebarHeaderHeight,
+      child: _ExperimentalStripAppendDropTarget(
+        workspaceId: widget.workspaceId,
+        tabCount: _keys.length,
+        enabled: widget.onMoveTab != null,
+        onHoverGap: _handleGapHover,
+        onLeave: _handleGapLeave,
+        onDropGap: _handleGapDrop,
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AleraTokens.space8,
+                  vertical: AleraTokens.space6,
+                ),
+                child: Row(
+                  key: _chipsKey,
+                  mainAxisSize: .min,
+                  children: <Widget>[
+                    for (final (index, key) in _keys.indexed)
+                      _tabChip(key, index),
+                    if (!_hasOverflow) addButton,
+                  ],
+                ),
+              ),
+            ),
+            if (_hasOverflow)
+              Padding(
+                padding: const EdgeInsets.only(right: AleraTokens.space8),
+                child: addButton,
+              ),
+            if (widget.onSplitGroup != null)
+              _ExperimentalPaneMenuButton(
+                canCloseSplit:
+                    widget.layout.paneGroupIds.length > 1 &&
+                    widget.onMergeGroup != null,
+                onSplitGroup: (zone) =>
+                    widget.onSplitGroup!(widget.groupId, zone),
+                onMergeGroup: () => widget.onMergeGroup?.call(widget.groupId),
+              ),
+            if (widget.showHide)
+              AleraIconButton(
+                tooltip: 'Hide Panel',
+                icon: AleraIcons.chevronsRight,
+                onPressed: widget.onHide,
+              ),
+          ],
+        ),
+      ),
+    );
+    if (widget.tree == ExperimentalPanelTree.main) {
+      header = ColoredBox(color: AleraTokens.surface, child: header);
+    }
     return _ExperimentalPaneDropTarget(
       workspaceId: widget.workspaceId,
       groupId: widget.groupId,
@@ -213,64 +274,11 @@ class _ExperimentalPanelPaneState extends State<_ExperimentalPanelPane> {
         }
       },
       onMoveTab: widget.onMoveTab,
+      tree: widget.tree,
       child: Column(
         crossAxisAlignment: .stretch,
         children: <Widget>[
-          SizedBox(
-            height: AleraTokens.sidebarHeaderHeight,
-            child: _ExperimentalStripAppendDropTarget(
-              workspaceId: widget.workspaceId,
-              tabCount: _keys.length,
-              enabled: widget.onMoveTab != null,
-              onHoverGap: _handleGapHover,
-              onLeave: _handleGapLeave,
-              onDropGap: _handleGapDrop,
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: _scrollController,
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AleraTokens.space8,
-                        vertical: AleraTokens.space6,
-                      ),
-                      child: Row(
-                        key: _chipsKey,
-                        mainAxisSize: .min,
-                        children: <Widget>[
-                          for (final (index, key) in _keys.indexed)
-                            _tabChip(key, index),
-                          if (!_hasOverflow) addButton,
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (_hasOverflow)
-                    Padding(
-                      padding: const EdgeInsets.only(right: AleraTokens.space8),
-                      child: addButton,
-                    ),
-                  if (widget.onSplitGroup != null)
-                    _ExperimentalPaneMenuButton(
-                      canCloseSplit:
-                          widget.layout.paneGroupIds.length > 1 &&
-                          widget.onMergeGroup != null,
-                      onSplitGroup: (zone) =>
-                          widget.onSplitGroup!(widget.groupId, zone),
-                      onMergeGroup: () =>
-                          widget.onMergeGroup?.call(widget.groupId),
-                    ),
-                  if (widget.showHide)
-                    AleraIconButton(
-                      tooltip: 'Hide Panel',
-                      icon: AleraIcons.chevronsRight,
-                      onPressed: widget.onHide,
-                    ),
-                ],
-              ),
-            ),
-          ),
+          header,
           Expanded(child: ClipRect(child: surface)),
         ],
       ),
@@ -288,9 +296,11 @@ class const _ExperimentalPaneDropTarget({
     required String key,
     required String targetGroupId,
     required WorkbenchDropZone zone,
+    required ExperimentalPanelTree source,
     int? index,
   })?
   onMoveTab,
+  final ExperimentalPanelTree tree = ExperimentalPanelTree.right,
   required final Widget child,
 }) extends StatelessWidget {
   @override
@@ -304,6 +314,9 @@ class const _ExperimentalPaneDropTarget({
         if (data.workspaceId != workspaceId) {
           return false;
         }
+        if (data.tree != tree) {
+          return true;
+        }
         return data.sourceGroupId != groupId || tabCount > 1;
       },
       onMove: (details) {
@@ -316,7 +329,12 @@ class const _ExperimentalPaneDropTarget({
         if (zone == null) {
           return;
         }
-        onMoveTab!(key: details.data.key, targetGroupId: groupId, zone: zone);
+        onMoveTab!(
+          key: details.data.key,
+          targetGroupId: groupId,
+          zone: zone,
+          source: details.data.tree,
+        );
       },
       builder: (context, _, _) {
         return Stack(

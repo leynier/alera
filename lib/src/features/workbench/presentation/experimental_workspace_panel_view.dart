@@ -18,10 +18,53 @@ part 'experimental_workspace_panel_split.dart';
 part 'experimental_workspace_panel_menus.dart';
 part 'experimental_workspace_panel_empty.dart';
 
+class const ExperimentalMainDropSurface({
+  super.key,
+  required final String workspaceId,
+  required final String groupId,
+  required final Widget child,
+  required final void Function({
+    required String key,
+    required String targetGroupId,
+    required WorkbenchDropZone zone,
+    required ExperimentalPanelTree source,
+    int? index,
+  })
+  onMoveTab,
+}) extends StatefulWidget {
+  @override
+  State<ExperimentalMainDropSurface> createState() =>
+      _ExperimentalMainDropSurfaceState();
+}
+
+class _ExperimentalMainDropSurfaceState
+    extends State<ExperimentalMainDropSurface> {
+  WorkbenchDropZone? _hoverZone;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ExperimentalPaneDropTarget(
+      workspaceId: widget.workspaceId,
+      groupId: widget.groupId,
+      tabCount: 1,
+      hoverZone: _hoverZone,
+      onHoverZone: (zone) {
+        if (zone != _hoverZone) {
+          setState(() => _hoverZone = zone);
+        }
+      },
+      onMoveTab: widget.onMoveTab,
+      tree: ExperimentalPanelTree.main,
+      child: widget.child,
+    );
+  }
+}
+
 class const ExperimentalPaneTabDragData({
   required final String workspaceId,
   required final String sourceGroupId,
   required final String key,
+  final ExperimentalPanelTree tree = ExperimentalPanelTree.right,
 });
 
 class const ExperimentalWorkspacePanelView({
@@ -46,15 +89,20 @@ class const ExperimentalWorkspacePanelView({
     required String key,
     required String targetGroupId,
     required WorkbenchDropZone zone,
+    required ExperimentalPanelTree source,
     int? index,
   })?
   onMoveTab,
   final void Function(List<int> path, double ratio)? onUpdateSplitRatio,
+  final ExperimentalPanelTree tree = ExperimentalPanelTree.right,
+  final bool showHide = true,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final layout = panel.ensuredLayout(workspaceId);
-    if (panel.tabKeys.isEmpty) {
+    final layout = tree == ExperimentalPanelTree.main
+        ? panel.ensuredMainLayout(workspaceId)
+        : panel.ensuredLayout(workspaceId);
+    if (tree == ExperimentalPanelTree.right && panel.tabKeys.isEmpty) {
       return _ExperimentalPanelEmpty(
         onSelect: onSelect,
         onNewTerminal: onNewTerminal,
@@ -82,6 +130,8 @@ class const ExperimentalWorkspacePanelView({
       onMergeGroup: onMergeGroup,
       onMoveTab: onMoveTab,
       onUpdateSplitRatio: onUpdateSplitRatio,
+      tree: tree,
+      showHide: showHide,
     );
   }
 }
@@ -109,10 +159,13 @@ class const _ExperimentalPanelLayoutNode({
     required String key,
     required String targetGroupId,
     required WorkbenchDropZone zone,
+    required ExperimentalPanelTree source,
     int? index,
   })?
   onMoveTab,
   final void Function(List<int> path, double ratio)? onUpdateSplitRatio,
+  final ExperimentalPanelTree tree = ExperimentalPanelTree.right,
+  final bool showHide = true,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -124,7 +177,8 @@ class const _ExperimentalPanelLayoutNode({
         tabs: tabs,
         layout: layout,
         groupId: groupId,
-        showHide: groupId == layout.paneGroupIds.first,
+        showHide: showHide && groupId == layout.topRightPaneGroupId,
+        tree: tree,
         onSelect: onSelect,
         onClose: onClose,
         onNewTerminal: onNewTerminal,
@@ -162,6 +216,8 @@ class const _ExperimentalPanelLayoutNode({
         onMergeGroup: onMergeGroup,
         onMoveTab: onMoveTab,
         onUpdateSplitRatio: onUpdateSplitRatio,
+        tree: tree,
+        showHide: showHide,
       ),
       second: _ExperimentalPanelLayoutNode(
         workspaceId: workspaceId,
@@ -183,6 +239,8 @@ class const _ExperimentalPanelLayoutNode({
         onMergeGroup: onMergeGroup,
         onMoveTab: onMoveTab,
         onUpdateSplitRatio: onUpdateSplitRatio,
+        tree: tree,
+        showHide: showHide,
       ),
       onPersistRatio: (ratio) => onUpdateSplitRatio?.call(nodePath, ratio),
     );

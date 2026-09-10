@@ -313,10 +313,14 @@ class const KeyboardCommandDispatcher({
     final controller = ref.read(workbenchControllerProvider.notifier);
     final runtime = ref.read(terminalRuntimeProvider);
     if (state.isExperimentalLayout) {
-      final groupId = state
-          .experimentalPanelFor(workspace.id)
-          .ensuredLayout(workspace.id)
-          .activeGroupId;
+      final panel = state.experimentalPanelFor(workspace.id);
+      final tree =
+          panel.treeForKey(panel.focusedKey ?? '') ??
+          ExperimentalPanelTree.right;
+      final layout = tree == ExperimentalPanelTree.main
+          ? panel.ensuredMainLayout(workspace.id)
+          : panel.ensuredLayout(workspace.id);
+      final groupId = layout.activeGroupId;
       unawaited(() async {
         final tab = await controller.splitWorkbenchGroupWithTerminal(
           workspace: workspace,
@@ -348,9 +352,13 @@ class const KeyboardCommandDispatcher({
       return;
     }
     if (state.isExperimentalLayout) {
-      final layout = state
-          .experimentalPanelFor(workspace.id)
-          .ensuredLayout(workspace.id);
+      final panel = state.experimentalPanelFor(workspace.id);
+      final tree =
+          panel.treeForKey(panel.focusedKey ?? '') ??
+          ExperimentalPanelTree.right;
+      final layout = tree == ExperimentalPanelTree.main
+          ? panel.ensuredMainLayout(workspace.id)
+          : panel.ensuredLayout(workspace.id);
       if (layout.groups.length < 2) {
         return;
       }
@@ -384,9 +392,9 @@ class const KeyboardCommandDispatcher({
     if (id == null) return const <String>[];
     final panel = state.experimentalPanelFor(id);
     return <String>[
-      if (panel.primaryTabId case final String primary)
-        ExperimentalWorkspacePanel.tabKey(primary),
-      ...panel.tabKeys,
+      ...panel.mainKeys,
+      for (final key in panel.tabKeys)
+        if (!panel.mainKeys.contains(key)) key,
     ];
   }
 }

@@ -107,14 +107,23 @@ class const _SidebarBody({
       );
     }
     if (row is WorkbenchWorkspaceRow) {
-      final primaryId = state.isExperimentalLayout
-          ? state.experimentalPanelFor(row.workspace.id).primaryTabId
+      final panel = state.isExperimentalLayout
+          ? state.experimentalPanelFor(row.workspace.id)
           : null;
-      final primaryRun = row.agentRuns
-          .where((run) => run.tab.id == primaryId)
-          .firstOrNull;
+      final mainTabIds = <String>{
+        for (final key in panel?.mainKeys ?? const <String>[])
+          if (ExperimentalWorkspacePanel.tabId(key) case final String id) id,
+      };
+      final mainRuns = row.agentRuns
+          .where((run) => mainTabIds.contains(run.tab.id))
+          .toList();
+      final rightRuns = row.agentRuns
+          .where((run) => !mainTabIds.contains(run.tab.id))
+          .toList();
+      final mergeMainAgent = state.isExperimentalLayout && mainRuns.length <= 1;
+      final primaryRun = mergeMainAgent ? mainRuns.firstOrNull : null;
       final secondaryRuns = state.isExperimentalLayout
-          ? row.agentRuns.where((run) => run.tab.id != primaryId).toList()
+          ? <WorkspaceAgentRun>[if (!mergeMainAgent) ...mainRuns, ...rightRuns]
           : row.agentRuns;
       final leftPadding = _indentPadding(row.indent);
       final hasDescendants = _workspaceHasDescendants(state, row.workspace);

@@ -324,6 +324,23 @@ void main() {
     expect(panel.activeKey, isNull);
   });
 
+  test('reconcile drops a stale primary when only a file remains', () {
+    final file = WorkspaceTabRecord(
+      id: 'file',
+      workspaceId: 'workspace',
+      title: 'keep.dart',
+      kind: WorkspaceTabKind.editor,
+      createdAt: DateTime.utc(2026),
+      updatedAt: DateTime.utc(2026),
+    );
+    final next = const ExperimentalWorkspacePanel(primaryTabId: 'primary')
+        .reconcile([terminal('primary')])
+        .reconcile([file]);
+    expect(next.primaryTabId, isNull);
+    expect(next.mainKeys, isEmpty);
+    expect(next.tabKeys, contains('tab:file'));
+  });
+
   test('reconcile keeps an explicit active key still present in the panel', () {
     final panel = const ExperimentalWorkspacePanel(
       primaryTabId: 'primary',
@@ -331,5 +348,152 @@ void main() {
       activeKey: 'tab:aux',
     ).reconcile([terminal('primary'), terminal('aux')]);
     expect(panel.activeKey, 'tab:aux');
+  });
+
+  test('reconcile seeds mainLayout from the primary terminal', () {
+    final panel = const ExperimentalWorkspacePanel().reconcile([
+      terminal('active'),
+      terminal('aux'),
+    ], preferredPrimaryId: 'active');
+    expect(panel.primaryTabId, 'active');
+    expect(panel.mainKeys, ['tab:active']);
+    expect(panel.showsMainChrome, isFalse);
+    expect(panel.tabKeys, contains('tab:aux'));
+    expect(panel.tabKeys, isNot(contains('tab:active')));
+    expect(panel.treeForKey('tab:aux'), ExperimentalPanelTree.right);
+  });
+
+  test('moving a tool from right to main keeps it unique and shows chrome', () {
+    final panel = const ExperimentalWorkspacePanel(primaryTabId: 'primary')
+        .reconcile([terminal('primary')])
+        .select('tool:search');
+    expect(panel.tabKeys, contains('tool:search'));
+    final moved = panel.moveKey(
+      key: 'tool:search',
+      target: ExperimentalPanelTree.main,
+      targetGroupId: 'missing-group',
+      zone: WorkbenchDropZone.center,
+      newGroupId: 'unused',
+    );
+    expect(moved.mainKeys, containsAll(['tab:primary', 'tool:search']));
+    expect(moved.tabKeys, isNot(contains('tool:search')));
+    expect(moved.showsMainChrome, isTrue);
+    expect(moved.mainKeys.where((key) => key == 'tool:search'), hasLength(1));
+  });
+
+  test('edge drop onto main splits without cloning the key', () {
+    final panel = const ExperimentalWorkspacePanel(primaryTabId: 'primary')
+        .reconcile([terminal('primary')])
+        .select('tool:explorer');
+    final mainGroup = panel.ensuredMainLayout().activeGroupId;
+    final split = panel.moveKey(
+      key: 'tool:explorer',
+      target: ExperimentalPanelTree.main,
+      targetGroupId: mainGroup,
+      zone: WorkbenchDropZone.right,
+      newGroupId: 'main-split',
+    );
+    expect(split.ensuredMainLayout().groups.length, 2);
+    expect(split.showsMainChrome, isTrue);
+    expect(split.mainKeys.where((key) => key == 'tool:explorer'), hasLength(1));
+    expect(split.tabKeys, isNot(contains('tool:explorer')));
+  });
+
+  test(
+    'main and right pane groups stay distinct and accept a targeted select',
+    () {
+      final panel = const ExperimentalWorkspacePanel().reconcile(
+        [terminal('active')],
+        preferredPrimaryId: 'active',
+        workspaceId: 'workspace',
+      );
+      final mainGroup = panel.ensuredMainLayout('workspace').activeGroupId;
+      final rightGroup = panel.ensuredLayout('workspace').activeGroupId;
+      expect(mainGroup, isNot(rightGroup));
+      expect(panel.treeForGroup(mainGroup), ExperimentalPanelTree.main);
+      expect(panel.treeForGroup(rightGroup), ExperimentalPanelTree.right);
+      expect(panel.treeForGroup('missing'), isNull);
+      expect(panel.treeForKey('tab:active'), ExperimentalPanelTree.main);
+      final added = panel.select('tool:search', groupId: mainGroup);
+      expect(added.mainKeys, contains('tool:search'));
+      expect(added.tabKeys, isNot(contains('tool:search')));
+      expect(added.showsMainChrome, isTrue);
+      expect(added.primaryTabId, isNull);
+      expect(added.select('tool:search').focusedKey, 'tool:search');
+    },
+  );
+
+  test('moving a main tab back to the right hides chrome', () {
+    final panel = const ExperimentalWorkspacePanel(primaryTabId: 'primary')
+        .reconcile([terminal('primary')])
+        .select('tool:search');
+    final moved = panel.moveKey(
+      key: 'tool:search',
+      target: ExperimentalPanelTree.main,
+      targetGroupId: panel.ensuredMainLayout().activeGroupId,
+      zone: WorkbenchDropZone.center,
+      newGroupId: 'unused',
+    );
+    expect(moved.primaryTabId, isNull);
+    expect(moved.closeKey('tab:primary').focusedKey, 'tool:search');
+    final restored = moved.moveKey(
+      key: 'tool:search',
+      target: ExperimentalPanelTree.right,
+      targetGroupId: moved.ensuredLayout().activeGroupId,
+      zone: WorkbenchDropZone.center,
+      newGroupId: 'unused',
+    );
+    expect(restored.showsMainChrome, isFalse);
+    expect(restored.primaryTabId, 'primary');
+    expect(restored.tabKeys, contains('tool:search'));
+    expect(
+      restored.occupiedKeys.where((key) => key == 'tool:search'),
+      hasLength(1),
+    );
+  });
+
+  test(
+    'closing or reconciling away an extra main tab restores the primary',
+    () {
+      final seeded = const ExperimentalWorkspacePanel(primaryTabId: 'primary')
+          .reconcile([terminal('primary'), terminal('aux')]);
+      final panel = seeded.moveKey(
+        key: 'tab:aux',
+        target: ExperimentalPanelTree.main,
+        targetGroupId: seeded.ensuredMainLayout().activeGroupId,
+        zone: WorkbenchDropZone.center,
+        newGroupId: 'unused',
+      );
+      expect(panel.showsMainChrome, isTrue);
+      expect(panel.closeKey('tab:aux').primaryTabId, 'primary');
+      expect(
+        panel.reconcile([terminal('primary')]).tabKeys,
+        isNot(contains('tab:aux')),
+      );
+    },
+  );
+
+  test('mainLayout round trips in view preferences', () {
+    final panel = const ExperimentalWorkspacePanel(primaryTabId: 'primary')
+        .reconcile([terminal('primary')])
+        .select('tool:search');
+    final moved = panel.moveKey(
+      key: 'tool:search',
+      target: ExperimentalPanelTree.main,
+      targetGroupId: panel.ensuredMainLayout().activeGroupId,
+      zone: WorkbenchDropZone.down,
+      newGroupId: 'main-split',
+    );
+    final prefs = WorkbenchViewPrefs.defaults.copyWith(
+      desktopLayout: DesktopWorkspaceLayout.experimental,
+      experimentalPanels: {'one': moved},
+    );
+    final restored = WorkbenchViewPrefs.fromJson(prefs.toMap());
+    expect(restored.experimentalPanels['one'], moved);
+    expect(restored.experimentalPanels['one']!.showsMainChrome, isTrue);
+    expect(
+      restored.experimentalPanels['one']!.ensuredMainLayout().groups.length,
+      2,
+    );
   });
 }

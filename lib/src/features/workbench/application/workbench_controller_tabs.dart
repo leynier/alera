@@ -218,12 +218,17 @@ mixin _WorkbenchControllerTabs
     int? index,
   }) async {
     if (state.isExperimentalLayout) {
+      final panel = state.experimentalPanelFor(workspaceId);
+      final key = _experimentalPaneKey(tabId);
       await moveExperimentalPaneTab(
         workspaceId: workspaceId,
         tabId: tabId,
         targetGroupId: targetGroupId,
         zone: zone,
         index: index,
+        source: panel.treeForKey(key) ?? ExperimentalPanelTree.right,
+        target:
+            panel.treeForGroup(targetGroupId) ?? ExperimentalPanelTree.right,
       );
       return;
     }

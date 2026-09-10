@@ -314,17 +314,20 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
                 workspaceId: layout.workspaceId,
               );
       final active = layout.activeTabId;
-      final select =
-          persist &&
+      if (persist &&
           active != null &&
-          !_closingTabWorkspaceIds.contains(layout.workspaceId);
-      _saveExperimentalPanel(
-        layout.workspaceId,
-        select
-            ? panel.select(ExperimentalWorkspacePanel.tabKey(active))
-            : panel,
-        reveal: select && active != panel.primaryTabId,
-      );
+          !_closingTabWorkspaceIds.contains(layout.workspaceId)) {
+        final next = panel.select(ExperimentalWorkspacePanel.tabKey(active));
+        _saveExperimentalPanel(
+          layout.workspaceId,
+          next,
+          reveal:
+              next.treeForKey(ExperimentalWorkspacePanel.tabKey(active)) ==
+              ExperimentalPanelTree.right,
+        );
+      } else {
+        _saveExperimentalPanel(layout.workspaceId, panel);
+      }
       // Only reconcile real records into the saved Classic tree. Experimental focus
       // must not move tabs or replace the user's split arrangement.
       layout = (state.layoutFor(layout.workspaceId) ?? layout).sanitize(
@@ -398,10 +401,12 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
   }) {
     if (state.isExperimentalLayout) {
       final panel = state.experimentalPanelFor(workspaceId);
+      final key = ExperimentalWorkspacePanel.tabKey(tabId);
+      final next = panel.select(key);
       _saveExperimentalPanel(
         workspaceId,
-        panel.select(ExperimentalWorkspacePanel.tabKey(tabId)),
-        reveal: tabId != panel.primaryTabId,
+        next,
+        reveal: next.treeForKey(key) == ExperimentalPanelTree.right,
       );
       return;
     }
