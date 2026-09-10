@@ -159,9 +159,6 @@ impl RelaySession {
         ikm.extend_from_slice(dh_static_ephemeral.as_bytes());
         ikm.extend_from_slice(dh_ephemeral_ephemeral.as_bytes());
         let hkdf = Hkdf::<Sha256>::new(Some(b"alera-relay-v1"), &ikm);
-        let mut send_key = [0_u8; KEY_BYTES];
-        let mut receive_key = [0_u8; KEY_BYTES];
-        let mut confirmation_key = [0_u8; KEY_BYTES];
         let send_label = if initiator {
             b"client-to-runtime"
         } else {
@@ -172,14 +169,9 @@ impl RelaySession {
         } else {
             b"client-to-runtime"
         };
-        expand_key(&hkdf, send_label, &transcript_hash, &mut send_key)?;
-        expand_key(&hkdf, receive_label, &transcript_hash, &mut receive_key)?;
-        expand_key(
-            &hkdf,
-            b"handshake-confirmation",
-            &transcript_hash,
-            &mut confirmation_key,
-        )?;
+        let send_key = expand_key(&hkdf, send_label, &transcript_hash)?;
+        let receive_key = expand_key(&hkdf, receive_label, &transcript_hash)?;
+        let confirmation_key = expand_key(&hkdf, b"handshake-confirmation", &transcript_hash)?;
         Ok(Self {
             send_key,
             receive_key,
@@ -285,14 +277,18 @@ fn expand_key(
     hkdf: &Hkdf<Sha256>,
     label: &[u8],
     transcript_hash: &[u8],
-    output: &mut [u8; KEY_BYTES],
-) -> Result<(), RelayCryptoError> {
-    let mut info = Vec::with_capacity(label.len() + transcript_hash.len() + 1);
+) -> Result<[u8; KEY_BYTES], RelayCryptoError> {
+    let mut info =
+        Vec::with_capacity(b"alera-relay-key:".len() + label.len() + transcript_hash.len());
     info.extend_from_slice(b"alera-relay-key:");
     info.extend_from_slice(label);
     info.extend_from_slice(transcript_hash);
-    hkdf.expand(&info, output)
-        .map_err(|_| RelayCryptoError::InvalidTranscript)
+    // `[0; N]` is a CodeQL hard-coded key source; this buffer is only HKDF-Expand output.
+    // codeql[rust/hard-coded-cryptographic-value]
+    let mut output = <[u8; KEY_BYTES]>::default();
+    hkdf.expand(&info, &mut output)
+        .map_err(|_| RelayCryptoError::InvalidTranscript)?;
+    Ok(output)
 }
 
 fn confirmation_for_key(
