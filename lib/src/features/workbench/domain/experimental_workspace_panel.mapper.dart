@@ -55,13 +55,16 @@ extension DesktopWorkspaceLayoutMapperExtension on DesktopWorkspaceLayout {
   }
 }
 
-class ExperimentalWorkspaceToolMapper extends EnumMapper<ExperimentalWorkspaceTool> {
+class ExperimentalWorkspaceToolMapper
+    extends EnumMapper<ExperimentalWorkspaceTool> {
   ExperimentalWorkspaceToolMapper._();
 
   static ExperimentalWorkspaceToolMapper? _instance;
   static ExperimentalWorkspaceToolMapper ensureInitialized() {
     if (_instance == null) {
-      MapperContainer.globals.use(_instance = ExperimentalWorkspaceToolMapper._());
+      MapperContainer.globals.use(
+        _instance = ExperimentalWorkspaceToolMapper._(),
+      );
     }
     return _instance!;
   }
@@ -102,20 +105,25 @@ class ExperimentalWorkspaceToolMapper extends EnumMapper<ExperimentalWorkspaceTo
   }
 }
 
-extension ExperimentalWorkspaceToolMapperExtension on ExperimentalWorkspaceTool {
+extension ExperimentalWorkspaceToolMapperExtension
+    on ExperimentalWorkspaceTool {
   String toValue() {
     ExperimentalWorkspaceToolMapper.ensureInitialized();
-    return MapperContainer.globals.toValue<ExperimentalWorkspaceTool>(this) as String;
+    return MapperContainer.globals.toValue<ExperimentalWorkspaceTool>(this)
+        as String;
   }
 }
 
-class ExperimentalWorkspacePanelMapper extends ClassMapperBase<ExperimentalWorkspacePanel> {
+class ExperimentalWorkspacePanelMapper
+    extends ClassMapperBase<ExperimentalWorkspacePanel> {
   ExperimentalWorkspacePanelMapper._();
 
   static ExperimentalWorkspacePanelMapper? _instance;
   static ExperimentalWorkspacePanelMapper ensureInitialized() {
     if (_instance == null) {
-      MapperContainer.globals.use(_instance = ExperimentalWorkspacePanelMapper._());
+      MapperContainer.globals.use(
+        _instance = ExperimentalWorkspacePanelMapper._(),
+      );
       WorkbenchLayoutMapper.ensureInitialized();
     }
     return _instance!;
@@ -125,18 +133,11 @@ class ExperimentalWorkspacePanelMapper extends ClassMapperBase<ExperimentalWorks
   final String id = 'ExperimentalWorkspacePanel';
 
   static String? _$primaryTabId(ExperimentalWorkspacePanel v) => v.primaryTabId;
-  static const Field<ExperimentalWorkspacePanel, String> _f$primaryTabId = Field(
-    'primaryTabId',
-    _$primaryTabId,
-    opt: true,
-  );
+  static const Field<ExperimentalWorkspacePanel, String> _f$primaryTabId =
+      Field('primaryTabId', _$primaryTabId, opt: true);
   static List<String> _$tabKeys(ExperimentalWorkspacePanel v) => v.tabKeys;
-  static const Field<ExperimentalWorkspacePanel, List<String>> _f$tabKeys = Field(
-    'tabKeys',
-    _$tabKeys,
-    opt: true,
-    def: const <String>[],
-  );
+  static const Field<ExperimentalWorkspacePanel, List<String>> _f$tabKeys =
+      Field('tabKeys', _$tabKeys, opt: true, def: const <String>[]);
   static String? _$activeKey(ExperimentalWorkspacePanel v) => v.activeKey;
   static const Field<ExperimentalWorkspacePanel, String> _f$activeKey = Field(
     'activeKey',
@@ -149,7 +150,8 @@ class ExperimentalWorkspacePanelMapper extends ClassMapperBase<ExperimentalWorks
     _$focusedKey,
     opt: true,
   );
-  static WorkbenchLayout? _$paneLayout(ExperimentalWorkspacePanel v) => v.paneLayout;
+  static WorkbenchLayout? _$paneLayout(ExperimentalWorkspacePanel v) =>
+      v.paneLayout;
   static const Field<ExperimentalWorkspacePanel, WorkbenchLayout> _f$paneLayout =
       Field('paneLayout', _$paneLayout, opt: true);
 
@@ -187,12 +189,16 @@ class ExperimentalWorkspacePanelMapper extends ClassMapperBase<ExperimentalWorks
 mixin ExperimentalWorkspacePanelMappable {
   String toJson() {
     return ExperimentalWorkspacePanelMapper.ensureInitialized()
-        .encodeJson<ExperimentalWorkspacePanel>(this as ExperimentalWorkspacePanel);
+        .encodeJson<ExperimentalWorkspacePanel>(
+          this as ExperimentalWorkspacePanel,
+        );
   }
 
   Map<String, dynamic> toMap() {
     return ExperimentalWorkspacePanelMapper.ensureInitialized()
-        .encodeMap<ExperimentalWorkspacePanel>(this as ExperimentalWorkspacePanel);
+        .encodeMap<ExperimentalWorkspacePanel>(
+          this as ExperimentalWorkspacePanel,
+        );
   }
 
   ExperimentalWorkspacePanelCopyWith<
@@ -258,7 +264,12 @@ abstract class ExperimentalWorkspacePanelCopyWith<
 
 class _ExperimentalWorkspacePanelCopyWithImpl<$R, $Out>
     extends ClassCopyWithBase<$R, ExperimentalWorkspacePanel, $Out>
-    implements ExperimentalWorkspacePanelCopyWith<$R, ExperimentalWorkspacePanel, $Out> {
+    implements
+        ExperimentalWorkspacePanelCopyWith<
+          $R,
+          ExperimentalWorkspacePanel,
+          $Out
+        > {
   _ExperimentalWorkspacePanelCopyWithImpl(super.value, super.then, super.then2);
 
   @override
@@ -292,13 +303,14 @@ class _ExperimentalWorkspacePanelCopyWithImpl<$R, $Out>
     }),
   );
   @override
-  ExperimentalWorkspacePanel $make(CopyWithData data) => ExperimentalWorkspacePanel(
-    primaryTabId: data.get(#primaryTabId, or: $value.primaryTabId),
-    tabKeys: data.get(#tabKeys, or: $value.tabKeys),
-    activeKey: data.get(#activeKey, or: $value.activeKey),
-    focusedKey: data.get(#focusedKey, or: $value.focusedKey),
-    paneLayout: data.get(#paneLayout, or: $value.paneLayout),
-  );
+  ExperimentalWorkspacePanel $make(CopyWithData data) =>
+      ExperimentalWorkspacePanel(
+        primaryTabId: data.get(#primaryTabId, or: $value.primaryTabId),
+        tabKeys: data.get(#tabKeys, or: $value.tabKeys),
+        activeKey: data.get(#activeKey, or: $value.activeKey),
+        focusedKey: data.get(#focusedKey, or: $value.focusedKey),
+        paneLayout: data.get(#paneLayout, or: $value.paneLayout),
+      );
 
   @override
   ExperimentalWorkspacePanelCopyWith<$R2, ExperimentalWorkspacePanel, $Out2>

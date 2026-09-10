@@ -441,7 +441,10 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
   static Map<String, ExperimentalWorkspacePanel> _$experimentalPanels(
     WorkbenchViewPrefs v,
   ) => v.experimentalPanels;
-  static const Field<WorkbenchViewPrefs, Map<String, ExperimentalWorkspacePanel>>
+  static const Field<
+    WorkbenchViewPrefs,
+    Map<String, ExperimentalWorkspacePanel>
+  >
   _f$experimentalPanels = Field(
     'experimentalPanels',
     _$experimentalPanels,
@@ -450,13 +453,13 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
   );
   static double _$experimentalRightSidebarWidth(WorkbenchViewPrefs v) =>
       v.experimentalRightSidebarWidth;
-  static const Field<WorkbenchViewPrefs, double> _f$experimentalRightSidebarWidth =
-      Field(
-        'experimentalRightSidebarWidth',
-        _$experimentalRightSidebarWidth,
-        opt: true,
-        def: 280,
-      );
+  static const Field<WorkbenchViewPrefs, double>
+  _f$experimentalRightSidebarWidth = Field(
+    'experimentalRightSidebarWidth',
+    _$experimentalRightSidebarWidth,
+    opt: true,
+    def: 280,
+  );
   static WorkbenchSortBy _$sectionSort(WorkbenchViewPrefs v) => v.sectionSort;
   static const Field<WorkbenchViewPrefs, WorkbenchSortBy> _f$sectionSort =
       Field('sectionSort', _$sectionSort, opt: true, def: WorkbenchSortBy.name);
@@ -787,7 +790,11 @@ abstract class WorkbenchViewPrefsCopyWith<
     $R,
     String,
     ExperimentalWorkspacePanel,
-    ExperimentalWorkspacePanelCopyWith<$R, ExperimentalWorkspacePanel, ExperimentalWorkspacePanel>
+    ExperimentalWorkspacePanelCopyWith<
+      $R,
+      ExperimentalWorkspacePanel,
+      ExperimentalWorkspacePanel
+    >
   >
   get experimentalPanels;
   MapCopyWith<$R, String, String, ObjectCopyWith<$R, String, String>>
@@ -840,7 +847,11 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     $R,
     String,
     ExperimentalWorkspacePanel,
-    ExperimentalWorkspacePanelCopyWith<$R, ExperimentalWorkspacePanel, ExperimentalWorkspacePanel>
+    ExperimentalWorkspacePanelCopyWith<
+      $R,
+      ExperimentalWorkspacePanel,
+      ExperimentalWorkspacePanel
+    >
   >
   get experimentalPanels => MapCopyWith(
     $value.experimentalPanels,
@@ -934,7 +945,10 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
   @override
   WorkbenchViewPrefs $make(CopyWithData data) => WorkbenchViewPrefs(
     desktopLayout: data.get(#desktopLayout, or: $value.desktopLayout),
-    experimentalPanels: data.get(#experimentalPanels, or: $value.experimentalPanels),
+    experimentalPanels: data.get(
+      #experimentalPanels,
+      or: $value.experimentalPanels,
+    ),
     experimentalRightSidebarWidth: data.get(
       #experimentalRightSidebarWidth,
       or: $value.experimentalRightSidebarWidth,
