@@ -243,6 +243,7 @@ abstract class SimpleWorkspacePanelCopyWith<
 >
     implements ClassCopyWith<$R, $In, $Out> {
   ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get tabKeys;
+  WorkbenchLayoutCopyWith<$R, WorkbenchLayout, WorkbenchLayout>? get paneLayout;
   $R call({
     String? primaryTabId,
     List<String>? tabKeys,
@@ -270,6 +271,10 @@ class _SimpleWorkspacePanelCopyWithImpl<$R, $Out>
         (v, t) => ObjectCopyWith(v, $identity, t),
         (v) => call(tabKeys: v),
       );
+  @override
+  WorkbenchLayoutCopyWith<$R, WorkbenchLayout, WorkbenchLayout>?
+  get paneLayout =>
+      $value.paneLayout?.copyWith.$chain((v) => call(paneLayout: v));
   @override
   $R call({
     Object? primaryTabId = $none,
