@@ -20,6 +20,18 @@ WorkspaceTabRecord terminal(
 );
 
 void main() {
+  test('tool labels and tab key helpers cover every branch', () {
+    expect(SimpleWorkspaceTool.explorer.label, 'Explorer');
+    expect(SimpleWorkspaceTool.search.label, 'Search');
+    expect(SimpleWorkspaceTool.sourceControl.label, 'Source Control');
+    expect(SimpleWorkspaceTool.pullRequest.label, 'Pull Request');
+    expect(SimpleWorkspaceTool.forKey(null), isNull);
+    expect(SimpleWorkspaceTool.forKey('tool:missing'), isNull);
+    expect(SimpleWorkspacePanel.tabId(null), isNull);
+    expect(SimpleWorkspacePanel.tabId('tool:search'), isNull);
+    expect(SimpleWorkspacePanel.tabId('tab:aux'), 'aux');
+  });
+
   test('old preferences keep Classic and no Simple tools', () {
     final json = WorkbenchViewPrefs.defaults.toMap()
       ..remove('desktopLayout')
@@ -285,5 +297,32 @@ void main() {
     );
     expect(resized.ensuredLayout().root.ratio, 0.3);
     expect(resized.ensuredLayout().groups.length, 2);
+  });
+
+  test('ensuredLayout rebinds paneLayout to a new workspace id', () {
+    final panel = const SimpleWorkspacePanel(
+      tabKeys: ['tool:search'],
+      activeKey: 'tool:search',
+    ).select('tool:search');
+    final rebound = panel.ensuredLayout('workspace-b');
+    expect(rebound.workspaceId, 'workspace-b');
+    expect(rebound.groups.values.single.tabIds, contains('tool:search'));
+  });
+
+  test('closeKey ignores unknown keys and select rebuilds an empty layout', () {
+    final empty = const SimpleWorkspacePanel();
+    expect(identical(empty.closeKey('tool:search'), empty), isTrue);
+    final created = empty.select('tool:explorer');
+    expect(created.tabKeys, ['tool:explorer']);
+    expect(created.activeKey, 'tool:explorer');
+  });
+
+  test('reconcile keeps an explicit active key still present in the panel', () {
+    final panel = const SimpleWorkspacePanel(
+      primaryTabId: 'primary',
+      tabKeys: ['tool:search', 'tab:aux'],
+      activeKey: 'tab:aux',
+    ).reconcile([terminal('primary'), terminal('aux')]);
+    expect(panel.activeKey, 'tab:aux');
   });
 }
