@@ -22,9 +22,11 @@ applicationSearchEntries = buildSettingsSearchEntryCatalog(const {
     ),
   },
   'desktop': {
-    'Workspace Layout': SettingsSearchEntryDetails(
-      description: 'Choose Classic or Simple for all desktop workspaces.',
+    'Simple Mode': SettingsSearchEntryDetails(
+      description: 'Use one primary terminal beside a tabbed panel. Applies to all workspaces.',
       keywords: <String>[
+        'workspace',
+        'layout',
         'primary',
         'terminal',
         'panel',

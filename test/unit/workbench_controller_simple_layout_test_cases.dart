@@ -134,6 +134,28 @@ void _registerSimpleLayoutTests() {
     );
   });
 
+  test('Simple keepPreviewTab makes a file preview permanent', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+    _controller.setDesktopWorkspaceLayout(DesktopWorkspaceLayout.simple);
+    final preview = await _controller.openEditorTab(
+      workspace: workspace,
+      relativePath: 'one.dart',
+      preview: true,
+    );
+    expect(preview.isPreview, isTrue);
+    final kept = await _controller.keepPreviewTab(preview.id);
+    expect(kept.id, preview.id);
+    expect(kept.isPreview, isFalse);
+    expect(
+      _controller.state
+          .tabsFor(workspace.id)
+          .singleWhere((tab) => tab.id == preview.id)
+          .isPreview,
+      isFalse,
+    );
+  });
+
   test(
     'Simple restores a primary after closing it with a file still open',
     () async {

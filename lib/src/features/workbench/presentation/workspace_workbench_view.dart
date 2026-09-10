@@ -94,21 +94,29 @@ Widget buildSimpleWorkspaceTabChip({
   required ValueChanged<String> onKeep,
 }) {
   if (active) acknowledgements.acknowledge(status);
-  return _KeepPreviewTabScope(
-    onKeep: onKeep,
-    child: _WorkspaceTabChip(
-      canSplit: false,
-      tab: tab,
-      terminalSession: runtime.peekSession(tab.id),
-      status: status,
-      completionAcknowledged: acknowledgements.isAcknowledged(status),
-      active: active,
-      groupTabs: tabs,
-      onTap: onSelect,
-      onClose: () => onCloseTabs(<String>[tab.id]),
-      onCloseTabs: onCloseTabs,
-      onRename: onRename,
-      onSplit: (_) {},
+  return Padding(
+    padding: const EdgeInsets.only(right: AleraTokens.space8),
+    child: _KeepPreviewTabScope(
+      onKeep: onKeep,
+      child: _SimplePreviewKeepTap(
+        tab: tab,
+        onSelect: onSelect,
+        onKeep: onKeep,
+        builder: (onTap) => _WorkspaceTabChip(
+          canSplit: false,
+          tab: tab,
+          terminalSession: runtime.peekSession(tab.id),
+          status: status,
+          completionAcknowledged: acknowledgements.isAcknowledged(status),
+          active: active,
+          groupTabs: tabs,
+          onTap: onTap,
+          onClose: () => onCloseTabs(<String>[tab.id]),
+          onCloseTabs: onCloseTabs,
+          onRename: onRename,
+          onSplit: (_) {},
+        ),
+      ),
     ),
   );
 }
@@ -368,6 +376,51 @@ class const _WorkbenchTabDragScope({
     final scope = element?.widget as _WorkbenchTabDragScope?;
     return scope!.notifier!;
   }
+}
+
+class _SimplePreviewKeepTap extends StatefulWidget {
+  const _SimplePreviewKeepTap({
+    required this.tab,
+    required this.onSelect,
+    required this.onKeep,
+    required this.builder,
+  });
+
+  final WorkspaceTabRecord tab;
+  final VoidCallback onSelect;
+  final ValueChanged<String> onKeep;
+  final Widget Function(VoidCallback onTap) builder;
+
+  @override
+  State<_SimplePreviewKeepTap> createState() => _SimplePreviewKeepTapState();
+}
+
+class _SimplePreviewKeepTapState extends State<_SimplePreviewKeepTap> {
+  String? _lastId;
+  DateTime? _lastAt;
+
+  void _handleTap() {
+    widget.onSelect();
+    if (!widget.tab.isPreview) {
+      _lastId = null;
+      _lastAt = null;
+      return;
+    }
+    final now = DateTime.now();
+    if (_lastId == widget.tab.id &&
+        _lastAt != null &&
+        now.difference(_lastAt!) <= kDoubleTapTimeout) {
+      widget.onKeep(widget.tab.id);
+      _lastId = null;
+      _lastAt = null;
+      return;
+    }
+    _lastId = widget.tab.id;
+    _lastAt = now;
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(_handleTap);
 }
 
 class const _KeepPreviewTabScope({

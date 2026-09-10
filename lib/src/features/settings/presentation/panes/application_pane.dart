@@ -74,40 +74,24 @@ class const ApplicationSettingsPane({
             children: <Widget>[
               Consumer(
                 builder: (context, ref, _) {
-                  final layout = ref.watch(
+                  final simple = ref.watch(
                     workbenchControllerProvider.select(
-                      (state) => state.viewPrefs.desktopLayout,
+                      (state) =>
+                          state.viewPrefs.desktopLayout ==
+                          DesktopWorkspaceLayout.simple,
                     ),
                   );
-                  return Column(
-                    crossAxisAlignment: .start,
-                    children: <Widget>[
-                      Text(
-                        'Workspace Layout',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: AleraTokens.space8),
-                      SegmentedButton<DesktopWorkspaceLayout>(
-                        segments: const <ButtonSegment<DesktopWorkspaceLayout>>[
-                          ButtonSegment(
-                            value: DesktopWorkspaceLayout.classic,
-                            label: Text('Classic'),
-                          ),
-                          ButtonSegment(
-                            value: DesktopWorkspaceLayout.simple,
-                            label: Text('Simple'),
-                          ),
-                        ],
-                        selected: <DesktopWorkspaceLayout>{layout},
-                        onSelectionChanged: (selection) => ref
-                            .read(workbenchControllerProvider.notifier)
-                            .setDesktopWorkspaceLayout(selection.single),
-                      ),
-                      const SizedBox(height: AleraTokens.space8),
-                      const Text(
-                        'Applies to all workspaces. Simple keeps one primary terminal beside a tabbed panel.',
-                      ),
-                    ],
+                  return SettingsSwitchRow(
+                    title: 'Simple Mode',
+                    description: 'Use one primary terminal beside a tabbed panel. Applies to all workspaces.',
+                    value: simple,
+                    onChanged: (value) => ref
+                        .read(workbenchControllerProvider.notifier)
+                        .setDesktopWorkspaceLayout(
+                          value
+                              ? DesktopWorkspaceLayout.simple
+                              : DesktopWorkspaceLayout.classic,
+                        ),
                   );
                 },
               ),

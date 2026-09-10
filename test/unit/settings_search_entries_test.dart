@@ -30,17 +30,18 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      '6aeb61281fe30c7810e8dca4c7b6d2012b90ae66ff1b174c1c3d9133133c7eb5',
+      '55cf2e2259f30bef68adf056fa6fbf90b3bb02da68ee9f26fb38ad8e1509f24b',
     );
   });
 
-  test('global workspace layout is searchable under Desktop', () {
+  test('global simple mode is searchable under Desktop', () {
     final entry = applicationSearchEntries.singleWhere(
-      (entry) => entry.title == 'Workspace Layout',
+      (entry) => entry.title == 'Simple Mode',
     );
     expect(entry.groupId, 'desktop');
     expect(entry.matches('simple'), isTrue);
     expect(entry.matches('classic'), isTrue);
+    expect(entry.matches('layout'), isTrue);
   });
 
   test('built search catalogs remain immutable', () {
