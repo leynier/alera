@@ -6,7 +6,7 @@ use sha2::{Digest, Sha256};
 use sqlx::SqliteConnection;
 
 const DOCUMENT_KEY: &str = "configuration.portable.v1";
-const PROFILE_COLUMNS: &str = "id, name, agentType, command, sortOrder, launchMode, managedConfig, customPrompt, description, quotaGroup, revision, createdAt, updatedAt";
+const PROFILE_COLUMNS: &str = "id, name, agentType, command, sortOrder, launchMode, managedConfig, customPrompt, description, quotaGroup, showInNewTabMenu, revision, createdAt, updatedAt";
 const SHARED_SETTINGS: [(&str, &str); 4] = [
     (
         "/desktop/settings/general/confirmProjectRemoval",

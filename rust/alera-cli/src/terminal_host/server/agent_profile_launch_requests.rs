@@ -26,7 +26,7 @@ impl ServerActor {
     ) -> HostResult<Value> {
         let workspace_id = required_non_blank(payload, "workspaceId")?;
         let profile_id = required_non_blank(payload, "profileId")?;
-        let prompt = required_non_blank(payload, "prompt")?;
+        let prompt = optional_launch_prompt(payload)?;
         let client_mutation_id = match payload.get("clientMutationId") {
             None => None,
             Some(Value::String(value)) if !value.trim().is_empty() => {
@@ -151,11 +151,17 @@ impl ServerActor {
             "terminalSessionId": id,
             // Most adapters take the prompt at launch. fx receives it
             // after its built-in lifecycle reports that the TUI is ready.
-            "initialPrompt": (!prompt_after_ready).then(|| prompt.clone()),
-            "pendingAgentPrompt": prompt_after_ready.then(|| json!({
-                "agent": adapter.agent_type,
-                "prompt": prompt,
-            })),
+            // A promptless menu launch still starts the agent, but must not
+            // paste empty markers or force Enter after the TUI is ready.
+            "initialPrompt": agent_profile_launch_initial_prompt(
+                prompt_after_ready,
+                &prompt,
+            ),
+            "pendingAgentPrompt": agent_profile_launch_pending_prompt(
+                prompt_after_ready,
+                adapter.agent_type,
+                &prompt,
+            ),
             "spawnOnCreate": true,
             "automationRunId": automation_run_id,
             "automationOwned": automation_owned,
@@ -329,6 +335,31 @@ fn redact_agent_profile_launch_result(mut result: Value) -> Value {
     result
 }
 
+fn optional_launch_prompt(payload: &Value) -> HostResult<String> {
+    match payload.get("prompt") {
+        None | Some(Value::Null) => Ok(String::new()),
+        Some(Value::String(value)) => Ok(value.trim().to_string()),
+        Some(_) => Err(HostError::format("prompt must be a string.")),
+    }
+}
+
+fn agent_profile_launch_initial_prompt(prompt_after_ready: bool, prompt: &str) -> Option<String> {
+    (!prompt_after_ready && !prompt.is_empty()).then(|| prompt.to_string())
+}
+
+fn agent_profile_launch_pending_prompt(
+    prompt_after_ready: bool,
+    agent_type: &str,
+    prompt: &str,
+) -> Option<Value> {
+    (prompt_after_ready && !prompt.is_empty()).then(|| {
+        json!({
+            "agent": agent_type,
+            "prompt": prompt,
+        })
+    })
+}
+
 fn agent_profile_launch_payload_digest(
     workspace_id: &str,
     profile_id: &str,
@@ -380,5 +411,20 @@ mod tests {
                 false,
             )
         );
+    }
+
+    #[test]
+    fn promptless_fx_launch_does_not_schedule_blank_terminal_submit() {
+        assert_eq!(agent_profile_launch_pending_prompt(true, "fx", ""), None);
+        assert_eq!(agent_profile_launch_initial_prompt(true, ""), None);
+        assert_eq!(
+            agent_profile_launch_pending_prompt(true, "fx", "Ship it"),
+            Some(json!({"agent": "fx", "prompt": "Ship it"}))
+        );
+        assert_eq!(
+            agent_profile_launch_initial_prompt(false, "Ship it"),
+            Some("Ship it".to_string())
+        );
+        assert_eq!(agent_profile_launch_initial_prompt(false, ""), None);
     }
 }

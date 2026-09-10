@@ -44,6 +44,7 @@ class RuntimeAgentProfileRepository(
     String customPrompt = '',
     String description = '',
     String? quotaGroup,
+    bool showInNewTabMenu = false,
   }) async {
     await beforeAccess?.call();
     final requiredCapabilities = <String, String>{};
@@ -74,6 +75,7 @@ class RuntimeAgentProfileRepository(
         'customPrompt': customPrompt,
         'description': description,
         'quotaGroup': quotaGroup,
+        'showInNewTabMenu': showInNewTabMenu,
       },
       requiredCapabilities,
     );

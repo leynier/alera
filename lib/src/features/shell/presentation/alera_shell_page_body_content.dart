@@ -44,6 +44,9 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
         final driverPresence = ref.read(
           terminalDriverPresenceControllerProvider.notifier,
         );
+        final newTabMenuProfiles =
+            ref.watch(agentProfilesProvider).asData?.value ??
+            const <AgentProfile>[];
         return WorkspaceWorkbenchView(
           key: ValueKey((workspace.id, singleSurface, singleTabId)),
           singleSurface: singleSurface,
@@ -67,6 +70,35 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
               workspace,
               targetGroupId: targetGroupId,
             );
+            terminalRuntime
+                .sessionFor(workspace: workspace, tab: tab)
+                .requestFocus();
+          },
+          newTabMenuProfiles: <AgentProfile>[
+            for (final profile in newTabMenuProfiles)
+              if (profile.showInNewTabMenu) profile,
+          ],
+          onLaunchAgentProfile: ({required profileId, targetGroupId}) async {
+            await controller.launchAgentProfileTab(
+              workspace: workspace,
+              profileId: profileId,
+              targetGroupId: targetGroupId,
+            );
+            final tabId = ref
+                .read(workbenchControllerProvider)
+                .layoutFor(workspace.id)
+                ?.activeTabId;
+            if (tabId == null) {
+              return;
+            }
+            final tab = ref
+                .read(workbenchControllerProvider)
+                .tabsFor(workspace.id)
+                .where((candidate) => candidate.id == tabId)
+                .firstOrNull;
+            if (tab == null) {
+              return;
+            }
             terminalRuntime
                 .sessionFor(workspace: workspace, tab: tab)
                 .requestFocus();

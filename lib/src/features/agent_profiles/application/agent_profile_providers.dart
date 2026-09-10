@@ -78,6 +78,7 @@ class AgentProfiles extends _$AgentProfiles {
     String customPrompt = '',
     String description = '',
     String? quotaGroup,
+    bool showInNewTabMenu = false,
   }) async {
     final saved = await _repository.upsert(
       id: id,
@@ -90,6 +91,7 @@ class AgentProfiles extends _$AgentProfiles {
       customPrompt: customPrompt,
       description: description,
       quotaGroup: quotaGroup,
+      showInNewTabMenu: showInNewTabMenu,
     );
     _pendingRemovals.remove(saved.id);
     _pendingUpserts[saved.id] = saved;
@@ -142,6 +144,7 @@ class AgentProfiles extends _$AgentProfiles {
       customPrompt: source.customPrompt,
       description: source.description,
       quotaGroup: source.quotaGroup,
+      showInNewTabMenu: source.showInNewTabMenu,
     );
   }
 
@@ -202,7 +205,8 @@ class AgentProfiles extends _$AgentProfiles {
         _sameConfig(left.managedConfig, right.managedConfig) &&
         left.customPrompt == right.customPrompt &&
         left.description == right.description &&
-        left.quotaGroup == right.quotaGroup;
+        left.quotaGroup == right.quotaGroup &&
+        left.showInNewTabMenu == right.showInNewTabMenu;
   }
 
   bool _sameConfig(Map<String, Object?> left, Map<String, Object?> right) {

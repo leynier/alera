@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
@@ -55,8 +56,51 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
 
   Future<void> _createTabOfKind(_NewTabAction action) async {
     switch (action) {
-      case _NewTabAction.terminal:
+      case _NewTerminalTabAction():
         await _createTab();
+      case _NewAgentProfileTabAction(:final profileId):
+        await _launchProfileTab(profileId);
+    }
+  }
+
+  Future<List<AgentProfileSummary>> _newTabMenuProfiles() {
+    return ref
+        .read(
+          tabsControllerProvider(widget.hostId, widget.workspace.id).notifier,
+        )
+        .listNewTabMenuProfiles();
+  }
+
+  Future<void> _launchProfileTab(String profileId) async {
+    if (_creating) {
+      return;
+    }
+    setState(() {
+      _creating = true;
+    });
+    try {
+      final tabId = await ref
+          .read(
+            tabsControllerProvider(widget.hostId, widget.workspace.id).notifier,
+          )
+          .launchAgentProfileTab(profileId);
+      if (mounted) {
+        setState(() {
+          _selectedTabId = tabId;
+        });
+      }
+    } on Object catch (error, stackTrace) {
+      _logger.warning('could not launch agent profile tab', error, stackTrace);
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _creating = false;
+        });
+      }
     }
   }
 
@@ -316,6 +360,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
                     canGenerateTitle: canGenerateTitle,
                   ),
                   onNewTab: (action) => unawaited(_createTabOfKind(action)),
+                  loadNewTabProfiles: _newTabMenuProfiles,
                 ),
               )
             : null,
@@ -363,7 +408,8 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
         ),
         null => _EmptyTabs(
           creating: _creating,
-          onNewTab: () => unawaited(_createTabOfKind(.terminal)),
+          onNewTab: () =>
+              unawaited(_createTabOfKind(const _NewTerminalTabAction())),
           targetUnavailable: tabList.isNotEmpty && !widget.selectFallbackTab,
         ),
       },
@@ -424,6 +470,13 @@ String _panelLabel(WorkspacePanelDestination destination) {
   };
 }
 
-enum _NewTabAction { terminal }
+sealed class _NewTabAction {
+  const _NewTabAction();
+}
+
+class const _NewTerminalTabAction() extends _NewTabAction {}
+
+class const _NewAgentProfileTabAction(final String profileId)
+    extends _NewTabAction {}
 
 enum _TabsMenuAction { quickKeys }

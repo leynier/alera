@@ -137,6 +137,7 @@ impl RuntimeStore {
             .await?;
         self.ensure_column("agentProfiles", "revision", "INTEGER NOT NULL DEFAULT 0")
             .await?;
+        self.ensure_agent_profile_new_tab_menu_column().await?;
         // Orchestration tables are created idempotently above, but CREATE TABLE
         // IF NOT EXISTS is a no-op on an existing database, so every column
         // added after the v2 rebuild must also be backfilled here.

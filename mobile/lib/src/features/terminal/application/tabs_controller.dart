@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
@@ -71,6 +72,21 @@ class TabsController extends _$TabsController {
     ]);
   }
 
+  /// Starts an opted-in agent profile in a new tab without a user prompt.
+  Future<String> launchAgentProfileTab(String profileId) async {
+    final workspaceClient = await ref.read(
+      workspaceClientProvider(hostId).future,
+    );
+    final launch = await workspaceClient.launchAgentProfile(
+      workspaceId: workspaceId,
+      profileId: profileId,
+      clientMutationId:
+          'mobile-new-tab-${DateTime.now().microsecondsSinceEpoch}',
+    );
+    ref.invalidateSelf();
+    return launch.tabId;
+  }
+
   /// Creates a terminal tab titled after the next free "Terminal N" slot and
   /// returns its tab id.
   Future<String> createTerminalTab() async {
@@ -86,6 +102,17 @@ class TabsController extends _$TabsController {
     await client.detachTerminal(session.attachment.sessionId);
     ref.invalidateSelf();
     return session.tab.id;
+  }
+
+  Future<List<AgentProfileSummary>> listNewTabMenuProfiles() async {
+    final workspaceClient = await ref.read(
+      workspaceClientProvider(hostId).future,
+    );
+    final profiles = await workspaceClient.listAgentProfiles();
+    return <AgentProfileSummary>[
+      for (final profile in profiles)
+        if (profile.showInNewTabMenu) profile,
+    ];
   }
 
   Future<bool> closeTab(WorkspaceTabSummary tab) async {

@@ -71,6 +71,7 @@ pub(super) fn agent_profile_from_row(row: sqlx::sqlite::SqliteRow) -> Result<Age
         custom_prompt: row.try_get("customPrompt")?,
         description: row.try_get("description")?,
         quota_group: row.try_get("quotaGroup")?,
+        show_in_new_tab_menu: row.try_get::<i64, _>("showInNewTabMenu")? != 0,
         revision: row.try_get("revision")?,
         created_at: parse_timestamp(row.try_get::<String, _>("createdAt")?.as_str()),
         updated_at: parse_timestamp(row.try_get::<String, _>("updatedAt")?.as_str()),

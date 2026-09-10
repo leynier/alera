@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
@@ -173,6 +174,28 @@ class FakeTerminalClient
   Future<List<WorkspaceTabSummary>> listTabs(String workspaceId) async {
     calls.add('listTabs $workspaceId');
     return tabs;
+  }
+
+  @override
+  Future<AgentProfileLaunchResult> launchAgentProfile({
+    required String workspaceId,
+    required String profileId,
+    String prompt = '',
+    required String clientMutationId,
+  }) async {
+    final result = await super.launchAgentProfile(
+      workspaceId: workspaceId,
+      profileId: profileId,
+      prompt: prompt,
+      clientMutationId: clientMutationId,
+    );
+    if (!tabs.any((tab) => tab.id == result.tabId)) {
+      tabs = <WorkspaceTabSummary>[
+        ...tabs,
+        fakeTab(id: result.tabId, title: profileId, workspaceId: workspaceId),
+      ];
+    }
+    return result;
   }
 
   @override

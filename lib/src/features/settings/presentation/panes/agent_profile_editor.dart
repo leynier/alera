@@ -13,6 +13,7 @@ import 'package:alera/src/features/agent_profiles/domain/managed_agent_profile_o
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_profile_managed_editor.dart';
+import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:flutter/material.dart';
 
 class const AgentProfileEditor({
@@ -36,6 +37,8 @@ class const AgentProfileEditor({
   required final VoidCallback? onRefreshPersonas,
   required final VoidCallback onSave,
   required final VoidCallback? onRemove,
+  required final bool showInNewTabMenu,
+  required final ValueChanged<bool> onShowInNewTabMenuChanged,
   final VoidCallback? onTestCommand,
   final bool modelsLoading = false,
   final bool personasLoading = false,
@@ -167,6 +170,12 @@ class const AgentProfileEditor({
                     ),
                   ],
                 ),
+              SettingsSwitchRow(
+                title: 'Show In New Tab Menu',
+                description: 'Offer this profile next to New Terminal in the workbench + menu.',
+                value: showInNewTabMenu,
+                onChanged: saving ? null : onShowInNewTabMenuChanged,
+              ),
               Padding(
                 padding: const EdgeInsets.all(AleraTokens.space12),
                 child: AleraTextField(

@@ -24,6 +24,7 @@ class const AgentProfile({
   this.revision = 0,
   this.description = '',
   this.quotaGroup,
+  this.showInNewTabMenu = false,
   final AgentProfileLaunchMode launchMode = AgentProfileLaunchMode.command,
   this.managedConfig = const <String, Object?>{},
   this.customPrompt = '',
@@ -39,6 +40,7 @@ class const AgentProfile({
       customPrompt: _optionalString(json['customPrompt']) ?? '',
       description: _optionalString(json['description']) ?? '',
       quotaGroup: _optionalString(json['quotaGroup']),
+      showInNewTabMenu: json['showInNewTabMenu'] == true,
       revision: _nonNegativeInt(json['revision']),
       createdAt: _dateTime(json['createdAt']),
       updatedAt: _dateTime(json['updatedAt']),
@@ -69,6 +71,9 @@ class const AgentProfile({
   /// a candidate from a different bucket.
   final String? quotaGroup;
 
+  /// When true, the workbench + menu offers this profile next to New Terminal.
+  final bool showInNewTabMenu;
+
   /// Monotonic concurrency token for all persisted profile fields, including
   /// catalog order.
   final int revision;
@@ -86,6 +91,7 @@ class const AgentProfile({
       'customPrompt': customPrompt,
       'description': description,
       'quotaGroup': quotaGroup,
+      'showInNewTabMenu': showInNewTabMenu,
       'revision': revision,
       'createdAt': createdAt.toUtc().toIso8601String(),
       'updatedAt': updatedAt.toUtc().toIso8601String(),
@@ -101,6 +107,7 @@ class const AgentProfile({
     String? customPrompt,
     String? description,
     String? quotaGroup,
+    bool? showInNewTabMenu,
     bool clearQuotaGroup = false,
   }) {
     return AgentProfile(
@@ -113,6 +120,7 @@ class const AgentProfile({
       customPrompt: customPrompt ?? this.customPrompt,
       description: description ?? this.description,
       quotaGroup: clearQuotaGroup ? null : (quotaGroup ?? this.quotaGroup),
+      showInNewTabMenu: showInNewTabMenu ?? this.showInNewTabMenu,
       revision: revision,
       createdAt: createdAt,
       updatedAt: DateTime.now().toUtc(),

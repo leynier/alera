@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
+import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
@@ -135,5 +136,107 @@ void main() {
     reconnect.complete();
     await tester.pumpAndSettle();
     expect(find.byType(TerminalTabView), findsOneWidget);
+  });
+
+  testWidgets('new tab menu lists opted-in agent profiles after New Terminal', (
+    tester,
+  ) async {
+    final profilesReady = Completer<void>();
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')]
+      ..listAgentProfilesDelay = profilesReady.future
+      ..agentProfiles = const <AgentProfileSummary>[
+        AgentProfileSummary(
+          id: 'profile-hidden',
+          name: 'Hidden Codex',
+          agentType: 'codex',
+        ),
+        AgentProfileSummary(
+          id: 'profile-shown',
+          name: 'Shown Codex',
+          agentType: 'codex',
+          showInNewTabMenu: true,
+        ),
+      ];
+    addTearDown(client.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          terminalClientProvider('host-1').overrideWith((ref) async => client),
+          workspaceClientProvider('host-1').overrideWith((ref) async => client),
+        ],
+        child: const MaterialApp(
+          home: WorkspaceTabsScreen(
+            hostId: 'host-1',
+            workspace: WorkspaceSummary(
+              id: 'workspace-1',
+              projectId: 'project-1',
+              name: 'Workspace',
+              path: '/repo',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('New Tab'));
+    await tester.pump();
+    expect(find.text('New Terminal'), findsNothing);
+
+    profilesReady.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('New Terminal'), findsOneWidget);
+    expect(find.text('Shown Codex'), findsOneWidget);
+    expect(find.text('Hidden Codex'), findsNothing);
+    expect(
+      tester.getTopLeft(find.text('New Terminal')).dy,
+      lessThan(tester.getTopLeft(find.text('Shown Codex')).dy),
+    );
+
+    await tester.tapAt(const Offset(1, 1));
+    await tester.pumpAndSettle();
+
+    client
+      ..listAgentProfilesDelay = null
+      ..listAgentProfilesError = StateError('profiles unavailable');
+    await tester.tap(find.byTooltip('New Tab'));
+    await tester.pumpAndSettle();
+    expect(find.text('New Terminal'), findsOneWidget);
+    expect(find.text('Shown Codex'), findsNothing);
+    expect(find.text('Hidden Codex'), findsNothing);
+
+    await tester.tapAt(const Offset(1, 1));
+    await tester.pumpAndSettle();
+
+    client
+      ..listAgentProfilesError = null
+      ..agentProfiles = const <AgentProfileSummary>[
+        AgentProfileSummary(
+          id: 'profile-hidden',
+          name: 'Hidden Codex',
+          agentType: 'codex',
+        ),
+        AgentProfileSummary(
+          id: 'profile-shown',
+          name: 'Shown Codex',
+          agentType: 'codex',
+          showInNewTabMenu: true,
+        ),
+      ];
+    await tester.tap(find.byTooltip('New Tab'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Shown Codex'));
+    await tester.pumpAndSettle();
+
+    expect(
+      client.calls.where(
+        (call) =>
+            call.startsWith('launchAgentProfile workspace-1 profile-shown'),
+      ),
+      ['launchAgentProfile workspace-1 profile-shown '],
+    );
+    expect(find.text('profile-shown'), findsOneWidget);
   });
 }

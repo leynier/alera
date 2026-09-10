@@ -43,6 +43,109 @@ void _registerWorkbenchControllerNavigationTests() {
     },
   );
 
+  test('opening a persisted tab into a split pane stays in that pane after a delayed tab event', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+    await _controller.createTerminalTab(workspace);
+    await _flush();
+    final firstGroupId = _controller.state
+        .layoutFor(workspace.id)!
+        .activeGroupId;
+    final splitTab = await _controller.splitWorkbenchGroupWithTerminal(
+      workspace: workspace,
+      groupId: firstGroupId,
+      zone: .right,
+    );
+    await _flush();
+    final splitLayout = _controller.state.layoutFor(workspace.id)!;
+    final secondGroupId = splitLayout.groupIdForTab(splitTab.id)!;
+    expect(secondGroupId, isNot(firstGroupId));
+
+    final launched = splitTab.copyWith(id: 'profile-tab', title: 'Shown Codex');
+    final tabs = [
+      ...await _harness.workbenchRepository.listWorkspaceTabs(workspace.id),
+      launched,
+    ];
+    _harness.workbenchRepository._tabsByWorkspace[workspace.id] = tabs;
+    _harness.workbenchRepository._tabControllers[workspace.id]?.add(tabs);
+    await _flush();
+    expect(
+      _controller.state.layoutFor(workspace.id)!.groupIdForTab(launched.id),
+      firstGroupId,
+    );
+
+    await _controller.openPersistedWorkspaceTab(
+      workspaceId: workspace.id,
+      tabId: launched.id,
+      targetGroupId: secondGroupId,
+    );
+    await _flush();
+
+    final layout = _controller.state.layoutFor(workspace.id)!;
+    expect(layout.groupIdForTab(launched.id), secondGroupId);
+    expect(layout.activeGroupId, secondGroupId);
+    expect(layout.activeTabId, launched.id);
+    expect(
+      layout.groups.values.where((group) => group.tabIds.contains(launched.id)),
+      hasLength(1),
+    );
+  });
+
+  test('opening a persisted tab into a split pane stays there after a later tab event', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+    await _controller.createTerminalTab(workspace);
+    await _flush();
+    final firstGroupId = _controller.state
+        .layoutFor(workspace.id)!
+        .activeGroupId;
+    final splitTab = await _controller.splitWorkbenchGroupWithTerminal(
+      workspace: workspace,
+      groupId: firstGroupId,
+      zone: .right,
+    );
+    await _flush();
+    final splitLayout = _controller.state.layoutFor(workspace.id)!;
+    final secondGroupId = splitLayout.groupIdForTab(splitTab.id)!;
+    expect(secondGroupId, isNot(firstGroupId));
+
+    final launched = splitTab.copyWith(
+      id: 'profile-tab-later',
+      title: 'Shown Codex',
+    );
+    final tabs = [
+      ...await _harness.workbenchRepository.listWorkspaceTabs(workspace.id),
+      launched,
+    ];
+    _harness.workbenchRepository._tabsByWorkspace[workspace.id] = tabs;
+    expect(
+      _controller.state.layoutFor(workspace.id)!.groupIdForTab(launched.id),
+      isNull,
+    );
+
+    await _controller.openPersistedWorkspaceTab(
+      workspaceId: workspace.id,
+      tabId: launched.id,
+      targetGroupId: secondGroupId,
+    );
+    expect(
+      _controller.state.layoutFor(workspace.id)!.groupIdForTab(launched.id),
+      secondGroupId,
+    );
+
+    _harness.workbenchRepository._tabControllers[workspace.id]?.add(tabs);
+    await _flush();
+
+    final layout = _controller.state.layoutFor(workspace.id)!;
+    expect(layout.groupIdForTab(launched.id), secondGroupId);
+    expect(layout.activeGroupId, secondGroupId);
+    expect(layout.activeTabId, launched.id);
+    expect(
+      layout.groups.values.where((group) => group.tabIds.contains(launched.id)),
+      hasLength(1),
+    );
+  });
+
   test(
     'records worktree selection and replays back and forward safely',
     () async {

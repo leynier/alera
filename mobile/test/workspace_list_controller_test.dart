@@ -306,7 +306,7 @@ class _FakeWorkspaceClient() implements MobileWorkspaceClient {
   Future<AgentProfileLaunchResult> launchAgentProfile({
     required String workspaceId,
     required String profileId,
-    required String prompt,
+    String prompt = '',
     required String clientMutationId,
   }) async {
     return const AgentProfileLaunchResult(

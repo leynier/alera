@@ -31,8 +31,11 @@ import 'package:alera/src/features/workbench/domain/workspace_creation_result.da
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_focus_history.dart';
 import 'package:alera/src/features/workbench/domain/worktree_navigation_history.dart';
+import 'package:alera/src/features/workbench/infra/prompt_workspace_runtime_client.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_state_migration.dart';
 import 'package:path/path.dart' as p;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';

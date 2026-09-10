@@ -11,7 +11,7 @@ use super::{
 };
 
 const PROFILE_COLUMNS: &str =
-    "id, name, agentType, command, sortOrder, launchMode, managedConfig, customPrompt, description, quotaGroup, revision, createdAt, updatedAt";
+    "id, name, agentType, command, sortOrder, launchMode, managedConfig, customPrompt, description, quotaGroup, showInNewTabMenu, revision, createdAt, updatedAt";
 
 impl RuntimeStore {
     pub async fn list_agent_profiles(&self) -> Result<Vec<AgentProfile>> {
@@ -84,13 +84,14 @@ impl RuntimeStore {
         let now = format_timestamp(Utc::now());
         let result = sqlx::query(
             "INSERT INTO agentProfiles \
-             (id, name, agentType, command, sortOrder, launchMode, managedConfig, customPrompt, description, quotaGroup, revision, createdAt, updatedAt) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?) \
+             (id, name, agentType, command, sortOrder, launchMode, managedConfig, customPrompt, description, quotaGroup, showInNewTabMenu, revision, createdAt, updatedAt) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?) \
              ON CONFLICT(id) DO UPDATE SET \
              name = excluded.name, agentType = excluded.agentType, command = excluded.command, \
              launchMode = excluded.launchMode, managedConfig = excluded.managedConfig, \
              customPrompt = excluded.customPrompt, \
              description = excluded.description, quotaGroup = excluded.quotaGroup, \
+             showInNewTabMenu = excluded.showInNewTabMenu, \
              revision = agentProfiles.revision + 1, updatedAt = excluded.updatedAt \
              WHERE agentProfiles.revision = ?",
         )
@@ -110,6 +111,7 @@ impl RuntimeStore {
         .bind(&profile.custom_prompt)
         .bind(&profile.description)
         .bind(&profile.quota_group)
+        .bind(i64::from(profile.show_in_new_tab_menu))
         .bind(format_timestamp(profile.created_at))
         .bind(&now)
         .bind(expected_revision)

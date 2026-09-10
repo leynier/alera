@@ -16,6 +16,7 @@ fn profile() -> AgentProfile {
         custom_prompt: "Original".to_string(),
         description: "Implementation".to_string(),
         quota_group: Some("personal".to_string()),
+        show_in_new_tab_menu: false,
         revision: 3,
         created_at: Utc::now(),
         updated_at: Utc::now(),
@@ -47,6 +48,7 @@ fn update_args() -> AgentProfileUpdateArgs {
         clear_description: false,
         quota_group: None,
         clear_quota_group: false,
+        show_in_new_tab_menu: None,
         confirm_reduced_protections: false,
     }
 }
@@ -65,6 +67,7 @@ fn create_args() -> AgentProfileCreateArgs {
         custom_prompt: None,
         description: None,
         quota_group: None,
+        show_in_new_tab_menu: false,
         confirm_reduced_protections: false,
     }
 }
@@ -92,6 +95,28 @@ fn update_preserves_unspecified_fields_and_clears_explicit_fields() {
     assert_eq!(draft.description, existing.description);
     assert_eq!(draft.custom_prompt, "");
     assert_eq!(draft.quota_group, None);
+    assert!(!draft.show_in_new_tab_menu);
+}
+
+#[test]
+fn update_can_toggle_the_new_tab_menu_opt_in() {
+    let existing = profile();
+    let mut args = update_args();
+    args.show_in_new_tab_menu = Some(true);
+
+    let draft = draft_for_update(&existing, &args, None).unwrap();
+
+    assert!(draft.show_in_new_tab_menu);
+}
+
+#[test]
+fn create_can_opt_a_profile_into_the_new_tab_menu() {
+    let mut args = create_args();
+    args.show_in_new_tab_menu = true;
+
+    let draft = draft_for_create(&args, None).unwrap();
+
+    assert!(draft.show_in_new_tab_menu);
 }
 
 #[test]

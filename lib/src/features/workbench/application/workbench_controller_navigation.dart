@@ -5,9 +5,34 @@ mixin _WorkbenchControllerNavigation
         _$WorkbenchController,
         _WorkbenchControllerInternals,
         _WorkbenchControllerProjects {
+  Future<void> launchAgentProfileTab({
+    required Workspace workspace,
+    required String profileId,
+    String? targetGroupId,
+  }) async {
+    try {
+      final launch = await _promptWorkspaceRuntimeClient.launchAgent(
+        workspaceId: workspace.id,
+        profileId: profileId,
+        clientMutationId: _uuid.v4(),
+        requireIdempotency: false,
+      );
+      await openPersistedWorkspaceTab(
+        workspaceId: workspace.id,
+        tabId: launch.tabId,
+        targetGroupId: targetGroupId,
+      );
+      state = state.copyWith(error: null);
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+      rethrow;
+    }
+  }
+
   Future<void> openPersistedWorkspaceTab({
     required String workspaceId,
     required String tabId,
+    String? targetGroupId,
   }) async {
     final tab = await _repository.findWorkspaceTabById(tabId);
     if (_disposed) return;
@@ -23,13 +48,31 @@ mixin _WorkbenchControllerNavigation
       if (!currentTabs.any((current) => current.id == tabId)) tab,
     ];
     _setTabsForWorkspace(workspaceId, tabs);
-    if (layout.groupIdForTab(tabId) == null) {
-      await _applyLayout(
-        layout
-            .addTabToGroup(groupId: layout.activeGroupId, tabId: tabId)
-            .sanitize(tabs),
-        persist: true,
-      );
+    final currentGroupId = layout.groupIdForTab(tabId);
+    final requestedGroupId =
+        targetGroupId != null && layout.groups.containsKey(targetGroupId)
+        ? targetGroupId
+        : null;
+    final nextLayout = switch ((requestedGroupId, currentGroupId)) {
+      (final groupId?, null) => layout.addTabToGroup(
+        groupId: groupId,
+        tabId: tabId,
+      ),
+      (final groupId?, final assigned?) when groupId != assigned =>
+        layout.moveTab(
+          tabId: tabId,
+          targetGroupId: groupId,
+          zone: .center,
+          newGroupId: groupId,
+        ),
+      (null, null) => layout.addTabToGroup(
+        groupId: layout.activeGroupId,
+        tabId: tabId,
+      ),
+      _ => null,
+    };
+    if (nextLayout != null) {
+      await _applyLayout(nextLayout.sanitize(tabs), persist: true);
     }
     if (!_disposed) {
       await selectWorkspaceTab(workspaceId: workspaceId, tabId: tabId);
