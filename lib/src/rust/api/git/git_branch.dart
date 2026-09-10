@@ -17,9 +17,25 @@ Future<String> currentBranch({required String path}) =>
 Future<void> createAndCheckoutBranch({
   required String path,
   required String branch,
+  String? expectedHead,
+  String? expectedOid,
 }) => RustLib.instance.api.crateApiGitGitBranchCreateAndCheckoutBranch(
   path: path,
   branch: branch,
+  expectedHead: expectedHead,
+  expectedOid: expectedOid,
+);
+
+Future<void> resetBranchToRef({
+  required String path,
+  required String branch,
+  required String targetRef,
+  String? expectedOid,
+}) => RustLib.instance.api.crateApiGitGitBranchResetBranchToRef(
+  path: path,
+  branch: branch,
+  targetRef: targetRef,
+  expectedOid: expectedOid,
 );
 
 Future<void> checkoutBranch({required String path, required String branch}) =>

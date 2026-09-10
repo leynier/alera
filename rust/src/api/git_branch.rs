@@ -10,8 +10,29 @@ pub fn current_branch(path: String) -> Result<String, GitError> {
     core_git::current_branch(&path).map_err(Into::into)
 }
 
-pub fn create_and_checkout_branch(path: String, branch: String) -> Result<(), GitError> {
-    core_git::create_and_checkout_branch(&path, &branch).map_err(Into::into)
+pub fn create_and_checkout_branch(
+    path: String,
+    branch: String,
+    expected_head: Option<String>,
+    expected_oid: Option<String>,
+) -> Result<(), GitError> {
+    core_git::create_and_checkout_branch_from(
+        &path,
+        &branch,
+        expected_head.as_deref(),
+        expected_oid.as_deref(),
+    )
+    .map_err(Into::into)
+}
+
+pub fn reset_branch_to_ref(
+    path: String,
+    branch: String,
+    target_ref: String,
+    expected_oid: Option<String>,
+) -> Result<(), GitError> {
+    core_git::reset_branch_to_ref_from(&path, &branch, &target_ref, expected_oid.as_deref())
+        .map_err(Into::into)
 }
 
 pub fn checkout_branch(path: String, branch: String) -> Result<(), GitError> {

@@ -27,9 +27,9 @@ void main() {
             area: .staged,
             status: .modified,
           ),
-          GitChangeEntry(path: 'README.md', area: .unstaged, status: .modified),
         ],
-      );
+      )
+      ..gitRangeContextResult = emptyShipRange;
     final review = shipTestReview(701, headBranch: headBranch);
     final forge = FakeForgeProvider()
       ..createResult = CreateReviewSuccess(review)
@@ -147,7 +147,8 @@ void main() {
               status: .modified,
             ),
           ],
-        );
+        )
+        ..gitRangeContextResult = emptyShipRange;
       final review = shipTestReview(
         scenario.reviewNumber,
         headBranch: shipBranch,
@@ -282,7 +283,8 @@ void main() {
               status: .modified,
             ),
           ],
-        );
+        )
+        ..gitRangeContextResult = emptyShipRange;
       final forge = FakeForgeProvider();
       final aiAssist = FakeShipAiAssistService(<Object>[
         const AiAssistResult(

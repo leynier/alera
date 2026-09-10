@@ -7,6 +7,7 @@ import 'package:alera/src/features/pull_requests/application/pull_request_provid
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_controller.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
+import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -18,6 +19,35 @@ const shipTestScope = WorkspacePullRequestScope(
   workspaceId: 'workspace-1',
   repoPath: '/repo',
   branch: 'main',
+);
+
+const emptyShipRange = GitRangeContext(
+  baseRef: 'refs/remotes/origin/main',
+  commits: <GitRangeCommit>[],
+  files: <GitRangeFile>[],
+  patch: '',
+);
+
+const unpushedMainRange = GitRangeContext(
+  baseRef: 'refs/remotes/origin/main',
+  headOid: 'abc1234',
+  headBranch: 'main',
+  commits: <GitRangeCommit>[
+    GitRangeCommit(
+      oid: 'abc1234',
+      subject: 'feat: local main commit',
+      message: 'feat: local main commit\n\nKeep main matching origin.',
+    ),
+  ],
+  files: <GitRangeFile>[
+    GitRangeFile(
+      path: 'lib/ship.dart',
+      status: .modified,
+      added: 4,
+      removed: 1,
+    ),
+  ],
+  patch: 'diff --git a/lib/ship.dart b/lib/ship.dart',
 );
 
 HostedReview shipTestReview(

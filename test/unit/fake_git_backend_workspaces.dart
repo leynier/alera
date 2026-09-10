@@ -16,6 +16,7 @@ mixin _FakeGitBackendWorkspaceState {
   Future<String> defaultBranch(String path) async => defaultBranchName;
 
   GitException? createAndCheckoutBranchError;
+  GitException? resetBranchToRefError;
   GitException? checkoutBranchError;
   String? checkoutBranchResult;
   final Map<String, String> currentBranchesByPath = <String, String>{};
@@ -33,11 +34,15 @@ mixin _FakeGitBackendWorkspaceState {
   Future<void> createAndCheckoutBranch({
     required String path,
     required String branch,
+    String? expectedHead,
+    String? expectedOid,
   }) async {
     calls.add(
       GitBackendCall('createAndCheckoutBranch', <String, Object?>{
         'path': path,
         'branch': branch,
+        if (expectedHead != null) 'expectedHead': expectedHead,
+        if (expectedOid != null) 'expectedOid': expectedOid,
       }),
     );
     final error = createAndCheckoutBranchError;
@@ -56,6 +61,26 @@ mixin _FakeGitBackendWorkspaceState {
     );
     if (!sourceBranches.contains(branch)) {
       sourceBranches.add(branch);
+    }
+  }
+
+  Future<void> resetBranchToRef({
+    required String path,
+    required String branch,
+    required String targetRef,
+    String? expectedOid,
+  }) async {
+    calls.add(
+      GitBackendCall('resetBranchToRef', <String, Object?>{
+        'path': path,
+        'branch': branch,
+        'targetRef': targetRef,
+        if (expectedOid != null) 'expectedOid': expectedOid,
+      }),
+    );
+    final error = resetBranchToRefError;
+    if (error != null) {
+      throw error;
     }
   }
 

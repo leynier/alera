@@ -12,8 +12,9 @@ pub mod hosted_review;
 mod repository_metadata;
 mod worktree_handoff;
 pub use branch_operations::{
-    branch_exists, checkout_branch, create_and_checkout_branch, delete_branch,
-    is_valid_branch_name, list_branches, validate_branch_deletion,
+    branch_exists, checkout_branch, create_and_checkout_branch, create_and_checkout_branch_from,
+    delete_branch, is_valid_branch_name, list_branches, reset_branch_to_ref,
+    reset_branch_to_ref_from, validate_branch_deletion,
 };
 pub use repository_metadata::{current_branch, is_worktree_clean, repository_remote_url};
 pub use worktree_handoff::{
@@ -428,9 +429,22 @@ fn checkout_path_for_branch(
     repo: &Repository,
     branch_name: &str,
 ) -> Result<Option<String>, GitError> {
-    if head_branch_name(repo) == branch_name {
+    if worktree_occupies_branch(repo, branch_name) {
         if let Some(workdir) = repo.workdir() {
             return Ok(Some(workdir.to_string_lossy().to_string()));
+        }
+    }
+
+    // Linked worktrees are not the main checkout. `Repository::worktrees`
+    // also omits the main worktree, so occupancy checks from a linked
+    // worktree must inspect the common repository separately.
+    if repo.is_worktree() {
+        if let Ok(main_repo) = Repository::open(repo.commondir()) {
+            if worktree_occupies_branch(&main_repo, branch_name) {
+                if let Some(workdir) = main_repo.workdir() {
+                    return Ok(Some(workdir.to_string_lossy().to_string()));
+                }
+            }
         }
     }
 
@@ -444,12 +458,47 @@ fn checkout_path_for_branch(
         let Ok(worktree_repo) = Repository::open(path) else {
             continue;
         };
-        if head_branch_name(&worktree_repo) == branch_name {
+        if worktree_occupies_branch(&worktree_repo, branch_name) {
             return Ok(Some(path.to_string_lossy().to_string()));
         }
     }
 
     Ok(None)
+}
+
+fn worktree_occupies_branch(repo: &Repository, branch_name: &str) -> bool {
+    if head_branch_name(repo) == branch_name {
+        return true;
+    }
+    occupied_operation_branch(repo).as_deref() == Some(branch_name)
+}
+
+fn occupied_operation_branch(repo: &Repository) -> Option<String> {
+    let git_dir = repo.path();
+    for relative in [
+        "rebase-merge/head-name",
+        "rebase-apply/head-name",
+        "BISECT_START",
+    ] {
+        if let Some(name) = operation_branch_from_file(&git_dir.join(relative)) {
+            return Some(name);
+        }
+    }
+    None
+}
+
+fn operation_branch_from_file(path: &Path) -> Option<String> {
+    let contents = std::fs::read_to_string(path).ok()?;
+    let value = contents.lines().next()?.trim();
+    if value.is_empty() {
+        return None;
+    }
+    Some(
+        value
+            .strip_prefix("refs/heads/")
+            .unwrap_or(value)
+            .to_string(),
+    )
 }
 
 fn fast_forward_local_branch(

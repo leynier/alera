@@ -41,8 +41,30 @@ class const RustGitBackend()
   Future<void> createAndCheckoutBranch({
     required String path,
     required String branch,
+    String? expectedHead,
+    String? expectedOid,
   }) => _guard(
-    () => rust_branch.createAndCheckoutBranch(path: path, branch: branch),
+    () => rust_branch.createAndCheckoutBranch(
+      path: path,
+      branch: branch,
+      expectedHead: expectedHead,
+      expectedOid: expectedOid,
+    ),
+  );
+
+  @override
+  Future<void> resetBranchToRef({
+    required String path,
+    required String branch,
+    required String targetRef,
+    String? expectedOid,
+  }) => _guard(
+    () => rust_branch.resetBranchToRef(
+      path: path,
+      branch: branch,
+      targetRef: targetRef,
+      expectedOid: expectedOid,
+    ),
   );
 
   @override

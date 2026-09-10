@@ -33,6 +33,7 @@ import 'package:alera/src/features/pull_requests/domain/update_review_result.dar
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
 import 'package:alera/src/features/workbench/application/retired_workspace_invalidation.dart';
 import 'package:alera/src/shared/infra/git/git_backend.dart';
+import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';

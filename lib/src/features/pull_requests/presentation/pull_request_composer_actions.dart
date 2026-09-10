@@ -171,8 +171,8 @@ class const _ShipPullRequestButton({
   Widget build(BuildContext context) {
     return Tooltip(
       message: aiEnabled
-          ? 'Commit staged changes and create a pull request'
-          : 'Enable AI Assist to ship staged changes',
+          ? 'Ship local commits or staged changes and create a pull request'
+          : 'Enable AI Assist to ship local commits or staged changes',
       child: SizedBox(
         height: _CreatePullRequestButton._height,
         child: OutlinedButton.icon(

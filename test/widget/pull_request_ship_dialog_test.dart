@@ -1,6 +1,7 @@
 import 'package:alera/src/features/pull_requests/domain/pull_request_ship_scope.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_composer.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
+import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,11 +12,12 @@ import '../unit/fake_git_backend.dart';
 Future<void> _pumpComposer(
   WidgetTester tester, {
   required PullRequestShipCallback onShip,
+  FakeGitBackend? git,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        gitBackendProvider.overrideWithValue(FakeGitBackend()),
+        gitBackendProvider.overrideWithValue(git ?? FakeGitBackend()),
         settingsControllerProvider.overrideWithValue(.defaults),
       ],
       child: MaterialApp(
@@ -45,10 +47,18 @@ Future<void> _pumpComposer(
   await tester.pump();
 }
 
+FakeGitBackend _dirtyGit() => FakeGitBackend()
+  ..gitStatusResult = const GitStatusResult(
+    entries: <GitChangeEntry>[
+      GitChangeEntry(path: 'lib/ship.dart', area: .staged, status: .modified),
+    ],
+  );
+
 void main() {
   testWidgets('ship dialog stacks staged, all, then cancel', (tester) async {
     await _pumpComposer(
       tester,
+      git: _dirtyGit(),
       onShip: ({required baseBranch, required draft, required scope}) async {},
     );
 
@@ -68,6 +78,7 @@ void main() {
     PullRequestShipScope? shippedScope;
     await _pumpComposer(
       tester,
+      git: _dirtyGit(),
       onShip: ({required baseBranch, required draft, required scope}) async {
         shippedScope = scope;
       },
@@ -86,6 +97,7 @@ void main() {
     var shipped = false;
     await _pumpComposer(
       tester,
+      git: _dirtyGit(),
       onShip: ({required baseBranch, required draft, required scope}) async {
         shipped = true;
       },
@@ -97,4 +109,22 @@ void main() {
     await tester.pumpAndSettle();
     expect(shipped, isFalse);
   });
+
+  testWidgets(
+    'ships existing commits without asking for a working-tree scope',
+    (tester) async {
+      PullRequestShipScope? shippedScope;
+      await _pumpComposer(
+        tester,
+        onShip: ({required baseBranch, required draft, required scope}) async {
+          shippedScope = scope;
+        },
+      );
+
+      await tester.tap(find.byKey(const Key('pull-request-ship-button')));
+      await tester.pumpAndSettle();
+      expect(find.text('Ship Staged Changes'), findsNothing);
+      expect(shippedScope, PullRequestShipScope.staged);
+    },
+  );
 }

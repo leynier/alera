@@ -75,6 +75,33 @@ pub(super) fn git_range_context(
     })
 }
 
+fn resolve_named_object<'a>(
+    repo: &'a Repository,
+    name: &str,
+) -> Result<git2::Object<'a>, git2::Error> {
+    if name.starts_with("refs/") {
+        return repo
+            .find_reference(name)
+            .and_then(|reference| reference.peel_to_commit())
+            .map(|commit| commit.into_object());
+    }
+    match repo.revparse_single(name) {
+        Ok(object) => Ok(object),
+        Err(error)
+            if matches!(error.code(), ErrorCode::NotFound | ErrorCode::InvalidSpec)
+                && !name.starts_with("origin/") =>
+        {
+            match repo.find_reference(&format!("refs/remotes/origin/{name}")) {
+                Ok(reference) => reference
+                    .peel_to_commit()
+                    .map(|commit| commit.into_object()),
+                Err(_) => Err(error),
+            }
+        }
+        Err(error) => Err(error),
+    }
+}
+
 fn resolve_ref_oid(repo: &Repository, name: &str, role: &str) -> Result<Oid, GitError> {
     if name.starts_with('-') {
         return Err(GitError::new(
@@ -82,7 +109,7 @@ fn resolve_ref_oid(repo: &Repository, name: &str, role: &str) -> Result<Oid, Git
             format!("invalid {role} ref '{name}'"),
         ));
     }
-    let object = match repo.revparse_single(name) {
+    let object = match resolve_named_object(repo, name) {
         Ok(object) => object,
         Err(error)
             if matches!(
@@ -109,11 +136,12 @@ fn collect_commits_not_in_base(
     merge_base_oid: Oid,
     limit: usize,
 ) -> Result<Vec<GitRangeCommit>, GitError> {
+    if head_oid == merge_base_oid {
+        return Ok(Vec::new());
+    }
     let mut revwalk = repo.revwalk().map_err(GitError::from_git2)?;
     revwalk.push(head_oid).map_err(GitError::from_git2)?;
-    if merge_base_oid != head_oid {
-        revwalk.hide(merge_base_oid).map_err(GitError::from_git2)?;
-    }
+    revwalk.hide(merge_base_oid).map_err(GitError::from_git2)?;
     revwalk
         .set_sorting(Sort::TOPOLOGICAL | Sort::TIME)
         .map_err(GitError::from_git2)?;
@@ -229,9 +257,18 @@ fn collect_range_diff(
             }
             _ => content.trim_end_matches('\n').to_string(),
         };
-        if patch.len().saturating_add(text.len()).saturating_add(1) > MAX_RANGE_PATCH_BYTES {
+        let extra_newline = usize::from(!patch.is_empty());
+        if patch
+            .len()
+            .saturating_add(text.len())
+            .saturating_add(extra_newline)
+            > MAX_RANGE_PATCH_BYTES
+        {
             truncated = true;
-            text.truncate(MAX_RANGE_PATCH_BYTES.saturating_sub(patch.len()));
+            truncate_to_utf8_boundary(
+                &mut text,
+                MAX_RANGE_PATCH_BYTES.saturating_sub(patch.len().saturating_add(extra_newline)),
+            );
         }
         if !text.is_empty() {
             if !patch.is_empty() {
@@ -239,7 +276,7 @@ fn collect_range_diff(
             }
             patch.push_str(&text);
         }
-        !truncated
+        true
     })
     .map_err(GitError::from_git2)?;
     if truncated {
@@ -260,6 +297,17 @@ fn collect_range_diff(
         .collect::<Vec<_>>();
     files.sort_by(|a, b| a.path.cmp(&b.path));
     Ok((files, patch))
+}
+
+fn truncate_to_utf8_boundary(value: &mut String, max_bytes: usize) {
+    if value.len() <= max_bytes {
+        return;
+    }
+    let mut boundary = max_bytes.min(value.len());
+    while boundary > 0 && !value.is_char_boundary(boundary) {
+        boundary -= 1;
+    }
+    value.truncate(boundary);
 }
 
 fn short_oid(oid: Oid) -> String {
