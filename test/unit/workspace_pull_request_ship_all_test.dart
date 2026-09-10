@@ -68,7 +68,13 @@ void main() {
       ..remotesByName = <String, String?>{
         'origin': 'https://github.com/leynier/alera.git',
       }
-      ..gitStatusResult = const GitStatusResult(entries: []);
+      ..gitStatusResult = const GitStatusResult(entries: [])
+      ..gitRangeContextResult = const GitRangeContext(
+        baseRef: 'main',
+        commits: <GitRangeCommit>[],
+        files: <GitRangeFile>[],
+        patch: '',
+      );
     final forge = FakeForgeProvider();
     final aiAssist = FakeShipAiAssistService(const <Object>[]);
     final container = createShipTestContainer(

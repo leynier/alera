@@ -10,7 +10,8 @@ mixin _WorkspacePullRequestShipActions on _$WorkspacePullRequestController {
   /// Commits staged changes with an AI-generated message and creates a pull
   /// request. When [scope] is [PullRequestShipScope.all], all working-tree
   /// changes are staged first. A checkout on a shared or selected base branch
-  /// is moved first.
+  /// is moved first. Existing commits on a feature branch, or unpushed commits
+  /// on the base branch, can be shipped without a new working-tree change.
   Future<CreateReviewResult> ship({
     required String baseBranch,
     required bool draft,
@@ -43,55 +44,118 @@ mixin _WorkspacePullRequestShipActions on _$WorkspacePullRequestController {
     var changesCommitted = false;
     try {
       final backend = controller._gitBackend;
-      final status = await backend.status(controller.scope.repoPath);
-      if (scope == PullRequestShipScope.all) {
-        if (status.entries.isEmpty) {
-          throw const _ActionError('No changes to ship.');
-        }
-        await backend.stage(path: controller.scope.repoPath);
-      } else if (!status.entries.any((entry) => entry.area == .staged)) {
-        throw const _ActionError('Stage at least one change before shipping.');
-      }
-
-      var headBranch = await backend.currentBranch(controller.scope.repoPath);
+      final repoPath = controller.scope.repoPath;
+      final status = await backend.status(repoPath);
+      var headBranch = await backend.currentBranch(repoPath);
       if (headBranch.isEmpty || headBranch == 'HEAD') {
         throw const _ActionError('Check out a branch before shipping.');
       }
 
-      final aiAssist = ref.read(aiAssistServiceProvider);
-      final generatedCommit = await aiAssist.generate(
-        AiAssistRequest(
-          operation: .commitMessage,
-          workspacePath: controller.scope.repoPath,
-          settings: settings,
-        ),
+      final hasStaged = status.entries.any((entry) => entry.area == .staged);
+      final hasLeftoverWorkingTree = status.entries.any(
+        (entry) => entry.area != .staged,
       );
-      final commitMessage = generatedCommit.text.trim();
-      if (commitMessage.isEmpty) {
-        throw const _ActionError('AI Assist returned an empty commit message.');
+      final needsCommit = scope == PullRequestShipScope.all
+          ? status.entries.isNotEmpty
+          : hasStaged;
+      if (scope == PullRequestShipScope.staged && hasLeftoverWorkingTree) {
+        throw const _ActionError('Stage at least one change before shipping.');
       }
 
-      if (_requiresShipBranch(headBranch, normalizedBase)) {
+      final sourceBranch = headBranch;
+      final sourceHeadRef = _localHeadRef(sourceBranch);
+      final moveOffBase = _requiresShipBranch(headBranch, normalizedBase);
+      var unpushedOnBase = false;
+      String? trackingRef;
+      String? sourceOid;
+      String? existingCommitMessage;
+      if (moveOffBase) {
+        await backend.fetch(repoPath);
+        final originTrackingRef = _originTrackingRef(sourceBranch);
+        trackingRef = originTrackingRef;
+        final trackingRange = await _rangeAheadOf(
+          backend: backend,
+          repoPath: repoPath,
+          baseRef: originTrackingRef,
+          headRef: sourceHeadRef,
+          missingRefMessage:
+              'Could not find $originTrackingRef after fetch. Fetch the remote tracking branch before shipping.',
+        );
+        unpushedOnBase = trackingRange.commits.isNotEmpty;
+        sourceOid = trackingRange.headOid;
+        if (unpushedOnBase) {
+          existingCommitMessage = _commitMessageFromRange(trackingRange);
+        }
+      } else if (!needsCommit) {
+        final range = await backend.rangeContext(
+          repoPath,
+          baseRef: normalizedBase,
+          headRef: sourceHeadRef,
+        );
+        if (range.commits.isEmpty) {
+          throw const _ActionError('No changes to ship.');
+        }
+        existingCommitMessage = _commitMessageFromRange(range);
+      }
+
+      if (!needsCommit && moveOffBase && !unpushedOnBase) {
+        throw const _ActionError('No changes to ship.');
+      }
+
+      if (needsCommit && scope == PullRequestShipScope.all) {
+        await backend.stage(path: repoPath);
+      }
+
+      final aiAssist = ref.read(aiAssistServiceProvider);
+      var commitMessage = existingCommitMessage ?? '';
+      if (needsCommit) {
+        final generatedCommit = await aiAssist.generate(
+          AiAssistRequest(
+            operation: .commitMessage,
+            workspacePath: repoPath,
+            settings: settings,
+          ),
+        );
+        commitMessage = generatedCommit.text.trim();
+        if (commitMessage.isEmpty) {
+          throw const _ActionError(
+            'AI Assist returned an empty commit message.',
+          );
+        }
+      } else if (commitMessage.isEmpty) {
+        commitMessage = 'Update Project';
+      }
+
+      if (moveOffBase) {
         headBranch = await _availableShipBranchName(
           backend: backend,
-          repoPath: controller.scope.repoPath,
+          repoPath: repoPath,
           commitMessage: commitMessage,
         );
         await backend.createAndCheckoutBranch(
-          path: controller.scope.repoPath,
+          path: repoPath,
           branch: headBranch,
+          expectedHead: sourceBranch,
+          expectedOid: sourceOid,
         );
+        if (unpushedOnBase && trackingRef != null) {
+          await backend.resetBranchToRef(
+            path: repoPath,
+            branch: sourceBranch,
+            targetRef: trackingRef,
+            expectedOid: sourceOid,
+          );
+        }
       }
 
-      await backend.commit(
-        path: controller.scope.repoPath,
-        message: commitMessage,
-      );
-      changesCommitted = true;
+      if (needsCommit) {
+        await backend.commit(path: repoPath, message: commitMessage);
+        changesCommitted = true;
+      }
       final details = await _reviewDetails(
         aiAssist: aiAssist,
         settings: settings,
-        repoPath: controller.scope.repoPath,
+        repoPath: repoPath,
         baseBranch: normalizedBase,
         headBranch: headBranch,
         commitMessage: commitMessage,
@@ -112,7 +176,10 @@ mixin _WorkspacePullRequestShipActions on _$WorkspacePullRequestController {
         return await _finishShipFailure(
           previous: previous,
           code: result.code,
-          message: _afterCommitFailure(result.message),
+          message: _shipFailureMessage(
+            result.message,
+            changesCommitted: changesCommitted,
+          ),
         );
       }
       return result;
@@ -207,6 +274,42 @@ mixin _WorkspacePullRequestShipActions on _$WorkspacePullRequestController {
     throw const _ActionError(
       'Could not find an available branch name for the staged changes.',
     );
+  }
+
+  String _originTrackingRef(String branch) => 'refs/remotes/origin/$branch';
+
+  String _localHeadRef(String branch) => 'refs/heads/$branch';
+
+  Future<GitRangeContext> _rangeAheadOf({
+    required GitBackend backend,
+    required String repoPath,
+    required String baseRef,
+    required String headRef,
+    required String missingRefMessage,
+  }) async {
+    try {
+      return await backend.rangeContext(
+        repoPath,
+        baseRef: baseRef,
+        headRef: headRef,
+      );
+    } on BranchNotFoundException {
+      throw _ActionError(missingRefMessage);
+    }
+  }
+
+  String? _commitMessageFromRange(GitRangeContext range) {
+    for (final commit in range.commits) {
+      final message = commit.message.trim();
+      if (message.isNotEmpty) {
+        return message;
+      }
+      final subject = commit.subject.trim();
+      if (subject.isNotEmpty) {
+        return subject;
+      }
+    }
+    return null;
   }
 
   String _shipBranchBase(String commitMessage) {

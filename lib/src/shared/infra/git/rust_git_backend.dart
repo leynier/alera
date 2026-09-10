@@ -41,8 +41,30 @@ class const RustGitBackend()
   Future<void> createAndCheckoutBranch({
     required String path,
     required String branch,
+    String? expectedHead,
+    String? expectedOid,
   }) => _guard(
-    () => rust_branch.createAndCheckoutBranch(path: path, branch: branch),
+    () => rust_branch.createAndCheckoutBranch(
+      path: path,
+      branch: branch,
+      expectedHead: expectedHead,
+      expectedOid: expectedOid,
+    ),
+  );
+
+  @override
+  Future<void> resetBranchToRef({
+    required String path,
+    required String branch,
+    required String targetRef,
+    String? expectedOid,
+  }) => _guard(
+    () => rust_branch.resetBranchToRef(
+      path: path,
+      branch: branch,
+      targetRef: targetRef,
+      expectedOid: expectedOid,
+    ),
   );
 
   @override
@@ -427,134 +449,4 @@ class const RustGitBackend()
   @override
   Future<void> stashPop({required String path, required int stashIndex}) =>
       _guard(() => rust.gitStashPop(path: path, stashIndex: stashIndex));
-
-  GitChangeEntry _toChangeEntry(rust.GitChangeEntry entry) {
-    return GitChangeEntry(
-      path: entry.path,
-      oldPath: entry.oldPath,
-      area: _toArea(entry.area),
-      status: _toStatus(entry.status),
-      added: entry.added,
-      removed: entry.removed,
-      isBinary: entry.isBinary,
-      isLarge: entry.isLarge,
-      submodule: entry.submodule == null
-          ? null
-          : GitSubmoduleStatus(
-              commitChanged: entry.submodule!.commitChanged,
-              trackedChanges: entry.submodule!.trackedChanges,
-              untrackedChanges: entry.submodule!.untrackedChanges,
-              inspectable: entry.submodule!.inspectable,
-            ),
-    );
-  }
-
-  GitStatusResult _toStatusResult(rust.GitStatusResult result) {
-    return GitStatusResult(
-      entries: result.entries.map(_toChangeEntry).toList(growable: false),
-      groups: result.groups.map(_toChangeGroup).toList(growable: false),
-    );
-  }
-
-  GitChangeGroup _toChangeGroup(rust.GitChangeGroup group) {
-    return GitChangeGroup(
-      area: _toArea(group.area),
-      entries: group.entries.map(_toChangeEntry).toList(growable: false),
-      treeRows: group.treeRows.map(_toTreeRow).toList(growable: false),
-    );
-  }
-
-  GitChangeTreeRow _toTreeRow(rust.GitChangeTreeRow row) {
-    return GitChangeTreeRow(
-      kind: _toTreeRowKind(row.kind),
-      name: row.name,
-      path: row.path,
-      depth: row.depth,
-      fileCount: row.fileCount,
-      entry: row.entry == null ? null : _toChangeEntry(row.entry!),
-    );
-  }
-
-  GitHistoryResult _toHistoryResult(rust.GitHistoryResult result) {
-    return GitHistoryResult(
-      items: result.items.map(_toHistoryItem).toList(growable: false),
-      currentRef: result.currentRef == null
-          ? null
-          : _toHistoryItemRef(result.currentRef!),
-      remoteRef: result.remoteRef == null
-          ? null
-          : _toHistoryItemRef(result.remoteRef!),
-      baseRef: result.baseRef == null
-          ? null
-          : _toHistoryItemRef(result.baseRef!),
-      mergeBase: result.mergeBase,
-      hasIncomingChanges: result.hasIncomingChanges,
-      hasOutgoingChanges: result.hasOutgoingChanges,
-      hasMore: result.hasMore,
-      limit: result.limit,
-    );
-  }
-
-  GitHistoryItem _toHistoryItem(rust.GitHistoryItem item) {
-    final timestamp = item.timestamp;
-    return GitHistoryItem(
-      id: item.id,
-      parentIds: item.parentIds,
-      subject: item.subject,
-      message: item.message,
-      displayId: item.displayId,
-      author: item.author,
-      authorEmail: item.authorEmail,
-      timestamp: timestamp == null
-          ? null
-          : DateTime.fromMillisecondsSinceEpoch(timestamp, isUtc: true),
-      references: item.references
-          .map(_toHistoryItemRef)
-          .toList(growable: false),
-    );
-  }
-
-  GitHistoryItemRef _toHistoryItemRef(rust.GitHistoryItemRef itemRef) {
-    return GitHistoryItemRef(
-      id: itemRef.id,
-      name: itemRef.name,
-      revision: itemRef.revision,
-      category: itemRef.category == null
-          ? null
-          : _toHistoryRefCategory(itemRef.category!),
-    );
-  }
-
-  GitCommitCompareResult _toCommitCompareResult(
-    rust.GitCommitCompareResult result,
-  ) {
-    return GitCommitCompareResult(
-      summary: _toCommitCompareSummary(result.summary),
-      entries: result.entries.map(_toCommitChangeEntry).toList(growable: false),
-    );
-  }
-
-  GitCommitCompareSummary _toCommitCompareSummary(
-    rust.GitCommitCompareSummary summary,
-  ) {
-    return GitCommitCompareSummary(
-      commitOid: summary.commitOid,
-      parentOid: summary.parentOid,
-      compareRef: summary.compareRef,
-      baseRef: summary.baseRef,
-      changedFiles: summary.changedFiles,
-      status: _toCommitCompareStatus(summary.status),
-      errorMessage: summary.errorMessage,
-    );
-  }
-
-  GitCommitChangeEntry _toCommitChangeEntry(rust.GitCommitChangeEntry entry) {
-    return GitCommitChangeEntry(
-      path: entry.path,
-      oldPath: entry.oldPath,
-      status: _toStatus(entry.status),
-      added: entry.added,
-      removed: entry.removed,
-    );
-  }
 }

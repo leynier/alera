@@ -17,6 +17,7 @@ import 'package:alera/src/features/pull_requests/presentation/pull_request_field
 import 'package:alera/src/features/pull_requests/presentation/pull_request_link_form.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
+import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -176,7 +177,31 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
       setState(() => _errorText = 'Base branch is required');
       return;
     }
-    final scope = await showDialog<PullRequestShipScope>(
+    final scope = await _resolveShipScope();
+    if (!mounted || scope == null) {
+      return;
+    }
+    setState(() => _errorText = null);
+    await widget.onShip(
+      baseBranch: base,
+      draft: widget.createAction == PullRequestCreateAction.draft,
+      scope: scope,
+    );
+  }
+
+  Future<PullRequestShipScope?> _resolveShipScope() async {
+    try {
+      final status = await ref.read(gitBackendProvider).status(widget.repoPath);
+      if (status.entries.isEmpty) {
+        return PullRequestShipScope.staged;
+      }
+    } on Object {
+      // Fall through to the confirmation dialog when status cannot be read.
+    }
+    if (!mounted) {
+      return null;
+    }
+    return showDialog<PullRequestShipScope>(
       context: context,
       builder: (_) => const AleraChoiceDialog<PullRequestShipScope>(
         title: 'Ship Changes?',
@@ -187,15 +212,6 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
         secondaryValue: .all,
         stackedActions: true,
       ),
-    );
-    if (!mounted || scope == null) {
-      return;
-    }
-    setState(() => _errorText = null);
-    await widget.onShip(
-      baseBranch: base,
-      draft: widget.createAction == PullRequestCreateAction.draft,
-      scope: scope,
     );
   }
 

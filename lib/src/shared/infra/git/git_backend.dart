@@ -26,10 +26,24 @@ abstract interface class GitBackend {
   Future<String> defaultBranch(String path);
 
   /// Creates [branch] at the current HEAD and makes it the active branch for
-  /// this checkout without changing the index or working tree.
+  /// this checkout without changing the index or working tree. When
+  /// [expectedHead] or [expectedOid] is set, HEAD must still match that branch
+  /// and commit.
   Future<void> createAndCheckoutBranch({
     required String path,
     required String branch,
+    String? expectedHead,
+    String? expectedOid,
+  });
+
+  /// Moves [branch] to the commit named by [targetRef] without checking it out
+  /// or changing the index or working tree. [branch] must not be HEAD. When
+  /// [expectedOid] is set, [branch] must still point at that commit.
+  Future<void> resetBranchToRef({
+    required String path,
+    required String branch,
+    required String targetRef,
+    String? expectedOid,
   });
 
   /// Checks out [branch] in the worktree at [path].
