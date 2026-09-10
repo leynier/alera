@@ -65,14 +65,13 @@ async fn persists_the_new_tab_menu_opt_in_off_by_default() {
         .await
         .unwrap();
     assert!(updated.show_in_new_tab_menu);
-    assert_eq!(
+    assert!(
         store
             .find_agent_profile("prof_a")
             .await
             .unwrap()
             .unwrap()
-            .show_in_new_tab_menu,
-        true
+            .show_in_new_tab_menu
     );
 }
 
