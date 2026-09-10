@@ -174,7 +174,11 @@ class const _SearchInputActions({required final List<Widget> children})
     }
     return Padding(
       padding: const EdgeInsets.only(right: AleraTokens.space4),
-      child: Row(mainAxisSize: .min, children: spacedChildren),
+      child: FittedBox(
+        fit: .scaleDown,
+        alignment: .centerRight,
+        child: Row(mainAxisSize: .min, children: spacedChildren),
+      ),
     );
   }
 }

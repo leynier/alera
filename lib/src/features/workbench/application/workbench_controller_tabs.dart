@@ -1,7 +1,10 @@
 part of 'workbench_controller.dart';
 
 mixin _WorkbenchControllerTabs
-    on _$WorkbenchController, _WorkbenchControllerInternals {
+    on
+        _$WorkbenchController,
+        _WorkbenchControllerInternals,
+        _WorkbenchControllerSimpleLayout {
   Future<void> closeWorkspaceTab({
     required Workspace workspace,
     required String tabId,
@@ -213,7 +216,16 @@ mixin _WorkbenchControllerTabs
     required WorkbenchDropZone zone,
     int? index,
   }) async {
-    if (state.isSimpleLayout) return;
+    if (state.isSimpleLayout) {
+      await moveSimplePaneTab(
+        workspaceId: workspaceId,
+        tabId: tabId,
+        targetGroupId: targetGroupId,
+        zone: zone,
+        index: index,
+      );
+      return;
+    }
     try {
       final tabs = state.tabsFor(workspaceId);
       final layout = _layoutForMutation(workspaceId, tabs);
@@ -240,7 +252,11 @@ mixin _WorkbenchControllerTabs
     required WorkbenchDropZone zone,
   }) async {
     if (state.isSimpleLayout) {
-      throw StateError('Splits are available in Classic layout.');
+      return splitSimplePaneWithTerminal(
+        workspace: workspace,
+        groupId: groupId,
+        zone: zone,
+      );
     }
     try {
       final previousTabs = state.tabsFor(workspace.id);
@@ -272,7 +288,10 @@ mixin _WorkbenchControllerTabs
     required String workspaceId,
     required String groupId,
   }) async {
-    if (state.isSimpleLayout) return;
+    if (state.isSimpleLayout) {
+      mergeSimplePaneIntoSibling(workspaceId: workspaceId, groupId: groupId);
+      return;
+    }
     try {
       final tabs = state.tabsFor(workspaceId);
       final layout = _layoutForMutation(
@@ -292,7 +311,14 @@ mixin _WorkbenchControllerTabs
     required List<int> nodePath,
     required double ratio,
   }) {
-    if (state.isSimpleLayout) return;
+    if (state.isSimpleLayout) {
+      updateSimplePaneSplitRatio(
+        workspaceId: workspaceId,
+        nodePath: nodePath,
+        ratio: ratio,
+      );
+      return;
+    }
     final tabs = state.tabsFor(workspaceId);
     final layout = _layoutForMutation(
       workspaceId,

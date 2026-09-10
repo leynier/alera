@@ -145,23 +145,33 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                           : AleraTokens.sidebarMaxWidth,
                                       panelBuilder: simple
                                           ? (
-                                              toolContent,
+                                              toolFor,
                                             ) => SimpleWorkspacePanelView(
+                                              workspaceId: workspace.id,
                                               panel: panel,
                                               tabs: shell.tabs,
-                                              tabBuilder: (tab, active) =>
-                                                  _buildSimplePanelTab(
-                                                    workspace: workspace,
-                                                    panel: panel,
-                                                    tabs: shell.tabs,
-                                                    tab: tab,
-                                                    active: active,
-                                                  ),
+                                              tabBuilder:
+                                                  (tab, active, groupId) =>
+                                                      _buildSimplePanelTab(
+                                                        workspace: workspace,
+                                                        panel: panel,
+                                                        tabs: shell.tabs,
+                                                        tab: tab,
+                                                        active: active,
+                                                        groupId: groupId,
+                                                      ),
                                               onSelect: (key) => controller
                                                   .selectSimplePanelKey(
                                                     workspace.id,
                                                     key,
                                                   ),
+                                              onSelectInGroup: (groupId, key) =>
+                                                  controller
+                                                      .selectSimplePanelKey(
+                                                        workspace.id,
+                                                        key,
+                                                        groupId: groupId,
+                                                      ),
                                               onClose: (key) async {
                                                 final tool =
                                                     SimpleWorkspaceTool.forKey(
@@ -193,46 +203,120 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                                   workspace,
                                                 ),
                                               ),
+                                              onNewTerminalInGroup: (groupId) {
+                                                unawaited(
+                                                  controller.createTerminalTab(
+                                                    workspace,
+                                                    targetGroupId: groupId,
+                                                  ),
+                                                );
+                                              },
+                                              onSplitGroup: (groupId, zone) {
+                                                unawaited(
+                                                  controller
+                                                      .splitWorkbenchGroupWithTerminal(
+                                                        workspace: workspace,
+                                                        groupId: groupId,
+                                                        zone: zone,
+                                                      ),
+                                                );
+                                              },
+                                              onMergeGroup: (groupId) {
+                                                unawaited(
+                                                  controller
+                                                      .mergeWorkbenchGroupIntoSibling(
+                                                        workspaceId:
+                                                            workspace.id,
+                                                        groupId: groupId,
+                                                      ),
+                                                );
+                                              },
+                                              onMoveTab:
+                                                  ({
+                                                    required key,
+                                                    required targetGroupId,
+                                                    required zone,
+                                                    index,
+                                                  }) {
+                                                    unawaited(
+                                                      controller
+                                                          .moveWorkspaceTab(
+                                                            workspaceId:
+                                                                workspace.id,
+                                                            tabId: key,
+                                                            targetGroupId:
+                                                                targetGroupId,
+                                                            zone: zone,
+                                                            index: index,
+                                                          ),
+                                                    );
+                                                  },
+                                              onUpdateSplitRatio: (path, ratio) {
+                                                controller
+                                                    .updateWorkbenchSplitRatio(
+                                                      workspaceId: workspace.id,
+                                                      nodePath: path,
+                                                      ratio: ratio,
+                                                    );
+                                              },
                                               onHide: controller
                                                   .toggleRightSidebarVisible,
-                                              content:
-                                                  SimpleWorkspaceTool.forKey(
-                                                        panel.activeKey,
-                                                      ) !=
-                                                      null
-                                                  ? Focus(
-                                                      canRequestFocus: false,
-                                                      onFocusChange: (focused) {
-                                                        if (focused &&
-                                                            panel.activeKey !=
-                                                                null) {
-                                                          controller
-                                                              .selectSimplePanelKey(
-                                                                workspace.id,
-                                                                panel
-                                                                    .activeKey!,
-                                                              );
-                                                        }
-                                                      },
-                                                      child: toolContent,
-                                                    )
-                                                  : _buildContent(
-                                                      bootstrapped:
-                                                          shell.bootstrapped,
-                                                      hasProjects:
-                                                          shell.hasProjects,
-                                                      project: project,
-                                                      workspace: workspace,
-                                                      sourceControlScope:
-                                                          sourceControlScope,
-                                                      tabs: shell.tabs,
-                                                      layout: shell.layout,
-                                                      singleSurface: true,
-                                                      singleTabId:
-                                                          SimpleWorkspacePanel.tabId(
-                                                            panel.activeKey,
-                                                          ),
-                                                    ),
+                                              surfaceBuilder: (key) {
+                                                final tool =
+                                                    SimpleWorkspaceTool.forKey(
+                                                      key,
+                                                    );
+                                                if (tool != null) {
+                                                  return Focus(
+                                                    canRequestFocus: false,
+                                                    onFocusChange: (focused) {
+                                                      if (focused) {
+                                                        controller
+                                                            .selectSimplePanelKey(
+                                                              workspace.id,
+                                                              key,
+                                                            );
+                                                      }
+                                                    },
+                                                    child: toolFor(switch (tool) {
+                                                      SimpleWorkspaceTool
+                                                          .explorer =>
+                                                        WorkbenchContextPanelTab
+                                                            .explorer,
+                                                      SimpleWorkspaceTool
+                                                          .search =>
+                                                        WorkbenchContextPanelTab
+                                                            .search,
+                                                      SimpleWorkspaceTool
+                                                          .sourceControl =>
+                                                        WorkbenchContextPanelTab
+                                                            .gitDiff,
+                                                      SimpleWorkspaceTool
+                                                          .pullRequest =>
+                                                        WorkbenchContextPanelTab
+                                                            .pullRequests,
+                                                    }),
+                                                  );
+                                                }
+                                                return _buildContent(
+                                                  bootstrapped:
+                                                      shell.bootstrapped,
+                                                  hasProjects:
+                                                      shell.hasProjects,
+                                                  project: project,
+                                                  workspace: workspace,
+                                                  sourceControlScope:
+                                                      sourceControlScope,
+                                                  tabs: shell.tabs,
+                                                  layout: shell.layout,
+                                                  singleSurface: true,
+                                                  singleTabId:
+                                                      SimpleWorkspacePanel.tabId(
+                                                        key,
+                                                      ),
+                                                );
+                                              },
+                                              content: const SizedBox.shrink(),
                                             )
                                           : null,
                                       sourceControlScope: sourceControlScope,

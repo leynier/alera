@@ -31,22 +31,22 @@ extension _WorkspaceTabMenu on _WorkspaceTabChip {
           const AleraDropdownEntry<_TabMenuAction>(
             value: .splitUp,
             label: 'Split Up',
-            leading: _SplitDirectionGlyph(zone: .up),
+            leading: WorkbenchSplitDirectionGlyph(zone: .up),
           ),
           const AleraDropdownEntry<_TabMenuAction>(
             value: .splitDown,
             label: 'Split Down',
-            leading: _SplitDirectionGlyph(zone: .down),
+            leading: WorkbenchSplitDirectionGlyph(zone: .down),
           ),
           const AleraDropdownEntry<_TabMenuAction>(
             value: .splitLeft,
             label: 'Split Left',
-            leading: _SplitDirectionGlyph(zone: .left),
+            leading: WorkbenchSplitDirectionGlyph(zone: .left),
           ),
           const AleraDropdownEntry<_TabMenuAction>(
             value: .splitRight,
             label: 'Split Right',
-            leading: _SplitDirectionGlyph(zone: .right),
+            leading: WorkbenchSplitDirectionGlyph(zone: .right),
           ),
           const PopupMenuDivider(height: AleraTokens.space8),
         ],

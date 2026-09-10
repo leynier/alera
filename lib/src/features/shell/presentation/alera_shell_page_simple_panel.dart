@@ -7,6 +7,7 @@ extension _SimplePanelTabs on _AleraShellPageBodyState {
     required List<WorkspaceTabRecord> tabs,
     required WorkspaceTabRecord tab,
     required bool active,
+    required String groupId,
   }) {
     final controller = ref.read(workbenchControllerProvider.notifier);
     final tabsById = <String, WorkspaceTabRecord>{
@@ -48,6 +49,13 @@ extension _SimplePanelTabs on _AleraShellPageBodyState {
             controller.renameWorkspaceTab(tabId: tab.id, title: title),
           ),
           onKeep: (id) => unawaited(controller.keepPreviewTab(id)),
+          onSplit: (zone) => unawaited(
+            controller.splitWorkbenchGroupWithTerminal(
+              workspace: workspace,
+              groupId: groupId,
+              zone: zone,
+            ),
+          ),
         );
       },
     );

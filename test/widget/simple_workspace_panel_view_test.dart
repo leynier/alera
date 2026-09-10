@@ -1,6 +1,7 @@
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/workbench/domain/simple_workspace_panel.dart';
 import 'package:alera/src/features/workbench/presentation/simple_workspace_panel_view.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -26,6 +27,7 @@ void main() {
         ),
       );
       expect(find.text('Must Not Mount'), findsNothing);
+      expect(find.text('Panel is Empty'), findsOneWidget);
       for (final label in [
         'Explorer',
         'Search',
@@ -200,5 +202,39 @@ void main() {
       find.ancestor(of: addTab, matching: find.byType(SingleChildScrollView)),
       findsNothing,
     );
+  });
+
+  testWidgets('tool chip offers split actions', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SimpleWorkspacePanelView(
+            panel: const SimpleWorkspacePanel(
+              tabKeys: ['tool:search'],
+              activeKey: 'tool:search',
+            ),
+            tabs: const [],
+            onSelect: (_) {},
+            onClose: (_) {},
+            onNewTerminal: () {},
+            onHide: () {},
+            onSplitGroup: (_, _) {},
+            content: const Text('Selected Surface'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Search'), buttons: kSecondaryMouseButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Split Down'), findsOneWidget);
+    expect(find.text('Split Right'), findsOneWidget);
+    expect(find.text('Close Others'), findsOneWidget);
+    expect(find.text('Close Tabs to the Right'), findsOneWidget);
+    await tester.tapAt(Offset.zero);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Pane Actions'));
+    await tester.pumpAndSettle();
+    expect(find.text('Split Up'), findsOneWidget);
+    expect(find.text('Close Split'), findsNothing);
   });
 }

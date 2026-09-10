@@ -50,6 +50,7 @@ class const WorkbenchState({
           .reconcile(
             tabsFor(workspaceId),
             preferredPrimaryId: layoutFor(workspaceId)?.activeTabId,
+            workspaceId: workspaceId,
           );
 
   /// Project ids that are visually expanded in the sidebar. Computed as the

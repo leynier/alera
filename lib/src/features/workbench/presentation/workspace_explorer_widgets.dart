@@ -19,46 +19,56 @@ class const _ExplorerToolbar({
         padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
         child: Row(
           children: <Widget>[
-            Text(title, style: Theme.of(context).textTheme.titleSmall),
-            const Spacer(),
-            AleraIconButton(
-              tooltip: 'New file',
-              icon: AleraIcons.newFile,
-              onPressed: onNewFile,
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: .ellipsis,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
             ),
-            const SizedBox(width: AleraTokens.space2),
-            AleraIconButton(
-              tooltip: 'New folder',
-              icon: AleraIcons.newFolder,
-              onPressed: onNewFolder,
-            ),
-            const SizedBox(width: AleraTokens.space2),
-            AleraIconButton(
-              tooltip: 'Save all files',
-              icon: AleraIcons.save,
-              onPressed: onSaveAll,
-            ),
-            const SizedBox(width: AleraTokens.space2),
-            AleraIconButton(
-              tooltip: mode == WorkspaceExplorerMode.hideIgnored
-                  ? 'Show ignored files'
-                  : 'Hide ignored files',
-              icon: mode == WorkspaceExplorerMode.hideIgnored
-                  ? AleraIcons.hidden
-                  : AleraIcons.visible,
-              onPressed: onToggleMode,
-            ),
-            const SizedBox(width: AleraTokens.space2),
-            AleraIconButton(
-              tooltip: 'Collapse All',
-              icon: AleraIcons.collapseAll,
-              onPressed: onCollapseAll,
-            ),
-            const SizedBox(width: AleraTokens.space2),
-            AleraIconButton(
-              tooltip: 'Refresh',
-              icon: loading ? AleraIcons.loading : AleraIcons.refresh,
-              onPressed: loading ? null : onRefresh,
+            WorkbenchScrollableActions(
+              children: <Widget>[
+                AleraIconButton(
+                  tooltip: 'New file',
+                  icon: AleraIcons.newFile,
+                  onPressed: onNewFile,
+                ),
+                const SizedBox(width: AleraTokens.space2),
+                AleraIconButton(
+                  tooltip: 'New folder',
+                  icon: AleraIcons.newFolder,
+                  onPressed: onNewFolder,
+                ),
+                const SizedBox(width: AleraTokens.space2),
+                AleraIconButton(
+                  tooltip: 'Save all files',
+                  icon: AleraIcons.save,
+                  onPressed: onSaveAll,
+                ),
+                const SizedBox(width: AleraTokens.space2),
+                AleraIconButton(
+                  tooltip: mode == WorkspaceExplorerMode.hideIgnored
+                      ? 'Show ignored files'
+                      : 'Hide ignored files',
+                  icon: mode == WorkspaceExplorerMode.hideIgnored
+                      ? AleraIcons.hidden
+                      : AleraIcons.visible,
+                  onPressed: onToggleMode,
+                ),
+                const SizedBox(width: AleraTokens.space2),
+                AleraIconButton(
+                  tooltip: 'Collapse All',
+                  icon: AleraIcons.collapseAll,
+                  onPressed: onCollapseAll,
+                ),
+                const SizedBox(width: AleraTokens.space2),
+                AleraIconButton(
+                  tooltip: 'Refresh',
+                  icon: loading ? AleraIcons.loading : AleraIcons.refresh,
+                  onPressed: loading ? null : onRefresh,
+                ),
+              ],
             ),
           ],
         ),

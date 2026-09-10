@@ -306,14 +306,31 @@ class const KeyboardCommandDispatcher({
 
   void _split(WorkbenchDropZone zone) {
     final state = ref.read(workbenchControllerProvider);
-    if (state.isSimpleLayout) return;
     final workspace = state.activeWorkspace;
-    final layout = state.activeLayout;
-    if (workspace == null || layout == null) {
+    if (workspace == null) {
       return;
     }
     final controller = ref.read(workbenchControllerProvider.notifier);
     final runtime = ref.read(terminalRuntimeProvider);
+    if (state.isSimpleLayout) {
+      final groupId = state
+          .simplePanelFor(workspace.id)
+          .ensuredLayout(workspace.id)
+          .activeGroupId;
+      unawaited(() async {
+        final tab = await controller.splitWorkbenchGroupWithTerminal(
+          workspace: workspace,
+          groupId: groupId,
+          zone: zone,
+        );
+        runtime.sessionFor(workspace: workspace, tab: tab).requestFocus();
+      }());
+      return;
+    }
+    final layout = state.activeLayout;
+    if (layout == null) {
+      return;
+    }
     unawaited(() async {
       final tab = await controller.splitWorkbenchGroupWithTerminal(
         workspace: workspace,
@@ -326,10 +343,29 @@ class const KeyboardCommandDispatcher({
 
   void _closeSplit() {
     final state = ref.read(workbenchControllerProvider);
-    if (state.isSimpleLayout) return;
     final workspace = state.activeWorkspace;
+    if (workspace == null) {
+      return;
+    }
+    if (state.isSimpleLayout) {
+      final layout = state
+          .simplePanelFor(workspace.id)
+          .ensuredLayout(workspace.id);
+      if (layout.groups.length < 2) {
+        return;
+      }
+      unawaited(
+        ref
+            .read(workbenchControllerProvider.notifier)
+            .mergeWorkbenchGroupIntoSibling(
+              workspaceId: workspace.id,
+              groupId: layout.activeGroupId,
+            ),
+      );
+      return;
+    }
     final layout = state.activeLayout;
-    if (workspace == null || layout == null || layout.groups.length < 2) {
+    if (layout == null || layout.groups.length < 2) {
       return;
     }
     unawaited(

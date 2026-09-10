@@ -116,6 +116,7 @@ class SimpleWorkspacePanelMapper extends ClassMapperBase<SimpleWorkspacePanel> {
   static SimpleWorkspacePanelMapper ensureInitialized() {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = SimpleWorkspacePanelMapper._());
+      WorkbenchLayoutMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -148,6 +149,9 @@ class SimpleWorkspacePanelMapper extends ClassMapperBase<SimpleWorkspacePanel> {
     _$focusedKey,
     opt: true,
   );
+  static WorkbenchLayout? _$paneLayout(SimpleWorkspacePanel v) => v.paneLayout;
+  static const Field<SimpleWorkspacePanel, WorkbenchLayout> _f$paneLayout =
+      Field('paneLayout', _$paneLayout, opt: true);
 
   @override
   final MappableFields<SimpleWorkspacePanel> fields = const {
@@ -155,6 +159,7 @@ class SimpleWorkspacePanelMapper extends ClassMapperBase<SimpleWorkspacePanel> {
     #tabKeys: _f$tabKeys,
     #activeKey: _f$activeKey,
     #focusedKey: _f$focusedKey,
+    #paneLayout: _f$paneLayout,
   };
 
   static SimpleWorkspacePanel _instantiate(DecodingData data) {
@@ -163,6 +168,7 @@ class SimpleWorkspacePanelMapper extends ClassMapperBase<SimpleWorkspacePanel> {
       tabKeys: data.dec(_f$tabKeys),
       activeKey: data.dec(_f$activeKey),
       focusedKey: data.dec(_f$focusedKey),
+      paneLayout: data.dec(_f$paneLayout),
     );
   }
 
@@ -242,6 +248,7 @@ abstract class SimpleWorkspacePanelCopyWith<
     List<String>? tabKeys,
     String? activeKey,
     String? focusedKey,
+    WorkbenchLayout? paneLayout,
   });
   SimpleWorkspacePanelCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -269,12 +276,14 @@ class _SimpleWorkspacePanelCopyWithImpl<$R, $Out>
     List<String>? tabKeys,
     Object? activeKey = $none,
     Object? focusedKey = $none,
+    Object? paneLayout = $none,
   }) => $apply(
     FieldCopyWithData({
       if (primaryTabId != $none) #primaryTabId: primaryTabId,
       if (tabKeys != null) #tabKeys: tabKeys,
       if (activeKey != $none) #activeKey: activeKey,
       if (focusedKey != $none) #focusedKey: focusedKey,
+      if (paneLayout != $none) #paneLayout: paneLayout,
     }),
   );
   @override
@@ -283,6 +292,7 @@ class _SimpleWorkspacePanelCopyWithImpl<$R, $Out>
     tabKeys: data.get(#tabKeys, or: $value.tabKeys),
     activeKey: data.get(#activeKey, or: $value.activeKey),
     focusedKey: data.get(#focusedKey, or: $value.focusedKey),
+    paneLayout: data.get(#paneLayout, or: $value.paneLayout),
   );
 
   @override

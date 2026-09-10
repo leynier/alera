@@ -5,7 +5,10 @@ part of 'workbench_controller.dart';
 /// Split out of `workbench_controller_tabs.dart`, which keeps the lifecycle of
 /// tabs that already exist: closing, renaming, moving and splitting.
 mixin _WorkbenchControllerTabOpening
-    on _$WorkbenchController, _WorkbenchControllerInternals {
+    on
+        _$WorkbenchController,
+        _WorkbenchControllerInternals,
+        _WorkbenchControllerSimpleLayout {
   Future<WorkspaceTabRecord> createTerminalTab(
     Workspace workspace, {
     String? targetGroupId,
@@ -28,9 +31,22 @@ mixin _WorkbenchControllerTabOpening
       );
       final tabs = <WorkspaceTabRecord>[...previousTabs, tab];
       _setTabsForWorkspace(workspace.id, tabs);
-      final groupId = targetGroupId ?? layout.activeGroupId;
-      final nextLayout = layout.addTabToGroup(groupId: groupId, tabId: tab.id);
-      await _applyLayout(nextLayout.sanitize(tabs), persist: true);
+      if (state.isSimpleLayout) {
+        addTerminalToSimplePane(
+          workspaceId: workspace.id,
+          tab: tab,
+          tabs: tabs,
+          previousTabs: previousTabs,
+          targetGroupId: targetGroupId,
+        );
+      } else {
+        final groupId = targetGroupId ?? layout.activeGroupId;
+        final nextLayout = layout.addTabToGroup(
+          groupId: groupId,
+          tabId: tab.id,
+        );
+        await _applyLayout(nextLayout.sanitize(tabs), persist: true);
+      }
       if (state.isSimpleLayout && state.activeWorkspaceId == workspace.id) {
         ref
             .read(terminalRuntimeProvider)

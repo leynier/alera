@@ -7,6 +7,7 @@ import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_scrollable_actions.dart';
 import 'package:alera/src/features/workbench/application/workspace_search_controller.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/rust/api/workspace_search.dart' as native;
@@ -86,10 +87,14 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
         collapsibleNodeKeys.isNotEmpty &&
         collapsibleNodeKeys.every(state.collapsedResultNodeKeys.contains);
     final rows = _rowsFor(state);
-    return Column(
-      crossAxisAlignment: .stretch,
-      children: <Widget>[
-        _SearchToolbar(
+    return CustomScrollView(
+      slivers: <Widget>[
+        SliverToBoxAdapter(
+          child: Column(
+            mainAxisSize: .min,
+            crossAxisAlignment: .stretch,
+            children: <Widget>[
+              _SearchToolbar(
           state: state,
           allResultsCollapsed: allResultsCollapsed,
           onRefresh: () =>
@@ -159,11 +164,16 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
                   ?.copyWith(color: AleraTokens.error),
             ),
           ),
-        const Divider(height: 1, color: AleraTokens.borderSubtle),
-        Expanded(
+              const Divider(height: 1, color: AleraTokens.borderSubtle),
+            ],
+          ),
+        ),
+        SliverFillRemaining(
+          hasScrollBody: true,
           child: rows.items.isEmpty
               ? _SearchEmptyState(state: state)
               : ListView.builder(
+                  primary: false,
                   itemCount: rows.items.length,
                   itemBuilder: (context, index) {
                     final item = rows.items[index];

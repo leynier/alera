@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/workbench/domain/simple_panel_width.dart';
 import 'package:alera/src/features/workbench/domain/simple_workspace_panel.dart';
+import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -149,4 +150,140 @@ void main() {
       expect(simplePanelWidth(-1, maximum), AleraTokens.sidebarMinWidth);
     },
   );
+
+  test('flat tabKeys migrate into a single pane group', () {
+    final panel = const SimpleWorkspacePanel(
+      tabKeys: ['tool:search', 'tab:aux'],
+      activeKey: 'tool:search',
+    );
+    final layout = panel.ensuredLayout('workspace');
+    expect(layout.groups.length, 1);
+    expect(layout.activeTabId, 'tool:search');
+    expect(layout.groups.values.single.tabIds, ['tool:search', 'tab:aux']);
+  });
+
+  test('splitting a tool pane keeps the tool unique', () {
+    final selected = const SimpleWorkspacePanel(primaryTabId: 'primary')
+        .select('tool:search');
+    final layout = selected.ensuredLayout('workspace');
+    final split = selected.applyPaneLayout(
+      layout.splitWithGroup(
+        targetGroupId: layout.activeGroupId,
+        zone: WorkbenchDropZone.down,
+        newGroup: WorkbenchPaneGroup(
+          id: 'pane-b',
+          tabIds: const <String>['tab:term'],
+          activeTabId: 'tab:term',
+        ),
+      ),
+    );
+    expect(split.tabKeys, ['tool:search', 'tab:term']);
+    expect(split.paneLayout!.groups.length, 2);
+    expect(
+      split.paneLayout!.groups.values
+          .expand((group) => group.tabIds)
+          .where((key) => key == 'tool:search'),
+      hasLength(1),
+    );
+  });
+
+  test('moving a tool between panes does not clone it', () {
+    final selected = const SimpleWorkspacePanel(primaryTabId: 'primary')
+        .select('tool:search');
+    final layout = selected.ensuredLayout('workspace');
+    final split = selected.applyPaneLayout(
+      layout.splitWithGroup(
+        targetGroupId: layout.activeGroupId,
+        zone: WorkbenchDropZone.right,
+        newGroup: WorkbenchPaneGroup(
+          id: 'pane-b',
+          tabIds: const <String>['tab:term'],
+          activeTabId: 'tab:term',
+        ),
+      ),
+    );
+    final moved = split.applyPaneLayout(
+      split
+          .ensuredLayout('workspace')
+          .moveTab(
+            tabId: 'tool:search',
+            targetGroupId: 'pane-b',
+            zone: WorkbenchDropZone.center,
+            newGroupId: 'unused',
+          ),
+    );
+    expect(
+      moved.paneLayout!.groups.values
+          .expand((group) => group.tabIds)
+          .where((key) => key == 'tool:search'),
+      hasLength(1),
+    );
+    expect(moved.paneLayout!.groupIdForTab('tool:search'), 'pane-b');
+  });
+
+  test('reordering tabs inside a pane keeps them in that pane', () {
+    final panel = const SimpleWorkspacePanel(primaryTabId: 'primary')
+        .select('tool:search')
+        .select('tool:explorer');
+    final groupId = panel.ensuredLayout().activeGroupId;
+    final reordered = panel.applyPaneLayout(
+      panel.ensuredLayout().moveTab(
+        tabId: 'tool:explorer',
+        targetGroupId: groupId,
+        zone: WorkbenchDropZone.center,
+        newGroupId: 'unused',
+        index: 0,
+      ),
+    );
+    expect(reordered.ensuredLayout().groups[groupId]!.tabIds, [
+      'tool:explorer',
+      'tool:search',
+    ]);
+  });
+
+  test('selecting a new tool can target a specific pane', () {
+    final selected = const SimpleWorkspacePanel(primaryTabId: 'primary')
+        .select('tool:search');
+    final layout = selected.ensuredLayout('workspace');
+    final split = selected.applyPaneLayout(
+      layout.splitWithGroup(
+        targetGroupId: layout.activeGroupId,
+        zone: WorkbenchDropZone.down,
+        newGroup: WorkbenchPaneGroup(
+          id: 'pane-b',
+          tabIds: const <String>['tab:term'],
+          activeTabId: 'tab:term',
+        ),
+      ),
+    );
+    final added = split.select('tool:explorer', groupId: 'pane-b');
+    expect(added.ensuredLayout().groupIdForTab('tool:explorer'), 'pane-b');
+    expect(
+      added.ensuredLayout().groups[layout.activeGroupId]!.tabIds,
+      isNot(contains('tool:explorer')),
+    );
+  });
+
+  test('updating a pane split ratio keeps the same groups', () {
+    final selected = const SimpleWorkspacePanel(primaryTabId: 'primary')
+        .select('tool:search');
+    final layout = selected.ensuredLayout('workspace');
+    final split = selected.applyPaneLayout(
+      layout.splitWithGroup(
+        targetGroupId: layout.activeGroupId,
+        zone: WorkbenchDropZone.down,
+        newGroup: WorkbenchPaneGroup(
+          id: 'pane-b',
+          tabIds: const <String>['tab:term'],
+          activeTabId: 'tab:term',
+        ),
+      ),
+    );
+    expect(split.ensuredLayout().root.ratio, 0.5);
+    final resized = split.applyPaneLayout(
+      split.ensuredLayout().updateSplitRatio(const <int>[], 0.3),
+    );
+    expect(resized.ensuredLayout().root.ratio, 0.3);
+    expect(resized.ensuredLayout().groups.length, 2);
+  });
 }

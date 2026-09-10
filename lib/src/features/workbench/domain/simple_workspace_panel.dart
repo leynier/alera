@@ -1,3 +1,4 @@
+import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 
@@ -38,19 +39,60 @@ class const SimpleWorkspacePanel({
   this.tabKeys = const <String>[],
   this.activeKey,
   this.focusedKey,
+  this.paneLayout,
 }) with SimpleWorkspacePanelMappable {
   final String? primaryTabId;
   final List<String> tabKeys;
   final String? activeKey;
   final String? focusedKey;
+  final WorkbenchLayout? paneLayout;
 
   static String tabKey(String tabId) => 'tab:$tabId';
   static String? tabId(String? key) =>
       key != null && key.startsWith('tab:') ? key.substring(4) : null;
 
+  static const String fallbackLayoutWorkspaceId = 'simple-panel';
+
+  WorkbenchLayout ensuredLayout([String? workspaceId]) {
+    final existing = paneLayout;
+    if (existing != null) {
+      if (workspaceId == null || existing.workspaceId == workspaceId) {
+        return existing;
+      }
+      return WorkbenchLayout(
+        workspaceId: workspaceId,
+        root: existing.root,
+        groups: existing.groups,
+        activeGroupId: existing.activeGroupId,
+      );
+    }
+    final layout = WorkbenchLayout.single(
+      workspaceId: workspaceId ?? fallbackLayoutWorkspaceId,
+      tabIds: tabKeys,
+    );
+    final active = activeKey;
+    final groupId = active == null ? null : layout.groupIdForTab(active);
+    if (active == null || groupId == null) {
+      return layout;
+    }
+    return layout.setActiveTab(groupId: groupId, tabId: active);
+  }
+
+  SimpleWorkspacePanel applyPaneLayout(WorkbenchLayout layout) {
+    final keys = <String>[
+      for (final groupId in layout.paneGroupIds)
+        ...layout.groups[groupId]?.tabIds ?? const <String>[],
+    ];
+    final active = keys.contains(layout.activeTabId)
+        ? layout.activeTabId
+        : keys.firstOrNull;
+    return copyWith(paneLayout: layout, tabKeys: keys, activeKey: active);
+  }
+
   SimpleWorkspacePanel reconcile(
     List<WorkspaceTabRecord> tabs, {
     String? preferredPrimaryId,
+    String? workspaceId,
   }) {
     final candidates = tabs.where(isSimplePrimaryCandidate).toList();
     final primary =
@@ -66,38 +108,79 @@ class const SimpleWorkspacePanel({
         if (SimpleWorkspaceTool.forKey(key) != null || available.contains(key))
           key,
       ...available,
-    }.toList();
-    final active = keys.contains(activeKey) ? activeKey : keys.firstOrNull;
+    };
+    final current = ensuredLayout(workspaceId ?? paneLayout?.workspaceId);
+    final layout = current.sanitizeIds(
+      keys,
+      orphanGroupId: current.activeGroupId,
+    );
     final primaryKey = primary == null ? null : tabKey(primary.id);
-    final focus = focusedKey == primaryKey || keys.contains(focusedKey)
+    final active = keys.contains(layout.activeTabId)
+        ? layout.activeTabId
+        : keys.contains(activeKey)
+        ? activeKey
+        : keys.firstOrNull;
+    final focused = focusedKey == primaryKey || keys.contains(focusedKey)
         ? focusedKey
         : primaryKey ?? active;
-    return SimpleWorkspacePanel(
-      primaryTabId: primary?.id,
-      tabKeys: keys,
-      activeKey: active,
-      focusedKey: focus,
-    );
+    var next = applyPaneLayout(layout)
+        .copyWith(primaryTabId: primary?.id, focusedKey: focused);
+    if (active != null && next.paneLayout?.groupIdForTab(active) != null) {
+      next = next
+          .applyPaneLayout(
+            next.paneLayout!.setActiveTab(
+              groupId: next.paneLayout!.groupIdForTab(active)!,
+              tabId: active,
+            ),
+          )
+          .copyWith(focusedKey: focused);
+    }
+    return next;
   }
 
-  SimpleWorkspacePanel select(String key) {
+  SimpleWorkspacePanel select(String key, {String? groupId}) {
     if (key == tabKey(primaryTabId ?? '')) {
       return copyWith(focusedKey: key);
     }
-    return copyWith(
-      tabKeys: <String>[...tabKeys, if (!tabKeys.contains(key)) key],
-      activeKey: key,
-      focusedKey: key,
-    );
+    final layout = ensuredLayout();
+    final existingGroupId = layout.groupIdForTab(key);
+    if (existingGroupId != null) {
+      return applyPaneLayout(
+        layout.setActiveTab(groupId: existingGroupId, tabId: key),
+      ).copyWith(focusedKey: key);
+    }
+    final resolvedGroupId =
+        groupId != null && layout.groups.containsKey(groupId)
+        ? groupId
+        : (layout.groups.containsKey(layout.activeGroupId)
+              ? layout.activeGroupId
+              : layout.paneGroupIds.firstOrNull);
+    if (resolvedGroupId == null) {
+      return applyPaneLayout(
+        WorkbenchLayout.single(
+          workspaceId: layout.workspaceId,
+          tabIds: <String>[key],
+        ),
+      ).copyWith(focusedKey: key);
+    }
+    return applyPaneLayout(
+      layout.addTabToGroup(groupId: resolvedGroupId, tabId: key),
+    ).copyWith(focusedKey: key);
   }
 
   SimpleWorkspacePanel closeTool(SimpleWorkspaceTool tool) {
-    final keys = tabKeys.where((key) => key != tool.key).toList();
-    final active = activeKey == tool.key ? keys.firstOrNull : activeKey;
-    return copyWith(
-      tabKeys: keys,
-      activeKey: active,
-      focusedKey: focusedKey == tool.key
+    return closeKey(tool.key);
+  }
+
+  SimpleWorkspacePanel closeKey(String key) {
+    final layout = paneLayout ?? ensuredLayout();
+    if (layout.groupIdForTab(key) == null && !tabKeys.contains(key)) {
+      return this;
+    }
+    final next = applyPaneLayout(layout.removeTab(key));
+    final active = next.activeKey;
+    return next.copyWith(
+      focusedKey: focusedKey == key
           ? active ?? (primaryTabId == null ? null : tabKey(primaryTabId!))
           : focusedKey,
     );

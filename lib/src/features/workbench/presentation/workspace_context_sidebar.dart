@@ -17,7 +17,8 @@ class const WorkspaceContextSidebar({
   super.key,
   required final Workspace workspace,
   required final WorkbenchViewPrefs prefs,
-  final Widget Function(Widget toolContent)? panelBuilder,
+  final Widget Function(Widget Function(WorkbenchContextPanelTab tab) toolFor)?
+  panelBuilder,
   final double maximumWidth = AleraTokens.sidebarMaxWidth,
   final WorkspaceSourceControlScope? sourceControlScope,
   final String? focusedSourceControlRoot,
@@ -55,7 +56,7 @@ class const WorkspaceContextSidebar({
               maximumWidth: maximumWidth,
               onPersistWidth: onResize,
               child:
-                  panelBuilder?.call(_toolContent()) ??
+                  panelBuilder?.call(_toolFor) ??
                   Column(
                     children: <Widget>[
                       _ContextTabHeader(
@@ -63,7 +64,7 @@ class const WorkspaceContextSidebar({
                         onSetActiveTab: onSetContextPanelTab,
                         onToggleVisible: onToggleVisible,
                       ),
-                      Expanded(child: _toolContent()),
+                      Expanded(child: _toolFor(activeTab)),
                     ],
                   ),
             )
@@ -90,10 +91,9 @@ class const WorkspaceContextSidebar({
     );
   }
 
-  Widget _toolContent() {
+  Widget _toolFor(WorkbenchContextPanelTab tab) {
     final sourceControlScope = this.sourceControlScope;
-    final activeTab = prefs.activeContextPanelTab;
-    return switch (activeTab) {
+    return switch (tab) {
       WorkbenchContextPanelTab.explorer => WorkspaceExplorer(
         key: ValueKey<String>(
           'workspace-explorer:${workspace.id}:${workspace.path}',

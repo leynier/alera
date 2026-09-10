@@ -134,6 +134,74 @@ void _registerSimpleLayoutTests() {
     );
   });
 
+  test(
+    'Simple split creates a terminal pane without rewriting Classic',
+    () async {
+      await _controller.bootstrap();
+      final workspace = await _selectMainWorkspace(_controller, _harness);
+      _controller.setDesktopWorkspaceLayout(DesktopWorkspaceLayout.simple);
+      _controller.selectSimplePanelKey(
+        workspace.id,
+        SimpleWorkspaceTool.search.key,
+      );
+      final classic = _controller.state.layoutFor(workspace.id)!;
+      final groupId = _controller.state
+          .simplePanelFor(workspace.id)
+          .ensuredLayout(workspace.id)
+          .activeGroupId;
+      final tab = await _controller.splitWorkbenchGroupWithTerminal(
+        workspace: workspace,
+        groupId: groupId,
+        zone: WorkbenchDropZone.down,
+      );
+      final panel = _controller.state.simplePanelFor(workspace.id);
+      expect(panel.paneLayout!.groups.length, 2);
+      expect(panel.tabKeys, contains('tab:${tab.id}'));
+      expect(panel.tabKeys, contains('tool:search'));
+      expect(_controller.state.layoutFor(workspace.id)!.root.isLeaf, isTrue);
+      expect(
+        _controller.state.layoutFor(workspace.id)!.groups.length,
+        classic.groups.length,
+      );
+    },
+  );
+
+  test('Simple new terminal from a pane lands in that pane', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+    _controller.setDesktopWorkspaceLayout(DesktopWorkspaceLayout.simple);
+    _controller.selectSimplePanelKey(
+      workspace.id,
+      SimpleWorkspaceTool.search.key,
+    );
+    final firstGroupId = _controller.state
+        .simplePanelFor(workspace.id)
+        .ensuredLayout(workspace.id)
+        .activeGroupId;
+    await _controller.splitWorkbenchGroupWithTerminal(
+      workspace: workspace,
+      groupId: firstGroupId,
+      zone: WorkbenchDropZone.down,
+    );
+    final secondGroupId = _controller.state
+        .simplePanelFor(workspace.id)
+        .ensuredLayout(workspace.id)
+        .activeGroupId;
+    expect(secondGroupId, isNot(firstGroupId));
+    final tab = await _controller.createTerminalTab(
+      workspace,
+      targetGroupId: firstGroupId,
+    );
+    final layout = _controller.state
+        .simplePanelFor(workspace.id)
+        .ensuredLayout(workspace.id);
+    expect(layout.groups[firstGroupId]!.tabIds, contains('tab:${tab.id}'));
+    expect(
+      layout.groups[secondGroupId]!.tabIds,
+      isNot(contains('tab:${tab.id}')),
+    );
+  });
+
   test('Simple keepPreviewTab makes a file preview permanent', () async {
     await _controller.bootstrap();
     final workspace = await _selectMainWorkspace(_controller, _harness);

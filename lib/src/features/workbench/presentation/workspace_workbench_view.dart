@@ -31,6 +31,9 @@ import 'package:alera/src/features/workbench/presentation/workspace_git_diff_sur
 import 'package:alera/src/features/workbench/presentation/workspace_image_preview_surface.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_merman_viewer_surface.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_pdf_viewer_surface.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_drop_zones.dart'
+    as drop_zones;
+import 'package:alera/src/features/workbench/presentation/workbench_split_glyphs.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
@@ -92,6 +95,7 @@ Widget buildSimpleWorkspaceTabChip({
   required ValueChanged<List<String>> onCloseTabs,
   required ValueChanged<String> onRename,
   required ValueChanged<String> onKeep,
+  ValueChanged<WorkbenchDropZone>? onSplit,
 }) {
   if (active) acknowledgements.acknowledge(status);
   return Padding(
@@ -103,7 +107,7 @@ Widget buildSimpleWorkspaceTabChip({
         onSelect: onSelect,
         onKeep: onKeep,
         builder: (onTap) => _WorkspaceTabChip(
-          canSplit: false,
+          canSplit: onSplit != null,
           tab: tab,
           terminalSession: runtime.peekSession(tab.id),
           status: status,
@@ -114,7 +118,7 @@ Widget buildSimpleWorkspaceTabChip({
           onClose: () => onCloseTabs(<String>[tab.id]),
           onCloseTabs: onCloseTabs,
           onRename: onRename,
-          onSplit: (_) {},
+          onSplit: onSplit ?? (_) {},
         ),
       ),
     ),
@@ -133,28 +137,7 @@ int splitRatioFlexForTesting(double ratio) =>
 
 @visibleForTesting
 Rect splitDirectionFillRectForTesting(WorkbenchDropZone zone, Size size) {
-  return switch (zone) {
-    WorkbenchDropZone.right => Rect.fromLTWH(
-      size.width * 0.6,
-      0,
-      size.width * 0.4,
-      size.height,
-    ),
-    WorkbenchDropZone.left => Rect.fromLTWH(
-      0,
-      0,
-      size.width * 0.4,
-      size.height,
-    ),
-    WorkbenchDropZone.down => Rect.fromLTWH(
-      0,
-      size.height * 0.6,
-      size.width,
-      size.height * 0.4,
-    ),
-    WorkbenchDropZone.up => Rect.fromLTWH(0, 0, size.width, size.height * 0.4),
-    WorkbenchDropZone.center => Rect.zero,
-  };
+  return workbenchSplitDirectionFillRect(zone, size);
 }
 
 @visibleForTesting
@@ -207,8 +190,8 @@ bool splitDirectionPainterShouldRepaintForTesting(
   WorkbenchDropZone previousZone,
   WorkbenchDropZone nextZone,
 ) {
-  return _SplitDirectionPainter(zone: nextZone)
-      .shouldRepaint(_SplitDirectionPainter(zone: previousZone));
+  return WorkbenchSplitDirectionPainter(zone: nextZone)
+      .shouldRepaint(WorkbenchSplitDirectionPainter(zone: previousZone));
 }
 
 class const WorkspaceWorkbenchView({

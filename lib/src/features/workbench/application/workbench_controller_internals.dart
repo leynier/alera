@@ -340,6 +340,7 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
               .reconcile(
                 state.tabsFor(layout.workspaceId),
                 preferredPrimaryId: layout.activeTabId,
+                workspaceId: layout.workspaceId,
               );
       final active = layout.activeTabId;
       final select =

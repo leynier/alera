@@ -9,31 +9,28 @@ class const _GitFileActions({
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 58,
-      child: Row(
-        mainAxisAlignment: .end,
-        children: <Widget>[
-          if (entry.canUnstageFromParent)
-            AleraIconButton(
-              tooltip: 'Unstage',
-              icon: AleraIcons.gitUnstage,
-              onPressed: busy ? null : () => onUnstage(entry),
-            )
-          else if (entry.canStageFromParent)
-            AleraIconButton(
-              tooltip: 'Stage',
-              icon: AleraIcons.gitStage,
-              onPressed: busy ? null : () => onStage(entry),
-            ),
-          if (entry.canDiscardFromParent)
-            AleraIconButton(
-              tooltip: 'Discard',
-              icon: AleraIcons.gitDiscard,
-              onPressed: busy ? null : () => onDiscard(entry),
-            ),
-        ],
-      ),
+    return Row(
+      mainAxisSize: .min,
+      children: <Widget>[
+        if (entry.canUnstageFromParent)
+          AleraIconButton(
+            tooltip: 'Unstage',
+            icon: AleraIcons.gitUnstage,
+            onPressed: busy ? null : () => onUnstage(entry),
+          )
+        else if (entry.canStageFromParent)
+          AleraIconButton(
+            tooltip: 'Stage',
+            icon: AleraIcons.gitStage,
+            onPressed: busy ? null : () => onStage(entry),
+          ),
+        if (entry.canDiscardFromParent)
+          AleraIconButton(
+            tooltip: 'Discard',
+            icon: AleraIcons.gitDiscard,
+            onPressed: busy ? null : () => onDiscard(entry),
+          ),
+      ],
     );
   }
 }
@@ -49,31 +46,28 @@ class const _AreaActions({
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 58,
-      child: Row(
-        mainAxisAlignment: .end,
-        children: <Widget>[
-          if (canUnstage)
-            AleraIconButton(
-              tooltip: 'Unstage',
-              icon: AleraIcons.gitUnstage,
-              onPressed: busy ? null : onUnstage,
-            )
-          else if (canStage)
-            AleraIconButton(
-              tooltip: 'Stage',
-              icon: AleraIcons.gitStage,
-              onPressed: busy ? null : onStage,
-            ),
-          if (canDiscard)
-            AleraIconButton(
-              tooltip: 'Discard',
-              icon: AleraIcons.gitDiscard,
-              onPressed: busy ? null : onDiscard,
-            ),
-        ],
-      ),
+    return Row(
+      mainAxisSize: .min,
+      children: <Widget>[
+        if (canUnstage)
+          AleraIconButton(
+            tooltip: 'Unstage',
+            icon: AleraIcons.gitUnstage,
+            onPressed: busy ? null : onUnstage,
+          )
+        else if (canStage)
+          AleraIconButton(
+            tooltip: 'Stage',
+            icon: AleraIcons.gitStage,
+            onPressed: busy ? null : onStage,
+          ),
+        if (canDiscard)
+          AleraIconButton(
+            tooltip: 'Discard',
+            icon: AleraIcons.gitDiscard,
+            onPressed: busy ? null : onDiscard,
+          ),
+      ],
     );
   }
 }
