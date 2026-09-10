@@ -233,7 +233,10 @@ class const KeyboardCommandDispatcher({
       final keys = _experimentalNavigationKeys;
       if (keys.isEmpty) return;
       final index = keys.indexOf(panel.focusedKey ?? '');
-      _goToTabIndex((index + delta) % keys.length);
+      final base = index < 0 ? 0 : index;
+      final nextIndex = (base + delta) % keys.length;
+      final wrapped = nextIndex < 0 ? nextIndex + keys.length : nextIndex;
+      _goToTabIndex(wrapped);
       return;
     }
     final layout = state.activeLayout;
