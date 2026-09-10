@@ -235,13 +235,15 @@ mixin _WorkbenchControllerViewPrefs
       return;
     }
     _updateViewPrefs(state.viewPrefs.copyWith(rightSidebarVisible: visible));
-    if (!visible && state.isSimpleLayout && state.activeWorkspaceId != null) {
+    if (!visible &&
+        state.isExperimentalLayout &&
+        state.activeWorkspaceId != null) {
       final id = state.activeWorkspaceId!;
-      final panel = state.simplePanelFor(id);
+      final panel = state.experimentalPanelFor(id);
       if (panel.primaryTabId case final String primary) {
-        _saveSimplePanel(
+        _saveExperimentalPanel(
           id,
-          panel.select(SimpleWorkspacePanel.tabKey(primary)),
+          panel.select(ExperimentalWorkspacePanel.tabKey(primary)),
         );
         ref.read(terminalRuntimeProvider).peekSession(primary)?.requestFocus();
       }
@@ -254,10 +256,10 @@ mixin _WorkbenchControllerViewPrefs
 
   void setRightSidebarWidth(double value) {
     if (!value.isFinite) return;
-    if (state.isSimpleLayout) {
+    if (state.isExperimentalLayout) {
       _updateViewPrefs(
         state.viewPrefs.copyWith(
-          simpleRightSidebarWidth: value.clamp(
+          experimentalRightSidebarWidth: value.clamp(
             AleraTokens.sidebarMinWidth,
             double.infinity,
           ),
@@ -276,18 +278,19 @@ mixin _WorkbenchControllerViewPrefs
   }
 
   void setContextPanelTab(WorkbenchContextPanelTab tab) {
-    if (state.isSimpleLayout && state.activeWorkspaceId != null) {
+    if (state.isExperimentalLayout && state.activeWorkspaceId != null) {
       final tool = switch (tab) {
-        WorkbenchContextPanelTab.explorer => SimpleWorkspaceTool.explorer,
-        WorkbenchContextPanelTab.search => SimpleWorkspaceTool.search,
-        WorkbenchContextPanelTab.gitDiff => SimpleWorkspaceTool.sourceControl,
+        WorkbenchContextPanelTab.explorer => ExperimentalWorkspaceTool.explorer,
+        WorkbenchContextPanelTab.search => ExperimentalWorkspaceTool.search,
+        WorkbenchContextPanelTab.gitDiff =>
+          ExperimentalWorkspaceTool.sourceControl,
         WorkbenchContextPanelTab.pullRequests =>
-          SimpleWorkspaceTool.pullRequest,
+          ExperimentalWorkspaceTool.pullRequest,
       };
       final id = state.activeWorkspaceId!;
-      _saveSimplePanel(
+      _saveExperimentalPanel(
         id,
-        state.simplePanelFor(id).select(tool.key),
+        state.experimentalPanelFor(id).select(tool.key),
         reveal: true,
       );
       return;
@@ -390,7 +393,7 @@ mixin _WorkbenchControllerViewPrefs
       ),
     );
     state = state.copyWith(error: null);
-    if (state.isSimpleLayout) setContextPanelTab(.gitDiff);
+    if (state.isExperimentalLayout) setContextPanelTab(.gitDiff);
     return true;
   }
 

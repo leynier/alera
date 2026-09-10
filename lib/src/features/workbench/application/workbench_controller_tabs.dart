@@ -4,7 +4,7 @@ mixin _WorkbenchControllerTabs
     on
         _$WorkbenchController,
         _WorkbenchControllerInternals,
-        _WorkbenchControllerSimpleLayout {
+        _WorkbenchControllerExperimentalLayout {
   Future<void> closeWorkspaceTab({
     required Workspace workspace,
     required String tabId,
@@ -85,7 +85,8 @@ mixin _WorkbenchControllerTabs
       rethrow;
     } finally {
       _closingTabWorkspaceIds.remove(workspace.id);
-      if (state.isSimpleLayout && state.activeWorkspaceId == workspace.id) {
+      if (state.isExperimentalLayout &&
+          state.activeWorkspaceId == workspace.id) {
         _ensureSelectionHasTab();
       }
     }
@@ -216,8 +217,8 @@ mixin _WorkbenchControllerTabs
     required WorkbenchDropZone zone,
     int? index,
   }) async {
-    if (state.isSimpleLayout) {
-      await moveSimplePaneTab(
+    if (state.isExperimentalLayout) {
+      await moveExperimentalPaneTab(
         workspaceId: workspaceId,
         tabId: tabId,
         targetGroupId: targetGroupId,
@@ -251,8 +252,8 @@ mixin _WorkbenchControllerTabs
     required String groupId,
     required WorkbenchDropZone zone,
   }) async {
-    if (state.isSimpleLayout) {
-      return splitSimplePaneWithTerminal(
+    if (state.isExperimentalLayout) {
+      return splitExperimentalPaneWithTerminal(
         workspace: workspace,
         groupId: groupId,
         zone: zone,
@@ -288,8 +289,11 @@ mixin _WorkbenchControllerTabs
     required String workspaceId,
     required String groupId,
   }) async {
-    if (state.isSimpleLayout) {
-      mergeSimplePaneIntoSibling(workspaceId: workspaceId, groupId: groupId);
+    if (state.isExperimentalLayout) {
+      mergeExperimentalPaneIntoSibling(
+        workspaceId: workspaceId,
+        groupId: groupId,
+      );
       return;
     }
     try {
@@ -311,8 +315,8 @@ mixin _WorkbenchControllerTabs
     required List<int> nodePath,
     required double ratio,
   }) {
-    if (state.isSimpleLayout) {
-      updateSimplePaneSplitRatio(
+    if (state.isExperimentalLayout) {
+      updateExperimentalPaneSplitRatio(
         workspaceId: workspaceId,
         nodePath: nodePath,
         ratio: ratio,

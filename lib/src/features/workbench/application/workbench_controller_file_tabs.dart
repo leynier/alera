@@ -296,9 +296,9 @@ mixin _WorkbenchControllerFileTabs
     required List<WorkspaceTabRecord> tabs,
     required String groupId,
   }) {
-    if (state.isSimpleLayout) {
-      final panel = state.simplePanelFor(layout.workspaceId);
-      final active = SimpleWorkspacePanel.tabId(panel.activeKey);
+    if (state.isExperimentalLayout) {
+      final panel = state.experimentalPanelFor(layout.workspaceId);
+      final active = ExperimentalWorkspacePanel.tabId(panel.activeKey);
       return tabs
               .where((tab) => tab.id == active && tab.isFilePreviewSlot)
               .firstOrNull

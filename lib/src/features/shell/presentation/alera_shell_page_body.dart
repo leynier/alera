@@ -63,15 +63,19 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
 
     final project = shell.activeProject;
     final workspace = shell.activeWorkspace;
-    final simple =
-        shell.viewPrefs.desktopLayout == DesktopWorkspaceLayout.simple;
+    final experimental =
+        shell.viewPrefs.desktopLayout == DesktopWorkspaceLayout.experimental;
     final panel = workspace == null
-        ? const SimpleWorkspacePanel()
-        : ref.read(workbenchControllerProvider).simplePanelFor(workspace.id);
-    final toolTab = switch (SimpleWorkspaceTool.forKey(panel.activeKey)) {
-      SimpleWorkspaceTool.search => WorkbenchContextPanelTab.search,
-      SimpleWorkspaceTool.sourceControl => WorkbenchContextPanelTab.gitDiff,
-      SimpleWorkspaceTool.pullRequest => WorkbenchContextPanelTab.pullRequests,
+        ? const ExperimentalWorkspacePanel()
+        : ref
+              .read(workbenchControllerProvider)
+              .experimentalPanelFor(workspace.id);
+    final toolTab = switch (ExperimentalWorkspaceTool.forKey(panel.activeKey)) {
+      ExperimentalWorkspaceTool.search => WorkbenchContextPanelTab.search,
+      ExperimentalWorkspaceTool.sourceControl =>
+        WorkbenchContextPanelTab.gitDiff,
+      ExperimentalWorkspaceTool.pullRequest =>
+        WorkbenchContextPanelTab.pullRequests,
       _ => WorkbenchContextPanelTab.explorer,
     };
     final controller = ref.read(workbenchControllerProvider.notifier);
@@ -97,12 +101,13 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                         Expanded(
                           child: LayoutBuilder(
                             builder: (context, workbenchConstraints) {
-                              final maximumPanelWidth = simplePanelMaximumWidth(
-                                workbenchConstraints.maxWidth,
-                              );
+                              final maximumPanelWidth =
+                                  experimentalPanelMaximumWidth(
+                                    workbenchConstraints.maxWidth,
+                                  );
                               final showContextSidebar =
                                   workspace != null &&
-                                  (simple
+                                  (experimental
                                       ? maximumPanelWidth >=
                                             (shell.viewPrefs.rightSidebarVisible
                                                 ? AleraTokens.sidebarMinWidth
@@ -125,26 +130,28 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                       sourceControlScope: sourceControlScope,
                                       tabs: shell.tabs,
                                       layout: shell.layout,
-                                      singleSurface: simple,
+                                      singleSurface: experimental,
                                       singleTabId: panel.primaryTabId,
                                     ),
                                   ),
                                   if (workspace != null && showContextSidebar)
                                     WorkspaceContextSidebar(
                                       workspace: workspace,
-                                      prefs: simple
+                                      prefs: experimental
                                           ? shell.viewPrefs.copyWith(
                                               activeContextPanelTab: toolTab,
                                               rightSidebarWidth: shell
                                                   .viewPrefs
-                                                  .simpleRightSidebarWidth,
+                                                  .experimentalRightSidebarWidth,
                                             )
                                           : shell.viewPrefs,
-                                      maximumWidth: simple
+                                      maximumWidth: experimental
                                           ? maximumPanelWidth
                                           : AleraTokens.sidebarMaxWidth,
-                                      panelBuilder: simple
-                                          ? (toolFor) => _buildSimplePanelView(
+                                      panelBuilder: experimental
+                                          ? (
+                                              toolFor,
+                                            ) => _buildExperimentalPanelView(
                                               workspace: workspace,
                                               project: project,
                                               panel: panel,

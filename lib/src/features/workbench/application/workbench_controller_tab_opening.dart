@@ -8,7 +8,7 @@ mixin _WorkbenchControllerTabOpening
     on
         _$WorkbenchController,
         _WorkbenchControllerInternals,
-        _WorkbenchControllerSimpleLayout {
+        _WorkbenchControllerExperimentalLayout {
   Future<WorkspaceTabRecord> createTerminalTab(
     Workspace workspace, {
     String? targetGroupId,
@@ -31,8 +31,8 @@ mixin _WorkbenchControllerTabOpening
       );
       final tabs = <WorkspaceTabRecord>[...previousTabs, tab];
       _setTabsForWorkspace(workspace.id, tabs);
-      if (state.isSimpleLayout) {
-        addTerminalToSimplePane(
+      if (state.isExperimentalLayout) {
+        addTerminalToExperimentalPane(
           workspaceId: workspace.id,
           tab: tab,
           tabs: tabs,
@@ -47,7 +47,8 @@ mixin _WorkbenchControllerTabOpening
         );
         await _applyLayout(nextLayout.sanitize(tabs), persist: true);
       }
-      if (state.isSimpleLayout && state.activeWorkspaceId == workspace.id) {
+      if (state.isExperimentalLayout &&
+          state.activeWorkspaceId == workspace.id) {
         ref
             .read(terminalRuntimeProvider)
             .sessionFor(workspace: workspace, tab: tab)

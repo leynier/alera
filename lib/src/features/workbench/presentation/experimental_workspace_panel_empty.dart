@@ -1,6 +1,6 @@
-part of 'simple_workspace_panel_view.dart';
+part of 'experimental_workspace_panel_view.dart';
 
-class const _SimplePanelEmpty({
+class const _ExperimentalPanelEmpty({
   required final ValueChanged<String> onSelect,
   required final VoidCallback onNewTerminal,
   required final VoidCallback onHide,
@@ -59,8 +59,8 @@ class const _SimplePanelEmpty({
                           ),
                           const SizedBox(height: AleraTokens.space16),
                           for (final tool
-                              in SimpleWorkspaceTool.values) ...<Widget>[
-                            _SimplePanelEmptyChoice(
+                              in ExperimentalWorkspaceTool.values) ...<Widget>[
+                            _ExperimentalPanelEmptyChoice(
                               icon: _iconForTool(tool),
                               label: tool.label,
                               description: _descriptionForTool(tool),
@@ -68,7 +68,7 @@ class const _SimplePanelEmpty({
                             ),
                             const SizedBox(height: AleraTokens.space8),
                           ],
-                          _SimplePanelEmptyChoice(
+                          _ExperimentalPanelEmptyChoice(
                             icon: AleraIcons.terminal,
                             label: 'Terminal',
                             description: 'Start a new terminal tab.',
@@ -88,16 +88,17 @@ class const _SimplePanelEmpty({
   }
 }
 
-String _descriptionForTool(SimpleWorkspaceTool tool) {
+String _descriptionForTool(ExperimentalWorkspaceTool tool) {
   return switch (tool) {
-    SimpleWorkspaceTool.explorer => 'Browse files in this workspace.',
-    SimpleWorkspaceTool.search => 'Find text across the workspace.',
-    SimpleWorkspaceTool.sourceControl => 'Review git changes and commits.',
-    SimpleWorkspaceTool.pullRequest => 'Open and review pull requests.',
+    ExperimentalWorkspaceTool.explorer => 'Browse files in this workspace.',
+    ExperimentalWorkspaceTool.search => 'Find text across the workspace.',
+    ExperimentalWorkspaceTool.sourceControl =>
+      'Review git changes and commits.',
+    ExperimentalWorkspaceTool.pullRequest => 'Open and review pull requests.',
   };
 }
 
-class const _SimplePanelEmptyChoice({
+class const _ExperimentalPanelEmptyChoice({
   required final IconData icon,
   required final String label,
   required final String description,

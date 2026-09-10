@@ -30,16 +30,16 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      '55cf2e2259f30bef68adf056fa6fbf90b3bb02da68ee9f26fb38ad8e1509f24b',
+      'c333983d887ca2ea765cf72ca53b3667b04c1fb035b8ba771e711a2741e3053f',
     );
   });
 
-  test('global simple mode is searchable under Desktop', () {
+  test('global experimental mode is searchable under Desktop', () {
     final entry = applicationSearchEntries.singleWhere(
-      (entry) => entry.title == 'Simple Mode',
+      (entry) => entry.title == 'Experimental Mode',
     );
     expect(entry.groupId, 'desktop');
-    expect(entry.matches('simple'), isTrue);
+    expect(entry.matches('experimental'), isTrue);
     expect(entry.matches('classic'), isTrue);
     expect(entry.matches('layout'), isTrue);
   });

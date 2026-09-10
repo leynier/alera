@@ -1,6 +1,6 @@
-part of 'simple_workspace_panel_view.dart';
+part of 'experimental_workspace_panel_view.dart';
 
-class const _SimplePanelSplitLayout({
+class const _ExperimentalPanelSplitLayout({
   required final WorkbenchSplitAxis axis,
   required final double persistedRatio,
   required final Widget first,
@@ -8,17 +8,18 @@ class const _SimplePanelSplitLayout({
   required final ValueChanged<double> onPersistRatio,
 }) extends StatefulWidget {
   @override
-  State<_SimplePanelSplitLayout> createState() =>
-      _SimplePanelSplitLayoutState();
+  State<_ExperimentalPanelSplitLayout> createState() =>
+      _ExperimentalPanelSplitLayoutState();
 }
 
-class _SimplePanelSplitLayoutState extends State<_SimplePanelSplitLayout> {
+class _ExperimentalPanelSplitLayoutState
+    extends State<_ExperimentalPanelSplitLayout> {
   double? _transientRatio;
 
   double get _ratio => _transientRatio ?? widget.persistedRatio;
 
   @override
-  void didUpdateWidget(covariant _SimplePanelSplitLayout oldWidget) {
+  void didUpdateWidget(covariant _ExperimentalPanelSplitLayout oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (_transientRatio != null &&
         (widget.persistedRatio - _transientRatio!).abs() < 0.0001) {
@@ -48,7 +49,7 @@ class _SimplePanelSplitLayoutState extends State<_SimplePanelSplitLayout> {
               height: horizontal ? null : firstExtent,
               child: ClipRect(child: widget.first),
             ),
-            _SimplePanelResizeHandle(
+            _ExperimentalPanelResizeHandle(
               axis: widget.axis,
               onRatioDelta: (delta) {
                 if (contentExtent <= 0) {
@@ -83,17 +84,18 @@ class _SimplePanelSplitLayoutState extends State<_SimplePanelSplitLayout> {
   }
 }
 
-class const _SimplePanelResizeHandle({
+class const _ExperimentalPanelResizeHandle({
   required final WorkbenchSplitAxis axis,
   required final ValueChanged<double> onRatioDelta,
   final VoidCallback? onDragEnd,
 }) extends StatefulWidget {
   @override
-  State<_SimplePanelResizeHandle> createState() =>
-      _SimplePanelResizeHandleState();
+  State<_ExperimentalPanelResizeHandle> createState() =>
+      _ExperimentalPanelResizeHandleState();
 }
 
-class _SimplePanelResizeHandleState extends State<_SimplePanelResizeHandle> {
+class _ExperimentalPanelResizeHandleState
+    extends State<_ExperimentalPanelResizeHandle> {
   bool _hovered = false;
   bool _dragging = false;
 

@@ -1,6 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/features/workbench/domain/simple_panel_width.dart';
-import 'package:alera/src/features/workbench/domain/simple_workspace_panel.dart';
+import 'package:alera/src/features/workbench/domain/experimental_panel_width.dart';
+import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -21,25 +21,25 @@ WorkspaceTabRecord terminal(
 
 void main() {
   test('tool labels and tab key helpers cover every branch', () {
-    expect(SimpleWorkspaceTool.explorer.label, 'Explorer');
-    expect(SimpleWorkspaceTool.search.label, 'Search');
-    expect(SimpleWorkspaceTool.sourceControl.label, 'Source Control');
-    expect(SimpleWorkspaceTool.pullRequest.label, 'Pull Request');
-    expect(SimpleWorkspaceTool.forKey(null), isNull);
-    expect(SimpleWorkspaceTool.forKey('tool:missing'), isNull);
-    expect(SimpleWorkspacePanel.tabId(null), isNull);
-    expect(SimpleWorkspacePanel.tabId('tool:search'), isNull);
-    expect(SimpleWorkspacePanel.tabId('tab:aux'), 'aux');
+    expect(ExperimentalWorkspaceTool.explorer.label, 'Explorer');
+    expect(ExperimentalWorkspaceTool.search.label, 'Search');
+    expect(ExperimentalWorkspaceTool.sourceControl.label, 'Source Control');
+    expect(ExperimentalWorkspaceTool.pullRequest.label, 'Pull Request');
+    expect(ExperimentalWorkspaceTool.forKey(null), isNull);
+    expect(ExperimentalWorkspaceTool.forKey('tool:missing'), isNull);
+    expect(ExperimentalWorkspacePanel.tabId(null), isNull);
+    expect(ExperimentalWorkspacePanel.tabId('tool:search'), isNull);
+    expect(ExperimentalWorkspacePanel.tabId('tab:aux'), 'aux');
   });
 
-  test('old preferences keep Classic and no Simple tools', () {
+  test('old preferences keep Classic and no Experimental tools', () {
     final json = WorkbenchViewPrefs.defaults.toMap()
       ..remove('desktopLayout')
-      ..remove('simplePanels')
-      ..remove('simpleRightSidebarWidth');
+      ..remove('experimentalPanels')
+      ..remove('experimentalRightSidebarWidth');
     final prefs = WorkbenchViewPrefs.fromJson(json);
     expect(prefs.desktopLayout, DesktopWorkspaceLayout.classic);
-    expect(prefs.simplePanels, isEmpty);
+    expect(prefs.experimentalPanels, isEmpty);
   });
 
   test('adopts active normal terminal once and retains every auxiliary', () {
@@ -50,7 +50,7 @@ void main() {
       terminal('once', payload: {'initialCommandOnce': true}),
       terminal('auto', payload: {'autoCloseOnSuccess': true}),
     ];
-    final panel = const SimpleWorkspacePanel().reconcile(
+    final panel = const ExperimentalWorkspacePanel().reconcile(
       tabs,
       preferredPrimaryId: 'active',
     );
@@ -61,7 +61,7 @@ void main() {
       'active',
     );
     expect(
-      const SimpleWorkspacePanel()
+      const ExperimentalWorkspacePanel()
           .reconcile(tabs, preferredPrimaryId: 'setup')
           .primaryTabId,
       'first',
@@ -71,7 +71,7 @@ void main() {
   test(
     'stale primary promotes a normal terminal and removes stale references',
     () {
-      final panel = const SimpleWorkspacePanel(
+      final panel = const ExperimentalWorkspacePanel(
         primaryTabId: 'deleted',
         tabKeys: ['tab:stale', 'tool:search', 'tab:next'],
         activeKey: 'tab:stale',
@@ -87,12 +87,12 @@ void main() {
   test(
     'tools are singleton and closing the last tool restores an empty panel',
     () {
-      final panel = const SimpleWorkspacePanel(primaryTabId: 'primary')
-          .select(SimpleWorkspaceTool.search.key)
-          .select(SimpleWorkspaceTool.search.key);
+      final panel = const ExperimentalWorkspacePanel(primaryTabId: 'primary')
+          .select(ExperimentalWorkspaceTool.search.key)
+          .select(ExperimentalWorkspaceTool.search.key);
       expect(panel.tabKeys, ['tool:search']);
       expect(panel.activeKey, 'tool:search');
-      final closed = panel.closeTool(SimpleWorkspaceTool.search);
+      final closed = panel.closeTool(ExperimentalWorkspaceTool.search);
       expect(closed.tabKeys, isEmpty);
       expect(closed.activeKey, isNull);
       expect(closed.focusedKey, 'tab:primary');
@@ -100,16 +100,16 @@ void main() {
   );
 
   test('closing a background tool preserves focus and active selection', () {
-    final panel = const SimpleWorkspacePanel(primaryTabId: 'primary')
+    final panel = const ExperimentalWorkspacePanel(primaryTabId: 'primary')
         .select('tool:search')
         .select('tool:explorer');
-    final closed = panel.closeTool(SimpleWorkspaceTool.search);
+    final closed = panel.closeTool(ExperimentalWorkspaceTool.search);
     expect(closed.tabKeys, ['tool:explorer']);
     expect(closed.activeKey, 'tool:explorer');
     expect(closed.focusedKey, 'tool:explorer');
-    final empty = const SimpleWorkspacePanel()
+    final empty = const ExperimentalWorkspacePanel()
         .select('tool:search')
-        .closeTool(SimpleWorkspaceTool.search);
+        .closeTool(ExperimentalWorkspaceTool.search);
     expect(empty.focusedKey, isNull);
     expect(empty.activeKey, isNull);
   });
@@ -117,23 +117,23 @@ void main() {
   test(
     'workspace panels round trip independently with order and selection',
     () {
-      final first = const SimpleWorkspacePanel(primaryTabId: 'first')
+      final first = const ExperimentalWorkspacePanel(primaryTabId: 'first')
           .select('tool:search')
           .select('tool:explorer');
-      final second = const SimpleWorkspacePanel(primaryTabId: 'second')
+      final second = const ExperimentalWorkspacePanel(primaryTabId: 'second')
           .select('tool:pullRequest');
       final prefs = WorkbenchViewPrefs.defaults.copyWith(
-        desktopLayout: DesktopWorkspaceLayout.simple,
-        simplePanels: {'one': first, 'two': second},
+        desktopLayout: DesktopWorkspaceLayout.experimental,
+        experimentalPanels: {'one': first, 'two': second},
       );
       final restored = WorkbenchViewPrefs.fromJson(prefs.toMap());
-      expect(restored.simplePanels['one'], first);
-      expect(restored.simplePanels['two'], second);
+      expect(restored.experimentalPanels['one'], first);
+      expect(restored.experimentalPanels['two'], second);
       expect(
         restored
             .copyWith(desktopLayout: DesktopWorkspaceLayout.classic)
-            .simplePanels,
-        prefs.simplePanels,
+            .experimentalPanels,
+        prefs.experimentalPanels,
       );
       expect(first.select('tab:first').activeKey, first.activeKey);
     },
@@ -142,29 +142,29 @@ void main() {
   test(
     'width expands beyond Classic cap and clamps without changing request',
     () {
-      final maximum = simplePanelMaximumWidth(1600);
+      final maximum = experimentalPanelMaximumWidth(1600);
       expect(
         maximum,
         1600 - AleraTokens.workbenchPrimaryMinWidth - AleraTokens.space6,
       );
       expect(
-        simplePanelMaximumWidth(740),
+        experimentalPanelMaximumWidth(740),
         greaterThan(AleraTokens.sidebarMinWidth),
       );
-      expect(simplePanelWidth(1000, maximum), 1000);
-      expect(simplePanelWidth(1000, 250), 250);
-      expect(simplePanelWidth(1000, 0), 0);
+      expect(experimentalPanelWidth(1000, maximum), 1000);
+      expect(experimentalPanelWidth(1000, 250), 250);
+      expect(experimentalPanelWidth(1000, 0), 0);
       expect(
-        simplePanelWidth(double.nan, maximum),
+        experimentalPanelWidth(double.nan, maximum),
         AleraTokens.sidebarDefaultWidth,
       );
-      expect(simplePanelMaximumWidth(100), 0);
-      expect(simplePanelWidth(-1, maximum), AleraTokens.sidebarMinWidth);
+      expect(experimentalPanelMaximumWidth(100), 0);
+      expect(experimentalPanelWidth(-1, maximum), AleraTokens.sidebarMinWidth);
     },
   );
 
   test('flat tabKeys migrate into a single pane group', () {
-    final panel = const SimpleWorkspacePanel(
+    final panel = const ExperimentalWorkspacePanel(
       tabKeys: ['tool:search', 'tab:aux'],
       activeKey: 'tool:search',
     );
@@ -175,7 +175,7 @@ void main() {
   });
 
   test('splitting a tool pane keeps the tool unique', () {
-    final selected = const SimpleWorkspacePanel(primaryTabId: 'primary')
+    final selected = const ExperimentalWorkspacePanel(primaryTabId: 'primary')
         .select('tool:search');
     final layout = selected.ensuredLayout('workspace');
     final split = selected.applyPaneLayout(
@@ -200,7 +200,7 @@ void main() {
   });
 
   test('moving a tool between panes does not clone it', () {
-    final selected = const SimpleWorkspacePanel(primaryTabId: 'primary')
+    final selected = const ExperimentalWorkspacePanel(primaryTabId: 'primary')
         .select('tool:search');
     final layout = selected.ensuredLayout('workspace');
     final split = selected.applyPaneLayout(
@@ -234,7 +234,7 @@ void main() {
   });
 
   test('reordering tabs inside a pane keeps them in that pane', () {
-    final panel = const SimpleWorkspacePanel(primaryTabId: 'primary')
+    final panel = const ExperimentalWorkspacePanel(primaryTabId: 'primary')
         .select('tool:search')
         .select('tool:explorer');
     final groupId = panel.ensuredLayout().activeGroupId;
@@ -254,7 +254,7 @@ void main() {
   });
 
   test('selecting a new tool can target a specific pane', () {
-    final selected = const SimpleWorkspacePanel(primaryTabId: 'primary')
+    final selected = const ExperimentalWorkspacePanel(primaryTabId: 'primary')
         .select('tool:search');
     final layout = selected.ensuredLayout('workspace');
     final split = selected.applyPaneLayout(
@@ -277,7 +277,7 @@ void main() {
   });
 
   test('updating a pane split ratio keeps the same groups', () {
-    final selected = const SimpleWorkspacePanel(primaryTabId: 'primary')
+    final selected = const ExperimentalWorkspacePanel(primaryTabId: 'primary')
         .select('tool:search');
     final layout = selected.ensuredLayout('workspace');
     final split = selected.applyPaneLayout(
@@ -300,7 +300,7 @@ void main() {
   });
 
   test('ensuredLayout rebinds paneLayout to a new workspace id', () {
-    final panel = const SimpleWorkspacePanel(
+    final panel = const ExperimentalWorkspacePanel(
       tabKeys: ['tool:search'],
       activeKey: 'tool:search',
     ).select('tool:search');
@@ -310,7 +310,7 @@ void main() {
   });
 
   test('closeKey ignores unknown keys and select rebuilds an empty layout', () {
-    final empty = const SimpleWorkspacePanel();
+    final empty = const ExperimentalWorkspacePanel();
     expect(identical(empty.closeKey('tool:search'), empty), isTrue);
     final created = empty.select('tool:explorer');
     expect(created.tabKeys, ['tool:explorer']);
@@ -318,14 +318,14 @@ void main() {
   });
 
   test('reconcile of an empty tab list keeps an empty panel', () {
-    final panel = const SimpleWorkspacePanel().reconcile(const []);
+    final panel = const ExperimentalWorkspacePanel().reconcile(const []);
     expect(panel.primaryTabId, isNull);
     expect(panel.tabKeys, isEmpty);
     expect(panel.activeKey, isNull);
   });
 
   test('reconcile keeps an explicit active key still present in the panel', () {
-    final panel = const SimpleWorkspacePanel(
+    final panel = const ExperimentalWorkspacePanel(
       primaryTabId: 'primary',
       tabKeys: ['tool:search', 'tab:aux'],
       activeKey: 'tab:aux',

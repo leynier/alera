@@ -2,14 +2,14 @@ import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 
-part 'simple_workspace_panel.mapper.dart';
+part 'experimental_workspace_panel.mapper.dart';
 
 @MappableEnum()
-enum DesktopWorkspaceLayout { classic, simple }
+enum DesktopWorkspaceLayout { classic, experimental }
 
 /// Tool keys belong to desktop preferences, never to runtime tab records.
 @MappableEnum()
-enum SimpleWorkspaceTool {
+enum ExperimentalWorkspaceTool {
   explorer,
   search,
   sourceControl,
@@ -23,24 +23,24 @@ enum SimpleWorkspaceTool {
     pullRequest => 'Pull Request',
   };
 
-  static SimpleWorkspaceTool? forKey(String? key) =>
+  static ExperimentalWorkspaceTool? forKey(String? key) =>
       values.where((tool) => tool.key == key).firstOrNull;
 }
 
-bool isSimplePrimaryCandidate(WorkspaceTabRecord tab) =>
+bool isExperimentalPrimaryCandidate(WorkspaceTabRecord tab) =>
     tab.kind == WorkspaceTabKind.terminal &&
     !tab.autoCloseOnSuccess &&
     !tab.initialCommandOnce &&
     tab.title != 'Setup';
 
 @MappableClass()
-class const SimpleWorkspacePanel({
+class const ExperimentalWorkspacePanel({
   this.primaryTabId,
   this.tabKeys = const <String>[],
   this.activeKey,
   this.focusedKey,
   this.paneLayout,
-}) with SimpleWorkspacePanelMappable {
+}) with ExperimentalWorkspacePanelMappable {
   final String? primaryTabId;
   final List<String> tabKeys;
   final String? activeKey;
@@ -51,7 +51,7 @@ class const SimpleWorkspacePanel({
   static String? tabId(String? key) =>
       key != null && key.startsWith('tab:') ? key.substring(4) : null;
 
-  static const String fallbackLayoutWorkspaceId = 'simple-panel';
+  static const String fallbackLayoutWorkspaceId = 'experimental-panel';
 
   WorkbenchLayout ensuredLayout([String? workspaceId]) {
     final existing = paneLayout;
@@ -78,7 +78,7 @@ class const SimpleWorkspacePanel({
     return layout.setActiveTab(groupId: groupId, tabId: active);
   }
 
-  SimpleWorkspacePanel applyPaneLayout(WorkbenchLayout layout) {
+  ExperimentalWorkspacePanel applyPaneLayout(WorkbenchLayout layout) {
     final keys = <String>[
       for (final groupId in layout.paneGroupIds)
         ...layout.groups[groupId]?.tabIds ?? const <String>[],
@@ -89,12 +89,12 @@ class const SimpleWorkspacePanel({
     return copyWith(paneLayout: layout, tabKeys: keys, activeKey: active);
   }
 
-  SimpleWorkspacePanel reconcile(
+  ExperimentalWorkspacePanel reconcile(
     List<WorkspaceTabRecord> tabs, {
     String? preferredPrimaryId,
     String? workspaceId,
   }) {
-    final candidates = tabs.where(isSimplePrimaryCandidate).toList();
+    final candidates = tabs.where(isExperimentalPrimaryCandidate).toList();
     final primary =
         candidates.where((tab) => tab.id == primaryTabId).firstOrNull ??
         candidates.where((tab) => tab.id == preferredPrimaryId).firstOrNull ??
@@ -105,7 +105,8 @@ class const SimpleWorkspacePanel({
     };
     final keys = <String>{
       for (final key in tabKeys)
-        if (SimpleWorkspaceTool.forKey(key) != null || available.contains(key))
+        if (ExperimentalWorkspaceTool.forKey(key) != null ||
+            available.contains(key))
           key,
       ...available,
     };
@@ -136,7 +137,7 @@ class const SimpleWorkspacePanel({
     return next;
   }
 
-  SimpleWorkspacePanel select(String key, {String? groupId}) {
+  ExperimentalWorkspacePanel select(String key, {String? groupId}) {
     if (key == tabKey(primaryTabId ?? '')) {
       return copyWith(focusedKey: key);
     }
@@ -156,11 +157,11 @@ class const SimpleWorkspacePanel({
     ).copyWith(focusedKey: key);
   }
 
-  SimpleWorkspacePanel closeTool(SimpleWorkspaceTool tool) {
+  ExperimentalWorkspacePanel closeTool(ExperimentalWorkspaceTool tool) {
     return closeKey(tool.key);
   }
 
-  SimpleWorkspacePanel closeKey(String key) {
+  ExperimentalWorkspacePanel closeKey(String key) {
     final layout = paneLayout ?? ensuredLayout();
     if (layout.groupIdForTab(key) == null && !tabKeys.contains(key)) {
       return this;

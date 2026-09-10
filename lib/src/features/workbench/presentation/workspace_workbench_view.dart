@@ -81,7 +81,7 @@ typedef RenameWorkspaceTabCallback = Future<void> Function({
 });
 typedef OpenWorkspaceFileCallback = Future<void> Function(String relativePath);
 
-Widget buildSimpleWorkspaceTabChip({
+Widget buildExperimentalWorkspaceTabChip({
   required WorkspaceTabRecord tab,
   required List<WorkspaceTabRecord> tabs,
   required bool active,
@@ -99,7 +99,7 @@ Widget buildSimpleWorkspaceTabChip({
     padding: const EdgeInsets.only(right: AleraTokens.space8),
     child: _KeepPreviewTabScope(
       onKeep: onKeep,
-      child: _SimplePreviewKeepTap(
+      child: _ExperimentalPreviewKeepTap(
         tab: tab,
         onSelect: onSelect,
         onKeep: onKeep,
@@ -358,8 +358,8 @@ class const _WorkbenchTabDragScope({
   }
 }
 
-class _SimplePreviewKeepTap extends StatefulWidget {
-  const _SimplePreviewKeepTap({
+class _ExperimentalPreviewKeepTap extends StatefulWidget {
+  const _ExperimentalPreviewKeepTap({
     required this.tab,
     required this.onSelect,
     required this.onKeep,
@@ -372,10 +372,12 @@ class _SimplePreviewKeepTap extends StatefulWidget {
   final Widget Function(VoidCallback onTap) builder;
 
   @override
-  State<_SimplePreviewKeepTap> createState() => _SimplePreviewKeepTapState();
+  State<_ExperimentalPreviewKeepTap> createState() =>
+      _ExperimentalPreviewKeepTapState();
 }
 
-class _SimplePreviewKeepTapState extends State<_SimplePreviewKeepTap> {
+class _ExperimentalPreviewKeepTapState
+    extends State<_ExperimentalPreviewKeepTap> {
   String? _lastId;
   DateTime? _lastAt;
 

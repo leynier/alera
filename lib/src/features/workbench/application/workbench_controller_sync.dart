@@ -464,9 +464,12 @@ mixin _WorkbenchControllerSync
     if (layout != currentLayout) {
       _persistLayoutInBackground(layout);
     }
-    if (state.isSimpleLayout ||
-        state.viewPrefs.simplePanels.containsKey(workspaceId)) {
-      _saveSimplePanel(workspaceId, state.simplePanelFor(workspaceId));
+    if (state.isExperimentalLayout ||
+        state.viewPrefs.experimentalPanels.containsKey(workspaceId)) {
+      _saveExperimentalPanel(
+        workspaceId,
+        state.experimentalPanelFor(workspaceId),
+      );
     }
     _ensureSelectionHasTab();
   }

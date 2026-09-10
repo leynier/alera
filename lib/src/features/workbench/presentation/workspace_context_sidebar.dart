@@ -11,7 +11,7 @@ import 'package:alera/src/features/workbench/presentation/workspace_git_diff_pan
 import 'package:alera/src/features/workbench/presentation/workspace_search_panel.dart';
 import 'package:flutter/material.dart';
 
-import '../domain/simple_panel_width.dart';
+import '../domain/experimental_panel_width.dart';
 
 class const WorkspaceContextSidebar({
   super.key,
@@ -166,7 +166,7 @@ class const _ResizableRightSidebar({
 class _ResizableRightSidebarState extends State<_ResizableRightSidebar> {
   double? _transientWidth;
 
-  double get _width => simplePanelWidth(
+  double get _width => experimentalPanelWidth(
     _transientWidth ?? widget.persistedWidth,
     widget.maximumWidth,
   );
@@ -180,7 +180,10 @@ class _ResizableRightSidebarState extends State<_ResizableRightSidebar> {
           currentWidth: _width,
           onResize: (width) {
             setState(() {
-              _transientWidth = simplePanelWidth(width, widget.maximumWidth);
+              _transientWidth = experimentalPanelWidth(
+                width,
+                widget.maximumWidth,
+              );
             });
           },
           onResizeEnd: (width) {

@@ -1,7 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 
-import 'simple_workspace_panel.dart';
+import 'experimental_workspace_panel.dart';
 
 part 'workbench_view_prefs.mapper.dart';
 
@@ -52,8 +52,8 @@ class WorkbenchViewPrefsDecodeHook extends MappingHook {
 @MappableClass(hook: WorkbenchViewPrefsDecodeHook())
 class const WorkbenchViewPrefs({
   this.desktopLayout = DesktopWorkspaceLayout.classic,
-  this.simplePanels = const <String, SimpleWorkspacePanel>{},
-  this.simpleRightSidebarWidth = 280,
+  this.experimentalPanels = const <String, ExperimentalWorkspacePanel>{},
+  this.experimentalRightSidebarWidth = 280,
   this.sectionSort = WorkbenchSortBy.name,
   this.collapsedSectionIds = const <String>{},
   this.othersSectionCollapsed = false,
@@ -81,8 +81,8 @@ class const WorkbenchViewPrefs({
   this.showActiveWorkspacesOnly = false,
 }) with WorkbenchViewPrefsMappable {
   final DesktopWorkspaceLayout desktopLayout;
-  final Map<String, SimpleWorkspacePanel> simplePanels;
-  final double simpleRightSidebarWidth;
+  final Map<String, ExperimentalWorkspacePanel> experimentalPanels;
+  final double experimentalRightSidebarWidth;
   final WorkbenchGroupBy groupBy;
   final WorkbenchSortBy sectionSort;
   final Set<String> collapsedSectionIds;

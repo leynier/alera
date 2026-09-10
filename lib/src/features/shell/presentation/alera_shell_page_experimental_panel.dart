@@ -1,10 +1,10 @@
 part of 'alera_shell_page.dart';
 
-extension _SimplePanelTabs on _AleraShellPageBodyState {
-  Widget _buildSimplePanelView({
+extension _ExperimentalPanelTabs on _AleraShellPageBodyState {
+  Widget _buildExperimentalPanelView({
     required Workspace workspace,
     required Project? project,
-    required SimpleWorkspacePanel panel,
+    required ExperimentalWorkspacePanel panel,
     required WorkspaceSourceControlScope? sourceControlScope,
     required List<WorkspaceTabRecord> tabs,
     required bool bootstrapped,
@@ -13,11 +13,11 @@ extension _SimplePanelTabs on _AleraShellPageBodyState {
     required Widget Function(WorkbenchContextPanelTab tab) toolFor,
   }) {
     final controller = ref.read(workbenchControllerProvider.notifier);
-    return SimpleWorkspacePanelView(
+    return ExperimentalWorkspacePanelView(
       workspaceId: workspace.id,
       panel: panel,
       tabs: tabs,
-      tabBuilder: (tab, active, groupId) => _buildSimplePanelTab(
+      tabBuilder: (tab, active, groupId) => _buildExperimentalPanelTab(
         workspace: workspace,
         panel: panel,
         tabs: tabs,
@@ -25,14 +25,18 @@ extension _SimplePanelTabs on _AleraShellPageBodyState {
         active: active,
         groupId: groupId,
       ),
-      onSelect: (key) => controller.selectSimplePanelKey(workspace.id, key),
-      onSelectInGroup: (groupId, key) =>
-          controller.selectSimplePanelKey(workspace.id, key, groupId: groupId),
+      onSelect: (key) =>
+          controller.selectExperimentalPanelKey(workspace.id, key),
+      onSelectInGroup: (groupId, key) => controller.selectExperimentalPanelKey(
+        workspace.id,
+        key,
+        groupId: groupId,
+      ),
       onClose: (key) async {
-        final tool = SimpleWorkspaceTool.forKey(key);
+        final tool = ExperimentalWorkspaceTool.forKey(key);
         if (tool != null) {
-          controller.closeSimpleTool(workspace.id, tool);
-        } else if (SimpleWorkspacePanel.tabId(key) case final String id) {
+          controller.closeExperimentalTool(workspace.id, tool);
+        } else if (ExperimentalWorkspacePanel.tabId(key) case final String id) {
           if (await _confirmCloseDirtyTabs(tabs, <String>[id])) {
             await controller.closeWorkspaceTab(workspace: workspace, tabId: id);
           }
@@ -82,21 +86,23 @@ extension _SimplePanelTabs on _AleraShellPageBodyState {
       },
       onHide: controller.toggleRightSidebarVisible,
       surfaceBuilder: (key) {
-        final tool = SimpleWorkspaceTool.forKey(key);
+        final tool = ExperimentalWorkspaceTool.forKey(key);
         if (tool != null) {
           return Focus(
             canRequestFocus: false,
             onFocusChange: (focused) {
               if (focused) {
-                controller.selectSimplePanelKey(workspace.id, key);
+                controller.selectExperimentalPanelKey(workspace.id, key);
               }
             },
             child: toolFor(switch (tool) {
-              SimpleWorkspaceTool.explorer => WorkbenchContextPanelTab.explorer,
-              SimpleWorkspaceTool.search => WorkbenchContextPanelTab.search,
-              SimpleWorkspaceTool.sourceControl =>
+              ExperimentalWorkspaceTool.explorer =>
+                WorkbenchContextPanelTab.explorer,
+              ExperimentalWorkspaceTool.search =>
+                WorkbenchContextPanelTab.search,
+              ExperimentalWorkspaceTool.sourceControl =>
                 WorkbenchContextPanelTab.gitDiff,
-              SimpleWorkspaceTool.pullRequest =>
+              ExperimentalWorkspaceTool.pullRequest =>
                 WorkbenchContextPanelTab.pullRequests,
             }),
           );
@@ -110,16 +116,16 @@ extension _SimplePanelTabs on _AleraShellPageBodyState {
           tabs: tabs,
           layout: layout,
           singleSurface: true,
-          singleTabId: SimpleWorkspacePanel.tabId(key),
+          singleTabId: ExperimentalWorkspacePanel.tabId(key),
         );
       },
       content: const SizedBox.shrink(),
     );
   }
 
-  Widget _buildSimplePanelTab({
+  Widget _buildExperimentalPanelTab({
     required Workspace workspace,
-    required SimpleWorkspacePanel panel,
+    required ExperimentalWorkspacePanel panel,
     required List<WorkspaceTabRecord> tabs,
     required WorkspaceTabRecord tab,
     required bool active,
@@ -131,7 +137,7 @@ extension _SimplePanelTabs on _AleraShellPageBodyState {
     };
     final panelTabs = <WorkspaceTabRecord>[
       for (final key in panel.tabKeys)
-        if (tabsById[SimpleWorkspacePanel.tabId(key)]
+        if (tabsById[ExperimentalWorkspacePanel.tabId(key)]
             case final WorkspaceTabRecord record)
           record,
     ];
@@ -142,16 +148,16 @@ extension _SimplePanelTabs on _AleraShellPageBodyState {
             (statuses) => statuses[tab.terminalSessionId],
           ),
         );
-        return buildSimpleWorkspaceTabChip(
+        return buildExperimentalWorkspaceTabChip(
           tab: tab,
           tabs: panelTabs,
           active: active,
           runtime: ref.read(terminalRuntimeProvider),
           status: status,
           acknowledgements: _completionAcknowledgements,
-          onSelect: () => controller.selectSimplePanelKey(
+          onSelect: () => controller.selectExperimentalPanelKey(
             workspace.id,
-            SimpleWorkspacePanel.tabKey(tab.id),
+            ExperimentalWorkspacePanel.tabKey(tab.id),
           ),
           onCloseTabs: (ids) async {
             if (await _confirmCloseDirtyTabs(tabs, ids)) {

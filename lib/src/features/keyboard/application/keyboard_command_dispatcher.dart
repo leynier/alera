@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:alera/src/features/workbench/domain/simple_workspace_panel.dart';
+import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
@@ -187,14 +187,14 @@ class const KeyboardCommandDispatcher({
   void _closeActiveTab() {
     final state = ref.read(workbenchControllerProvider);
     final workspace = state.activeWorkspace;
-    if (state.isSimpleLayout && workspace != null) {
-      final tool = SimpleWorkspaceTool.forKey(
-        state.simplePanelFor(workspace.id).focusedKey,
+    if (state.isExperimentalLayout && workspace != null) {
+      final tool = ExperimentalWorkspaceTool.forKey(
+        state.experimentalPanelFor(workspace.id).focusedKey,
       );
       if (tool != null) {
         ref
             .read(workbenchControllerProvider.notifier)
-            .closeSimpleTool(workspace.id, tool);
+            .closeExperimentalTool(workspace.id, tool);
         return;
       }
     }
@@ -228,9 +228,9 @@ class const KeyboardCommandDispatcher({
 
   void _cycleTab(int delta) {
     final state = ref.read(workbenchControllerProvider);
-    if (state.isSimpleLayout && state.activeWorkspaceId != null) {
-      final panel = state.simplePanelFor(state.activeWorkspaceId!);
-      final keys = _simpleNavigationKeys;
+    if (state.isExperimentalLayout && state.activeWorkspaceId != null) {
+      final panel = state.experimentalPanelFor(state.activeWorkspaceId!);
+      final keys = _experimentalNavigationKeys;
       if (keys.isEmpty) return;
       final index = keys.indexOf(panel.focusedKey ?? '');
       _goToTabIndex((index + delta) % keys.length);
@@ -262,12 +262,12 @@ class const KeyboardCommandDispatcher({
 
   void _goToTabIndex(int index) {
     final state = ref.read(workbenchControllerProvider);
-    if (state.isSimpleLayout && state.activeWorkspaceId != null) {
-      final keys = _simpleNavigationKeys;
+    if (state.isExperimentalLayout && state.activeWorkspaceId != null) {
+      final keys = _experimentalNavigationKeys;
       if (index >= 0 && index < keys.length) {
         ref
             .read(workbenchControllerProvider.notifier)
-            .selectSimplePanelKey(state.activeWorkspaceId!, keys[index]);
+            .selectExperimentalPanelKey(state.activeWorkspaceId!, keys[index]);
       }
       return;
     }
@@ -290,8 +290,8 @@ class const KeyboardCommandDispatcher({
   }
 
   void _goToLastTab() {
-    if (ref.read(workbenchControllerProvider).isSimpleLayout) {
-      _goToTabIndex(_simpleNavigationKeys.length - 1);
+    if (ref.read(workbenchControllerProvider).isExperimentalLayout) {
+      _goToTabIndex(_experimentalNavigationKeys.length - 1);
       return;
     }
     final group = ref
@@ -312,9 +312,9 @@ class const KeyboardCommandDispatcher({
     }
     final controller = ref.read(workbenchControllerProvider.notifier);
     final runtime = ref.read(terminalRuntimeProvider);
-    if (state.isSimpleLayout) {
+    if (state.isExperimentalLayout) {
       final groupId = state
-          .simplePanelFor(workspace.id)
+          .experimentalPanelFor(workspace.id)
           .ensuredLayout(workspace.id)
           .activeGroupId;
       unawaited(() async {
@@ -347,9 +347,9 @@ class const KeyboardCommandDispatcher({
     if (workspace == null) {
       return;
     }
-    if (state.isSimpleLayout) {
+    if (state.isExperimentalLayout) {
       final layout = state
-          .simplePanelFor(workspace.id)
+          .experimentalPanelFor(workspace.id)
           .ensuredLayout(workspace.id);
       if (layout.groups.length < 2) {
         return;
@@ -378,14 +378,14 @@ class const KeyboardCommandDispatcher({
     );
   }
 
-  List<String> get _simpleNavigationKeys {
+  List<String> get _experimentalNavigationKeys {
     final state = ref.read(workbenchControllerProvider);
     final id = state.activeWorkspaceId;
     if (id == null) return const <String>[];
-    final panel = state.simplePanelFor(id);
+    final panel = state.experimentalPanelFor(id);
     return <String>[
       if (panel.primaryTabId case final String primary)
-        SimpleWorkspacePanel.tabKey(primary),
+        ExperimentalWorkspacePanel.tabKey(primary),
       ...panel.tabKeys,
     ];
   }

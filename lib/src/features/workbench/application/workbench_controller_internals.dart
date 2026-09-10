@@ -244,43 +244,14 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     if (_closingTabWorkspaceIds.contains(workspace.id)) {
       return;
     }
-    if (state.isSimpleLayout &&
-        !state.tabsFor(workspace.id).any(isSimplePrimaryCandidate)) {
-      unawaited(_ensureSimplePrimary(workspace));
-    }
+    _maybeEnsureExperimentalPrimary(workspace);
     if (state.tabsFor(workspace.id).isNotEmpty &&
         state.layoutFor(workspace.id) == null) {
       unawaited(_loadLayoutForWorkspace(workspace.id));
     }
   }
 
-  final Map<String, Future<void>> _simplePrimaryLoads = {};
-
-  Future<void> _ensureSimplePrimary(Workspace workspace) {
-    // Selection and runtime notifications can request the same primary while
-    // its record is still being persisted. Every caller awaits the same work.
-    return _simplePrimaryLoads.putIfAbsent(workspace.id, () async {
-      try {
-        final tabs = await _workspaceTabService.listTabs(workspace.id);
-        if (_disposed ||
-            !state.isSimpleLayout ||
-            state.activeWorkspaceId != workspace.id ||
-            _closingTabWorkspaceIds.contains(workspace.id)) {
-          return;
-        }
-        if (tabs.any(isSimplePrimaryCandidate)) return;
-        await _workspaceTabService.createTerminalTab(workspace.id);
-        final current = await _workspaceTabService.listTabs(workspace.id);
-        if (_disposed) return;
-        _setTabsForWorkspace(workspace.id, current);
-        _saveSimplePanel(workspace.id, state.simplePanelFor(workspace.id));
-      } catch (error) {
-        if (!_disposed) state = state.copyWith(error: error.toString());
-      } finally {
-        _simplePrimaryLoads.remove(workspace.id);
-      }
-    });
-  }
+  void _maybeEnsureExperimentalPrimary(Workspace workspace) {}
 
   Future<void> _loadLayoutForWorkspace(String workspaceId) async {
     if (!_loadingLayoutWorkspaceIds.add(workspaceId)) {
@@ -333,10 +304,10 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     WorkbenchLayout layout, {
     required bool persist,
   }) async {
-    if (state.isSimpleLayout) {
+    if (state.isExperimentalLayout) {
       final panel =
-          (state.viewPrefs.simplePanels[layout.workspaceId] ??
-                  const SimpleWorkspacePanel())
+          (state.viewPrefs.experimentalPanels[layout.workspaceId] ??
+                  const ExperimentalWorkspacePanel())
               .reconcile(
                 state.tabsFor(layout.workspaceId),
                 preferredPrimaryId: layout.activeTabId,
@@ -347,12 +318,14 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
           persist &&
           active != null &&
           !_closingTabWorkspaceIds.contains(layout.workspaceId);
-      _saveSimplePanel(
+      _saveExperimentalPanel(
         layout.workspaceId,
-        select ? panel.select(SimpleWorkspacePanel.tabKey(active)) : panel,
+        select
+            ? panel.select(ExperimentalWorkspacePanel.tabKey(active))
+            : panel,
         reveal: select && active != panel.primaryTabId,
       );
-      // Only reconcile real records into the saved Classic tree. Simple focus
+      // Only reconcile real records into the saved Classic tree. Experimental focus
       // must not move tabs or replace the user's split arrangement.
       layout = (state.layoutFor(layout.workspaceId) ?? layout).sanitize(
         state.tabsFor(layout.workspaceId),
@@ -423,11 +396,11 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     required String tabId,
     String? groupId,
   }) {
-    if (state.isSimpleLayout) {
-      final panel = state.simplePanelFor(workspaceId);
-      _saveSimplePanel(
+    if (state.isExperimentalLayout) {
+      final panel = state.experimentalPanelFor(workspaceId);
+      _saveExperimentalPanel(
         workspaceId,
-        panel.select(SimpleWorkspacePanel.tabKey(tabId)),
+        panel.select(ExperimentalWorkspacePanel.tabKey(tabId)),
         reveal: tabId != panel.primaryTabId,
       );
       return;
@@ -466,22 +439,23 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     }
   }
 
-  void _focusSimpleTerminal(String workspaceId, String? key);
+  void _focusExperimentalTerminal(String workspaceId, String? key);
 
-  void _saveSimplePanel(
+  void _saveExperimentalPanel(
     String workspaceId,
-    SimpleWorkspacePanel panel, {
+    ExperimentalWorkspacePanel panel, {
     bool reveal = false,
   }) {
-    final previousFocus = state.viewPrefs.simplePanels[workspaceId]?.focusedKey;
-    if (state.viewPrefs.simplePanels[workspaceId] == panel &&
+    final previousFocus =
+        state.viewPrefs.experimentalPanels[workspaceId]?.focusedKey;
+    if (state.viewPrefs.experimentalPanels[workspaceId] == panel &&
         (!reveal || state.viewPrefs.rightSidebarVisible)) {
       return;
     }
     state = state.copyWith(
       viewPrefs: state.viewPrefs.copyWith(
-        simplePanels: <String, SimpleWorkspacePanel>{
-          ...state.viewPrefs.simplePanels,
+        experimentalPanels: <String, ExperimentalWorkspacePanel>{
+          ...state.viewPrefs.experimentalPanels,
           workspaceId: panel,
         },
         rightSidebarVisible: reveal
@@ -491,7 +465,7 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     );
     unawaited(_persistViewPrefs());
     if (previousFocus != panel.focusedKey) {
-      _focusSimpleTerminal(workspaceId, panel.focusedKey);
+      _focusExperimentalTerminal(workspaceId, panel.focusedKey);
     }
   }
 }

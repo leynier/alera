@@ -1,50 +1,98 @@
 part of 'workbench_controller.dart';
 
-mixin _WorkbenchControllerSimpleLayout
+mixin _WorkbenchControllerExperimentalLayout
     on _$WorkbenchController, _WorkbenchControllerInternals {
+  final Map<String, Future<void>> _experimentalPrimaryLoads = {};
+
+  @override
+  void _maybeEnsureExperimentalPrimary(Workspace workspace) {
+    if (state.isExperimentalLayout &&
+        !state.tabsFor(workspace.id).any(isExperimentalPrimaryCandidate)) {
+      unawaited(_ensureExperimentalPrimary(workspace));
+    }
+  }
+
+  Future<void> _ensureExperimentalPrimary(Workspace workspace) {
+    return _experimentalPrimaryLoads.putIfAbsent(workspace.id, () async {
+      try {
+        final tabs = await _workspaceTabService.listTabs(workspace.id);
+        if (_disposed ||
+            !state.isExperimentalLayout ||
+            state.activeWorkspaceId != workspace.id ||
+            _closingTabWorkspaceIds.contains(workspace.id)) {
+          return;
+        }
+        if (tabs.any(isExperimentalPrimaryCandidate)) {
+          return;
+        }
+        await _workspaceTabService.createTerminalTab(workspace.id);
+        final current = await _workspaceTabService.listTabs(workspace.id);
+        if (_disposed) {
+          return;
+        }
+        _setTabsForWorkspace(workspace.id, current);
+        _saveExperimentalPanel(
+          workspace.id,
+          state.experimentalPanelFor(workspace.id),
+        );
+      } catch (error) {
+        if (!_disposed) {
+          state = state.copyWith(error: error.toString());
+        }
+      } finally {
+        _experimentalPrimaryLoads.remove(workspace.id);
+      }
+    });
+  }
+
   void setDesktopWorkspaceLayout(DesktopWorkspaceLayout layout) {
     if (state.viewPrefs.desktopLayout == layout) return;
-    final panels = <String, SimpleWorkspacePanel>{
-      ...state.viewPrefs.simplePanels,
+    final panels = <String, ExperimentalWorkspacePanel>{
+      ...state.viewPrefs.experimentalPanels,
     };
-    if (layout == DesktopWorkspaceLayout.simple) {
+    if (layout == DesktopWorkspaceLayout.experimental) {
       for (final workspaceId in state.tabsByWorkspace.keys) {
-        panels[workspaceId] = state.simplePanelFor(workspaceId);
+        panels[workspaceId] = state.experimentalPanelFor(workspaceId);
       }
     }
     state = state.copyWith(
       viewPrefs: state.viewPrefs.copyWith(
         desktopLayout: layout,
-        simplePanels: panels,
+        experimentalPanels: panels,
       ),
     );
     unawaited(_persistViewPrefs());
     _ensureSelectionHasTab();
   }
 
-  void selectSimplePanelKey(String workspaceId, String key, {String? groupId}) {
-    final panel = state.simplePanelFor(workspaceId);
+  void selectExperimentalPanelKey(
+    String workspaceId,
+    String key, {
+    String? groupId,
+  }) {
+    final panel = state.experimentalPanelFor(workspaceId);
     if (!panel.tabKeys.contains(key) &&
-        key != SimpleWorkspacePanel.tabKey(panel.primaryTabId ?? '') &&
-        SimpleWorkspaceTool.forKey(key) == null) {
+        key != ExperimentalWorkspacePanel.tabKey(panel.primaryTabId ?? '') &&
+        ExperimentalWorkspaceTool.forKey(key) == null) {
       return;
     }
-    _saveSimplePanel(
+    _saveExperimentalPanel(
       workspaceId,
       panel.select(key, groupId: groupId),
-      reveal: key != SimpleWorkspacePanel.tabKey(panel.primaryTabId ?? ''),
+      reveal:
+          key != ExperimentalWorkspacePanel.tabKey(panel.primaryTabId ?? ''),
     );
     if (panel.focusedKey == key) {
-      _focusSimpleTerminal(workspaceId, key);
+      _focusExperimentalTerminal(workspaceId, key);
     }
   }
 
   @override
-  void _focusSimpleTerminal(String workspaceId, String? key) {
-    if (!state.isSimpleLayout || state.activeWorkspaceId != workspaceId) {
+  void _focusExperimentalTerminal(String workspaceId, String? key) {
+    if (!state.isExperimentalLayout || state.activeWorkspaceId != workspaceId) {
       return;
     }
-    final id = SimpleWorkspacePanel.tabId(key);
+    final id = ExperimentalWorkspacePanel.tabId(key);
     final tab = state
         .tabsFor(workspaceId)
         .where((tab) => tab.id == id)
@@ -58,21 +106,24 @@ mixin _WorkbenchControllerSimpleLayout
     }
   }
 
-  void closeSimpleTool(String workspaceId, SimpleWorkspaceTool tool) {
-    _saveSimplePanel(
+  void closeExperimentalTool(
+    String workspaceId,
+    ExperimentalWorkspaceTool tool,
+  ) {
+    _saveExperimentalPanel(
       workspaceId,
-      state.simplePanelFor(workspaceId).closeTool(tool),
+      state.experimentalPanelFor(workspaceId).closeTool(tool),
     );
   }
 
-  String _simplePaneKey(String tabIdOrKey) {
+  String _experimentalPaneKey(String tabIdOrKey) {
     if (tabIdOrKey.startsWith('tab:') || tabIdOrKey.startsWith('tool:')) {
       return tabIdOrKey;
     }
-    return SimpleWorkspacePanel.tabKey(tabIdOrKey);
+    return ExperimentalWorkspacePanel.tabKey(tabIdOrKey);
   }
 
-  void addTerminalToSimplePane({
+  void addTerminalToExperimentalPane({
     required String workspaceId,
     required WorkspaceTabRecord tab,
     required List<WorkspaceTabRecord> tabs,
@@ -80,8 +131,8 @@ mixin _WorkbenchControllerSimpleLayout
     String? targetGroupId,
   }) {
     final panel =
-        (state.viewPrefs.simplePanels[workspaceId] ??
-                const SimpleWorkspacePanel())
+        (state.viewPrefs.experimentalPanels[workspaceId] ??
+                const ExperimentalWorkspacePanel())
             .reconcile(
               previousTabs,
               preferredPrimaryId: state.layoutFor(workspaceId)?.activeTabId,
@@ -92,8 +143,8 @@ mixin _WorkbenchControllerSimpleLayout
         targetGroupId != null && layout.groups.containsKey(targetGroupId)
         ? targetGroupId
         : layout.activeGroupId;
-    final key = SimpleWorkspacePanel.tabKey(tab.id);
-    _saveSimplePanel(
+    final key = ExperimentalWorkspacePanel.tabKey(tab.id);
+    _saveExperimentalPanel(
       workspaceId,
       panel
           .applyPaneLayout(layout.addTabToGroup(groupId: groupId, tabId: key))
@@ -111,15 +162,15 @@ mixin _WorkbenchControllerSimpleLayout
     unawaited(_repository.upsertWorkbenchLayout(classic));
   }
 
-  Future<void> moveSimplePaneTab({
+  Future<void> moveExperimentalPaneTab({
     required String workspaceId,
     required String tabId,
     required String targetGroupId,
     required WorkbenchDropZone zone,
     int? index,
   }) async {
-    final panel = state.simplePanelFor(workspaceId);
-    final key = _simplePaneKey(tabId);
+    final panel = state.experimentalPanelFor(workspaceId);
+    final key = _experimentalPaneKey(tabId);
     final next = panel.applyPaneLayout(
       panel
           .ensuredLayout(workspaceId)
@@ -131,10 +182,14 @@ mixin _WorkbenchControllerSimpleLayout
             index: index,
           ),
     );
-    _saveSimplePanel(workspaceId, next.copyWith(focusedKey: key), reveal: true);
+    _saveExperimentalPanel(
+      workspaceId,
+      next.copyWith(focusedKey: key),
+      reveal: true,
+    );
   }
 
-  Future<WorkspaceTabRecord> splitSimplePaneWithTerminal({
+  Future<WorkspaceTabRecord> splitExperimentalPaneWithTerminal({
     required Workspace workspace,
     required String groupId,
     required WorkbenchDropZone zone,
@@ -144,14 +199,14 @@ mixin _WorkbenchControllerSimpleLayout
     final tabs = <WorkspaceTabRecord>[...previousTabs, tab];
     _setTabsForWorkspace(workspace.id, tabs);
     final panel =
-        (state.viewPrefs.simplePanels[workspace.id] ??
-                const SimpleWorkspacePanel())
+        (state.viewPrefs.experimentalPanels[workspace.id] ??
+                const ExperimentalWorkspacePanel())
             .reconcile(
               previousTabs,
               preferredPrimaryId: state.layoutFor(workspace.id)?.activeTabId,
               workspaceId: workspace.id,
             );
-    final key = SimpleWorkspacePanel.tabKey(tab.id);
+    final key = ExperimentalWorkspacePanel.tabKey(tab.id);
     final next = panel.applyPaneLayout(
       panel
           .ensuredLayout(workspace.id)
@@ -165,7 +220,7 @@ mixin _WorkbenchControllerSimpleLayout
             ),
           ),
     );
-    _saveSimplePanel(
+    _saveExperimentalPanel(
       workspace.id,
       next.copyWith(focusedKey: key),
       reveal: true,
@@ -182,28 +237,28 @@ mixin _WorkbenchControllerSimpleLayout
     return tab;
   }
 
-  void mergeSimplePaneIntoSibling({
+  void mergeExperimentalPaneIntoSibling({
     required String workspaceId,
     required String groupId,
   }) {
-    final panel = state.simplePanelFor(workspaceId);
+    final panel = state.experimentalPanelFor(workspaceId);
     final layout = panel.ensuredLayout(workspaceId);
     if (layout.groups.length < 2) {
       return;
     }
-    _saveSimplePanel(
+    _saveExperimentalPanel(
       workspaceId,
       panel.applyPaneLayout(layout.mergeGroupIntoSibling(groupId)),
     );
   }
 
-  void updateSimplePaneSplitRatio({
+  void updateExperimentalPaneSplitRatio({
     required String workspaceId,
     required List<int> nodePath,
     required double ratio,
   }) {
-    final panel = state.simplePanelFor(workspaceId);
-    _saveSimplePanel(
+    final panel = state.experimentalPanelFor(workspaceId);
+    _saveExperimentalPanel(
       workspaceId,
       panel.applyPaneLayout(
         panel.ensuredLayout(workspaceId).updateSplitRatio(nodePath, ratio),

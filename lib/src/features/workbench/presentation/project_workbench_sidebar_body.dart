@@ -107,13 +107,13 @@ class const _SidebarBody({
       );
     }
     if (row is WorkbenchWorkspaceRow) {
-      final primaryId = state.isSimpleLayout
-          ? state.simplePanelFor(row.workspace.id).primaryTabId
+      final primaryId = state.isExperimentalLayout
+          ? state.experimentalPanelFor(row.workspace.id).primaryTabId
           : null;
       final primaryRun = row.agentRuns
           .where((run) => run.tab.id == primaryId)
           .firstOrNull;
-      final secondaryRuns = state.isSimpleLayout
+      final secondaryRuns = state.isExperimentalLayout
           ? row.agentRuns.where((run) => run.tab.id != primaryId).toList()
           : row.agentRuns;
       final leftPadding = _indentPadding(row.indent);
@@ -124,18 +124,18 @@ class const _SidebarBody({
           project: row.project,
           workspace: row.workspace,
           agentRuns: secondaryRuns,
-          agentRunGroups: state.isSimpleLayout
+          agentRunGroups: state.isExperimentalLayout
               ? groupWorkspaceAgentRuns(secondaryRuns)
               : row.agentRunGroups,
-          status: state.isSimpleLayout
+          status: state.isExperimentalLayout
               ? primaryRun?.status
               : row.aggregateStatus,
           primaryStatus: primaryRun?.status,
           hasTerminalTabs: row.hasTerminalTabs,
           isActive: row.workspace.id == state.activeWorkspaceId,
-          activeTabId: state.isSimpleLayout
-              ? SimpleWorkspacePanel.tabId(
-                  state.simplePanelFor(row.workspace.id).focusedKey,
+          activeTabId: state.isExperimentalLayout
+              ? ExperimentalWorkspacePanel.tabId(
+                  state.experimentalPanelFor(row.workspace.id).focusedKey,
                 )
               : state.activeTabIdByWorkspace[row.workspace.id],
           showProject: row.showProjectChip,

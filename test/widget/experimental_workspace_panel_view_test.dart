@@ -1,6 +1,6 @@
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
-import 'package:alera/src/features/workbench/domain/simple_workspace_panel.dart';
-import 'package:alera/src/features/workbench/presentation/simple_workspace_panel_view.dart';
+import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
+import 'package:alera/src/features/workbench/presentation/experimental_workspace_panel_view.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,8 +14,8 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: SimpleWorkspacePanelView(
-              panel: const SimpleWorkspacePanel(),
+            body: ExperimentalWorkspacePanelView(
+              panel: const ExperimentalWorkspacePanel(),
               tabs: const [],
               onSelect: selected.add,
               onClose: (_) {},
@@ -50,8 +50,10 @@ void main() {
     (tester) async {
       final selected = <String>[];
       final closed = <String>[];
-      final panel = SimpleWorkspacePanel(
-        tabKeys: [for (final tool in SimpleWorkspaceTool.values) tool.key],
+      final panel = ExperimentalWorkspacePanel(
+        tabKeys: [
+          for (final tool in ExperimentalWorkspaceTool.values) tool.key,
+        ],
         activeKey: 'tool:search',
       );
       await tester.pumpWidget(
@@ -62,7 +64,7 @@ void main() {
               child: SizedBox(
                 width: 240,
                 height: 500,
-                child: SimpleWorkspacePanelView(
+                child: ExperimentalWorkspacePanelView(
                   panel: panel,
                   tabs: const [],
                   onSelect: selected.add,
@@ -96,8 +98,8 @@ void main() {
             child: SizedBox(
               width: 800,
               height: 500,
-              child: SimpleWorkspacePanelView(
-                panel: const SimpleWorkspacePanel(
+              child: ExperimentalWorkspacePanelView(
+                panel: const ExperimentalWorkspacePanel(
                   tabKeys: ['tool:search'],
                   activeKey: 'tool:search',
                 ),
@@ -137,8 +139,8 @@ void main() {
             child: SizedBox(
               width: 800,
               height: 500,
-              child: SimpleWorkspacePanelView(
-                panel: const SimpleWorkspacePanel(
+              child: ExperimentalWorkspacePanelView(
+                panel: const ExperimentalWorkspacePanel(
                   tabKeys: ['tool:search', 'tool:explorer'],
                   activeKey: 'tool:search',
                 ),
@@ -176,10 +178,11 @@ void main() {
             child: SizedBox(
               width: 160,
               height: 500,
-              child: SimpleWorkspacePanelView(
-                panel: SimpleWorkspacePanel(
+              child: ExperimentalWorkspacePanelView(
+                panel: ExperimentalWorkspacePanel(
                   tabKeys: [
-                    for (final tool in SimpleWorkspaceTool.values) tool.key,
+                    for (final tool in ExperimentalWorkspaceTool.values)
+                      tool.key,
                   ],
                   activeKey: 'tool:search',
                 ),
@@ -215,8 +218,8 @@ void main() {
             child: SizedBox(
               width: 280,
               height: 500,
-              child: SimpleWorkspacePanelView(
-                panel: const SimpleWorkspacePanel(
+              child: ExperimentalWorkspacePanelView(
+                panel: const ExperimentalWorkspacePanel(
                   tabKeys: ['tool:search', 'tool:explorer'],
                   activeKey: 'tool:search',
                 ),
@@ -258,8 +261,8 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: SimpleWorkspacePanelView(
-            panel: const SimpleWorkspacePanel(
+          body: ExperimentalWorkspacePanelView(
+            panel: const ExperimentalWorkspacePanel(
               tabKeys: ['tool:search'],
               activeKey: 'tool:search',
             ),

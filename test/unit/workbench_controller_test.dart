@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:alera/src/features/workbench/domain/simple_workspace_panel.dart';
+import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
 
 import 'package:alera/src/features/agent_status/application/agent_status_providers.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_receiver.dart';
@@ -45,7 +45,7 @@ import 'fake_git_backend.dart';
 import 'fake_project_config.dart';
 
 part 'workbench_controller_lifecycle_test_cases.dart';
-part 'workbench_controller_simple_layout_test_cases.dart';
+part 'workbench_controller_experimental_layout_test_cases.dart';
 part 'workbench_controller_tab_focus_test_cases.dart';
 part 'workbench_controller_sleep_test_cases.dart';
 part 'workbench_controller_layout_persistence_test_cases.dart';
@@ -81,7 +81,7 @@ void main() {
     });
 
     _registerWorkbenchControllerLifecycleTests();
-    _registerSimpleLayoutTests();
+    _registerExperimentalLayoutTests();
     _registerWorkbenchControllerTabFocusTests();
     _registerWorkbenchControllerSleepTests();
     _registerWorkbenchControllerLayoutPersistenceTests();

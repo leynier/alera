@@ -1,8 +1,8 @@
-part of 'simple_workspace_panel_view.dart';
+part of 'experimental_workspace_panel_view.dart';
 
-class const _SimplePanelPane({
+class const _ExperimentalPanelPane({
   required final String workspaceId,
-  required final SimpleWorkspacePanel panel,
+  required final ExperimentalWorkspacePanel panel,
   required final List<WorkspaceTabRecord> tabs,
   required final WorkbenchLayout layout,
   required final String groupId,
@@ -28,10 +28,10 @@ class const _SimplePanelPane({
   onMoveTab,
 }) extends StatefulWidget {
   @override
-  State<_SimplePanelPane> createState() => _SimplePanelPaneState();
+  State<_ExperimentalPanelPane> createState() => _ExperimentalPanelPaneState();
 }
 
-class _SimplePanelPaneState extends State<_SimplePanelPane> {
+class _ExperimentalPanelPaneState extends State<_ExperimentalPanelPane> {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _chipsKey = GlobalKey();
   bool _hasOverflow = false;
@@ -82,7 +82,7 @@ class _SimplePanelPaneState extends State<_SimplePanelPane> {
     widget.onSelect(key);
   }
 
-  int? _resolvedDropIndex(SimplePaneTabDragData data, int gapIndex) {
+  int? _resolvedDropIndex(ExperimentalPaneTabDragData data, int gapIndex) {
     return resolveWorkbenchTabStripDropIndex(
       tabIds: _keys,
       sourceGroupId: data.sourceGroupId,
@@ -92,7 +92,7 @@ class _SimplePanelPaneState extends State<_SimplePanelPane> {
     );
   }
 
-  void _handleGapHover(SimplePaneTabDragData data, int gapIndex) {
+  void _handleGapHover(ExperimentalPaneTabDragData data, int gapIndex) {
     final next = _resolvedDropIndex(data, gapIndex) == null ? null : gapIndex;
     if (next != _insertionGapIndex) {
       setState(() => _insertionGapIndex = next);
@@ -105,7 +105,7 @@ class _SimplePanelPaneState extends State<_SimplePanelPane> {
     }
   }
 
-  void _handleGapDrop(SimplePaneTabDragData data, int gapIndex) {
+  void _handleGapDrop(ExperimentalPaneTabDragData data, int gapIndex) {
     setState(() => _insertionGapIndex = null);
     final index = _resolvedDropIndex(data, gapIndex);
     if (index == null) {
@@ -121,17 +121,17 @@ class _SimplePanelPaneState extends State<_SimplePanelPane> {
 
   Widget _tabChip(String key, int index) {
     final tab = widget.tabs
-        .where((tab) => tab.id == SimpleWorkspacePanel.tabId(key))
+        .where((tab) => tab.id == ExperimentalWorkspacePanel.tabId(key))
         .firstOrNull;
     final Widget chip;
     if (tab != null && widget.tabBuilder != null) {
       chip = widget.tabBuilder!(tab, _activeKey == key, widget.groupId);
     } else {
-      final tool = SimpleWorkspaceTool.forKey(key);
+      final tool = ExperimentalWorkspaceTool.forKey(key);
       final label = tool?.label ?? tab?.title ?? 'Terminal';
       chip = Padding(
         padding: const EdgeInsets.only(right: AleraTokens.space8),
-        child: _SimplePanelToolChip(
+        child: _ExperimentalPanelToolChip(
           label: label,
           icon: _iconForTool(tool),
           active: _activeKey == key,
@@ -152,8 +152,8 @@ class _SimplePanelPaneState extends State<_SimplePanelPane> {
     }
     var child = chip;
     if (widget.onMoveTab != null) {
-      child = Draggable<SimplePaneTabDragData>(
-        data: SimplePaneTabDragData(
+      child = Draggable<ExperimentalPaneTabDragData>(
+        data: ExperimentalPaneTabDragData(
           workspaceId: widget.workspaceId,
           sourceGroupId: widget.groupId,
           key: key,
@@ -165,7 +165,7 @@ class _SimplePanelPaneState extends State<_SimplePanelPane> {
     if (widget.onMoveTab == null) {
       return child;
     }
-    return _SimpleStripChipDropTarget(
+    return _ExperimentalStripChipDropTarget(
       chipIndex: index,
       workspaceId: widget.workspaceId,
       showLeadingIndicator: index == 0 && _insertionGapIndex == 0,
@@ -181,9 +181,9 @@ class _SimplePanelPaneState extends State<_SimplePanelPane> {
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) => _syncOverflow());
     final openKeys = widget.panel.tabKeys.toSet();
-    final addButton = _SimplePanelAddButton(
-      availableTools: <SimpleWorkspaceTool>[
-        for (final tool in SimpleWorkspaceTool.values)
+    final addButton = _ExperimentalPanelAddButton(
+      availableTools: <ExperimentalWorkspaceTool>[
+        for (final tool in ExperimentalWorkspaceTool.values)
           if (!openKeys.contains(tool.key)) tool,
       ],
       onSelect: _selectKey,
@@ -202,7 +202,7 @@ class _SimplePanelPaneState extends State<_SimplePanelPane> {
               (activeKey == widget.panel.activeKey
                   ? widget.content
                   : const SizedBox.shrink()));
-    return _SimplePaneDropTarget(
+    return _ExperimentalPaneDropTarget(
       workspaceId: widget.workspaceId,
       groupId: widget.groupId,
       tabCount: _keys.length,
@@ -218,7 +218,7 @@ class _SimplePanelPaneState extends State<_SimplePanelPane> {
         children: <Widget>[
           SizedBox(
             height: AleraTokens.sidebarHeaderHeight,
-            child: _SimpleStripAppendDropTarget(
+            child: _ExperimentalStripAppendDropTarget(
               workspaceId: widget.workspaceId,
               tabCount: _keys.length,
               enabled: widget.onMoveTab != null,
@@ -252,7 +252,7 @@ class _SimplePanelPaneState extends State<_SimplePanelPane> {
                       child: addButton,
                     ),
                   if (widget.onSplitGroup != null)
-                    _SimplePaneMenuButton(
+                    _ExperimentalPaneMenuButton(
                       canCloseSplit:
                           widget.layout.paneGroupIds.length > 1 &&
                           widget.onMergeGroup != null,
@@ -278,7 +278,7 @@ class _SimplePanelPaneState extends State<_SimplePanelPane> {
   }
 }
 
-class const _SimplePaneDropTarget({
+class const _ExperimentalPaneDropTarget({
   required final String workspaceId,
   required final String groupId,
   required final int tabCount,
@@ -298,7 +298,7 @@ class const _SimplePaneDropTarget({
     if (onMoveTab == null) {
       return child;
     }
-    return DragTarget<SimplePaneTabDragData>(
+    return DragTarget<ExperimentalPaneTabDragData>(
       onWillAcceptWithDetails: (details) {
         final data = details.data;
         if (data.workspaceId != workspaceId) {
@@ -353,7 +353,7 @@ class const _SimplePaneDropTarget({
 
   WorkbenchDropZone? _zoneFor(
     BuildContext context,
-    SimplePaneTabDragData data,
+    ExperimentalPaneTabDragData data,
     Offset globalOffset,
   ) {
     final renderObject = context.findRenderObject();

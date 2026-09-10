@@ -6,28 +6,29 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/design_system/surfaces/hover_container.dart';
-import 'package:alera/src/features/workbench/domain/simple_workspace_panel.dart';
+import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_drop_zones.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_split_glyphs.dart';
 import 'package:flutter/material.dart';
 
-part 'simple_workspace_panel_pane.dart';
-part 'simple_workspace_panel_split.dart';
-part 'simple_workspace_panel_menus.dart';
-part 'simple_workspace_panel_empty.dart';
+part 'experimental_workspace_panel_pane.dart';
+part 'experimental_workspace_panel_split.dart';
+part 'experimental_workspace_panel_menus.dart';
+part 'experimental_workspace_panel_empty.dart';
 
-class const SimplePaneTabDragData({
+class const ExperimentalPaneTabDragData({
   required final String workspaceId,
   required final String sourceGroupId,
   required final String key,
 });
 
-class const SimpleWorkspacePanelView({
+class const ExperimentalWorkspacePanelView({
   super.key,
-  final String workspaceId = SimpleWorkspacePanel.fallbackLayoutWorkspaceId,
-  required final SimpleWorkspacePanel panel,
+  final String workspaceId =
+      ExperimentalWorkspacePanel.fallbackLayoutWorkspaceId,
+  required final ExperimentalWorkspacePanel panel,
   required final List<WorkspaceTabRecord> tabs,
   required final ValueChanged<String> onSelect,
   required final ValueChanged<String> onClose,
@@ -54,14 +55,14 @@ class const SimpleWorkspacePanelView({
   Widget build(BuildContext context) {
     final layout = panel.ensuredLayout(workspaceId);
     if (panel.tabKeys.isEmpty) {
-      return _SimplePanelEmpty(
+      return _ExperimentalPanelEmpty(
         onSelect: onSelect,
         onNewTerminal: onNewTerminal,
         onHide: onHide,
         content: content,
       );
     }
-    return _SimplePanelLayoutNode(
+    return _ExperimentalPanelLayoutNode(
       workspaceId: workspaceId,
       panel: panel,
       tabs: tabs,
@@ -85,9 +86,9 @@ class const SimpleWorkspacePanelView({
   }
 }
 
-class const _SimplePanelLayoutNode({
+class const _ExperimentalPanelLayoutNode({
   required final String workspaceId,
-  required final SimpleWorkspacePanel panel,
+  required final ExperimentalWorkspacePanel panel,
   required final List<WorkspaceTabRecord> tabs,
   required final WorkbenchLayout layout,
   required final WorkbenchLayoutNode node,
@@ -117,7 +118,7 @@ class const _SimplePanelLayoutNode({
   Widget build(BuildContext context) {
     final groupId = node.groupId;
     if (groupId != null) {
-      return _SimplePanelPane(
+      return _ExperimentalPanelPane(
         workspaceId: workspaceId,
         panel: panel,
         tabs: tabs,
@@ -138,10 +139,10 @@ class const _SimplePanelLayoutNode({
         onMoveTab: onMoveTab,
       );
     }
-    return _SimplePanelSplitLayout(
+    return _ExperimentalPanelSplitLayout(
       axis: node.axis!,
       persistedRatio: node.ratio!,
-      first: _SimplePanelLayoutNode(
+      first: _ExperimentalPanelLayoutNode(
         workspaceId: workspaceId,
         panel: panel,
         tabs: tabs,
@@ -162,7 +163,7 @@ class const _SimplePanelLayoutNode({
         onMoveTab: onMoveTab,
         onUpdateSplitRatio: onUpdateSplitRatio,
       ),
-      second: _SimplePanelLayoutNode(
+      second: _ExperimentalPanelLayoutNode(
         workspaceId: workspaceId,
         panel: panel,
         tabs: tabs,
@@ -188,12 +189,12 @@ class const _SimplePanelLayoutNode({
   }
 }
 
-IconData _iconForTool(SimpleWorkspaceTool? tool) {
+IconData _iconForTool(ExperimentalWorkspaceTool? tool) {
   return switch (tool) {
-    SimpleWorkspaceTool.explorer => AleraIcons.folder,
-    SimpleWorkspaceTool.search => AleraIcons.search,
-    SimpleWorkspaceTool.sourceControl => AleraIcons.gitBranch,
-    SimpleWorkspaceTool.pullRequest => AleraIcons.gitPullRequest,
+    ExperimentalWorkspaceTool.explorer => AleraIcons.folder,
+    ExperimentalWorkspaceTool.search => AleraIcons.search,
+    ExperimentalWorkspaceTool.sourceControl => AleraIcons.gitBranch,
+    ExperimentalWorkspaceTool.pullRequest => AleraIcons.gitPullRequest,
     null => AleraIcons.terminal,
   };
 }

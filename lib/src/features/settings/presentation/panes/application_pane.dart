@@ -11,7 +11,7 @@ import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart
 import 'package:alera/src/features/updater/presentation/update_settings_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:alera/src/features/workbench/domain/simple_workspace_panel.dart';
+import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
 
 /// App-level preferences: storage, safety confirmations, runtime lifecycle,
 /// updates, and the support row.
@@ -74,22 +74,22 @@ class const ApplicationSettingsPane({
             children: <Widget>[
               Consumer(
                 builder: (context, ref, _) {
-                  final simple = ref.watch(
+                  final experimental = ref.watch(
                     workbenchControllerProvider.select(
                       (state) =>
                           state.viewPrefs.desktopLayout ==
-                          DesktopWorkspaceLayout.simple,
+                          DesktopWorkspaceLayout.experimental,
                     ),
                   );
                   return SettingsSwitchRow(
-                    title: 'Simple Mode',
+                    title: 'Experimental Mode',
                     description: 'Use one primary terminal beside a tabbed panel. Applies to all workspaces.',
-                    value: simple,
+                    value: experimental,
                     onChanged: (value) => ref
                         .read(workbenchControllerProvider.notifier)
                         .setDesktopWorkspaceLayout(
                           value
-                              ? DesktopWorkspaceLayout.simple
+                              ? DesktopWorkspaceLayout.experimental
                               : DesktopWorkspaceLayout.classic,
                         ),
                   );

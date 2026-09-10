@@ -1,6 +1,6 @@
-part of 'simple_workspace_panel_view.dart';
+part of 'experimental_workspace_panel_view.dart';
 
-enum _SimpleToolMenuAction {
+enum _ExperimentalToolMenuAction {
   splitUp,
   splitDown,
   splitLeft,
@@ -10,7 +10,7 @@ enum _SimpleToolMenuAction {
   closeRight,
 }
 
-enum _SimplePaneMenuAction {
+enum _ExperimentalPaneMenuAction {
   splitRight,
   splitDown,
   splitLeft,
@@ -18,7 +18,7 @@ enum _SimplePaneMenuAction {
   closeSplit,
 }
 
-class const _SimplePaneMenuButton({
+class const _ExperimentalPaneMenuButton({
   required final bool canCloseSplit,
   required final ValueChanged<WorkbenchDropZone> onSplitGroup,
   required final VoidCallback onMergeGroup,
@@ -35,13 +35,13 @@ class const _SimplePaneMenuButton({
       button.size.bottomRight(.zero),
       ancestor: overlay,
     );
-    final selected = await showMenu<_SimplePaneMenuAction>(
+    final selected = await showMenu<_ExperimentalPaneMenuAction>(
       context: context,
       position: .fromRect(
         .fromPoints(topLeft, bottomRight),
         Offset.zero & overlay.size,
       ),
-      items: <PopupMenuEntry<_SimplePaneMenuAction>>[
+      items: <PopupMenuEntry<_ExperimentalPaneMenuAction>>[
         const AleraDropdownEntry(
           value: .splitRight,
           label: 'Split Right',
@@ -71,15 +71,15 @@ class const _SimplePaneMenuButton({
       return;
     }
     switch (selected) {
-      case _SimplePaneMenuAction.splitRight:
+      case _ExperimentalPaneMenuAction.splitRight:
         onSplitGroup(.right);
-      case _SimplePaneMenuAction.splitDown:
+      case _ExperimentalPaneMenuAction.splitDown:
         onSplitGroup(.down);
-      case _SimplePaneMenuAction.splitLeft:
+      case _ExperimentalPaneMenuAction.splitLeft:
         onSplitGroup(.left);
-      case _SimplePaneMenuAction.splitUp:
+      case _ExperimentalPaneMenuAction.splitUp:
         onSplitGroup(.up);
-      case _SimplePaneMenuAction.closeSplit:
+      case _ExperimentalPaneMenuAction.closeSplit:
         onMergeGroup();
     }
   }
@@ -95,7 +95,7 @@ class const _SimplePaneMenuButton({
   }
 }
 
-class const _SimplePanelToolChip({
+class const _ExperimentalPanelToolChip({
   required final String label,
   required final IconData icon,
   required final bool active,
@@ -117,14 +117,14 @@ class const _SimplePanelToolChip({
     final closeRight = tabIndex < 0
         ? const <String>[]
         : groupKeys.skip(tabIndex + 1).toList();
-    final selected = await showMenu<_SimpleToolMenuAction>(
+    final selected = await showMenu<_ExperimentalToolMenuAction>(
       context: context,
       position: .fromRect(
         .fromPoints(globalPosition, globalPosition),
         Offset.zero & overlay.size,
       ),
-      items: <PopupMenuEntry<_SimpleToolMenuAction>>[
-        if (onSplit != null) ...<PopupMenuEntry<_SimpleToolMenuAction>>[
+      items: <PopupMenuEntry<_ExperimentalToolMenuAction>>[
+        if (onSplit != null) ...<PopupMenuEntry<_ExperimentalToolMenuAction>>[
           const AleraDropdownEntry(
             value: .splitUp,
             label: 'Split Up',
@@ -182,19 +182,19 @@ class const _SimplePanelToolChip({
       return;
     }
     switch (selected) {
-      case _SimpleToolMenuAction.splitUp:
+      case _ExperimentalToolMenuAction.splitUp:
         onSplit?.call(.up);
-      case _SimpleToolMenuAction.splitDown:
+      case _ExperimentalToolMenuAction.splitDown:
         onSplit?.call(.down);
-      case _SimpleToolMenuAction.splitLeft:
+      case _ExperimentalToolMenuAction.splitLeft:
         onSplit?.call(.left);
-      case _SimpleToolMenuAction.splitRight:
+      case _ExperimentalToolMenuAction.splitRight:
         onSplit?.call(.right);
-      case _SimpleToolMenuAction.close:
+      case _ExperimentalToolMenuAction.close:
         onClose();
-      case _SimpleToolMenuAction.closeOthers:
+      case _ExperimentalToolMenuAction.closeOthers:
         onCloseKeys(closeOthers);
-      case _SimpleToolMenuAction.closeRight:
+      case _ExperimentalToolMenuAction.closeRight:
         onCloseKeys(closeRight);
     }
   }
@@ -265,8 +265,8 @@ class const _SimplePanelToolChip({
   }
 }
 
-class const _SimplePanelAddButton({
-  required final List<SimpleWorkspaceTool> availableTools,
+class const _ExperimentalPanelAddButton({
+  required final List<ExperimentalWorkspaceTool> availableTools,
   required final ValueChanged<String> onSelect,
   required final VoidCallback onNewTerminal,
 }) extends StatelessWidget {
@@ -318,21 +318,21 @@ class const _SimplePanelAddButton({
   }
 }
 
-class const _SimpleStripChipDropTarget({
+class const _ExperimentalStripChipDropTarget({
   required final int chipIndex,
   required final String workspaceId,
   required final bool showLeadingIndicator,
   required final bool showTrailingIndicator,
-  required final void Function(SimplePaneTabDragData data, int gapIndex)
+  required final void Function(ExperimentalPaneTabDragData data, int gapIndex)
   onHoverGap,
   required final VoidCallback onLeave,
-  required final void Function(SimplePaneTabDragData data, int gapIndex)
+  required final void Function(ExperimentalPaneTabDragData data, int gapIndex)
   onDropGap,
   required final Widget child,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return DragTarget<SimplePaneTabDragData>(
+    return DragTarget<ExperimentalPaneTabDragData>(
       onWillAcceptWithDetails: (details) =>
           details.data.workspaceId == workspaceId,
       onMove: (details) =>
@@ -351,7 +351,7 @@ class const _SimpleStripChipDropTarget({
                 top: 0,
                 bottom: 0,
                 width: AleraTokens.space2,
-                child: _SimpleStripInsertionIndicator(),
+                child: _ExperimentalStripInsertionIndicator(),
               ),
             if (showTrailingIndicator)
               const Positioned(
@@ -359,7 +359,7 @@ class const _SimpleStripChipDropTarget({
                 top: 0,
                 bottom: 0,
                 width: AleraTokens.space2,
-                child: _SimpleStripInsertionIndicator(),
+                child: _ExperimentalStripInsertionIndicator(),
               ),
           ],
         );
@@ -369,9 +369,9 @@ class const _SimpleStripChipDropTarget({
 
   void _reportGap(
     BuildContext context,
-    SimplePaneTabDragData data,
+    ExperimentalPaneTabDragData data,
     Offset globalOffset,
-    void Function(SimplePaneTabDragData data, int gapIndex) callback,
+    void Function(ExperimentalPaneTabDragData data, int gapIndex) callback,
   ) {
     final renderObject = context.findRenderObject();
     if (renderObject is! RenderBox || !renderObject.hasSize) {
@@ -389,14 +389,14 @@ class const _SimpleStripChipDropTarget({
   }
 }
 
-class const _SimpleStripAppendDropTarget({
+class const _ExperimentalStripAppendDropTarget({
   required final String workspaceId,
   required final int tabCount,
   required final bool enabled,
-  required final void Function(SimplePaneTabDragData data, int gapIndex)
+  required final void Function(ExperimentalPaneTabDragData data, int gapIndex)
   onHoverGap,
   required final VoidCallback onLeave,
-  required final void Function(SimplePaneTabDragData data, int gapIndex)
+  required final void Function(ExperimentalPaneTabDragData data, int gapIndex)
   onDropGap,
   required final Widget child,
 }) extends StatelessWidget {
@@ -405,7 +405,7 @@ class const _SimpleStripAppendDropTarget({
     if (!enabled) {
       return child;
     }
-    return DragTarget<SimplePaneTabDragData>(
+    return DragTarget<ExperimentalPaneTabDragData>(
       onWillAcceptWithDetails: (details) =>
           details.data.workspaceId == workspaceId,
       onMove: (details) => onHoverGap(details.data, tabCount),
@@ -416,7 +416,7 @@ class const _SimpleStripAppendDropTarget({
   }
 }
 
-class const _SimpleStripInsertionIndicator() extends StatelessWidget {
+class const _ExperimentalStripInsertionIndicator() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const DecoratedBox(

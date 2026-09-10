@@ -6,7 +6,7 @@ import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 
-import '../domain/simple_workspace_panel.dart';
+import '../domain/experimental_workspace_panel.dart';
 
 part 'workbench_state.mapper.dart';
 
@@ -42,11 +42,12 @@ class const WorkbenchState({
   final String searchQuery;
   final bool collapsed;
 
-  bool get isSimpleLayout =>
-      viewPrefs.desktopLayout == DesktopWorkspaceLayout.simple;
+  bool get isExperimentalLayout =>
+      viewPrefs.desktopLayout == DesktopWorkspaceLayout.experimental;
 
-  SimpleWorkspacePanel simplePanelFor(String workspaceId) =>
-      (viewPrefs.simplePanels[workspaceId] ?? const SimpleWorkspacePanel())
+  ExperimentalWorkspacePanel experimentalPanelFor(String workspaceId) =>
+      (viewPrefs.experimentalPanels[workspaceId] ??
+              const ExperimentalWorkspacePanel())
           .reconcile(
             tabsFor(workspaceId),
             preferredPrimaryId: layoutFor(workspaceId)?.activeTabId,
@@ -98,8 +99,10 @@ class const WorkbenchState({
     if (workspace == null) {
       return null;
     }
-    final tabId = isSimpleLayout
-        ? SimpleWorkspacePanel.tabId(simplePanelFor(workspace.id).focusedKey)
+    final tabId = isExperimentalLayout
+        ? ExperimentalWorkspacePanel.tabId(
+            experimentalPanelFor(workspace.id).focusedKey,
+          )
         : layoutByWorkspace[workspace.id]?.activeTabId ??
               activeTabIdByWorkspace[workspace.id];
     if (tabId == null) {
