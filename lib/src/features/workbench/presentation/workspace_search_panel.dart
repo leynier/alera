@@ -95,75 +95,81 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
             crossAxisAlignment: .stretch,
             children: <Widget>[
               _SearchToolbar(
-          state: state,
-          allResultsCollapsed: allResultsCollapsed,
-          onRefresh: () =>
-              unawaited(controller.searchNow(widget.workspace.path)),
-          onClear: controller.clearSearchResults,
-          onToggleIncludeIgnored: () =>
-              controller.toggleIncludeIgnored(widget.workspace.path),
-          onToggleViewAsTree: controller.toggleViewAsTree,
-          onToggleAllResultsCollapsed: controller.toggleAllResultsCollapsed,
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AleraTokens.space4,
-            AleraTokens.space8,
-            AleraTokens.space8,
-            AleraTokens.space8,
-          ),
-          child: Column(
-            crossAxisAlignment: .stretch,
-            children: <Widget>[
-              _WorkspaceSearchInputs(
-                queryController: _queryController,
-                replacementController: _replacementController,
-                includeController: _includeController,
-                excludeController: _excludeController,
                 state: state,
-                replaceVisible: _replaceVisible,
-                detailsVisible: _detailsVisible,
-                canReplaceAll: _canReplaceAll(state),
-                onToggleReplace: _toggleReplacement,
-                onToggleDetails: _toggleDetails,
-                onQueryChanged: (value) =>
-                    controller.setQuery(widget.workspace.path, value),
-                onQuerySubmitted: (_) =>
+                allResultsCollapsed: allResultsCollapsed,
+                onRefresh: () =>
                     unawaited(controller.searchNow(widget.workspace.path)),
-                onReplacementChanged: (value) =>
-                    controller.setReplacement(widget.workspace.path, value),
-                onIncludeChanged: (value) =>
-                    controller.setIncludePattern(widget.workspace.path, value),
-                onExcludeChanged: (value) =>
-                    controller.setExcludePattern(widget.workspace.path, value),
-                onToggleCaseSensitive: () =>
-                    controller.toggleCaseSensitive(widget.workspace.path),
-                onToggleWholeWord: () =>
-                    controller.toggleWholeWord(widget.workspace.path),
-                onToggleUseRegex: () =>
-                    controller.toggleUseRegex(widget.workspace.path),
-                onTogglePreserveCase: () =>
-                    controller.togglePreserveCase(widget.workspace.path),
-                onReplaceAll: () => unawaited(_replace(const <String>[])),
+                onClear: controller.clearSearchResults,
+                onToggleIncludeIgnored: () =>
+                    controller.toggleIncludeIgnored(widget.workspace.path),
+                onToggleViewAsTree: controller.toggleViewAsTree,
+                onToggleAllResultsCollapsed:
+                    controller.toggleAllResultsCollapsed,
               ),
-            ],
-          ),
-        ),
-        _SearchSummary(state: state),
-        if (state.error case final error?)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AleraTokens.space8,
-              0,
-              AleraTokens.space8,
-              AleraTokens.space8,
-            ),
-            child: Text(
-              error,
-              style: Theme.of(context).textTheme.bodySmall
-                  ?.copyWith(color: AleraTokens.error),
-            ),
-          ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AleraTokens.space4,
+                  AleraTokens.space8,
+                  AleraTokens.space8,
+                  AleraTokens.space8,
+                ),
+                child: Column(
+                  crossAxisAlignment: .stretch,
+                  children: <Widget>[
+                    _WorkspaceSearchInputs(
+                      queryController: _queryController,
+                      replacementController: _replacementController,
+                      includeController: _includeController,
+                      excludeController: _excludeController,
+                      state: state,
+                      replaceVisible: _replaceVisible,
+                      detailsVisible: _detailsVisible,
+                      canReplaceAll: _canReplaceAll(state),
+                      onToggleReplace: _toggleReplacement,
+                      onToggleDetails: _toggleDetails,
+                      onQueryChanged: (value) =>
+                          controller.setQuery(widget.workspace.path, value),
+                      onQuerySubmitted: (_) => unawaited(
+                        controller.searchNow(widget.workspace.path),
+                      ),
+                      onReplacementChanged: (value) => controller
+                          .setReplacement(widget.workspace.path, value),
+                      onIncludeChanged: (value) => controller.setIncludePattern(
+                        widget.workspace.path,
+                        value,
+                      ),
+                      onExcludeChanged: (value) => controller.setExcludePattern(
+                        widget.workspace.path,
+                        value,
+                      ),
+                      onToggleCaseSensitive: () =>
+                          controller.toggleCaseSensitive(widget.workspace.path),
+                      onToggleWholeWord: () =>
+                          controller.toggleWholeWord(widget.workspace.path),
+                      onToggleUseRegex: () =>
+                          controller.toggleUseRegex(widget.workspace.path),
+                      onTogglePreserveCase: () =>
+                          controller.togglePreserveCase(widget.workspace.path),
+                      onReplaceAll: () => unawaited(_replace(const <String>[])),
+                    ),
+                  ],
+                ),
+              ),
+              _SearchSummary(state: state),
+              if (state.error case final error?)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AleraTokens.space8,
+                    0,
+                    AleraTokens.space8,
+                    AleraTokens.space8,
+                  ),
+                  child: Text(
+                    error,
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: AleraTokens.error),
+                  ),
+                ),
               const Divider(height: 1, color: AleraTokens.borderSubtle),
             ],
           ),
