@@ -317,6 +317,13 @@ void main() {
     expect(created.activeKey, 'tool:explorer');
   });
 
+  test('reconcile of an empty tab list keeps an empty panel', () {
+    final panel = const SimpleWorkspacePanel().reconcile(const []);
+    expect(panel.primaryTabId, isNull);
+    expect(panel.tabKeys, isEmpty);
+    expect(panel.activeKey, isNull);
+  });
+
   test('reconcile keeps an explicit active key still present in the panel', () {
     final panel = const SimpleWorkspacePanel(
       primaryTabId: 'primary',

@@ -117,8 +117,6 @@ class const SimpleWorkspacePanel({
     final primaryKey = primary == null ? null : tabKey(primary.id);
     final active = keys.contains(layout.activeTabId)
         ? layout.activeTabId
-        : keys.contains(activeKey)
-        ? activeKey
         : keys.firstOrNull;
     final focused = focusedKey == primaryKey || keys.contains(focusedKey)
         ? focusedKey
@@ -152,17 +150,7 @@ class const SimpleWorkspacePanel({
     final resolvedGroupId =
         groupId != null && layout.groups.containsKey(groupId)
         ? groupId
-        : (layout.groups.containsKey(layout.activeGroupId)
-              ? layout.activeGroupId
-              : layout.paneGroupIds.firstOrNull);
-    if (resolvedGroupId == null) {
-      return applyPaneLayout(
-        WorkbenchLayout.single(
-          workspaceId: layout.workspaceId,
-          tabIds: <String>[key],
-        ),
-      ).copyWith(focusedKey: key);
-    }
+        : layout.activeGroupId;
     return applyPaneLayout(
       layout.addTabToGroup(groupId: resolvedGroupId, tabId: key),
     ).copyWith(focusedKey: key);
