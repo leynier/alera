@@ -5,7 +5,7 @@ extension _SimplePanelTabs on _AleraShellPageBodyState {
     required Workspace workspace,
     required Project? project,
     required SimpleWorkspacePanel panel,
-    required WorkspaceSourceControlScope sourceControlScope,
+    required WorkspaceSourceControlScope? sourceControlScope,
     required List<WorkspaceTabRecord> tabs,
     required bool bootstrapped,
     required bool hasProjects,

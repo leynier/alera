@@ -24,11 +24,11 @@ extension on _WorkspaceGitDiffPanelState {
                 allCollapsed: _allVisibleNodesCollapsed(state.asData?.value),
                 filterVisible: _isFilterVisible,
                 sourceControlRootLabel: widget.sourceControlScope.relativeRoot,
-                onMessageChanged: () => setState(() {}),
+                onMessageChanged: _markDirty,
                 onGenerateCommitMessage: () =>
                     unawaited(_generateCommitMessage()),
                 onCancelGenerateCommitMessage: _cancelGenerateCommitMessage,
-                onFilterChanged: () => setState(() {}),
+                onFilterChanged: _markDirty,
                 onToggleFilter: _toggleFilterVisibility,
                 onRefresh: () => unawaited(_refresh()),
                 onClearSourceControlRoot: widget.onClearSourceControlRoot,

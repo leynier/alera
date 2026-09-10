@@ -168,6 +168,8 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
     );
   }
 
+  void _markDirty() => setState(() {});
+
   Future<void> _commentOnChange(GitChangeEntry entry) {
     return composeWorkspaceAgentDiffComment(
       context,
