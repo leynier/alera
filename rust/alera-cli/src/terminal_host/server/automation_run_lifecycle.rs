@@ -394,6 +394,10 @@ pub(super) fn is_non_retryable_reason(reason: &str) -> bool {
 mod expire_tests;
 
 #[cfg(test)]
+#[path = "automation_circuit_tests.rs"]
+mod circuit_tests;
+
+#[cfg(test)]
 mod tests {
     use super::is_non_retryable_reason;
 
