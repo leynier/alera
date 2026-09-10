@@ -26,8 +26,16 @@ abstract interface class ForgeProvider {
   /// Whether this provider can create reviews (some are read-only).
   bool get supportsReviewCreation;
 
-  /// Merge strategies this provider can execute.
-  List<ReviewMergeMethod> get supportedMergeMethods;
+  /// Merge strategies this provider can execute for [baseBranch].
+  ///
+  /// When [baseBranch] is null, providers return the repository-wide set.
+  /// Callers must not assume a hardcoded order across forges; GitHub filters
+  /// by repository settings and branch rulesets.
+  Future<List<ReviewMergeMethod>> allowedMergeMethods({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    String? baseBranch,
+  });
 
   /// Whether this provider can close an open review without merging it.
   bool get supportsReviewClosure;

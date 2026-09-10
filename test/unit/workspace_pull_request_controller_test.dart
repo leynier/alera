@@ -23,12 +23,15 @@ HostedReview _review(
   int number, {
   HostedReviewState state = HostedReviewState.open,
   DateTime? createdAt,
+  String? baseBranch,
+  String? title,
 }) => HostedReview(
   provider: .github,
   number: number,
-  title: 'feat: $number',
+  title: title ?? 'feat: $number',
   state: state,
   url: 'https://github.com/leynier/alera/pull/$number',
+  baseBranch: baseBranch,
   headBranch: 'feature',
   createdAt: createdAt,
 );

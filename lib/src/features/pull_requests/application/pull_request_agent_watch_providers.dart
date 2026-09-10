@@ -239,9 +239,6 @@ class PullRequestAgentWatchController
   }
 
   ReviewMergeMethod? _preferredMergeMethod(List<ReviewMergeMethod> methods) {
-    if (methods.contains(ReviewMergeMethod.providerDefault)) {
-      return ReviewMergeMethod.providerDefault;
-    }
-    return methods.firstOrNull;
+    return preferredReviewMergeMethod(methods);
   }
 }

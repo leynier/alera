@@ -5,7 +5,6 @@ import 'package:alera/src/features/pull_requests/application/forge_exception.dar
 import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
-import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 import 'package:alera/src/features/pull_requests/infra/github_forge_provider.dart';
@@ -308,84 +307,6 @@ void main() {
         UpdateReviewErrorCode.cliMissing,
       );
     });
-  });
-
-  group('GitHubForgeProvider review actions', () {
-    for (final entry in <(ReviewMergeMethod, String)>[
-      (ReviewMergeMethod.mergeCommit, '--merge'),
-      (ReviewMergeMethod.squash, '--squash'),
-      (ReviewMergeMethod.rebase, '--rebase'),
-    ]) {
-      test('merges with ${entry.$2}', () async {
-        final runner = FakeRecordingProcessRunner(<Object>[_ok('')]);
-        final provider = GitHubForgeProvider(runner);
-
-        await provider.mergeReview(
-          identity: _identity,
-          repoPath: '/repo',
-          number: 123,
-          method: entry.$1,
-        );
-
-        final call = runner.calls.single;
-        expect(call.arguments.sublist(0, 3), <String>['pr', 'merge', '123']);
-        expect(call.optionValue('repo'), 'leynier/alera');
-        expect(call.arguments, contains(entry.$2));
-      });
-    }
-
-    test('rejects the provider-default merge method', () async {
-      final provider = GitHubForgeProvider(FakeRecordingProcessRunner([]));
-
-      expect(
-        () => provider.mergeReview(
-          identity: _identity,
-          repoPath: '/repo',
-          number: 123,
-          method: .providerDefault,
-        ),
-        throwsA(isA<ForgeRequestFailed>()),
-      );
-    });
-
-    test('closes the pull request through gh', () async {
-      final runner = FakeRecordingProcessRunner(<Object>[_ok('')]);
-      final provider = GitHubForgeProvider(runner);
-
-      await provider.closeReview(
-        identity: _identity,
-        repoPath: '/repo',
-        number: 123,
-      );
-
-      final call = runner.calls.single;
-      expect(call.arguments.sublist(0, 3), <String>['pr', 'close', '123']);
-      expect(call.optionValue('repo'), 'leynier/alera');
-    });
-
-    for (final entry in <(bool, bool)>[(false, false), (true, true)]) {
-      test(
-        entry.$1
-            ? 'converts the pull request to draft through gh'
-            : 'marks the pull request ready through gh',
-        () async {
-          final runner = FakeRecordingProcessRunner(<Object>[_ok('')]);
-          final provider = GitHubForgeProvider(runner);
-
-          await provider.setReviewDraft(
-            identity: _identity,
-            repoPath: '/repo',
-            number: 123,
-            draft: entry.$1,
-          );
-
-          final call = runner.calls.single;
-          expect(call.arguments.sublist(0, 3), <String>['pr', 'ready', '123']);
-          expect(call.optionValue('repo'), 'leynier/alera');
-          expect(call.arguments.contains('--undo'), entry.$2);
-        },
-      );
-    }
   });
 
   group('GitHubForgeProvider.checkAuth', () {

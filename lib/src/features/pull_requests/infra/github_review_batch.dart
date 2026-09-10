@@ -1,14 +1,6 @@
 part of 'github_forge_provider.dart';
 
 mixin _GitHubReviewBatch implements ForgeReviewBatchProvider {
-  ProcessRunner get _processRunner;
-
-  void _ensureSupportedHost(GitRemoteIdentity identity);
-
-  Object? _decodeJson(String? raw);
-
-  Never _throwClassified(ProcessRunOutput result);
-
   @override
   Future<ForgeReviewBatch> getReviewBatch({
     required GitRemoteIdentity identity,
@@ -19,7 +11,8 @@ mixin _GitHubReviewBatch implements ForgeReviewBatchProvider {
     if (branches.isEmpty && reviewNumbers.isEmpty) {
       return const ForgeReviewBatch();
     }
-    _ensureSupportedHost(identity);
+    final provider = this as GitHubForgeProvider;
+    provider._ensureSupportedHost(identity);
     final orderedBranches = branches.toList()..sort();
     final orderedNumbers = reviewNumbers.toList()..sort();
     final query = _buildReviewBatchQuery(
@@ -49,7 +42,7 @@ mixin _GitHubReviewBatch implements ForgeReviewBatchProvider {
 
     ProcessRunOutput result;
     try {
-      result = await _processRunner.run(
+      result = await provider._processRunner.run(
         'gh',
         arguments,
         workingDirectory: repoPath,
@@ -61,9 +54,9 @@ mixin _GitHubReviewBatch implements ForgeReviewBatchProvider {
       if (ghLooksLikeMissingCli(result)) {
         throw const ForgeCliMissing('gh not found');
       }
-      _throwClassified(result);
+      provider._throwClassified(result);
     }
-    final decoded = _decodeJson(result.stdout);
+    final decoded = provider._decodeJson(result.stdout);
     if (decoded is! Map) {
       throw const ForgeRequestFailed('Unexpected gh GraphQL response.');
     }

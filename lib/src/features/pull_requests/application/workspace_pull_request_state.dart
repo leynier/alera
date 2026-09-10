@@ -36,6 +36,7 @@ class const WorkspacePullRequestState({
   this.stack,
   this.stackSupported = false,
   this.stackErrorMessage,
+  this.mergeMethodsErrorMessage,
   final List<ReviewCheck> checks = const <ReviewCheck>[],
   final List<ReviewComment> comments = const <ReviewComment>[],
   final bool linkedManually = false,
@@ -64,6 +65,9 @@ class const WorkspacePullRequestState({
 
   /// A stack-specific load failure that does not hide the pull request itself.
   final String? stackErrorMessage;
+
+  /// A merge-method discovery failure that does not hide the pull request.
+  final String? mergeMethodsErrorMessage;
 
   /// Whether the workspace currently carries a dismissal record that applies
   /// to the active branch review or no active review exists yet.
@@ -106,6 +110,8 @@ class const WorkspacePullRequestState({
     bool? stackSupported,
     String? stackErrorMessage,
     bool clearStackError = false,
+    String? mergeMethodsErrorMessage,
+    bool clearMergeMethodsError = false,
     List<ReviewCheck>? checks,
     List<ReviewComment>? comments,
     bool? linkedManually,
@@ -135,6 +141,9 @@ class const WorkspacePullRequestState({
       stackErrorMessage: clearStackError
           ? null
           : (stackErrorMessage ?? this.stackErrorMessage),
+      mergeMethodsErrorMessage: clearMergeMethodsError
+          ? null
+          : (mergeMethodsErrorMessage ?? this.mergeMethodsErrorMessage),
       checks: checks ?? this.checks,
       comments: comments ?? this.comments,
       linkedManually: linkedManually ?? this.linkedManually,

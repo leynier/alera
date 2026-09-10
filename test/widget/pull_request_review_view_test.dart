@@ -124,6 +124,30 @@ void main() {
     expect(callbacks.mergeMethod, ReviewMergeMethod.mergeCommit);
   });
 
+  testWidgets('defaults to squash when merge commits are not allowed', (
+    tester,
+  ) async {
+    final callbacks = _Callbacks();
+    await tester.pumpWidget(
+      _wrap(
+        callbacks,
+        mergeMethods: const <ReviewMergeMethod>[
+          ReviewMergeMethod.squash,
+          ReviewMergeMethod.rebase,
+        ],
+      ),
+    );
+
+    expect(find.text('Squash and Merge'), findsOneWidget);
+    expect(find.text('Create Merge Commit'), findsNothing);
+
+    await tester.tap(find.text('Squash and Merge'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Squash and Merge'));
+    await tester.pumpAndSettle();
+    expect(callbacks.mergeMethod, ReviewMergeMethod.squash);
+  });
+
   testWidgets('selecting a merge method only changes the primary action', (
     tester,
   ) async {
