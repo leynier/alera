@@ -33,6 +33,7 @@ class const _SimplePanelPane({
 
 class _SimplePanelPaneState extends State<_SimplePanelPane> {
   final ScrollController _scrollController = ScrollController();
+  final GlobalKey _chipsKey = GlobalKey();
   bool _hasOverflow = false;
   WorkbenchDropZone? _hoverZone;
   int? _insertionGapIndex;
@@ -43,11 +44,24 @@ class _SimplePanelPaneState extends State<_SimplePanelPane> {
     super.dispose();
   }
 
+  static const double _addButtonReserve = 28 + AleraTokens.space8;
+
   void _syncOverflow() {
-    if (!mounted || !_scrollController.hasClients) {
+    if (!mounted) {
       return;
     }
-    final overflow = _scrollController.position.maxScrollExtent > 0.5;
+    final chipsBox = _chipsKey.currentContext?.findRenderObject() as RenderBox?;
+    if (chipsBox == null || !chipsBox.hasSize) {
+      return;
+    }
+    final viewport = _scrollController.hasClients
+        ? _scrollController.position.viewportDimension
+        : chipsBox.size.width;
+    final innerViewport = viewport - AleraTokens.space8 * 2;
+    final chipsWidth = chipsBox.size.width;
+    final overflow = _hasOverflow
+        ? chipsWidth + _addButtonReserve > innerViewport + 0.5
+        : chipsWidth > innerViewport + 0.5;
     if (overflow != _hasOverflow) {
       setState(() => _hasOverflow = overflow);
     }
@@ -222,6 +236,7 @@ class _SimplePanelPaneState extends State<_SimplePanelPane> {
                         vertical: AleraTokens.space6,
                       ),
                       child: Row(
+                        key: _chipsKey,
                         mainAxisSize: .min,
                         children: <Widget>[
                           for (final (index, key) in _keys.indexed)

@@ -204,6 +204,56 @@ void main() {
     );
   });
 
+  testWidgets('add tab placement stays stable across frames at a tight width', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 280,
+              height: 500,
+              child: SimpleWorkspacePanelView(
+                panel: const SimpleWorkspacePanel(
+                  tabKeys: ['tool:search', 'tool:explorer'],
+                  activeKey: 'tool:search',
+                ),
+                tabs: const [],
+                onSelect: (_) {},
+                onClose: (_) {},
+                onNewTerminal: () {},
+                onHide: () {},
+                content: const Text('Selected Surface'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    final firstInside = find
+        .ancestor(
+          of: find.byTooltip('Add Tab'),
+          matching: find.byType(SingleChildScrollView),
+        )
+        .evaluate()
+        .isNotEmpty;
+    for (var i = 0; i < 8; i++) {
+      await tester.pump();
+    }
+    final laterInside = find
+        .ancestor(
+          of: find.byTooltip('Add Tab'),
+          matching: find.byType(SingleChildScrollView),
+        )
+        .evaluate()
+        .isNotEmpty;
+    expect(laterInside, firstInside);
+    expect(find.byTooltip('Add Tab'), findsOneWidget);
+  });
+
   testWidgets('tool chip offers split actions', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
