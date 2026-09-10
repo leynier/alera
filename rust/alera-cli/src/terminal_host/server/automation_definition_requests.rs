@@ -211,15 +211,9 @@ impl ServerActor {
             .map_err(|error| HostError::state(error.to_string()))?;
         self.automations_active = self
             .runtime_store
-            .has_active_automations()
+            .has_pending_automation_work()
             .await
-            .map_err(|error| HostError::state(error.to_string()))?
-            || !self
-                .runtime_store
-                .list_active_automation_runs()
-                .await
-                .map_err(|error| HostError::state(error.to_string()))?
-                .is_empty();
+            .map_err(|error| HostError::state(error.to_string()))?;
         self.automation_wake.notify_one();
         self.broadcast_authenticated(crate::terminal_host::protocol::event(
             "automationsChanged",
@@ -302,15 +296,9 @@ impl ServerActor {
             .map_err(|error| HostError::state(error.to_string()))?;
         self.automations_active = self
             .runtime_store
-            .has_active_automations()
+            .has_pending_automation_work()
             .await
-            .map_err(|error| HostError::state(error.to_string()))?
-            || !self
-                .runtime_store
-                .list_active_automation_runs()
-                .await
-                .map_err(|error| HostError::state(error.to_string()))?
-                .is_empty();
+            .map_err(|error| HostError::state(error.to_string()))?;
         self.automation_wake.notify_one();
         self.broadcast_authenticated(crate::terminal_host::protocol::event(
             "automationsChanged",
@@ -346,7 +334,7 @@ impl ServerActor {
             .map_err(|error| HostError::state(error.to_string()))?;
         self.automations_active = self
             .runtime_store
-            .has_active_automations()
+            .has_pending_automation_work()
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
         self.automation_wake.notify_one();

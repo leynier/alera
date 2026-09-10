@@ -17,6 +17,8 @@ import 'package:share_plus/share_plus.dart';
 class const AutomationsScreen({
   super.key,
   required final PairedHostProfile host,
+  final String? initialAutomationId,
+  final String? initialRunId,
 }) extends ConsumerStatefulWidget {
   @override
   ConsumerState<AutomationsScreen> createState() => _AutomationsScreenState();
@@ -29,6 +31,17 @@ class _AutomationsScreenState extends ConsumerState<AutomationsScreen> {
   final TextEditingController _tag = TextEditingController();
   String? _state;
   bool _includeTrashed = false;
+  bool _openedInitial = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialAutomationId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_openInitial());
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -242,6 +255,33 @@ class _AutomationsScreenState extends ConsumerState<AutomationsScreen> {
       await MobileRuntimeAutomationRepository(client).upsert(definition);
       _refresh();
       _message('Automation created');
+    } on Object catch (error) {
+      _message(error.toString(), error: true);
+    }
+  }
+
+  Future<void> _openInitial() async {
+    final id = widget.initialAutomationId;
+    if (id == null || _openedInitial || !mounted) return;
+    _openedInitial = true;
+    try {
+      final client = await ref.read(
+        hostConnectionControllerProvider(widget.host.id).future,
+      );
+      final repository = MobileRuntimeAutomationRepository(client);
+      final detail = await repository.show(id);
+      if (!mounted) return;
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => MobileAutomationDetailSheet(
+          detail: detail,
+          repository: repository,
+          client: client,
+          onChanged: _refresh,
+          initialRunId: widget.initialRunId,
+        ),
+      );
     } on Object catch (error) {
       _message(error.toString(), error: true);
     }

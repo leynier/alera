@@ -9,11 +9,62 @@ import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.da
 import 'package:flutter/material.dart';
 
 class const MobileAutomationDetailSheet({
+  required this.detail,
+  required this.repository,
+  required this.client,
+  required this.onChanged,
+  this.initialRunId,
+  super.key,
+}) extends StatefulWidget {
+  final MobileAutomationDetail detail;
+  final MobileRuntimeAutomationRepository repository;
+  final MobileRuntimeClient client;
+  final VoidCallback onChanged;
+  final String? initialRunId;
+
+  @override
+  State<MobileAutomationDetailSheet> createState() =>
+      _MobileAutomationDetailSheetState();
+}
+
+class _MobileAutomationDetailSheetState
+    extends State<MobileAutomationDetailSheet> {
+  late MobileAutomationDetail _detail;
+
+  @override
+  void initState() {
+    super.initState();
+    _detail = widget.detail;
+  }
+
+  Future<void> _reloadAfterChange() async {
+    widget.onChanged();
+    try {
+      final next = await widget.repository.show(_detail.automation.id);
+      if (mounted) setState(() => _detail = next);
+    } on Object {
+      // The catalog already refreshed; keep the current sheet contents.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _MobileAutomationDetailBody(
+      detail: _detail,
+      repository: widget.repository,
+      client: widget.client,
+      onChanged: () => unawaited(_reloadAfterChange()),
+      initialRunId: widget.initialRunId,
+    );
+  }
+}
+
+class const _MobileAutomationDetailBody({
   required final MobileAutomationDetail detail,
   required final MobileRuntimeAutomationRepository repository,
   required final MobileRuntimeClient client,
   required final VoidCallback onChanged,
-  super.key,
+  final String? initialRunId,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -29,6 +80,14 @@ class const MobileAutomationDetailSheet({
               automation.name,
               style: Theme.of(context).textTheme.titleLarge,
             ),
+            if (initialRunId != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AleraTokens.spaceSm),
+                child: Text(
+                  'Opened from run $initialRunId',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
             Text(automation.promptTemplate),
             const SizedBox(height: AleraTokens.spaceSm),
             Text(

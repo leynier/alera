@@ -50,6 +50,7 @@ fn definition() -> AutomationDefinition {
         precheck: None,
         notify_on_success: false,
         circuit_opened: false,
+        circuit_opened_at: None,
         state: super::super::AutomationState::Draft,
         revision: 1,
         approved_revision: None,

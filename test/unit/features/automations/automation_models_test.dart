@@ -11,8 +11,19 @@ void main() {
         'name': 'Nightly',
         'description': 'Run the nightly task',
         'promptTemplate': 'Review {{project.name}}',
-        'schedule': <String, Object?>{'recurring': '0 0 * * *'},
-        'target': <String, Object?>{'existingTab': 'tab-1'},
+        'schedule': <String, Object?>{
+          'recurring': <String, Object?>{
+            'cron': '0 0 * * *',
+            'timezone': 'UTC',
+          },
+        },
+        'target': <String, Object?>{
+          'existingTab': <String, Object?>{
+            'workspaceId': 'workspace-1',
+            'tabId': 'tab-1',
+            'conversationId': 'conversation-1',
+          },
+        },
         'state': 'active',
         'revision': 4,
         'approvedRevision': 4,
@@ -37,6 +48,22 @@ void main() {
       expect(record.isApproved, isTrue);
       expect(record.scheduleKind, 'Recurring');
       expect(record.targetKind, 'Existing tab');
+      expect(
+        (record.target['existingTab'] as Map)['conversationId'],
+        'conversation-1',
+      );
+      expect(
+        AutomationRecord.fromJson(<String, Object?>{
+          'id': 'automation-optional',
+          'target': <String, Object?>{
+            'existingTab': <String, Object?>{
+              'workspaceId': 'workspace-1',
+              'tabId': 'tab-1',
+            },
+          },
+        }).targetKind,
+        'Existing tab',
+      );
       expect(record.tagIds, <String>['tag-a']);
       expect(record.overlapPolicy, 'queue');
       expect(record.misfirePolicy, 'runLatestOnce');
@@ -65,8 +92,18 @@ void main() {
     final detail = AutomationDetail.fromJson(<String, Object?>{
       'automation': <String, Object?>{
         'id': 'automation-2',
-        'schedule': <String, Object?>{'oneTime': '2026-08-03T12:00:00Z'},
-        'target': <String, Object?>{'freshTab': true},
+        'schedule': <String, Object?>{
+          'oneTime': <String, Object?>{
+            'at': '2026-08-03T12:00:00Z',
+            'timezone': 'UTC',
+          },
+        },
+        'target': <String, Object?>{
+          'freshTab': <String, Object?>{
+            'workspaceId': 'workspace-1',
+            'agentProfileId': 'profile-1',
+          },
+        },
       },
       'runs': <Object?>[
         <String, Object?>{

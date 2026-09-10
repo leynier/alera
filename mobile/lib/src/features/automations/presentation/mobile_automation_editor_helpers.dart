@@ -100,7 +100,10 @@ Widget _buildMobileAutomationEditor(
                 state.widget.options?.tabsFor(state._workspace.text.trim()) ??
                     const <MobileAutomationChoice>[],
               ),
-              state._field(state._conversation, 'Agent Conversation ID'),
+              state._field(
+                state._conversation,
+                'Agent Conversation ID (Optional)',
+              ),
             ],
             if (state._targetKind == 'managedWorkspace') ...<Widget>[
               state._field(state._sourceBranch, 'Source Branch'),

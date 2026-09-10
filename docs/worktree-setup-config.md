@@ -83,7 +83,7 @@ The command is delivered once. After it is on its way the host drops it from the
 
 ## Automation declaration
 
-Scheduled and manual automation execution require an explicit repository opt-in in `alera.toml`. Draft create, edit, trash, restore, and approve do not.
+Scheduled and manual automation execution require an explicit repository opt-in in `alera.toml`. Draft create, edit, trash, restore, and approve do not. Desktop, Mobile, and `alera automation` share this gate.
 
 ```toml
 [automation]
@@ -91,6 +91,8 @@ declared = true
 ```
 
 Alera also accepts the top-level form `automation_declared = true`. `[automation] enabled = true` is an alias of `declared`. The host reads the workspace checkout first, then the project repository root. Settings shows this as a read-only switch; it cannot be granted from the UI. Agent profile execution opt-in (`mayExecute`) is a separate policy.
+
+The shipped automation surface is `alera automation` plus the desktop Automations dialog and the mobile Host Details Automations card. Existing-tab targets require workspace and tab ids. Conversation id is optional when saving; existing-tab execution still requires a conversation ID whose continuity can be verified. Circuit breakers open after a failure streak and auto-reset after `circuitOpenSeconds`.
 
 ## Git hosting provider
 

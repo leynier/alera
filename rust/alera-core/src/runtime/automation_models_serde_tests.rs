@@ -139,6 +139,27 @@ fn round_trips_existing_tab_and_managed_workspace_camel_case() {
     );
     assert_camel_case_object(&encoded, "/existingTab");
 
+    let without_conversation: AutomationTarget = serde_json::from_value(json!({
+        "existingTab": {
+            "workspaceId": "workspace-1",
+            "tabId": "tab-1"
+        }
+    }))
+    .unwrap();
+    assert_eq!(
+        without_conversation,
+        AutomationTarget::ExistingTab {
+            workspace_id: "workspace-1".into(),
+            tab_id: "tab-1".into(),
+            conversation_id: None,
+        }
+    );
+    let encoded = serde_json::to_value(&without_conversation).unwrap();
+    assert_eq!(
+        encoded.pointer("/existingTab/conversationId"),
+        Some(&json!(null))
+    );
+
     let managed: AutomationTarget = serde_json::from_value(json!({
         "managedWorkspace": {
             "sourceWorkspaceId": "workspace-1",

@@ -11,6 +11,7 @@ class const AutomationDialogHeader({
   required final VoidCallback onClose,
   final VoidCallback? onImport,
   final VoidCallback? onExport,
+  final VoidCallback? onTemplates,
   super.key,
 }) extends StatelessWidget {
   @override
@@ -21,6 +22,12 @@ class const AutomationDialogHeader({
         const Icon(AleraIcons.checks, color: AleraTokens.foregroundMuted),
         const SizedBox(width: AleraTokens.space8),
         Expanded(child: Text('Automations', style: theme.textTheme.titleLarge)),
+        if (onTemplates != null)
+          AleraIconButton(
+            tooltip: 'Templates',
+            icon: AleraIcons.file,
+            onPressed: onTemplates,
+          ),
         if (onImport != null)
           AleraIconButton(
             tooltip: 'Import',
@@ -90,6 +97,7 @@ class const AutomationDetailPane({
   final ValueChanged<AutomationRunRecord>? onExtendWaiting,
   final VoidCallback? onRestore,
   final VoidCallback? onClone,
+  final VoidCallback? onSaveTemplate,
   super.key,
 }) extends StatelessWidget {
   @override
@@ -128,6 +136,7 @@ class const AutomationDetailPane({
           onTrash: onTrash,
           onRestore: onRestore,
           onClone: onClone,
+          onSaveTemplate: onSaveTemplate,
           onCancel: onCancel,
           onResumeWaiting: onResumeWaiting,
           onExtendWaiting: onExtendWaiting,
@@ -151,6 +160,7 @@ class const AutomationDetailContent({
   final ValueChanged<AutomationRunRecord>? onExtendWaiting,
   final VoidCallback? onRestore,
   final VoidCallback? onClone,
+  final VoidCallback? onSaveTemplate,
   super.key,
 }) extends StatelessWidget {
   @override
@@ -183,6 +193,12 @@ class const AutomationDetailContent({
                 icon: AleraIcons.copy,
                 onPressed: onClone,
               ),
+            if (onSaveTemplate != null)
+              AleraIconButton(
+                tooltip: 'Save Template',
+                icon: AleraIcons.file,
+                onPressed: onSaveTemplate,
+              ),
           ],
         ),
         const SizedBox(height: AleraTokens.space12),
@@ -201,10 +217,10 @@ class const AutomationDetailContent({
               icon: const Icon(AleraIcons.agent, size: 16),
               label: const Text('Run Now'),
             ),
-            OutlinedButton(
-              onPressed: onPause ?? onResume,
-              child: Text(onPause != null ? 'Pause' : 'Resume'),
-            ),
+            if (onPause != null)
+              OutlinedButton(onPressed: onPause, child: const Text('Pause')),
+            if (onResume != null)
+              OutlinedButton(onPressed: onResume, child: const Text('Resume')),
             if (onRestore != null)
               TextButton(onPressed: onRestore, child: const Text('Restore'))
             else

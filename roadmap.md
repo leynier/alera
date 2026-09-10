@@ -135,7 +135,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| Automations system | 4 | 4 | Planned | Cron-style scheduled agent workflows with templates and run history |
+| Automations system | 4 | 4 | Shipped | Cron-style scheduled agent workflows with templates, run history, desktop/mobile/CLI surfaces, and host scheduler |
 
 ---
 
@@ -183,7 +183,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| Alera CLI | 4 | 4 | Shipped | Rust `alera` sidecar: `runtime`, `project`, `workspace`, `tag`, `tab`, `terminal`, `ssh-target`, `mobile`, and `orchestration`; automations remain future |
+| Alera CLI | 4 | 4 | Shipped | Rust `alera` sidecar: `runtime`, `project`, `workspace`, `tag`, `tab`, `terminal`, `ssh-target`, `mobile`, `orchestration`, and `automation` |
 
 ---
 

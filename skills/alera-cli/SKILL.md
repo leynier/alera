@@ -1,6 +1,6 @@
 ---
 name: alera-cli
-description: Use when operating Alera-managed projects, workspaces, worktrees, tabs, tags, Agent Profiles, SSH targets, or runtime state from an Alera terminal. Prefer this skill over raw git worktree commands when the task touches Alera workspace lifecycle or runtime metadata.
+description: Use when operating Alera-managed projects, workspaces, worktrees, tabs, tags, Agent Profiles, SSH targets, automations, or runtime state from an Alera terminal. Prefer this skill over raw git worktree commands when the task touches Alera workspace lifecycle or runtime metadata.
 ---
 
 # Alera CLI
@@ -336,6 +336,24 @@ For model research, quota-aware catalog design, adapter-specific Managed configu
 - Use `workspace pin/unpin` for the persisted desktop sidebar section instead of editing runtime metadata directly.
 - Keep user-created branches unless the user explicitly requests deletion or the workspace metadata shows Alera created the branch.
 - If a command fails because no runtime host is available, retry the same CLI command; managed commands auto-start the runtime host when possible.
+
+## Automations
+
+`alera automation` operates the same catalog as desktop and mobile. List, show, create, edit, approve, pause, resume, trash, restore, purge, run-now, runs, lifecycle, templates, tags, import, export, and policy all go through the authenticated runtime host.
+
+Scheduled and manual execution still require `[automation] declared = true` in the workspace or project `alera.toml`. Draft create, edit, trash, restore, and approve do not. Agent profile `mayExecute` is a separate policy.
+
+```bash
+alera automation list
+alera automation --json show --id <automation-id>
+alera automation create --file definition.json
+alera automation approve --id <automation-id> --revision <revision>
+alera automation run-now --id <automation-id> --skip-precheck --overlap skip
+alera automation templates
+alera automation policy --kind show --profile-id <profile-id>
+```
+
+Existing-tab JSON targets need `workspaceId` and `tabId`. `conversationId` is optional when saving. Existing-tab execution still requires a conversation ID whose continuity can be verified.
 
 ## Inter-Agent Orchestration
 

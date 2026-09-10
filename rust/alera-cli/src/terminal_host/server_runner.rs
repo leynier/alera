@@ -126,12 +126,7 @@ pub async fn run_terminal_host_server(
         crate::worktree_setup_script::remove_stale_setup_scripts(&directory);
         crate::agent_prompt_stdin_script::remove_stale_agent_prompt_scripts(&directory);
     }
-    actor.automations_active = actor.runtime_store.has_active_automations().await?
-        || !actor
-            .runtime_store
-            .list_active_automation_runs()
-            .await?
-            .is_empty();
+    actor.automations_active = actor.runtime_store.has_pending_automation_work().await?;
     actor.schedule_shutdown_if_idle();
 
     // Lives with the loop rather than the actor: it describes the machine the

@@ -13,8 +13,18 @@ void main() {
         'approvedRevision': 3,
         'description': 'Review the project',
         'promptTemplate': 'Review {{project.name}}',
-        'schedule': <String, Object?>{'recurring': '0 0 * * *'},
-        'target': <String, Object?>{'existingTab': 'tab-1'},
+        'schedule': <String, Object?>{
+          'recurring': <String, Object?>{
+            'cron': '0 0 * * *',
+            'timezone': 'UTC',
+          },
+        },
+        'target': <String, Object?>{
+          'existingTab': <String, Object?>{
+            'workspaceId': 'workspace-1',
+            'tabId': 'tab-1',
+          },
+        },
         'projectId': 'project-1',
         'tagIds': <Object?>['tag-a', 'tag-b'],
         'heartbeatIntervalSeconds': 45,
@@ -35,6 +45,11 @@ void main() {
     });
 
     expect(detail.automation.isApproved, isTrue);
+    expect(
+      detail.automation.target['existingTab'],
+      isA<Map<Object?, Object?>>(),
+    );
+    expect((detail.automation.target['existingTab'] as Map)['tabId'], 'tab-1');
     expect(detail.automation.projectId, 'project-1');
     expect(detail.automation.tagIds, <String>['tag-a', 'tag-b']);
     expect(detail.automation.heartbeatIntervalSeconds, 45);

@@ -148,6 +148,14 @@ class RuntimeAutomationRepository(final RuntimeHostClient _client) {
     return _list(_map(payload)['items']).map(_map).toList(growable: false);
   }
 
+  Future<JsonMap> saveTemplate(JsonMap template) async {
+    final payload = await _client.runtimeRequest(
+      'automation.templates',
+      <String, Object?>{'template': template},
+    );
+    return _map(payload);
+  }
+
   Future<List<JsonMap>> tags() async {
     final payload = await _client.runtimeRequest('automation.tags');
     return _list(_map(payload)['items']).map(_map).toList(growable: false);

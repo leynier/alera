@@ -178,6 +178,10 @@ impl ServerActor {
             .verify_automation_run_identity(&id, &actor, &identity)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
+        if current.status.is_final() {
+            return serde_json::to_value(current)
+                .map_err(|error| HostError::state(error.to_string()));
+        }
         let definition = self
             .runtime_store
             .find_automation(&current.automation_id)
@@ -209,72 +213,47 @@ impl ServerActor {
                 .unwrap_or_default()
                 >= definition.circuit_failure_threshold
         {
-            let _ = self
-                .runtime_store
-                .set_automation_circuit_opened(
-                    &run.automation_id,
-                    true,
-                    AutomationActor {
-                        kind: AutomationActorKind::ManagedAgent,
-                        id: run.actor_id.clone(),
-                        label: Some("Alera Automation Circuit Breaker".to_string()),
-                    },
-                    Some("automation circuit breaker opened"),
-                )
-                .await;
-            let _ = self
-                .runtime_store
-                .set_automation_state(
-                    &run.automation_id,
-                    AutomationState::Blocked,
-                    AutomationActor {
-                        kind: AutomationActorKind::ManagedAgent,
-                        id: None,
-                        label: Some("Alera Automation Circuit Breaker".to_string()),
-                    },
-                    Some("automation circuit breaker opened"),
-                )
-                .await;
+            self.open_automation_circuit(
+                &run.automation_id,
+                AutomationActor {
+                    kind: AutomationActorKind::ManagedAgent,
+                    id: run.actor_id.clone(),
+                    label: Some("Alera Automation Circuit Breaker".to_string()),
+                },
+                "automation circuit breaker opened",
+            )
+            .await;
         }
         if current.trigger == alera_core::runtime::AutomationRunTrigger::Scheduled
             && status == AutomationRunStatus::Success
-            && definition.circuit_opened
         {
-            let _ = self
+            match self
                 .runtime_store
-                .set_automation_circuit_opened(
+                .reset_automation_circuit(
                     &run.automation_id,
-                    false,
                     actor_for_circuit_reset(&run),
                     Some("scheduled success reset the automation circuit breaker"),
                 )
-                .await;
-            if definition.state == AutomationState::Blocked {
-                let _ = self
-                    .runtime_store
-                    .set_automation_state(
-                        &run.automation_id,
-                        AutomationState::Active,
-                        actor_for_circuit_reset(&run),
-                        Some("scheduled success reset the automation circuit breaker"),
-                    )
-                    .await;
+                .await
+            {
+                Ok(_) => self.automation_wake.notify_one(),
+                Err(error) => tracing::warn!(
+                    automation_id = %run.automation_id,
+                    "could not reset automation circuit after scheduled success: {error}"
+                ),
             }
         }
         if status == AutomationRunStatus::Blocked {
-            let _ = self
-                .runtime_store
-                .set_automation_state(
-                    &run.automation_id,
-                    AutomationState::Blocked,
-                    AutomationActor {
-                        kind: AutomationActorKind::ManagedAgent,
-                        id: run.actor_id.clone(),
-                        label: Some("managed automation agent".to_string()),
-                    },
-                    run.error.as_deref().or(run.summary.as_deref()),
-                )
-                .await;
+            self.block_automation_definition_if_active(
+                &run.automation_id,
+                AutomationActor {
+                    kind: AutomationActorKind::ManagedAgent,
+                    id: run.actor_id.clone(),
+                    label: Some("managed automation agent".to_string()),
+                },
+                run.error.as_deref().or(run.summary.as_deref()),
+            )
+            .await;
         }
         self.cleanup_automation_owned_target(&run, run.status).await;
         self.queue_automation_push(&run, &definition, status, run.summary.as_deref())

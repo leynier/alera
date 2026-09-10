@@ -72,6 +72,7 @@ pub(super) fn automation(profile_id: &str) -> AutomationDefinition {
         precheck: None,
         notify_on_success: false,
         circuit_opened: false,
+        circuit_opened_at: None,
         state: AutomationState::Draft,
         revision: 0,
         approved_revision: None,

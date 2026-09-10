@@ -39,6 +39,95 @@ extension on _AutomationsDialogState {
     }
   }
 
+  Future<void> _saveTemplate(AutomationRecord automation) async {
+    try {
+      await ref.read(automationRepositoryProvider).saveTemplate(
+        <String, Object?>{
+          'id': const Uuid().v4(),
+          'name': automation.name,
+          'promptTemplate': automation.promptTemplate,
+          'description': automation.description,
+          'projectId': automation.projectId,
+          'tagIds': automation.tagIds,
+          'createdBy':
+              automation.raw['createdBy'] ??
+              const <String, Object?>{'kind': 'humanDesktop'},
+          'createdAt': DateTime.now().toUtc().toIso8601String(),
+        },
+      );
+      _showMessage('Automation template saved');
+    } catch (error) {
+      _showMessage(error.toString(), error: true);
+    }
+  }
+
+  Future<void> _showTemplates() async {
+    try {
+      final templates = await ref
+          .read(automationRepositoryProvider)
+          .templates();
+      if (!mounted) {
+        return;
+      }
+      final selected = await showDialog<JsonMap>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Automation Templates'),
+          content: SizedBox(
+            width: 420,
+            child: templates.isEmpty
+                ? const Text('No templates are saved.')
+                : ListView(
+                    shrinkWrap: true,
+                    children: <Widget>[
+                      for (final template in templates)
+                        ListTile(
+                          title: Text('${template['name'] ?? 'Template'}'),
+                          subtitle: Text(
+                            '${template['promptTemplate'] ?? ''}',
+                            maxLines: 2,
+                            overflow: .ellipsis,
+                          ),
+                          onTap: () => Navigator.of(context).pop(template),
+                        ),
+                    ],
+                  ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+      if (selected == null || !mounted) {
+        return;
+      }
+      final raw = <String, Object?>{
+        'id': const Uuid().v4(),
+        'slug': 'from-template-${const Uuid().v4().split('-').first}',
+        'name': selected['name'] ?? 'Automation',
+        'description': selected['description'] ?? '',
+        'promptTemplate': selected['promptTemplate'] ?? '',
+        'projectId': selected['projectId'],
+        'tagIds': selected['tagIds'] ?? const <String>[],
+        'state': 'draft',
+        'revision': 0,
+        'approvedRevision': null,
+      };
+      final definition = await showAutomationEditorDialog(
+        context,
+        initial: .fromJson(raw),
+      );
+      if (definition != null && mounted) {
+        await _save(definition, 'Automation created from template');
+      }
+    } catch (error) {
+      _showMessage(error.toString(), error: true);
+    }
+  }
+
   Future<void> _exportCatalog() async {
     try {
       final bundle = await ref

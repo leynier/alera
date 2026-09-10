@@ -422,6 +422,8 @@ pub struct AutomationDefinition {
     pub notify_on_success: bool,
     #[serde(default)]
     pub circuit_opened: bool,
+    #[serde(default)]
+    pub circuit_opened_at: Option<DateTime<Utc>>,
     pub state: AutomationState,
     pub revision: i64,
     #[serde(default)]

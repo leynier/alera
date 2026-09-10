@@ -167,6 +167,7 @@ fn definition(inactivity_timeout_seconds: i64) -> AutomationDefinition {
         precheck: None,
         notify_on_success: false,
         circuit_opened: false,
+        circuit_opened_at: None,
         state: AutomationState::Active,
         revision: 1,
         approved_revision: Some(1),
@@ -338,4 +339,218 @@ async fn timeout_terminates_owned_setup_tab_session() {
     assert!(harness.actor.sessions.contains_key(NEIGHBOR_SESSION_ID));
     assert!(tab_exists(&harness.actor, TAB_ID).await);
     assert!(tab_exists(&harness.actor, SETUP_TAB_ID).await);
+}
+
+#[tokio::test]
+async fn expired_circuit_tick_broadcasts_automations_changed() {
+    use crate::terminal_host::client::ClientFrame;
+    use tokio::sync::mpsc::error::TryRecvError;
+
+    let dir = tempfile::tempdir().unwrap();
+    let (handle, mut events) = ClientHandle::test_channels();
+    let mut actor = test_actor(
+        &dir,
+        HashMap::from([(1, local_client(handle))]),
+        HashMap::new(),
+    )
+    .await;
+    sqlx::query(
+        "INSERT INTO agentProfiles (id, name, agentType, command, createdAt, updatedAt) \
+         VALUES ('profile', 'Profile', 'codex', 'codex', datetime('now'), datetime('now'))",
+    )
+    .execute(actor.runtime_store.pool())
+    .await
+    .unwrap();
+    let now = Utc::now();
+    let mut definition = definition(7200);
+    definition.id = "automation-circuit-reset".into();
+    definition.slug = "circuit-reset".into();
+    definition.circuit_open_seconds = 1;
+    let actor_record = definition.created_by.clone();
+    actor
+        .runtime_store
+        .upsert_automation(definition.clone(), actor_record.clone())
+        .await
+        .unwrap();
+    actor
+        .runtime_store
+        .approve_automation(&definition.id, 1, actor_record.clone())
+        .await
+        .unwrap();
+    actor
+        .runtime_store
+        .set_automation_circuit_opened(&definition.id, true, actor_record.clone(), Some("opened"))
+        .await
+        .unwrap();
+    actor
+        .runtime_store
+        .set_automation_state(
+            &definition.id,
+            AutomationState::Blocked,
+            actor_record,
+            Some("opened"),
+        )
+        .await
+        .unwrap();
+    let mut opened = actor
+        .runtime_store
+        .find_automation(&definition.id)
+        .await
+        .unwrap()
+        .unwrap();
+    opened.circuit_opened_at = Some(now - Duration::seconds(2));
+    opened.updated_at = opened.circuit_opened_at.unwrap();
+    sqlx::query("UPDATE automations SET dataJson = ?, updatedAt = ? WHERE id = ?")
+        .bind(serde_json::to_string(&opened).unwrap())
+        .bind(alera_core::runtime::format_timestamp(opened.updated_at))
+        .bind(&opened.id)
+        .execute(actor.runtime_store.pool())
+        .await
+        .unwrap();
+    while !matches!(events.try_recv(), Err(TryRecvError::Empty)) {}
+
+    actor.handle_automation_tick().await;
+
+    let restored = actor
+        .runtime_store
+        .find_automation(&definition.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(!restored.circuit_opened);
+    assert_eq!(restored.state, AutomationState::Active);
+    let mut saw_change = false;
+    while let Ok(frame) = events.try_recv() {
+        if let ClientFrame::Json(value) = frame {
+            if value.get("event").and_then(serde_json::Value::as_str) == Some("automationsChanged")
+            {
+                saw_change = true;
+                break;
+            }
+        }
+    }
+    assert!(
+        saw_change,
+        "circuit reset must broadcast automationsChanged"
+    );
+}
+
+#[tokio::test]
+async fn open_automation_circuit_preserves_paused_state() {
+    let dir = tempfile::tempdir().unwrap();
+    let (handle, _events) = ClientHandle::test_channels();
+    let mut actor = test_actor(
+        &dir,
+        HashMap::from([(1, local_client(handle))]),
+        HashMap::new(),
+    )
+    .await;
+    sqlx::query(
+        "INSERT INTO agentProfiles (id, name, agentType, command, createdAt, updatedAt) \
+         VALUES ('profile', 'Profile', 'codex', 'codex', datetime('now'), datetime('now'))",
+    )
+    .execute(actor.runtime_store.pool())
+    .await
+    .unwrap();
+    let mut definition = definition(7200);
+    definition.id = "automation-paused-circuit".into();
+    definition.slug = "paused-circuit".into();
+    let actor_record = definition.created_by.clone();
+    actor
+        .runtime_store
+        .upsert_automation(definition.clone(), actor_record.clone())
+        .await
+        .unwrap();
+    actor
+        .runtime_store
+        .approve_automation(&definition.id, 1, actor_record.clone())
+        .await
+        .unwrap();
+    actor
+        .runtime_store
+        .set_automation_state(
+            &definition.id,
+            AutomationState::Paused,
+            actor_record.clone(),
+            Some("paused with active runs"),
+        )
+        .await
+        .unwrap();
+
+    actor
+        .open_automation_circuit(
+            &definition.id,
+            actor_record,
+            "automation circuit breaker opened",
+        )
+        .await;
+
+    let opened = actor
+        .runtime_store
+        .find_automation(&definition.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(opened.circuit_opened);
+    assert_eq!(opened.state, AutomationState::Paused);
+    assert!(actor.automations_active);
+}
+
+#[tokio::test]
+async fn block_automation_definition_preserves_paused_state() {
+    let dir = tempfile::tempdir().unwrap();
+    let (handle, _events) = ClientHandle::test_channels();
+    let mut actor = test_actor(
+        &dir,
+        HashMap::from([(1, local_client(handle))]),
+        HashMap::new(),
+    )
+    .await;
+    sqlx::query(
+        "INSERT INTO agentProfiles (id, name, agentType, command, createdAt, updatedAt) \
+         VALUES ('profile', 'Profile', 'codex', 'codex', datetime('now'), datetime('now'))",
+    )
+    .execute(actor.runtime_store.pool())
+    .await
+    .unwrap();
+    let mut definition = definition(7200);
+    definition.id = "automation-paused-block".into();
+    definition.slug = "paused-block".into();
+    let actor_record = definition.created_by.clone();
+    actor
+        .runtime_store
+        .upsert_automation(definition.clone(), actor_record.clone())
+        .await
+        .unwrap();
+    actor
+        .runtime_store
+        .approve_automation(&definition.id, 1, actor_record.clone())
+        .await
+        .unwrap();
+    actor
+        .runtime_store
+        .set_automation_state(
+            &definition.id,
+            AutomationState::Paused,
+            actor_record.clone(),
+            Some("paused with active runs"),
+        )
+        .await
+        .unwrap();
+
+    actor
+        .block_automation_definition_if_active(
+            &definition.id,
+            actor_record,
+            Some("run completed blocked"),
+        )
+        .await;
+
+    let paused = actor
+        .runtime_store
+        .find_automation(&definition.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(paused.state, AutomationState::Paused);
 }
