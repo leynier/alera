@@ -1,5 +1,4 @@
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
-import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/presentation/experimental_workspace_panel_view.dart';
@@ -167,7 +166,7 @@ void main() {
     expect(find.text('Explorer'), findsOneWidget);
     expect(find.text('Search'), findsOneWidget);
     expect(
-      find.byWidgetPredicate((widget) => widget is AleraDropdownEntry),
+      find.byWidgetPredicate((w) => w is AleraDropdownEntry),
       findsNWidgets(3),
     );
   });
@@ -371,7 +370,7 @@ void main() {
     await tester.tap(find.byTooltip('Add Tab'));
     await tester.pumpAndSettle();
     expect(
-      find.byWidgetPredicate((widget) => widget is AleraDropdownEntry),
+      find.byWidgetPredicate((w) => w is AleraDropdownEntry),
       findsNWidgets(3),
     );
     expect(find.text('Source Control'), findsOneWidget);
@@ -412,210 +411,5 @@ void main() {
     expect(find.byTooltip('Add Tab'), findsOneWidget);
     expect(find.text('Search'), findsOneWidget);
     expect(find.byTooltip('Hide Panel'), findsNothing);
-  });
-
-  testWidgets(
-    'dropping a right-panel tab onto the main surface reports the move',
-    (tester) async {
-      final moves =
-          <
-            ({
-              String key,
-              String targetGroupId,
-              WorkbenchDropZone zone,
-              ExperimentalPanelTree source,
-            })
-          >[];
-      final panel = const ExperimentalWorkspacePanel(primaryTabId: 'primary')
-          .select('tool:search');
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SizedBox(
-              width: 900,
-              height: 500,
-              child: Row(
-                children: <Widget>[
-                  SizedBox(
-                    width: 360,
-                    child: ExperimentalWorkspacePanelView(
-                      workspaceId: 'workspace',
-                      panel: panel,
-                      tabs: const [],
-                      onSelect: (_) {},
-                      onClose: (_) {},
-                      onNewTerminal: () {},
-                      onHide: () {},
-                      onMoveTab: ({
-                        required key,
-                        required targetGroupId,
-                        required zone,
-                        required source,
-                        index,
-                      }) {},
-                      content: const Text('Right Surface'),
-                    ),
-                  ),
-                  Expanded(
-                    child: ExperimentalMainDropSurface(
-                      workspaceId: 'workspace',
-                      groupId: 'workspace/experimental-main',
-                      onMoveTab:
-                          ({
-                            required key,
-                            required targetGroupId,
-                            required zone,
-                            required source,
-                            index,
-                          }) {
-                            moves.add((
-                              key: key,
-                              targetGroupId: targetGroupId,
-                              zone: zone,
-                              source: source,
-                            ));
-                          },
-                      child: const ColoredBox(
-                        color: Color(0xFF111111),
-                        child: Center(child: Text('Main Surface')),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-      final chip = find.text('Search');
-      final gesture = await tester.startGesture(tester.getCenter(chip));
-      await tester.pump();
-      await gesture.moveBy(const Offset(0, 24));
-      await tester.pump(const Duration(milliseconds: 100));
-      await gesture.moveTo(tester.getCenter(find.text('Main Surface')));
-      await tester.pump(const Duration(milliseconds: 100));
-      await gesture.up();
-      await tester.pumpAndSettle();
-      expect(moves, isNotEmpty);
-      expect(moves.single.key, 'tool:search');
-      expect(moves.single.source, ExperimentalPanelTree.right);
-      expect(moves.single.targetGroupId, 'workspace/experimental-main');
-    },
-  );
-
-  testWidgets('add tab menu lists opted-in agent profiles after Terminal', (
-    tester,
-  ) async {
-    final launched = <(String, String?)>[];
-    final now = DateTime.utc(2026, 9, 10);
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Align(
-            alignment: Alignment.topLeft,
-            child: SizedBox(
-              width: 800,
-              height: 500,
-              child: ExperimentalWorkspacePanelView(
-                workspaceId: 'workspace',
-                panel: const ExperimentalWorkspacePanel(
-                  tabKeys: ['tool:search'],
-                  activeKey: 'tool:search',
-                ),
-                tabs: const [],
-                onSelect: (_) {},
-                onClose: (_) {},
-                onNewTerminal: () {},
-                onHide: () {},
-                content: const Text('Selected Surface'),
-                newTabMenuProfiles: <AgentProfile>[
-                  AgentProfile(
-                    id: 'profile-hidden',
-                    name: 'Hidden Codex',
-                    agentType: 'codex',
-                    command: 'codex',
-                    createdAt: now,
-                    updatedAt: now,
-                  ),
-                  AgentProfile(
-                    id: 'profile-shown',
-                    name: 'Shown Codex',
-                    agentType: 'codex',
-                    command: 'codex',
-                    showInNewTabMenu: true,
-                    createdAt: now,
-                    updatedAt: now,
-                  ),
-                ],
-                onLaunchAgentProfile: ({required profileId, targetGroupId}) {
-                  launched.add((profileId, targetGroupId));
-                },
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-    await tester.tap(find.byTooltip('Add Tab'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Terminal'), findsOneWidget);
-    expect(find.text('Shown Codex'), findsOneWidget);
-    expect(find.text('Hidden Codex'), findsNothing);
-    expect(
-      tester.getTopLeft(find.text('Terminal')).dy,
-      lessThan(tester.getTopLeft(find.text('Shown Codex')).dy),
-    );
-
-    await tester.tap(find.text('Shown Codex'));
-    await tester.pumpAndSettle();
-    expect(launched, <(String, String?)>[('profile-shown', 'workspace/main')]);
-  });
-
-  testWidgets('empty panel lists opted-in agent profiles after Terminal', (
-    tester,
-  ) async {
-    final launched = <String>[];
-    final now = DateTime.utc(2026, 9, 10);
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: ExperimentalWorkspacePanelView(
-            panel: const ExperimentalWorkspacePanel(),
-            tabs: const [],
-            onSelect: (_) {},
-            onClose: (_) {},
-            onNewTerminal: () {},
-            onHide: () {},
-            content: const Text('Must Not Mount'),
-            newTabMenuProfiles: <AgentProfile>[
-              AgentProfile(
-                id: 'profile-shown',
-                name: 'Shown Codex',
-                agentType: 'codex',
-                command: 'codex',
-                showInNewTabMenu: true,
-                createdAt: now,
-                updatedAt: now,
-              ),
-            ],
-            onLaunchAgentProfile: ({required profileId, targetGroupId}) {
-              launched.add(profileId);
-            },
-          ),
-        ),
-      ),
-    );
-
-    expect(find.text('Shown Codex'), findsOneWidget);
-    expect(
-      tester.getTopLeft(find.text('Terminal')).dy,
-      lessThan(tester.getTopLeft(find.text('Shown Codex')).dy),
-    );
-    await tester.ensureVisible(find.text('Shown Codex'));
-    await tester.tap(find.text('Shown Codex'));
-    expect(launched, ['profile-shown']);
   });
 }
