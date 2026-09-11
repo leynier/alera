@@ -4,16 +4,19 @@ mixin _WorkbenchControllerNavigation
     on
         _$WorkbenchController,
         _WorkbenchControllerInternals,
-        _WorkbenchControllerProjects {
-  Future<void> launchAgentProfileTab({
+        _WorkbenchControllerProjects,
+        _WorkbenchControllerExperimentalLayout {
+  Future<String> launchAgentProfileTab({
     required Workspace workspace,
     required String profileId,
     String? targetGroupId,
+    String prompt = '',
   }) async {
     try {
       final launch = await _promptWorkspaceRuntimeClient.launchAgent(
         workspaceId: workspace.id,
         profileId: profileId,
+        prompt: prompt,
         clientMutationId: _uuid.v4(),
         requireIdempotency: false,
       );
@@ -23,6 +26,7 @@ mixin _WorkbenchControllerNavigation
         targetGroupId: targetGroupId,
       );
       state = state.copyWith(error: null);
+      return launch.tabId;
     } catch (error) {
       state = state.copyWith(error: error.toString());
       rethrow;
@@ -48,31 +52,41 @@ mixin _WorkbenchControllerNavigation
       if (!currentTabs.any((current) => current.id == tabId)) tab,
     ];
     _setTabsForWorkspace(workspaceId, tabs);
-    final currentGroupId = layout.groupIdForTab(tabId);
-    final requestedGroupId =
-        targetGroupId != null && layout.groups.containsKey(targetGroupId)
-        ? targetGroupId
-        : null;
-    final nextLayout = switch ((requestedGroupId, currentGroupId)) {
-      (final groupId?, null) => layout.addTabToGroup(
-        groupId: groupId,
-        tabId: tabId,
-      ),
-      (final groupId?, final assigned?) when groupId != assigned =>
-        layout.moveTab(
+    if (state.isExperimentalLayout) {
+      addTerminalToExperimentalPane(
+        workspaceId: workspaceId,
+        tab: tab,
+        tabs: tabs,
+        previousTabs: currentTabs,
+        targetGroupId: targetGroupId,
+      );
+    } else {
+      final currentGroupId = layout.groupIdForTab(tabId);
+      final requestedGroupId =
+          targetGroupId != null && layout.groups.containsKey(targetGroupId)
+          ? targetGroupId
+          : null;
+      final nextLayout = switch ((requestedGroupId, currentGroupId)) {
+        (final groupId?, null) => layout.addTabToGroup(
+          groupId: groupId,
           tabId: tabId,
-          targetGroupId: groupId,
-          zone: .center,
-          newGroupId: groupId,
         ),
-      (null, null) => layout.addTabToGroup(
-        groupId: layout.activeGroupId,
-        tabId: tabId,
-      ),
-      _ => null,
-    };
-    if (nextLayout != null) {
-      await _applyLayout(nextLayout.sanitize(tabs), persist: true);
+        (final groupId?, final assigned?) when groupId != assigned =>
+          layout.moveTab(
+            tabId: tabId,
+            targetGroupId: groupId,
+            zone: .center,
+            newGroupId: groupId,
+          ),
+        (null, null) => layout.addTabToGroup(
+          groupId: layout.activeGroupId,
+          tabId: tabId,
+        ),
+        _ => null,
+      };
+      if (nextLayout != null) {
+        await _applyLayout(nextLayout.sanitize(tabs), persist: true);
+      }
     }
     if (!_disposed) {
       await selectWorkspaceTab(workspaceId: workspaceId, tabId: tabId);

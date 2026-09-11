@@ -6,6 +6,9 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/design_system/surfaces/hover_container.dart';
+import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
+import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -78,6 +81,9 @@ class const ExperimentalWorkspacePanelView({
   required final VoidCallback onNewTerminal,
   required final VoidCallback onHide,
   required final Widget content,
+  final List<AgentProfile> newTabMenuProfiles = const <AgentProfile>[],
+  final void Function({required String profileId, String? targetGroupId})?
+  onLaunchAgentProfile,
   final Widget Function(String key)? surfaceBuilder,
   final Widget Function(WorkspaceTabRecord tab, bool active, String groupId)?
   tabBuilder,
@@ -108,6 +114,8 @@ class const ExperimentalWorkspacePanelView({
         onNewTerminal: onNewTerminal,
         onHide: onHide,
         content: content,
+        newTabMenuProfiles: newTabMenuProfiles,
+        onLaunchAgentProfile: onLaunchAgentProfile,
       );
     }
     return _ExperimentalPanelLayoutNode(
@@ -122,6 +130,8 @@ class const ExperimentalWorkspacePanelView({
       onNewTerminal: onNewTerminal,
       onSelectInGroup: onSelectInGroup,
       onNewTerminalInGroup: onNewTerminalInGroup,
+      newTabMenuProfiles: newTabMenuProfiles,
+      onLaunchAgentProfile: onLaunchAgentProfile,
       onHide: onHide,
       content: content,
       surfaceBuilder: surfaceBuilder,
@@ -148,6 +158,9 @@ class const _ExperimentalPanelLayoutNode({
   required final VoidCallback onNewTerminal,
   required final VoidCallback onHide,
   required final Widget content,
+  final List<AgentProfile> newTabMenuProfiles = const <AgentProfile>[],
+  final void Function({required String profileId, String? targetGroupId})?
+  onLaunchAgentProfile,
   final Widget Function(String key)? surfaceBuilder,
   final Widget Function(WorkspaceTabRecord tab, bool active, String groupId)?
   tabBuilder,
@@ -184,6 +197,8 @@ class const _ExperimentalPanelLayoutNode({
         onNewTerminal: onNewTerminal,
         onSelectInGroup: onSelectInGroup,
         onNewTerminalInGroup: onNewTerminalInGroup,
+        newTabMenuProfiles: newTabMenuProfiles,
+        onLaunchAgentProfile: onLaunchAgentProfile,
         onHide: onHide,
         content: content,
         surfaceBuilder: surfaceBuilder,
@@ -208,6 +223,8 @@ class const _ExperimentalPanelLayoutNode({
         onNewTerminal: onNewTerminal,
         onSelectInGroup: onSelectInGroup,
         onNewTerminalInGroup: onNewTerminalInGroup,
+        newTabMenuProfiles: newTabMenuProfiles,
+        onLaunchAgentProfile: onLaunchAgentProfile,
         onHide: onHide,
         content: content,
         surfaceBuilder: surfaceBuilder,
@@ -231,6 +248,8 @@ class const _ExperimentalPanelLayoutNode({
         onNewTerminal: onNewTerminal,
         onSelectInGroup: onSelectInGroup,
         onNewTerminalInGroup: onNewTerminalInGroup,
+        newTabMenuProfiles: newTabMenuProfiles,
+        onLaunchAgentProfile: onLaunchAgentProfile,
         onHide: onHide,
         content: content,
         surfaceBuilder: surfaceBuilder,

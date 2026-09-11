@@ -74,6 +74,7 @@ abstract final class const AleraIcons._() {
   static const IconData folderSpecial = LucideIcons.folderGit2;
   static const IconData file = LucideIcons.fileText;
   static const IconData fileGeneric = LucideIcons.file;
+  static const IconData attach = LucideIcons.paperclip;
   static const IconData read = LucideIcons.bookOpen;
   static const IconData newFile = LucideIcons.filePlus;
   static const IconData copyFiles = LucideIcons.files;

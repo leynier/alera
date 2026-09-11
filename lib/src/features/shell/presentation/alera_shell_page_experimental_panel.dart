@@ -15,10 +15,32 @@ extension _ExperimentalPanelTabs on _AleraShellPageBodyState {
     bool showHide = true,
   }) {
     final controller = ref.read(workbenchControllerProvider.notifier);
+    final newTabMenuProfiles =
+        ref.watch(agentProfilesProvider).asData?.value ??
+        const <AgentProfile>[];
     return ExperimentalWorkspacePanelView(
       workspaceId: workspace.id,
       panel: panel,
       tabs: tabs,
+      newTabMenuProfiles: <AgentProfile>[
+        for (final profile in newTabMenuProfiles)
+          if (profile.showInNewTabMenu) profile,
+      ],
+      onLaunchAgentProfile: ({required profileId, targetGroupId}) {
+        final profile = newTabMenuProfiles
+            .where((candidate) => candidate.id == profileId)
+            .firstOrNull;
+        if (profile == null) {
+          return;
+        }
+        unawaited(
+          _launchAgentProfileFromMenu(
+            workspace: workspace,
+            profile: profile,
+            targetGroupId: targetGroupId,
+          ),
+        );
+      },
       tabBuilder: (tab, active, groupId) => _buildExperimentalPanelTab(
         workspace: workspace,
         panel: panel,

@@ -1,6 +1,39 @@
 part of 'alera_shell_page.dart';
 
 extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
+  Future<void> _launchAgentProfileFromMenu({
+    required Workspace workspace,
+    required AgentProfile profile,
+    String? targetGroupId,
+  }) async {
+    final controller = ref.read(workbenchControllerProvider.notifier);
+    final terminalRuntime = ref.read(terminalRuntimeProvider);
+    await showAgentProfileLaunchDialog(
+      context,
+      profile: profile,
+      workspacePath: workspace.path,
+      onLaunch: ({required prompt}) async {
+        final tabId = await controller.launchAgentProfileTab(
+          workspace: workspace,
+          profileId: profile.id,
+          targetGroupId: targetGroupId,
+          prompt: prompt,
+        );
+        final tab = ref
+            .read(workbenchControllerProvider)
+            .tabsFor(workspace.id)
+            .where((candidate) => candidate.id == tabId)
+            .firstOrNull;
+        if (tab == null) {
+          return;
+        }
+        terminalRuntime
+            .sessionFor(workspace: workspace, tab: tab)
+            .requestFocus();
+      },
+    );
+  }
+
   Widget _buildContent({
     required bool bootstrapped,
     required bool hasProjects,
@@ -79,29 +112,17 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
               if (profile.showInNewTabMenu) profile,
           ],
           onLaunchAgentProfile: ({required profileId, targetGroupId}) async {
-            await controller.launchAgentProfileTab(
+            final profile = newTabMenuProfiles
+                .where((candidate) => candidate.id == profileId)
+                .firstOrNull;
+            if (profile == null) {
+              return;
+            }
+            await _launchAgentProfileFromMenu(
               workspace: workspace,
-              profileId: profileId,
+              profile: profile,
               targetGroupId: targetGroupId,
             );
-            final tabId = ref
-                .read(workbenchControllerProvider)
-                .layoutFor(workspace.id)
-                ?.activeTabId;
-            if (tabId == null) {
-              return;
-            }
-            final tab = ref
-                .read(workbenchControllerProvider)
-                .tabsFor(workspace.id)
-                .where((candidate) => candidate.id == tabId)
-                .firstOrNull;
-            if (tab == null) {
-              return;
-            }
-            terminalRuntime
-                .sessionFor(workspace: workspace, tab: tab)
-                .requestFocus();
           },
           onOpenEditorTab: ({required relativePath, targetGroupId}) async {
             await controller.openEditorTab(
