@@ -48,6 +48,7 @@ part 'workbench_controller_internals.dart';
 part 'workbench_controller_workspace_reconciliation.dart';
 part 'workbench_controller_experimental_layout.dart';
 part 'workbench_controller_projects.dart';
+part 'workbench_controller_workspace_sleep.dart';
 part 'workbench_controller_navigation.dart';
 part 'workbench_controller_tab_opening.dart';
 part 'workbench_controller_file_tabs.dart';
@@ -70,6 +71,7 @@ class WorkbenchController extends _$WorkbenchController
         _WorkbenchControllerFileTabs,
         _WorkbenchControllerPullRequestDiffTabs,
         _WorkbenchControllerProjects,
+        _WorkbenchControllerWorkspaceSleep,
         _WorkbenchControllerNavigation,
         // Creation builds on project selection and tab opening so the prompt
         // flow can synchronize its agent before appending Setup.

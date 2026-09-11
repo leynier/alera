@@ -316,7 +316,7 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
         );
     try {
       if (_createAnother) {
-        final result = await future;
+        await future;
         if (!mounted) {
           return;
         }

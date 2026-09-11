@@ -307,7 +307,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
         );
     try {
       if (_createAnother) {
-        final result = await future;
+        await future;
         if (!mounted) {
           return;
         }

@@ -390,6 +390,13 @@ class DialogLaunchersBackgroundSetupJobs extends BackgroundSetupJobs {
   }
 }
 
+Future<void> openManualWorkspaceDialog(WidgetTester tester) async {
+  await tester.tap(find.text('Manual'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Continue Manually'));
+  await tester.pumpAndSettle();
+}
+
 class DialogLaunchersSettingsController(final AleraSettings _seed)
     extends SettingsController {
   @override
