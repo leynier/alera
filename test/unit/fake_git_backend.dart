@@ -47,25 +47,8 @@ class FakeGitBackend
   @override
   bool headBranchFails = false;
 
-  /// Per-ref ancestry responses. Unspecified pairs default to true so tests
-  /// that do not care about graph shape preserve their existing behavior.
-  final Map<(String, String), bool> ancestorResults =
-      <(String, String), bool>{};
-  GitException? isAncestorError;
-
   /// Names rejected by [isValidBranchName].
   final Set<String> invalidBranchNames = <String>{};
-
-  /// When set, [listWorktrees] always reports the queried repo path as the main
-  /// work tree (branch [headBranch]), mirroring how `git worktree list` always
-  /// includes the main checkout.
-  bool includeQueriedRepoAsMain = false;
-
-  /// Live worktrees reported by [listWorktrees], keyed by path → branch.
-  Map<String, String> liveBranchByPath = <String, String>{};
-
-  /// When set, [listWorktrees] throws (callers treat the listing as untrusted).
-  bool worktreeListFails = false;
 
   /// Remotes reported by [listRemotes], keyed by name → url.
   @override
@@ -74,17 +57,6 @@ class FakeGitBackend
   /// When set, [listRemotes] throws.
   @override
   bool listRemotesFails = false;
-
-  /// Target branch names whose [createWorktree] should fail.
-  final Set<String> failingWorktreeAddBranches = <String>{};
-
-  /// Worktree paths whose [removeWorktree] should fail.
-  final Set<String> failingWorktreeRemovePaths = <String>{};
-  GitException? removeWorktreeError;
-
-  /// Branch names whose [deleteBranch] should fail.
-  final Set<String> failingBranchDeletes = <String>{};
-  GitException? deleteBranchError;
 
   /// When set, [clone] throws [cloneError].
   bool cloneFails = false;
@@ -135,7 +107,6 @@ class FakeGitBackend
   GitException? fetchError;
   void Function()? onFetch;
   GitException? pullError;
-  GitException? refreshSourceBranchError;
   GitException? pushError;
   GitException? stashError;
   GitException? stashPopError;
@@ -178,143 +149,11 @@ class FakeGitBackend
   }
 
   @override
-  Future<bool> isAncestor({
-    required String path,
-    required String ancestorRef,
-    required String descendantRef,
-  }) async {
-    calls.add(
-      GitBackendCall('isAncestor', <String, Object?>{
-        'path': path,
-        'ancestorRef': ancestorRef,
-        'descendantRef': descendantRef,
-      }),
-    );
-    final error = isAncestorError;
-    if (error != null) {
-      throw error;
-    }
-    return ancestorResults[(ancestorRef, descendantRef)] ?? true;
-  }
-
-  @override
   Future<bool> isValidBranchName(String name) async {
     calls.add(
       GitBackendCall('isValidBranchName', <String, Object?>{'name': name}),
     );
     return !invalidBranchNames.contains(name);
-  }
-
-  @override
-  Future<void> createWorktree({
-    required String repoPath,
-    required String targetBranch,
-    required String path,
-    required String sourceBranch,
-    bool reuseExistingBranch = false,
-  }) async {
-    calls.add(
-      GitBackendCall('createWorktree', <String, Object?>{
-        'repoPath': repoPath,
-        'targetBranch': targetBranch,
-        'path': path,
-        'sourceBranch': sourceBranch,
-        'reuseExistingBranch': reuseExistingBranch,
-      }),
-    );
-    if (failingWorktreeAddBranches.contains(targetBranch)) {
-      throw const GitInternalException('add failed');
-    }
-  }
-
-  @override
-  Future<void> refreshSourceBranch({
-    required String repoPath,
-    required String sourceBranch,
-  }) async {
-    calls.add(
-      GitBackendCall('refreshSourceBranch', <String, Object?>{
-        'repoPath': repoPath,
-        'sourceBranch': sourceBranch,
-      }),
-    );
-    final error = refreshSourceBranchError;
-    if (error != null) {
-      throw error;
-    }
-  }
-
-  @override
-  Future<void> removeWorktree({
-    required String repoPath,
-    required String path,
-    bool force = true,
-  }) async {
-    calls.add(
-      GitBackendCall('removeWorktree', <String, Object?>{
-        'repoPath': repoPath,
-        'path': path,
-        'force': force,
-      }),
-    );
-    if (failingWorktreeRemovePaths.contains(path)) {
-      throw const GitInternalException('remove failed');
-    }
-    final error = removeWorktreeError;
-    if (error != null) {
-      throw error;
-    }
-  }
-
-  @override
-  Future<void> deleteBranch({
-    required String repoPath,
-    required String branch,
-    bool force = true,
-  }) async {
-    calls.add(
-      GitBackendCall('deleteBranch', <String, Object?>{
-        'repoPath': repoPath,
-        'branch': branch,
-        'force': force,
-      }),
-    );
-    if (failingBranchDeletes.contains(branch)) {
-      throw const GitInternalException('delete failed');
-    }
-    final error = deleteBranchError;
-    if (error != null) {
-      throw error;
-    }
-    if (!force) {
-      final home = defaultBranchName;
-      final mergedLocal = ancestorResults[(branch, home)];
-      final mergedOrigin = ancestorResults[(branch, 'origin/$home')];
-      if ((mergedLocal != null || mergedOrigin != null) &&
-          mergedLocal != true &&
-          mergedOrigin != true) {
-        throw const GitConflictException(
-          'Branch has commits not merged into the default branch',
-        );
-      }
-    }
-    sourceBranches.remove(branch);
-  }
-
-  @override
-  Future<List<GitWorktreeEntry>> listWorktrees(String repoPath) async {
-    calls.add(
-      GitBackendCall('listWorktrees', <String, Object?>{'repoPath': repoPath}),
-    );
-    if (worktreeListFails) {
-      throw const GitInternalException('not a git repository');
-    }
-    return <GitWorktreeEntry>[
-      if (includeQueriedRepoAsMain)
-        GitWorktreeEntry(path: repoPath, branch: headBranch),
-      for (final entry in liveBranchByPath.entries)
-        GitWorktreeEntry(path: entry.key, branch: entry.value),
-    ];
   }
 
   @override
