@@ -75,7 +75,7 @@ void main() {
     expect(launched, <(String, String?)>[('profile-shown', 'workspace/main')]);
   });
 
-  testWidgets('empty panel lists opted-in agent profiles after Terminal', (
+  testWidgets('empty panel opens a profiles-only picker from Agents', (
     tester,
   ) async {
     final launched = <String>[];
@@ -92,6 +92,14 @@ void main() {
             onHide: () {},
             content: const Text('Must Not Mount'),
             newTabMenuProfiles: <AgentProfile>[
+              AgentProfile(
+                id: 'profile-hidden',
+                name: 'Hidden Codex',
+                agentType: 'codex',
+                command: 'codex',
+                createdAt: now,
+                updatedAt: now,
+              ),
               AgentProfile(
                 id: 'profile-shown',
                 name: 'Shown Codex',
@@ -110,13 +118,25 @@ void main() {
       ),
     );
 
-    expect(find.text('Shown Codex'), findsOneWidget);
+    expect(find.text('Agents'), findsOneWidget);
+    expect(find.text('Shown Codex'), findsNothing);
+    expect(find.text('Hidden Codex'), findsNothing);
     expect(
       tester.getTopLeft(find.text('Terminal')).dy,
-      lessThan(tester.getTopLeft(find.text('Shown Codex')).dy),
+      lessThan(tester.getTopLeft(find.text('Agents')).dy),
     );
-    await tester.ensureVisible(find.text('Shown Codex'));
-    await tester.tap(find.text('Shown Codex'));
-    expect(launched, ['profile-shown']);
+
+    await tester.ensureVisible(find.text('Agents'));
+    await tester.tap(find.text('Agents'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('RUNNING AGENTS'), findsNothing);
+    expect(find.text('AGENT PROFILES'), findsOneWidget);
+    expect(find.text('Hidden Codex'), findsOneWidget);
+    expect(find.text('Shown Codex'), findsOneWidget);
+
+    await tester.tap(find.text('Hidden Codex'));
+    await tester.pumpAndSettle();
+    expect(launched, ['profile-hidden']);
   });
 }

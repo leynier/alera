@@ -14,15 +14,22 @@ import 'package:alera/src/features/workbench/application/workspace_agent_status_
 import 'package:alera/src/features/workbench/presentation/widgets/agent_run_state_indicator.dart';
 import 'package:flutter/material.dart';
 
+const _defaultDispatchEmptyMessage =
+    'Add an agent profile in Settings, then send work here.';
+
 /// Presentational picker: running agents in the workspace, or a profile that
 /// opens a new tab. Data and the selection callback come in via parameters.
 class const AgentTaskDispatchDialog({
   super.key,
   required this.request,
   required this.catalog,
+  this.includeRunningAgents = true,
+  this.emptyMessage,
 }) extends StatelessWidget {
   final AgentTaskDispatchRequest request;
   final AgentTaskDispatchCatalog catalog;
+  final bool includeRunningAgents;
+  final String? emptyMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -63,58 +70,66 @@ class const AgentTaskDispatchDialog({
     );
   }
 
+  bool get _hasTargets {
+    return includeRunningAgents
+        ? !catalog.isEmpty
+        : catalog.profiles.isNotEmpty;
+  }
+
   Widget _body(BuildContext context, ThemeData theme) {
-    if (catalog.isEmpty) {
-      return const AleraEmptyState(
+    if (!_hasTargets) {
+      return AleraEmptyState(
         icon: AleraIcons.agent,
         title: 'No Agents Available',
-        message: 'Add an agent profile in Settings, then send work here.',
+        message: emptyMessage ?? _defaultDispatchEmptyMessage,
       );
     }
     return ListView(
       shrinkWrap: true,
       padding: EdgeInsets.zero,
       children: <Widget>[
-        const AleraSectionHeader(
-          label: 'Running Agents',
-          padding: EdgeInsets.only(
-            left: AleraTokens.space4,
-            right: AleraTokens.space4,
-            bottom: AleraTokens.space4,
+        if (includeRunningAgents) ...<Widget>[
+          const AleraSectionHeader(
+            label: 'Running Agents',
+            padding: EdgeInsets.only(
+              left: AleraTokens.space4,
+              right: AleraTokens.space4,
+              bottom: AleraTokens.space4,
+            ),
           ),
-        ),
-        if (catalog.runningAgents.isEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AleraTokens.space4,
-              AleraTokens.space4,
-              AleraTokens.space4,
-              AleraTokens.space8,
-            ),
-            child: Text(
-              'No running agents in this workspace.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AleraTokens.foregroundMuted,
+          if (catalog.runningAgents.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AleraTokens.space4,
+                AleraTokens.space4,
+                AleraTokens.space4,
+                AleraTokens.space8,
               ),
-            ),
-          )
-        else
-          for (final run in catalog.runningAgents)
-            _DispatchRow(
-              title: agentTaskDispatchTabLabel(run.tab),
-              subtitle: agentRunStateLabel(run.status),
-              leading: _runningLeading(run),
-              onTap: () => Navigator.of(
-                context,
-              ).pop(AgentTaskDispatchRunningAgentSelection(tabId: run.tab.id)),
-            ),
-        const SizedBox(height: AleraTokens.space8),
-        const AleraSectionHeader(
-          label: 'New Tab',
+              child: Text(
+                'No running agents in this workspace.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AleraTokens.foregroundMuted,
+                ),
+              ),
+            )
+          else
+            for (final run in catalog.runningAgents)
+              _DispatchRow(
+                title: agentTaskDispatchTabLabel(run.tab),
+                subtitle: agentRunStateLabel(run.status),
+                leading: _runningLeading(run),
+                onTap: () => Navigator.of(context).pop(
+                  AgentTaskDispatchRunningAgentSelection(tabId: run.tab.id),
+                ),
+              ),
+          const SizedBox(height: AleraTokens.space8),
+        ],
+        AleraSectionHeader(
+          label: includeRunningAgents ? 'New Tab' : 'Agent Profiles',
           padding: EdgeInsets.only(
             left: AleraTokens.space4,
             right: AleraTokens.space4,
-            top: AleraTokens.space8,
+            top: includeRunningAgents ? AleraTokens.space8 : 0,
             bottom: AleraTokens.space4,
           ),
         ),
