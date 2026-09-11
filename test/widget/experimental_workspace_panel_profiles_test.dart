@@ -1,3 +1,4 @@
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
 import 'package:alera/src/features/workbench/presentation/experimental_workspace_panel_view.dart';
@@ -63,6 +64,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Terminal'), findsOneWidget);
+    expect(find.byIcon(AleraIcons.terminal), findsOneWidget);
     expect(find.text('Shown Codex'), findsOneWidget);
     expect(find.text('Hidden Codex'), findsNothing);
     expect(

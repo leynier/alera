@@ -308,10 +308,20 @@ class const _ExperimentalPanelAddButton({
           AleraDropdownEntry(
             value: _ExperimentalAddToolMenuAction(tool.key),
             label: tool.label,
+            leading: Icon(
+              _iconForTool(tool),
+              size: AleraTokens.iconLg,
+              color: AleraTokens.foregroundMuted,
+            ),
           ),
         const AleraDropdownEntry(
           value: _ExperimentalAddTerminalMenuAction(),
           label: 'Terminal',
+          leading: Icon(
+            AleraIcons.terminal,
+            size: AleraTokens.iconLg,
+            color: AleraTokens.foregroundMuted,
+          ),
         ),
         for (final profile in profiles)
           if (profile.showInNewTabMenu)
@@ -321,7 +331,7 @@ class const _ExperimentalPanelAddButton({
               leading: AgentIdentityIcon(
                 agentType:
                     AgentType.tryParse(profile.agentType) ?? AgentType.codex,
-                size: 16,
+                size: AleraTokens.iconLg,
                 showTooltip: false,
               ),
             ),

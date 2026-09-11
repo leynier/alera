@@ -1,3 +1,4 @@
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
@@ -169,6 +170,52 @@ void main() {
       find.byWidgetPredicate((w) => w is AleraDropdownEntry),
       findsNWidgets(3),
     );
+  });
+
+  testWidgets('add tab menu shows icons for tools and Terminal', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 800,
+              height: 500,
+              child: ExperimentalWorkspacePanelView(
+                panel: const ExperimentalWorkspacePanel(
+                  tabKeys: ['tool:explorer'],
+                  activeKey: 'tool:explorer',
+                ),
+                tabs: const [],
+                onSelect: (_) {},
+                onClose: (_) {},
+                onNewTerminal: () {},
+                onHide: () {},
+                content: const Text('Selected Surface'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byTooltip('Add Tab'));
+    await tester.pumpAndSettle();
+
+    Finder menuIcon(IconData icon) {
+      return find.descendant(
+        of: find.byWidgetPredicate((widget) => widget is AleraDropdownEntry),
+        matching: find.byIcon(icon),
+      );
+    }
+
+    expect(menuIcon(AleraIcons.search), findsOneWidget);
+    expect(menuIcon(AleraIcons.gitBranch), findsOneWidget);
+    expect(menuIcon(AleraIcons.gitPullRequest), findsOneWidget);
+    expect(menuIcon(AleraIcons.terminal), findsOneWidget);
+    expect(menuIcon(AleraIcons.folder), findsNothing);
   });
 
   testWidgets('add tab pins beside Hide Panel when the strip overflows', (
