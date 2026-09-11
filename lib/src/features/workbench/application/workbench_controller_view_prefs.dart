@@ -445,6 +445,26 @@ mixin _WorkbenchControllerViewPrefs
     );
   }
 
+  void setExperimentalNewWorkspaceTools(List<ExperimentalWorkspaceTool> tools) {
+    final next = ExperimentalWorkspaceTool.uniqueInOrder(tools);
+    final current = state.viewPrefs.experimentalNewWorkspaceTools;
+    if (current.length == next.length) {
+      var same = true;
+      for (var i = 0; i < current.length; i++) {
+        if (current[i] != next[i]) {
+          same = false;
+          break;
+        }
+      }
+      if (same) {
+        return;
+      }
+    }
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(experimentalNewWorkspaceTools: next),
+    );
+  }
+
   void _updateViewPrefs(WorkbenchViewPrefs prefs) {
     state = state.copyWith(viewPrefs: prefs);
     unawaited(_persistViewPrefs());

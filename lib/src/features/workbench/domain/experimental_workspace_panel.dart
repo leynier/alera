@@ -27,6 +27,38 @@ enum ExperimentalWorkspaceTool {
 
   static ExperimentalWorkspaceTool? forKey(String? key) =>
       values.where((tool) => tool.key == key).firstOrNull;
+
+  static List<ExperimentalWorkspaceTool> uniqueInOrder(
+    Iterable<ExperimentalWorkspaceTool> tools,
+  ) {
+    final seen = <ExperimentalWorkspaceTool>{};
+    return <ExperimentalWorkspaceTool>[
+      for (final tool in tools)
+        if (seen.add(tool)) tool,
+    ];
+  }
+
+  static List<ExperimentalWorkspaceTool> settingsOrder(
+    Iterable<ExperimentalWorkspaceTool> selected,
+  ) {
+    final enabled = uniqueInOrder(selected);
+    return <ExperimentalWorkspaceTool>[
+      ...enabled,
+      for (final tool in values)
+        if (!enabled.contains(tool)) tool,
+    ];
+  }
+
+  static List<ExperimentalWorkspaceTool> selectedFromOrder({
+    required Iterable<ExperimentalWorkspaceTool> order,
+    required Iterable<ExperimentalWorkspaceTool> selected,
+  }) {
+    final enabled = selected.toSet();
+    return <ExperimentalWorkspaceTool>[
+      for (final tool in uniqueInOrder(order))
+        if (enabled.contains(tool)) tool,
+    ];
+  }
 }
 
 bool isExperimentalPrimaryCandidate(WorkspaceTabRecord tab) =>
@@ -59,6 +91,26 @@ class const ExperimentalWorkspacePanel({
   static String tabKey(String tabId) => 'tab:$tabId';
   static String? tabId(String? key) =>
       key != null && key.startsWith('tab:') ? key.substring(4) : null;
+
+  static ExperimentalWorkspacePanel fromNewWorkspaceTools(
+    Iterable<ExperimentalWorkspaceTool> tools,
+  ) {
+    return const ExperimentalWorkspacePanel().openToolsInOrder(tools);
+  }
+
+  ExperimentalWorkspacePanel openToolsInOrder(
+    Iterable<ExperimentalWorkspaceTool> tools,
+  ) {
+    final unique = ExperimentalWorkspaceTool.uniqueInOrder(tools);
+    if (unique.isEmpty) {
+      return this;
+    }
+    var panel = this;
+    for (final tool in unique) {
+      panel = panel.select(tool.key);
+    }
+    return panel.select(unique.first.key);
+  }
 
   static const String fallbackLayoutWorkspaceId = 'experimental-panel';
   static const String mainLayoutGroupSuffix = 'experimental-main';
