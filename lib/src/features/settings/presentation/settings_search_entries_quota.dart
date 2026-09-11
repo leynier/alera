@@ -31,11 +31,6 @@ quotaSearchEntries = buildSettingsSearchEntryCatalog(const {
       description: 'Configure the default Claude account independently.',
       keywords: <String>['claude', 'default', 'account', 'quota'],
     ),
-    'Claude Default in Usage': SettingsSearchEntryDetails(
-      description:
-          'Choose whether the default Claude account appears in Usage.',
-      keywords: <String>['claude', 'default', 'account', 'usage', 'visible'],
-    ),
     'Claude CCS Profiles': SettingsSearchEntryDetails(
       description: 'Configure CCS alias and profile pairs for Claude quotas.',
       keywords: <String>[

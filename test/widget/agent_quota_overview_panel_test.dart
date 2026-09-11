@@ -174,30 +174,6 @@ void main() {
     ]);
   });
 
-  testWidgets('opens usage from the quota overview action', (tester) async {
-    var opened = false;
-    await tester.pumpWidget(
-      _wrap(
-        settings: const AgentQuotaHostSettings(
-          enabledProviders: <AgentQuotaProviderId>[AgentQuotaProviderId.codex],
-        ),
-        snapshots: <AgentQuotaSnapshot>[
-          _snapshot(
-            provider: .codex,
-            windows: <AgentQuotaWindow>[_window('Weekly', 40)],
-          ),
-        ],
-        onOpenUsage: () => opened = true,
-      ),
-    );
-
-    await tester.tap(find.byIcon(AleraIcons.quota), kind: .mouse);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Open Usage'));
-
-    expect(opened, isTrue);
-  });
-
   testWidgets('renders error quotas with a placeholder reading', (
     tester,
   ) async {
@@ -334,7 +310,6 @@ Widget _wrap({
   required List<AgentQuotaSnapshot> snapshots,
   required AgentQuotaHostSettings settings,
   AgentQuotaPinToggle? onTogglePinned,
-  VoidCallback? onOpenUsage,
   double width = 1100,
 }) {
   return ProviderScope(
@@ -351,7 +326,6 @@ Widget _wrap({
               settings: settings,
               onRefresh: () {},
               onTogglePinned: onTogglePinned ?? (_, _) {},
-              onOpenUsage: onOpenUsage,
             ),
           ),
         ),

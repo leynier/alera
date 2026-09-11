@@ -30,7 +30,7 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      '19467dc91e2d32d1fc5692e5717fc579033f3e6bc2a4ddf095f4a3fcb0ead00f',
+      '015f20186c958770a1b7365fe1b457b0e4663bc06d4166b37405457ba0a3788a',
     );
   });
 
@@ -135,8 +135,8 @@ void main() {
       ),
       (
         entries: quotaSearchEntries,
-        query: 'visible',
-        expected: <(String, String?)>[('Claude Default in Usage', 'claude')],
+        query: 'alias',
+        expected: <(String, String?)>[('Claude CCS Profiles', 'claude')],
       ),
     ];
 

@@ -87,7 +87,6 @@ class const _CollapsedQuotaBar({
   required final String? error,
   required final VoidCallback onRefresh,
   required final AgentQuotaPinToggle onTogglePinned,
-  final VoidCallback? onOpenUsage,
   final Widget? trailing,
 }) extends StatelessWidget {
   @override
@@ -120,7 +119,6 @@ class const _CollapsedQuotaBar({
                 hostId: hostId,
                 actions: actions,
                 onTogglePinned: onTogglePinned,
-                onOpenUsage: onOpenUsage,
                 profileLabels: <String, String>{
                   for (final snapshot in snapshots)
                     if (snapshot.provider == AgentQuotaProviderId.claude ||

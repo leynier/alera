@@ -2101,15 +2101,6 @@ class AgentQuotaHostSettingsMapper
         opt: true,
         def: true,
       );
-  static bool _$claudeDefaultShowInUsage(AgentQuotaHostSettings v) =>
-      v.claudeDefaultShowInUsage;
-  static const Field<AgentQuotaHostSettings, bool> _f$claudeDefaultShowInUsage =
-      Field(
-        'claudeDefaultShowInUsage',
-        _$claudeDefaultShowInUsage,
-        opt: true,
-        def: true,
-      );
   static List<ClaudeQuotaProfileSettings> _$claudeProfiles(
     AgentQuotaHostSettings v,
   ) => v.claudeProfiles;
@@ -2153,7 +2144,6 @@ class AgentQuotaHostSettingsMapper
   final MappableFields<AgentQuotaHostSettings> fields = const {
     #enabledProviders: _f$enabledProviders,
     #claudeDefaultEnabled: _f$claudeDefaultEnabled,
-    #claudeDefaultShowInUsage: _f$claudeDefaultShowInUsage,
     #claudeProfiles: _f$claudeProfiles,
     #selectedClaudeProfile: _f$selectedClaudeProfile,
     #environment: _f$environment,
@@ -2164,7 +2154,6 @@ class AgentQuotaHostSettingsMapper
     return AgentQuotaHostSettings(
       enabledProviders: data.dec(_f$enabledProviders),
       claudeDefaultEnabled: data.dec(_f$claudeDefaultEnabled),
-      claudeDefaultShowInUsage: data.dec(_f$claudeDefaultShowInUsage),
       claudeProfiles: data.dec(_f$claudeProfiles),
       selectedClaudeProfile: data.dec(_f$selectedClaudeProfile),
       environment: data.dec(_f$environment),
@@ -2269,7 +2258,6 @@ abstract class AgentQuotaHostSettingsCopyWith<
   $R call({
     List<AgentQuotaProviderId>? enabledProviders,
     bool? claudeDefaultEnabled,
-    bool? claudeDefaultShowInUsage,
     List<ClaudeQuotaProfileSettings>? claudeProfiles,
     String? selectedClaudeProfile,
     AgentQuotaEnvironmentSettings? environment,
@@ -2334,7 +2322,6 @@ class _AgentQuotaHostSettingsCopyWithImpl<$R, $Out>
   $R call({
     List<AgentQuotaProviderId>? enabledProviders,
     bool? claudeDefaultEnabled,
-    bool? claudeDefaultShowInUsage,
     List<ClaudeQuotaProfileSettings>? claudeProfiles,
     String? selectedClaudeProfile,
     AgentQuotaEnvironmentSettings? environment,
@@ -2344,8 +2331,6 @@ class _AgentQuotaHostSettingsCopyWithImpl<$R, $Out>
       if (enabledProviders != null) #enabledProviders: enabledProviders,
       if (claudeDefaultEnabled != null)
         #claudeDefaultEnabled: claudeDefaultEnabled,
-      if (claudeDefaultShowInUsage != null)
-        #claudeDefaultShowInUsage: claudeDefaultShowInUsage,
       if (claudeProfiles != null) #claudeProfiles: claudeProfiles,
       if (selectedClaudeProfile != null)
         #selectedClaudeProfile: selectedClaudeProfile,
@@ -2359,10 +2344,6 @@ class _AgentQuotaHostSettingsCopyWithImpl<$R, $Out>
     claudeDefaultEnabled: data.get(
       #claudeDefaultEnabled,
       or: $value.claudeDefaultEnabled,
-    ),
-    claudeDefaultShowInUsage: data.get(
-      #claudeDefaultShowInUsage,
-      or: $value.claudeDefaultShowInUsage,
     ),
     claudeProfiles: data.get(#claudeProfiles, or: $value.claudeProfiles),
     selectedClaudeProfile: data.get(
@@ -2409,32 +2390,17 @@ class ClaudeQuotaProfileSettingsMapper
     'profile',
     _$profile,
   );
-  static bool _$showInUsage(ClaudeQuotaProfileSettings v) => v.showInUsage;
-  static const Field<ClaudeQuotaProfileSettings, bool> _f$showInUsage = Field(
-    'showInUsage',
-    _$showInUsage,
-    opt: true,
-    def: true,
-  );
-  static String? _$usageDisplayName(ClaudeQuotaProfileSettings v) =>
-      v.usageDisplayName;
-  static const Field<ClaudeQuotaProfileSettings, String> _f$usageDisplayName =
-      Field('usageDisplayName', _$usageDisplayName, opt: true);
 
   @override
   final MappableFields<ClaudeQuotaProfileSettings> fields = const {
     #alias: _f$alias,
     #profile: _f$profile,
-    #showInUsage: _f$showInUsage,
-    #usageDisplayName: _f$usageDisplayName,
   };
 
   static ClaudeQuotaProfileSettings _instantiate(DecodingData data) {
     return ClaudeQuotaProfileSettings(
       alias: data.dec(_f$alias),
       profile: data.dec(_f$profile),
-      showInUsage: data.dec(_f$showInUsage),
-      usageDisplayName: data.dec(_f$usageDisplayName),
     );
   }
 
@@ -2512,12 +2478,7 @@ abstract class ClaudeQuotaProfileSettingsCopyWith<
   $Out
 >
     implements ClassCopyWith<$R, $In, $Out> {
-  $R call({
-    String? alias,
-    String? profile,
-    bool? showInUsage,
-    String? usageDisplayName,
-  });
+  $R call({String? alias, String? profile});
   ClaudeQuotaProfileSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
   );
@@ -2537,17 +2498,10 @@ class _ClaudeQuotaProfileSettingsCopyWithImpl<$R, $Out>
   late final ClassMapperBase<ClaudeQuotaProfileSettings> $mapper =
       ClaudeQuotaProfileSettingsMapper.ensureInitialized();
   @override
-  $R call({
-    String? alias,
-    String? profile,
-    bool? showInUsage,
-    Object? usageDisplayName = $none,
-  }) => $apply(
+  $R call({String? alias, String? profile}) => $apply(
     FieldCopyWithData({
       if (alias != null) #alias: alias,
       if (profile != null) #profile: profile,
-      if (showInUsage != null) #showInUsage: showInUsage,
-      if (usageDisplayName != $none) #usageDisplayName: usageDisplayName,
     }),
   );
   @override
@@ -2555,11 +2509,6 @@ class _ClaudeQuotaProfileSettingsCopyWithImpl<$R, $Out>
       ClaudeQuotaProfileSettings(
         alias: data.get(#alias, or: $value.alias),
         profile: data.get(#profile, or: $value.profile),
-        showInUsage: data.get(#showInUsage, or: $value.showInUsage),
-        usageDisplayName: data.get(
-          #usageDisplayName,
-          or: $value.usageDisplayName,
-        ),
       );
 
   @override
