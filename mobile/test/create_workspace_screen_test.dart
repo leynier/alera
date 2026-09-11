@@ -1,9 +1,11 @@
+import 'package:alera_mobile/src/app/app_navigation.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
 import 'package:alera_mobile/src/features/ai_dictation/domain/mobile_ai_dictation_settings.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/create_workspace_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,8 +29,9 @@ void main() {
           workspaceClientProvider('host-1').overrideWith((ref) async => client),
           terminalClientProvider('host-1').overrideWith((ref) async => client),
         ],
-        child: const MaterialApp(
-          home: CreateWorkspaceScreen(
+        child: MaterialApp(
+          navigatorKey: aleraNavigatorKey,
+          home: const CreateWorkspaceScreen(
             hostId: 'host-1',
             projects: <ProjectSummary>[
               ProjectSummary(
@@ -99,8 +102,9 @@ void main() {
           workspaceClientProvider('host-1').overrideWith((ref) async => client),
           terminalClientProvider('host-1').overrideWith((ref) async => client),
         ],
-        child: const MaterialApp(
-          home: CreateWorkspaceScreen(
+        child: MaterialApp(
+          navigatorKey: aleraNavigatorKey,
+          home: const CreateWorkspaceScreen(
             hostId: 'host-1',
             projects: <ProjectSummary>[
               ProjectSummary(
@@ -159,6 +163,61 @@ void main() {
           .controller
           ?.text,
       isEmpty,
+    );
+  });
+
+  testWidgets('From Prompt opens the new workspace after a background create', (
+    tester,
+  ) async {
+    final client = FakeTerminalClient()
+      ..projectBranches = const <String>['main'];
+    addTearDown(client.dispose);
+    tester.view.physicalSize = const Size(800, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          workspaceClientProvider('host-1').overrideWith((ref) async => client),
+          terminalClientProvider('host-1').overrideWith((ref) async => client),
+        ],
+        child: MaterialApp(
+          navigatorKey: aleraNavigatorKey,
+          home: const CreateWorkspaceScreen(
+            hostId: 'host-1',
+            projects: <ProjectSummary>[
+              ProjectSummary(
+                id: 'project-1',
+                name: 'Alera',
+                repoPath: '/repo/alera',
+              ),
+            ],
+            workspaces: [],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Initial Prompt'),
+      'Build offline support',
+    );
+    await tester.tap(find.text('Create And Start Agent'));
+    for (var attempt = 0; attempt < 100; attempt += 1) {
+      if (client.calls.any((call) => call.startsWith('launchAgentProfile'))) {
+        break;
+      }
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CreateWorkspaceScreen), findsNothing);
+    expect(find.byType(WorkspaceTabsScreen), findsOneWidget);
+    expect(
+      client.calls,
+      contains('launchAgentProfile created profile-1 Build offline support'),
     );
   });
 
@@ -245,8 +304,9 @@ void main() {
             ),
           ),
         ],
-        child: const MaterialApp(
-          home: CreateWorkspaceScreen(
+        child: MaterialApp(
+          navigatorKey: aleraNavigatorKey,
+          home: const CreateWorkspaceScreen(
             hostId: 'host-1',
             projects: <ProjectSummary>[
               ProjectSummary(
@@ -296,8 +356,9 @@ void main() {
             () => FakeMobileAiDictationSettingsController(),
           ),
         ],
-        child: const MaterialApp(
-          home: CreateWorkspaceScreen(
+        child: MaterialApp(
+          navigatorKey: aleraNavigatorKey,
+          home: const CreateWorkspaceScreen(
             hostId: 'host-1',
             projects: <ProjectSummary>[
               ProjectSummary(

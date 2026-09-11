@@ -18,6 +18,7 @@ This document records the current product and code naming used by Alera. It is i
 - `Agent task dispatch`: the shared desktop picker that sends a caller-owned prompt to a running workspace agent or opens a profile tab and injects. File and diff comments, pull request failed-check repair, and agent watch reuse `chooseAgentTaskDispatchTarget` / `completeAgentTaskDispatch`. They do not fork a one-off launcher.
 - `Workspace agent comment`: a desktop-only in-memory draft annotation on a file or git diff. Comments accumulate per workspace and send together through agent task dispatch. They are not hosted review comments, are not published to GitHub, and are out of scope on mobile.
 - `Design system`: the shared, presentational widget library in `lib/src/design_system/`, prefixed `Alera`, with co-located widget previews. See `docs/ui-styleguide.md`.
+- `Background setup job`: session UI for a New Workspace or clone flow that must outlive its form. Clone jobs are runtime-owned (`projectCloneJobs`); workspace-create pipelines are client-session state. Progress shows on `AleraJobCard`, not a modal barrier.
 
 ## Naming Rules
 

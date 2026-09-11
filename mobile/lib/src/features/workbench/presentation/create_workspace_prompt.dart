@@ -18,7 +18,10 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
         workspaceFilesSourceId != null;
     const promptDictationTarget = 'prompt-workspace';
     final promptEnabled =
-        !promptState.loading && created == null && !_uploadingAttachment;
+        !promptState.loading &&
+        created == null &&
+        !_uploadingAttachment &&
+        !_creating;
     final dictationEnabled =
         ref.watch(mobileAiDictationSettingsControllerProvider).value?.enabled ==
         true;
@@ -160,10 +163,10 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
           filterHintText: 'Search Agent Profiles',
           onChanged: controller.selectProfile,
         ),
-        if (promptState.error != null) ...<Widget>[
+        if ((promptState.error ?? _retryError) case final error?) ...<Widget>[
           const SizedBox(height: AleraTokens.spaceMd),
           Text(
-            promptState.error!,
+            error,
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         ],
@@ -244,7 +247,8 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
                 promptState.projectId == null ||
                     promptState.sourceBranch == null ||
                     promptState.profileId == null ||
-                    _uploadingAttachment
+                    _uploadingAttachment ||
+                    _creating
                 ? null
                 : () => _createFromPrompt(controller),
             icon: const Icon(Icons.smart_toy_outlined),
@@ -255,6 +259,13 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
   }
 
   Future<void> _createFromPrompt(PromptWorkspaceController controller) async {
+    if (_creating) {
+      return;
+    }
+    _update(() {
+      _creating = true;
+      _retryError = null;
+    });
     final selectedProjectId = ref
         .read(promptWorkspaceControllerProvider(widget.hostId))
         .projectId;
@@ -266,25 +277,71 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
             workspace.branch!.trim().isNotEmpty)
           workspace.branch!.trim(),
     };
-    await controller.create(
-      prompt: _prompt.text,
-      workspaceBranches: workspaceBranches,
-      parentWorkspaceId: _promptParentWorkspaceId,
+    final promptState = ref.read(
+      promptWorkspaceControllerProvider(widget.hostId),
     );
-    if (!mounted) {
+    final projectId = promptState.projectId;
+    final sourceBranch = promptState.sourceBranch;
+    final profileId = promptState.profileId;
+    if (projectId == null || sourceBranch == null || profileId == null) {
+      if (mounted) {
+        _update(() => _creating = false);
+      }
       return;
     }
-    final state = ref.read(promptWorkspaceControllerProvider(widget.hostId));
-    final creation = state.creation;
-    final tabId = state.agentTabId;
-    if (creation != null && tabId != null) {
+    _retryJobId ??= 'job-${DateTime.now().microsecondsSinceEpoch}';
+    final jobId = _retryJobId;
+    final hostId = widget.hostId;
+    final future = ref
+        .read(backgroundSetupJobsProvider.notifier)
+        .enqueuePromptWorkspace(
+          PromptWorkspaceCreateRequest(
+            hostId: widget.hostId,
+            prompt: _prompt.text,
+            projectId: projectId,
+            sourceBranch: sourceBranch,
+            profileId: profileId,
+            workspaceBranches: workspaceBranches,
+            parentWorkspaceId: _promptParentWorkspaceId,
+          ),
+          jobId: jobId,
+        );
+    try {
       if (_createAnother) {
-        _showCreationMessage(creation);
+        await future;
+        if (!mounted) {
+          return;
+        }
         _prompt.clear();
         _promptAttachmentError = null;
+        _retryError = null;
+        _retryJobId = null;
         controller.resetForAnother();
-      } else {
-        _openWorkspace(creation, tabId: tabId);
+      } else if (mounted) {
+        Navigator.of(context).pop(true);
+        future.then((outcome) {
+          final nav = aleraNavigatorKey.currentState;
+          if (nav == null) {
+            return;
+          }
+          nav.push(
+            MaterialPageRoute<void>(
+              builder: (_) => WorkspaceTabsScreen(
+                hostId: hostId,
+                workspace: outcome.creation.workspace,
+                initialTabId: outcome.agentTabId,
+              ),
+            ),
+          );
+        }).ignore();
+      }
+    } on Object catch (error) {
+      if (mounted) {
+        _update(() => _retryError = error.toString());
+      }
+    } finally {
+      if (mounted) {
+        _update(() => _creating = false);
       }
     }
   }

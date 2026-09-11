@@ -14,6 +14,8 @@ import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog.dart';
+import 'package:alera/src/features/workbench/application/background_setup_jobs.dart';
+import 'package:alera/src/features/workbench/domain/background_setup_job.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/presentation/create_workspace_dialog.dart';
@@ -25,11 +27,14 @@ import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_state_migration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
+
+part 'workbench_dialog_launchers_create_workspace.dart';
 
 /// Shared dialog flows for project/workspace creation and settings.
 ///
 /// Extracted so both the sidebar controls and the keyboard command dispatcher
-/// trigger the exact same behavior (dialogs, clone progress, toasts).
+/// trigger the exact same behavior (dialogs, background job cards, toasts).
 
 Future<void> openSettingsDialog(
   BuildContext context, {
@@ -84,43 +89,53 @@ Future<String?> showRenameDialog(
 }
 
 /// Opens the add-project dialog and runs the chosen local-folder or clone flow.
-Future<void> showAddProjectFlow(BuildContext context, WidgetRef ref) async {
-  final result = await showDialog<AddProjectResult>(
-    context: context,
-    builder: (_) => const AddProjectDialog(),
-  );
-  if (result == null || !context.mounted) {
-    return;
-  }
-  final controller = ref.read(workbenchControllerProvider.notifier);
+Future<void> showAddProjectFlow(
+  BuildContext context,
+  WidgetRef ref, {
+  ProjectCloneRequest? retryClone,
+  String? retryError,
+  String? retryJobId,
+}) async {
+  final jobs = ref.read(backgroundSetupJobsProvider.notifier);
+  jobs.beginForm();
+  late final AddProjectResult? result;
   try {
-    switch (result) {
-      case AddLocalProjectResult():
-        await controller.addLocalProject(path: result.path, name: result.name);
-        if (!context.mounted) {
-          return;
-        }
-        AleraToast.show(context, message: 'Project added', tone: .success);
-      case CloneProjectResult():
-        await _runWithProgress(
-          context,
-          message: 'Cloning repository…',
-          action: () => controller.cloneProject(
+    result = await showDialog<AddProjectResult>(
+      context: context,
+      builder: (_) => AddProjectDialog(
+        startOnClone: retryClone != null,
+        initialGitUrl: retryClone?.gitUrl,
+        initialDestinationPath: retryClone?.destinationPath,
+        initialName: retryClone?.name,
+        initialError: retryError,
+      ),
+    );
+    if (result is CloneProjectResult) {
+      unawaited(
+        jobs.enqueueProjectClone(
+          ProjectCloneRequest(
             gitUrl: result.gitUrl,
             destinationPath: result.destinationPath,
             name: result.name,
           ),
-        );
-        if (!context.mounted) {
-          return;
-        }
-        AleraToast.show(context, message: 'Project cloned', tone: .success);
+          jobId: retryJobId,
+        ),
+      );
     }
-  } catch (error) {
-    if (!context.mounted) {
-      return;
+  } finally {
+    jobs.endForm();
+  }
+  if (result == null) {
+    return;
+  }
+  if (result case AddLocalProjectResult()) {
+    final controller = ref.read(workbenchControllerProvider.notifier);
+    try {
+      await controller.addLocalProject(path: result.path, name: result.name);
+      AleraToast.publish(message: 'Project added', tone: .success);
+    } catch (error) {
+      AleraToast.publish(message: error.toString(), tone: .error);
     }
-    AleraToast.show(context, message: error.toString(), tone: .error);
   }
 }
 
@@ -207,251 +222,5 @@ class _RenameDialogState extends State<_RenameDialog> {
         ),
       ),
     );
-  }
-}
-
-/// Opens the create-workspace dialog for the active Git project. Linked
-/// workspaces require a Git project, so folder-only projects are filtered out.
-Future<void> showCreateWorkspaceFlow(
-  BuildContext context,
-  WidgetRef ref, {
-  Project? initialProject,
-}) async {
-  final controller = ref.read(workbenchControllerProvider.notifier);
-  final state = ref.read(workbenchControllerProvider);
-  final projects = state.projects
-      .where((project) => project.supportsLinkedWorkspaces)
-      .toList(growable: false);
-  final parentCandidates = <WorkspaceParentCandidate>[
-    for (final project in state.projects)
-      for (final workspace in state.workspacesFor(project.id))
-        if (workspace.isActive)
-          WorkspaceParentCandidate(project: project, workspace: workspace),
-  ];
-
-  final resolvedInitialProject =
-      initialProject?.supportsLinkedWorkspaces == true ? initialProject : null;
-
-  List<AgentProfile> profiles;
-  try {
-    profiles = await ref.read(agentProfilesProvider.future);
-  } catch (_) {
-    profiles = const <AgentProfile>[];
-  }
-  final runtime = PromptWorkspaceRuntimeClient(
-    ref.read(runtimeHostClientProvider),
-    beforeAccess: ref.read(runtimeStateMigrationProvider).ensureMigrated,
-  );
-  final sshTargets = await _loadSshTargets(ref);
-  if (!context.mounted) {
-    return;
-  }
-  final promptResult = await showDialog<PromptWorkspaceDialogResult>(
-    context: context,
-    builder: (_) => PromptWorkspaceDialog(
-      projects: projects,
-      agentProfiles: profiles,
-      sshTargets: sshTargets,
-      defaultAgentProfileId: ref
-          .read(settingsControllerProvider)
-          .agents
-          .defaultAgentProfileId,
-      initialProject: resolvedInitialProject,
-      loadBranches: controller.listSourceBranches,
-      checkBranchExists: (project, branchName) {
-        return ref
-            .read(gitBackendProvider)
-            .branchExists(project.repoPath, branchName);
-      },
-      workspaceBranches: (project) {
-        return ref
-            .read(workbenchControllerProvider)
-            .workspacesFor(project.id)
-            .where((workspace) => workspace.isActive)
-            .map((workspace) => workspace.branch?.trim() ?? '')
-            .where((branch) => branch.isNotEmpty)
-            .toSet();
-      },
-      parentWorkspaces: <Workspace>[
-        for (final candidate in parentCandidates) candidate.workspace,
-      ],
-      generateIdentity: runtime.generateIdentity,
-      cancelGeneration: runtime.cancel,
-      createWorkspace:
-          ({
-            required project,
-            required sourceBranch,
-            required newBranchName,
-            required name,
-            parentWorkspaceId,
-            hostId,
-          }) {
-            return controller.createWorkspaceForPrompt(
-              project: project,
-              sourceBranch: sourceBranch,
-              newBranchName: newBranchName,
-              name: name,
-              parentWorkspaceId: parentWorkspaceId,
-              hostId: hostId,
-            );
-          },
-      launchAgent: runtime.launchAgent,
-      supportsIdempotentAgentLaunch: () =>
-          runtime.supportsIdempotentAgentLaunch().catchError((_) => false),
-      onCreateAnother: ({required creation, required agentTabId}) async {
-        await controller.completePromptWorkspaceCreation(
-          creation: creation,
-          agentTabId: agentTabId,
-        );
-        if (context.mounted) {
-          _showWorkspaceCreationToast(context, creation);
-        }
-      },
-    ),
-  );
-  if (!context.mounted || promptResult == null) {
-    return;
-  }
-
-  WorkspaceCreationResult? result = promptResult.creation;
-  if (promptResult.openManual) {
-    result = await showDialog<WorkspaceCreationResult>(
-      context: context,
-      builder: (_) => CreateWorkspaceDialog(
-        projects: projects,
-        initialProject: resolvedInitialProject,
-        parentCandidates: parentCandidates,
-        sshTargets: sshTargets,
-        loadBranches: controller.listSourceBranches,
-        getProjectActiveBranch: (project) {
-          final state = ref.read(workbenchControllerProvider);
-          final workspaces = state.workspacesFor(project.id);
-          if (workspaces.isEmpty) return null;
-          try {
-            final activeWorkspace = workspaces.firstWhere(
-              (w) => w.id == state.activeWorkspaceId,
-              orElse: () => workspaces.firstWhere(
-                (w) => w.isMain,
-                orElse: () => workspaces.first,
-              ),
-            );
-            return activeWorkspace.branch;
-          } catch (_) {
-            return null;
-          }
-        },
-        getProjectWorkspaceBranches: (project) {
-          final state = ref.read(workbenchControllerProvider);
-          return state
-              .workspacesFor(project.id)
-              .where((workspace) => workspace.isActive)
-              .map((workspace) => workspace.branch?.trim() ?? '')
-              .where((branch) => branch.isNotEmpty)
-              .toSet();
-        },
-        checkBranchExists: (project, branchName) async {
-          final gitBackend = ref.read(gitBackendProvider);
-          return gitBackend.branchExists(project.repoPath, branchName);
-        },
-        onCreateWorkspace:
-            ({
-              required project,
-              required sourceBranch,
-              required newBranchName,
-              required reuseExistingBranch,
-              name,
-              parentWorkspaceId,
-              hostId,
-            }) async {
-              return controller.createWorkspace(
-                project: project,
-                sourceBranch: sourceBranch,
-                newBranchName: newBranchName,
-                reuseExistingBranch: reuseExistingBranch,
-                name: name,
-                parentWorkspaceId: parentWorkspaceId,
-                hostId: hostId,
-              );
-            },
-        onAddProject: () {
-          Navigator.of(context).pop();
-          unawaited(showAddProjectFlow(context, ref));
-        },
-        onWorkspaceCreated: (creation) {
-          if (context.mounted) {
-            _showWorkspaceCreationToast(context, creation);
-          }
-        },
-      ),
-    );
-  } else {
-    final creation = promptResult.creation;
-    if (creation != null) {
-      await controller.completePromptWorkspaceCreation(
-        creation: creation,
-        agentTabId: promptResult.agentTabId,
-      );
-    }
-  }
-
-  if (result != null && context.mounted) {
-    _showWorkspaceCreationToast(context, result);
-  }
-}
-
-Future<List<SshTarget>> _loadSshTargets(WidgetRef ref) async {
-  try {
-    return await ref.read(sshTargetRepositoryProvider).list();
-  } catch (_) {
-    return const <SshTarget>[];
-  }
-}
-
-void _showWorkspaceCreationToast(
-  BuildContext context,
-  WorkspaceCreationResult result,
-) {
-  if (result.hasSetupWarnings) {
-    AleraToast.show(
-      context,
-      message:
-          'Workspace created with setup warnings: ${result.setupReport.summary}',
-      tone: .error,
-      duration: const Duration(seconds: 6),
-    );
-    return;
-  }
-  if (result.hasParentLinkError) {
-    AleraToast.show(
-      context,
-      message: 'Workspace created, but parent link failed',
-      tone: .error,
-      duration: const Duration(seconds: 6),
-    );
-    return;
-  }
-  AleraToast.show(context, message: 'Workspace created', tone: .success);
-}
-
-Future<T> _runWithProgress<T>(
-  BuildContext context, {
-  required String message,
-  required Future<T> Function() action,
-}) async {
-  var progressOpen = true;
-  unawaited(
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AddProjectProgressDialog(message: message),
-    ).whenComplete(() => progressOpen = false),
-  );
-  await Future.pause(.zero);
-  try {
-    return await action();
-  } finally {
-    if (context.mounted && progressOpen) {
-      Navigator.of(context, rootNavigator: true).pop();
-    }
   }
 }

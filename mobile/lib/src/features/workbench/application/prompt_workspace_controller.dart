@@ -3,7 +3,9 @@ import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/deferred_workspace_setup_launcher.dart';
+import 'package:alera_mobile/src/features/workbench/application/prompt_workspace_pipeline.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera_mobile/src/features/workbench/domain/background_setup_job.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'prompt_workspace_controller.g.dart';
@@ -60,6 +62,7 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
   String? _agentLaunchMutationId;
   bool? _originalAgentLaunchWasIdempotent;
   String? _defaultAgentProfileId;
+  var _creating = false;
 
   @override
   PromptWorkspaceState build(String hostId) {
@@ -119,22 +122,60 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
     state = state.copyWith(profileId: profileId);
   }
 
-  Future<void> create({
+  Future<WorkspaceCreationResult> create({
     required String prompt,
     required Set<String> workspaceBranches,
     String? parentWorkspaceId,
+    String? projectId,
+    String? sourceBranch,
+    String? profileId,
   }) async {
-    final projectId = state.projectId;
-    final sourceBranch = state.sourceBranch;
-    final profileId = state.profileId;
-    if (projectId == null ||
-        sourceBranch == null ||
-        profileId == null ||
-        prompt.trim().isEmpty) {
-      state = state.copyWith(
-        error: 'Complete the prompt, project, branch, and agent profile.',
+    if (_creating) {
+      throw StateError('Workspace creation is already running.');
+    }
+    _creating = true;
+    try {
+      return await _create(
+        prompt: prompt,
+        workspaceBranches: workspaceBranches,
+        parentWorkspaceId: parentWorkspaceId,
+        projectId: projectId,
+        sourceBranch: sourceBranch,
+        profileId: profileId,
       );
-      return;
+    } finally {
+      _creating = false;
+    }
+  }
+
+  Future<WorkspaceCreationResult> _create({
+    required String prompt,
+    required Set<String> workspaceBranches,
+    String? parentWorkspaceId,
+    String? projectId,
+    String? sourceBranch,
+    String? profileId,
+  }) async {
+    if (projectId != null && state.projectId != projectId) {
+      await selectProject(projectId, defaultAgentProfileId: profileId);
+    }
+    if (sourceBranch != null) {
+      selectSourceBranch(sourceBranch);
+    }
+    if (profileId != null) {
+      selectProfile(profileId);
+    }
+    final resolvedProjectId = projectId ?? state.projectId;
+    final resolvedSourceBranch = sourceBranch ?? state.sourceBranch;
+    final resolvedProfileId = profileId ?? state.profileId;
+    if (resolvedProjectId == null ||
+        resolvedSourceBranch == null ||
+        resolvedProfileId == null ||
+        prompt.trim().isEmpty) {
+      const message =
+          'Complete the prompt, project, branch, and agent profile.';
+      state = state.copyWith(error: message);
+      throw StateError(message);
     }
     state = state.copyWith(
       loading: true,
@@ -145,105 +186,48 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
     _originalAgentLaunchWasIdempotent = null;
     try {
       final client = await ref.read(workspaceClientProvider(hostId).future);
-      WorkspaceCreationResult? creation;
-      Object? collisionError;
-      for (var attempt = 0; attempt < 2; attempt++) {
-        final identityPrompt = attempt == 0
-            ? prompt.trim()
-            : '${prompt.trim()}\n\nThe previous generated workspace identity was unavailable. Generate a different workspace name and branch.';
-        final operationId =
-            'mobile-${DateTime.now().microsecondsSinceEpoch}-$attempt';
-        _activeOperationId = operationId;
-        final GeneratedWorkspaceIdentity identity;
-        try {
-          identity = await client.generateWorkspaceIdentity(
-            operationId: operationId,
-            projectId: projectId,
-            prompt: identityPrompt,
-          );
-        } finally {
-          if (_activeOperationId == operationId) {
-            _activeOperationId = null;
-          }
-        }
-        state = state.copyWith(phase: 'Checking generated branch');
-        final branches = await client.listBranches(projectId);
-        if (workspaceBranches.contains(identity.branchName) ||
-            branches.branches.contains(identity.branchName)) {
-          collisionError = StateError(
-            'The generated branch "${identity.branchName}" already exists.',
-          );
-          continue;
-        }
-        state = state.copyWith(phase: 'Creating workspace');
-        try {
-          final created = await client.createManagedWorkspace(
-            projectId: projectId,
-            branch: identity.branchName,
-            sourceBranch: sourceBranch,
-            name: identity.workspaceName,
-          );
-          creation = created;
-          final parentId = parentWorkspaceId?.trim();
-          if (parentId != null && parentId.isNotEmpty) {
-            try {
-              await client.linkWorkspaces(
-                parentWorkspaceId: parentId,
-                childWorkspaceId: created.workspace.id,
-              );
-            } on Object catch (error) {
-              creation = created.withParentLinkError(error);
-            }
-          }
-          break;
-        } on Object catch (error) {
-          if (attempt == 0 && _looksLikeCollision(error)) {
-            collisionError = error;
-            continue;
-          }
-          rethrow;
-        }
-      }
-      if (creation == null) {
-        throw collisionError ??
-            StateError(
-              'AI Assist could not generate an available workspace identity.',
-            );
-      }
-      state = state.copyWith(creation: creation, phase: 'Starting agent');
+      _originalAgentLaunchWasIdempotent =
+          client.supportsIdempotentAgentProfileLaunch;
       final clientMutationId = _agentLaunchMutationId ??=
           'mobile-agent-launch-${DateTime.now().microsecondsSinceEpoch}';
-      _originalAgentLaunchWasIdempotent ??=
-          client.supportsIdempotentAgentProfileLaunch;
-      final launch = await client.launchAgentProfile(
-        workspaceId: creation.workspace.id,
-        profileId: profileId,
-        prompt: prompt.trim(),
+      final outcome = await runPromptWorkspaceCreate(
+        client: client,
+        loadTerminalClient: () =>
+            ref.read(terminalClientProvider(hostId).future),
+        request: PromptWorkspaceCreateRequest(
+          hostId: hostId,
+          prompt: prompt,
+          projectId: resolvedProjectId,
+          sourceBranch: resolvedSourceBranch,
+          profileId: resolvedProfileId,
+          workspaceBranches: workspaceBranches,
+          parentWorkspaceId: parentWorkspaceId,
+        ),
         clientMutationId: clientMutationId,
+        onPhase: (phase) {
+          state = state.copyWith(phase: phase);
+        },
+        onOperationId: (operationId) {
+          _activeOperationId = operationId;
+        },
+        onWorkspaceCreated: (creation) {
+          state = state.copyWith(creation: creation, phase: 'Starting agent');
+        },
       );
-      var completedCreation = creation;
-      if (creation.hasDeferredSetup) {
-        state = state.copyWith(phase: 'Starting setup');
-        final terminalClient = await ref.read(
-          terminalClientProvider(hostId).future,
-        );
-        completedCreation = await launchDeferredWorkspaceSetup(
-          terminalClient,
-          creation,
-        );
-      }
       state = state.copyWith(
-        creation: completedCreation,
+        creation: outcome.creation,
         loading: false,
-        agentTabId: launch.tabId,
+        agentTabId: outcome.agentTabId,
         clearPhase: true,
       );
+      return outcome.creation;
     } on Object catch (error) {
       state = state.copyWith(
         loading: false,
         clearPhase: true,
         error: error.toString(),
       );
+      rethrow;
     }
   }
 
@@ -347,12 +331,6 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
       }
     }
     return profiles.firstOrNull?.id;
-  }
-
-  bool _looksLikeCollision(Object error) {
-    final message = error.toString().toLowerCase();
-    return message.contains('already exists') ||
-        message.contains('workspace for branch');
   }
 }
 

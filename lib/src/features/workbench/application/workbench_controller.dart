@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_providers.dart';
 import 'package:alera/src/features/projects/application/project_providers.dart';
+import 'package:alera/src/features/projects/domain/project_clone_job.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/projects/application/projects_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
@@ -47,6 +48,7 @@ part 'workbench_controller_internals.dart';
 part 'workbench_controller_workspace_reconciliation.dart';
 part 'workbench_controller_experimental_layout.dart';
 part 'workbench_controller_projects.dart';
+part 'workbench_controller_workspace_sleep.dart';
 part 'workbench_controller_navigation.dart';
 part 'workbench_controller_tab_opening.dart';
 part 'workbench_controller_file_tabs.dart';
@@ -69,6 +71,7 @@ class WorkbenchController extends _$WorkbenchController
         _WorkbenchControllerFileTabs,
         _WorkbenchControllerPullRequestDiffTabs,
         _WorkbenchControllerProjects,
+        _WorkbenchControllerWorkspaceSleep,
         _WorkbenchControllerNavigation,
         // Creation builds on project selection and tab opening so the prompt
         // flow can synchronize its agent before appending Setup.

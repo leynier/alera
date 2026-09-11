@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/domain/project_clone_job.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:path/path.dart' as p;
 
@@ -35,42 +36,69 @@ class RuntimeProjectManagementClient(final RuntimeHostClient _client) {
     });
   }
 
+  Future<ProjectCloneJob> startClone({
+    required String gitUrl,
+    required String destinationPath,
+    String? name,
+  }) async {
+    return ProjectCloneJob.fromJson(
+      _asMap(
+        await _client.runtimeRequest('project.clone.start', <String, Object?>{
+          'url': gitUrl,
+          'parentPath': p.dirname(destinationPath),
+          'directoryName': p.basename(destinationPath),
+          if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+        }),
+      ),
+    );
+  }
+
+  Future<List<ProjectCloneJob>> listCloneJobs() async {
+    final jobs = _asList(await _client.runtimeRequest('project.clone.list'));
+    return <ProjectCloneJob>[
+      for (final job in jobs) ProjectCloneJob.fromJson(job),
+    ];
+  }
+
+  Future<void> cancelClone(String id) {
+    return _client.runtimeRequest('project.clone.cancel', <String, Object?>{
+      'id': id,
+    });
+  }
+
   Future<Project> cloneProject({
     required String gitUrl,
     required String destinationPath,
     String? name,
   }) async {
-    final started = _asMap(
-      await _client.runtimeRequest('project.clone.start', <String, Object?>{
-        'url': gitUrl,
-        'parentPath': p.dirname(destinationPath),
-        'directoryName': p.basename(destinationPath),
-        if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
-      }),
+    final started = await startClone(
+      gitUrl: gitUrl,
+      destinationPath: destinationPath,
+      name: name,
     );
-    final jobId = started['id'] as String;
     final deadline = DateTime.now().add(const Duration(minutes: 30));
     while (DateTime.now().isBefore(deadline)) {
-      final jobs = _asList(await _client.runtimeRequest('project.clone.list'));
-      final job = jobs.where((item) => item['id'] == jobId).firstOrNull;
+      final jobs = await listCloneJobs();
+      final job = jobs.where((item) => item.id == started.id).firstOrNull;
       if (job == null) {
-        throw StateError('Clone job disappeared: $jobId');
+        throw StateError('Clone job disappeared: ${started.id}');
       }
-      switch (job['status']) {
-        case 'completed':
-          final projectId = job['projectId'] as String?;
+      switch (job.status) {
+        case ProjectCloneJobStatus.completed:
+          final projectId = job.projectId;
           final projects = _asList(
             await _client.runtimeRequest('project.list'),
           );
           return projectFromRuntimeJson(
             projects.firstWhere((project) => project['id'] == projectId),
           );
-        case 'failed':
-          throw StateError(
-            (job['error'] as String?) ?? 'Project clone failed.',
-          );
-        case 'cancelled':
+        case ProjectCloneJobStatus.failed:
+          throw StateError(job.error ?? 'Project clone failed.');
+        case ProjectCloneJobStatus.cancelled:
           throw StateError('Project clone was cancelled.');
+        case ProjectCloneJobStatus.queued:
+        case ProjectCloneJobStatus.running:
+          break;
       }
       await Future.pause(const Duration(milliseconds: 300));
     }

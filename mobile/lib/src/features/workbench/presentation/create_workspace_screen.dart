@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/app/app_navigation.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
@@ -9,9 +10,10 @@ import 'package:alera_mobile/src/features/runtime/domain/project_selection_order
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
+import 'package:alera_mobile/src/features/workbench/application/background_setup_jobs.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera_mobile/src/features/workbench/domain/background_setup_job.dart';
 import 'package:alera_mobile/src/features/workbench/application/prompt_workspace_controller.dart';
-import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/domain/workspace_parent_selection_order.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/workbench/application/prompt_attachment_providers.dart';
@@ -37,6 +39,17 @@ class const CreateWorkspaceScreen({
   final bool supportsPromptImageUpload = false,
   final bool supportsPromptFileUpload = false,
   final bool supportsWorkspaceFiles = false,
+  final String? retryJobId,
+  final String? initialError,
+  final bool? initialFromPrompt,
+  final String? initialPrompt,
+  final String? initialProjectId,
+  final String? initialSourceBranch,
+  final String? initialProfileId,
+  final String? initialParentWorkspaceId,
+  final String? initialBranch,
+  final String? initialName,
+  final bool initialReuseExistingBranch = false,
 }) extends ConsumerStatefulWidget {
   @override
   ConsumerState<CreateWorkspaceScreen> createState() =>
@@ -55,11 +68,16 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
   String? _promptParentWorkspaceId;
   bool _reuseExistingBranch = false;
   bool _createAnother = false;
-  bool _loadingBranches = false;
   bool _creating = false;
+  bool _loadingBranches = false;
+
   bool _uploadingAttachment = false;
   String? _promptAttachmentError;
   String? _error;
+  String? _retryError;
+  String? _retryJobId;
+  BackgroundSetupJobs? _jobs;
+  var _applyRetryHydration = false;
 
   List<ProjectSummary> get _orderedProjects => sortProjectsForSelection(
     widget.projects.where((project) => project.supportsLinkedWorkspaces),
@@ -130,24 +148,63 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
   @override
   void initState() {
     super.initState();
-    _fromPrompt = widget.supportsPromptWorkspaceCreation;
-    if (_orderedProjects.length == 1) {
+    _fromPrompt =
+        widget.initialFromPrompt ?? widget.supportsPromptWorkspaceCreation;
+    _error = widget.initialError;
+    _retryError = widget.initialError;
+    _retryJobId = widget.retryJobId;
+    _applyRetryHydration = widget.initialProjectId != null;
+    _jobs = ref.read(backgroundSetupJobsProvider.notifier);
+    _reuseExistingBranch = widget.initialReuseExistingBranch;
+    final initialPrompt = widget.initialPrompt;
+    if (initialPrompt != null && initialPrompt.isNotEmpty) {
+      _prompt.text = initialPrompt;
+    }
+    final initialBranch = widget.initialBranch;
+    if (initialBranch != null && initialBranch.isNotEmpty) {
+      _branch.text = initialBranch;
+    }
+    final initialName = widget.initialName;
+    if (initialName != null && initialName.isNotEmpty) {
+      _name.text = initialName;
+    }
+    if (widget.initialParentWorkspaceId != null) {
+      _parentWorkspaceId = widget.initialParentWorkspaceId;
+      _promptParentWorkspaceId = widget.initialParentWorkspaceId;
+    }
+    final retryProjectId = widget.initialProjectId;
+    if (retryProjectId != null) {
+      _selectProject(retryProjectId);
+    } else if (_orderedProjects.length == 1) {
       _selectProject(_orderedProjects.single.id);
     }
-    final initialPromptProject = _orderedProjects.firstOrNull;
+    final initialPromptProject =
+        retryProjectId ?? _orderedProjects.firstOrNull?.id;
     if (widget.supportsPromptWorkspaceCreation &&
         initialPromptProject != null) {
-      _promptParentWorkspaceId = _defaultParentWorkspaceId(
-        initialPromptProject.id,
-      );
-      Future<void>.microtask(
-        () => ref
-            .read(promptWorkspaceControllerProvider(widget.hostId).notifier)
-            .selectProject(
-              initialPromptProject.id,
-              defaultAgentProfileId: widget.defaultAgentProfileId,
-            ),
-      );
+      if (!_applyRetryHydration) {
+        _promptParentWorkspaceId ??= _defaultParentWorkspaceId(
+          initialPromptProject,
+        );
+      }
+      Future<void>.microtask(() async {
+        final controller = ref.read(
+          promptWorkspaceControllerProvider(widget.hostId).notifier,
+        );
+        await controller.selectProject(
+          initialPromptProject,
+          defaultAgentProfileId:
+              widget.initialProfileId ?? widget.defaultAgentProfileId,
+        );
+        final source = widget.initialSourceBranch;
+        if (source != null) {
+          controller.selectSourceBranch(source);
+        }
+        final profileId = widget.initialProfileId;
+        if (profileId != null) {
+          controller.selectProfile(profileId);
+        }
+      });
     }
   }
 
@@ -156,6 +213,10 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
     _branch.dispose();
     _name.dispose();
     _prompt.dispose();
+    final jobs = _jobs;
+    if (jobs != null) {
+      scheduleMicrotask(jobs.endForm);
+    }
     super.dispose();
   }
 
@@ -175,6 +236,12 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
   }
 
   Future<void> _selectProject(String projectId) async {
+    final isRetryProject =
+        _applyRetryHydration && projectId == widget.initialProjectId;
+    final preferredSource = isRetryProject ? widget.initialSourceBranch : null;
+    final preferredParent = isRetryProject
+        ? widget.initialParentWorkspaceId
+        : null;
     setState(() {
       _projectId = projectId;
       _branches = const <String>[];
@@ -192,9 +259,14 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
       }
       setState(() {
         _branches = branches.branches;
-        _sourceBranch = branches.branches.isEmpty
-            ? null
-            : branches.branches.first;
+        _sourceBranch =
+            preferredSource != null &&
+                branches.branches.contains(preferredSource)
+            ? preferredSource
+            : (branches.branches.isEmpty ? null : branches.branches.first);
+        _parentWorkspaceId = isRetryProject
+            ? preferredParent
+            : _defaultParentWorkspaceId(projectId);
       });
     } on Object catch (error) {
       if (mounted && _projectId == projectId) {
@@ -212,54 +284,66 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
   }
 
   bool get _canSubmit {
-    if (_creating || _projectId == null || _branch.text.trim().isEmpty) {
+    if (_creating ||
+        _loadingBranches ||
+        _projectId == null ||
+        _branch.text.trim().isEmpty) {
       return false;
     }
     return _reuseExistingBranch || _sourceBranch != null;
   }
 
   Future<void> _create() async {
+    if (_creating) {
+      return;
+    }
     setState(() {
       _creating = true;
       _error = null;
     });
-    try {
-      final name = _name.text.trim();
-      final result = await ref
-          .read(workspaceListControllerProvider(widget.hostId).notifier)
-          .createWorkspace(
+    final name = _name.text.trim();
+    _retryJobId ??= 'job-${DateTime.now().microsecondsSinceEpoch}';
+    final jobId = _retryJobId;
+    final future = ref
+        .read(backgroundSetupJobsProvider.notifier)
+        .enqueueManualWorkspace(
+          ManualWorkspaceCreateRequest(
+            hostId: widget.hostId,
             projectId: _projectId!,
             branch: _branch.text.trim(),
             sourceBranch: _reuseExistingBranch ? null : _sourceBranch,
             reuseExistingBranch: _reuseExistingBranch,
             name: name.isEmpty ? null : name,
             parentWorkspaceId: _parentWorkspaceId,
-          );
-      if (mounted) {
-        _showCreationMessage(result);
-        if (_createAnother) {
-          await _resetManualForm();
-        } else {
-          Navigator.of(context).pop(true);
+          ),
+          jobId: jobId,
+        );
+    try {
+      if (_createAnother) {
+        await future;
+        if (!mounted) {
+          return;
         }
+        _retryJobId = null;
+        await _resetManualForm();
+      } else if (mounted) {
+        future.ignore();
+        Navigator.of(context).pop(true);
       }
     } on Object catch (error) {
       if (mounted) {
-        setState(() {
-          _error = error.toString();
-        });
+        setState(() => _error = error.toString());
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _creating = false;
-        });
+        setState(() => _creating = false);
       }
     }
   }
 
   Future<void> _resetManualForm() async {
     final projectId = _projectId;
+    _applyRetryHydration = false;
     _branch.clear();
     _name.clear();
     setState(() {
@@ -289,7 +373,7 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
     final promptState = widget.supportsPromptWorkspaceCreation
         ? ref.watch(promptWorkspaceControllerProvider(widget.hostId))
         : const PromptWorkspaceState();
-    final modeLocked = _creating || promptState.loading || _uploadingAttachment;
+    final modeLocked = promptState.loading || _uploadingAttachment || _creating;
     final segments = widget.supportsPromptWorkspaceCreation
         ? const <ButtonSegment<bool>>[
             ButtonSegment<bool>(

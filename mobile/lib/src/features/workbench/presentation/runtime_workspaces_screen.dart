@@ -20,6 +20,7 @@ import 'package:alera_mobile/src/features/settings/presentation/host_settings_sc
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_view_prefs_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_workspace_rows.dart';
+import 'package:alera_mobile/src/features/workbench/application/background_setup_jobs.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_agent_expansion_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_search_controller.dart';
@@ -153,6 +154,7 @@ class const RuntimeWorkspacesScreen({
           ? FloatingActionButton(
               tooltip: 'New Workspace',
               onPressed: () {
+                ref.read(backgroundSetupJobsProvider.notifier).beginForm();
                 Navigator.of(context).push(
                   MaterialPageRoute<bool>(
                     builder: (_) => CreateWorkspaceScreen(

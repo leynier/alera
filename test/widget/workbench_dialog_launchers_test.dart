@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
-import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -158,7 +157,7 @@ void main() {
         await tester.tap(find.widgetWithText(FilledButton, 'Add Project'));
         await tester.pump();
 
-        expect(find.text('Cloning repository…'), findsOneWidget);
+        expect(find.text('Cloning repository'), findsWidgets);
 
         controller.cloneCompleter!.complete(
           buildProject('project-clone', 'Alera'),
@@ -312,130 +311,5 @@ void main() {
         );
       },
     );
-
-    testWidgets('showCreateWorkspaceFlow warns when setup steps fail', (
-      tester,
-    ) async {
-      final project = buildProject('project-1', 'Alera');
-      final controller =
-          DialogLaunchersTestController(
-              WorkbenchState(projects: <Project>[project]),
-            )
-            ..sourceBranches = <String>['main']
-            ..setupReport = const WorktreeSetupReport(
-              steps: <WorktreeSetupStepReport>[
-                WorktreeSetupStepReport(
-                  kind: .command,
-                  label: 'make bootstrap',
-                  succeeded: false,
-                  message: 'failed',
-                ),
-              ],
-            );
-
-      await pumpFlowHarness(
-        tester,
-        controller: controller,
-        onPressed: (context, ref) => showCreateWorkspaceFlow(context, ref),
-      );
-
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
-      await openManualWorkspaceDialog(tester);
-      await tester.tap(find.text('Continue'));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.widgetWithText(TextField, 'New Branch Name *'),
-        'feature/setup-warning',
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Create Workspace'));
-      await tester.pumpAndSettle();
-
-      expect(
-        find.text(
-          'Workspace created with setup warnings: 1 setup action failed',
-        ),
-        findsOneWidget,
-      );
-      expect(find.text('Workspace created'), findsNothing);
-    });
-
-    testWidgets('showCreateWorkspaceFlow warns when the parent link fails', (
-      tester,
-    ) async {
-      final project = buildProject('project-1', 'Alera');
-      final controller =
-          DialogLaunchersTestController(
-              WorkbenchState(projects: <Project>[project]),
-            )
-            ..sourceBranches = <String>['main']
-            ..parentLinkError = 'Parent workspace not found';
-
-      await pumpFlowHarness(
-        tester,
-        controller: controller,
-        onPressed: (context, ref) => showCreateWorkspaceFlow(context, ref),
-      );
-
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
-      await openManualWorkspaceDialog(tester);
-      await tester.tap(find.text('Continue'));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.widgetWithText(TextField, 'New Branch Name *'),
-        'feature/orphan',
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Create Workspace'));
-      await tester.pumpAndSettle();
-
-      expect(
-        find.text('Workspace created, but parent link failed'),
-        findsOneWidget,
-      );
-      expect(find.text('Workspace created'), findsNothing);
-    });
-
-    testWidgets('showCreateWorkspaceFlow surfaces controller errors', (
-      tester,
-    ) async {
-      final project = buildProject('project-1', 'Alera');
-      final controller =
-          DialogLaunchersTestController(
-              WorkbenchState(projects: <Project>[project]),
-            )
-            ..sourceBranches = <String>['main']
-            ..createWorkspaceError = Exception('Workspace failed');
-
-      await pumpFlowHarness(
-        tester,
-        controller: controller,
-        onPressed: (context, ref) => showCreateWorkspaceFlow(context, ref),
-      );
-
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
-      await openManualWorkspaceDialog(tester);
-      await tester.tap(find.text('Continue'));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.widgetWithText(TextField, 'New Branch Name *'),
-        'feature/error',
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Create Workspace'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Workspace failed'), findsOneWidget);
-    });
   });
-}
-
-Future<void> openManualWorkspaceDialog(WidgetTester tester) async {
-  await tester.tap(find.text('Manual'));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text('Continue Manually'));
-  await tester.pumpAndSettle();
 }

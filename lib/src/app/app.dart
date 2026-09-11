@@ -1,3 +1,4 @@
+import 'package:alera/src/app/app_navigation.dart';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/core/build_flavor.dart';
 import 'package:alera/src/design_system/feedback/alera_toast_host.dart';
@@ -16,6 +17,7 @@ class const AleraApp({super.key}) extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: kAleraAppName,
+      navigatorKey: aleraNavigatorKey,
       home: const RuntimeHostQuitGateScope(
         child: DesktopPresenceScope(child: AleraShellPage()),
       ),

@@ -32,6 +32,7 @@ import 'package:alera/src/features/workbench/presentation/welcome_dashboard.dart
 import 'package:alera/src/features/workbench/application/terminal_driver_presence_controller.dart';
 import 'package:alera/src/features/workbench/presentation/mobile_driver_overlay.dart';
 import 'package:alera/src/features/workbench/presentation/agent_profile_launch_dialog.dart';
+import 'package:alera/src/features/workbench/presentation/background_setup_job_host.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_workbench_view.dart';
 import 'package:alera/src/features/settings/presentation/github_star_prompt_watch.dart';
 import 'package:flutter/material.dart';

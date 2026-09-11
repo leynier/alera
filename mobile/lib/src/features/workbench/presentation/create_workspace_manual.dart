@@ -16,7 +16,6 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
                 label: project.name,
               ),
           ],
-          enabled: !_creating,
           filterable: true,
           filterHintText: 'Search Projects',
           onChanged: _selectProject,
@@ -24,7 +23,6 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
         const SizedBox(height: AleraTokens.spaceLg),
         TextField(
           controller: _branch,
-          enabled: !_creating,
           onChanged: (_) => _update(() {}),
           decoration: const InputDecoration(
             labelText: 'Branch Name',
@@ -35,13 +33,11 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           value: _reuseExistingBranch,
-          onChanged: _creating
-              ? null
-              : (value) {
-                  _update(() {
-                    _reuseExistingBranch = value;
-                  });
-                },
+          onChanged: (value) {
+            _update(() {
+              _reuseExistingBranch = value;
+            });
+          },
           title: const Text('Reuse Existing Branch'),
         ),
         if (!_reuseExistingBranch) ...<Widget>[
@@ -57,7 +53,7 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
                 for (final branch in _branches)
                   AleraDropdownFieldEntry<String>(value: branch, label: branch),
               ],
-              enabled: !_creating && !_loadingBranches,
+              enabled: !_loadingBranches,
               filterable: true,
               filterHintText: 'Search Branches',
               onChanged: (value) {
@@ -70,7 +66,6 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
         const SizedBox(height: AleraTokens.spaceLg),
         TextField(
           controller: _name,
-          enabled: !_creating,
           decoration: const InputDecoration(
             labelText: 'Display Name (Optional)',
           ),
@@ -91,7 +86,6 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
                 label: _parentWorkspaceLabel(workspace),
               ),
           ],
-          enabled: !_creating,
           filterable: true,
           filterHintText: 'Search Workspaces',
           onChanged: (value) {
@@ -112,13 +106,11 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
           contentPadding: EdgeInsets.zero,
           controlAffinity: .leading,
           value: _createAnother,
-          onChanged: _creating
-              ? null
-              : (value) {
-                  _update(() {
-                    _createAnother = value ?? false;
-                  });
-                },
+          onChanged: (value) {
+            _update(() {
+              _createAnother = value ?? false;
+            });
+          },
           title: const Text('Create Another'),
           subtitle: const Text('Keep this screen open after creation'),
         ),

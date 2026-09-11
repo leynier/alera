@@ -113,6 +113,7 @@ mixin _WorkbenchControllerWorkspaceCreation
   Future<void> completePromptWorkspaceCreation({
     required WorkspaceCreationResult creation,
     String? agentTabId,
+    bool openDeferredSetup = true,
   }) async {
     final workspace = creation.workspace;
     final project = state.projects
@@ -131,7 +132,9 @@ mixin _WorkbenchControllerWorkspaceCreation
       ensureInitialTerminal: !expectsPromptTab,
     );
     _seedExperimentalNewWorkspacePanel(workspace.id);
-    await _openDeferredSetupTab(creation);
+    if (openDeferredSetup) {
+      await _openDeferredSetupTab(creation);
+    }
     final resolvedAgentTabId = agentTabId?.trim();
     if (resolvedAgentTabId != null && resolvedAgentTabId.isNotEmpty) {
       final groupId = state

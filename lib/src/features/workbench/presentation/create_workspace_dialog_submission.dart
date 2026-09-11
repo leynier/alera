@@ -40,6 +40,47 @@ extension _CreateWorkspaceDialogSubmission on _CreateWorkspaceDialogState {
       return;
     }
 
+    final request = ManualWorkspaceCreateRequest(
+      project: project,
+      sourceBranch: sourceBranch,
+      newBranchName: newBranchName,
+      reuseExistingBranch: _reuseExistingBranch,
+      name: name.isEmpty ? null : name,
+      parentWorkspaceId: _selectedParentWorkspaceId,
+      hostId: _selectedHostId,
+    );
+    final enqueue = widget.enqueueCreate;
+    if (enqueue != null) {
+      final done = enqueue(request);
+      if (done == null) {
+        return;
+      }
+      if (_createAnother) {
+        _update(() {
+          _creating = true;
+          _creationError = null;
+        });
+        try {
+          await done;
+          if (!mounted) {
+            return;
+          }
+          _resetAfterCreation(project);
+        } catch (error) {
+          if (mounted) {
+            _update(() {
+              _creating = false;
+              _creationError = userFacingExceptionMessage(error);
+            });
+          }
+        }
+      } else {
+        done.ignore();
+        Navigator.of(context).pop();
+      }
+      return;
+    }
+
     _update(() {
       _creating = true;
       _creationError = null;
