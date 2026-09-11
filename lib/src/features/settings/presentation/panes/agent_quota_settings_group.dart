@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
-import 'package:alera/src/design_system/forms/alera_checkbox.dart';
 import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
@@ -160,23 +159,10 @@ class const AgentQuotaSettingsPane({
                   );
                 },
               ),
-              SettingsSwitchRow(
-                title: 'Claude Default in Usage',
-                description: 'Include the default Claude account in Usage independently of quota polling.',
-                value: hostSettings.claudeDefaultShowInUsage,
-                onChanged: (value) {
-                  unawaited(
-                    controller.setClaudeDefaultShowInUsage(
-                      hostId: hostId,
-                      value: value,
-                    ),
-                  );
-                },
-              ),
               AleraSettingRow(
                 title: 'Claude CCS Profiles',
                 description:
-                    'Add CCS profiles and choose which ones appear in Usage.',
+                    'Add CCS profiles to query as separate Claude accounts.',
                 controlWidth: 420,
                 child: _ClaudeProfilesControl(
                   profiles: hostSettings.claudeProfiles,

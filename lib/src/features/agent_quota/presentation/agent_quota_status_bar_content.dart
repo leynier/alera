@@ -28,7 +28,6 @@ class const AgentQuotaStatusBarContent({
   final bool loading = false,
   final String? error,
   final Widget? trailing,
-  final VoidCallback? onOpenUsage,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -52,7 +51,6 @@ class const AgentQuotaStatusBarContent({
               error: error,
               onRefresh: onRefresh,
               onTogglePinned: onTogglePinned,
-              onOpenUsage: onOpenUsage,
               trailing: trailing,
             );
           }
@@ -88,7 +86,6 @@ class const AgentQuotaStatusBarContent({
                 actions: actions,
                 error: error,
                 onTogglePinned: onTogglePinned,
-                onOpenUsage: onOpenUsage,
                 profileLabelFor: _claudeProfileLabel,
               ),
               const VerticalDivider(width: 1, color: AleraTokens.borderSubtle),

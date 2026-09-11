@@ -5,7 +5,6 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/agent_quota/application/agent_quota_providers.dart';
 import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
-import 'package:alera/src/features/agent_usage/presentation/agent_usage_dialog.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
@@ -64,7 +63,6 @@ class const AgentQuotaStatusBar({super.key, final Widget? trailing})
         loading: quota.isLoading,
         onRefresh: refresh,
         onTogglePinned: togglePinned,
-        onOpenUsage: () => unawaited(openAgentUsageDialog(context)),
         trailing: trailing,
       );
     }
@@ -76,7 +74,6 @@ class const AgentQuotaStatusBar({super.key, final Widget? trailing})
         loading: true,
         onRefresh: refresh,
         onTogglePinned: togglePinned,
-        onOpenUsage: () => unawaited(openAgentUsageDialog(context)),
         trailing: trailing,
       ),
       error: (error, _) => AgentQuotaStatusBarView(
@@ -86,7 +83,6 @@ class const AgentQuotaStatusBar({super.key, final Widget? trailing})
         error: error.toString(),
         onRefresh: refresh,
         onTogglePinned: togglePinned,
-        onOpenUsage: () => unawaited(openAgentUsageDialog(context)),
         trailing: trailing,
       ),
       data: (_) => AgentQuotaStatusBarView(
@@ -96,7 +92,6 @@ class const AgentQuotaStatusBar({super.key, final Widget? trailing})
         loading: true,
         onRefresh: refresh,
         onTogglePinned: togglePinned,
-        onOpenUsage: () => unawaited(openAgentUsageDialog(context)),
         trailing: trailing,
       ),
     );
@@ -114,7 +109,6 @@ class const AgentQuotaStatusBarView({
   super.loading,
   super.error,
   super.trailing,
-  super.onOpenUsage,
 }) extends AgentQuotaStatusBarContent {
   this
     : super(
