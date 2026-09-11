@@ -13,6 +13,8 @@ use super::{
 mod git_branch_checkout_tests;
 #[path = "git_branch_create_tests.rs"]
 mod git_branch_create_tests;
+#[path = "git_branch_deletion_tests.rs"]
+mod git_branch_deletion_tests;
 #[path = "git_branch_reset_tests.rs"]
 mod git_branch_reset_tests;
 

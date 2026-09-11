@@ -3,6 +3,7 @@ use std::path::Path;
 
 use git2::{BranchType, ErrorCode, Repository, WorktreeAddOptions, WorktreePruneOptions};
 
+mod branch_deletion;
 mod branch_operations;
 #[cfg(test)]
 #[path = "git_branch_tests.rs"]
@@ -11,10 +12,11 @@ pub mod hosted_review;
 mod repository;
 mod repository_metadata;
 mod worktree_handoff;
+pub use branch_deletion::validate_branch_deletion;
 pub use branch_operations::{
     branch_exists, checkout_branch, create_and_checkout_branch, create_and_checkout_branch_from,
     delete_branch, is_valid_branch_name, list_branches, reset_branch_to_ref,
-    reset_branch_to_ref_from, validate_branch_deletion,
+    reset_branch_to_ref_from,
 };
 use repository::{
     canonical, checkout_path_for_branch, configured_remote_for_tracking_branch,

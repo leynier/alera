@@ -1,4 +1,6 @@
-use alera_core::runtime::{AgentProfile, AgentProfileLaunchMode};
+use alera_core::runtime::{
+    AgentProfile, AgentProfileLaunchMode, AutomationOccurrence, AutomationRunTrigger,
+};
 
 use super::*;
 

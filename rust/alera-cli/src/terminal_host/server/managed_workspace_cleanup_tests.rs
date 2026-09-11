@@ -168,24 +168,14 @@ async fn managed_workspace_git_failure_retires_stopped_tabs_and_notifies_clients
             }),
         )
         .await;
-    assert_eq!(response["ok"], false, "{response}");
+    assert_eq!(response["ok"], true, "{response}");
     assert!(fixture
         .actor
         .runtime_store
         .find_workspace("workspace")
         .await
         .unwrap()
-        .is_some());
-    let tabs = fixture
-        .actor
-        .runtime_store
-        .list_workspace_tabs("workspace")
-        .await
-        .unwrap();
-    assert_eq!(
-        tabs.iter().map(|tab| tab.id.as_str()).collect::<Vec<_>>(),
-        ["editor"]
-    );
+        .is_none());
     assert!(!fixture.actor.sessions.contains_key("terminal"));
     assert!(fixture.actor.sessions["other"].running());
     assert!(fixture
@@ -193,6 +183,14 @@ async fn managed_workspace_git_failure_retires_stopped_tabs_and_notifies_clients
         .iter()
         .any(|value| value["event"] == "workspaceTabsChanged"));
     assert!(!fixture.actor.mutation_queue.has_runtime_mutations());
+    assert!(
+        alera_core::git::branch_exists(
+            &fixture._root.path().join("repo").to_string_lossy(),
+            "feature/remove",
+        )
+        .unwrap(),
+        "branch delete lock should keep the branch"
+    );
 }
 
 #[tokio::test]

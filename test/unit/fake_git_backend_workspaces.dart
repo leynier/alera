@@ -125,4 +125,143 @@ mixin _FakeGitBackendWorkspaceState {
         GitRemote(name: entry.key, url: entry.value),
     ];
   }
+
+  bool includeQueriedRepoAsMain = false;
+  Map<String, String> liveBranchByPath = <String, String>{};
+  bool worktreeListFails = false;
+  final Set<String> failingWorktreeAddBranches = <String>{};
+  final Set<String> failingWorktreeRemovePaths = <String>{};
+  GitException? removeWorktreeError;
+  final Set<String> failingBranchDeletes = <String>{};
+  GitException? deleteBranchError;
+  GitException? refreshSourceBranchError;
+  final Map<(String, String), bool> ancestorResults =
+      <(String, String), bool>{};
+  GitException? isAncestorError;
+
+  Future<bool> isAncestor({
+    required String path,
+    required String ancestorRef,
+    required String descendantRef,
+  }) async {
+    calls.add(
+      GitBackendCall('isAncestor', <String, Object?>{
+        'path': path,
+        'ancestorRef': ancestorRef,
+        'descendantRef': descendantRef,
+      }),
+    );
+    final error = isAncestorError;
+    if (error != null) {
+      throw error;
+    }
+    return ancestorResults[(ancestorRef, descendantRef)] ?? true;
+  }
+
+  Future<void> createWorktree({
+    required String repoPath,
+    required String targetBranch,
+    required String path,
+    required String sourceBranch,
+    bool reuseExistingBranch = false,
+  }) async {
+    calls.add(
+      GitBackendCall('createWorktree', <String, Object?>{
+        'repoPath': repoPath,
+        'targetBranch': targetBranch,
+        'path': path,
+        'sourceBranch': sourceBranch,
+        'reuseExistingBranch': reuseExistingBranch,
+      }),
+    );
+    if (failingWorktreeAddBranches.contains(targetBranch)) {
+      throw const GitInternalException('add failed');
+    }
+  }
+
+  Future<void> refreshSourceBranch({
+    required String repoPath,
+    required String sourceBranch,
+  }) async {
+    calls.add(
+      GitBackendCall('refreshSourceBranch', <String, Object?>{
+        'repoPath': repoPath,
+        'sourceBranch': sourceBranch,
+      }),
+    );
+    final error = refreshSourceBranchError;
+    if (error != null) {
+      throw error;
+    }
+  }
+
+  Future<void> removeWorktree({
+    required String repoPath,
+    required String path,
+    bool force = true,
+  }) async {
+    calls.add(
+      GitBackendCall('removeWorktree', <String, Object?>{
+        'repoPath': repoPath,
+        'path': path,
+        'force': force,
+      }),
+    );
+    if (failingWorktreeRemovePaths.contains(path)) {
+      throw const GitInternalException('remove failed');
+    }
+    final error = removeWorktreeError;
+    if (error != null) {
+      throw error;
+    }
+  }
+
+  Future<void> deleteBranch({
+    required String repoPath,
+    required String branch,
+    bool force = true,
+  }) async {
+    calls.add(
+      GitBackendCall('deleteBranch', <String, Object?>{
+        'repoPath': repoPath,
+        'branch': branch,
+        'force': force,
+      }),
+    );
+    if (failingBranchDeletes.contains(branch)) {
+      throw const GitInternalException('delete failed');
+    }
+    final error = deleteBranchError;
+    if (error != null) {
+      throw error;
+    }
+    if (!force) {
+      final home = defaultBranchName;
+      final mergedLocal = ancestorResults[(branch, home)];
+      final mergedOrigin = ancestorResults[(branch, 'origin/$home')];
+      if ((mergedLocal != null || mergedOrigin != null) &&
+          mergedLocal != true &&
+          mergedOrigin != true) {
+        throw const GitConflictException(
+          'Branch has commits not merged into the default branch',
+        );
+      }
+    }
+    sourceBranches.remove(branch);
+  }
+
+  Future<List<GitWorktreeEntry>> listWorktrees(String repoPath) async {
+    calls.add(
+      GitBackendCall('listWorktrees', <String, Object?>{'repoPath': repoPath}),
+    );
+    if (worktreeListFails) {
+      throw const GitInternalException('not a git repository');
+    }
+    return <GitWorktreeEntry>[
+      if (includeQueriedRepoAsMain)
+        GitWorktreeEntry(path: repoPath, branch: headBranch),
+      for (final entry in liveBranchByPath.entries)
+        GitWorktreeEntry(path: entry.key, branch: entry.value),
+    ];
+  }
 }
