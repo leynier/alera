@@ -295,6 +295,7 @@ const Set<String> runtimeHostEventNames = <String>{
   'workbenchViewPrefsChanged',
   'workspaceActivityChanged',
   'projectConfigsChanged',
+  'projectCloneJobsChanged',
   'linkedReviewsChanged',
   'sshTargetsChanged',
   'sshTargetBootstrapProgress',

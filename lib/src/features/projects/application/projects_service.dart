@@ -1,6 +1,7 @@
 import 'package:alera/src/features/projects/application/project_repository.dart';
 import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/domain/project_clone_job.dart';
 import 'package:alera/src/features/projects/infra/runtime_project_management_client.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
@@ -57,6 +58,38 @@ class ProjectsService({
     );
     await _projectRepository.add(project);
     return project;
+  }
+
+  Future<ProjectCloneJob> startClone({
+    required String gitUrl,
+    required String destinationPath,
+    String? name,
+  }) async {
+    final runtime = runtimeProjectManagement;
+    if (runtime == null) {
+      throw StateError('Project clone jobs require the runtime host.');
+    }
+    return runtime.startClone(
+      gitUrl: gitUrl,
+      destinationPath: destinationPath,
+      name: name,
+    );
+  }
+
+  Future<List<ProjectCloneJob>> listCloneJobs() async {
+    final runtime = runtimeProjectManagement;
+    if (runtime == null) {
+      return const <ProjectCloneJob>[];
+    }
+    return runtime.listCloneJobs();
+  }
+
+  Future<void> cancelClone(String id) async {
+    final runtime = runtimeProjectManagement;
+    if (runtime == null) {
+      throw StateError('Project clone jobs require the runtime host.');
+    }
+    await runtime.cancelClone(id);
   }
 
   /// Clones a Git repository into [destinationPath] and registers the cloned

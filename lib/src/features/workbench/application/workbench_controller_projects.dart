@@ -42,6 +42,30 @@ mixin _WorkbenchControllerProjects
     }
   }
 
+  Future<ProjectCloneJob> startProjectClone({
+    required String gitUrl,
+    required String destinationPath,
+    String? name,
+  }) {
+    return _projectsService.startClone(
+      gitUrl: gitUrl,
+      destinationPath: destinationPath,
+      name: name,
+    );
+  }
+
+  Future<List<ProjectCloneJob>> listProjectCloneJobs() {
+    return _projectsService.listCloneJobs();
+  }
+
+  Future<void> cancelProjectClone(String id) {
+    return _projectsService.cancelClone(id);
+  }
+
+  Future<void> activateAddedProject(Project project) {
+    return _activateAddedProject(project);
+  }
+
   Future<Project> addProject({required String repoPath, String? name}) =>
       addLocalProject(path: repoPath, name: name);
 

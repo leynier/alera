@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/app/app_navigation.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
 import 'package:alera_mobile/src/features/ai_dictation/domain/mobile_ai_dictation_settings.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
@@ -27,8 +28,9 @@ void main() {
           workspaceClientProvider('host-1').overrideWith((ref) async => client),
           terminalClientProvider('host-1').overrideWith((ref) async => client),
         ],
-        child: const MaterialApp(
-          home: CreateWorkspaceScreen(
+        child: MaterialApp(
+          navigatorKey: aleraNavigatorKey,
+          home: const CreateWorkspaceScreen(
             hostId: 'host-1',
             projects: <ProjectSummary>[
               ProjectSummary(
@@ -99,8 +101,9 @@ void main() {
           workspaceClientProvider('host-1').overrideWith((ref) async => client),
           terminalClientProvider('host-1').overrideWith((ref) async => client),
         ],
-        child: const MaterialApp(
-          home: CreateWorkspaceScreen(
+        child: MaterialApp(
+          navigatorKey: aleraNavigatorKey,
+          home: const CreateWorkspaceScreen(
             hostId: 'host-1',
             projects: <ProjectSummary>[
               ProjectSummary(
@@ -245,8 +248,9 @@ void main() {
             ),
           ),
         ],
-        child: const MaterialApp(
-          home: CreateWorkspaceScreen(
+        child: MaterialApp(
+          navigatorKey: aleraNavigatorKey,
+          home: const CreateWorkspaceScreen(
             hostId: 'host-1',
             projects: <ProjectSummary>[
               ProjectSummary(
@@ -296,8 +300,9 @@ void main() {
             () => FakeMobileAiDictationSettingsController(),
           ),
         ],
-        child: const MaterialApp(
-          home: CreateWorkspaceScreen(
+        child: MaterialApp(
+          navigatorKey: aleraNavigatorKey,
+          home: const CreateWorkspaceScreen(
             hostId: 'host-1',
             projects: <ProjectSummary>[
               ProjectSummary(

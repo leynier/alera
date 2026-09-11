@@ -2,7 +2,13 @@
 import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/app/app_navigation.dart';
+import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/feedback/alera_toast_host.dart';
+import 'package:alera/src/features/projects/domain/project_clone_job.dart';
+import 'package:alera/src/features/workbench/application/background_setup_jobs.dart';
+import 'package:alera/src/features/workbench/domain/background_setup_job.dart';
+import 'package:alera/src/features/workbench/presentation/background_setup_job_host.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
@@ -29,6 +35,9 @@ Future<void> pumpFlowHarness(
     ProviderScope(
       overrides: [
         workbenchControllerProvider.overrideWith(() => controller),
+        backgroundSetupJobsProvider.overrideWith(
+          DialogLaunchersBackgroundSetupJobs.new,
+        ),
         agentProfilesProvider.overrideWith(
           () => DialogLaunchersAgentProfiles(),
         ),
@@ -41,23 +50,28 @@ Future<void> pumpFlowHarness(
         ),
       ],
       child: MaterialApp(
+        navigatorKey: aleraNavigatorKey,
         home: Scaffold(
-          body: Stack(
-            children: <Widget>[
-              Center(
-                child: Consumer(
-                  builder: (context, ref, _) {
-                    return FilledButton(
-                      onPressed: () => onPressed(context, ref),
-                      child: const Text('Open'),
-                    );
-                  },
-                ),
-              ),
-              const AleraToastHost(),
-            ],
+          body: Center(
+            child: Consumer(
+              builder: (context, ref, _) {
+                return FilledButton(
+                  onPressed: () => onPressed(context, ref),
+                  child: const Text('Open'),
+                );
+              },
+            ),
           ),
         ),
+        builder: (context, child) {
+          return Stack(
+            children: <Widget>[
+              child ?? const SizedBox.shrink(),
+              const BackgroundSetupJobHost(),
+              const AleraToastHost(),
+            ],
+          );
+        },
       ),
     ),
   );
@@ -111,6 +125,7 @@ class DialogLaunchersTestController(final WorkbenchState _seed)
   String? addedLocalName;
   Exception? addLocalError;
   Completer<Project>? cloneCompleter;
+  Completer<WorkspaceCreationResult>? createCompleter;
   ({String gitUrl, String destinationPath, String? name})? clonedProjectCall;
   List<String> sourceBranches = const <String>['main'];
   Exception? createWorkspaceError;
@@ -178,6 +193,18 @@ class DialogLaunchersTestController(final WorkbenchState _seed)
     if (createWorkspaceError case final Exception error) {
       throw error;
     }
+    if (createCompleter case final Completer<WorkspaceCreationResult> pending) {
+      createdWorkspaceCall = (
+        project: project,
+        sourceBranch: sourceBranch,
+        newBranchName: newBranchName,
+        reuseExistingBranch: reuseExistingBranch,
+        name: name,
+        parentWorkspaceId: parentWorkspaceId,
+        hostId: hostId,
+      );
+      return pending.future;
+    }
     createdWorkspaceCall = (
       project: project,
       sourceBranch: sourceBranch,
@@ -196,6 +223,170 @@ class DialogLaunchersTestController(final WorkbenchState _seed)
       setupReport: setupReport,
       parentLinkError: parentLinkError,
     );
+  }
+
+  @override
+  Future<ProjectCloneJob> startProjectClone({
+    required String gitUrl,
+    required String destinationPath,
+    String? name,
+  }) async {
+    unawaited(
+      cloneProject(
+        gitUrl: gitUrl,
+        destinationPath: destinationPath,
+        name: name,
+      ),
+    );
+    return ProjectCloneJob(
+      id: 'clone-job-1',
+      source: gitUrl,
+      destinationPath: destinationPath,
+      status: .running,
+      phase: 'cloning',
+      updatedAt: DateTime.utc(2026, 5, 25, 12),
+      message: 'Cloning repository',
+    );
+  }
+
+  @override
+  Future<List<ProjectCloneJob>> listProjectCloneJobs() async {
+    return const <ProjectCloneJob>[];
+  }
+
+  @override
+  Future<void> cancelProjectClone(String id) async {}
+
+  @override
+  Future<void> activateAddedProject(Project project) async {}
+}
+
+class DialogLaunchersBackgroundSetupJobs extends BackgroundSetupJobs {
+  final Set<String> _inFlightIds = <String>{};
+
+  @override
+  BackgroundSetupJobsState build() => const BackgroundSetupJobsState();
+
+  @override
+  Future<void>? enqueueManualWorkspace(
+    ManualWorkspaceCreateRequest request, {
+    String? jobId,
+  }) {
+    final id = jobId ?? 'manual-job';
+    if (!_inFlightIds.add(id)) {
+      return null;
+    }
+    state = state.withJob(
+      BackgroundSetupJob(
+        id: id,
+        kind: .manualWorkspace,
+        status: .running,
+        title: 'Creating workspace "${request.displayName}"',
+        phase: 'Creating workspace',
+        snapshot: request,
+      ),
+    );
+    return () async {
+      try {
+        final result = await ref
+            .read(workbenchControllerProvider.notifier)
+            .createWorkspace(
+              project: request.project,
+              sourceBranch: request.sourceBranch,
+              newBranchName: request.newBranchName,
+              reuseExistingBranch: request.reuseExistingBranch,
+              name: request.name,
+              parentWorkspaceId: request.parentWorkspaceId,
+              hostId: request.hostId,
+            );
+        state = state.withoutJob(id);
+        _toastWorkspace(result);
+      } catch (error) {
+        state = state.withJob(
+          BackgroundSetupJob(
+            id: id,
+            kind: .manualWorkspace,
+            status: .failed,
+            title: 'Creating workspace "${request.displayName}"',
+            snapshot: request,
+            error: error.toString().replaceFirst('Exception: ', ''),
+          ),
+        );
+        rethrow;
+      } finally {
+        _inFlightIds.remove(id);
+      }
+    }();
+  }
+
+  @override
+  Future<void>? enqueuePromptWorkspace(
+    PromptWorkspaceCreateRequest request, {
+    String? jobId,
+  }) {
+    return null;
+  }
+
+  @override
+  Future<void> enqueueProjectClone(
+    ProjectCloneRequest request, {
+    String? jobId,
+  }) async {
+    final id = jobId ?? 'clone-job';
+    state = state.withJob(
+      BackgroundSetupJob(
+        id: id,
+        kind: .projectClone,
+        status: .running,
+        title: 'Cloning repository',
+        phase: 'Cloning repository',
+        snapshot: request,
+        canCancel: true,
+      ),
+    );
+    try {
+      await ref
+          .read(workbenchControllerProvider.notifier)
+          .cloneProject(
+            gitUrl: request.gitUrl,
+            destinationPath: request.destinationPath,
+            name: request.name,
+          );
+      state = state.withoutJob(id);
+      AleraToast.publish(message: 'Project cloned', tone: .success);
+    } catch (error) {
+      state = state.withJob(
+        BackgroundSetupJob(
+          id: id,
+          kind: .projectClone,
+          status: .failed,
+          title: 'Cloning repository',
+          snapshot: request,
+          error: error.toString(),
+        ),
+      );
+    }
+  }
+
+  void _toastWorkspace(WorkspaceCreationResult result) {
+    if (result.hasSetupWarnings) {
+      AleraToast.publish(
+        message:
+            'Workspace created with setup warnings: ${result.setupReport.summary}',
+        tone: .error,
+        duration: const Duration(seconds: 6),
+      );
+      return;
+    }
+    if (result.hasParentLinkError) {
+      AleraToast.publish(
+        message: 'Workspace created, but parent link failed',
+        tone: .error,
+        duration: const Duration(seconds: 6),
+      );
+      return;
+    }
+    AleraToast.publish(message: 'Workspace created', tone: .success);
   }
 }
 

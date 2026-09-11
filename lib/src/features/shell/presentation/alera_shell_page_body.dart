@@ -373,7 +373,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
         ),
       ),
     );
-    return content;
+    return Stack(children: <Widget>[content, const BackgroundSetupJobHost()]);
   }
 
   Future<bool> _confirmCloseDirtyTabs(

@@ -12,6 +12,7 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_selection_order.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
+import 'package:alera/src/features/workbench/domain/background_setup_job.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/domain/workspace_parent_selection_order.dart';
@@ -81,6 +82,13 @@ class const PromptWorkspaceDialog({
     required String agentTabId,
   })?
   onCreateAnother,
+  final Future<void>? Function(PromptWorkspaceCreateRequest request)?
+  enqueuePrompt,
+  final String? initialPrompt,
+  final String? initialSourceBranch,
+  final String? initialParentWorkspaceId,
+  final String? initialHostId,
+  final String? initialError,
 }) extends StatefulWidget {
   @override
   State<PromptWorkspaceDialog> createState() => _PromptWorkspaceDialogState();
@@ -110,8 +118,19 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   void initState() {
     super.initState();
     _project = _initialProject();
-    _selectedParentWorkspaceId = _defaultParentWorkspaceId(_project);
+    final restoringRetry =
+        widget.initialError != null || widget.initialPrompt != null;
+    _selectedParentWorkspaceId = restoringRetry
+        ? widget.initialParentWorkspaceId
+        : (widget.initialParentWorkspaceId ??
+              _defaultParentWorkspaceId(_project));
+    _selectedHostId = widget.initialHostId;
     _profile = _defaultAgentProfile();
+    _error = widget.initialError;
+    final initialPrompt = widget.initialPrompt;
+    if (initialPrompt != null && initialPrompt.isNotEmpty) {
+      _promptController.text = initialPrompt;
+    }
     final project = _project;
     if (project != null) {
       unawaited(_loadBranches(project));
@@ -154,9 +173,10 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   Future<void> _loadBranches(Project project) async {
     setState(() {
       _loadingBranches = true;
-      _error = null;
+      if (_error != widget.initialError) {
+        _error = null;
+      }
       _branches = const <String>[];
-      _sourceBranch = null;
     });
     try {
       final branches = await widget.loadBranches(project);
@@ -165,7 +185,12 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
       }
       setState(() {
         _branches = branches;
-        _sourceBranch = _defaultBranch(branches);
+        final preferred = project.id == widget.initialProject?.id
+            ? widget.initialSourceBranch
+            : null;
+        _sourceBranch = (preferred != null && branches.contains(preferred)
+            ? preferred
+            : _defaultBranch(branches));
         _loadingBranches = false;
       });
     } catch (error) {
@@ -238,6 +263,51 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
     );
     if (hostError != null) {
       setState(() => _error = hostError);
+      return;
+    }
+    final enqueue = widget.enqueuePrompt;
+    if (enqueue != null) {
+      final done = enqueue(
+        PromptWorkspaceCreateRequest(
+          project: project,
+          prompt: prompt,
+          profileId: profile.id,
+          sourceBranch: sourceBranch,
+          parentWorkspaceId: _selectedParentWorkspaceId,
+          hostId: _selectedHostId,
+        ),
+      );
+      if (done == null) {
+        return;
+      }
+      if (_createAnother) {
+        setState(() {
+          _working = true;
+          _error = null;
+        });
+        try {
+          await done;
+          if (!mounted) {
+            return;
+          }
+          _promptController.clear();
+          setState(() {
+            _working = false;
+            _error = null;
+            _created = null;
+          });
+        } catch (error) {
+          if (mounted) {
+            setState(() {
+              _working = false;
+              _error = userFacingExceptionMessage(error);
+            });
+          }
+        }
+      } else {
+        done.ignore();
+        Navigator.of(context).pop();
+      }
       return;
     }
     setState(() {

@@ -16,6 +16,7 @@ import 'package:alera/src/features/projects/domain/project_selection_order.dart'
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/background_setup_job.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/domain/workspace_parent_selection_order.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_host_picker.dart';
@@ -53,8 +54,17 @@ class const CreateWorkspaceDialog({
   final Project? initialProject,
   final VoidCallback? onAddProject,
   final ValueChanged<WorkspaceCreationResult>? onWorkspaceCreated,
+  final Future<void>? Function(ManualWorkspaceCreateRequest request)?
+  enqueueCreate,
   final List<SshTarget> sshTargets = const <SshTarget>[],
   final bool supportsRemoteSshWorkspaces = true,
+  final String? initialSourceBranch,
+  final String? initialNewBranchName,
+  final String? initialName,
+  final String? initialParentWorkspaceId,
+  final String? initialHostId,
+  final bool initialReuseExistingBranch = false,
+  final String? initialCreationError,
 }) extends StatefulWidget {
   @override
   State<CreateWorkspaceDialog> createState() => _CreateWorkspaceDialogState();
@@ -105,6 +115,28 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   void initState() {
     super.initState();
     _selectedProject = _pickInitialProject();
+    _selectedParentWorkspaceId = widget.initialParentWorkspaceId;
+    _selectedHostId = widget.initialHostId;
+    _reuseExistingBranch = widget.initialReuseExistingBranch;
+    _creationError = widget.initialCreationError;
+    final initialName = widget.initialName?.trim();
+    if (initialName != null && initialName.isNotEmpty) {
+      _nameController.text = initialName;
+      _nameTouched = true;
+    }
+    final initialBranch = widget.initialNewBranchName?.trim();
+    if (initialBranch != null && initialBranch.isNotEmpty) {
+      _newBranchController.text = initialBranch;
+    }
+    final initialSource = widget.initialSourceBranch?.trim();
+    if (initialSource != null && initialSource.isNotEmpty) {
+      _selectedSourceBranch = initialSource;
+      _sourceBranchController.text = initialSource;
+    }
+    if (widget.initialCreationError != null ||
+        (widget.initialNewBranchName?.trim().isNotEmpty ?? false)) {
+      _currentStep = 2;
+    }
     final project = _selectedProject;
     if (project != null) {
       _loadBranches(project);
@@ -194,6 +226,9 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   }
 
   Future<void> _loadBranches(Project project) async {
+    final preferredSource =
+        (_selectedSourceBranch ?? _sourceBranchController.text).trim();
+    final preferredNewBranch = _newBranchController.text.trim();
     setState(() {
       _loadingBranches = true;
       _branchesError = null;
@@ -201,8 +236,6 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
       _localBranches = const <String>[];
       _localBranchesLoaded = false;
       _loadingLocalBranches = false;
-      _selectedSourceBranch = null;
-      _sourceBranchController.clear();
       _branchSearchController.clear();
       _branchQuery = '';
     });
@@ -211,20 +244,26 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
       if (!mounted || _selectedProject?.id != project.id) {
         return;
       }
-      final defaultBranch = _pickDefaultSourceBranch(
-        _reuseExistingBranch ? const <String>[] : branches,
-      );
+      final selected =
+          preferredSource.isNotEmpty && branches.contains(preferredSource)
+          ? preferredSource
+          : _pickDefaultSourceBranch(
+              _reuseExistingBranch ? const <String>[] : branches,
+            );
       setState(() {
         _branches = branches;
-        _selectedSourceBranch = defaultBranch;
-        if (defaultBranch != null) {
-          _sourceBranchController.text = defaultBranch;
-          if (_reuseExistingBranch) {
-            _newBranchController.text = defaultBranch;
+        _selectedSourceBranch = selected;
+        if (selected != null) {
+          _sourceBranchController.text = selected;
+          if (_reuseExistingBranch && preferredNewBranch.isEmpty) {
+            _newBranchController.text = selected;
             if (!_nameTouched) {
-              _nameController.text = defaultBranch;
+              _nameController.text = selected;
             }
           }
+        }
+        if (preferredNewBranch.isNotEmpty && !_reuseExistingBranch) {
+          _newBranchController.text = preferredNewBranch;
         }
         _loadingBranches = false;
       });
@@ -253,8 +292,13 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
     if (!mounted || _selectedProject?.id != project.id) {
       return;
     }
+    final preferredSource =
+        (_selectedSourceBranch ?? _sourceBranchController.text).trim();
+    final preferredNewBranch = _newBranchController.text.trim();
     final selectedBranch = _reuseExistingBranch
-        ? _pickDefaultSourceBranch(localBranches)
+        ? (preferredSource.isNotEmpty && localBranches.contains(preferredSource)
+              ? preferredSource
+              : _pickDefaultSourceBranch(localBranches))
         : _selectedSourceBranch;
     setState(() {
       _localBranches = localBranches;
@@ -264,13 +308,17 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
         _selectedSourceBranch = selectedBranch;
         if (selectedBranch == null) {
           _sourceBranchController.clear();
-          _newBranchController.clear();
+          if (preferredNewBranch.isEmpty) {
+            _newBranchController.clear();
+          }
           if (!_nameTouched) {
             _nameController.clear();
           }
         } else {
           _sourceBranchController.text = selectedBranch;
-          _newBranchController.text = selectedBranch;
+          if (preferredNewBranch.isEmpty) {
+            _newBranchController.text = selectedBranch;
+          }
           if (!_nameTouched) {
             _nameController.text = selectedBranch;
           }
