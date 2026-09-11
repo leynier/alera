@@ -241,11 +241,36 @@ void main() {
     expect(updated.progressPercent, 40);
     expect(updated.runtimeJobId, 'runtime-2');
 
-    var state = const BackgroundSetupJobsState().withJob(running);
+    var clearPhase = false;
+    var clearError = false;
+    var clearProgress = false;
+    final preserved = running.copyWith(
+      clearPhase: clearPhase,
+      clearError: clearError,
+      clearProgress: clearProgress,
+    );
+    expect(preserved.phase, 'Creating workspace');
+    expect(preserved.error, 'stale');
+    expect(preserved.progressPercent, 10);
+    expect(preserved.canCancel, isTrue);
+
+    var state = const BackgroundSetupJobsState()
+        .withJob(running)
+        .withJob(
+          BackgroundSetupJob(
+            id: 'job-2',
+            kind: .manualWorkspace,
+            status: .running,
+            title: 'Creating workspace "feat/two"',
+            snapshot: snapshot,
+          ),
+        );
     expect(state.jobById('missing'), isNull);
+    expect(state.jobs, hasLength(2));
     state = state.withJob(failed);
-    expect(state.jobs, hasLength(1));
+    expect(state.jobs, hasLength(2));
     expect(state.jobById('job-1')?.status, BackgroundSetupJobStatus.failed);
+    expect(state.jobById('job-2')?.id, 'job-2');
     expect(state.withFormLockCount(-2).formLockCount, 0);
 
     final pipeline = PromptWorkspacePipelineResult(
