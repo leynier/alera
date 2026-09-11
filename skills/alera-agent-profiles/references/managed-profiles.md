@@ -92,20 +92,4 @@ Cursor model ids can encode effort. Discover them with the installed CLI instead
 
 Cursor status uses Alera-managed entries in `~/.cursor/hooks.json`. If the terminal answers but `agentType` is absent, confirm that file contains the Alera-marked commands and that `GROK_CURSOR_HOOKS_ENABLED=false` is set so a Grok turn cannot steal the identity. Report a missing hook file as a status integration failure, not as a missing tab or failed model launch.
 
-## Smoke Tests
-
-Use a bounded prompt such as:
-
-```text
-Reply with one sentence confirming this Alera Agent Profile smoke test. Name the model you are using. Do not edit files.
-```
-
-For each profile verify:
-
-1. The persisted profile is Managed and its generated command contains the intended model and flags.
-2. A terminal tab is created and the process stays alive long enough to answer.
-3. The CLI's own model indicator or process arguments match the requested model.
-4. The response arrives without editing files.
-5. Alera reports the expected `agentType` and lifecycle state when hooks are enabled.
-
-Do not reuse adapter-specific prompt flags blindly. Inspect the current CLI and Alera launch behavior first. Keep smoke prompts read-only and close test tabs only when the user asked for cleanup.
+For requested smoke tests, read [launch validation](launch-validation.md).
