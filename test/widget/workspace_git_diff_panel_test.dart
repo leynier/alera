@@ -1427,6 +1427,38 @@ void main() {
       },
     );
   });
+
+  testWidgets('flat file rows use leftover width before ellipsizing paths', (
+    tester,
+  ) async {
+    const path = 'lib/src/features/projects/application/projects_service.dart';
+    final backend = FakeGitBackend()
+      ..gitRepositoryStateResult = const GitRepositoryState(
+        branch: 'main',
+        upstream: 'origin/main',
+      )
+      ..gitStatusResult = const GitStatusResult(
+        entries: <GitChangeEntry>[
+          GitChangeEntry(
+            path: path,
+            area: .unstaged,
+            status: .modified,
+            added: 2,
+            removed: 0,
+          ),
+        ],
+      );
+
+    await _pumpPanel(tester, backend: backend, width: 720);
+    await tester.pumpAndSettle();
+
+    final pathFinder = find.text(path);
+    expect(pathFinder, findsOneWidget);
+    final pathRect = tester.getRect(pathFinder);
+    final statusRect = tester.getRect(find.text('M'));
+    expect(pathRect.width, greaterThan(360));
+    expect(statusRect.left - pathRect.right, lessThan(32));
+  });
 }
 
 Future<void> _pumpPanel(
@@ -1445,6 +1477,7 @@ Future<void> _pumpPanel(
   ValueChanged<String>? onRevealInExplorer,
   VoidCallback? onClearSourceControlRoot,
   WorkspaceSourceControlController Function()? sourceControlController,
+  double width = 420,
 }) {
   final resolvedWorkspace = workspace ?? _workspace();
   final resolvedScope =
@@ -1467,7 +1500,7 @@ Future<void> _pumpPanel(
       child: MaterialApp(
         home: Scaffold(
           body: SizedBox(
-            width: 420,
+            width: width,
             height: 520,
             child: WorkspaceGitDiffPanel(
               workspace: resolvedWorkspace,
