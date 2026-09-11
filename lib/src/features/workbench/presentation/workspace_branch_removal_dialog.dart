@@ -1,6 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 @visibleForTesting
