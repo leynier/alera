@@ -2,7 +2,7 @@
 
 use alera_core::git as core_git;
 use alera_core::runtime::{RuntimeStore, WorkspaceKind, LOCAL_HOST_ID};
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Result};
 
 use super::{
     filesystem_entry_is_missing, path_equals, validate_workspace_storage_ownership,
@@ -31,27 +31,12 @@ pub(super) async fn managed_workspace_removal(
     if request.delete_branch.is_none() && !workspace.reuses_existing_branch {
         bail!("Branch deletion requires a choice: use --keep-branch (recommended) or --delete-branch. No worktree was removed.");
     }
-    if should_delete_branch && workspace.reuses_existing_branch {
-        bail!("This workspace reuses a branch it does not own. Keep the branch when removing the workspace.");
-    }
-    if should_delete_branch {
-        let home = core_git::default_branch(&project.repo_path)?;
-        if workspace.branch.as_deref() == Some(home.as_str()) {
-            bail!("The default branch must be kept");
-        }
-        if filesystem_entry_is_missing(&workspace.path)? {
-            bail!("Cannot verify the removed worktree's live branch. Retry with --keep-branch.");
-        }
-    }
-    let branch_to_delete = if should_delete_branch {
-        Some(
-            workspace
-                .branch
-                .as_deref()
-                .filter(|branch| !branch.is_empty())
-                .ok_or_else(|| anyhow!("Workspace Branch Is Required"))?
-                .to_string(),
-        )
+    let mut branch_to_delete = if should_delete_branch && !workspace.reuses_existing_branch {
+        workspace
+            .branch
+            .as_deref()
+            .filter(|branch| !branch.is_empty())
+            .map(str::to_string)
     } else {
         None
     };
@@ -66,16 +51,28 @@ pub(super) async fn managed_workspace_removal(
             .ok_or_else(|| anyhow!("Workspace path is not a registered Git worktree"))?;
         if let Some(expected_branch) = branch_to_delete.as_deref() {
             if registered.branch != expected_branch {
-                bail!(
-                    "Workspace branch does not match registered worktree: expected {expected_branch}, found {}",
-                    registered.branch
-                );
+                branch_to_delete = None;
             }
         }
+    } else {
+        branch_to_delete = None;
     }
     if let Some(branch) = branch_to_delete.as_deref() {
-        core_git::validate_branch_deletion(&project.repo_path, branch, false, Some(&workspace.path))
-            .context("Branch deletion is unsafe or could not be verified. Choose Keep Branch; no work was removed")?;
+        let keep_default = match core_git::default_branch(&project.repo_path) {
+            Ok(home) => home == branch,
+            Err(_) => true,
+        };
+        if keep_default
+            || core_git::validate_branch_deletion(
+                &project.repo_path,
+                branch,
+                false,
+                Some(&workspace.path),
+            )
+            .is_err()
+        {
+            branch_to_delete = None;
+        }
     }
     Ok(ManagedWorkspaceRemoval {
         workspace,

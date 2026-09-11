@@ -31,18 +31,69 @@ async fn unknown_branch_choice_refuses_without_removing_work() {
 }
 
 #[tokio::test]
-async fn unmerged_branch_is_refused_before_worktree_removal() {
+async fn unmerged_branch_is_kept_when_workspace_is_removed() {
     let fixture = RemovalFixture::new("unmerged").await;
     std::fs::write(fixture.worktree_path.join("feature.txt"), "unique commit").unwrap();
     run_git(&fixture.worktree_path, &["add", "feature.txt"]);
     run_git(&fixture.worktree_path, &["commit", "-m", "feature"]);
-    let error = fixture
+    fixture
         .remove_managed_workspace_with(Some(true))
         .await
-        .unwrap_err();
-    assert!(format!("{error:#}").contains("not merged"));
-    assert!(fixture.worktree_path.exists());
+        .unwrap();
+    assert!(!fixture.worktree_path.exists());
     assert!(fixture.branch_exists());
+    assert!(fixture.workspace_record().await.is_none());
+}
+
+#[tokio::test]
+async fn squash_merged_branch_is_deleted_with_workspace() {
+    let fixture = RemovalFixture::new("squash").await;
+    std::fs::write(fixture.worktree_path.join("feature.txt"), "unique commit").unwrap();
+    run_git(&fixture.worktree_path, &["add", "feature.txt"]);
+    run_git(&fixture.worktree_path, &["commit", "-m", "feature"]);
+    run_git(&fixture.repo, &["merge", "--squash", &fixture.branch]);
+    run_git(&fixture.repo, &["commit", "-m", "squash"]);
+    fixture
+        .remove_managed_workspace_with(Some(true))
+        .await
+        .unwrap();
+    assert!(!fixture.worktree_path.exists());
+    assert!(!fixture.branch_exists());
+    assert!(fixture.workspace_record().await.is_none());
+}
+
+#[tokio::test]
+async fn origin_squash_deletes_branch_when_local_default_is_stale() {
+    let fixture = RemovalFixture::new("origin-squash").await;
+    std::fs::write(fixture.worktree_path.join("feature.txt"), "unique commit").unwrap();
+    run_git(&fixture.worktree_path, &["add", "feature.txt"]);
+    run_git(&fixture.worktree_path, &["commit", "-m", "feature"]);
+    let tree = git_stdout(
+        &fixture.repo,
+        &["rev-parse", &format!("{}^{{tree}}", fixture.branch)],
+    );
+    let parent = git_stdout(&fixture.repo, &["rev-parse", "main"]);
+    let oid = git_stdout(
+        &fixture.repo,
+        &[
+            "commit-tree",
+            tree.trim(),
+            "-p",
+            parent.trim(),
+            "-m",
+            "squash",
+        ],
+    );
+    run_git(
+        &fixture.repo,
+        &["update-ref", "refs/remotes/origin/main", oid.trim()],
+    );
+    fixture
+        .remove_managed_workspace_with(Some(true))
+        .await
+        .unwrap();
+    assert!(!fixture.worktree_path.exists());
+    assert!(!fixture.branch_exists());
 }
 
 #[tokio::test]
@@ -481,6 +532,23 @@ fn init_git_repo(repo: &Path) {
     run_git(repo, &["add", "README.md"]);
     run_git(repo, &["commit", "-m", "initial"]);
     run_git(repo, &["branch", "-M", "main"]);
+}
+
+#[allow(clippy::disallowed_methods)]
+fn git_stdout(repo: &Path, args: &[&str]) -> String {
+    let output = StdCommand::new("git")
+        .args(args)
+        .current_dir(repo)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "git {} failed\nstdout:\n{}\nstderr:\n{}",
+        args.join(" "),
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout).unwrap()
 }
 
 #[allow(clippy::disallowed_methods)]

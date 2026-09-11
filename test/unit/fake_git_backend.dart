@@ -286,6 +286,19 @@ class FakeGitBackend
     if (error != null) {
       throw error;
     }
+    if (!force) {
+      final home = defaultBranchName;
+      final mergedLocal = ancestorResults[(branch, home)];
+      final mergedOrigin = ancestorResults[(branch, 'origin/$home')];
+      if ((mergedLocal != null || mergedOrigin != null) &&
+          mergedLocal != true &&
+          mergedOrigin != true) {
+        throw const GitConflictException(
+          'Branch has commits not merged into the default branch',
+        );
+      }
+    }
+    sourceBranches.remove(branch);
   }
 
   @override
