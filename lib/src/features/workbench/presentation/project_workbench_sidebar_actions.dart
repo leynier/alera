@@ -150,12 +150,8 @@ mixin _ProjectWorkbenchSidebarActions
       return;
     }
     final branch = workspace.branch;
-    var deleteBranch = false;
-    if (!workspace.reusesExistingBranch) {
-      final choice = await showWorkspaceBranchRemovalDialog(context, branch);
-      if (choice == null || !mounted) return;
-      deleteBranch = choice;
-    }
+    final canDeleteBranch =
+        !workspace.reusesExistingBranch && branch != null && branch.isNotEmpty;
 
     final managedRuntime = ref.read(managedWorkspaceRuntimeProvider);
     WorkspaceStorageImpact? impact;
@@ -204,18 +200,14 @@ mixin _ProjectWorkbenchSidebarActions
         : 'Measured size: ${formatResourceMemory(impact.sizeBytes)} '
               'across ${impact.entryCount} entries.\n'
               'Last activity: ${_workspaceStorageTimestamp(lastActivity)}.\n\n';
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AleraConfirmDialog(
-        title: impact == null ? 'Remove Workspace?' : 'Clean Up Workspace?',
-        message:
-            '$impactSummary${!deleteBranch || branch == null || branch.isEmpty ? 'This removes the worktree for "${workspace.name}".' : 'This removes the worktree for "${workspace.name}" and deletes branch "$branch".'}'
-            '\n\nAll tabs will close and running terminals, agents, and their child processes will stop. Unsaved changes will be lost. If removal fails, stopped sessions will not restart automatically.',
-        confirmLabel: impact == null ? 'Remove' : 'Clean Up',
-        destructive: true,
-      ),
+    final decision = await showWorkspaceRemovalDialog(
+      context,
+      workspaceName: workspace.name,
+      branch: branch,
+      canDeleteBranch: canDeleteBranch,
+      impactSummary: impactSummary,
     );
-    if (confirmed != true || !mounted) {
+    if (decision == null || !mounted) {
       return;
     }
     await _runWorkbenchSidebarMutation(
@@ -226,7 +218,7 @@ mixin _ProjectWorkbenchSidebarActions
             .deleteWorkspace(
               project: project,
               workspace: workspace,
-              deleteBranch: deleteBranch,
+              deleteBranch: decision.deleteBranch,
               activeWorkspaceId: ref
                   .read(workbenchControllerProvider)
                   .activeWorkspaceId,
