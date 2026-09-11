@@ -93,5 +93,3 @@ Cursor model ids can encode effort. Discover them with the installed CLI instead
 Cursor status uses Alera-managed entries in `~/.cursor/hooks.json`. If the terminal answers but `agentType` is absent, confirm that file contains the Alera-marked commands and that `GROK_CURSOR_HOOKS_ENABLED=false` is set so a Grok turn cannot steal the identity. Report a missing hook file as a status integration failure, not as a missing tab or failed model launch.
 
 For requested smoke tests, read [launch validation](launch-validation.md).
-
-For requested smoke tests, read [launch validation](launch-validation.md).
