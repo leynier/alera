@@ -1,9 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
-import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_hand_off_dialog.dart';
-import 'package:alera/src/features/workbench/presentation/workspace_branch_removal_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -148,44 +146,4 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
   });
-
-  testWidgets('branch removal dialog stays compact', (tester) async {
-    tester.view.physicalSize = const Size(1600, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    await open(tester, (context) async {
-      await showWorkspaceBranchRemovalDialog(context, 'feature');
-    });
-    expect(
-      tester.getSize(find.byKey(workspaceBranchRemovalDialogWidthKey)).width,
-      lessThanOrEqualTo(AleraTokens.dialogCompactWidth),
-    );
-    expect(
-      tester.getSize(find.byKey(workspaceBranchRemovalDialogWidthKey)).width,
-      lessThan(tester.view.physicalSize.width),
-    );
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
-  });
-
-  for (final choice in ['Keep Branch', 'Delete Branch', 'Cancel']) {
-    testWidgets('unknown safety offers $choice explicitly', (tester) async {
-      bool? result;
-      await open(tester, (context) async {
-        result = await showWorkspaceBranchRemovalDialog(context, 'feature');
-      });
-      expect(
-        tester
-            .widget<FilledButton>(
-              find.widgetWithText(FilledButton, 'Keep Branch'),
-            )
-            .autofocus,
-        isTrue,
-      );
-      await tester.tap(find.text(choice));
-      await tester.pumpAndSettle();
-      expect(result, choice == 'Cancel' ? null : choice == 'Delete Branch');
-    });
-  }
 }

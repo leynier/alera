@@ -16,22 +16,46 @@ void _registerAleraShellWorkspaceRemovalTests() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Remove'));
     await tester.pumpAndSettle();
-    expect(find.text('Keep or Delete Branch?'), findsOneWidget);
-    expect(harness.runtime.closedWorkspaceIds, isEmpty);
-    await tester.tap(find.widgetWithText(FilledButton, 'Keep Branch'));
-    await tester.pumpAndSettle();
+    expect(find.text('Remove Workspace?'), findsOneWidget);
+    expect(find.text('Keep or Delete Branch?'), findsNothing);
     expect(find.textContaining('All tabs will close'), findsOneWidget);
     expect(harness.runtime.closedWorkspaceIds, isEmpty);
-    await tester.tap(find.widgetWithText(FilledButton, 'Clean Up'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(harness.runtime.closedWorkspaceIds, <String>['workspace-2']);
+    expect(harness.controller.lastDeleteBranch, isTrue);
     expect(
       harness.controller.state.workspacesFor('project-1').map((w) => w.id),
       <String>['workspace-1'],
     );
     expect(find.text('Feature login'), findsNothing);
+  });
+
+  testWidgets('keeping the branch still removes the workspace', (tester) async {
+    final harness = await _pumpShell(
+      tester,
+      state: _linkedWorkbenchState(linkedExpanded: true),
+    );
+
+    await tester.tapAt(
+      tester.getCenter(find.text('Feature login').first),
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Keep Branch'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(harness.runtime.closedWorkspaceIds, <String>['workspace-2']);
+    expect(harness.controller.lastDeleteBranch, isFalse);
+    expect(
+      harness.controller.state.workspacesFor('project-1').map((w) => w.id),
+      <String>['workspace-1'],
+    );
   });
 
   testWidgets('cancelling workspace removal leaves its tabs and runtime open', (
@@ -51,6 +75,7 @@ void _registerAleraShellWorkspaceRemovalTests() {
     await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
     await tester.pumpAndSettle();
     expect(harness.runtime.closedWorkspaceIds, isEmpty);
+    expect(harness.controller.lastDeleteBranch, isNull);
     expect(
       harness.controller.state
           .workspacesFor('project-1')
@@ -74,7 +99,7 @@ void _registerAleraShellWorkspaceRemovalTests() {
       },
     );
 
-    await _pumpShell(tester, state: branchlessState);
+    final harness = await _pumpShell(tester, state: branchlessState);
 
     await tester.tapAt(
       tester.getCenter(find.text('Feature login').first),
@@ -87,20 +112,19 @@ void _registerAleraShellWorkspaceRemovalTests() {
       find.textContaining('The workspace branch is unknown'),
       findsOneWidget,
     );
-    expect(
-      tester
-          .widget<TextButton>(find.widgetWithText(TextButton, 'Delete Branch'))
-          .onPressed,
-      isNull,
-    );
-    await tester.tap(find.widgetWithText(FilledButton, 'Keep Branch'));
-    await tester.pumpAndSettle();
-
+    expect(find.text('Keep Branch'), findsNothing);
+    expect(find.text('Delete Branch'), findsNothing);
     expect(
       find.textContaining('This removes the worktree for "Feature login".'),
       findsOneWidget,
     );
-    expect(find.textContaining('deletes branch'), findsNothing);
+    expect(find.textContaining('attempts safe deletion'), findsNothing);
+    await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(harness.controller.lastDeleteBranch, isFalse);
+    expect(harness.runtime.closedWorkspaceIds, <String>['workspace-2']);
   });
 
   testWidgets('workspace removal failures surface an error toast event', (
@@ -127,9 +151,7 @@ void _registerAleraShellWorkspaceRemovalTests() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Remove'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Keep Branch'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Clean Up'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 

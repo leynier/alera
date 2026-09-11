@@ -27,6 +27,7 @@ class _ShellTestWorkbenchController(
   final List<({String workspaceId, String? parentWorkspaceId})> parentUpdates =
       <({String workspaceId, String? parentWorkspaceId})>[];
   final List<String> deletedTagIds = <String>[];
+  bool? lastDeleteBranch;
 
   @override
   WorkbenchState build() => const WorkbenchState();
@@ -250,6 +251,7 @@ class _ShellTestWorkbenchController(
     bool deleteBranch = true,
     String? activeWorkspaceId,
   }) async {
+    lastDeleteBranch = deleteBranch;
     if (deleteWorkspaceFailure case final Object failure) {
       throw failure;
     }
