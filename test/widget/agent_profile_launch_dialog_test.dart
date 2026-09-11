@@ -2,7 +2,6 @@ import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/workbench/infra/terminal_clipboard.dart';
 import 'package:alera/src/features/workbench/presentation/agent_profile_launch_dialog.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -105,16 +104,13 @@ void main() {
   });
 }
 
-final class _FakeTerminalClipboard({
-  final String? text,
-  final String? imagePath,
-  final List<String> filePaths = const <String>[],
-}) implements TerminalClipboard {
+final class _FakeTerminalClipboard({final String? imagePath})
+    implements TerminalClipboard {
   @override
-  Future<List<String>> readFilePaths() async => filePaths;
+  Future<List<String>> readFilePaths() async => const <String>[];
 
   @override
-  Future<String?> readText() async => text;
+  Future<String?> readText() async => null;
 
   @override
   Future<String?> saveImageAsTempFile() async => imagePath;
