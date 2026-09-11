@@ -265,10 +265,25 @@ class const _ExperimentalPanelToolChip({
   }
 }
 
+sealed class _ExperimentalAddTabMenuAction {
+  const _ExperimentalAddTabMenuAction();
+}
+
+class const _ExperimentalAddToolMenuAction(final String key)
+    extends _ExperimentalAddTabMenuAction {}
+
+class const _ExperimentalAddTerminalMenuAction()
+    extends _ExperimentalAddTabMenuAction {}
+
+class const _ExperimentalAddAgentProfileMenuAction(final String profileId)
+    extends _ExperimentalAddTabMenuAction {}
+
 class const _ExperimentalPanelAddButton({
   required final List<ExperimentalWorkspaceTool> availableTools,
+  required final List<AgentProfile> profiles,
   required final ValueChanged<String> onSelect,
   required final VoidCallback onNewTerminal,
+  required final ValueChanged<String>? onLaunchAgentProfile,
 }) extends StatelessWidget {
   Future<void> _openMenu(BuildContext context) async {
     final button = context.findRenderObject()! as RenderBox;
@@ -282,26 +297,47 @@ class const _ExperimentalPanelAddButton({
       button.size.bottomRight(.zero),
       ancestor: overlay,
     );
-    final selected = await showMenu<String>(
+    final selected = await showMenu<_ExperimentalAddTabMenuAction>(
       context: context,
       position: .fromRect(
         .fromPoints(topLeft, bottomRight),
         Offset.zero & overlay.size,
       ),
-      items: <PopupMenuEntry<String>>[
+      items: <PopupMenuEntry<_ExperimentalAddTabMenuAction>>[
         for (final tool in availableTools)
-          AleraDropdownEntry(value: tool.key, label: tool.label),
-        const AleraDropdownEntry(value: 'terminal', label: 'Terminal'),
+          AleraDropdownEntry(
+            value: _ExperimentalAddToolMenuAction(tool.key),
+            label: tool.label,
+          ),
+        const AleraDropdownEntry(
+          value: _ExperimentalAddTerminalMenuAction(),
+          label: 'Terminal',
+        ),
+        for (final profile in profiles)
+          if (profile.showInNewTabMenu)
+            AleraDropdownEntry(
+              value: _ExperimentalAddAgentProfileMenuAction(profile.id),
+              label: profile.name,
+              leading: AgentIdentityIcon(
+                agentType:
+                    AgentType.tryParse(profile.agentType) ?? AgentType.codex,
+                size: 16,
+                showTooltip: false,
+              ),
+            ),
       ],
     );
     if (selected == null) {
       return;
     }
-    if (selected == 'terminal') {
-      onNewTerminal();
-      return;
+    switch (selected) {
+      case _ExperimentalAddToolMenuAction(:final key):
+        onSelect(key);
+      case _ExperimentalAddTerminalMenuAction():
+        onNewTerminal();
+      case _ExperimentalAddAgentProfileMenuAction(:final profileId):
+        onLaunchAgentProfile?.call(profileId);
     }
-    onSelect(selected);
   }
 
   @override

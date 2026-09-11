@@ -12,6 +12,9 @@ class const _ExperimentalPanelPane({
   required final VoidCallback onNewTerminal,
   required final VoidCallback onHide,
   required final Widget content,
+  final List<AgentProfile> newTabMenuProfiles = const <AgentProfile>[],
+  final void Function({required String profileId, String? targetGroupId})?
+  onLaunchAgentProfile,
   final Widget Function(String key)? surfaceBuilder,
   final Widget Function(WorkspaceTabRecord tab, bool active, String groupId)?
   tabBuilder,
@@ -190,6 +193,7 @@ class _ExperimentalPanelPaneState extends State<_ExperimentalPanelPane> {
         for (final tool in ExperimentalWorkspaceTool.values)
           if (!openKeys.contains(tool.key)) tool,
       ],
+      profiles: widget.newTabMenuProfiles,
       onSelect: _selectKey,
       onNewTerminal: () {
         if (widget.onNewTerminalInGroup != null) {
@@ -198,6 +202,12 @@ class _ExperimentalPanelPaneState extends State<_ExperimentalPanelPane> {
         }
         widget.onNewTerminal();
       },
+      onLaunchAgentProfile: widget.onLaunchAgentProfile == null
+          ? null
+          : (profileId) => widget.onLaunchAgentProfile!(
+              profileId: profileId,
+              targetGroupId: widget.groupId,
+            ),
     );
     final activeKey = _activeKey;
     final surface = activeKey == null
