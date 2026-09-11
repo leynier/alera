@@ -453,6 +453,8 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
 
   void _focusExperimentalTerminal(String workspaceId, String? key);
 
+  void _seedExperimentalNewWorkspacePanel(String workspaceId);
+
   void _saveExperimentalPanel(
     String workspaceId,
     ExperimentalWorkspacePanel panel, {

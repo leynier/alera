@@ -55,6 +55,7 @@ part 'workbench_controller_workspace_creation.dart';
 part 'workbench_controller_transfer.dart';
 part 'workbench_controller_tabs.dart';
 part 'workbench_controller_view_prefs.dart';
+part 'workbench_controller_source_control_root.dart';
 part 'workbench_controller_sync.dart';
 part 'workbench_controller_sections.dart';
 
@@ -75,6 +76,7 @@ class WorkbenchController extends _$WorkbenchController
         _WorkbenchControllerTransfer,
         _WorkbenchControllerTabs,
         _WorkbenchControllerViewPrefs,
+        _WorkbenchControllerSourceControlRoot,
         _WorkbenchControllerSync,
         _WorkbenchControllerSections {
   @override

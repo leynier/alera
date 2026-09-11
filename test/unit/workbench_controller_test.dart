@@ -46,6 +46,7 @@ import 'fake_project_config.dart';
 
 part 'workbench_controller_lifecycle_test_cases.dart';
 part 'workbench_controller_experimental_layout_test_cases.dart';
+part 'workbench_controller_experimental_tools_test_cases.dart';
 part 'workbench_controller_experimental_main_test_cases.dart';
 part 'workbench_controller_tab_focus_test_cases.dart';
 part 'workbench_controller_sleep_test_cases.dart';
@@ -83,6 +84,7 @@ void main() {
 
     _registerWorkbenchControllerLifecycleTests();
     _registerExperimentalLayoutTests();
+    _registerExperimentalNewWorkspaceToolsTests();
     _registerExperimentalMainPanelTests();
     _registerWorkbenchControllerTabFocusTests();
     _registerWorkbenchControllerSleepTests();

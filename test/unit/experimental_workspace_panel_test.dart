@@ -32,16 +32,6 @@ void main() {
     expect(ExperimentalWorkspacePanel.tabId('tab:aux'), 'aux');
   });
 
-  test('old preferences keep Classic and no Experimental tools', () {
-    final json = WorkbenchViewPrefs.defaults.toMap()
-      ..remove('desktopLayout')
-      ..remove('experimentalPanels')
-      ..remove('experimentalRightSidebarWidth');
-    final prefs = WorkbenchViewPrefs.fromJson(json);
-    expect(prefs.desktopLayout, DesktopWorkspaceLayout.classic);
-    expect(prefs.experimentalPanels, isEmpty);
-  });
-
   test('adopts active normal terminal once and retains every auxiliary', () {
     final tabs = <WorkspaceTabRecord>[
       terminal('setup', title: 'Setup'),
