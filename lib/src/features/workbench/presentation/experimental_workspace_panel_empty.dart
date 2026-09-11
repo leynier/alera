@@ -5,10 +5,35 @@ class const _ExperimentalPanelEmpty({
   required final VoidCallback onNewTerminal,
   required final VoidCallback onHide,
   required final Widget content,
+  final String workspaceId =
+      ExperimentalWorkspacePanel.fallbackLayoutWorkspaceId,
   final List<AgentProfile> newTabMenuProfiles = const <AgentProfile>[],
   final void Function({required String profileId, String? targetGroupId})?
   onLaunchAgentProfile,
 }) extends StatelessWidget {
+  Future<void> _openAgentPicker(BuildContext context) async {
+    final launch = onLaunchAgentProfile;
+    if (launch == null) {
+      return;
+    }
+    final selection = await showAgentTaskDispatchPicker(
+      context,
+      request: AgentTaskDispatchRequest(
+        workspaceId: workspaceId,
+        prompt: '',
+        title: 'Agents',
+        message: 'Choose an agent profile to start in this panel.',
+      ),
+      catalog: AgentTaskDispatchCatalog(profiles: newTabMenuProfiles),
+      includeRunningAgents: false,
+      emptyMessage: 'Add an agent profile in Settings, then start it here.',
+    );
+    if (!context.mounted || selection is! AgentTaskDispatchNewTabSelection) {
+      return;
+    }
+    launch(profileId: selection.profileId);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -77,26 +102,16 @@ class const _ExperimentalPanelEmpty({
                             description: 'Start a new terminal tab.',
                             onTap: onNewTerminal,
                           ),
-                          for (final profile in newTabMenuProfiles)
-                            if (profile.showInNewTabMenu) ...<Widget>[
-                              const SizedBox(height: AleraTokens.space8),
-                              _ExperimentalPanelEmptyChoice(
-                                icon: AleraIcons.agent,
-                                label: profile.name,
-                                description:
-                                    'Start this agent profile in a new tab.',
-                                leading: AgentIdentityIcon(
-                                  agentType:
-                                      AgentType.tryParse(profile.agentType) ??
-                                      AgentType.codex,
-                                  size: 16,
-                                  showTooltip: false,
-                                ),
-                                onTap: () => onLaunchAgentProfile?.call(
-                                  profileId: profile.id,
-                                ),
-                              ),
-                            ],
+                          if (onLaunchAgentProfile != null) ...<Widget>[
+                            const SizedBox(height: AleraTokens.space8),
+                            _ExperimentalPanelEmptyChoice(
+                              icon: AleraIcons.agent,
+                              label: 'Agents',
+                              description:
+                                  'Start an agent profile in a new tab.',
+                              onTap: () => unawaited(_openAgentPicker(context)),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -126,7 +141,6 @@ class const _ExperimentalPanelEmptyChoice({
   required final String label,
   required final String description,
   required final VoidCallback onTap,
-  final Widget? leading,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -149,8 +163,7 @@ class const _ExperimentalPanelEmptyChoice({
           ),
           child: Row(
             children: <Widget>[
-              leading ??
-                  Icon(icon, size: 16, color: AleraTokens.foregroundMuted),
+              Icon(icon, size: 16, color: AleraTokens.foregroundMuted),
               const SizedBox(width: AleraTokens.space12),
               Expanded(
                 child: Column(

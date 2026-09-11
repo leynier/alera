@@ -94,10 +94,17 @@ Future<AgentTaskDispatchSelection?> showAgentTaskDispatchPicker(
   BuildContext context, {
   required AgentTaskDispatchRequest request,
   required AgentTaskDispatchCatalog catalog,
+  bool includeRunningAgents = true,
+  String? emptyMessage,
 }) {
   return showDialog<AgentTaskDispatchSelection>(
     context: context,
-    builder: (_) => AgentTaskDispatchDialog(request: request, catalog: catalog),
+    builder: (_) => AgentTaskDispatchDialog(
+      request: request,
+      catalog: catalog,
+      includeRunningAgents: includeRunningAgents,
+      emptyMessage: emptyMessage,
+    ),
   );
 }
 

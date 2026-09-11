@@ -131,6 +131,55 @@ void main() {
     );
   });
 
+  testWidgets('profiles-only mode hides running agents', (tester) async {
+    AgentTaskDispatchSelection? selection;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () async {
+                selection = await showDialog<AgentTaskDispatchSelection>(
+                  context: context,
+                  builder: (_) => AgentTaskDispatchDialog(
+                    request: const AgentTaskDispatchRequest(
+                      workspaceId: 'workspace-1',
+                      prompt: '',
+                      title: 'Agents',
+                    ),
+                    catalog: catalog(),
+                    includeRunningAgents: false,
+                  ),
+                );
+              },
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Agents'), findsOneWidget);
+    expect(find.text('RUNNING AGENTS'), findsNothing);
+    expect(find.text('NEW TAB'), findsNothing);
+    expect(find.text('AGENT PROFILES'), findsOneWidget);
+    expect(find.text('Codex'), findsNothing);
+    expect(find.text('Codex Builder'), findsOneWidget);
+
+    await tester.tap(find.text('Codex Builder'));
+    await tester.pumpAndSettle();
+    expect(
+      selection,
+      isA<AgentTaskDispatchNewTabSelection>().having(
+        (value) => value.profileId,
+        'profileId',
+        'profile-1',
+      ),
+    );
+  });
+
   testWidgets('selecting a profile returns a new-tab selection', (
     tester,
   ) async {

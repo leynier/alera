@@ -9,6 +9,8 @@ import 'package:alera/src/design_system/surfaces/hover_container.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
+import 'package:alera/src/features/agent_task_dispatch/domain/agent_task_dispatch.dart';
+import 'package:alera/src/features/agent_task_dispatch/presentation/agent_task_dispatch_launcher.dart';
 import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -114,6 +116,7 @@ class const ExperimentalWorkspacePanelView({
         onNewTerminal: onNewTerminal,
         onHide: onHide,
         content: content,
+        workspaceId: workspaceId,
         newTabMenuProfiles: newTabMenuProfiles,
         onLaunchAgentProfile: onLaunchAgentProfile,
       );

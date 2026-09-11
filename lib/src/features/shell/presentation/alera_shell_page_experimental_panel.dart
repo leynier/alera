@@ -22,10 +22,7 @@ extension _ExperimentalPanelTabs on _AleraShellPageBodyState {
       workspaceId: workspace.id,
       panel: panel,
       tabs: tabs,
-      newTabMenuProfiles: <AgentProfile>[
-        for (final profile in newTabMenuProfiles)
-          if (profile.showInNewTabMenu) profile,
-      ],
+      newTabMenuProfiles: newTabMenuProfiles,
       onLaunchAgentProfile: ({required profileId, targetGroupId}) {
         final profile = newTabMenuProfiles
             .where((candidate) => candidate.id == profileId)
