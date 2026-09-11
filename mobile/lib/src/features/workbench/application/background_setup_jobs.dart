@@ -27,6 +27,9 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs {
   }
 
   void endForm() {
+    if (!ref.mounted) {
+      return;
+    }
     state = state.withFormLockCount(state.formLockCount - 1);
   }
 
@@ -86,7 +89,7 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs {
     }
   }
 
-  Future<WorkspaceCreationResult> enqueuePromptWorkspace(
+  Future<PromptWorkspaceCreateOutcome> enqueuePromptWorkspace(
     PromptWorkspaceCreateRequest request, {
     String? jobId,
   }) async {
@@ -124,7 +127,7 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs {
         snapshot: requestToRun,
       ),
     );
-    late final WorkspaceCreationResult result;
+    late final PromptWorkspaceCreateOutcome result;
     final keepClient = ref.listen(
       workspaceClientProvider(request.hostId),
       (_, _) {},
@@ -165,8 +168,8 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs {
               );
             },
           );
-          result = outcome.creation;
-          _publishWorkspaceCreatedIfDetached(result);
+          result = outcome;
+          _publishWorkspaceCreatedIfDetached(outcome.creation);
         } on PromptWorkspaceLaunchException catch (failure) {
           final job = state.jobById(id);
           if (job != null) {

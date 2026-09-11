@@ -291,6 +291,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
     }
     _retryJobId ??= 'job-${DateTime.now().microsecondsSinceEpoch}';
     final jobId = _retryJobId;
+    final hostId = widget.hostId;
     final future = ref
         .read(backgroundSetupJobsProvider.notifier)
         .enqueuePromptWorkspace(
@@ -317,8 +318,22 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
         _retryJobId = null;
         controller.resetForAnother();
       } else if (mounted) {
-        future.ignore();
         Navigator.of(context).pop(true);
+        future.then((outcome) {
+          final nav = aleraNavigatorKey.currentState;
+          if (nav == null) {
+            return;
+          }
+          nav.push(
+            MaterialPageRoute<void>(
+              builder: (_) => WorkspaceTabsScreen(
+                hostId: hostId,
+                workspace: outcome.creation.workspace,
+                initialTabId: outcome.agentTabId,
+              ),
+            ),
+          );
+        }).ignore();
       }
     } on Object catch (error) {
       if (mounted) {

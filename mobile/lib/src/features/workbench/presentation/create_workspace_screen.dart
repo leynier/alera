@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/app/app_navigation.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
@@ -212,7 +213,10 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
     _branch.dispose();
     _name.dispose();
     _prompt.dispose();
-    _jobs?.endForm();
+    final jobs = _jobs;
+    if (jobs != null) {
+      scheduleMicrotask(jobs.endForm);
+    }
     super.dispose();
   }
 
