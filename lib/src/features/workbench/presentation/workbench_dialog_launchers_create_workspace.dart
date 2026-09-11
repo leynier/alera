@@ -104,21 +104,6 @@ Future<void> _showCreateWorkspaceDialogs(
   String? remainingRetryJobId,
 }) async {
   var boundJobId = remainingRetryJobId;
-  if (retryManual != null) {
-    await _showManualWorkspaceDialog(
-      context,
-      ref,
-      controller: controller,
-      projects: projects,
-      parentCandidates: parentCandidates,
-      sshTargets: sshTargets,
-      resolvedInitialProject: resolvedInitialProject,
-      retryManual: retryManual,
-      retryError: retryError,
-      retryJobId: boundJobId,
-    );
-    return;
-  }
   final promptResult = await showDialog<PromptWorkspaceDialogResult>(
     context: context,
     builder: (_) => PromptWorkspaceDialog(
@@ -134,6 +119,32 @@ Future<void> _showCreateWorkspaceDialogs(
       initialParentWorkspaceId: retryPrompt?.parentWorkspaceId,
       initialHostId: retryPrompt?.hostId,
       initialError: retryPrompt == null ? null : retryError,
+      initialMode: retryManual != null
+          ? NewWorkspaceMode.manual
+          : NewWorkspaceMode.fromPrompt,
+      manualForm: _buildManualWorkspaceForm(
+        context,
+        ref,
+        controller: controller,
+        projects: projects,
+        parentCandidates: parentCandidates,
+        sshTargets: sshTargets,
+        resolvedInitialProject: resolvedInitialProject,
+        retryManual: retryManual,
+        retryError: retryError,
+        enqueueCreate: (request) {
+          boundJobId ??= const Uuid().v4();
+          final done = ref
+              .read(backgroundSetupJobsProvider.notifier)
+              .enqueueManualWorkspace(request, jobId: boundJobId);
+          if (done == null) {
+            return null;
+          }
+          return done.then((_) {
+            boundJobId = const Uuid().v4();
+          });
+        },
+      ),
       enqueuePrompt: (request) {
         boundJobId ??= const Uuid().v4();
         final done = ref
@@ -202,34 +213,19 @@ Future<void> _showCreateWorkspaceDialogs(
     return;
   }
 
-  WorkspaceCreationResult? result = promptResult.creation;
-  if (promptResult.openManual) {
-    result = await _showManualWorkspaceDialog(
-      context,
-      ref,
-      controller: controller,
-      projects: projects,
-      parentCandidates: parentCandidates,
-      sshTargets: sshTargets,
-      resolvedInitialProject: resolvedInitialProject,
-      retryJobId: boundJobId,
+  final creation = promptResult.creation;
+  if (creation != null) {
+    await controller.completePromptWorkspaceCreation(
+      creation: creation,
+      agentTabId: promptResult.agentTabId,
     );
-  } else {
-    final creation = promptResult.creation;
-    if (creation != null) {
-      await controller.completePromptWorkspaceCreation(
-        creation: creation,
-        agentTabId: promptResult.agentTabId,
-      );
+    if (context.mounted) {
+      _showWorkspaceCreationToast(context, creation);
     }
-  }
-
-  if (result != null && context.mounted) {
-    _showWorkspaceCreationToast(context, result);
   }
 }
 
-Future<WorkspaceCreationResult?> _showManualWorkspaceDialog(
+Widget _buildManualWorkspaceForm(
   BuildContext context,
   WidgetRef ref, {
   required WorkbenchController controller,
@@ -237,98 +233,85 @@ Future<WorkspaceCreationResult?> _showManualWorkspaceDialog(
   required List<WorkspaceParentCandidate> parentCandidates,
   required List<SshTarget> sshTargets,
   required Project? resolvedInitialProject,
+  required Future<void>? Function(ManualWorkspaceCreateRequest request)
+  enqueueCreate,
   ManualWorkspaceCreateRequest? retryManual,
   String? retryError,
-  String? retryJobId,
 }) {
-  var boundJobId = retryJobId;
-  return showDialog<WorkspaceCreationResult>(
-    context: context,
-    builder: (_) => CreateWorkspaceDialog(
-      projects: projects,
-      initialProject: resolvedInitialProject,
-      initialSourceBranch: retryManual?.sourceBranch,
-      initialNewBranchName: retryManual?.newBranchName,
-      initialName: retryManual?.name,
-      initialParentWorkspaceId: retryManual?.parentWorkspaceId,
-      initialHostId: retryManual?.hostId,
-      initialReuseExistingBranch: retryManual?.reuseExistingBranch ?? false,
-      initialCreationError: retryManual == null ? null : retryError,
-      enqueueCreate: (request) {
-        boundJobId ??= const Uuid().v4();
-        final done = ref
-            .read(backgroundSetupJobsProvider.notifier)
-            .enqueueManualWorkspace(request, jobId: boundJobId);
-        if (done == null) {
-          return null;
-        }
-        return done.then((_) {
-          boundJobId = const Uuid().v4();
-        });
-      },
-      parentCandidates: parentCandidates,
-      sshTargets: sshTargets,
-      loadBranches: controller.listSourceBranches,
-      getProjectActiveBranch: (project) {
-        final state = ref.read(workbenchControllerProvider);
-        final workspaces = state.workspacesFor(project.id);
-        if (workspaces.isEmpty) return null;
-        try {
-          final activeWorkspace = workspaces.firstWhere(
-            (w) => w.id == state.activeWorkspaceId,
-            orElse: () => workspaces.firstWhere(
-              (w) => w.isMain,
-              orElse: () => workspaces.first,
-            ),
+  return CreateWorkspaceDialog(
+    embedded: true,
+    projects: projects,
+    initialProject: resolvedInitialProject,
+    initialSourceBranch: retryManual?.sourceBranch,
+    initialNewBranchName: retryManual?.newBranchName,
+    initialName: retryManual?.name,
+    initialParentWorkspaceId: retryManual?.parentWorkspaceId,
+    initialHostId: retryManual?.hostId,
+    initialReuseExistingBranch: retryManual?.reuseExistingBranch ?? false,
+    initialCreationError: retryManual == null ? null : retryError,
+    enqueueCreate: enqueueCreate,
+    parentCandidates: parentCandidates,
+    sshTargets: sshTargets,
+    loadBranches: controller.listSourceBranches,
+    getProjectActiveBranch: (project) {
+      final state = ref.read(workbenchControllerProvider);
+      final workspaces = state.workspacesFor(project.id);
+      if (workspaces.isEmpty) return null;
+      try {
+        final activeWorkspace = workspaces.firstWhere(
+          (w) => w.id == state.activeWorkspaceId,
+          orElse: () => workspaces.firstWhere(
+            (w) => w.isMain,
+            orElse: () => workspaces.first,
+          ),
+        );
+        return activeWorkspace.branch;
+      } catch (_) {
+        return null;
+      }
+    },
+    getProjectWorkspaceBranches: (project) {
+      final state = ref.read(workbenchControllerProvider);
+      return state
+          .workspacesFor(project.id)
+          .where((workspace) => workspace.isActive)
+          .map((workspace) => workspace.branch?.trim() ?? '')
+          .where((branch) => branch.isNotEmpty)
+          .toSet();
+    },
+    checkBranchExists: (project, branchName) async {
+      final gitBackend = ref.read(gitBackendProvider);
+      return gitBackend.branchExists(project.repoPath, branchName);
+    },
+    onCreateWorkspace:
+        ({
+          required project,
+          required sourceBranch,
+          required newBranchName,
+          required reuseExistingBranch,
+          name,
+          parentWorkspaceId,
+          hostId,
+        }) async {
+          return controller.createWorkspace(
+            project: project,
+            sourceBranch: sourceBranch,
+            newBranchName: newBranchName,
+            reuseExistingBranch: reuseExistingBranch,
+            name: name,
+            parentWorkspaceId: parentWorkspaceId,
+            hostId: hostId,
           );
-          return activeWorkspace.branch;
-        } catch (_) {
-          return null;
-        }
-      },
-      getProjectWorkspaceBranches: (project) {
-        final state = ref.read(workbenchControllerProvider);
-        return state
-            .workspacesFor(project.id)
-            .where((workspace) => workspace.isActive)
-            .map((workspace) => workspace.branch?.trim() ?? '')
-            .where((branch) => branch.isNotEmpty)
-            .toSet();
-      },
-      checkBranchExists: (project, branchName) async {
-        final gitBackend = ref.read(gitBackendProvider);
-        return gitBackend.branchExists(project.repoPath, branchName);
-      },
-      onCreateWorkspace:
-          ({
-            required project,
-            required sourceBranch,
-            required newBranchName,
-            required reuseExistingBranch,
-            name,
-            parentWorkspaceId,
-            hostId,
-          }) async {
-            return controller.createWorkspace(
-              project: project,
-              sourceBranch: sourceBranch,
-              newBranchName: newBranchName,
-              reuseExistingBranch: reuseExistingBranch,
-              name: name,
-              parentWorkspaceId: parentWorkspaceId,
-              hostId: hostId,
-            );
-          },
-      onAddProject: () {
-        Navigator.of(context).pop();
-        unawaited(showAddProjectFlow(context, ref));
-      },
-      onWorkspaceCreated: (creation) {
-        if (context.mounted) {
-          _showWorkspaceCreationToast(context, creation);
-        }
-      },
-    ),
+        },
+    onAddProject: () {
+      Navigator.of(context).pop();
+      unawaited(showAddProjectFlow(context, ref));
+    },
+    onWorkspaceCreated: (creation) {
+      if (context.mounted) {
+        _showWorkspaceCreationToast(context, creation);
+      }
+    },
   );
 }
 

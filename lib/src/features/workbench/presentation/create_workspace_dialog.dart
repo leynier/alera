@@ -65,6 +65,7 @@ class const CreateWorkspaceDialog({
   final String? initialHostId,
   final bool initialReuseExistingBranch = false,
   final String? initialCreationError,
+  final bool embedded = false,
 }) extends StatefulWidget {
   @override
   State<CreateWorkspaceDialog> createState() => _CreateWorkspaceDialogState();
@@ -454,6 +455,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
     final selectedProject = _selectedProject;
     if (widget.projects.isEmpty) {
       return _EmptyProjectsDialog(
+        embedded: widget.embedded,
         onAddProject: widget.onAddProject,
         onCancel: () => Navigator.of(context).pop(),
       );
@@ -511,6 +513,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
           );
 
     return _CreateWorkspaceDialogFrame(
+      embedded: widget.embedded,
       isSelectionStep: isSelectionStep,
       creating: _creating,
       creationError: _creationError,

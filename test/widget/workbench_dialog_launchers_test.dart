@@ -231,6 +231,56 @@ void main() {
     );
 
     testWidgets(
+      'showCreateWorkspaceFlow switches between From Prompt and Manual in one dialog',
+      (tester) async {
+        final project = buildProject('project-1', 'Alera');
+        final controller = DialogLaunchersTestController(
+          WorkbenchState(projects: <Project>[project]),
+        )..sourceBranches = <String>['main'];
+
+        await pumpFlowHarness(
+          tester,
+          controller: controller,
+          onPressed: (context, ref) => showCreateWorkspaceFlow(context, ref),
+        );
+
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Initial Prompt'), findsOneWidget);
+        expect(find.text('Continue Manually'), findsNothing);
+        expect(find.text('Search projects'), findsNothing);
+
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Initial Prompt'),
+          'Keep this prompt',
+        );
+        await tester.tap(find.text('Manual'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Initial Prompt'), findsNothing);
+        expect(find.text('Continue Manually'), findsNothing);
+        expect(find.text('Search projects'), findsOneWidget);
+        expect(find.text('Continue'), findsOneWidget);
+
+        await tester.tap(find.text('From Prompt'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Initial Prompt'), findsOneWidget);
+        expect(find.text('Search projects'), findsNothing);
+        expect(
+          tester
+              .widget<TextField>(
+                find.widgetWithText(TextField, 'Initial Prompt'),
+              )
+              .controller
+              ?.text,
+          'Keep this prompt',
+        );
+      },
+    );
+
+    testWidgets(
       'showCreateWorkspaceFlow creates a workspace and shows success',
       (tester) async {
         final project = buildProject('project-1', 'Alera');

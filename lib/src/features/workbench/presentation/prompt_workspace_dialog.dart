@@ -35,7 +35,6 @@ enum NewWorkspaceMode { fromPrompt, manual }
 class const PromptWorkspaceDialogResult({
   final WorkspaceCreationResult? creation,
   final String? agentTabId,
-  final bool openManual = false,
 });
 
 class const PromptWorkspaceDialog({
@@ -90,6 +89,8 @@ class const PromptWorkspaceDialog({
   final String? initialParentWorkspaceId,
   final String? initialHostId,
   final String? initialError,
+  final NewWorkspaceMode initialMode = .fromPrompt,
+  final Widget? manualForm,
 }) extends StatefulWidget {
   @override
   State<PromptWorkspaceDialog> createState() => _PromptWorkspaceDialogState();
@@ -118,6 +119,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   @override
   void initState() {
     super.initState();
+    _mode = widget.initialMode;
     _project = _initialProject();
     final restoringRetry =
         widget.initialError != null || widget.initialPrompt != null;

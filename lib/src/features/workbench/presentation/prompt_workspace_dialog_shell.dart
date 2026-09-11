@@ -3,8 +3,8 @@ part of 'prompt_workspace_dialog.dart';
 extension _PromptWorkspaceDialogShell on _PromptWorkspaceDialogState {
   Widget _buildShell(ThemeData theme) {
     return AleraDialog(
-      maxWidth: 620,
-      maxHeight: 720,
+      maxWidth: 680,
+      maxHeight: 740,
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
@@ -52,37 +52,12 @@ extension _PromptWorkspaceDialogShell on _PromptWorkspaceDialogState {
             ),
             const SizedBox(height: AleraTokens.space20),
             if (_mode == NewWorkspaceMode.manual)
-              _buildManualMode(theme)
+              Flexible(child: widget.manualForm ?? const SizedBox.shrink())
             else
               _buildPromptMode(theme),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildManualMode(ThemeData theme) {
-    return Column(
-      mainAxisSize: .min,
-      crossAxisAlignment: .start,
-      children: <Widget>[
-        Text(
-          'Choose every workspace setting yourself, including the branch name and optional parent workspace.',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: AleraTokens.foregroundMuted,
-          ),
-        ),
-        const SizedBox(height: AleraTokens.space24),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton(
-            onPressed: () =>
-                Navigator.of(context)
-                    .pop(const PromptWorkspaceDialogResult(openManual: true)),
-            child: const Text('Continue Manually'),
-          ),
-        ),
-      ],
     );
   }
 }
