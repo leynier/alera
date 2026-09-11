@@ -20,20 +20,40 @@ void _registerWorkspaceServiceRemovalTests() {
       );
       expect(deletion.args['force'], isFalse);
       expect(
-        gitBackend.calls.indexWhere((call) => call.method == 'isAncestor'),
+        gitBackend.calls.indexWhere((call) => call.method == 'removeWorktree'),
         lessThan(
-          gitBackend.calls.indexWhere(
-            (call) => call.method == 'removeWorktree',
-          ),
+          gitBackend.calls.indexWhere((call) => call.method == 'deleteBranch'),
         ),
       );
       expect(await repository.findWorkspaceById(workspace.id), isNull);
     },
   );
 
-  for (final reason in ['unknown', 'unmerged', 'mismatch']) {
+  test('verified branch deletion accepts origin default when local default is stale', () async {
+    final workspace = (await service.createLinkedWorkspace(
+      project: project,
+      sourceBranch: 'main',
+      newBranchName: 'feature/origin-merged',
+    )).workspace;
+    gitBackend.currentBranchesByPath[workspace.path] = workspace.branch!;
+    gitBackend.ancestorResults[(workspace.branch!, 'main')] = false;
+    gitBackend.ancestorResults[(workspace.branch!, 'origin/main')] = true;
+    await service.removeWorkspace(
+      project: project,
+      workspace: workspace,
+      deleteBranch: true,
+    );
+    expect(
+      gitBackend.calls.any((call) => call.method == 'deleteBranch'),
+      isTrue,
+    );
+    expect(gitBackend.sourceBranches, isNot(contains(workspace.branch)));
+    expect(await repository.findWorkspaceById(workspace.id), isNull);
+  });
+
+  for (final reason in ['unknown', 'mismatch']) {
     test(
-      'branch deletion refuses $reason safety before removing the worktree',
+      'branch deletion keeps the branch on $reason identity and still removes the worktree',
       () async {
         final workspace = (await service.createLinkedWorkspace(
           project: project,
@@ -44,39 +64,50 @@ void _registerWorkspaceServiceRemovalTests() {
         switch (reason) {
           case 'unknown':
             gitBackend.headBranchFails = true;
-          case 'unmerged':
-            gitBackend.ancestorResults[(workspace.branch!, 'main')] = false;
           case 'mismatch':
             gitBackend.currentBranchesByPath[workspace.path] = 'other';
         }
-        await expectLater(
-          service.removeWorkspace(
-            project: project,
-            workspace: workspace,
-            deleteBranch: true,
-          ),
-          throwsA(
-            predicate<Object>(
-              (error) => error.toString().contains(switch (reason) {
-                'unknown' => 'no head',
-                'unmerged' => 'unmerged',
-                _ => 'ownership is uncertain',
-              }),
-            ),
-          ),
+        await service.removeWorkspace(
+          project: project,
+          workspace: workspace,
+          deleteBranch: true,
         );
         expect(
-          gitBackend.calls.any(
-            (call) =>
-                call.method == 'removeWorktree' ||
-                call.method == 'deleteBranch',
-          ),
+          gitBackend.calls.any((call) => call.method == 'removeWorktree'),
+          isTrue,
+        );
+        expect(
+          gitBackend.calls.any((call) => call.method == 'deleteBranch'),
           isFalse,
         );
-        expect(await repository.findWorkspaceById(workspace.id), isNotNull);
+        expect(await repository.findWorkspaceById(workspace.id), isNull);
       },
     );
   }
+
+  test('unmerged safe-delete failure keeps the branch and still removes the worktree', () async {
+    final workspace = (await service.createLinkedWorkspace(
+      project: project,
+      sourceBranch: 'main',
+      newBranchName: 'feature/unmerged',
+    )).workspace;
+    _configureVerifiedBranchDeletion(workspace);
+    gitBackend.failingBranchDeletes.add(workspace.branch!);
+    await service.removeWorkspace(
+      project: project,
+      workspace: workspace,
+      deleteBranch: true,
+    );
+    expect(
+      gitBackend.calls.any((call) => call.method == 'removeWorktree'),
+      isTrue,
+    );
+    expect(
+      gitBackend.calls.any((call) => call.method == 'deleteBranch'),
+      isTrue,
+    );
+    expect(await repository.findWorkspaceById(workspace.id), isNull);
+  });
 
   test(
     'removeWorkspace deletes the workspace and cascades its workspace tabs',
@@ -333,7 +364,7 @@ void _registerWorkspaceServiceRemovalTests() {
     );
   });
 
-  test('removeWorkspace surfaces git branch deletion failures', () async {
+  test('removeWorkspace keeps the branch when safe deletion fails after worktree removal', () async {
     gitBackend.sourceBranches = <String>['main'];
     final linkedWorkspace = (await service.createLinkedWorkspace(
       project: project,
@@ -343,48 +374,54 @@ void _registerWorkspaceServiceRemovalTests() {
     gitBackend.failingBranchDeletes.add('feature/branch-failure');
     _configureVerifiedBranchDeletion(linkedWorkspace);
 
-    await expectLater(
-      service.removeWorkspace(
-        project: project,
-        workspace: linkedWorkspace,
-        deleteBranch: true,
-      ),
-      throwsA(
-        isA<WorkspaceException>().having(
-          (error) => error.toString(),
-          'branch error',
-          contains('Safe deletion of branch'),
-        ),
-      ),
+    await service.removeWorkspace(
+      project: project,
+      workspace: linkedWorkspace,
+      deleteBranch: true,
     );
+
     expect(
       gitBackend.calls.any((call) => call.method == 'deleteBranch'),
       isTrue,
     );
+    expect(await repository.findWorkspaceById(linkedWorkspace.id), isNull);
   });
 
-  test('removeWorkspace requires a branch when deleting it', () async {
-    final branchlessWorkspace = Workspace(
-      id: 'workspace-branchless',
-      projectId: project.id,
-      name: 'Detached',
-      branch: '',
-      path: p.join(tempDir.path, 'detached'),
-      createdAt: .utc(2026, 5, 20),
-      updatedAt: .utc(2026, 5, 20),
-      kind: .linked,
-      status: .active,
-    );
+  test(
+    'removeWorkspace keeps an unknown branch and still removes the worktree',
+    () async {
+      final branchlessWorkspace = Workspace(
+        id: 'workspace-branchless',
+        projectId: project.id,
+        name: 'Detached',
+        branch: '',
+        path: p.join(tempDir.path, 'detached'),
+        createdAt: .utc(2026, 5, 20),
+        updatedAt: .utc(2026, 5, 20),
+        kind: .linked,
+        status: .active,
+      );
 
-    await expectLater(
-      service.removeWorkspace(
+      await service.removeWorkspace(
         project: project,
         workspace: branchlessWorkspace,
         deleteBranch: true,
-      ),
-      throwsA(isA<WorkspaceException>()),
-    );
-  });
+      );
+
+      expect(
+        gitBackend.calls.any((call) => call.method == 'deleteBranch'),
+        isFalse,
+      );
+      expect(
+        gitBackend.calls.any((call) => call.method == 'removeWorktree'),
+        isTrue,
+      );
+      expect(
+        await repository.findWorkspaceById(branchlessWorkspace.id),
+        isNull,
+      );
+    },
+  );
 
   test('WorkspaceException includes stderr only when present', () {
     expect(WorkspaceException('Could not open').toString(), 'Could not open');

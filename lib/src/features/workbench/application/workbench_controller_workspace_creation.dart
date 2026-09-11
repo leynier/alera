@@ -78,6 +78,7 @@ mixin _WorkbenchControllerWorkspaceCreation
       _reconcileCreatedWorkspace(project, result.workspace);
       if (initializeTabs) {
         await selectWorkspace(project: project, workspace: result.workspace);
+        _seedExperimentalNewWorkspacePanel(result.workspace.id);
         await _openDeferredSetupTab(result);
       }
       final parentId = parentWorkspaceId?.trim();
@@ -129,6 +130,7 @@ mixin _WorkbenchControllerWorkspaceCreation
       workspace: workspace,
       ensureInitialTerminal: !expectsPromptTab,
     );
+    _seedExperimentalNewWorkspacePanel(workspace.id);
     await _openDeferredSetupTab(creation);
     final resolvedAgentTabId = agentTabId?.trim();
     if (resolvedAgentTabId != null && resolvedAgentTabId.isNotEmpty) {

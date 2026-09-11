@@ -422,6 +422,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       GitDiffGroupModeMapper.ensureInitialized();
       PullRequestCreateActionMapper.ensureInitialized();
       WorkspaceKindFilterMapper.ensureInitialized();
+      ExperimentalWorkspaceToolMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -645,6 +646,16 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
         opt: true,
         def: false,
       );
+  static List<ExperimentalWorkspaceTool> _$experimentalNewWorkspaceTools(
+    WorkbenchViewPrefs v,
+  ) => v.experimentalNewWorkspaceTools;
+  static const Field<WorkbenchViewPrefs, List<ExperimentalWorkspaceTool>>
+  _f$experimentalNewWorkspaceTools = Field(
+    'experimentalNewWorkspaceTools',
+    _$experimentalNewWorkspaceTools,
+    opt: true,
+    def: const <ExperimentalWorkspaceTool>[],
+  );
 
   @override
   final MappableFields<WorkbenchViewPrefs> fields = const {
@@ -676,6 +687,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     #pullRequestCreateAction: _f$pullRequestCreateAction,
     #workspaceKindFilter: _f$workspaceKindFilter,
     #showActiveWorkspacesOnly: _f$showActiveWorkspacesOnly,
+    #experimentalNewWorkspaceTools: _f$experimentalNewWorkspaceTools,
   };
 
   @override
@@ -712,6 +724,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       pullRequestCreateAction: data.dec(_f$pullRequestCreateAction),
       workspaceKindFilter: data.dec(_f$workspaceKindFilter),
       showActiveWorkspacesOnly: data.dec(_f$showActiveWorkspacesOnly),
+      experimentalNewWorkspaceTools: data.dec(_f$experimentalNewWorkspaceTools),
     );
   }
 
@@ -799,6 +812,12 @@ abstract class WorkbenchViewPrefsCopyWith<
   get experimentalPanels;
   MapCopyWith<$R, String, String, ObjectCopyWith<$R, String, String>>
   get sourceControlRootByWorkspaceId;
+  ListCopyWith<
+    $R,
+    ExperimentalWorkspaceTool,
+    ObjectCopyWith<$R, ExperimentalWorkspaceTool, ExperimentalWorkspaceTool>
+  >
+  get experimentalNewWorkspaceTools;
   $R call({
     DesktopWorkspaceLayout? desktopLayout,
     Map<String, ExperimentalWorkspacePanel>? experimentalPanels,
@@ -828,6 +847,7 @@ abstract class WorkbenchViewPrefsCopyWith<
     PullRequestCreateAction? pullRequestCreateAction,
     WorkspaceKindFilter? workspaceKindFilter,
     bool? showActiveWorkspacesOnly,
+    List<ExperimentalWorkspaceTool>? experimentalNewWorkspaceTools,
   });
   WorkbenchViewPrefsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -866,6 +886,17 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     (v) => call(sourceControlRootByWorkspaceId: v),
   );
   @override
+  ListCopyWith<
+    $R,
+    ExperimentalWorkspaceTool,
+    ObjectCopyWith<$R, ExperimentalWorkspaceTool, ExperimentalWorkspaceTool>
+  >
+  get experimentalNewWorkspaceTools => ListCopyWith(
+    $value.experimentalNewWorkspaceTools,
+    (v, t) => ObjectCopyWith(v, $identity, t),
+    (v) => call(experimentalNewWorkspaceTools: v),
+  );
+  @override
   $R call({
     DesktopWorkspaceLayout? desktopLayout,
     Map<String, ExperimentalWorkspacePanel>? experimentalPanels,
@@ -895,6 +926,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     PullRequestCreateAction? pullRequestCreateAction,
     WorkspaceKindFilter? workspaceKindFilter,
     bool? showActiveWorkspacesOnly,
+    List<ExperimentalWorkspaceTool>? experimentalNewWorkspaceTools,
   }) => $apply(
     FieldCopyWithData({
       if (desktopLayout != null) #desktopLayout: desktopLayout,
@@ -940,6 +972,8 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
         #workspaceKindFilter: workspaceKindFilter,
       if (showActiveWorkspacesOnly != null)
         #showActiveWorkspacesOnly: showActiveWorkspacesOnly,
+      if (experimentalNewWorkspaceTools != null)
+        #experimentalNewWorkspaceTools: experimentalNewWorkspaceTools,
     }),
   );
   @override
@@ -1025,6 +1059,10 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     showActiveWorkspacesOnly: data.get(
       #showActiveWorkspacesOnly,
       or: $value.showActiveWorkspacesOnly,
+    ),
+    experimentalNewWorkspaceTools: data.get(
+      #experimentalNewWorkspaceTools,
+      or: $value.experimentalNewWorkspaceTools,
     ),
   );
 

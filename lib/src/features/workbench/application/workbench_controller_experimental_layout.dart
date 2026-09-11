@@ -65,6 +65,31 @@ mixin _WorkbenchControllerExperimentalLayout
     _ensureSelectionHasTab();
   }
 
+  @override
+  void _seedExperimentalNewWorkspacePanel(String workspaceId) {
+    if (!state.isExperimentalLayout) {
+      return;
+    }
+    final tools = ExperimentalWorkspaceTool.uniqueInOrder(
+      state.viewPrefs.experimentalNewWorkspaceTools,
+    );
+    if (tools.isEmpty) {
+      return;
+    }
+    final panel = state.experimentalPanelFor(workspaceId);
+    final alreadyHasTools = panel.occupiedKeys.any(
+      (key) => ExperimentalWorkspaceTool.forKey(key) != null,
+    );
+    if (alreadyHasTools) {
+      return;
+    }
+    _saveExperimentalPanel(
+      workspaceId,
+      panel.openToolsInOrder(tools),
+      reveal: true,
+    );
+  }
+
   void selectExperimentalPanelKey(
     String workspaceId,
     String key, {

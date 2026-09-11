@@ -1,21 +1,16 @@
-use std::path::Path;
-use std::process::Command as StdCommand;
-
 use alera_core::runtime::{
-    AutomationActor, AutomationActorKind, AutomationDefinition, AutomationMisfirePolicy,
-    AutomationOccurrence, AutomationOverlapPolicy, AutomationRunTrigger, AutomationSchedule,
-    AutomationSetupPolicy, AutomationState, AutomationTarget, Project, ProjectKind, RuntimeStore,
-    Workspace, WorkspaceKind, WorkspaceStatus, LOCAL_HOST_ID,
+    Project, ProjectKind, Workspace, WorkspaceKind, WorkspaceStatus, LOCAL_HOST_ID,
 };
 use chrono::Utc;
 
 use crate::managed_workspace::{
-    create_managed_workspace, measure_workspace_storage, remove_managed_workspace,
-    validate_managed_workspace_removal, validate_workspace_storage_path,
-    ManagedWorkspaceCreateRequest, ManagedWorkspaceRemoveRequest,
+    measure_workspace_storage, validate_managed_workspace_removal, validate_workspace_storage_path,
+    ManagedWorkspaceRemoveRequest,
 };
 
 mod automation_tests;
+mod fixture;
+use fixture::*;
 
 #[tokio::test]
 async fn unknown_branch_choice_refuses_without_removing_work() {
@@ -31,18 +26,69 @@ async fn unknown_branch_choice_refuses_without_removing_work() {
 }
 
 #[tokio::test]
-async fn unmerged_branch_is_refused_before_worktree_removal() {
+async fn unmerged_branch_is_kept_when_workspace_is_removed() {
     let fixture = RemovalFixture::new("unmerged").await;
     std::fs::write(fixture.worktree_path.join("feature.txt"), "unique commit").unwrap();
     run_git(&fixture.worktree_path, &["add", "feature.txt"]);
     run_git(&fixture.worktree_path, &["commit", "-m", "feature"]);
-    let error = fixture
+    fixture
         .remove_managed_workspace_with(Some(true))
         .await
-        .unwrap_err();
-    assert!(format!("{error:#}").contains("not merged"));
-    assert!(fixture.worktree_path.exists());
+        .unwrap();
+    assert!(!fixture.worktree_path.exists());
     assert!(fixture.branch_exists());
+    assert!(fixture.workspace_record().await.is_none());
+}
+
+#[tokio::test]
+async fn squash_merged_branch_is_deleted_with_workspace() {
+    let fixture = RemovalFixture::new("squash").await;
+    std::fs::write(fixture.worktree_path.join("feature.txt"), "unique commit").unwrap();
+    run_git(&fixture.worktree_path, &["add", "feature.txt"]);
+    run_git(&fixture.worktree_path, &["commit", "-m", "feature"]);
+    run_git(&fixture.repo, &["merge", "--squash", &fixture.branch]);
+    run_git(&fixture.repo, &["commit", "-m", "squash"]);
+    fixture
+        .remove_managed_workspace_with(Some(true))
+        .await
+        .unwrap();
+    assert!(!fixture.worktree_path.exists());
+    assert!(!fixture.branch_exists());
+    assert!(fixture.workspace_record().await.is_none());
+}
+
+#[tokio::test]
+async fn origin_squash_deletes_branch_when_local_default_is_stale() {
+    let fixture = RemovalFixture::new("origin-squash").await;
+    std::fs::write(fixture.worktree_path.join("feature.txt"), "unique commit").unwrap();
+    run_git(&fixture.worktree_path, &["add", "feature.txt"]);
+    run_git(&fixture.worktree_path, &["commit", "-m", "feature"]);
+    let tree = git_stdout(
+        &fixture.repo,
+        &["rev-parse", &format!("{}^{{tree}}", fixture.branch)],
+    );
+    let parent = git_stdout(&fixture.repo, &["rev-parse", "main"]);
+    let oid = git_stdout(
+        &fixture.repo,
+        &[
+            "commit-tree",
+            tree.trim(),
+            "-p",
+            parent.trim(),
+            "-m",
+            "squash",
+        ],
+    );
+    run_git(
+        &fixture.repo,
+        &["update-ref", "refs/remotes/origin/main", oid.trim()],
+    );
+    fixture
+        .remove_managed_workspace_with(Some(true))
+        .await
+        .unwrap();
+    assert!(!fixture.worktree_path.exists());
+    assert!(!fixture.branch_exists());
 }
 
 #[tokio::test]
@@ -210,20 +256,20 @@ async fn rejects_path_registered_as_another_project_source() {
 }
 
 #[tokio::test]
-async fn rejects_stale_branch_identity_before_cleanup() {
+async fn stale_branch_identity_keeps_the_branch_and_still_removes_the_worktree() {
     let fixture = RemovalFixture::new("stale-branch").await;
     let mut workspace = fixture.workspace_record().await.unwrap();
     workspace.branch = Some("other-branch".to_string());
     fixture.store.upsert_workspace(workspace).await.unwrap();
 
-    let error = fixture
+    fixture
         .remove_managed_workspace_with(Some(true))
         .await
-        .unwrap_err();
+        .unwrap();
 
-    assert!(error.to_string().contains("branch does not match"));
-    assert!(fixture.worktree_path.exists());
+    assert!(!fixture.worktree_path.exists());
     assert!(fixture.branch_exists());
+    assert!(fixture.workspace_record().await.is_none());
 }
 
 #[tokio::test]
@@ -308,193 +354,4 @@ async fn successful_cleanup_after_safe_impact_removes_worktree_and_record() {
     assert!(!fixture.worktree_path.exists());
     assert!(fixture.workspace_record().await.is_none());
     assert!(fixture.branch_exists());
-}
-
-struct RemovalFixture {
-    _root: tempfile::TempDir,
-    repo: std::path::PathBuf,
-    store: RuntimeStore,
-    worktree_path: std::path::PathBuf,
-    workspace_id: String,
-    branch: String,
-}
-
-impl RemovalFixture {
-    async fn new(suffix: &str) -> Self {
-        let root = tempfile::tempdir().unwrap();
-        let repo = root.path().join("repo");
-        std::fs::create_dir(&repo).unwrap();
-        init_git_repo(&repo);
-        let store = seed_project(root.path(), &repo).await;
-        let worktree_path = root.path().join("workspaces").join(suffix);
-        let workspace_id = format!("workspace-{suffix}");
-        let branch = format!("feature/{suffix}");
-        create_managed_workspace(
-            &store,
-            ManagedWorkspaceCreateRequest {
-                id: Some(workspace_id.clone()),
-                project_id: "project-1".to_string(),
-                name: Some(branch.clone()),
-                branch: branch.clone(),
-                source_branch: Some("main".to_string()),
-                reuse_existing_branch: false,
-                workspace_root: None,
-                path: Some(worktree_path.to_string_lossy().into_owned()),
-                parent_workspace_id: None,
-                host_id: None,
-                defer_setup: false,
-                skip_setup: false,
-                setup_script_directory: None,
-            },
-        )
-        .await
-        .unwrap();
-        Self {
-            _root: root,
-            repo,
-            store,
-            worktree_path,
-            workspace_id,
-            branch,
-        }
-    }
-
-    fn remove_worktree(&self) {
-        alera_core::git::remove_worktree(
-            &self.repo.to_string_lossy(),
-            &self.worktree_path.to_string_lossy(),
-            true,
-        )
-        .unwrap();
-    }
-
-    fn delete_branch(&self) {
-        alera_core::git::delete_branch(&self.repo.to_string_lossy(), &self.branch, true).unwrap();
-    }
-
-    fn branch_exists(&self) -> bool {
-        alera_core::git::branch_exists(&self.repo.to_string_lossy(), &self.branch).unwrap()
-    }
-
-    async fn workspace_record(&self) -> Option<alera_core::runtime::Workspace> {
-        self.store.find_workspace(&self.workspace_id).await.unwrap()
-    }
-
-    async fn remove_managed_workspace(&self) -> anyhow::Result<alera_core::runtime::Workspace> {
-        self.remove_managed_workspace_with(Some(false)).await
-    }
-
-    async fn remove_managed_workspace_with(
-        &self,
-        delete_branch: Option<bool>,
-    ) -> anyhow::Result<alera_core::runtime::Workspace> {
-        remove_managed_workspace(
-            &self.store,
-            ManagedWorkspaceRemoveRequest {
-                id: self.workspace_id.clone(),
-                delete_branch,
-                active_workspace_id: None,
-                close_sessions: false,
-            },
-        )
-        .await
-    }
-}
-
-async fn seed_project(root: &Path, repo: &Path) -> RuntimeStore {
-    let store = RuntimeStore::open(&root.join("runtime")).await.unwrap();
-    let workspace_root = root.join("workspaces");
-    std::fs::create_dir_all(&workspace_root).unwrap();
-    store
-        .set_workspace_directory(Some(&workspace_root.to_string_lossy()))
-        .await
-        .unwrap();
-    let now = Utc::now();
-    store
-        .upsert_project(Project {
-            id: "project-1".to_string(),
-            name: "Project".to_string(),
-            repo_path: repo.to_string_lossy().into_owned(),
-            created_at: now,
-            updated_at: now,
-            kind: ProjectKind::GitRepository,
-        })
-        .await
-        .unwrap();
-    store
-}
-
-fn automation_definition(workspace_id: &str) -> AutomationDefinition {
-    let now = Utc::now();
-    let actor = AutomationActor {
-        kind: AutomationActorKind::LocalCli,
-        id: None,
-        label: None,
-    };
-    AutomationDefinition {
-        id: "cleanup-owner".to_string(),
-        slug: "cleanup-owner".to_string(),
-        name: "Cleanup Owner".to_string(),
-        description: String::new(),
-        project_id: None,
-        tag_ids: Vec::new(),
-        prompt_template: "Run".to_string(),
-        schedule: AutomationSchedule::OneTime {
-            at: now + chrono::Duration::hours(1),
-            timezone: "UTC".to_string(),
-        },
-        target: AutomationTarget::FreshTab {
-            workspace_id: workspace_id.to_string(),
-            agent_profile_id: "profile".to_string(),
-        },
-        setup_policy: AutomationSetupPolicy::Wait,
-        cleanup_policy: None,
-        overlap_policy: AutomationOverlapPolicy::Skip,
-        queue_cap: 10,
-        inactivity_timeout_seconds: 7200,
-        heartbeat_interval_seconds: 60,
-        misfire_grace_seconds: 900,
-        misfire_policy: AutomationMisfirePolicy::Skip,
-        retry_max_attempts: 3,
-        retry_backoff_seconds: 60,
-        circuit_failure_threshold: 3,
-        circuit_open_seconds: 900,
-        precheck: None,
-        notify_on_success: false,
-        circuit_opened: false,
-        circuit_opened_at: None,
-        state: AutomationState::Draft,
-        revision: 1,
-        approved_revision: None,
-        created_by: actor.clone(),
-        modified_by: actor,
-        created_at: now,
-        updated_at: now,
-    }
-}
-
-fn init_git_repo(repo: &Path) {
-    run_git(repo, &["init"]);
-    run_git(repo, &["config", "user.email", "test@example.com"]);
-    run_git(repo, &["config", "user.name", "Test"]);
-    std::fs::write(repo.join("README.md"), "hello\n").unwrap();
-    run_git(repo, &["add", "README.md"]);
-    run_git(repo, &["commit", "-m", "initial"]);
-    run_git(repo, &["branch", "-M", "main"]);
-}
-
-#[allow(clippy::disallowed_methods)]
-fn run_git(repo: &Path, args: &[&str]) {
-    let output = StdCommand::new("git")
-        .args(args)
-        .current_dir(repo)
-        .output()
-        .unwrap();
-    assert!(
-        output.status.success(),
-        "git {} failed\nstdout:\n{}\nstderr:\n{}",
-        args.join(" "),
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
 }

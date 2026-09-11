@@ -30,7 +30,7 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      'c5b3346ada03c726e1893d6e0ad7903b492f9ca481078a41ea53fad52febd011',
+      '015f20186c958770a1b7365fe1b457b0e4663bc06d4166b37405457ba0a3788a',
     );
   });
 
@@ -42,6 +42,16 @@ void main() {
     expect(entry.matches('experimental'), isTrue);
     expect(entry.matches('classic'), isTrue);
     expect(entry.matches('layout'), isTrue);
+  });
+
+  test('new workspace tools are searchable under Desktop', () {
+    final entry = applicationSearchEntries.singleWhere(
+      (entry) => entry.title == 'New Workspace Tools',
+    );
+    expect(entry.groupId, 'desktop');
+    expect(entry.matches('source control'), isTrue);
+    expect(entry.matches('pull request'), isTrue);
+    expect(entry.matches('order'), isTrue);
   });
 
   test('built search catalogs remain immutable', () {
@@ -96,6 +106,7 @@ void main() {
         entries: applicationSearchEntries,
         query: 'pull request',
         expected: <(String, String?)>[
+          ('New Workspace Tools', 'desktop'),
           ('Show Pull Request Status', 'pullRequests'),
           ('Notify When Checks Fail', 'pullRequests'),
         ],

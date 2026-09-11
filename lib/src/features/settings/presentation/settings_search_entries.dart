@@ -35,6 +35,20 @@ applicationSearchEntries = buildSettingsSearchEntryCatalog(const {
         'classic',
       ],
     ),
+    'New Workspace Tools': SettingsSearchEntryDetails(
+      description: 'Choose which Experimental tools open, and in what order, for workspaces created while Experimental Mode is on.',
+      keywords: <String>[
+        'experimental',
+        'tools',
+        'tabs',
+        'order',
+        'explorer',
+        'search',
+        'source control',
+        'pull request',
+        'workspace',
+      ],
+    ),
     'Show Tray Icon': SettingsSearchEntryDetails(
       description: 'Keep Alera in the menu extra, notification area, or Ubuntu status bar.',
       keywords: <String>[

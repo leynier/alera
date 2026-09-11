@@ -39,13 +39,46 @@ class WorkbenchViewPrefsDecodeHook extends MappingHook {
 
   @override
   Object? beforeDecode(Object? value) {
-    if (value is! Map || value['activeContextPanelTab'] != 'agentCanvas') {
+    if (value is! Map) {
       return value;
     }
-    return <String, dynamic>{
+    final map = <String, dynamic>{
       for (final entry in value.entries) entry.key.toString(): entry.value,
-      'activeContextPanelTab': 'explorer',
     };
+    var changed = false;
+    if (map['activeContextPanelTab'] == 'agentCanvas') {
+      map['activeContextPanelTab'] = 'explorer';
+      changed = true;
+    }
+    final rawTools = map['experimentalNewWorkspaceTools'];
+    if (rawTools is List) {
+      final known = <String>{
+        for (final tool in ExperimentalWorkspaceTool.values) tool.name,
+      };
+      final seen = <String>{};
+      final tools = <String>[
+        for (final item in rawTools)
+          if (item is String && known.contains(item) && seen.add(item)) item,
+      ];
+      if (tools.length != rawTools.length ||
+          !_sameStringList(tools, rawTools)) {
+        map['experimentalNewWorkspaceTools'] = tools;
+        changed = true;
+      }
+    }
+    return changed ? map : value;
+  }
+
+  static bool _sameStringList(List<String> left, List<dynamic> right) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (var i = 0; i < left.length; i++) {
+      if (left[i] != right[i]) {
+        return false;
+      }
+    }
+    return true;
   }
 }
 
@@ -79,6 +112,7 @@ class const WorkbenchViewPrefs({
   this.pullRequestCreateAction = PullRequestCreateAction.publish,
   this.workspaceKindFilter = WorkspaceKindFilter.all,
   this.showActiveWorkspacesOnly = false,
+  this.experimentalNewWorkspaceTools = const <ExperimentalWorkspaceTool>[],
 }) with WorkbenchViewPrefsMappable {
   final DesktopWorkspaceLayout desktopLayout;
   final Map<String, ExperimentalWorkspacePanel> experimentalPanels;
@@ -151,6 +185,11 @@ class const WorkbenchViewPrefs({
   /// tab. Defaults to false so older persisted preferences keep showing all
   /// workspaces.
   final bool showActiveWorkspacesOnly;
+
+  /// Experimental tools opened in the right panel, in order, when a new
+  /// workspace is created. Empty keeps that panel empty until the user adds a
+  /// tool. Existing workspaces keep their own saved panel.
+  final List<ExperimentalWorkspaceTool> experimentalNewWorkspaceTools;
 
   static const WorkbenchViewPrefs defaults = WorkbenchViewPrefs(
     groupBy: .project,

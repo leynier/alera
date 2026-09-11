@@ -307,13 +307,7 @@ pub(crate) async fn remove_managed_workspace_with<E: RemoteHostExecutor>(
         match core_git::delete_branch(&project.repo_path, &branch, false) {
             Ok(()) => {}
             Err(error) if error.kind == GitErrorKind::BranchNotFound => {}
-            Err(error) => {
-                return Err(error).with_context(|| {
-                    format!(
-                        "Worktree removed; branch {branch} retained because safe deletion failed"
-                    )
-                });
-            }
+            Err(_) => {}
         }
     }
     store.remove_workspace(&workspace.id, true).await?;
@@ -377,17 +371,11 @@ pub async fn validate_managed_workspace_removal(
         let delete = request
             .delete_branch
             .ok_or_else(|| anyhow!("Choose --keep-branch or --delete-branch before cleanup"))?;
-        if delete && workspace.reuses_existing_branch {
-            bail!("Keep the reused branch when removing the workspace");
-        }
-        let branch = if delete {
-            Some(
-                workspace
-                    .branch
-                    .as_deref()
-                    .filter(|branch| !branch.is_empty())
-                    .ok_or_else(|| anyhow!("Branch identity is unknown. Keep the branch."))?,
-            )
+        let branch = if delete && !workspace.reuses_existing_branch {
+            workspace
+                .branch
+                .as_deref()
+                .filter(|branch| !branch.is_empty())
         } else {
             None
         };
