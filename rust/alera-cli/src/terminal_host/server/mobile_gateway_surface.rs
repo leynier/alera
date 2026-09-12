@@ -83,6 +83,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_MOBILE_WORKSPACE_SEARCH_CAPABILITY,
     RUNTIME_HOST_MOBILE_SOURCE_CONTROL_CAPABILITY,
     RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY,
+    crate::terminal_host::protocol::RUNTIME_HOST_MOBILE_PULL_REQUEST_ACTIONS_CAPABILITY,
     RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_MODELS_CAPABILITY,
@@ -154,6 +155,14 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "mobile.git.status"
             | "mobile.git.diff"
             | "mobile.pullRequest.snapshot"
+            | "mobile.pullRequest.comment"
+            | "mobile.pullRequest.commentUpdate"
+            | "mobile.pullRequest.merge"
+            | "mobile.pullRequest.draftStatus"
+            | "mobile.pullRequest.close"
+            | "mobile.pullRequest.link"
+            | "mobile.pullRequest.unlink"
+            | "mobile.pullRequest.create"
             | "mobile.promptFile.start"
             | "mobile.promptFile.chunk"
             | "mobile.promptFile.complete"
@@ -278,6 +287,27 @@ mod mobile_codex_file_surface_tests {
         ] {
             assert!(mobile_request_allowed(request), "{request}");
         }
+    }
+
+    #[test]
+    fn advertises_and_allows_pull_request_actions_but_not_raw_link_writes() {
+        assert!(MOBILE_HELLO_CAPABILITIES.contains(
+            &crate::terminal_host::protocol::RUNTIME_HOST_MOBILE_PULL_REQUEST_ACTIONS_CAPABILITY
+        ));
+        for request in [
+            "mobile.pullRequest.comment",
+            "mobile.pullRequest.commentUpdate",
+            "mobile.pullRequest.merge",
+            "mobile.pullRequest.draftStatus",
+            "mobile.pullRequest.close",
+            "mobile.pullRequest.link",
+            "mobile.pullRequest.unlink",
+            "mobile.pullRequest.create",
+        ] {
+            assert!(mobile_request_allowed(request), "{request}");
+        }
+        assert!(!mobile_request_allowed("linkedReview.upsert"));
+        assert!(!mobile_request_allowed("linkedReview.remove"));
     }
 
     #[test]

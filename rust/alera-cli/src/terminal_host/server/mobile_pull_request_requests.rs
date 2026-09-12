@@ -3,12 +3,16 @@ use std::process::Stdio;
 use std::time::Duration;
 
 use alera_core::git as core_git;
-use alera_core::runtime::RuntimeStore;
+use alera_core::runtime::{RuntimeStore, Workspace};
 use serde_json::{json, Value};
 use tokio::time::timeout;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
+use super::mobile_pull_request_identity::{
+    detect_provider, parse_github_identity, remote_identity_json,
+};
+use super::mobile_pull_request_links::{dismissed_number, linked_number, suggested_review_json};
 use super::mobile_workspace_file_requests::workspace_for_mobile_file_request;
 
 const GH_TIMEOUT: Duration = Duration::from_secs(45);
@@ -21,6 +25,17 @@ pub(super) async fn snapshot_mobile_pull_request(
     payload: &Value,
 ) -> HostResult<Value> {
     let workspace = workspace_for_mobile_file_request(runtime_store, payload).await?;
+    let mut snapshot = load_snapshot(runtime_store, &workspace).await?;
+    super::mobile_pull_request_snapshot_extras::decorate_snapshot(
+        runtime_store,
+        &workspace,
+        &mut snapshot,
+    )
+    .await;
+    Ok(snapshot)
+}
+
+async fn load_snapshot(runtime_store: &RuntimeStore, workspace: &Workspace) -> HostResult<Value> {
     let linked = runtime_store
         .find_linked_review(&workspace.id)
         .await
@@ -121,10 +136,21 @@ pub(super) async fn snapshot_mobile_pull_request(
         ));
     }
 
-    let review = if let Some(number) = linked.as_ref().and_then(|review| review.number) {
+    let mut suggested_review = None;
+    let review = if let Some(number) = linked_number(linked.as_ref()) {
         view_review(&repo_path, &identity.slug, number).await?
     } else if let Some(branch) = branch.as_deref() {
-        list_review_for_branch(&repo_path, &identity.slug, branch).await?
+        let detected = list_review_for_branch(&repo_path, &identity.slug, branch).await?;
+        // An unlinked review stays hidden until the user links it again.
+        match (detected, dismissed_number(linked.as_ref())) {
+            (Some(review), Some(dismissed))
+                if review.get("number").and_then(Value::as_i64) == Some(dismissed) =>
+            {
+                suggested_review = Some(suggested_review_json(&review));
+                None
+            }
+            (detected, _) => detected,
+        }
     } else {
         None
     };
@@ -150,12 +176,14 @@ pub(super) async fn snapshot_mobile_pull_request(
         Value::Null
     };
 
-    let unavailable = if review_json.is_null() {
-        Some("No open pull request is linked to this branch.".to_string())
-    } else {
-        None
+    let unavailable = match (&review_json, &suggested_review) {
+        (Value::Null, Some(_)) => {
+            Some("The pull request for this branch was unlinked from the workspace.".to_string())
+        }
+        (Value::Null, None) => Some("No open pull request is linked to this branch.".to_string()),
+        _ => None,
     };
-    Ok(snapshot_envelope(
+    let mut snapshot = snapshot_envelope(
         branch,
         remote_url,
         Some("github"),
@@ -163,7 +191,11 @@ pub(super) async fn snapshot_mobile_pull_request(
         linked_json,
         review_json,
         unavailable,
-    ))
+    );
+    if let Some(suggested) = suggested_review {
+        snapshot["suggestedReview"] = suggested;
+    }
+    Ok(snapshot)
 }
 
 fn snapshot_envelope(
@@ -187,106 +219,11 @@ fn snapshot_envelope(
     })
 }
 
-fn remote_identity_json(url: Option<&str>, provider: Option<&str>) -> Value {
-    let parsed = url.and_then(parse_remote_url);
-    json!({
-        "provider": provider,
-        "host": parsed.as_ref().map(|parsed| parsed.host.clone()),
-        "owner": parsed.as_ref().and_then(|parsed| parsed.segments.first()).cloned(),
-        "repo": parsed.as_ref().and_then(|parsed| parsed.segments.last()).cloned(),
-    })
-}
-
-struct GitHubIdentity {
-    host: String,
-    owner: String,
-    repo: String,
-    slug: String,
-}
-
-fn parse_github_identity(url: &str) -> Option<GitHubIdentity> {
-    let parsed = parse_remote_url(url)?;
-    if parsed.hostname != "github.com" && !parsed.hostname.ends_with(".github.com") {
-        return None;
-    }
-    if parsed.segments.len() < 2 {
-        return None;
-    }
-    let owner = parsed.segments[0].clone();
-    let repo = parsed.segments[1].clone();
-    let slug = if parsed.hostname == "github.com" {
-        format!("{owner}/{repo}")
-    } else {
-        format!("{}/{owner}/{repo}", parsed.host)
-    };
-    Some(GitHubIdentity {
-        host: parsed.host,
-        owner,
-        repo,
-        slug,
-    })
-}
-
-fn detect_provider(url: Option<&str>) -> Option<&'static str> {
-    let url = url?;
-    let parsed = parse_remote_url(url)?;
-    if parsed.hostname == "gitlab.com" || parsed.hostname.contains("gitlab") {
-        return Some("gitlab");
-    }
-    if parsed.hostname == "dev.azure.com"
-        || parsed.hostname.ends_with(".visualstudio.com")
-        || parsed.hostname.contains("azure")
-    {
-        return Some("azureDevops");
-    }
-    None
-}
-
-struct ParsedRemote {
-    host: String,
-    hostname: String,
-    segments: Vec<String>,
-}
-
-fn parse_remote_url(raw: &str) -> Option<ParsedRemote> {
-    let url = raw.trim();
-    if url.is_empty() {
-        return None;
-    }
-    let (host, path) = if let Some(scheme_end) = url.find("://") {
-        let rest = &url[scheme_end + 3..];
-        let rest = rest.split_once('@').map_or(rest, |(_, rest)| rest);
-        let (host, path) = rest.split_once('/')?;
-        (host.to_string(), path.to_string())
-    } else {
-        let rest = url.split_once('@').map_or(url, |(_, rest)| rest);
-        let (host, path) = rest.split_once(':')?;
-        (host.to_string(), path.to_string())
-    };
-    let hostname = host
-        .split(':')
-        .next()
-        .unwrap_or(&host)
-        .trim()
-        .to_ascii_lowercase();
-    let segments = path
-        .trim_start_matches('/')
-        .trim_end_matches(".git")
-        .split('/')
-        .filter(|segment| !segment.is_empty())
-        .map(ToOwned::to_owned)
-        .collect::<Vec<_>>();
-    if hostname.is_empty() || segments.is_empty() {
-        return None;
-    }
-    Some(ParsedRemote {
-        host: host.to_string(),
-        hostname,
-        segments,
-    })
-}
-
-async fn view_review(repo_path: &str, slug: &str, number: i64) -> HostResult<Option<Value>> {
+pub(super) async fn view_review(
+    repo_path: &str,
+    slug: &str,
+    number: i64,
+) -> HostResult<Option<Value>> {
     let number = number.to_string();
     let (code, stdout, stderr) = run_gh(
         repo_path,
@@ -440,32 +377,4 @@ fn looks_like_missing_cli(error: &HostError) -> bool {
         || message.contains("not found")
         || message.contains("cannot find")
         || message.contains("program not found")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_github_https_and_ssh_remotes() {
-        let https = parse_github_identity("https://github.com/leynier/alera.git").unwrap();
-        assert_eq!(https.slug, "leynier/alera");
-        let ssh = parse_github_identity("git@github.com:leynier/alera.git").unwrap();
-        assert_eq!(ssh.owner, "leynier");
-        assert_eq!(ssh.repo, "alera");
-        assert!(parse_github_identity("https://gitlab.com/group/project.git").is_none());
-        assert_eq!(
-            detect_provider(Some("https://gitlab.com/group/project.git")),
-            Some("gitlab")
-        );
-    }
-
-    #[test]
-    fn identity_json_includes_owner_and_repo() {
-        let value =
-            remote_identity_json(Some("https://github.com/leynier/alera.git"), Some("github"));
-        assert_eq!(value["provider"], "github");
-        assert_eq!(value["owner"], "leynier");
-        assert_eq!(value["repo"], "alera");
-    }
 }
