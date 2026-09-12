@@ -65,6 +65,7 @@ mod agent_title_state;
 #[cfg(test)]
 mod agent_title_tests;
 mod ai_assist_command_execution;
+mod ai_assist_commit_message;
 mod ai_assist_failure_detail;
 mod ai_assist_fx_plan;
 mod ai_assist_grok_plan;
