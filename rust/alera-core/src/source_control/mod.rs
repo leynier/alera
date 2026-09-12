@@ -19,6 +19,7 @@ pub(crate) mod git_diff_paths;
 mod git_history_impl;
 #[path = "git_range_impl.rs"]
 mod git_range_impl;
+mod source_control_actions;
 mod working_tree_commit;
 mod working_tree_paths;
 mod working_tree_remote;
@@ -30,6 +31,11 @@ use git_commit_state_impl::{commit_parent_commits, current_head_commit, reposito
 pub use crate::git::{GitError, GitErrorKind};
 pub use git_diff_impl::git_reading_diff_patch::git_reading_diff_patch;
 pub use git_diff_paths::GitPathContext;
+pub use source_control_actions::{
+    can_discard_from_parent, can_stage_from_parent, can_unstage_from_parent,
+    is_submodule_worktree_only, source_control_actions, source_control_primary_action,
+    SourceControlActions, SourceControlPrimaryAction,
+};
 pub use working_tree_commit::{git_commit, git_commit_amend};
 use working_tree_paths::{
     pathspec_string, relative_path, repo_path_is_in_scope, repo_relative_path, scoped_pathspecs,
