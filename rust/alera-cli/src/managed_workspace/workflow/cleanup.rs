@@ -14,6 +14,25 @@ pub(crate) async fn prepare(
     id: &str,
     digest: &str,
 ) -> Result<PreparedCleanup> {
+    prepare_internal(store, runtime_dir, id, digest, false).await
+}
+
+pub(crate) async fn prepare_retry(
+    store: &RuntimeStore,
+    runtime_dir: &Path,
+    id: &str,
+    digest: &str,
+) -> Result<PreparedCleanup> {
+    prepare_internal(store, runtime_dir, id, digest, true).await
+}
+
+async fn prepare_internal(
+    store: &RuntimeStore,
+    runtime_dir: &Path,
+    id: &str,
+    digest: &str,
+    retry: bool,
+) -> Result<PreparedCleanup> {
     let preview = store.workflow_cleanup_preview(id).await?;
     if preview.digest != digest {
         bail!("cleanup confirmation does not match its preview");
@@ -36,6 +55,9 @@ pub(crate) async fn prepare(
                 anyhow!("workflow resource is busy; retry cleanup after it settles")
             })?);
         }
+    }
+    if retry {
+        store.resume_workflow_cleanup(id, digest).await?;
     }
     let claim = store.claim_workflow_cleanup(id, digest).await?;
     Ok(PreparedCleanup {

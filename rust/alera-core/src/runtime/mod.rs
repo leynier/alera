@@ -105,11 +105,13 @@ mod workflow_catalog_store;
 mod workflow_catalog_tests;
 mod workflow_cleanup;
 mod workflow_cleanup_claim;
+mod workflow_cleanup_status;
 #[cfg(test)]
 mod workflow_cleanup_tests;
 mod workflow_coordinator;
 pub use workflow_cleanup::{WorkflowCleanupItem, WorkflowCleanupPreview};
 pub use workflow_cleanup_claim::WorkflowCleanupClaim;
+pub use workflow_cleanup_status::{WorkflowCleanupState, WorkflowCleanupStatus};
 mod workflow_proposal_cancellation;
 pub use workflow_proposal_cancellation::WorkflowProposalCancellation;
 mod workflow_correction;

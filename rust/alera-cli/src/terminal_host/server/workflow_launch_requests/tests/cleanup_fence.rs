@@ -63,7 +63,7 @@ async fn workflow_cleanup_claim_blocks_new_terminal_owners_after_restart() {
         .await
         .unwrap();
     let dir = tempfile::tempdir().unwrap();
-    let (client, _responses) = ClientHandle::test_channels();
+    let (client, mut responses) = ClientHandle::test_channels();
     let mut actor = test_actor(
         &dir,
         HashMap::from([(
@@ -204,7 +204,23 @@ async fn workflow_cleanup_claim_blocks_new_terminal_owners_after_restart() {
     apply_and_wait(&mut actor, &preview, false).await;
     assert!(std::path::Path::new(&workspace.path).exists());
     drop(locked);
-    apply_and_wait(&mut actor, &preview, true).await;
+    let obstruction = std::path::Path::new(&workspace.path).join("cleanup-obstruction");
+    std::fs::write(&obstruction, "preserve this change").unwrap();
+    apply_and_wait(&mut actor, &preview, false).await;
+    let status = fixture
+        .store
+        .workflow_cleanup_status(&preview.id)
+        .await
+        .unwrap();
+    assert_eq!(
+        status.state,
+        alera_core::runtime::WorkflowCleanupState::Attention
+    );
+    assert!(status.error.is_some());
+    assert!(obstruction.exists());
+    std::fs::remove_file(obstruction).unwrap();
+    apply_and_wait(&mut actor, &preview, false).await;
+    cleanup_and_wait(&mut actor, &preview, "workflows.retryCleanup", true).await;
     assert!(!std::path::Path::new(&workspace.path).exists());
     assert!(fixture
         .store
@@ -219,6 +235,23 @@ async fn workflow_cleanup_claim_blocks_new_terminal_owners_after_restart() {
         .is_ok());
     apply_and_wait(&mut actor, &preview, true).await;
     assert_eq!(actor.managed_workspace_jobs, 0);
+    assert!(actor
+        .try_start_deferred_request(1, 801, "workflows.cleanupStatus", &json!({"id":preview.id}))
+        .await
+        .unwrap());
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        let frame = tokio::time::timeout_at(deadline, responses.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        if let Some(value) = frame.as_json().filter(|value| value["id"] == 801) {
+            assert_eq!(value["ok"], true);
+            assert_eq!(value["payload"]["state"], "retired");
+            assert_eq!(value["payload"]["retiredWorkspaceIds"][0], workspace.id);
+            break;
+        }
+    }
 }
 
 #[tokio::test]
@@ -261,13 +294,22 @@ async fn apply_and_wait(
     preview: &alera_core::runtime::WorkflowCleanupPreview,
     expected_ok: bool,
 ) {
+    cleanup_and_wait(actor, preview, "workflows.applyCleanup", expected_ok).await;
+}
+
+async fn cleanup_and_wait(
+    actor: &mut ServerActor,
+    preview: &alera_core::runtime::WorkflowCleanupPreview,
+    verb: &str,
+    expected_ok: bool,
+) {
     let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
     actor.inbox = inbox;
     assert!(actor
         .try_start_deferred_request(
             1,
             99,
-            "workflows.applyCleanup",
+            verb,
             &json!({"id":preview.id,"digest":preview.digest})
         )
         .await

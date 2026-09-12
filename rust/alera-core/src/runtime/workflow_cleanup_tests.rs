@@ -73,6 +73,32 @@ async fn cleanup_claims_are_exclusive_and_retire_each_resource_independently() {
         .await
         .unwrap();
     assert_eq!(count, 2);
+    store
+        .mark_workflow_cleanup_attention(&winner.id, &winner.digest, "busy process")
+        .await
+        .unwrap();
+    reopened
+        .mark_workflow_cleanup_attention(&winner.id, &winner.digest, "later error")
+        .await
+        .unwrap();
+    let attention = reopened.workflow_cleanup_status(&winner.id).await.unwrap();
+    assert_eq!(attention.state, WorkflowCleanupState::Attention);
+    assert_eq!(attention.error.as_deref(), Some("busy process"));
+    assert!(store
+        .claim_workflow_cleanup(&winner.id, &winner.digest)
+        .await
+        .is_err());
+    assert!(store
+        .resume_workflow_cleanup(&winner.id, "changed")
+        .await
+        .is_err());
+    store
+        .resume_workflow_cleanup(&winner.id, &winner.digest)
+        .await
+        .unwrap();
+    let resumed = reopened.workflow_cleanup_status(&winner.id).await.unwrap();
+    assert_eq!(resumed.state, WorkflowCleanupState::Applying);
+    assert!(resumed.error.is_none());
     let one = &items[0].identity.workspace.id;
     sqlx::query("CREATE TRIGGER testRejectCleanupWorkspaceDelete BEFORE DELETE ON workspaces BEGIN SELECT RAISE(ABORT, 'injected retirement failure'); END")
         .execute(store.pool()).await.unwrap();
@@ -118,6 +144,14 @@ async fn cleanup_claims_are_exclusive_and_retire_each_resource_independently() {
         .await
         .unwrap();
     assert_eq!(state, "retired");
+    store
+        .mark_workflow_cleanup_attention(&winner.id, &winner.digest, "stale failure")
+        .await
+        .unwrap();
+    let status = reopened.workflow_cleanup_status(&winner.id).await.unwrap();
+    assert_eq!(status.state, WorkflowCleanupState::Retired);
+    assert!(status.error.is_none());
+    assert_eq!(status.retired_workspace_ids.len(), 2);
     // The ledger never erases historical workspace identities.
     assert!(store.workflow_workspace(one).await.is_ok());
     assert!(store.workflow_workspace(two).await.is_ok());

@@ -12,6 +12,25 @@ impl ServerActor {
         request_id: i64,
         payload: &Value,
     ) -> HostResult<()> {
+        self.start_workflow_cleanup_operation(client_id, request_id, payload, false)
+    }
+
+    pub(super) fn start_workflow_cleanup_retry(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        payload: &Value,
+    ) -> HostResult<()> {
+        self.start_workflow_cleanup_operation(client_id, request_id, payload, true)
+    }
+
+    fn start_workflow_cleanup_operation(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        payload: &Value,
+        retry: bool,
+    ) -> HostResult<()> {
         self.require_auth(client_id)?;
         if self
             .clients
@@ -52,44 +71,60 @@ impl ServerActor {
             let result = tokio::task::spawn_blocking(move || {
                 let _permit = permit;
                 runtime.block_on(async {
-                    let prepared = crate::managed_workspace::workflow::cleanup::prepare(
-                        &store, &directory, &id, &digest,
-                    )
-                    .await?;
-                    for item in &prepared.claim.preview.items {
-                        if prepared
-                            .claim
-                            .retired_workspace_ids
-                            .contains(&item.identity.workspace.id)
-                        {
-                            continue;
-                        }
-                        let (reply, done) = tokio::sync::oneshot::channel();
-                        events
-                            .send(ServerCommand::WorkflowLaunch(
-                                WorkflowLaunchCommand::InspectCleanupOwners {
-                                    cleanup_id: id.clone(),
-                                    digest: digest.clone(),
-                                    workspace_id: item.identity.workspace.id.clone(),
-                                    reply,
-                                },
-                            ))
-                            .map_err(|_| {
-                                anyhow::anyhow!("runtime closed before cleanup inspection")
-                            })?;
-                        done.await
-                            .map_err(|_| {
-                                anyhow::anyhow!("runtime closed during cleanup inspection")
-                            })?
-                            .map_err(|error| anyhow::anyhow!(error.wire_message()))?;
-                        crate::managed_workspace::workflow::cleanup::retire(
-                            &store, &prepared, item,
+                    let prepared = if retry {
+                        crate::managed_workspace::workflow::cleanup::prepare_retry(
+                            &store, &directory, &id, &digest,
                         )
-                        .await?;
+                        .await?
+                    } else {
+                        crate::managed_workspace::workflow::cleanup::prepare(
+                            &store, &directory, &id, &digest,
+                        )
+                        .await?
+                    };
+                    let outcome = async {
+                        for item in &prepared.claim.preview.items {
+                            if prepared
+                                .claim
+                                .retired_workspace_ids
+                                .contains(&item.identity.workspace.id)
+                            {
+                                continue;
+                            }
+                            let (reply, done) = tokio::sync::oneshot::channel();
+                            events
+                                .send(ServerCommand::WorkflowLaunch(
+                                    WorkflowLaunchCommand::InspectCleanupOwners {
+                                        cleanup_id: id.clone(),
+                                        digest: digest.clone(),
+                                        workspace_id: item.identity.workspace.id.clone(),
+                                        reply,
+                                    },
+                                ))
+                                .map_err(|_| {
+                                    anyhow::anyhow!("runtime closed before cleanup inspection")
+                                })?;
+                            done.await
+                                .map_err(|_| {
+                                    anyhow::anyhow!("runtime closed during cleanup inspection")
+                                })?
+                                .map_err(|error| anyhow::anyhow!(error.wire_message()))?;
+                            crate::managed_workspace::workflow::cleanup::retire(
+                                &store, &prepared, item,
+                            )
+                            .await?;
+                        }
+                        Ok::<_, anyhow::Error>(serde_json::to_value(
+                            store.workflow_cleanup_status(&id).await?,
+                        )?)
                     }
-                    Ok::<_, anyhow::Error>(serde_json::to_value(
-                        store.claim_workflow_cleanup(&id, &digest).await?,
-                    )?)
+                    .await;
+                    if let Err(error) = &outcome {
+                        store
+                            .mark_workflow_cleanup_attention(&id, &digest, &error.to_string())
+                            .await?;
+                    }
+                    outcome
                 })
             })
             .await

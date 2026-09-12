@@ -74,6 +74,7 @@ struct ProposalSubmission {
 }
 
 enum PlanRequest {
+    CleanupStatus(ProposalQuery),
     Execution(PlanQuery),
     ControlExecution(String),
     CreateCorrection(String),
@@ -110,6 +111,7 @@ impl ServerActor {
             ));
         }
         let request = match request_type {
+            "workflows.cleanupStatus" => PlanRequest::CleanupStatus(parse(payload)?),
             "workflows.execution" => PlanRequest::Execution(parse(payload)?),
             "workflows.controlExecution" => PlanRequest::ControlExecution(document(payload, 4096)?),
             "workflows.createCorrection" => PlanRequest::CreateCorrection(document(payload, 8192)?),
@@ -154,6 +156,12 @@ impl ServerActor {
             let _permit = permit;
             let result = tokio::time::timeout(Duration::from_secs(25), async {
                 match request {
+                    PlanRequest::CleanupStatus(query) => {
+                        let runtime = tokio::runtime::Handle::current();
+                        tokio::task::spawn_blocking(move || runtime.block_on(async {
+                            serde_json::to_value(store.workflow_cleanup_status(&query.id).await?).map_err(anyhow::Error::from)
+                        })).await.map_err(state)?.map_err(state)
+                    }
                     PlanRequest::CancelProposal(query) => serde_json::to_value(store.cancel_workflow_proposal(&query.id).await.map_err(state)?).map_err(state),
                     PlanRequest::Execution(query) => {
                         let runtime=tokio::runtime::Handle::current();

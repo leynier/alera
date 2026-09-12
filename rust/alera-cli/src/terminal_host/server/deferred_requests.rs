@@ -23,6 +23,10 @@ impl ServerActor {
             return Ok(true);
         }
         match request_type {
+            "workflows.retryCleanup" => {
+                self.start_workflow_cleanup_retry(client_id, request_id, payload)?;
+                Ok(true)
+            }
             "workflows.applyCleanup" => {
                 self.start_workflow_cleanup_request(client_id, request_id, payload)?;
                 Ok(true)
@@ -47,6 +51,7 @@ impl ServerActor {
                 Ok(true)
             }
             "workflows.preparePlan"
+            | "workflows.cleanupStatus"
             | "workflows.execution"
             | "workflows.controlExecution"
             | "workflows.createCorrection"
