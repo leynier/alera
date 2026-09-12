@@ -4,11 +4,11 @@ use std::path::Path;
 
 use alera_core::git_cli::git_in_dir;
 use alera_core::runtime::RuntimeStore;
-use git2::{Repository, Status, StatusOptions};
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
+use super::mobile_source_control_snapshot::git_status_snapshot;
 use super::mobile_workspace_file_requests::{
     spawn_blocking_workspace, workspace_for_mobile_file_request,
 };
@@ -36,162 +36,6 @@ pub(super) async fn mobile_git_diff(
     let area = optional_string_key(payload, "area").unwrap_or_else(|| "unstaged".to_string());
     let root = workspace.path.clone();
     spawn_blocking_workspace("Git diff", move || git_diff_snapshot(&root, &path, &area)).await
-}
-
-fn git_status_snapshot(root: &str) -> HostResult<Value> {
-    let repo = match Repository::open(root) {
-        Ok(repo) => repo,
-        Err(_) => {
-            return Ok(json!({
-                "isRepository": false,
-                "branch": Value::Null,
-                "entries": [],
-            }));
-        }
-    };
-    let branch = repo
-        .head()
-        .ok()
-        .and_then(|head| {
-            head.shorthand()
-                .ok()
-                .map(ToOwned::to_owned)
-                .or_else(|| head.target().map(|oid| oid.to_string()))
-        })
-        .unwrap_or_else(|| "HEAD".to_string());
-    let mut options = StatusOptions::new();
-    options
-        .include_untracked(true)
-        .recurse_untracked_dirs(true)
-        .include_ignored(false)
-        .renames_head_to_index(true)
-        .renames_index_to_workdir(true);
-    let statuses = repo
-        .statuses(Some(&mut options))
-        .map_err(|error| HostError::state(error.to_string()))?;
-    let mut entries = Vec::new();
-    for entry in statuses.iter() {
-        let status = entry.status();
-        let path = entry.path().unwrap_or("").replace('\\', "/");
-        if path.is_empty() {
-            continue;
-        }
-        if status.intersects(Status::WT_NEW) && !status.intersects(Status::INDEX_NEW) {
-            entries.push(change_json(&path, None, "untracked", "untracked"));
-            continue;
-        }
-        if status.intersects(
-            Status::INDEX_NEW
-                | Status::INDEX_MODIFIED
-                | Status::INDEX_DELETED
-                | Status::INDEX_RENAMED
-                | Status::INDEX_TYPECHANGE,
-        ) {
-            let old_path = entry
-                .head_to_index()
-                .and_then(|delta| delta.old_file().path())
-                .map(|path| path.to_string_lossy().replace('\\', "/"))
-                .filter(|old| old != &path);
-            entries.push(change_json(
-                &path,
-                old_path.as_deref(),
-                "staged",
-                staged_status(status),
-            ));
-        }
-        if status.intersects(
-            Status::WT_MODIFIED | Status::WT_DELETED | Status::WT_RENAMED | Status::WT_TYPECHANGE,
-        ) {
-            let old_path = entry
-                .index_to_workdir()
-                .and_then(|delta| delta.old_file().path())
-                .map(|path| path.to_string_lossy().replace('\\', "/"))
-                .filter(|old| old != &path);
-            entries.push(change_json(
-                &path,
-                old_path.as_deref(),
-                "unstaged",
-                unstaged_status(status),
-            ));
-        }
-        if status.intersects(Status::CONFLICTED) {
-            entries.push(change_json(&path, None, "unstaged", "modified"));
-        }
-    }
-    let stats = numstat_map(root);
-    for entry in &mut entries {
-        if let Some(path) = entry.get("path").and_then(Value::as_str) {
-            if let Some((added, removed)) = stats.get(path) {
-                entry["added"] = json!(added);
-                entry["removed"] = json!(removed);
-            }
-        }
-    }
-    Ok(json!({
-        "isRepository": true,
-        "branch": branch,
-        "entries": entries,
-        "writable": false,
-    }))
-}
-
-fn change_json(path: &str, old_path: Option<&str>, area: &str, status: &str) -> Value {
-    json!({
-        "path": path,
-        "oldPath": old_path,
-        "area": area,
-        "status": status,
-        "added": Value::Null,
-        "removed": Value::Null,
-        "isBinary": false,
-    })
-}
-
-fn staged_status(status: Status) -> &'static str {
-    if status.intersects(Status::INDEX_NEW) {
-        "added"
-    } else if status.intersects(Status::INDEX_DELETED) {
-        "deleted"
-    } else if status.intersects(Status::INDEX_RENAMED) {
-        "renamed"
-    } else {
-        "modified"
-    }
-}
-
-fn unstaged_status(status: Status) -> &'static str {
-    if status.intersects(Status::WT_DELETED) {
-        "deleted"
-    } else if status.intersects(Status::WT_RENAMED) {
-        "renamed"
-    } else {
-        "modified"
-    }
-}
-
-fn numstat_map(root: &str) -> std::collections::HashMap<String, (u32, u32)> {
-    let mut map = std::collections::HashMap::new();
-    for args in [
-        ["diff", "--numstat"].as_slice(),
-        ["diff", "--cached", "--numstat"].as_slice(),
-    ] {
-        let Ok(output) = git_in_dir(Path::new(root), args) else {
-            continue;
-        };
-        for line in output.lines() {
-            let mut parts = line.split('\t');
-            let added = parts.next().and_then(|value| value.parse::<u32>().ok());
-            let removed = parts.next().and_then(|value| value.parse::<u32>().ok());
-            let path = parts
-                .next()
-                .map(str::trim)
-                .filter(|value| !value.is_empty());
-            if let (Some(added), Some(removed), Some(path)) = (added, removed, path) {
-                map.insert(path.replace('\\', "/"), (added, removed));
-            }
-        }
-    }
-    map
 }
 
 fn git_diff_snapshot(root: &str, path: &str, area: &str) -> HostResult<Value> {
