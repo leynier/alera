@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 
 mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
@@ -11,6 +13,10 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
   MobileWorkspaceSearchResult searchResult =
       const MobileWorkspaceSearchResult();
   MobileGitStatusSnapshot gitStatusSnapshot = const MobileGitStatusSnapshot();
+
+  /// Holds `gitStatus` open until completed, to observe a refresh in flight.
+  Completer<void>? gitStatusGate;
+  Object? gitStatusError;
   MobileGitDiffFile gitDiffFile = const MobileGitDiffFile(
     path: '',
     area: 'unstaged',
@@ -66,6 +72,10 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
   @override
   Future<MobileGitStatusSnapshot> gitStatus(String workspaceId) async {
     calls.add('gitStatus $workspaceId');
+    await gitStatusGate?.future;
+    if (gitStatusError case final error?) {
+      throw error;
+    }
     return gitStatusSnapshot;
   }
 

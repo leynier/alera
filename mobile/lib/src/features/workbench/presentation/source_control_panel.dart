@@ -20,26 +20,40 @@ class const SourceControlPanel({
     final state = ref.watch(
       sourceControlControllerProvider(hostId, workspaceId),
     );
-    return switch (state) {
-      AsyncData(value: final snapshot) => _Body(
-        hostId: hostId,
-        workspaceId: workspaceId,
-        snapshot: snapshot,
-      ),
-      AsyncError(:final error) => AleraEmptyState(
+    final controller = ref.read(
+      sourceControlControllerProvider(hostId, workspaceId).notifier,
+    );
+    if (state.value case final snapshot?) {
+      return Column(
+        children: <Widget>[
+          if (state.isLoading) const LinearProgressIndicator(minHeight: 2),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: controller.reload,
+              child: _Body(
+                hostId: hostId,
+                workspaceId: workspaceId,
+                snapshot: snapshot,
+                refreshError: state.hasError && !state.isLoading
+                    ? state.error
+                    : null,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    if (state case AsyncError(:final error) when !state.isLoading) {
+      return AleraEmptyState(
         icon: AleraIcons.gitCompare,
         message: error.toString(),
         action: FilledButton(
-          onPressed: () => ref
-              .read(
-                sourceControlControllerProvider(hostId, workspaceId).notifier,
-              )
-              .reload(),
+          onPressed: controller.reload,
           child: const Text('Retry'),
         ),
-      ),
-      _ => const Center(child: CircularProgressIndicator()),
-    };
+      );
+    }
+    return const Center(child: CircularProgressIndicator());
   }
 }
 
@@ -47,14 +61,28 @@ class const _Body({
   required final String hostId,
   required final String workspaceId,
   required final MobileGitStatusSnapshot snapshot,
+  final Object? refreshError,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final refreshNotice = switch (refreshError) {
+      final error? => Padding(
+        padding: AleraTokens.contentPadding,
+        child: AleraNotice(
+          icon: AleraIcons.cloudOff,
+          message: 'Could not refresh source control: $error',
+        ),
+      ),
+      null => null,
+    };
     if (!snapshot.isRepository) {
-      return const AleraEmptyState(
-        icon: AleraIcons.gitBranch,
-        title: 'No repository',
-        message: 'This workspace is not a Git repository.',
+      return _ScrollableState(
+        notice: refreshNotice,
+        child: const AleraEmptyState(
+          icon: AleraIcons.gitBranch,
+          title: 'No repository',
+          message: 'This workspace is not a Git repository.',
+        ),
       );
     }
     final staged = snapshot.entries
@@ -67,17 +95,22 @@ class const _Body({
         .where((entry) => entry.area == 'untracked')
         .toList(growable: false);
     if (snapshot.entries.isEmpty) {
-      return AleraEmptyState(
-        icon: AleraIcons.check,
-        title: 'Clean working tree',
-        message: snapshot.branch == null
-            ? 'There are no local changes.'
-            : 'There are no local changes on ${snapshot.branch}.',
+      return _ScrollableState(
+        notice: refreshNotice,
+        child: AleraEmptyState(
+          icon: AleraIcons.check,
+          title: 'Clean working tree',
+          message: snapshot.branch == null
+              ? 'There are no local changes.'
+              : 'There are no local changes on ${snapshot.branch}.',
+        ),
       );
     }
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.only(bottom: AleraTokens.space24),
       children: <Widget>[
+        ?refreshNotice,
         const Padding(
           padding: AleraTokens.contentPadding,
           child: AleraNotice(
@@ -130,6 +163,30 @@ class const _Body({
           ),
         ),
     ];
+  }
+}
+
+/// Keeps pull-to-refresh working on the empty states, which do not scroll.
+class const _ScrollableState({
+  required final Widget child,
+  final Widget? notice,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Column(
+            children: <Widget>[
+              ?notice,
+              SizedBox(height: constraints.maxHeight, child: child),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
