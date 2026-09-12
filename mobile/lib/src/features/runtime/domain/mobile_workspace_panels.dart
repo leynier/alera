@@ -1,11 +1,14 @@
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
+import 'package:alera_mobile/src/features/runtime/domain/mobile_source_control.dart';
 
 export 'package:alera_mobile/src/core/mobile_protocol.dart'
     show
         mobileExplorerCapability,
         mobilePullRequestCapability,
         mobileSourceControlCapability,
+        mobileSourceControlWritesCapability,
         mobileWorkspaceSearchCapability;
+export 'package:alera_mobile/src/features/runtime/domain/mobile_source_control.dart';
 
 class const MobileExplorerEntry({
   required final String relativePath,
@@ -84,6 +87,10 @@ class const MobileGitChange({
   final int? added,
   final int? removed,
   final bool isBinary = false,
+  final bool isSubmodule = false,
+  final bool canStage = false,
+  final bool canUnstage = false,
+  final bool canDiscard = false,
 }) {
   factory fromJson(Map<String, Object?> json) => MobileGitChange(
     path: json.requiredString('path'),
@@ -93,6 +100,10 @@ class const MobileGitChange({
     added: (json['added'] as num?)?.toInt(),
     removed: (json['removed'] as num?)?.toInt(),
     isBinary: json['isBinary'] == true,
+    isSubmodule: json['isSubmodule'] == true,
+    canStage: json['canStage'] == true,
+    canUnstage: json['canUnstage'] == true,
+    canDiscard: json['canDiscard'] == true,
   );
 }
 
@@ -100,7 +111,15 @@ class const MobileGitStatusSnapshot({
   final bool isRepository = false,
   final String? branch,
   final List<MobileGitChange> entries = const <MobileGitChange>[],
+
+  /// True only from a runtime that serves the write verbs; older runtimes
+  /// always send false, which keeps the panel read-only.
   final bool writable = false,
+  final MobileGitRepositoryState repository = const MobileGitRepositoryState(),
+  final List<MobileGitStash> stashes = const <MobileGitStash>[],
+  final MobileSourceControlActions actions = const MobileSourceControlActions(),
+  final String? primaryAction,
+  final bool aiCommitMessageEnabled = false,
 }) {
   factory fromJson(Map<String, Object?> json) => MobileGitStatusSnapshot(
     isRepository: json['isRepository'] == true,
@@ -111,6 +130,25 @@ class const MobileGitStatusSnapshot({
           MobileGitChange.fromJson(Map<String, Object?>.from(item)),
     ],
     writable: json['writable'] == true,
+    repository: switch (json['repository']) {
+      final Map<Object?, Object?> repository =>
+        MobileGitRepositoryState.fromJson(
+          Map<String, Object?>.from(repository),
+        ),
+      _ => const MobileGitRepositoryState(),
+    },
+    stashes: <MobileGitStash>[
+      for (final item in json.objectList('stashes'))
+        if (item is Map)
+          MobileGitStash.fromJson(Map<String, Object?>.from(item)),
+    ],
+    actions: switch (json['actions']) {
+      final Map<Object?, Object?> actions =>
+        MobileSourceControlActions.fromJson(Map<String, Object?>.from(actions)),
+      _ => const MobileSourceControlActions(),
+    },
+    primaryAction: json.optionalString('primaryAction'),
+    aiCommitMessageEnabled: json['aiCommitMessageEnabled'] == true,
   );
 
   int get changedFileCount => entries.length;
@@ -297,6 +335,14 @@ abstract interface class MobileWorkspacePanelsClient {
   });
 
   Future<MobileGitStatusSnapshot> gitStatus(String workspaceId);
+
+  bool get supportsSourceControlWrites;
+
+  /// Runs [write] and resolves with the status snapshot that follows it.
+  Future<MobileGitStatusSnapshot> gitWrite(
+    String workspaceId,
+    MobileGitWrite write,
+  );
 
   Future<MobileGitDiffFile> gitDiff({
     required String workspaceId,

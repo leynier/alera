@@ -21,6 +21,11 @@ class SourceControlController extends _$SourceControlController {
     );
   }
 
+  /// Shows the snapshot a write answered with, without another round trip.
+  void apply(MobileGitStatusSnapshot snapshot) {
+    state = AsyncData(snapshot);
+  }
+
   /// Refreshes in place. Riverpod keeps the previous snapshot on a rebuild,
   /// so the panel keeps its list on screen instead of blanking to a spinner.
   Future<void> reload() async {
