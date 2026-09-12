@@ -221,11 +221,6 @@ Future<String?> showWorkspaceFilePickerSheet(
   );
 }
 
-String workspaceFileBaseName(String path) {
-  final normalized = path.replaceAll('\\', '/');
-  return normalized.substring(normalized.lastIndexOf('/') + 1);
-}
-
 IconData workspaceFileIcon(String path) =>
     switch (p.extension(path).toLowerCase()) {
       '.dart' => Icons.flutter_dash,

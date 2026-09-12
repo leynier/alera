@@ -33,12 +33,15 @@ abstract final class const AleraIcons._() {
   static const IconData paste = LucideIcons.clipboard;
   static const IconData refresh = LucideIcons.refreshCw;
   static const IconData loading = LucideIcons.loaderCircle;
+  static const IconData info = LucideIcons.info;
+  static const IconData circle = LucideIcons.circle;
   static const IconData link = LucideIcons.link;
   static const IconData external = LucideIcons.externalLink;
   static const IconData theme = LucideIcons.moon;
   static const IconData workspaces = LucideIcons.folders;
   static const IconData terminal = LucideIcons.terminal;
   static const IconData files = LucideIcons.files;
+  static const IconData copyFiles = LucideIcons.files;
   static const IconData gitPullRequest = LucideIcons.gitPullRequest;
   static const IconData gitCompare = LucideIcons.gitCompare;
   static const IconData listView = LucideIcons.list;
