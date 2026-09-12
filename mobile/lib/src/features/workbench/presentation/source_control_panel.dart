@@ -1,9 +1,12 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
+import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/workbench/application/source_control_controller.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_diff_viewer_screen.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_path_display.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -54,13 +57,15 @@ class const _Body({
         message: 'This workspace is not a Git repository.',
       );
     }
-    final staged = snapshot.entries.where((entry) => entry.area == 'staged');
-    final unstaged = snapshot.entries.where(
-      (entry) => entry.area == 'unstaged',
-    );
-    final untracked = snapshot.entries.where(
-      (entry) => entry.area == 'untracked',
-    );
+    final staged = snapshot.entries
+        .where((entry) => entry.area == 'staged')
+        .toList(growable: false);
+    final unstaged = snapshot.entries
+        .where((entry) => entry.area == 'unstaged')
+        .toList(growable: false);
+    final untracked = snapshot.entries
+        .where((entry) => entry.area == 'untracked')
+        .toList(growable: false);
     if (snapshot.entries.isEmpty) {
       return AleraEmptyState(
         icon: AleraIcons.check,
@@ -71,60 +76,49 @@ class const _Body({
       );
     }
     return ListView(
+      padding: const EdgeInsets.only(bottom: AleraTokens.space24),
       children: <Widget>[
-        Padding(
+        const Padding(
           padding: AleraTokens.contentPadding,
-          child: Text(
-            'Source control is read-only on mobile. Stage, unstage, and commit stay on desktop.',
-            style: Theme.of(context).textTheme.bodySmall,
+          child: AleraNotice(
+            icon: AleraIcons.info,
+            message: 'Read-only on mobile. Stage, unstage, and commit stay on desktop.',
           ),
         ),
-        if (snapshot.branch != null)
-          ListTile(
-            leading: const Icon(AleraIcons.gitBranch),
-            title: Text(snapshot.branch!),
-            subtitle: const Text('Current branch'),
-          ),
-        ListTile(
-          leading: const Icon(AleraIcons.gitCompare),
-          title: Text(
-            '${snapshot.changedFileCount} ${snapshot.changedFileCount == 1 ? 'file' : 'files'} · +${snapshot.addedLineCount} -${snapshot.removedLineCount}',
-          ),
-          subtitle: const Text('Diff summary'),
-        ),
-        ..._group(context, hostId, workspaceId, 'Staged', staged),
-        ..._group(context, hostId, workspaceId, 'Unstaged', unstaged),
-        ..._group(context, hostId, workspaceId, 'Untracked', untracked),
+        _Summary(snapshot: snapshot),
+        ..._group(context, 'Staged', staged),
+        ..._group(context, 'Unstaged', unstaged),
+        ..._group(context, 'Untracked', untracked),
       ],
     );
   }
 
   List<Widget> _group(
     BuildContext context,
-    String hostId,
-    String workspaceId,
     String title,
-    Iterable<MobileGitChange> entries,
+    List<MobileGitChange> items,
   ) {
-    final items = entries.toList(growable: false);
     if (items.isEmpty) {
       return const <Widget>[];
     }
     return <Widget>[
-      Padding(
+      AleraSectionHeader(
+        label: title,
         padding: const EdgeInsets.fromLTRB(
           AleraTokens.space16,
-          AleraTokens.space12,
+          AleraTokens.space16,
           AleraTokens.space16,
           AleraTokens.space4,
         ),
-        child: Text(title, style: Theme.of(context).textTheme.titleSmall),
+        trailing: Text(
+          '${items.length}',
+          style: Theme.of(context).textTheme.labelSmall
+              ?.copyWith(color: AleraTokens.foregroundFaint),
+        ),
       ),
       for (final change in items)
-        ListTile(
-          minTileHeight: AleraTokens.minTapTarget,
-          title: Text(change.path),
-          subtitle: Text(_subtitle(change)),
+        _ChangeRow(
+          change: change,
           onTap: () => Navigator.of(context).push<void>(
             MaterialPageRoute<void>(
               builder: (_) => WorkspaceDiffViewerScreen(
@@ -137,13 +131,168 @@ class const _Body({
         ),
     ];
   }
+}
 
-  String _subtitle(MobileGitChange change) {
-    final counts = <String>[
-      change.status,
-      if (change.added != null) '+${change.added}',
-      if (change.removed != null) '-${change.removed}',
-    ];
-    return counts.join(' · ');
+class const _Summary({required final MobileGitStatusSnapshot snapshot})
+    extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final fileCount = snapshot.changedFileCount;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AleraTokens.space16,
+        0,
+        AleraTokens.space16,
+        AleraTokens.space8,
+      ),
+      child: Row(
+        children: <Widget>[
+          const Icon(
+            AleraIcons.gitBranch,
+            size: 16,
+            color: AleraTokens.foregroundMuted,
+          ),
+          const SizedBox(width: AleraTokens.space8),
+          Expanded(
+            child: Text(
+              snapshot.branch ?? 'Detached',
+              maxLines: 1,
+              overflow: .ellipsis,
+              style: theme.textTheme.titleSmall,
+            ),
+          ),
+          Text(
+            '$fileCount ${fileCount == 1 ? 'file' : 'files'}',
+            style: theme.textTheme.bodySmall,
+          ),
+          if (snapshot.addedLineCount > 0) ...<Widget>[
+            const SizedBox(width: AleraTokens.space8),
+            Text(
+              '+${snapshot.addedLineCount}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AleraTokens.success,
+              ),
+            ),
+          ],
+          if (snapshot.removedLineCount > 0) ...<Widget>[
+            const SizedBox(width: AleraTokens.space8),
+            Text(
+              '-${snapshot.removedLineCount}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AleraTokens.error,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
+}
+
+class const _ChangeRow({
+  required final MobileGitChange change,
+  required final VoidCallback onTap,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final fileName = workspaceFileBaseName(change.path);
+    final parent = workspaceFileParentLabel(change.path);
+    final (letter, color) = _statusMark(change.status);
+    return Tooltip(
+      message: change.path,
+      child: InkWell(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: AleraTokens.minTapTarget,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AleraTokens.space16,
+              vertical: AleraTokens.space8,
+            ),
+            child: Row(
+              children: <Widget>[
+                SizedBox(
+                  width: 16,
+                  child: Text(
+                    letter,
+                    textAlign: .center,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: color,
+                      fontWeight: .w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AleraTokens.space8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: .start,
+                    children: <Widget>[
+                      Text(
+                        fileName,
+                        maxLines: 1,
+                        overflow: .ellipsis,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      if (parent != null)
+                        Text(
+                          parent,
+                          maxLines: 1,
+                          overflow: .ellipsis,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AleraTokens.space8),
+                _LineStats(added: change.added, removed: change.removed),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class const _LineStats({required final int? added, required final int? removed})
+    extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final visibleAdded = added != null && added! > 0 ? added : null;
+    final visibleRemoved = removed != null && removed! > 0 ? removed : null;
+    if (visibleAdded == null && visibleRemoved == null) {
+      return const SizedBox.shrink();
+    }
+    final style = Theme.of(context).textTheme.labelSmall;
+    return Row(
+      mainAxisSize: .min,
+      children: <Widget>[
+        if (visibleAdded case final added?)
+          Text('+$added', style: style?.copyWith(color: AleraTokens.success)),
+        if (visibleRemoved case final removed?) ...<Widget>[
+          if (visibleAdded != null) const SizedBox(width: AleraTokens.space6),
+          Text('-$removed', style: style?.copyWith(color: AleraTokens.error)),
+        ],
+      ],
+    );
+  }
+}
+
+(String, Color) _statusMark(String status) {
+  return switch (status) {
+    'added' => ('A', AleraTokens.success),
+    'untracked' => ('U', AleraTokens.success),
+    'deleted' => ('D', AleraTokens.error),
+    'renamed' => ('R', AleraTokens.warning),
+    'copied' => ('C', AleraTokens.warning),
+    'modified' => ('M', AleraTokens.warning),
+    _ => (
+      status.isEmpty ? 'M' : status[0].toUpperCase(),
+      AleraTokens.foregroundMuted,
+    ),
+  };
 }

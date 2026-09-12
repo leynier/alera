@@ -256,38 +256,19 @@ class const _EmptyTabs({
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: AleraTokens.contentPadding,
-        child: Column(
-          mainAxisSize: .min,
-          children: <Widget>[
-            Icon(
-              Icons.terminal,
-              size: AleraTokens.emptyIcon,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: AleraTokens.spaceLg),
-            Text(
-              targetUnavailable ? 'Terminal unavailable' : 'No tabs yet',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            if (targetUnavailable) ...<Widget>[
-              const SizedBox(height: AleraTokens.space8),
-              Text(
-                'Choose another terminal above.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-            const SizedBox(height: AleraTokens.spaceMd),
-            FilledButton.icon(
+    return AleraEmptyState(
+      icon: AleraIcons.terminal,
+      title: targetUnavailable ? 'Terminal unavailable' : 'No terminals',
+      message: targetUnavailable
+          ? 'Choose another terminal above.'
+          : 'Open a terminal to start working in this workspace.',
+      action: targetUnavailable
+          ? null
+          : FilledButton.icon(
               onPressed: creating ? null : onNewTab,
-              icon: const Icon(Icons.add),
-              label: const Text('New Tab'),
+              icon: const Icon(AleraIcons.add),
+              label: const Text('New Terminal'),
             ),
-          ],
-        ),
-      ),
     );
   }
 }
