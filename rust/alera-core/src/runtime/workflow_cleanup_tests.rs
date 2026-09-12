@@ -4,6 +4,38 @@ use super::*;
 use crate::workflow_approval::WorkflowDecision;
 
 #[tokio::test]
+async fn cleanup_recovery_page_only_returns_confirmed_work_in_bounded_order() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = RuntimeStore::open(dir.path()).await.unwrap();
+    for number in 1..=33_u128 {
+        let state = match number {
+            31 => "preview",
+            32 => "attention",
+            33 => "retired",
+            _ => "applying",
+        };
+        sqlx::query("INSERT INTO workflowCleanup(id,run_id,digest,document,expires_at,state) VALUES(?,'run','digest','{}',0,?)")
+            .bind(uuid::Uuid::from_u128(number).to_string()).bind(state).execute(store.pool()).await.unwrap();
+    }
+    let first = store.pending_workflow_cleanup_page("").await.unwrap();
+    assert_eq!(first.len(), 25);
+    assert_eq!(first[0].0, uuid::Uuid::from_u128(1).to_string());
+    assert!(first.iter().all(|(_, digest)| digest == "digest"));
+    let second = store
+        .pending_workflow_cleanup_page(&first[24].0)
+        .await
+        .unwrap();
+    assert_eq!(second.len(), 5);
+    assert_eq!(second[0].0, uuid::Uuid::from_u128(26).to_string());
+    assert_eq!(second[4].0, uuid::Uuid::from_u128(30).to_string());
+    assert!(store
+        .pending_workflow_cleanup_page(&second[4].0)
+        .await
+        .unwrap()
+        .is_empty());
+}
+
+#[tokio::test]
 async fn cleanup_claims_are_exclusive_and_retire_each_resource_independently() {
     let (dir, store, proposal) = fixture(false).await;
     let plan = store

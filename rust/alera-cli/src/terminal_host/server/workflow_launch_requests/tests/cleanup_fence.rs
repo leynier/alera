@@ -4,6 +4,9 @@ use alera_core::runtime::{ControlWorkflowExecution, WorkflowCleanupItem, Workflo
 
 #[tokio::test]
 async fn workflow_cleanup_claim_blocks_new_terminal_owners_after_restart() {
+    let _serial = crate::terminal_host::server::workflow_cleanup_execution::CLEANUP_TEST_LOCK
+        .lock()
+        .await;
     let fixture = Fixture::new("").await;
     let resource = fixture.integration().await;
     let workspace = resource.identity.workspace.clone();

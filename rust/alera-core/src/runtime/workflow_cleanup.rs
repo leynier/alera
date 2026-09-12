@@ -30,6 +30,11 @@ impl RuntimeStore {
             id TEXT PRIMARY KEY,run_id TEXT NOT NULL,digest TEXT NOT NULL,document TEXT NOT NULL,
             expires_at INTEGER NOT NULL,state TEXT NOT NULL CHECK(state IN ('preview','applying','retired','attention')),
             error TEXT)").execute(&mut *tx).await?;
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS workflowCleanupRecovery ON workflowCleanup(state,id)",
+        )
+        .execute(&mut *tx)
+        .await?;
         sqlx::query("CREATE TABLE IF NOT EXISTS workflowCleanupResources (
             workspace_id TEXT PRIMARY KEY REFERENCES workflowWorkspaces(id),
             cleanup_id TEXT NOT NULL REFERENCES workflowCleanup(id),retired INTEGER NOT NULL DEFAULT 0)")

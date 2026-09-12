@@ -1,9 +1,6 @@
-use super::workflow_launch_requests::WorkflowLaunchCommand;
 use super::{ClientKind, ServerActor, ServerCommand};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use serde_json::Value;
-use std::sync::{Arc, OnceLock};
-use tokio::sync::Semaphore;
 
 impl ServerActor {
     pub(super) fn start_workflow_cleanup_request(
@@ -54,10 +51,7 @@ impl ServerActor {
         let id = field("id")?.to_owned();
         let digest = field("digest")?.to_owned();
         uuid::Uuid::parse_str(&id).map_err(|_| HostError::format("invalid cleanup preview id"))?;
-        static CLEANUPS: OnceLock<Arc<Semaphore>> = OnceLock::new();
-        let permit = CLEANUPS
-            .get_or_init(|| Arc::new(Semaphore::new(1)))
-            .clone()
+        let permit = super::workflow_cleanup_execution::cleanup_queue()
             .try_acquire_owned()
             .map_err(|_| HostError::state("cleanup is busy; retry shortly"))?;
         self.managed_workspace_jobs += 1;
@@ -70,62 +64,9 @@ impl ServerActor {
             let events = inbox.clone();
             let result = tokio::task::spawn_blocking(move || {
                 let _permit = permit;
-                runtime.block_on(async {
-                    let prepared = if retry {
-                        crate::managed_workspace::workflow::cleanup::prepare_retry(
-                            &store, &directory, &id, &digest,
-                        )
-                        .await?
-                    } else {
-                        crate::managed_workspace::workflow::cleanup::prepare(
-                            &store, &directory, &id, &digest,
-                        )
-                        .await?
-                    };
-                    let outcome = async {
-                        for item in &prepared.claim.preview.items {
-                            if prepared
-                                .claim
-                                .retired_workspace_ids
-                                .contains(&item.identity.workspace.id)
-                            {
-                                continue;
-                            }
-                            let (reply, done) = tokio::sync::oneshot::channel();
-                            events
-                                .send(ServerCommand::WorkflowLaunch(
-                                    WorkflowLaunchCommand::InspectCleanupOwners {
-                                        cleanup_id: id.clone(),
-                                        digest: digest.clone(),
-                                        workspace_id: item.identity.workspace.id.clone(),
-                                        reply,
-                                    },
-                                ))
-                                .map_err(|_| {
-                                    anyhow::anyhow!("runtime closed before cleanup inspection")
-                                })?;
-                            done.await
-                                .map_err(|_| {
-                                    anyhow::anyhow!("runtime closed during cleanup inspection")
-                                })?
-                                .map_err(|error| anyhow::anyhow!(error.wire_message()))?;
-                            crate::managed_workspace::workflow::cleanup::retire(
-                                &store, &prepared, item,
-                            )
-                            .await?;
-                        }
-                        Ok::<_, anyhow::Error>(serde_json::to_value(
-                            store.workflow_cleanup_status(&id).await?,
-                        )?)
-                    }
-                    .await;
-                    if let Err(error) = &outcome {
-                        store
-                            .mark_workflow_cleanup_attention(&id, &digest, &error.to_string())
-                            .await?;
-                    }
-                    outcome
-                })
+                runtime.block_on(super::workflow_cleanup_execution::execute(
+                    &store, &directory, &events, &id, &digest, retry,
+                ))
             })
             .await
             .map_err(|error| HostError::state(error.to_string()))

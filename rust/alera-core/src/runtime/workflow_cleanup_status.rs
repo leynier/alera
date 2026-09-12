@@ -22,6 +22,14 @@ pub struct WorkflowCleanupStatus {
 }
 
 impl RuntimeStore {
+    pub async fn pending_workflow_cleanup_page(
+        &self,
+        after: &str,
+    ) -> Result<Vec<(String, String)>> {
+        Ok(sqlx::query_as("SELECT id,digest FROM workflowCleanup WHERE state='applying' AND id>? ORDER BY id LIMIT 25")
+            .bind(after).fetch_all(self.pool()).await?)
+    }
+
     pub async fn workflow_cleanup_status(&self, id: &str) -> Result<WorkflowCleanupStatus> {
         let mut tx = self.pool().begin().await?;
         let row = sqlx::query("SELECT document,state,error FROM workflowCleanup WHERE id=?")
