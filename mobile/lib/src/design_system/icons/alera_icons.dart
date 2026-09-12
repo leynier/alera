@@ -34,6 +34,7 @@ abstract final class const AleraIcons._() {
   static const IconData refresh = LucideIcons.refreshCw;
   static const IconData loading = LucideIcons.loaderCircle;
   static const IconData info = LucideIcons.info;
+  static const IconData warning = LucideIcons.triangleAlert;
   static const IconData circle = LucideIcons.circle;
   static const IconData link = LucideIcons.link;
   static const IconData external = LucideIcons.externalLink;

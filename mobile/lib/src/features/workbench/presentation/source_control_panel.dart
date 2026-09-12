@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
+import 'package:alera_mobile/src/design_system/feedback/alera_refresh_progress.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
@@ -21,26 +25,47 @@ class const SourceControlPanel({
     final state = ref.watch(
       sourceControlControllerProvider(hostId, workspaceId),
     );
-    return switch (state) {
-      AsyncData(value: final snapshot) => _Body(
-        hostId: hostId,
-        workspaceId: workspaceId,
-        snapshot: snapshot,
-      ),
-      AsyncError(:final error) => AleraEmptyState(
-        icon: AleraIcons.gitCompare,
-        message: error.toString(),
-        action: FilledButton(
-          onPressed: () => ref
-              .read(
-                sourceControlControllerProvider(hostId, workspaceId).notifier,
-              )
-              .reload(),
-          child: const Text('Retry'),
+    void reload() => unawaited(
+      ref
+          .read(sourceControlControllerProvider(hostId, workspaceId).notifier)
+          .reload(),
+    );
+    // The last snapshot wins over a reload: a host reconnect rebuilds this
+    // provider, and a spinner there would drop the list and its scroll offset.
+    // Checked before the error arm so a failed refresh keeps the list too.
+    final snapshot = state.value;
+    if (snapshot == null) {
+      return switch (state) {
+        AsyncError(:final error) => AleraEmptyState(
+          icon: AleraIcons.gitCompare,
+          message: error.toString(),
+          action: FilledButton(onPressed: reload, child: const Text('Retry')),
         ),
-      ),
-      _ => const Center(child: CircularProgressIndicator()),
-    };
+        _ => const Center(child: CircularProgressIndicator()),
+      };
+    }
+    return Column(
+      children: <Widget>[
+        AleraRefreshProgress(refreshing: state.isLoading),
+        if (state.error case final error?)
+          Padding(
+            padding: AleraTokens.contentPadding,
+            child: AleraNotice(
+              icon: AleraIcons.warning,
+              message: 'Could not refresh source control. $error',
+              action: TextButton(onPressed: reload, child: const Text('Retry')),
+            ),
+          ),
+        Expanded(
+          child: _Body(
+            hostId: hostId,
+            workspaceId: workspaceId,
+            snapshot: snapshot,
+            onRefresh: reload,
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -48,14 +73,20 @@ class const _Body({
   required final String hostId,
   required final String workspaceId,
   required final MobileGitStatusSnapshot snapshot,
+  required final VoidCallback onRefresh,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final refreshAction = TextButton(
+      onPressed: onRefresh,
+      child: const Text('Refresh'),
+    );
     if (!snapshot.isRepository) {
-      return const AleraEmptyState(
+      return AleraEmptyState(
         icon: AleraIcons.gitBranch,
         title: 'No repository',
         message: 'This workspace is not a Git repository.',
+        action: refreshAction,
       );
     }
     final staged = snapshot.entries
@@ -74,6 +105,7 @@ class const _Body({
         message: snapshot.branch == null
             ? 'There are no local changes.'
             : 'There are no local changes on ${snapshot.branch}.',
+        action: refreshAction,
       );
     }
     return ListView(
@@ -86,7 +118,7 @@ class const _Body({
             message: 'Read-only on mobile. Stage, unstage, and commit stay on desktop.',
           ),
         ),
-        _Summary(snapshot: snapshot),
+        _Summary(snapshot: snapshot, onRefresh: onRefresh),
         ..._group(context, 'Staged', staged),
         ..._group(context, 'Unstaged', unstaged),
         ..._group(context, 'Untracked', untracked),
@@ -134,8 +166,10 @@ class const _Body({
   }
 }
 
-class const _Summary({required final MobileGitStatusSnapshot snapshot})
-    extends StatelessWidget {
+class const _Summary({
+  required final MobileGitStatusSnapshot snapshot,
+  required final VoidCallback onRefresh,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -185,6 +219,12 @@ class const _Summary({required final MobileGitStatusSnapshot snapshot})
               ),
             ),
           ],
+          const SizedBox(width: AleraTokens.space4),
+          AleraIconButton(
+            tooltip: 'Refresh',
+            icon: AleraIcons.refresh,
+            onPressed: onRefresh,
+          ),
         ],
       ),
     );

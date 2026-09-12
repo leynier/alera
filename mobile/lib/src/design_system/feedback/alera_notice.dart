@@ -6,6 +6,7 @@ class const AleraNotice({
   super.key,
   required final String message,
   final IconData? icon,
+  final Widget? action,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -22,7 +23,7 @@ class const AleraNotice({
           vertical: AleraTokens.space8,
         ),
         child: Row(
-          crossAxisAlignment: .start,
+          crossAxisAlignment: action == null ? .start : .center,
           children: <Widget>[
             if (icon != null) ...<Widget>[
               Icon(icon, size: 14, color: AleraTokens.foregroundMuted),
@@ -36,6 +37,10 @@ class const AleraNotice({
                 ),
               ),
             ),
+            if (action != null) ...<Widget>[
+              const SizedBox(width: AleraTokens.space8),
+              action!,
+            ],
           ],
         ),
       ),

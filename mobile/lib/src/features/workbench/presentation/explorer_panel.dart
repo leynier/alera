@@ -1,7 +1,13 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
+import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
+import 'package:alera_mobile/src/design_system/feedback/alera_refresh_progress.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
 import 'package:alera_mobile/src/features/workbench/application/explorer_controller.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_viewer_screen.dart';
 import 'package:flutter/material.dart';
@@ -15,24 +21,57 @@ class const ExplorerPanel({
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(explorerControllerProvider(hostId, workspaceId));
-    return switch (state) {
-      AsyncData(value: final view) => _ExplorerBody(
-        hostId: hostId,
-        workspaceId: workspaceId,
-        view: view,
-      ),
-      AsyncError(:final error) => AleraEmptyState(
-        icon: AleraIcons.files,
-        message: error.toString(),
-        action: FilledButton(
-          onPressed: () => ref
-              .read(explorerControllerProvider(hostId, workspaceId).notifier)
-              .reload(),
-          child: const Text('Retry'),
+    void reload() => unawaited(
+      ref
+          .read(explorerControllerProvider(hostId, workspaceId).notifier)
+          .reload(),
+    );
+    // The last rows win over a reload, so a host reconnect does not collapse
+    // the tree into a spinner; see `SourceControlPanel`.
+    final view = state.value;
+    if (view == null) {
+      return switch (state) {
+        AsyncError(:final error) => AleraEmptyState(
+          icon: AleraIcons.files,
+          message: error.toString(),
+          action: FilledButton(onPressed: reload, child: const Text('Retry')),
         ),
-      ),
-      _ => const Center(child: CircularProgressIndicator()),
-    };
+        _ => const Center(child: CircularProgressIndicator()),
+      };
+    }
+    return Column(
+      children: <Widget>[
+        AleraRefreshProgress(refreshing: state.isLoading),
+        AleraSectionHeader(
+          label: 'Files',
+          padding: const EdgeInsets.only(
+            left: AleraTokens.space16,
+            right: AleraTokens.space8,
+          ),
+          trailing: AleraIconButton(
+            tooltip: 'Refresh',
+            icon: AleraIcons.refresh,
+            onPressed: reload,
+          ),
+        ),
+        if (state.error case final error?)
+          Padding(
+            padding: AleraTokens.contentPadding,
+            child: AleraNotice(
+              icon: AleraIcons.warning,
+              message: 'Could not refresh files. $error',
+              action: TextButton(onPressed: reload, child: const Text('Retry')),
+            ),
+          ),
+        Expanded(
+          child: _ExplorerBody(
+            hostId: hostId,
+            workspaceId: workspaceId,
+            view: view,
+          ),
+        ),
+      ],
+    );
   }
 }
 

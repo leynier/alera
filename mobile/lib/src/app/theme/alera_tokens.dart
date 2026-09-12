@@ -12,6 +12,7 @@ abstract final class AleraTokens {
   static const double space24 = 24.0;
   static const double space32 = 32.0;
   static const double space48 = 48.0;
+  static const double progressBarHeight = space2;
 
   /// Mobile aliases kept for existing call sites.
   static const double spaceXs = space4;
