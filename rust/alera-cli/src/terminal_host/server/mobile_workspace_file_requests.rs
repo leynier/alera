@@ -116,11 +116,13 @@ async fn handle_mobile_workspace_file_request(
             )
             .await
         }
-        "mobile.git.status" => {
-            super::mobile_source_control_requests::mobile_git_status(&runtime_store, payload).await
-        }
-        "mobile.git.diff" => {
-            super::mobile_source_control_requests::mobile_git_diff(&runtime_store, payload).await
+        request if request.starts_with("mobile.git.") => {
+            super::mobile_source_control_write_requests::handle_mobile_git_request(
+                &runtime_store,
+                request,
+                payload,
+            )
+            .await
         }
         "mobile.pullRequest.snapshot" => {
             super::mobile_pull_request_requests::snapshot_mobile_pull_request(

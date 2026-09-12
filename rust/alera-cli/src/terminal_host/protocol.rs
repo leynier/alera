@@ -53,9 +53,13 @@ pub const RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY: &str =
 pub const RUNTIME_HOST_MOBILE_EXPLORER_CAPABILITY: &str = "mobileExplorerV1";
 /// A paired phone can run workspace text search through `mobile.workspaceSearch.run`.
 pub const RUNTIME_HOST_MOBILE_WORKSPACE_SEARCH_CAPABILITY: &str = "mobileWorkspaceSearchV1";
-/// A paired phone can read git dirty status and a per-file diff. Write
-/// operations (stage, unstage, commit) stay desktop-only in this version.
+/// A paired phone can read git dirty status and a per-file diff.
 pub const RUNTIME_HOST_MOBILE_SOURCE_CONTROL_CAPABILITY: &str = "mobileSourceControlV1";
+/// A paired phone can stage, discard, commit, sync, stash and switch branches
+/// through the `mobile.git.*` write verbs, and `mobile.git.status` carries the
+/// actions the runtime allows. Additive: older phones stay read-only.
+pub const RUNTIME_HOST_MOBILE_SOURCE_CONTROL_WRITES_CAPABILITY: &str =
+    "mobileSourceControlWritesV1";
 /// A paired phone can load a usable current-branch pull-request snapshot.
 pub const RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY: &str = "mobilePullRequestV1";
 /// Retained name. Codex chat sessions are gone; older phones still feature-detect this string.

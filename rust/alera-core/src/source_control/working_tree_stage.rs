@@ -207,14 +207,6 @@ fn stage_status_entries(
     Ok(())
 }
 
-fn is_submodule_worktree_only(entry: &GitChangeEntry) -> bool {
-    entry.area == GitChangeArea::Unstaged
-        && entry
-            .submodule
-            .as_ref()
-            .is_some_and(|status| !status.commit_changed)
-}
-
 fn is_parent_discardable(entry: &GitChangeEntry) -> bool {
     entry
         .submodule
