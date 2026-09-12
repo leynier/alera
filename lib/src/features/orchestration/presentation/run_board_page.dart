@@ -13,6 +13,7 @@ import 'package:alera/src/features/orchestration/presentation/run_board_read_sta
 import 'package:alera/src/features/orchestration/presentation/run_board_workspace_actions.dart';
 import 'package:alera/src/features/orchestration/presentation/run_task_inspector.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_retry_control.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_cleanup_page.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_review_page.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_correction_page.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_run_control_section.dart';
@@ -342,6 +343,24 @@ class _RunBoardSelection extends ConsumerWidget {
       runBoardNavigationProvider.select((location) => location.reviewScope),
     );
     final workflowRevision = data.data.run.workflowRevision;
+    final cleanup = ref.watch(
+      runBoardNavigationProvider.select(
+        (location) => (location.cleanupOpen, location.cleanupId),
+      ),
+    );
+    if (cleanup.$1 && workflowRevision != null) {
+      return WorkflowCleanupPage(
+        key: ValueKey('cleanup:$runId'),
+        runId: runId,
+        initialCleanupId: cleanup.$2,
+        allowPrepare: {
+          'completed',
+          'cancelled',
+        }.contains(data.data.run.workflowStatus),
+        onBack: navigation.closeCleanup,
+        onSelected: navigation.openCleanup,
+      );
+    }
     if (reviewScope != null && workflowRevision != null) {
       return WorkflowReviewPage(
         key: ValueKey('review:$runId:$reviewScope'),
@@ -354,6 +373,7 @@ class _RunBoardSelection extends ConsumerWidget {
     }
     return RunBoardDetail(
       snapshot: data.data,
+      onCleanup: workflowRevision == null ? null : navigation.openCleanup,
       workflowControls: workflowRevision == null
           ? null
           : WorkflowRunControlSection(

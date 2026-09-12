@@ -14,6 +14,7 @@ class RunBoardDetail extends StatelessWidget {
     required this.onBack,
     this.onOpenWorkspace,
     this.onReviewPlan,
+    this.onCleanup,
     this.workflowControls,
     required this.footer,
   });
@@ -22,6 +23,7 @@ class RunBoardDetail extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback? onOpenWorkspace;
   final VoidCallback? onReviewPlan;
+  final VoidCallback? onCleanup;
   final Widget? workflowControls;
   final Widget footer;
   @override
@@ -104,6 +106,11 @@ class RunBoardDetail extends StatelessWidget {
               icon: const Icon(AleraIcons.folderOpen),
               label: const Text('Open Workspace'),
             ),
+            if (onCleanup != null)
+              OutlinedButton(
+                onPressed: onCleanup,
+                child: const Text('Manage Resources'),
+              ),
           ],
         ),
         const SizedBox(height: AleraTokens.space16),

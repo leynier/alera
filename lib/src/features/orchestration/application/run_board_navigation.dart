@@ -12,6 +12,8 @@ class RunBoardNavigation extends _$RunBoardNavigation {
   void open() => state = state.copyWith(visible: true);
   void close() => state = state.copyWith(visible: false);
   void selectRun(String? id) => state = state.copyWith(
+    cleanupOpen: false,
+    cleanupId: null,
     correctionRevision: null,
     runId: id,
     taskId: null,
@@ -20,6 +22,8 @@ class RunBoardNavigation extends _$RunBoardNavigation {
     proposalId: null,
   );
   void createRun() => state = state.copyWith(
+    cleanupOpen: false,
+    cleanupId: null,
     correctionRevision: null,
     newRun: true,
     runId: null,
@@ -28,6 +32,8 @@ class RunBoardNavigation extends _$RunBoardNavigation {
     proposalId: null,
   );
   void selectProposal(String id) => state = state.copyWith(
+    cleanupOpen: false,
+    cleanupId: null,
     correctionRevision: null,
     newRun: false,
     proposalId: id,
@@ -36,16 +42,30 @@ class RunBoardNavigation extends _$RunBoardNavigation {
     reviewScope: null,
   );
   void review(String? scope) => state = state.copyWith(
+    cleanupOpen: false,
+    cleanupId: null,
     reviewScope: scope,
     taskId: null,
     correctionRevision: null,
   );
   void prepareCorrection(int revision) => state = state.copyWith(
+    cleanupOpen: false,
+    cleanupId: null,
     correctionRevision: revision,
     reviewScope: null,
     taskId: null,
   );
-  void selectTask(String? id) => state = state.copyWith(taskId: id);
+  void selectTask(String? id) =>
+      state = state.copyWith(taskId: id, cleanupOpen: false, cleanupId: null);
+  void openCleanup([String? id]) => state = state.copyWith(
+    cleanupOpen: true,
+    cleanupId: id,
+    taskId: null,
+    reviewScope: null,
+    correctionRevision: null,
+  );
+  void closeCleanup() =>
+      state = state.copyWith(cleanupOpen: false, cleanupId: null);
   void search(String value) => state = state.copyWith(search: value);
   void selectBucket(RunBoardBucket? bucket) =>
       state = state.copyWith(bucket: bucket);

@@ -92,6 +92,19 @@ class RunBoardLocationMapper extends ClassMapperBase<RunBoardLocation> {
     _$correctionRevision,
     opt: true,
   );
+  static bool _$cleanupOpen(RunBoardLocation v) => v.cleanupOpen;
+  static const Field<RunBoardLocation, bool> _f$cleanupOpen = Field(
+    'cleanupOpen',
+    _$cleanupOpen,
+    opt: true,
+    def: false,
+  );
+  static String? _$cleanupId(RunBoardLocation v) => v.cleanupId;
+  static const Field<RunBoardLocation, String> _f$cleanupId = Field(
+    'cleanupId',
+    _$cleanupId,
+    opt: true,
+  );
 
   @override
   final MappableFields<RunBoardLocation> fields = const {
@@ -106,6 +119,8 @@ class RunBoardLocationMapper extends ClassMapperBase<RunBoardLocation> {
     #newRun: _f$newRun,
     #proposalId: _f$proposalId,
     #correctionRevision: _f$correctionRevision,
+    #cleanupOpen: _f$cleanupOpen,
+    #cleanupId: _f$cleanupId,
   };
 
   static RunBoardLocation _instantiate(DecodingData data) {
@@ -121,6 +136,8 @@ class RunBoardLocationMapper extends ClassMapperBase<RunBoardLocation> {
       newRun: data.dec(_f$newRun),
       proposalId: data.dec(_f$proposalId),
       correctionRevision: data.dec(_f$correctionRevision),
+      cleanupOpen: data.dec(_f$cleanupOpen),
+      cleanupId: data.dec(_f$cleanupId),
     );
   }
 
@@ -198,6 +215,8 @@ abstract class RunBoardLocationCopyWith<$R, $In extends RunBoardLocation, $Out>
     bool? newRun,
     String? proposalId,
     int? correctionRevision,
+    bool? cleanupOpen,
+    String? cleanupId,
   });
   RunBoardLocationCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -225,6 +244,8 @@ class _RunBoardLocationCopyWithImpl<$R, $Out>
     bool? newRun,
     Object? proposalId = $none,
     Object? correctionRevision = $none,
+    bool? cleanupOpen,
+    Object? cleanupId = $none,
   }) => $apply(
     FieldCopyWithData({
       if (visible != null) #visible: visible,
@@ -238,6 +259,8 @@ class _RunBoardLocationCopyWithImpl<$R, $Out>
       if (newRun != null) #newRun: newRun,
       if (proposalId != $none) #proposalId: proposalId,
       if (correctionRevision != $none) #correctionRevision: correctionRevision,
+      if (cleanupOpen != null) #cleanupOpen: cleanupOpen,
+      if (cleanupId != $none) #cleanupId: cleanupId,
     }),
   );
   @override
@@ -256,6 +279,8 @@ class _RunBoardLocationCopyWithImpl<$R, $Out>
       #correctionRevision,
       or: $value.correctionRevision,
     ),
+    cleanupOpen: data.get(#cleanupOpen, or: $value.cleanupOpen),
+    cleanupId: data.get(#cleanupId, or: $value.cleanupId),
   );
 
   @override

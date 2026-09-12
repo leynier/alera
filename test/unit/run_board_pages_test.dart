@@ -140,6 +140,15 @@ void main() {
       expect(cleared.search, isEmpty);
       expect(cleared.bucket, isNull);
       expect(cleared.runId, 'r');
+      nav.openCleanup('cleanup');
+      nav.close();
+      nav.open();
+      expect(container.read(runBoardNavigationProvider).cleanupOpen, true);
+      expect(container.read(runBoardNavigationProvider).cleanupId, 'cleanup');
+      expect(container.read(runBoardNavigationProvider).runId, 'r');
+      nav.selectTask('task');
+      expect(container.read(runBoardNavigationProvider).cleanupOpen, false);
+      expect(container.read(runBoardNavigationProvider).cleanupId, isNull);
     },
   );
 

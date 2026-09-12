@@ -17,8 +17,11 @@ VoidCallback? runBoardWorkspaceAction(
   String workspaceId,
   RunBoardWorkspaceAction action, {
   String? terminalHandle,
+  bool listen = true,
 }) {
-  final state = ref.watch(workbenchControllerProvider);
+  final state = listen
+      ? ref.watch(workbenchControllerProvider)
+      : ref.read(workbenchControllerProvider);
   final workspace = state.workspacesByProject.values
       .expand((items) => items)
       .where(

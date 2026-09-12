@@ -17,6 +17,8 @@ class RunBoardLocation with RunBoardLocationMappable {
     this.newRun = false,
     this.proposalId,
     this.correctionRevision,
+    this.cleanupOpen = false,
+    this.cleanupId,
   });
   final bool visible;
   final String? projectId;
@@ -29,4 +31,6 @@ class RunBoardLocation with RunBoardLocationMappable {
   final bool newRun;
   final String? proposalId;
   final int? correctionRevision;
+  final bool cleanupOpen;
+  final String? cleanupId;
 }
