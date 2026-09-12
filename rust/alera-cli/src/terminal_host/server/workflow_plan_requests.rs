@@ -74,6 +74,7 @@ struct ProposalSubmission {
 }
 
 enum PlanRequest {
+    PreviewCleanup(String),
     CleanupStatus(ProposalQuery),
     Execution(PlanQuery),
     ControlExecution(String),
@@ -111,6 +112,7 @@ impl ServerActor {
             ));
         }
         let request = match request_type {
+            "workflows.previewCleanup" => PlanRequest::PreviewCleanup(document(payload, 8192)?),
             "workflows.cleanupStatus" => PlanRequest::CleanupStatus(parse(payload)?),
             "workflows.execution" => PlanRequest::Execution(parse(payload)?),
             "workflows.controlExecution" => PlanRequest::ControlExecution(document(payload, 4096)?),
@@ -156,6 +158,13 @@ impl ServerActor {
             let _permit = permit;
             let result = tokio::time::timeout(Duration::from_secs(25), async {
                 match request {
+                    PlanRequest::PreviewCleanup(document) => {
+                        let runtime = tokio::runtime::Handle::current();
+                        tokio::task::spawn_blocking(move || runtime.block_on(async {
+                            let selection = serde_json::from_str(&document)?;
+                            serde_json::to_value(crate::managed_workspace::workflow::cleanup_preview::preview(&store, selection).await?).map_err(anyhow::Error::from)
+                        })).await.map_err(state)?.map_err(state)
+                    }
                     PlanRequest::CleanupStatus(query) => {
                         let runtime = tokio::runtime::Handle::current();
                         tokio::task::spawn_blocking(move || runtime.block_on(async {

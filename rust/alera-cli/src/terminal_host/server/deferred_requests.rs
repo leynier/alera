@@ -52,6 +52,7 @@ impl ServerActor {
             }
             "workflows.preparePlan"
             | "workflows.cleanupStatus"
+            | "workflows.previewCleanup"
             | "workflows.execution"
             | "workflows.controlExecution"
             | "workflows.createCorrection"
