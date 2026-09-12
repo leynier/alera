@@ -131,8 +131,6 @@ void main() {
 
     await tester.tap(find.text('Manual'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Continue Manually'));
-    await tester.pumpAndSettle();
 
     // Tap Continue to go to Step 2
     await tester.tap(find.text('Continue'));

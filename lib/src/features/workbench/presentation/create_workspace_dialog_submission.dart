@@ -102,6 +102,8 @@ extension _CreateWorkspaceDialogSubmission on _CreateWorkspaceDialogState {
       if (_createAnother) {
         widget.onWorkspaceCreated?.call(result);
         _resetAfterCreation(project);
+      } else if (widget.embedded) {
+        Navigator.of(context).pop();
       } else {
         Navigator.of(context).pop(result);
       }

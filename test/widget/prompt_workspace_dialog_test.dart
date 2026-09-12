@@ -16,10 +16,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 part 'prompt_workspace_dialog_clipboard_test_cases.dart';
+part 'prompt_workspace_dialog_mode_test_cases.dart';
 part 'prompt_workspace_dialog_test_support.dart';
 
 void main() {
   _registerPromptWorkspaceClipboardTests();
+  _registerPromptWorkspaceModeTests();
 
   testWidgets('creates an AI-named workspace and launches the profile', (
     tester,
