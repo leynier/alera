@@ -73,6 +73,7 @@ printf '%s' "$payload" | curl -sS -X POST "http://127.0.0.1:${ALERA_AGENT_HOOK_P
   --data-urlencode "tabId=${ALERA_TAB_ID}" \
   --data-urlencode "hookEventName=${ALERA_AGENT_HOOK_EVENT}" \
   --data-urlencode "version=${ALERA_AGENT_HOOK_VERSION}" \
+  --data-urlencode "claudeConfigDir=${CLAUDE_CONFIG_DIR}" \
   --data-urlencode "payload@-" >/dev/null 2>&1 || true
 exit 0
 "#;
@@ -105,7 +106,7 @@ if "%ALERA_AGENT_HOOK_TOKEN%"=="" exit /b 0
 if "%ALERA_TERMINAL_SESSION_ID%"=="" exit /b 0
 if "%ALERA_WORKSPACE_ID%"=="" exit /b 0
 if "%ALERA_TAB_ID%"=="" exit /b 0
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$inputData=[Console]::In.ReadToEnd(); if ([string]::IsNullOrWhiteSpace($inputData)) { $inputData='{}' }; try { $body=@{ terminalSessionId=$env:ALERA_TERMINAL_SESSION_ID; workspaceId=$env:ALERA_WORKSPACE_ID; tabId=$env:ALERA_TAB_ID; hookEventName=$env:ALERA_AGENT_HOOK_EVENT; version=$env:ALERA_AGENT_HOOK_VERSION; payload=($inputData | ConvertFrom-Json) } | ConvertTo-Json -Depth 100 -Compress; Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 -Method Post -Uri ('http://127.0.0.1:' + $env:ALERA_AGENT_HOOK_PORT + '/hook/' + $env:ALERA_AGENT_TYPE) -ContentType 'application/json' -Headers @{ 'X-Alera-Agent-Hook-Token'=$env:ALERA_AGENT_HOOK_TOKEN } -Body $body | Out-Null } catch {}"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$inputData=[Console]::In.ReadToEnd(); if ([string]::IsNullOrWhiteSpace($inputData)) { $inputData='{}' }; try { $body=@{ terminalSessionId=$env:ALERA_TERMINAL_SESSION_ID; workspaceId=$env:ALERA_WORKSPACE_ID; tabId=$env:ALERA_TAB_ID; hookEventName=$env:ALERA_AGENT_HOOK_EVENT; version=$env:ALERA_AGENT_HOOK_VERSION; claudeConfigDir=$env:CLAUDE_CONFIG_DIR; payload=($inputData | ConvertFrom-Json) } | ConvertTo-Json -Depth 100 -Compress; Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 -Method Post -Uri ('http://127.0.0.1:' + $env:ALERA_AGENT_HOOK_PORT + '/hook/' + $env:ALERA_AGENT_TYPE) -ContentType 'application/json' -Headers @{ 'X-Alera-Agent-Hook-Token'=$env:ALERA_AGENT_HOOK_TOKEN } -Body $body | Out-Null } catch {}"
 exit /b 0
 "#;
 
@@ -165,6 +166,12 @@ mod tests {
     fn managed_script_keeps_hook_payloads_off_the_command_line() {
         assert!(POSIX_HOOK_SCRIPT.contains(r#"--data-urlencode "payload@-""#));
         assert!(!POSIX_HOOK_SCRIPT.contains(r#"payload=${payload}"#));
+    }
+
+    #[test]
+    fn managed_script_forwards_claude_config_dir_for_ccs_resume() {
+        assert!(POSIX_HOOK_SCRIPT
+            .contains(r#"--data-urlencode "claudeConfigDir=${CLAUDE_CONFIG_DIR}""#));
     }
 
     #[cfg(windows)]

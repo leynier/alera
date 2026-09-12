@@ -375,7 +375,7 @@ impl ServerActor {
         (Vec::new(), 0)
     }
 
-    fn schedule_terminal_startup_input(
+    pub(super) fn schedule_terminal_startup_input(
         &self,
         session_id: String,
         session_instance_id: u64,

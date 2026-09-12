@@ -5,6 +5,8 @@ use crate::terminal_host::protocol::{int_or, require_object, TerminalHostLaunch}
 use crate::terminal_host::session::Session;
 
 use super::requests::require_string;
+use super::terminal_spawn_command::{resolve_spawn_command, SpawnCommand};
+use super::terminal_startup_commands::{initial_command, initial_managed_agent_launch};
 use super::ServerActor;
 
 impl ServerActor {
@@ -99,10 +101,11 @@ impl ServerActor {
         ))?;
         let cols = int_or(payload, "cols", 80) as u16;
         let rows = int_or(payload, "rows", 24) as u16;
+        let interactive_shell = launch.shell.clone();
         self.start_new_terminal_session(
             session_id.clone(),
             workspace_id,
-            tab_id,
+            tab_id.clone(),
             working_directory,
             launch,
             cols,
@@ -112,6 +115,8 @@ impl ServerActor {
             None,
         )
         .await?;
+        self.schedule_discovered_session_resume(&session_id, &tab_id, &interactive_shell)
+            .await?;
         let session = self.sessions.get_mut(&session_id).expect("just inserted");
         session.attach(client_id);
         Ok(session.attachment_payload(true, restore_bytes))
@@ -131,6 +136,7 @@ impl ServerActor {
         ))?;
         let cols = int_or(payload, "cols", 80) as u16;
         let rows = int_or(payload, "rows", 24) as u16;
+        let interactive_shell = launch.shell.clone();
 
         if let Some(session) = self.sessions.get(&session_id) {
             if session.workspace_id != workspace_id || session.tab_id != tab_id {
@@ -161,7 +167,7 @@ impl ServerActor {
         self.start_new_terminal_session(
             session_id.clone(),
             workspace_id,
-            tab_id,
+            tab_id.clone(),
             working_directory,
             launch,
             cols,
@@ -171,6 +177,8 @@ impl ServerActor {
             None,
         )
         .await?;
+        self.schedule_discovered_session_resume(&session_id, &tab_id, &interactive_shell)
+            .await?;
 
         let resync_clients = attached_clients
             .into_iter()
@@ -188,5 +196,35 @@ impl ServerActor {
             self.spawn_output_resync_timer(session_id.clone(), attached_client_id);
         }
         Ok(attachment)
+    }
+
+    /// Interactive tabs have no launch snapshot. After a remint, type the
+    /// adapter resume line captured from hooks.
+    pub(super) async fn schedule_discovered_session_resume(
+        &mut self,
+        session_id: &str,
+        tab_id: &str,
+        interactive_shell: &str,
+    ) -> HostResult<()> {
+        let Ok(Some(tab)) = self.runtime_store.find_workspace_tab(tab_id).await else {
+            return Ok(());
+        };
+        if initial_managed_agent_launch(&tab)?.is_some() || initial_command(&tab)?.is_some() {
+            return Ok(());
+        }
+        let Some(SpawnCommand::Line(command)) = resolve_spawn_command(&tab, interactive_shell)?
+        else {
+            return Ok(());
+        };
+        let Some(instance_id) = self.sessions.get(session_id).map(Session::instance_id) else {
+            return Ok(());
+        };
+        self.schedule_terminal_startup_input(
+            session_id.to_string(),
+            instance_id,
+            interactive_shell.to_string(),
+            command,
+        );
+        Ok(())
     }
 }

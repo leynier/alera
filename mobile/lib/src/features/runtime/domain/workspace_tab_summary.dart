@@ -35,6 +35,9 @@ class const WorkspaceTabSummary({
   String? get agentNativeSessionAgent =>
       payload.optionalString('agentNativeSessionAgent');
 
+  String? get agentNativeCcsProfile =>
+      payload.optionalString('agentNativeCcsProfile');
+
   factory fromJson(Map<String, Object?> json) {
     return WorkspaceTabSummary(
       id: json.requiredString('id'),
