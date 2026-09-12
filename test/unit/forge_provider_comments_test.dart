@@ -111,8 +111,10 @@ void main() {
       expect(comments.first.line, 17);
       expect(comments.first.resolved, isTrue);
       expect(comments.first.outdated, isTrue);
+      expect(comments.first.threadId, 'T1');
       expect(comments[1].body, 'General note');
       expect(comments[1].outdated, isFalse);
+      expect(comments[1].threadId, isNull);
       expect(comments.last.body, 'LGTM');
       expect(
         runner.calls.first.arguments,
@@ -307,7 +309,9 @@ void main() {
       expect(comments.first.path, '/lib/a.dart');
       expect(comments.first.line, 9);
       expect(comments.first.resolved, isTrue);
+      expect(comments.first.threadId, '11');
       expect(comments.last.kind, ReviewCommentKind.conversation);
+      expect(comments.last.threadId, isNull);
       final call = runner.calls.single;
       expect(call.optionValue('resource'), 'pullRequestThreads');
       expect(call.optionValue('http-method'), 'GET');

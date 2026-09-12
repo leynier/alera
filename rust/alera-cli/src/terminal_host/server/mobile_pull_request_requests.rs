@@ -132,7 +132,14 @@ pub(super) async fn snapshot_mobile_pull_request(
     let review_json = if let Some(review) = review {
         let number = review.get("number").and_then(Value::as_i64).unwrap_or(0);
         let checks = load_checks(&repo_path, &identity.slug, number).await;
-        let comments = load_comments(&repo_path, &identity.owner, &identity.repo, number).await;
+        let comments = super::mobile_pull_request_comments::load_comments(
+            &repo_path,
+            &identity.host,
+            &identity.owner,
+            &identity.repo,
+            number,
+        )
+        .await;
         let mut review = review;
         if let Some(object) = review.as_object_mut() {
             object.insert("checks".into(), json!(checks));
@@ -381,31 +388,6 @@ async fn load_checks(repo_path: &str, slug: &str, number: i64) -> Vec<Value> {
         .collect()
 }
 
-async fn load_comments(repo_path: &str, owner: &str, repo: &str, number: i64) -> Vec<Value> {
-    let endpoint = format!("repos/{owner}/{repo}/issues/{number}/comments?per_page=50");
-    let Ok((code, stdout, _)) = run_gh(repo_path, &["api", &endpoint]).await else {
-        return Vec::new();
-    };
-    if code != 0 {
-        return Vec::new();
-    }
-    serde_json::from_str::<Value>(&stdout)
-        .ok()
-        .and_then(|value| value.as_array().cloned())
-        .unwrap_or_default()
-        .into_iter()
-        .map(|entry| {
-            json!({
-                "id": entry.get("id").and_then(Value::as_i64).unwrap_or(0),
-                "author": entry.get("user").and_then(|user| user.get("login")).and_then(Value::as_str),
-                "body": entry.get("body").and_then(Value::as_str).unwrap_or(""),
-                "createdAt": entry.get("created_at").and_then(Value::as_str),
-                "url": entry.get("html_url").and_then(Value::as_str),
-            })
-        })
-        .collect()
-}
-
 fn parse_review_object(stdout: &str) -> HostResult<Option<Value>> {
     let parsed: Value = serde_json::from_str(stdout)
         .map_err(|error| HostError::state(format!("Could not parse gh output: {error}")))?;
@@ -431,7 +413,7 @@ fn normalize_review(value: Value) -> Option<Value> {
     }))
 }
 
-async fn run_gh(repo_path: &str, args: &[&str]) -> HostResult<(i32, String, String)> {
+pub(super) async fn run_gh(repo_path: &str, args: &[&str]) -> HostResult<(i32, String, String)> {
     let mut command = alera_core::child_process::windowless_async_command("gh");
     command
         .args(args)

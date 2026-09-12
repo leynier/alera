@@ -21,7 +21,7 @@ import 'package:alera/src/features/pull_requests/domain/review_stack_workspace_m
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_check_list.dart';
-import 'package:alera/src/features/pull_requests/presentation/pull_request_comment_markdown.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_conversation.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_field_decoration.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_stack_link_dialog.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_stack_section.dart';
@@ -30,7 +30,6 @@ import 'package:flutter/material.dart';
 
 part 'pull_request_review_actions.dart';
 part 'pull_request_review_agent_actions.dart';
-part 'pull_request_review_comments.dart';
 
 /// Presentational body for a linked review: header, inline title/base-branch
 /// editing, expandable checks, and review actions. Pure: data and callbacks in
@@ -229,12 +228,13 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
                     onLoadDetails: widget.onLoadCheckDetails,
                   ),
                 const SizedBox(height: AleraTokens.space16),
-                _PullRequestCommentsSection(
+                PullRequestConversation(
                   comments: widget.comments,
                   canComment: widget.canComment && review.isOpen,
                   canEditComments: widget.canEditComments && review.isOpen,
                   savingCommentIds: widget.savingCommentIds,
-                  action: widget.action,
+                  busy: _busy,
+                  posting: widget.action == PullRequestAction.comment,
                   onAddComment: widget.onAddComment,
                   onToggleTask: widget.onToggleTask,
                   onOpenUrl: widget.onOpenUrl,

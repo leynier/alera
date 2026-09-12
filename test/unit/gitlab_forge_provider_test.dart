@@ -182,7 +182,9 @@ ${_reviewJson.trim()}
       expect(comments.first.path, 'lib/a.dart');
       expect(comments.first.line, 17);
       expect(comments.first.resolved, isTrue);
+      expect(comments.first.threadId, 'd1');
       expect(comments.last.kind, ReviewCommentKind.conversation);
+      expect(comments.last.threadId, isNull);
       expect(runner.calls.single.arguments, contains('--paginate'));
     });
 

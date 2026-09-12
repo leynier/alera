@@ -47,6 +47,7 @@ abstract final class const AleraIcons._() {
   static const IconData viewImage = LucideIcons.image;
   static const IconData imageError = LucideIcons.imageOff;
   static const IconData sourceView = LucideIcons.code;
+  static const IconData code = LucideIcons.code;
   static const IconData markdownPreview = LucideIcons.eye;
   static const IconData audio = LucideIcons.audioLines;
   static const IconData mic = LucideIcons.mic;

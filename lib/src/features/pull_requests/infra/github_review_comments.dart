@@ -360,6 +360,7 @@ query($thread: ID!, $commentsAfter: String) {
         line: line,
         resolved: thread['isResolved'] == true,
         outdated: thread['isOutdated'] == true,
+        threadId: threadId,
         locator: databaseId == null
             ? null
             : ReviewCommentLocator(
