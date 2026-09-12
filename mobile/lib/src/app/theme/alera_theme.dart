@@ -162,35 +162,6 @@ ThemeData buildAleraMobileDarkTheme() {
       iconColor: AleraTokens.foregroundMuted,
       textColor: AleraTokens.foreground,
     ),
-    navigationBarTheme: NavigationBarThemeData(
-      height: 68,
-      backgroundColor: AleraTokens.surface,
-      elevation: 0,
-      shadowColor: AleraTokens.shadowSoft,
-      surfaceTintColor: AleraTokens.surface,
-      indicatorColor: AleraTokens.surfaceElevated,
-      labelTextStyle: WidgetStateProperty.resolveWith((states) {
-        final selected = states.contains(WidgetState.selected);
-        return TextStyle(
-          fontFamily: AleraTokens.fontFamily,
-          fontSize: 11,
-          fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-          height: 1.1,
-          color: selected
-              ? AleraTokens.foreground
-              : AleraTokens.foregroundMuted,
-        );
-      }),
-      iconTheme: WidgetStateProperty.resolveWith((states) {
-        final selected = states.contains(WidgetState.selected);
-        return IconThemeData(
-          size: 22,
-          color: selected
-              ? AleraTokens.foreground
-              : AleraTokens.foregroundMuted,
-        );
-      }),
-    ),
     filledButtonTheme: FilledButtonThemeData(
       style: ButtonStyle(
         shape: buttonShape,
