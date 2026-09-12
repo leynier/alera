@@ -7,8 +7,9 @@ use crate::agent_status::{
 use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
 use crate::terminal_host::orchestration::agent_registry::adapter_for;
 use crate::terminal_host::orchestration::agent_session_resume::{
-    hook_identifies_parent_session, native_session_id, usable_native_session_id,
-    AgentSessionResumeShape, AGENT_NATIVE_SESSION_AGENT_KEY, AGENT_NATIVE_SESSION_ID_KEY,
+    ccs_profile_from_config_dir, hook_identifies_parent_session, native_session_id,
+    usable_native_session_id, AgentSessionResumeShape, AGENT_NATIVE_CCS_PROFILE_KEY,
+    AGENT_NATIVE_SESSION_AGENT_KEY, AGENT_NATIVE_SESSION_ID_KEY,
 };
 
 use super::terminal_startup_commands::tab_agent_type;
@@ -32,16 +33,29 @@ pub(super) fn native_session_resume(tab: &WorkspaceTabRecord) -> Option<NativeSe
         .get(AGENT_NATIVE_SESSION_AGENT_KEY)
         .and_then(Value::as_str)
         .filter(|agent| !agent.is_empty())?;
-    let agent_type = tab_agent_type(tab)?;
-    if stored_agent != agent_type {
-        return None;
+    if let Some(tab_agent) = tab_agent_type(tab) {
+        if stored_agent != tab_agent {
+            return None;
+        }
     }
-    let shape = adapter_for(agent_type)?.session_resume?;
+    let shape = adapter_for(stored_agent)?.session_resume?;
     Some(NativeSessionResume {
-        agent_type,
+        agent_type: stored_agent,
         session_id,
         shape,
     })
+}
+
+pub(super) fn native_ccs_profile(tab: &WorkspaceTabRecord) -> Option<&str> {
+    tab.payload
+        .get(AGENT_NATIVE_CCS_PROFILE_KEY)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|profile| {
+            !profile.is_empty()
+                && !profile.starts_with('-')
+                && profile.split_whitespace().count() == 1
+        })
 }
 
 impl ServerActor {
@@ -67,6 +81,15 @@ impl ServerActor {
         let Ok(Some(mut tab)) = self.runtime_store.find_workspace_tab(&event.tab_id).await else {
             return;
         };
+        let ccs_profile = (event.agent_type == "claude")
+            .then(|| {
+                event
+                    .payload
+                    .get("claudeConfigDir")
+                    .and_then(Value::as_str)
+                    .and_then(ccs_profile_from_config_dir)
+            })
+            .flatten();
         let already_stored = tab
             .payload
             .get(AGENT_NATIVE_SESSION_ID_KEY)
@@ -76,7 +99,12 @@ impl ServerActor {
                 .payload
                 .get(AGENT_NATIVE_SESSION_AGENT_KEY)
                 .and_then(Value::as_str)
-                == Some(event.agent_type.as_str());
+                == Some(event.agent_type.as_str())
+            && tab
+                .payload
+                .get(AGENT_NATIVE_CCS_PROFILE_KEY)
+                .and_then(Value::as_str)
+                == ccs_profile;
         if already_stored {
             return;
         }
@@ -85,6 +113,11 @@ impl ServerActor {
         }
         tab.payload[AGENT_NATIVE_SESSION_ID_KEY] = json!(session_id);
         tab.payload[AGENT_NATIVE_SESSION_AGENT_KEY] = json!(event.agent_type);
+        if let Some(profile) = ccs_profile {
+            tab.payload[AGENT_NATIVE_CCS_PROFILE_KEY] = json!(profile);
+        } else if let Some(payload) = tab.payload.as_object_mut() {
+            payload.remove(AGENT_NATIVE_CCS_PROFILE_KEY);
+        }
         tab.updated_at = chrono::Utc::now();
         let workspace_id = tab.workspace_id.clone();
         if self.runtime_store.upsert_workspace_tab(tab).await.is_ok() {
@@ -206,5 +239,130 @@ mod tests {
         assert!(saved.payload.get(AGENT_NATIVE_SESSION_ID_KEY).is_none());
         assert!(native_session_resume(&saved).is_none());
         assert!(native_session_resume(&tab()).is_none());
+    }
+
+    #[tokio::test]
+    async fn store_path_associates_a_hook_session_with_a_plain_terminal_tab() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
+        let mut record = tab();
+        record.payload = json!({});
+        actor
+            .runtime_store
+            .upsert_workspace_tab(record)
+            .await
+            .unwrap();
+        actor
+            .observe_hook_native_session(&event(Some("sess-1"), json!({})))
+            .await;
+        let saved = actor
+            .runtime_store
+            .find_workspace_tab("tab")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(saved.payload[AGENT_NATIVE_SESSION_ID_KEY], json!("sess-1"));
+        assert_eq!(
+            saved.payload[AGENT_NATIVE_SESSION_AGENT_KEY],
+            json!("codex")
+        );
+        let resume = native_session_resume(&saved).unwrap();
+        assert_eq!(resume.agent_type, "codex");
+        assert_eq!(resume.session_id, "sess-1");
+    }
+
+    #[tokio::test]
+    async fn store_path_keeps_the_ccs_instance_from_claude_config_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
+        let mut record = tab();
+        record.payload = json!({});
+        actor
+            .runtime_store
+            .upsert_workspace_tab(record)
+            .await
+            .unwrap();
+        actor
+            .observe_hook_native_session(&AgentHookEvent {
+                terminal_session_id: "session".into(),
+                workspace_id: "workspace".into(),
+                tab_id: "tab".into(),
+                agent_type: "claude".into(),
+                event_name: Some("UserPromptSubmit".into()),
+                payload: json!({
+                    "session_id": "sess-1",
+                    "claudeConfigDir": "/home/user/.ccs/instances/leynier41"
+                }),
+            })
+            .await;
+        let saved = actor
+            .runtime_store
+            .find_workspace_tab("tab")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(saved.payload[AGENT_NATIVE_SESSION_ID_KEY], json!("sess-1"));
+        assert_eq!(
+            saved.payload[AGENT_NATIVE_SESSION_AGENT_KEY],
+            json!("claude")
+        );
+        assert_eq!(
+            saved.payload[AGENT_NATIVE_CCS_PROFILE_KEY],
+            json!("leynier41")
+        );
+        assert_eq!(native_ccs_profile(&saved), Some("leynier41"));
+        let resume = native_session_resume(&saved).unwrap();
+        assert_eq!(resume.agent_type, "claude");
+    }
+
+    #[tokio::test]
+    async fn store_path_persists_native_ids_for_every_spawnable_agent() {
+        let cases = [
+            ("codex", "session_id", "sess-codex"),
+            ("claude", "session_id", "sess-claude"),
+            ("copilot", "session_id", "sess-copilot"),
+            ("cursor", "conversation_id", "conv-cursor"),
+            ("agy", "conversationId", "conv-agy"),
+            ("opencode", "sessionId", "sess-opencode"),
+            ("opencode2", "sessionID", "sess-opencode2"),
+            ("pi", "sessionId", "sess-pi"),
+            ("amp", "threadId", "thread-amp"),
+            ("grok", "session_id", "sess-grok"),
+            ("fx", "session_id", "sess-fx"),
+        ];
+        let dir = tempfile::tempdir().unwrap();
+        let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
+        for (index, (agent, key, id)) in cases.into_iter().enumerate() {
+            let tab_id = format!("tab-{index}");
+            let mut record = tab();
+            record.id = tab_id.clone();
+            record.payload = json!({ "agentType": agent });
+            actor
+                .runtime_store
+                .upsert_workspace_tab(record)
+                .await
+                .unwrap();
+            actor
+                .observe_hook_native_session(&AgentHookEvent {
+                    terminal_session_id: "session".into(),
+                    workspace_id: "workspace".into(),
+                    tab_id: tab_id.clone(),
+                    agent_type: agent.into(),
+                    event_name: Some("UserPromptSubmit".into()),
+                    payload: json!({ key: id }),
+                })
+                .await;
+            let saved = actor
+                .runtime_store
+                .find_workspace_tab(&tab_id)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(saved.payload[AGENT_NATIVE_SESSION_ID_KEY], json!(id));
+            assert_eq!(saved.payload[AGENT_NATIVE_SESSION_AGENT_KEY], json!(agent));
+            let resume = native_session_resume(&saved).expect(agent);
+            assert_eq!(resume.session_id, id);
+            assert_eq!(resume.agent_type, agent);
+        }
     }
 }

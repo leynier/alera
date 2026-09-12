@@ -9,8 +9,9 @@ use crate::terminal_host::orchestration::agent_session_resume::{
 use crate::terminal_host::orchestration::agent_startup_command::{
     append_initial_prompt_argument_for, command_with_initial_prompt_for,
 };
+use crate::terminal_host::orchestration::managed_agent_launch::ManagedAgentLaunch;
 
-use super::agent_native_session::native_session_resume;
+use super::agent_native_session::{native_ccs_profile, native_session_resume};
 use super::terminal_startup_commands::{
     auto_close_setup_command, auto_closes_on_success, initial_command, initial_delivery_mechanism,
     initial_managed_agent_launch, initial_prompt, tab_agent_type,
@@ -85,10 +86,36 @@ fn resume_spawn_command(
         }
         return Ok(None);
     }
-    Ok(initial_command(tab)?.and_then(|command| {
-        apply_resume_to_command(&command, resume.shape, resume.session_id, interactive_shell)
-            .map(|command| SpawnCommand::Line(wrap_auto_close(tab, command, interactive_shell)))
-    }))
+    if let Some(command) = initial_command(tab)? {
+        return Ok(apply_resume_to_command(
+            &command,
+            resume.shape,
+            resume.session_id,
+            interactive_shell,
+        )
+        .map(|command| SpawnCommand::Line(wrap_auto_close(tab, command, interactive_shell))));
+    }
+    Ok(synthesized_resume_command(tab, resume, interactive_shell).map(SpawnCommand::Line))
+}
+
+fn synthesized_resume_command(
+    tab: &WorkspaceTabRecord,
+    resume: super::agent_native_session::NativeSessionResume<'_>,
+    interactive_shell: &str,
+) -> Option<String> {
+    let ccs_profile = (resume.agent_type == "claude")
+        .then(|| native_ccs_profile(tab))
+        .flatten();
+    let mut launch = ManagedAgentLaunch::for_native_resume(resume.agent_type, ccs_profile)?;
+    if !apply_resume_to_managed_launch(&mut launch, resume.shape, resume.session_id) {
+        return None;
+    }
+    Some(
+        crate::terminal_host::orchestration::managed_launch_shell_rendering::render_managed_launch(
+            &launch,
+            interactive_shell,
+        ),
+    )
 }
 
 fn wrap_auto_close(tab: &WorkspaceTabRecord, command: String, interactive_shell: &str) -> String {
@@ -104,7 +131,7 @@ mod tests {
     use super::*;
     use crate::terminal_host::orchestration::agent_profile_launch_snapshot::AGENT_PROFILE_LAUNCH_SNAPSHOT_KEY;
     use crate::terminal_host::orchestration::agent_session_resume::{
-        AGENT_NATIVE_SESSION_AGENT_KEY, AGENT_NATIVE_SESSION_ID_KEY,
+        AGENT_NATIVE_CCS_PROFILE_KEY, AGENT_NATIVE_SESSION_AGENT_KEY, AGENT_NATIVE_SESSION_ID_KEY,
     };
     use chrono::Utc;
     use serde_json::json;
@@ -161,6 +188,48 @@ mod tests {
     }
 
     #[test]
+    fn resume_path_keeps_a_ccs_profile_ahead_of_the_claude_resume_flag() {
+        let snapshot = json!({
+            "version": 1,
+            "profile": {"id": "p1", "name": "Claude Work", "revision": 0},
+            "agentType": "claude",
+            "launchMode": "managed",
+            "launch": {
+                "kind": "managed",
+                "executable": "ccs",
+                "argv": ["work", "--permission-mode", "auto"]
+            },
+            "target": {"target": "localTerminal", "platform": "linux"},
+            "initialDelivery": {
+                "mechanism": {"kind": "positionalAfterTerminator"},
+                "replay": "once"
+            }
+        });
+        let resumed = tab(json!({
+            AGENT_PROFILE_LAUNCH_SNAPSHOT_KEY: snapshot,
+            "initialPrompt": "Do the work",
+            AGENT_NATIVE_SESSION_ID_KEY: "sess-1",
+            AGENT_NATIVE_SESSION_AGENT_KEY: "claude",
+        }));
+        assert_eq!(
+            line(&resumed),
+            "'ccs' 'work' '--resume' 'sess-1' '--permission-mode' 'auto'"
+        );
+
+        let command = tab(json!({
+            "agentType": "claude",
+            "initialCommand": "ccs work --permission-mode auto",
+            "initialPrompt": "Do the work",
+            AGENT_NATIVE_SESSION_ID_KEY: "sess-1",
+            AGENT_NATIVE_SESSION_AGENT_KEY: "claude",
+        }));
+        assert_eq!(
+            line(&command),
+            "ccs work --permission-mode auto '--resume' 'sess-1'"
+        );
+    }
+
+    #[test]
     fn missing_id_path_keeps_the_original_prompt_launch() {
         let tab = tab(json!({
             "agentType": "claude",
@@ -169,5 +238,27 @@ mod tests {
         }));
         assert_eq!(line(&tab), "claude -- 'Do the work'");
         assert!(native_session_resume(&tab).is_none());
+    }
+
+    #[test]
+    fn resume_path_uses_a_hook_session_on_a_plain_terminal_tab() {
+        let codex = tab(json!({
+            AGENT_NATIVE_SESSION_ID_KEY: "sess-1",
+            AGENT_NATIVE_SESSION_AGENT_KEY: "codex",
+        }));
+        assert_eq!(line(&codex), "'codex' 'resume' 'sess-1'");
+
+        let ccs = tab(json!({
+            AGENT_NATIVE_SESSION_ID_KEY: "sess-1",
+            AGENT_NATIVE_SESSION_AGENT_KEY: "claude",
+            AGENT_NATIVE_CCS_PROFILE_KEY: "leynier41",
+        }));
+        assert_eq!(line(&ccs), "'ccs' 'leynier41' '--resume' 'sess-1'");
+
+        let claude = tab(json!({
+            AGENT_NATIVE_SESSION_ID_KEY: "sess-1",
+            AGENT_NATIVE_SESSION_AGENT_KEY: "claude",
+        }));
+        assert_eq!(line(&claude), "'claude' '--resume' 'sess-1'");
     }
 }
