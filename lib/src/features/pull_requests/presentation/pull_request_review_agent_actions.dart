@@ -1,30 +1,25 @@
 part of 'pull_request_review_view.dart';
 
+/// Checks section title plus the one-shot failed-checks dispatch, hidden while
+/// a watch already owns that work.
 class const _PullRequestCheckAgentHeader({
   required this.checkCount,
   required this.checksFailed,
   required this.reviewIsOpen,
   required this.busy,
-  required this.watchMode,
+  required this.watching,
   required this.onFixFailedChecks,
-  required this.onWatchAndFix,
-  required this.onWatchFixAndMerge,
-  required this.onStopAgentWatch,
 }) extends StatelessWidget {
   final int checkCount;
   final bool checksFailed;
   final bool reviewIsOpen;
   final bool busy;
-  final PullRequestAgentWatchMode? watchMode;
+  final bool watching;
   final VoidCallback? onFixFailedChecks;
-  final VoidCallback? onWatchAndFix;
-  final VoidCallback? onWatchFixAndMerge;
-  final VoidCallback? onStopAgentWatch;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final watching = watchMode != null;
     return Row(
       children: <Widget>[
         Expanded(
@@ -35,105 +30,180 @@ class const _PullRequestCheckAgentHeader({
             ),
           ),
         ),
-        if (reviewIsOpen && !busy)
-          if (watching)
-            _watchingActions(theme)
-          else
-            _idleActions(context, theme),
-      ],
-    );
-  }
-
-  Widget _idleActions(BuildContext context, ThemeData theme) {
-    return Row(
-      mainAxisSize: .min,
-      children: <Widget>[
-        if (checksFailed && onFixFailedChecks != null)
+        if (reviewIsOpen &&
+            !busy &&
+            !watching &&
+            checksFailed &&
+            onFixFailedChecks != null)
           TextButton(
             onPressed: onFixFailedChecks,
             child: const Text('Fix Failed Checks'),
           ),
-        if (onWatchAndFix != null || onWatchFixAndMerge != null)
-          Builder(
-            builder: (buttonContext) => AleraIconButton(
-              tooltip: 'Ask Agent',
-              icon: AleraIcons.agent,
-              onPressed: () => unawaited(_openWatchMenu(buttonContext)),
-            ),
-          ),
       ],
     );
   }
+}
 
-  Widget _watchingActions(ThemeData theme) {
-    return Row(
-      mainAxisSize: .min,
-      children: <Widget>[
-        Flexible(
-          child: Text(
-            pullRequestAgentWatchModeLabel(watchMode!),
-            maxLines: 1,
-            overflow: .ellipsis,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: AleraTokens.foregroundMuted,
-            ),
-          ),
+/// Header control for Watch and Fix. Idle, it opens the watch scope and the
+/// watch modes; while watching, it offers Stop Watching.
+class const _PullRequestWatchAgentButton({
+  required this.reviewIsOpen,
+  required this.busy,
+  required this.watchMode,
+  required this.watchScope,
+  required this.onWatchScopeChanged,
+  required this.onWatchAndFix,
+  required this.onWatchFixAndMerge,
+  required this.onStopAgentWatch,
+}) extends StatelessWidget {
+  final bool reviewIsOpen;
+  final bool busy;
+  final PullRequestAgentWatchMode? watchMode;
+  final PullRequestAgentWatchScope watchScope;
+  final ValueChanged<PullRequestAgentWatchScope>? onWatchScopeChanged;
+  final ValueChanged<PullRequestAgentWatchScope>? onWatchAndFix;
+  final ValueChanged<PullRequestAgentWatchScope>? onWatchFixAndMerge;
+  final VoidCallback? onStopAgentWatch;
+
+  @override
+  Widget build(BuildContext context) {
+    final mode = watchMode;
+    if (mode != null) {
+      return Builder(
+        builder: (buttonContext) => AleraIconButton(
+          tooltip: pullRequestAgentWatchModeLabel(mode),
+          icon: AleraIcons.visible,
+          onPressed: onStopAgentWatch == null
+              ? null
+              : () => unawaited(_openWatchingMenu(buttonContext)),
         ),
-        if (onStopAgentWatch != null)
-          TextButton(
-            onPressed: onStopAgentWatch,
-            child: const Text('Stop Watching'),
-          ),
+      );
+    }
+    if (!reviewIsOpen ||
+        (onWatchAndFix == null && onWatchFixAndMerge == null)) {
+      return const SizedBox.shrink();
+    }
+    return Builder(
+      builder: (buttonContext) => AleraIconButton(
+        tooltip: 'Ask Agent',
+        icon: AleraIcons.agent,
+        onPressed: busy ? null : () => unawaited(_openWatchMenu(buttonContext)),
+      ),
+    );
+  }
+
+  Future<void> _openWatchingMenu(BuildContext context) async {
+    final selected = await _showAnchoredMenu<_WatchMenuAction>(
+      context,
+      const <PopupMenuEntry<_WatchMenuAction>>[
+        AleraDropdownEntry<_WatchMenuAction>(
+          value: .stop,
+          label: 'Stop Watching',
+          leading: Icon(AleraIcons.hidden, size: 16),
+        ),
       ],
     );
+    if (selected == _WatchMenuAction.stop) {
+      onStopAgentWatch?.call();
+    }
   }
 
   Future<void> _openWatchMenu(BuildContext context) async {
-    final renderBox = context.findRenderObject() as RenderBox?;
-    final overlay = Navigator.of(context).overlay?.context.findRenderObject();
-    if (renderBox == null || overlay is! RenderBox) {
-      return;
+    var scope = watchScope;
+    void update(PullRequestAgentWatchScope next) {
+      scope = next;
+      onWatchScopeChanged?.call(next);
     }
-    final topLeft = renderBox.localToGlobal(.zero, ancestor: overlay);
-    final bottomRight = renderBox.localToGlobal(
-      renderBox.size.bottomRight(.zero),
-      ancestor: overlay,
-    );
-    final selected = await showMenu<_WatchMenuAction>(
-      context: context,
-      position: .fromRect(
-        .fromPoints(topLeft, bottomRight),
-        Offset.zero & overlay.size,
-      ),
-      color: AleraTokens.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-        side: const BorderSide(color: AleraTokens.border),
-      ),
-      items: <PopupMenuEntry<_WatchMenuAction>>[
+
+    final selected = await _showAnchoredMenu<_WatchMenuAction>(
+      context,
+      <PopupMenuEntry<_WatchMenuAction>>[
+        AleraDropdownToggleEntry<_WatchMenuAction>(
+          label: 'Failed Checks',
+          checked: scope.checks,
+          onChanged: (value) => update(scope.copyWith(checks: value)),
+        ),
+        AleraDropdownToggleEntry<_WatchMenuAction>(
+          label: 'Review Comments',
+          checked: scope.comments,
+          onChanged: (value) => update(scope.copyWith(comments: value)),
+        ),
+        AleraDropdownToggleEntry<_WatchMenuAction>(
+          label: 'Merge Conflicts',
+          checked: scope.conflicts,
+          onChanged: (value) => update(scope.copyWith(conflicts: value)),
+        ),
+        const PopupMenuDivider(),
         if (onWatchAndFix != null)
-          const AleraDropdownEntry<_WatchMenuAction>(
+          AleraDropdownEntry<_WatchMenuAction>(
             value: .watchAndFix,
             label: 'Watch and Fix',
-            leading: Icon(AleraIcons.agent, size: 16),
+            enabled: !watchScope.isEmpty,
+            leading: const Icon(AleraIcons.agent, size: 16),
           ),
         if (onWatchFixAndMerge != null)
-          const AleraDropdownEntry<_WatchMenuAction>(
+          AleraDropdownEntry<_WatchMenuAction>(
             value: .watchFixAndMerge,
             label: 'Watch, Fix and Merge',
-            leading: Icon(AleraIcons.gitMerge, size: 16),
+            enabled: !watchScope.isEmpty,
+            leading: const Icon(AleraIcons.gitMerge, size: 16),
           ),
       ],
     );
     switch (selected) {
       case _WatchMenuAction.watchAndFix:
-        onWatchAndFix?.call();
+        onWatchAndFix?.call(scope);
       case _WatchMenuAction.watchFixAndMerge:
-        onWatchFixAndMerge?.call();
+        onWatchFixAndMerge?.call(scope);
+      case _WatchMenuAction.stop:
       case null:
         break;
     }
   }
 }
 
-enum _WatchMenuAction { watchAndFix, watchFixAndMerge }
+/// Status line under the pull request title while a watch is running.
+class const _PullRequestWatchStatus({required this.mode})
+    extends StatelessWidget {
+  final PullRequestAgentWatchMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      pullRequestAgentWatchModeLabel(mode),
+      style: Theme.of(context).textTheme.labelSmall
+          ?.copyWith(color: AleraTokens.foregroundMuted),
+    );
+  }
+}
+
+Future<T?> _showAnchoredMenu<T>(
+  BuildContext context,
+  List<PopupMenuEntry<T>> items,
+) async {
+  final renderBox = context.findRenderObject() as RenderBox?;
+  final overlay = Navigator.of(context).overlay?.context.findRenderObject();
+  if (renderBox == null || overlay is! RenderBox) {
+    return null;
+  }
+  final topLeft = renderBox.localToGlobal(.zero, ancestor: overlay);
+  final bottomRight = renderBox.localToGlobal(
+    renderBox.size.bottomRight(.zero),
+    ancestor: overlay,
+  );
+  return showMenu<T>(
+    context: context,
+    position: .fromRect(
+      .fromPoints(topLeft, bottomRight),
+      Offset.zero & overlay.size,
+    ),
+    color: AleraTokens.surface,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+      side: const BorderSide(color: AleraTokens.border),
+    ),
+    items: items,
+  );
+}
+
+enum _WatchMenuAction { watchAndFix, watchFixAndMerge, stop }

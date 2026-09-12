@@ -1372,6 +1372,7 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
   static GeneralSettingsMapper ensureInitialized() {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = GeneralSettingsMapper._());
+      PullRequestAgentWatchScopeMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -1455,6 +1456,16 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     opt: true,
     def: false,
   );
+  static PullRequestAgentWatchScope _$pullRequestAgentWatchScope(
+    GeneralSettings v,
+  ) => v.pullRequestAgentWatchScope;
+  static const Field<GeneralSettings, PullRequestAgentWatchScope>
+  _f$pullRequestAgentWatchScope = Field(
+    'pullRequestAgentWatchScope',
+    _$pullRequestAgentWatchScope,
+    opt: true,
+    def: PullRequestAgentWatchScope.defaults,
+  );
 
   @override
   final MappableFields<GeneralSettings> fields = const {
@@ -1469,6 +1480,7 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     #showPullRequestStatusInSidebar: _f$showPullRequestStatusInSidebar,
     #pullRequestFailureNotificationsEnabled:
         _f$pullRequestFailureNotificationsEnabled,
+    #pullRequestAgentWatchScope: _f$pullRequestAgentWatchScope,
   };
 
   static GeneralSettings _instantiate(DecodingData data) {
@@ -1487,6 +1499,7 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
       pullRequestFailureNotificationsEnabled: data.dec(
         _f$pullRequestFailureNotificationsEnabled,
       ),
+      pullRequestAgentWatchScope: data.dec(_f$pullRequestAgentWatchScope),
     );
   }
 
@@ -1552,6 +1565,12 @@ extension GeneralSettingsValueCopy<$R, $Out>
 
 abstract class GeneralSettingsCopyWith<$R, $In extends GeneralSettings, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
+  PullRequestAgentWatchScopeCopyWith<
+    $R,
+    PullRequestAgentWatchScope,
+    PullRequestAgentWatchScope
+  >
+  get pullRequestAgentWatchScope;
   $R call({
     String? workspaceDirectory,
     bool? starClicked,
@@ -1563,6 +1582,7 @@ abstract class GeneralSettingsCopyWith<$R, $In extends GeneralSettings, $Out>
     bool? showTrayBadge,
     bool? showPullRequestStatusInSidebar,
     bool? pullRequestFailureNotificationsEnabled,
+    PullRequestAgentWatchScope? pullRequestAgentWatchScope,
   });
   GeneralSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -1578,6 +1598,14 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
   late final ClassMapperBase<GeneralSettings> $mapper =
       GeneralSettingsMapper.ensureInitialized();
   @override
+  PullRequestAgentWatchScopeCopyWith<
+    $R,
+    PullRequestAgentWatchScope,
+    PullRequestAgentWatchScope
+  >
+  get pullRequestAgentWatchScope => $value.pullRequestAgentWatchScope.copyWith
+      .$chain((v) => call(pullRequestAgentWatchScope: v));
+  @override
   $R call({
     Object? workspaceDirectory = $none,
     bool? starClicked,
@@ -1589,6 +1617,7 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     bool? showTrayBadge,
     bool? showPullRequestStatusInSidebar,
     bool? pullRequestFailureNotificationsEnabled,
+    PullRequestAgentWatchScope? pullRequestAgentWatchScope,
   }) => $apply(
     FieldCopyWithData({
       if (workspaceDirectory != $none) #workspaceDirectory: workspaceDirectory,
@@ -1606,6 +1635,8 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
       if (pullRequestFailureNotificationsEnabled != null)
         #pullRequestFailureNotificationsEnabled:
             pullRequestFailureNotificationsEnabled,
+      if (pullRequestAgentWatchScope != null)
+        #pullRequestAgentWatchScope: pullRequestAgentWatchScope,
     }),
   );
   @override
@@ -1634,6 +1665,10 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     pullRequestFailureNotificationsEnabled: data.get(
       #pullRequestFailureNotificationsEnabled,
       or: $value.pullRequestFailureNotificationsEnabled,
+    ),
+    pullRequestAgentWatchScope: data.get(
+      #pullRequestAgentWatchScope,
+      or: $value.pullRequestAgentWatchScope,
     ),
   );
 

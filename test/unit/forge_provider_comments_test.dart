@@ -90,7 +90,7 @@ void main() {
 [[{"id":1,"user":{"login":"alice"},"body":"General note","created_at":"2026-07-16T12:00:00Z","html_url":"https://github.com/leynier/alera/pull/123#issuecomment-1"}]]
 '''),
         _ok('''
-{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[{"id":"T1","isResolved":true,"line":null,"originalLine":17,"comments":{"nodes":[{"databaseId":2,"author":{"login":"bob"},"body":"Change this line","createdAt":"2026-07-16T11:00:00Z","url":"https://github.com/leynier/alera/pull/123#discussion_r2","path":"lib/a.dart"}]}}]}}}}}
+{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[{"id":"T1","isResolved":true,"isOutdated":true,"line":null,"originalLine":17,"comments":{"nodes":[{"databaseId":2,"author":{"login":"bob"},"body":"Change this line","createdAt":"2026-07-16T11:00:00Z","url":"https://github.com/leynier/alera/pull/123#discussion_r2","path":"lib/a.dart"}]}}]}}}}}
 '''),
         _ok('''
 [[{"id":3,"user":{"login":"carol"},"body":"LGTM","state":"APPROVED","submitted_at":"2026-07-16T13:00:00Z","html_url":"https://github.com/leynier/alera/pull/123#pullrequestreview-3"}]]
@@ -110,7 +110,9 @@ void main() {
       expect(comments.first.path, 'lib/a.dart');
       expect(comments.first.line, 17);
       expect(comments.first.resolved, isTrue);
+      expect(comments.first.outdated, isTrue);
       expect(comments[1].body, 'General note');
+      expect(comments[1].outdated, isFalse);
       expect(comments.last.body, 'LGTM');
       expect(
         runner.calls.first.arguments,

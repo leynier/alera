@@ -10,6 +10,7 @@ query($owner: String!, $repo: String!, $pr: Int!, $threadsAfter: String) {
         nodes {
           id
           isResolved
+          isOutdated
           line
           originalLine
           comments(first: 100) {
@@ -358,6 +359,7 @@ query($thread: ID!, $commentsAfter: String) {
         path: node['path'] as String?,
         line: line,
         resolved: thread['isResolved'] == true,
+        outdated: thread['isOutdated'] == true,
         locator: databaseId == null
             ? null
             : ReviewCommentLocator(

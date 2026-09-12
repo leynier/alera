@@ -5,6 +5,7 @@ import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:alera/src/features/settings/infra/drift_settings_repository.dart';
 import 'package:alera/src/shared/infra/storage/drift_database.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -245,6 +246,9 @@ void main() {
         await controller.setShowTrayBadge(false);
         await controller.setShowPullRequestStatusInSidebar(false);
         await controller.setPullRequestFailureNotificationsEnabled(true);
+        await controller.setPullRequestAgentWatchScope(
+          const PullRequestAgentWatchScope(comments: false),
+        );
 
         final restored = await repository.load();
         expect(
@@ -282,6 +286,10 @@ void main() {
         expect(restored.general.showTrayBadge, isFalse);
         expect(restored.general.showPullRequestStatusInSidebar, isFalse);
         expect(restored.general.pullRequestFailureNotificationsEnabled, isTrue);
+        expect(
+          restored.general.pullRequestAgentWatchScope,
+          const PullRequestAgentWatchScope(comments: false),
+        );
       },
     );
 

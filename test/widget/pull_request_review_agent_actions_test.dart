@@ -1,5 +1,6 @@
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
 import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
@@ -20,9 +21,12 @@ const _review = HostedReview(
 Widget _wrap({
   List<ReviewCheck> checks = const <ReviewCheck>[],
   PullRequestAgentWatchMode? agentWatchMode,
+  PullRequestAgentWatchScope agentWatchScope =
+      PullRequestAgentWatchScope.defaults,
+  ValueChanged<PullRequestAgentWatchScope>? onAgentWatchScopeChanged,
   VoidCallback? onFixFailedChecks,
-  VoidCallback? onWatchAndFix,
-  VoidCallback? onWatchFixAndMerge,
+  ValueChanged<PullRequestAgentWatchScope>? onWatchAndFix,
+  ValueChanged<PullRequestAgentWatchScope>? onWatchFixAndMerge,
   VoidCallback? onStopAgentWatch,
 }) {
   return MaterialApp(
@@ -46,6 +50,8 @@ Widget _wrap({
         onUpdate: (_) async => const UpdateReviewSuccess(_review),
         onLoadCheckDetails: (_) async => const ReviewCheckDetails(),
         agentWatchMode: agentWatchMode,
+        agentWatchScope: agentWatchScope,
+        onAgentWatchScopeChanged: onAgentWatchScopeChanged,
         onFixFailedChecks: onFixFailedChecks,
         onWatchAndFix: onWatchAndFix,
         onWatchFixAndMerge: onWatchFixAndMerge,
@@ -55,61 +61,140 @@ Widget _wrap({
   );
 }
 
+Future<void> _openAskAgentMenu(WidgetTester tester) async {
+  await tester.tap(find.byTooltip('Ask Agent'));
+  await tester.pumpAndSettle();
+}
+
 void main() {
-  testWidgets('offers failed-check dispatch and watch actions', (tester) async {
+  testWidgets('keeps the failed-check dispatch in the checks section', (
+    tester,
+  ) async {
     var fixCalls = 0;
-    var watchFixCalls = 0;
-    var watchMergeCalls = 0;
     await tester.pumpWidget(
       _wrap(
         checks: const <ReviewCheck>[
           ReviewCheck(name: 'build', status: .completed, conclusion: .failure),
         ],
         onFixFailedChecks: () => fixCalls++,
-        onWatchAndFix: () => watchFixCalls++,
-        onWatchFixAndMerge: () => watchMergeCalls++,
+        onWatchAndFix: (_) {},
       ),
     );
 
-    expect(find.text('Fix Failed Checks'), findsOneWidget);
     await tester.tap(find.text('Fix Failed Checks'));
     await tester.pump();
     expect(fixCalls, 1);
-
-    await tester.tap(find.byTooltip('Ask Agent'));
-    await tester.pumpAndSettle();
-    expect(find.text('Watch and Fix'), findsOneWidget);
-    expect(find.text('Watch, Fix and Merge'), findsOneWidget);
-    await tester.tap(find.text('Watch and Fix'));
-    await tester.pumpAndSettle();
-    expect(watchFixCalls, 1);
-    expect(watchMergeCalls, 0);
-
-    await tester.tap(find.byTooltip('Ask Agent'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Watch, Fix and Merge'));
-    await tester.pumpAndSettle();
-    expect(watchMergeCalls, 1);
   });
 
-  testWidgets('shows stop watching while a watch is active', (tester) async {
+  testWidgets('places Ask Agent in the pull request header', (tester) async {
+    await tester.pumpWidget(_wrap(onWatchAndFix: (_) {}));
+
+    final askAgent = tester.getTopLeft(find.byTooltip('Ask Agent'));
+    final openInBrowser = tester.getTopLeft(find.byTooltip('Open In Browser'));
+    final checksHeader = tester.getTopLeft(find.text('Checks'));
+    expect(askAgent.dy, openInBrowser.dy);
+    expect(askAgent.dy, lessThan(checksHeader.dy));
+  });
+
+  testWidgets('starts either watch mode with the chosen scope', (tester) async {
+    final watchFixScopes = <PullRequestAgentWatchScope>[];
+    final watchMergeScopes = <PullRequestAgentWatchScope>[];
+    await tester.pumpWidget(
+      _wrap(
+        onWatchAndFix: watchFixScopes.add,
+        onWatchFixAndMerge: watchMergeScopes.add,
+      ),
+    );
+
+    await _openAskAgentMenu(tester);
+    expect(find.text('Failed Checks'), findsOneWidget);
+    expect(find.text('Review Comments'), findsOneWidget);
+    expect(find.text('Merge Conflicts'), findsOneWidget);
+    await tester.tap(find.text('Watch and Fix'));
+    await tester.pumpAndSettle();
+    expect(watchFixScopes, <PullRequestAgentWatchScope>[
+      PullRequestAgentWatchScope.defaults,
+    ]);
+
+    await _openAskAgentMenu(tester);
+    await tester.tap(find.text('Watch, Fix and Merge'));
+    await tester.pumpAndSettle();
+    expect(watchMergeScopes, <PullRequestAgentWatchScope>[
+      PullRequestAgentWatchScope.defaults,
+    ]);
+  });
+
+  testWidgets('toggling a scope keeps the menu open', (tester) async {
+    final changes = <PullRequestAgentWatchScope>[];
+    final watchFixScopes = <PullRequestAgentWatchScope>[];
+    await tester.pumpWidget(
+      _wrap(
+        onAgentWatchScopeChanged: changes.add,
+        onWatchAndFix: watchFixScopes.add,
+      ),
+    );
+
+    await _openAskAgentMenu(tester);
+    await tester.tap(find.text('Review Comments'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Watch and Fix'), findsOneWidget);
+    expect(changes, <PullRequestAgentWatchScope>[
+      const PullRequestAgentWatchScope(comments: false),
+    ]);
+    await tester.tap(find.text('Watch and Fix'));
+    await tester.pumpAndSettle();
+    expect(watchFixScopes, <PullRequestAgentWatchScope>[
+      const PullRequestAgentWatchScope(comments: false),
+    ]);
+  });
+
+  testWidgets('disables watch modes for an empty scope', (tester) async {
+    var watchCalls = 0;
+    await tester.pumpWidget(
+      _wrap(
+        agentWatchScope: const PullRequestAgentWatchScope(
+          checks: false,
+          comments: false,
+          conflicts: false,
+        ),
+        onWatchAndFix: (_) => watchCalls++,
+      ),
+    );
+
+    await _openAskAgentMenu(tester);
+    await tester.tap(find.text('Watch and Fix'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+    expect(watchCalls, 0);
+  });
+
+  testWidgets('offers stop watching while a watch is active', (tester) async {
     var stopCalls = 0;
     await tester.pumpWidget(
-      _wrap(agentWatchMode: .fix, onStopAgentWatch: () => stopCalls++),
+      _wrap(
+        checks: const <ReviewCheck>[
+          ReviewCheck(name: 'build', status: .completed, conclusion: .failure),
+        ],
+        agentWatchMode: .fix,
+        onFixFailedChecks: () {},
+        onStopAgentWatch: () => stopCalls++,
+      ),
     );
 
     expect(find.text('Watching: Fix'), findsOneWidget);
     expect(find.text('Fix Failed Checks'), findsNothing);
+    expect(find.byTooltip('Ask Agent'), findsNothing);
+    await tester.tap(find.byTooltip('Watching: Fix'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Stop Watching'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(stopCalls, 1);
   });
 
-  testWidgets('shows stop watching for fix-and-merge mode', (tester) async {
+  testWidgets('labels fix-and-merge mode while watching', (tester) async {
     await tester.pumpWidget(
       _wrap(agentWatchMode: .fixAndMerge, onStopAgentWatch: () {}),
     );
     expect(find.text('Watching: Fix and Merge'), findsOneWidget);
-    expect(find.text('Stop Watching'), findsOneWidget);
   });
 }

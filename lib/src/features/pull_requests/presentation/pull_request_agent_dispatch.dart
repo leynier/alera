@@ -1,10 +1,11 @@
+import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/agent_task_dispatch/domain/agent_task_dispatch.dart';
 import 'package:alera/src/features/agent_task_dispatch/presentation/agent_task_dispatch_launcher.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_agent_watch_providers.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_prompts.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch.dart';
-import 'package:alera/src/features/pull_requests/domain/review_check.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,14 +33,31 @@ Future<void> startPullRequestAgentWatch({
   required WorkspacePullRequestScope scope,
   required HostedReview review,
   required PullRequestAgentWatchMode mode,
-  ReviewChecksRollup checksRollup = ReviewChecksRollup.none,
+  required PullRequestAgentWatchScope watchScope,
+  required PullRequestAgentWatchSnapshot snapshot,
 }) async {
+  if (watchScope.isEmpty) {
+    AleraToast.show(
+      context,
+      message: 'Choose at least one problem to watch.',
+      tone: .error,
+    );
+    return;
+  }
+  final concerns = pullRequestAgentWatchConcerns(
+    snapshot: snapshot,
+    scope: watchScope,
+  );
   final choice = await chooseAgentTaskDispatchTarget(
     context,
     ref,
     request: AgentTaskDispatchRequest(
       workspaceId: scope.workspaceId,
-      prompt: pullRequestAgentWatchPrompt(review.number),
+      prompt: pullRequestAgentWatchPrompt(
+        reviewNumber: review.number,
+        concerns: concerns,
+        baseBranch: review.baseBranch,
+      ),
       title: mode == PullRequestAgentWatchMode.fixAndMerge
           ? 'Watch, Fix and Merge'
           : 'Watch and Fix',
@@ -50,8 +68,8 @@ Future<void> startPullRequestAgentWatch({
     return;
   }
   var binding = choice.binding;
-  String? dispatchedSignature;
-  if (pullRequestAgentWatchInjectsOnStart(checksRollup)) {
+  PullRequestAgentWatchDispatchMark? dispatched;
+  if (pullRequestAgentWatchInjectsOnStart(concerns)) {
     final result = await completeAgentTaskDispatch(
       ref: ref,
       request: choice.request,
@@ -60,9 +78,10 @@ Future<void> startPullRequestAgentWatch({
     );
     if (result != null) {
       binding = result.binding;
-      dispatchedSignature = pullRequestAgentWatchFailureSignature(
-        reviewNumber: review.number,
+      dispatched = pullRequestAgentWatchDispatchMark(
+        previous: null,
         headSha: review.headSha,
+        concerns: concerns,
       );
     }
   }
@@ -73,6 +92,7 @@ Future<void> startPullRequestAgentWatch({
         reviewNumber: review.number,
         mode: mode,
         binding: binding,
-        lastDispatchedFailureSignature: dispatchedSignature,
+        watchScope: watchScope,
+        lastDispatch: dispatched,
       );
 }
