@@ -334,3 +334,25 @@ fn malformed_payloads_are_format_errors() {
         );
     }
 }
+
+#[tokio::test]
+async fn status_reports_whether_ai_commit_messages_are_available() {
+    let fixture = Fixture::new().await;
+    let payload = json!({ "workspaceId": fixture.workspace_id });
+
+    let snapshot = handle_mobile_git_request(&fixture.store, "mobile.git.status", &payload)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        snapshot["aiCommitMessageEnabled"],
+        ai_commit_message_enabled(&fixture.store).await
+    );
+    assert!(
+        handle_mobile_git_request(&fixture.store, "mobile.git.branches", &payload)
+            .await
+            .unwrap()
+            .get("aiCommitMessageEnabled")
+            .is_none()
+    );
+}
