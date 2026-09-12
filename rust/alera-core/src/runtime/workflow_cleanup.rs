@@ -39,6 +39,16 @@ impl RuntimeStore {
             workspace_id TEXT PRIMARY KEY REFERENCES workflowWorkspaces(id),
             cleanup_id TEXT NOT NULL REFERENCES workflowCleanup(id),retired INTEGER NOT NULL DEFAULT 0)")
             .execute(&mut *tx).await?;
+        sqlx::query("CREATE INDEX IF NOT EXISTS workflowCleanupRun ON workflowCleanup(run_id)")
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS workflowCleanupRunState ON workflowCleanup(run_id,state)",
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query("CREATE INDEX IF NOT EXISTS workflowCleanupRetired ON workflowCleanupResources(cleanup_id,retired)")
+            .execute(&mut *tx).await?;
         sqlx::query("DROP TRIGGER IF EXISTS workflowLaunchTabRetained")
             .execute(&mut *tx)
             .await?;

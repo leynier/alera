@@ -74,6 +74,8 @@ struct ProposalSubmission {
 }
 
 enum PlanRequest {
+    CleanupResources(alera_core::runtime::WorkflowCleanupQuery),
+    Cleanups(alera_core::runtime::WorkflowCleanupQuery),
     PreviewCleanup(String),
     CleanupStatus(ProposalQuery),
     Execution(PlanQuery),
@@ -112,6 +114,8 @@ impl ServerActor {
             ));
         }
         let request = match request_type {
+            "workflows.cleanupResources" => PlanRequest::CleanupResources(parse(payload)?),
+            "workflows.cleanups" => PlanRequest::Cleanups(parse(payload)?),
             "workflows.previewCleanup" => PlanRequest::PreviewCleanup(document(payload, 8192)?),
             "workflows.cleanupStatus" => PlanRequest::CleanupStatus(parse(payload)?),
             "workflows.execution" => PlanRequest::Execution(parse(payload)?),
@@ -158,6 +162,18 @@ impl ServerActor {
             let _permit = permit;
             let result = tokio::time::timeout(Duration::from_secs(25), async {
                 match request {
+                    PlanRequest::CleanupResources(query) => {
+                        let runtime = tokio::runtime::Handle::current();
+                        tokio::task::spawn_blocking(move || runtime.block_on(async {
+                            serde_json::to_value(store.workflow_cleanup_resources(&query).await?).map_err(anyhow::Error::from)
+                        })).await.map_err(state)?.map_err(state)
+                    }
+                    PlanRequest::Cleanups(query) => {
+                        let runtime = tokio::runtime::Handle::current();
+                        tokio::task::spawn_blocking(move || runtime.block_on(async {
+                            serde_json::to_value(store.workflow_cleanups(&query).await?).map_err(anyhow::Error::from)
+                        })).await.map_err(state)?.map_err(state)
+                    }
                     PlanRequest::PreviewCleanup(document) => {
                         let runtime = tokio::runtime::Handle::current();
                         tokio::task::spawn_blocking(move || runtime.block_on(async {

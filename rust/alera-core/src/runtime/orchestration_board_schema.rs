@@ -34,6 +34,8 @@ impl RuntimeStore {
             "workflowExecution",
             "workflowExecutionIssues",
             "workflowCancellationTargets",
+            "workflowCleanup",
+            "workflowCleanupResources",
         ] {
             for operation in ["INSERT", "UPDATE", "DELETE"] {
                 sqlx::query(sqlx::AssertSqlSafe(format!(
@@ -102,6 +104,8 @@ const BOARD_SCHEMA: &[&str] = &[
          COALESCE(t.blocked_count, 0) AS blocked_count,
          COALESCE(g.pending_gate_count, 0) AS pending_gate_count,
          CASE
+             WHEN EXISTS(SELECT 1 FROM workflowCleanup WHERE run_id=r.id AND state='attention') THEN 'attention'
+             WHEN EXISTS(SELECT 1 FROM workflowCleanup WHERE run_id=r.id AND state='applying') THEN 'active'
              WHEN r.status IN ('completed','stopped') THEN 'history'
              WHEN workflow.status = 'cancelled' AND EXISTS(SELECT 1 FROM workflowCancellationTargets
                  WHERE run_id=r.id AND state='attention') THEN 'attention'

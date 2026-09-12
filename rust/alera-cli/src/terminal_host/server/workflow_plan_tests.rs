@@ -68,6 +68,8 @@ async fn workflow_plan_rpc_rejects_mobile_and_unauthenticated_clients() {
         "workflows.proposal",
         "workflows.proposalStatus",
         "workflows.cleanupStatus",
+        "workflows.cleanupResources",
+        "workflows.cleanups",
         "workflows.previewCleanup",
         "workflows.cancelProposal",
         "workflows.submitProposal",

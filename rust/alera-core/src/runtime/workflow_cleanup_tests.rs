@@ -184,6 +184,24 @@ async fn cleanup_claims_are_exclusive_and_retire_each_resource_independently() {
     assert_eq!(status.state, WorkflowCleanupState::Retired);
     assert!(status.error.is_none());
     assert_eq!(status.retired_workspace_ids.len(), 2);
+    let query = WorkflowCleanupQuery {
+        run_id: plan.run_id.clone(),
+        before_row: None,
+    };
+    let catalog = store.workflow_cleanup_resources(&query).await.unwrap();
+    assert_eq!(catalog.items.len(), 2);
+    assert!(catalog.items.iter().all(|item| item.retired
+        && !item.registered
+        && item.cleanup_id.as_deref() == Some(winner.id.as_str())
+        && item.cleanup_state.as_deref() == Some("retired")));
+    let cleanups = store.workflow_cleanups(&query).await.unwrap();
+    let summary = cleanups
+        .items
+        .iter()
+        .find(|item| item.id == winner.id)
+        .unwrap();
+    assert_eq!((summary.resource_count, summary.retired_count), (2, 2));
+    assert_eq!(catalog.revision, cleanups.revision);
     // The ledger never erases historical workspace identities.
     assert!(store.workflow_workspace(one).await.is_ok());
     assert!(store.workflow_workspace(two).await.is_ok());
