@@ -1,35 +1,31 @@
-use std::collections::HashSet;
-use std::path::{Component, Path, PathBuf};
+use std::path::Path;
 
 use alera_core::git as core_git;
 use alera_core::git_cli::git_in_dir;
-use git2::{
-    build::CheckoutBuilder, BranchType, DiffOptions, ErrorCode, Index, ObjectType, Oid, Repository,
-    RepositoryState, Signature, StashApplyOptions, StashSaveOptions,
+use alera_core::source_control::{self, open_repo};
+use flutter_rust_bridge::frb;
+
+pub use alera_core::git::{GitError, GitErrorKind};
+pub use alera_core::source_control::{
+    GitChangeArea, GitChangeEntry, GitChangeGroup, GitChangeStatus, GitChangeTreeRow,
+    GitChangeTreeRowKind, GitCommitChangeEntry, GitCommitCompareResult, GitCommitCompareStatus,
+    GitCommitCompareSummary, GitDiffFile, GitDiffLine, GitDiffLineKind, GitDiffResult,
+    GitHistoryItem, GitHistoryItemRef, GitHistoryRefCategory, GitHistoryResult, GitRangeCommit,
+    GitRangeContext, GitRangeFile, GitRepositoryState, GitStashEntry, GitStatusResult,
+    GitSubmoduleStatus,
 };
 
-#[path = "git_ancestry_impl.rs"]
-mod git_ancestry_impl;
 #[path = "git_branch.rs"]
 pub mod git_branch;
-#[path = "git_commit_state_impl.rs"]
-mod git_commit_state_impl;
-#[path = "git_diff_impl.rs"]
-pub(in crate::api) mod git_diff_impl;
-#[path = "git_diff_paths.rs"]
-pub(in crate::api) mod git_diff_paths;
-#[path = "git_history_impl.rs"]
-mod git_history_impl;
 #[path = "git_hosted_review.rs"]
 pub mod git_hosted_review;
-#[path = "git_range_impl.rs"]
-mod git_range_impl;
 
+#[cfg(test)]
+use git2::{BranchType, RepositoryState};
 #[cfg(test)]
 use git_branch::{
     branch_exists, current_branch, is_valid_branch_name, list_branches, refresh_source_branch,
 };
-use git_commit_state_impl::{commit_parent_commits, current_head_commit, repository_has_conflicts};
 
 pub struct GitWorktreeEntry {
     pub path: String,
@@ -41,7 +37,12 @@ pub struct GitRemote {
     pub url: Option<String>,
 }
 
-pub struct GitRepositoryState {
+// The git model and its working-tree operations live in `alera_core::source_control`,
+// so the runtime host serves mobile the same rules. These mirrors only describe
+// the shapes to the bridge codegen; the Dart classes do not change.
+
+#[frb(mirror(GitRepositoryState))]
+pub struct _GitRepositoryState {
     pub branch: String,
     pub upstream: Option<String>,
     pub ahead: u32,
@@ -50,22 +51,23 @@ pub struct GitRepositoryState {
     pub head_message: Option<String>,
 }
 
-pub struct GitStashEntry {
+#[frb(mirror(GitStashEntry))]
+pub struct _GitStashEntry {
     pub index: u32,
     pub reference: String,
     pub message: String,
     pub oid: String,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum GitChangeArea {
+#[frb(mirror(GitChangeArea))]
+pub enum _GitChangeArea {
     Untracked,
     Unstaged,
     Staged,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum GitChangeStatus {
+#[frb(mirror(GitChangeStatus))]
+pub enum _GitChangeStatus {
     Modified,
     Added,
     Deleted,
@@ -74,14 +76,14 @@ pub enum GitChangeStatus {
     Untracked,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum GitChangeTreeRowKind {
+#[frb(mirror(GitChangeTreeRowKind))]
+pub enum _GitChangeTreeRowKind {
     Directory,
     File,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum GitDiffLineKind {
+#[frb(mirror(GitDiffLineKind))]
+pub enum _GitDiffLineKind {
     Addition,
     Deletion,
     Hunk,
@@ -89,16 +91,16 @@ pub enum GitDiffLineKind {
     Context,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct GitSubmoduleStatus {
+#[frb(mirror(GitSubmoduleStatus))]
+pub struct _GitSubmoduleStatus {
     pub commit_changed: bool,
     pub tracked_changes: bool,
     pub untracked_changes: bool,
     pub inspectable: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct GitChangeEntry {
+#[frb(mirror(GitChangeEntry))]
+pub struct _GitChangeEntry {
     pub path: String,
     pub old_path: Option<String>,
     pub area: GitChangeArea,
@@ -110,8 +112,8 @@ pub struct GitChangeEntry {
     pub submodule: Option<GitSubmoduleStatus>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct GitChangeTreeRow {
+#[frb(mirror(GitChangeTreeRow))]
+pub struct _GitChangeTreeRow {
     pub kind: GitChangeTreeRowKind,
     pub name: String,
     pub path: String,
@@ -120,26 +122,27 @@ pub struct GitChangeTreeRow {
     pub entry: Option<GitChangeEntry>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct GitChangeGroup {
+#[frb(mirror(GitChangeGroup))]
+pub struct _GitChangeGroup {
     pub area: GitChangeArea,
     pub entries: Vec<GitChangeEntry>,
     pub tree_rows: Vec<GitChangeTreeRow>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct GitStatusResult {
+#[frb(mirror(GitStatusResult))]
+pub struct _GitStatusResult {
     pub entries: Vec<GitChangeEntry>,
     pub groups: Vec<GitChangeGroup>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct GitDiffLine {
+#[frb(mirror(GitDiffLine))]
+pub struct _GitDiffLine {
     pub text: String,
     pub kind: GitDiffLineKind,
 }
 
-pub struct GitDiffFile {
+#[frb(mirror(GitDiffFile))]
+pub struct _GitDiffFile {
     pub path: String,
     pub old_path: Option<String>,
     pub area: GitChangeArea,
@@ -154,29 +157,30 @@ pub struct GitDiffFile {
     pub line_preview_truncated: bool,
 }
 
-pub struct GitDiffResult {
+#[frb(mirror(GitDiffResult))]
+pub struct _GitDiffResult {
     pub files: Vec<GitDiffFile>,
     pub truncated: bool,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum GitHistoryRefCategory {
+#[frb(mirror(GitHistoryRefCategory))]
+pub enum _GitHistoryRefCategory {
     Branches,
     RemoteBranches,
     Tags,
     Commits,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct GitHistoryItemRef {
+#[frb(mirror(GitHistoryItemRef))]
+pub struct _GitHistoryItemRef {
     pub id: String,
     pub name: String,
     pub revision: Option<String>,
     pub category: Option<GitHistoryRefCategory>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct GitHistoryItem {
+#[frb(mirror(GitHistoryItem))]
+pub struct _GitHistoryItem {
     pub id: String,
     pub parent_ids: Vec<String>,
     pub subject: String,
@@ -188,7 +192,8 @@ pub struct GitHistoryItem {
     pub references: Vec<GitHistoryItemRef>,
 }
 
-pub struct GitHistoryResult {
+#[frb(mirror(GitHistoryResult))]
+pub struct _GitHistoryResult {
     pub items: Vec<GitHistoryItem>,
     pub current_ref: Option<GitHistoryItemRef>,
     pub remote_ref: Option<GitHistoryItemRef>,
@@ -200,14 +205,15 @@ pub struct GitHistoryResult {
     pub limit: u32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum GitCommitCompareStatus {
+#[frb(mirror(GitCommitCompareStatus))]
+pub enum _GitCommitCompareStatus {
     Ready,
     InvalidCommit,
     Error,
 }
 
-pub struct GitCommitChangeEntry {
+#[frb(mirror(GitCommitChangeEntry))]
+pub struct _GitCommitChangeEntry {
     pub path: String,
     pub old_path: Option<String>,
     pub status: GitChangeStatus,
@@ -215,7 +221,8 @@ pub struct GitCommitChangeEntry {
     pub removed: Option<u32>,
 }
 
-pub struct GitCommitCompareSummary {
+#[frb(mirror(GitCommitCompareSummary))]
+pub struct _GitCommitCompareSummary {
     pub commit_oid: String,
     pub parent_oid: Option<String>,
     pub compare_ref: String,
@@ -225,20 +232,23 @@ pub struct GitCommitCompareSummary {
     pub error_message: Option<String>,
 }
 
-pub struct GitCommitCompareResult {
+#[frb(mirror(GitCommitCompareResult))]
+pub struct _GitCommitCompareResult {
     pub summary: GitCommitCompareSummary,
     pub entries: Vec<GitCommitChangeEntry>,
 }
 
 /// One commit on the range from merge-base(base, HEAD) to HEAD.
-pub struct GitRangeCommit {
+#[frb(mirror(GitRangeCommit))]
+pub struct _GitRangeCommit {
     pub oid: String,
     pub subject: String,
     pub message: String,
 }
 
 /// One file changed between merge-base(base, HEAD) and HEAD.
-pub struct GitRangeFile {
+#[frb(mirror(GitRangeFile))]
+pub struct _GitRangeFile {
     pub path: String,
     pub status: GitChangeStatus,
     pub added: Option<u32>,
@@ -246,7 +256,8 @@ pub struct GitRangeFile {
 }
 
 /// Tree-to-tree range summary used for AI pull-request prompts.
-pub struct GitRangeContext {
+#[frb(mirror(GitRangeContext))]
+pub struct _GitRangeContext {
     pub base_ref: String,
     pub head_oid: String,
     pub head_branch: Option<String>,
@@ -256,8 +267,8 @@ pub struct GitRangeContext {
     pub patch: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum GitErrorKind {
+#[frb(mirror(GitErrorKind))]
+pub enum _GitErrorKind {
     NotARepository,
     AccessDenied,
     BranchNotFound,
@@ -277,123 +288,14 @@ pub enum GitErrorKind {
     Internal,
 }
 
-#[derive(Debug)]
-pub struct GitError {
+#[frb(mirror(GitError))]
+pub struct _GitError {
     pub kind: GitErrorKind,
     pub context: String,
 }
 
-impl GitError {
-    fn new(kind: GitErrorKind, context: impl Into<String>) -> Self {
-        Self {
-            kind,
-            context: context.into(),
-        }
-    }
-
-    pub(in crate::api) fn from_git2(error: git2::Error) -> Self {
-        let message = error.message().to_string();
-        let lowered = message.to_lowercase();
-        let kind = if lowered.contains("permission denied")
-            || lowered.contains("operation not permitted")
-        {
-            GitErrorKind::AccessDenied
-        } else {
-            GitErrorKind::Internal
-        };
-        Self::new(kind, message)
-    }
-
-    fn from_io(error: std::io::Error) -> Self {
-        let message = error.to_string();
-        let lowered = message.to_lowercase();
-        let kind = if lowered.contains("permission denied")
-            || lowered.contains("operation not permitted")
-        {
-            GitErrorKind::AccessDenied
-        } else {
-            GitErrorKind::Internal
-        };
-        Self::new(kind, message)
-    }
-}
-
-impl From<core_git::GitError> for GitError {
-    fn from(error: core_git::GitError) -> Self {
-        let kind = match error.kind {
-            core_git::GitErrorKind::NotARepository => GitErrorKind::NotARepository,
-            core_git::GitErrorKind::AccessDenied => GitErrorKind::AccessDenied,
-            core_git::GitErrorKind::BranchNotFound => GitErrorKind::BranchNotFound,
-            core_git::GitErrorKind::BranchAlreadyExists => GitErrorKind::BranchAlreadyExists,
-            core_git::GitErrorKind::InvalidBranchName => GitErrorKind::InvalidBranchName,
-            core_git::GitErrorKind::WorktreeAlreadyExists => GitErrorKind::WorktreeAlreadyExists,
-            core_git::GitErrorKind::WorktreeNotFound => GitErrorKind::WorktreeNotFound,
-            core_git::GitErrorKind::GitCli => GitErrorKind::GitCli,
-            core_git::GitErrorKind::DetachedHead => GitErrorKind::DetachedHead,
-            core_git::GitErrorKind::Conflict => GitErrorKind::Conflict,
-            core_git::GitErrorKind::RemoteNotFound => GitErrorKind::RemoteNotFound,
-            core_git::GitErrorKind::Internal => GitErrorKind::Internal,
-        };
-        GitError::new(kind, error.context)
-    }
-}
-
-pub(in crate::api) fn open_repo(path: &str) -> Result<Repository, GitError> {
-    // `discover` (rather than `open`) so operations work when `path` is a
-    // subdirectory of the work tree, matching `is_git_repository` and the
-    // behaviour of `git -C <path> ...`.
-    Repository::discover(path).map_err(|error| match error.code() {
-        ErrorCode::NotFound => GitError::new(GitErrorKind::NotARepository, path),
-        _ => GitError::from_git2(error),
-    })
-}
-
-fn head_branch_name(repo: &Repository) -> String {
-    match repo.head() {
-        Ok(head) => {
-            if repo.head_detached().unwrap_or(false) {
-                "HEAD".to_string()
-            } else {
-                match head.shorthand() {
-                    Ok(name) => name.to_string(),
-                    Err(_) => "HEAD".to_string(),
-                }
-            }
-        }
-        Err(error) if error.code() == ErrorCode::UnbornBranch => unborn_branch_name(repo),
-        Err(_) => "HEAD".to_string(),
-    }
-}
-
-fn unborn_branch_name(repo: &Repository) -> String {
-    if let Ok(reference) = repo.find_reference("HEAD") {
-        if let Ok(Some(target)) = reference.symbolic_target() {
-            return target
-                .strip_prefix("refs/heads/")
-                .unwrap_or(target)
-                .to_string();
-        }
-    }
-    "HEAD".to_string()
-}
-
 pub fn is_git_repository(path: String) -> Result<bool, GitError> {
-    match Repository::discover(&path) {
-        Ok(repo) => Ok(repo.workdir().is_some()),
-        Err(error) => match error.code() {
-            ErrorCode::NotFound => Ok(false),
-            _ => {
-                let lowered = error.message().to_lowercase();
-                if lowered.contains("permission denied")
-                    || lowered.contains("operation not permitted")
-                {
-                    Err(GitError::new(GitErrorKind::AccessDenied, path))
-                } else {
-                    Ok(false)
-                }
-            }
-        },
-    }
+    source_control::is_git_repository(path)
 }
 
 pub fn is_ancestor(
@@ -401,15 +303,15 @@ pub fn is_ancestor(
     ancestor_ref: String,
     descendant_ref: String,
 ) -> Result<bool, GitError> {
-    git_ancestry_impl::is_ancestor(path, ancestor_ref, descendant_ref)
+    source_control::is_ancestor(path, ancestor_ref, descendant_ref)
 }
 
 pub fn git_status(path: String) -> Result<GitStatusResult, GitError> {
-    git_diff_impl::git_status(path)
+    source_control::git_status(path)
 }
 
 pub fn git_status_for_path(path: String, file_path: String) -> Result<GitStatusResult, GitError> {
-    git_diff_impl::git_status_for_path(path, file_path)
+    source_control::git_status_for_path(path, file_path)
 }
 
 pub fn git_submodule_status(
@@ -417,7 +319,7 @@ pub fn git_submodule_status(
     submodule_path: String,
     area: GitChangeArea,
 ) -> Result<GitStatusResult, GitError> {
-    git_diff_impl::git_submodule_status(path, submodule_path, area)
+    source_control::git_submodule_status(path, submodule_path, area)
 }
 
 pub fn git_diff(
@@ -425,11 +327,11 @@ pub fn git_diff(
     file_path: String,
     area: GitChangeArea,
 ) -> Result<GitDiffResult, GitError> {
-    git_diff_impl::git_diff(path, file_path, area)
+    source_control::git_diff(path, file_path, area)
 }
 
 pub fn git_diff_all(path: String, file_path: Option<String>) -> Result<GitDiffResult, GitError> {
-    git_diff_impl::git_diff_all(path, file_path)
+    source_control::git_diff_all(path, file_path)
 }
 
 pub fn git_history(
@@ -437,14 +339,14 @@ pub fn git_history(
     limit: Option<u32>,
     base_ref: Option<String>,
 ) -> Result<GitHistoryResult, GitError> {
-    git_history_impl::git_history(path, limit, base_ref)
+    source_control::git_history(path, limit, base_ref)
 }
 
 pub fn git_commit_compare(
     path: String,
     commit_id: String,
 ) -> Result<GitCommitCompareResult, GitError> {
-    git_diff_impl::git_commit_compare(path, commit_id)
+    source_control::git_commit_compare(path, commit_id)
 }
 
 pub fn git_commit_diff(
@@ -454,7 +356,7 @@ pub fn git_commit_diff(
     file_path: Option<String>,
     old_path: Option<String>,
 ) -> Result<GitDiffResult, GitError> {
-    git_diff_impl::git_commit_diff(path, commit_oid, parent_oid, file_path, old_path)
+    source_control::git_commit_diff(path, commit_oid, parent_oid, file_path, old_path)
 }
 
 /// Summarizes commits and the tree-to-tree patch from merge-base([base_ref],
@@ -465,60 +367,15 @@ pub fn git_range_context(
     commit_limit: Option<u32>,
     head_ref: Option<String>,
 ) -> Result<GitRangeContext, GitError> {
-    git_range_impl::git_range_context(path, base_ref, commit_limit, head_ref)
+    source_control::git_range_context(path, base_ref, commit_limit, head_ref)
 }
 
 pub fn git_repository_state(path: String) -> Result<GitRepositoryState, GitError> {
-    let repo = open_repo(&path)?;
-    let branch = head_branch_name(&repo);
-    let mut upstream = None;
-    let mut ahead = 0;
-    let mut behind = 0;
-
-    if branch != "HEAD" {
-        if let Ok(local) = repo.find_branch(&branch, BranchType::Local) {
-            if let Ok(upstream_branch) = local.upstream() {
-                upstream = upstream_branch
-                    .name()
-                    .map_err(GitError::from_git2)?
-                    .map(ToString::to_string);
-                if let (Some(local_oid), Some(upstream_oid)) =
-                    (local.get().target(), upstream_branch.get().target())
-                {
-                    let counts = repo
-                        .graph_ahead_behind(local_oid, upstream_oid)
-                        .map_err(GitError::from_git2)?;
-                    ahead = counts.0 as u32;
-                    behind = counts.1 as u32;
-                }
-            }
-        }
-    }
-
-    let head_message = current_head_commit(&repo)?.and_then(|commit| {
-        commit
-            .message()
-            .ok()
-            .map(|message| message.trim_end_matches(['\r', '\n']).to_string())
-    });
-
-    Ok(GitRepositoryState {
-        branch,
-        upstream,
-        ahead,
-        behind,
-        has_conflicts: repository_has_conflicts(&repo)?,
-        head_message,
-    })
+    source_control::git_repository_state(path)
 }
 
 pub fn git_stage(path: String, file_path: Option<String>) -> Result<(), GitError> {
-    let repo = open_repo(&path)?;
-    if let Some(file_path) = file_path {
-        return stage_selected_path(&repo, &path, &file_path);
-    }
-    let status = git_status(path.clone())?;
-    stage_status_entries(&repo, &path, &status.entries)
+    source_control::git_stage(path, file_path)
 }
 
 pub fn git_stage_area(
@@ -526,19 +383,11 @@ pub fn git_stage_area(
     area: GitChangeArea,
     file_path: Option<String>,
 ) -> Result<(), GitError> {
-    let repo = open_repo(&path)?;
-    let status = git_status(path.clone())?;
-    let entries = entries_for_area_and_scope(status.entries, area, file_path.as_deref());
-    stage_status_entries(&repo, &path, &entries)
+    source_control::git_stage_area(path, area, file_path)
 }
 
 pub fn git_unstage(path: String, file_path: Option<String>) -> Result<(), GitError> {
-    let repo = open_repo(&path)?;
-    if let Some(file_path) = file_path {
-        return unstage_selected_path(&repo, &path, &file_path);
-    }
-    let status = git_status(path.clone())?;
-    unstage_status_entries(&repo, &path, &status.entries)
+    source_control::git_unstage(path, file_path)
 }
 
 pub fn git_unstage_area(
@@ -546,27 +395,11 @@ pub fn git_unstage_area(
     area: GitChangeArea,
     file_path: Option<String>,
 ) -> Result<(), GitError> {
-    let repo = open_repo(&path)?;
-    let status = git_status(path.clone())?;
-    let entries = entries_for_area_and_scope(status.entries, area, file_path.as_deref());
-    unstage_status_entries(&repo, &path, &entries)
+    source_control::git_unstage_area(path, area, file_path)
 }
 
 pub fn git_discard(path: String, file_path: Option<String>) -> Result<(), GitError> {
-    let repo = open_repo(&path)?;
-    let reject_dirty_submodules = file_path.is_some();
-    let status = match file_path.as_deref() {
-        Some(file_path) => git_status_for_path(path.clone(), file_path.to_string())?,
-        None => git_status(path.clone())?,
-    };
-    let pathspecs = scoped_pathspecs(&repo, &path, file_path.as_deref())?;
-    discard_status_entries(
-        &repo,
-        &path,
-        &status.entries,
-        &pathspecs,
-        reject_dirty_submodules,
-    )
+    source_control::git_discard(path, file_path)
 }
 
 pub fn git_discard_area(
@@ -574,695 +407,39 @@ pub fn git_discard_area(
     area: GitChangeArea,
     file_path: Option<String>,
 ) -> Result<(), GitError> {
-    let repo = open_repo(&path)?;
-    let status = git_status(path.clone())?;
-    let entries = entries_for_area_and_scope(status.entries, area, file_path.as_deref());
-    let pathspecs = scoped_pathspecs(&repo, &path, file_path.as_deref())?;
-    discard_status_entries(&repo, &path, &entries, &pathspecs, false)
-}
-
-fn discard_status_entries(
-    repo: &Repository,
-    path: &str,
-    entries: &[GitChangeEntry],
-    pathspecs: &[String],
-    reject_dirty_submodules: bool,
-) -> Result<(), GitError> {
-    let mut skipped_submodules = HashSet::new();
-    for entry in entries.iter().filter(|entry| {
-        entry.area == GitChangeArea::Unstaged
-            && entry
-                .submodule
-                .as_ref()
-                .is_some_and(|status| status.commit_changed && status.inspectable)
-    }) {
-        let discarded = git_diff_impl::discard_submodule_gitlink(
-            repo,
-            path,
-            &entry.path,
-            !reject_dirty_submodules,
-        )?;
-        if !discarded {
-            skipped_submodules.insert(entry.path.clone());
-        }
-    }
-
-    let has_tracked_unstaged = entries.iter().any(|entry| {
-        entry.area == GitChangeArea::Unstaged
-            && is_parent_discardable(entry)
-            && !skipped_submodules.contains(&entry.path)
-    });
-    if has_tracked_unstaged {
-        let mut checkout = CheckoutBuilder::new();
-        checkout.force();
-        let has_non_discardable_submodule = !skipped_submodules.is_empty()
-            || entries.iter().any(|entry| {
-                entry.area == GitChangeArea::Unstaged
-                    && entry.submodule.is_some()
-                    && !is_parent_discardable(entry)
-            });
-        if has_non_discardable_submodule {
-            checkout.disable_pathspec_match(true);
-            for entry in entries.iter().filter(|entry| {
-                entry.area == GitChangeArea::Unstaged
-                    && is_parent_discardable(entry)
-                    && !skipped_submodules.contains(&entry.path)
-            }) {
-                for workspace_path in entry.old_path.iter().chain(std::iter::once(&entry.path)) {
-                    checkout.path(repo_relative_path(repo, path, workspace_path)?);
-                }
-            }
-        } else if pathspecs != [String::from(".")] {
-            checkout.disable_pathspec_match(true);
-            for pathspec in pathspecs {
-                checkout.path(pathspec);
-            }
-        }
-        repo.checkout_index(None, Some(&mut checkout))
-            .map_err(GitError::from_git2)?;
-    }
-
-    for entry in entries.iter().filter(|entry| {
-        entry.area == GitChangeArea::Untracked
-            || (entry.area == GitChangeArea::Unstaged
-                && entry.status == GitChangeStatus::Renamed
-                && entry.old_path.as_deref() != Some(entry.path.as_str()))
-    }) {
-        delete_workspace_relative_path(path, &entry.path)?;
-    }
-
-    Ok(())
-}
-
-fn entries_for_area_and_scope(
-    entries: Vec<GitChangeEntry>,
-    area: GitChangeArea,
-    file_path: Option<&str>,
-) -> Vec<GitChangeEntry> {
-    entries
-        .into_iter()
-        .filter(|entry| {
-            entry.area == area
-                && file_path.is_none_or(|file_path| {
-                    workspace_path_is_in_scope(&entry.path, file_path)
-                        || entry
-                            .old_path
-                            .as_deref()
-                            .is_some_and(|old_path| workspace_path_is_in_scope(old_path, file_path))
-                })
-        })
-        .collect()
-}
-
-fn workspace_path_is_in_scope(path: &str, scope: &str) -> bool {
-    scope.is_empty()
-        || path == scope
-        || path
-            .strip_prefix(scope)
-            .is_some_and(|remainder| remainder.starts_with('/'))
+    source_control::git_discard_area(path, area, file_path)
 }
 
 pub fn git_commit(path: String, message: String) -> Result<String, GitError> {
-    let repo = open_repo(&path)?;
-    if repository_has_conflicts(&repo)? {
-        return Err(GitError::new(
-            GitErrorKind::Conflict,
-            "resolve conflicts before committing",
-        ));
-    }
-    let message = message.trim();
-    if message.is_empty() {
-        return Err(GitError::new(
-            GitErrorKind::NothingToCommit,
-            "empty message",
-        ));
-    }
-
-    let mut index = repo.index().map_err(GitError::from_git2)?;
-    let (parents, cleanup_state) = commit_parent_commits(&repo)?;
-    let first_parent = parents.first();
-    reject_out_of_scope_staged_entries(&repo, &path, first_parent, &index)?;
-    let tree_id = index.write_tree().map_err(GitError::from_git2)?;
-    let tree = repo.find_tree(tree_id).map_err(GitError::from_git2)?;
-    if let Some(parent) = first_parent {
-        if parent.tree_id() == tree_id {
-            return Err(GitError::new(
-                GitErrorKind::NothingToCommit,
-                "no staged changes",
-            ));
-        }
-    }
-    let signature = git_signature(&repo)?;
-    let parents = parents.iter().collect::<Vec<_>>();
-    let oid = repo
-        .commit(
-            Some("HEAD"),
-            &signature,
-            &signature,
-            message,
-            &tree,
-            &parents,
-        )
-        .map_err(GitError::from_git2)?;
-    if cleanup_state {
-        repo.cleanup_state().map_err(GitError::from_git2)?;
-    }
-    Ok(oid.to_string())
+    source_control::git_commit(path, message)
 }
 
 pub fn git_commit_amend(path: String, message: String) -> Result<String, GitError> {
-    let repo = open_repo(&path)?;
-    if repository_has_conflicts(&repo)? {
-        return Err(GitError::new(
-            GitErrorKind::Conflict,
-            "resolve conflicts before amending",
-        ));
-    }
-    let message = message.trim();
-    if message.is_empty() {
-        return Err(GitError::new(
-            GitErrorKind::NothingToCommit,
-            "empty message",
-        ));
-    }
-
-    let head = current_head_commit(&repo)?.ok_or_else(|| {
-        GitError::new(
-            GitErrorKind::NothingToCommit,
-            "no commit to amend on this branch",
-        )
-    })?;
-    if repo.state() != RepositoryState::Clean {
-        return Err(GitError::new(
-            GitErrorKind::Conflict,
-            "finish or abort the in-progress git operation before amending",
-        ));
-    }
-
-    let mut index = repo.index().map_err(GitError::from_git2)?;
-    reject_out_of_scope_staged_entries(&repo, &path, Some(&head), &index)?;
-    let tree_id = index.write_tree().map_err(GitError::from_git2)?;
-    if head.tree_id() == tree_id {
-        return Err(GitError::new(
-            GitErrorKind::NothingToCommit,
-            "no staged changes",
-        ));
-    }
-    let tree = repo.find_tree(tree_id).map_err(GitError::from_git2)?;
-    let author = head.author();
-    let committer = git_signature(&repo)?;
-    let oid = head
-        .amend(
-            Some("HEAD"),
-            Some(&author),
-            Some(&committer),
-            None,
-            Some(message),
-            Some(&tree),
-        )
-        .map_err(GitError::from_git2)?;
-    Ok(oid.to_string())
+    source_control::git_commit_amend(path, message)
 }
 
 pub fn git_fetch(path: String) -> Result<(), GitError> {
-    git_cli_in_path(&path, &["fetch", "--all", "--prune"])
+    source_control::git_fetch(path)
 }
 
 pub fn git_pull(path: String) -> Result<(), GitError> {
-    git_cli_in_path(&path, &["pull"])
+    source_control::git_pull(path)
 }
 
 pub fn git_push(path: String) -> Result<(), GitError> {
-    let repo = open_repo(&path)?;
-    let state = git_repository_state(path.clone())?;
-    if state.branch == "HEAD" {
-        return Err(GitError::new(
-            GitErrorKind::DetachedHead,
-            "cannot push detached HEAD",
-        ));
-    }
-    if state.upstream.is_some() {
-        return git_cli_in_path(&path, &["push"]);
-    }
-    if repo.find_remote("origin").is_err() {
-        return Err(GitError::new(
-            GitErrorKind::RemoteNotFound,
-            "remote origin not found",
-        ));
-    }
-    git_cli_in_path(&path, &["push", "-u", "origin", &state.branch])
+    source_control::git_push(path)
 }
 
 pub fn git_list_stashes(path: String) -> Result<Vec<GitStashEntry>, GitError> {
-    let mut repo = open_repo(&path)?;
-    let mut entries = Vec::new();
-    repo.stash_foreach(|index, message, oid| {
-        entries.push(GitStashEntry {
-            index: index as u32,
-            reference: format!("stash@{{{index}}}"),
-            message: message.to_string(),
-            oid: oid.to_string(),
-        });
-        true
-    })
-    .map_err(GitError::from_git2)?;
-    Ok(entries)
+    source_control::git_list_stashes(path)
 }
 
 pub fn git_stash(path: String) -> Result<(), GitError> {
-    let mut repo = open_repo(&path)?;
-    let signature = Signature::now("Alera", "alera@example.com").map_err(GitError::from_git2)?;
-    let mut options = StashSaveOptions::new(signature);
-    options.flags(Some(git2::StashFlags::DEFAULT));
-    reject_out_of_scope_tracked_changes(&repo, &path)?;
-    repo.stash_save_ext(Some(&mut options))
-        .map_err(|error| match error.code() {
-            ErrorCode::NotFound => GitError::new(GitErrorKind::NothingToCommit, "nothing to stash"),
-            _ => GitError::from_git2(error),
-        })?;
-    Ok(())
+    source_control::git_stash(path)
 }
 
 pub fn git_stash_pop(path: String, stash_index: u32) -> Result<(), GitError> {
-    let mut repo = open_repo(&path)?;
-    reject_out_of_scope_stash_pop(&mut repo, &path, stash_index)?;
-    let mut options = StashApplyOptions::new();
-    repo.stash_pop(stash_index as usize, Some(&mut options))
-        .map_err(GitError::from_git2)?;
-    Ok(())
-}
-
-fn reject_out_of_scope_staged_entries(
-    repo: &Repository,
-    workspace_path: &str,
-    parent: Option<&git2::Commit<'_>>,
-    index: &Index,
-) -> Result<(), GitError> {
-    let scope = workspace_repo_relative_path(repo, workspace_path)?;
-    if scope == "." {
-        return Ok(());
-    }
-
-    let parent_tree = if let Some(parent) = parent {
-        Some(parent.tree().map_err(GitError::from_git2)?)
-    } else {
-        None
-    };
-    let mut options = DiffOptions::new();
-    let diff = repo
-        .diff_tree_to_index(parent_tree.as_ref(), Some(index), Some(&mut options))
-        .map_err(GitError::from_git2)?;
-    for delta in diff.deltas() {
-        let old_path = delta.old_file().path().map(pathspec_string);
-        let new_path = delta.new_file().path().map(pathspec_string);
-        for path in old_path.iter().chain(new_path.iter()) {
-            if !repo_path_is_in_scope(path, &scope) {
-                return Err(GitError::new(
-                    GitErrorKind::WorkspaceScope,
-                    format!("staged change outside workspace: {path}"),
-                ));
-            }
-        }
-    }
-    Ok(())
-}
-
-fn repo_path_is_in_scope(path: &str, scope: &str) -> bool {
-    scope == "."
-        || path == scope
-        || path
-            .strip_prefix(scope)
-            .is_some_and(|remainder| remainder.starts_with('/'))
-}
-
-fn reject_out_of_scope_tracked_changes(
-    repo: &Repository,
-    workspace_path: &str,
-) -> Result<(), GitError> {
-    let scope = workspace_repo_relative_path(repo, workspace_path)?;
-    if scope == "." {
-        return Ok(());
-    }
-    let workdir = repo
-        .workdir()
-        .ok_or_else(|| GitError::new(GitErrorKind::NotARepository, workspace_path))?;
-    let status = git_status(workdir.to_string_lossy().to_string())?;
-    for entry in status
-        .entries
-        .iter()
-        .filter(|entry| entry.area != GitChangeArea::Untracked)
-    {
-        if let Some(old_path) = entry.old_path.as_deref() {
-            if !repo_path_is_in_scope(old_path, &scope) {
-                return Err(GitError::new(
-                    GitErrorKind::WorkspaceScope,
-                    format!("tracked change outside workspace: {old_path}"),
-                ));
-            }
-        }
-        if !repo_path_is_in_scope(&entry.path, &scope) {
-            return Err(GitError::new(
-                GitErrorKind::WorkspaceScope,
-                format!("tracked change outside workspace: {}", entry.path),
-            ));
-        }
-    }
-    Ok(())
-}
-
-fn reject_out_of_scope_stash_pop(
-    repo: &mut Repository,
-    workspace_path: &str,
-    stash_index: u32,
-) -> Result<(), GitError> {
-    let scope = workspace_repo_relative_path(repo, workspace_path)?;
-    if scope == "." {
-        return Ok(());
-    }
-
-    let stash_oid = stash_oid(repo, stash_index)?;
-    let stash = repo.find_commit(stash_oid).map_err(GitError::from_git2)?;
-    let stash_tree = stash.tree().map_err(GitError::from_git2)?;
-    let head = stash.parent(0).map_err(GitError::from_git2)?;
-    let head_tree = head.tree().map_err(GitError::from_git2)?;
-
-    reject_tree_diff_out_of_scope(
-        repo,
-        Some(&head_tree),
-        Some(&stash_tree),
-        &scope,
-        "stash change outside workspace",
-    )?;
-
-    if stash.parent_count() > 1 {
-        let index_parent = stash.parent(1).map_err(GitError::from_git2)?;
-        let index_tree = index_parent.tree().map_err(GitError::from_git2)?;
-        reject_tree_diff_out_of_scope(
-            repo,
-            Some(&head_tree),
-            Some(&index_tree),
-            &scope,
-            "stash index change outside workspace",
-        )?;
-    }
-
-    if stash.parent_count() > 2 {
-        let untracked_parent = stash.parent(2).map_err(GitError::from_git2)?;
-        let untracked_tree = untracked_parent.tree().map_err(GitError::from_git2)?;
-        reject_tree_diff_out_of_scope(
-            repo,
-            None,
-            Some(&untracked_tree),
-            &scope,
-            "stash untracked change outside workspace",
-        )?;
-    }
-
-    Ok(())
-}
-
-fn stash_oid(repo: &mut Repository, stash_index: u32) -> Result<Oid, GitError> {
-    let mut oid = None;
-    repo.stash_foreach(|index, _, stash_oid| {
-        if index as u32 == stash_index {
-            oid = Some(*stash_oid);
-            return false;
-        }
-        true
-    })
-    .map_err(GitError::from_git2)?;
-    oid.ok_or_else(|| GitError::new(GitErrorKind::Internal, "stash not found"))
-}
-
-fn reject_tree_diff_out_of_scope(
-    repo: &Repository,
-    old_tree: Option<&git2::Tree<'_>>,
-    new_tree: Option<&git2::Tree<'_>>,
-    scope: &str,
-    context: &str,
-) -> Result<(), GitError> {
-    let diff = repo
-        .diff_tree_to_tree(old_tree, new_tree, None)
-        .map_err(GitError::from_git2)?;
-    for delta in diff.deltas() {
-        let old_path = delta.old_file().path().map(pathspec_string);
-        let new_path = delta.new_file().path().map(pathspec_string);
-        for path in old_path.iter().chain(new_path.iter()) {
-            if !repo_path_is_in_scope(path, scope) {
-                return Err(GitError::new(
-                    GitErrorKind::WorkspaceScope,
-                    format!("{context}: {path}"),
-                ));
-            }
-        }
-    }
-    Ok(())
-}
-
-fn stage_selected_path(
-    repo: &Repository,
-    workspace_path: &str,
-    file_path: &str,
-) -> Result<(), GitError> {
-    let status = git_status_for_path(workspace_path.to_string(), file_path.to_string())?;
-    stage_status_entries(repo, workspace_path, &status.entries)
-}
-
-fn stage_status_entries(
-    repo: &Repository,
-    workspace_path: &str,
-    entries: &[GitChangeEntry],
-) -> Result<(), GitError> {
-    let mut index = repo.index().map_err(GitError::from_git2)?;
-    for entry in entries
-        .iter()
-        .filter(|entry| entry.area != GitChangeArea::Staged && !is_submodule_worktree_only(entry))
-    {
-        if let Some(old_path) = entry.old_path.as_deref() {
-            let repo_path = repo_relative_path(repo, workspace_path, old_path)?;
-            remove_index_path_if_present(&mut index, Path::new(&repo_path))?;
-        }
-        let repo_path = repo_relative_path(repo, workspace_path, &entry.path)?;
-        let path = Path::new(&repo_path);
-        if entry.status == GitChangeStatus::Deleted || !repo_workdir_path_exists(repo, path)? {
-            remove_index_path_if_present(&mut index, path)?;
-        } else {
-            index.add_path(path).map_err(GitError::from_git2)?;
-        }
-    }
-    index.write().map_err(GitError::from_git2)?;
-    Ok(())
-}
-
-fn is_submodule_worktree_only(entry: &GitChangeEntry) -> bool {
-    entry.area == GitChangeArea::Unstaged
-        && entry
-            .submodule
-            .as_ref()
-            .is_some_and(|status| !status.commit_changed)
-}
-
-fn is_parent_discardable(entry: &GitChangeEntry) -> bool {
-    entry
-        .submodule
-        .as_ref()
-        .is_none_or(|status| status.commit_changed && status.inspectable)
-}
-
-fn unstage_selected_path(
-    repo: &Repository,
-    workspace_path: &str,
-    file_path: &str,
-) -> Result<(), GitError> {
-    let status = git_status_for_path(workspace_path.to_string(), file_path.to_string())?;
-    unstage_status_entries(repo, workspace_path, &status.entries)
-}
-
-fn unstage_status_entries(
-    repo: &Repository,
-    workspace_path: &str,
-    entries: &[GitChangeEntry],
-) -> Result<(), GitError> {
-    let mut paths = entries
-        .iter()
-        .filter(|entry| entry.area == GitChangeArea::Staged)
-        .flat_map(|entry| entry.old_path.iter().chain(std::iter::once(&entry.path)))
-        .cloned()
-        .collect::<Vec<_>>();
-    paths.sort();
-    paths.dedup();
-    if paths.is_empty() {
-        return Ok(());
-    }
-
-    let mut index = repo.index().map_err(GitError::from_git2)?;
-    let head = repo
-        .head()
-        .ok()
-        .and_then(|head| head.peel(ObjectType::Commit).ok());
-    let head_index = if let Some(head) = head.as_ref() {
-        let commit = head
-            .as_commit()
-            .ok_or_else(|| GitError::new(GitErrorKind::Internal, "HEAD is not a commit"))?;
-        let tree = commit.tree().map_err(GitError::from_git2)?;
-        let mut head_index = Index::new().map_err(GitError::from_git2)?;
-        head_index.read_tree(&tree).map_err(GitError::from_git2)?;
-        Some(head_index)
-    } else {
-        None
-    };
-
-    for path in paths {
-        let repo_path = repo_relative_path(repo, workspace_path, &path)?;
-        let path = Path::new(&repo_path);
-        if let Some(head_index) = head_index.as_ref() {
-            if let Some(head_entry) = head_index.get_path(path, 0) {
-                index.add(&head_entry).map_err(GitError::from_git2)?;
-            } else {
-                remove_index_path_if_present(&mut index, path)?;
-            }
-        } else {
-            remove_index_path_if_present(&mut index, path)?;
-        }
-    }
-    index.write().map_err(GitError::from_git2)?;
-    Ok(())
-}
-
-fn repo_relative_path(
-    repo: &Repository,
-    workspace_path: &str,
-    workspace_relative_path: &str,
-) -> Result<String, GitError> {
-    let workspace = std::fs::canonicalize(workspace_path).map_err(GitError::from_io)?;
-    repo_relative_path_from_workspace(repo, workspace_path, &workspace, workspace_relative_path)
-}
-
-fn workspace_repo_relative_path(
-    repo: &Repository,
-    workspace_path: &str,
-) -> Result<String, GitError> {
-    let workspace = std::fs::canonicalize(workspace_path).map_err(GitError::from_io)?;
-    repo_relative_path_from_workspace(repo, workspace_path, &workspace, "")
-}
-
-fn repo_relative_path_from_workspace(
-    repo: &Repository,
-    workspace_path: &str,
-    workspace: &Path,
-    workspace_relative_path: &str,
-) -> Result<String, GitError> {
-    let workdir = repo
-        .workdir()
-        .ok_or_else(|| GitError::new(GitErrorKind::NotARepository, workspace_path))?;
-    let workdir = std::fs::canonicalize(workdir).map_err(GitError::from_io)?;
-    let target = workspace.join(relative_path(workspace_relative_path)?);
-    let relative = target
-        .strip_prefix(&workdir)
-        .map_err(|_| GitError::new(GitErrorKind::Internal, "path outside repository"))?;
-    Ok(pathspec_string(relative))
-}
-
-fn remove_index_path_if_present(index: &mut Index, path: &Path) -> Result<(), GitError> {
-    if index.get_path(path, 0).is_some() {
-        index.remove_path(path).map_err(GitError::from_git2)?;
-    }
-    Ok(())
-}
-
-fn repo_workdir_path_exists(repo: &Repository, path: &Path) -> Result<bool, GitError> {
-    let workdir = repo
-        .workdir()
-        .ok_or_else(|| GitError::new(GitErrorKind::NotARepository, "bare repository"))?;
-    Ok(workdir.join(path).exists())
-}
-
-fn git_signature(repo: &Repository) -> Result<Signature<'_>, GitError> {
-    repo.signature().map_err(|_| {
-        GitError::new(
-            GitErrorKind::MissingIdentity,
-            "Configure Git user.name and user.email before committing.",
-        )
-    })
-}
-
-fn scoped_pathspecs(
-    repo: &Repository,
-    workspace_path: &str,
-    file_path: Option<&str>,
-) -> Result<Vec<String>, GitError> {
-    let workdir = repo
-        .workdir()
-        .ok_or_else(|| GitError::new(GitErrorKind::NotARepository, workspace_path))?;
-    let workdir = std::fs::canonicalize(workdir).map_err(GitError::from_io)?;
-    let workspace = std::fs::canonicalize(workspace_path).map_err(GitError::from_io)?;
-    let target = match file_path {
-        Some(file_path) => workspace.join(relative_path(file_path)?),
-        None => workspace,
-    };
-    let relative = target
-        .strip_prefix(&workdir)
-        .map_err(|_| GitError::new(GitErrorKind::Internal, "path outside repository"))?;
-    let pathspec = pathspec_string(relative);
-    Ok(vec![pathspec])
-}
-
-fn pathspec_string(path: &Path) -> String {
-    let value = path
-        .components()
-        .filter_map(|component| match component {
-            Component::Normal(part) => Some(part.to_string_lossy().to_string()),
-            _ => None,
-        })
-        .collect::<Vec<_>>()
-        .join("/");
-    if value.is_empty() {
-        ".".to_string()
-    } else {
-        value
-    }
-}
-
-fn relative_path(path: &str) -> Result<PathBuf, GitError> {
-    let source = Path::new(path);
-    if source.is_absolute() {
-        return Err(GitError::new(GitErrorKind::Internal, path));
-    }
-    let mut out = PathBuf::new();
-    for component in source.components() {
-        match component {
-            Component::Normal(part) => out.push(part),
-            Component::CurDir => {}
-            Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
-                return Err(GitError::new(GitErrorKind::Internal, path));
-            }
-        }
-    }
-    Ok(out)
-}
-
-fn delete_workspace_relative_path(workspace_path: &str, relative: &str) -> Result<(), GitError> {
-    let root = std::fs::canonicalize(workspace_path).map_err(GitError::from_io)?;
-    let path = root.join(relative_path(relative)?);
-    if !path.starts_with(&root) {
-        return Err(GitError::new(GitErrorKind::Internal, relative));
-    }
-    let metadata = match std::fs::symlink_metadata(&path) {
-        Ok(metadata) => metadata,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(error) => return Err(GitError::from_io(error)),
-    };
-    if metadata.is_dir() && !metadata.file_type().is_symlink() {
-        std::fs::remove_dir_all(&path).map_err(GitError::from_io)
-    } else {
-        std::fs::remove_file(&path).map_err(GitError::from_io)
-    }
-}
-
-fn git_cli_in_path(path: &str, args: &[&str]) -> Result<(), GitError> {
-    git_in_dir(Path::new(path), args)
-        .map(|_| ())
-        .map_err(|error| GitError::new(GitErrorKind::GitCli, error.message))
+    source_control::git_stash_pop(path, stash_index)
 }
 
 /// Adds a linked worktree at `path` for `target_branch`. By default this creates
@@ -1282,35 +459,32 @@ pub fn create_worktree(
         &source_branch,
         reuse_existing_branch,
     )
-    .map_err(Into::into)
 }
 
 /// Removes the worktree whose checkout lives at `path`, deleting the working
 /// tree files. Mirrors `git worktree remove --force <path>`.
 pub fn remove_worktree(repo_path: String, path: String, force: bool) -> Result<(), GitError> {
-    core_git::remove_worktree(&repo_path, &path, force).map_err(Into::into)
+    core_git::remove_worktree(&repo_path, &path, force)
 }
 
 /// Force-deletes a local branch. Mirrors `git branch -D <branch>`.
 pub fn delete_branch(repo_path: String, branch: String, force: bool) -> Result<(), GitError> {
-    core_git::delete_branch(&repo_path, &branch, force).map_err(Into::into)
+    core_git::delete_branch(&repo_path, &branch, force)
 }
 
 /// Lists the main work tree plus every linked worktree, with each entry's
 /// branch short name. Mirrors `git worktree list --porcelain` (the main work
 /// tree is included so callers can use its presence as a liveness guard).
 pub fn list_worktrees(repo_path: String) -> Result<Vec<GitWorktreeEntry>, GitError> {
-    core_git::list_worktrees(&repo_path)
-        .map(|entries| {
-            entries
-                .into_iter()
-                .map(|entry| GitWorktreeEntry {
-                    path: entry.path,
-                    branch: entry.branch,
-                })
-                .collect()
-        })
-        .map_err(Into::into)
+    core_git::list_worktrees(&repo_path).map(|entries| {
+        entries
+            .into_iter()
+            .map(|entry| GitWorktreeEntry {
+                path: entry.path,
+                branch: entry.branch,
+            })
+            .collect()
+    })
 }
 
 /// Lists the repository's configured remotes with their fetch URLs. Used to
