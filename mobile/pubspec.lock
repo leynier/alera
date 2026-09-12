@@ -1627,6 +1627,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "15.3.0"
+  vscode_material_icon_theme:
+    dependency: "direct main"
+    description:
+      name: vscode_material_icon_theme
+      sha256: bb97923e7242262106fce803d2dbd3ed82ff62c1101b291d843a31e357f69da0
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.37.0"
   watcher:
     dependency: transitive
     description:

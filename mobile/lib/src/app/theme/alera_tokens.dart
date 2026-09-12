@@ -25,6 +25,9 @@ abstract final class AleraTokens {
   static const double minTapTarget = space48;
   static const double iconSm = space12;
 
+  /// File-type glyphs in phone rows: larger than the desktop sidebar's 16.
+  static const double iconMd = space20;
+
   static const double emptyStateMaxWidth = 520.0;
   static const double conversationMaxWidth = 760.0;
   static const double chatBubbleMaxWidth = 620.0;

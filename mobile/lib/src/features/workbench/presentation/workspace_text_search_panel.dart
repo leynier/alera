@@ -2,6 +2,7 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_search_field.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
+import 'package:alera_mobile/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_text_search_controller.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_viewer_screen.dart';
@@ -155,6 +156,7 @@ class const _Results({
       itemBuilder: (context, index) {
         final file = result.files[index];
         return ExpansionTile(
+          leading: AleraFileIcon(pathOrName: file.relativePath, kind: .file),
           title: Text(file.relativePath),
           subtitle: Text(
             '${file.matches.length} ${file.matches.length == 1 ? 'match' : 'matches'}',

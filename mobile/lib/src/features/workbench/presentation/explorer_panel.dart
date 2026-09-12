@@ -1,8 +1,8 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
+import 'package:alera_mobile/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/workbench/application/explorer_controller.dart';
-import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_picker_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_viewer_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -72,12 +72,10 @@ class const _ExplorerBody({
                   height: AleraTokens.space20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : Icon(
-                  row.entry.isDirectory
-                      ? (row.expanded
-                            ? AleraIcons.folderOpen
-                            : AleraIcons.folder)
-                      : workspaceFileIcon(row.entry.relativePath),
+              : AleraFileIcon(
+                  pathOrName: row.entry.name,
+                  kind: AleraFileIconKind.fromEntryKind(row.entry.kind),
+                  isExpanded: row.expanded,
                 ),
           title: Text(row.entry.name),
           trailing: row.entry.isDirectory

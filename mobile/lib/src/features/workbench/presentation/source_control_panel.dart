@@ -1,6 +1,7 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
+import 'package:alera_mobile/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
@@ -215,18 +216,8 @@ class const _ChangeRow({
             ),
             child: Row(
               children: <Widget>[
-                SizedBox(
-                  width: 16,
-                  child: Text(
-                    letter,
-                    textAlign: .center,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: color,
-                      fontWeight: .w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AleraTokens.space8),
+                AleraFileIcon(pathOrName: change.path, kind: .file),
+                const SizedBox(width: AleraTokens.space12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: .start,
@@ -245,6 +236,18 @@ class const _ChangeRow({
                           style: theme.textTheme.bodySmall,
                         ),
                     ],
+                  ),
+                ),
+                const SizedBox(width: AleraTokens.space8),
+                SizedBox(
+                  width: AleraTokens.space16,
+                  child: Text(
+                    letter,
+                    textAlign: .center,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: color,
+                      fontWeight: .w600,
+                    ),
                   ),
                 ),
                 const SizedBox(width: AleraTokens.space8),
