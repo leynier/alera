@@ -18,6 +18,7 @@ WorkspaceTabSummary fakeTab({
   String? runtimeTitle,
   bool manualTitle = false,
   bool autoCloseOnSuccess = false,
+  String? filePath,
 }) {
   return WorkspaceTabSummary(
     id: id,
@@ -28,6 +29,7 @@ WorkspaceTabSummary fakeTab({
       'terminalSessionId': 'session-$id',
       if (manualTitle) 'manualTitle': true,
       if (autoCloseOnSuccess) 'autoCloseOnSuccess': true,
+      'filePath': ?filePath,
     },
     runtimeTitle: runtimeTitle,
   );

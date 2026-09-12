@@ -5,6 +5,7 @@ class const _TabStrip({
   required final String? selectedTabId,
   required final bool creating,
   required final Map<String, AgentPresenceSummary> presenceByTabId,
+  required final bool canOpenMarkdownTabs,
   required final ValueChanged<WorkspaceTabSummary> onSelect,
   required final ValueChanged<WorkspaceTabSummary> onClose,
   required final ValueChanged<WorkspaceTabSummary> onActions,
@@ -32,6 +33,10 @@ class const _TabStrip({
                     tab: tab,
                     selected: tab.id == selectedTabId,
                     presence: presenceByTabId[tab.id],
+                    opensPreview:
+                        canOpenMarkdownTabs &&
+                        tab.isMarkdownViewer &&
+                        tab.filePath != null,
                     onSelect: onSelect,
                     onClose: onClose,
                     onActions: onActions,
@@ -186,10 +191,11 @@ class const _TabChip({
   required final ValueChanged<WorkspaceTabSummary> onSelect,
   required final ValueChanged<WorkspaceTabSummary> onClose,
   required final ValueChanged<WorkspaceTabSummary> onActions,
+  final bool opensPreview = false,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final interactive = tab.isTerminal;
+    final interactive = tab.isTerminal || opensPreview;
     final status = presence;
     return GestureDetector(
       onLongPress: () => onActions(tab),
@@ -226,12 +232,13 @@ class const _TabChip({
           ),
         ),
         selected: selected,
-        // Non-terminal tabs remain disabled content surfaces, while
-        // their metadata actions stay available through long press.
+        // Terminals select in place and Markdown viewers open their preview;
+        // other tabs remain disabled content surfaces, while their metadata
+        // actions stay available through long press.
         onSelected: interactive ? (_) => onSelect(tab) : null,
         // Only the open tab offers Close: on an unselected chip the target sits
         // next to the one that selects it, and the two are a thumb-width apart.
-        onDeleted: interactive && selected ? () => onClose(tab) : null,
+        onDeleted: tab.isTerminal && selected ? () => onClose(tab) : null,
         deleteButtonTooltipMessage: 'Close Tab',
       ),
     );

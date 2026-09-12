@@ -11,6 +11,7 @@ import 'package:alera_mobile/src/features/workbench/application/workspace_panels
 import 'package:alera_mobile/src/features/workbench/presentation/explorer_panel.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_panel.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/source_control_panel.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_viewer_screen.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_text_search_panel.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
@@ -231,6 +232,26 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     if (action == 'close') await _closeTab(tab);
   }
 
+  /// A desktop Markdown viewer tab opens its preview on top of the terminal
+  /// rather than replacing it, so the selected terminal stays attached.
+  void _openMarkdownTab(WorkspaceTabSummary tab) {
+    final filePath = tab.filePath;
+    if (filePath == null) {
+      return;
+    }
+    unawaited(
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => WorkspaceFileViewerScreen(
+            hostId: widget.hostId,
+            workspaceId: tab.workspaceId,
+            relativePath: filePath,
+          ),
+        ),
+      ),
+    );
+  }
+
   WorkspaceTabSummary? _selectedTab(List<WorkspaceTabSummary> tabs) {
     final supported = tabs.where((tab) => tab.isTerminal).toList();
     if (supported.isEmpty) {
@@ -271,10 +292,16 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     );
     final tabs = ref.watch(tabsProvider);
     final selectedTab = tabs.value == null ? null : _selectedTab(tabs.value!);
-    final titleClient = ref.watch(workspaceClientProvider(widget.hostId)).value;
+    final workspaceClient = ref
+        .watch(workspaceClientProvider(widget.hostId))
+        .value;
     final canGenerateTitle =
-        titleClient is MobileAgentTitleClient &&
-        (titleClient as MobileAgentTitleClient).supportsAgentTitles;
+        workspaceClient is MobileAgentTitleClient &&
+        (workspaceClient as MobileAgentTitleClient).supportsAgentTitles;
+    final canOpenMarkdownTabs =
+        workspaceClient is MobileCodexWorkspaceClient &&
+        (workspaceClient as MobileCodexWorkspaceClient)
+            .supportsCodexWorkspaceFiles;
     final canRename =
         ref
             .watch(workspaceClientProvider(widget.hostId))
@@ -374,7 +401,12 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
                   selectedTabId: _selectedTab(tabs.value!)?.id,
                   creating: _creating,
                   presenceByTabId: _presenceByTabId(),
+                  canOpenMarkdownTabs: canOpenMarkdownTabs,
                   onSelect: (tab) {
+                    if (tab.isMarkdownViewer) {
+                      _openMarkdownTab(tab);
+                      return;
+                    }
                     setState(() {
                       _selectedTabId = tab.id;
                     });
