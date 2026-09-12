@@ -12,7 +12,7 @@ use git_reading_diff_submodule::submodule_child_workdir;
 
 const MAX_READING_DIFF_BYTES: usize = 4 * 1024 * 1024;
 
-pub(crate) fn git_reading_diff_patch(
+pub fn git_reading_diff_patch(
     path: String,
     file_path: Option<String>,
     old_path: Option<String>,
