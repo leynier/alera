@@ -58,6 +58,10 @@ pub const RUNTIME_HOST_MOBILE_WORKSPACE_SEARCH_CAPABILITY: &str = "mobileWorkspa
 pub const RUNTIME_HOST_MOBILE_SOURCE_CONTROL_CAPABILITY: &str = "mobileSourceControlV1";
 /// A paired phone can load a usable current-branch pull-request snapshot.
 pub const RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY: &str = "mobilePullRequestV1";
+/// A paired phone can comment, reply, edit its own comments, merge, change
+/// draft status, close, link, unlink and create GitHub pull requests through
+/// the `mobile.pullRequest.*` write verbs. Additive to `mobilePullRequestV1`.
+pub const RUNTIME_HOST_MOBILE_PULL_REQUEST_ACTIONS_CAPABILITY: &str = "mobilePullRequestActionsV1";
 /// Retained name. Codex chat sessions are gone; older phones still feature-detect this string.
 #[allow(dead_code)]
 pub const RUNTIME_HOST_MOBILE_CODEX_SESSIONS_CAPABILITY: &str = "mobileCodexSessionsV1";
