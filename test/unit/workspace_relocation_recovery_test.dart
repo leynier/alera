@@ -101,6 +101,53 @@ class RecoveryHost(
 }
 
 void main() {
+  test('SSH recovery preserves the owner setup attempt and failed outcome', () {
+    final source = task(host: 'ssh');
+    final response = remoteReport(source);
+    final owner = response['owner'] as Map;
+    final item = Map<String, Object?>.from(
+      (owner['items'] as List).single as Map,
+    );
+    owner['items'] = [item];
+    item['setup'] = {
+      'attemptId': 'owner-attempt',
+      'report': {
+        'steps': [
+          {'succeeded': false},
+        ],
+      },
+    };
+    item['setupCancellationRequested'] = true;
+    final entry = WorkspaceRelocationRecoverySnapshot.fromResponse(
+      source,
+      response,
+    ).entries.single;
+    expect(entry.hasSetupRecipe, isTrue);
+    expect(entry.setupAttemptId, 'owner-attempt');
+    expect(entry.setupFinished, isTrue);
+    expect(entry.setupFailed, isTrue);
+    expect(entry.setupCancellationRequested, isTrue);
+    expect(entry.completed, isFalse);
+  });
+
+  test('recovery rejects missing operation identity before offering retry', () {
+    final source = task();
+    expect(
+      () => WorkspaceRelocationRecoverySnapshot.fromResponse(source, [
+        {
+          'relocation': {...journal(source), 'id': ''},
+        },
+      ]),
+      throwsA(
+        isA<FormatException>().having(
+          (error) => error.message,
+          'message',
+          'Missing relocation id.',
+        ),
+      ),
+    );
+  });
+
   test(
     'resume refreshes original intent and acquires a fresh buffer guard',
     () async {
