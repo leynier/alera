@@ -7,6 +7,7 @@
 use crate::terminal_host::agent_profile_capabilities::RUNTIME_HOST_AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY;
 use crate::terminal_host::ai_assist_capabilities::{
     RUNTIME_HOST_AI_ASSIST_AGENT_TITLE_CAPABILITY,
+    RUNTIME_HOST_AI_ASSIST_COMMIT_MESSAGE_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_SPEECH_MESSAGE_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_WORKSPACE_IDENTITY_CAPABILITY,
 };
@@ -28,8 +29,9 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_MOBILE_PROMPT_FILE_UPLOAD_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY,
     RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY, RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
-    RUNTIME_HOST_MOBILE_SOURCE_CONTROL_CAPABILITY, RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
-    RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
+    RUNTIME_HOST_MOBILE_SOURCE_CONTROL_CAPABILITY,
+    RUNTIME_HOST_MOBILE_SOURCE_CONTROL_WRITES_CAPABILITY,
+    RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY, RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
     RUNTIME_HOST_MOBILE_WORKSPACE_SEARCH_CAPABILITY, RUNTIME_HOST_RESTART_CAPABILITY,
     RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
     RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY, RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY,
@@ -72,6 +74,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_AI_ASSIST_WORKSPACE_IDENTITY_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_AGENT_TITLE_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_SPEECH_MESSAGE_CAPABILITY,
+    RUNTIME_HOST_AI_ASSIST_COMMIT_MESSAGE_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY,
     RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
@@ -82,6 +85,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_MOBILE_EXPLORER_CAPABILITY,
     RUNTIME_HOST_MOBILE_WORKSPACE_SEARCH_CAPABILITY,
     RUNTIME_HOST_MOBILE_SOURCE_CONTROL_CAPABILITY,
+    RUNTIME_HOST_MOBILE_SOURCE_CONTROL_WRITES_CAPABILITY,
     RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY,
     crate::terminal_host::protocol::RUNTIME_HOST_MOBILE_PULL_REQUEST_ACTIONS_CAPABILITY,
     RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
@@ -141,6 +145,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "aiText.agentTitle.generate"
             | "aiText.workspaceIdentity.generate"
             | "aiText.speechMessage.generate"
+            | "aiText.commitMessage.generate"
             | "aiText.cancel"
             | "mobile.promptImage.start"
             | "mobile.promptImage.chunk"
@@ -154,6 +159,19 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "mobile.workspaceSearch.run"
             | "mobile.git.status"
             | "mobile.git.diff"
+            | "mobile.git.stage"
+            | "mobile.git.unstage"
+            | "mobile.git.discard"
+            | "mobile.git.commit"
+            | "mobile.git.fetch"
+            | "mobile.git.pull"
+            | "mobile.git.push"
+            | "mobile.git.sync"
+            | "mobile.git.stash"
+            | "mobile.git.stashPop"
+            | "mobile.git.branches"
+            | "mobile.git.checkout"
+            | "mobile.git.createBranch"
             | "mobile.pullRequest.snapshot"
             | "mobile.pullRequest.comment"
             | "mobile.pullRequest.commentUpdate"
@@ -308,6 +326,22 @@ mod mobile_codex_file_surface_tests {
         }
         assert!(!mobile_request_allowed("linkedReview.upsert"));
         assert!(!mobile_request_allowed("linkedReview.remove"));
+    }
+
+    #[test]
+    fn advertises_and_allows_mobile_source_control_writes() {
+        assert!(MOBILE_HELLO_CAPABILITIES
+            .contains(&RUNTIME_HOST_MOBILE_SOURCE_CONTROL_WRITES_CAPABILITY));
+        for request in super::super::mobile_source_control_write_requests::MOBILE_GIT_WRITE_REQUESTS
+            .iter()
+            .chain(&["mobile.git.branches"])
+        {
+            assert!(mobile_request_allowed(request), "{request}");
+        }
+        assert!(
+            MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_AI_ASSIST_COMMIT_MESSAGE_CAPABILITY)
+        );
+        assert!(mobile_request_allowed("aiText.commitMessage.generate"));
     }
 
     #[test]

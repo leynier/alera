@@ -65,6 +65,7 @@ mod agent_title_state;
 #[cfg(test)]
 mod agent_title_tests;
 mod ai_assist_command_execution;
+mod ai_assist_commit_message;
 mod ai_assist_failure_detail;
 mod ai_assist_fx_plan;
 mod ai_assist_grok_plan;
@@ -128,6 +129,8 @@ mod mobile_pull_request_snapshot_extras;
 #[cfg(test)]
 mod mobile_relay_presence_tests;
 mod mobile_source_control_requests;
+mod mobile_source_control_snapshot;
+mod mobile_source_control_write_requests;
 mod mobile_terminal_requests;
 #[cfg(test)]
 mod mobile_terminal_viewport_tests;

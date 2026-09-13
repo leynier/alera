@@ -21,8 +21,14 @@ class SourceControlController extends _$SourceControlController {
     );
   }
 
+  /// Refreshes in place. Riverpod keeps the previous snapshot on a rebuild,
+  /// so the panel keeps its list on screen instead of blanking to a spinner.
   Future<void> reload() async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() => build(hostId, workspaceId));
+    ref.invalidateSelf();
+    try {
+      await future;
+    } on Object {
+      // The failure is already on `state`, next to the previous snapshot.
+    }
   }
 }
