@@ -51,7 +51,6 @@ abstract final class const AleraIcons._() {
   static const IconData gitPullRequestDraft = LucideIcons.gitPullRequestDraft;
   static const IconData gitMerge = LucideIcons.gitMerge;
   static const IconData gitCompare = LucideIcons.gitCompare;
-  static const IconData unlink = LucideIcons.unlink;
   static const IconData reply = LucideIcons.reply;
   static const IconData send = LucideIcons.send;
   static const IconData listView = LucideIcons.list;
