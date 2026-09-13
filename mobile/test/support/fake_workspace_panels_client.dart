@@ -39,12 +39,6 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
   /// flight. Errors make the call fail after the gate opens.
   Completer<void>? replaceGate;
   Completer<void>? searchGate;
-  Completer<void>? explorerGate;
-  Object? explorerError;
-  Completer<void>? gitStatusGate;
-  Object? gitStatusError;
-  Completer<void>? pullRequestGate;
-  Object? pullRequestError;
 
   @override
   bool get supportsExplorer => explorerSupported;
