@@ -4,6 +4,7 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
+import 'package:alera_mobile/src/design_system/feedback/alera_refresh_progress.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
@@ -29,61 +30,59 @@ class const ExplorerPanel({
   Widget build(BuildContext context, WidgetRef ref) {
     final provider = explorerControllerProvider(hostId, workspace.id);
     final state = ref.watch(provider);
-    return switch (state) {
-      AsyncData(value: final view) => Column(
-        children: <Widget>[
-          ExplorerPanelToolbar(
-            title: 'Explorer',
-            hideIgnored: view.hideIgnored,
-            refreshing: view.refreshing,
-            canCollapse: view.hasExpandedFolders,
-            onToggleIgnored: () => unawaited(
-              ref.read(provider.notifier).setHideIgnored(!view.hideIgnored),
-            ),
-            onCollapseAll: ref.read(provider.notifier).collapseAll,
-            onRefresh: () => unawaited(ref.read(provider.notifier).refresh()),
-          ),
-          if (view.refreshing)
-            const LinearProgressIndicator(minHeight: AleraTokens.space2),
-          // A failed refresh keeps the previous tree on screen, so the failure
-          // has to be said out loud or it looks like nothing happened.
-          if (view.error != null && view.rows.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AleraTokens.space16,
-                AleraTokens.space8,
-                AleraTokens.space16,
-                0,
-              ),
-              child: AleraNotice(
-                icon: AleraIcons.info,
-                message: 'Could not refresh the file tree: ${view.error}',
-              ),
-            ),
-          WorkspaceAgentCommentQueue(
-            hostId: hostId,
-            workspaceId: workspace.id,
-            onOpenTab: onOpenTab,
-          ),
-          Expanded(
-            child: _ExplorerBody(
-              hostId: hostId,
-              workspace: workspace,
-              view: view,
-            ),
-          ),
-        ],
-      ),
-      AsyncError(:final error) => AleraEmptyState(
-        icon: AleraIcons.files,
-        message: error.toString(),
-        action: FilledButton(
-          onPressed: () => ref.read(provider.notifier).reload(),
-          child: const Text('Retry'),
+    void reload() => unawaited(ref.read(provider.notifier).reload());
+    final view = state.value;
+    if (view == null) {
+      return switch (state) {
+        AsyncError(:final error) => AleraEmptyState(
+          icon: AleraIcons.files,
+          message: error.toString(),
+          action: FilledButton(onPressed: reload, child: const Text('Retry')),
         ),
-      ),
-      _ => const Center(child: CircularProgressIndicator()),
-    };
+        _ => const Center(child: CircularProgressIndicator()),
+      };
+    }
+    return Column(
+      children: <Widget>[
+        ExplorerPanelToolbar(
+          title: 'Explorer',
+          hideIgnored: view.hideIgnored,
+          refreshing: view.refreshing || state.isLoading,
+          canCollapse: view.hasExpandedFolders,
+          onToggleIgnored: () => unawaited(
+            ref.read(provider.notifier).setHideIgnored(!view.hideIgnored),
+          ),
+          onCollapseAll: ref.read(provider.notifier).collapseAll,
+          onRefresh: () => unawaited(ref.read(provider.notifier).refresh()),
+        ),
+        AleraRefreshProgress(refreshing: view.refreshing || state.isLoading),
+        if (view.error != null && view.rows.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AleraTokens.space16,
+              AleraTokens.space8,
+              AleraTokens.space16,
+              0,
+            ),
+            child: AleraNotice(
+              icon: AleraIcons.info,
+              message: 'Could not refresh the file tree: ${view.error}',
+            ),
+          ),
+        WorkspaceAgentCommentQueue(
+          hostId: hostId,
+          workspaceId: workspace.id,
+          onOpenTab: onOpenTab,
+        ),
+        Expanded(
+          child: _ExplorerBody(
+            hostId: hostId,
+            workspace: workspace,
+            view: view,
+          ),
+        ),
+      ],
+    );
   }
 }
 
