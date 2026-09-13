@@ -82,6 +82,7 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs {
               useProjectCheckout: request.useProjectCheckout,
               name: request.name,
               parentWorkspaceId: request.parentWorkspaceId,
+              issueUrl: request.issueUrl,
             );
         _publishWorkspaceCreatedIfDetached(result);
       });

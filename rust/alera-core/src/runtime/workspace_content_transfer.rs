@@ -96,6 +96,12 @@ impl RuntimeStore {
             .bind(&source.id)
             .execute(&mut *tx)
             .await?;
+        sqlx::query("INSERT OR IGNORE INTO linkedIssues (workspaceId, url, provider, repository, number, title, state, stateLabel, fetchedAt, fetchError, linkedAt) SELECT ?, url, provider, repository, number, title, state, stateLabel, fetchedAt, fetchError, linkedAt FROM linkedIssues WHERE workspaceId = ?")
+            .bind(&destination.id).bind(&source.id).execute(&mut *tx).await?;
+        sqlx::query("DELETE FROM linkedIssues WHERE workspaceId = ?")
+            .bind(&source.id)
+            .execute(&mut *tx)
+            .await?;
         sqlx::query("INSERT INTO runtimeMetadata (key, value) SELECT ?, value FROM runtimeMetadata WHERE key = ? ON CONFLICT(key) DO UPDATE SET value = MAX(value, excluded.value)")
             .bind(format!("workspace.activity.{}", destination.id)).bind(format!("workspace.activity.{}", source.id)).execute(&mut *tx).await?;
         tx.commit().await?;

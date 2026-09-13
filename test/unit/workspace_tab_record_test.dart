@@ -86,13 +86,16 @@ void main() {
       payload: const <String, Object?>{
         workspaceTabAgentNativeSessionIdPayloadKey: 'sess-1',
         workspaceTabAgentNativeSessionAgentPayloadKey: 'codex',
+        workspaceTabAgentNativeCcsProfilePayloadKey: 'leynier41',
       },
     );
 
     expect(missing.agentNativeSessionId, isNull);
     expect(missing.agentNativeSessionAgent, isNull);
+    expect(missing.agentNativeCcsProfile, isNull);
     expect(stored.agentNativeSessionId, 'sess-1');
     expect(stored.agentNativeSessionAgent, 'codex');
+    expect(stored.agentNativeCcsProfile, 'leynier41');
   });
 
   test('terminal lifecycle flags reflect their payload values', () {

@@ -24,12 +24,13 @@ pub(super) struct RuntimeMutationQueue {
     parked: bool,
     pending: VecDeque<QueuedMutation>,
     in_flight: usize,
+    file_writes: usize,
     pub(super) pending_workspace_shutdowns: HashMap<String, WorkspaceShutdown>,
 }
 
 impl RuntimeMutationQueue {
     pub(super) fn outstanding(&self) -> usize {
-        usize::from(self.active) + self.pending.len()
+        usize::from(self.active) + self.pending.len() + self.file_writes
     }
 
     pub(super) fn has_runtime_mutations(&self) -> bool {
@@ -38,6 +39,19 @@ impl RuntimeMutationQueue {
 }
 
 impl ServerActor {
+    pub(super) fn begin_workspace_file_write(&mut self) {
+        self.cancel_shutdown_timer();
+        self.mutation_queue.file_writes += 1;
+        self.mutation_queue.in_flight += 1;
+    }
+
+    pub(super) fn complete_workspace_file_write(&mut self) {
+        self.mutation_queue.file_writes = self.mutation_queue.file_writes.saturating_sub(1);
+        self.mutation_queue.in_flight = self.mutation_queue.in_flight.saturating_sub(1);
+        self.start_next_runtime_mutation();
+        self.schedule_shutdown_if_idle();
+    }
+
     pub(super) fn start_runtime_mutation(
         &mut self,
         client_id: u64,
@@ -92,7 +106,7 @@ impl ServerActor {
     }
 
     fn start_next_runtime_mutation(&mut self) {
-        if self.mutation_queue.active {
+        if self.mutation_queue.active || self.mutation_queue.file_writes > 0 {
             return;
         }
         #[cfg(test)]
@@ -241,5 +255,38 @@ impl ServerActor {
                 },
             ));
         });
+    }
+}
+
+#[cfg(test)]
+mod file_write_tests {
+    use super::super::actor_test_harness::test_actor;
+    use super::*;
+
+    #[tokio::test]
+    async fn file_writes_hold_queued_lifecycle_mutations_until_completion() {
+        let root = tempfile::tempdir().unwrap();
+        let mut actor = test_actor(&root, HashMap::new(), HashMap::new()).await;
+        actor.begin_workspace_file_write();
+        assert!(actor.mutation_queue.has_runtime_mutations());
+        assert_eq!(actor.mutation_queue.outstanding(), 1);
+        actor.start_runtime_mutation(
+            99,
+            1,
+            RuntimeMutationRequest::RemoveWorkspace {
+                workspace_id: "retired-client-task".into(),
+                cascade_tabs: true,
+            },
+        );
+        assert_eq!(actor.mutation_queue.pending.len(), 1);
+        assert!(!actor.mutation_queue.active);
+        actor.handle_mobile_workspace_file_finished(
+            99,
+            2,
+            "mobile.workspaceSearch.replace",
+            Ok(serde_json::json!({})),
+        );
+        assert!(actor.mutation_queue.pending.is_empty());
+        assert!(!actor.mutation_queue.has_runtime_mutations());
     }
 }

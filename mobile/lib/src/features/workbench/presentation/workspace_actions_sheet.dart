@@ -2,6 +2,8 @@ import 'package:alera_mobile/src/features/workbench/presentation/section_picker_
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/chips/alera_chip.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/features/linked_issues/application/linked_issues_controller.dart';
+import 'package:alera_mobile/src/features/linked_issues/presentation/mobile_link_issue_dialog.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_listing_tree.dart';
@@ -16,6 +18,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+part 'workspace_actions_sheet_linked_issue.dart';
+part 'workspace_actions_sheet_removal.dart';
+
 enum _WorkspaceAction {
   relocate,
   recovery,
@@ -29,6 +34,10 @@ enum _WorkspaceAction {
   unlinkParent,
   setSection,
   clearSection,
+  openIssue,
+  linkIssue,
+  changeIssue,
+  unlinkIssue,
   openRepository,
   copyPath,
   sleep,
@@ -47,6 +56,8 @@ Future<void> showWorkspaceActionsSheet(
   if (!data.supportsMutations) {
     return;
   }
+  final issues = ref.read(linkedIssuesControllerProvider(hostId)).value;
+  final linkedIssue = issues?.byWorkspace[workspace.id];
   final hasDescendants = workspaceDescendantIds(
     data.workspaces,
     workspace.id,
@@ -163,6 +174,11 @@ Future<void> showWorkspaceActionsSheet(
                       onTap: () =>
                           Navigator.pop(context, _WorkspaceAction.clearSection),
                     ),
+                  ..._linkedIssueActionTiles(
+                    context,
+                    supported: issues?.supported ?? false,
+                    linked: linkedIssue != null,
+                  ),
                   ListTile(
                     leading: const Icon(AleraIcons.external, size: 20),
                     title: const Text('Open in Browser'),
@@ -264,6 +280,18 @@ Future<void> showWorkspaceActionsSheet(
           hostId: hostId,
           workspace: workspace,
           data: data,
+        );
+      case _WorkspaceAction.openIssue ||
+          _WorkspaceAction.linkIssue ||
+          _WorkspaceAction.changeIssue ||
+          _WorkspaceAction.unlinkIssue:
+        await _runLinkedIssueAction(
+          context,
+          ref,
+          hostId: hostId,
+          workspace: workspace,
+          url: linkedIssue?.url,
+          action: action,
         );
       case _WorkspaceAction.openRepository:
         final remote = await controller.repositoryRemoteUrl(workspace.id);
@@ -390,48 +418,6 @@ List<String> _workspaceTagLabels(WorkspaceSummary workspace) {
       .map((tag) => tag.trim())
       .where((tag) => tag.isNotEmpty)
       .toList(growable: false);
-}
-
-Future<void> _confirmAndDelete(
-  BuildContext context,
-  WorkspaceListController controller,
-  WorkspaceSummary workspace,
-  WorkspaceListData data,
-) async {
-  var cascadeCount = 1;
-  try {
-    cascadeCount = (await controller.cascadePreview(workspace.id)).length;
-  } on Object {
-    // The preview is advisory; deletion still confirms explicitly.
-  }
-  if (!context.mounted) {
-    return;
-  }
-  final dependencies = await controller.removalDependencies(workspace.id);
-  if (!context.mounted) return;
-  final decision = data.confirmWorkspaceRemoval || dependencies.isNotEmpty
-      ? await showDeleteWorkspaceDialog(
-          context,
-          workspace: workspace,
-          cascadeCount: cascadeCount,
-          dependencies: dependencies,
-        )
-      : DeleteWorkspaceDecision(
-          deleteBranch: !workspace.isMain && !workspace.reusesExistingBranch,
-        );
-  if (decision == null || !context.mounted) {
-    return;
-  }
-  final messenger = ScaffoldMessenger.of(context);
-  messenger.showSnackBar(SnackBar(content: Text('Removing ${workspace.name}')));
-  if (decision.pauseAutomations) {
-    await controller.pauseRemovalDependencies(workspace.id, dependencies);
-  }
-  await controller.deleteWorkspace(
-    workspace.id,
-    deleteBranch: decision.deleteBranch,
-  );
-  messenger.showSnackBar(SnackBar(content: Text('Removed ${workspace.name}')));
 }
 
 Future<String?> _promptForWorkspaceName(

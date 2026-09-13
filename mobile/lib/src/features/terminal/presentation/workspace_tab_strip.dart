@@ -5,6 +5,7 @@ class const _TabStrip({
   required final String? selectedTabId,
   required final bool creating,
   required final Map<String, AgentPresenceSummary> presenceByTabId,
+  required final bool canOpenMarkdownTabs,
   required final ValueChanged<WorkspaceTabSummary> onSelect,
   required final ValueChanged<WorkspaceTabSummary> onClose,
   required final ValueChanged<WorkspaceTabSummary> onActions,
@@ -32,6 +33,10 @@ class const _TabStrip({
                     tab: tab,
                     selected: tab.id == selectedTabId,
                     presence: presenceByTabId[tab.id],
+                    opensPreview:
+                        canOpenMarkdownTabs &&
+                        tab.isMarkdownViewer &&
+                        tab.filePath != null,
                     onSelect: onSelect,
                     onClose: onClose,
                     onActions: onActions,
@@ -186,10 +191,11 @@ class const _TabChip({
   required final ValueChanged<WorkspaceTabSummary> onSelect,
   required final ValueChanged<WorkspaceTabSummary> onClose,
   required final ValueChanged<WorkspaceTabSummary> onActions,
+  final bool opensPreview = false,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final interactive = tab.isTerminal;
+    final interactive = tab.isTerminal || opensPreview;
     final status = presence;
     return GestureDetector(
       onLongPress: () => onActions(tab),
@@ -226,12 +232,13 @@ class const _TabChip({
           ),
         ),
         selected: selected,
-        // Non-terminal tabs remain disabled content surfaces, while
-        // their metadata actions stay available through long press.
+        // Terminals select in place and Markdown viewers open their preview;
+        // other tabs remain disabled content surfaces, while their metadata
+        // actions stay available through long press.
         onSelected: interactive ? (_) => onSelect(tab) : null,
         // Only the open tab offers Close: on an unselected chip the target sits
         // next to the one that selects it, and the two are a thumb-width apart.
-        onDeleted: interactive && selected ? () => onClose(tab) : null,
+        onDeleted: tab.isTerminal && selected ? () => onClose(tab) : null,
         deleteButtonTooltipMessage: 'Close Tab',
       ),
     );
@@ -256,38 +263,19 @@ class const _EmptyTabs({
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: AleraTokens.contentPadding,
-        child: Column(
-          mainAxisSize: .min,
-          children: <Widget>[
-            Icon(
-              Icons.terminal,
-              size: AleraTokens.emptyIcon,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: AleraTokens.spaceLg),
-            Text(
-              targetUnavailable ? 'Terminal unavailable' : 'No tabs yet',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            if (targetUnavailable) ...<Widget>[
-              const SizedBox(height: AleraTokens.space8),
-              Text(
-                'Choose another terminal above.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-            const SizedBox(height: AleraTokens.spaceMd),
-            FilledButton.icon(
+    return AleraEmptyState(
+      icon: AleraIcons.terminal,
+      title: targetUnavailable ? 'Terminal unavailable' : 'No terminals',
+      message: targetUnavailable
+          ? 'Choose another terminal above.'
+          : 'Open a terminal to start working in this workspace.',
+      action: targetUnavailable
+          ? null
+          : FilledButton.icon(
               onPressed: creating ? null : onNewTab,
-              icon: const Icon(Icons.add),
-              label: const Text('New Tab'),
+              icon: const Icon(AleraIcons.add),
+              label: const Text('New Terminal'),
             ),
-          ],
-        ),
-      ),
     );
   }
 }

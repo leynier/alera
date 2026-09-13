@@ -80,7 +80,7 @@ fn absolute_files_outside_known_workspaces_are_rejected() {
 #[tokio::test]
 async fn filesystem_requests_are_parked_before_runtime_lookup() {
     let directory = tempfile::tempdir().unwrap();
-    let actor = test_actor(&directory, HashMap::new(), HashMap::new()).await;
+    let mut actor = test_actor(&directory, HashMap::new(), HashMap::new()).await;
 
     let started = actor.start_mobile_workspace_file_request(
         1,
@@ -94,4 +94,34 @@ async fn filesystem_requests_are_parked_before_runtime_lookup() {
 
     assert!(started.is_ok());
     tokio::task::yield_now().await;
+}
+
+#[tokio::test]
+async fn completed_mobile_replace_notifies_editors_after_requester_disconnects() {
+    use super::super::actor_test_harness::local_client;
+    use crate::terminal_host::client::ClientHandle;
+    let dir = tempfile::tempdir().unwrap();
+    let (desktop, mut events) = ClientHandle::test_channels();
+    let mut actor = test_actor(
+        &dir,
+        HashMap::from([(1, local_client(desktop))]),
+        HashMap::new(),
+    )
+    .await;
+    actor.begin_workspace_file_write();
+    actor.handle_mobile_workspace_file_finished(2, 7, "mobile.workspaceSearch.replace", Ok(json!({
+        "filesChanged": 1, "workspaceId": "w", "workspacePath": "/repo", "relativePaths": ["a.txt"],
+    })));
+    let event = events.try_recv().unwrap().as_json().unwrap();
+    assert_eq!(event["event"], "workspaceFilesChanged");
+    assert_eq!(event["payload"]["workspacePath"], "/repo");
+    assert_eq!(event["payload"]["relativePaths"], json!(["a.txt"]));
+    actor.begin_workspace_file_write();
+    actor.handle_mobile_workspace_file_finished(
+        2,
+        8,
+        "mobile.workspaceSearch.replace",
+        Ok(json!({"filesChanged": 0})),
+    );
+    assert!(events.try_recv().is_err());
 }

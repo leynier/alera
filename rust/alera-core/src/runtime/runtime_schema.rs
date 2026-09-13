@@ -60,6 +60,27 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
         url TEXT,
         linkedAt TEXT NOT NULL
     );",
+    "CREATE TABLE IF NOT EXISTS linkedIssues (
+        workspaceId TEXT PRIMARY KEY,
+        url TEXT NOT NULL,
+        provider TEXT,
+        repository TEXT,
+        number INTEGER,
+        title TEXT,
+        state TEXT,
+        stateLabel TEXT,
+        fetchedAt TEXT,
+        fetchError TEXT,
+        linkedAt TEXT NOT NULL
+    )",
+    // Triggers also cover workspace removal through clients that predate this table.
+    "CREATE TRIGGER IF NOT EXISTS linkedIssueWorkspaceDeleted AFTER DELETE ON workspaces BEGIN
+        DELETE FROM linkedIssues WHERE workspaceId = OLD.id;
+    END",
+    "CREATE TRIGGER IF NOT EXISTS linkedIssueWorkspaceRemoved AFTER UPDATE OF status ON workspaces
+     WHEN NEW.status = 'removed' BEGIN
+        DELETE FROM linkedIssues WHERE workspaceId = NEW.id;
+    END",
     "CREATE TABLE IF NOT EXISTS workbenchLayouts (
         workspaceId TEXT PRIMARY KEY,
         dataJson TEXT NOT NULL

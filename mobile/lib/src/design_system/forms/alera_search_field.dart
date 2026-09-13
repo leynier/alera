@@ -14,6 +14,7 @@ class const AleraSearchField({
   final TextEditingController? controller,
   final FocusNode? focusNode,
   final String hintText = 'Search',
+  final String initialValue = '',
   final ValueChanged<String>? onChanged,
   final Duration? debounce,
   final bool dense = false,
@@ -35,7 +36,7 @@ class _AleraSearchFieldState extends State<AleraSearchField> {
     if (provided != null) {
       _controller = provided;
     } else {
-      _controller = TextEditingController();
+      _controller = TextEditingController(text: widget.initialValue);
       _ownsController = true;
     }
   }

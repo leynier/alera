@@ -11,6 +11,7 @@ import 'package:alera/src/features/pull_requests/application/pull_request_agent_
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_controller.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_agent_dispatch.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
@@ -177,6 +178,11 @@ class _VisiblePullRequestsPanelState
     final aiAssistSettings = ref.watch(
       settingsControllerProvider.select((settings) => settings.aiAssist),
     );
+    final agentWatchScope = ref.watch(
+      settingsControllerProvider.select(
+        (settings) => settings.general.pullRequestAgentWatchScope,
+      ),
+    );
     final agentWatchMode = ref.watch(
       pullRequestAgentWatchControllerProvider.select(
         (sessions) => sessions[widget.scope.workspaceId]?.mode,
@@ -215,6 +221,7 @@ class _VisiblePullRequestsPanelState
               .read(workbenchControllerProvider.notifier)
               .setPullRequestCreateAction(action),
           agentWatchMode: agentWatchMode,
+          agentWatchScope: agentWatchScope,
           ref: ref,
         );
       },

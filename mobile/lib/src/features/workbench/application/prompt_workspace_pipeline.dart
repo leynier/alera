@@ -99,6 +99,7 @@ Future<PromptWorkspaceCreateOutcome> runPromptWorkspaceCreate({
               projectId: request.projectId,
               checkoutHostId: request.checkoutHostId,
               name: identity.workspaceName,
+              issueUrl: request.issueUrl,
             )
           : await client.createManagedWorkspace(
               projectId: request.projectId,
@@ -106,6 +107,7 @@ Future<PromptWorkspaceCreateOutcome> runPromptWorkspaceCreate({
               branch: identity.branchName,
               sourceBranch: request.sourceBranch,
               name: identity.workspaceName,
+              issueUrl: request.issueUrl,
             );
       creation = created;
       final parentId = request.parentWorkspaceId?.trim();

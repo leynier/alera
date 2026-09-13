@@ -47,6 +47,7 @@ void _registerPromptWorkspaceModeTests() {
                             required name,
                             parentWorkspaceId,
                             hostId,
+                            issueUrl,
                           }) async {
                             throw UnimplementedError();
                           },

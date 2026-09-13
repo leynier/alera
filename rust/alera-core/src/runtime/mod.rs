@@ -50,6 +50,9 @@ mod configuration_store;
 #[cfg(test)]
 mod configuration_store_tests;
 mod configuration_validation;
+mod linked_issue_store;
+#[cfg(test)]
+mod linked_issue_store_tests;
 mod mobile_access_settings_row;
 #[cfg(test)]
 mod mobile_store_tests;
@@ -144,6 +147,7 @@ pub use automation_run_store::*;
 pub use automation_schedule::*;
 pub use automation_templates::*;
 pub use checkout_models::*;
+pub use linked_issue_store::LinkedIssue;
 pub use models::*;
 pub use orchestration_dispatch_store::ORCHESTRATION_CIRCUIT_BREAKER_THRESHOLD;
 pub use orchestration_message_store::{

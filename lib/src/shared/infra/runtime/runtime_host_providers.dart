@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:alera/src/features/workbench/infra/runtime_editor_file_changes.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
@@ -13,6 +16,11 @@ SocketTerminalHostClient runtimeHostClient(Ref ref) {
       ref.watch(editorSessionRegistryProvider),
     ),
   );
+  final changes = watchRuntimeEditorFileChanges(
+    client.runtimeEvents,
+    ref.watch(editorSessionRegistryProvider),
+  );
+  ref.onDispose(() => unawaited(changes.cancel()));
   ref.onDispose(client.dispose);
   return client;
 }

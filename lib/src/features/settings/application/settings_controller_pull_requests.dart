@@ -20,6 +20,20 @@ mixin _SettingsControllerPullRequestSettings on _$SettingsController {
     });
   }
 
+  Future<void> setPullRequestAgentWatchScope(PullRequestAgentWatchScope value) {
+    final controller = _pullRequestSettingsController;
+    return controller._serialize(() async {
+      if (state.general.pullRequestAgentWatchScope == value) {
+        return;
+      }
+      await controller._save(
+        state.copyWith(
+          general: state.general.copyWith(pullRequestAgentWatchScope: value),
+        ),
+      );
+    });
+  }
+
   Future<void> setPullRequestFailureNotificationsEnabled(bool value) {
     final controller = _pullRequestSettingsController;
     return controller._serialize(() async {

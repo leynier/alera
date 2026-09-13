@@ -8,6 +8,8 @@ import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/automations/presentation/automations_dialog.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
+import 'package:alera/src/features/linked_issues/application/linked_issue_providers.dart';
+import 'package:alera/src/features/linked_issues/domain/issue_details.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';

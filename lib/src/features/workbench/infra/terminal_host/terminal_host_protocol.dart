@@ -9,6 +9,11 @@ const String aleraTerminalHostCommand = 'terminal-host';
 const String aleraRuntimeHostCapability = 'runtimeStore';
 const String aleraRuntimeHostWorkspaceSectionsCapability =
     'workspaceSectionsV1';
+
+/// Feature-detect `linkedIssue.*`, `issue.fetch` and `issueUrl` on
+/// `workspace.createManaged`. Additive: do not bump
+/// [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostLinkedIssuesCapability = 'linkedIssuesV1';
 const String aleraRuntimeHostBootstrapCapability = 'sshTargetBootstrap';
 const String aleraRuntimeHostManagedWorkspaceCapability =
     'managedWorkspaceLifecycle';

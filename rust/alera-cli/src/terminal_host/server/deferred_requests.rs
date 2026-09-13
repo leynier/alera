@@ -110,9 +110,19 @@ impl ServerActor {
             | "mobile.promptAttachment.read"
             | "mobile.workspaceExplorer.list"
             | "mobile.workspaceSearch.run"
+            | "mobile.workspaceSearch.replace"
+            | "mobile.workspaceSearch.cancel"
             | "mobile.git.status"
             | "mobile.git.diff"
             | "mobile.pullRequest.snapshot"
+            | "mobile.pullRequest.comment"
+            | "mobile.pullRequest.commentUpdate"
+            | "mobile.pullRequest.merge"
+            | "mobile.pullRequest.draftStatus"
+            | "mobile.pullRequest.close"
+            | "mobile.pullRequest.link"
+            | "mobile.pullRequest.unlink"
+            | "mobile.pullRequest.create"
             | "workspace.files.list"
             | "workspace.files.read" => {
                 self.require_auth(client_id)?;
@@ -147,7 +157,24 @@ impl ServerActor {
             "workspace.createShared" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
-                self.start_shared_workspace_create(client_id, request_id, parse_payload(payload)?);
+                let issue_url = super::requests::optional_string_key(payload, "issueUrl")
+                    .filter(|url| !url.trim().is_empty());
+                if let Some(url) = issue_url.as_deref() {
+                    crate::issue_tracking::parse_issue_reference(url)
+                        .map_err(|error| HostError::format(error.to_string()))?;
+                }
+                self.start_shared_workspace_create(
+                    client_id,
+                    request_id,
+                    parse_payload(payload)?,
+                    issue_url,
+                );
+                Ok(true)
+            }
+            "issue.fetch" | "linkedIssue.link" | "linkedIssue.refresh" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_linked_issue_request(client_id, request_id, request_type, payload)?;
                 Ok(true)
             }
             "workspace.createManaged" => {
@@ -155,7 +182,15 @@ impl ServerActor {
                 self.require_request_allowed(client_id, request_type)?;
                 let mut request: ManagedWorkspaceCreateRequest = parse_payload(payload)?;
                 request.setup_script_directory = self.setup_script_directory();
-                self.start_managed_workspace_create(client_id, request_id, request);
+                // Validated before the worktree exists, so a typo cannot leave
+                // a workspace behind with a link that was never stored.
+                let issue_url = super::requests::optional_string_key(payload, "issueUrl")
+                    .filter(|url| !url.trim().is_empty());
+                if let Some(url) = issue_url.as_deref() {
+                    crate::issue_tracking::parse_issue_reference(url)
+                        .map_err(|error| HostError::format(error.to_string()))?;
+                }
+                self.start_managed_workspace_create(client_id, request_id, request, issue_url);
                 Ok(true)
             }
             "workspace.handOff" => {

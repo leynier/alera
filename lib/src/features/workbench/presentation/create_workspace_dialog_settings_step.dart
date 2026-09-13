@@ -22,6 +22,7 @@ class const _CreateWorkspaceSettingsStep({
   required final ValueChanged<String?> onHostChanged,
   required final bool creating,
   required final VoidCallback onSubmit,
+  final Widget? issueField,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -41,6 +42,10 @@ class const _CreateWorkspaceSettingsStep({
             reuseExistingBranch: reuseExistingBranch,
           ),
         const SizedBox(height: AleraTokens.space16),
+        if (issueField case final issueField?) ...<Widget>[
+          issueField,
+          const SizedBox(height: AleraTokens.space12),
+        ],
         if (!useProjectCheckout && reuseExistingBranch)
           AleraTextField(
             controller: newBranchController,

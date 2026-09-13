@@ -87,6 +87,67 @@ void main() {
     expect(find.text('No details available'), findsOneWidget);
   });
 
+  group('default collapse', () {
+    List<ReviewCheck> passing(int count) => <ReviewCheck>[
+      for (var index = 0; index < count; index++)
+        ReviewCheck(
+          name: 'job $index',
+          status: .completed,
+          conclusion: .success,
+        ),
+    ];
+
+    Widget wrapChecks(List<ReviewCheck> checks) => MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: PullRequestCheckList(
+            checks: checks,
+            onOpenUrl: (_) async {},
+            onLoadDetails: (_) async => null,
+          ),
+        ),
+      ),
+    );
+
+    testWidgets('collapses passing checks when there are many', (tester) async {
+      await tester.pumpWidget(
+        wrapChecks(<ReviewCheck>[
+          ...passing(6),
+          const ReviewCheck(
+            name: 'lint',
+            status: .completed,
+            conclusion: .failure,
+          ),
+        ]),
+      );
+
+      expect(find.text('6 successful Checks'), findsOneWidget);
+      expect(find.text('job 0'), findsNothing);
+      expect(find.text('lint'), findsOneWidget);
+
+      await tester.tap(find.text('6 successful Checks'));
+      await tester.pumpAndSettle();
+      expect(find.text('job 0'), findsOneWidget);
+
+      await tester.pumpWidget(wrapChecks(passing(7)));
+      await tester.pumpAndSettle();
+      expect(find.text('job 6'), findsOneWidget);
+    });
+
+    testWidgets('keeps a short list expanded', (tester) async {
+      await tester.pumpWidget(wrapChecks(passing(5)));
+
+      expect(find.text('job 0'), findsOneWidget);
+    });
+
+    testWidgets('applies the default when checks arrive later', (tester) async {
+      await tester.pumpWidget(wrapChecks(const <ReviewCheck>[]));
+      await tester.pumpWidget(wrapChecks(passing(6)));
+
+      expect(find.text('job 0'), findsNothing);
+    });
+  });
+
   testWidgets('renders the error message when loading fails', (tester) async {
     await tester.pumpWidget(
       _wrap((check) async => throw StateError('network down')),

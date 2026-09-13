@@ -2,6 +2,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_settings.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_shortcut_settings.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/text_actions/domain/text_actions_settings.dart';
@@ -293,6 +294,7 @@ class const GeneralSettings({
   this.showTrayBadge = true,
   this.showPullRequestStatusInSidebar = true,
   this.pullRequestFailureNotificationsEnabled = false,
+  this.pullRequestAgentWatchScope = PullRequestAgentWatchScope.defaults,
 }) with GeneralSettingsMappable {
   /// User-configured root directory where new linked workspaces are created.
   /// `null` falls back to the platform default (`~/.alera/workspaces`).
@@ -324,6 +326,9 @@ class const GeneralSettings({
 
   /// Keep monitoring while hidden and notify when checks enter a failed state.
   final bool pullRequestFailureNotificationsEnabled;
+
+  /// Last problems chosen for pull request Watch and Fix.
+  final PullRequestAgentWatchScope pullRequestAgentWatchScope;
 
   static const GeneralSettings defaults = GeneralSettings();
 

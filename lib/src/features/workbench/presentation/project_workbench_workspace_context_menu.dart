@@ -7,6 +7,7 @@ extension _WorkspaceContextMenu on _WorkspaceRowState {
   ) async {
     final overlay =
         Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
+    final container = ProviderScope.containerOf(context, listen: false);
     final selected = await showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(
@@ -23,11 +24,23 @@ extension _WorkspaceContextMenu on _WorkspaceRowState {
         hasDescendants: widget.onPinWorkspaceTree != null,
         canHandOff: widget.onHandOff != null,
         canHandOn: widget.onHandOn != null,
+        linkedIssueEntries: linkedIssueMenuEntries(
+          supported: container.read(linkedIssuesSupportedProvider),
+          linkedIssue: container.read(
+            workspaceLinkedIssueProvider(widget.workspace.id),
+          ),
+        ),
       ),
     );
 
     if (selected == _recoveryAction && context.mounted) {
       await showWorkspaceRecoveryFlow(context, widget.workspace);
+    } else if (isLinkedIssueMenuAction(selected) && context.mounted) {
+      launchLinkedIssueMenuAction(
+        context,
+        workspace: widget.workspace,
+        action: selected!,
+      );
     } else if (selected == _handOffAction) {
       widget.onHandOff?.call();
     } else if (selected == _handOnAction) {

@@ -41,6 +41,7 @@ class const PromptWorkspacePipeline({
     required String name,
     String? parentWorkspaceId,
     String? hostId,
+    String? issueUrl,
   })
   createWorkspace,
   required final Future<AgentProfileLaunchResult> Function({
@@ -90,6 +91,7 @@ class const PromptWorkspacePipeline({
           name: identity.workspaceName,
           parentWorkspaceId: request.parentWorkspaceId,
           hostId: request.hostId,
+          issueUrl: request.issueUrl,
         );
         break;
       } catch (error) {

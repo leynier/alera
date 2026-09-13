@@ -28,6 +28,8 @@ class const WorkspaceContextSidebar({
   required final ValueChanged<WorkspaceExplorerMode> onSetExplorerMode,
   required final ValueChanged<GitDiffViewMode> onSetGitDiffViewMode,
   required final ValueChanged<GitDiffGroupMode> onSetGitDiffGroupMode,
+  final ValueChanged<bool>? onSetSearchViewAsTree,
+  final ValueChanged<bool>? onSetSearchIncludeIgnored,
   final Future<bool> Function(String relativePath)? onFocusSourceControlFolder,
   final VoidCallback? onClearSourceControlRoot,
   required final ValueChanged<String> onOpenFile,
@@ -111,6 +113,14 @@ class const WorkspaceContextSidebar({
       WorkbenchContextPanelTab.search => WorkspaceSearchPanel(
         workspace: workspace,
         onOpenMatch: onOpenSearchMatch,
+        viewAsTree: onSetSearchViewAsTree == null
+            ? null
+            : prefs.searchViewAsTree,
+        includeIgnored: onSetSearchIncludeIgnored == null
+            ? null
+            : prefs.searchIncludeIgnored,
+        onSetViewAsTree: onSetSearchViewAsTree,
+        onSetIncludeIgnored: onSetSearchIncludeIgnored,
       ),
       WorkbenchContextPanelTab.gitDiff =>
         sourceControlScope == null

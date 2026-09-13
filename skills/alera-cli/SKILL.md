@@ -9,7 +9,7 @@ Use the managed `alera` CLI for Alera resources. Inside Alera terminals, its shi
 
 ## Choose The Relevant Workflow
 
-- Projects, worktrees, hand-off/hand-on, tags, tabs, and relations: read [workspaces](references/workspaces.md).
+- Projects, worktrees, hand-off/hand-on, linked issues, tags, tabs, and relations: read [workspaces](references/workspaces.md).
 - SSH targets and remote workspace setup: read [hosts](references/hosts.md).
 - Automation definitions, approvals, and execution: read [automations](references/automations.md).
 - Missing runtime host, external-shell configuration, or metadata repair: read [recovery](references/recovery.md).

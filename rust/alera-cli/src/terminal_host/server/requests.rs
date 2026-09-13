@@ -486,6 +486,10 @@ impl ServerActor {
                 }
                 self.apply_mobile_runtime_settings(payload).await
             }
+            "linkedIssue.list" | "linkedIssue.find" | "linkedIssue.remove" => {
+                self.linked_issue_request(client_id, request_type, payload)
+                    .await
+            }
             "workspaceSection.list"
             | "workspaceSection.create"
             | "workspaceSection.setForWorkspace"
@@ -737,6 +741,7 @@ impl ServerActor {
                         "agentTitleStatus",
                         crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_ID_KEY,
                         crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_AGENT_KEY,
+                        crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_CCS_PROFILE_KEY,
                     ] {
                         payload.remove(key);
                     }

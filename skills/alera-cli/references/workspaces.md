@@ -164,6 +164,25 @@ alera workspace remove --id <workspace-id> --delete-branch
 alera workspace remove --id <workspace-id> --keep-branch
 ```
 
+### Linked Issues
+
+A workspace can link one issue by URL. GitHub, GitLab, and Azure DevOps issues are fetched through `gh`, `glab`, and `az boards` on the machine running Alera; any other tracker URL is stored as a plain link. Linking never fails because a fetch failed: the command prints a warning and keeps the link.
+
+Create a workspace for an issue, or link one later. From an Alera terminal `--workspace-id` defaults to `ALERA_WORKSPACE_ID`:
+
+```bash
+alera workspace add --project-id <project-id> --branch 758-link-issues --source-branch main --issue https://github.com/leynier/alera/issues/758
+alera workspace issue link https://gitlab.com/group/project/-/issues/12
+alera workspace issue unlink --workspace-id <workspace-id>
+```
+
+Read the requirements of the current workspace's issue (title, state, labels, assignees, and body), or any issue without touching a workspace. Add `--cached` to skip the network:
+
+```bash
+alera workspace --json issue show
+alera issue --json show https://dev.azure.com/org/project/_workitems/edit/42
+```
+
 ## Tags, Tabs, And Relations
 
 Common runtime metadata commands:

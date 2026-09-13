@@ -4,12 +4,14 @@ import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.d
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_panels_controller.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/explorer_panel.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_panel.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/source_control_panel.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_viewer_screen.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_text_search_panel.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
@@ -28,6 +30,7 @@ import 'package:logging/logging.dart';
 
 part 'workspace_tab_strip.dart';
 part 'workspace_tabs_close.dart';
+part 'workspace_tabs_panel_menu.dart';
 
 /// Tabs of one workspace: a horizontally scrollable chip switcher with one
 /// tab visible at a time. Splits stay a desktop concept.
@@ -229,6 +232,26 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     if (action == 'close') await _closeTab(tab);
   }
 
+  /// A desktop Markdown viewer tab opens its preview on top of the terminal
+  /// rather than replacing it, so the selected terminal stays attached.
+  void _openMarkdownTab(WorkspaceTabSummary tab) {
+    final filePath = tab.filePath;
+    if (filePath == null) {
+      return;
+    }
+    unawaited(
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => WorkspaceFileViewerScreen(
+            hostId: widget.hostId,
+            workspaceId: tab.workspaceId,
+            relativePath: filePath,
+          ),
+        ),
+      ),
+    );
+  }
+
   WorkspaceTabSummary? _selectedTab(List<WorkspaceTabSummary> tabs) {
     final supported = tabs.where((tab) => tab.isTerminal).toList();
     if (supported.isEmpty) {
@@ -269,10 +292,16 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     );
     final tabs = ref.watch(tabsProvider);
     final selectedTab = tabs.value == null ? null : _selectedTab(tabs.value!);
-    final titleClient = ref.watch(workspaceClientProvider(widget.hostId)).value;
+    final workspaceClient = ref
+        .watch(workspaceClientProvider(widget.hostId))
+        .value;
     final canGenerateTitle =
-        titleClient is MobileAgentTitleClient &&
-        (titleClient as MobileAgentTitleClient).supportsAgentTitles;
+        workspaceClient is MobileAgentTitleClient &&
+        (workspaceClient as MobileAgentTitleClient).supportsAgentTitles;
+    final canOpenMarkdownTabs =
+        workspaceClient is MobileCodexWorkspaceClient &&
+        (workspaceClient as MobileCodexWorkspaceClient)
+            .supportsCodexWorkspaceFiles;
     final canRename =
         ref
             .watch(workspaceClientProvider(widget.hostId))
@@ -324,17 +353,41 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
             tooltip: 'More Actions',
             onSelected: (action) {
               switch (action) {
-                case _TabsMenuAction.quickKeys:
+                case _QuickKeysMenuAction():
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => const TerminalKeysSettingsScreen(),
                     ),
                   );
+                case _SelectPanelAction(:final destination):
+                  ref
+                      .read(
+                        selectedWorkspacePanelControllerProvider(
+                          widget.hostId,
+                          widget.workspace.id,
+                        ).notifier,
+                      )
+                      .select(destination);
               }
             },
             itemBuilder: (context) => <PopupMenuEntry<_TabsMenuAction>>[
+              if (panelCapabilities
+                  .hasAny) ...<PopupMenuEntry<_TabsMenuAction>>[
+                for (final destination in destinations)
+                  PopupMenuItem<_TabsMenuAction>(
+                    value: _SelectPanelAction(destination),
+                    height: AleraTokens.minTapTarget,
+                    child: _PanelMenuRow(
+                      icon: _panelIcon(destination),
+                      label: _panelLabel(destination),
+                      selected: destination == panel,
+                    ),
+                  ),
+                const PopupMenuDivider(),
+              ],
               const PopupMenuItem<_TabsMenuAction>(
-                value: .quickKeys,
+                value: _QuickKeysMenuAction(),
+                height: AleraTokens.minTapTarget,
                 child: Text('Terminal Quick Keys'),
               ),
             ],
@@ -348,7 +401,12 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
                   selectedTabId: _selectedTab(tabs.value!)?.id,
                   creating: _creating,
                   presenceByTabId: _presenceByTabId(),
+                  canOpenMarkdownTabs: canOpenMarkdownTabs,
                   onSelect: (tab) {
+                    if (tab.isMarkdownViewer) {
+                      _openMarkdownTab(tab);
+                      return;
+                    }
                     setState(() {
                       _selectedTabId = tab.id;
                     });
@@ -368,28 +426,6 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
       body: SafeArea(
         child: showTerminalChrome ? _terminalBody(tabs) : _panelBody(panel),
       ),
-      bottomNavigationBar: panelCapabilities.hasAny
-          ? NavigationBar(
-              selectedIndex: destinations.indexOf(panel),
-              onDestinationSelected: (index) {
-                ref
-                    .read(
-                      selectedWorkspacePanelControllerProvider(
-                        widget.hostId,
-                        widget.workspace.id,
-                      ).notifier,
-                    )
-                    .select(destinations[index]);
-              },
-              destinations: <NavigationDestination>[
-                for (final destination in destinations)
-                  NavigationDestination(
-                    icon: Icon(_panelIcon(destination)),
-                    label: _panelLabel(destination),
-                  ),
-              ],
-            )
-          : null,
     );
   }
 
@@ -449,34 +485,3 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     };
   }
 }
-
-IconData _panelIcon(WorkspacePanelDestination destination) {
-  return switch (destination) {
-    WorkspacePanelDestination.terminal => AleraIcons.terminal,
-    WorkspacePanelDestination.explorer => AleraIcons.files,
-    WorkspacePanelDestination.search => AleraIcons.search,
-    WorkspacePanelDestination.sourceControl => AleraIcons.gitCompare,
-    WorkspacePanelDestination.pullRequest => AleraIcons.gitPullRequest,
-  };
-}
-
-String _panelLabel(WorkspacePanelDestination destination) {
-  return switch (destination) {
-    WorkspacePanelDestination.terminal => 'Terminal',
-    WorkspacePanelDestination.explorer => 'Explorer',
-    WorkspacePanelDestination.search => 'Search',
-    WorkspacePanelDestination.sourceControl => 'Source Control',
-    WorkspacePanelDestination.pullRequest => 'Pull Request',
-  };
-}
-
-sealed class _NewTabAction {
-  const _NewTabAction();
-}
-
-class const _NewTerminalTabAction() extends _NewTabAction {}
-
-class const _NewAgentProfileTabAction(final String profileId)
-    extends _NewTabAction {}
-
-enum _TabsMenuAction { quickKeys }

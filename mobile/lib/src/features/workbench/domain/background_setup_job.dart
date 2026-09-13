@@ -14,6 +14,7 @@ class const ManualWorkspaceCreateRequest({
   final bool useProjectCheckout = false,
   final String? name,
   final String? parentWorkspaceId,
+  final String? issueUrl,
 }) {
   String get displayName {
     final trimmed = name?.trim();
@@ -35,6 +36,7 @@ class const PromptWorkspaceCreateRequest({
   required final Set<String> workspaceBranches,
   final bool useProjectCheckout = false,
   final String? parentWorkspaceId,
+  final String? issueUrl,
   final WorkspaceCreationResult? created,
   final String? clientMutationId,
   final bool? originalLaunchWasIdempotent,
@@ -57,6 +59,7 @@ class const PromptWorkspaceCreateRequest({
       workspaceBranches: workspaceBranches,
       useProjectCheckout: useProjectCheckout,
       parentWorkspaceId: parentWorkspaceId,
+      issueUrl: issueUrl,
       created: created,
       clientMutationId: clientMutationId ?? this.clientMutationId,
       originalLaunchWasIdempotent:

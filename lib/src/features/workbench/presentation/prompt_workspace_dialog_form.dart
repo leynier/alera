@@ -9,6 +9,7 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
           mainAxisSize: .min,
           crossAxisAlignment: .start,
           children: <Widget>[
+            ..._linkedIssueField(),
             AiDictationFieldOverlay(
               controller: _promptController,
               focusNode: _promptFocusNode,

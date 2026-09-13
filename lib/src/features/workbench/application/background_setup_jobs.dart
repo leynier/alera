@@ -89,6 +89,7 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs
             name: request.name,
             parentWorkspaceId: request.parentWorkspaceId,
             hostId: request.hostId,
+            issueUrl: request.issueUrl,
           );
       _publishWorkspaceCreated(result);
     }).whenComplete(() {
@@ -159,6 +160,7 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs
               required name,
               parentWorkspaceId,
               hostId,
+              issueUrl,
             }) => controller.createWorkspaceForPrompt(
               useProjectCheckout: requestToRun.useProjectCheckout,
               project: project,
@@ -167,6 +169,7 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs
               name: name,
               parentWorkspaceId: parentWorkspaceId,
               hostId: hostId,
+              issueUrl: issueUrl,
             ),
         launchAgent: runtime.launchAgent,
         onPhase: (phase) => _setPhase(id, phase),

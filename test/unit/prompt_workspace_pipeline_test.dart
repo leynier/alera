@@ -42,6 +42,7 @@ void main() {
             required name,
             parentWorkspaceId,
             hostId,
+            issueUrl,
           }) async {
             return WorkspaceCreationResult(
               workspace: Workspace(
@@ -108,6 +109,7 @@ void main() {
             required name,
             parentWorkspaceId,
             hostId,
+            issueUrl,
           }) async {
             expect(newBranchName, 'feat/available');
             return WorkspaceCreationResult(
@@ -163,6 +165,7 @@ void main() {
             required name,
             parentWorkspaceId,
             hostId,
+            issueUrl,
           }) async {
             return WorkspaceCreationResult(
               workspace: Workspace(

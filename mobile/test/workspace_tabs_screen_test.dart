@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
+import 'package:alera_mobile/src/design_system/markdown/alera_markdown_view.dart';
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
@@ -9,11 +11,13 @@ import 'package:alera_mobile/src/features/terminal/presentation/terminal_keys_se
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_tab_view.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_viewer_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/fake_terminal_client.dart';
+import 'support/fake_workspace_files_client.dart';
 
 void main() {
   testWidgets('Shows automatic titles in the tab chip and tab dialogs', (
@@ -136,6 +140,86 @@ void main() {
     reconnect.complete();
     await tester.pumpAndSettle();
     expect(find.byType(TerminalTabView), findsOneWidget);
+  });
+
+  group('desktop Markdown viewer tabs', () {
+    Future<FakeTerminalClient> pumpTabs(
+      WidgetTester tester, {
+      required bool filesSupported,
+    }) async {
+      final client = FakeTerminalClient()
+        ..tabs = <WorkspaceTabSummary>[
+          fakeTab(id: 'tab-1', title: 'Terminal 1'),
+          fakeTab(
+            id: 'tab-2',
+            title: 'readme.md preview',
+            kind: 'markdownViewer',
+            filePath: 'readme.md',
+          ),
+          fakeTab(id: 'tab-3', title: 'notes preview', kind: 'markdownViewer'),
+        ]
+        ..workspaceFiles = filesSupported
+            ? const <String>['readme.md']
+            : const <String>[]
+        ..workspaceFileContents = <String, FakeWorkspaceFile>{
+          'readme.md': (mimeType: 'text/markdown', bytes: utf8.encode('# Hi')),
+        };
+      addTearDown(client.dispose);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            terminalClientProvider('host-1')
+                .overrideWith((ref) async => client),
+            workspaceClientProvider('host-1')
+                .overrideWith((ref) async => client),
+          ],
+          child: const MaterialApp(
+            home: WorkspaceTabsScreen(
+              hostId: 'host-1',
+              workspace: WorkspaceSummary(
+                id: 'workspace-1',
+                projectId: 'project-1',
+                name: 'Workspace',
+                path: '/repo',
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return client;
+    }
+
+    InputChip chip(WidgetTester tester, String title) =>
+        tester.widget<InputChip>(find.widgetWithText(InputChip, title));
+
+    testWidgets('open their preview without leaving the terminal', (
+      tester,
+    ) async {
+      await pumpTabs(tester, filesSupported: true);
+
+      expect(chip(tester, 'readme.md preview').onSelected, isNotNull);
+      expect(chip(tester, 'readme.md preview').onDeleted, isNull);
+      expect(chip(tester, 'notes preview').onSelected, isNull);
+
+      await tester.tap(find.text('readme.md preview'));
+      await tester.pumpAndSettle();
+      expect(find.byType(WorkspaceFileViewerScreen), findsOneWidget);
+      expect(find.byType(AleraMarkdownView), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.byType(TerminalTabView), findsOneWidget);
+      expect(chip(tester, 'Terminal 1').selected, isTrue);
+    });
+
+    testWidgets('stay disabled when the runtime cannot read files', (
+      tester,
+    ) async {
+      await pumpTabs(tester, filesSupported: false);
+
+      expect(chip(tester, 'readme.md preview').onSelected, isNull);
+    });
   });
 
   testWidgets('new tab menu lists opted-in agent profiles after New Terminal', (

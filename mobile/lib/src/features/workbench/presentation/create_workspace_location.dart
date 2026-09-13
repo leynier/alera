@@ -134,4 +134,27 @@ extension _CreateWorkspaceLocation on _CreateWorkspaceScreenState {
       ),
     );
   }
+
+  void _selectPromptProject(
+    String projectId,
+    PromptWorkspaceController controller,
+  ) {
+    _update(() {
+      _promptParentWorkspaceId = null;
+      if (!widget.projects.any(
+        (project) =>
+            project.id == projectId && project.supportsLinkedWorkspaces,
+      )) {
+        _useProjectCheckout = true;
+      } else if (!widget.supportsSharedCheckoutWorkspaces) {
+        _useProjectCheckout = false;
+      }
+    });
+    controller.selectProject(
+      projectId,
+      loadBranches: !_useProjectCheckout,
+      checkoutHostId: _checkoutHostId,
+      defaultAgentProfileId: widget.defaultAgentProfileId,
+    );
+  }
 }

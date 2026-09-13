@@ -10,7 +10,7 @@ use alera_core::workspace_files::{
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
-use crate::terminal_host::protocol::{error_response, ok_response};
+use crate::terminal_host::protocol::{error_response, event, ok_response};
 
 use super::mobile_workspace_file_paths::prompt_attachment_root;
 use super::requests::{optional_string_key, require_string_key};
@@ -18,12 +18,15 @@ use super::{ServerActor, ServerCommand};
 
 impl ServerActor {
     pub(super) fn start_mobile_workspace_file_request(
-        &self,
+        &mut self,
         client_id: u64,
         request_id: i64,
         request_type: &str,
         payload: &Value,
     ) -> HostResult<()> {
+        if request_type == "mobile.workspaceSearch.replace" {
+            self.begin_workspace_file_write();
+        }
         let runtime_store = self.runtime_store.clone();
         let runtime_dir = self.runtime_dir.clone();
         let request_type = request_type.to_string();
@@ -34,6 +37,7 @@ impl ServerActor {
             let result = handle_mobile_workspace_file_request(
                 runtime_store,
                 runtime_dir,
+                client_id,
                 &request_type,
                 &payload,
             )
@@ -49,12 +53,28 @@ impl ServerActor {
     }
 
     pub(super) fn handle_mobile_workspace_file_finished(
-        &self,
+        &mut self,
         client_id: u64,
         request_id: i64,
         request_type: &str,
         result: HostResult<Value>,
     ) {
+        if request_type == "mobile.workspaceSearch.replace" {
+            if let Ok(value) = &result {
+                if value["filesChanged"].as_u64().unwrap_or(0) > 0 {
+                    self.broadcast_authenticated(event(
+                        "workspaceFilesChanged",
+                        json!({
+                            "workspaceId": value["workspaceId"],
+                            "workspacePath": value["workspacePath"],
+                            "relativePaths": value["relativePaths"],
+                        }),
+                    ));
+                }
+            }
+            self.complete_workspace_file_write();
+        }
+        self.broadcast_pull_request_link_change(request_type, &result);
         if !self.clients.contains_key(&client_id) {
             cleanup_orphaned_workspace_file_result(request_type, &result);
             return;
@@ -81,6 +101,7 @@ impl ServerActor {
 async fn handle_mobile_workspace_file_request(
     runtime_store: RuntimeStore,
     runtime_dir: PathBuf,
+    client_id: u64,
     request_type: &str,
     payload: &Value,
 ) -> HostResult<Value> {
@@ -119,9 +140,13 @@ async fn handle_mobile_workspace_file_request(
             super::mobile_explorer_requests::list_mobile_workspace_explorer(&runtime_store, payload)
                 .await
         }
-        "mobile.workspaceSearch.run" => {
-            super::mobile_workspace_search_requests::search_mobile_workspace(
+        "mobile.workspaceSearch.run"
+        | "mobile.workspaceSearch.replace"
+        | "mobile.workspaceSearch.cancel" => {
+            super::mobile_workspace_search_requests::handle_mobile_workspace_search_request(
                 &runtime_store,
+                client_id,
+                request_type,
                 payload,
             )
             .await
@@ -132,9 +157,10 @@ async fn handle_mobile_workspace_file_request(
         "mobile.git.diff" => {
             super::mobile_source_control_requests::mobile_git_diff(&runtime_store, payload).await
         }
-        "mobile.pullRequest.snapshot" => {
-            super::mobile_pull_request_requests::snapshot_mobile_pull_request(
+        verb if verb.starts_with("mobile.pullRequest.") => {
+            super::mobile_pull_request_actions::handle_mobile_pull_request(
                 &runtime_store,
+                verb,
                 payload,
             )
             .await

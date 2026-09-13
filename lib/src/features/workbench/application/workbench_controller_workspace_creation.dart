@@ -20,6 +20,7 @@ mixin _WorkbenchControllerWorkspaceCreation
     String? name,
     String? parentWorkspaceId,
     String? hostId,
+    String? issueUrl,
   }) {
     return _createWorkspace(
       useProjectCheckout: useProjectCheckout,
@@ -30,6 +31,7 @@ mixin _WorkbenchControllerWorkspaceCreation
       name: name,
       parentWorkspaceId: parentWorkspaceId,
       hostId: hostId,
+      issueUrl: issueUrl,
       initializeTabs: true,
     );
   }
@@ -46,6 +48,7 @@ mixin _WorkbenchControllerWorkspaceCreation
     required String name,
     String? parentWorkspaceId,
     String? hostId,
+    String? issueUrl,
   }) {
     return _createWorkspace(
       useProjectCheckout: useProjectCheckout,
@@ -56,6 +59,7 @@ mixin _WorkbenchControllerWorkspaceCreation
       name: name,
       parentWorkspaceId: parentWorkspaceId,
       hostId: hostId,
+      issueUrl: issueUrl,
       initializeTabs: false,
     );
   }
@@ -70,6 +74,7 @@ mixin _WorkbenchControllerWorkspaceCreation
     String? name,
     String? parentWorkspaceId,
     String? hostId,
+    String? issueUrl,
   }) async {
     try {
       final result = useProjectCheckout
@@ -77,6 +82,7 @@ mixin _WorkbenchControllerWorkspaceCreation
               project: project,
               name: name,
               hostId: hostId,
+              issueUrl: issueUrl,
             )
           : await _workspaceService.createLinkedWorkspace(
               project: project,
@@ -85,6 +91,7 @@ mixin _WorkbenchControllerWorkspaceCreation
               reuseExistingBranch: reuseExistingBranch,
               name: name,
               hostId: hostId,
+              issueUrl: issueUrl,
             );
       _reconcileCreatedWorkspace(project, result.workspace);
       if (initializeTabs) {

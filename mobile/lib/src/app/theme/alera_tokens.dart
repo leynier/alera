@@ -12,6 +12,7 @@ abstract final class AleraTokens {
   static const double space24 = 24.0;
   static const double space32 = 32.0;
   static const double space48 = 48.0;
+  static const double progressBarHeight = space2;
 
   /// Mobile aliases kept for existing call sites.
   static const double spaceXs = space4;
@@ -27,6 +28,10 @@ abstract final class AleraTokens {
 
   static const double dialogWideWidth = 560.0;
   static const double dialogMaxHeight = 520.0;
+
+  /// File-type glyphs in phone rows: larger than the desktop sidebar's 16.
+  static const double iconMd = space20;
+
   static const double emptyStateMaxWidth = 520.0;
   static const double conversationMaxWidth = 760.0;
   static const double chatBubbleMaxWidth = 620.0;

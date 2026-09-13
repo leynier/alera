@@ -246,6 +246,9 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                     );
                                   },
                                 ),
+                                WorkspaceLinkedIssueTrayIcon(
+                                  workspaceId: widget.workspace.id,
+                                ),
                                 if (tags.isNotEmpty) ...<Widget>[
                                   const SizedBox(width: AleraTokens.space6),
                                   Tooltip(

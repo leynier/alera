@@ -65,7 +65,7 @@ final class WorkspaceTextSearchControllerProvider
 }
 
 String _$workspaceTextSearchControllerHash() =>
-    r'cafa405d47a03ee238bb58766c4a0abb9d4b4e54';
+    r'62f9166de38e9a93cb793912743b9fad761df7a3';
 
 final class WorkspaceTextSearchControllerFamily extends $Family
     with

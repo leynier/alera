@@ -7,7 +7,7 @@ use crate::terminal_host::orchestration::agent_prompt_injection::{
 };
 use crate::terminal_host::session::Session;
 
-use super::super::actor_test_harness::test_actor;
+use super::super::actor_test_harness::{local_client, test_actor};
 use super::{
     handoff_chdir_bytes, handoff_notify_message, path_is_same_or_within, WorkspaceHandoffDirection,
 };
@@ -237,4 +237,46 @@ async fn relocate_does_not_fail_when_every_session_must_be_skipped() {
         actor.sessions.get("no-writer").unwrap().working_directory,
         "/worktrees/feat"
     );
+}
+
+/// The worktree transfer moves the linked issue row, and every watcher listens
+/// only to `linkedIssuesChanged`, so a missing broadcast leaves the glyph on the
+/// workspace the work came from until the app reconnects.
+#[tokio::test]
+async fn hand_off_and_hand_on_publish_a_wildcard_linked_issues_change() {
+    let dir = tempfile::tempdir().unwrap();
+    let (client, mut events) = crate::terminal_host::client::ClientHandle::test_channels();
+    let mut actor = test_actor(
+        &dir,
+        HashMap::from([(1, local_client(client))]),
+        HashMap::new(),
+    )
+    .await;
+
+    actor
+        .relocate_sessions_after_hand_off(
+            "main",
+            &serde_json::json!({"workspace": {"id": "child", "path": "/worktrees/feat"}}),
+        )
+        .await;
+    assert_eq!(next_linked_issues_event(&mut events), serde_json::json!({}));
+
+    actor.relocate_sessions_after_hand_on("child", "main", "/worktrees/feat", "/repo");
+    assert_eq!(next_linked_issues_event(&mut events), serde_json::json!({}));
+}
+
+/// The payload of the next `linkedIssuesChanged` event, skipping the tab and
+/// workspace events the same paths emit.
+fn next_linked_issues_event(
+    events: &mut tokio::sync::mpsc::UnboundedReceiver<crate::terminal_host::client::ClientFrame>,
+) -> serde_json::Value {
+    while let Ok(message) = events.try_recv() {
+        let Some(value) = message.as_json() else {
+            continue;
+        };
+        if value["event"] == serde_json::json!("linkedIssuesChanged") {
+            return value["payload"].clone();
+        }
+    }
+    panic!("no linkedIssuesChanged event was published");
 }

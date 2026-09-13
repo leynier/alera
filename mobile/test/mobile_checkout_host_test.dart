@@ -263,6 +263,7 @@ class _CheckoutClient extends FakeTerminalClient
     required String projectId,
     String? name,
     String? checkoutHostId,
+    String? issueUrl,
   }) {
     sharedHost = checkoutHostId;
     return super.createSharedWorkspace(
@@ -281,6 +282,7 @@ class _CheckoutClient extends FakeTerminalClient
     bool reuseExistingBranch = false,
     String? name,
     String? parentWorkspaceId,
+    String? issueUrl,
   }) {
     managedHost = checkoutHostId;
     managedSource = sourceBranch;

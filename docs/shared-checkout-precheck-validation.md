@@ -275,3 +275,93 @@ The repeated make rust-test completed successfully with 1177 CLI tests/four igno
 Review fifteen completed without actionable findings using Codex GPT-6 Astra Low, --uncommitted and the same stable review.log. Tracked/untracked contents and the Git index matched before and after the read-only subprocess. Session 01a09b50-753b-74c3-8dba-70634445b06a was archived. Root analysis and all 3320 tests passed with two skips; mobile analysis and all 470 tests passed with four skips (review14-root-analyze.log, review14-root-all-tests.log, review14-mobile-analyze.log and review14-mobile-all-tests.log). The last full Rust workspace gate passed, and no Rust implementation changed afterward. The size ratchet and whitespace checks passed. There are no unresolved review findings or known failing validation gates.
 
 Implementation and acceptance are completed. Delivery is in progress: create and commit the feature branch, fetch/prune and integrate remote main, resolve any conflicts, validate and merge its PR, synchronize local main and remove the feature branch, then run Cut Release and verify the version PR and published release. No implementation claim implies publication has already completed.
+
+## Remote Main Integration
+
+Delivery tracking: feature branch and implementation commit completed (feat/shared-checkout-workspaces, 854959ca); fetch/prune completed; integration of origin/main 53cdf38f is in progress; PR checks/review/merge, main synchronization/branch cleanup and Cut Release publication are pending.
+
+The eighteen textual conflicts were resolved preserving both the independent checkout model and incoming linked issues, mobile panels/search and core Git changes. Shared creation now carries issue URLs through desktop, mobile and CLI to the existing asynchronous issue-linking path. Focused desktop/mobile form tests cover explicit linked worktrees and shared tasks; the native shared-create test preserves the issue association and project folder. The upstream CLI issue fixture now requests --worktree explicitly. Mobile form tests use a viewport large enough to inspect the complete form.
+
+Generated provider files were rebuilt once per package after the merge batch, normalized and formatted. The first root generator stalled and was stopped; build_runner clean followed by a complete one-shot build succeeded. FRB files and exposed Rust APIs match origin/main exactly. Four combined file-size overages were split by responsibility without broadening the incoming size baseline. The size ratchet and whitespace checks passed. Full root/mobile analysis and tests, the Rust workspace gate and a fixed read-only integration review are in progress; no failing run is counted as successful validation.
+
+## Sixteenth Review Repairs
+
+Root and mobile integration analysis passed; full suites passed 3401 and 558 tests respectively, with two and four existing skips. Review sixteen reported two valid findings in incoming main surfaces. The read-only snapshots matched and session 01a09b67-f13d-7031-86ba-4e5ef71fc61a was archived. Mobile search and replace now reject a workspace owned by another host before local filesystem access; the regression uses valid content tokens for a coincident local path and verifies neither reading nor replacement is accepted. Linked-issue refresh now uses one conditional UPDATE RETURNING matching workspace, URL and original link timestamp; it cannot insert a deleted link or overwrite a replacement. Store regressions cover removal, a different URL and a newly linked instance of the same URL.
+
+The real-host issue conformance fixture now negotiates shared checkout support, creates its task through project.register/workspace.createShared, and retires it through a verified buffer guard and workspace.removeShared. Focused issue/service/store/conformance and mobile search tests passed. The repeated full Rust gate and the seventeenth fixed review remain in progress; no additional Dart or exposed FRB API changed in this repair batch.
+
+## Seventeenth Review Repairs
+
+Review seventeen reported two valid findings in the incoming PR surfaces, with unchanged reviewer snapshots. Session 01a09b6e-7319-70f2-8de1-3e50f18ef62e was archived. GitHub partial review-thread results now carry completeness evidence through the loader, panel state and agent-watch snapshot. Available comments remain visible; automatic merging with comment watching requires a complete fetch. Failed continuation pages and missing pagination evidence remain incomplete, and optimistic comment edits preserve that state. The mobile host reports a completed PR mutation successfully even when its subsequent snapshot fails, returning mutationApplied plus a separate refreshError so callers do not retry the completed write and link broadcasts still occur.
+
+Root provider generation, EOF normalization, formatting and analysis passed. Thirty-nine focused Dart tests and the native PR-action response regression passed. The preceding complete Rust gate passed 1243 CLI tests/four ignored, 445 core tests and 179 native tests plus integration suites. The current Rust gate, full root suite and eighteenth fixed read-only review are in progress. Mobile has no changes in this batch and retains its passing analysis/558-test result.
+
+## Eighteenth Review Repairs
+
+Review eighteen reported three valid findings in incoming main functionality. Reviewer snapshots matched and session 01a09b77-aad7-7d31-8622-a85b8b22abba was archived. The forge runner resolves explicit Windows .exe/.cmd/.bat paths from the configured PATH before its windowless spawn, preserving native argument handling. Managed launches include the PowerShell call operator, including synthesized resume commands on plain terminal tabs. Mobile replacement returns the host's successful result after provider disposal and skips disposed-state updates; disposal before dispatch still rejects the write.
+
+Focused Rust resume/rendering/forge tests passed. Mobile provider generation, EOF normalization, formatting, analysis and all 559 tests passed with four existing skips; its new deferred-response test disposes the provider before completing the successful replacement. An accidental root generation produced no retained root source/binding changes after EOF normalization; the root analysis and 3403-test result remain applicable. Native Windows shim/PowerShell execution tests in the isolated mirror, the full Rust gate and the next fixed review are in progress.
+
+## Nineteenth Review Repair
+
+Review nineteen reported one valid incoming PR-watch finding, with matching read-only snapshots; session 01a09b81-19ea-73e3-825c-25a6b411bf4b was archived. Pending feedback now groups by ReviewComment.threadId rather than its edit locator. Azure DevOps conversation comments may have a parent locator for editing but no review-thread identity; the new regression excludes them and fixtures now carry explicit thread IDs. Root analysis/full tests and the next fixed review are in progress. The native Windows validation from the preceding batch is still compiling; its result is not inferred from Linux command-construction tests.
+
+## Twentieth Review Repairs
+
+Review twenty reported two valid incoming mobile-replacement findings. Snapshots matched; session 01a09b84-9fa0-73c0-8aeb-8a8e556e5b5e was archived. Replacement now enters the runtime mutation barrier before its deferred file job starts. Its tracked write keeps lifecycle mutations queued and prevents idle shutdown until completion, including after client disconnect; completion releases the queue on either success or failure. Empty replacement strings now request deletion previews instead of ordinary search. Queue coordination and seven search/replace tests passed.
+
+Native Windows execution from the preceding batch passed all three cases: a .cmd forge fixture with literal spaced arguments, a real PowerShell invocation of the rendered resume line, and synthesized resume selection. The isolated mirror's processes completed. Root analysis and all 3404 tests passed with two skips; mobile analysis and 559 tests passed with four skips. The preceding Rust gate passed 1245 CLI tests/four ignored, 445 core and 179 native tests plus integration suites. The new full Rust gate and twenty-first fixed review are in progress; no Dart or FRB API changed in this batch.
+
+## Twenty-First Review Repairs
+
+Review twenty-one reported two valid findings. Read-only snapshots matched and session 01a09b8c-a08f-71f2-98c1-2f6d886bc459 was archived. The mobile client now transmits an explicitly empty replacement to a capable runtime and omits only null, completing the deletion-preview contract at both ends. PR link URLs are validated against the workspace's GitHub host, owner and repository before lookup; numeric references remain supported. Tests reject coincident PR numbers from other repositories/hosts and non-PR URLs.
+
+Mobile analysis and all 560 tests passed with four skips; native PR-action/link tests passed. The preceding complete Rust gate passed, including the replacement/lifecycle coordination regression. No annotated declaration or exposed FRB API changed. The next fixed review and repeated Rust gate are in progress; root retains its passing analysis and 3404 tests.
+
+## Twenty-Second Review Repairs
+
+Review twenty-two reported three valid findings, with unchanged reviewer snapshots; session 01a09b94-3798-7cf2-9738-dbf0b6a9c609 was archived. GitHub subprocesses now enable cancellation on drop before their bounded output future, and timeout messages require checking the PR before retrying a potentially applied write. An isolated delayed-write process regression verifies timeout prevents its later side effect. Workspace creation persists the local issue association before sending completion and defers only forge metadata fetching; the real actor regression reads the cached link immediately upon creation acknowledgement. Source Control initializes its search field from the retained filter; a widget test scrolls the unfocused header out of the lazy list, remounts it and clears the restored text.
+
+Focused native creation/timeout tests, mobile analysis and four panel tests passed. The full mobile suite passed 561 tests with four skips; the complete Rust gate passed 1249 CLI tests/four ignored, 445 core and 179 native tests plus integrations. No generated declaration or exposed FRB API changed in this batch; root retains its passing analysis and 3404-test result.
+
+## Twenty-Third Review Repairs
+
+Review twenty-three reported three valid races, with matching read-only snapshots; session 01a09b9e-cddf-78c3-a843-b8a62ba2913d was archived. Replacement captures the confirmed search inputs and generation alongside file tokens and rejects a changed generation before dispatch. Search disposal cancels through the client that started the request and invalidates pending continuations without reading a disposed provider. Failed issue refreshes update only the error on the original link, preserving metadata written by a concurrent successful fetch.
+
+Eleven focused mobile controller tests passed, including input changes while resolving the client and cancellation of an active request during provider disposal. Mobile generation, EOF normalization, formatting and analysis passed. The core store regression checks that a stale failure preserves a newer closed state/title and cannot restore a removed link; it is included in the full runtime-feature workspace gate. The full mobile suite passed 563 tests with four skips; the complete Rust gate passed 1249 CLI tests/four ignored, 446 core and 179 native tests plus integrations. An accidental root generation retained no root changes after EOF normalization. Root retains its passing analysis and 3404-test result.
+
+## Twenty-Fourth Review Repairs
+
+Review twenty-four reported two valid findings, with matching read-only snapshots; session 01a09baa-617c-7f30-bb8f-d1815e782311 was archived. Azure DevOps general discussions retain their resolvable thread identity; GitLab non-positioned notes also retain discussion identity when resolvable. Ordinary GitLab notes remain outside the unresolved-thread backlog. Mobile replacements broadcast affected checkout paths before releasing lifecycle coordination, including after the requesting phone disconnects. Desktop consumes the additive event and reloads clean editor snapshots across tasks while preserving dirty buffers and unrelated paths.
+
+Thirty-two focused Dart tests and the disconnected-requester host broadcast regression passed. The first full root run exposed a provider dependency cycle in the new event subscription; that run was stopped and the subscription moved to the runtime client provider, which already owns the registry dependency. Generation and normalization were repeated for this repair batch. Full root analysis and 3406 tests/two skips passed; the complete Rust gate is finishing; mobile retains its passing analysis and 563 tests/four skips.
+
+## Twenty-Fifth Review Repairs
+
+Review twenty-five reported two valid findings, with matching read-only snapshots; session 01a09bb3-91da-7cc0-a21c-60d4f9bba518 was archived. The review backlog now requires every note to be resolved before dropping a discussion, so partially resolved GitLab feedback still blocks automated merging. Mobile searches include a UUID for the controller instance, preventing a reopened panel from reusing cancellation tombstones belonging to its previous instance. Regression tests cover both cases; eight focused backlog tests passed.
+
+Mobile generation and EOF normalization completed. Root/mobile analysis passed, with 3407 root tests/two skips and 564 mobile tests/four skips. The complete Rust gate passed 1250 CLI tests/four ignored, 446 core and 179 native tests plus integrations. No Rust source or FRB API changed in this batch.
+
+## Twenty-Sixth Review Repairs
+
+Review twenty-six reported two valid findings, with matching read-only snapshots; session 01a09bb6-c8c1-7fc2-a12a-c137da5f6ff5 was archived. Replace All now carries the state shown when confirmation opened and rejects a changed search before dispatch. Mobile search responses have a 256 KiB serialized budget, including JSON escaping, and omit previews exceeding 16 KiB; omitted matches mark the response truncated, preventing Replace All on incomplete previews.
+
+Mobile generation, normalization, analysis and all 565 tests/four skips passed. The oversized-preview regression uses 200 matches across four files to stay below the engine's separate per-file cap; plain and escaped replacements stay within the relay limit and report truncation. The initial fixture incorrectly expected 200 matches from one file and was corrected; its failed run is not counted as validation. An accidental root generation retained no root changes after EOF normalization. The repeated complete Rust gate passed 1251 CLI tests/four ignored, 446 core and 179 native tests plus integrations; the three shutdown timeout cases from the superseded run also passed; root retains its passing analysis and 3407-test result.
+
+## Twenty-Seventh Review Repair
+
+Review twenty-seven reported one valid oversized-response finding, with matching read-only snapshots; session 01a09bc1-324c-74d2-aa9c-e23fd691c597 was archived. The combined mobile PR conversation now retains complete comments within a 256 KiB serialized budget, reserving room for editability fields and JSON separators. A commentsTruncated flag reaches the phone, which explains omitted comments and directs readers to the browser; an entirely omitted conversation no longer says there are no comments.
+
+The native regression verifies 100 large plain/escaped comment bodies stay within the relay limit without cutting retained bodies. Mobile analysis passed. The full mobile suite passed 566 tests/four skips; the complete Rust gate passed 1252 CLI tests/four ignored, 446 core and 179 native tests plus integrations. No generated declaration or exposed FRB API changed; root retains its passing analysis and 3407 tests/two skips.
+
+## Twenty-Eighth Review Repairs
+
+Review twenty-eight reported three valid search-engine defects, with matching read-only snapshots; session 01a09bc8-d2fc-7e51-9a05-25d94eb78dad was archived. Search tokens now hash the bytes actually searched. Replacement verifies the second read against that token and rechecks disk contents before writing, reporting intervening changes as conflicts. Replacement scans omit line previews rather than retaining a whole minified line per match. Regex capture expansion uses the original line and exact match range, preserving boundary context for previews and writes.
+
+Twenty-two focused search tests passed on Linux and macOS. New regressions inject same-size changes after scanning and before writing, check that a large minified line is not retained per match, and cover leading/trailing non-word boundaries with capture expansion. Windows native search validation passed 19 applicable tests, including all three new regressions; the three remaining cases are Unix-specific. The complete Rust gate passed 1252 CLI tests/four ignored, 449 core and 179 native tests plus integrations. No Dart/generated declaration or exposed FRB API changed; root/mobile retain their passing analysis and 3407/566 tests respectively.
+
+## Integration Review Completion
+
+The twenty-ninth fixed Codex GPT-6 Astra Low review completed with no actionable findings. Reviewer snapshots matched and session 01a09bcf-0b37-77b2-83d5-fe1380e9b48d was archived. The reviewer did not execute builds or tests; the implementation session independently completed root/mobile analysis, 3407 root tests/two skips, 566 mobile tests/four skips, the complete Rust gate, and the documented isolated Linux/macOS/Windows validations. No actionable review findings remain.
+
+The reviewed integration resolves the remote main merge at 53cdf38f79013b2e0d3c34f8b532a52706d86b8f. Branch/implementation commit and fetch are completed; integration commit, pull request checks/Pullfrog resolution, squash merge, main synchronization/branch cleanup and Cut Release publication proceed under the user's later delivery authorization. Publication is not claimed by this local validation record.

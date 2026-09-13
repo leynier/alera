@@ -42,7 +42,7 @@ final class BackgroundSetupJobsProvider
 }
 
 String _$backgroundSetupJobsHash() =>
-    r'0af674a2715ffdce5a91639676695a445a1bd491';
+    r'566170b9c89864ebdf32837cc42d95b9727d1a16';
 
 abstract class _$BackgroundSetupJobs
     extends $Notifier<BackgroundSetupJobsState> {

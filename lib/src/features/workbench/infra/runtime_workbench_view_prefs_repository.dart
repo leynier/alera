@@ -109,6 +109,10 @@ Map<String, Object?> _sharedJson(WorkbenchViewPrefs prefs) {
     'showPinnedWorkspacesBelow': prefs.showPinnedWorkspacesBelow,
     'workspaceKindFilter': prefs.workspaceKindFilter.name,
     'showActiveWorkspacesOnly': prefs.showActiveWorkspacesOnly,
+    'gitDiffViewMode': prefs.gitDiffViewMode.name,
+    'gitDiffGroupMode': prefs.gitDiffGroupMode.name,
+    'searchViewAsTree': prefs.searchViewAsTree,
+    'searchIncludeIgnored': prefs.searchIncludeIgnored,
   };
 }
 
@@ -162,6 +166,20 @@ WorkbenchViewPrefs _mergeShared(
     showActiveWorkspacesOnly:
         shared['showActiveWorkspacesOnly'] as bool? ??
         local.showActiveWorkspacesOnly,
+    gitDiffViewMode: _enumByName(
+      GitDiffViewMode.values,
+      shared['gitDiffViewMode'],
+      local.gitDiffViewMode,
+    ),
+    gitDiffGroupMode: _enumByName(
+      GitDiffGroupMode.values,
+      shared['gitDiffGroupMode'],
+      local.gitDiffGroupMode,
+    ),
+    searchViewAsTree:
+        shared['searchViewAsTree'] as bool? ?? local.searchViewAsTree,
+    searchIncludeIgnored:
+        shared['searchIncludeIgnored'] as bool? ?? local.searchIncludeIgnored,
   );
 }
 

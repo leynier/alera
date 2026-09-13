@@ -11,6 +11,7 @@ use super::managed_agent_launch::ManagedAgentLaunch;
 
 pub const AGENT_NATIVE_SESSION_ID_KEY: &str = "agentNativeSessionId";
 pub const AGENT_NATIVE_SESSION_AGENT_KEY: &str = "agentNativeSessionAgent";
+pub const AGENT_NATIVE_CCS_PROFILE_KEY: &str = "agentNativeCcsProfile";
 
 const NATIVE_ID_KEYS: [&str; 7] = [
     "conversation_id",
@@ -66,6 +67,22 @@ pub fn hook_identifies_parent_session(payload: &Value) -> bool {
     })
 }
 
+/// CCS instance directory name from `CLAUDE_CONFIG_DIR` when Claude was
+/// launched through `ccs`. Default Claude (`~/.claude`) is not an instance.
+pub fn ccs_profile_from_config_dir(dir: &str) -> Option<&str> {
+    let dir = dir.trim().trim_end_matches(['/', '\\']);
+    if dir.is_empty() {
+        return None;
+    }
+    let mut parts = dir.rsplit(['/', '\\']).filter(|part| !part.is_empty());
+    let profile = parts.next()?;
+    if profile.starts_with('-') || profile.split_whitespace().count() != 1 {
+        return None;
+    }
+    let folder = parts.next()?;
+    (folder == "instances").then_some(profile)
+}
+
 pub fn usable_native_session_id(id: &str) -> Option<&str> {
     let id = id.trim();
     if id.is_empty() {
@@ -105,7 +122,9 @@ pub fn apply_resume_to_managed_launch(
     let Some(arguments) = resume_arguments(shape, session_id) else {
         return false;
     };
-    let mut next = arguments;
+    let insert_at = launch.resume_insert_index();
+    let mut next = launch.arguments.drain(..insert_at).collect::<Vec<_>>();
+    next.extend(arguments);
     next.append(&mut launch.arguments);
     launch.arguments = next;
     true
@@ -210,6 +229,19 @@ mod tests {
         assert_eq!(native_session_id(&json!({"prompt": "hello"})), None);
         assert_eq!(native_session_id(&json!({"session_id": "  "})), None);
         assert_eq!(native_session_id(&json!({"session_id": "bad;id"})), None);
+        assert_eq!(
+            ccs_profile_from_config_dir("/home/user/.ccs/instances/leynier41"),
+            Some("leynier41")
+        );
+        assert_eq!(
+            ccs_profile_from_config_dir(r"C:\Users\user\.ccs\instances\leynier41\"),
+            Some("leynier41")
+        );
+        assert_eq!(ccs_profile_from_config_dir("/home/user/.claude"), None);
+        assert_eq!(
+            ccs_profile_from_config_dir("/home/user/.ccs/instances/--bad"),
+            None
+        );
         assert!(hook_identifies_parent_session(&json!({
             "session_id": "child",
             "parent_session_id": "parent"
@@ -285,6 +317,30 @@ mod tests {
             )
             .as_deref(),
             Some("copilot --allow-all '--resume=sess-1'")
+        );
+
+        let mut ccs = ManagedAgentLaunch {
+            executable: "ccs".into(),
+            arguments: vec!["work".into(), "--permission-mode".into(), "auto".into()],
+        };
+        assert!(apply_resume_to_managed_launch(
+            &mut ccs,
+            AgentSessionResumeShape::Flag("--resume"),
+            "sess-1"
+        ));
+        assert_eq!(
+            ccs.arguments,
+            ["work", "--resume", "sess-1", "--permission-mode", "auto"]
+        );
+        assert_eq!(
+            apply_resume_to_command(
+                "ccs work --permission-mode auto",
+                AgentSessionResumeShape::Flag("--resume"),
+                "sess-1",
+                "/bin/zsh"
+            )
+            .as_deref(),
+            Some("ccs work --permission-mode auto '--resume' 'sess-1'")
         );
     }
 

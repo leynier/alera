@@ -204,6 +204,7 @@ class DialogLaunchersTestController(final WorkbenchState _seed)
     String? name,
     String? parentWorkspaceId,
     String? hostId,
+    String? issueUrl,
   }) async {
     createdOnProjectCheckout = useProjectCheckout;
     if (createWorkspaceError case final Exception error) {

@@ -106,6 +106,9 @@ abstract final class const AleraIcons._() {
   static const IconData gitPullRequest = LucideIcons.gitPullRequest;
   static const IconData gitPullRequestClosed = LucideIcons.gitPullRequestClosed;
   static const IconData gitPullRequestDraft = LucideIcons.gitPullRequestDraft;
+  static const IconData issueOpen = LucideIcons.circleDot;
+  static const IconData issueClosed = LucideIcons.circleCheckBig;
+  static const IconData issueUnknown = LucideIcons.circleDashed;
   static const IconData review = LucideIcons.fileSearch;
   static const IconData checks = LucideIcons.listChecks;
   static const IconData diff = LucideIcons.gitCompare;

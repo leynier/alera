@@ -18,8 +18,9 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_AI_DICTATION_MODELS_CAPABILITY, RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
     RUNTIME_HOST_BINARY_FRAMES_CAPABILITY, RUNTIME_HOST_CAPABILITY,
     RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY, RUNTIME_HOST_LIFECYCLE_CAPABILITY,
-    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY, RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CAPABILITY, RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
+    RUNTIME_HOST_LINKED_ISSUES_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+    RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY, RUNTIME_HOST_MOBILE_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
     RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY, RUNTIME_HOST_MOBILE_EXPLORER_CAPABILITY,
     RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY, RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
     RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
@@ -30,6 +31,7 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY, RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
     RUNTIME_HOST_MOBILE_SOURCE_CONTROL_CAPABILITY, RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
     RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
+    RUNTIME_HOST_MOBILE_WORKSPACE_REPLACE_CAPABILITY,
     RUNTIME_HOST_MOBILE_WORKSPACE_SEARCH_CAPABILITY, RUNTIME_HOST_RESTART_CAPABILITY,
     RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
     RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY, RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY,
@@ -55,6 +57,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
     RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY,
+    RUNTIME_HOST_LINKED_ISSUES_CAPABILITY,
     RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
     RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
     RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
@@ -82,8 +85,10 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY,
     RUNTIME_HOST_MOBILE_EXPLORER_CAPABILITY,
     RUNTIME_HOST_MOBILE_WORKSPACE_SEARCH_CAPABILITY,
+    RUNTIME_HOST_MOBILE_WORKSPACE_REPLACE_CAPABILITY,
     RUNTIME_HOST_MOBILE_SOURCE_CONTROL_CAPABILITY,
     RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY,
+    crate::terminal_host::protocol::RUNTIME_HOST_MOBILE_PULL_REQUEST_ACTIONS_CAPABILITY,
     RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_MODELS_CAPABILITY,
@@ -169,9 +174,19 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "mobile.workspaceFile.read"
             | "mobile.workspaceExplorer.list"
             | "mobile.workspaceSearch.run"
+            | "mobile.workspaceSearch.replace"
+            | "mobile.workspaceSearch.cancel"
             | "mobile.git.status"
             | "mobile.git.diff"
             | "mobile.pullRequest.snapshot"
+            | "mobile.pullRequest.comment"
+            | "mobile.pullRequest.commentUpdate"
+            | "mobile.pullRequest.merge"
+            | "mobile.pullRequest.draftStatus"
+            | "mobile.pullRequest.close"
+            | "mobile.pullRequest.link"
+            | "mobile.pullRequest.unlink"
+            | "mobile.pullRequest.create"
             | "mobile.promptFile.start"
             | "mobile.promptFile.chunk"
             | "mobile.promptFile.complete"
@@ -203,6 +218,12 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "cliRegistration.install"
             | "agentSkill.install"
             | "linkedReview.find"
+            | "linkedIssue.list"
+            | "linkedIssue.find"
+            | "linkedIssue.link"
+            | "linkedIssue.refresh"
+            | "linkedIssue.remove"
+            | "issue.fetch"
             | "layout.find"
             | "workspaceSection.list"
             | "workspaceSection.create"
@@ -285,14 +306,55 @@ mod mobile_codex_file_surface_tests {
         assert!(
             MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_WORKSPACE_SEARCH_CAPABILITY)
         );
+        assert!(
+            MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_WORKSPACE_REPLACE_CAPABILITY)
+        );
         assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_SOURCE_CONTROL_CAPABILITY));
         assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY));
         for request in [
             "mobile.workspaceExplorer.list",
             "mobile.workspaceSearch.run",
+            "mobile.workspaceSearch.replace",
+            "mobile.workspaceSearch.cancel",
             "mobile.git.status",
             "mobile.git.diff",
             "mobile.pullRequest.snapshot",
+        ] {
+            assert!(mobile_request_allowed(request), "{request}");
+        }
+    }
+
+    #[test]
+    fn advertises_and_allows_pull_request_actions_but_not_raw_link_writes() {
+        assert!(MOBILE_HELLO_CAPABILITIES.contains(
+            &crate::terminal_host::protocol::RUNTIME_HOST_MOBILE_PULL_REQUEST_ACTIONS_CAPABILITY
+        ));
+        for request in [
+            "mobile.pullRequest.comment",
+            "mobile.pullRequest.commentUpdate",
+            "mobile.pullRequest.merge",
+            "mobile.pullRequest.draftStatus",
+            "mobile.pullRequest.close",
+            "mobile.pullRequest.link",
+            "mobile.pullRequest.unlink",
+            "mobile.pullRequest.create",
+        ] {
+            assert!(mobile_request_allowed(request), "{request}");
+        }
+        assert!(!mobile_request_allowed("linkedReview.upsert"));
+        assert!(!mobile_request_allowed("linkedReview.remove"));
+    }
+
+    #[test]
+    fn advertises_and_allows_linked_issues() {
+        assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_LINKED_ISSUES_CAPABILITY));
+        for request in [
+            "linkedIssue.list",
+            "linkedIssue.find",
+            "linkedIssue.link",
+            "linkedIssue.refresh",
+            "linkedIssue.remove",
+            "issue.fetch",
         ] {
             assert!(mobile_request_allowed(request), "{request}");
         }

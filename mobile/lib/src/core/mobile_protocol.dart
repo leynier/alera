@@ -12,6 +12,7 @@ const String aiDictationBackendsCapability = 'aiDictationBackendsV3';
 const String remoteAiDictationCapability = 'aiDictationRemoteProvidersV1';
 const String mobileExplorerCapability = 'mobileExplorerV1';
 const String mobileWorkspaceSearchCapability = 'mobileWorkspaceSearchV1';
+const String mobileWorkspaceReplaceCapability = 'mobileWorkspaceReplaceV1';
 const String mobileSourceControlCapability = 'mobileSourceControlV1';
 const String mobilePullRequestCapability = 'mobilePullRequestV1';
 const String sharedCheckoutWorkspacesCapability = 'sharedCheckoutWorkspacesV1';
@@ -33,3 +34,7 @@ bool requiresSharedCheckoutSupport(String operation) => switch (operation) {
   'project.clone.start' => true,
   _ => operation.startsWith('workspace.bufferGuard.'),
 };
+
+/// Linked issues (`linkedIssue.*`, `issue.fetch`, `issueUrl` on
+/// `workspace.createManaged`). Additive: never bump the protocol version.
+const String linkedIssuesCapability = 'linkedIssuesV1';

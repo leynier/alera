@@ -13,6 +13,8 @@ class const _PullRequestBody({
   required final ValueChanged<HostedReview>? onOpenDiff,
   required final ValueChanged<PullRequestCreateAction> onCreateActionChanged,
   final PullRequestAgentWatchMode? agentWatchMode,
+  final PullRequestAgentWatchScope agentWatchScope =
+      PullRequestAgentWatchScope.defaults,
   required final WidgetRef ref,
 }) extends StatelessWidget {
   @override
@@ -90,6 +92,12 @@ class const _PullRequestBody({
         onUpdate: controller.updateReview,
         onLoadCheckDetails: controller.loadCheckDetails,
         agentWatchMode: agentWatchMode,
+        agentWatchScope: agentWatchScope,
+        onAgentWatchScopeChanged: (watchScope) => unawaited(
+          ref
+              .read(settingsControllerProvider.notifier)
+              .setPullRequestAgentWatchScope(watchScope),
+        ),
         onFixFailedChecks: review.isOpen
             ? () => unawaited(
                 dispatchPullRequestFailedChecks(
@@ -101,26 +109,36 @@ class const _PullRequestBody({
               )
             : null,
         onWatchAndFix: review.isOpen
-            ? () => unawaited(
+            ? (watchScope) => unawaited(
                 startPullRequestAgentWatch(
                   context: context,
                   ref: ref,
                   scope: controller.scope,
                   review: review,
                   mode: .fix,
-                  checksRollup: state.checksRollup,
+                  watchScope: watchScope,
+                  snapshot: PullRequestAgentWatchSnapshot(
+                    review: review,
+                    checksRollup: state.checksRollup,
+                    comments: state.comments,
+                  ),
                 ),
               )
             : null,
         onWatchFixAndMerge: review.isOpen
-            ? () => unawaited(
+            ? (watchScope) => unawaited(
                 startPullRequestAgentWatch(
                   context: context,
                   ref: ref,
                   scope: controller.scope,
                   review: review,
                   mode: .fixAndMerge,
-                  checksRollup: state.checksRollup,
+                  watchScope: watchScope,
+                  snapshot: PullRequestAgentWatchSnapshot(
+                    review: review,
+                    checksRollup: state.checksRollup,
+                    comments: state.comments,
+                  ),
                 ),
               )
             : null,

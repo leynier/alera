@@ -52,7 +52,7 @@ final class MobileViewPrefsControllerProvider
 }
 
 String _$mobileViewPrefsControllerHash() =>
-    r'cb8100ef8035f987bf64858b183ff1c6d94912ea';
+    r'64a460b900b6a82145c685bff7ccfddea3f3cfe8';
 
 final class MobileViewPrefsControllerFamily extends $Family
     with

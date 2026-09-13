@@ -27,6 +27,24 @@ pub enum SharedWorkspaceKindFilter {
     NonDefaultOnly,
 }
 
+/// Whether Source Control lists changed files as a folder tree or a flat list.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum SharedGitDiffViewMode {
+    #[default]
+    Tree,
+    Flat,
+}
+
+/// Whether Source Control groups files by staged state or shows one list.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum SharedGitDiffGroupMode {
+    #[default]
+    ByArea,
+    Unified,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct SharedWorkbenchViewPrefs {
@@ -56,6 +74,14 @@ pub struct SharedWorkbenchViewPrefs {
     pub workspace_kind_filter: SharedWorkspaceKindFilter,
     #[serde(default)]
     pub show_active_workspaces_only: bool,
+    #[serde(default)]
+    pub git_diff_view_mode: SharedGitDiffViewMode,
+    #[serde(default)]
+    pub git_diff_group_mode: SharedGitDiffGroupMode,
+    #[serde(default)]
+    pub search_view_as_tree: bool,
+    #[serde(default)]
+    pub search_include_ignored: bool,
 }
 
 fn default_true() -> bool {
@@ -80,6 +106,10 @@ impl Default for SharedWorkbenchViewPrefs {
             show_pinned_workspaces_below: true,
             workspace_kind_filter: SharedWorkspaceKindFilter::All,
             show_active_workspaces_only: false,
+            git_diff_view_mode: SharedGitDiffViewMode::Tree,
+            git_diff_group_mode: SharedGitDiffGroupMode::ByArea,
+            search_view_as_tree: false,
+            search_include_ignored: false,
         }
     }
 }

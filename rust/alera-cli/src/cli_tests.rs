@@ -448,3 +448,6 @@ fn task_wait_defaults_include_every_terminal_task_state() {
         }) if args.targets == "completed"
     ));
 }
+
+#[path = "cli_issue_tests.rs"]
+mod issue_tests;

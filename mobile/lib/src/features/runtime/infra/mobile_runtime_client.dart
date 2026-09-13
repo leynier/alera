@@ -26,6 +26,8 @@ import 'package:alera_mobile/src/features/quotas/domain/quota_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/ai_dictation/domain/speech_capabilities.dart';
+import 'package:alera_mobile/src/features/linked_issues/domain/mobile_linked_issue.dart';
+import 'package:alera_mobile/src/features/linked_issues/infra/mobile_runtime_linked_issue_requests.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_workspace_sidebar_client.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_workspace_client.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_relocation_client.dart';
@@ -66,7 +68,8 @@ class MobileRuntimeClient._(
         MobileRuntimeTerminalRequests,
         MobileRuntimeTerminalOutputResync,
         MobileRuntimeCodexWorkspaceRequests,
-        MobileRuntimeWorkspacePanelRequests
+        MobileRuntimeWorkspacePanelRequests,
+        MobileRuntimeLinkedIssueRequests
     implements
         MobileTerminalClient,
         MobileWorkspaceClient,
@@ -75,7 +78,8 @@ class MobileRuntimeClient._(
         MobileCheckoutCatalogClient,
         MobileAgentTitleClient,
         MobileCodexWorkspaceClient,
-        MobileWorkspacePanelsClient {
+        MobileWorkspacePanelsClient,
+        MobileLinkedIssueClient {
   this {
     _subscription = _channel.stream.listen(
       _handleMessage,

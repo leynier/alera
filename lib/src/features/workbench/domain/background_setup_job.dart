@@ -16,6 +16,7 @@ class const ManualWorkspaceCreateRequest({
   final String? name,
   final String? parentWorkspaceId,
   final String? hostId,
+  final String? issueUrl,
 }) extends BackgroundSetupRetrySnapshot {
   String get displayName {
     final trimmed = name?.trim();
@@ -34,6 +35,7 @@ class const PromptWorkspaceCreateRequest({
   required final String sourceBranch,
   final String? parentWorkspaceId,
   final String? hostId,
+  final String? issueUrl,
   final WorkspaceCreationResult? created,
   final String? clientMutationId,
   final bool? originalLaunchWasIdempotent,
@@ -53,6 +55,7 @@ class const PromptWorkspaceCreateRequest({
       sourceBranch: sourceBranch,
       parentWorkspaceId: parentWorkspaceId,
       hostId: hostId,
+      issueUrl: issueUrl,
       created: created,
       clientMutationId: clientMutationId ?? this.clientMutationId,
       originalLaunchWasIdempotent:

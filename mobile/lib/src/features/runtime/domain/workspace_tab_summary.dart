@@ -10,6 +10,12 @@ class const WorkspaceTabSummary({
 }) {
   bool get isTerminal => kind == 'terminal';
 
+  bool get isMarkdownViewer => kind == 'markdownViewer';
+
+  /// Workspace-relative file shown by a file-backed desktop tab (editor,
+  /// Markdown viewer); null for terminals.
+  String? get filePath => payload.optionalString('filePath');
+
   bool get hasManualTitle => payload['manualTitle'] == true;
 
   String get displayTitle {
@@ -34,6 +40,9 @@ class const WorkspaceTabSummary({
 
   String? get agentNativeSessionAgent =>
       payload.optionalString('agentNativeSessionAgent');
+
+  String? get agentNativeCcsProfile =>
+      payload.optionalString('agentNativeCcsProfile');
 
   factory fromJson(Map<String, Object?> json) {
     return WorkspaceTabSummary(

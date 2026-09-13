@@ -208,6 +208,7 @@ class WorkspaceListController extends _$WorkspaceListController {
     bool useProjectCheckout = false,
     String? name,
     String? parentWorkspaceId,
+    String? issueUrl,
   }) async {
     final keepAlive = ref.keepAlive();
     try {
@@ -216,6 +217,7 @@ class WorkspaceListController extends _$WorkspaceListController {
           ? await requireSharedCheckoutClient(client).createSharedWorkspace(
               projectId: projectId,
               name: name,
+              issueUrl: issueUrl,
               checkoutHostId: checkoutHostId,
             )
           : await client.createManagedWorkspace(
@@ -225,6 +227,7 @@ class WorkspaceListController extends _$WorkspaceListController {
               sourceBranch: sourceBranch,
               reuseExistingBranch: reuseExistingBranch,
               name: name,
+              issueUrl: issueUrl,
             );
       var result = creation;
       if (creation.hasDeferredSetup) {

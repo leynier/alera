@@ -30,6 +30,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
     return ListView(
       padding: AleraTokens.pagePadding,
       children: <Widget>[
+        ..._linkedIssueField(forPrompt: true, enabled: promptEnabled),
         if (dictationEnabled)
           MobileAiDictationReviewBar(
             hostId: widget.hostId,
@@ -325,6 +326,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
             workspaceBranches: workspaceBranches,
             useProjectCheckout: _useProjectCheckout,
             parentWorkspaceId: _promptParentWorkspaceId,
+            issueUrl: _linkedIssueUrl(),
           ),
           jobId: jobId,
         );
@@ -335,6 +337,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
           return;
         }
         _prompt.clear();
+        _issueUrl.clear();
         _promptAttachmentError = null;
         _retryError = null;
         _retryJobId = null;

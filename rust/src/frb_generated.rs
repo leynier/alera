@@ -3629,6 +3629,174 @@ fn wire__crate__api__workspace_files__write_workspace_text_file_impl(
     )
 }
 
+// Section: static_checks
+
+#[allow(clippy::unnecessary_literal_unwrap)]
+const _: fn() = || {
+    {
+        let GitChangeEntry = None::<crate::api::git::GitChangeEntry>.unwrap();
+        let _: String = GitChangeEntry.path;
+        let _: Option<String> = GitChangeEntry.old_path;
+        let _: crate::api::git::GitChangeArea = GitChangeEntry.area;
+        let _: crate::api::git::GitChangeStatus = GitChangeEntry.status;
+        let _: Option<u32> = GitChangeEntry.added;
+        let _: Option<u32> = GitChangeEntry.removed;
+        let _: bool = GitChangeEntry.is_binary;
+        let _: bool = GitChangeEntry.is_large;
+        let _: Option<crate::api::git::GitSubmoduleStatus> = GitChangeEntry.submodule;
+    }
+    {
+        let GitChangeGroup = None::<crate::api::git::GitChangeGroup>.unwrap();
+        let _: crate::api::git::GitChangeArea = GitChangeGroup.area;
+        let _: Vec<crate::api::git::GitChangeEntry> = GitChangeGroup.entries;
+        let _: Vec<crate::api::git::GitChangeTreeRow> = GitChangeGroup.tree_rows;
+    }
+    {
+        let GitChangeTreeRow = None::<crate::api::git::GitChangeTreeRow>.unwrap();
+        let _: crate::api::git::GitChangeTreeRowKind = GitChangeTreeRow.kind;
+        let _: String = GitChangeTreeRow.name;
+        let _: String = GitChangeTreeRow.path;
+        let _: u32 = GitChangeTreeRow.depth;
+        let _: u32 = GitChangeTreeRow.file_count;
+        let _: Option<crate::api::git::GitChangeEntry> = GitChangeTreeRow.entry;
+    }
+    {
+        let GitCommitChangeEntry = None::<crate::api::git::GitCommitChangeEntry>.unwrap();
+        let _: String = GitCommitChangeEntry.path;
+        let _: Option<String> = GitCommitChangeEntry.old_path;
+        let _: crate::api::git::GitChangeStatus = GitCommitChangeEntry.status;
+        let _: Option<u32> = GitCommitChangeEntry.added;
+        let _: Option<u32> = GitCommitChangeEntry.removed;
+    }
+    {
+        let GitCommitCompareResult = None::<crate::api::git::GitCommitCompareResult>.unwrap();
+        let _: crate::api::git::GitCommitCompareSummary = GitCommitCompareResult.summary;
+        let _: Vec<crate::api::git::GitCommitChangeEntry> = GitCommitCompareResult.entries;
+    }
+    {
+        let GitCommitCompareSummary = None::<crate::api::git::GitCommitCompareSummary>.unwrap();
+        let _: String = GitCommitCompareSummary.commit_oid;
+        let _: Option<String> = GitCommitCompareSummary.parent_oid;
+        let _: String = GitCommitCompareSummary.compare_ref;
+        let _: String = GitCommitCompareSummary.base_ref;
+        let _: u32 = GitCommitCompareSummary.changed_files;
+        let _: crate::api::git::GitCommitCompareStatus = GitCommitCompareSummary.status;
+        let _: Option<String> = GitCommitCompareSummary.error_message;
+    }
+    {
+        let GitDiffFile = None::<crate::api::git::GitDiffFile>.unwrap();
+        let _: String = GitDiffFile.path;
+        let _: Option<String> = GitDiffFile.old_path;
+        let _: crate::api::git::GitChangeArea = GitDiffFile.area;
+        let _: crate::api::git::GitChangeStatus = GitDiffFile.status;
+        let _: Vec<crate::api::git::GitDiffLine> = GitDiffFile.lines;
+        let _: Option<u32> = GitDiffFile.added;
+        let _: Option<u32> = GitDiffFile.removed;
+        let _: bool = GitDiffFile.is_binary;
+        let _: bool = GitDiffFile.is_large;
+        let _: bool = GitDiffFile.is_gitlink;
+        let _: bool = GitDiffFile.truncated;
+        let _: bool = GitDiffFile.line_preview_truncated;
+    }
+    {
+        let GitDiffLine = None::<crate::api::git::GitDiffLine>.unwrap();
+        let _: String = GitDiffLine.text;
+        let _: crate::api::git::GitDiffLineKind = GitDiffLine.kind;
+    }
+    {
+        let GitDiffResult = None::<crate::api::git::GitDiffResult>.unwrap();
+        let _: Vec<crate::api::git::GitDiffFile> = GitDiffResult.files;
+        let _: bool = GitDiffResult.truncated;
+    }
+    {
+        let GitError = None::<crate::api::git::GitError>.unwrap();
+        let _: crate::api::git::GitErrorKind = GitError.kind;
+        let _: String = GitError.context;
+    }
+    {
+        let GitHistoryItem = None::<crate::api::git::GitHistoryItem>.unwrap();
+        let _: String = GitHistoryItem.id;
+        let _: Vec<String> = GitHistoryItem.parent_ids;
+        let _: String = GitHistoryItem.subject;
+        let _: String = GitHistoryItem.message;
+        let _: Option<String> = GitHistoryItem.display_id;
+        let _: Option<String> = GitHistoryItem.author;
+        let _: Option<String> = GitHistoryItem.author_email;
+        let _: Option<i64> = GitHistoryItem.timestamp;
+        let _: Vec<crate::api::git::GitHistoryItemRef> = GitHistoryItem.references;
+    }
+    {
+        let GitHistoryItemRef = None::<crate::api::git::GitHistoryItemRef>.unwrap();
+        let _: String = GitHistoryItemRef.id;
+        let _: String = GitHistoryItemRef.name;
+        let _: Option<String> = GitHistoryItemRef.revision;
+        let _: Option<crate::api::git::GitHistoryRefCategory> = GitHistoryItemRef.category;
+    }
+    {
+        let GitHistoryResult = None::<crate::api::git::GitHistoryResult>.unwrap();
+        let _: Vec<crate::api::git::GitHistoryItem> = GitHistoryResult.items;
+        let _: Option<crate::api::git::GitHistoryItemRef> = GitHistoryResult.current_ref;
+        let _: Option<crate::api::git::GitHistoryItemRef> = GitHistoryResult.remote_ref;
+        let _: Option<crate::api::git::GitHistoryItemRef> = GitHistoryResult.base_ref;
+        let _: Option<String> = GitHistoryResult.merge_base;
+        let _: bool = GitHistoryResult.has_incoming_changes;
+        let _: bool = GitHistoryResult.has_outgoing_changes;
+        let _: bool = GitHistoryResult.has_more;
+        let _: u32 = GitHistoryResult.limit;
+    }
+    {
+        let GitRangeCommit = None::<crate::api::git::GitRangeCommit>.unwrap();
+        let _: String = GitRangeCommit.oid;
+        let _: String = GitRangeCommit.subject;
+        let _: String = GitRangeCommit.message;
+    }
+    {
+        let GitRangeContext = None::<crate::api::git::GitRangeContext>.unwrap();
+        let _: String = GitRangeContext.base_ref;
+        let _: String = GitRangeContext.head_oid;
+        let _: Option<String> = GitRangeContext.head_branch;
+        let _: Option<String> = GitRangeContext.merge_base;
+        let _: Vec<crate::api::git::GitRangeCommit> = GitRangeContext.commits;
+        let _: Vec<crate::api::git::GitRangeFile> = GitRangeContext.files;
+        let _: String = GitRangeContext.patch;
+    }
+    {
+        let GitRangeFile = None::<crate::api::git::GitRangeFile>.unwrap();
+        let _: String = GitRangeFile.path;
+        let _: crate::api::git::GitChangeStatus = GitRangeFile.status;
+        let _: Option<u32> = GitRangeFile.added;
+        let _: Option<u32> = GitRangeFile.removed;
+    }
+    {
+        let GitRepositoryState = None::<crate::api::git::GitRepositoryState>.unwrap();
+        let _: String = GitRepositoryState.branch;
+        let _: Option<String> = GitRepositoryState.upstream;
+        let _: u32 = GitRepositoryState.ahead;
+        let _: u32 = GitRepositoryState.behind;
+        let _: bool = GitRepositoryState.has_conflicts;
+        let _: Option<String> = GitRepositoryState.head_message;
+    }
+    {
+        let GitStashEntry = None::<crate::api::git::GitStashEntry>.unwrap();
+        let _: u32 = GitStashEntry.index;
+        let _: String = GitStashEntry.reference;
+        let _: String = GitStashEntry.message;
+        let _: String = GitStashEntry.oid;
+    }
+    {
+        let GitStatusResult = None::<crate::api::git::GitStatusResult>.unwrap();
+        let _: Vec<crate::api::git::GitChangeEntry> = GitStatusResult.entries;
+        let _: Vec<crate::api::git::GitChangeGroup> = GitStatusResult.groups;
+    }
+    {
+        let GitSubmoduleStatus = None::<crate::api::git::GitSubmoduleStatus>.unwrap();
+        let _: bool = GitSubmoduleStatus.commit_changed;
+        let _: bool = GitSubmoduleStatus.tracked_changes;
+        let _: bool = GitSubmoduleStatus.untracked_changes;
+        let _: bool = GitSubmoduleStatus.inspectable;
+    }
+};
+
 // Section: dart2rust
 
 impl SseDecode for flutter_rust_bridge::for_generated::anyhow::Error {
@@ -6283,379 +6451,393 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::workspace_files::CodexSavedPr
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitChangeArea {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitChangeArea> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::Untracked => 0.into_dart(),
-            Self::Unstaged => 1.into_dart(),
-            Self::Staged => 2.into_dart(),
+        match self.0 {
+            crate::api::git::GitChangeArea::Untracked => 0.into_dart(),
+            crate::api::git::GitChangeArea::Unstaged => 1.into_dart(),
+            crate::api::git::GitChangeArea::Staged => 2.into_dart(),
             _ => unreachable!(),
         }
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::git::GitChangeArea>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitChangeArea>>
     for crate::api::git::GitChangeArea
 {
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitChangeArea>
-    for crate::api::git::GitChangeArea
-{
-    fn into_into_dart(self) -> crate::api::git::GitChangeArea {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitChangeArea> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitChangeEntry {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitChangeEntry> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.path.into_into_dart().into_dart(),
-            self.old_path.into_into_dart().into_dart(),
-            self.area.into_into_dart().into_dart(),
-            self.status.into_into_dart().into_dart(),
-            self.added.into_into_dart().into_dart(),
-            self.removed.into_into_dart().into_dart(),
-            self.is_binary.into_into_dart().into_dart(),
-            self.is_large.into_into_dart().into_dart(),
-            self.submodule.into_into_dart().into_dart(),
+            self.0.path.into_into_dart().into_dart(),
+            self.0.old_path.into_into_dart().into_dart(),
+            self.0.area.into_into_dart().into_dart(),
+            self.0.status.into_into_dart().into_dart(),
+            self.0.added.into_into_dart().into_dart(),
+            self.0.removed.into_into_dart().into_dart(),
+            self.0.is_binary.into_into_dart().into_dart(),
+            self.0.is_large.into_into_dart().into_dart(),
+            self.0.submodule.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::git::GitChangeEntry>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitChangeEntry>>
     for crate::api::git::GitChangeEntry
 {
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitChangeEntry>
-    for crate::api::git::GitChangeEntry
-{
-    fn into_into_dart(self) -> crate::api::git::GitChangeEntry {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitChangeEntry> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitChangeGroup {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitChangeGroup> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.area.into_into_dart().into_dart(),
-            self.entries.into_into_dart().into_dart(),
-            self.tree_rows.into_into_dart().into_dart(),
+            self.0.area.into_into_dart().into_dart(),
+            self.0.entries.into_into_dart().into_dart(),
+            self.0.tree_rows.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::git::GitChangeGroup>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitChangeGroup>>
     for crate::api::git::GitChangeGroup
 {
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitChangeGroup>
-    for crate::api::git::GitChangeGroup
-{
-    fn into_into_dart(self) -> crate::api::git::GitChangeGroup {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitChangeGroup> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitChangeStatus {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitChangeStatus> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::Modified => 0.into_dart(),
-            Self::Added => 1.into_dart(),
-            Self::Deleted => 2.into_dart(),
-            Self::Renamed => 3.into_dart(),
-            Self::Copied => 4.into_dart(),
-            Self::Untracked => 5.into_dart(),
+        match self.0 {
+            crate::api::git::GitChangeStatus::Modified => 0.into_dart(),
+            crate::api::git::GitChangeStatus::Added => 1.into_dart(),
+            crate::api::git::GitChangeStatus::Deleted => 2.into_dart(),
+            crate::api::git::GitChangeStatus::Renamed => 3.into_dart(),
+            crate::api::git::GitChangeStatus::Copied => 4.into_dart(),
+            crate::api::git::GitChangeStatus::Untracked => 5.into_dart(),
             _ => unreachable!(),
         }
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::git::GitChangeStatus>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitChangeStatus>>
     for crate::api::git::GitChangeStatus
 {
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitChangeStatus>
-    for crate::api::git::GitChangeStatus
-{
-    fn into_into_dart(self) -> crate::api::git::GitChangeStatus {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitChangeStatus> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitChangeTreeRow {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitChangeTreeRow> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.kind.into_into_dart().into_dart(),
-            self.name.into_into_dart().into_dart(),
-            self.path.into_into_dart().into_dart(),
-            self.depth.into_into_dart().into_dart(),
-            self.file_count.into_into_dart().into_dart(),
-            self.entry.into_into_dart().into_dart(),
+            self.0.kind.into_into_dart().into_dart(),
+            self.0.name.into_into_dart().into_dart(),
+            self.0.path.into_into_dart().into_dart(),
+            self.0.depth.into_into_dart().into_dart(),
+            self.0.file_count.into_into_dart().into_dart(),
+            self.0.entry.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::git::GitChangeTreeRow
+    for FrbWrapper<crate::api::git::GitChangeTreeRow>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitChangeTreeRow>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitChangeTreeRow>>
     for crate::api::git::GitChangeTreeRow
 {
-    fn into_into_dart(self) -> crate::api::git::GitChangeTreeRow {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitChangeTreeRow> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitChangeTreeRowKind {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitChangeTreeRowKind> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::Directory => 0.into_dart(),
-            Self::File => 1.into_dart(),
+        match self.0 {
+            crate::api::git::GitChangeTreeRowKind::Directory => 0.into_dart(),
+            crate::api::git::GitChangeTreeRowKind::File => 1.into_dart(),
             _ => unreachable!(),
         }
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::git::GitChangeTreeRowKind
+    for FrbWrapper<crate::api::git::GitChangeTreeRowKind>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitChangeTreeRowKind>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitChangeTreeRowKind>>
     for crate::api::git::GitChangeTreeRowKind
 {
-    fn into_into_dart(self) -> crate::api::git::GitChangeTreeRowKind {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitChangeTreeRowKind> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitCommitChangeEntry {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitCommitChangeEntry> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.path.into_into_dart().into_dart(),
-            self.old_path.into_into_dart().into_dart(),
-            self.status.into_into_dart().into_dart(),
-            self.added.into_into_dart().into_dart(),
-            self.removed.into_into_dart().into_dart(),
+            self.0.path.into_into_dart().into_dart(),
+            self.0.old_path.into_into_dart().into_dart(),
+            self.0.status.into_into_dart().into_dart(),
+            self.0.added.into_into_dart().into_dart(),
+            self.0.removed.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::git::GitCommitChangeEntry
+    for FrbWrapper<crate::api::git::GitCommitChangeEntry>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitCommitChangeEntry>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitCommitChangeEntry>>
     for crate::api::git::GitCommitChangeEntry
 {
-    fn into_into_dart(self) -> crate::api::git::GitCommitChangeEntry {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitCommitChangeEntry> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitCommitCompareResult {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitCommitCompareResult> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.summary.into_into_dart().into_dart(),
-            self.entries.into_into_dart().into_dart(),
+            self.0.summary.into_into_dart().into_dart(),
+            self.0.entries.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::git::GitCommitCompareResult
+    for FrbWrapper<crate::api::git::GitCommitCompareResult>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitCommitCompareResult>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitCommitCompareResult>>
     for crate::api::git::GitCommitCompareResult
 {
-    fn into_into_dart(self) -> crate::api::git::GitCommitCompareResult {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitCommitCompareResult> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitCommitCompareStatus {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitCommitCompareStatus> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::Ready => 0.into_dart(),
-            Self::InvalidCommit => 1.into_dart(),
-            Self::Error => 2.into_dart(),
+        match self.0 {
+            crate::api::git::GitCommitCompareStatus::Ready => 0.into_dart(),
+            crate::api::git::GitCommitCompareStatus::InvalidCommit => 1.into_dart(),
+            crate::api::git::GitCommitCompareStatus::Error => 2.into_dart(),
             _ => unreachable!(),
         }
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::git::GitCommitCompareStatus
+    for FrbWrapper<crate::api::git::GitCommitCompareStatus>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitCommitCompareStatus>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitCommitCompareStatus>>
     for crate::api::git::GitCommitCompareStatus
 {
-    fn into_into_dart(self) -> crate::api::git::GitCommitCompareStatus {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitCommitCompareStatus> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitCommitCompareSummary {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitCommitCompareSummary> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.commit_oid.into_into_dart().into_dart(),
-            self.parent_oid.into_into_dart().into_dart(),
-            self.compare_ref.into_into_dart().into_dart(),
-            self.base_ref.into_into_dart().into_dart(),
-            self.changed_files.into_into_dart().into_dart(),
-            self.status.into_into_dart().into_dart(),
-            self.error_message.into_into_dart().into_dart(),
+            self.0.commit_oid.into_into_dart().into_dart(),
+            self.0.parent_oid.into_into_dart().into_dart(),
+            self.0.compare_ref.into_into_dart().into_dart(),
+            self.0.base_ref.into_into_dart().into_dart(),
+            self.0.changed_files.into_into_dart().into_dart(),
+            self.0.status.into_into_dart().into_dart(),
+            self.0.error_message.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::git::GitCommitCompareSummary
+    for FrbWrapper<crate::api::git::GitCommitCompareSummary>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitCommitCompareSummary>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitCommitCompareSummary>>
     for crate::api::git::GitCommitCompareSummary
 {
-    fn into_into_dart(self) -> crate::api::git::GitCommitCompareSummary {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitCommitCompareSummary> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitDiffFile {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitDiffFile> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.path.into_into_dart().into_dart(),
-            self.old_path.into_into_dart().into_dart(),
-            self.area.into_into_dart().into_dart(),
-            self.status.into_into_dart().into_dart(),
-            self.lines.into_into_dart().into_dart(),
-            self.added.into_into_dart().into_dart(),
-            self.removed.into_into_dart().into_dart(),
-            self.is_binary.into_into_dart().into_dart(),
-            self.is_large.into_into_dart().into_dart(),
-            self.is_gitlink.into_into_dart().into_dart(),
-            self.truncated.into_into_dart().into_dart(),
-            self.line_preview_truncated.into_into_dart().into_dart(),
+            self.0.path.into_into_dart().into_dart(),
+            self.0.old_path.into_into_dart().into_dart(),
+            self.0.area.into_into_dart().into_dart(),
+            self.0.status.into_into_dart().into_dart(),
+            self.0.lines.into_into_dart().into_dart(),
+            self.0.added.into_into_dart().into_dart(),
+            self.0.removed.into_into_dart().into_dart(),
+            self.0.is_binary.into_into_dart().into_dart(),
+            self.0.is_large.into_into_dart().into_dart(),
+            self.0.is_gitlink.into_into_dart().into_dart(),
+            self.0.truncated.into_into_dart().into_dart(),
+            self.0.line_preview_truncated.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::git::GitDiffFile {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitDiffFile>
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::git::GitDiffFile>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitDiffFile>>
     for crate::api::git::GitDiffFile
 {
-    fn into_into_dart(self) -> crate::api::git::GitDiffFile {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitDiffFile> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitDiffLine {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitDiffLine> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.text.into_into_dart().into_dart(),
-            self.kind.into_into_dart().into_dart(),
+            self.0.text.into_into_dart().into_dart(),
+            self.0.kind.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::git::GitDiffLine {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitDiffLine>
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::git::GitDiffLine>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitDiffLine>>
     for crate::api::git::GitDiffLine
 {
-    fn into_into_dart(self) -> crate::api::git::GitDiffLine {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitDiffLine> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitDiffLineKind {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitDiffLineKind> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::Addition => 0.into_dart(),
-            Self::Deletion => 1.into_dart(),
-            Self::Hunk => 2.into_dart(),
-            Self::Header => 3.into_dart(),
-            Self::Context => 4.into_dart(),
+        match self.0 {
+            crate::api::git::GitDiffLineKind::Addition => 0.into_dart(),
+            crate::api::git::GitDiffLineKind::Deletion => 1.into_dart(),
+            crate::api::git::GitDiffLineKind::Hunk => 2.into_dart(),
+            crate::api::git::GitDiffLineKind::Header => 3.into_dart(),
+            crate::api::git::GitDiffLineKind::Context => 4.into_dart(),
             _ => unreachable!(),
         }
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::git::GitDiffLineKind
+    for FrbWrapper<crate::api::git::GitDiffLineKind>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitDiffLineKind>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitDiffLineKind>>
     for crate::api::git::GitDiffLineKind
 {
-    fn into_into_dart(self) -> crate::api::git::GitDiffLineKind {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitDiffLineKind> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitDiffResult {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitDiffResult> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.files.into_into_dart().into_dart(),
-            self.truncated.into_into_dart().into_dart(),
+            self.0.files.into_into_dart().into_dart(),
+            self.0.truncated.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::git::GitDiffResult
+    for FrbWrapper<crate::api::git::GitDiffResult>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitDiffResult>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitDiffResult>>
     for crate::api::git::GitDiffResult
 {
-    fn into_into_dart(self) -> crate::api::git::GitDiffResult {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitDiffResult> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitError {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitError> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.kind.into_into_dart().into_dart(),
-            self.context.into_into_dart().into_dart(),
+            self.0.kind.into_into_dart().into_dart(),
+            self.0.context.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::git::GitError {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitError> for crate::api::git::GitError {
-    fn into_into_dart(self) -> crate::api::git::GitError {
-        self
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::git::GitError>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitError>>
+    for crate::api::git::GitError
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitError> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitErrorKind {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitErrorKind> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::NotARepository => 0.into_dart(),
-            Self::AccessDenied => 1.into_dart(),
-            Self::BranchNotFound => 2.into_dart(),
-            Self::BranchAlreadyExists => 3.into_dart(),
-            Self::InvalidBranchName => 4.into_dart(),
-            Self::WorktreeAlreadyExists => 5.into_dart(),
-            Self::WorktreeNotFound => 6.into_dart(),
-            Self::CloneFailed => 7.into_dart(),
-            Self::GitCli => 8.into_dart(),
-            Self::DetachedHead => 9.into_dart(),
-            Self::NoUpstream => 10.into_dart(),
-            Self::RemoteNotFound => 11.into_dart(),
-            Self::NothingToCommit => 12.into_dart(),
-            Self::Conflict => 13.into_dart(),
-            Self::WorkspaceScope => 14.into_dart(),
-            Self::MissingIdentity => 15.into_dart(),
-            Self::Internal => 16.into_dart(),
+        match self.0 {
+            crate::api::git::GitErrorKind::NotARepository => 0.into_dart(),
+            crate::api::git::GitErrorKind::AccessDenied => 1.into_dart(),
+            crate::api::git::GitErrorKind::BranchNotFound => 2.into_dart(),
+            crate::api::git::GitErrorKind::BranchAlreadyExists => 3.into_dart(),
+            crate::api::git::GitErrorKind::InvalidBranchName => 4.into_dart(),
+            crate::api::git::GitErrorKind::WorktreeAlreadyExists => 5.into_dart(),
+            crate::api::git::GitErrorKind::WorktreeNotFound => 6.into_dart(),
+            crate::api::git::GitErrorKind::CloneFailed => 7.into_dart(),
+            crate::api::git::GitErrorKind::GitCli => 8.into_dart(),
+            crate::api::git::GitErrorKind::DetachedHead => 9.into_dart(),
+            crate::api::git::GitErrorKind::NoUpstream => 10.into_dart(),
+            crate::api::git::GitErrorKind::RemoteNotFound => 11.into_dart(),
+            crate::api::git::GitErrorKind::NothingToCommit => 12.into_dart(),
+            crate::api::git::GitErrorKind::Conflict => 13.into_dart(),
+            crate::api::git::GitErrorKind::WorkspaceScope => 14.into_dart(),
+            crate::api::git::GitErrorKind::MissingIdentity => 15.into_dart(),
+            crate::api::git::GitErrorKind::Internal => 16.into_dart(),
             _ => unreachable!(),
         }
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::git::GitErrorKind {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitErrorKind>
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::git::GitErrorKind>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitErrorKind>>
     for crate::api::git::GitErrorKind
 {
-    fn into_into_dart(self) -> crate::api::git::GitErrorKind {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitErrorKind> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -6719,105 +6901,105 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::git_explorer_status::GitExplo
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitHistoryItem {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitHistoryItem> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.id.into_into_dart().into_dart(),
-            self.parent_ids.into_into_dart().into_dart(),
-            self.subject.into_into_dart().into_dart(),
-            self.message.into_into_dart().into_dart(),
-            self.display_id.into_into_dart().into_dart(),
-            self.author.into_into_dart().into_dart(),
-            self.author_email.into_into_dart().into_dart(),
-            self.timestamp.into_into_dart().into_dart(),
-            self.references.into_into_dart().into_dart(),
+            self.0.id.into_into_dart().into_dart(),
+            self.0.parent_ids.into_into_dart().into_dart(),
+            self.0.subject.into_into_dart().into_dart(),
+            self.0.message.into_into_dart().into_dart(),
+            self.0.display_id.into_into_dart().into_dart(),
+            self.0.author.into_into_dart().into_dart(),
+            self.0.author_email.into_into_dart().into_dart(),
+            self.0.timestamp.into_into_dart().into_dart(),
+            self.0.references.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::git::GitHistoryItem
+    for FrbWrapper<crate::api::git::GitHistoryItem>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitHistoryItem>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitHistoryItem>>
     for crate::api::git::GitHistoryItem
 {
-    fn into_into_dart(self) -> crate::api::git::GitHistoryItem {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitHistoryItem> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitHistoryItemRef {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitHistoryItemRef> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.id.into_into_dart().into_dart(),
-            self.name.into_into_dart().into_dart(),
-            self.revision.into_into_dart().into_dart(),
-            self.category.into_into_dart().into_dart(),
+            self.0.id.into_into_dart().into_dart(),
+            self.0.name.into_into_dart().into_dart(),
+            self.0.revision.into_into_dart().into_dart(),
+            self.0.category.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::git::GitHistoryItemRef
+    for FrbWrapper<crate::api::git::GitHistoryItemRef>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitHistoryItemRef>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitHistoryItemRef>>
     for crate::api::git::GitHistoryItemRef
 {
-    fn into_into_dart(self) -> crate::api::git::GitHistoryItemRef {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitHistoryItemRef> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitHistoryRefCategory {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitHistoryRefCategory> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::Branches => 0.into_dart(),
-            Self::RemoteBranches => 1.into_dart(),
-            Self::Tags => 2.into_dart(),
-            Self::Commits => 3.into_dart(),
+        match self.0 {
+            crate::api::git::GitHistoryRefCategory::Branches => 0.into_dart(),
+            crate::api::git::GitHistoryRefCategory::RemoteBranches => 1.into_dart(),
+            crate::api::git::GitHistoryRefCategory::Tags => 2.into_dart(),
+            crate::api::git::GitHistoryRefCategory::Commits => 3.into_dart(),
             _ => unreachable!(),
         }
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::git::GitHistoryRefCategory
+    for FrbWrapper<crate::api::git::GitHistoryRefCategory>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitHistoryRefCategory>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitHistoryRefCategory>>
     for crate::api::git::GitHistoryRefCategory
 {
-    fn into_into_dart(self) -> crate::api::git::GitHistoryRefCategory {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitHistoryRefCategory> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitHistoryResult {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitHistoryResult> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.items.into_into_dart().into_dart(),
-            self.current_ref.into_into_dart().into_dart(),
-            self.remote_ref.into_into_dart().into_dart(),
-            self.base_ref.into_into_dart().into_dart(),
-            self.merge_base.into_into_dart().into_dart(),
-            self.has_incoming_changes.into_into_dart().into_dart(),
-            self.has_outgoing_changes.into_into_dart().into_dart(),
-            self.has_more.into_into_dart().into_dart(),
-            self.limit.into_into_dart().into_dart(),
+            self.0.items.into_into_dart().into_dart(),
+            self.0.current_ref.into_into_dart().into_dart(),
+            self.0.remote_ref.into_into_dart().into_dart(),
+            self.0.base_ref.into_into_dart().into_dart(),
+            self.0.merge_base.into_into_dart().into_dart(),
+            self.0.has_incoming_changes.into_into_dart().into_dart(),
+            self.0.has_outgoing_changes.into_into_dart().into_dart(),
+            self.0.has_more.into_into_dart().into_dart(),
+            self.0.limit.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::git::GitHistoryResult
+    for FrbWrapper<crate::api::git::GitHistoryResult>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitHistoryResult>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitHistoryResult>>
     for crate::api::git::GitHistoryResult
 {
-    fn into_into_dart(self) -> crate::api::git::GitHistoryResult {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitHistoryResult> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -6843,71 +7025,74 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::git::git_hosted_review::GitHo
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitRangeCommit {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitRangeCommit> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.oid.into_into_dart().into_dart(),
-            self.subject.into_into_dart().into_dart(),
-            self.message.into_into_dart().into_dart(),
+            self.0.oid.into_into_dart().into_dart(),
+            self.0.subject.into_into_dart().into_dart(),
+            self.0.message.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::git::GitRangeCommit
+    for FrbWrapper<crate::api::git::GitRangeCommit>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitRangeCommit>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitRangeCommit>>
     for crate::api::git::GitRangeCommit
 {
-    fn into_into_dart(self) -> crate::api::git::GitRangeCommit {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitRangeCommit> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitRangeContext {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitRangeContext> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.base_ref.into_into_dart().into_dart(),
-            self.head_oid.into_into_dart().into_dart(),
-            self.head_branch.into_into_dart().into_dart(),
-            self.merge_base.into_into_dart().into_dart(),
-            self.commits.into_into_dart().into_dart(),
-            self.files.into_into_dart().into_dart(),
-            self.patch.into_into_dart().into_dart(),
+            self.0.base_ref.into_into_dart().into_dart(),
+            self.0.head_oid.into_into_dart().into_dart(),
+            self.0.head_branch.into_into_dart().into_dart(),
+            self.0.merge_base.into_into_dart().into_dart(),
+            self.0.commits.into_into_dart().into_dart(),
+            self.0.files.into_into_dart().into_dart(),
+            self.0.patch.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::git::GitRangeContext
+    for FrbWrapper<crate::api::git::GitRangeContext>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitRangeContext>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitRangeContext>>
     for crate::api::git::GitRangeContext
 {
-    fn into_into_dart(self) -> crate::api::git::GitRangeContext {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitRangeContext> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitRangeFile {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitRangeFile> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.path.into_into_dart().into_dart(),
-            self.status.into_into_dart().into_dart(),
-            self.added.into_into_dart().into_dart(),
-            self.removed.into_into_dart().into_dart(),
+            self.0.path.into_into_dart().into_dart(),
+            self.0.status.into_into_dart().into_dart(),
+            self.0.added.into_into_dart().into_dart(),
+            self.0.removed.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::git::GitRangeFile {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitRangeFile>
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::git::GitRangeFile>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitRangeFile>>
     for crate::api::git::GitRangeFile
 {
-    fn into_into_dart(self) -> crate::api::git::GitRangeFile {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitRangeFile> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -6927,95 +7112,95 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitRemote> for crate::ap
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitRepositoryState {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitRepositoryState> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.branch.into_into_dart().into_dart(),
-            self.upstream.into_into_dart().into_dart(),
-            self.ahead.into_into_dart().into_dart(),
-            self.behind.into_into_dart().into_dart(),
-            self.has_conflicts.into_into_dart().into_dart(),
-            self.head_message.into_into_dart().into_dart(),
+            self.0.branch.into_into_dart().into_dart(),
+            self.0.upstream.into_into_dart().into_dart(),
+            self.0.ahead.into_into_dart().into_dart(),
+            self.0.behind.into_into_dart().into_dart(),
+            self.0.has_conflicts.into_into_dart().into_dart(),
+            self.0.head_message.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::git::GitRepositoryState>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitRepositoryState>>
     for crate::api::git::GitRepositoryState
 {
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitRepositoryState>
-    for crate::api::git::GitRepositoryState
-{
-    fn into_into_dart(self) -> crate::api::git::GitRepositoryState {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitRepositoryState> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitStashEntry {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitStashEntry> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.index.into_into_dart().into_dart(),
-            self.reference.into_into_dart().into_dart(),
-            self.message.into_into_dart().into_dart(),
-            self.oid.into_into_dart().into_dart(),
+            self.0.index.into_into_dart().into_dart(),
+            self.0.reference.into_into_dart().into_dart(),
+            self.0.message.into_into_dart().into_dart(),
+            self.0.oid.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::git::GitStashEntry>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitStashEntry>>
     for crate::api::git::GitStashEntry
 {
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitStashEntry>
-    for crate::api::git::GitStashEntry
-{
-    fn into_into_dart(self) -> crate::api::git::GitStashEntry {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitStashEntry> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitStatusResult {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitStatusResult> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.entries.into_into_dart().into_dart(),
-            self.groups.into_into_dart().into_dart(),
+            self.0.entries.into_into_dart().into_dart(),
+            self.0.groups.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::git::GitStatusResult
+    for FrbWrapper<crate::api::git::GitStatusResult>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitStatusResult>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitStatusResult>>
     for crate::api::git::GitStatusResult
 {
-    fn into_into_dart(self) -> crate::api::git::GitStatusResult {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitStatusResult> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::git::GitSubmoduleStatus {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::git::GitSubmoduleStatus> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.commit_changed.into_into_dart().into_dart(),
-            self.tracked_changes.into_into_dart().into_dart(),
-            self.untracked_changes.into_into_dart().into_dart(),
-            self.inspectable.into_into_dart().into_dart(),
+            self.0.commit_changed.into_into_dart().into_dart(),
+            self.0.tracked_changes.into_into_dart().into_dart(),
+            self.0.untracked_changes.into_into_dart().into_dart(),
+            self.0.inspectable.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::git::GitSubmoduleStatus
+    for FrbWrapper<crate::api::git::GitSubmoduleStatus>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitSubmoduleStatus>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::git::GitSubmoduleStatus>>
     for crate::api::git::GitSubmoduleStatus
 {
-    fn into_into_dart(self) -> crate::api::git::GitSubmoduleStatus {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::git::GitSubmoduleStatus> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs

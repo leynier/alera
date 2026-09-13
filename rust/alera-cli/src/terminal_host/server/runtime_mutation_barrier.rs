@@ -22,6 +22,7 @@ pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
         || matches!(
             request_type,
             "workspace.bufferGuard.acquire"
+                | "mobile.workspaceSearch.replace"
                 | "workspace.createManaged"
                 | "workspace.createShared"
                 | "workspace.handOff"
@@ -61,6 +62,12 @@ pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
                 | "layout.upsert"
                 | "linkedReview.remove"
                 | "linkedReview.upsert"
+                | "mobile.pullRequest.link"
+                | "mobile.pullRequest.unlink"
+                | "mobile.pullRequest.create"
+                | "linkedIssue.link"
+                | "linkedIssue.refresh"
+                | "linkedIssue.remove"
                 | "workbenchViewPrefs.update"
                 | "automation.upsert"
                 | "automation.approve"
@@ -108,6 +115,7 @@ mod tests {
     #[test]
     fn blocks_runtime_store_writers_and_session_spawners_but_not_reads() {
         for writer in [
+            "mobile.workspaceSearch.replace",
             "tab.upsert",
             "createOrAttach",
             "terminal.pulse.configure",

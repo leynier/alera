@@ -61,12 +61,15 @@ void main() {
       payload: {
         'agentNativeSessionId': 'sess-1',
         'agentNativeSessionAgent': 'codex',
+        'agentNativeCcsProfile': 'leynier41',
       },
     );
     expect(missing.agentNativeSessionId, isNull);
     expect(missing.agentNativeSessionAgent, isNull);
+    expect(missing.agentNativeCcsProfile, isNull);
     expect(stored.agentNativeSessionId, 'sess-1');
     expect(stored.agentNativeSessionAgent, 'codex');
+    expect(stored.agentNativeCcsProfile, 'leynier41');
   });
 }
 

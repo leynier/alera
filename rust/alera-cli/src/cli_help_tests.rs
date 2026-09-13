@@ -71,3 +71,34 @@ fn workspace_register_help_states_host_id_is_metadata_only() {
         "workspace register help should deny remote worktree create: {help}"
     );
 }
+
+#[test]
+fn issue_commands_document_their_providers_and_workspace_default() {
+    let add = clap_help(&["workspace", "add"]);
+    assert!(
+        add.contains("--issue"),
+        "workspace add should document --issue: {add}"
+    );
+    let start = clap_help(&["workspace", "start"]);
+    assert!(
+        start.contains("--issue"),
+        "workspace start should document --issue: {start}"
+    );
+    let issue = clap_help(&["workspace", "issue"]);
+    for verb in ["show", "link", "unlink"] {
+        assert!(
+            issue.contains(verb),
+            "workspace issue should list {verb}: {issue}"
+        );
+    }
+    let link = clap_help(&["workspace", "issue", "link"]);
+    assert!(
+        link.contains("ALERA_WORKSPACE_ID"),
+        "link should default the workspace: {link}"
+    );
+    let show = clap_help(&["issue", "show"]);
+    assert!(
+        show.contains("gh") && show.contains("glab") && show.contains("az boards")
+            || clap_help(&["issue"]).contains("az boards")
+    );
+}

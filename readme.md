@@ -132,6 +132,8 @@ Review structured diffs side-by-side or unified, with per-file and aggregated vi
 
 Work with pull requests and merge requests per worktree on GitHub, GitHub Enterprise Server, GitLab, and Azure DevOps without leaving Alera: create, edit, comment (with Markdown), toggle draft status, and merge. GitHub repositories can also discover native pull request stacks, build a stack directly from ordered workspaces while reusing or creating their pull requests, extend a stack from existing pull requests, and merge atomically through the current layer. CI checks are grouped by status with drill-down into check details. Review titles and descriptions can be AI-generated from the branch changes, and the workspace menu opens the repository in your browser in one click. Self-hosted GitHub and GitLab instances are selected explicitly in project settings; Alera uses the hostname from the repository remote with the official `gh` or `glab` CLI.
 
+Link the issue a workspace was created for, from New Workspace, the workspace menu, or `alera workspace issue link`. GitHub issues, GitLab issues, and Azure DevOps work items are read through `gh`, `glab`, and `az boards`: the sidebar shows the issue state, New Workspace fills the branch, name, and starting prompt from it, and agents read the requirements with `alera workspace issue show`. Links to any other tracker are kept and open in the browser.
+
 ### 🖥️ Truly native, truly cross-platform
 
 One codebase, three real desktops. Native window chrome, native keyboard shortcuts (⌘ on macOS, Ctrl elsewhere), dark-mode-first UI built on the Alera design system. No Electron, no embedded browser, no 400 MB install.
@@ -160,7 +162,7 @@ Alera is shipping fast. A non-exhaustive list of what's on the roadmap:
 - **Mobile live transport expansion**: add file review and non-terminal tab surfaces to the mobile app
 - **Code editing with LSP support**: full editing with language-server autocomplete and diagnostics
 - **Git conflict resolution**: resolve merge conflicts visually with AI-assisted three-way merge
-- **More forge & tracker integrations**: Additional git forges, Linear, and issue-tracker linking per worktree
+- **More forge & tracker integrations**: Additional git forges, plus reading Linear and Jira issues linked to a worktree
 - **Automations, MCP management, skills, and more**
 
 See the full [roadmap](roadmap.md) for the complete picture, including difficulty/utility scoring per feature.

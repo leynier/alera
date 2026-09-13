@@ -7,7 +7,7 @@ use super::{ClientKind, ServerActor};
 
 const HANDOFF_SOURCE_WORKSPACE_IDS_KEY: &str = "handoffSourceWorkspaceIds";
 
-const HOST_OWNED_TAB_PAYLOAD_KEYS: [&str; 11] = [
+const HOST_OWNED_TAB_PAYLOAD_KEYS: [&str; 12] = [
     HANDOFF_SOURCE_WORKSPACE_IDS_KEY,
     "agentProfileLaunchV1",
     "initialPrompt",
@@ -19,6 +19,7 @@ const HOST_OWNED_TAB_PAYLOAD_KEYS: [&str; 11] = [
     "agentTitleSource",
     crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_ID_KEY,
     crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_AGENT_KEY,
+    crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_CCS_PROFILE_KEY,
 ];
 
 /// Removes host-owned bootstrap text from a tab before it crosses the runtime

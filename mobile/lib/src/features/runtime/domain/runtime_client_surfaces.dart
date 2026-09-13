@@ -197,6 +197,7 @@ abstract interface class MobileSharedCheckoutClient {
     required String projectId,
     String? name,
     String? checkoutHostId,
+    String? issueUrl,
   });
   Future<void> removeSharedWorkspace(String workspaceId);
 }
@@ -263,6 +264,7 @@ abstract interface class MobileWorkspaceClient {
     bool reuseExistingBranch = false,
     String? name,
     String? parentWorkspaceId,
+    String? issueUrl,
   });
   Future<void> removeManagedWorkspace(String workspaceId, {bool? deleteBranch});
   Future<List<String>> cascadePreview(String workspaceId);

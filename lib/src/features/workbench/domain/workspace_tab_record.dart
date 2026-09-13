@@ -49,6 +49,8 @@ const String workspaceTabAgentNativeSessionIdPayloadKey =
     'agentNativeSessionId';
 const String workspaceTabAgentNativeSessionAgentPayloadKey =
     'agentNativeSessionAgent';
+const String workspaceTabAgentNativeCcsProfilePayloadKey =
+    'agentNativeCcsProfile';
 const String workspaceTabAutoCloseOnSuccessPayloadKey = 'autoCloseOnSuccess';
 const String workspaceTabTerminalPulsePayloadKey = 'terminalPulse';
 const String workspaceTabFilePathPayloadKey = 'filePath';
@@ -166,6 +168,11 @@ class WorkspaceTabRecord({
 
   String? get agentNativeSessionAgent =>
       _nonEmptyPayloadString(workspaceTabAgentNativeSessionAgentPayloadKey);
+
+  /// CCS instance name captured from Claude's `CLAUDE_CONFIG_DIR` so a remint
+  /// can resume through `ccs` instead of the default Claude account.
+  String? get agentNativeCcsProfile =>
+      _nonEmptyPayloadString(workspaceTabAgentNativeCcsProfilePayloadKey);
 
   /// Whether a terminal whose one-shot command exits successfully should be
   /// removed automatically. Failed commands stay visible for inspection.
