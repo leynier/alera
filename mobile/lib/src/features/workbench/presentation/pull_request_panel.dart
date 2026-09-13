@@ -35,6 +35,8 @@ class const PullRequestPanel({
             .watch(pullRequestDetailsGenerationSupportedProvider(hostId))
             .value ??
         false;
+    final canShip =
+        ref.watch(pullRequestShipSupportedProvider(hostId)).value ?? false;
     final busy = ref.watch(
       pullRequestActionControllerProvider(hostId, workspaceId),
     );
@@ -63,6 +65,7 @@ class const PullRequestPanel({
         busy: busy,
         onRefresh: refresh,
         canGenerate: canGenerate && snapshot.aiAssistEnabled,
+        canShip: canShip && snapshot.aiAssistEnabled,
       ),
       AsyncError(:final error) => AleraEmptyState(
         icon: AleraIcons.gitPullRequest,
@@ -83,6 +86,7 @@ class const _Body({
   required final PullRequestActionKind? busy,
   required final Future<void> Function() onRefresh,
   required final bool canGenerate,
+  required final bool canShip,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -95,6 +99,7 @@ class const _Body({
         busy: busy,
         onRefresh: onRefresh,
         canGenerate: canGenerate,
+        canShip: canShip,
       );
     }
     final theme = Theme.of(context);
@@ -190,6 +195,7 @@ class const _NoReview({
   required final PullRequestActionKind? busy,
   required final Future<void> Function() onRefresh,
   required final bool canGenerate,
+  required final bool canShip,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -211,6 +217,14 @@ class const _NoReview({
         crossAxisAlignment: .stretch,
         children: <Widget>[
           if (canWrite) ...<Widget>[
+            if (canShip)
+              FilledButton.icon(
+                onPressed: idle
+                    ? () => unawaited(actions.ship(context, snapshot))
+                    : null,
+                icon: const Icon(AleraIcons.gitPullRequest),
+                label: const Text('Ship Changes'),
+              ),
             if (suggested != null)
               FilledButton.icon(
                 onPressed: idle

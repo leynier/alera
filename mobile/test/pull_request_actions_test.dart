@@ -371,11 +371,36 @@ void main() {
     expect(find.text('Why it matters'), findsOneWidget);
   });
 
-  testWidgets('hides generation when AI Assist is off', (tester) async {
-    final client = _client(_snapshot(withReview: false))
-      ..pullRequestDetailsSupported = true;
+  testWidgets('ships staged changes as a draft', (tester) async {
+    final client = _client(_snapshot(withReview: false, aiAssistEnabled: true))
+      ..pullRequestShipSupported = true
+      ..nextSnapshot = _snapshot();
     addTearDown(client.dispose);
     await _openPullRequest(tester, client);
+
+    await tester.tap(find.text('Ship Changes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Staged Changes'));
+    await tester.tap(find.text('Create As Draft'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Ship'));
+    await tester.pumpAndSettle();
+
+    expect(
+      client.calls,
+      contains('shipPullRequest main draft:true staged:true'),
+    );
+    expect(find.text('feat: mobile actions'), findsOneWidget);
+  });
+
+  testWidgets('hides generation when AI Assist is off', (tester) async {
+    final client = _client(_snapshot(withReview: false))
+      ..pullRequestDetailsSupported = true
+      ..pullRequestShipSupported = true;
+    addTearDown(client.dispose);
+    await _openPullRequest(tester, client);
+
+    expect(find.text('Ship Changes'), findsNothing);
 
     await tester.tap(find.text('Create Pull Request'));
     await tester.pumpAndSettle();

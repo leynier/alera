@@ -60,6 +60,7 @@ pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
                 | "mobile.pullRequest.link"
                 | "mobile.pullRequest.unlink"
                 | "mobile.pullRequest.create"
+                | "mobile.pullRequest.ship"
                 | "workbenchViewPrefs.update"
                 | "automation.upsert"
                 | "automation.approve"

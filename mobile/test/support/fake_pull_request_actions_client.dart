@@ -16,6 +16,20 @@ mixin FakePullRequestActionsClient implements MobilePullRequestActionsClient {
   @override
   bool get supportsPullRequestActions => pullRequestActionsSupported;
 
+  bool pullRequestShipSupported = false;
+
+  @override
+  bool get supportsPullRequestShip => pullRequestShipSupported;
+
+  @override
+  Future<MobilePullRequestSnapshot> shipPullRequest({
+    required String workspaceId,
+    required MobilePullRequestShipInput input,
+  }) => _answer(
+    'shipPullRequest ${input.baseBranch} draft:${input.draft} '
+    'staged:${input.stagedOnly}',
+  );
+
   bool pullRequestDetailsSupported = false;
   MobilePullRequestDetails generatedDetails = (title: '', body: '');
 

@@ -16,3 +16,4 @@ const String mobileSourceControlCapability = 'mobileSourceControlV1';
 const String mobilePullRequestCapability = 'mobilePullRequestV1';
 const String mobilePullRequestActionsCapability = 'mobilePullRequestActionsV1';
 const String aiTextPullRequestDetailsCapability = 'aiTextPullRequestDetailsV1';
+const String mobilePullRequestShipCapability = 'mobilePullRequestShipV1';

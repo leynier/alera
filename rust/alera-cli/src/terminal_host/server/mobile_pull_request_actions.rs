@@ -4,20 +4,19 @@
 //! `github_review_comments.dart`) and answers with a fresh snapshot, so the
 //! phone never has to guess what a write changed.
 
-use std::collections::HashSet;
-use std::sync::{Mutex, OnceLock};
-
 use alera_core::git as core_git;
-use alera_core::runtime::{RuntimeStore, LOCAL_HOST_ID};
+use alera_core::runtime::{RuntimeStore, Workspace, LOCAL_HOST_ID};
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::event;
 
+use super::mobile_pull_request_busy::BusyGuard;
 use super::mobile_pull_request_failures::{gh_failure, gh_missing};
 use super::mobile_pull_request_identity::{parse_github_identity, GitHubIdentity};
 use super::mobile_pull_request_links::{parse_review_reference, save_link};
 use super::mobile_pull_request_requests::{run_gh, snapshot_mobile_pull_request, view_review};
+use super::mobile_pull_request_ship::{ship_pull_request, ShipRequest, ShipScope};
 use super::mobile_workspace_file_requests::workspace_for_mobile_file_request;
 use super::requests::{optional_string_key, require_string_key};
 use super::ServerActor;
@@ -28,6 +27,7 @@ pub(super) const LINK_CHANGING_ACTIONS: &[&str] = &[
     "mobile.pullRequest.link",
     "mobile.pullRequest.unlink",
     "mobile.pullRequest.create",
+    "mobile.pullRequest.ship",
 ];
 
 #[derive(Debug, PartialEq)]
@@ -67,6 +67,7 @@ pub(super) enum Action {
         body: String,
         draft: bool,
     },
+    Ship(ShipRequest),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -142,29 +143,61 @@ async fn run_mobile_pull_request_action(
         Action::Unlink { number, url } => {
             save_link(store, &workspace.id, number, url, true).await?
         }
-        Action::Create { .. } => {
+        Action::Create {
+            ref base,
+            ref title,
+            ref body,
+            draft,
+        } => {
             let head = current_branch(&workspace.path).await?;
-            let stdout = run_checked(&workspace.path, &gh_args(&action, &identity, &head)).await?;
-            let url = stdout
-                .lines()
-                .map(str::trim)
-                .find(|line| line.starts_with("http"));
-            if let Some(number) = url.and_then(parse_review_reference) {
-                save_link(
-                    store,
-                    &workspace.id,
-                    number,
-                    url.map(ToOwned::to_owned),
-                    false,
-                )
-                .await?;
-            }
+            create_and_link(
+                store, &workspace, &identity, base, &head, title, body, draft,
+            )
+            .await?;
         }
+        Action::Ship(request) => ship_pull_request(store, &workspace, &identity, request).await?,
         _ => {
             run_checked(&workspace.path, &gh_args(&action, &identity, "")).await?;
         }
     }
     snapshot_mobile_pull_request(store, payload).await
+}
+
+/// `gh pr create` from [head] into [base], then links the new pull request to
+/// the workspace like the desktop does after it creates one.
+#[allow(clippy::too_many_arguments)]
+pub(super) async fn create_and_link(
+    store: &RuntimeStore,
+    workspace: &Workspace,
+    identity: &GitHubIdentity,
+    base: &str,
+    head: &str,
+    title: &str,
+    body: &str,
+    draft: bool,
+) -> HostResult<()> {
+    let action = Action::Create {
+        base: base.to_string(),
+        title: title.to_string(),
+        body: body.to_string(),
+        draft,
+    };
+    let stdout = run_checked(&workspace.path, &gh_args(&action, identity, head)).await?;
+    let url = stdout
+        .lines()
+        .map(str::trim)
+        .find(|line| line.starts_with("http"));
+    if let Some(number) = url.and_then(parse_review_reference) {
+        save_link(
+            store,
+            &workspace.id,
+            number,
+            url.map(ToOwned::to_owned),
+            false,
+        )
+        .await?;
+    }
+    Ok(())
 }
 
 pub(super) fn parse_action(request_type: &str, payload: &Value) -> HostResult<Action> {
@@ -244,6 +277,28 @@ pub(super) fn parse_action(request_type: &str, payload: &Value) -> HostResult<Ac
                     .and_then(Value::as_bool)
                     .unwrap_or(false),
             }
+        }
+        "mobile.pullRequest.ship" => {
+            let base = require_string_key(payload, "baseBranch")?
+                .trim()
+                .to_string();
+            if base.is_empty() {
+                return Err(HostError::state("Select a base branch before shipping."));
+            }
+            Action::Ship(ShipRequest {
+                base,
+                draft: payload
+                    .get("draft")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false),
+                scope: match optional_string_key(payload, "scope").as_deref() {
+                    None | Some("all") => ShipScope::All,
+                    Some("staged") => ShipScope::Staged,
+                    Some(other) => {
+                        return Err(HostError::state(format!("Unknown ship scope: {other}")))
+                    }
+                },
+            })
         }
         other => {
             return Err(HostError::state(format!(
@@ -356,7 +411,7 @@ pub(super) fn gh_args(action: &Action, identity: &GitHubIdentity, head: &str) ->
             }
             args
         }
-        Action::Link { .. } | Action::Unlink { .. } => Vec::new(),
+        Action::Link { .. } | Action::Unlink { .. } | Action::Ship(_) => Vec::new(),
     }
 }
 
@@ -412,39 +467,6 @@ fn positive_i64(payload: &Value, key: &str) -> HostResult<i64> {
         .and_then(Value::as_i64)
         .filter(|value| *value > 0)
         .ok_or_else(|| HostError::state(format!("{key} must be a positive integer.")))
-}
-
-/// One pull request write per workspace at a time: two phones (or one phone
-/// retrying) must not merge and close the same review concurrently.
-struct BusyGuard(String);
-
-impl BusyGuard {
-    fn acquire(workspace_id: &str) -> HostResult<Self> {
-        let mut active = active_writes()
-            .lock()
-            .map_err(|_| HostError::state("Pull request state is unavailable."))?;
-        if !active.insert(workspace_id.to_string()) {
-            return Err(HostError::conflict(
-                "pullRequestBusy",
-                "Another pull request action is already running for this workspace.",
-                json!({}),
-            ));
-        }
-        Ok(Self(workspace_id.to_string()))
-    }
-}
-
-impl Drop for BusyGuard {
-    fn drop(&mut self) {
-        if let Ok(mut active) = active_writes().lock() {
-            active.remove(&self.0);
-        }
-    }
-}
-
-fn active_writes() -> &'static Mutex<HashSet<String>> {
-    static ACTIVE: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
-    ACTIVE.get_or_init(Default::default)
 }
 
 #[cfg(test)]

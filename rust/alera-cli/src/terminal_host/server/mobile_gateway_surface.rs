@@ -90,6 +90,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_MOBILE_SOURCE_CONTROL_WRITES_CAPABILITY,
     RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY,
     crate::terminal_host::protocol::RUNTIME_HOST_MOBILE_PULL_REQUEST_ACTIONS_CAPABILITY,
+    crate::terminal_host::protocol::RUNTIME_HOST_MOBILE_PULL_REQUEST_SHIP_CAPABILITY,
     RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_MODELS_CAPABILITY,
@@ -184,6 +185,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "mobile.pullRequest.link"
             | "mobile.pullRequest.unlink"
             | "mobile.pullRequest.create"
+            | "mobile.pullRequest.ship"
             | "mobile.promptFile.start"
             | "mobile.promptFile.chunk"
             | "mobile.promptFile.complete"
@@ -332,6 +334,10 @@ mod mobile_codex_file_surface_tests {
         assert!(MOBILE_HELLO_CAPABILITIES
             .contains(&RUNTIME_HOST_AI_ASSIST_PULL_REQUEST_DETAILS_CAPABILITY));
         assert!(mobile_request_allowed("aiText.pullRequestDetails.generate"));
+        assert!(MOBILE_HELLO_CAPABILITIES.contains(
+            &crate::terminal_host::protocol::RUNTIME_HOST_MOBILE_PULL_REQUEST_SHIP_CAPABILITY
+        ));
+        assert!(mobile_request_allowed("mobile.pullRequest.ship"));
     }
 
     #[test]
