@@ -6,6 +6,7 @@ import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_search_field.dart';
 import 'package:alera_mobile/src/design_system/menus/alera_action_sheet.dart';
@@ -381,8 +382,7 @@ class const _Header({
             padding: AleraTokens.contentPadding,
             child: AleraNotice(
               icon: AleraIcons.info,
-              message:
-                  'Update the paired Alera runtime to stage and commit from mobile.',
+              message: 'Update the paired Alera runtime to stage and commit from mobile.',
             ),
           ),
         Row(

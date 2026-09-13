@@ -282,3 +282,58 @@ Future<void> showSourceControlCommandSheet(
     await runner.perform(chosen, snapshot);
   }
 }
+
+/// Stages an unstaged or untracked file, or unstages a staged one.
+Future<bool> toggleSourceControlChange(
+  SourceControlCommandRunner runner,
+  MobileGitChange change,
+) {
+  return change.canUnstage
+      ? runner.write(
+          MobileGitWrite.unstage(path: change.path, area: change.area),
+          successMessage: 'Unstaged',
+        )
+      : runner.write(
+          MobileGitWrite.stage(path: change.path, area: change.area),
+          successMessage: 'Staged',
+        );
+}
+
+/// The per-file actions behind a long press. Resolves true when a write
+/// succeeded, so a diff screen knows its content went stale.
+Future<bool> showSourceControlChangeActions(
+  SourceControlCommandRunner runner,
+  MobileGitChange change,
+) async {
+  final chosen = await showAleraActionSheet<MobileGitWriteAction>(
+    runner.context,
+    entries: <AleraActionSheetEntry<MobileGitWriteAction>>[
+      if (change.canStage)
+        const AleraActionSheetEntry(
+          value: .stage,
+          label: 'Stage',
+          leading: Icon(AleraIcons.gitStage),
+        ),
+      if (change.canUnstage)
+        const AleraActionSheetEntry(
+          value: .unstage,
+          label: 'Unstage',
+          leading: Icon(AleraIcons.gitUnstage),
+        ),
+      if (change.canDiscard)
+        const AleraActionSheetEntry(
+          value: .discard,
+          label: 'Discard',
+          leading: Icon(AleraIcons.gitDiscard),
+        ),
+    ],
+  );
+  if (!runner.context.mounted) {
+    return false;
+  }
+  return switch (chosen) {
+    .stage || .unstage => toggleSourceControlChange(runner, change),
+    .discard => runner.discard(path: change.path, area: change.area),
+    _ => Future<bool>.value(false),
+  };
+}

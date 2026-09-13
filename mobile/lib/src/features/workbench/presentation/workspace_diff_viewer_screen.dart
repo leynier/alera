@@ -5,7 +5,6 @@ import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels
 import 'package:alera_mobile/src/features/workbench/application/source_control_actions_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/source_control_commands.dart';
-import 'package:alera_mobile/src/features/workbench/presentation/source_control_panel.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_path_display.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
