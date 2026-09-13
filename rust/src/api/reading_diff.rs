@@ -55,7 +55,7 @@ pub fn git_reading_diff_patch(
     parent_oid: Option<String>,
     base_ref: Option<String>,
 ) -> Result<Vec<u8>, GitError> {
-    super::git::git_diff_impl::git_reading_diff_patch::git_reading_diff_patch(
+    alera_core::source_control::git_reading_diff_patch(
         path, file_path, old_path, area, commit_oid, parent_oid, base_ref,
     )
 }
