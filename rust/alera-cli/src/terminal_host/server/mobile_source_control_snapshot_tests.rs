@@ -12,7 +12,7 @@ fn snapshot_keeps_legacy_fields_and_adds_actions() {
     fs::write(workspace.path().join("tracked.txt"), "two\n").unwrap();
     fs::write(workspace.path().join("new.txt"), "fresh\n").unwrap();
 
-    let snapshot = git_status_snapshot(&workspace.path().to_string_lossy()).unwrap();
+    let snapshot = git_status_snapshot(&workspace.path().to_string_lossy(), true).unwrap();
 
     assert_eq!(snapshot["isRepository"], true);
     assert_eq!(snapshot["branch"], "main");
@@ -47,10 +47,26 @@ fn snapshot_keeps_legacy_fields_and_adds_actions() {
 }
 
 #[test]
+fn snapshot_hides_writes_when_the_workspace_is_not_local() {
+    let workspace = tempfile::tempdir().unwrap();
+    init_repo(workspace.path());
+    fs::write(workspace.path().join("tracked.txt"), "two\n").unwrap();
+
+    let snapshot = git_status_snapshot(&workspace.path().to_string_lossy(), false).unwrap();
+
+    assert_eq!(snapshot["isRepository"], true);
+    assert_eq!(snapshot["writable"], false);
+    assert_eq!(snapshot["primaryAction"], Value::Null);
+    assert_eq!(snapshot["actions"]["stageAll"], false);
+    assert_eq!(snapshot["actions"]["commit"], false);
+    assert_eq!(snapshot["actions"]["push"], false);
+}
+
+#[test]
 fn snapshot_reports_a_plain_directory_as_not_a_repository() {
     let workspace = tempfile::tempdir().unwrap();
 
-    let snapshot = git_status_snapshot(&workspace.path().to_string_lossy()).unwrap();
+    let snapshot = git_status_snapshot(&workspace.path().to_string_lossy(), true).unwrap();
 
     assert_eq!(snapshot["isRepository"], false);
     assert_eq!(snapshot["writable"], false);

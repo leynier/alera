@@ -3,7 +3,7 @@ use std::io::Read;
 use std::path::Path;
 
 use alera_core::git_cli::git_in_dir;
-use alera_core::runtime::RuntimeStore;
+use alera_core::runtime::{RuntimeStore, LOCAL_HOST_ID};
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -13,6 +13,11 @@ use super::mobile_workspace_file_requests::{
     spawn_blocking_workspace, workspace_for_mobile_file_request,
 };
 use super::requests::{optional_string_key, require_string_key};
+
+fn source_control_snapshot_writable(host_id: &str) -> bool {
+    let host_id = host_id.trim();
+    host_id.is_empty() || host_id == LOCAL_HOST_ID
+}
 
 const MAX_DIFF_BYTES: usize = 400 * 1024;
 const MAX_DIFF_LINES: usize = 2000;
@@ -24,7 +29,11 @@ pub(super) async fn mobile_git_status(
 ) -> HostResult<Value> {
     let workspace = workspace_for_mobile_file_request(runtime_store, payload).await?;
     let root = workspace.path.clone();
-    spawn_blocking_workspace("Git status", move || git_status_snapshot(&root)).await
+    let host_id = workspace.host_id.clone();
+    spawn_blocking_workspace("Git status", move || {
+        git_status_snapshot(&root, source_control_snapshot_writable(&host_id))
+    })
+    .await
 }
 
 pub(super) async fn mobile_git_diff(
@@ -180,7 +189,7 @@ mod tests {
         fs::write(workspace.path().join("tracked.txt"), "two\n").unwrap();
         fs::write(workspace.path().join("new.txt"), "fresh\n").unwrap();
 
-        let snapshot = git_status_snapshot(&workspace.path().to_string_lossy()).unwrap();
+        let snapshot = git_status_snapshot(&workspace.path().to_string_lossy(), true).unwrap();
         assert_eq!(snapshot["isRepository"], true);
         let entries = snapshot["entries"].as_array().unwrap();
         let paths = entries

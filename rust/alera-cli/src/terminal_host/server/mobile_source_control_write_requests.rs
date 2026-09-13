@@ -101,7 +101,7 @@ async fn mobile_git_write(
     spawn_blocking_workspace("Source control", move || {
         let _guard = guard;
         let commit_oid = run_write(&root, operation).map_err(git_host_error)?;
-        let mut snapshot = git_status_snapshot(&root)?;
+        let mut snapshot = git_status_snapshot(&root, true)?;
         if let Some(oid) = commit_oid {
             snapshot["commitOid"] = json!(oid);
         }

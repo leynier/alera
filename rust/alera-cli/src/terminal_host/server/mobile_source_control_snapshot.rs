@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
-pub(super) fn git_status_snapshot(root: &str) -> HostResult<Value> {
+pub(super) fn git_status_snapshot(root: &str, writable: bool) -> HostResult<Value> {
     let status = match source_control::git_status(root.to_string()) {
         Ok(status) => status,
         Err(error) if error.kind == GitErrorKind::NotARepository => {
@@ -27,13 +27,21 @@ pub(super) fn git_status_snapshot(root: &str) -> HostResult<Value> {
     let repository =
         source_control::git_repository_state(root.to_string()).map_err(git_host_error)?;
     let stashes = source_control::git_list_stashes(root.to_string()).map_err(git_host_error)?;
-    let actions = source_control_actions(&status.entries, &repository, stashes.len());
-    let primary = source_control_primary_action(&status.entries, &repository);
+    let actions = if writable {
+        source_control_actions(&status.entries, &repository, stashes.len())
+    } else {
+        source_control::SourceControlActions::default()
+    };
+    let primary = if writable {
+        json!(source_control_primary_action(&status.entries, &repository).key())
+    } else {
+        Value::Null
+    };
     Ok(json!({
         "isRepository": true,
         "branch": repository.branch,
         "entries": status.entries.iter().map(change_json).collect::<Vec<_>>(),
-        "writable": true,
+        "writable": writable,
         "repository": {
             "upstream": repository.upstream,
             "ahead": repository.ahead,
@@ -62,7 +70,7 @@ pub(super) fn git_status_snapshot(root: &str) -> HostResult<Value> {
             "stash": actions.stash,
             "stashPop": actions.stash_pop,
         },
-        "primaryAction": primary.key(),
+        "primaryAction": primary,
     }))
 }
 
