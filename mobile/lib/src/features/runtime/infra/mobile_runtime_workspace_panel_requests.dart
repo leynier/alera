@@ -4,6 +4,10 @@ const Duration _workspaceSearchTimeout = Duration(minutes: 2);
 const Duration _workspacePanelTimeout = Duration(seconds: 45);
 const Duration _gitNetworkTimeout = Duration(minutes: 5);
 
+/// The runtime caps an agent run at 600 seconds; this leaves room for the
+/// staged diff to be read before the agent starts.
+const Duration _commitMessageTimeout = Duration(minutes: 11);
+
 mixin MobileRuntimeWorkspacePanelRequests
     implements MobileWorkspacePanelsClient {
   Set<String> get runtimeCapabilities;
@@ -94,6 +98,47 @@ mixin MobileRuntimeWorkspacePanelRequests
   @override
   bool get supportsSourceControlWrites =>
       runtimeCapabilities.contains(mobileSourceControlWritesCapability);
+
+  @override
+  bool get supportsCommitMessageGeneration =>
+      runtimeCapabilities.contains(aiTextCommitMessageCapability);
+
+  @override
+  Future<MobileGitBranches> gitBranches(String workspaceId) async {
+    _requireCapability(supportsSourceControlWrites, 'switch branches');
+    return MobileGitBranches.fromJson(
+      await requestMap('mobile.git.branches', <String, Object?>{
+        'workspaceId': workspaceId,
+      }, _workspacePanelTimeout),
+    );
+  }
+
+  @override
+  Future<GeneratedCommitMessage> generateCommitMessage({
+    required String operationId,
+    required String workspaceId,
+  }) async {
+    _requireCapability(
+      supportsCommitMessageGeneration,
+      'generate commit messages',
+    );
+    final payload = await requestMap(
+      'aiText.commitMessage.generate',
+      <String, Object?>{'operationId': operationId, 'workspaceId': workspaceId},
+      _commitMessageTimeout,
+    );
+    return GeneratedCommitMessage(
+      message: payload.requiredString('message'),
+      agentLabel: payload.optionalString('agentLabel'),
+    );
+  }
+
+  @override
+  Future<void> cancelCommitMessage(String operationId) async {
+    await requestMap('aiText.cancel', <String, Object?>{
+      'operationId': operationId,
+    });
+  }
 
   @override
   Future<MobileGitStatusSnapshot> gitWrite(

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:alera_mobile/src/app/theme/alera_theme.dart';
 import 'package:alera_mobile/src/features/runtime/domain/host_reachability.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/workbench/application/source_control_actions_controller.dart';
@@ -12,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/fake_terminal_client.dart';
+import 'support/source_control_fixtures.dart';
 
 void main() {
   test('parses the writable snapshot the runtime sends', () {
@@ -87,12 +86,15 @@ void main() {
   });
 
   testWidgets('an older runtime keeps the panel read-only', (tester) async {
-    final client = _client(
-      _snapshot(writable: false, entries: <MobileGitChange>[_unstaged()]),
+    final client = sourceControlClient(
+      writableSnapshot(
+        writable: false,
+        entries: <MobileGitChange>[unstagedChange()],
+      ),
     );
     addTearDown(client.dispose);
 
-    await _pumpPanel(tester, client);
+    await pumpSourceControlPanel(tester, client);
 
     expect(
       find.text(
@@ -108,13 +110,19 @@ void main() {
   testWidgets('stage applies the snapshot the runtime answers with', (
     tester,
   ) async {
-    final client = _client(_snapshot(entries: <MobileGitChange>[_unstaged()]))
-      ..onGitWrite = (_) => _snapshot(
-        entries: <MobileGitChange>[_staged()],
-        actions: const MobileSourceControlActions(commit: true, fetch: true),
-      );
+    final client =
+        sourceControlClient(
+            writableSnapshot(entries: <MobileGitChange>[unstagedChange()]),
+          )
+          ..onGitWrite = (_) => writableSnapshot(
+            entries: <MobileGitChange>[stagedChange()],
+            actions: const MobileSourceControlActions(
+              commit: true,
+              fetch: true,
+            ),
+          );
     addTearDown(client.dispose);
-    await _pumpPanel(tester, client);
+    await pumpSourceControlPanel(tester, client);
 
     await tester.tap(find.byTooltip('Stage'));
     await tester.pumpAndSettle();
@@ -134,9 +142,9 @@ void main() {
   testWidgets('discard all asks first and sends nothing when cancelled', (
     tester,
   ) async {
-    final client = _client(
-      _snapshot(
-        entries: <MobileGitChange>[_unstaged()],
+    final client = sourceControlClient(
+      writableSnapshot(
+        entries: <MobileGitChange>[unstagedChange()],
         actions: const MobileSourceControlActions(
           discardAll: true,
           fetch: true,
@@ -144,15 +152,15 @@ void main() {
       ),
     );
     addTearDown(client.dispose);
-    await _pumpPanel(tester, client);
+    await pumpSourceControlPanel(tester, client);
 
-    await _openMenu(tester, 'Discard All');
+    await openSourceControlMenu(tester, 'Discard All');
     expect(find.text('Discard All Changes?'), findsOneWidget);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(client.gitWrites, isEmpty);
 
-    await _openMenu(tester, 'Discard All');
+    await openSourceControlMenu(tester, 'Discard All');
     await tester.tap(find.widgetWithText(FilledButton, 'Discard'));
     await tester.pumpAndSettle();
     expect(client.gitWrites.single.action, MobileGitWriteAction.discard);
@@ -162,8 +170,8 @@ void main() {
   testWidgets('commit needs a message and clears it afterwards', (
     tester,
   ) async {
-    final staged = _snapshot(
-      entries: <MobileGitChange>[_staged()],
+    final staged = writableSnapshot(
+      entries: <MobileGitChange>[stagedChange()],
       actions: const MobileSourceControlActions(
         commit: true,
         commitPush: true,
@@ -171,9 +179,10 @@ void main() {
       ),
       primaryAction: 'publishBranch',
     );
-    final client = _client(staged)..onGitWrite = (_) => _snapshot();
+    final client = sourceControlClient(staged)
+      ..onGitWrite = (_) => writableSnapshot();
     addTearDown(client.dispose);
-    await _pumpPanel(tester, client);
+    await pumpSourceControlPanel(tester, client);
 
     expect(find.widgetWithText(FilledButton, 'Publish Branch'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'Add login flow');
@@ -197,9 +206,9 @@ void main() {
   });
 
   testWidgets('commit options send commit and push', (tester) async {
-    final client = _client(
-      _snapshot(
-        entries: <MobileGitChange>[_staged()],
+    final client = sourceControlClient(
+      writableSnapshot(
+        entries: <MobileGitChange>[stagedChange()],
         actions: const MobileSourceControlActions(
           commit: true,
           commitPush: true,
@@ -210,7 +219,7 @@ void main() {
       ),
     );
     addTearDown(client.dispose);
-    await _pumpPanel(tester, client);
+    await pumpSourceControlPanel(tester, client);
 
     await tester.enterText(find.byType(TextField), 'Ship it');
     await tester.pump();
@@ -228,15 +237,15 @@ void main() {
   });
 
   testWidgets('amend edits the HEAD message', (tester) async {
-    final client = _client(
-      _snapshot(
-        entries: <MobileGitChange>[_staged()],
+    final client = sourceControlClient(
+      writableSnapshot(
+        entries: <MobileGitChange>[stagedChange()],
         actions: const MobileSourceControlActions(commit: true, amend: true),
         headMessage: 'Initial commit',
       ),
     );
     addTearDown(client.dispose);
-    await _pumpPanel(tester, client);
+    await pumpSourceControlPanel(tester, client);
 
     await tester.tap(find.byTooltip('Commit Options'));
     await tester.pumpAndSettle();
@@ -261,8 +270,8 @@ void main() {
   });
 
   testWidgets('stash pop picks among several stashes', (tester) async {
-    final client = _client(
-      _snapshot(
+    final client = sourceControlClient(
+      writableSnapshot(
         actions: const MobileSourceControlActions(stashPop: true, fetch: true),
         stashes: const <MobileGitStash>[
           MobileGitStash(index: 0, message: 'WIP newest'),
@@ -271,9 +280,9 @@ void main() {
       ),
     );
     addTearDown(client.dispose);
-    await _pumpPanel(tester, client);
+    await pumpSourceControlPanel(tester, client);
 
-    await _openMenu(tester, 'Stash Pop');
+    await openSourceControlMenu(tester, 'Stash Pop');
     await tester.tap(find.text('stash@{1}: WIP older'));
     await tester.pumpAndSettle();
 
@@ -284,8 +293,8 @@ void main() {
     tester,
   ) async {
     final client =
-        _client(
-            _snapshot(
+        sourceControlClient(
+            writableSnapshot(
               actions: const MobileSourceControlActions(
                 sync: true,
                 fetch: true,
@@ -295,9 +304,9 @@ void main() {
           ..onGitWrite = (_) =>
               throw StateError('Publish this branch before syncing.');
     addTearDown(client.dispose);
-    await _pumpPanel(tester, client);
+    await pumpSourceControlPanel(tester, client);
 
-    await _openMenu(tester, 'Sync');
+    await openSourceControlMenu(tester, 'Sync');
 
     expect(find.text('Publish this branch before syncing.'), findsOneWidget);
     expect(
@@ -309,10 +318,11 @@ void main() {
   testWidgets('controls are disabled while a write is in flight', (
     tester,
   ) async {
-    final client = _client(_snapshot(entries: <MobileGitChange>[_unstaged()]))
-      ..gitWriteGate = Completer<void>();
+    final client = sourceControlClient(
+      writableSnapshot(entries: <MobileGitChange>[unstagedChange()]),
+    )..gitWriteGate = Completer<void>();
     addTearDown(client.dispose);
-    await _pumpPanel(tester, client);
+    await pumpSourceControlPanel(tester, client);
 
     await tester.tap(find.byTooltip('Stage'));
     await tester.pump();
@@ -331,17 +341,63 @@ void main() {
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 
+  testWidgets('a long menu scrolls instead of clipping on a short phone', (
+    tester,
+  ) async {
+    final client = sourceControlClient(
+      writableSnapshot(
+        entries: <MobileGitChange>[stagedChange(), unstagedChange()],
+        actions: const MobileSourceControlActions(
+          stageAll: true,
+          unstageAll: true,
+          discardAll: true,
+          fetch: true,
+          pull: true,
+          push: true,
+          sync: true,
+          stash: true,
+          stashPop: true,
+        ),
+        stashes: const <MobileGitStash>[MobileGitStash(index: 0)],
+      ),
+    );
+    addTearDown(client.dispose);
+    await pumpSourceControlPanel(tester, client);
+    await tester.binding.setSurfaceSize(const Size(360, 640));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Source Control Actions'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.scrollUntilVisible(
+      find.widgetWithText(ListTile, 'Stash Pop'),
+      100,
+      scrollable: find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    await tester.tap(find.widgetWithText(ListTile, 'Stash Pop'));
+    await tester.pumpAndSettle();
+
+    expect(client.gitWrites.single.arguments, {'stashIndex': 0});
+  });
+
   testWidgets('staging from the diff returns to the refreshed list', (
     tester,
   ) async {
-    final client = _client(_snapshot(entries: <MobileGitChange>[_unstaged()]))
-      ..gitDiffFile = const MobileGitDiffFile(
-        path: 'lib/main.dart',
-        area: 'unstaged',
-      )
-      ..onGitWrite = (_) => _snapshot(entries: <MobileGitChange>[_staged()]);
+    final client =
+        sourceControlClient(
+            writableSnapshot(entries: <MobileGitChange>[unstagedChange()]),
+          )
+          ..gitDiffFile = const MobileGitDiffFile(
+            path: 'lib/main.dart',
+            area: 'unstaged',
+          )
+          ..onGitWrite = (_) =>
+              writableSnapshot(entries: <MobileGitChange>[stagedChange()]);
     addTearDown(client.dispose);
-    await _pumpPanel(tester, client);
+    await pumpSourceControlPanel(tester, client);
 
     await tester.tap(find.text('main.dart'));
     await tester.pumpAndSettle();
@@ -355,8 +411,9 @@ void main() {
   });
 
   test('a write outlives the panel and clears the committed draft', () async {
-    final client = _client(_snapshot(entries: <MobileGitChange>[_staged()]))
-      ..onGitWrite = (_) => _snapshot();
+    final client = sourceControlClient(
+      writableSnapshot(entries: <MobileGitChange>[stagedChange()]),
+    )..onGitWrite = (_) => writableSnapshot();
     addTearDown(client.dispose);
     final container = ProviderContainer(
       overrides: [
@@ -396,7 +453,8 @@ void main() {
   });
 
   test('an amend leaves the composer draft alone', () async {
-    final client = _client(_snapshot())..onGitWrite = (_) => _snapshot();
+    final client = sourceControlClient(writableSnapshot())
+      ..onGitWrite = (_) => writableSnapshot();
     addTearDown(client.dispose);
     final container = ProviderContainer(
       overrides: [
@@ -439,78 +497,4 @@ void main() {
       'The runtime did not answer in time.',
     );
   });
-}
-
-MobileGitChange _unstaged() => const MobileGitChange(
-  path: 'lib/main.dart',
-  area: 'unstaged',
-  status: 'modified',
-  canStage: true,
-  canDiscard: true,
-);
-
-MobileGitChange _staged() => const MobileGitChange(
-  path: 'lib/main.dart',
-  area: 'staged',
-  status: 'modified',
-  canUnstage: true,
-);
-
-MobileGitStatusSnapshot _snapshot({
-  bool writable = true,
-  List<MobileGitChange> entries = const <MobileGitChange>[],
-  MobileSourceControlActions actions = const MobileSourceControlActions(
-    stageAll: true,
-    fetch: true,
-  ),
-  String primaryAction = 'fetch',
-  String? headMessage,
-  List<MobileGitStash> stashes = const <MobileGitStash>[],
-}) => MobileGitStatusSnapshot(
-  isRepository: true,
-  branch: 'main',
-  writable: writable,
-  entries: entries,
-  actions: actions,
-  primaryAction: primaryAction,
-  repository: MobileGitRepositoryState(
-    upstream: 'origin/main',
-    headMessage: headMessage,
-  ),
-  stashes: stashes,
-);
-
-FakeTerminalClient _client(MobileGitStatusSnapshot snapshot) =>
-    FakeTerminalClient()
-      ..sourceControlSupported = true
-      ..sourceControlWritesSupported = true
-      ..gitStatusSnapshot = snapshot;
-
-Future<void> _openMenu(WidgetTester tester, String label) async {
-  await tester.tap(find.byTooltip('Source Control Actions'));
-  await tester.pumpAndSettle();
-  await tester.tap(find.widgetWithText(ListTile, label));
-  await tester.pumpAndSettle();
-}
-
-Future<void> _pumpPanel(WidgetTester tester, FakeTerminalClient client) async {
-  await tester.binding.setSurfaceSize(const Size(390, 844));
-  addTearDown(() => tester.binding.setSurfaceSize(null));
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        workspaceClientProvider('host-1').overrideWith((ref) async => client),
-      ],
-      child: MaterialApp(
-        theme: buildAleraMobileDarkTheme(),
-        home: const Scaffold(
-          body: SourceControlPanel(
-            hostId: 'host-1',
-            workspaceId: 'workspace-1',
-          ),
-        ),
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
 }

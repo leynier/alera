@@ -66,6 +66,31 @@ class const MobileSourceControlActions({
   );
 }
 
+/// Branches a workspace can switch to. [branches] includes remote-tracking
+/// names; switching to one creates the local tracking branch.
+class const MobileGitBranches({
+  final List<String> branches = const <String>[],
+  final List<String> localBranches = const <String>[],
+  final String? current,
+}) {
+  factory fromJson(Map<String, Object?> json) => MobileGitBranches(
+    branches: <String>[
+      for (final item in json.objectList('branches'))
+        if (item is String) item,
+    ],
+    localBranches: <String>[
+      for (final item in json.objectList('localBranches'))
+        if (item is String) item,
+    ],
+    current: json.optionalString('current'),
+  );
+}
+
+class const GeneratedCommitMessage({
+  required final String message,
+  final String? agentLabel,
+});
+
 enum MobileGitWriteAction {
   stage('mobile.git.stage'),
   unstage('mobile.git.unstage'),

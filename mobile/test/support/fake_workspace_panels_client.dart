@@ -16,6 +16,10 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
 
   /// Holds `gitWrite` open until completed, to observe a write in flight.
   Completer<void>? gitWriteGate;
+  bool commitMessageGenerationSupported = false;
+  MobileGitBranches gitBranchesResult = const MobileGitBranches();
+  Future<GeneratedCommitMessage> Function(String operationId)?
+  onGenerateCommitMessage;
   bool pullRequestsSupported = false;
   List<MobileExplorerEntry> explorerEntries = const <MobileExplorerEntry>[];
   MobileWorkspaceSearchResult searchResult =
@@ -89,6 +93,30 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
 
   @override
   bool get supportsSourceControlWrites => sourceControlWritesSupported;
+
+  @override
+  bool get supportsCommitMessageGeneration => commitMessageGenerationSupported;
+
+  @override
+  Future<MobileGitBranches> gitBranches(String workspaceId) async {
+    calls.add('gitBranches $workspaceId');
+    return gitBranchesResult;
+  }
+
+  @override
+  Future<GeneratedCommitMessage> generateCommitMessage({
+    required String operationId,
+    required String workspaceId,
+  }) async {
+    calls.add('generateCommitMessage $workspaceId');
+    return onGenerateCommitMessage?.call(operationId) ??
+        const GeneratedCommitMessage(message: 'Generated message');
+  }
+
+  @override
+  Future<void> cancelCommitMessage(String operationId) async {
+    calls.add('cancelCommitMessage $operationId');
+  }
 
   @override
   Future<MobileGitStatusSnapshot> gitWrite(
