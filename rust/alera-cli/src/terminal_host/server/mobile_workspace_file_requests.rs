@@ -55,6 +55,7 @@ impl ServerActor {
         request_type: &str,
         result: HostResult<Value>,
     ) {
+        self.broadcast_pull_request_link_change(request_type, &result);
         if !self.clients.contains_key(&client_id) {
             cleanup_orphaned_workspace_file_result(request_type, &result);
             return;
@@ -122,9 +123,10 @@ async fn handle_mobile_workspace_file_request(
         "mobile.git.diff" => {
             super::mobile_source_control_requests::mobile_git_diff(&runtime_store, payload).await
         }
-        "mobile.pullRequest.snapshot" => {
-            super::mobile_pull_request_requests::snapshot_mobile_pull_request(
+        verb if verb.starts_with("mobile.pullRequest.") => {
+            super::mobile_pull_request_actions::handle_mobile_pull_request(
                 &runtime_store,
+                verb,
                 payload,
             )
             .await

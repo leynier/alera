@@ -75,6 +75,14 @@ impl ServerActor {
             | "mobile.git.status"
             | "mobile.git.diff"
             | "mobile.pullRequest.snapshot"
+            | "mobile.pullRequest.comment"
+            | "mobile.pullRequest.commentUpdate"
+            | "mobile.pullRequest.merge"
+            | "mobile.pullRequest.draftStatus"
+            | "mobile.pullRequest.close"
+            | "mobile.pullRequest.link"
+            | "mobile.pullRequest.unlink"
+            | "mobile.pullRequest.create"
             | "workspace.files.list"
             | "workspace.files.read" => {
                 self.require_auth(client_id)?;
