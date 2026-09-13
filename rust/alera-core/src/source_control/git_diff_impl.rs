@@ -20,7 +20,7 @@ mod git_diff_render;
 #[path = "git_diff_untracked.rs"]
 mod git_diff_untracked;
 #[path = "git_reading_diff_patch.rs"]
-pub(in crate::api) mod git_reading_diff_patch;
+pub(crate) mod git_reading_diff_patch;
 
 use git_diff_combined::{append_combined_diff_file, git_diff_all_for_file};
 use git_diff_render::render_diff_for_path;
