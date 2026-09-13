@@ -1,6 +1,8 @@
 part of 'workspace_tabs_screen.dart';
 
-extension on _WorkspaceTabsScreenState {
+// ignore_for_file: invalid_use_of_protected_member
+
+extension _WorkspaceTabsPanelBody on _WorkspaceTabsScreenState {
   void _openTab(String tabId) {
     if (!mounted) {
       return;
