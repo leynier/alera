@@ -146,9 +146,7 @@ class const _ExplorerBody({
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : row.entry.isDirectory
-              ? Icon(
-                  row.expanded ? AleraIcons.folderOpen : AleraIcons.folder,
-                )
+              ? Icon(row.expanded ? AleraIcons.folderOpen : AleraIcons.folder)
               : AleraFileIcon(
                   pathOrName: row.entry.relativePath,
                   kind: AleraFileIconKind.file,
