@@ -111,31 +111,39 @@ class ExplorerController extends _$ExplorerController {
     if (value == _hideIgnored) {
       return;
     }
+    final previous = _hideIgnored;
     _hideIgnored = value;
+    // The toolbar reads the mode off the view, so a failed listing must put it
+    // back: otherwise the button claims a mode the rows on screen do not have.
+    if (!await refresh()) {
+      _hideIgnored = previous;
+      state = AsyncData(_view(error: state.value?.error));
+      return;
+    }
     await ref
         .read(
           explorerPreferencesControllerProvider(hostId, workspaceId).notifier,
         )
         .setHideIgnored(value);
-    await refresh();
   }
 
   /// Re-reads the root and every folder still open, keeping them open. Folders
   /// that disappeared, or that the ignore filter now hides, simply close.
-  Future<void> refresh() async {
+  /// Returns whether the listing was replaced.
+  Future<bool> refresh() async {
     final current = state.value;
     if (current == null || current.rows.isEmpty && current.error != null) {
       await reload();
-      return;
+      return state.value?.error == null;
     }
     if (current.refreshing) {
-      return;
+      return false;
     }
     state = AsyncData(_view(refreshing: true));
     final client = await _panelsClient();
     if (client == null) {
       state = AsyncData(_view());
-      return;
+      return false;
     }
     final next = <String, List<MobileExplorerEntry>>{};
     try {
@@ -162,13 +170,14 @@ class ExplorerController extends _$ExplorerController {
     } on Object catch (error, stackTrace) {
       _logger.warning('could not refresh explorer', error, stackTrace);
       state = AsyncData(_view(error: error));
-      return;
+      return false;
     }
     _children
       ..clear()
       ..addAll(next);
     _expanded.removeWhere((path) => !next.containsKey(path));
     state = AsyncData(_view());
+    return true;
   }
 
   Future<void> reload() async {

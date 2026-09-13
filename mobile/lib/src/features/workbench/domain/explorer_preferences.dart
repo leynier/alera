@@ -1,8 +1,14 @@
 /// Explorer view choices the phone keeps per workspace.
 ///
-/// They stay on the device rather than in the host's shared view prefs: the
-/// desktop keeps its own explorer mode and Source Control root locally too, so
-/// sharing them would make the two surfaces overwrite each other.
+/// Deliberately device-local, and a deliberate split from desktop. The
+/// desktop's `explorerMode` and `sourceControlRootByWorkspaceId` live in its
+/// `WorkbenchViewPrefs`, but `_sharedJson` in
+/// `runtime_workbench_view_prefs_repository.dart` does not send either field to
+/// the runtime, so neither is in `SharedWorkbenchViewPrefs` and there is no
+/// shared record to read. Sharing them would mean widening that record, and a
+/// desktop root is validated against the desktop filesystem, which a phone
+/// cannot check. A nested root chosen on the phone therefore stays on the
+/// phone.
 class const ExplorerPreferences({
   final bool hideIgnored = true,
   final String? sourceControlRoot,

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
+import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
@@ -43,6 +44,21 @@ class const ExplorerPanel({
           ),
           if (view.refreshing)
             const LinearProgressIndicator(minHeight: AleraTokens.space2),
+          // A failed refresh keeps the previous tree on screen, so the failure
+          // has to be said out loud or it looks like nothing happened.
+          if (view.error != null && view.rows.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AleraTokens.space16,
+                AleraTokens.space8,
+                AleraTokens.space16,
+                0,
+              ),
+              child: AleraNotice(
+                icon: AleraIcons.info,
+                message: 'Could not refresh the file tree: ${view.error}',
+              ),
+            ),
           WorkspaceAgentCommentQueue(
             hostId: hostId,
             workspaceId: workspace.id,
