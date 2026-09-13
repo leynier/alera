@@ -2,6 +2,7 @@ import 'package:alera_mobile/src/design_system/layout/alera_confirm_dialog.dart'
 import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_actions.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_action_controller.dart';
+import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_pull_request_conversation.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_comment_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_link_create_sheets.dart';
@@ -160,9 +161,13 @@ class const PullRequestPanelActions({
 
   Future<void> create(
     BuildContext context,
-    MobilePullRequestSnapshot snapshot,
-  ) {
+    MobilePullRequestSnapshot snapshot, {
+    bool canGenerate = false,
+  }) {
     final controller = _controller;
+    // Read before the sheet opens: the panel that owns [ref] may be gone by
+    // the time the user taps Generate.
+    final client = ref.read(workspaceClientProvider(hostId).future);
     return showCreatePullRequestSheet(
       context,
       headBranch: snapshot.branch,
@@ -173,6 +178,21 @@ class const PullRequestPanelActions({
         (client) =>
             client.createPullRequest(workspaceId: workspaceId, input: input),
       ),
+      onGenerate: canGenerate
+          ? (baseBranch) async {
+              final actions = await client;
+              if (actions is! MobilePullRequestActionsClient) {
+                throw UnsupportedError(
+                  'Update the paired Alera runtime to generate pull request details.',
+                );
+              }
+              return (actions as MobilePullRequestActionsClient)
+                  .generatePullRequestDetails(
+                    workspaceId: workspaceId,
+                    baseBranch: baseBranch,
+                  );
+            }
+          : null,
     );
   }
 

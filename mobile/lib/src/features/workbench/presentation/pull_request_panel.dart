@@ -31,6 +31,11 @@ class const PullRequestPanel({
     final state = ref.watch(provider);
     final supportsActions =
         ref.watch(pullRequestActionsSupportedProvider(hostId)).value ?? false;
+    final canGenerate =
+        ref
+            .watch(pullRequestDetailsGenerationSupportedProvider(hostId))
+            .value ??
+        false;
     final busy = ref.watch(
       pullRequestActionControllerProvider(hostId, workspaceId),
     );
@@ -82,6 +87,7 @@ class const PullRequestPanel({
             busy: busy,
             onRefresh: refresh,
             onReload: reload,
+            canGenerate: canGenerate && snapshot.aiAssistEnabled,
           ),
         ),
       ],
@@ -95,6 +101,7 @@ class const _Body({
   required final PullRequestActionKind? busy,
   required final Future<void> Function() onRefresh,
   required final VoidCallback onReload,
+  required final bool canGenerate,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -106,6 +113,7 @@ class const _Body({
         actions: actions,
         busy: busy,
         onRefresh: onRefresh,
+        canGenerate: canGenerate,
       );
     }
     final theme = Theme.of(context);
@@ -200,6 +208,7 @@ class const _NoReview({
   required final PullRequestPanelActions? actions,
   required final PullRequestActionKind? busy,
   required final Future<void> Function() onRefresh,
+  required final bool canGenerate,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -241,7 +250,13 @@ class const _NoReview({
             ),
             OutlinedButton.icon(
               onPressed: idle
-                  ? () => unawaited(actions.create(context, snapshot))
+                  ? () => unawaited(
+                      actions.create(
+                        context,
+                        snapshot,
+                        canGenerate: canGenerate,
+                      ),
+                    )
                   : null,
               icon: const Icon(AleraIcons.gitPullRequest),
               label: const Text('Create Pull Request'),
