@@ -110,10 +110,7 @@ async fn mobile_git_write(
     .await
 }
 
-async fn mobile_git_branches(
-    runtime_store: &RuntimeStore,
-    payload: &Value,
-) -> HostResult<Value> {
+async fn mobile_git_branches(runtime_store: &RuntimeStore, payload: &Value) -> HostResult<Value> {
     let workspace = workspace_for_mobile_file_request(runtime_store, payload).await?;
     let root = workspace.path.clone();
     spawn_blocking_workspace("Git branches", move || {
