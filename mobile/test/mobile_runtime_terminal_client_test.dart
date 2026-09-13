@@ -133,7 +133,9 @@ void main() {
 
     expect(session.attachment.created, isTrue);
     final request = gateway.requestsOfType('terminal.restart').single;
-    expect(gateway.payloadOf(request), <String, Object?>{
+    final restartPayload = Map<String, Object?>.of(gateway.payloadOf(request));
+    expect(restartPayload.remove('operationId'), isNotEmpty);
+    expect(restartPayload, <String, Object?>{
       'tabId': 'tab-1',
       'sessionId': 'session-1',
       'cols': 100,

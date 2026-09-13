@@ -32,29 +32,7 @@ impl ServerActor {
             if state.is_some_and(|value| value != definition.state.as_str()) {
                 continue;
             }
-            let definition_project_id = if let Some(project_id) = &definition.project_id {
-                Some(project_id.clone())
-            } else {
-                let workspace_id = match &definition.target {
-                    alera_core::runtime::AutomationTarget::ExistingTab { workspace_id, .. }
-                    | alera_core::runtime::AutomationTarget::FreshTab { workspace_id, .. } => {
-                        Some(workspace_id)
-                    }
-                    alera_core::runtime::AutomationTarget::ManagedWorkspace {
-                        source_workspace_id,
-                        ..
-                    } => Some(source_workspace_id),
-                };
-                if let Some(workspace_id) = workspace_id {
-                    self.runtime_store
-                        .find_workspace(workspace_id)
-                        .await
-                        .map_err(|error| HostError::state(error.to_string()))?
-                        .map(|workspace| workspace.project_id)
-                } else {
-                    None
-                }
-            };
+            let definition_project_id = self.automation_definition_project(&definition).await?;
             if project_id.is_some_and(|value| definition_project_id.as_deref() != Some(value)) {
                 continue;
             }
@@ -136,25 +114,7 @@ impl ServerActor {
             alera_core::runtime::preview_occurrences(&id, &automation.schedule, Utc::now(), 6)
                 .unwrap_or_default();
         let target_profile_id = self.target_profile_id(&automation).await?;
-        let project_id = if let Some(project_id) = automation.project_id.clone() {
-            Some(project_id)
-        } else {
-            let workspace_id = match &automation.target {
-                alera_core::runtime::AutomationTarget::ExistingTab { workspace_id, .. }
-                | alera_core::runtime::AutomationTarget::FreshTab { workspace_id, .. } => {
-                    workspace_id
-                }
-                alera_core::runtime::AutomationTarget::ManagedWorkspace {
-                    source_workspace_id,
-                    ..
-                } => source_workspace_id,
-            };
-            self.runtime_store
-                .find_workspace(workspace_id)
-                .await
-                .map_err(|error| HostError::state(error.to_string()))?
-                .map(|workspace| workspace.project_id)
-        };
+        let project_id = self.automation_definition_project(&automation).await?;
         let target_profile_policy = match target_profile_id.as_deref() {
             Some(profile_id) => serde_json::to_value(
                 self.runtime_store

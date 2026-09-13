@@ -26,7 +26,9 @@ extension _WorkspaceContextMenu on _WorkspaceRowState {
       ),
     );
 
-    if (selected == _handOffAction) {
+    if (selected == _recoveryAction && context.mounted) {
+      await showWorkspaceRecoveryFlow(context, widget.workspace);
+    } else if (selected == _handOffAction) {
       widget.onHandOff?.call();
     } else if (selected == _handOnAction) {
       widget.onHandOn?.call();

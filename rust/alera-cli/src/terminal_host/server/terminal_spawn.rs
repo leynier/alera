@@ -30,6 +30,20 @@ impl ServerActor {
             }
         };
         for workspace in workspaces {
+            match self
+                .runtime_store
+                .pending_workspace_checkout_relocation(&workspace.id)
+                .await
+            {
+                Ok(None) => {}
+                Ok(Some(_)) => continue,
+                Err(error) => {
+                    tracing::error!(
+                        "could not verify checkout relocation before terminal restoration: {error}"
+                    );
+                    continue;
+                }
+            }
             let tabs = match self.runtime_store.list_workspace_tabs(&workspace.id).await {
                 Ok(tabs) => tabs,
                 Err(error) => {
@@ -57,6 +71,18 @@ impl ServerActor {
         &mut self,
         mut tab: WorkspaceTabRecord,
     ) -> HostResult<WorkspaceTabRecord> {
+        if spawns_on_create(&tab)
+            && self
+                .runtime_store
+                .pending_workspace_checkout_relocation(&tab.workspace_id)
+                .await
+                .map_err(|error| HostError::state(error.to_string()))?
+                .is_some()
+        {
+            return Err(HostError::state(
+                "Recover the checkout relocation before starting this terminal",
+            ));
+        }
         self.initialize_agent_title_if_new(&mut tab).await?;
         let saved = self
             .runtime_store
@@ -156,71 +182,6 @@ impl ServerActor {
         Ok(rearmed)
     }
 
-    /// Rewrites a launch so the agent reads its prompt from stdin.
-    ///
-    /// Falls back to the bare launch if script creation fails, preserving a usable agent.
-    fn stdin_prompt_command(&self, session_id: &str, command: &str, prompt: &str) -> String {
-        let Some(directory) = self.setup_script_directory() else {
-            tracing::warn!(
-                session_id = %session_id,
-                "no runtime directory for the agent prompt script; launching without the prompt"
-            );
-            return command.to_string();
-        };
-        match crate::agent_prompt_stdin_script::write_agent_prompt_stdin_script(
-            &directory, session_id, command, prompt,
-        ) {
-            Ok(script) => script.command,
-            Err(error) => {
-                tracing::error!(
-                    session_id = %session_id,
-                    "failed to write the agent prompt script; launching without the prompt: {error}"
-                );
-                command.to_string()
-            }
-        }
-    }
-
-    async fn clear_initial_command(
-        &mut self,
-        tab: &WorkspaceTabRecord,
-    ) -> Option<WorkspaceTabRecord> {
-        let mut next = tab.clone();
-        let payload = next.payload.as_object_mut()?;
-        payload.remove("initialCommand");
-        payload.remove("initialCommandOnce");
-        match self.runtime_store.upsert_workspace_tab(next).await {
-            Ok(saved) => Some(saved),
-            Err(error) => {
-                eprintln!(
-                    "failed to clear the one-shot initial command of tab {}: {error}",
-                    tab.id
-                );
-                None
-            }
-        }
-    }
-
-    async fn clear_initial_prompt(
-        &mut self,
-        tab: &WorkspaceTabRecord,
-    ) -> Option<WorkspaceTabRecord> {
-        let mut next = tab.clone();
-        let payload = next.payload.as_object_mut()?;
-        payload.remove("initialPrompt");
-        payload.remove("initialPromptOnce");
-        match self.runtime_store.upsert_workspace_tab(next).await {
-            Ok(saved) => Some(saved),
-            Err(error) => {
-                tracing::error!(
-                    tab_id = %tab.id,
-                    "failed to clear one-shot initial agent prompt: {error}"
-                );
-                None
-            }
-        }
-    }
-
     #[allow(clippy::too_many_arguments)]
     pub(super) async fn start_new_terminal_session(
         &mut self,
@@ -251,6 +212,12 @@ impl ServerActor {
             crate::ssh_remote::remote_workspace_terminal_override(
                 &self.runtime_store,
                 &workspace_id,
+                crate::remote_owner_terminal_launch::TerminalIdentity {
+                    session_id: &session_id,
+                    tab_id: &tab_id,
+                    cols,
+                    rows,
+                },
             )
             .await
             .map_err(|error| HostError::state(error.to_string()))?
@@ -327,6 +294,10 @@ impl ServerActor {
         }
         let inbox = self.inbox.clone();
         let reader_session_id = session_id.clone();
+        self.runtime_store
+            .record_workspace_tab_terminal_launch(&workspace_id, &tab_id, &session_id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
         let session = Box::pin(Session::start(
             session_id.clone(),
             workspace_id,

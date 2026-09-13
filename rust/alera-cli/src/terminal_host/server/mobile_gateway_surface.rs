@@ -48,6 +48,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_CAPABILITY,
     RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
     crate::terminal_host::protocol::RUNTIME_HOST_SAFE_HANDOFF_CAPABILITY,
+    crate::terminal_host::protocol::RUNTIME_HOST_SHARED_CHECKOUT_CAPABILITY,
     crate::terminal_host::protocol::RUNTIME_HOST_REMOTE_SSH_WORKSPACES_CAPABILITY,
     RUNTIME_HOST_MOBILE_CAPABILITY,
     RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
@@ -108,6 +109,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "hostDirectory.roots"
             | "hostDirectory.list"
             | "project.register"
+            | "project.checkout.register"
             | "project.rename"
             | "project.remove.preview"
             | "project.remove"
@@ -121,6 +123,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "workspace.list"
             | "workspace.listAll"
             | "workspace.find"
+            | "workspace.retirementReceipt"
             | "workspaceSidebar.snapshot"
             | "workbenchViewPrefs.get"
             | "workbenchViewPrefs.update"
@@ -130,10 +133,25 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "workspace.sleep"
             | "workspace.repositoryWebUrl"
             | "workspace.createManaged"
+            | "workspace.createShared"
+            | "checkout.list"
+            | "workspace.bufferGuard.acquire"
+            | "workspace.bufferGuard.status"
+            | "workspace.bufferGuard.release"
+            | "checkout.quickOpen.start"
+            | "workspace.checkout"
+            | "workspace.relocationRecovery"
+            | "workspace.sshRelocationRecovery"
+            | "workspace.prepareRelocationSetup"
+            | "workspace.recoverRelocationSetup"
+            | "workspace.cancelRelocationSetup"
+            | "workspace.removalDependencies"
+            | "project.removalDependencies"
             | "workspace.handOff"
             | "workspace.handOn"
             | "workspace.storageImpact"
             | "workspace.removeManaged"
+            | "workspace.removeShared"
             | "agentProfile.list"
             | "agentProfile.launch"
             | "agentProfile.launchIdempotent"

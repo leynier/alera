@@ -9,9 +9,14 @@ mod branch_operations;
 #[path = "git_branch_tests.rs"]
 mod branch_tests;
 pub mod hosted_review;
+mod linked_worktree_origin;
 mod repository;
 mod repository_metadata;
+pub use linked_worktree_origin::linked_worktree_repository_origin;
+mod workspace_relocation_checkout;
+mod workspace_relocation_snapshot;
 mod worktree_handoff;
+mod worktree_setup_protection;
 pub use branch_deletion::validate_branch_deletion;
 pub use branch_operations::{
     branch_exists, checkout_branch, create_and_checkout_branch, create_and_checkout_branch_from,
@@ -24,12 +29,23 @@ use repository::{
     git_pull_ff_only, head_branch_name, is_path_occupied, open_repo, remote_tracking_upstream_name,
     unique_worktree_admin_name,
 };
-pub use repository_metadata::{current_branch, is_worktree_clean, repository_remote_url};
+pub use repository_metadata::{
+    current_branch, is_worktree_clean, project_checkout_branch, repository_remote_url,
+};
+pub use workspace_relocation_checkout::{
+    checkout_commit, checkouts_share_repository, create_workspace_relocation_worktree,
+    is_workspace_relocation_worktree, local_branch_commit, validate_workspace_relocation_storage,
+};
+pub use workspace_relocation_snapshot::{
+    apply_workspace_relocation_snapshot, find_workspace_relocation_snapshot,
+    stash_for_workspace_relocation, workspace_matches_relocation_snapshot,
+};
 pub use worktree_handoff::{
     apply_handoff_stash, branch_checkout_path, default_branch, detach_head, set_head_to_branch,
     stash_for_handoff, stash_include_untracked, stash_pop, validate_handoff_removal,
     validate_handoff_state, validate_no_ignored_handoff_files,
 };
+pub use worktree_setup_protection::validate_relocated_setup_copy;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GitWorktreeEntry {

@@ -159,6 +159,8 @@ class const RuntimeWorkspacesScreen({
                   MaterialPageRoute<bool>(
                     builder: (_) => CreateWorkspaceScreen(
                       hostId: host.id,
+                      supportsSharedCheckoutWorkspaces:
+                          data.value!.supportsSharedCheckoutWorkspaces,
                       projects: data.value!.projects,
                       workspaces: data.value!.workspaces,
                       defaultAgentProfileId: data.value!.defaultAgentProfileId,

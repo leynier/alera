@@ -194,9 +194,7 @@ class const _SidebarBody({
               : null,
           onSelectTerminal: onSelectTerminal,
           onCloseTerminal: onCloseTerminal,
-          onDelete: row.workspace.isMain
-              ? null
-              : () => onDeleteWorkspace(row.project, row.workspace),
+          onDelete: () => onDeleteWorkspace(row.project, row.workspace),
           onHandOff:
               row.workspace.isMain && row.project.supportsLinkedWorkspaces
               ? () => unawaited(onHandOffWorkspace(row.workspace))

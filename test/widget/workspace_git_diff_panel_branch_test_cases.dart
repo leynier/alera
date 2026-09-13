@@ -42,6 +42,12 @@ void _registerWorkspaceGitDiffPanelBranchTests() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('feature'));
     await tester.pumpAndSettle();
+    expect(
+      backend.calls.where((call) => call.method == 'checkoutBranch'),
+      isEmpty,
+    );
+    await tester.tap(find.text('Change Branch'));
+    await tester.pumpAndSettle();
 
     expect(
       backend.calls
@@ -72,6 +78,8 @@ void _registerWorkspaceGitDiffPanelBranchTests() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('origin/feature'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Change Branch'));
+    await tester.pumpAndSettle();
 
     expect(toasts.last.message, 'Switched to feature');
     expect(toasts.last.tone, AleraToastTone.success);
@@ -97,6 +105,12 @@ void _registerWorkspaceGitDiffPanelBranchTests() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('feature'));
     await tester.pumpAndSettle();
+    expect(
+      backend.calls.where((call) => call.method == 'checkoutBranch'),
+      isEmpty,
+    );
+    await tester.tap(find.text('Change Branch'));
+    await tester.pumpAndSettle();
 
     expect(
       toasts.last.message,
@@ -121,6 +135,12 @@ void _registerWorkspaceGitDiffPanelBranchTests() {
 
     await tester.enterText(find.byType(TextField).last, 'ship/login');
     await tester.tap(find.text('Create'));
+    await tester.pumpAndSettle();
+    expect(
+      backend.calls.where((call) => call.method == 'createAndCheckoutBranch'),
+      isEmpty,
+    );
+    await tester.tap(find.text('Change Branch'));
     await tester.pumpAndSettle();
 
     expect(

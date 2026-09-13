@@ -2,8 +2,27 @@ use clap::Parser;
 
 use crate::cli::{
     AgentProfileAction, Cli, Command, IdArgs, TerminalHostArgs, WorkspaceAction, WorkspaceCommand,
+    WorkspaceRemoveArgs,
 };
 use crate::cli_orchestration::{OrchestrationAction, OrchestrationCommand};
+
+#[test]
+fn project_removal_requires_explicit_automation_cancellation_flag() {
+    for approved in [false, true] {
+        let mut arguments = vec!["alera", "project", "remove", "--id", "project"];
+        if approved {
+            arguments.push("--pause-automations-and-cancel-runs");
+        }
+        let parsed = Cli::try_parse_from(arguments).unwrap();
+        let Command::Project(command) = parsed.command else {
+            panic!("project command expected");
+        };
+        let crate::cli::ProjectAction::Remove(args) = command.action else {
+            panic!("remove action expected");
+        };
+        assert_eq!(args.pause_automations_and_cancel_runs, approved);
+    }
+}
 
 #[test]
 fn runtime_clear_parses_force_as_an_explicit_live_host_override() {
@@ -233,6 +252,7 @@ fn convenience_launch_verbs_reject_conflicting_sources() {
         "alera",
         "workspace",
         "add",
+        "--worktree",
         "--project-id",
         "proj",
         "--branch",
@@ -241,6 +261,63 @@ fn convenience_launch_verbs_reject_conflicting_sources() {
         "main",
     ])
     .is_ok());
+}
+
+#[test]
+fn shared_workspace_cli_defaults_and_explicit_worktree_options() {
+    let cli =
+        Cli::try_parse_from(["alera", "workspace", "add", "--project-id", "project"]).unwrap();
+    match cli.command {
+        Command::Workspace(WorkspaceCommand {
+            action: WorkspaceAction::Add(args),
+            ..
+        }) => {
+            assert!(!args.worktree);
+            assert!(args.branch.is_none());
+            assert!(args.parent_workspace_id.is_none());
+        }
+        other => panic!("unexpected command: {other:?}"),
+    }
+    assert!(Cli::try_parse_from([
+        "alera",
+        "workspace",
+        "add",
+        "--project-id",
+        "project",
+        "--branch",
+        "topic"
+    ])
+    .is_err());
+    assert!(Cli::try_parse_from([
+        "alera",
+        "workspace",
+        "add",
+        "--project-id",
+        "project",
+        "--worktree"
+    ])
+    .is_err());
+    let cli = Cli::try_parse_from([
+        "alera",
+        "workspace",
+        "remove",
+        "--id",
+        "task",
+        "--close-sessions",
+        "--keep-branch",
+    ])
+    .unwrap();
+    assert!(matches!(
+        cli.command,
+        Command::Workspace(WorkspaceCommand {
+            action: WorkspaceAction::Remove(WorkspaceRemoveArgs {
+                close_sessions: true,
+                keep_branch: true,
+                ..
+            }),
+            ..
+        })
+    ));
 }
 
 #[test]

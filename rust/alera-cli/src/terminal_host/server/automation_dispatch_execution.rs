@@ -7,18 +7,21 @@ use chrono::{Duration, Utc};
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use super::automation_run_lifecycle::{is_non_retryable_dispatch_error, is_non_retryable_reason};
-use super::{automation_prompt, render_workspace_name, run_precheck_command, ServerActor};
+use super::automation_run_lifecycle::is_non_retryable_dispatch_error;
+use super::{automation_prompt, render_workspace_name, ServerActor};
 use crate::managed_workspace::ManagedWorkspaceCreateRequest;
 use crate::terminal_host::host_error::{HostError, HostResult};
 
 impl ServerActor {
-    pub(super) async fn start_automation_run(
+    pub(in crate::terminal_host::server) async fn start_automation_run(
         &mut self,
         definition: &AutomationDefinition,
         mut run: AutomationRun,
         run_precheck: bool,
     ) {
+        if self.automation_precheck_jobs.contains(&run.id) {
+            return;
+        }
         self.automations_active = true;
         self.cancel_shutdown_timer();
         let active_runs = self
@@ -86,14 +89,13 @@ impl ServerActor {
             }
         }
         if let Err(error) = self
-            .ensure_agent_policy(
+            .ensure_dispatch_policy(
                 definition,
                 &alera_core::runtime::AutomationActor {
                     kind: AutomationActorKind::ManagedAgent,
                     id: run.actor_id.clone(),
                     label: Some("Alera Automation Scheduler".to_string()),
                 },
-                true,
             )
             .await
         {
@@ -109,47 +111,18 @@ impl ServerActor {
                 return;
             }
         };
+        let mut target_identity = target_identity;
+        if definition.target.project_checkout().is_some() && run.owned_workspace {
+            target_identity.workspace_id = run.workspace_id.clone();
+        }
         run.target_identity = Some(target_identity.clone());
         if let Err(error) = self.runtime_store.save_automation_run(&run).await {
             tracing::warn!(run_id = %run.id, "could not persist automation target identity: {error}");
         }
-        let target_workspace_id = match &definition.target {
-            AutomationTarget::ExistingTab { workspace_id, .. }
-            | AutomationTarget::FreshTab { workspace_id, .. } => workspace_id.clone(),
-            AutomationTarget::ManagedWorkspace {
-                source_workspace_id,
-                ..
-            } => source_workspace_id.clone(),
-        };
-        let source_workspace = match self
-            .runtime_store
-            .find_workspace(&target_workspace_id)
-            .await
-        {
-            Ok(Some(workspace)) => workspace,
-            Ok(None) => {
-                self.block_run(&run, "automation target workspace is missing")
-                    .await;
-                return;
-            }
+        let location = match self.automation_target_location(definition).await {
+            Ok(location) => location,
             Err(error) => {
-                self.fail_run(&run, error.to_string()).await;
-                return;
-            }
-        };
-        let project = match self
-            .runtime_store
-            .find_project(&source_workspace.project_id)
-            .await
-        {
-            Ok(Some(project)) => project,
-            Ok(None) => {
-                self.block_run(&run, "automation target project is missing")
-                    .await;
-                return;
-            }
-            Err(error) => {
-                self.fail_run(&run, error.to_string()).await;
+                self.block_run(&run, &error.wire_message()).await;
                 return;
             }
         };
@@ -159,46 +132,90 @@ impl ServerActor {
         if run.actor_id.is_none() {
             run.actor_id = target_identity.profile_id.clone();
         }
-        if run_precheck {
-            if let Some(precheck) = &definition.precheck {
-                match run_precheck_command(
-                    &self.runtime_store,
-                    &source_workspace.host_id,
-                    precheck,
-                    &source_workspace.path,
-                )
+        if run_precheck && definition.precheck.is_some() {
+            // Reserve concurrency while the command runs outside the actor.
+            // A skipped precheck still consumes no dispatch attempt.
+            run.status = AutomationRunStatus::Dispatching;
+            run.started_at = None;
+            run.last_heartbeat_at = None;
+            run.absolute_deadline_at = None;
+            run.retry_after = None;
+            if let Err(error) = self.runtime_store.save_automation_run(&run).await {
+                tracing::error!(run_id = %run.id, "could not reserve automation precheck: {error}");
+                return;
+            }
+            self.start_automation_precheck(
+                definition.clone(),
+                run,
+                location.host_id,
+                location.path,
+            );
+            return;
+        }
+        self.dispatch_prechecked_automation(definition, run, location)
+            .await;
+    }
+
+    pub(in crate::terminal_host::server) async fn dispatch_prechecked_automation(
+        &mut self,
+        definition: &AutomationDefinition,
+        mut run: AutomationRun,
+        location: super::super::automation_target_location::AutomationTargetLocation,
+    ) {
+        let project = &location.project;
+        run.status = AutomationRunStatus::Dispatching;
+        run.retry_after = None;
+        run.started_at = Some(Utc::now());
+        run.last_heartbeat_at = run.started_at;
+        run.absolute_deadline_at = run.started_at.map(|started| started + Duration::hours(24));
+        run.attempt_count += 1;
+        if let Err(error) = self.runtime_store.save_automation_run(&run).await {
+            tracing::error!(run_id = %run.id, "could not mark automation dispatching: {error}");
+            return;
+        }
+        let _ = self
+            .runtime_store
+            .insert_automation_attempt(&run.id, AutomationRunStatus::Dispatching, None)
+            .await;
+        if definition.target.project_checkout().is_some()
+            && location.host_id != alera_core::runtime::LOCAL_HOST_ID
+        {
+            self.start_automation_checkout_preparation(definition.clone(), run, project.clone());
+            return;
+        }
+        let source_workspace = if definition.target.project_checkout().is_some() {
+            match self
+                .allocate_project_checkout_automation_workspace(definition, &run)
                 .await
-                {
-                    Ok(true) => {}
-                    Ok(false) => {
-                        let _ = self
-                            .runtime_store
-                            .update_automation_run_status(
-                                &run.id,
-                                AutomationRunStatus::PrecheckSkipped,
-                                Some("automation precheck did not pass".to_string()),
-                            )
-                            .await;
-                        return;
-                    }
-                    Err(error) => {
-                        if is_non_retryable_reason(&error) {
-                            self.block_run(&run, &error).await;
-                        } else {
-                            let _ = self
-                                .runtime_store
-                                .update_automation_run_status(
-                                    &run.id,
-                                    AutomationRunStatus::PrecheckSkipped,
-                                    Some(error),
-                                )
-                                .await;
-                        }
-                        return;
-                    }
+            {
+                Ok((bound, workspace)) => {
+                    run = bound;
+                    workspace
+                }
+                Err(error) => {
+                    self.block_run(&run, &error.wire_message()).await;
+                    return;
                 }
             }
-        }
+        } else {
+            let Some(workspace) = location.workspace else {
+                self.block_run(&run, "automation target workspace is missing")
+                    .await;
+                return;
+            };
+            workspace
+        };
+        self.continue_automation_dispatch(definition, run, source_workspace, project)
+            .await;
+    }
+
+    pub(in crate::terminal_host::server) async fn continue_automation_dispatch(
+        &mut self,
+        definition: &AutomationDefinition,
+        mut run: AutomationRun,
+        source_workspace: alera_core::runtime::Workspace,
+        project: &alera_core::runtime::Project,
+    ) {
         let workspace_values = (
             source_workspace.id.as_str(),
             source_workspace.name.as_str(),
@@ -220,21 +237,24 @@ impl ServerActor {
         };
         let prompt = automation_prompt(&rendered, &run.id, definition.heartbeat_interval_seconds);
         run.rendered_prompt = Some(rendered);
-        run.status = AutomationRunStatus::Dispatching;
-        run.retry_after = None;
-        run.started_at = Some(Utc::now());
-        run.last_heartbeat_at = run.started_at;
-        run.absolute_deadline_at = run.started_at.map(|started| started + Duration::hours(24));
-        run.attempt_count += 1;
         if let Err(error) = self.runtime_store.save_automation_run(&run).await {
-            tracing::error!(run_id = %run.id, "could not mark automation dispatching: {error}");
+            self.fail_run(&run, error.to_string()).await;
             return;
         }
-        let _ = self
-            .runtime_store
-            .insert_automation_attempt(&run.id, AutomationRunStatus::Dispatching, None)
-            .await;
         let result = match &definition.target {
+            AutomationTarget::ProjectCheckout {
+                agent_profile_id, ..
+            } => {
+                self.dispatch_fresh_tab(
+                    &mut run,
+                    &source_workspace.id,
+                    agent_profile_id,
+                    &prompt,
+                    true,
+                )
+                .await
+            }
+
             AutomationTarget::ExistingTab {
                 workspace_id,
                 tab_id,

@@ -14,8 +14,8 @@ use crate::ssh_remote::{is_remote_host_id, RemoteHostExecutor};
 /// Returns `Ok(Some(removed))` when handled, `Ok(None)` when the caller should
 /// use the local remove path.
 ///
-/// Metadata-only rows that stamp a foreign `hostId` on a path that still exists
-/// locally are refused (never remote-destroyed).
+/// Without registered checkout ownership, foreign-host metadata on an existing
+/// local path is refused. Registered hosts may legitimately use the same path.
 pub(crate) async fn try_remove_remote_managed_workspace<E: RemoteHostExecutor>(
     store: &RuntimeStore,
     request: &ManagedWorkspaceRemoveRequest,
@@ -25,7 +25,9 @@ pub(crate) async fn try_remove_remote_managed_workspace<E: RemoteHostExecutor>(
     if !is_remote_host_id(Some(&workspace.host_id)) {
         return Ok(None);
     }
-    if !filesystem_entry_is_missing(&workspace.path)? {
+    if !has_registered_remote_checkout(store, workspace).await?
+        && !filesystem_entry_is_missing(&workspace.path)?
+    {
         bail!("Workspace is not owned by the local host");
     }
     if workspace_has_active_automation_owner(store, &workspace.id).await? {
@@ -34,6 +36,37 @@ pub(crate) async fn try_remove_remote_managed_workspace<E: RemoteHostExecutor>(
     Ok(Some(
         remove_remote_managed_workspace_request(store, request, workspace, executor).await?,
     ))
+}
+
+pub(crate) async fn has_registered_remote_checkout(
+    store: &RuntimeStore,
+    workspace: &Workspace,
+) -> Result<bool> {
+    if !is_remote_host_id(Some(&workspace.host_id))
+        || store
+            .find_project_checkout(&workspace.project_id, &workspace.host_id)
+            .await?
+            .is_none()
+    {
+        return Ok(false);
+    }
+    let binding = store
+        .find_workspace_checkout(&workspace.id)
+        .await?
+        .ok_or_else(|| anyhow!("The SSH checkout binding is missing"))?;
+    if binding.project_id != workspace.project_id
+        || binding.host_id != workspace.host_id
+        || binding.path != workspace.path
+        || binding.kind != alera_core::runtime::CheckoutKind::Linked
+    {
+        bail!("The linked SSH checkout ownership could not be verified");
+    }
+    // Project registration does not migrate legacy worktree ownership. Their
+    // removal still validates the original bare repository on the SSH host.
+    Ok(binding
+        .repository_path
+        .as_deref()
+        .is_some_and(|path| !path.trim().is_empty()))
 }
 
 pub(crate) async fn remove_remote_managed_workspace_request<E: RemoteHostExecutor>(
@@ -58,6 +91,21 @@ pub(crate) async fn remove_remote_managed_workspace_request<E: RemoteHostExecuto
     } else {
         None
     };
+    if has_registered_remote_checkout(store, workspace).await? {
+        if !request.close_sessions {
+            bail!("Confirm --close-sessions before retiring the linked task's remote processes");
+        }
+        let proof = crate::remote_shared_retirement::retire_linked(
+            store,
+            workspace,
+            executor,
+            branch_to_delete.is_some(),
+        )
+        .await?;
+        proof.verify(workspace)?;
+        store.remove_workspace(&workspace.id, true).await?;
+        return Ok(workspace.clone());
+    }
     remove_remote_managed_workspace(
         store,
         workspace,

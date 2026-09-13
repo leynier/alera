@@ -1,6 +1,50 @@
 part of 'workbench_controller_test.dart';
 
 void _registerWorkbenchControllerHandoffTests() {
+  test('hand on with stable identity preserves tab order and layout', () async {
+    await _harness.dispose();
+    final runtime = _HandoffManagedWorkspaceRuntime()
+      ..stableHandOnIdentity = true;
+    _harness = _WorkbenchHarness(runtime);
+    _controller = _harness._controller;
+    await _controller.bootstrap();
+    final main = await _selectMainWorkspace(_controller, _harness);
+    final child = (await _controller.handOffWorkspace(
+      workspace: main,
+      branch: 'feat/task',
+    )).workspace;
+    final editor = await _controller.openEditorTab(
+      workspace: child,
+      relativePath: 'notes.txt',
+    );
+    final document =
+        _harness.container
+            .read(editorSessionRegistryProvider)
+            .documentFor(editor.id)
+          ..attachFile(workspacePath: child.path, relativePath: 'notes.txt');
+    final beforeIds = _controller.state
+        .tabsFor(child.id)
+        .map((tab) => tab.id)
+        .toList();
+    final beforeLayout = _controller.state.layoutByWorkspace[child.id];
+    final moved = await _controller.handOnWorkspace(
+      project: _harness.project,
+      workspace: child,
+    );
+    expect(moved.id, child.id);
+    expect(moved.path, main.path);
+    expect(_controller.state.tabsFor(child.id).map((tab) => tab.id), beforeIds);
+    expect(_controller.state.layoutByWorkspace[child.id], beforeLayout);
+    expect(
+      _controller.state
+          .tabsFor(child.id)
+          .firstWhere((tab) => tab.id == editor.id)
+          .payload['filePath'],
+      'notes.txt',
+    );
+    expect(document.workspacePath, main.path);
+  });
+
   test('host initiated hand on retains the live dirty document and terminal handle', () async {
     await _harness.dispose();
     final runtime = _HandoffManagedWorkspaceRuntime();
@@ -199,6 +243,7 @@ void _registerWorkbenchControllerHandoffTests() {
 }
 
 class _HandoffManagedWorkspaceRuntime implements ManagedWorkspaceRuntime {
+  bool stableHandOnIdentity = false;
   String? handOffWorkspaceId;
   String? handOffBranch;
   String? handOnWorkspaceId;
@@ -249,9 +294,12 @@ class _HandoffManagedWorkspaceRuntime implements ManagedWorkspaceRuntime {
 
   @override
   Future<WorkspaceCreationResult> handOffWorkspace({
+    String? relocationId,
     required Workspace workspace,
     required String branch,
     required bool reuseExistingBranch,
+    bool moveChanges = true,
+    String? replacementBranch,
     String? name,
   }) async {
     handOffWorkspaceId = workspace.id;
@@ -278,6 +326,7 @@ class _HandoffManagedWorkspaceRuntime implements ManagedWorkspaceRuntime {
 
   @override
   Future<WorkspaceHandOnResult> handOnWorkspace({
+    String? relocationId,
     required Workspace workspace,
     String? activeWorkspaceId,
   }) async {
@@ -286,6 +335,30 @@ class _HandoffManagedWorkspaceRuntime implements ManagedWorkspaceRuntime {
     final main = _controller.state
         .workspacesFor(workspace.projectId)
         .firstWhere((candidate) => candidate.isMain);
+    if (stableHandOnIdentity) {
+      final moved = workspace.copyWith(
+        path: main.path,
+        kind: .main,
+        updatedAt: now,
+      );
+      final repository = _harness.workbenchRepository;
+      await repository.upsertWorkspace(moved);
+      for (final tab in await repository.listWorkspaceTabs(workspace.id)) {
+        final payload = {...tab.payload};
+        for (final key in ['filePath', 'gitDiffRoot', 'workingDirectory']) {
+          final path = payload[key];
+          if (path is String &&
+              (path == workspace.path || p.isWithin(workspace.path, path))) {
+            payload[key] = p.join(
+              main.path,
+              p.relative(path, from: workspace.path),
+            );
+          }
+        }
+        await repository.upsertWorkspaceTab(tab.copyWith(payload: payload));
+      }
+      return WorkspaceHandOnResult(workspace: moved);
+    }
     final result = WorkspaceHandOnResult(
       workspace: main.copyWith(branch: workspace.branch, updatedAt: now),
       removedWorkspaceId: workspace.id,

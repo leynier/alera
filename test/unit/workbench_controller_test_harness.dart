@@ -43,6 +43,19 @@ class _WorkbenchHarness([ManagedWorkspaceRuntime? runtime]) {
     );
     projectRepository = _FakeProjectRepository(<Project>[project]);
     workbenchRepository = _FakeWorkbenchRepository();
+    workbenchRepository._workspacesByProject[project.id] = [
+      Workspace(
+        id: 'initial-task',
+        projectId: project.id,
+        name: 'Initial Task',
+        branch: 'main',
+        path: repoPath,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+        kind: .main,
+        status: .active,
+      ),
+    ];
     workspaceGraphRepository = _FakeWorkspaceGraphRepository();
     gitBackend = FakeGitBackend()
       ..sourceBranches = <String>['main', 'origin/main']
@@ -115,8 +128,25 @@ class _WorkbenchHarness([ManagedWorkspaceRuntime? runtime]) {
       createdAt: .utc(2026, 5, 22),
       updatedAt: .utc(2026, 5, 22),
     );
+    await seedInitialWorkspace(newProject);
     await projectRepository.add(newProject);
     return newProject;
+  }
+
+  Future<void> seedInitialWorkspace(Project project) async {
+    await workbenchRepository.upsertWorkspace(
+      Workspace(
+        id: '${project.id}-initial',
+        projectId: project.id,
+        name: project.name,
+        branch: project.kind == ProjectKind.folder ? null : 'main',
+        path: project.repoPath,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+        kind: .main,
+        status: .active,
+      ),
+    );
   }
 
   Future<void> dispose() async {
@@ -318,12 +348,23 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
 
   @override
   Stream<List<Workspace>> watchWorkspaces(String projectId) {
-    return _workspaceControllers
+    final changes = _workspaceControllers
         .putIfAbsent(
           projectId,
           () => StreamController<List<Workspace>>.broadcast(),
         )
         .stream;
+    return Stream.multi((controller) {
+      final subscription = changes.listen(
+        controller.add,
+        onError: controller.addError,
+        onDone: controller.close,
+      );
+      controller.add(
+        List<Workspace>.from(_workspacesByProject[projectId] ?? const []),
+      );
+      controller.onCancel = subscription.cancel;
+    });
   }
 
   @override
@@ -353,9 +394,6 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
       current[index] = workspace;
     }
     current.sort((left, right) {
-      if (left.isMain != right.isMain) {
-        return left.isMain ? -1 : 1;
-      }
       return left.createdAt.compareTo(right.createdAt);
     });
     _workspacesByProject[workspace.projectId] = current;

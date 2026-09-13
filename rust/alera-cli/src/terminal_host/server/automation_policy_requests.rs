@@ -1,10 +1,10 @@
+use crate::automation_declaration::repository_declares_automation;
 use alera_core::runtime::{
     AutomationActor, AutomationActorKind, AutomationAgentPolicy, AutomationDefinition,
     AutomationProjectPolicy, AutomationTarget, ProjectKind,
 };
 use chrono::Utc;
 use serde_json::{json, Map, Value};
-use std::path::Path;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
@@ -169,6 +169,26 @@ impl ServerActor {
         actor: &AutomationActor,
         execute: bool,
     ) -> HostResult<()> {
+        self.check_agent_policy(definition, actor, execute, false)
+            .await
+    }
+
+    pub(super) async fn ensure_dispatch_policy(
+        &self,
+        definition: &AutomationDefinition,
+        actor: &AutomationActor,
+    ) -> HostResult<()> {
+        // SSH declaration inspection is part of the bounded checkout worker.
+        self.check_agent_policy(definition, actor, true, true).await
+    }
+
+    async fn check_agent_policy(
+        &self,
+        definition: &AutomationDefinition,
+        actor: &AutomationActor,
+        execute: bool,
+        defer_ssh_declaration: bool,
+    ) -> HostResult<()> {
         if execute {
             let Some(profile_id) = self
                 .target_profile_id(definition)
@@ -209,30 +229,8 @@ impl ServerActor {
             }
         }
 
-        let source_workspace_id = match &definition.target {
-            AutomationTarget::ExistingTab { workspace_id, .. }
-            | AutomationTarget::FreshTab { workspace_id, .. } => workspace_id,
-            AutomationTarget::ManagedWorkspace {
-                source_workspace_id,
-                ..
-            } => source_workspace_id,
-        };
-        let Some(workspace) = self
-            .runtime_store
-            .find_workspace(source_workspace_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-        else {
-            return Err(HostError::state("automation target workspace is missing"));
-        };
-        let Some(project) = self
-            .runtime_store
-            .find_project(&workspace.project_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-        else {
-            return Err(HostError::state("automation target project is missing"));
-        };
+        let location = self.automation_target_location(definition).await?;
+        let project = &location.project;
         if matches!(definition.target, AutomationTarget::ManagedWorkspace { .. })
             && project.kind == ProjectKind::Folder
         {
@@ -245,19 +243,57 @@ impl ServerActor {
         }
         let project_policy = self
             .runtime_store
-            .automation_project_policy(&workspace.project_id)
+            .automation_project_policy(&project.id)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
-        if !repository_declares_automation(&workspace.path, &project.repo_path) {
+        let declared = if definition.target.project_checkout().is_some()
+            && location.host_id != alera_core::runtime::LOCAL_HOST_ID
+        {
+            if defer_ssh_declaration {
+                if project_policy.restrictive && !project_policy.local_approved {
+                    return Err(HostError::state(format!(
+                        "project policy for {} requires local approval",
+                        project.id
+                    )));
+                }
+                return Ok(());
+            }
+            let inspection = crate::remote_project_checkout::inspect_remote(
+                &self.runtime_store,
+                &location.host_id,
+                &location.path,
+                project.kind,
+                &crate::ssh_remote::LiveSshRemoteHost,
+            )
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
+            if inspection.path != location.path {
+                return Err(HostError::state(
+                    "The registered SSH checkout changed; refresh its registration",
+                ));
+            }
+            inspection.automation_declared.ok_or_else(|| {
+                HostError::state(
+                    "Update the SSH runtime to verify project checkout automation authorization",
+                )
+            })?
+        } else {
+            let path = location.path.clone();
+            let repository = project.repo_path.clone();
+            tokio::task::spawn_blocking(move || repository_declares_automation(&path, &repository))
+                .await
+                .map_err(|error| HostError::state(error.to_string()))?
+        };
+        if !declared {
             return Err(HostError::state(format!(
                 "repository {} has no automation declaration in alera.toml",
-                workspace.project_id
+                project.id
             )));
         }
         if project_policy.restrictive && !project_policy.local_approved {
             return Err(HostError::state(format!(
                 "project policy for {} requires local approval",
-                workspace.project_id
+                project.id
             )));
         }
         Ok(())
@@ -281,6 +317,9 @@ impl ServerActor {
                 agent_profile_id, ..
             }
             | AutomationTarget::ManagedWorkspace {
+                agent_profile_id, ..
+            }
+            | AutomationTarget::ProjectCheckout {
                 agent_profile_id, ..
             } => Ok(Some(agent_profile_id.clone())),
         }
@@ -355,39 +394,6 @@ pub(super) fn require_human_automation_actor(actor: &AutomationActor) -> HostRes
         ));
     }
     Ok(())
-}
-
-fn repository_declares_automation(workspace_path: &str, project_repo_path: &str) -> bool {
-    let candidates = [
-        Path::new(workspace_path).join("alera.toml"),
-        Path::new(project_repo_path).join("alera.toml"),
-    ];
-    candidates.iter().any(|path| {
-        let Ok(contents) = std::fs::read_to_string(path) else {
-            return false;
-        };
-        // toml 1.x FromStr for Value parses a single value, not a document.
-        // A file like `automation_declared = true` must go through from_str.
-        let Ok(value) = toml::from_str::<toml::Value>(&contents) else {
-            return false;
-        };
-        let Some(root) = value.as_table() else {
-            return false;
-        };
-        root.get("automation_declared")
-            .and_then(toml::Value::as_bool)
-            .unwrap_or(false)
-            || root
-                .get("automation")
-                .and_then(toml::Value::as_table)
-                .is_some_and(|table| {
-                    table
-                        .get("declared")
-                        .or_else(|| table.get("enabled"))
-                        .and_then(toml::Value::as_bool)
-                        .unwrap_or(false)
-                })
-    })
 }
 
 fn decode_agent_policy(value: &Value, profile_id: &str) -> HostResult<AutomationAgentPolicy> {

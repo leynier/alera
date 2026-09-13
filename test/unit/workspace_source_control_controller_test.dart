@@ -49,6 +49,63 @@ Future<(ProviderContainer, WorkspaceSourceControlController)> _boot(
 }
 
 void main() {
+  test(
+    'shared checkout consumers retain one watcher until the last closes',
+    () async {
+      final backend = FakeGitBackend()..gitStatusResult = _statusWith(1);
+      final watcher = FakeSourceControlWatcher();
+      addTearDown(watcher.dispose);
+      final container = ProviderContainer(
+        overrides: [
+          gitBackendProvider.overrideWithValue(backend),
+          sourceControlWatcherProvider.overrideWithValue(watcher),
+        ],
+      );
+      addTearDown(container.dispose);
+      final provider = workspaceSourceControlControllerProvider(_workspacePath);
+      final first = container.listen(provider, (_, _) {});
+      await container.read(provider.future);
+      await container.pump();
+      final initialLoads = backend.calls
+          .where((call) => call.method == 'status')
+          .length;
+      final neighbors = List.generate(
+        12,
+        (_) => container.listen(provider, (_, _) {}),
+      );
+      await container.pump();
+      expect(watcher.startCount, 1);
+      expect(
+        backend.calls.where((call) => call.method == 'status').length,
+        initialLoads,
+      );
+
+      first.close();
+      for (final neighbor in neighbors.take(11)) {
+        neighbor.close();
+      }
+      await container.pump();
+      expect(watcher.stopCount, 0);
+      backend.gitStatusResult = _statusWith(3);
+      watcher.emitChange();
+      await Future.pause(const Duration(milliseconds: 350));
+      expect(neighbors.last.read().requireValue.status.entries, hasLength(3));
+      expect(
+        backend.calls.where((call) => call.method == 'status').length,
+        initialLoads + 1,
+      );
+
+      neighbors.last.close();
+      await container.pump();
+      expect(watcher.stopCount, 1);
+      final reopened = container.listen(provider, (_, _) {});
+      addTearDown(reopened.close);
+      await container.read(provider.future);
+      await container.pump();
+      expect(watcher.startCount, 2);
+    },
+  );
+
   test('a watch signal reloads source control state', () async {
     final backend = FakeGitBackend()..gitStatusResult = _statusWith(1);
     final watcher = FakeSourceControlWatcher();

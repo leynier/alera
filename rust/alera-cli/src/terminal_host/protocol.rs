@@ -20,6 +20,10 @@ pub const RUNTIME_HOST_CAPABILITY: &str = "runtimeStore";
 pub const RUNTIME_HOST_BOOTSTRAP_CAPABILITY: &str = "sshTargetBootstrap";
 pub const RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY: &str = "managedWorkspaceLifecycle";
 pub const RUNTIME_HOST_SAFE_HANDOFF_CAPABILITY: &str = "safeWorkspaceHandoffV1";
+pub const RUNTIME_HOST_REMOTE_AUTOMATION_CLEANUP_CAPABILITY: &str = "remoteAutomationCleanupV1";
+pub const RUNTIME_HOST_OWNER_PRECHECK_CAPABILITY: &str = "ownerAutomationPrecheckV1";
+pub const RUNTIME_HOST_LINKED_OWNER_PRECHECK_CAPABILITY: &str = "linkedOwnerAutomationPrecheckV1";
+pub const RUNTIME_HOST_SHARED_CHECKOUT_CAPABILITY: &str = "sharedCheckoutWorkspacesV1";
 /// Home Runtime can create a Git worktree on a bootstrapped SSH target and
 /// attach terminals/files over SSH. Additive: older hosts ignore `hostId` on
 /// `workspace.createManaged` and would create a local worktree instead, so

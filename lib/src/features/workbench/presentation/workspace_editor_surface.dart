@@ -68,6 +68,7 @@ class _WorkspaceEditorSurfaceState
   Object? _loadError;
   bool _loading = true;
   bool _saving = false;
+  bool _lastBufferGuarded = false;
   bool _stateRefreshQueued = false;
   Offset? _lastSecondaryTapGlobalPosition;
   int _loadRequestId = 0;
@@ -88,6 +89,7 @@ class _WorkspaceEditorSurfaceState
     _editorSessions = ref.read(editorSessionRegistryProvider);
     _sessionHandle = EditorSessionHandle(
       isDirty: _isDirty,
+      isSaving: () => _saving,
       save: _save,
       discard: _discardChanges,
       reveal: _revealOrDefer,
@@ -95,6 +97,7 @@ class _WorkspaceEditorSurfaceState
     );
     _controller.addListener(_handleControllerChanged);
     _document = _editorSessions.documentFor(widget.tab.id);
+    _editorSessions.addListener(_handleBufferGuardChanged);
     final editorSettings = ref.read(settingsControllerProvider).editor;
     _autosave = EditorAutosaveController(
       enabled: editorSettings.autosaveEnabled,
@@ -139,6 +142,7 @@ class _WorkspaceEditorSurfaceState
   @override
   void dispose() {
     _autosave.dispose();
+    _editorSessions.removeListener(_handleBufferGuardChanged);
     _editorSessions.unregister(widget.tab.id, _sessionHandle);
     _focusNode.suppressThirdPartyListeners();
     _focusNode.unfocus();
@@ -152,6 +156,7 @@ class _WorkspaceEditorSurfaceState
 
   @override
   Widget build(BuildContext context) {
+    final guarded = _editorSessions.isBufferGuarded(widget.tab.id);
     final filePath = widget.tab.filePath;
     if (filePath == null) {
       return const _EditorMessage(message: 'This editor tab has no file.');
@@ -238,17 +243,30 @@ class _WorkspaceEditorSurfaceState
                 ? () => unawaited(_openEditorComment(context))
                 : null,
             onViewDiff: !_loading ? () => unawaited(_openDiffForFile()) : null,
-            onSave: _document.isDirty && !_loading && !_saving
+            onSave: _document.isDirty && !_loading && !_saving && !guarded
                 ? () => unawaited(_save())
                 : null,
-            onDiscard: _document.isDirty && !_loading && !_saving
+            onDiscard: _document.isDirty && !_loading && !_saving && !guarded
                 ? () => unawaited(_discardChanges())
                 : null,
             onOpenPreview: _openPreviewActionFor(filePath),
           ),
           const Divider(height: 1, color: AleraTokens.borderSubtle),
           WorkspaceAgentCommentDraftScope(workspaceId: widget.workspace.id),
-          Expanded(child: content),
+          if (guarded)
+            Padding(
+              padding: const EdgeInsets.all(AleraTokens.space8),
+              child: Text(
+                'Editing is paused while Alera verifies a workspace operation.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          Expanded(
+            child: ExcludeFocus(
+              excluding: guarded,
+              child: AbsorbPointer(absorbing: guarded, child: content),
+            ),
+          ),
         ],
       ),
     );

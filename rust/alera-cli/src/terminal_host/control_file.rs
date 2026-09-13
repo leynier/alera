@@ -62,6 +62,10 @@ pub fn write_control_file(
         "token": token,
         "runtimeCapabilities": [
             super::protocol::RUNTIME_HOST_SAFE_HANDOFF_CAPABILITY,
+            super::protocol::RUNTIME_HOST_SHARED_CHECKOUT_CAPABILITY,
+            super::protocol::RUNTIME_HOST_REMOTE_AUTOMATION_CLEANUP_CAPABILITY,
+            super::protocol::RUNTIME_HOST_OWNER_PRECHECK_CAPABILITY,
+            super::protocol::RUNTIME_HOST_LINKED_OWNER_PRECHECK_CAPABILITY,
             "configurationSyncV1",
             RUNTIME_HOST_CAPABILITY,
             RUNTIME_HOST_ACCOUNT_CAPABILITY,
@@ -170,6 +174,10 @@ mod tests {
             value["runtimeCapabilities"],
             json!([
                 super::super::protocol::RUNTIME_HOST_SAFE_HANDOFF_CAPABILITY,
+                super::super::protocol::RUNTIME_HOST_SHARED_CHECKOUT_CAPABILITY,
+                super::super::protocol::RUNTIME_HOST_REMOTE_AUTOMATION_CLEANUP_CAPABILITY,
+                super::super::protocol::RUNTIME_HOST_OWNER_PRECHECK_CAPABILITY,
+                super::super::protocol::RUNTIME_HOST_LINKED_OWNER_PRECHECK_CAPABILITY,
                 "configurationSyncV1",
                 RUNTIME_HOST_CAPABILITY,
                 RUNTIME_HOST_ACCOUNT_CAPABILITY,

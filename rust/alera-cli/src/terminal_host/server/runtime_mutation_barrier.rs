@@ -2,6 +2,7 @@ pub(super) fn is_serialized_runtime_mutation(request_type: &str) -> bool {
     matches!(
         request_type,
         "workspace.removeManaged"
+            | "workspace.removeShared"
             | "workspace.handOn"
             | "project.remove"
             | "workspace.remove"
@@ -20,7 +21,9 @@ pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
         || mutates_codex_runtime_state(request_type)
         || matches!(
             request_type,
-            "workspace.createManaged"
+            "workspace.bufferGuard.acquire"
+                | "workspace.createManaged"
+                | "workspace.createShared"
                 | "workspace.handOff"
                 | "workspace.runSetup"
                 | "createOrAttach"
@@ -31,6 +34,7 @@ pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
                 | "terminal.restart"
                 | "terminal.pulse.configure"
                 | "project.register"
+                | "project.checkout.register"
                 | "project.rename"
                 | "project.upsert"
                 | "projectConfig.remove"
@@ -62,6 +66,7 @@ pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
                 | "automation.approve"
                 | "automation.resume"
                 | "automation.restore"
+                | "automation.ownerPrecheck.start"
                 | "automation.runNow"
                 | "automation.import"
         )
@@ -115,6 +120,7 @@ mod tests {
             "automation.resume",
             "automation.restore",
             "automation.runNow",
+            "automation.ownerPrecheck.start",
             "automation.import",
         ] {
             assert!(
@@ -125,6 +131,8 @@ mod tests {
         for read_or_serialized_mutation in [
             "tab.list",
             "terminal.read",
+            "automation.ownerPrecheck.status",
+            "automation.ownerPrecheck.cancel",
             "tab.remove",
             "codex.thread.list",
             "codex.thread.history",

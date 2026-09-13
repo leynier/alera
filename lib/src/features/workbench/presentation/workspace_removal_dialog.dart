@@ -12,6 +12,7 @@ Future<WorkspaceRemovalDecision?> showWorkspaceRemovalDialog(
   required String workspaceName,
   String? branch,
   required bool canDeleteBranch,
+  bool sharedCheckout = false,
   String impactSummary = '',
 }) => showDialog<WorkspaceRemovalDecision>(
   context: context,
@@ -19,6 +20,7 @@ Future<WorkspaceRemovalDecision?> showWorkspaceRemovalDialog(
     workspaceName: workspaceName,
     branch: branch,
     canDeleteBranch: canDeleteBranch,
+    sharedCheckout: sharedCheckout,
     impactSummary: impactSummary,
   ),
 );
@@ -26,6 +28,7 @@ Future<WorkspaceRemovalDecision?> showWorkspaceRemovalDialog(
 class const _WorkspaceRemovalDialog({
   required final String workspaceName,
   required final bool canDeleteBranch,
+  required final bool sharedCheckout,
   required final String impactSummary,
   final String? branch,
 }) extends StatelessWidget {
@@ -92,6 +95,11 @@ class const _WorkspaceRemovalDialog({
 
   String _message() {
     final details = StringBuffer(impactSummary);
+    if (sharedCheckout) {
+      return 'Remove "$workspaceName" and close its tabs, terminals and agents? '
+          'Files, branches and other workspaces in the project folder will be kept. '
+          'If removal fails after processes stop, those processes will not restart automatically.';
+    }
     details.write('This removes the worktree for "$workspaceName".');
     final currentBranch = branch;
     if (canDeleteBranch) {
@@ -116,3 +124,55 @@ class const _WorkspaceRemovalDialog({
     return details.toString();
   }
 }
+
+Future<bool?> showWorkspaceUnsavedChangesDialog(
+  BuildContext context,
+  List<String> documentNames,
+) => showDialog<bool>(
+  context: context,
+  builder: (context) => AleraDialog(
+    maxWidth: AleraTokens.dialogCompactWidth,
+    maxHeight: AleraTokens.dialogMaxHeight,
+    child: Padding(
+      padding: const EdgeInsets.all(AleraTokens.space20),
+      child: Column(
+        mainAxisSize: .min,
+        crossAxisAlignment: .start,
+        children: [
+          Text(
+            'Unsaved Changes',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: AleraTokens.space12),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Text(
+                'Save or discard these editor changes before removing the workspace?\n\n${documentNames.join('\n')}',
+              ),
+            ),
+          ),
+          const SizedBox(height: AleraTokens.space20),
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: AleraTokens.space8,
+            runSpacing: AleraTokens.space8,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Discard'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  ),
+);

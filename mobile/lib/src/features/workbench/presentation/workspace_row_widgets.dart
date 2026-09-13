@@ -61,7 +61,7 @@ class const MobileWorkspaceListRow({
       if (workspace.isMain) ...<Widget>[
         const SizedBox(width: AleraTokens.space6),
         const Tooltip(
-          message: 'Default workspace',
+          message: 'Project folder',
           child: Icon(
             AleraIcons.workspaceMain,
             size: _trayIconSize,

@@ -253,3 +253,67 @@ async fn workspace_removal_waits_for_a_helper_forked_by_the_shell_hangup_handler
     .await
     .expect("the anchor must be released and reaped after cleanup");
 }
+
+#[tokio::test]
+async fn project_removal_preserves_remote_ownership_until_individual_verified_retirement() {
+    let mut fixture = Fixture::new().await;
+    let mut remote = fixture.workspace.clone();
+    remote.id = "remote-task".into();
+    remote.instance_id = "remote-instance".into();
+    remote.host_id = "ssh-owner".into();
+    remote.kind = WorkspaceKind::Main;
+    remote.path = "/remote/project".into();
+    fixture
+        .actor
+        .runtime_store
+        .upsert_workspace(remote.clone())
+        .await
+        .unwrap();
+    for (verb, payload) in [
+        ("project.remove", json!({"id": "project"})),
+        (
+            "workspace.removeForProject",
+            json!({"projectId": "project"}),
+        ),
+    ] {
+        let response = fixture.request(verb, payload).await;
+        assert_eq!(response["ok"], false, "{response}");
+        assert!(
+            response["error"]
+                .as_str()
+                .unwrap()
+                .contains("verify process shutdown"),
+            "{response}"
+        );
+        assert!(fixture
+            .actor
+            .runtime_store
+            .find_project("project")
+            .await
+            .unwrap()
+            .is_some());
+        assert_eq!(
+            fixture
+                .actor
+                .runtime_store
+                .find_workspace(&remote.id)
+                .await
+                .unwrap()
+                .unwrap()
+                .instance_id,
+            remote.instance_id
+        );
+        assert_eq!(
+            fixture
+                .actor
+                .runtime_store
+                .list_workspace_tabs("workspace")
+                .await
+                .unwrap()
+                .len(),
+            2
+        );
+        assert!(fixture.actor.sessions["terminal"].running());
+        assert!(fixture.actor.sessions["other"].running());
+    }
+}

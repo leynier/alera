@@ -97,9 +97,7 @@ class const MobileViewPrefs({
       workspaceSort: MobileWorkbenchSortBy.values.byName(
         json.optionalString('workspaceSort') ?? 'name',
       ),
-      workspaceKindFilter: MobileWorkspaceKindFilter.values.byName(
-        json.optionalString('workspaceKindFilter') ?? 'all',
-      ),
+      workspaceKindFilter: .all,
       showActiveWorkspacesOnly: json['showActiveWorkspacesOnly'] == true,
       selectedProjectIds: json.stringList('selectedProjectIds').toSet(),
       selectedTagIds: json.stringList('selectedTagIds').toSet(),

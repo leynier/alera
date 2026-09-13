@@ -176,6 +176,10 @@ impl ServerActor {
             .unwrap_or(false);
         if let Some(client) = self.clients.get_mut(&client_id) {
             client.authenticated = true;
+            client.shared_checkout_workspaces = payload
+                .get("sharedCheckoutWorkspacesV1")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
             client.binary_frames = binary_frames;
             client.mobile_device_id = Some(device_id);
             client.mobile_device_name = Some(device_name);

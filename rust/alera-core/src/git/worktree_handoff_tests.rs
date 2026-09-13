@@ -1,3 +1,6 @@
+#[path = "workspace_relocation_admin_tests.rs"]
+mod relocation_admin_tests;
+
 use std::fs;
 use std::path::Path;
 
@@ -44,6 +47,205 @@ fn immutable_stash_preserves_partial_index_and_other_stack_entries() {
     })
     .unwrap();
     assert_eq!(ids, vec![newer, owned, older]);
+}
+
+#[test]
+fn relocation_snapshot_recovers_after_journal_write_gap_and_other_stashes() {
+    let (_directory, repo) = init_repo();
+    let path = path_str(workdir(&repo));
+    let id = uuid::Uuid::new_v4().to_string();
+    fs::write(workdir(&repo).join("task.txt"), "owned changes").unwrap();
+    let snapshot = crate::git::stash_for_workspace_relocation(path, &id)
+        .unwrap()
+        .unwrap();
+    // Simulate a crash between stash-save and pinning its recovery reference.
+    repo.find_reference(&format!("refs/alera/workspace-relocations/{id}"))
+        .unwrap()
+        .delete()
+        .unwrap();
+    fs::write(workdir(&repo).join("other.txt"), "another task").unwrap();
+    let unrelated = super::stash_for_handoff(path).unwrap().unwrap();
+    assert_ne!(snapshot, unrelated);
+    assert_eq!(
+        crate::git::find_workspace_relocation_snapshot(path, &id).unwrap(),
+        Some(snapshot.clone())
+    );
+    assert_eq!(
+        crate::git::stash_for_workspace_relocation(path, &id).unwrap(),
+        Some(snapshot.clone())
+    );
+    let reference = repo
+        .find_reference(&format!("refs/alera/workspace-relocations/{id}"))
+        .unwrap();
+    assert_eq!(reference.target().unwrap().to_string(), snapshot);
+    super::apply_handoff_stash(path, &snapshot).unwrap();
+    assert_eq!(
+        fs::read_to_string(workdir(&repo).join("task.txt")).unwrap(),
+        "owned changes"
+    );
+    assert!(!workdir(&repo).join("other.txt").exists());
+}
+
+#[test]
+fn relocation_retry_refuses_to_recapture_new_source_changes() {
+    let (_directory, repo) = init_repo();
+    let path = path_str(workdir(&repo));
+    let id = uuid::Uuid::new_v4().to_string();
+    fs::write(workdir(&repo).join("original.txt"), "move me").unwrap();
+    let snapshot = crate::git::stash_for_workspace_relocation(path, &id)
+        .unwrap()
+        .unwrap();
+    fs::write(workdir(&repo).join("later.txt"), "keep me here").unwrap();
+    assert!(crate::git::stash_for_workspace_relocation(path, &id).is_err());
+    assert_eq!(
+        fs::read_to_string(workdir(&repo).join("later.txt")).unwrap(),
+        "keep me here"
+    );
+    assert_eq!(
+        crate::git::find_workspace_relocation_snapshot(path, &id).unwrap(),
+        Some(snapshot)
+    );
+}
+
+#[test]
+fn relocation_snapshot_apply_is_retryable_and_verifies_the_staging_boundary() {
+    let (_directory, repo) = init_repo();
+    let path = path_str(workdir(&repo));
+    let id = uuid::Uuid::new_v4().to_string();
+    fs::write(workdir(&repo).join("tracked.txt"), "staged\n").unwrap();
+    let mut index = repo.index().unwrap();
+    index.add_path(Path::new("tracked.txt")).unwrap();
+    index.write().unwrap();
+    fs::write(workdir(&repo).join("tracked.txt"), "unstaged\n").unwrap();
+    fs::create_dir(workdir(&repo).join("scratch")).unwrap();
+    fs::write(workdir(&repo).join("scratch/task.txt"), "new file").unwrap();
+    let snapshot = crate::git::stash_for_workspace_relocation(path, &id)
+        .unwrap()
+        .unwrap();
+    assert!(!crate::git::workspace_matches_relocation_snapshot(path, &snapshot).unwrap());
+    crate::git::apply_workspace_relocation_snapshot(path, &snapshot).unwrap();
+    crate::git::apply_workspace_relocation_snapshot(path, &snapshot).unwrap();
+    assert!(crate::git::workspace_matches_relocation_snapshot(path, &snapshot).unwrap());
+
+    // A staging-only change must not be mistaken for the completed transfer.
+    let mut index = repo.index().unwrap();
+    index.add_path(Path::new("tracked.txt")).unwrap();
+    index.write().unwrap();
+    assert!(!crate::git::workspace_matches_relocation_snapshot(path, &snapshot).unwrap());
+    assert!(crate::git::apply_workspace_relocation_snapshot(path, &snapshot).is_err());
+    assert_eq!(
+        fs::read_to_string(workdir(&repo).join("tracked.txt")).unwrap(),
+        "unstaged\n"
+    );
+}
+
+#[test]
+fn relocation_snapshot_retry_preserves_additional_and_modified_files() {
+    let (_directory, repo) = init_repo();
+    let path = path_str(workdir(&repo));
+    let id = uuid::Uuid::new_v4().to_string();
+    fs::write(workdir(&repo).join("task.txt"), "transfer").unwrap();
+    let snapshot = crate::git::stash_for_workspace_relocation(path, &id)
+        .unwrap()
+        .unwrap();
+    crate::git::apply_workspace_relocation_snapshot(path, &snapshot).unwrap();
+    fs::write(workdir(&repo).join("other.txt"), "another task").unwrap();
+    assert!(!crate::git::workspace_matches_relocation_snapshot(path, &snapshot).unwrap());
+    assert!(crate::git::apply_workspace_relocation_snapshot(path, &snapshot).is_err());
+    fs::remove_file(workdir(&repo).join("other.txt")).unwrap();
+    fs::write(workdir(&repo).join("task.txt"), "edited after transfer").unwrap();
+    assert!(crate::git::apply_workspace_relocation_snapshot(path, &snapshot).is_err());
+    assert_eq!(
+        fs::read_to_string(workdir(&repo).join("task.txt")).unwrap(),
+        "edited after transfer"
+    );
+}
+
+#[test]
+fn relocation_worktree_creation_preserves_source_and_recovers_its_registration() {
+    let (directory, repo) = init_repo();
+    let source = path_str(workdir(&repo));
+    let original_branch = current_branch(source).unwrap();
+    let commit = crate::git::checkout_commit(source).unwrap();
+    let id = uuid::Uuid::new_v4().to_string();
+    let destination = directory.path().join("linked-task");
+    let destination = path_str(&destination);
+    fs::write(workdir(&repo).join("left-here.txt"), "shared task changes").unwrap();
+    crate::git::create_workspace_relocation_worktree(
+        source,
+        &id,
+        destination,
+        "task",
+        &commit,
+        false,
+    )
+    .unwrap();
+    assert_eq!(current_branch(source).unwrap(), original_branch);
+    assert!(workdir(&repo).join("left-here.txt").exists());
+    assert!(!Path::new(destination).join("left-here.txt").exists());
+    assert!(crate::git::checkouts_share_repository(source, destination).unwrap());
+    crate::git::create_workspace_relocation_worktree(
+        source,
+        &id,
+        destination,
+        "task",
+        &commit,
+        false,
+    )
+    .unwrap();
+    fs::write(Path::new(destination).join("later.txt"), "later work").unwrap();
+    assert!(crate::git::create_workspace_relocation_worktree(
+        source,
+        &id,
+        destination,
+        "task",
+        &commit,
+        false
+    )
+    .is_err());
+    assert!(Path::new(destination).join("later.txt").exists());
+}
+
+#[test]
+fn relocation_worktree_retry_does_not_adopt_another_branch_or_directory() {
+    let (directory, repo) = init_repo();
+    let source = path_str(workdir(&repo));
+    let commit = crate::git::checkout_commit(source).unwrap();
+    let id = uuid::Uuid::new_v4().to_string();
+    let destination = directory.path().join("destination");
+    let destination = path_str(&destination);
+    repo.branch(
+        "someone-elses",
+        &repo.head().unwrap().peel_to_commit().unwrap(),
+        false,
+    )
+    .unwrap();
+    assert!(crate::git::create_workspace_relocation_worktree(
+        source,
+        &id,
+        destination,
+        "someone-elses",
+        &commit,
+        false
+    )
+    .is_err());
+    assert!(!Path::new(destination).exists());
+    fs::create_dir(destination).unwrap();
+    fs::write(Path::new(destination).join("precious.txt"), "preserve").unwrap();
+    assert!(crate::git::create_workspace_relocation_worktree(
+        source,
+        &id,
+        destination,
+        "new-task",
+        &commit,
+        false
+    )
+    .is_err());
+    assert_eq!(
+        fs::read_to_string(Path::new(destination).join("precious.txt")).unwrap(),
+        "preserve"
+    );
+    assert!(!crate::git::branch_exists(source, "new-task").unwrap());
 }
 
 #[test]
@@ -181,6 +383,10 @@ fn init_repo() -> (TempDir, Repository) {
     let mut options = RepositoryInitOptions::new();
     options.initial_head("main");
     let repo = Repository::init_opts(path, &options).expect("initialize repository");
+    repo.config()
+        .unwrap()
+        .set_bool("core.autocrlf", false)
+        .unwrap();
     fs::write(path.join("README.md"), "initial\n").expect("write README");
     fs::write(path.join("tracked.txt"), "initial\n").expect("write tracked file");
     let mut index = repo.index().expect("open index");

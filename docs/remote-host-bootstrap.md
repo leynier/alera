@@ -2,7 +2,7 @@
 
 Alera can register SSH targets in the Home Runtime and install the standalone `alera` runtime sidecar on those hosts. Bootstrap is sidecar only: it installs and validates the runtime sidecar and does not itself create a Git worktree.
 
-Create a managed Git worktree on a bootstrapped host with `alera workspace add --host-id <id>` or from Desktop New Workspace by picking that host. The Home Runtime copies the project as a git bundle, creates the worktree on that host (posix or Windows, using the same SSH path as bootstrap), and stores the workspace with that host id. Terminals for that workspace spawn `ssh` into the remote worktree. `workspace.files.list` and `workspace.files.read` read the remote tree over SSH.
+Create tasks on a registered SSH project folder with `alera workspace add --host-id <id>`. Use `--worktree` for an exclusive Git worktree created by the remote sidecar from that host's registered repository. Creation uses branches and remote-tracking references already present there; it does not upload a local Git bundle or fetch changes automatically. New workspaces record their repository of origin. Legacy remote worktrees retain their existing bare repository origin when a project folder is registered. Terminals spawn `ssh` into the workspace folder. `workspace.files.list` and `workspace.files.read` read that host's tree even when an identical path exists on the Home Runtime machine.
 
 `alera workspace register --host-id` remains metadata only. It stamps a host id on a workspace record and does not create a remote Git worktree.
 
@@ -66,13 +66,31 @@ Start a bootstrap:
 alera ssh-target --json bootstrap --id <target-id>
 ```
 
-Create a managed Git worktree on that host after bootstrap succeeds, from the CLI or Desktop New Workspace:
+Create a managed Git worktree after bootstrap succeeds and the project folder has been registered on that host:
 
 ```bash
-alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --host-id <target-id>
+alera workspace add --worktree --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --host-id <target-id>
 ```
 
 The command fails if the target is missing, not bootstrapped, or unreachable.
+
+Register an existing main project folder on a bootstrapped SSH host, then create independent tasks on it:
+
+```bash
+alera project --json register-checkout --project-id <project-id> --host-id <target-id> --path <remote-absolute-path>
+alera workspace add --project-id <project-id> --host-id <target-id> --name "First Task"
+alera workspace add --project-id <project-id> --host-id <target-id> --name "Second Task"
+```
+
+Registration requires a remote sidecar supporting checkout inspection. It resolves the path on that host, checks directory access and the project's storage type, and preserves one project folder per project and host. Git projects require the main working directory of a non-bare repository. Registering a folder creates no task; adding a task starts with fresh state and does not run worktree setup, copy local files or change branches. Tasks use the remote checkout's current branch and files. Unavailable hosts and changed canonical paths fail without deleting existing records. SSH shared-task removal and relocation remain under implementation; see the implementation tracker before relying on those flows.
+
+For a Git project without a checkout on that SSH host, clone directly on the host before registration:
+
+```bash
+alera project --json register-checkout --project-id <project-id> --host-id <target-id> --path <new-remote-absolute-path> --clone-url <repository-url>
+```
+
+The destination's parent must exist. The sidecar reserves a new destination and rejects existing directories, including empty ones and symlinks. Git uses that host's environment and credential helper with terminal prompting disabled. The runtime performs registration and cloning outside its actor loop so terminal requests can continue. If cloning fails or the response is lost, inspect the destination first: a completed clone can be registered by repeating `register-checkout` without `--clone-url`. A partial destination is retained for inspection; another clone must use a new path. The CLI waits up to 30 minutes for the response; expiration does not confirm that remote work stopped.
 
 Cancel an active runtime-host bootstrap job:
 

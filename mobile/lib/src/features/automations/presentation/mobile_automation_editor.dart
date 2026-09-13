@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/mobile_protocol.dart';
 import 'package:alera_mobile/src/features/automations/domain/mobile_automation.dart';
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
@@ -35,6 +36,7 @@ class _MobileAutomationEditorState extends State<_MobileAutomationEditor> {
   late final TextEditingController _slug;
   late final TextEditingController _description;
   late final TextEditingController _project;
+  late final TextEditingController _checkoutHost;
   late final TextEditingController _tagIds;
   late final TextEditingController _prompt;
   late final TextEditingController _cron;
@@ -82,7 +84,12 @@ class _MobileAutomationEditorState extends State<_MobileAutomationEditor> {
     _name = TextEditingController(text: initial?.name ?? 'Automation');
     _slug = TextEditingController(text: initial?.slug ?? 'automation');
     _description = TextEditingController(text: initial?.description ?? '');
-    _project = TextEditingController(text: initial?.projectId ?? '');
+    _project = TextEditingController(
+      text: target['projectId']?.toString() ?? initial?.projectId ?? '',
+    );
+    _checkoutHost = TextEditingController(
+      text: target['hostId']?.toString() ?? '',
+    );
     _tagIds = TextEditingController(text: initial?.tagIds.join(', ') ?? '');
     _prompt = TextEditingController(
       text: initial?.promptTemplate ?? 'Review the current workspace.',
@@ -164,6 +171,8 @@ class _MobileAutomationEditorState extends State<_MobileAutomationEditor> {
         ? 'existingTab'
         : initial?.target.containsKey('managedWorkspace') == true
         ? 'managedWorkspace'
+        : initial?.target.containsKey('projectCheckout') == true
+        ? 'projectCheckout'
         : 'freshTab';
     _setup = _string(initial?.raw['setupPolicy'], 'wait');
     _overlap = _string(initial?.raw['overlapPolicy'], 'skip');
@@ -179,6 +188,7 @@ class _MobileAutomationEditorState extends State<_MobileAutomationEditor> {
       _slug,
       _description,
       _project,
+      _checkoutHost,
       _tagIds,
       _prompt,
       _cron,
@@ -254,7 +264,10 @@ class _MobileAutomationEditorState extends State<_MobileAutomationEditor> {
     if (_name.text.trim().isEmpty ||
         _slug.text.trim().isEmpty ||
         _prompt.text.trim().isEmpty ||
-        _workspace.text.trim().isEmpty ||
+        (_targetKind == 'projectCheckout'
+            ? (_project.text.trim().isEmpty ||
+                  _checkoutHost.text.trim().isEmpty)
+            : _workspace.text.trim().isEmpty) ||
         (_targetKind == 'existingTab' && _tab.text.trim().isEmpty) ||
         (_targetKind != 'existingTab' && _profile.text.trim().isEmpty)) {
       setState(
@@ -365,6 +378,14 @@ class _MobileAutomationEditorState extends State<_MobileAutomationEditor> {
             'conversationId': null,
         },
       },
+      'projectCheckout' => <String, Object?>{
+        'projectCheckout': <String, Object?>{
+          'projectId': _project.text.trim(),
+          'hostId': _checkoutHost.text.trim(),
+          'nameTemplate': _nameTemplate.text.trim(),
+          'agentProfileId': _profile.text.trim(),
+        },
+      },
       'managedWorkspace' => <String, Object?>{
         'managedWorkspace': <String, Object?>{
           'sourceWorkspaceId': _workspace.text.trim(),
@@ -382,7 +403,9 @@ class _MobileAutomationEditorState extends State<_MobileAutomationEditor> {
     };
   }
 
-  String _title(String value) => value == 'onSuccess'
+  String _title(String value) => value == 'projectCheckout'
+      ? 'Project Folder'
+      : value == 'onSuccess'
       ? 'On Success'
       : value == 'runLatestOnce'
       ? 'Run Latest Once'

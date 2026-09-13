@@ -40,6 +40,8 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
       await openManualWorkspaceDialog(tester);
+      await tester.tap(find.text('New Worktree'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -79,6 +81,8 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
       await openManualWorkspaceDialog(tester);
+      await tester.tap(find.text('New Worktree'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -116,6 +120,8 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
       await openManualWorkspaceDialog(tester);
+      await tester.tap(find.text('New Worktree'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -158,6 +164,8 @@ void main() {
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
         await openManualWorkspaceDialog(tester);
+        await tester.tap(find.text('New Worktree'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Continue'));
         await tester.pumpAndSettle();
         await tester.enterText(
@@ -204,6 +212,8 @@ void main() {
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
         await openManualWorkspaceDialog(tester);
+        await tester.tap(find.text('New Worktree'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Continue'));
         await tester.pumpAndSettle();
         await tester.enterText(

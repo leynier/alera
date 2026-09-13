@@ -4,7 +4,7 @@ void _registerWorkspaceServiceHandoffTests() {
   test(
     'handOffWorkspace requires the main worktree and a host runtime',
     () async {
-      final main = await service.ensureMainWorkspace(project);
+      final main = await _handoffProjectTaskFixture();
       await expectLater(
         service.handOffWorkspace(workspace: main, branch: 'feat/x'),
         throwsA(
@@ -33,7 +33,7 @@ void _registerWorkspaceServiceHandoffTests() {
   test(
     'handOnWorkspace requires a child worktree and a host runtime',
     () async {
-      final main = await service.ensureMainWorkspace(project);
+      final main = await _handoffProjectTaskFixture();
       await expectLater(
         service.handOnWorkspace(workspace: main),
         throwsA(
@@ -71,7 +71,7 @@ void _registerWorkspaceServiceHandoffTests() {
       managedRuntime: runtime,
       now: () => DateTime.utc(2026, 5, 20, 12),
     );
-    final main = await service.ensureMainWorkspace(project);
+    final main = await _handoffProjectTaskFixture();
 
     final result = await service.handOffWorkspace(
       workspace: main,
@@ -97,7 +97,7 @@ void _registerWorkspaceServiceHandoffTests() {
       managedRuntime: runtime,
       now: () => DateTime.utc(2026, 5, 20, 12),
     );
-    final main = await service.ensureMainWorkspace(project);
+    final main = await _handoffProjectTaskFixture();
     final child = main.copyWith(
       id: 'child',
       kind: .linked,
@@ -144,9 +144,12 @@ class _RecordingManagedWorkspaceRuntime implements ManagedWorkspaceRuntime {
 
   @override
   Future<WorkspaceCreationResult> handOffWorkspace({
+    String? relocationId,
     required Workspace workspace,
     required String branch,
     required bool reuseExistingBranch,
+    bool moveChanges = true,
+    String? replacementBranch,
     String? name,
   }) async {
     handOffBranch = branch;
@@ -172,6 +175,7 @@ class _RecordingManagedWorkspaceRuntime implements ManagedWorkspaceRuntime {
 
   @override
   Future<WorkspaceHandOnResult> handOnWorkspace({
+    String? relocationId,
     required Workspace workspace,
     String? activeWorkspaceId,
   }) async {
@@ -193,4 +197,13 @@ class _RecordingManagedWorkspaceRuntime implements ManagedWorkspaceRuntime {
       removedWorkspaceId: workspace.id,
     );
   }
+}
+
+Future<Workspace> _handoffProjectTaskFixture() async {
+  final result = await WorkspaceService(
+    repository: repository,
+    projectService: ProjectService(gitBackend),
+    gitBackend: gitBackend,
+  ).createSharedWorkspace(project: project);
+  return result.workspace;
 }

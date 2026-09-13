@@ -16,6 +16,27 @@ fn decode_definition(row: SqliteRow) -> Result<AutomationDefinition> {
 }
 
 fn validate_definition(definition: &AutomationDefinition) -> Result<()> {
+    if let super::AutomationTarget::ProjectCheckout {
+        project_id,
+        host_id,
+        name_template,
+        agent_profile_id,
+    } = &definition.target
+    {
+        if [project_id, host_id, name_template, agent_profile_id]
+            .iter()
+            .any(|value| value.trim().is_empty())
+        {
+            bail!("Project checkout automations require a project, host, task name template and agent profile");
+        }
+        if definition
+            .project_id
+            .as_deref()
+            .is_some_and(|id| id != project_id)
+        {
+            bail!("Automation project does not match its project checkout target");
+        }
+    }
     if definition.id.trim().is_empty() {
         bail!(RuntimeStoreError::Message(
             "automation id is required".to_string()
@@ -105,6 +126,9 @@ impl RuntimeStore {
     }
 
     pub async fn has_pending_automation_work(&self) -> Result<bool> {
+        if self.next_automation_shared_cleanup_at().await?.is_some() {
+            return Ok(true);
+        }
         if self.has_active_automations().await? {
             return Ok(true);
         }

@@ -215,7 +215,7 @@ mixin _WorkbenchControllerSync
             onDone: () => _workspaceSubs.remove(project.id),
             cancelOnError: false,
           );
-      unawaited(_ensureMainWorkspaceForProject(project));
+      unawaited(_reconcileProjectWorkspaces(project));
     }
 
     final removedProjectIds = _workspaceSubs.keys

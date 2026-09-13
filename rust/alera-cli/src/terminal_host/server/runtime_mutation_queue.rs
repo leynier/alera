@@ -45,6 +45,7 @@ impl ServerActor {
         mutation: RuntimeMutationRequest,
     ) {
         if self.mutation_queue.outstanding() >= MAX_MUTATIONS {
+            self.finish_checkout_buffer_guard(client_id, request_id, false);
             let error = HostError::state(
                 "A runtime mutation is already in progress. Wait for it to finish and retry.",
             );
@@ -112,13 +113,15 @@ impl ServerActor {
         }
     }
 
-    fn spawn_runtime_mutation(&self, request: QueuedMutation) {
+    fn spawn_runtime_mutation(&self, mut request: QueuedMutation) {
         let runtime_store = self.runtime_store.clone();
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
-            let prepared = match &request.mutation {
+            let mut prepared = match &request.mutation {
                 RuntimeMutationRequest::RemoveManagedWorkspace { .. }
+                | RuntimeMutationRequest::RemoveSharedWorkspace { .. }
                 | RuntimeMutationRequest::HandOnWorkspace { .. }
+                | RuntimeMutationRequest::HandOffWorkspace { .. }
                 | RuntimeMutationRequest::RemoveWorkspace { .. }
                 | RuntimeMutationRequest::RemoveProject { .. }
                 | RuntimeMutationRequest::RemoveProjectWorkspaces { .. } => {
@@ -133,6 +136,64 @@ impl ServerActor {
                 }
                 _ => Ok(WorkspaceShutdown::default()),
             };
+            if prepared.is_ok() {
+                let remote = async {
+                    let RuntimeMutationRequest::RemoveSharedWorkspace {
+                        request: removal,
+                        automation_cleanup,
+                        buffer_guard,
+                        remote_retirement,
+                        ..
+                    } = &mut request.mutation
+                    else {
+                        return Ok(false);
+                    };
+                    if !buffer_guard.is_remote() {
+                        return Ok(false);
+                    }
+                    let workspace = runtime_store
+                        .find_workspace(&removal.id)
+                        .await
+                        .map_err(|error| HostError::state(error.to_string()))?
+                        .ok_or_else(|| {
+                            HostError::state("Workspace disappeared before remote retirement")
+                        })?;
+                    buffer_guard.verify_workspace(&workspace)?;
+                    let proof = if let Some(run) = automation_cleanup {
+                        crate::remote_shared_retirement::retire_automation(
+                            &runtime_store,
+                            &workspace,
+                            run,
+                            &crate::ssh_remote::LiveSshRemoteHost,
+                        )
+                        .await
+                    } else {
+                        crate::remote_shared_retirement::retire(
+                            &runtime_store,
+                            &workspace,
+                            &crate::ssh_remote::LiveSshRemoteHost,
+                        )
+                        .await
+                    }
+                    .map_err(|error| HostError::state(error.to_string()))?;
+                    buffer_guard.verify()?;
+                    *remote_retirement = Some(proof);
+                    Ok::<_, HostError>(true)
+                }
+                .await;
+                match remote {
+                    Ok(true) => {
+                        let (completion, receiver) = tokio::sync::oneshot::channel();
+                        let _ = inbox.send(ServerCommand::PrepareRuntimeMutation {
+                            request: request.mutation.clone(),
+                            completion,
+                        });
+                        prepared = receiver.await.unwrap_or_else(|_| Err(HostError::state("Runtime stopped after remote retirement; retry to recover the owner receipt")));
+                    }
+                    Ok(false) => {}
+                    Err(error) => prepared = Err(error),
+                }
+            }
             let mut stopped_workspace_tab_ids = Vec::new();
             let mut pending_workspace_shutdown = None;
             let prepared = match prepared {
@@ -141,10 +202,11 @@ impl ServerActor {
                     let result = shutdown.wait().await;
                     if result.is_err() {
                         let shutdown_workspace_id = match &request.mutation {
-                            RuntimeMutationRequest::RemoveManagedWorkspace { request } => {
+                            RuntimeMutationRequest::RemoveManagedWorkspace { request }
+                            | RuntimeMutationRequest::RemoveSharedWorkspace { request, .. } => {
                                 Some(request.id.clone())
                             }
-                            RuntimeMutationRequest::HandOnWorkspace { request } => {
+                            RuntimeMutationRequest::HandOnWorkspace { request, .. } => {
                                 Some(request.id.clone())
                             }
                             _ => None,

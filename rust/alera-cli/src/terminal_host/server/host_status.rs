@@ -58,6 +58,7 @@ impl ServerActor {
             "runtime": "alera",
             "runtimeCapabilities": [
                 crate::terminal_host::protocol::RUNTIME_HOST_SAFE_HANDOFF_CAPABILITY,
+                crate::terminal_host::protocol::RUNTIME_HOST_SHARED_CHECKOUT_CAPABILITY,
                 "configurationSyncV1",
                 RUNTIME_HOST_CAPABILITY,
                 RUNTIME_HOST_ACCOUNT_CAPABILITY,

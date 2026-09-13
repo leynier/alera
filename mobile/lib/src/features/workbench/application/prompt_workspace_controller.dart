@@ -58,6 +58,8 @@ class const PromptWorkspaceState({
 
 @riverpod
 class PromptWorkspaceController extends _$PromptWorkspaceController {
+  String? _checkoutHostId;
+  int _selectionGeneration = 0;
   String? _activeOperationId;
   String? _agentLaunchMutationId;
   bool? _originalAgentLaunchWasIdempotent;
@@ -72,7 +74,11 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
   Future<void> selectProject(
     String projectId, {
     String? defaultAgentProfileId,
+    bool loadBranches = true,
+    String? checkoutHostId,
   }) async {
+    _checkoutHostId = checkoutHostId;
+    final generation = ++_selectionGeneration;
     _defaultAgentProfileId = defaultAgentProfileId;
     state = state.copyWith(
       projectId: projectId,
@@ -89,10 +95,20 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
         );
       }
       final results = await Future.wait<Object>([
-        client.listBranches(projectId),
+        loadBranches
+            ? client.listBranches(projectId, checkoutHostId: checkoutHostId)
+            : Future.value(
+                ProjectBranches(
+                  projectId: projectId,
+                  branches: const <String>[],
+                  localBranches: const <String>[],
+                ),
+              ),
         client.listAgentProfiles(),
       ]);
-      if (state.projectId != projectId) {
+      if (!ref.mounted ||
+          state.projectId != projectId ||
+          generation != _selectionGeneration) {
         return;
       }
       final branches = (results[0] as ProjectBranches).branches;
@@ -105,7 +121,9 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
         loading: false,
       );
     } on Object catch (error) {
-      if (state.projectId == projectId) {
+      if (ref.mounted &&
+          state.projectId == projectId &&
+          generation == _selectionGeneration) {
         state = state.copyWith(
           loading: false,
           error: 'Could not load prompt workspace options: $error',
@@ -196,6 +214,7 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
             ref.read(terminalClientProvider(hostId).future),
         request: PromptWorkspaceCreateRequest(
           hostId: hostId,
+          checkoutHostId: _checkoutHostId,
           prompt: prompt,
           projectId: resolvedProjectId,
           sourceBranch: resolvedSourceBranch,

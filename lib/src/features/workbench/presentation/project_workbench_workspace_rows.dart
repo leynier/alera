@@ -189,7 +189,7 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                 )) ...<Widget>[
                                   const SizedBox(width: AleraTokens.space6),
                                   const Tooltip(
-                                    message: 'Default workspace',
+                                    message: 'Project folder',
                                     child: Icon(
                                       AleraIcons.workspaceMain,
                                       size: 12,

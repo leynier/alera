@@ -1,5 +1,22 @@
 part of 'workspace_git_diff_panel.dart';
 
+extension _SharedCheckoutBranchConfirmation on _WorkspaceGitDiffPanelState {
+  Future<bool> _confirmSharedBranchChange(String branch) async {
+    if (!widget.workspace.isMain) return true;
+    return await showDialog<bool>(
+              context: context,
+              builder: (_) => AleraConfirmDialog(
+                title: 'Change Shared Branch',
+                message:
+                    'Switching to $branch changes the files, branch and Git index used by every workspace on this project folder. Running agents in those workspaces will see the change.',
+                confirmLabel: 'Change Branch',
+              ),
+            ) ==
+            true &&
+        mounted;
+  }
+}
+
 sealed class _BranchDialogResult {
   const _BranchDialogResult();
 }

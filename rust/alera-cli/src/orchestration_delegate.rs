@@ -60,6 +60,7 @@ async fn run_inner(
                 runtime,
                 &mut client,
                 InferredWorkspaceCreate {
+                    use_project_checkout: false,
                     id: args.id,
                     project_id: args.project_id,
                     branch: args.branch,

@@ -7,10 +7,51 @@ mixin _WorkbenchControllerTransfer
         _WorkbenchControllerWorkspaceReconciliation,
         _WorkbenchControllerTabOpening,
         _WorkbenchControllerProjects {
+  Future<void> resumeWorkspaceRelocation(
+    Workspace workspace,
+    WorkspaceRelocationRecoveryEntry entry,
+  ) async {
+    if (_transferringWorkspace) {
+      throw StateError('A workspace transfer is already in progress');
+    }
+    _transferringWorkspace = true;
+    try {
+      await _workspaceSyncQueue;
+      final result = await WorkspaceRelocationRecoveryClient(
+        ref.read(runtimeHostClientProvider),
+        beforeAccess: ref.read(runtimeStateMigrationProvider).ensureMigrated,
+      ).resume(workspace, entry, sharedImpactConfirmed: true);
+      final project = state.projects.firstWhere(
+        (project) => project.id == workspace.projectId,
+      );
+      _transferWorkspaceContents(workspace, result.workspace);
+      _reconcileCreatedWorkspace(project, result.workspace);
+      await _selectWorkspace(
+        project: project,
+        workspace: result.workspace,
+        ensureInitialTerminal: false,
+      );
+      final active = state.activeTabIdByWorkspace[result.workspace.id];
+      await _openDeferredSetupTab(result);
+      if (active != null) {
+        _setActiveTabInternal(workspaceId: result.workspace.id, tabId: active);
+      }
+      state = state.copyWith(error: null);
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+      rethrow;
+    } finally {
+      await _finishWorkspaceTransfer(workspace.projectId);
+    }
+  }
+
   Future<WorkspaceCreationResult> handOffWorkspace({
+    String? relocationId,
     required Workspace workspace,
     required String branch,
     bool reuseExistingBranch = false,
+    bool moveChanges = true,
+    String? replacementBranch,
     String? name,
   }) async {
     if (_transferringWorkspace) {
@@ -20,9 +61,12 @@ mixin _WorkbenchControllerTransfer
     try {
       await _workspaceSyncQueue;
       final result = await _workspaceService.handOffWorkspace(
+        relocationId: relocationId,
         workspace: workspace,
         branch: branch,
         reuseExistingBranch: reuseExistingBranch,
+        moveChanges: moveChanges,
+        replacementBranch: replacementBranch,
         name: name,
       );
       final project = state.projects.firstWhere(
@@ -51,22 +95,27 @@ mixin _WorkbenchControllerTransfer
   }
 
   Future<Workspace> handOnWorkspace({
+    String? relocationId,
     required Project project,
     required Workspace workspace,
   }) async {
     if (_transferringWorkspace) {
       throw StateError('A workspace transfer is already in progress');
     }
-    final main = state
+    final affected = state
         .workspacesFor(project.id)
-        .where((entry) => entry.isMain)
-        .firstOrNull;
-    if (main != null &&
-        state
-            .tabsFor(main.id)
-            .any(
-              (tab) => ref.read(editorSessionRegistryProvider).isDirty(tab.id),
-            )) {
+        .where(
+          (entry) =>
+              entry.hostId == workspace.hostId &&
+              (entry.isMain || entry.id == workspace.id),
+        );
+    if (affected.any(
+      (entry) => state
+          .tabsFor(entry.id)
+          .any(
+            (tab) => ref.read(editorSessionRegistryProvider).isDirty(tab.id),
+          ),
+    )) {
       throw StateError(
         'The main worktree has unsaved editor changes. Save them and commit or stash before Hand On.',
       );
@@ -75,6 +124,7 @@ mixin _WorkbenchControllerTransfer
     try {
       await _workspaceSyncQueue;
       final result = await _workspaceService.handOnWorkspace(
+        relocationId: relocationId,
         workspace: workspace,
         activeWorkspaceId: state.activeWorkspaceId,
       );
@@ -143,12 +193,27 @@ mixin _WorkbenchControllerTransfer
       }
     }
     final movedIds = moved.map((tab) => tab.id).toSet();
-    for (final id in movedIds) {
-      _transferredTabOwners[id] = destination.id;
+    if (source.id != destination.id) {
+      for (final id in movedIds) {
+        _transferredTabOwners[id] = destination.id;
+      }
     }
     ref
         .read(editorSessionRegistryProvider)
         .transferDocuments(movedIds, source.path, destination.path);
+    if (source.id == destination.id) {
+      final movedById = {for (final tab in moved) tab.id: tab};
+      state = state.copyWith(
+        tabsByWorkspace: {
+          ...state.tabsByWorkspace,
+          source.id: state
+              .tabsFor(source.id)
+              .map((tab) => movedById[tab.id] ?? tab)
+              .toList(),
+        },
+      );
+      return;
+    }
     ref
         .read(agentStatusControllerProvider.notifier)
         .transferSessions(

@@ -1,6 +1,20 @@
 part of 'create_workspace_dialog.dart';
 
 extension _CreateWorkspaceDialogInteractions on _CreateWorkspaceDialogState {
+  void _setProjectCheckout(bool value) {
+    _validationDebounce?.cancel();
+    _update(() {
+      _useProjectCheckout = value;
+      _sourceBranchError = null;
+      _newBranchError = null;
+      _branchValidationError = null;
+      _isValidatingBranch = false;
+      if (!_nameTouched) _nameController.clear();
+    });
+    final project = _selectedProject;
+    if (!value && project != null) unawaited(_loadBranches(project));
+  }
+
   void _setProjectQuery(String value) {
     _update(() => _projectQuery = value);
   }
@@ -33,10 +47,19 @@ extension _CreateWorkspaceDialogInteractions on _CreateWorkspaceDialogState {
   }
 
   void _setHost(String? value) {
+    _validationDebounce?.cancel();
     _update(() {
       _selectedHostId = value;
+      _isValidatingBranch = false;
+      _branchValidationError = null;
+      _selectedSourceBranch = null;
+      _sourceBranchController.clear();
       _creationError = null;
     });
+    final project = _selectedProject;
+    if (!_useProjectCheckout && project != null) {
+      unawaited(_loadBranches(project));
+    }
   }
 
   void _setCreateAnother(bool value) {
@@ -53,7 +76,7 @@ extension _CreateWorkspaceDialogInteractions on _CreateWorkspaceDialogState {
   void _continueToSettings() {
     final sourceBranch = (_selectedSourceBranch ?? _sourceBranchController.text)
         .trim();
-    if (sourceBranch.isEmpty) {
+    if (!_useProjectCheckout && sourceBranch.isEmpty) {
       _update(() {
         _sourceBranchError = _sourceBranchRequiredError();
       });
@@ -68,7 +91,7 @@ extension _CreateWorkspaceDialogInteractions on _CreateWorkspaceDialogState {
     final sourceBranch = (_selectedSourceBranch ?? _sourceBranchController.text)
         .trim();
     final targetBranch = _targetBranchName(sourceBranch);
-    if (targetBranch.isEmpty) {
+    if (!_useProjectCheckout && targetBranch.isEmpty) {
       _update(() {
         _newBranchError = _targetBranchRequiredError();
       });

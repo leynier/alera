@@ -1,5 +1,6 @@
 import 'package:alera/src/features/workbench/presentation/workspace_section_dialog.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_removal_dialog.dart';
+import 'package:alera/src/features/workbench/application/workspace_removal_dependencies.dart';
 
 import 'dart:async';
 
@@ -41,6 +42,7 @@ import 'package:alera/src/features/workbench/presentation/widgets/agent_run_stat
 import 'package:alera/src/features/workbench/presentation/widgets/workspace_agent_compact_summary.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_hand_off_launchers.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_relocation_recovery_launcher.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_graph_dialogs.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_graph_indicators.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/agent_run_spinner_scope.dart';
@@ -60,5 +62,6 @@ part 'project_workbench_agent_rows.dart';
 part 'project_workbench_sidebar_footer.dart';
 part 'project_workbench_sidebar_shell.dart';
 part 'project_workbench_sidebar_actions.dart';
+part 'project_workbench_workspace_removal.dart';
 
 typedef _TerminalTabCallback = void Function(Workspace workspace, String tabId);

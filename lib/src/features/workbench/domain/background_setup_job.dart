@@ -8,6 +8,7 @@ enum BackgroundSetupJobKind { manualWorkspace, promptWorkspace, projectClone }
 sealed class const BackgroundSetupRetrySnapshot();
 
 class const ManualWorkspaceCreateRequest({
+  final bool useProjectCheckout = false,
   required final Project project,
   required final String sourceBranch,
   required final String newBranchName,
@@ -21,11 +22,12 @@ class const ManualWorkspaceCreateRequest({
     if (trimmed != null && trimmed.isNotEmpty) {
       return trimmed;
     }
-    return newBranchName;
+    return useProjectCheckout ? project.name : newBranchName;
   }
 }
 
 class const PromptWorkspaceCreateRequest({
+  final bool useProjectCheckout = false,
   required final Project project,
   required final String prompt,
   required final String profileId,
@@ -44,6 +46,7 @@ class const PromptWorkspaceCreateRequest({
     bool? setupStarted,
   }) {
     return PromptWorkspaceCreateRequest(
+      useProjectCheckout: useProjectCheckout,
       project: project,
       prompt: prompt,
       profileId: profileId,
@@ -60,6 +63,7 @@ class const PromptWorkspaceCreateRequest({
 
   bool matchesLaunchTarget(PromptWorkspaceCreateRequest other) {
     return project.id == other.project.id &&
+        useProjectCheckout == other.useProjectCheckout &&
         sourceBranch == other.sourceBranch &&
         hostId == other.hostId &&
         profileId == other.profileId &&

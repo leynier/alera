@@ -11,10 +11,9 @@ use chrono::Utc;
 use uuid::Uuid;
 
 use crate::managed_workspace::ManagedWorkspaceCreateRequest;
-use crate::remote_managed_workspace_git::write_git_bundle;
 use crate::ssh_bootstrap::{powershell_string, remote_join, shell_quote};
 use crate::ssh_remote::{
-    probe_or_unreachable, require_bootstrapped_ssh_target, sftp_bundle_path, RemoteHostExecutor,
+    probe_or_unreachable, require_bootstrapped_ssh_target, RemoteHostExecutor,
 };
 
 pub(crate) async fn create_remote_managed_workspace<E: RemoteHostExecutor>(
@@ -38,6 +37,15 @@ pub(crate) async fn create_remote_managed_workspace<E: RemoteHostExecutor>(
         .unwrap_or(branch);
     let target = require_bootstrapped_ssh_target(store, host_id).await?;
     let windows = probe_or_unreachable(executor, &target).await?;
+    let checkout = store
+        .find_project_checkout(&project.id, host_id)
+        .await?
+        .ok_or_else(|| {
+            anyhow!("Register a project checkout on this SSH host before creating a worktree")
+        })?;
+    let install_dir = target.install_dir.as_deref().ok_or_else(|| {
+        anyhow!("Bootstrap the SSH sidecar again to record its installation directory")
+    })?;
     let platform = if windows { "windows" } else { "posix" };
     let layout = remote_layout(project, display_name, &request)?;
     let probe = executor
@@ -48,7 +56,7 @@ pub(crate) async fn create_remote_managed_workspace<E: RemoteHostExecutor>(
         )
         .await
         .with_context(|| format!("failed probing host '{}'", target.alias))?;
-    let (workspace_root, staging_dir) = parse_probe_roots(&probe).ok_or_else(|| {
+    let (workspace_root, _) = parse_probe_roots(&probe).ok_or_else(|| {
         anyhow!(
             "host '{}' did not return workspace and temp directories",
             target.alias
@@ -56,7 +64,7 @@ pub(crate) async fn create_remote_managed_workspace<E: RemoteHostExecutor>(
     })?;
     let worktree_path = match layout.explicit_path.as_deref() {
         Some(path) => path.to_string(),
-        None => remote_join(
+        None => checkout_join(
             platform,
             &workspace_root,
             &[
@@ -65,30 +73,14 @@ pub(crate) async fn create_remote_managed_workspace<E: RemoteHostExecutor>(
             ],
         ),
     };
-    let repo_path = remote_join(
-        platform,
-        &workspace_root,
-        &[&format!("{}-{}.git", layout.project_slug, project.id)],
-    );
-    let bundle_name = format!("alera-ws-{}.bundle", Uuid::new_v4());
-    let remote_bundle = sftp_bundle_path(windows, &staging_dir, &bundle_name);
-    let local_bundle = write_git_bundle(&project.repo_path).await?;
-    executor
-        .upload(&target, &local_bundle.path, &remote_bundle)
-        .await
-        .with_context(|| {
-            format!(
-                "failed to upload the git bundle to host '{}'. Confirm the host is reachable with `alera ssh-target status --id {}`.",
-                target.alias, target.id
-            )
-        })?;
+    let repo_path = checkout.path;
     let script = create_worktree_script(
         windows,
+        install_dir,
         &repo_path,
         &worktree_path,
-        &remote_bundle,
         branch,
-        source_branch.unwrap_or(""),
+        source_branch.unwrap_or("HEAD"),
         request.reuse_existing_branch,
     );
     let stdout = executor
@@ -96,11 +88,20 @@ pub(crate) async fn create_remote_managed_workspace<E: RemoteHostExecutor>(
         .await
         .with_context(|| {
             format!(
-                "failed creating the Git worktree on host '{}'. Confirm Git is installed there and retry `alera ssh-target status --id {}`.",
+                "failed creating the Git worktree on host '{}'. Verify checkout access and update the remote sidecar if create-checkout-worktree is unsupported. Check connectivity with `alera ssh-target status --id {}`.",
                 target.alias, target.id
             )
         })?;
-    let resolved_path = last_nonempty_line(&stdout).unwrap_or(worktree_path);
+    let created: crate::project_checkout_worktree::CreatedCheckoutWorktree = serde_json::from_str(stdout.trim())
+        .context("The remote sidecar did not return a supported worktree receipt; inspect the remote destination before retrying")?;
+    if created.version != 1
+        || created.repository_path != repo_path
+        || created.branch != branch
+        || created.path.is_empty()
+    {
+        bail!("The remote worktree receipt does not match this request; its files were retained");
+    }
+    let resolved_path = created.path;
     let now = Utc::now();
     let workspace = Workspace {
         id: request
@@ -133,7 +134,9 @@ pub(crate) async fn create_remote_managed_workspace<E: RemoteHostExecutor>(
         section_id: None,
         child_count: 0,
     };
-    let mut workspace = store.upsert_workspace(workspace).await?;
+    let mut workspace = store
+        .insert_workspace_with_repository(workspace, &repo_path)
+        .await?;
     if let Some(parent_workspace_id) = request.parent_workspace_id.as_deref() {
         store
             .link_workspaces(parent_workspace_id, &workspace.id)
@@ -180,28 +183,38 @@ async fn run_remote_workspace_removal<E: RemoteHostExecutor>(
 ) -> Result<()> {
     let target = require_bootstrapped_ssh_target(store, &workspace.host_id).await?;
     let windows = probe_or_unreachable(executor, &target).await?;
-    let platform = if windows { "windows" } else { "posix" };
-    let probe = executor
-        .run(&target, windows, &probe_roots_script(windows, None))
-        .await
-        .with_context(|| format!("failed probing host '{}'", target.alias))?;
-    let (workspace_root, _) = parse_probe_roots(&probe).ok_or_else(|| {
-        anyhow!(
-            "host '{}' did not return workspace and temp directories",
-            target.alias
-        )
-    })?;
-    let project_slug = crate::managed_workspace_slug::slugify(
-        Path::new(&project.repo_path)
-            .file_name()
-            .and_then(|value| value.to_str())
-            .unwrap_or(&project.name),
-    )?;
-    let repo_path = remote_join(
-        platform,
-        &workspace_root,
-        &[&format!("{}-{}.git", project_slug, project.id)],
-    );
+    let repo_path = match store
+        .find_workspace_checkout(&workspace.id)
+        .await?
+        .and_then(|checkout| checkout.repository_path)
+    {
+        Some(repository_path) => repository_path,
+        None => {
+            // Legacy worktrees retain their bare repository origin when a main checkout is registered.
+            let platform = if windows { "windows" } else { "posix" };
+            let probe = executor
+                .run(&target, windows, &probe_roots_script(windows, None))
+                .await
+                .with_context(|| format!("failed probing host '{}'", target.alias))?;
+            let (workspace_root, _) = parse_probe_roots(&probe).ok_or_else(|| {
+                anyhow!(
+                    "host '{}' did not return workspace and temp directories",
+                    target.alias
+                )
+            })?;
+            let project_slug = crate::managed_workspace_slug::slugify(
+                Path::new(&project.repo_path)
+                    .file_name()
+                    .and_then(|value| value.to_str())
+                    .unwrap_or(&project.name),
+            )?;
+            checkout_join(
+                platform,
+                &workspace_root,
+                &[&format!("{}-{}.git", project_slug, project.id)],
+            )
+        }
+    };
     let script_builder = if preflight_only {
         crate::remote_managed_workspace_remove_script::validate_worktree_removal_script
     } else {
@@ -218,6 +231,22 @@ async fn run_remote_workspace_removal<E: RemoteHostExecutor>(
             )
         })?;
     Ok(())
+}
+
+fn checkout_join(platform: &str, root: &str, parts: &[&str]) -> String {
+    let path = remote_join(platform, root, parts);
+    // SFTP's /C:/ form is not an absolute path for the native Windows sidecar.
+    let bytes = path.as_bytes();
+    if platform == "windows"
+        && bytes.len() >= 3
+        && bytes[0] == b'/'
+        && bytes[1].is_ascii_alphabetic()
+        && bytes[2] == b':'
+    {
+        path[1..].to_string()
+    } else {
+        path
+    }
 }
 
 struct RemoteLayout {
@@ -293,6 +322,7 @@ fn parse_probe_roots(stdout: &str) -> Option<(String, String)> {
     Some((root, temp))
 }
 
+#[cfg(test)]
 fn last_nonempty_line(stdout: &str) -> Option<String> {
     stdout
         .lines()
@@ -304,148 +334,35 @@ fn last_nonempty_line(stdout: &str) -> Option<String> {
 
 fn create_worktree_script(
     windows: bool,
+    install_dir: &str,
     repo_path: &str,
     worktree_path: &str,
-    bundle_path: &str,
     branch: &str,
     source_branch: &str,
     reuse_existing_branch: bool,
 ) -> String {
-    if windows {
-        windows_create_script(
-            repo_path,
-            worktree_path,
-            bundle_path,
-            branch,
-            source_branch,
-            reuse_existing_branch,
-        )
+    let quote = if windows {
+        powershell_string
     } else {
-        posix_create_script(
-            repo_path,
-            worktree_path,
-            bundle_path,
-            branch,
-            source_branch,
-            reuse_existing_branch,
-        )
-    }
-}
-
-fn posix_create_script(
-    repo_path: &str,
-    worktree_path: &str,
-    bundle_path: &str,
-    branch: &str,
-    source_branch: &str,
-    reuse_existing_branch: bool,
-) -> String {
-    let reuse = if reuse_existing_branch { "1" } else { "0" };
-    format!(
-        r#"set -eu
-export GIT_TERMINAL_PROMPT=0
-if ! command -v git >/dev/null 2>&1; then
-  echo 'git is not installed on this host. Install Git and retry.' >&2
-  exit 1
-fi
-REPO={repo}
-WORKTREE={worktree}
-BUNDLE={bundle}
-BRANCH={branch}
-SOURCE={source}
-REUSE={reuse}
-mkdir -p "$(dirname "$REPO")"
-if [ ! -d "$REPO" ]; then
-  git clone --bare "$BUNDLE" "$REPO"
-else
-  git -C "$REPO" fetch "$BUNDLE" '+refs/heads/*:refs/heads/*'
-fi
-if [ "$REUSE" = "1" ]; then
-  git -C "$REPO" rev-parse --verify "refs/heads/$BRANCH" >/dev/null
-else
-  if git -C "$REPO" rev-parse --verify "refs/heads/$BRANCH" >/dev/null 2>&1; then
-    echo "branch already exists on the remote clone: $BRANCH" >&2
-    exit 1
-  fi
-  git -C "$REPO" branch "$BRANCH" "$SOURCE"
-fi
-if [ -e "$WORKTREE" ]; then
-  echo "workspace path already exists: $WORKTREE" >&2
-  exit 1
-fi
-mkdir -p "$(dirname "$WORKTREE")"
-git -C "$REPO" worktree add "$WORKTREE" "$BRANCH"
-rm -f "$BUNDLE"
-cd "$WORKTREE"
-pwd
-"#,
-        repo = shell_quote(repo_path),
-        worktree = shell_quote(worktree_path),
-        bundle = shell_quote(bundle_path),
-        branch = shell_quote(branch),
-        source = shell_quote(source_branch),
-        reuse = reuse,
-    )
-}
-
-fn windows_create_script(
-    repo_path: &str,
-    worktree_path: &str,
-    bundle_path: &str,
-    branch: &str,
-    source_branch: &str,
-    reuse_existing_branch: bool,
-) -> String {
-    let reuse = if reuse_existing_branch {
-        "$true"
-    } else {
-        "$false"
+        shell_quote
     };
-    format!(
-        r#"$ErrorActionPreference = 'Stop'
-$env:GIT_TERMINAL_PROMPT = '0'
-if (-not (Get-Command git -ErrorAction SilentlyContinue)) {{
-  throw 'git is not installed on this host. Install Git and retry.'
-}}
-$repo = {repo}
-$worktree = {worktree}
-$bundle = {bundle}
-$branch = {branch}
-$source = {source}
-$reuse = {reuse}
-New-Item -ItemType Directory -Force -Path (Split-Path -Parent $repo) | Out-Null
-if (-not (Test-Path -LiteralPath $repo)) {{
-  git clone --bare $bundle $repo
-  if ($LASTEXITCODE -ne 0) {{ throw 'git clone failed' }}
-}} else {{
-  git -C $repo fetch $bundle '+refs/heads/*:refs/heads/*'
-  if ($LASTEXITCODE -ne 0) {{ throw 'git fetch failed' }}
-}}
-if ($reuse) {{
-  git -C $repo rev-parse --verify "refs/heads/$branch"
-  if ($LASTEXITCODE -ne 0) {{ throw "branch does not exist on the remote clone: $branch" }}
-}} else {{
-  git -C $repo rev-parse --verify "refs/heads/$branch" 2>$null | Out-Null
-  if ($LASTEXITCODE -eq 0) {{ throw "branch already exists on the remote clone: $branch" }}
-  git -C $repo branch $branch $source
-  if ($LASTEXITCODE -ne 0) {{ throw 'git branch failed' }}
-}}
-if (Test-Path -LiteralPath $worktree) {{
-  throw "workspace path already exists: $worktree"
-}}
-New-Item -ItemType Directory -Force -Path (Split-Path -Parent $worktree) | Out-Null
-git -C $repo worktree add $worktree $branch
-if ($LASTEXITCODE -ne 0) {{ throw 'git worktree add failed' }}
-Remove-Item -LiteralPath $bundle -Force -ErrorAction SilentlyContinue
-Write-Output (Get-Item -LiteralPath $worktree).FullName
-"#,
-        repo = powershell_string(repo_path),
-        worktree = powershell_string(worktree_path),
-        bundle = powershell_string(bundle_path),
-        branch = powershell_string(branch),
-        source = powershell_string(source_branch),
-        reuse = reuse,
-    )
+    let reuse = if reuse_existing_branch {
+        " --reuse-existing-branch"
+    } else {
+        ""
+    };
+    let arguments = format!(
+        "project create-checkout-worktree --repository {} --path {} --branch {} --source {}{reuse}",
+        quote(repo_path),
+        quote(worktree_path),
+        quote(branch),
+        quote(source_branch)
+    );
+    if windows {
+        format!("$ErrorActionPreference = 'Stop'\n$install = [Environment]::ExpandEnvironmentVariables({})\n$current = (Get-Content -Raw -LiteralPath (Join-Path $install 'current.txt')).Trim()\n& (Join-Path $current 'alera.exe') {arguments}\nif ($LASTEXITCODE -ne 0) {{ throw 'Remote worktree creation failed' }}\n", quote(install_dir))
+    } else {
+        format!("set -eu\ninstall={}\ncase \"$install\" in '~/'*) install=\"$HOME/${{install#\"~/\"}}\";; esac\nexec \"$install/current/alera\" {arguments}\n", quote(install_dir))
+    }
 }
 
 #[cfg(test)]

@@ -4,50 +4,11 @@ use crate::terminal_host::protocol::{error_response, event, ok_response};
 use crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown;
 
 use super::runtime_mutations::{
-    RuntimeMutationEffect, RuntimeMutationFinished, RuntimeMutationOutcome, RuntimeMutationRequest,
+    RuntimeMutationEffect, RuntimeMutationFinished, RuntimeMutationOutcome,
 };
 use super::ServerActor;
 
 impl ServerActor {
-    pub(super) async fn prepare_runtime_mutation(
-        &mut self,
-        request: &RuntimeMutationRequest,
-    ) -> crate::terminal_host::host_error::HostResult<WorkspaceShutdown> {
-        use crate::terminal_host::host_error::HostError;
-
-        if let RuntimeMutationRequest::RemoveManagedWorkspace { request } = request {
-            return self.prepare_managed_workspace_removal(request).await;
-        }
-        if let RuntimeMutationRequest::HandOnWorkspace { .. } = request {
-            // Transfers retain the PTYs, including when Git later refuses the move.
-            return Ok(WorkspaceShutdown::default());
-        }
-        // Check when the queued operation starts, not when it was enqueued:
-        // an earlier removal may have just failed and retained a shutdown.
-        for workspace_id in self.mutation_queue.pending_workspace_shutdowns.keys() {
-            let removes_owner = match request {
-                RuntimeMutationRequest::RemoveWorkspace {
-                    workspace_id: target,
-                    ..
-                } => target == workspace_id,
-                RuntimeMutationRequest::RemoveProject { project_id }
-                | RuntimeMutationRequest::RemoveProjectWorkspaces { project_id } => {
-                    let workspace = self
-                        .runtime_store
-                        .find_workspace(workspace_id)
-                        .await
-                        .map_err(|error| HostError::state(error.to_string()))?;
-                    workspace.is_none_or(|workspace| workspace.project_id == *project_id)
-                }
-                _ => false,
-            };
-            if removes_owner {
-                return Err(HostError::state("Workspace has unfinished process shutdown. Retry confirmed workspace cleanup before removing its records or project."));
-            }
-        }
-        Ok(WorkspaceShutdown::default())
-    }
-
     pub(super) async fn prepare_managed_workspace_removal(
         &mut self,
         request: &crate::managed_workspace::ManagedWorkspaceRemoveRequest,
@@ -59,6 +20,30 @@ impl ServerActor {
         crate::managed_workspace::validate_managed_workspace_removal(&self.runtime_store, request)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
+        self.prepare_workspace_session_shutdown(request, false)
+            .await
+    }
+
+    pub(super) async fn prepare_workspace_session_shutdown(
+        &mut self,
+        request: &crate::managed_workspace::ManagedWorkspaceRemoveRequest,
+        cancel_owned_operations: bool,
+    ) -> crate::terminal_host::host_error::HostResult<WorkspaceShutdown> {
+        use crate::terminal_host::host_error::HostError;
+        let mut completions = Vec::new();
+        if let Some(workspace) = self
+            .runtime_store
+            .find_workspace(&request.id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?
+        {
+            let registry = super::ai_assist_operation_registry::active_generations();
+            if cancel_owned_operations && request.close_sessions {
+                completions = registry.cancel_workspace_operations(&workspace)?;
+            } else {
+                registry.require_workspace_idle(&workspace, "workspace removal")?;
+            }
+        }
         if request.close_sessions {
             let mut shutdown = WorkspaceShutdown::capture(
                 self.sessions
@@ -66,6 +51,7 @@ impl ServerActor {
                     .filter(|session| session.workspace_id == request.id),
             )
             .await?;
+            shutdown.wait_for_operations(completions);
             if let Some(pending) = self
                 .mutation_queue
                 .pending_workspace_shutdowns
@@ -103,6 +89,7 @@ impl ServerActor {
             request_id,
             outcome,
         } = finished;
+        self.finish_checkout_buffer_guard(client_id, request_id, outcome.result.is_ok());
         let RuntimeMutationOutcome {
             result,
             ended_pointer_tab_ids,
@@ -179,6 +166,7 @@ impl ServerActor {
 
     async fn apply_runtime_mutation_effect(&mut self, effect: RuntimeMutationEffect) {
         match effect {
+            RuntimeMutationEffect::SetupFinished => {}
             RuntimeMutationEffect::ProjectRemoved {
                 project_id,
                 workspace_ids,
@@ -222,6 +210,19 @@ impl ServerActor {
                     server.clear_thread_hydrations().await;
                 }
                 self.terminate_terminal_sessions_for_workspace(&workspace_id)
+                    .await;
+                self.broadcast_workspaces_changed(Some(&project_id));
+                self.broadcast_workspace_tabs_changed(Some(&workspace_id));
+            }
+            RuntimeMutationEffect::WorkspaceRelocated {
+                project_id,
+                workspace_id,
+                source_path,
+            } => {
+                if let Some(server) = self.codex.as_ref() {
+                    server.clear_thread_hydrations().await;
+                }
+                self.reconcile_relocated_stopped_sessions(&workspace_id, &source_path)
                     .await;
                 self.broadcast_workspaces_changed(Some(&project_id));
                 self.broadcast_workspace_tabs_changed(Some(&workspace_id));
@@ -319,7 +320,14 @@ impl ServerActor {
             self.flush_all_output(&session_id);
             self.await_output_writes(&session_id).await;
             if let Some(mut session) = self.sessions.remove(&session_id) {
+                let clients: Vec<_> = session.clients.iter().copied().collect();
                 session.terminate(true, &store).await;
+                for client in clients {
+                    self.client_write(
+                        client,
+                        event("terminalSessionRemoved", json!({"sessionId":session_id})),
+                    );
+                }
             }
         }
         self.schedule_shutdown_if_idle();

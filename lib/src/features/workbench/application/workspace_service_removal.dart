@@ -7,10 +7,13 @@ extension WorkspaceServiceRemoval on WorkspaceService {
     required bool deleteBranch,
     String? activeWorkspaceId,
   }) async {
-    if (workspace.isMain) {
-      throw WorkspaceException('The main workspace cannot be removed');
+    if (workspace.isMain && deleteBranch) {
+      throw WorkspaceException(
+        'Removing a shared workspace cannot delete its branch',
+      );
     }
-    var shouldDeleteBranch = deleteBranch && !workspace.reusesExistingBranch;
+    var shouldDeleteBranch =
+        deleteBranch && !workspace.isMain && !workspace.reusesExistingBranch;
     final managedRuntime = _managedRuntime;
     if (managedRuntime != null) {
       await managedRuntime.removeWorkspace(
@@ -18,6 +21,10 @@ extension WorkspaceServiceRemoval on WorkspaceService {
         deleteBranch: shouldDeleteBranch,
         activeWorkspaceId: activeWorkspaceId,
       );
+      return;
+    }
+    if (workspace.isMain) {
+      await _repository.removeWorkspace(workspace.id, cascadeTabs: true);
       return;
     }
     if (shouldDeleteBranch) {

@@ -6,10 +6,12 @@ enum BackgroundSetupJobKind { manualWorkspace, promptWorkspace }
 
 class const ManualWorkspaceCreateRequest({
   required final String hostId,
+  final String? checkoutHostId,
   required final String projectId,
   required final String branch,
   final String? sourceBranch,
   final bool reuseExistingBranch = false,
+  final bool useProjectCheckout = false,
   final String? name,
   final String? parentWorkspaceId,
 }) {
@@ -24,11 +26,14 @@ class const ManualWorkspaceCreateRequest({
 
 class const PromptWorkspaceCreateRequest({
   required final String hostId,
+  final String? checkoutHostId,
   required final String prompt,
+  final Set<String> localAttachmentPaths = const {},
   required final String projectId,
   required final String sourceBranch,
   required final String profileId,
   required final Set<String> workspaceBranches,
+  final bool useProjectCheckout = false,
   final String? parentWorkspaceId,
   final WorkspaceCreationResult? created,
   final String? clientMutationId,
@@ -43,11 +48,14 @@ class const PromptWorkspaceCreateRequest({
   }) {
     return PromptWorkspaceCreateRequest(
       hostId: hostId,
+      checkoutHostId: checkoutHostId,
       prompt: prompt,
+      localAttachmentPaths: localAttachmentPaths,
       projectId: projectId,
       sourceBranch: sourceBranch,
       profileId: profileId,
       workspaceBranches: workspaceBranches,
+      useProjectCheckout: useProjectCheckout,
       parentWorkspaceId: parentWorkspaceId,
       created: created,
       clientMutationId: clientMutationId ?? this.clientMutationId,
@@ -59,8 +67,10 @@ class const PromptWorkspaceCreateRequest({
 
   bool matchesLaunchTarget(PromptWorkspaceCreateRequest other) {
     return projectId == other.projectId &&
+        useProjectCheckout == other.useProjectCheckout &&
         sourceBranch == other.sourceBranch &&
         hostId == other.hostId &&
+        checkoutHostId == other.checkoutHostId &&
         profileId == other.profileId &&
         prompt.trim() == other.prompt.trim();
   }

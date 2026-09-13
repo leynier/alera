@@ -7,11 +7,12 @@ void _registerWorkbenchControllerLayoutPersistenceTests() {
       final projects = <Project>[_harness.project];
       for (var index = 1; index < 15; index += 1) {
         projects.add(
-          await _harness.addProject('project-$index', 'Project $index'),
+          await _harness.addProject('project-extra-$index', 'Project $index'),
         );
       }
       for (var index = 0; index < projects.length; index += 1) {
         final project = projects[index];
+        _harness.workbenchRepository._workspacesByProject[project.id] = [];
         final workspace = Workspace(
           id: 'workspace-$index',
           projectId: project.id,

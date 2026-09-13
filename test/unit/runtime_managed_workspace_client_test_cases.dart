@@ -6,6 +6,111 @@ part of 'runtime_repositories_test.dart';
 /// Split out of `runtime_repositories_test.dart`, which covers the rest of the
 /// runtime-host backed repositories.
 void _registerRuntimeManagedWorkspaceClientTests() {
+  test(
+    'shared removal obtains buffer verification before retiring the task',
+    () async {
+      final client = _FakeRuntimeHostClient();
+      client.responses['workspace.bufferGuard.acquire'] = {
+        'guardId': 'proof',
+        'ready': true,
+      };
+      final repository = RuntimeManagedWorkspaceClient(client);
+      await repository.removeWorkspace(
+        workspace: _workspace(
+          id: 'task',
+          projectId: 'project',
+        ).copyWith(kind: .main),
+        deleteBranch: false,
+      );
+      expect(client.requests, [
+        'workspace.bufferGuard.acquire',
+        'workspace.removeShared',
+        'workspace.bufferGuard.release',
+      ]);
+      expect(
+        client.payloads['workspace.removeShared']!.single['bufferGuardId'],
+        'proof',
+      );
+    },
+  );
+  for (final owner in ['workspace', 'project']) {
+    test(
+      '$owner removal pauses approved dependencies and verifies completion',
+      () async {
+        final client = _FakeRuntimeHostClient();
+        final repository = RuntimeManagedWorkspaceClient(client);
+        client.responseSequences['$owner.removalDependencies'] = [
+          [
+            {
+              'id': 'automation',
+              'name': 'Daily Task',
+              'activeRuns': 1,
+              'requiresPause': true,
+            },
+          ],
+          [
+            {
+              'id': 'automation',
+              'name': 'Daily Task',
+              'activeRuns': 0,
+              'requiresPause': false,
+            },
+          ],
+        ];
+        final dependencies = await (owner == 'project'
+            ? repository.projectRemovalDependencies(owner)
+            : repository.removalDependencies(owner));
+        await (owner == 'project'
+            ? repository.pauseProjectRemovalDependencies(owner, dependencies)
+            : repository.pauseRemovalDependencies(owner, dependencies));
+        expect(
+          client.payloads['automation.pause']!.single,
+          containsPair('activeRuns', 'cancel-active'),
+        );
+        expect(
+          client.payloads['automation.pause']!.single,
+          containsPair('id', 'automation'),
+        );
+        expect(
+          client.requests.where(
+            (request) => request == '$owner.removalDependencies',
+          ),
+          hasLength(2),
+        );
+        expect(client.requests, isNot(contains('workspace.removeShared')));
+      },
+    );
+
+    test(
+      '$owner removal rejects newly discovered dependencies without pausing them',
+      () async {
+        final client = _FakeRuntimeHostClient();
+        final repository = RuntimeManagedWorkspaceClient(client);
+        client.responseSequences['$owner.removalDependencies'] = [
+          <Object?>[],
+          [
+            {
+              'id': 'new',
+              'name': 'New Task',
+              'activeRuns': 1,
+              'requiresPause': true,
+            },
+          ],
+        ];
+        final dependencies = await (owner == 'project'
+            ? repository.projectRemovalDependencies(owner)
+            : repository.removalDependencies(owner));
+        await expectLater(
+          owner == 'project'
+              ? repository.pauseProjectRemovalDependencies(owner, dependencies)
+              : repository.pauseRemovalDependencies(owner, dependencies),
+          throwsStateError,
+        );
+        expect(client.requests, isNot(contains('automation.pause')));
+      },
+    );
+  }
+
   test('RuntimeManagedWorkspaceClient parses storage impact', () async {
     final client = _FakeRuntimeHostClient();
     final repository = RuntimeManagedWorkspaceClient(client);
@@ -144,32 +249,42 @@ void _registerRuntimeManagedWorkspaceClientTests() {
     () async {
       final client = _FakeRuntimeHostClient();
       final repository = RuntimeManagedWorkspaceClient(client);
+      client.responses['workspace.bufferGuard.acquire'] = {
+        'guardId': 'hand-off-guard',
+        'ready': true,
+      };
       client.responses['status.get'] = <String, Object?>{
         'runtimeCapabilities': <String>[aleraRuntimeHostSafeHandoffCapability],
       };
       client.responses['workspace.handOff'] = <String, Object?>{
-        'workspace': _workspaceJson(id: 'workspace-child'),
+        'workspace': _workspaceJson(id: 'workspace-main'),
         'setupReport': <String, Object?>{'steps': <Object?>[]},
         'deferredSetupCommand': '/bin/sh "/run/alera/worktree-setup-ws.sh"',
       };
 
       final result = await repository.handOffWorkspace(
+        relocationId: '123e4567-e89b-12d3-a456-426614174000',
         workspace: _workspace(id: 'workspace-main', projectId: 'project-1'),
         branch: 'feat/hand-off',
         reuseExistingBranch: false,
         name: 'Hand Off',
       );
 
-      expect(result.workspace.id, 'workspace-child');
+      expect(result.workspace.id, 'workspace-main');
       expect(
         result.deferredSetupCommand,
         '/bin/sh "/run/alera/worktree-setup-ws.sh"',
       );
       expect(client.payloads['workspace.handOff']!.single, <String, Object?>{
+        'relocationId': '123e4567-e89b-12d3-a456-426614174000',
         'id': 'workspace-main',
         'branch': 'feat/hand-off',
         'reuseExistingBranch': false,
         'deferSetup': true,
+        'moveChanges': true,
+        'replacementBranch': null,
+        'sharedImpactConfirmed': true,
+        'bufferGuardId': 'hand-off-guard',
         'name': 'Hand Off',
       });
     },
@@ -260,25 +375,33 @@ void _registerRuntimeManagedWorkspaceClientTests() {
   test('RuntimeManagedWorkspaceClient hands on through the host RPC', () async {
     final client = _FakeRuntimeHostClient();
     final repository = RuntimeManagedWorkspaceClient(client);
+    client.responses['workspace.bufferGuard.acquire'] = {
+      'guardId': 'hand-on-guard',
+      'ready': true,
+    };
     client.responses['status.get'] = <String, Object?>{
       'runtimeCapabilities': <String>[aleraRuntimeHostSafeHandoffCapability],
     };
     client.responses['workspace.handOn'] = <String, Object?>{
-      'workspace': _workspaceJson(id: 'workspace-main'),
-      'removedWorkspaceId': 'workspace-child',
+      'workspace': _workspaceJson(id: 'workspace-child'),
+      'removedWorkspaceId': null,
     };
 
     final result = await repository.handOnWorkspace(
+      relocationId: '123e4567-e89b-12d3-a456-426614174001',
       workspace: _workspace(id: 'workspace-child', projectId: 'project-1'),
       activeWorkspaceId: 'workspace-child',
     );
 
-    expect(result.workspace.id, 'workspace-main');
-    expect(result.removedWorkspaceId, 'workspace-child');
+    expect(result.workspace.id, 'workspace-child');
+    expect(result.removedWorkspaceId, isNull);
     expect(client.payloads['workspace.handOn']!.single, <String, Object?>{
+      'relocationId': '123e4567-e89b-12d3-a456-426614174001',
       'id': 'workspace-child',
       'closeSessions': true,
       'activeWorkspaceId': 'workspace-child',
+      'sharedImpactConfirmed': true,
+      'bufferGuardId': 'hand-on-guard',
     });
   });
 }

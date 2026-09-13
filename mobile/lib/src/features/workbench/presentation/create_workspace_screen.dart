@@ -1,3 +1,5 @@
+import 'package:alera_mobile/src/features/workbench/application/workspace_checkout_selection.dart';
+
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/app_navigation.dart';
@@ -28,10 +30,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 part 'create_workspace_manual.dart';
 part 'create_workspace_prompt.dart';
 part 'create_workspace_prompt_attachments.dart';
+part 'create_workspace_location.dart';
 
 class const CreateWorkspaceScreen({
   super.key,
   required final String hostId,
+  final String? initialCheckoutHostId,
   required final List<ProjectSummary> projects,
   required final List<WorkspaceSummary> workspaces,
   final String? defaultAgentProfileId,
@@ -39,10 +43,12 @@ class const CreateWorkspaceScreen({
   final bool supportsPromptImageUpload = false,
   final bool supportsPromptFileUpload = false,
   final bool supportsWorkspaceFiles = false,
+  final bool supportsSharedCheckoutWorkspaces = false,
   final String? retryJobId,
   final String? initialError,
   final bool? initialFromPrompt,
   final String? initialPrompt,
+  final Set<String> initialLocalAttachmentPaths = const {},
   final String? initialProjectId,
   final String? initialSourceBranch,
   final String? initialProfileId,
@@ -50,6 +56,7 @@ class const CreateWorkspaceScreen({
   final String? initialBranch,
   final String? initialName,
   final bool initialReuseExistingBranch = false,
+  final bool initialUseProjectCheckout = true,
 }) extends ConsumerStatefulWidget {
   @override
   ConsumerState<CreateWorkspaceScreen> createState() =>
@@ -60,6 +67,14 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
   final TextEditingController _branch = TextEditingController();
   final TextEditingController _name = TextEditingController();
   final TextEditingController _prompt = TextEditingController();
+  int _branchLoadGeneration = 0;
+  String? get _checkoutHostId => ref.read(
+    workspaceCheckoutSelectionProvider(
+      widget.hostId,
+      widget.initialCheckoutHostId,
+    ),
+  );
+
   bool _fromPrompt = true;
   String? _projectId;
   List<String> _branches = const <String>[];
@@ -67,6 +82,7 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
   String? _parentWorkspaceId;
   String? _promptParentWorkspaceId;
   bool _reuseExistingBranch = false;
+  bool _useProjectCheckout = true;
   bool _createAnother = false;
   bool _creating = false;
   bool _loadingBranches = false;
@@ -79,9 +95,8 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
   BackgroundSetupJobs? _jobs;
   var _applyRetryHydration = false;
 
-  List<ProjectSummary> get _orderedProjects => sortProjectsForSelection(
-    widget.projects.where((project) => project.supportsLinkedWorkspaces),
-  );
+  List<ProjectSummary> get _orderedProjects =>
+      sortProjectsForSelection(widget.projects);
 
   List<WorkspaceSummary> get _orderedParentWorkspaces =>
       _parentWorkspacesFor(_projectId);
@@ -114,24 +129,6 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
       );
   }
 
-  String? _defaultParentWorkspaceId(String? projectId) {
-    if (projectId == null) {
-      return null;
-    }
-    final candidates = _parentWorkspacesFor(projectId);
-    for (final workspace in candidates) {
-      if (workspace.projectId == projectId && workspace.isMain) {
-        return workspace.id;
-      }
-    }
-    for (final workspace in candidates) {
-      if (workspace.projectId == projectId) {
-        return workspace.id;
-      }
-    }
-    return null;
-  }
-
   String _parentWorkspaceLabel(WorkspaceSummary workspace) {
     String? projectName;
     for (final project in widget.projects) {
@@ -156,6 +153,9 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
     _applyRetryHydration = widget.initialProjectId != null;
     _jobs = ref.read(backgroundSetupJobsProvider.notifier);
     _reuseExistingBranch = widget.initialReuseExistingBranch;
+    _useProjectCheckout =
+        widget.supportsSharedCheckoutWorkspaces &&
+        widget.initialUseProjectCheckout;
     final initialPrompt = widget.initialPrompt;
     if (initialPrompt != null && initialPrompt.isNotEmpty) {
       _prompt.text = initialPrompt;
@@ -182,17 +182,14 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
         retryProjectId ?? _orderedProjects.firstOrNull?.id;
     if (widget.supportsPromptWorkspaceCreation &&
         initialPromptProject != null) {
-      if (!_applyRetryHydration) {
-        _promptParentWorkspaceId ??= _defaultParentWorkspaceId(
-          initialPromptProject,
-        );
-      }
       Future<void>.microtask(() async {
         final controller = ref.read(
           promptWorkspaceControllerProvider(widget.hostId).notifier,
         );
         await controller.selectProject(
           initialPromptProject,
+          loadBranches: !_useProjectCheckout,
+          checkoutHostId: _checkoutHostId,
           defaultAgentProfileId:
               widget.initialProfileId ?? widget.defaultAgentProfileId,
         );
@@ -227,15 +224,27 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
     PromptWorkspaceController controller,
   ) {
     setState(() {
-      _promptParentWorkspaceId = _defaultParentWorkspaceId(projectId);
+      _promptParentWorkspaceId = null;
+      if (!widget.projects.any(
+        (project) =>
+            project.id == projectId && project.supportsLinkedWorkspaces,
+      )) {
+        _useProjectCheckout = true;
+      } else if (!widget.supportsSharedCheckoutWorkspaces) {
+        _useProjectCheckout = false;
+      }
     });
     controller.selectProject(
       projectId,
+      loadBranches: !_useProjectCheckout,
+      checkoutHostId: _checkoutHostId,
       defaultAgentProfileId: widget.defaultAgentProfileId,
     );
   }
 
   Future<void> _selectProject(String projectId) async {
+    final checkoutHostId = _checkoutHostId;
+    final generation = ++_branchLoadGeneration;
     final isRetryProject =
         _applyRetryHydration && projectId == widget.initialProjectId;
     final preferredSource = isRetryProject ? widget.initialSourceBranch : null;
@@ -244,17 +253,35 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
         : null;
     setState(() {
       _projectId = projectId;
+      if (!widget.projects.any(
+        (project) =>
+            project.id == projectId && project.supportsLinkedWorkspaces,
+      )) {
+        _useProjectCheckout = true;
+      } else if (!widget.supportsSharedCheckoutWorkspaces) {
+        _useProjectCheckout = false;
+      }
       _branches = const <String>[];
       _sourceBranch = null;
       _parentWorkspaceId = null;
-      _loadingBranches = true;
+      _loadingBranches = !_useProjectCheckout;
     });
+    if (_useProjectCheckout) {
+      _parentWorkspaceId = preferredParent;
+      return;
+    }
     try {
       final client = await ref.read(
         workspaceClientProvider(widget.hostId).future,
       );
-      final branches = await client.listBranches(projectId);
-      if (!mounted || _projectId != projectId) {
+      final branches = await client.listBranches(
+        projectId,
+        checkoutHostId: checkoutHostId,
+      );
+      if (!mounted ||
+          _projectId != projectId ||
+          _checkoutHostId != checkoutHostId ||
+          generation != _branchLoadGeneration) {
         return;
       }
       setState(() {
@@ -264,18 +291,22 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
                 branches.branches.contains(preferredSource)
             ? preferredSource
             : (branches.branches.isEmpty ? null : branches.branches.first);
-        _parentWorkspaceId = isRetryProject
-            ? preferredParent
-            : _defaultParentWorkspaceId(projectId);
+        _parentWorkspaceId = isRetryProject ? preferredParent : null;
       });
     } on Object catch (error) {
-      if (mounted && _projectId == projectId) {
+      if (mounted &&
+          _projectId == projectId &&
+          _checkoutHostId == checkoutHostId &&
+          generation == _branchLoadGeneration) {
         setState(() {
           _error = 'Could not load branches: $error';
         });
       }
     } finally {
-      if (mounted && _projectId == projectId) {
+      if (mounted &&
+          _projectId == projectId &&
+          _checkoutHostId == checkoutHostId &&
+          generation == _branchLoadGeneration) {
         setState(() {
           _loadingBranches = false;
         });
@@ -284,6 +315,8 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
   }
 
   bool get _canSubmit {
+    if (!_checkoutReady(_projectId)) return false;
+    if (_useProjectCheckout) return !_creating && _projectId != null;
     if (_creating ||
         _loadingBranches ||
         _projectId == null ||
@@ -309,10 +342,12 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
         .enqueueManualWorkspace(
           ManualWorkspaceCreateRequest(
             hostId: widget.hostId,
+            checkoutHostId: _checkoutHostId,
             projectId: _projectId!,
             branch: _branch.text.trim(),
             sourceBranch: _reuseExistingBranch ? null : _sourceBranch,
             reuseExistingBranch: _reuseExistingBranch,
+            useProjectCheckout: _useProjectCheckout,
             name: name.isEmpty ? null : name,
             parentWorkspaceId: _parentWorkspaceId,
           ),
@@ -370,6 +405,13 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(
+      promptLocalAttachmentsProvider(
+        widget.hostId,
+        widget.initialLocalAttachmentPaths,
+      ),
+    );
+
     final promptState = widget.supportsPromptWorkspaceCreation
         ? ref.watch(promptWorkspaceControllerProvider(widget.hostId))
         : const PromptWorkspaceState();

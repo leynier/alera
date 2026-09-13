@@ -334,7 +334,7 @@ void _registerAleraShellWorkbenchTests() {
     await tester.tap(find.text('Remove'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Remove Workspace?'), findsNothing);
+    expect(find.text('Remove Workspace?'), findsOneWidget);
   });
 
   testWidgets('workspace context menu sleep confirms and closes every tab', (

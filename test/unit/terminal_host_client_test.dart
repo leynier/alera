@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:alera/src/features/diagnostics/infra/crash_reporting.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/runtime_buffer_guard_handler.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_frame_codec.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/logging/app_logger.dart';
@@ -17,6 +18,7 @@ part 'terminal_host_client_timeout_cases.dart';
 part 'terminal_host_client_binary_frames_cases.dart';
 part 'terminal_host_client_protocol_mismatch_cases.dart';
 part 'terminal_host_client_runtime_mutation_cases.dart';
+part 'terminal_host_client_buffer_guard_cases.dart';
 part 'terminal_host_test_server.dart';
 
 void main() {
@@ -25,6 +27,7 @@ void main() {
   _registerTerminalHostClientBinaryFrameTests();
   _registerTerminalHostClientProtocolMismatchTests();
   _registerTerminalHostClientRuntimeMutationTests();
+  _registerTerminalHostBufferGuardTests();
   test('connects through launcher and sends lifecycle requests', () async {
     final tempDir = await Directory.systemTemp.createTemp('alera-host-client-');
     addTearDown(() async {
@@ -166,6 +169,7 @@ void main() {
       isNot(containsPair('setupCommand', anything)),
     );
     expect(server.payloadFor('terminal.restart')['sessionId'], 'session-1');
+    expect(server.payloadFor('terminal.restart')['operationId'], isNotEmpty);
     final writePayloads = server.payloadsFor('write');
     expect(writePayloads, hasLength(2));
     expect(

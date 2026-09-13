@@ -286,6 +286,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
         }
         await _switchBranch(branch);
       case _CreateBranchResult(:final branch):
+        if (!await _confirmSharedBranchChange(branch)) return;
         await _run(
           () => _notifier.createAndCheckoutBranch(branch),
           successMessage: 'Created $branch',
@@ -294,6 +295,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
   }
 
   Future<void> _switchBranch(String branch) async {
+    if (!await _confirmSharedBranchChange(branch)) return;
     try {
       final activeBranch = await _notifier.checkoutBranch(branch);
       if (mounted) {

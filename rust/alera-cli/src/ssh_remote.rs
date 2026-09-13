@@ -4,14 +4,13 @@
 //! remote scripts, sftp). Does not invent a new bootstrap.
 
 use std::future::Future;
-use std::path::Path;
 
 use alera_core::runtime::{RuntimeStore, SshBootstrapStatus, SshTarget, LOCAL_HOST_ID};
 use anyhow::{anyhow, bail, Result};
 
 use crate::ssh_bootstrap::{
-    normalize_platform, reject_password_ssh_bootstrap_auth, run_remote_command, run_sftp_put,
-    shell_quote, ssh_args, ssh_target_answers_posix, ssh_target_answers_windows,
+    normalize_platform, reject_password_ssh_bootstrap_auth, run_remote_command, shell_quote,
+    ssh_args, ssh_target_answers_posix, ssh_target_answers_windows,
 };
 use crate::terminal_host::protocol::TerminalHostLaunch;
 
@@ -75,13 +74,6 @@ pub(crate) trait RemoteHostExecutor {
         windows: bool,
         script: &str,
     ) -> impl Future<Output = Result<String>> + Send;
-
-    fn upload(
-        &self,
-        target: &SshTarget,
-        local: &Path,
-        remote: &str,
-    ) -> impl Future<Output = Result<()>> + Send;
 }
 
 pub(crate) struct LiveSshRemoteHost;
@@ -94,10 +86,6 @@ impl RemoteHostExecutor for LiveSshRemoteHost {
     async fn run(&self, target: &SshTarget, windows: bool, script: &str) -> Result<String> {
         let platform = if windows { "windows" } else { "posix" };
         Ok(run_remote_command(target, platform, script).await?.stdout)
-    }
-
-    async fn upload(&self, target: &SshTarget, local: &Path, remote: &str) -> Result<()> {
-        run_sftp_put(target, local, remote).await
     }
 }
 
@@ -138,6 +126,7 @@ pub(crate) fn ssh_terminal_launch(
 pub(crate) async fn remote_workspace_terminal_override(
     store: &RuntimeStore,
     workspace_id: &str,
+    identity: crate::remote_owner_terminal_launch::TerminalIdentity<'_>,
 ) -> Result<Option<(TerminalHostLaunch, String)>> {
     let Some(workspace) = store.find_workspace(workspace_id).await? else {
         return Ok(None);
@@ -145,16 +134,52 @@ pub(crate) async fn remote_workspace_terminal_override(
     if !is_remote_host_id(Some(&workspace.host_id)) {
         return Ok(None);
     }
-    // Metadata-only foreign hostId on a local path must not rewrite to SSH.
-    if std::path::Path::new(&workspace.path).exists() {
-        return Ok(None);
-    }
     let target = require_bootstrapped_ssh_target(store, &workspace.host_id).await?;
-    let windows = probe_or_unreachable(&LiveSshRemoteHost, &target).await?;
+    let windows = terminal_platform_windows(&target)?;
+    if uses_owner_terminal(store, &workspace).await? {
+        let launch = crate::remote_owner_terminal_launch::owned_launch(
+            store, &target, &workspace, identity, windows,
+        )
+        .await?;
+        return Ok(Some((launch, workspace.path.clone())));
+    }
     Ok(Some((
         ssh_terminal_launch(&target, &workspace.path, windows),
         workspace.path.clone(),
     )))
+}
+
+pub(crate) async fn uses_owner_terminal(
+    store: &RuntimeStore,
+    workspace: &alera_core::runtime::Workspace,
+) -> Result<bool> {
+    if workspace.kind == alera_core::runtime::WorkspaceKind::Main {
+        return Ok(true);
+    }
+    if store
+        .find_project_checkout(&workspace.project_id, &workspace.host_id)
+        .await?
+        .is_none()
+    {
+        return Ok(false);
+    }
+    let binding = store
+        .find_workspace_checkout(&workspace.id)
+        .await?
+        .ok_or_else(|| anyhow!("The SSH checkout binding is missing"))?;
+    if binding.project_id != workspace.project_id
+        || binding.host_id != workspace.host_id
+        || binding.path != workspace.path
+        || binding.kind != alera_core::runtime::CheckoutKind::Linked
+    {
+        bail!("The linked SSH checkout ownership changed");
+    }
+    // Registering a project folder does not verify or migrate older worktrees.
+    // Keep their existing terminal transport until their origin is established.
+    Ok(binding
+        .repository_path
+        .as_deref()
+        .is_some_and(|path| !path.trim().is_empty()))
 }
 
 pub(crate) fn ssh_pty_arguments(target: &SshTarget, remote_command: &str) -> Vec<String> {
@@ -164,11 +189,6 @@ pub(crate) fn ssh_pty_arguments(target: &SshTarget, remote_command: &str) -> Vec
     args.push(destination);
     args.push(remote_command.to_string());
     args
-}
-
-pub(crate) fn sftp_bundle_path(windows: bool, staging_dir: &str, file_name: &str) -> String {
-    let platform = if windows { "windows" } else { "posix" };
-    crate::ssh_bootstrap::remote_join(platform, staging_dir, &[file_name])
 }
 
 async fn live_probe_windows(target: &SshTarget) -> Option<bool> {
@@ -200,6 +220,29 @@ fn configured_windows(target: &SshTarget) -> bool {
         .as_deref()
         == Some("windows")
 }
+
+fn terminal_platform_windows(target: &SshTarget) -> Result<bool> {
+    // Bootstrap validates and persists this platform. Terminal launch runs on
+    // the server actor, so probing SSH here would stall unrelated sessions.
+    let platform = target
+        .runtime_platform
+        .as_deref()
+        .or(target.platform.as_deref())
+        .map(normalize_platform);
+    match platform.as_deref() {
+        Some("windows") => Ok(true),
+        Some("linux" | "macos") => Ok(false),
+        _ => bail!(
+            "The platform of SSH host '{}' is unknown. Run `alera ssh-target bootstrap --id {}` before opening its terminal.",
+            target.alias,
+            target.id
+        ),
+    }
+}
+
+#[cfg(test)]
+#[path = "ssh_workspace_routing_tests.rs"]
+mod workspace_routing_tests;
 
 #[cfg(test)]
 mod tests {
@@ -239,6 +282,27 @@ mod tests {
         assert!(!is_remote_host_id(Some("local")));
         assert!(!is_remote_host_id(Some("  local  ")));
         assert!(is_remote_host_id(Some("build-mac")));
+    }
+
+    #[test]
+    fn terminal_platform_uses_bootstrap_metadata_without_connecting() {
+        let mut remote = target();
+        remote.host = "unreachable.invalid".into();
+        for (platform, windows) in [("linux", false), ("darwin", false), ("win32", true)] {
+            remote.runtime_platform = Some(platform.into());
+            assert_eq!(terminal_platform_windows(&remote).unwrap(), windows);
+        }
+        remote.runtime_platform = None;
+        remote.platform = Some("windows".into());
+        assert!(terminal_platform_windows(&remote).unwrap());
+        remote.platform = None;
+        assert!(terminal_platform_windows(&remote)
+            .unwrap_err()
+            .to_string()
+            .contains("bootstrap --id build-mac"));
+        remote.runtime_platform = Some("unknown".into());
+        remote.platform = Some("windows".into());
+        assert!(terminal_platform_windows(&remote).is_err());
     }
 
     #[test]

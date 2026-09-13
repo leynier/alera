@@ -235,9 +235,12 @@ class const _ManagedWorkspaceRuntimeWithoutWatcher()
 
   @override
   Future<WorkspaceCreationResult> handOffWorkspace({
+    String? relocationId,
     required Workspace workspace,
     required String branch,
     required bool reuseExistingBranch,
+    bool moveChanges = true,
+    String? replacementBranch,
     String? name,
   }) {
     throw UnimplementedError();
@@ -245,6 +248,7 @@ class const _ManagedWorkspaceRuntimeWithoutWatcher()
 
   @override
   Future<WorkspaceHandOnResult> handOnWorkspace({
+    String? relocationId,
     required Workspace workspace,
     String? activeWorkspaceId,
   }) {
@@ -295,16 +299,20 @@ class const _ManagedWorkspaceRuntimeWithDeferredSetup(
 
   @override
   Future<WorkspaceCreationResult> handOffWorkspace({
+    String? relocationId,
     required Workspace workspace,
     required String branch,
     required bool reuseExistingBranch,
     String? name,
+    bool moveChanges = true,
+    String? replacementBranch,
   }) {
     throw UnimplementedError();
   }
 
   @override
   Future<WorkspaceHandOnResult> handOnWorkspace({
+    String? relocationId,
     required Workspace workspace,
     String? activeWorkspaceId,
   }) {

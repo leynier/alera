@@ -145,6 +145,10 @@ pub(crate) async fn create_managed_workspace_with<E: RemoteHostExecutor>(
     if !core_git::is_valid_branch_name(&branch)? {
         bail!("Invalid branch name \"{branch}\"");
     }
+    let host_id = normalized_host_id(request.host_id.as_deref());
+    if is_remote_host_id(Some(&host_id)) {
+        return create_remote_managed_workspace(store, request, &project, &host_id, executor).await;
+    }
     if request.reuse_existing_branch {
         ensure_target_branch_exists(&project, &branch)?;
     } else {
@@ -154,10 +158,11 @@ pub(crate) async fn create_managed_workspace_with<E: RemoteHostExecutor>(
     }
 
     let workspaces = store.list_workspaces(&project.id).await?;
-    if workspaces
-        .iter()
-        .any(|workspace| workspace.branch.as_deref() == Some(branch.as_str()))
-    {
+    if workspaces.iter().any(|workspace| {
+        workspace.host_id == host_id
+            && workspace.status == WorkspaceStatus::Active
+            && workspace.branch.as_deref() == Some(branch.as_str())
+    }) {
         bail!("A workspace for branch \"{branch}\" already exists");
     }
 
@@ -168,15 +173,10 @@ pub(crate) async fn create_managed_workspace_with<E: RemoteHostExecutor>(
         .filter(|value| !value.is_empty())
         .unwrap_or(&branch)
         .to_string();
-    let host_id = normalized_host_id(request.host_id.as_deref());
-    if is_remote_host_id(Some(&host_id)) {
-        return create_remote_managed_workspace(store, request, &project, &host_id, executor).await;
-    }
     let workspace_path = resolve_workspace_path(store, &project, &display_name, &request).await?;
-    if workspaces
-        .iter()
-        .any(|workspace| path_equals(&workspace.path, &workspace_path))
-    {
+    if workspaces.iter().any(|workspace| {
+        workspace.host_id == host_id && path_equals(&workspace.path, &workspace_path)
+    }) {
         bail!("A workspace already exists at \"{workspace_path}\"");
     }
 
@@ -277,6 +277,7 @@ pub(crate) async fn remove_managed_workspace_with<E: RemoteHostExecutor>(
     request: ManagedWorkspaceRemoveRequest,
     executor: &E,
 ) -> Result<Workspace> {
+    store.require_workspace_process_closure(&request.id).await?;
     let workspace = store
         .find_workspace(&request.id)
         .await?
@@ -310,7 +311,7 @@ pub(crate) async fn remove_managed_workspace_with<E: RemoteHostExecutor>(
             Err(_) => {}
         }
     }
-    store.remove_workspace(&workspace.id, true).await?;
+    store.retire_verified_linked_workspace(&workspace).await?;
     Ok(workspace)
 }
 
@@ -334,6 +335,7 @@ pub async fn workspace_has_active_automation_owner(
                     source_workspace_id,
                     ..
                 } => source_workspace_id == workspace_id,
+                AutomationTarget::ProjectCheckout { .. } => false,
             }
     }) {
         return Ok(true);
@@ -356,11 +358,18 @@ pub async fn validate_managed_workspace_removal(
     store: &RuntimeStore,
     request: &ManagedWorkspaceRemoveRequest,
 ) -> Result<()> {
+    store.require_workspace_process_closure(&request.id).await?;
+    store.validate_workspace_setup_idle(&request.id).await?;
     let workspace = store
         .find_workspace(&request.id)
         .await?
         .ok_or_else(|| anyhow!("Workspace not found"))?;
-    if is_remote_host_id(Some(&workspace.host_id)) && filesystem_entry_is_missing(&workspace.path)?
+    if is_remote_host_id(Some(&workspace.host_id))
+        && (crate::remote_managed_workspace_remove::has_registered_remote_checkout(
+            store, &workspace,
+        )
+        .await?
+            || filesystem_entry_is_missing(&workspace.path)?)
     {
         if workspace.kind == WorkspaceKind::Main {
             bail!("The main workspace cannot be removed");
@@ -534,7 +543,8 @@ async fn validate_workspace_storage_ownership(
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(default_workspace_root);
     if path_equals(&workspace.path, &project.repo_path)
-        || !is_host_owned_workspace_path(Path::new(&root), Path::new(&workspace.path))?
+        || (!is_host_owned_workspace_path(Path::new(&root), Path::new(&workspace.path))?
+            && !crate::relocation_owned_worktree::verify(store, workspace, project).await?)
     {
         bail!("Workspace path is outside Alera-managed storage");
     }
@@ -547,7 +557,9 @@ async fn validate_workspace_storage_ownership(
         bail!("Workspace path is registered as a project source repository");
     }
     if store.list_all_workspaces().await?.iter().any(|candidate| {
-        candidate.id != workspace.id && path_equals(&candidate.path, &workspace.path)
+        candidate.id != workspace.id
+            && candidate.host_id == workspace.host_id
+            && path_equals(&candidate.path, &workspace.path)
     }) {
         bail!("Workspace path has another runtime owner");
     }
@@ -594,7 +606,7 @@ fn ensure_target_branch_exists(project: &Project, branch: &str) -> Result<()> {
     Ok(())
 }
 
-async fn resolve_workspace_path(
+pub(crate) async fn resolve_workspace_path(
     store: &RuntimeStore,
     project: &Project,
     display_name: &str,

@@ -240,6 +240,11 @@ class _WorkspaceMarkdownViewerSurfaceState
     return _editorSessions.dirtyTextForPath(
       workspacePath: widget.workspace.path,
       relativePath: filePath,
+      ownerTabIds: ref
+          .read(workbenchControllerProvider)
+          .tabsFor(widget.workspace.id)
+          .map((tab) => tab.id)
+          .toSet(),
     );
   }
 

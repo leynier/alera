@@ -9,6 +9,7 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/domain/project_branch_catalog.dart';
 import 'package:alera/src/features/projects/domain/project_selection_order.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
@@ -42,6 +43,8 @@ class const PromptWorkspaceDialog({
   required final List<Project> projects,
   required final List<AgentProfile> agentProfiles,
   required final Future<List<String>> Function(Project project) loadBranches,
+  final Future<ProjectBranchCatalog> Function(Project project, String? hostId)?
+  loadHostBranchCatalog,
   required final Future<bool> Function(Project project, String branchName)
   checkBranchExists,
   required final Set<String> Function(Project project) workspaceBranches,
@@ -88,6 +91,7 @@ class const PromptWorkspaceDialog({
   final String? initialSourceBranch,
   final String? initialParentWorkspaceId,
   final String? initialHostId,
+  final bool initialUseProjectCheckout = true,
   final String? initialError,
   final NewWorkspaceMode initialMode = .fromPrompt,
   final Widget? manualForm,
@@ -106,6 +110,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   String? _sourceBranch;
   String? _selectedParentWorkspaceId;
   String? _selectedHostId;
+  int _branchLoadGeneration = 0;
   bool _loadingBranches = false;
   bool _working = false;
   String? _phase;
@@ -115,18 +120,16 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   String? _agentLaunchMutationId;
   bool? _originalAgentLaunchWasIdempotent;
   bool _createAnother = false;
+  bool _useProjectCheckout = false;
 
   @override
   void initState() {
     super.initState();
+    _useProjectCheckout =
+        widget.enqueuePrompt != null && widget.initialUseProjectCheckout;
     _mode = widget.initialMode;
     _project = _initialProject();
-    final restoringRetry =
-        widget.initialError != null || widget.initialPrompt != null;
-    _selectedParentWorkspaceId = restoringRetry
-        ? widget.initialParentWorkspaceId
-        : (widget.initialParentWorkspaceId ??
-              _defaultParentWorkspaceId(_project));
+    _selectedParentWorkspaceId = widget.initialParentWorkspaceId;
     _selectedHostId = widget.initialHostId;
     _profile = _defaultAgentProfile();
     _error = widget.initialError;
@@ -135,7 +138,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
       _promptController.text = initialPrompt;
     }
     final project = _project;
-    if (project != null) {
+    if (project != null && !_useProjectCheckout) {
       unawaited(_loadBranches(project));
     }
   }
@@ -174,6 +177,8 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   }
 
   Future<void> _loadBranches(Project project) async {
+    final hostId = _selectedHostId;
+    final generation = ++_branchLoadGeneration;
     setState(() {
       _loadingBranches = true;
       if (_error != widget.initialError) {
@@ -182,8 +187,12 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
       _branches = const <String>[];
     });
     try {
-      final branches = await widget.loadBranches(project);
-      if (!mounted || _project?.id != project.id) {
+      final catalog = await widget.loadHostBranchCatalog?.call(project, hostId);
+      final branches = catalog?.branches ?? await widget.loadBranches(project);
+      if (!mounted ||
+          _project?.id != project.id ||
+          _selectedHostId != hostId ||
+          generation != _branchLoadGeneration) {
         return;
       }
       setState(() {
@@ -197,30 +206,16 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
         _loadingBranches = false;
       });
     } catch (error) {
-      if (mounted && _project?.id == project.id) {
+      if (mounted &&
+          _project?.id == project.id &&
+          _selectedHostId == hostId &&
+          generation == _branchLoadGeneration) {
         setState(() {
           _loadingBranches = false;
           _error = error.toString();
         });
       }
     }
-  }
-
-  String? _defaultParentWorkspaceId(Project? project) {
-    if (project == null) {
-      return null;
-    }
-    Workspace? firstProjectWorkspace;
-    for (final workspace in _parentWorkspaces) {
-      if (workspace.projectId != project.id) {
-        continue;
-      }
-      firstProjectWorkspace ??= workspace;
-      if (workspace.isMain) {
-        return workspace.id;
-      }
-    }
-    return firstProjectWorkspace?.id;
   }
 
   String _parentWorkspaceLabel(Workspace workspace) {
@@ -239,19 +234,22 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   void _selectProject(Project project) {
     _update(() {
       _project = project;
-      _selectedParentWorkspaceId = _defaultParentWorkspaceId(project);
+      _selectedParentWorkspaceId = null;
+      if (!project.isGitRepository && widget.enqueuePrompt != null) {
+        _useProjectCheckout = true;
+      }
     });
-    unawaited(_loadBranches(project));
+    if (!_useProjectCheckout) unawaited(_loadBranches(project));
   }
 
   Future<void> _submit() async {
     final project = _project;
     final profile = _profile;
-    final sourceBranch = _sourceBranch;
+    final sourceBranch = _sourceBranch ?? '';
     final prompt = _promptController.text.trim();
     if (project == null ||
         profile == null ||
-        sourceBranch == null ||
+        (!_useProjectCheckout && sourceBranch.isEmpty) ||
         prompt.isEmpty) {
       setState(
         () =>
@@ -272,6 +270,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
     if (enqueue != null) {
       final done = enqueue(
         PromptWorkspaceCreateRequest(
+          useProjectCheckout: _useProjectCheckout,
           project: project,
           prompt: prompt,
           profileId: profile.id,
@@ -345,9 +344,14 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
           return;
         }
         setState(() => _phase = 'Checking generated branch');
-        final collision =
-            widget.workspaceBranches(project).contains(identity.branchName) ||
-            await widget.checkBranchExists(project, identity.branchName);
+        final catalog = await widget.loadHostBranchCatalog?.call(
+          project,
+          _selectedHostId,
+        );
+        final collision = catalog != null
+            ? catalog.localBranches.contains(identity.branchName)
+            : widget.workspaceBranches(project).contains(identity.branchName) ||
+                  await widget.checkBranchExists(project, identity.branchName);
         if (collision) {
           collisionError = StateError(
             'The generated branch "${identity.branchName}" already exists.',

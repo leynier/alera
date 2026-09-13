@@ -28,6 +28,8 @@ impl ClientState {
         ClientState {
             handle,
             authenticated: true,
+            shared_checkout_workspaces: true,
+            checkout_buffer_guards: true,
             binary_frames: false,
             kind: ClientKind::Local,
             local_role: if app_client {
@@ -47,6 +49,8 @@ pub(super) fn mobile_client(handle: ClientHandle, device: &str) -> ClientState {
     ClientState {
         handle,
         authenticated: true,
+        shared_checkout_workspaces: true,
+        checkout_buffer_guards: true,
         binary_frames: false,
         kind: ClientKind::Mobile,
         local_role: LocalClientRole::Cli,
@@ -61,6 +65,8 @@ pub(super) fn local_client(handle: ClientHandle) -> ClientState {
     ClientState {
         handle,
         authenticated: true,
+        shared_checkout_workspaces: true,
+        checkout_buffer_guards: true,
         binary_frames: false,
         kind: ClientKind::Local,
         local_role: LocalClientRole::Cli,
@@ -96,6 +102,10 @@ pub(super) async fn test_actor(
         project_clone_jobs: HashMap::new(),
         agent_title_jobs: HashMap::new(),
         managed_workspace_jobs: 0,
+        automation_checkout_jobs: Default::default(),
+        automation_precheck_jobs: Default::default(),
+        pending_terminal_lifecycle_shutdowns: Default::default(),
+        checkout_buffer_guards: HashMap::new(),
         mutation_queue: Default::default(),
         agent_quota_cache: None,
         configuration_transfers: Default::default(),

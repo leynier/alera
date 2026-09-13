@@ -1,9 +1,6 @@
-use alera_core::{
-    git as core_git,
-    runtime::{
-        LinkedReview, Project, ProjectConfig, WorkbenchLayoutRecord, Workspace, WorkspaceTabRecord,
-        WorkspaceTag,
-    },
+use alera_core::runtime::{
+    LinkedReview, Project, ProjectConfig, WorkbenchLayoutRecord, Workspace, WorkspaceTabRecord,
+    WorkspaceTag,
 };
 use chrono::{DateTime, Utc};
 use serde_json::{json, Map, Value};
@@ -144,12 +141,18 @@ impl ServerActor {
         }
     }
 
-    async fn handle_request(
+    pub(super) async fn handle_request(
         &mut self,
         client_id: u64,
         request_type: &str,
         payload: &Value,
     ) -> HostResult<Value> {
+        self.require_shared_checkout_support(client_id, request_type)?;
+        if request_type.starts_with("workspace.bufferGuard.") {
+            return self
+                .checkout_buffer_guard_request(client_id, request_type, payload)
+                .await;
+        }
         match request_type {
             "hello" => self.handle_hello(client_id, payload),
             "mobile.relayAuthorization.renew" => Err(HostError::state(
@@ -540,33 +543,7 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.project_clone_cancel_request(payload).await
             }
-            "project.branches.list" => {
-                self.require_auth(client_id)?;
-                let project_id = require_string_key(payload, "projectId")?;
-                let project = self
-                    .runtime_store
-                    .find_project(&project_id)
-                    .await
-                    .map_err(|error| HostError::state(error.to_string()))?
-                    .ok_or_else(|| HostError::state(format!("Project not found: {project_id}")))?;
-                let branches = core_git::list_branches(&project.repo_path)
-                    .map_err(|error| HostError::state(error.to_string()))?;
-                let local_branches = branches
-                    .iter()
-                    .filter_map(|branch| {
-                        match core_git::branch_exists(&project.repo_path, branch) {
-                            Ok(true) => Some(Ok(branch.clone())),
-                            Ok(false) => None,
-                            Err(error) => Some(Err(HostError::state(error.to_string()))),
-                        }
-                    })
-                    .collect::<HostResult<Vec<String>>>()?;
-                Ok(json!({
-                    "projectId": project.id,
-                    "branches": branches,
-                    "localBranches": local_branches,
-                }))
-            }
+
             "project.upsert" => {
                 self.require_auth(client_id)?;
                 let project: Project = parse_payload(payload)?;
@@ -609,6 +586,65 @@ impl ServerActor {
                 self.broadcast_authenticated(event("projectConfigsChanged", json!({})));
                 Ok(json!({}))
             }
+            "checkout.list" => {
+                self.require_auth(client_id)?;
+                let project_id = require_string_key(payload, "projectId")?;
+                super::project_checkout_requests::list_checkout_catalog(
+                    &self.runtime_store,
+                    &project_id,
+                )
+                .await
+            }
+            "project.removalDependencies" => {
+                self.require_auth(client_id)?;
+                let id = require_string_key(payload, "id")?;
+                json_result(
+                    self.runtime_store
+                        .project_automation_dependencies(&id)
+                        .await,
+                )
+            }
+            "workspace.removalDependencies" => {
+                self.require_auth(client_id)?;
+                let id = require_string_key(payload, "id")?;
+                json_result(
+                    crate::workspace_removal_dependencies::workspace_removal_dependencies(
+                        &self.runtime_store,
+                        &id,
+                    )
+                    .await,
+                )
+            }
+            "workspace.checkout" => {
+                self.require_auth(client_id)?;
+                let id = require_string_key(payload, "id")?;
+                json_result(self.runtime_store.find_workspace_checkout(&id).await)
+            }
+            "workspace.relocationRecovery" => {
+                self.require_auth(client_id)?;
+                let id = require_string_key(payload, "id")?;
+                let limit = payload
+                    .get("limit")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(20)
+                    .clamp(1, 100) as u32;
+                json_result(
+                    crate::workspace_relocation_recovery::inspect(&self.runtime_store, &id, limit)
+                        .await,
+                )
+            }
+            "workspace.cancelRelocationSetup" => {
+                self.require_auth(client_id)?;
+                self.require_shared_checkout_support(client_id, request_type)?;
+                let id = require_string_key(payload, "id")?;
+                let relocation_id = require_string_key(payload, "relocationId")?;
+                let attempt_id = require_string_key(payload, "attemptId")?;
+                self.runtime_store
+                    .request_relocation_setup_cancellation(&id, &relocation_id, &attempt_id)
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?;
+                Ok(json!({"cancellationRequested": true, "processesClosed": false}))
+            }
             "workspace.list" => {
                 self.require_auth(client_id)?;
                 let project_id = require_string_key(payload, "projectId")?;
@@ -622,6 +658,16 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 let id = require_string_key(payload, "id")?;
                 json_result(self.runtime_store.find_workspace(&id).await)
+            }
+            "workspace.retirementReceipt" => {
+                self.require_auth(client_id)?;
+                let id = require_string_key(payload, "id")?;
+                let instance_id = require_string_key(payload, "instanceId")?;
+                json_result(
+                    self.runtime_store
+                        .workspace_retirement_receipt(&id, &instance_id)
+                        .await,
+                )
             }
             "workspace.upsert" => {
                 self.require_auth(client_id)?;

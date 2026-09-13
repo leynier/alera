@@ -396,30 +396,30 @@ void _registerAleraShellSidebarActionTests() {
     expect(find.text(description), findsNothing);
   });
 
-  testWidgets('project removal closes every workspace runtime', (tester) async {
-    final harness = await _pumpShell(
-      tester,
-      state: _linkedWorkbenchState(linkedExpanded: true),
-    );
+  testWidgets(
+    'project removal delegates process closure to the runtime mutation',
+    (tester) async {
+      final harness = await _pumpShell(
+        tester,
+        state: _linkedWorkbenchState(linkedExpanded: true),
+      );
 
-    await tester.tapAt(
-      tester.getCenter(find.text('Alera').last),
-      buttons: kSecondaryMouseButton,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Remove Project'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+      await tester.tapAt(
+        tester.getCenter(find.text('Alera').last),
+        buttons: kSecondaryMouseButton,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove Project'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
-    expect(
-      harness.runtime.closedWorkspaceIds,
-      containsAll(<String>['workspace-1', 'workspace-2']),
-    );
-    expect(harness.controller.state.projects, isEmpty);
-    expect(find.text('No projects yet'), findsAtLeastNWidgets(1));
-  });
+      expect(harness.runtime.closedWorkspaceIds, isEmpty);
+      expect(harness.controller.state.projects, isEmpty);
+      expect(find.text('No projects yet'), findsAtLeastNWidgets(1));
+    },
+  );
 
   testWidgets(
     'shell shows a toast when the workbench state contains an error',

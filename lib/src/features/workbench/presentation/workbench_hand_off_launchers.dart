@@ -13,12 +13,35 @@ import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_state_migration.dart';
 import 'package:uuid/uuid.dart';
 
+import 'workspace_relocation_retry_flow.dart';
+
 Future<void> showHandOffWorkspaceFlow(
   BuildContext context,
   WidgetRef ref, {
   required Workspace workspace,
 }) async {
   if (!workspace.isMain) {
+    return;
+  }
+  if (workspace.isRemote) {
+    final branch = workspace.branch?.trim();
+    if (branch == null || branch.isEmpty || branch == 'HEAD') {
+      AleraToast.show(
+        context,
+        message: 'The remote branch is unavailable. Refresh the workspace branch on its host before Hand Off.',
+        tone: .error,
+      );
+      return;
+    }
+    final request = await showWorkspaceHandOffDialog(
+      context: context,
+      currentBranch: branch,
+      branchContextNotice:
+          'Last recorded remote branch: $branch. The owning host verifies branch availability and shared changes before moving this task. If its branch changed, refresh the workspace and choose again.',
+    );
+    if (request != null && context.mounted) {
+      await _performHandOff(context, ref, workspace, request);
+    }
     return;
   }
   String currentBranch;
@@ -118,32 +141,48 @@ Future<void> showHandOffWorkspaceFlow(
       }
       return null;
     },
+    validateReplacementBranch: (branch) async {
+      if (!await git.isValidBranchName(branch) ||
+          !await git.branchExists(workspace.path, branch)) {
+        return 'Choose an existing replacement branch';
+      }
+      return null;
+    },
   );
   if (request == null || !context.mounted) {
     return;
   }
-  try {
-    await ref
-        .read(workbenchControllerProvider.notifier)
-        .handOffWorkspace(
-          workspace: workspace,
-          branch: request.branch,
-          reuseExistingBranch: request.reuseExistingBranch,
-          name: request.name,
-        );
-    if (!context.mounted) {
-      return;
-    }
+  await _performHandOff(context, ref, workspace, request);
+}
+
+Future<void> _performHandOff(
+  BuildContext context,
+  WidgetRef ref,
+  Workspace workspace,
+  WorkspaceHandOffRequest request,
+) async {
+  final completed = await runWorkspaceRelocationWithRetry(
+    context: context,
+    action: 'Hand Off',
+    perform: (relocationId) async {
+      await ref
+          .read(workbenchControllerProvider.notifier)
+          .handOffWorkspace(
+            relocationId: relocationId,
+            workspace: workspace,
+            branch: request.branch,
+            reuseExistingBranch: request.reuseExistingBranch,
+            moveChanges: request.moveChanges,
+            replacementBranch: request.replacementBranch,
+          );
+    },
+  );
+  if (completed && context.mounted) {
     AleraToast.show(
       context,
-      message: 'Work handed off. Any moved local changes remain backed up in Git Stashes as "alera handoff recovery".',
+      message: 'Workspace moved to its worktree. Any transferred local changes remain backed up in Git Stashes.',
       tone: .success,
     );
-  } catch (error) {
-    if (!context.mounted) {
-      return;
-    }
-    AleraToast.show(context, message: error.toString(), tone: .error);
   }
 }
 
@@ -159,31 +198,33 @@ Future<void> showHandOnWorkspaceFlow(
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (_) => AleraConfirmDialog(
-      title: 'Hand On to Main?',
+      title: 'Hand On to Project Folder?',
       message:
-          'This brings the branch and uncommitted changes from "${workspace.name}" onto the main worktree, then removes this child workspace. Open tabs and running terminals move with it.',
+          'This moves "${workspace.name}" to the project folder and brings its branch and uncommitted changes with it. All workspaces on that folder share the resulting branch and files. The task and its tabs keep their identity. Stop this task’s processes first; its old worktree is removed after the move succeeds.',
       confirmLabel: 'Hand On',
     ),
   );
   if (confirmed != true || !context.mounted) {
     return;
   }
-  try {
-    await ref
-        .read(workbenchControllerProvider.notifier)
-        .handOnWorkspace(project: project, workspace: workspace);
-    if (!context.mounted) {
-      return;
-    }
+  final completed = await runWorkspaceRelocationWithRetry(
+    context: context,
+    action: 'Hand On',
+    perform: (relocationId) async {
+      await ref
+          .read(workbenchControllerProvider.notifier)
+          .handOnWorkspace(
+            relocationId: relocationId,
+            project: project,
+            workspace: workspace,
+          );
+    },
+  );
+  if (completed && context.mounted) {
     AleraToast.show(
       context,
-      message: 'Work handed on to main. Any moved local changes remain backed up in Git Stashes as "alera handoff recovery".',
+      message: 'Workspace moved to the project folder. Any transferred local changes remain backed up in Git Stashes.',
       tone: .success,
     );
-  } catch (error) {
-    if (!context.mounted) {
-      return;
-    }
-    AleraToast.show(context, message: error.toString(), tone: .error);
   }
 }

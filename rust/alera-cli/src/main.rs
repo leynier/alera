@@ -6,6 +6,7 @@ mod agent_quota;
 mod agent_status;
 mod automation_autostart;
 mod automation_commands;
+mod automation_declaration;
 mod automation_ssh_precheck;
 mod cli;
 mod cli_async_runtime;
@@ -32,44 +33,79 @@ mod orchestration_command_summaries;
 mod orchestration_commands;
 mod orchestration_delegate;
 mod orchestration_terminal_commands;
+mod owner_precheck_checkout;
+mod process_identity;
+mod project_branch_catalog;
+mod project_checkout_clone;
+mod project_checkout_inspection;
+mod project_checkout_worktree;
 mod project_config_toml;
+mod project_file_catalog;
 mod project_management;
 #[cfg(windows)]
 mod pty_job_bootstrap;
+mod relocation_owned_worktree;
+mod relocation_setup_process;
 mod remote_managed_workspace;
-mod remote_managed_workspace_git;
 mod remote_managed_workspace_remove;
 mod remote_managed_workspace_remove_script;
+mod remote_owner_enrollment;
+mod remote_owner_precheck;
+mod remote_owner_recovery;
+mod remote_owner_relocation;
+mod remote_owner_retirement;
+mod remote_owner_setup;
+mod remote_owner_terminal;
+mod remote_owner_terminal_launch;
+mod remote_owner_terminal_lifecycle;
+mod remote_owner_terminal_ownership;
+mod remote_project_checkout;
+mod remote_relocation_recovery;
+mod remote_relocation_setup;
+mod remote_shared_retirement;
+mod remote_terminal_bridge;
 mod remote_workspace_files;
+mod remote_workspace_owner;
+mod remote_workspace_relocation;
 mod runtime_archive;
 mod runtime_clear;
 mod runtime_commands;
 mod runtime_host_client;
 mod runtime_host_command;
+mod setup_process_cancellation;
+mod shared_workspace;
+mod shared_workspace_removal;
 mod ssh_bootstrap;
 mod ssh_remote;
 mod ssh_target_status;
+mod ssh_windows_command;
 mod tab_record_factory;
 mod tailscale;
 mod terminal_alias_commands;
 mod terminal_host;
+mod terminal_stdio_mode;
 mod workspace_add;
+mod workspace_buffer_guard_request;
 mod workspace_context;
 mod workspace_handoff;
 mod workspace_pinning;
 mod workspace_registration;
+mod workspace_relocation_recovery;
+mod workspace_relocation_setup;
+mod workspace_removal_dependencies;
 mod workspace_setup_command;
 mod workspace_start;
 mod worktree_copy;
 mod worktree_include;
 mod worktree_setup;
+mod worktree_setup_process;
 mod worktree_setup_script;
 use std::future::Future;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use alera_core::runtime::{
-    CascadePreview, MobileAccessSettings, MobileEndpointMode, Project, ProjectKind, RuntimeStore,
+    CascadePreview, MobileAccessSettings, MobileEndpointMode, ProjectKind, RuntimeStore,
     SshAuthKind, SshTarget, WorkspaceTag,
 };
 use base64::engine::general_purpose::STANDARD;
@@ -81,10 +117,10 @@ use serde_json::{json, Value};
 use uuid::Uuid;
 
 use crate::cli::{
-    CascadePreviewArgs, Cli, Command, IdArgs, ProjectAction, ProjectAddArgs, ProjectCommand,
-    ProjectKindArg, RuntimeDirArgs, SshAuthKindArg, SshTargetAction, SshTargetAddArgs,
-    SshTargetBootstrapArgs, SshTargetBootstrapPlanArgs, SshTargetCommand, SshTargetStatusArgs,
-    TabAction, TabCommand, WorkspaceAction, WorkspaceCommand,
+    CascadePreviewArgs, Cli, Command, IdArgs, ProjectAction, ProjectCommand, ProjectKindArg,
+    RuntimeDirArgs, SshAuthKindArg, SshTargetAction, SshTargetAddArgs, SshTargetBootstrapArgs,
+    SshTargetBootstrapPlanArgs, SshTargetCommand, SshTargetStatusArgs, TabAction, TabCommand,
+    WorkspaceAction, WorkspaceCommand,
 };
 use crate::cli::{MobileAction, MobileCommand, MobileDevicesAction, MobilePairingAction};
 use crate::cli::{TerminalAction, TerminalCommand};
@@ -269,51 +305,8 @@ fn required_option_error(value: &str, name: &str) -> Option<i32> {
     }
 }
 
-async fn run_project_command(command: ProjectCommand) -> i32 {
-    let runtime = command.runtime;
-    let json_output = command.output.json;
-    match command.action {
-        ProjectAction::List => match open_store(&runtime).await {
-            Ok(store) => match store.list_projects().await {
-                Ok(projects) => print_value(
-                    &json!({ "kind": "projects", "items": projects, "filters": {} }),
-                    json_output,
-                    "projects listed",
-                ),
-                Err(error) => return print_error(error),
-            },
-            Err(error) => return print_error(error),
-        },
-        ProjectAction::Add(args) => {
-            let project = project_from_args(args);
-            let fallback_project = project.clone();
-            match runtime_host_or_store(&runtime, "project.upsert", &project, |store| async move {
-                store.upsert_project(fallback_project).await
-            })
-            .await
-            {
-                Ok(project) => print_value(&project, json_output, "project saved"),
-                Err(error) => return print_error(error),
-            }
-        }
-        ProjectAction::Remove(IdArgs { id }) => {
-            let payload = json!({ "id": id });
-            let removed_id = id.clone();
-            match runtime_host_or_store_unit(
-                &runtime,
-                "project.remove",
-                &payload,
-                |store| async move { hosted_review_retention::remove_project(store, &id).await },
-            )
-            .await
-            {
-                Ok(()) => print_value(&json!({ "id": removed_id }), json_output, "project removed"),
-                Err(error) => return print_error(error),
-            }
-        }
-    }
-    0
-}
+mod main_project_commands;
+use main_project_commands::run_project_command;
 
 async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
     let runtime = command.runtime;
@@ -363,6 +356,36 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
                 Err(exit_code) => return exit_code,
             }
         }
+        WorkspaceAction::Recovery(args) => {
+            let store = match open_store(&runtime).await {
+                Ok(store) => store,
+                Err(error) => return print_error(error),
+            };
+            match store.find_workspace(&args.id).await {
+                Ok(Some(workspace)) if workspace.host_id != alera_core::runtime::LOCAL_HOST_ID => {
+                    return match remote_relocation_recovery::inspect(
+                        &store,
+                        workspace,
+                        20,
+                        &ssh_remote::LiveSshRemoteHost,
+                    )
+                    .await
+                    {
+                        Ok(report) => {
+                            remote_relocation_recovery::print(&report, json_output);
+                            0
+                        }
+                        Err(error) => print_error(error),
+                    };
+                }
+                Err(error) => return print_error(error),
+                _ => {}
+            }
+            match workspace_relocation_recovery::inspect(&store, &args.id, 20).await {
+                Ok(items) => workspace_setup_command::print_recovery(&items, json_output),
+                Err(error) => return print_error(error),
+            }
+        }
         WorkspaceAction::Remove(args) => {
             let delete_branch = if args.delete_branch {
                 Some(true)
@@ -374,15 +397,48 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
             let payload = json!({
                 "id": args.id,
                 "deleteBranch": delete_branch,
+                "closeSessions": args.close_sessions,
             });
             let value: Value = match runtime_host_required(&runtime).await {
-                Ok(mut client) => match client
-                    .request_value("workspace.removeManaged", &payload)
-                    .await
-                {
-                    Ok(value) => value,
-                    Err(error) => return print_error(error),
-                },
+                Ok(mut client) => {
+                    let workspace: Value = match client
+                        .request_value("workspace.find", &json!({"id": args.id}))
+                        .await
+                    {
+                        Ok(workspace) => workspace,
+                        Err(error) => return print_error(error),
+                    };
+                    if let Err(error) =
+                        workspace_removal_dependencies::prepare_cli_removal_dependencies(
+                            &mut client,
+                            &args.id,
+                            args.pause_automations_and_cancel_runs,
+                        )
+                        .await
+                    {
+                        return print_error(error);
+                    }
+                    let operation = if workspace.get("kind").and_then(Value::as_str) == Some("main")
+                    {
+                        "workspace.removeShared"
+                    } else {
+                        "workspace.removeManaged"
+                    };
+                    let removed = if operation == "workspace.removeShared" {
+                        workspace_buffer_guard_request::request_with_workspace_buffer_guard(
+                            &mut client,
+                            "removeShared",
+                            &payload,
+                        )
+                        .await
+                    } else {
+                        client.request_value(operation, &payload).await
+                    };
+                    match removed {
+                        Ok(value) => value,
+                        Err(error) => return print_error(error),
+                    }
+                }
                 Err(error) => return print_error(error),
             };
             print_value(&value, json_output, "workspace removed");
@@ -604,6 +660,15 @@ async fn run_tab_command(command: TabCommand) -> i32 {
             let payload = json!({ "id": id });
             let removed_id = id.clone();
             match runtime_host_or_store_unit(&runtime, "tab.remove", &payload, |store| async move {
+                if let Some(tab) = store.find_workspace_tab(&id).await? {
+                    if tab.kind == "terminal" {
+                        if let Some(workspace) = store.find_workspace(&tab.workspace_id).await? {
+                            if workspace.host_id != alera_core::runtime::LOCAL_HOST_ID {
+                                anyhow::bail!("The Home runtime must be available to verify SSH terminal closure before removing this tab");
+                            }
+                        }
+                    }
+                }
                 let retentions = hosted_review_retention::for_tab(&store, &id).await;
                 store.remove_workspace_tab(&id).await?;
                 hosted_review_retention::release(retentions);
@@ -760,204 +825,8 @@ async fn run_ssh_target_command(command: SshTargetCommand) -> i32 {
     0
 }
 
-async fn run_mobile_command(command: MobileCommand) -> i32 {
-    let runtime = command.runtime;
-    let json_output = command.output.json;
-    match command.action {
-        MobileAction::Status => {
-            let runtime_host_active =
-                match RuntimeHostRpcClient::connect_mobile(&runtime_dir(&runtime)).await {
-                    Ok(client) => client.is_some(),
-                    Err(_) => false,
-                };
-            let store = match open_store(&runtime).await {
-                Ok(store) => store,
-                Err(error) => return print_error(error),
-            };
-            match mobile_status(&store, Some(runtime_host_active)).await {
-                Ok(status) => print_value(&status, json_output, "mobile status ready"),
-                Err(error) => return print_error(error),
-            }
-        }
-        MobileAction::Enable(args) => {
-            let request = MobileSettingsUpdateRequest {
-                enabled: Some(true),
-                remote_access_enabled: None,
-                bind_host: args.bind_host,
-                port: args.port,
-                endpoint_mode: if args.netbird {
-                    Some(MobileEndpointMode::Netbird)
-                } else {
-                    args.tailscale.then_some(MobileEndpointMode::Tailscale)
-                },
-                netbird_endpoint: args.netbird.then_some(args.netbird_endpoint.into()),
-            };
-            match mobile_runtime_host_request::<MobileAccessSettings, _>(
-                &runtime,
-                "mobile.settings.update",
-                &request,
-            )
-            .await
-            {
-                Ok(settings) => print_value(&settings, json_output, "mobile access enabled"),
-                Err(error) => return print_error(error),
-            }
-        }
-        MobileAction::Disable => {
-            let request = MobileSettingsUpdateRequest {
-                enabled: Some(false),
-                remote_access_enabled: None,
-                bind_host: None,
-                port: None,
-                endpoint_mode: None,
-                netbird_endpoint: None,
-            };
-            let fallback_request = request.clone();
-            match mobile_runtime_host_or_store(
-                &runtime,
-                "mobile.settings.update",
-                &request,
-                |store| async move { update_mobile_settings(&store, fallback_request).await },
-            )
-            .await
-            {
-                Ok(settings) => print_value(&settings, json_output, "mobile access disabled"),
-                Err(error) => return print_error(error),
-            }
-        }
-        MobileAction::Pairing(command) => match command.action {
-            MobilePairingAction::Create(args) => {
-                let request = MobilePairingCreateRequest {
-                    endpoint: args.endpoint,
-                    device_name: args.device_name,
-                    expires_minutes: args.expires_minutes,
-                };
-                match mobile_runtime_host_request::<MobilePairingOfferPayload, _>(
-                    &runtime,
-                    "mobile.pairing.create",
-                    &request,
-                )
-                .await
-                {
-                    Ok(offer) => print_value(&offer, json_output, "mobile pairing offer created"),
-                    Err(error) => return print_error(error),
-                }
-            }
-            MobilePairingAction::Claim(args) => {
-                let request = MobileDevicePairRequest {
-                    pairing_id: args.pairing_id,
-                    pairing_secret: args.pairing_secret,
-                    device_name: args.device_name,
-                    public_key_b64: args.public_key_b64,
-                };
-                let fallback_request = request.clone();
-                match mobile_runtime_host_or_store(
-                    &runtime,
-                    "mobile.device.pair",
-                    &request,
-                    |store| async move { pair_mobile_device(&store, fallback_request).await },
-                )
-                .await
-                {
-                    Ok(device) => print_value(&device, json_output, "mobile device paired"),
-                    Err(error) => return print_error(error),
-                }
-            }
-            MobilePairingAction::Cancel(IdArgs { id }) => {
-                let payload = json!({ "id": id });
-                let cancelled_id = id.clone();
-                match mobile_runtime_host_or_store_unit(
-                    &runtime,
-                    "mobile.pairing.cancel",
-                    &payload,
-                    |store| async move { cancel_mobile_pairing_offer(&store, &id).await },
-                )
-                .await
-                {
-                    Ok(()) => print_value(
-                        &json!({ "id": cancelled_id }),
-                        json_output,
-                        "mobile pairing offer cancelled",
-                    ),
-                    Err(error) => return print_error(error),
-                }
-            }
-        },
-        MobileAction::Devices(command) => {
-            match command.action {
-                MobileDevicesAction::List(args) => {
-                    let payload = json!({ "includeRevoked": args.include_revoked });
-                    match mobile_runtime_host_or_store(
-                    &runtime,
-                    "mobile.device.list",
-                    &payload,
-                    |store| async move { list_mobile_devices(&store, args.include_revoked).await },
-                )
-                .await
-                {
-                    Ok(devices) => print_value(&json!({ "kind": "mobileDevices", "items": devices, "filters": { "includeRevoked": args.include_revoked } }), json_output, "mobile devices listed"),
-                    Err(error) => return print_error(error),
-                }
-                }
-                MobileDevicesAction::Rename(args) => {
-                    let payload = json!({ "id": args.id, "displayName": args.name });
-                    match mobile_runtime_host_or_store::<MobileDeviceSummary, _, _>(
-                        &runtime,
-                        "mobile.device.rename",
-                        &payload,
-                        |store| async move {
-                            rename_mobile_device(&store, &args.id, &args.name).await
-                        },
-                    )
-                    .await
-                    {
-                        Ok(device) => print_value(&device, json_output, "mobile device renamed"),
-                        Err(error) => return print_error(error),
-                    }
-                }
-                MobileDevicesAction::Revoke(IdArgs { id }) => {
-                    let payload = json!({ "id": id });
-                    let revoked_id = id.clone();
-                    match mobile_runtime_host_or_store_unit(
-                        &runtime,
-                        "mobile.device.revoke",
-                        &payload,
-                        |store| async move { revoke_mobile_device(&store, &id).await },
-                    )
-                    .await
-                    {
-                        Ok(()) => print_value(
-                            &json!({ "id": revoked_id }),
-                            json_output,
-                            "mobile device revoked",
-                        ),
-                        Err(error) => return print_error(error),
-                    }
-                }
-                MobileDevicesAction::Delete(IdArgs { id }) => {
-                    let payload = json!({ "id": id });
-                    let deleted_id = id.clone();
-                    match mobile_runtime_host_or_store_unit(
-                        &runtime,
-                        "mobile.device.delete",
-                        &payload,
-                        |store| async move { delete_mobile_device(&store, &id).await },
-                    )
-                    .await
-                    {
-                        Ok(()) => print_value(
-                            &json!({ "id": deleted_id }),
-                            json_output,
-                            "mobile device deleted",
-                        ),
-                        Err(error) => return print_error(error),
-                    }
-                }
-            }
-        }
-    }
-    0
-}
+mod main_mobile_commands;
+use main_mobile_commands::run_mobile_command;
 
 async fn runtime_host_or_store<T, P, Fut>(
     args: &RuntimeDirArgs,
@@ -1116,21 +985,6 @@ pub(crate) fn runtime_dir(args: &RuntimeDirArgs) -> PathBuf {
         .or_else(|_| std::env::var("USERPROFILE"))
         .unwrap_or_else(|_| ".".to_string());
     Path::new(&home).join(".alera").join("runtime")
-}
-
-fn project_from_args(args: ProjectAddArgs) -> Project {
-    let now = Utc::now();
-    Project {
-        id: args.id.unwrap_or_else(|| Uuid::new_v4().to_string()),
-        name: args.name,
-        repo_path: args.repo_path,
-        created_at: now,
-        updated_at: now,
-        kind: match args.kind {
-            ProjectKindArg::GitRepository => ProjectKind::GitRepository,
-            ProjectKindArg::Folder => ProjectKind::Folder,
-        },
-    }
 }
 
 fn ssh_target_from_args(args: SshTargetAddArgs) -> SshTarget {

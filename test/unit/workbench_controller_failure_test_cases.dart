@@ -251,7 +251,7 @@ void _registerWorkbenchControllerFailureTests() {
     },
   );
 
-  test('bootstrap surfaces workspace preparation failures', () async {
+  test('bootstrap does not rewrite the registered workspace', () async {
     _harness.workbenchRepository.upsertWorkspaceError = StateError(
       'cannot prepare workspace',
     );
@@ -259,10 +259,8 @@ void _registerWorkbenchControllerFailureTests() {
     await _controller.bootstrap();
     await _flush();
 
-    expect(
-      _controller.state.error,
-      contains('Failed to prepare workspace for "Alera"'),
-    );
+    expect(_controller.state.error, isNull);
+    expect(_controller.state.workspacesFor(_harness.project.id), hasLength(1));
   });
 
   test(

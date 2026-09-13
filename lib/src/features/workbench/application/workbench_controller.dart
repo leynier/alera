@@ -2,6 +2,10 @@ import 'package:alera/src/features/workbench/domain/workspace_section.dart';
 import 'package:alera/src/features/workbench/application/workspace_section_repository.dart';
 
 import 'dart:async';
+
+import 'package:alera/src/features/projects/domain/project_branch_catalog.dart';
+import 'package:alera/src/features/projects/infra/runtime_project_branch_client.dart';
+
 import 'dart:io';
 
 import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
@@ -42,12 +46,15 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../domain/experimental_workspace_panel.dart';
+import '../domain/workspace_relocation_recovery.dart';
+import '../infra/workspace_relocation_recovery_client.dart';
 
 part 'workbench_controller.g.dart';
 part 'workbench_controller_internals.dart';
 part 'workbench_controller_workspace_reconciliation.dart';
 part 'workbench_controller_experimental_layout.dart';
 part 'workbench_controller_projects.dart';
+part 'workbench_controller_project_branches.dart';
 part 'workbench_controller_workspace_sleep.dart';
 part 'workbench_controller_navigation.dart';
 part 'workbench_controller_tab_opening.dart';
@@ -71,6 +78,7 @@ class WorkbenchController extends _$WorkbenchController
         _WorkbenchControllerFileTabs,
         _WorkbenchControllerPullRequestDiffTabs,
         _WorkbenchControllerProjects,
+        _WorkbenchControllerProjectBranches,
         _WorkbenchControllerWorkspaceSleep,
         _WorkbenchControllerNavigation,
         // Creation builds on project selection and tab opening so the prompt
@@ -130,9 +138,7 @@ class WorkbenchController extends _$WorkbenchController
       final initialProjects = await _projectsService.projectRepository
           .listAll();
       _onProjectsChanged(initialProjects);
-      await Future.wait<void>(
-        initialProjects.map(_ensureMainWorkspaceForProject),
-      );
+      await Future.wait<void>(initialProjects.map(_reconcileProjectWorkspaces));
       state = state.copyWith(bootstrapped: true, error: null);
     } catch (error) {
       state = state.copyWith(

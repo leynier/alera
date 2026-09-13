@@ -59,6 +59,8 @@ impl ServerActor {
             ClientState {
                 handle,
                 authenticated: false,
+                shared_checkout_workspaces: false,
+                checkout_buffer_guards: false,
                 binary_frames: false,
                 kind: ClientKind::Mobile,
                 local_role: client_delivery::LocalClientRole::Cli,

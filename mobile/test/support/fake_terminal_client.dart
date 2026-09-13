@@ -43,6 +43,7 @@ class FakeTerminalClient
     implements
         MobileTerminalClient,
         MobileWorkspaceClient,
+        MobileSharedCheckoutClient,
         MobileWorkspacePanelsClient {
   final StreamController<MobileRuntimeEvent> _events =
       StreamController<MobileRuntimeEvent>.broadcast();

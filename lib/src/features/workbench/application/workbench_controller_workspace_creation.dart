@@ -12,6 +12,7 @@ mixin _WorkbenchControllerWorkspaceCreation
         _WorkbenchControllerTabOpening,
         _WorkbenchControllerProjects {
   Future<WorkspaceCreationResult> createWorkspace({
+    bool useProjectCheckout = false,
     required Project project,
     required String sourceBranch,
     required String newBranchName,
@@ -21,6 +22,7 @@ mixin _WorkbenchControllerWorkspaceCreation
     String? hostId,
   }) {
     return _createWorkspace(
+      useProjectCheckout: useProjectCheckout,
       project: project,
       sourceBranch: sourceBranch,
       newBranchName: newBranchName,
@@ -37,6 +39,7 @@ mixin _WorkbenchControllerWorkspaceCreation
   /// its terminal first, then [completePromptWorkspaceCreation] synchronizes
   /// that tab and appends Setup.
   Future<WorkspaceCreationResult> createWorkspaceForPrompt({
+    bool useProjectCheckout = false,
     required Project project,
     required String sourceBranch,
     required String newBranchName,
@@ -45,6 +48,7 @@ mixin _WorkbenchControllerWorkspaceCreation
     String? hostId,
   }) {
     return _createWorkspace(
+      useProjectCheckout: useProjectCheckout,
       project: project,
       sourceBranch: sourceBranch,
       newBranchName: newBranchName,
@@ -57,6 +61,7 @@ mixin _WorkbenchControllerWorkspaceCreation
   }
 
   Future<WorkspaceCreationResult> _createWorkspace({
+    required bool useProjectCheckout,
     required Project project,
     required String sourceBranch,
     required String newBranchName,
@@ -67,14 +72,20 @@ mixin _WorkbenchControllerWorkspaceCreation
     String? hostId,
   }) async {
     try {
-      final result = await _workspaceService.createLinkedWorkspace(
-        project: project,
-        sourceBranch: sourceBranch,
-        newBranchName: newBranchName,
-        reuseExistingBranch: reuseExistingBranch,
-        name: name,
-        hostId: hostId,
-      );
+      final result = useProjectCheckout
+          ? await _workspaceService.createSharedWorkspace(
+              project: project,
+              name: name,
+              hostId: hostId,
+            )
+          : await _workspaceService.createLinkedWorkspace(
+              project: project,
+              sourceBranch: sourceBranch,
+              newBranchName: newBranchName,
+              reuseExistingBranch: reuseExistingBranch,
+              name: name,
+              hostId: hostId,
+            );
       _reconcileCreatedWorkspace(project, result.workspace);
       if (initializeTabs) {
         await selectWorkspace(project: project, workspace: result.workspace);

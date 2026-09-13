@@ -799,15 +799,11 @@ pub(crate) async fn run_remote_command(
     platform: &str,
     script: &str,
 ) -> Result<RemoteCommandOutput> {
+    if platform == "windows" {
+        return crate::ssh_windows_command::run(target, script).await;
+    }
     let mut args = ssh_args(target);
-    let command = if platform == "windows" {
-        format!(
-            "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand {}",
-            powershell_encoded(script)
-        )
-    } else {
-        format!("sh -lc {}", shell_quote(script))
-    };
+    let command = format!("sh -lc {}", shell_quote(script));
     args.push(command);
     run_checked("ssh", &args).await
 }

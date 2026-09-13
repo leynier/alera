@@ -217,6 +217,8 @@ extension _SocketTerminalHostClientConnections on SocketTerminalHostClient {
           'protocolVersion': aleraTerminalHostProtocolVersion,
           'token': control.token,
           'clientKind': 'app',
+          'sharedCheckoutWorkspacesV1': true,
+          'checkoutBufferGuardsV1': _bufferGuardHandler != null,
           'supportedTabKinds': const <String>[],
           if (control.supportsBinaryFrames) 'binaryFrames': true,
         },

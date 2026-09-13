@@ -13,6 +13,26 @@ const String aleraRuntimeHostBootstrapCapability = 'sshTargetBootstrap';
 const String aleraRuntimeHostManagedWorkspaceCapability =
     'managedWorkspaceLifecycle';
 const String aleraRuntimeHostSafeHandoffCapability = 'safeWorkspaceHandoffV1';
+const String aleraRuntimeHostSharedCheckoutCapability =
+    'sharedCheckoutWorkspacesV1';
+
+bool requiresSharedCheckoutSupport(String operation) => switch (operation) {
+  'workspace.upsert' ||
+  'checkout.quickOpen.start' ||
+  'workspace.createShared' ||
+  'workspace.removeShared' ||
+  'workspace.handOff' ||
+  'workspace.handOn' ||
+  'workspace.runSetup' ||
+  'workspace.prepareRelocationSetup' ||
+  'workspace.recoverRelocationSetup' ||
+  'workspace.cancelRelocationSetup' ||
+  'workspace.remove' ||
+  'workspace.removeForProject' ||
+  'project.register' ||
+  'project.clone.start' => true,
+  _ => operation.startsWith('workspace.bufferGuard.'),
+};
 
 /// Feature-detect remote `workspace.createManaged` hostId plus SSH PTY/file
 /// attach. Additive: do not bump [aleraTerminalHostProtocolVersion].

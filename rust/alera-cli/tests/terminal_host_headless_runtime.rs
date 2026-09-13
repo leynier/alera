@@ -13,6 +13,10 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
 use serde_json::{json, Value};
 
+#[path = "terminal_host_headless_runtime/home_owner_retirement_case.rs"]
+mod home_owner_retirement_case;
+#[path = "terminal_host_headless_runtime/owner_terminal_case.rs"]
+mod owner_terminal_case;
 #[path = "terminal_host_headless_runtime/profile_snapshot_restart_cases.rs"]
 mod profile_snapshot_restart_cases;
 #[path = "terminal_host_headless_runtime/startup_command_cases.rs"]
@@ -63,7 +67,7 @@ fn connect(port: u16, token: &str) -> (TcpStream, BufReader<TcpStream>) {
     let mut reader = BufReader::new(stream);
     send(
         &mut writer,
-        json!({"id": 0, "type": "hello", "payload": {"protocolVersion": PROTOCOL_VERSION, "token": token}}),
+        json!({"id": 0, "type": "hello", "payload": {"protocolVersion": PROTOCOL_VERSION, "token": token, "sharedCheckoutWorkspacesV1": true}}),
     );
     let hello = read_message(&mut reader);
     assert_eq!(hello["ok"], json!(true), "handshake rejected: {hello}");
@@ -71,6 +75,14 @@ fn connect(port: u16, token: &str) -> (TcpStream, BufReader<TcpStream>) {
 }
 
 fn spawn_host(runtime_dir: &std::path::Path, token: &str) -> (HostGuard, u16) {
+    spawn_host_with_path(runtime_dir, token, None)
+}
+
+fn spawn_host_with_path(
+    runtime_dir: &std::path::Path,
+    token: &str,
+    path: Option<std::ffi::OsString>,
+) -> (HostGuard, u16) {
     let control_path = runtime_dir.join("runtime-host.json");
     let test_home = runtime_dir.join("test-home");
     std::fs::create_dir_all(&test_home).unwrap();
@@ -90,6 +102,7 @@ fn spawn_host(runtime_dir: &std::path::Path, token: &str) -> (HostGuard, u16) {
         ])
         .env("HOME", test_home)
         .env("SHELL", "/bin/sh")
+        .envs(path.map(|path| ("PATH", path)))
         .env_remove("CLAUDE_CONFIG_DIR")
         .env_remove("CODEX_HOME")
         .env_remove("COPILOT_HOME")

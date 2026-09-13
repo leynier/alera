@@ -3,11 +3,11 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
 use git2::{Config, ConfigLevel, ErrorCode, Repository};
-use notify::{ErrorKind as NotifyErrorKind, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{ErrorKind as NotifyErrorKind, RecursiveMode};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
-use super::watcher_error;
+use super::{watcher_error, SharedPulseWatcher};
 
 #[derive(Default)]
 pub(super) struct GitIgnoreSources {
@@ -358,7 +358,7 @@ pub(super) fn refresh_git_ignore_source_watches(
     watched: &mut HashSet<PathBuf>,
     persistent_watches: &HashSet<PathBuf>,
     workspace_watches: &HashSet<PathBuf>,
-    watcher: &mut RecommendedWatcher,
+    watcher: &mut SharedPulseWatcher,
     repository: &Repository,
     environment: &GitConfigEnvironment,
 ) -> HostResult<()> {
@@ -426,3 +426,27 @@ fn git_source_error(error: git2::Error) -> HostError {
 #[cfg(test)]
 #[path = "terminal_pulse_git_ignore_source_cases.rs"]
 mod cases;
+
+pub(super) fn ancestor_gitignore_files(
+    root: &Path,
+    repository: &Repository,
+) -> HostResult<HashSet<PathBuf>> {
+    let workdir = repository
+        .workdir()
+        .ok_or_else(|| HostError::state("Terminal Pulse requires a Git working tree."))?;
+    let workdir = dunce::canonicalize(workdir).map_err(|error| {
+        HostError::state(format!(
+            "Terminal Pulse Git working tree could not be resolved: {error}"
+        ))
+    })?;
+    let mut files = HashSet::new();
+    let mut directory = root.parent();
+    while let Some(current) = directory.filter(|current| current.starts_with(&workdir)) {
+        files.insert(current.join(".gitignore"));
+        if current == workdir {
+            break;
+        }
+        directory = current.parent();
+    }
+    Ok(files)
+}

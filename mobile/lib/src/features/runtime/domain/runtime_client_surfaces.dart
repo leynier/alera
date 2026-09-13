@@ -1,4 +1,6 @@
+import 'package:alera_mobile/src/features/runtime/domain/project_checkout_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_removal_dependency.dart';
 
 import 'dart:async';
 import 'dart:typed_data';
@@ -178,6 +180,36 @@ abstract interface class MobileCodexWorkspaceClient {
 
 /// Workspace listing and mutation surface consumed by the workbench
 /// controllers; kept as an interface so tests can fake the runtime.
+abstract interface class MobileSharedCheckoutClient {
+  bool get supportsSharedCheckoutWorkspaces;
+  Future<List<WorkspaceRemovalDependency>> removalDependencies(
+    String workspaceId,
+  );
+  Future<void> pauseRemovalDependencies(
+    String workspaceId,
+    List<WorkspaceRemovalDependency> approved,
+  );
+  Future<MobileWorkspaceQuickOpenSession> startProjectCheckoutQuickOpen({
+    required String projectId,
+    String? checkoutHostId,
+  });
+  Future<WorkspaceCreationResult> createSharedWorkspace({
+    required String projectId,
+    String? name,
+    String? checkoutHostId,
+  });
+  Future<void> removeSharedWorkspace(String workspaceId);
+}
+
+MobileSharedCheckoutClient requireSharedCheckoutClient(
+  MobileWorkspaceClient client,
+) {
+  if (client is MobileSharedCheckoutClient) {
+    return client as MobileSharedCheckoutClient;
+  }
+  throw UnsupportedError('Update Alera to use shared project folders.');
+}
+
 abstract interface class MobileWorkspaceClient {
   Stream<MobileRuntimeEvent> get events;
   bool get supportsWorkspaceMutations;
@@ -191,7 +223,10 @@ abstract interface class MobileWorkspaceClient {
   Future<MobileViewPrefs> updateWorkbenchViewPrefs(MobileViewPrefs prefs);
   Future<List<AgentPresenceSummary>> listAgentPresence();
   Future<List<ProjectSummary>> listProjects();
-  Future<ProjectBranches> listBranches(String projectId);
+  Future<ProjectBranches> listBranches(
+    String projectId, {
+    String? checkoutHostId,
+  });
   Future<List<AgentProfileSummary>> listAgentProfiles();
   Future<GeneratedWorkspaceIdentity> generateWorkspaceIdentity({
     required String operationId,
@@ -222,6 +257,7 @@ abstract interface class MobileWorkspaceClient {
   });
   Future<WorkspaceCreationResult> createManagedWorkspace({
     required String projectId,
+    String? checkoutHostId,
     required String branch,
     String? sourceBranch,
     bool reuseExistingBranch = false,
@@ -249,4 +285,8 @@ abstract interface class MobileWorkspaceSectionClient {
   Future<void> createWorkspaceSection(String name, String workspaceId);
   Future<void> setWorkspaceSection(String workspaceId, String? sectionId);
   Future<void> removeWorkspaceSection(String sectionId);
+}
+
+abstract interface class MobileCheckoutCatalogClient {
+  Future<List<ProjectCheckoutSummary>> listProjectCheckouts(String projectId);
 }

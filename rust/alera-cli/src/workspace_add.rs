@@ -1,4 +1,4 @@
-//! `alera workspace add` — local or remote (`--host-id`) managed worktree create.
+//! Create task state on a project folder or an explicitly requested worktree.
 
 use anyhow::Result;
 use serde_json::{json, Value};
@@ -9,6 +9,11 @@ use crate::terminal_host::protocol::RUNTIME_HOST_REMOTE_SSH_WORKSPACES_CAPABILIT
 
 pub async fn run(runtime: RuntimeDirArgs, args: WorkspaceAddArgs, json_output: bool) -> i32 {
     let remote = crate::ssh_remote::is_remote_host_id(args.host_id.as_deref());
+    let operation = if args.worktree {
+        "workspace.createManaged"
+    } else {
+        "workspace.createShared"
+    };
     let payload = match workspace_add_payload(args) {
         Ok(payload) => payload,
         Err(error) => return crate::print_error(error),
@@ -23,10 +28,7 @@ pub async fn run(runtime: RuntimeDirArgs, args: WorkspaceAddArgs, json_output: b
         crate::runtime_host_required(&runtime).await
     };
     let value: Value = match client {
-        Ok(mut client) => match client
-            .request_value("workspace.createManaged", &payload)
-            .await
-        {
+        Ok(mut client) => match client.request_value(operation, &payload).await {
             Ok(value) => value,
             Err(error) => return crate::print_error(error),
         },
@@ -37,6 +39,11 @@ pub async fn run(runtime: RuntimeDirArgs, args: WorkspaceAddArgs, json_output: b
 }
 
 fn workspace_add_payload(args: WorkspaceAddArgs) -> Result<Value> {
+    if !args.worktree {
+        return Ok(
+            json!({"id": args.id, "projectId": args.project_id, "name": args.name, "parentWorkspaceId": args.parent_workspace_id, "hostId": args.host_id}),
+        );
+    }
     let remote = crate::ssh_remote::is_remote_host_id(args.host_id.as_deref());
     Ok(json!({
         "id": args.id,

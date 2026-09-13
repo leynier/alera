@@ -76,6 +76,36 @@ pub(super) fn path_is_same_or_within(path: &str, root: &str) -> bool {
 }
 
 impl ServerActor {
+    pub(super) async fn reconcile_relocated_stopped_sessions(
+        &mut self,
+        workspace_id: &str,
+        source_path: &str,
+    ) {
+        let Ok(Some(workspace)) = self.runtime_store.find_workspace(workspace_id).await else {
+            return;
+        };
+        if workspace.path == source_path {
+            return;
+        }
+        let mut relocated = Vec::new();
+        for (id, session) in &mut self.sessions {
+            if session.workspace_id != workspace_id || session.running() {
+                continue;
+            }
+            if let Some(path) = alera_core::runtime::relocated_workspace_path(
+                &session.working_directory,
+                source_path,
+                &workspace.path,
+            ) {
+                session.working_directory = path;
+                relocated.push(id.clone());
+            }
+        }
+        for id in relocated {
+            self.immediate_checkpoint(&id).await;
+        }
+    }
+
     pub(super) async fn reconcile_transferred_session_owners(&mut self) {
         let sessions: Vec<_> = self
             .sessions

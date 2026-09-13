@@ -67,6 +67,9 @@ impl ServerActor {
             || self.has_authenticated_clients()
             || !self.ssh_bootstrap_jobs.is_empty()
             || self.managed_workspace_jobs > 0
+            || !self.automation_checkout_jobs.is_empty()
+            || !self.automation_precheck_jobs.is_empty()
+            || !self.pending_terminal_lifecycle_shutdowns.is_empty()
             || self.mutation_queue.outstanding() > 0
             || !self.mutation_queue.pending_workspace_shutdowns.is_empty()
             || self.account_push.cloud_jobs > 0
@@ -135,7 +138,10 @@ impl ServerActor {
         if generation == self.shutdown_gen
             && !self.disposed
             && !self.has_authenticated_clients()
+            && self.automation_checkout_jobs.is_empty()
+            && self.automation_precheck_jobs.is_empty()
             && self.mutation_queue.pending_workspace_shutdowns.is_empty()
+            && self.pending_terminal_lifecycle_shutdowns.is_empty()
         {
             self.dispose().await;
         }

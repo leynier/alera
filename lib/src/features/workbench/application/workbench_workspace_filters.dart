@@ -11,14 +11,9 @@ bool workspaceMatchesTagFilter(WorkbenchViewPrefs prefs, Workspace workspace) {
   return workspace.tagIds.any(prefs.selectedTagIds.contains);
 }
 
-/// Whether [workspace] passes the workspace-kind visibility filter: the main
-/// worktree counts as the project's default workspace.
+/// Legacy saved kind filters no longer hide tasks on shared checkouts.
 bool workspaceMatchesKindFilter(WorkbenchViewPrefs prefs, Workspace workspace) {
-  return switch (prefs.workspaceKindFilter) {
-    WorkspaceKindFilter.all => true,
-    WorkspaceKindFilter.defaultOnly => workspace.isMain,
-    WorkspaceKindFilter.nonDefaultOnly => !workspace.isMain,
-  };
+  return true;
 }
 
 /// Whether [tabs] make a workspace active for sidebar filtering and activity

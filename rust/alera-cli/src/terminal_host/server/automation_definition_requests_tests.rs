@@ -14,6 +14,9 @@ use super::actor_test_harness::{local_client, test_actor};
 use super::ServerActor;
 use crate::terminal_host::client::ClientHandle;
 
+#[path = "automation_project_checkout_tests.rs"]
+mod project_checkout_tests;
+
 struct Harness {
     _runtime_dir: tempfile::TempDir,
     repo_path: PathBuf,

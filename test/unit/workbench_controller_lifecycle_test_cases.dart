@@ -1,19 +1,33 @@
 part of 'workbench_controller_test.dart';
 
 void _registerWorkbenchControllerLifecycleTests() {
-  test('bootstrap prepares the main workspace without selecting it', () async {
+  test('bootstrap preserves a project with no registered tasks', () async {
+    _harness.workbenchRepository._workspacesByProject.clear();
     await _controller.bootstrap();
-    await _flushUntil(
-      () => _controller.state.workspacesFor(_harness.project.id).isNotEmpty,
+    await _flush();
+    expect(_controller.state.workspacesFor(_harness.project.id), isEmpty);
+    expect(
+      await _harness.workbenchRepository.listWorkspaces(_harness.project.id),
+      isEmpty,
     );
-
-    expect(_controller.state.activeProjectId, _harness.project.id);
-    expect(_controller.state.activeWorkspace, isNull);
-    final workspaces = _controller.state.workspacesFor(_harness.project.id);
-    expect(workspaces.single.isMain, isTrue);
-    expect(_controller.state.tabsFor(workspaces.single.id), isEmpty);
-    expect(_controller.state.activeWorkspaceTab, isNull);
   });
+
+  test(
+    'bootstrap loads the registered initial task without selecting it',
+    () async {
+      await _controller.bootstrap();
+      await _flushUntil(
+        () => _controller.state.workspacesFor(_harness.project.id).isNotEmpty,
+      );
+
+      expect(_controller.state.activeProjectId, _harness.project.id);
+      expect(_controller.state.activeWorkspace, isNull);
+      final workspaces = _controller.state.workspacesFor(_harness.project.id);
+      expect(workspaces.single.isMain, isTrue);
+      expect(_controller.state.tabsFor(workspaces.single.id), isEmpty);
+      expect(_controller.state.activeWorkspaceTab, isNull);
+    },
+  );
 
   test(
     'selecting a workspace with no tabs seeds the first terminal tab',

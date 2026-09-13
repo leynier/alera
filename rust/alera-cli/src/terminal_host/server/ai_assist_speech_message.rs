@@ -4,13 +4,16 @@ use tokio::sync::oneshot;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
+use super::ai_assist_command_execution::run_workspace_command;
 use super::ai_assist_model_defaults::default_model;
-use super::ai_assist_requests::{active_generations, plan_command, run_command, SUPPORTED_AGENTS};
+use super::ai_assist_operation_registry::active_generations;
+use super::ai_assist_process_journal::AiAssistProcessOwner;
+use super::ai_assist_requests::{plan_command, SUPPORTED_AGENTS};
 use super::host_service_requests::required_non_blank;
 use super::{ServerActor, ServerCommand};
 
 impl ServerActor {
-    pub(super) fn start_ai_assist_speech_message(
+    pub(super) async fn start_ai_assist_speech_message(
         &mut self,
         client_id: u64,
         request_id: i64,
@@ -27,51 +30,34 @@ impl ServerActor {
         if workspace_id.is_none() && tab_id.is_none() {
             return Err(HostError::format("workspaceId or tabId is required."));
         }
+        let workspace = self
+            .resolve_ai_assist_workspace(workspace_id, tab_id)
+            .await?;
         let store = self.runtime_store.clone();
         let inbox = self.inbox.clone();
-        let (cancel_tx, cancel_rx) = oneshot::channel();
-        let mut active = active_generations()
-            .lock()
-            .map_err(|_| HostError::state("AI Assist state is unavailable."))?;
-        if active.contains_key(&operation_id) {
-            return Err(HostError::state(
-                "AI Assist is already running for this operation.",
-            ));
-        }
-        active.insert(operation_id.clone(), cancel_tx);
-        drop(active);
+        let (registration, cancel_rx) =
+            active_generations().register(operation_id.clone(), Some(workspace.clone()))?;
         tokio::spawn(async move {
             let result = async {
-                let resolved_workspace_id = if let Some(workspace_id) = workspace_id {
-                    workspace_id
-                } else {
-                    let tab_id = tab_id.expect("validated tab id");
-                    store
-                        .find_workspace_tab(&tab_id)
-                        .await
-                        .map_err(|error| HostError::state(error.to_string()))?
-                        .ok_or_else(|| {
-                            HostError::state(format!("Workspace tab not found: {tab_id}"))
-                        })?
-                        .workspace_id
-                };
-                let workspace = store
-                    .find_workspace(&resolved_workspace_id)
-                    .await
-                    .map_err(|error| HostError::state(error.to_string()))?
-                    .ok_or_else(|| {
-                        HostError::state(format!("Workspace not found: {resolved_workspace_id}"))
-                    })?;
                 let settings = store
                     .effective_ai_assist_settings()
                     .await
                     .map_err(|error| HostError::state(error.to_string()))?;
-                generate_speech_message(&workspace.path, &text, &mode, settings, cancel_rx).await
+                generate_speech_message(
+                    AiAssistProcessOwner {
+                        store,
+                        workspace,
+                        operation_id,
+                    },
+                    &text,
+                    &mode,
+                    settings,
+                    cancel_rx,
+                )
+                .await
             }
             .await;
-            if let Ok(mut active) = active_generations().lock() {
-                active.remove(&operation_id);
-            }
+            drop(registration);
             let _ = inbox.send(ServerCommand::AiAssistFinished {
                 client_id,
                 request_id,
@@ -92,7 +78,7 @@ fn optional_non_blank(payload: &Value, key: &str) -> Option<String> {
 }
 
 async fn generate_speech_message(
-    working_directory: &str,
+    owner: AiAssistProcessOwner,
     text: &str,
     mode: &str,
     settings: RuntimeAiAssistSettings,
@@ -116,7 +102,7 @@ async fn generate_speech_message(
     let plan = plan_command(&settings, "speechMessage", &prompt)?;
     let label = plan.label.clone();
     let timeout_seconds = settings.timeout_seconds;
-    let output = run_command(plan, working_directory, timeout_seconds, cancel_rx).await?;
+    let output = run_workspace_command(plan, owner, timeout_seconds, cancel_rx).await?;
     let cleaned = output.trim();
     if cleaned.is_empty() {
         return Err(HostError::state(

@@ -309,9 +309,6 @@ WorkspaceTabsTableCompanion _workspaceTabCompanion(WorkspaceTabRecord tab) {
 
 List<Workspace> _sortWorkspaces(List<Workspace> workspaces) {
   workspaces.sort((left, right) {
-    if (left.isMain != right.isMain) {
-      return left.isMain ? -1 : 1;
-    }
     final createdAt = left.createdAt.compareTo(right.createdAt);
     if (createdAt != 0) {
       return createdAt;

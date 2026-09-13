@@ -375,3 +375,10 @@ mod tests {
         }
     }
 }
+
+#[derive(Debug, Args)]
+pub struct AutomationHostArgs {
+    /// Runtime profile directory used by the automation host.
+    #[arg(long = "runtime-dir", value_name = "path")]
+    pub runtime_dir: String,
+}

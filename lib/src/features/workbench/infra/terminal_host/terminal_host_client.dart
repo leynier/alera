@@ -7,6 +7,7 @@ import 'dart:math';
 import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
 import 'package:alera/src/features/diagnostics/infra/crash_reporting.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/runtime_buffer_guard_handler.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_frame_codec.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_socket_isolate.dart';
@@ -17,6 +18,7 @@ import 'package:alera/src/shared/infra/logging/log_redaction.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
 export 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
 export 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_process_launcher.dart';
@@ -25,6 +27,7 @@ part 'terminal_host_client_types.dart';
 part 'terminal_host_client_requests.dart';
 part 'terminal_host_client_capabilities.dart';
 part 'terminal_host_client_connections.dart';
+part 'terminal_host_client_buffer_guards.dart';
 part 'terminal_host_client_guarded_requests.dart';
 part 'terminal_host_client_terminal_requests.dart';
 part 'terminal_host_client_lifecycle.dart';
@@ -41,6 +44,7 @@ final class SocketTerminalHostClient._(
   var TerminalHostConfig _config,
   this._heartbeatInterval,
   final Duration _heartbeatTimeout,
+  final RuntimeBufferGuardHandler? _bufferGuardHandler,
 ) with
         _TerminalHostClientHeartbeat,
         _TerminalHostClientSessionEvents,
@@ -59,6 +63,7 @@ final class SocketTerminalHostClient._(
     TerminalHostConfig initialConfig = TerminalHostConfig.defaults,
     Duration heartbeatInterval = _terminalHostHeartbeatInterval,
     Duration heartbeatTimeout = _terminalHostHeartbeatTimeout,
+    RuntimeBufferGuardHandler? bufferGuardHandler,
   }) {
     return SocketTerminalHostClient._(
       launcher ?? DefaultTerminalHostProcessLauncher(),
@@ -67,6 +72,7 @@ final class SocketTerminalHostClient._(
       initialConfig,
       heartbeatInterval,
       heartbeatTimeout,
+      bufferGuardHandler,
     );
   }
 
@@ -77,7 +83,9 @@ final class SocketTerminalHostClient._(
       StreamController<TerminalHostEvent>.broadcast();
   final StreamController<RuntimeHostEvent> _runtimeEvents =
       StreamController<RuntimeHostEvent>.broadcast();
+  final Map<String, String> _pendingTerminalRestarts = {};
   final Map<int, _PendingHostRequest> _pending = <int, _PendingHostRequest>{};
+  final Map<String, Set<_TerminalHostConnection>> _heldBufferGuards = {};
 
   Future<_TerminalHostConnection>? _terminalConnectionFuture;
   @override
@@ -312,6 +320,14 @@ final class SocketTerminalHostClient._(
     final connection = await _connectRuntime(
       requireOrchestration: type.startsWith('orchestration.'),
     );
+    if (requiresSharedCheckoutSupport(type) &&
+        !connection.runtimeCapabilities.contains(
+          aleraRuntimeHostSharedCheckoutCapability,
+        )) {
+      throw StateError(
+        'Update the Alera runtime before using $type. Existing terminal sessions remain available.',
+      );
+    }
     _throwIfAppQuitInProgress();
     return _requestOnConnection(connection, type, payload, timeout: timeout);
   }
@@ -468,6 +484,20 @@ final class SocketTerminalHostClient._(
     final decoded = line is String ? jsonDecode(line) : line;
     final message = asTerminalHostMap(decoded, 'Terminal host message');
     if (message['event'] case final String event) {
+      if (event == 'checkoutBuffersLock') {
+        _lockCheckoutBuffers(
+          connection,
+          asTerminalHostMap(message['payload'], 'buffer guard'),
+        );
+        return;
+      }
+      if (event == 'checkoutBuffersReleased') {
+        final payload = asTerminalHostMap(message['payload'], 'buffer guard');
+        if (payload['guardId'] case final String id) {
+          _releaseCheckoutBuffers(id, retired: payload['retired'] == true);
+        }
+        return;
+      }
       _handleEvent(event, asTerminalHostMap(message['payload'], 'event'));
       return;
     }
@@ -484,6 +514,12 @@ final class SocketTerminalHostClient._(
         connection.completeAuthenticationError(error);
         _handleConnectionClosed(connection, error);
       } else {
+        if (message['payload'] is Map) {
+          _restoreCheckoutBufferGuards(
+            connection,
+            asTerminalHostMap(message['payload'], 'hello'),
+          );
+        }
         connection.completeAuthentication();
       }
       return;
@@ -582,6 +618,7 @@ final class SocketTerminalHostClient._(
       return;
     }
     _disposed = true;
+    _pendingTerminalRestarts.clear();
     _appQuitInProgress = true;
     _stopHeartbeat();
     _closeSessionEvents();

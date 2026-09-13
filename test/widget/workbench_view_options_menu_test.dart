@@ -143,43 +143,27 @@ void main() {
       expect(find.text('No projects match "missing"'), findsOneWidget);
     });
 
-    testWidgets('updates the workspace kind filter and shows the active dot', (
-      tester,
-    ) async {
-      final controller = _ViewOptionsTestController(
-        WorkbenchState(projects: <Project>[_project('project-1', 'Alera')]),
-      );
-
-      await _pumpButton(tester, controller);
-
-      expect(_activeDot(), findsNothing);
-
-      await tester.tap(_viewOptionsButton());
-      await tester.pumpAndSettle();
-
-      expect(find.text('Show Workspaces'), findsOneWidget);
-      await tester.tap(find.text('Default'));
-      await tester.pumpAndSettle();
-
-      expect(
-        controller.state.viewPrefs.workspaceKindFilter,
-        WorkspaceKindFilter.defaultOnly,
-      );
-
-      await tester.tap(find.byTooltip('Close'));
-      await tester.pumpAndSettle();
-      expect(_activeDot(), findsOneWidget);
-
-      await tester.tap(_viewOptionsButton());
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('All').first);
-      await tester.pumpAndSettle();
-
-      expect(
-        controller.state.viewPrefs.workspaceKindFilter,
-        WorkspaceKindFilter.all,
-      );
-    });
+    testWidgets(
+      'retired workspace filters are absent and do not activate the indicator',
+      (tester) async {
+        final controller = _ViewOptionsTestController(
+          WorkbenchState(
+            projects: <Project>[_project('project-1', 'Alera')],
+            viewPrefs: WorkbenchViewPrefs.defaults.copyWith(
+              workspaceKindFilter: .defaultOnly,
+            ),
+          ),
+        );
+        await _pumpButton(tester, controller);
+        expect(_activeDot(), findsNothing);
+        await tester.tap(_viewOptionsButton());
+        await tester.pumpAndSettle();
+        expect(find.text('Show Workspaces'), findsOneWidget);
+        expect(find.text('Active Workspaces Only'), findsOneWidget);
+        expect(find.text('Default'), findsNothing);
+        expect(find.text('Non-Default'), findsNothing);
+      },
+    );
 
     testWidgets('toggles pinned workspace copies below the pinned section', (
       tester,

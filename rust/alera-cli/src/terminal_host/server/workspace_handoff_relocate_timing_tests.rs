@@ -16,20 +16,20 @@ use crate::managed_workspace_handoff::{
 };
 use crate::terminal_host::client::{ClientFrame, ClientHandle};
 use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
-use crate::terminal_host::orchestration::agent_prompt_injection::{
-    build_agent_prompt_paste_bytes, AGENT_PROMPT_SUBMIT,
-};
 use crate::terminal_host::server::runtime_mutations::RuntimeMutationRequest;
 use crate::terminal_host::session::{Session, TestQueuedWrite};
 
 use super::super::actor_test_harness::{local_client, test_actor};
 use super::super::{ServerActor, ServerCommand};
-use super::{handoff_chdir_bytes, handoff_notify_message, WorkspaceHandoffDirection};
 
-fn recv_write(rx: &Receiver<TestQueuedWrite>) -> TestQueuedWrite {
-    rx.recv_timeout(Duration::from_secs(1))
-        .expect("expected a queued terminal write")
-}
+#[path = "workspace_relocation_request_retry_tests.rs"]
+mod request_retry_tests;
+
+#[path = "workspace_relocation_setup_tests.rs"]
+mod setup_protection;
+
+#[path = "workspace_handoff_identity_completion_tests.rs"]
+mod identity_completion;
 
 fn assert_no_write(rx: &Receiver<TestQueuedWrite>) {
     assert!(
@@ -115,6 +115,7 @@ impl Fixture {
         let created = hand_off_managed_workspace(
             &actor.runtime_store,
             ManagedWorkspaceHandOffRequest {
+                relocation_id: None,
                 id: "main".into(),
                 branch: "feat/hand-on".into(),
                 name: Some("Hand On Child".into()),
@@ -174,28 +175,60 @@ impl Fixture {
     ) -> crate::terminal_host::host_error::HostResult<
         crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown,
     > {
+        let acquired = self
+            .actor
+            .checkout_buffer_guard_request(
+                1,
+                "workspace.bufferGuard.acquire",
+                &json!({"id": self.child.id, "operation": "handOn"}),
+            )
+            .await?;
+        let buffer_guard = self.actor.claim_checkout_buffer_guard(
+            1,
+            1,
+            &self.child.id,
+            "handOn",
+            &json!({"bufferGuardId": acquired["guardId"]}),
+        )?;
         self.actor
             .prepare_runtime_mutation(&RuntimeMutationRequest::HandOnWorkspace {
                 request: ManagedWorkspaceHandOnRequest {
+                    relocation_id: None,
                     id: self.child.id.clone(),
                     close_sessions,
                     active_workspace_id: None,
                 },
+                buffer_guard,
             })
             .await
     }
 
     async fn request_hand_on(&mut self) -> Value {
+        self.request_relocation(
+            "handOn",
+            json!({"id": self.child.id, "sharedImpactConfirmed": true}),
+        )
+        .await
+    }
+
+    async fn request_relocation(&mut self, operation: &str, mut payload: Value) -> Value {
+        let acquired = self
+            .actor
+            .checkout_buffer_guard_request(
+                1,
+                "workspace.bufferGuard.acquire",
+                &json!({"id": payload["id"], "operation": operation}),
+            )
+            .await
+            .unwrap();
+        payload["bufferGuardId"] = acquired["guardId"].clone();
         self.actor
             .handle_line(
                 1,
                 json!({
                     "id": 1,
-                    "type": "workspace.handOn",
-                    "payload": {
-                        "id": self.child.id,
-                        "closeSessions": true,
-                    },
+                    "type": format!("workspace.{operation}"),
+                    "payload": payload,
                 })
                 .to_string(),
             )
@@ -219,18 +252,23 @@ impl Fixture {
             }
         })
         .await
-        .expect("workspace.handOn should finish")
+        .expect("workspace relocation should finish")
     }
 }
 
 #[tokio::test]
-async fn prepare_hand_on_does_not_relocate_sessions() {
+async fn prepare_hand_on_blocks_neighbor_processes_using_the_retiring_worktree() {
     let mut fixture = Fixture::new().await;
     let shell_rx = fixture.insert_main_shell_in_child();
     let agent_rx = fixture.insert_main_agent_in_child();
     let child_path = fixture.child.path.clone();
 
-    fixture.prepare_hand_on(true).await.unwrap();
+    let error = fixture
+        .prepare_hand_on(true)
+        .await
+        .err()
+        .expect("neighbor process still uses source directory");
+    assert!(error.wire_message().contains("main-shell"));
 
     assert_no_write(&shell_rx);
     assert_no_write(&agent_rx);
@@ -255,13 +293,47 @@ async fn prepare_hand_on_does_not_relocate_sessions() {
 }
 
 #[tokio::test]
+async fn prepare_hand_on_preserves_other_host_session_with_identical_path() {
+    let mut fixture = Fixture::new().await;
+    let mut remote = fixture.child.clone();
+    remote.id = "remote-task".into();
+    remote.instance_id = "remote-instance".into();
+    remote.host_id = "ssh-host".into();
+    remote.kind = WorkspaceKind::Main;
+    fixture
+        .actor
+        .runtime_store
+        .insert_workspace(remote.clone())
+        .await
+        .unwrap();
+    let rx = fixture.insert_main_shell_in_child();
+    fixture
+        .actor
+        .sessions
+        .get_mut("main-shell")
+        .unwrap()
+        .workspace_id = remote.id.clone();
+    fixture.prepare_hand_on(true).await.unwrap();
+    let session = fixture.actor.sessions.get("main-shell").unwrap();
+    assert!(session.running());
+    assert_eq!(session.workspace_id, remote.id);
+    assert_eq!(session.working_directory, remote.path);
+    assert_no_write(&rx);
+}
+
+#[tokio::test]
 async fn prepare_hand_on_preserves_live_sessions_without_close_consent() {
     let mut fixture = Fixture::new().await;
     let child_rx = fixture.insert_live_child_shell();
     let shell_rx = fixture.insert_main_shell_in_child();
     let child_path = fixture.child.path.clone();
 
-    fixture.prepare_hand_on(false).await.unwrap();
+    let error = fixture
+        .prepare_hand_on(false)
+        .await
+        .err()
+        .expect("live source process must block relocation");
+    assert!(error.wire_message().contains("child-shell"));
 
     assert_no_write(&child_rx);
     assert_no_write(&shell_rx);
@@ -295,7 +367,9 @@ async fn failed_hand_on_does_not_relocate_sessions() {
     .unwrap();
     let shell_rx = fixture.insert_main_shell_in_child();
     let agent_rx = fixture.insert_main_agent_in_child();
-    let child_path = fixture.child.path.clone();
+    for session in fixture.actor.sessions.values_mut() {
+        session.working_directory = fixture.main_path.clone();
+    }
 
     let response = fixture.request_hand_on().await;
     assert_eq!(response["ok"], false, "{response}");
@@ -317,7 +391,7 @@ async fn failed_hand_on_does_not_relocate_sessions() {
             .get("main-shell")
             .unwrap()
             .working_directory,
-        child_path
+        fixture.main_path
     );
     assert_eq!(
         fixture
@@ -326,12 +400,12 @@ async fn failed_hand_on_does_not_relocate_sessions() {
             .get("main-agent")
             .unwrap()
             .working_directory,
-        child_path
+        fixture.main_path
     );
 }
 
 #[tokio::test]
-async fn successful_hand_on_relocates_and_notifies() {
+async fn hand_on_refuses_unverifiable_process_relocation_without_sending_commands() {
     let mut fixture = Fixture::new().await;
     let shell_rx = fixture.insert_main_shell_in_child();
     let agent_rx = fixture.insert_main_agent_in_child();
@@ -339,20 +413,12 @@ async fn successful_hand_on_relocates_and_notifies() {
         session.workspace_id = fixture.child.id.clone();
     }
     let child_path = fixture.child.path.clone();
-    let main_path = fixture.main_path.clone();
 
     let response = fixture.request_hand_on().await;
-    assert_eq!(response["ok"], true, "{response}");
-
-    assert_eq!(recv_write(&shell_rx).bytes, handoff_chdir_bytes(&main_path));
-    let agent_write = recv_write(&agent_rx);
-    let expected =
-        handoff_notify_message(WorkspaceHandoffDirection::HandOn, &child_path, &main_path);
-    assert_eq!(agent_write.bytes, build_agent_prompt_paste_bytes(&expected));
-    assert_eq!(
-        agent_write.deferred_bytes.as_deref(),
-        Some(AGENT_PROMPT_SUBMIT)
-    );
+    assert_eq!(response["ok"], false, "{response}");
+    assert!(response["error"].as_str().unwrap().contains("processes"));
+    assert_no_write(&shell_rx);
+    assert_no_write(&agent_rx);
     assert_eq!(
         fixture
             .actor
@@ -360,7 +426,7 @@ async fn successful_hand_on_relocates_and_notifies() {
             .get("main-shell")
             .unwrap()
             .working_directory,
-        main_path
+        child_path
     );
     assert_eq!(
         fixture
@@ -369,7 +435,7 @@ async fn successful_hand_on_relocates_and_notifies() {
             .get("main-agent")
             .unwrap()
             .working_directory,
-        main_path
+        child_path
     );
 }
 

@@ -75,9 +75,11 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs {
             .read(workspaceListControllerProvider(request.hostId).notifier)
             .createWorkspace(
               projectId: request.projectId,
+              checkoutHostId: request.checkoutHostId,
               branch: request.branch,
               sourceBranch: request.sourceBranch,
               reuseExistingBranch: request.reuseExistingBranch,
+              useProjectCheckout: request.useProjectCheckout,
               name: request.name,
               parentWorkspaceId: request.parentWorkspaceId,
             );

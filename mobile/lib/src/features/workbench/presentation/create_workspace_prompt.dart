@@ -12,9 +12,11 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
     final workspaceFilesSourceId = _workspaceFilesSourceId(
       promptState.projectId,
     );
+    final localUploads = _checkoutHostId == null || _checkoutHostId == 'local';
     final hasAttachmentSources =
-        widget.supportsPromptImageUpload ||
-        widget.supportsPromptFileUpload ||
+        (localUploads &&
+            (widget.supportsPromptImageUpload ||
+                widget.supportsPromptFileUpload)) ||
         workspaceFilesSourceId != null;
     const promptDictationTarget = 'prompt-workspace';
     final promptEnabled =
@@ -101,22 +103,29 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
           onChanged: (value) => _selectPromptProject(value, controller),
         ),
         const SizedBox(height: AleraTokens.spaceLg),
-        AleraDropdownField<String>(
-          key: ValueKey<String?>(
-            'prompt-source-${promptState.projectId}-${promptState.sourceBranch}',
-          ),
-          value: promptState.sourceBranch,
-          labelText: 'Source Branch',
-          hintText: promptState.loading ? 'Loading branches' : 'Select Branch',
-          entries: <AleraDropdownFieldEntry<String>>[
-            for (final branch in promptState.branches)
-              AleraDropdownFieldEntry<String>(value: branch, label: branch),
-          ],
-          enabled: !promptState.loading && created == null,
-          filterable: true,
-          filterHintText: 'Search Branches',
-          onChanged: controller.selectSourceBranch,
+        _locationSelector(
+          projectId: promptState.projectId,
+          enabled: promptEnabled,
         ),
+        if (!_useProjectCheckout)
+          AleraDropdownField<String>(
+            key: ValueKey<String?>(
+              'prompt-source-${promptState.projectId}-${promptState.sourceBranch}',
+            ),
+            value: promptState.sourceBranch,
+            labelText: 'Source Branch',
+            hintText: promptState.loading
+                ? 'Loading branches'
+                : 'Select Branch',
+            entries: <AleraDropdownFieldEntry<String>>[
+              for (final branch in promptState.branches)
+                AleraDropdownFieldEntry<String>(value: branch, label: branch),
+            ],
+            enabled: !promptState.loading && created == null,
+            filterable: true,
+            filterHintText: 'Search Branches',
+            onChanged: controller.selectSourceBranch,
+          ),
         const SizedBox(height: AleraTokens.spaceLg),
         AleraDropdownField<String?>(
           key: ValueKey<String?>(
@@ -244,8 +253,10 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
         else
           FilledButton.icon(
             onPressed:
-                promptState.projectId == null ||
-                    promptState.sourceBranch == null ||
+                !_checkoutReady(promptState.projectId) ||
+                    promptState.projectId == null ||
+                    (!_useProjectCheckout &&
+                        promptState.sourceBranch == null) ||
                     promptState.profileId == null ||
                     _uploadingAttachment ||
                     _creating
@@ -273,6 +284,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
       for (final workspace in widget.workspaces)
         if (workspace.status == 'active' &&
             workspace.projectId == selectedProjectId &&
+            workspace.hostId == (_checkoutHostId ?? 'local') &&
             workspace.branch != null &&
             workspace.branch!.trim().isNotEmpty)
           workspace.branch!.trim(),
@@ -281,9 +293,11 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
       promptWorkspaceControllerProvider(widget.hostId),
     );
     final projectId = promptState.projectId;
-    final sourceBranch = promptState.sourceBranch;
+    final sourceBranch = promptState.sourceBranch ?? '';
     final profileId = promptState.profileId;
-    if (projectId == null || sourceBranch == null || profileId == null) {
+    if (projectId == null ||
+        (!_useProjectCheckout && sourceBranch.isEmpty) ||
+        profileId == null) {
       if (mounted) {
         _update(() => _creating = false);
       }
@@ -297,11 +311,19 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
         .enqueuePromptWorkspace(
           PromptWorkspaceCreateRequest(
             hostId: widget.hostId,
+            checkoutHostId: _checkoutHostId,
             prompt: _prompt.text,
+            localAttachmentPaths: ref.read(
+              promptLocalAttachmentsProvider(
+                widget.hostId,
+                widget.initialLocalAttachmentPaths,
+              ),
+            ),
             projectId: projectId,
             sourceBranch: sourceBranch,
             profileId: profileId,
             workspaceBranches: workspaceBranches,
+            useProjectCheckout: _useProjectCheckout,
             parentWorkspaceId: _promptParentWorkspaceId,
           ),
           jobId: jobId,

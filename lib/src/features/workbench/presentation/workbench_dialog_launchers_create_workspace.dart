@@ -40,9 +40,7 @@ Future<void> _runCreateWorkspaceFlow(
 }) async {
   final controller = ref.read(workbenchControllerProvider.notifier);
   final state = ref.read(workbenchControllerProvider);
-  final projects = state.projects
-      .where((project) => project.supportsLinkedWorkspaces)
-      .toList(growable: false);
+  final projects = state.projects;
   final parentCandidates = <WorkspaceParentCandidate>[
     for (final project in state.projects)
       for (final workspace in state.workspacesFor(project.id))
@@ -51,11 +49,7 @@ Future<void> _runCreateWorkspaceFlow(
   ];
 
   final resolvedInitialProject =
-      retryManual?.project ??
-      retryPrompt?.project ??
-      (initialProject?.supportsLinkedWorkspaces == true
-          ? initialProject
-          : null);
+      retryManual?.project ?? retryPrompt?.project ?? initialProject;
 
   List<AgentProfile> profiles;
   try {
@@ -158,6 +152,7 @@ Future<void> _showCreateWorkspaceDialogs(
         });
       },
       loadBranches: controller.listSourceBranches,
+      loadHostBranchCatalog: controller.loadHostBranchCatalog,
       checkBranchExists: (project, branchName) {
         return ref
             .read(gitBackendProvider)
@@ -175,6 +170,7 @@ Future<void> _showCreateWorkspaceDialogs(
       parentWorkspaces: <Workspace>[
         for (final candidate in parentCandidates) candidate.workspace,
       ],
+      initialUseProjectCheckout: retryPrompt?.useProjectCheckout ?? true,
       generateIdentity: runtime.generateIdentity,
       cancelGeneration: runtime.cancel,
       createWorkspace:
@@ -248,11 +244,13 @@ Widget _buildManualWorkspaceForm(
     initialParentWorkspaceId: retryManual?.parentWorkspaceId,
     initialHostId: retryManual?.hostId,
     initialReuseExistingBranch: retryManual?.reuseExistingBranch ?? false,
+    initialUseProjectCheckout: retryManual?.useProjectCheckout ?? true,
     initialCreationError: retryManual == null ? null : retryError,
     enqueueCreate: enqueueCreate,
     parentCandidates: parentCandidates,
     sshTargets: sshTargets,
     loadBranches: controller.listSourceBranches,
+    loadHostBranchCatalog: controller.loadHostBranchCatalog,
     getProjectActiveBranch: (project) {
       final state = ref.read(workbenchControllerProvider);
       final workspaces = state.workspacesFor(project.id);

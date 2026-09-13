@@ -239,9 +239,7 @@ void main() {
   testWidgets('workspace files insert a relative path from a sibling', (
     tester,
   ) async {
-    // The workspace being created has no worktree yet, so Quick Open runs
-    // against a sibling of the same project and answers with a relative path
-    // that stays valid in the new one.
+    // Quick Open uses the project checkout even when no task exists.
     final client = FakeTerminalClient()
       ..workspaceFiles = const <String>['lib/src/main.dart'];
     addTearDown(client.dispose);
@@ -250,10 +248,7 @@ void main() {
       tester,
       client: client,
       supportsWorkspaceFiles: true,
-      workspaces: <WorkspaceSummary>[
-        _workspace(id: 'workspace-main', isMain: true),
-        _workspace(id: 'workspace-feature'),
-      ],
+      workspaces: const <WorkspaceSummary>[],
     );
     final prompt = tester
         .widget<TextField>(find.widgetWithText(TextField, 'Initial Prompt'))
@@ -266,38 +261,39 @@ void main() {
     await tester.tap(find.text('lib/src/main.dart'));
     await tester.pumpAndSettle();
 
-    expect(client.calls, contains('startWorkspaceQuickOpen workspace-main'));
+    expect(client.calls, contains('startProjectCheckoutQuickOpen project-1'));
     expect(prompt.text, 'Change\nlib/src/main.dart');
     expect(client.stoppedQuickOpenSessions, hasLength(1));
   });
 
-  testWidgets('workspace files follow the chosen parent workspace', (
-    tester,
-  ) async {
-    final client = FakeTerminalClient()
-      ..workspaceFiles = const <String>['lib/src/main.dart'];
-    addTearDown(client.dispose);
+  testWidgets(
+    'workspace files stay on the selected checkout when Parent changes',
+    (tester) async {
+      final client = FakeTerminalClient()
+        ..workspaceFiles = const <String>['lib/src/main.dart'];
+      addTearDown(client.dispose);
 
-    await _pumpCreateScreen(
-      tester,
-      client: client,
-      supportsWorkspaceFiles: true,
-      workspaces: <WorkspaceSummary>[
-        _workspace(id: 'workspace-main', isMain: true),
-        _workspace(id: 'workspace-feature'),
-      ],
-    );
+      await _pumpCreateScreen(
+        tester,
+        client: client,
+        supportsWorkspaceFiles: true,
+        workspaces: <WorkspaceSummary>[
+          _workspace(id: 'workspace-main', isMain: true),
+          _workspace(id: 'workspace-feature'),
+        ],
+      );
 
-    await tester.tap(find.text('Alera / workspace-main'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Alera / workspace-feature').last);
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('No Parent'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Alera / workspace-feature').last);
+      await tester.pumpAndSettle();
 
-    await _openAttachmentSource(tester, 'Workspace File');
-    await tester.pumpAndSettle();
+      await _openAttachmentSource(tester, 'Workspace File');
+      await tester.pumpAndSettle();
 
-    expect(client.calls, contains('startWorkspaceQuickOpen workspace-feature'));
-  });
+      expect(client.calls, contains('startProjectCheckoutQuickOpen project-1'));
+    },
+  );
 
   testWidgets('a parent from another project does not index its files', (
     tester,
@@ -319,7 +315,7 @@ void main() {
       ],
     );
 
-    await tester.tap(find.text('Alera / workspace-main'));
+    await tester.tap(find.text('No Parent'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('project-2 / other-project-workspace').last);
     await tester.pumpAndSettle();
@@ -327,11 +323,54 @@ void main() {
     await _openAttachmentSource(tester, 'Workspace File');
     await tester.pumpAndSettle();
 
-    expect(client.calls, contains('startWorkspaceQuickOpen workspace-main'));
+    expect(client.calls, contains('startProjectCheckoutQuickOpen project-1'));
     expect(
       client.calls.any((call) => call.contains('other-project-workspace')),
       isFalse,
     );
+  });
+
+  testWidgets('legacy hosts retain sibling workspace file attachments', (
+    tester,
+  ) async {
+    final client = FakeTerminalClient()
+      ..supportsSharedCheckoutWorkspaces = false
+      ..workspaceFiles = ['lib/legacy.dart'];
+    addTearDown(client.dispose);
+    await _pumpCreateScreen(
+      tester,
+      client: client,
+      supportsWorkspaceFiles: true,
+      supportsSharedCheckoutWorkspaces: false,
+      workspaces: const [
+        WorkspaceSummary(
+          id: 'foreign',
+          projectId: 'other',
+          name: 'Other',
+          path: '/other',
+          kind: 'main',
+        ),
+        WorkspaceSummary(
+          id: 'legacy-main',
+          projectId: 'project-1',
+          name: 'Project',
+          path: '/repo/alera',
+          kind: 'main',
+        ),
+      ],
+    );
+    await _openAttachmentSource(tester, 'Workspace File');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('lib/legacy.dart'));
+    await tester.pumpAndSettle();
+    expect(client.calls, contains('startWorkspaceQuickOpen legacy-main'));
+    expect(
+      client.calls.any(
+        (call) => call.startsWith('startProjectCheckoutQuickOpen'),
+      ),
+      isFalse,
+    );
+    expect(client.stoppedQuickOpenSessions, hasLength(1));
   });
 
   testWidgets('offers only the sources the host supports', (tester) async {
@@ -369,6 +408,7 @@ Future<void> _pumpCreateScreen(
   bool supportsPromptImageUpload = false,
   bool supportsPromptFileUpload = false,
   bool supportsWorkspaceFiles = false,
+  bool supportsSharedCheckoutWorkspaces = true,
   List<WorkspaceSummary> workspaces = const <WorkspaceSummary>[],
 }) async {
   await tester.pumpWidget(
@@ -381,6 +421,7 @@ Future<void> _pumpCreateScreen(
       ],
       child: MaterialApp(
         home: CreateWorkspaceScreen(
+          supportsSharedCheckoutWorkspaces: supportsSharedCheckoutWorkspaces,
           hostId: 'host-1',
           projects: const <ProjectSummary>[
             ProjectSummary(

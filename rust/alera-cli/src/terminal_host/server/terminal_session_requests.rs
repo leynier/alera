@@ -17,6 +17,40 @@ impl ServerActor {
         let workspace_id = require_string(payload, "workspaceId")?;
         let tab_id = require_string(payload, "tabId")?;
         let working_directory = require_string(payload, "workingDirectory")?;
+        if self
+            .runtime_store
+            .find_workspace_tab(&tab_id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?
+            .is_some_and(|tab| tab.payload["sshOwnerTerminal"] == true)
+        {
+            let workspace = self
+                .runtime_store
+                .find_workspace(&workspace_id)
+                .await
+                .map_err(|error| HostError::state(error.to_string()))?
+                .ok_or_else(|| HostError::state("The owner workspace is missing"))?;
+            if let Some(expected) = self
+                .runtime_store
+                .terminal_restart_launch_token(&workspace, &tab_id, &session_id)
+                .await
+                .map_err(|error| HostError::state(error.to_string()))?
+            {
+                if payload["launchToken"].as_str() != Some(expected.as_str()) {
+                    return Err(HostError::state("The terminal restart superseded this launch; reconnect using the replacement identity"));
+                }
+            }
+        }
+
+        if self
+            .sessions
+            .get(&session_id)
+            .is_some_and(|session| session.workspace_id != workspace_id || session.tab_id != tab_id)
+        {
+            return Err(HostError::state(
+                "This terminal session belongs to another workspace or tab; no session was replaced.",
+            ));
+        }
 
         // Attaching a user client to a tab created for an automation is the
         // durable takeover signal. It prevents a later successful completion
@@ -188,5 +222,44 @@ impl ServerActor {
             self.spawn_output_resync_timer(session_id.clone(), attached_client_id);
         }
         Ok(attachment)
+    }
+}
+
+#[cfg(test)]
+mod identity_tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[tokio::test]
+    async fn attachment_rejects_foreign_workspace_or_tab_before_changing_session() {
+        for (workspace, tab) in [("foreign", "owned-tab"), ("owned-workspace", "foreign")] {
+            let directory = tempfile::tempdir().unwrap();
+            let mut session = Session::driver_test_stub("owned-session", 80, 24);
+            session.workspace_id = "owned-workspace".into();
+            session.tab_id = "owned-tab".into();
+            let mut actor = super::super::actor_test_harness::test_actor(
+                &directory,
+                HashMap::new(),
+                HashMap::from([("owned-session".into(), session)]),
+            )
+            .await;
+            let error = actor
+                .create_or_attach(
+                    123,
+                    &serde_json::json!({
+                        "sessionId":"owned-session", "workspaceId":workspace,
+                        "tabId":tab, "workingDirectory":"/unused",
+                    }),
+                )
+                .await
+                .unwrap_err();
+            assert!(error
+                .to_string()
+                .contains("belongs to another workspace or tab"));
+            let retained = &actor.sessions["owned-session"];
+            assert_eq!(retained.workspace_id, "owned-workspace");
+            assert_eq!(retained.tab_id, "owned-tab");
+            assert!(retained.output_clients().is_empty());
+        }
     }
 }

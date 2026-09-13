@@ -261,7 +261,10 @@ class _FakeWorkspaceClient() implements MobileWorkspaceClient {
   }
 
   @override
-  Future<ProjectBranches> listBranches(String projectId) async {
+  Future<ProjectBranches> listBranches(
+    String projectId, {
+    String? checkoutHostId,
+  }) async {
     return ProjectBranches(
       projectId: projectId,
       branches: const <String>['main'],
@@ -349,6 +352,7 @@ class _FakeWorkspaceClient() implements MobileWorkspaceClient {
   @override
   Future<WorkspaceCreationResult> createManagedWorkspace({
     required String projectId,
+    String? checkoutHostId,
     required String branch,
     String? sourceBranch,
     bool reuseExistingBranch = false,

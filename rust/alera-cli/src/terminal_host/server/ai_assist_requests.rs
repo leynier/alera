@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{Mutex, OnceLock};
 
 use alera_core::runtime::RuntimeAiAssistSettings;
 use serde_json::{json, Value};
@@ -14,6 +13,7 @@ use super::ai_assist_fx_plan::plan_fx_command;
 use super::ai_assist_grok_plan::plan_grok_command;
 use super::ai_assist_model_defaults::default_model;
 use super::ai_assist_open_code::open_code_run_arguments;
+use super::ai_assist_operation_registry::active_generations;
 use super::ai_assist_workspace_identity::{parse_workspace_identity, workspace_identity_prompt};
 use super::host_service_requests::required_non_blank;
 use super::{ServerActor, ServerCommand};
@@ -33,8 +33,6 @@ pub(super) const SUPPORTED_AGENTS: [&str; 12] = [
     "fx",
     "custom",
 ];
-
-static ACTIVE_GENERATIONS: OnceLock<Mutex<HashMap<String, oneshot::Sender<()>>>> = OnceLock::new();
 
 pub(super) struct AiAssistCommandPlan {
     pub(super) binary: String,
@@ -61,17 +59,7 @@ impl ServerActor {
             .map(str::to_string);
         let project = self.runtime_store.clone();
         let inbox = self.inbox.clone();
-        let (cancel_tx, cancel_rx) = oneshot::channel();
-        let mut active = active_generations()
-            .lock()
-            .map_err(|_| HostError::state("AI Assist state is unavailable."))?;
-        if active.contains_key(&operation_id) {
-            return Err(HostError::state(
-                "AI Assist is already running for this operation.",
-            ));
-        }
-        active.insert(operation_id.clone(), cancel_tx);
-        drop(active);
+        let (registration, cancel_rx) = active_generations().register(operation_id, None)?;
         tokio::spawn(async move {
             let result = async {
                 let project_record = project
@@ -112,9 +100,7 @@ impl ServerActor {
                 .await
             }
             .await;
-            if let Ok(mut active) = active_generations().lock() {
-                active.remove(&operation_id);
-            }
+            drop(registration);
             let _ = inbox.send(ServerCommand::AiAssistFinished {
                 client_id,
                 request_id,
@@ -126,11 +112,7 @@ impl ServerActor {
 
     pub(super) fn cancel_ai_assist(&mut self, payload: &Value) -> HostResult<Value> {
         let operation_id = required_non_blank(payload, "operationId")?;
-        let canceled = active_generations()
-            .lock()
-            .map_err(|_| HostError::state("AI Assist state is unavailable."))?
-            .remove(&operation_id)
-            .is_some_and(|sender| sender.send(()).is_ok());
+        let canceled = active_generations().cancel(&operation_id)?;
         Ok(json!({"canceled": canceled}))
     }
 
@@ -145,10 +127,6 @@ impl ServerActor {
             Err(error) => self.client_write(client_id, error_response(request_id, &error)),
         }
     }
-}
-
-pub(super) fn active_generations() -> &'static Mutex<HashMap<String, oneshot::Sender<()>>> {
-    ACTIVE_GENERATIONS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 async fn generate_workspace_identity(

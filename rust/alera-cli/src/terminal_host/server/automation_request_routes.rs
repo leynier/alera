@@ -14,6 +14,12 @@ impl ServerActor {
     ) -> HostResult<Value> {
         self.require_request_allowed(client_id, request_type)?;
         match request_type {
+            "automation.ownerPrecheck.start"
+            | "automation.ownerPrecheck.status"
+            | "automation.ownerPrecheck.cancel" => {
+                self.owner_precheck_request(client_id, request_type, payload)
+                    .await
+            }
             "automation.list" => self.automation_list_request(payload).await,
             "automation.show" => self.automation_show_request(payload).await,
             "automation.upsert" => {

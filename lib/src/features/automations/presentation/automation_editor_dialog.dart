@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/automations/domain/automation_models.dart';
+import 'package:alera/src/features/automations/application/automation_project_checkouts.dart';
 import 'package:alera/src/features/projects/application/project_providers.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
@@ -13,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 part 'automation_editor_dialog_form.dart';
+part 'automation_editor_dialog_view.dart';
 
 Future<JsonMap?> showAutomationEditorDialog(
   BuildContext context, {
@@ -37,6 +39,7 @@ class _AutomationEditorDialogState
   late final TextEditingController _slug;
   late final TextEditingController _description;
   late final TextEditingController _projectId;
+  late final TextEditingController _checkoutHostId;
   late final TextEditingController _tagIds;
   late final TextEditingController _prompt;
   late final TextEditingController _cron;
@@ -84,7 +87,12 @@ class _AutomationEditorDialogState
     _name = TextEditingController(text: initial?.name ?? 'Daily Automation');
     _slug = TextEditingController(text: initial?.slug ?? 'daily-automation');
     _description = TextEditingController(text: initial?.description ?? '');
-    _projectId = TextEditingController(text: initial?.projectId ?? '');
+    _projectId = TextEditingController(
+      text: target['projectId']?.toString() ?? initial?.projectId ?? '',
+    );
+    _checkoutHostId = TextEditingController(
+      text: target['hostId']?.toString() ?? '',
+    );
     _tagIds = TextEditingController(text: initial?.tagIds.join(', ') ?? '');
     _prompt = TextEditingController(
       text:
@@ -166,6 +174,8 @@ class _AutomationEditorDialogState
         ? 'existingTab'
         : initial?.target.containsKey('managedWorkspace') == true
         ? 'managedWorkspace'
+        : initial?.target.containsKey('projectCheckout') == true
+        ? 'projectCheckout'
         : 'freshTab';
     _setupPolicy = initial?.setupPolicy ?? 'wait';
     _overlapPolicy = initial?.overlapPolicy ?? 'skip';
@@ -181,6 +191,7 @@ class _AutomationEditorDialogState
       _slug,
       _description,
       _projectId,
+      _checkoutHostId,
       _tagIds,
       _prompt,
       _cron,
@@ -211,281 +222,8 @@ class _AutomationEditorDialogState
     super.dispose();
   }
 
+  void _refresh(VoidCallback update) => setState(update);
+
   @override
-  Widget build(BuildContext context) {
-    final projects =
-        ref.watch(projectListProvider).asData?.value ?? const <Project>[];
-    final profiles =
-        ref.watch(agentProfilesProvider).asData?.value ??
-        const <AgentProfile>[];
-    final workbench = ref.watch(workbenchControllerProvider);
-    final projectId = _projectId.text.trim();
-    final workspaces = workbench.workspacesByProject.values
-        .expand((items) => items)
-        .where(
-          (workspace) => projectId.isEmpty || workspace.projectId == projectId,
-        )
-        .toList(growable: false);
-    final workspaceId = _workspaceId.text.trim();
-    final tabs = workspaceId.isEmpty
-        ? const <WorkspaceTabRecord>[]
-        : workbench.tabsFor(workspaceId);
-    return AleraDialog(
-      maxWidth: AleraTokens.dialogWideWidth,
-      maxHeight: AleraTokens.dialogMaxHeight,
-      child: Padding(
-        padding: const EdgeInsets.all(AleraTokens.space20),
-        child: Column(
-          crossAxisAlignment: .stretch,
-          children: <Widget>[
-            Text(
-              widget.initial == null ? 'New Automation' : 'Edit Automation',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: AleraTokens.space16),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: .stretch,
-                  children: <Widget>[
-                    _text(_name, 'Name'),
-                    const SizedBox(height: AleraTokens.space12),
-                    _text(_slug, 'Slug'),
-                    const SizedBox(height: AleraTokens.space12),
-                    _text(_description, 'Description', maxLines: 3),
-                    const SizedBox(height: AleraTokens.space12),
-                    _idPicker(
-                      controller: _projectId,
-                      label: 'Project (Optional)',
-                      optional: true,
-                      options: [
-                        for (final project in projects)
-                          (id: project.id, label: project.name),
-                      ],
-                    ),
-                    const SizedBox(height: AleraTokens.space12),
-                    _text(_tagIds, 'Tag Ids (Comma-separated)'),
-                    const SizedBox(height: AleraTokens.space12),
-                    _text(_prompt, 'Prompt Template', maxLines: 5),
-                    const SizedBox(height: AleraTokens.space12),
-                    _dropdown(
-                      label: 'Schedule',
-                      value: _scheduleKind,
-                      values: const <String>['recurring', 'oneTime'],
-                      onChanged: (value) =>
-                          setState(() => _scheduleKind = value!),
-                    ),
-                    const SizedBox(height: AleraTokens.space12),
-                    if (_scheduleKind == 'recurring')
-                      _text(_cron, 'Five-field Cron'),
-                    if (_scheduleKind == 'oneTime') _text(_at, 'Run At (UTC)'),
-                    const SizedBox(height: AleraTokens.space12),
-                    _text(_timezone, 'IANA Timezone'),
-                    if (_scheduleKind == 'recurring') ...<Widget>[
-                      const SizedBox(height: AleraTokens.space12),
-                      _text(_startAt, 'Start At (Optional ISO-8601 UTC)'),
-                      const SizedBox(height: AleraTokens.space12),
-                      _text(_endAt, 'End At (Optional ISO-8601 UTC)'),
-                      const SizedBox(height: AleraTokens.space12),
-                      _text(
-                        _maxScheduledRuns,
-                        'Maximum Scheduled Runs (Optional)',
-                      ),
-                    ],
-                    const SizedBox(height: AleraTokens.space12),
-                    _dropdown(
-                      label: 'Target',
-                      value: _targetKind,
-                      values: const <String>[
-                        'existingTab',
-                        'freshTab',
-                        'managedWorkspace',
-                      ],
-                      onChanged: (value) =>
-                          setState(() => _targetKind = value!),
-                    ),
-                    const SizedBox(height: AleraTokens.space12),
-                    _idPicker(
-                      controller: _workspaceId,
-                      label: _targetKind == 'managedWorkspace'
-                          ? 'Source Workspace'
-                          : 'Workspace',
-                      options: [
-                        for (final workspace in workspaces)
-                          (id: workspace.id, label: workspace.name),
-                      ],
-                    ),
-                    if (_targetKind == 'existingTab') ...<Widget>[
-                      const SizedBox(height: AleraTokens.space12),
-                      _idPicker(
-                        controller: _tabId,
-                        label: 'Tab',
-                        options: [
-                          for (final tab in tabs)
-                            (id: tab.id, label: tab.title),
-                        ],
-                      ),
-                      const SizedBox(height: AleraTokens.space12),
-                      _text(
-                        _conversationId,
-                        'Agent Conversation ID (Optional)',
-                      ),
-                    ],
-                    if (_targetKind != 'existingTab') ...<Widget>[
-                      const SizedBox(height: AleraTokens.space12),
-                      _idPicker(
-                        controller: _profileId,
-                        label: 'Agent Profile',
-                        options: [
-                          for (final profile in profiles)
-                            (id: profile.id, label: profile.name),
-                        ],
-                      ),
-                    ],
-                    if (_targetKind == 'managedWorkspace') ...<Widget>[
-                      const SizedBox(height: AleraTokens.space12),
-                      _text(_sourceBranch, 'Source Branch'),
-                      const SizedBox(height: AleraTokens.space12),
-                      _text(_nameTemplate, 'Workspace Name Template'),
-                    ],
-                    const SizedBox(height: AleraTokens.space12),
-                    _text(_precheck, 'Precheck Command (Optional)'),
-                    const SizedBox(height: AleraTokens.space12),
-                    _text(_precheckTimeout, 'Precheck Timeout (Seconds)'),
-                    const SizedBox(height: AleraTokens.space12),
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: _dropdown(
-                            label: 'Setup',
-                            value: _setupPolicy,
-                            values: const <String>['wait', 'parallel', 'skip'],
-                            onChanged: (value) =>
-                                setState(() => _setupPolicy = value!),
-                          ),
-                        ),
-                        const SizedBox(width: AleraTokens.space12),
-                        Expanded(
-                          child: _dropdown(
-                            label: 'Overlap',
-                            value: _overlapPolicy,
-                            values: const <String>[
-                              'skip',
-                              'runLatestOnce',
-                              'queue',
-                              'forceParallel',
-                            ],
-                            onChanged: (value) =>
-                                setState(() => _overlapPolicy = value!),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AleraTokens.space12),
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: _dropdown(
-                            label: 'Misfire',
-                            value: _misfirePolicy,
-                            values: const <String>[
-                              'skip',
-                              'runLatestOnce',
-                              'queue',
-                            ],
-                            onChanged: (value) =>
-                                setState(() => _misfirePolicy = value!),
-                          ),
-                        ),
-                        const SizedBox(width: AleraTokens.space12),
-                        Expanded(
-                          child: _dropdown(
-                            label: 'Cleanup',
-                            value: _cleanupPolicy,
-                            values: const <String>['preserve', 'onSuccess'],
-                            onChanged: (value) =>
-                                setState(() => _cleanupPolicy = value!),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AleraTokens.space12),
-                    _text(_misfireGrace, 'Misfire Grace (Seconds)'),
-                    const SizedBox(height: AleraTokens.space12),
-                    _text(_queueCap, 'Queue Cap (Maximum 10)'),
-                    const SizedBox(height: AleraTokens.space12),
-                    _text(_inactivityTimeout, 'Inactivity Timeout (Seconds)'),
-                    const SizedBox(height: AleraTokens.space12),
-                    _text(_heartbeatInterval, 'Heartbeat Interval (Seconds)'),
-                    const SizedBox(height: AleraTokens.space12),
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: _text(
-                            _retryMaxAttempts,
-                            'Retry Attempts (Maximum 3)',
-                          ),
-                        ),
-                        const SizedBox(width: AleraTokens.space12),
-                        Expanded(
-                          child: _text(
-                            _retryBackoff,
-                            'Retry Backoff (Seconds)',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AleraTokens.space12),
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: _text(
-                            _circuitThreshold,
-                            'Circuit Failure Threshold',
-                          ),
-                        ),
-                        const SizedBox(width: AleraTokens.space12),
-                        Expanded(
-                          child: _text(_circuitOpen, 'Circuit Open (Seconds)'),
-                        ),
-                      ],
-                    ),
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Notify On Success'),
-                      value: _notifyOnSuccess,
-                      onChanged: (value) =>
-                          setState(() => _notifyOnSuccess = value),
-                    ),
-                    if (_error case final error?) ...<Widget>[
-                      const SizedBox(height: AleraTokens.space12),
-                      Text(
-                        error,
-                        style: const TextStyle(color: AleraTokens.error),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: AleraTokens.space16),
-            Row(
-              mainAxisAlignment: .end,
-              children: <Widget>[
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
-                ),
-                const SizedBox(width: AleraTokens.space8),
-                FilledButton(
-                  onPressed: _save,
-                  child: const Text('Save Automation'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => _buildEditor(context);
 }
