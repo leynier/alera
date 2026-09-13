@@ -73,13 +73,17 @@ class TabsController extends _$TabsController {
   }
 
   /// Starts an opted-in agent profile in a new tab without a user prompt.
-  Future<String> launchAgentProfileTab(String profileId) async {
+  Future<String> launchAgentProfileTab(
+    String profileId, {
+    String prompt = '',
+  }) async {
     final workspaceClient = await ref.read(
       workspaceClientProvider(hostId).future,
     );
     final launch = await workspaceClient.launchAgentProfile(
       workspaceId: workspaceId,
       profileId: profileId,
+      prompt: prompt,
       clientMutationId:
           'mobile-new-tab-${DateTime.now().microsecondsSinceEpoch}',
     );

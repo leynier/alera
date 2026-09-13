@@ -23,8 +23,12 @@ pub(super) async fn mobile_git_status(
     payload: &Value,
 ) -> HostResult<Value> {
     let workspace = workspace_for_mobile_file_request(runtime_store, payload).await?;
-    let root = workspace.path.clone();
-    spawn_blocking_workspace("Git status", move || git_status_snapshot(&root)).await
+    let relative_root = optional_string_key(payload, "relativeRoot");
+    spawn_blocking_workspace("Git status", move || {
+        let root = source_control_root(&workspace.path, relative_root.as_deref())?;
+        git_status_snapshot(&root)
+    })
+    .await
 }
 
 pub(super) async fn mobile_git_diff(
@@ -34,8 +38,32 @@ pub(super) async fn mobile_git_diff(
     let workspace = workspace_for_mobile_file_request(runtime_store, payload).await?;
     let path = require_string_key(payload, "path")?;
     let area = optional_string_key(payload, "area").unwrap_or_else(|| "unstaged".to_string());
-    let root = workspace.path.clone();
-    spawn_blocking_workspace("Git diff", move || git_diff_snapshot(&root, &path, &area)).await
+    let relative_root = optional_string_key(payload, "relativeRoot");
+    spawn_blocking_workspace("Git diff", move || {
+        let root = source_control_root(&workspace.path, relative_root.as_deref())?;
+        git_diff_snapshot(&root, &path, &area)
+    })
+    .await
+}
+
+/// Resolves the repository the phone's Source Control panel reads. An absent
+/// or empty `relativeRoot` keeps the workspace root, which is what every host
+/// before `mobileSourceControlRootV1` did. A nested root goes through the same
+/// containment check as file reads, so `..`, absolute paths, and symlinks
+/// cannot point git at a directory outside the workspace.
+fn source_control_root(workspace_path: &str, relative_root: Option<&str>) -> HostResult<String> {
+    let Some(relative_root) = relative_root
+        .map(|value| value.trim().trim_matches('/'))
+        .filter(|value| !value.is_empty())
+    else {
+        return Ok(workspace_path.to_string());
+    };
+    let contained = alera_core::workspace_files::contained_workspace_relative_path(
+        workspace_path,
+        relative_root,
+    )
+    .map_err(|error| HostError::state(format!("Source control root is invalid: {error}")))?;
+    Ok(contained.absolute_path.to_string_lossy().into_owned())
 }
 
 fn git_status_snapshot(root: &str) -> HostResult<Value> {
@@ -309,6 +337,10 @@ fn parse_unified_diff(output: &str) -> Vec<Value> {
     }
     lines
 }
+
+#[cfg(test)]
+#[path = "mobile_source_control_root_tests.rs"]
+mod root_tests;
 
 #[cfg(test)]
 mod tests {

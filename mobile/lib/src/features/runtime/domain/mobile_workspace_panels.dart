@@ -5,6 +5,7 @@ export 'package:alera_mobile/src/core/mobile_protocol.dart'
         mobileExplorerCapability,
         mobilePullRequestCapability,
         mobileSourceControlCapability,
+        mobileSourceControlRootCapability,
         mobileWorkspaceSearchCapability;
 
 class const MobileExplorerEntry({
@@ -279,6 +280,10 @@ abstract interface class MobileWorkspacePanelsClient {
   bool get supportsSourceControl;
   bool get supportsPullRequests;
 
+  /// Whether `gitStatus` and `gitDiff` honor [relativeRoot]. A host without
+  /// it would silently answer for the workspace root instead.
+  bool get supportsSourceControlRoot;
+
   Future<List<MobileExplorerEntry>> listExplorerChildren({
     required String workspaceId,
     String relativePath = '',
@@ -296,12 +301,16 @@ abstract interface class MobileWorkspacePanelsClient {
     bool includeIgnored = false,
   });
 
-  Future<MobileGitStatusSnapshot> gitStatus(String workspaceId);
+  Future<MobileGitStatusSnapshot> gitStatus(
+    String workspaceId, {
+    String relativeRoot = '',
+  });
 
   Future<MobileGitDiffFile> gitDiff({
     required String workspaceId,
     required String path,
     required String area,
+    String relativeRoot = '',
   });
 
   Future<MobilePullRequestSnapshot> pullRequestSnapshot(String workspaceId);
