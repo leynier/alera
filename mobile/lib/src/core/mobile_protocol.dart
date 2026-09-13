@@ -17,6 +17,7 @@ const String mobileSourceControlCapability = 'mobileSourceControlV1';
 const String mobileSourceControlRootCapability = 'mobileSourceControlRootV1';
 const String mobileSourceControlWritesCapability =
     'mobileSourceControlWritesV1';
+const String aiTextCommitMessageCapability = 'aiTextCommitMessageV1';
 const String mobilePullRequestCapability = 'mobilePullRequestV1';
 const String mobilePullRequestActionsCapability = 'mobilePullRequestActionsV1';
 const String aiTextPullRequestDetailsCapability = 'aiTextPullRequestDetailsV1';

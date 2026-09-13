@@ -18,6 +18,7 @@ import 'package:alera_mobile/src/features/workbench/application/source_control_v
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dart';
 import 'package:alera_mobile/src/features/workbench/domain/source_control_rows.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/source_control_branch_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/source_control_commands.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/source_control_commit_composer.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/source_control_header.dart';
@@ -406,6 +407,10 @@ class const _Header({
             Expanded(
               child: SourceControlHeader(
                 snapshot: snapshot,
+                onBranchTap: writesEnabled && !busy
+                    ? () =>
+                          showSourceControlBranchSheet(runner, snapshot.branch)
+                    : null,
                 onMoreActions: writesEnabled && !busy
                     ? () => showSourceControlCommandSheet(
                         runner,

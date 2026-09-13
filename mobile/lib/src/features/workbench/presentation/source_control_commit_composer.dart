@@ -3,7 +3,9 @@ import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
+import 'package:alera_mobile/src/features/workbench/application/commit_message_generation_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/source_control_commit_draft.dart';
+import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/source_control_commands.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,6 +52,32 @@ class _SourceControlCommitComposerState
     workspaceId: widget.workspaceId,
   );
 
+  Future<void> _toggleGeneration() async {
+    final controller = ref.read(
+      commitMessageGenerationControllerProvider(
+        widget.hostId,
+        widget.workspaceId,
+      ).notifier,
+    );
+    if (ref.read(
+          commitMessageGenerationControllerProvider(
+            widget.hostId,
+            widget.workspaceId,
+          ),
+        ) !=
+        null) {
+      await controller.cancel();
+      return;
+    }
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final error = await controller.generate();
+    if (error != null) {
+      messenger
+        ?..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(error)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final draftProvider = sourceControlCommitDraftProvider(
@@ -64,6 +92,25 @@ class _SourceControlCommitComposerState
       }
     });
     final snapshot = widget.snapshot;
+    final generating =
+        ref.watch(
+          commitMessageGenerationControllerProvider(
+            widget.hostId,
+            widget.workspaceId,
+          ),
+        ) !=
+        null;
+    final supportsGeneration = switch (ref
+        .watch(workspaceClientProvider(widget.hostId))
+        .value) {
+      final MobileWorkspacePanelsClient panels =>
+        panels.supportsCommitMessageGeneration,
+      _ => false,
+    };
+    final canGenerate =
+        supportsGeneration &&
+        snapshot.aiCommitMessageEnabled &&
+        (snapshot.actions.commit || generating);
     final primary = SourceControlCommand.primary(snapshot, draft);
     final showMessage = snapshot.actions.commit || snapshot.entries.isNotEmpty;
     final hasCommitOptions = SourceControlCommand.commitOptions.any(
@@ -82,12 +129,24 @@ class _SourceControlCommitComposerState
           if (showMessage) ...<Widget>[
             AleraTextField(
               controller: _message,
-              hintText: 'Message',
+              hintText: generating ? 'Generating message' : 'Message',
               minLines: 1,
               maxLines: 4,
               keyboardType: TextInputType.multiline,
               enabled: !widget.busy,
+              // Read-only rather than disabled: a disabled field ignores taps
+              // on its suffix, which is where Stop lives.
+              readOnly: generating,
               onChanged: ref.read(draftProvider.notifier).update,
+              suffix: canGenerate
+                  ? AleraIconButton(
+                      tooltip: generating
+                          ? 'Stop Generating'
+                          : 'Generate Commit Message',
+                      icon: generating ? AleraIcons.stop : AleraIcons.generate,
+                      onPressed: widget.busy ? null : _toggleGeneration,
+                    )
+                  : null,
             ),
             const SizedBox(height: AleraTokens.space8),
           ],
@@ -95,7 +154,7 @@ class _SourceControlCommitComposerState
             children: <Widget>[
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: widget.busy
+                  onPressed: widget.busy || generating
                       ? null
                       : () => _runner.perform(primary, snapshot),
                   icon: Icon(primary.icon, size: 16),

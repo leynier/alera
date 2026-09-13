@@ -341,6 +341,48 @@ void main() {
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 
+  testWidgets('a long menu scrolls instead of clipping on a short phone', (
+    tester,
+  ) async {
+    final client = sourceControlClient(
+      writableSnapshot(
+        entries: <MobileGitChange>[stagedChange(), unstagedChange()],
+        actions: const MobileSourceControlActions(
+          stageAll: true,
+          unstageAll: true,
+          discardAll: true,
+          fetch: true,
+          pull: true,
+          push: true,
+          sync: true,
+          stash: true,
+          stashPop: true,
+        ),
+        stashes: const <MobileGitStash>[MobileGitStash(index: 0)],
+      ),
+    );
+    addTearDown(client.dispose);
+    await pumpSourceControlPanel(tester, client);
+    await tester.binding.setSurfaceSize(const Size(360, 640));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Source Control Actions'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.scrollUntilVisible(
+      find.widgetWithText(ListTile, 'Stash Pop'),
+      100,
+      scrollable: find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    await tester.tap(find.widgetWithText(ListTile, 'Stash Pop'));
+    await tester.pumpAndSettle();
+
+    expect(client.gitWrites.single.arguments, {'stashIndex': 0});
+  });
+
   testWidgets('staging from the diff returns to the refreshed list', (
     tester,
   ) async {
