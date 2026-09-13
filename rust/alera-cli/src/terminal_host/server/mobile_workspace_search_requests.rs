@@ -1,11 +1,10 @@
-use std::fs;
-use std::path::Path;
-
 use alera_core::runtime::RuntimeStore;
-use alera_core::workspace_files::is_protected_workspace_path;
-use ignore::overrides::OverrideBuilder;
-use ignore::WalkBuilder;
-use regex::{Regex, RegexBuilder};
+use alera_core::workspace_search::{
+    cancel_workspace_search, preview_workspace_replace, preview_workspace_replace_cancelable,
+    replace_workspace_matches, search_workspace, search_workspace_cancelable,
+    WorkspaceReplaceFileExpectation, WorkspaceReplaceOptions, WorkspaceReplaceRequest,
+    WorkspaceReplaceResult, WorkspaceSearchError, WorkspaceSearchOptions, WorkspaceSearchResult,
+};
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -15,66 +14,135 @@ use super::mobile_workspace_file_requests::{
 };
 use super::requests::require_string_key;
 
-const DEFAULT_MAX_RESULTS: u32 = 2000;
-const MAX_RESULTS_CAP: u32 = 2000;
-const MAX_MATCHES_PER_FILE: u32 = 100;
-const MAX_TEXT_FILE_BYTES: u64 = 5 * 1024 * 1024;
-const MAX_LINE_CONTENT_LENGTH: usize = 500;
+pub(super) async fn handle_mobile_workspace_search_request(
+    runtime_store: &RuntimeStore,
+    client_id: u64,
+    request_type: &str,
+    payload: &Value,
+) -> HostResult<Value> {
+    match request_type {
+        "mobile.workspaceSearch.replace" => replace_mobile_workspace(runtime_store, payload).await,
+        "mobile.workspaceSearch.cancel" => cancel_mobile_workspace_search(client_id, payload),
+        _ => search_mobile_workspace(runtime_store, client_id, payload).await,
+    }
+}
 
-pub(super) async fn search_mobile_workspace(
+async fn search_mobile_workspace(
+    runtime_store: &RuntimeStore,
+    client_id: u64,
+    payload: &Value,
+) -> HostResult<Value> {
+    let workspace = workspace_for_mobile_file_request(runtime_store, payload).await?;
+    let query = require_string_key(payload, "query")?;
+    if query.is_empty() {
+        return Ok(result_json(WorkspaceSearchResult {
+            files: Vec::new(),
+            total_matches: 0,
+            truncated: false,
+        }));
+    }
+    let search = search_options(workspace.path, query, payload);
+    let replacement = payload
+        .get("replacement")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned);
+    let preserve_case = bool_key(payload, "preserveCase");
+    let request_id = scoped_request_id(client_id, payload);
+    spawn_blocking_workspace("Workspace search", move || {
+        let result = match (replacement, request_id) {
+            (Some(replacement), request_id) => {
+                let options = WorkspaceReplaceOptions {
+                    search,
+                    replacement,
+                    preserve_case,
+                };
+                match request_id {
+                    Some(id) => preview_workspace_replace_cancelable(options, id),
+                    None => preview_workspace_replace(options),
+                }
+                .map(|preview| preview.result)
+            }
+            (None, Some(id)) => search_workspace_cancelable(search, id),
+            (None, None) => search_workspace(search),
+        };
+        result.map(result_json).map_err(search_error)
+    })
+    .await
+}
+
+async fn replace_mobile_workspace(
     runtime_store: &RuntimeStore,
     payload: &Value,
 ) -> HostResult<Value> {
     let workspace = workspace_for_mobile_file_request(runtime_store, payload).await?;
     let query = require_string_key(payload, "query")?;
-    if query.trim().is_empty() {
-        return Ok(json!({
-            "files": [],
-            "totalMatches": 0,
-            "truncated": false,
-        }));
+    if query.is_empty() {
+        return Err(HostError::state("Run search before replacing."));
     }
-    let options = SearchOptions {
-        workspace_path: workspace.path,
+    let replacement = payload
+        .get("replacement")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let request = WorkspaceReplaceRequest {
+        options: WorkspaceReplaceOptions {
+            search: search_options(workspace.path, query, payload),
+            replacement,
+            preserve_case: bool_key(payload, "preserveCase"),
+        },
+        match_ids: string_list(payload, "matchIds"),
+        expected_files: expected_files(payload),
+    };
+    spawn_blocking_workspace("Workspace replace", move || {
+        replace_workspace_matches(request)
+            .map(replace_result_json)
+            .map_err(search_error)
+    })
+    .await
+}
+
+fn cancel_mobile_workspace_search(client_id: u64, payload: &Value) -> HostResult<Value> {
+    if let Some(request_id) = scoped_request_id(client_id, payload) {
+        cancel_workspace_search(request_id);
+    }
+    Ok(json!({}))
+}
+
+/// Cancellation flags live in one process-wide table keyed by request id, so
+/// the id is namespaced by client: a phone must not be able to cancel a search
+/// another client started by guessing its id.
+fn scoped_request_id(client_id: u64, payload: &Value) -> Option<String> {
+    payload
+        .get("requestId")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .map(|value| format!("mobile:{client_id}:{value}"))
+}
+
+fn search_options(
+    workspace_path: String,
+    query: String,
+    payload: &Value,
+) -> WorkspaceSearchOptions {
+    WorkspaceSearchOptions {
+        workspace_path,
         query,
-        case_sensitive: payload
-            .get("caseSensitive")
-            .and_then(Value::as_bool)
-            .unwrap_or(false),
-        whole_word: payload
-            .get("wholeWord")
-            .and_then(Value::as_bool)
-            .unwrap_or(false),
-        use_regex: payload
-            .get("useRegex")
-            .and_then(Value::as_bool)
-            .unwrap_or(false),
+        case_sensitive: bool_key(payload, "caseSensitive"),
+        whole_word: bool_key(payload, "wholeWord"),
+        use_regex: bool_key(payload, "useRegex"),
         include_pattern: optional_pattern(payload, "includePattern"),
         exclude_pattern: optional_pattern(payload, "excludePattern"),
-        include_ignored: payload
-            .get("includeIgnored")
-            .and_then(Value::as_bool)
-            .unwrap_or(false),
+        include_ignored: bool_key(payload, "includeIgnored"),
         max_results: payload
             .get("maxResults")
             .and_then(Value::as_u64)
-            .and_then(|value| u32::try_from(value).ok())
-            .unwrap_or(DEFAULT_MAX_RESULTS)
-            .clamp(1, MAX_RESULTS_CAP),
-    };
-    spawn_blocking_workspace("Workspace search", move || run_search(options)).await
+            .and_then(|value| u32::try_from(value).ok()),
+    }
 }
 
-struct SearchOptions {
-    workspace_path: String,
-    query: String,
-    case_sensitive: bool,
-    whole_word: bool,
-    use_regex: bool,
-    include_pattern: Option<String>,
-    exclude_pattern: Option<String>,
-    include_ignored: bool,
-    max_results: u32,
+fn bool_key(payload: &Value, key: &str) -> bool {
+    payload.get(key).and_then(Value::as_bool).unwrap_or(false)
 }
 
 fn optional_pattern(payload: &Value, key: &str) -> Option<String> {
@@ -86,242 +154,95 @@ fn optional_pattern(payload: &Value, key: &str) -> Option<String> {
         .map(ToOwned::to_owned)
 }
 
-fn run_search(options: SearchOptions) -> HostResult<Value> {
-    let root = fs::canonicalize(&options.workspace_path).map_err(|error| {
-        HostError::state(format!("Workspace search root is unavailable: {error}"))
-    })?;
-    if !root.is_dir() {
-        return Err(HostError::state(
-            "Workspace search root is not a directory.",
-        ));
-    }
-    let matcher = compile_matcher(&options)?;
-    let overrides = build_overrides(
-        &root,
-        options.include_pattern.as_deref(),
-        options.exclude_pattern.as_deref(),
-    )?;
-    let mut walker = WalkBuilder::new(&root);
-    walker
-        .hidden(false)
-        .parents(true)
-        .follow_links(false)
-        .require_git(false);
-    if options.include_ignored {
-        walker
-            .ignore(false)
-            .git_global(false)
-            .git_ignore(false)
-            .git_exclude(false);
-    }
-    if let Some(overrides) = overrides {
-        walker.overrides(overrides);
-    }
+fn string_list(payload: &Value, key: &str) -> Vec<String> {
+    payload
+        .get(key)
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(ToOwned::to_owned)
+                .collect()
+        })
+        .unwrap_or_default()
+}
 
-    let mut files = Vec::new();
-    let mut total_matches = 0_u32;
-    let mut truncated = false;
-    for entry in walker.build() {
-        if total_matches >= options.max_results {
-            truncated = true;
-            break;
-        }
-        let Ok(entry) = entry else {
-            continue;
-        };
-        let path = entry.path();
-        if path == root {
-            continue;
-        }
-        let Some(file_type) = entry.file_type() else {
-            continue;
-        };
-        if !file_type.is_file() || file_type.is_symlink() {
-            continue;
-        }
-        let Ok(relative) = path.strip_prefix(&root) else {
-            continue;
-        };
-        if is_protected_workspace_path(relative) {
-            continue;
-        }
-        let relative_path = relative.to_string_lossy().replace('\\', "/");
-        let Ok(metadata) = fs::metadata(path) else {
-            continue;
-        };
-        if metadata.len() > MAX_TEXT_FILE_BYTES {
-            continue;
-        }
-        let remaining = options.max_results.saturating_sub(total_matches);
-        let matches = match_file(
-            path,
-            &relative_path,
-            &matcher,
-            remaining.min(MAX_MATCHES_PER_FILE),
-        )?;
-        if matches.is_empty() {
-            continue;
-        }
-        total_matches += u32::try_from(matches.len()).unwrap_or(0);
-        files.push(json!({
-            "relativePath": relative_path,
-            "matches": matches,
-        }));
-    }
+fn expected_files(payload: &Value) -> Vec<WorkspaceReplaceFileExpectation> {
+    payload
+        .get("expectedFiles")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| {
+                    Some(WorkspaceReplaceFileExpectation {
+                        relative_path: item.get("relativePath")?.as_str()?.to_string(),
+                        content_token: item.get("contentToken")?.as_str()?.to_string(),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
 
-    Ok(json!({
+fn search_error(error: WorkspaceSearchError) -> HostError {
+    HostError::state(error.context)
+}
+
+fn result_json(result: WorkspaceSearchResult) -> Value {
+    let files = result
+        .files
+        .into_iter()
+        .map(|file| {
+            let matches = file
+                .matches
+                .into_iter()
+                .map(|m| {
+                    json!({
+                        "id": m.id,
+                        "line": m.line,
+                        "column": m.column,
+                        "matchLength": m.match_length,
+                        "lineContent": m.line_content,
+                        "displayColumn": m.display_column,
+                        "displayMatchLength": m.display_match_length,
+                        "replacementPreview": m.replacement_preview,
+                    })
+                })
+                .collect::<Vec<_>>();
+            json!({
+                "relativePath": file.relative_path,
+                "contentToken": file.content_token,
+                "matches": matches,
+            })
+        })
+        .collect::<Vec<_>>();
+    json!({
         "files": files,
-        "totalMatches": total_matches,
-        "truncated": truncated,
-    }))
+        "totalMatches": result.total_matches,
+        "truncated": result.truncated,
+    })
 }
 
-fn compile_matcher(options: &SearchOptions) -> HostResult<Regex> {
-    let source = if options.use_regex {
-        options.query.clone()
-    } else {
-        regex::escape(&options.query)
-    };
-    let source = if options.whole_word {
-        format!(r"\b(?:{source})\b")
-    } else {
-        source
-    };
-    RegexBuilder::new(&source)
-        .case_insensitive(!options.case_sensitive)
-        .multi_line(false)
-        .build()
-        .map_err(|error| HostError::state(format!("Invalid search pattern: {error}")))
-}
-
-fn build_overrides(
-    root: &Path,
-    include: Option<&str>,
-    exclude: Option<&str>,
-) -> HostResult<Option<ignore::overrides::Override>> {
-    if include.is_none() && exclude.is_none() {
-        return Ok(None);
-    }
-    let mut builder = OverrideBuilder::new(root);
-    let mut any = false;
-    if let Some(include) = include {
-        for pattern in split_patterns(include) {
-            add_override(&mut builder, &pattern, false)?;
-            any = true;
-        }
-    }
-    if let Some(exclude) = exclude {
-        for pattern in split_patterns(exclude) {
-            add_override(&mut builder, &pattern, true)?;
-            any = true;
-        }
-    }
-    if !any {
-        return Ok(None);
-    }
-    builder
-        .build()
-        .map(Some)
-        .map_err(|error| HostError::state(format!("Invalid search glob: {error}")))
-}
-
-fn add_override(builder: &mut OverrideBuilder, pattern: &str, exclude: bool) -> HostResult<()> {
-    let prefixed = if exclude && !pattern.starts_with('!') {
-        format!("!{pattern}")
-    } else {
-        pattern.to_string()
-    };
-    builder
-        .add(&prefixed)
-        .map_err(|error| HostError::state(format!("Invalid search glob: {error}")))?;
-    if !pattern.contains('/') {
-        let nested = if exclude {
-            format!("!**/{pattern}")
-        } else {
-            format!("**/{pattern}")
-        };
-        builder
-            .add(&nested)
-            .map_err(|error| HostError::state(format!("Invalid search glob: {error}")))?;
-    }
-    Ok(())
-}
-
-fn split_patterns(value: &str) -> Vec<String> {
-    value
-        .split(',')
-        .map(str::trim)
-        .filter(|pattern| !pattern.is_empty())
-        .map(ToOwned::to_owned)
-        .collect()
-}
-
-fn match_file(
-    path: &Path,
-    relative_path: &str,
-    matcher: &Regex,
-    limit: u32,
-) -> HostResult<Vec<Value>> {
-    let bytes = fs::read(path)
-        .map_err(|error| HostError::state(format!("Could not read {relative_path}: {error}")))?;
-    if bytes.contains(&0) || std::str::from_utf8(&bytes).is_err() {
-        return Ok(Vec::new());
-    }
-    let mut matches = Vec::new();
-    for (index, line) in bytes.split(|byte| *byte == b'\n').enumerate() {
-        if matches.len() as u32 >= limit {
-            break;
-        }
-        let Ok(line) = std::str::from_utf8(line) else {
-            continue;
-        };
-        let line = line.trim_end_matches('\r');
-        let Some(found) = matcher.find(line) else {
-            continue;
-        };
-        let column = u32::try_from(found.start()).unwrap_or(0) + 1;
-        let match_length = u32::try_from(found.end().saturating_sub(found.start())).unwrap_or(0);
-        let line_content = if line.chars().count() > MAX_LINE_CONTENT_LENGTH {
-            line.chars()
-                .take(MAX_LINE_CONTENT_LENGTH)
-                .collect::<String>()
-        } else {
-            line.to_string()
-        };
-        matches.push(json!({
-            "id": format!("{relative_path}:{}:{}", index + 1, column),
-            "line": index + 1,
-            "column": column,
-            "matchLength": match_length,
-            "lineContent": line_content,
-        }));
-    }
-    Ok(matches)
+fn replace_result_json(result: WorkspaceReplaceResult) -> Value {
+    let conflicts = result
+        .conflicts
+        .into_iter()
+        .map(|conflict| {
+            json!({
+                "relativePath": conflict.relative_path,
+                "reason": conflict.reason,
+            })
+        })
+        .collect::<Vec<_>>();
+    json!({
+        "filesChanged": result.files_changed,
+        "matchesReplaced": result.matches_replaced,
+        "conflicts": conflicts,
+    })
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn finds_case_insensitive_matches_and_skips_binary() {
-        let workspace = tempfile::tempdir().unwrap();
-        fs::write(workspace.path().join("readme.md"), "Hello Search World\n").unwrap();
-        fs::write(workspace.path().join("binary.bin"), [0_u8, 1, 2, 3]).unwrap();
-        let result = run_search(SearchOptions {
-            workspace_path: workspace.path().to_string_lossy().into_owned(),
-            query: "search".into(),
-            case_sensitive: false,
-            whole_word: false,
-            use_regex: false,
-            include_pattern: None,
-            exclude_pattern: None,
-            include_ignored: false,
-            max_results: 20,
-        })
-        .unwrap();
-        assert_eq!(result["totalMatches"], 1);
-        assert_eq!(result["files"][0]["relativePath"], "readme.md");
-        assert_eq!(result["files"][0]["matches"][0]["line"], 1);
-    }
-}
+#[path = "mobile_workspace_search_requests_tests.rs"]
+mod tests;

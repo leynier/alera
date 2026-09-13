@@ -33,10 +33,6 @@ git2 = { version = "0.21.0", default-features = false }
 ignore = "0.4.33"
 notify = "8.2.0"
 trash = "5.2.6"
-globset = "0.4.20"
-grep-matcher = "0.1.9"
-grep-regex = "0.1.14"
-regex = "1.13.1"
 merman = { version = "0.7.0", default-features = false, features = ["render"] }
 png = "0.18.1"
 tempfile = "3.27.0"

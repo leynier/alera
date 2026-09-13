@@ -213,6 +213,20 @@ class WorkspaceSearchController extends _$WorkspaceSearchController {
     );
   }
 
+  void setIncludeIgnored(String workspacePath, bool value) {
+    if (state.includeIgnored == value) {
+      return;
+    }
+    toggleIncludeIgnored(workspacePath);
+  }
+
+  void setViewAsTree(bool value) {
+    if (state.viewAsTree == value) {
+      return;
+    }
+    toggleViewAsTree();
+  }
+
   void toggleIncludeIgnored(String workspacePath) {
     _applySearchInputChange(
       workspacePath,

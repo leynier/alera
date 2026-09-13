@@ -197,15 +197,7 @@ impl ServerActor {
             .map_err(state_error)?;
         let current_json = serde_json::to_value(current.prefs).map_err(state_error)?;
         if let Some(prefs) = compatible.get_mut("prefs").and_then(Value::as_object_mut) {
-            for key in [
-                "sectionSort",
-                "collapsedSectionIds",
-                "othersSectionCollapsed",
-            ] {
-                if !prefs.contains_key(key) {
-                    prefs.insert(key.to_string(), current_json[key].clone());
-                }
-            }
+            backfill_omitted_shared_prefs(prefs, &current_json);
         }
         let request: UpdateViewPrefsRequest =
             serde_json::from_value(compatible).map_err(format_error)?;
@@ -322,4 +314,53 @@ fn state_error(error: impl std::fmt::Display) -> HostError {
 
 fn format_error(error: impl std::fmt::Display) -> HostError {
     HostError::format(error.to_string())
+}
+
+/// Keys a client may not know yet. A client that predates a key sends its
+/// whole view without it, and deserializing that would reset the other
+/// client's choice to the default on every write, so the stored value is kept.
+const BACKFILLED_SHARED_PREF_KEYS: [&str; 7] = [
+    "sectionSort",
+    "collapsedSectionIds",
+    "othersSectionCollapsed",
+    "gitDiffViewMode",
+    "gitDiffGroupMode",
+    "searchViewAsTree",
+    "searchIncludeIgnored",
+];
+
+fn backfill_omitted_shared_prefs(prefs: &mut serde_json::Map<String, Value>, current: &Value) {
+    for key in BACKFILLED_SHARED_PREF_KEYS {
+        if !prefs.contains_key(key) {
+            prefs.insert(key.to_string(), current[key].clone());
+        }
+    }
+}
+
+#[cfg(test)]
+mod shared_prefs_backfill_tests {
+    use serde_json::json;
+
+    use super::backfill_omitted_shared_prefs;
+
+    #[test]
+    fn omitted_keys_keep_the_stored_value_and_sent_keys_win() {
+        let current = json!({
+            "sectionSort": "recent",
+            "gitDiffViewMode": "flat",
+            "gitDiffGroupMode": "unified",
+            "searchViewAsTree": true,
+            "searchIncludeIgnored": true,
+        });
+        let mut sent = json!({ "searchViewAsTree": false });
+        let prefs = sent.as_object_mut().unwrap();
+
+        backfill_omitted_shared_prefs(prefs, &current);
+
+        assert_eq!(prefs["gitDiffViewMode"], "flat");
+        assert_eq!(prefs["gitDiffGroupMode"], "unified");
+        assert_eq!(prefs["searchIncludeIgnored"], true);
+        assert_eq!(prefs["sectionSort"], "recent");
+        assert_eq!(prefs["searchViewAsTree"], false);
+    }
 }

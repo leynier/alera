@@ -5,6 +5,7 @@ export 'package:alera_mobile/src/core/mobile_protocol.dart'
         mobileExplorerCapability,
         mobilePullRequestCapability,
         mobileSourceControlCapability,
+        mobileWorkspaceReplaceCapability,
         mobileWorkspaceSearchCapability;
 
 class const MobileExplorerEntry({
@@ -34,6 +35,9 @@ class const MobileWorkspaceSearchMatch({
   required final int column,
   required final int matchLength,
   required final String lineContent,
+  final int? displayColumn,
+  final int? displayMatchLength,
+  final String? replacementPreview,
 }) {
   factory fromJson(Map<String, Object?> json) => MobileWorkspaceSearchMatch(
     id: json.requiredString('id'),
@@ -41,16 +45,21 @@ class const MobileWorkspaceSearchMatch({
     column: (json['column'] as num?)?.toInt() ?? 1,
     matchLength: (json['matchLength'] as num?)?.toInt() ?? 0,
     lineContent: json.optionalString('lineContent') ?? '',
+    displayColumn: (json['displayColumn'] as num?)?.toInt(),
+    displayMatchLength: (json['displayMatchLength'] as num?)?.toInt(),
+    replacementPreview: json['replacementPreview'] as String?,
   );
 }
 
 class const MobileWorkspaceSearchFile({
   required final String relativePath,
+  final String contentToken = '',
   final List<MobileWorkspaceSearchMatch> matches =
       const <MobileWorkspaceSearchMatch>[],
 }) {
   factory fromJson(Map<String, Object?> json) => MobileWorkspaceSearchFile(
     relativePath: json.requiredString('relativePath'),
+    contentToken: json.optionalString('contentToken') ?? '',
     matches: <MobileWorkspaceSearchMatch>[
       for (final item in json.objectList('matches'))
         if (item is Map)
@@ -75,6 +84,47 @@ class const MobileWorkspaceSearchResult({
     truncated: json['truncated'] == true,
   );
 }
+
+class const MobileWorkspaceReplaceConflict({
+  required final String relativePath,
+  required final String reason,
+}) {
+  factory fromJson(Map<String, Object?> json) => MobileWorkspaceReplaceConflict(
+    relativePath: json.optionalString('relativePath') ?? 'unknown',
+    reason: json.optionalString('reason') ?? '',
+  );
+}
+
+class const MobileWorkspaceReplaceResult({
+  final int filesChanged = 0,
+  final int matchesReplaced = 0,
+  final List<MobileWorkspaceReplaceConflict> conflicts =
+      const <MobileWorkspaceReplaceConflict>[],
+}) {
+  factory fromJson(Map<String, Object?> json) => MobileWorkspaceReplaceResult(
+    filesChanged: (json['filesChanged'] as num?)?.toInt() ?? 0,
+    matchesReplaced: (json['matchesReplaced'] as num?)?.toInt() ?? 0,
+    conflicts: <MobileWorkspaceReplaceConflict>[
+      for (final item in json.objectList('conflicts'))
+        if (item is Map)
+          MobileWorkspaceReplaceConflict.fromJson(
+            Map<String, Object?>.from(item),
+          ),
+    ],
+  );
+}
+
+/// The search a replace re-runs on the host. It must match the search that
+/// produced the results, because the host re-derives the match ids from it.
+class const MobileWorkspaceSearchQuery({
+  required final String query,
+  final bool caseSensitive = false,
+  final bool wholeWord = false,
+  final bool useRegex = false,
+  final String includePattern = '',
+  final String excludePattern = '',
+  final bool includeIgnored = false,
+});
 
 class const MobileGitChange({
   required final String path,
@@ -303,6 +353,7 @@ abstract interface class MobileWorkspacePanelsClient {
   bool get supportsWorkspaceSearch;
   bool get supportsSourceControl;
   bool get supportsPullRequests;
+  bool get supportsWorkspaceReplace;
 
   Future<List<MobileExplorerEntry>> listExplorerChildren({
     required String workspaceId,
@@ -319,7 +370,21 @@ abstract interface class MobileWorkspacePanelsClient {
     String? includePattern,
     String? excludePattern,
     bool includeIgnored = false,
+    String? replacement,
+    bool preserveCase = false,
+    String? requestId,
   });
+
+  Future<MobileWorkspaceReplaceResult> replaceWorkspaceMatches({
+    required String workspaceId,
+    required MobileWorkspaceSearchQuery search,
+    required String replacement,
+    bool preserveCase = false,
+    required List<String> matchIds,
+    required List<MobileWorkspaceSearchFile> expectedFiles,
+  });
+
+  Future<void> cancelWorkspaceSearch(String requestId);
 
   Future<MobileGitStatusSnapshot> gitStatus(String workspaceId);
 
