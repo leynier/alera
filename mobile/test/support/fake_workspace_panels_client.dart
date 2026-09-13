@@ -40,6 +40,13 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
   Completer<void>? replaceGate;
   Completer<void>? searchGate;
 
+  /// Thrown by the next [pullRequestSnapshot], for refresh failures.
+  Object? pullRequestSnapshotError;
+
+  /// Holds [pullRequestSnapshot] open, so a test can land a write while a
+  /// refresh is still in flight.
+  Completer<void>? pullRequestSnapshotGate;
+
   @override
   bool get supportsExplorer => explorerSupported;
 
@@ -175,6 +182,14 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
     calls.add('pullRequestSnapshot $workspaceId');
     await pullRequestGate?.future;
     if (pullRequestError case final error?) throw error;
+    final gate = pullRequestSnapshotGate;
+    if (gate != null) {
+      await gate.future;
+    }
+    final error = pullRequestSnapshotError;
+    if (error != null) {
+      throw error;
+    }
     return pullRequest;
   }
 }
