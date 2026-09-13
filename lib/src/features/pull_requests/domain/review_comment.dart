@@ -15,6 +15,9 @@ class const ReviewCommentLocator({
 });
 
 /// Provider-neutral comment displayed in the pull-request conversation.
+///
+/// [threadId] groups review comments that belong to the same diff thread; it
+/// is null for conversation comments.
 class const ReviewComment({
   required final String id,
   required final String author,
@@ -26,6 +29,7 @@ class const ReviewComment({
   final int? line,
   final bool resolved = false,
   final bool outdated = false,
+  final String? threadId,
   final ReviewCommentLocator? locator,
 }) {
   ReviewComment copyWith({String? body, ReviewCommentLocator? locator}) {
@@ -40,6 +44,7 @@ class const ReviewComment({
       line: line,
       resolved: resolved,
       outdated: outdated,
+      threadId: threadId,
       locator: locator ?? this.locator,
     );
   }

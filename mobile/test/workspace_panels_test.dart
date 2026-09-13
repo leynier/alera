@@ -316,6 +316,55 @@ void main() {
       lessThan(24),
     );
   });
+
+  testWidgets('pull request folds passing checks when there are many', (
+    tester,
+  ) async {
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')]
+      ..explorerSupported = true
+      ..workspaceSearchSupported = true
+      ..sourceControlSupported = true
+      ..pullRequestsSupported = true
+      ..pullRequest = MobilePullRequestSnapshot.fromJson(<String, Object?>{
+        'branch': 'feat/panels',
+        'review': <String, Object?>{
+          'number': 700,
+          'title': 'feat: long ci',
+          'state': 'OPEN',
+          'url': 'https://github.com/leynier/alera/pull/700',
+          'checks': <Object?>[
+            for (var index = 0; index < 6; index++)
+              <String, Object?>{'name': 'job $index', 'bucket': 'pass'},
+            <String, Object?>{'name': 'lint', 'bucket': 'fail'},
+          ],
+          'comments': <Object?>[
+            <String, Object?>{
+              'id': 1,
+              'author': 'reviewer',
+              'body': 'Please look at lint',
+            },
+          ],
+        },
+      });
+    addTearDown(client.dispose);
+
+    await _pumpWorkspace(tester, client, surface: const Size(390, 844));
+    await _openWorkspacePanel(tester, 'Pull Request');
+
+    expect(find.text('lint'), findsOneWidget);
+    expect(find.text('job 0'), findsNothing);
+    expect(find.text('6 passed'), findsOneWidget);
+    expect(
+      find.textContaining('Please look at lint', findRichText: true),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('6 passed'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('job 0'), findsOneWidget);
+  });
 }
 
 Future<void> _pumpWorkspace(

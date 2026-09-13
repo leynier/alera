@@ -164,19 +164,44 @@ class const MobilePullRequestCheck({
   );
 }
 
+/// A pull request comment. [kind] is `review` for a comment on a diff thread
+/// ([threadId], [path], [line], [resolved]); [source] is `reviewSummary` for
+/// the body of a submitted review. Hosts older than these fields send only
+/// conversation comments, which the defaults describe.
 class const MobilePullRequestComment({
   required final int id,
   final String? author,
   final String body = '',
   final String? createdAt,
   final String? url,
+  final String kind = 'conversation',
+  final String source = 'conversation',
+  final String? path,
+  final int? line,
+  final bool resolved = false,
+  final String? threadId,
 }) {
+  bool get isReviewThread => kind == 'review';
+
+  bool get isReviewSummary => source == 'reviewSummary';
+
+  DateTime? get createdAtTime {
+    final value = createdAt;
+    return value == null ? null : DateTime.tryParse(value);
+  }
+
   factory fromJson(Map<String, Object?> json) => MobilePullRequestComment(
     id: (json['id'] as num?)?.toInt() ?? 0,
     author: json.optionalString('author'),
     body: json.optionalString('body') ?? '',
     createdAt: json.optionalString('createdAt'),
     url: json.optionalString('url'),
+    kind: json.optionalString('kind') ?? 'conversation',
+    source: json.optionalString('source') ?? 'conversation',
+    path: json.optionalString('path'),
+    line: (json['line'] as num?)?.toInt(),
+    resolved: json['resolved'] == true,
+    threadId: json.optionalString('threadId'),
   );
 }
 

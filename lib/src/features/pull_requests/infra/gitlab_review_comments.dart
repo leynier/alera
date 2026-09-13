@@ -60,6 +60,7 @@ mixin _GitLabReviewComments {
                       ?.toInt()
                 : null,
             resolved: positioned && note['resolved'] == true,
+            threadId: positioned ? '$discussionId' : null,
             locator: noteId == null
                 ? null
                 : ReviewCommentLocator(

@@ -390,17 +390,27 @@ void main() {
             path: 'lib/src/example.dart',
             line: 42,
             resolved: true,
+            threadId: 'T1',
           ),
         ],
       ),
     );
 
     expect(find.text('Comments (2)'), findsOneWidget);
-    expect(find.byType(PullRequestCommentMarkdown), findsNWidgets(2));
     expect(find.text('General feedback'), findsOneWidget);
-    expect(find.text('Please cover this branch'), findsOneWidget);
     expect(find.text('lib/src/example.dart:42'), findsOneWidget);
     expect(find.text('Resolved'), findsOneWidget);
+    // Resolved threads start collapsed to their header.
+    expect(find.byType(PullRequestCommentMarkdown), findsOneWidget);
+    expect(find.text('Please cover this branch'), findsNothing);
+    expect(find.text('1 comment'), findsOneWidget);
+
+    await tester.tap(find.text('lib/src/example.dart:42'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PullRequestCommentMarkdown), findsNWidgets(2));
+    expect(find.text('Please cover this branch'), findsOneWidget);
+    expect(find.text('1 comment'), findsNothing);
   });
 
   testWidgets('posts a comment and closes the composer on success', (
@@ -409,10 +419,12 @@ void main() {
     final callbacks = _Callbacks();
     await tester.pumpWidget(_wrap(callbacks));
 
-    await tester.tap(find.byTooltip('Start Conversation'));
+    expect(find.text('Post Comment'), findsNothing);
+    await tester.tap(find.text('Start the conversation'));
     await tester.pumpAndSettle();
     expect(find.text('Post Comment'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'Ready to merge');
+    await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Post Comment'));
     await tester.pumpAndSettle();
 
@@ -426,12 +438,14 @@ void main() {
     final callbacks = _Callbacks()..addCommentResult = false;
     await tester.pumpWidget(_wrap(callbacks));
 
-    await tester.tap(find.byTooltip('Start Conversation'));
+    await tester.tap(find.text('Start the conversation'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Keep this draft');
+    await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Post Comment'));
     await tester.pumpAndSettle();
 
+    expect(callbacks.commentBodies, <String>['Keep this draft']);
     expect(find.text('Post Comment'), findsOneWidget);
     expect(
       tester.widget<TextField>(find.byType(TextField)).controller?.text,
@@ -445,7 +459,7 @@ void main() {
       _wrap(callbacks, review: _review.copyWith(state: .merged)),
     );
 
-    expect(find.byTooltip('Start Conversation'), findsNothing);
+    expect(find.text('Start the conversation'), findsNothing);
     expect(find.text('No comments yet'), findsOneWidget);
   });
 }

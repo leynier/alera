@@ -9,6 +9,7 @@ import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_controller.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/pull_request_conversation_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -99,38 +100,9 @@ class const _Body({required final MobilePullRequestSnapshot snapshot})
             style: theme.textTheme.bodySmall,
           )
         else
-          for (final check in review.checks) _CheckRow(check: check),
+          _ChecksSection(checks: review.checks),
         const SizedBox(height: AleraTokens.space16),
-        const AleraSectionHeader(
-          label: 'Comments',
-          padding: EdgeInsets.only(bottom: AleraTokens.space8),
-        ),
-        if (review.comments.isEmpty)
-          Text(
-            'No conversation comments yet.',
-            style: theme.textTheme.bodySmall,
-          )
-        else
-          for (final comment in review.comments)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AleraTokens.space8),
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(AleraTokens.space12),
-                  child: Column(
-                    crossAxisAlignment: .start,
-                    children: <Widget>[
-                      Text(
-                        comment.author ?? 'Comment',
-                        style: theme.textTheme.titleSmall,
-                      ),
-                      const SizedBox(height: AleraTokens.space8),
-                      Text(comment.body, style: theme.textTheme.bodyMedium),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+        PullRequestConversationSection(comments: review.comments),
       ],
     );
   }
@@ -268,6 +240,81 @@ class const _CheckRow({required final MobilePullRequestCheck check})
           : InkWell(onTap: () => _openUrl(url), child: row),
     );
   }
+}
+
+/// Failing and pending checks always show; above [_collapseSettledAbove]
+/// checks the passed and skipped ones fold behind one row, so a long CI run
+/// does not push the conversation off the screen.
+class const _ChecksSection({required final List<MobilePullRequestCheck> checks})
+    extends StatefulWidget {
+  static const int _collapseSettledAbove = 5;
+
+  @override
+  State<_ChecksSection> createState() => _ChecksSectionState();
+}
+
+class _ChecksSectionState extends State<_ChecksSection> {
+  bool _showSettled = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final checks = widget.checks;
+    final settled = <MobilePullRequestCheck>[
+      for (final check in checks)
+        if (_isSettled(check)) check,
+    ];
+    if (checks.length <= _ChecksSection._collapseSettledAbove ||
+        settled.isEmpty) {
+      return Column(
+        crossAxisAlignment: .stretch,
+        children: <Widget>[for (final check in checks) _CheckRow(check: check)],
+      );
+    }
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: .stretch,
+      children: <Widget>[
+        for (final check in checks)
+          if (!_isSettled(check)) _CheckRow(check: check),
+        InkWell(
+          onTap: () => setState(() => _showSettled = !_showSettled),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minHeight: AleraTokens.minTapTarget,
+            ),
+            child: Row(
+              children: <Widget>[
+                Icon(
+                  _showSettled
+                      ? AleraIcons.chevronDown
+                      : AleraIcons.chevronRight,
+                  size: AleraTokens.iconSm,
+                  color: AleraTokens.foregroundMuted,
+                ),
+                const SizedBox(width: AleraTokens.space8),
+                Expanded(
+                  child: Text(
+                    _checksSummary(settled),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AleraTokens.foregroundMuted,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_showSettled)
+          for (final check in settled) _CheckRow(check: check),
+      ],
+    );
+  }
+
+  bool _isSettled(MobilePullRequestCheck check) =>
+      switch (pullRequestCheckVisual(check).label) {
+        'Pass' || 'Skipped' || 'Cancelled' => true,
+        _ => false,
+      };
 }
 
 class const PullRequestCheckVisual({

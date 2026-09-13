@@ -117,6 +117,7 @@ mod managed_workspace_requests;
 mod mobile_explorer_requests;
 mod mobile_gateway_surface;
 mod mobile_hello_requests;
+mod mobile_pull_request_comments;
 mod mobile_pull_request_requests;
 #[cfg(test)]
 mod mobile_relay_presence_tests;
