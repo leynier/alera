@@ -15,6 +15,7 @@ class const WorkspaceDiffViewerScreen({
   required final String workspaceId,
   required final MobileGitChange change,
   final String relativeRoot = '',
+  final bool writesEnabled = true,
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -22,7 +23,8 @@ class const WorkspaceDiffViewerScreen({
       appBar: AppBar(
         title: Text(workspaceFileBaseName(change.path), overflow: .ellipsis),
         actions: <Widget>[
-          if (change.canStage || change.canUnstage || change.canDiscard)
+          if (writesEnabled &&
+              (change.canStage || change.canUnstage || change.canDiscard))
             Consumer(
               builder: (context, ref, _) {
                 final busy =

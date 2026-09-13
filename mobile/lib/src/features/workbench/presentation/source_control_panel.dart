@@ -294,6 +294,8 @@ class const _Body({
                       hostId: hostId,
                       workspaceId: workspaceId,
                       change: change,
+                      relativeRoot: relativeRoot,
+                      writesEnabled: writesEnabled,
                     ),
                   ),
                 ),
