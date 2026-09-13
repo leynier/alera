@@ -344,7 +344,9 @@ void main() {
     gate.complete();
 
     expect(await refresh, isNull);
+    await Future<void>.value();
     expect(container.read(provider).value?.review?.state, 'MERGED');
+    expect(container.read(provider).isLoading, isFalse);
   });
 
   testWidgets('an older runtime keeps the panel read-only', (tester) async {

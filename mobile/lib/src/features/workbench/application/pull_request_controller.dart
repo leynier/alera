@@ -47,27 +47,31 @@ class PullRequestController extends _$PullRequestController {
 
   /// Refresh, keeping what is on screen: a failure answers with the message to
   /// report instead of replacing a loaded snapshot with an error, and a result
-  /// that a write overtook is dropped. `invalidateSelf` is what puts
-  /// `state.isLoading` on while the last review stays visible.
+  /// that a write overtook is dropped. Loading uses `copyWithPrevious` so
+  /// `state.isLoading` is on while `state.value` stays; `invalidateSelf` would
+  /// let Riverpod apply a stale `build()` after `applySnapshot`.
   Future<String?> refresh() async {
     final generation = ++_generation;
     final previous = state;
-    ref.invalidateSelf();
-    try {
-      await future;
-      if (generation != _generation) {
-        return null;
-      }
+    if (previous.hasValue) {
+      // ignore: invalid_use_of_internal_member
+      state = const AsyncLoading<MobilePullRequestSnapshot>().copyWithPrevious(
+        previous,
+      );
+    }
+    final result = await AsyncValue.guard(() => build(hostId, workspaceId));
+    if (generation != _generation) {
       return null;
-    } on Object catch (error) {
-      if (generation != _generation) {
-        return null;
-      }
-      if (previous.hasValue) {
-        state = previous;
-      }
+    }
+    if (result case AsyncError(:final error) when previous.hasValue) {
+      state = previous;
       return pullRequestActionErrorMessage(error);
     }
+    state = result;
+    return switch (result) {
+      AsyncError(:final error) => pullRequestActionErrorMessage(error),
+      _ => null,
+    };
   }
 
   /// A write already answered with the fresh snapshot.
