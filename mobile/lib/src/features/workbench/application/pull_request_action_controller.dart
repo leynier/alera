@@ -21,6 +21,21 @@ Future<bool> pullRequestActionsSupported(Ref ref, String hostId) async {
   };
 }
 
+/// Whether the runtime can write pull request details with AI Assist. The
+/// snapshot's `aiAssistEnabled` still decides whether the button shows.
+@riverpod
+Future<bool> pullRequestDetailsGenerationSupported(
+  Ref ref,
+  String hostId,
+) async {
+  final client = await ref.watch(workspaceClientProvider(hostId).future);
+  return switch (client) {
+    final MobilePullRequestActionsClient actions =>
+      actions.supportsPullRequestDetailsGeneration,
+    _ => false,
+  };
+}
+
 /// The pull request write in flight for one workspace, or null when idle.
 ///
 /// Kept alive so a merge started just before the user leaves the panel still

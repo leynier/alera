@@ -91,7 +91,20 @@ abstract interface class MobilePullRequestActionsClient {
     required String workspaceId,
     required MobilePullRequestCreateInput input,
   });
+
+  /// Whether AI Assist on the runtime can write a pull request title and
+  /// description (`aiTextPullRequestDetailsV1`).
+  bool get supportsPullRequestDetailsGeneration;
+
+  /// A title and description for the range between [baseBranch] and HEAD.
+  Future<MobilePullRequestDetails> generatePullRequestDetails({
+    required String workspaceId,
+    required String baseBranch,
+  });
 }
+
+/// A generated pull request title and description.
+typedef MobilePullRequestDetails = ({String title, String body});
 
 enum MobilePullRequestReviewActionKind {
   markReady,

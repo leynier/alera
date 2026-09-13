@@ -259,12 +259,12 @@ fn sync(root: &str) -> Result<(), GitError> {
 /// One write per workspace at a time. Two phones, or a retry racing its first
 /// attempt, would otherwise interleave index writes and fail on `index.lock`
 /// with an error that says nothing about the other request.
-struct WorkspaceWriteGuard {
+pub(super) struct WorkspaceWriteGuard {
     workspace_id: String,
 }
 
 impl WorkspaceWriteGuard {
-    fn acquire(workspace_id: &str) -> HostResult<Self> {
+    pub(super) fn acquire(workspace_id: &str) -> HostResult<Self> {
         let mut active = active_writes().lock().unwrap_or_else(|e| e.into_inner());
         if !active.insert(workspace_id.to_string()) {
             return Err(HostError::conflict(

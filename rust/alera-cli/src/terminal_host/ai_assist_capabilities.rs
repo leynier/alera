@@ -6,3 +6,8 @@ pub const RUNTIME_HOST_AI_ASSIST_SPEECH_MESSAGE_CAPABILITY: &str = "aiTextSpeech
 /// A paired phone can ask for a commit message over the staged changes of a
 /// workspace through `aiText.commitMessage.generate`.
 pub const RUNTIME_HOST_AI_ASSIST_COMMIT_MESSAGE_CAPABILITY: &str = "aiTextCommitMessageV1";
+/// A paired phone can ask for a pull request title and description over the
+/// range between a base branch and HEAD through
+/// `aiText.pullRequestDetails.generate`.
+pub const RUNTIME_HOST_AI_ASSIST_PULL_REQUEST_DETAILS_CAPABILITY: &str =
+    "aiTextPullRequestDetailsV1";

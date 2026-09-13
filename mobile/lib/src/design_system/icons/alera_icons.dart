@@ -49,6 +49,7 @@ abstract final class const AleraIcons._() {
   static const IconData unlink = LucideIcons.unlink;
   static const IconData reply = LucideIcons.reply;
   static const IconData send = LucideIcons.send;
+  static const IconData sparkles = LucideIcons.sparkles;
   static const IconData listView = LucideIcons.list;
   static const IconData viewImage = LucideIcons.image;
   static const IconData imageError = LucideIcons.imageOff;

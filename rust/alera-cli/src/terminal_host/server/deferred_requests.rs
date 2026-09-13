@@ -66,6 +66,12 @@ impl ServerActor {
                 self.start_ai_assist_commit_message(client_id, request_id, payload)?;
                 Ok(true)
             }
+            "aiText.pullRequestDetails.generate" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_ai_assist_pull_request_details(client_id, request_id, payload)?;
+                Ok(true)
+            }
             "aiText.speechMessage.generate" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;

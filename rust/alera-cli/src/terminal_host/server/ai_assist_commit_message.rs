@@ -73,7 +73,7 @@ pub(super) async fn ai_commit_message_enabled(store: &RuntimeStore) -> bool {
         .is_ok_and(|settings| settings.enabled)
 }
 
-async fn generate_commit_message(
+pub(super) async fn generate_commit_message(
     store: &RuntimeStore,
     workspace_id: &str,
     cancel_rx: oneshot::Receiver<()>,
@@ -225,7 +225,7 @@ fn commit_message_prompt(context: &CommitContext, custom_instructions: &str) -> 
     prompt
 }
 
-fn limit_prompt_section(value: &str, max_chars: usize) -> String {
+pub(super) fn limit_prompt_section(value: &str, max_chars: usize) -> String {
     match value.char_indices().nth(max_chars) {
         None => value.to_string(),
         Some((cut, _)) => {
@@ -238,7 +238,7 @@ fn limit_prompt_section(value: &str, max_chars: usize) -> String {
     }
 }
 
-fn truncate_diff_for_prompt(diff: &str) -> String {
+pub(super) fn truncate_diff_for_prompt(diff: &str) -> String {
     match diff.char_indices().nth(STAGED_PATCH_BUDGET) {
         None => diff.to_string(),
         Some((cut, _)) => {
@@ -251,7 +251,7 @@ fn truncate_diff_for_prompt(diff: &str) -> String {
     }
 }
 
-fn clean_generated_text(raw: &str) -> String {
+pub(super) fn clean_generated_text(raw: &str) -> String {
     let mut text = raw.replace("\r\n", "\n").trim().to_string();
     if let Some((first_line, rest)) = text.split_once('\n') {
         let first_line = first_line.trim();

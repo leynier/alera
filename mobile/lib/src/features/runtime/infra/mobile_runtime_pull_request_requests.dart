@@ -3,6 +3,9 @@ part of 'mobile_runtime_client.dart';
 /// A merge or a create waits on GitHub, not only on the runtime.
 const Duration _pullRequestWriteTimeout = Duration(seconds: 90);
 
+/// An agent CLI reading the whole range can take minutes on a large branch.
+const Duration _pullRequestDetailsTimeout = Duration(minutes: 5);
+
 mixin MobileRuntimePullRequestRequests
     implements MobilePullRequestActionsClient {
   Set<String> get runtimeCapabilities;
@@ -16,6 +19,35 @@ mixin MobileRuntimePullRequestRequests
   @override
   bool get supportsPullRequestActions =>
       runtimeCapabilities.contains(mobilePullRequestActionsCapability);
+
+  @override
+  bool get supportsPullRequestDetailsGeneration =>
+      runtimeCapabilities.contains(aiTextPullRequestDetailsCapability);
+
+  @override
+  Future<MobilePullRequestDetails> generatePullRequestDetails({
+    required String workspaceId,
+    required String baseBranch,
+  }) async {
+    if (!supportsPullRequestDetailsGeneration) {
+      throw UnsupportedError(
+        'Update the paired Alera runtime to generate pull request details.',
+      );
+    }
+    final payload = await requestMap('aiText.pullRequestDetails.generate', <
+      String,
+      Object?
+    >{
+      'operationId':
+          'mobile-pull-request-details-${DateTime.now().microsecondsSinceEpoch}',
+      'workspaceId': workspaceId,
+      'baseBranch': baseBranch,
+    }, _pullRequestDetailsTimeout);
+    return (
+      title: payload.optionalString('title') ?? '',
+      body: payload.optionalString('body') ?? '',
+    );
+  }
 
   Future<MobilePullRequestSnapshot> _pullRequestWrite(
     String verb,
