@@ -17,6 +17,7 @@ const String mobileSourceControlCapability = 'mobileSourceControlV1';
 const String mobileSourceControlRootCapability = 'mobileSourceControlRootV1';
 const String mobilePullRequestCapability = 'mobilePullRequestV1';
 const String mobilePullRequestActionsCapability = 'mobilePullRequestActionsV1';
+const String aiTextPullRequestDetailsCapability = 'aiTextPullRequestDetailsV1';
 const String sharedCheckoutWorkspacesCapability = 'sharedCheckoutWorkspacesV1';
 
 bool requiresSharedCheckoutSupport(String operation) => switch (operation) {

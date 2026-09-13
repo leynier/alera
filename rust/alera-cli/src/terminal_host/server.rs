@@ -73,6 +73,7 @@ mod ai_assist_model_defaults;
 mod ai_assist_open_code;
 mod ai_assist_operation_registry;
 mod ai_assist_process_journal;
+mod ai_assist_pull_request_details;
 mod ai_assist_requests;
 mod ai_assist_speech_message;
 mod ai_assist_workspace_identity;
