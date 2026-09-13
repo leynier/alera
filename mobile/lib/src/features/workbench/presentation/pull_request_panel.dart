@@ -48,26 +48,43 @@ class const PullRequestPanel({
       }
     }
 
-    // A loaded snapshot outranks a later failure: a refresh that could not
-    // reach the runtime reports itself in a snack bar instead of blanking the
-    // panel back to its first-load state.
-    return switch (state) {
-      AsyncValue(value: final snapshot?) => _Body(
-        snapshot: snapshot,
-        actions: actions,
-        busy: busy,
-        onRefresh: refresh,
-      ),
-      AsyncError(:final error) => AleraEmptyState(
-        icon: AleraIcons.gitPullRequest,
-        message: error.toString(),
-        action: FilledButton(
-          onPressed: () => ref.read(provider.notifier).reload(),
-          child: const Text('Retry'),
+    void reload() => unawaited(ref.read(provider.notifier).reload());
+    // The last snapshot wins over a reload, so a host reconnect does not blank
+    // the review into a spinner; see `SourceControlPanel`.
+    final snapshot = state.value;
+    if (snapshot == null) {
+      return switch (state) {
+        AsyncError(:final error) => AleraEmptyState(
+          icon: AleraIcons.gitPullRequest,
+          message: error.toString(),
+          action: FilledButton(onPressed: reload, child: const Text('Retry')),
         ),
-      ),
-      _ => const Center(child: CircularProgressIndicator()),
-    };
+        _ => const Center(child: CircularProgressIndicator()),
+      };
+    }
+    return Column(
+      children: <Widget>[
+        AleraRefreshProgress(refreshing: state.isLoading),
+        if (state.error case final error?)
+          Padding(
+            padding: AleraTokens.contentPadding,
+            child: AleraNotice(
+              icon: AleraIcons.warning,
+              message: 'Could not refresh the pull request. $error',
+              action: TextButton(onPressed: reload, child: const Text('Retry')),
+            ),
+          ),
+        Expanded(
+          child: _Body(
+            snapshot: snapshot,
+            actions: actions,
+            busy: busy,
+            onRefresh: refresh,
+            onReload: reload,
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -76,6 +93,7 @@ class const _Body({
   required final PullRequestPanelActions? actions,
   required final PullRequestActionKind? busy,
   required final Future<void> Function() onRefresh,
+  required final VoidCallback onReload,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -108,7 +126,7 @@ class const _Body({
           _Header(
             snapshot: snapshot,
             review: review,
-            onRefresh: idle ? () => unawaited(onRefresh()) : null,
+            onRefresh: idle ? onReload : null,
           ),
           const SizedBox(height: AleraTokens.space12),
           if (actions == null)
