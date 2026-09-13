@@ -8,6 +8,7 @@ import 'package:alera/src/features/pull_requests/application/workspace_pull_requ
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_prompts.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
@@ -57,7 +58,8 @@ class PullRequestAgentWatchController
     required int reviewNumber,
     required PullRequestAgentWatchMode mode,
     required AgentTaskDispatchBinding binding,
-    String? lastDispatchedFailureSignature,
+    PullRequestAgentWatchScope watchScope = PullRequestAgentWatchScope.defaults,
+    PullRequestAgentWatchDispatchMark? lastDispatch,
   }) {
     final existing = state[scope.workspaceId];
     if (existing == null) {
@@ -73,7 +75,8 @@ class PullRequestAgentWatchController
         mode: mode,
         binding: binding,
         scope: scope,
-        lastDispatchedFailureSignature: lastDispatchedFailureSignature,
+        watchScope: watchScope,
+        lastDispatch: lastDispatch,
       ),
     };
     _ensureTimer();
@@ -135,8 +138,8 @@ class PullRequestAgentWatchController
         case PullRequestAgentWatchAction.stop:
           _remove(workspaceId, detach: true);
           return;
-        case PullRequestAgentWatchAction.dispatchFix:
-          await _dispatchFix(session, evaluation.failureSignature);
+        case PullRequestAgentWatchAction.dispatch:
+          await _dispatch(session, evaluation);
         case PullRequestAgentWatchAction.merge:
           await _merge(session, evaluation.headSha);
       }
@@ -153,6 +156,7 @@ class PullRequestAgentWatchController
       return PullRequestAgentWatchSnapshot(
         review: panel.review,
         checksRollup: panel.checksRollup,
+        comments: panel.comments,
       );
     }
     final async = ref.read(
@@ -165,17 +169,27 @@ class PullRequestAgentWatchController
     return PullRequestAgentWatchSnapshot(
       review: current.review,
       checksRollup: current.checksRollup,
+      comments: current.comments,
     );
   }
 
-  Future<void> _dispatchFix(
+  Future<void> _dispatch(
     PullRequestAgentWatchSession session,
-    String? failureSignature,
+    PullRequestAgentWatchEvaluation evaluation,
   ) async {
+    final review = ref
+        .read(workspacePullRequestControllerProvider(session.scope))
+        .asData
+        ?.value
+        .review;
     final result = await completeAgentTaskDispatch(
       request: AgentTaskDispatchRequest(
         workspaceId: session.workspaceId,
-        prompt: pullRequestAgentWatchPrompt(session.reviewNumber),
+        prompt: pullRequestAgentWatchPrompt(
+          reviewNumber: session.reviewNumber,
+          concerns: evaluation.concerns,
+          baseBranch: review?.baseBranch,
+        ),
       ),
       binding: session.binding,
       service: readAgentTaskDispatchServiceFromRef(
@@ -190,7 +204,8 @@ class PullRequestAgentWatchController
     final next = pullRequestAgentWatchAfterDispatch(
       session: latest,
       result: result,
-      failureSignature: failureSignature,
+      concerns: evaluation.concerns,
+      headSha: evaluation.headSha,
     );
     if (identical(next, latest)) {
       return;

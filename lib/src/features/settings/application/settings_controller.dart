@@ -6,6 +6,7 @@ import 'package:alera/src/features/settings/application/settings_providers.dart'
 import 'package:alera/src/features/settings/application/runtime_settings_changes.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
 import 'package:alera/src/features/settings/application/settings_repository.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/text_actions/domain/text_actions_settings.dart';

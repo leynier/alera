@@ -2,6 +2,7 @@ import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -47,6 +48,13 @@ void main() {
       expect(general.showTrayBadge, isTrue);
       expect(general.showPullRequestStatusInSidebar, isTrue);
       expect(general.pullRequestFailureNotificationsEnabled, isFalse);
+      expect(
+        general.pullRequestAgentWatchScope,
+        PullRequestAgentWatchScope.defaults,
+      );
+      expect(general.pullRequestAgentWatchScope.checks, isTrue);
+      expect(general.pullRequestAgentWatchScope.comments, isTrue);
+      expect(general.pullRequestAgentWatchScope.conflicts, isTrue);
     });
 
     test('agent defaults are conservative', () {
@@ -162,6 +170,10 @@ void main() {
       expect(general.showDockBadge, isTrue);
       expect(general.showPullRequestStatusInSidebar, isTrue);
       expect(general.pullRequestFailureNotificationsEnabled, isFalse);
+      expect(
+        general.pullRequestAgentWatchScope,
+        PullRequestAgentWatchScope.defaults,
+      );
       expect(agents.agentStatusHooks.codex, isTrue);
       expect(agents.agentStatusHooks.claude, isFalse);
       expect(agents.agentStatusHooks.copilot, isTrue);

@@ -25,6 +25,7 @@ class const ReviewComment({
   final String? path,
   final int? line,
   final bool resolved = false,
+  final bool outdated = false,
   final ReviewCommentLocator? locator,
 }) {
   ReviewComment copyWith({String? body, ReviewCommentLocator? locator}) {
@@ -38,6 +39,7 @@ class const ReviewComment({
       path: path,
       line: line,
       resolved: resolved,
+      outdated: outdated,
       locator: locator ?? this.locator,
     );
   }

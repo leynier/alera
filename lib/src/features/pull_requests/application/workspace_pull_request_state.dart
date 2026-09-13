@@ -169,13 +169,18 @@ class const WorkspacePullRequestState({
         .map((c) => '${c.name}:${c.status.name}:${c.conclusion.name}')
         .join('|');
     final commentPart = comments
-        .map((comment) => '${comment.id}:${comment.createdAt}:${comment.body}')
+        .map(
+          (comment) =>
+              '${comment.id}:${comment.createdAt}:${comment.resolved}:'
+              '${comment.outdated}:${comment.body}',
+        )
         .join('|');
     final stackPart = stack == null
         ? ''
         : '${stack!.number}:${stack!.open}:'
               '${stack!.entries.map((entry) => '${entry.review.number}:${entry.review.state.name}:${entry.review.baseBranch}').join('|')}';
     return '${review?.number}:${review?.state.name}:${review?.title}:'
+        '${review?.mergeable.name}:'
         '${suggestedReview?.number}:${suggestedReview?.state.name}:$dismissed:'
         '${review?.baseBranch}:$stackPart:$checkPart:$commentPart';
   }
