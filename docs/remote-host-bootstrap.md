@@ -82,7 +82,7 @@ alera workspace add --project-id <project-id> --host-id <target-id> --name "Firs
 alera workspace add --project-id <project-id> --host-id <target-id> --name "Second Task"
 ```
 
-Registration requires a remote sidecar supporting checkout inspection. It resolves the path on that host, checks directory access and the project's storage type, and preserves one project folder per project and host. Git projects require the main working directory of a non-bare repository. Registering a folder creates no task; adding a task starts with fresh state and does not run worktree setup, copy local files or change branches. Tasks use the remote checkout's current branch and files. Unavailable hosts and changed canonical paths fail without deleting existing records. SSH shared-task removal and relocation remain under implementation; see the implementation tracker before relying on those flows.
+Registration requires a remote sidecar supporting checkout inspection. It resolves the path on that host, checks directory access and the project's storage type, and preserves one project folder per project and host. Git projects require the main working directory of a non-bare repository. Registering a folder creates no task; adding a task starts with fresh state and does not run worktree setup, copy local files or change branches. Tasks use the remote checkout's current branch and files. Unavailable hosts and changed canonical paths fail without deleting existing records.
 
 For a Git project without a checkout on that SSH host, clone directly on the host before registration:
 
@@ -100,7 +100,7 @@ alera ssh-target --json bootstrap-cancel --id <target-id>
 
 When the runtime host is running, `bootstrap` starts a host job and returns immediately with a job id. Without a runtime host, the CLI performs the bootstrap in the foreground and prints progress to stderr.
 
-`alera ssh-target` has no connect or disconnect verbs. Bootstrap still does not place a Git worktree; use `alera workspace add --host-id` or New Workspace for that.
+`alera ssh-target` has no connect or disconnect verbs. Bootstrap still does not place a Git worktree; use `alera workspace add --worktree --host-id <target-id>` or select a linked worktree in New Workspace for that.
 
 ## Mobile Access
 
