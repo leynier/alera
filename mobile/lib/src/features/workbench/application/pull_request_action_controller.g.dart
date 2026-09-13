@@ -184,6 +184,96 @@ final class PullRequestDetailsGenerationSupportedFamily extends $Family
   String toString() => r'pullRequestDetailsGenerationSupportedProvider';
 }
 
+/// Whether the runtime can Ship. Like generation, the snapshot's
+/// `aiAssistEnabled` still decides whether the button shows, because Ship
+/// writes its commit message with AI Assist.
+
+@ProviderFor(pullRequestShipSupported)
+final pullRequestShipSupportedProvider = PullRequestShipSupportedFamily._();
+
+/// Whether the runtime can Ship. Like generation, the snapshot's
+/// `aiAssistEnabled` still decides whether the button shows, because Ship
+/// writes its commit message with AI Assist.
+
+final class PullRequestShipSupportedProvider
+    extends $FunctionalProvider<AsyncValue<bool>, bool, FutureOr<bool>>
+    with $FutureModifier<bool>, $FutureProvider<bool> {
+  /// Whether the runtime can Ship. Like generation, the snapshot's
+  /// `aiAssistEnabled` still decides whether the button shows, because Ship
+  /// writes its commit message with AI Assist.
+  PullRequestShipSupportedProvider._({
+    required PullRequestShipSupportedFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'pullRequestShipSupportedProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$pullRequestShipSupportedHash();
+
+  @override
+  String toString() {
+    return r'pullRequestShipSupportedProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<bool> create(Ref ref) {
+    final argument = this.argument as String;
+    return pullRequestShipSupported(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is PullRequestShipSupportedProvider &&
+        other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$pullRequestShipSupportedHash() =>
+    r'e5601c0e12d494a9c8f764b006c15a8a09fab9c1';
+
+/// Whether the runtime can Ship. Like generation, the snapshot's
+/// `aiAssistEnabled` still decides whether the button shows, because Ship
+/// writes its commit message with AI Assist.
+
+final class PullRequestShipSupportedFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<bool>, String> {
+  PullRequestShipSupportedFamily._()
+    : super(
+        retry: null,
+        name: r'pullRequestShipSupportedProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Whether the runtime can Ship. Like generation, the snapshot's
+  /// `aiAssistEnabled` still decides whether the button shows, because Ship
+  /// writes its commit message with AI Assist.
+
+  PullRequestShipSupportedProvider call(String hostId) =>
+      PullRequestShipSupportedProvider._(argument: hostId, from: this);
+
+  @override
+  String toString() => r'pullRequestShipSupportedProvider';
+}
+
 /// The pull request write in flight for one workspace, or null when idle.
 ///
 /// Kept alive so a merge started just before the user leaves the panel still

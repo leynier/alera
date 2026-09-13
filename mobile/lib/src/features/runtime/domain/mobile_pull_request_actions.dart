@@ -29,7 +29,16 @@ enum PullRequestActionKind {
   link,
   unlink,
   create,
+  ship,
 }
+
+/// What Ship sends: the base branch, whether to open a draft, and whether to
+/// commit only what is already staged.
+typedef MobilePullRequestShipInput = ({
+  String baseBranch,
+  bool draft,
+  bool stagedOnly,
+});
 
 /// What the phone asks the runtime to create.
 typedef MobilePullRequestCreateInput = ({
@@ -100,6 +109,16 @@ abstract interface class MobilePullRequestActionsClient {
   Future<MobilePullRequestDetails> generatePullRequestDetails({
     required String workspaceId,
     required String baseBranch,
+  });
+
+  /// Whether the runtime can Ship (`mobilePullRequestShipV1`).
+  bool get supportsPullRequestShip;
+
+  /// Commits the changes with an AI Assist message, pushes, and opens a pull
+  /// request, all on the runtime.
+  Future<MobilePullRequestSnapshot> shipPullRequest({
+    required String workspaceId,
+    required MobilePullRequestShipInput input,
   });
 }
 
