@@ -52,8 +52,9 @@ class PullRequestController extends _$PullRequestController {
     final generation = ++_generation;
     final previous = state;
     if (previous.hasValue) {
-      state = const AsyncLoading<MobilePullRequestSnapshot>()
-          .copyWithPrevious(previous);
+      state = const AsyncLoading<MobilePullRequestSnapshot>().copyWithPrevious(
+        previous,
+      );
     }
     final result = await AsyncValue.guard(() => build(hostId, workspaceId));
     if (generation != _generation) {
