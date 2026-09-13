@@ -109,9 +109,11 @@ class const _PullRequestWatchAgentButton({
   }
 
   Future<void> _openWatchMenu(BuildContext context) async {
-    var scope = watchScope;
+    // The menu route never rebuilds from this widget, so the mode rows listen
+    // to the scope the toggles edit instead of the value the menu opened with.
+    final scope = ValueNotifier<PullRequestAgentWatchScope>(watchScope);
     void update(PullRequestAgentWatchScope next) {
-      scope = next;
+      scope.value = next;
       onWatchScopeChanged?.call(next);
     }
 
@@ -120,45 +122,83 @@ class const _PullRequestWatchAgentButton({
       <PopupMenuEntry<_WatchMenuAction>>[
         AleraDropdownToggleEntry<_WatchMenuAction>(
           label: 'Failed Checks',
-          checked: scope.checks,
-          onChanged: (value) => update(scope.copyWith(checks: value)),
+          checked: scope.value.checks,
+          onChanged: (value) => update(scope.value.copyWith(checks: value)),
         ),
         AleraDropdownToggleEntry<_WatchMenuAction>(
           label: 'Review Comments',
-          checked: scope.comments,
-          onChanged: (value) => update(scope.copyWith(comments: value)),
+          checked: scope.value.comments,
+          onChanged: (value) => update(scope.value.copyWith(comments: value)),
         ),
         AleraDropdownToggleEntry<_WatchMenuAction>(
           label: 'Merge Conflicts',
-          checked: scope.conflicts,
-          onChanged: (value) => update(scope.copyWith(conflicts: value)),
+          checked: scope.value.conflicts,
+          onChanged: (value) => update(scope.value.copyWith(conflicts: value)),
         ),
         const PopupMenuDivider(),
         if (onWatchAndFix != null)
-          AleraDropdownEntry<_WatchMenuAction>(
+          _WatchModeMenuEntry(
             value: .watchAndFix,
             label: 'Watch and Fix',
-            enabled: !watchScope.isEmpty,
-            leading: const Icon(AleraIcons.agent, size: 16),
+            icon: AleraIcons.agent,
+            scope: scope,
           ),
         if (onWatchFixAndMerge != null)
-          AleraDropdownEntry<_WatchMenuAction>(
+          _WatchModeMenuEntry(
             value: .watchFixAndMerge,
             label: 'Watch, Fix and Merge',
-            enabled: !watchScope.isEmpty,
-            leading: const Icon(AleraIcons.gitMerge, size: 16),
+            icon: AleraIcons.gitMerge,
+            scope: scope,
           ),
       ],
     );
     switch (selected) {
       case _WatchMenuAction.watchAndFix:
-        onWatchAndFix?.call(scope);
+        onWatchAndFix?.call(scope.value);
       case _WatchMenuAction.watchFixAndMerge:
-        onWatchFixAndMerge?.call(scope);
+        onWatchFixAndMerge?.call(scope.value);
       case _WatchMenuAction.stop:
       case null:
         break;
     }
+  }
+}
+
+/// A watch mode row that is only selectable while [scope] has something to
+/// watch.
+class const _WatchModeMenuEntry({
+  required this.value,
+  required this.label,
+  required this.icon,
+  required this.scope,
+}) extends PopupMenuEntry<_WatchMenuAction> {
+  final _WatchMenuAction value;
+  final String label;
+  final IconData icon;
+  final ValueNotifier<PullRequestAgentWatchScope> scope;
+
+  @override
+  double get height => 36;
+
+  @override
+  bool represents(_WatchMenuAction? value) => false;
+
+  @override
+  State<_WatchModeMenuEntry> createState() => _WatchModeMenuEntryState();
+}
+
+class _WatchModeMenuEntryState extends State<_WatchModeMenuEntry> {
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<PullRequestAgentWatchScope>(
+      valueListenable: widget.scope,
+      builder: (context, scope, _) => AleraDropdownEntry<_WatchMenuAction>(
+        value: widget.value,
+        label: widget.label,
+        enabled: !scope.isEmpty,
+        leading: Icon(widget.icon, size: 16),
+      ),
+    );
   }
 }
 

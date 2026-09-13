@@ -79,6 +79,21 @@ void main() {
     });
   });
 
+  test('watch scope reports emptiness and round-trips through json', () {
+    const none = PullRequestAgentWatchScope(
+      checks: false,
+      comments: false,
+      conflicts: false,
+    );
+    expect(none.isEmpty, isTrue);
+    expect(PullRequestAgentWatchScope.defaults.isEmpty, isFalse);
+    expect(
+      PullRequestAgentWatchScope.fromJson(<String, Object?>{'comments': false}),
+      const PullRequestAgentWatchScope(comments: false),
+    );
+    expect(PullRequestAgentWatchScope.fromJson(none.toMap()), none);
+  });
+
   test('labels both watch modes', () {
     expect(pullRequestAgentWatchModeLabel(.fix), 'Watching: Fix');
     expect(

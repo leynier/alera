@@ -168,6 +168,52 @@ void main() {
     expect(watchCalls, 0);
   });
 
+  testWidgets('enables watch modes as soon as a scope is checked', (
+    tester,
+  ) async {
+    final watchFixScopes = <PullRequestAgentWatchScope>[];
+    await tester.pumpWidget(
+      _wrap(
+        agentWatchScope: const PullRequestAgentWatchScope(
+          checks: false,
+          comments: false,
+          conflicts: false,
+        ),
+        onWatchAndFix: watchFixScopes.add,
+      ),
+    );
+
+    await _openAskAgentMenu(tester);
+    await tester.tap(find.text('Merge Conflicts'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Watch and Fix'));
+    await tester.pumpAndSettle();
+    expect(watchFixScopes, <PullRequestAgentWatchScope>[
+      const PullRequestAgentWatchScope(checks: false, comments: false),
+    ]);
+  });
+
+  testWidgets('disables watch modes once every scope is unchecked', (
+    tester,
+  ) async {
+    var watchCalls = 0;
+    await tester.pumpWidget(_wrap(onWatchAndFix: (_) => watchCalls++));
+
+    await _openAskAgentMenu(tester);
+    for (final label in <String>[
+      'Failed Checks',
+      'Review Comments',
+      'Merge Conflicts',
+    ]) {
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(find.text('Watch and Fix'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+    expect(watchCalls, 0);
+    expect(find.text('Watch and Fix'), findsOneWidget);
+  });
+
   testWidgets('offers stop watching while a watch is active', (tester) async {
     var stopCalls = 0;
     await tester.pumpWidget(
