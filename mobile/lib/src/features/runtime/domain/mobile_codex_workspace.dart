@@ -2,6 +2,7 @@ import 'package:alera_mobile/src/core/json_payload_fields.dart';
 
 const int maxMobileWorkspaceFileRangeBytes = 256 * 1024;
 const int maxMobileWorkspacePreviewBytes = 32 * 1024 * 1024;
+const int maxMobileMarkdownImageBytes = 8 * 1024 * 1024;
 const int maxMobileWorkspaceShareBytes = 256 * 1024 * 1024;
 const int maxPromptFileBytes = 32 * 1024 * 1024;
 const int maxPromptFileChunkBytes = 256 * 1024;

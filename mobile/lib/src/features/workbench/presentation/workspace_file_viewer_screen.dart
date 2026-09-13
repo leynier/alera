@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -6,10 +7,29 @@ import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_codex_workspace.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
+import 'package:alera_mobile/src/features/updater/infra/mobile_external_browser.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera_mobile/src/features/workbench/domain/workspace_markdown_uri_policy.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_markdown_preview.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_path_display.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
+
+final Logger _logger = Logger('WorkspaceFileViewerScreen');
+
+enum WorkspaceFileViewMode { preview, source }
+
+/// Markdown opens rendered, except from a search match: the match names a
+/// line, and only the source view can point at one.
+WorkspaceFileViewMode initialWorkspaceFileViewMode({
+  required String relativePath,
+  int? highlightLine,
+}) {
+  return isWorkspaceMarkdownPath(relativePath) && highlightLine == null
+      ? WorkspaceFileViewMode.preview
+      : WorkspaceFileViewMode.source;
+}
 
 class const WorkspaceFileViewerScreen({
   super.key,
@@ -17,6 +37,8 @@ class const WorkspaceFileViewerScreen({
   required final String workspaceId,
   required final String relativePath,
   this.highlightLine,
+  final Future<bool> Function(Uri url) openExternalUrl =
+      openMobileExternalBrowser,
 }) extends ConsumerStatefulWidget {
   final int? highlightLine;
 
@@ -29,6 +51,10 @@ class _WorkspaceFileViewerScreenState
     extends ConsumerState<WorkspaceFileViewerScreen> {
   late final Future<MobileWorkspaceFileRange> _load = _read();
   final ScrollController _scroll = ScrollController();
+  late WorkspaceFileViewMode _mode = initialWorkspaceFileViewMode(
+    relativePath: widget.relativePath,
+    highlightLine: widget.highlightLine,
+  );
 
   @override
   void dispose() {
@@ -51,14 +77,50 @@ class _WorkspaceFileViewerScreenState
     );
   }
 
+  Future<void> _openLink(String rawUrl) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final uri = Uri.tryParse(rawUrl);
+    var opened = false;
+    if (isSupportedMarkdownViewerLinkUri(uri)) {
+      try {
+        opened = await widget.openExternalUrl(uri!);
+        if (!opened) {
+          _logger.warning('The browser refused a Markdown link.');
+        }
+      } on Object catch (error, stackTrace) {
+        _logger.warning('Could not open a Markdown link.', error, stackTrace);
+      }
+    }
+    if (!opened && messenger.mounted) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Link cannot be opened')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final previewing = _mode == WorkspaceFileViewMode.preview;
     return Scaffold(
       appBar: AppBar(
         title: Text(
           workspaceFileBaseName(widget.relativePath),
           overflow: .ellipsis,
         ),
+        actions: <Widget>[
+          if (isWorkspaceMarkdownPath(widget.relativePath))
+            IconButton(
+              tooltip: previewing ? 'Show Source' : 'Show Preview',
+              icon: Icon(
+                previewing ? AleraIcons.sourceView : AleraIcons.markdownPreview,
+              ),
+              onPressed: () => setState(() {
+                _mode = previewing
+                    ? WorkspaceFileViewMode.source
+                    : WorkspaceFileViewMode.preview;
+              }),
+            ),
+        ],
       ),
       body: FutureBuilder<MobileWorkspaceFileRange>(
         future: _load,
@@ -77,8 +139,16 @@ class _WorkspaceFileViewerScreenState
           }
           return _FileBody(
             range: range,
+            mode: _mode,
             highlightLine: widget.highlightLine,
             scrollController: _scroll,
+            preview: (markdown) => WorkspaceFileMarkdownPreview(
+              hostId: widget.hostId,
+              workspaceId: widget.workspaceId,
+              relativePath: widget.relativePath,
+              markdown: markdown,
+              onLinkTap: (url) => unawaited(_openLink(url)),
+            ),
           );
         },
       ),
@@ -88,7 +158,9 @@ class _WorkspaceFileViewerScreenState
 
 class const _FileBody({
   required final MobileWorkspaceFileRange range,
+  required final WorkspaceFileViewMode mode,
   required final ScrollController scrollController,
+  required final Widget Function(String markdown) preview,
   final int? highlightLine,
 }) extends StatelessWidget {
   @override
@@ -106,7 +178,6 @@ class const _FileBody({
       );
     }
     final text = utf8.decode(range.bytes, allowMalformed: true);
-    final lines = text.split('\n');
     final truncated = range.nextOffset < range.totalBytes;
     return Column(
       children: <Widget>[
@@ -125,33 +196,47 @@ class const _FileBody({
             ),
           ),
         Expanded(
-          child: ListView.builder(
-            controller: scrollController,
-            padding: AleraTokens.contentPadding,
-            itemCount: lines.length,
-            itemBuilder: (context, index) {
-              final selected =
-                  highlightLine != null && highlightLine == index + 1;
-              return ColoredBox(
-                color: selected ? AleraTokens.accentSubtle : Colors.transparent,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: AleraTokens.space2,
-                  ),
-                  child: Text(
-                    '${index + 1}  ${lines[index]}',
-                    style: AleraTokens.monoStyle.copyWith(
-                      color: selected
-                          ? AleraTokens.foreground
-                          : AleraTokens.foregroundMuted,
-                    ),
-                  ),
+          child: mode == WorkspaceFileViewMode.preview
+              ? preview(text)
+              : _SourceLines(
+                  lines: text.split('\n'),
+                  highlightLine: highlightLine,
+                  scrollController: scrollController,
                 ),
-              );
-            },
-          ),
         ),
       ],
+    );
+  }
+}
+
+class const _SourceLines({
+  required final List<String> lines,
+  required final ScrollController scrollController,
+  final int? highlightLine,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      controller: scrollController,
+      padding: AleraTokens.contentPadding,
+      itemCount: lines.length,
+      itemBuilder: (context, index) {
+        final selected = highlightLine != null && highlightLine == index + 1;
+        return ColoredBox(
+          color: selected ? AleraTokens.accentSubtle : Colors.transparent,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AleraTokens.space2),
+            child: Text(
+              '${index + 1}  ${lines[index]}',
+              style: AleraTokens.monoStyle.copyWith(
+                color: selected
+                    ? AleraTokens.foreground
+                    : AleraTokens.foregroundMuted,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
