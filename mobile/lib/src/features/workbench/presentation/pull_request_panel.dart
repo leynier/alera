@@ -127,7 +127,7 @@ class const _Body({
           _Header(
             snapshot: snapshot,
             review: review,
-            onRefresh: idle ? onReload : null,
+            onRefresh: idle ? () => unawaited(onRefresh()) : null,
           ),
           const SizedBox(height: AleraTokens.space12),
           if (actions == null)
