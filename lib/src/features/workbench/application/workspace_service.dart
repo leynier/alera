@@ -61,6 +61,10 @@ abstract interface class ManagedWorkspaceRuntime {
     required bool reuseExistingBranch,
     String? name,
     String? hostId,
+
+    /// Issue to link once the workspace exists. Hosts without
+    /// `linkedIssuesV1` would ignore it, so callers must feature-check.
+    String? issueUrl,
   });
 
   Future<void> removeWorkspace({
@@ -188,6 +192,7 @@ class WorkspaceService._(
     bool reuseExistingBranch = false,
     String? name,
     String? hostId,
+    String? issueUrl,
   }) async {
     if (!project.supportsLinkedWorkspaces) {
       throw WorkspaceException(
@@ -213,6 +218,7 @@ class WorkspaceService._(
         reuseExistingBranch: reuseExistingBranch,
         name: name,
         hostId: remoteHostId,
+        issueUrl: issueUrl,
       );
     }
     if (remoteHostId != null) {

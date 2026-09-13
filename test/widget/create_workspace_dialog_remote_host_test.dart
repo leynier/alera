@@ -146,6 +146,7 @@ Future<void> _pumpDialog(
                             name,
                             parentWorkspaceId,
                             hostId,
+                            issueUrl,
                           }) async {
                             onHostId(hostId);
                             return WorkspaceCreationResult(

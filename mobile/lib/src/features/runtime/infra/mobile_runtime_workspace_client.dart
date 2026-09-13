@@ -100,23 +100,28 @@ mixin MobileRuntimeWorkspaceClient {
     bool reuseExistingBranch = false,
     String? name,
     String? parentWorkspaceId,
+    String? issueUrl,
   }) async {
-    final payload = await requestMap(
-      'workspace.createManaged',
-      <String, Object?>{
-        'projectId': projectId,
-        'branch': branch,
-        'reuseExistingBranch': reuseExistingBranch,
-        if (!reuseExistingBranch && sourceBranch != null)
-          'sourceBranch': sourceBranch,
-        'name': ?name,
-        'parentWorkspaceId': ?parentWorkspaceId,
-        // Older hosts ignore this and keep running setup inline. Newer hosts
-        // return a portable command that mobile starts in a Setup terminal.
-        'deferSetup': true,
-      },
-      _managedWorkspaceCreateTimeout,
-    );
+    final linkedIssueUrl = issueUrl?.trim();
+    final payload = await requestMap('workspace.createManaged', <
+      String,
+      Object?
+    >{
+      'projectId': projectId,
+      'branch': branch,
+      'reuseExistingBranch': reuseExistingBranch,
+      if (!reuseExistingBranch && sourceBranch != null)
+        'sourceBranch': sourceBranch,
+      'name': ?name,
+      'parentWorkspaceId': ?parentWorkspaceId,
+      // Older hosts ignore this and keep running setup inline. Newer hosts
+      // return a portable command that mobile starts in a Setup terminal.
+      'deferSetup': true,
+      // The form only offers an issue when the host advertises linkedIssuesV1;
+      // an older host would ignore the field.
+      if (linkedIssueUrl != null && linkedIssueUrl.isNotEmpty)
+        'issueUrl': linkedIssueUrl,
+    }, _managedWorkspaceCreateTimeout);
     return WorkspaceCreationResult.fromJson(payload);
   }
 

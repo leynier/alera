@@ -50,11 +50,16 @@ void main() {
       projectId: 'project-1',
       branch: 'feature/setup',
       sourceBranch: 'main',
+      issueUrl: ' https://github.com/leynier/alera/issues/758 ',
     );
     final request = await requestCompleter.future;
 
     expect(request['type'], 'workspace.createManaged');
     expect(request['payload'], containsPair('deferSetup', true));
+    expect(
+      request['payload'],
+      containsPair('issueUrl', 'https://github.com/leynier/alera/issues/758'),
+    );
     expect(result.deferredSetupCommand, '/bin/sh "/runtime/setup.sh"');
   });
 }

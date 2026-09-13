@@ -44,6 +44,7 @@ void main() {
                             name,
                             parentWorkspaceId,
                             hostId,
+                            issueUrl,
                           }) async {
                             createdBranches.add(newBranchName);
                             return WorkspaceCreationResult(

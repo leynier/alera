@@ -112,19 +112,35 @@ impl ServerActor {
         client_id: u64,
         request_id: i64,
         request: ManagedWorkspaceCreateRequest,
+        issue_url: Option<String>,
     ) {
         self.managed_workspace_jobs += 1;
         self.cancel_shutdown_timer();
         let store = self.runtime_store.clone();
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
-            let result = json_result(create_managed_workspace(&store, request).await);
+            let created = create_managed_workspace(&store, request).await;
+            let linked_workspace_id = created
+                .as_ref()
+                .ok()
+                .filter(|_| issue_url.is_some())
+                .map(|creation| creation.workspace.id.clone());
+            let result = json_result(created);
             let _ = inbox.send(ServerCommand::ManagedWorkspaceCreated {
                 client_id,
                 request_id,
                 result,
                 handoff_source_workspace_id: None,
             });
+            if let (Some(workspace_id), Some(url)) = (linked_workspace_id, issue_url) {
+                super::linked_issue_requests::link_created_workspace_issue(
+                    &store,
+                    &inbox,
+                    &workspace_id,
+                    &url,
+                )
+                .await;
+            }
         });
     }
 

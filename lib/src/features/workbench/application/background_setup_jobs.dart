@@ -87,6 +87,7 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs
             name: request.name,
             parentWorkspaceId: request.parentWorkspaceId,
             hostId: request.hostId,
+            issueUrl: request.issueUrl,
           );
       _publishWorkspaceCreated(result);
     }).whenComplete(() {

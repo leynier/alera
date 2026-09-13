@@ -483,6 +483,10 @@ impl ServerActor {
                 }
                 self.apply_mobile_runtime_settings(payload).await
             }
+            "linkedIssue.list" | "linkedIssue.find" | "linkedIssue.remove" => {
+                self.linked_issue_request(client_id, request_type, payload)
+                    .await
+            }
             "workspaceSection.list"
             | "workspaceSection.create"
             | "workspaceSection.setForWorkspace"

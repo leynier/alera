@@ -51,11 +51,17 @@ class RuntimeManagedWorkspaceClient(
     required bool reuseExistingBranch,
     String? name,
     String? hostId,
+    String? issueUrl,
   }) async {
     await _ensureReady();
     final remoteHostId = normalizedRemoteHostId(hostId);
     if (remoteHostId != null) {
       await _ensureRemoteWorkspaceCapability();
+    }
+    final linkedIssueUrl = issueUrl?.trim();
+    final linksIssue = linkedIssueUrl != null && linkedIssueUrl.isNotEmpty;
+    if (linksIssue) {
+      await _ensureLinkedIssuesCapability();
     }
     final request = <String, Object?>{
       'projectId': project.id,
@@ -74,6 +80,9 @@ class RuntimeManagedWorkspaceClient(
     }
     if (remoteHostId != null) {
       request['hostId'] = remoteHostId;
+    }
+    if (linksIssue) {
+      request['issueUrl'] = linkedIssueUrl;
     }
     try {
       final payload = await _client.runtimeRequest(
@@ -178,6 +187,17 @@ class RuntimeManagedWorkspaceClient(
         !capabilities.contains(aleraRuntimeHostSafeHandoffCapability)) {
       throw WorkspaceException(
         'The running runtime does not support safe workspace transfers. Update and restart the runtime before Hand Off or Hand On.',
+      );
+    }
+  }
+
+  Future<void> _ensureLinkedIssuesCapability() async {
+    final status = _asMap(await _client.runtimeRequest('status.get'));
+    final capabilities = status['runtimeCapabilities'];
+    if (capabilities is! List ||
+        !capabilities.contains(aleraRuntimeHostLinkedIssuesCapability)) {
+      throw WorkspaceException(
+        'The running runtime cannot link issues. Update and restart the runtime, or create the workspace without an issue.',
       );
     }
   }

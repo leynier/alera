@@ -122,6 +122,15 @@ pub enum ServerCommand {
         request_id: i64,
         result: HostResult<Value>,
     },
+    LinkedIssueRequestFinished {
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
+    },
+    /// A workspace's linked issue was stored or its cached metadata changed.
+    LinkedIssuesChanged {
+        workspace_id: String,
+    },
     MobileWorkspaceFileFinished {
         client_id: u64,
         request_id: i64,

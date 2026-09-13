@@ -354,6 +354,7 @@ class _FakeWorkspaceClient() implements MobileWorkspaceClient {
     bool reuseExistingBranch = false,
     String? name,
     String? parentWorkspaceId,
+    String? issueUrl,
   }) async {
     calls.add('create $projectId $branch $sourceBranch $parentWorkspaceId');
     return WorkspaceCreationResult(

@@ -36,6 +36,8 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
   bool hasDescendants = false,
   bool canHandOff = false,
   bool canHandOn = false,
+  List<PopupMenuEntry<String>> linkedIssueEntries =
+      const <PopupMenuEntry<String>>[],
 }) {
   return <PopupMenuEntry<String>>[
     const AleraDropdownEntry<String>(
@@ -101,6 +103,7 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
         label: 'Clear Section',
       ),
     const PopupMenuDivider(height: AleraTokens.space8),
+    ...linkedIssueEntries,
     const AleraDropdownEntry<String>(
       value: _openInBrowserAction,
       leading: Icon(

@@ -8,6 +8,9 @@ import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
+import 'package:alera/src/features/linked_issues/domain/issue_details.dart';
+import 'package:alera/src/features/linked_issues/domain/issue_workspace_identity.dart';
+import 'package:alera/src/features/linked_issues/presentation/issue_url_field.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_selection_order.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
@@ -26,6 +29,7 @@ import 'package:uuid/uuid.dart';
 
 part 'prompt_workspace_dialog_form.dart';
 part 'prompt_workspace_dialog_agent_launch.dart';
+part 'prompt_workspace_dialog_linked_issue.dart';
 part 'prompt_workspace_dialog_clipboard.dart';
 part 'prompt_workspace_dialog_selection_order.dart';
 part 'prompt_workspace_dialog_shell.dart';
@@ -60,6 +64,7 @@ class const PromptWorkspaceDialog({
     required String name,
     String? parentWorkspaceId,
     String? hostId,
+    String? issueUrl,
   })
   createWorkspace,
   required final Future<AgentProfileLaunchResult> Function({
@@ -88,6 +93,8 @@ class const PromptWorkspaceDialog({
   final String? initialSourceBranch,
   final String? initialParentWorkspaceId,
   final String? initialHostId,
+  final String? initialIssueUrl,
+  final Future<IssueDetails> Function(String url)? fetchIssue,
   final String? initialError,
   final NewWorkspaceMode initialMode = .fromPrompt,
   final Widget? manualForm,
@@ -99,6 +106,8 @@ class const PromptWorkspaceDialog({
 class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   final TextEditingController _promptController = TextEditingController();
   final FocusNode _promptFocusNode = FocusNode();
+  final TextEditingController _issueUrlController = TextEditingController();
+  String? _promptFromIssue;
   NewWorkspaceMode _mode = .fromPrompt;
   Project? _project;
   AgentProfile? _profile;
@@ -130,6 +139,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
     _selectedHostId = widget.initialHostId;
     _profile = _defaultAgentProfile();
     _error = widget.initialError;
+    _issueUrlController.text = widget.initialIssueUrl ?? '';
     final initialPrompt = widget.initialPrompt;
     if (initialPrompt != null && initialPrompt.isNotEmpty) {
       _promptController.text = initialPrompt;
@@ -144,6 +154,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   void dispose() {
     _promptController.dispose();
     _promptFocusNode.dispose();
+    _issueUrlController.dispose();
     super.dispose();
   }
 
@@ -278,6 +289,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
           sourceBranch: sourceBranch,
           parentWorkspaceId: _selectedParentWorkspaceId,
           hostId: _selectedHostId,
+          issueUrl: _linkedIssueUrl(),
         ),
       );
       if (done == null) {
@@ -294,6 +306,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
             return;
           }
           _promptController.clear();
+          _issueUrlController.clear();
           setState(() {
             _working = false;
             _error = null;
@@ -363,6 +376,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
             name: identity.workspaceName,
             parentWorkspaceId: _selectedParentWorkspaceId,
             hostId: _selectedHostId,
+            issueUrl: _linkedIssueUrl(),
           );
           break;
         } catch (error) {
@@ -445,6 +459,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
       return;
     }
     _promptController.clear();
+    _issueUrlController.clear();
     _agentLaunchMutationId = null;
     _originalAgentLaunchWasIdempotent = null;
     setState(() {

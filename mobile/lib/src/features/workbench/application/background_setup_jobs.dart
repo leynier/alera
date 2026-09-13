@@ -80,6 +80,7 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs {
               reuseExistingBranch: request.reuseExistingBranch,
               name: request.name,
               parentWorkspaceId: request.parentWorkspaceId,
+              issueUrl: request.issueUrl,
             );
         _publishWorkspaceCreatedIfDetached(result);
       });

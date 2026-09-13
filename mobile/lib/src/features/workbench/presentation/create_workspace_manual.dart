@@ -5,6 +5,7 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
     return ListView(
       padding: AleraTokens.pagePadding,
       children: <Widget>[
+        ..._linkedIssueField(forPrompt: false, enabled: !_creating),
         AleraDropdownField<String>(
           value: _projectId,
           labelText: 'Project',

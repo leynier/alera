@@ -11,6 +11,9 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
+import 'package:alera/src/features/linked_issues/domain/issue_details.dart';
+import 'package:alera/src/features/linked_issues/domain/issue_workspace_identity.dart';
+import 'package:alera/src/features/linked_issues/presentation/issue_url_field.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_selection_order.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
@@ -25,6 +28,7 @@ import 'package:flutter/material.dart';
 part 'create_workspace_dialog_pickers.dart';
 part 'create_workspace_dialog_frame.dart';
 part 'create_workspace_dialog_interactions.dart';
+part 'create_workspace_dialog_linked_issue.dart';
 part 'create_workspace_dialog_selection_order.dart';
 part 'create_workspace_dialog_selection_step.dart';
 part 'create_workspace_dialog_settings_step.dart';
@@ -42,6 +46,7 @@ class const CreateWorkspaceDialog({
     String? name,
     String? parentWorkspaceId,
     String? hostId,
+    String? issueUrl,
   })
   onCreateWorkspace,
   required final Future<bool> Function(Project project, String branchName)
@@ -63,6 +68,11 @@ class const CreateWorkspaceDialog({
   final String? initialName,
   final String? initialParentWorkspaceId,
   final String? initialHostId,
+  final String? initialIssueUrl,
+
+  /// Resolves an issue URL; null hides the issue field (host without
+  /// linked issue support).
+  final Future<IssueDetails> Function(String url)? fetchIssue,
   final bool initialReuseExistingBranch = false,
   final String? initialCreationError,
   final bool embedded = false,
@@ -83,6 +93,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   final TextEditingController _sourceBranchController = TextEditingController();
   final TextEditingController _newBranchController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _issueUrlController = TextEditingController();
 
   Project? _selectedProject;
   List<String> _branches = const <String>[];
@@ -91,6 +102,8 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   bool _loadingLocalBranches = false;
   String? _selectedSourceBranch;
   bool _nameTouched = false;
+  bool _nameFromIssue = false;
+  String? _branchFromIssue;
   bool _loadingBranches = false;
   String? _branchesError;
   String _projectQuery = '';
@@ -120,6 +133,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
     _selectedHostId = widget.initialHostId;
     _reuseExistingBranch = widget.initialReuseExistingBranch;
     _creationError = widget.initialCreationError;
+    _issueUrlController.text = widget.initialIssueUrl ?? '';
     final initialName = widget.initialName?.trim();
     if (initialName != null && initialName.isNotEmpty) {
       _nameController.text = initialName;
@@ -151,6 +165,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
     _sourceBranchController.dispose();
     _newBranchController.dispose();
     _nameController.dispose();
+    _issueUrlController.dispose();
     _validationDebounce?.cancel();
     super.dispose();
   }
@@ -510,6 +525,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
             onHostChanged: _setHost,
             creating: _creating,
             onSubmit: _submit,
+            issueField: _linkedIssueField(),
           );
 
     return _CreateWorkspaceDialogFrame(
