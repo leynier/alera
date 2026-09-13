@@ -218,6 +218,7 @@ void main() {
 
     gate.complete();
     await tester.pumpAndSettle();
+    expect(find.text('Keep panels visible'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 
