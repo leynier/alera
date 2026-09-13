@@ -5,6 +5,7 @@ import 'package:alera_mobile/src/design_system/badges/alera_badge.dart';
 import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
+import 'package:alera_mobile/src/design_system/feedback/alera_refresh_progress.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
@@ -34,25 +35,48 @@ class const PullRequestPanel({
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(pullRequestControllerProvider(hostId, workspaceId));
-    return switch (state) {
-      AsyncData(value: final snapshot) => _Body(snapshot: snapshot),
-      AsyncError(:final error) => AleraEmptyState(
-        icon: AleraIcons.gitPullRequest,
-        message: error.toString(),
-        action: FilledButton(
-          onPressed: () => ref
-              .read(pullRequestControllerProvider(hostId, workspaceId).notifier)
-              .reload(),
-          child: const Text('Retry'),
+    void reload() => unawaited(
+      ref
+          .read(pullRequestControllerProvider(hostId, workspaceId).notifier)
+          .reload(),
+    );
+    // The last snapshot wins over a reload, so a host reconnect does not blank
+    // the review into a spinner; see `SourceControlPanel`.
+    final snapshot = state.value;
+    if (snapshot == null) {
+      return switch (state) {
+        AsyncError(:final error) => AleraEmptyState(
+          icon: AleraIcons.gitPullRequest,
+          message: error.toString(),
+          action: FilledButton(onPressed: reload, child: const Text('Retry')),
         ),
-      ),
-      _ => const Center(child: CircularProgressIndicator()),
-    };
+        _ => const Center(child: CircularProgressIndicator()),
+      };
+    }
+    return Column(
+      children: <Widget>[
+        AleraRefreshProgress(refreshing: state.isLoading),
+        if (state.error case final error?)
+          Padding(
+            padding: AleraTokens.contentPadding,
+            child: AleraNotice(
+              icon: AleraIcons.warning,
+              message: 'Could not refresh the pull request. $error',
+              action: TextButton(onPressed: reload, child: const Text('Retry')),
+            ),
+          ),
+        Expanded(
+          child: _Body(snapshot: snapshot, onRefresh: reload),
+        ),
+      ],
+    );
   }
 }
 
-class const _Body({required final MobilePullRequestSnapshot snapshot})
-    extends StatelessWidget {
+class const _Body({
+  required final MobilePullRequestSnapshot snapshot,
+  required final VoidCallback onRefresh,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final review = snapshot.review;
@@ -63,6 +87,7 @@ class const _Body({required final MobilePullRequestSnapshot snapshot})
         message:
             snapshot.unavailableReason ??
             'No pull request is available for this workspace.',
+        action: TextButton(onPressed: onRefresh, child: const Text('Refresh')),
       );
     }
     final theme = Theme.of(context);
@@ -74,7 +99,7 @@ class const _Body({required final MobilePullRequestSnapshot snapshot})
         AleraTokens.space24,
       ),
       children: <Widget>[
-        _Header(snapshot: snapshot, review: review),
+        _Header(snapshot: snapshot, review: review, onRefresh: onRefresh),
         const SizedBox(height: AleraTokens.space12),
         const AleraNotice(
           icon: AleraIcons.info,
@@ -111,6 +136,7 @@ class const _Body({required final MobilePullRequestSnapshot snapshot})
 class const _Header({
   required final MobilePullRequestSnapshot snapshot,
   required final MobilePullRequestReview review,
+  required final VoidCallback onRefresh,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -141,6 +167,11 @@ class const _Header({
                 icon: AleraIcons.external,
                 onPressed: () => _openUrl(review.url),
               ),
+            AleraIconButton(
+              tooltip: 'Refresh',
+              icon: AleraIcons.refresh,
+              onPressed: onRefresh,
+            ),
           ],
         ),
         const SizedBox(height: AleraTokens.space8),

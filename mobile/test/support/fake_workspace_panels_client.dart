@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 
 mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
@@ -16,6 +18,15 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
     area: 'unstaged',
   );
   MobilePullRequestSnapshot pullRequest = const MobilePullRequestSnapshot();
+
+  /// Holds the next responses open until completed, to observe a refresh in
+  /// flight. Errors make the call fail after the gate opens.
+  Completer<void>? explorerGate;
+  Object? explorerError;
+  Completer<void>? gitStatusGate;
+  Object? gitStatusError;
+  Completer<void>? pullRequestGate;
+  Object? pullRequestError;
 
   @override
   bool get supportsExplorer => explorerSupported;
@@ -36,6 +47,8 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
     bool hideIgnored = true,
   }) async {
     calls.add('listExplorerChildren $workspaceId $relativePath');
+    await explorerGate?.future;
+    if (explorerError case final error?) throw error;
     return explorerEntries
         .where(
           (entry) => relativePath.isEmpty
@@ -66,6 +79,8 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
   @override
   Future<MobileGitStatusSnapshot> gitStatus(String workspaceId) async {
     calls.add('gitStatus $workspaceId');
+    await gitStatusGate?.future;
+    if (gitStatusError case final error?) throw error;
     return gitStatusSnapshot;
   }
 
@@ -84,6 +99,8 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
     String workspaceId,
   ) async {
     calls.add('pullRequestSnapshot $workspaceId');
+    await pullRequestGate?.future;
+    if (pullRequestError case final error?) throw error;
     return pullRequest;
   }
 }
