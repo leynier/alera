@@ -430,6 +430,21 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     );
   }
 
+  void _openTab(String tabId) {
+    if (!mounted) {
+      return;
+    }
+    setState(() => _selectedTabId = tabId);
+    ref
+        .read(
+          selectedWorkspacePanelControllerProvider(
+            widget.hostId,
+            widget.workspace.id,
+          ).notifier,
+        )
+        .select(WorkspacePanelDestination.terminal);
+  }
+
   Widget _terminalBody(AsyncValue<List<WorkspaceTabSummary>> tabs) {
     // The last known tab list wins over a reload: reconnecting to the host
     // rebuilds this provider, and swapping the body for a spinner disposes

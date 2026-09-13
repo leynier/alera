@@ -1,23 +1,6 @@
 part of 'workspace_tabs_screen.dart';
 
-// ignore_for_file: invalid_use_of_protected_member
-
 extension _WorkspaceTabsPanelBody on _WorkspaceTabsScreenState {
-  void _openTab(String tabId) {
-    if (!mounted) {
-      return;
-    }
-    setState(() => _selectedTabId = tabId);
-    ref
-        .read(
-          selectedWorkspacePanelControllerProvider(
-            widget.hostId,
-            widget.workspace.id,
-          ).notifier,
-        )
-        .select(WorkspacePanelDestination.terminal);
-  }
-
   Widget _panelBody(WorkspacePanelDestination panel) {
     final hostId = widget.hostId;
     final workspaceId = widget.workspace.id;
