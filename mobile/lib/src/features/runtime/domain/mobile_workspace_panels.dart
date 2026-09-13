@@ -3,6 +3,7 @@ import 'package:alera_mobile/src/features/runtime/domain/mobile_source_control.d
 
 export 'package:alera_mobile/src/core/mobile_protocol.dart'
     show
+        aiTextCommitMessageCapability,
         mobileExplorerCapability,
         mobilePullRequestCapability,
         mobileSourceControlCapability,
@@ -337,6 +338,18 @@ abstract interface class MobileWorkspacePanelsClient {
   Future<MobileGitStatusSnapshot> gitStatus(String workspaceId);
 
   bool get supportsSourceControlWrites;
+
+  bool get supportsCommitMessageGeneration;
+
+  Future<MobileGitBranches> gitBranches(String workspaceId);
+
+  /// Asks the runtime's AI Assist agent for a message over the staged changes.
+  Future<GeneratedCommitMessage> generateCommitMessage({
+    required String operationId,
+    required String workspaceId,
+  });
+
+  Future<void> cancelCommitMessage(String operationId);
 
   /// Runs [write] and resolves with the status snapshot that follows it.
   Future<MobileGitStatusSnapshot> gitWrite(

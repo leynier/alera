@@ -8,6 +8,7 @@ import 'package:alera_mobile/src/design_system/menus/alera_action_sheet.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/workbench/application/source_control_actions_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/source_control_controller.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/source_control_branch_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/source_control_change_row.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/source_control_commands.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/source_control_commit_composer.dart';
@@ -136,6 +137,9 @@ class const _Body({
         if (writable) const SizedBox(height: AleraTokens.space8),
         SourceControlHeader(
           snapshot: snapshot,
+          onBranchTap: writable && !busy
+              ? () => showSourceControlBranchSheet(runner, snapshot.branch)
+              : null,
           onMoreActions: writable && !busy
               ? () => showSourceControlCommandSheet(
                   runner,
