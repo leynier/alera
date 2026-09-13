@@ -14,6 +14,7 @@ const String mobileExplorerCapability = 'mobileExplorerV1';
 const String mobileWorkspaceSearchCapability = 'mobileWorkspaceSearchV1';
 const String mobileWorkspaceReplaceCapability = 'mobileWorkspaceReplaceV1';
 const String mobileSourceControlCapability = 'mobileSourceControlV1';
+const String mobileSourceControlRootCapability = 'mobileSourceControlRootV1';
 const String mobilePullRequestCapability = 'mobilePullRequestV1';
 const String sharedCheckoutWorkspacesCapability = 'sharedCheckoutWorkspacesV1';
 

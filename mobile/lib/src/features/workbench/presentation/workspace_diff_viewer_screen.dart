@@ -10,6 +10,7 @@ class const WorkspaceDiffViewerScreen({
   required final String hostId,
   required final String workspaceId,
   required final MobileGitChange change,
+  final String relativeRoot = '',
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -80,6 +81,7 @@ class const WorkspaceDiffViewerScreen({
         workspaceId: workspaceId,
         path: change.path,
         area: change.area,
+        relativeRoot: relativeRoot,
       );
     }
     throw UnsupportedError(

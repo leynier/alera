@@ -56,7 +56,7 @@ final class SourceControlControllerProvider
 }
 
 String _$sourceControlControllerHash() =>
-    r'b24903ef2584f06f2c7d9390306a40270889d531';
+    r'7677cc2ee21b154af9fe9ad87ca06134931b3982';
 
 final class SourceControlControllerFamily extends $Family
     with

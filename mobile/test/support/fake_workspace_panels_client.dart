@@ -5,6 +5,13 @@ import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels
 mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
   List<String> get calls;
 
+  Completer<void>? explorerGate;
+  Object? explorerError;
+  Completer<void>? gitStatusGate;
+  Object? gitStatusError;
+  Completer<void>? pullRequestGate;
+  Object? pullRequestError;
+
   bool explorerSupported = false;
   bool workspaceSearchSupported = false;
   bool sourceControlSupported = false;
@@ -14,6 +21,10 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
       const MobileWorkspaceReplaceResult();
   final List<Map<String, Object?>> searchRequests = <Map<String, Object?>>[];
   final List<Map<String, Object?>> replaceRequests = <Map<String, Object?>>[];
+  bool sourceControlRootSupported = false;
+  Set<String> gitRepositoryRoots = const <String>{''};
+  List<MobileExplorerEntry> ignoredExplorerEntries =
+      const <MobileExplorerEntry>[];
   List<MobileExplorerEntry> explorerEntries = const <MobileExplorerEntry>[];
   MobileWorkspaceSearchResult searchResult =
       const MobileWorkspaceSearchResult();
@@ -51,15 +62,24 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
   bool get supportsWorkspaceReplace => workspaceReplaceSupported;
 
   @override
+  bool get supportsSourceControlRoot => sourceControlRootSupported;
+
+  @override
   Future<List<MobileExplorerEntry>> listExplorerChildren({
     required String workspaceId,
     String relativePath = '',
     bool hideIgnored = true,
   }) async {
-    calls.add('listExplorerChildren $workspaceId $relativePath');
+    calls.add(
+      'listExplorerChildren $workspaceId $relativePath'
+      '${hideIgnored ? '' : ' showAll'}',
+    );
     await explorerGate?.future;
     if (explorerError case final error?) throw error;
-    return explorerEntries
+    return <MobileExplorerEntry>[
+          ...explorerEntries,
+          if (!hideIgnored) ...ignoredExplorerEntries,
+        ]
         .where(
           (entry) => relativePath.isEmpty
               ? !entry.relativePath.contains('/')
@@ -125,10 +145,18 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
   }
 
   @override
-  Future<MobileGitStatusSnapshot> gitStatus(String workspaceId) async {
-    calls.add('gitStatus $workspaceId');
+  Future<MobileGitStatusSnapshot> gitStatus(
+    String workspaceId, {
+    String relativeRoot = '',
+  }) async {
+    calls.add(
+      'gitStatus $workspaceId${relativeRoot.isEmpty ? '' : ' $relativeRoot'}',
+    );
     await gitStatusGate?.future;
     if (gitStatusError case final error?) throw error;
+    if (!gitRepositoryRoots.contains(relativeRoot)) {
+      return const MobileGitStatusSnapshot();
+    }
     return gitStatusSnapshot;
   }
 
@@ -137,8 +165,12 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
     required String workspaceId,
     required String path,
     required String area,
+    String relativeRoot = '',
   }) async {
-    calls.add('gitDiff $workspaceId $path $area');
+    calls.add(
+      'gitDiff $workspaceId $path $area'
+      '${relativeRoot.isEmpty ? '' : ' $relativeRoot'}',
+    );
     return gitDiffFile;
   }
 

@@ -34,6 +34,10 @@ mixin MobileRuntimeWorkspacePanelRequests
       runtimeCapabilities.contains(mobileWorkspaceReplaceCapability);
 
   @override
+  bool get supportsSourceControlRoot =>
+      runtimeCapabilities.contains(mobileSourceControlRootCapability);
+
+  @override
   Future<List<MobileExplorerEntry>> listExplorerChildren({
     required String workspaceId,
     String relativePath = '',
@@ -142,11 +146,15 @@ mixin MobileRuntimeWorkspacePanelRequests
   }
 
   @override
-  Future<MobileGitStatusSnapshot> gitStatus(String workspaceId) async {
+  Future<MobileGitStatusSnapshot> gitStatus(
+    String workspaceId, {
+    String relativeRoot = '',
+  }) async {
     _requireCapability(supportsSourceControl, 'read source control');
     return MobileGitStatusSnapshot.fromJson(
       await requestMap('mobile.git.status', <String, Object?>{
         'workspaceId': workspaceId,
+        ..._relativeRootField(relativeRoot),
       }, _workspacePanelTimeout),
     );
   }
@@ -156,6 +164,7 @@ mixin MobileRuntimeWorkspacePanelRequests
     required String workspaceId,
     required String path,
     required String area,
+    String relativeRoot = '',
   }) async {
     _requireCapability(supportsSourceControl, 'read source control diffs');
     return MobileGitDiffFile.fromJson(
@@ -163,6 +172,7 @@ mixin MobileRuntimeWorkspacePanelRequests
         'workspaceId': workspaceId,
         'path': path,
         'area': area,
+        ..._relativeRootField(relativeRoot),
       }, _workspacePanelTimeout),
     );
   }
@@ -177,6 +187,17 @@ mixin MobileRuntimeWorkspacePanelRequests
         'workspaceId': workspaceId,
       }, _workspacePanelTimeout),
     );
+  }
+
+  Map<String, Object?> _relativeRootField(String relativeRoot) {
+    final root = relativeRoot.trim();
+    if (root.isEmpty) {
+      return const <String, Object?>{};
+    }
+    // An older host ignores the field and answers for the workspace root, which
+    // would present the wrong repository as if it were the chosen one.
+    _requireCapability(supportsSourceControlRoot, 'use a source control root');
+    return <String, Object?>{'relativeRoot': root};
   }
 
   void _requireCapability(bool supported, String action) {

@@ -11,9 +11,11 @@ import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart'
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_search_field.dart';
 import 'package:alera_mobile/src/design_system/menus/alera_action_sheet.dart';
+import 'package:alera_mobile/src/features/workbench/application/explorer_preferences_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_view_prefs_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/source_control_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/source_control_view_controller.dart';
+import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dart';
 import 'package:alera_mobile/src/features/workbench/domain/source_control_rows.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_diff_viewer_screen.dart';
@@ -40,9 +42,17 @@ class const SourceControlPanel({
           .read(sourceControlControllerProvider(hostId, workspaceId).notifier)
           .reload(),
     );
-    // The last snapshot wins over a reload: a host reconnect rebuilds this
-    // provider, and a spinner there would drop the list and its scroll offset.
-    // Checked before the error arm so a failed refresh keeps the list too.
+    final client = ref.watch(workspaceClientProvider(hostId)).value;
+    final savedRoot = ref
+        .watch(explorerPreferencesControllerProvider(hostId, workspaceId))
+        .value
+        ?.sourceControlRoot;
+    final root = client is MobileWorkspacePanelsClient
+        ? activeSourceControlRoot(
+            client as MobileWorkspacePanelsClient,
+            savedRoot,
+          )
+        : '';
     final snapshot = state.value;
     if (snapshot == null) {
       return switch (state) {
@@ -56,6 +66,18 @@ class const SourceControlPanel({
     }
     return Column(
       children: <Widget>[
+        if (root.isNotEmpty)
+          _SourceControlRootBar(
+            relativeRoot: root,
+            onClear: () => ref
+                .read(
+                  explorerPreferencesControllerProvider(
+                    hostId,
+                    workspaceId,
+                  ).notifier,
+                )
+                .setSourceControlRoot(null),
+          ),
         AleraRefreshProgress(refreshing: state.isLoading),
         if (state.error case final error?)
           Padding(
@@ -72,9 +94,51 @@ class const SourceControlPanel({
             workspaceId: workspaceId,
             snapshot: snapshot,
             onRefresh: reload,
+            relativeRoot: root,
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Names the nested repository in use, the phone counterpart of the desktop
+/// Source Control toolbar's Clear Source Control Root button.
+class const _SourceControlRootBar({
+  required final String relativeRoot,
+  required final VoidCallback onClear,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AleraTokens.borderSubtle)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.only(
+          left: AleraTokens.space16,
+          right: AleraTokens.space8,
+        ),
+        child: Row(
+          children: <Widget>[
+            const Icon(
+              AleraIcons.gitBranch,
+              size: 16,
+              color: AleraTokens.foregroundMuted,
+            ),
+            const SizedBox(width: AleraTokens.space8),
+            Expanded(
+              child: Text(
+                'Source control root: $relativeRoot',
+                maxLines: 1,
+                overflow: .ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            TextButton(onPressed: onClear, child: const Text('Clear')),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -84,6 +148,7 @@ class const _Body({
   required final String workspaceId,
   required final MobileGitStatusSnapshot snapshot,
   required final VoidCallback onRefresh,
+  final String relativeRoot = '',
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {

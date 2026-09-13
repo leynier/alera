@@ -46,8 +46,9 @@ mixin FakeWorkspaceLifecycleClient {
     MobileViewPrefs prefs,
   ) async => viewPrefs = prefs.copyWith(revision: prefs.revision + 1);
 
-  Future<List<AgentPresenceSummary>> listAgentPresence() async =>
-      const <AgentPresenceSummary>[];
+  List<AgentPresenceSummary> agentPresence = const <AgentPresenceSummary>[];
+
+  Future<List<AgentPresenceSummary>> listAgentPresence() async => agentPresence;
 
   Future<List<ProjectSummary>> listProjects() async {
     return const <ProjectSummary>[];

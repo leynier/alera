@@ -55,6 +55,9 @@ pub const RUNTIME_HOST_MOBILE_SOURCE_CONTROL_CAPABILITY: &str = "mobileSourceCon
 /// actions the runtime allows. Additive: older phones stay read-only.
 pub const RUNTIME_HOST_MOBILE_SOURCE_CONTROL_WRITES_CAPABILITY: &str =
     "mobileSourceControlWritesV1";
+/// Additive: `mobile.git.status` and `mobile.git.diff` accept a workspace-relative
+/// `relativeRoot` naming a nested repository to use as the Source Control root.
+pub const RUNTIME_HOST_MOBILE_SOURCE_CONTROL_ROOT_CAPABILITY: &str = "mobileSourceControlRootV1";
 /// A paired phone can load a usable current-branch pull-request snapshot.
 pub const RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY: &str = "mobilePullRequestV1";
 /// A paired phone can comment, reply, edit its own comments, merge, change
