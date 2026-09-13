@@ -55,7 +55,7 @@ final class PullRequestControllerProvider
 }
 
 String _$pullRequestControllerHash() =>
-    r'b677332ec7c5c43abdc2eb236ca37683689a2fa3';
+    r'2065b272a6c8fc5be1c79d04215f2c64f2fb9314';
 
 final class PullRequestControllerFamily extends $Family
     with

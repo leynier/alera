@@ -12,15 +12,20 @@ import 'package:alera_mobile/src/features/workbench/domain/mobile_pull_request_c
 import 'package:alera_mobile/src/features/workbench/domain/workspace_markdown_uri_policy.dart';
 import 'package:flutter/material.dart';
 
-/// Read-only pull-request conversation for a phone: conversation comments and
-/// review summaries as a timeline, diff comments grouped into threads with
-/// resolved ones collapsed. [now] pins relative times for tests; [openUrl]
-/// opens forge links and defaults to the standalone browser.
+/// Pull-request conversation for a phone: conversation comments and review
+/// summaries as a timeline, diff comments grouped into threads with resolved
+/// ones collapsed. [now] pins relative times for tests; [openUrl] opens forge
+/// links and defaults to the standalone browser. The write callbacks are null
+/// on a runtime that cannot change pull requests, which leaves it read-only;
+/// [onEdit] is offered only on comments the snapshot marks `canEdit`.
 class const PullRequestConversationSection({
   super.key,
   required final List<MobilePullRequestComment> comments,
   final DateTime? now,
   final Future<bool> Function(Uri url) openUrl = openMobileExternalBrowser,
+  final VoidCallback? onAddComment,
+  final ValueChanged<MobilePullRequestConversationThread>? onReply,
+  final ValueChanged<MobilePullRequestComment>? onEdit,
 }) extends StatefulWidget {
   @override
   State<PullRequestConversationSection> createState() =>
@@ -102,7 +107,12 @@ class _PullRequestConversationSectionState
             if (index > 0) const SizedBox(height: AleraTokens.space16),
             switch (entry) {
               MobilePullRequestConversationComment(:final comment) =>
-                _ConversationComment(comment: comment, now: now, onOpen: _open),
+                _ConversationComment(
+                  comment: comment,
+                  now: now,
+                  onOpen: _open,
+                  onEdit: widget.onEdit,
+                ),
               MobilePullRequestConversationThread() => _ConversationThread(
                 thread: entry,
                 now: now,
@@ -111,9 +121,21 @@ class _PullRequestConversationSectionState
                     _expandedResolvedThreads.contains(entry.id),
                 onToggle: entry.resolved ? () => _toggleThread(entry.id) : null,
                 onOpen: _open,
+                onEdit: widget.onEdit,
+                onReply: widget.onReply == null
+                    ? null
+                    : () => widget.onReply!(entry),
               ),
             },
           ],
+        if (widget.onAddComment case final onAddComment?) ...<Widget>[
+          const SizedBox(height: AleraTokens.space16),
+          OutlinedButton.icon(
+            onPressed: onAddComment,
+            icon: const Icon(AleraIcons.add),
+            label: const Text('Add Comment'),
+          ),
+        ],
       ],
     );
   }
@@ -123,6 +145,7 @@ class const _ConversationComment({
   required final MobilePullRequestComment comment,
   required final DateTime now,
   required final ValueChanged<String> onOpen,
+  final ValueChanged<MobilePullRequestComment>? onEdit,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -134,6 +157,7 @@ class const _ConversationComment({
           now: now,
           tag: comment.isReviewSummary ? 'Review' : null,
           onOpen: onOpen,
+          onEdit: onEdit,
         ),
         const SizedBox(height: AleraTokens.space4),
         DecoratedBox(
@@ -161,6 +185,8 @@ class const _ConversationThread({
   required final bool expanded,
   final VoidCallback? onToggle,
   required final ValueChanged<String> onOpen,
+  final ValueChanged<MobilePullRequestComment>? onEdit,
+  final VoidCallback? onReply,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -245,13 +271,29 @@ class const _ConversationThread({
                 child: Column(
                   crossAxisAlignment: .stretch,
                   children: <Widget>[
-                    _CommentMeta(comment: comment, now: now, onOpen: onOpen),
+                    _CommentMeta(
+                      comment: comment,
+                      now: now,
+                      onOpen: onOpen,
+                      onEdit: onEdit,
+                    ),
                     const SizedBox(height: AleraTokens.space6),
                     _CommentBody(body: comment.body, onOpen: onOpen),
                   ],
                 ),
               ),
             ],
+          if (expanded && onReply != null) ...<Widget>[
+            const Divider(height: 1, color: AleraTokens.borderSubtle),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton.icon(
+                onPressed: onReply,
+                icon: const Icon(AleraIcons.reply),
+                label: const Text('Reply'),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -263,6 +305,7 @@ class const _CommentMeta({
   required final DateTime now,
   final String? tag,
   required final ValueChanged<String> onOpen,
+  final ValueChanged<MobilePullRequestComment>? onEdit,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -301,6 +344,12 @@ class const _CommentMeta({
             ],
           ),
         ),
+        if (onEdit != null && comment.canEdit)
+          AleraIconButton(
+            tooltip: 'Edit Comment',
+            icon: AleraIcons.edit,
+            onPressed: () => onEdit!(comment),
+          ),
         if (url != null && url.isNotEmpty)
           AleraIconButton(
             tooltip: 'Open Comment',

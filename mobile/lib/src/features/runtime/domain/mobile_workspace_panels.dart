@@ -180,6 +180,7 @@ class const MobilePullRequestComment({
   final int? line,
   final bool resolved = false,
   final String? threadId,
+  final bool canEdit = false,
 }) {
   bool get isReviewThread => kind == 'review';
 
@@ -202,8 +203,16 @@ class const MobilePullRequestComment({
     line: (json['line'] as num?)?.toInt(),
     resolved: json['resolved'] == true,
     threadId: json.optionalString('threadId'),
+    canEdit: json['canEdit'] == true,
   );
 }
+
+/// A review the user unlinked from the workspace, offered to link again.
+class const MobilePullRequestSuggestedReview({
+  required final int number,
+  final String? title,
+  final String? url,
+});
 
 class const MobilePullRequestReview({
   required final int number,
@@ -275,12 +284,42 @@ class const MobilePullRequestSnapshot({
   final String? linkedUrl,
   final MobilePullRequestIdentity? identity,
   final MobilePullRequestReview? review,
+  final String? viewerLogin,
+  final bool canComment = false,
+  final List<String> mergeMethods = const <String>[],
+  final String? mergeMethodsError,
+  final List<String> baseBranches = const <String>[],
+  final String? suggestedBaseBranch,
+  final bool aiAssistEnabled = false,
+  final MobilePullRequestSuggestedReview? suggestedReview,
 }) {
   factory fromJson(Map<String, Object?> json) {
     final linked = json.mapValue('linkedReview');
     final identity = json.mapValue('identity');
     final review = json['review'];
+    final suggested = json.mapValue('suggestedReview');
+    final suggestedNumber = (suggested['number'] as num?)?.toInt();
     return MobilePullRequestSnapshot(
+      viewerLogin: json.optionalString('viewerLogin'),
+      canComment: json['canComment'] == true,
+      mergeMethods: <String>[
+        for (final item in json.objectList('mergeMethods'))
+          if (item is String) item,
+      ],
+      mergeMethodsError: json.optionalString('mergeMethodsError'),
+      baseBranches: <String>[
+        for (final item in json.objectList('baseBranches'))
+          if (item is String) item,
+      ],
+      suggestedBaseBranch: json.optionalString('suggestedBaseBranch'),
+      aiAssistEnabled: json['aiAssistEnabled'] == true,
+      suggestedReview: suggestedNumber == null
+          ? null
+          : MobilePullRequestSuggestedReview(
+              number: suggestedNumber,
+              title: suggested.optionalString('title'),
+              url: suggested.optionalString('url'),
+            ),
       branch: json.optionalString('branch'),
       remoteUrl: json.optionalString('remoteUrl'),
       provider: json.optionalString('provider'),
