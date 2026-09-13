@@ -1,4 +1,4 @@
-import 'package:alera_mobile/src/features/workbench/presentation/pull_request_panel.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/pull_request_checks_section.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_path_display.dart';
 import 'package:flutter_test/flutter_test.dart';
 

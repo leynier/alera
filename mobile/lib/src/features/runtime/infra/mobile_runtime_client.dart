@@ -21,6 +21,7 @@ import 'package:alera_mobile/src/features/runtime/domain/runtime_restart_result.
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/settings/domain/portable_host_settings.dart';
 import 'package:alera_mobile/src/features/quotas/domain/quota_snapshot.dart';
+import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_actions.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/ai_dictation/domain/speech_capabilities.dart';
@@ -46,6 +47,7 @@ part 'mobile_runtime_terminal_requests.dart';
 part 'mobile_terminal_output_resync.dart';
 part 'mobile_runtime_codex_workspace_requests.dart';
 part 'mobile_runtime_workspace_panel_requests.dart';
+part 'mobile_runtime_pull_request_requests.dart';
 
 class MobileRuntimeClient._(
   this._channel, {
@@ -62,14 +64,16 @@ class MobileRuntimeClient._(
         MobileRuntimeTerminalOutputResync,
         MobileRuntimeCodexWorkspaceRequests,
         MobileRuntimeWorkspacePanelRequests,
-        MobileRuntimeLinkedIssueRequests
+        MobileRuntimeLinkedIssueRequests,
+        MobileRuntimePullRequestRequests
     implements
         MobileTerminalClient,
         MobileWorkspaceClient,
         MobileAgentTitleClient,
         MobileCodexWorkspaceClient,
         MobileWorkspacePanelsClient,
-        MobileLinkedIssueClient {
+        MobileLinkedIssueClient,
+        MobilePullRequestActionsClient {
   this {
     _subscription = _channel.stream.listen(
       _handleMessage,

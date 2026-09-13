@@ -8,24 +8,17 @@ import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_refresh_progress.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
+import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_actions.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
+import 'package:alera_mobile/src/features/workbench/application/pull_request_action_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_controller.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/pull_request_action_bar.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/pull_request_checks_section.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_conversation_section.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/pull_request_panel_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
-
-final _githubExpression = RegExp(r'\$\{\{\s*([^}]+?)\s*\}\}');
-
-/// Collapses GitHub Actions `${{ matrix.platform }}` tokens so check names
-/// stay readable on a phone.
-String displayPullRequestCheckName(String name) {
-  return name.replaceAllMapped(_githubExpression, (match) {
-    final inner = match[1]!.trim();
-    final parts = inner.split('.');
-    return '{${parts.last.trim()}}';
-  });
-}
 
 class const PullRequestPanel({
   super.key,
@@ -34,12 +27,29 @@ class const PullRequestPanel({
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(pullRequestControllerProvider(hostId, workspaceId));
-    void reload() => unawaited(
-      ref
-          .read(pullRequestControllerProvider(hostId, workspaceId).notifier)
-          .reload(),
+    final provider = pullRequestControllerProvider(hostId, workspaceId);
+    final state = ref.watch(provider);
+    final supportsActions =
+        ref.watch(pullRequestActionsSupportedProvider(hostId)).value ?? false;
+    final busy = ref.watch(
+      pullRequestActionControllerProvider(hostId, workspaceId),
     );
+    final actions = supportsActions
+        ? PullRequestPanelActions(
+            ref: ref,
+            hostId: hostId,
+            workspaceId: workspaceId,
+          )
+        : null;
+    final messenger = ScaffoldMessenger.of(context);
+    Future<void> refresh() async {
+      final error = await ref.read(provider.notifier).refresh();
+      if (error != null && messenger.mounted) {
+        messenger.showSnackBar(SnackBar(content: Text(error)));
+      }
+    }
+
+    void reload() => unawaited(ref.read(provider.notifier).reload());
     // The last snapshot wins over a reload, so a host reconnect does not blank
     // the review into a spinner; see `SourceControlPanel`.
     final snapshot = state.value;
@@ -66,7 +76,13 @@ class const PullRequestPanel({
             ),
           ),
         Expanded(
-          child: _Body(snapshot: snapshot, onRefresh: reload),
+          child: _Body(
+            snapshot: snapshot,
+            actions: actions,
+            busy: busy,
+            onRefresh: refresh,
+            onReload: reload,
+          ),
         ),
       ],
     );
@@ -75,60 +91,169 @@ class const PullRequestPanel({
 
 class const _Body({
   required final MobilePullRequestSnapshot snapshot,
-  required final VoidCallback onRefresh,
+  required final PullRequestPanelActions? actions,
+  required final PullRequestActionKind? busy,
+  required final Future<void> Function() onRefresh,
+  required final VoidCallback onReload,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final review = snapshot.review;
+    final actions = this.actions;
     if (review == null) {
-      return AleraEmptyState(
-        icon: AleraIcons.gitPullRequest,
-        title: snapshot.identity?.label ?? snapshot.branch ?? 'Pull Request',
-        message:
-            snapshot.unavailableReason ??
-            'No pull request is available for this workspace.',
-        action: TextButton(onPressed: onRefresh, child: const Text('Refresh')),
+      return _NoReview(
+        snapshot: snapshot,
+        actions: actions,
+        busy: busy,
+        onRefresh: onRefresh,
       );
     }
     final theme = Theme.of(context);
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        AleraTokens.space16,
-        AleraTokens.space16,
-        AleraTokens.space16,
-        AleraTokens.space24,
-      ),
-      children: <Widget>[
-        _Header(snapshot: snapshot, review: review, onRefresh: onRefresh),
-        const SizedBox(height: AleraTokens.space12),
-        const AleraNotice(
-          icon: AleraIcons.info,
-          message:
-              'Comments are read-only. Reply, edit, and merge stay on desktop.',
+    final idle = busy == null;
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      // Pull-to-refresh stays disabled while a write runs, like the header
+      // button, so its snapshot cannot race the write's answer.
+      notificationPredicate: (notification) => idle && notification.depth == 0,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
+          AleraTokens.space16,
+          AleraTokens.space16,
+          AleraTokens.space16,
+          AleraTokens.space24,
         ),
-        const SizedBox(height: AleraTokens.space16),
-        AleraSectionHeader(
-          label: 'Checks',
-          padding: const EdgeInsets.only(bottom: AleraTokens.space8),
-          trailing: review.checks.isEmpty
-              ? null
-              : Text(
-                  _checksSummary(review.checks),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: AleraTokens.foregroundFaint,
+        children: <Widget>[
+          _Header(
+            snapshot: snapshot,
+            review: review,
+            onRefresh: idle ? onReload : null,
+          ),
+          const SizedBox(height: AleraTokens.space12),
+          if (actions == null)
+            const AleraNotice(
+              icon: AleraIcons.info,
+              message: 'Comments are read-only. Update the paired Alera runtime to reply, edit, and merge from the phone.',
+            )
+          else ...<Widget>[
+            PullRequestActionBar(
+              actions: availablePullRequestReviewActions(snapshot),
+              isEnabled: (action) =>
+                  pullRequestReviewActionEnabled(action, review),
+              busy: !idle,
+              onSelected: (action) =>
+                  unawaited(actions.runReviewAction(context, snapshot, action)),
+            ),
+            if (snapshot.mergeMethodsError case final error?) ...<Widget>[
+              const SizedBox(height: AleraTokens.space8),
+              AleraNotice(
+                icon: AleraIcons.info,
+                message: 'Merge methods are unavailable: $error',
+              ),
+            ],
+          ],
+          const SizedBox(height: AleraTokens.space16),
+          AleraSectionHeader(
+            label: 'Checks',
+            padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+            trailing: review.checks.isEmpty
+                ? null
+                : Text(
+                    pullRequestChecksSummary(review.checks),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: AleraTokens.foregroundFaint,
+                    ),
                   ),
-                ),
-        ),
-        if (review.checks.isEmpty)
-          Text(
-            'No checks were returned for this pull request.',
-            style: theme.textTheme.bodySmall,
-          )
-        else
-          _ChecksSection(checks: review.checks),
-        const SizedBox(height: AleraTokens.space16),
-        PullRequestConversationSection(comments: review.comments),
-      ],
+          ),
+          if (review.checks.isEmpty)
+            Text(
+              'No checks were returned for this pull request.',
+              style: theme.textTheme.bodySmall,
+            )
+          else
+            PullRequestChecksSection(checks: review.checks),
+          const SizedBox(height: AleraTokens.space16),
+          PullRequestConversationSection(
+            comments: review.comments,
+            onAddComment: actions != null && snapshot.canComment && idle
+                ? () => unawaited(actions.addComment(context, review.number))
+                : null,
+            onReply: actions != null && snapshot.canComment && idle
+                ? (thread) =>
+                      unawaited(actions.reply(context, review.number, thread))
+                : null,
+            onEdit: actions != null && idle
+                ? (comment) =>
+                      unawaited(actions.edit(context, review.number, comment))
+                : null,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// No review to show: say why, and on a runtime that can write, offer to link
+/// one or create one for the workspace branch.
+class const _NoReview({
+  required final MobilePullRequestSnapshot snapshot,
+  required final PullRequestPanelActions? actions,
+  required final PullRequestActionKind? busy,
+  required final Future<void> Function() onRefresh,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final actions = this.actions;
+    final canWrite =
+        actions != null &&
+        snapshot.provider == 'github' &&
+        snapshot.authStatus == 'authenticated';
+    final idle = busy == null;
+    final suggested = snapshot.suggestedReview;
+    return AleraEmptyState(
+      icon: AleraIcons.gitPullRequest,
+      title: snapshot.identity?.label ?? snapshot.branch ?? 'Pull Request',
+      message:
+          snapshot.unavailableReason ??
+          'No pull request is available for this workspace.',
+      action: Column(
+        mainAxisSize: .min,
+        crossAxisAlignment: .stretch,
+        children: <Widget>[
+          if (canWrite) ...<Widget>[
+            if (suggested != null)
+              FilledButton.icon(
+                onPressed: idle
+                    ? () => unawaited(
+                        actions.link(
+                          context,
+                          reference: '#${suggested.number}',
+                        ),
+                      )
+                    : null,
+                icon: const Icon(AleraIcons.link),
+                label: Text('Link #${suggested.number}'),
+              ),
+            OutlinedButton.icon(
+              onPressed: idle ? () => unawaited(actions.link(context)) : null,
+              icon: const Icon(AleraIcons.link),
+              label: const Text('Link Pull Request'),
+            ),
+            OutlinedButton.icon(
+              onPressed: idle
+                  ? () => unawaited(actions.create(context, snapshot))
+                  : null,
+              icon: const Icon(AleraIcons.gitPullRequest),
+              label: const Text('Create Pull Request'),
+            ),
+          ],
+          TextButton.icon(
+            onPressed: idle ? () => unawaited(onRefresh()) : null,
+            icon: const Icon(AleraIcons.refresh),
+            label: const Text('Refresh'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -136,7 +261,7 @@ class const _Body({
 class const _Header({
   required final MobilePullRequestSnapshot snapshot,
   required final MobilePullRequestReview review,
-  required final VoidCallback onRefresh,
+  required final VoidCallback? onRefresh,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -161,17 +286,17 @@ class const _Header({
             Expanded(
               child: Text(review.title, style: theme.textTheme.titleLarge),
             ),
+            AleraIconButton(
+              tooltip: 'Refresh',
+              icon: AleraIcons.refresh,
+              onPressed: onRefresh,
+            ),
             if (review.url.isNotEmpty)
               AleraIconButton(
                 tooltip: 'Open In Browser',
                 icon: AleraIcons.external,
                 onPressed: () => _openUrl(review.url),
               ),
-            AleraIconButton(
-              tooltip: 'Refresh',
-              icon: AleraIcons.refresh,
-              onPressed: onRefresh,
-            ),
           ],
         ),
         const SizedBox(height: AleraTokens.space8),
@@ -229,196 +354,6 @@ class const _Header({
       ],
     );
   }
-}
-
-class const _CheckRow({required final MobilePullRequestCheck check})
-    extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final visual = pullRequestCheckVisual(check);
-    final displayName = displayPullRequestCheckName(check.name);
-    final row = ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: AleraTokens.minTapTarget),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AleraTokens.space6),
-        child: Row(
-          children: <Widget>[
-            Icon(visual.icon, size: 16, color: visual.color),
-            const SizedBox(width: AleraTokens.space8),
-            Expanded(
-              child: Text(
-                displayName,
-                maxLines: 1,
-                overflow: .ellipsis,
-                style: theme.textTheme.bodyMedium,
-              ),
-            ),
-            const SizedBox(width: AleraTokens.space8),
-            Text(
-              visual.label,
-              style: theme.textTheme.labelSmall?.copyWith(color: visual.color),
-            ),
-          ],
-        ),
-      ),
-    );
-    final url = check.url;
-    return Tooltip(
-      message: check.name,
-      child: url == null
-          ? row
-          : InkWell(onTap: () => _openUrl(url), child: row),
-    );
-  }
-}
-
-/// Failing and pending checks always show; above [_collapseSettledAbove]
-/// checks the passed and skipped ones fold behind one row, so a long CI run
-/// does not push the conversation off the screen.
-class const _ChecksSection({required final List<MobilePullRequestCheck> checks})
-    extends StatefulWidget {
-  static const int _collapseSettledAbove = 5;
-
-  @override
-  State<_ChecksSection> createState() => _ChecksSectionState();
-}
-
-class _ChecksSectionState extends State<_ChecksSection> {
-  bool _showSettled = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final checks = widget.checks;
-    final settled = <MobilePullRequestCheck>[
-      for (final check in checks)
-        if (_isSettled(check)) check,
-    ];
-    if (checks.length <= _ChecksSection._collapseSettledAbove ||
-        settled.isEmpty) {
-      return Column(
-        crossAxisAlignment: .stretch,
-        children: <Widget>[for (final check in checks) _CheckRow(check: check)],
-      );
-    }
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: .stretch,
-      children: <Widget>[
-        for (final check in checks)
-          if (!_isSettled(check)) _CheckRow(check: check),
-        InkWell(
-          onTap: () => setState(() => _showSettled = !_showSettled),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              minHeight: AleraTokens.minTapTarget,
-            ),
-            child: Row(
-              children: <Widget>[
-                Icon(
-                  _showSettled
-                      ? AleraIcons.chevronDown
-                      : AleraIcons.chevronRight,
-                  size: AleraTokens.iconSm,
-                  color: AleraTokens.foregroundMuted,
-                ),
-                const SizedBox(width: AleraTokens.space8),
-                Expanded(
-                  child: Text(
-                    _checksSummary(settled),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (_showSettled)
-          for (final check in settled) _CheckRow(check: check),
-      ],
-    );
-  }
-
-  bool _isSettled(MobilePullRequestCheck check) =>
-      switch (pullRequestCheckVisual(check).label) {
-        'Pass' || 'Skipped' || 'Cancelled' => true,
-        _ => false,
-      };
-}
-
-class const PullRequestCheckVisual({
-  required final String label,
-  required final IconData icon,
-  required final Color color,
-});
-
-PullRequestCheckVisual pullRequestCheckVisual(MobilePullRequestCheck check) {
-  final key = (check.bucket.isEmpty ? check.state : check.bucket).toLowerCase();
-  return switch (key) {
-    'pass' || 'success' => const PullRequestCheckVisual(
-      label: 'Pass',
-      icon: AleraIcons.success,
-      color: AleraTokens.success,
-    ),
-    'fail' || 'failure' || 'error' => const PullRequestCheckVisual(
-      label: 'Fail',
-      icon: AleraIcons.cancel,
-      color: AleraTokens.error,
-    ),
-    'skipping' ||
-    'skipped' ||
-    'skip' ||
-    'neutral' => const PullRequestCheckVisual(
-      label: 'Skipped',
-      icon: AleraIcons.circle,
-      color: AleraTokens.foregroundMuted,
-    ),
-    'cancel' || 'cancelled' => const PullRequestCheckVisual(
-      label: 'Cancelled',
-      icon: AleraIcons.cancel,
-      color: AleraTokens.foregroundMuted,
-    ),
-    'pending' ||
-    'in_progress' ||
-    'queued' ||
-    'waiting' => const PullRequestCheckVisual(
-      label: 'Pending',
-      icon: AleraIcons.loading,
-      color: AleraTokens.warning,
-    ),
-    _ => PullRequestCheckVisual(
-      label: key.isEmpty ? 'Check' : _titleCase(key),
-      icon: AleraIcons.review,
-      color: AleraTokens.foregroundMuted,
-    ),
-  };
-}
-
-String _checksSummary(List<MobilePullRequestCheck> checks) {
-  var passed = 0;
-  var failed = 0;
-  var skipped = 0;
-  var pending = 0;
-  for (final check in checks) {
-    switch (pullRequestCheckVisual(check).label) {
-      case 'Pass':
-        passed += 1;
-      case 'Fail':
-        failed += 1;
-      case 'Skipped' || 'Cancelled':
-        skipped += 1;
-      default:
-        pending += 1;
-    }
-  }
-  return <String>[
-    if (failed > 0) '$failed failed',
-    if (pending > 0) '$pending pending',
-    if (passed > 0) '$passed passed',
-    if (skipped > 0) '$skipped skipped',
-  ].join(' · ');
 }
 
 String _reviewStateLabel(MobilePullRequestReview review) {
