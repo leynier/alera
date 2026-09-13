@@ -47,23 +47,27 @@ class PullRequestController extends _$PullRequestController {
 
   /// Refresh, keeping what is on screen: a failure answers with the message to
   /// report instead of replacing a loaded snapshot with an error, and a result
-  /// that a write overtook is dropped.
+  /// that a write overtook is dropped. `invalidateSelf` is what puts
+  /// `state.isLoading` on while the last review stays visible.
   Future<String?> refresh() async {
     final generation = ++_generation;
     final previous = state;
-    final result = await AsyncValue.guard(() => build(hostId, workspaceId));
-    if (generation != _generation) {
+    ref.invalidateSelf();
+    try {
+      await future;
+      if (generation != _generation) {
+        return null;
+      }
       return null;
-    }
-    if (result case AsyncError(:final error) when previous.hasValue) {
-      state = previous;
+    } on Object catch (error) {
+      if (generation != _generation) {
+        return null;
+      }
+      if (previous.hasValue) {
+        state = previous;
+      }
       return pullRequestActionErrorMessage(error);
     }
-    state = result;
-    return switch (result) {
-      AsyncError(:final error) => pullRequestActionErrorMessage(error),
-      _ => null,
-    };
   }
 
   /// A write already answered with the fresh snapshot.
