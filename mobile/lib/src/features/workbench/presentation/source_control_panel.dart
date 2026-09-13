@@ -105,6 +105,7 @@ class const SourceControlPanel({
             snapshot: snapshot,
             onRefresh: reload,
             busy: writing,
+            relativeRoot: root,
           ),
         ),
       ],
@@ -159,9 +160,11 @@ class const _Body({
   required final MobileGitStatusSnapshot snapshot,
   required final VoidCallback onRefresh,
   required final bool busy,
+  final String relativeRoot = '',
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final writesEnabled = snapshot.writable && relativeRoot.isEmpty;
     final refreshAction = TextButton(
       onPressed: onRefresh,
       child: const Text('Refresh'),
@@ -227,6 +230,8 @@ class const _Body({
               workspaceId: workspaceId,
               snapshot: snapshot,
               busy: busy,
+              writesEnabled: writesEnabled,
+              nestedRoot: relativeRoot.isNotEmpty,
               runner: runner,
               onRefresh: onRefresh,
               view: view,
@@ -276,11 +281,11 @@ class const _Body({
                 change: change,
                 depth: depth,
                 showParent: showParent,
-                showStageToggle: snapshot.writable,
-                onToggleStaged: snapshot.writable && !busy
+                showStageToggle: writesEnabled,
+                onToggleStaged: writesEnabled && !busy
                     ? () => toggleSourceControlChange(runner, change)
                     : null,
-                onLongPress: snapshot.writable && !busy
+                onLongPress: writesEnabled && !busy
                     ? () => showSourceControlChangeActions(runner, change)
                     : null,
                 onTap: () => Navigator.of(context).push<void>(
@@ -363,6 +368,8 @@ class const _Header({
   required final String workspaceId,
   required final MobileGitStatusSnapshot snapshot,
   required final bool busy,
+  required final bool writesEnabled,
+  required final bool nestedRoot,
   required final SourceControlCommandRunner runner,
   required final VoidCallback onRefresh,
   required final SourceControlViewState view,
@@ -373,16 +380,23 @@ class const _Header({
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final writable = snapshot.writable;
     return Column(
       crossAxisAlignment: .stretch,
       children: <Widget>[
-        if (!writable)
+        if (!snapshot.writable)
           const Padding(
             padding: AleraTokens.contentPadding,
             child: AleraNotice(
               icon: AleraIcons.info,
               message: 'Update the paired Alera runtime to stage and commit from mobile.',
+            ),
+          )
+        else if (nestedRoot)
+          const Padding(
+            padding: AleraTokens.contentPadding,
+            child: AleraNotice(
+              icon: AleraIcons.info,
+              message: 'Clear the nested source control root to stage and commit from mobile.',
             ),
           ),
         Row(
@@ -390,7 +404,7 @@ class const _Header({
             Expanded(
               child: SourceControlHeader(
                 snapshot: snapshot,
-                onMoreActions: writable && !busy
+                onMoreActions: writesEnabled && !busy
                     ? () => showSourceControlCommandSheet(
                         runner,
                         snapshot,
@@ -420,7 +434,7 @@ class const _Header({
             const SizedBox(width: AleraTokens.space8),
           ],
         ),
-        if (writable)
+        if (writesEnabled)
           SourceControlCommitComposer(
             hostId: hostId,
             workspaceId: workspaceId,
