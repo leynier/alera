@@ -39,22 +39,10 @@ impl ServerActor {
         let workspace_id = required_non_blank(payload, "workspaceId")?;
         let store = self.runtime_store.clone();
         let inbox = self.inbox.clone();
-        let (cancel_tx, cancel_rx) = oneshot::channel();
-        let mut active = active_generations()
-            .lock()
-            .map_err(|_| HostError::state("AI Assist state is unavailable."))?;
-        if active.contains_key(&operation_id) {
-            return Err(HostError::state(
-                "AI Assist is already running for this operation.",
-            ));
-        }
-        active.insert(operation_id.clone(), cancel_tx);
-        drop(active);
+        let (registration, cancel_rx) = active_generations().register(operation_id, None)?;
         tokio::spawn(async move {
             let result = generate_commit_message(&store, &workspace_id, cancel_rx).await;
-            if let Ok(mut active) = active_generations().lock() {
-                active.remove(&operation_id);
-            }
+            drop(registration);
             let _ = inbox.send(ServerCommand::AiAssistFinished {
                 client_id,
                 request_id,
