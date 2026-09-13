@@ -37,6 +37,11 @@ class SourceControlController extends _$SourceControlController {
 
   /// Rebuilds in place: Riverpod carries the last snapshot through the
   /// loading and error states, so the panel keeps its list on screen.
+  /// Shows the snapshot a write answered with, without another round trip.
+  void apply(MobileGitStatusSnapshot snapshot) {
+    state = AsyncData(snapshot);
+  }
+
   Future<void> reload() async {
     ref.invalidateSelf();
     try {

@@ -5,6 +5,9 @@ class const _ChangeRow({
   required final VoidCallback onTap,
   final int depth = 0,
   final bool showParent = true,
+  final bool showStageToggle = false,
+  final VoidCallback? onToggleStaged,
+  final VoidCallback? onLongPress,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -12,10 +15,12 @@ class const _ChangeRow({
     final fileName = workspaceFileBaseName(change.path);
     final parent = showParent ? workspaceFileParentLabel(change.path) : null;
     final (letter, color) = _statusMark(change.status);
+    final toggle = showStageToggle && (change.canStage || change.canUnstage);
     return Tooltip(
       message: change.path,
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         child: ConstrainedBox(
           constraints: const BoxConstraints(
             minHeight: AleraTokens.minTapTarget,
@@ -24,7 +29,7 @@ class const _ChangeRow({
             padding: EdgeInsets.fromLTRB(
               AleraTokens.space16 + depth * AleraTokens.space16,
               AleraTokens.space8,
-              AleraTokens.space16,
+              toggle ? AleraTokens.space4 : AleraTokens.space16,
               AleraTokens.space8,
             ),
             child: Row(
@@ -65,6 +70,14 @@ class const _ChangeRow({
                 ),
                 const SizedBox(width: AleraTokens.space8),
                 _LineStats(added: change.added, removed: change.removed),
+                if (toggle)
+                  AleraIconButton(
+                    tooltip: change.canUnstage ? 'Unstage' : 'Stage',
+                    icon: change.canUnstage
+                        ? AleraIcons.gitUnstage
+                        : AleraIcons.gitStage,
+                    onPressed: onToggleStaged,
+                  ),
               ],
             ),
           ),

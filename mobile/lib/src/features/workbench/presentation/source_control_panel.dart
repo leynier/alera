@@ -4,7 +4,6 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
-import 'package:alera_mobile/src/design_system/feedback/alera_refresh_progress.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
@@ -13,11 +12,15 @@ import 'package:alera_mobile/src/design_system/forms/alera_search_field.dart';
 import 'package:alera_mobile/src/design_system/menus/alera_action_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/application/explorer_preferences_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_view_prefs_controller.dart';
+import 'package:alera_mobile/src/features/workbench/application/source_control_actions_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/source_control_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/source_control_view_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dart';
 import 'package:alera_mobile/src/features/workbench/domain/source_control_rows.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/source_control_commands.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/source_control_commit_composer.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/source_control_header.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_diff_viewer_screen.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_path_display.dart';
 import 'package:flutter/material.dart';
@@ -37,6 +40,11 @@ class const SourceControlPanel({
     final state = ref.watch(
       sourceControlControllerProvider(hostId, workspaceId),
     );
+    final writing =
+        ref.watch(
+          sourceControlActionsControllerProvider(hostId, workspaceId),
+        ) !=
+        null;
     void reload() => unawaited(
       ref
           .read(sourceControlControllerProvider(hostId, workspaceId).notifier)
@@ -58,7 +66,7 @@ class const SourceControlPanel({
       return switch (state) {
         AsyncError(:final error) => AleraEmptyState(
           icon: AleraIcons.gitCompare,
-          message: error.toString(),
+          message: sourceControlErrorMessage(error),
           action: FilledButton(onPressed: reload, child: const Text('Retry')),
         ),
         _ => const Center(child: CircularProgressIndicator()),
@@ -78,13 +86,15 @@ class const SourceControlPanel({
                 )
                 .setSourceControlRoot(null),
           ),
-        AleraRefreshProgress(refreshing: state.isLoading),
-        if (state.error case final error?)
+        if (state.isLoading || writing)
+          const LinearProgressIndicator(minHeight: 2),
+        if (state.error case final error? when !state.isLoading)
           Padding(
             padding: AleraTokens.contentPadding,
             child: AleraNotice(
               icon: AleraIcons.warning,
-              message: 'Could not refresh source control. $error',
+              message:
+                  'Could not refresh source control. ${sourceControlErrorMessage(error)}',
               action: TextButton(onPressed: reload, child: const Text('Retry')),
             ),
           ),
@@ -94,6 +104,7 @@ class const SourceControlPanel({
             workspaceId: workspaceId,
             snapshot: snapshot,
             onRefresh: reload,
+            busy: writing,
             relativeRoot: root,
           ),
         ),
@@ -148,10 +159,12 @@ class const _Body({
   required final String workspaceId,
   required final MobileGitStatusSnapshot snapshot,
   required final VoidCallback onRefresh,
+  required final bool busy,
   final String relativeRoot = '',
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final writesEnabled = snapshot.writable && relativeRoot.isEmpty;
     final refreshAction = TextButton(
       onPressed: onRefresh,
       child: const Text('Refresh'),
@@ -164,7 +177,7 @@ class const _Body({
         action: refreshAction,
       );
     }
-    if (snapshot.entries.isEmpty) {
+    if (snapshot.entries.isEmpty && !snapshot.writable) {
       return AleraEmptyState(
         icon: AleraIcons.check,
         title: 'Clean working tree',
@@ -174,6 +187,12 @@ class const _Body({
         action: refreshAction,
       );
     }
+    final runner = SourceControlCommandRunner(
+      context: context,
+      ref: ref,
+      hostId: hostId,
+      workspaceId: workspaceId,
+    );
     // Shared with the desktop through the runtime view prefs; an older host
     // without them keeps the desktop defaults.
     final prefs = ref.watch(mobileViewPrefsControllerProvider(hostId)).value;
@@ -198,73 +217,92 @@ class const _Body({
       sections,
       viewMode: viewMode,
     );
-    return ListView.builder(
-      padding: const EdgeInsets.only(bottom: AleraTokens.space24),
-      itemCount: rows.length + 1,
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          return _Header(
-            snapshot: snapshot,
-            onRefresh: onRefresh,
-            view: view,
-            onToggleFilter: viewNotifier.toggleFilterVisible,
-            onFilterChanged: viewNotifier.setFilter,
-            onShowViewOptions: () => unawaited(
-              _showViewOptions(
-                context,
-                ref,
-                viewMode: viewMode,
-                groupMode: groupMode,
-                allCollapsed:
-                    collapsibleKeys.isNotEmpty &&
-                    collapsibleKeys.every(view.collapsedKeys.contains),
-                onToggleAllCollapsed: () =>
-                    viewNotifier.toggleAllCollapsed(collapsibleKeys),
+    return RefreshIndicator(
+      onRefresh: () async => onRefresh(),
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: AleraTokens.space24),
+        itemCount: rows.length + 1,
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return _Header(
+              hostId: hostId,
+              workspaceId: workspaceId,
+              snapshot: snapshot,
+              busy: busy,
+              writesEnabled: writesEnabled,
+              nestedRoot: relativeRoot.isNotEmpty,
+              runner: runner,
+              onRefresh: onRefresh,
+              view: view,
+              onToggleFilter: viewNotifier.toggleFilterVisible,
+              onFilterChanged: viewNotifier.setFilter,
+              onShowViewOptions: () => unawaited(
+                _showViewOptions(
+                  context,
+                  ref,
+                  viewMode: viewMode,
+                  groupMode: groupMode,
+                  allCollapsed:
+                      collapsibleKeys.isNotEmpty &&
+                      collapsibleKeys.every(view.collapsedKeys.contains),
+                  onToggleAllCollapsed: () =>
+                      viewNotifier.toggleAllCollapsed(collapsibleKeys),
+                ),
               ),
+              noMatches: sections.isEmpty && snapshot.entries.isNotEmpty,
+            );
+          }
+          return switch (rows[index - 1]) {
+            SourceControlSectionRow(:final section) => _SectionRow(
+              section: section,
+              collapsed: view.collapsedKeys.contains(section.key),
+              onTap: () => viewNotifier.toggleCollapsed(section.key),
             ),
-            noMatches: sections.isEmpty,
-          );
-        }
-        return switch (rows[index - 1]) {
-          SourceControlSectionRow(:final section) => _SectionRow(
-            section: section,
-            collapsed: view.collapsedKeys.contains(section.key),
-            onTap: () => viewNotifier.toggleCollapsed(section.key),
-          ),
-          SourceControlDirectoryRow(
-            :final name,
-            :final nodeKey,
-            :final depth,
-            :final fileCount,
-          ) =>
-            _DirectoryRow(
-              name: name,
-              depth: depth,
-              fileCount: fileCount,
-              collapsed: view.collapsedKeys.contains(nodeKey),
-              onTap: () => viewNotifier.toggleCollapsed(nodeKey),
-            ),
-          SourceControlFileRow(
-            :final change,
-            :final depth,
-            :final showParent,
-          ) =>
-            _ChangeRow(
-              change: change,
-              depth: depth,
-              showParent: showParent,
-              onTap: () => Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(
-                  builder: (_) => WorkspaceDiffViewerScreen(
-                    hostId: hostId,
-                    workspaceId: workspaceId,
-                    change: change,
+            SourceControlDirectoryRow(
+              :final name,
+              :final nodeKey,
+              :final depth,
+              :final fileCount,
+            ) =>
+              _DirectoryRow(
+                name: name,
+                depth: depth,
+                fileCount: fileCount,
+                collapsed: view.collapsedKeys.contains(nodeKey),
+                onTap: () => viewNotifier.toggleCollapsed(nodeKey),
+              ),
+            SourceControlFileRow(
+              :final change,
+              :final depth,
+              :final showParent,
+            ) =>
+              _ChangeRow(
+                change: change,
+                depth: depth,
+                showParent: showParent,
+                showStageToggle: writesEnabled,
+                onToggleStaged: writesEnabled && !busy
+                    ? () => toggleSourceControlChange(runner, change)
+                    : null,
+                onLongPress: writesEnabled && !busy
+                    ? () => showSourceControlChangeActions(runner, change)
+                    : null,
+                onTap: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => WorkspaceDiffViewerScreen(
+                      hostId: hostId,
+                      workspaceId: workspaceId,
+                      change: change,
+                      relativeRoot: relativeRoot,
+                      writesEnabled: writesEnabled,
+                    ),
                   ),
                 ),
               ),
-            ),
-        };
-      },
+          };
+        },
+      ),
     );
   }
 
@@ -328,7 +366,13 @@ class const _Body({
 }
 
 class const _Header({
+  required final String hostId,
+  required final String workspaceId,
   required final MobileGitStatusSnapshot snapshot,
+  required final bool busy,
+  required final bool writesEnabled,
+  required final bool nestedRoot,
+  required final SourceControlCommandRunner runner,
   required final VoidCallback onRefresh,
   required final SourceControlViewState view,
   required final VoidCallback onToggleFilter,
@@ -341,17 +385,35 @@ class const _Header({
     return Column(
       crossAxisAlignment: .stretch,
       children: <Widget>[
-        const Padding(
-          padding: AleraTokens.contentPadding,
-          child: AleraNotice(
-            icon: AleraIcons.info,
-            message: 'Read-only on mobile. Stage, unstage, and commit stay on desktop.',
+        if (!snapshot.writable)
+          const Padding(
+            padding: AleraTokens.contentPadding,
+            child: AleraNotice(
+              icon: AleraIcons.info,
+              message: 'Update the paired Alera runtime to stage and commit from mobile.',
+            ),
+          )
+        else if (nestedRoot)
+          const Padding(
+            padding: AleraTokens.contentPadding,
+            child: AleraNotice(
+              icon: AleraIcons.info,
+              message: 'Clear the nested source control root to stage and commit from mobile.',
+            ),
           ),
-        ),
         Row(
           children: <Widget>[
             Expanded(
-              child: _Summary(snapshot: snapshot, onRefresh: onRefresh),
+              child: SourceControlHeader(
+                snapshot: snapshot,
+                onMoreActions: writesEnabled && !busy
+                    ? () => showSourceControlCommandSheet(
+                        runner,
+                        snapshot,
+                        SourceControlCommand.menu,
+                      )
+                    : null,
+              ),
             ),
             AleraIconButton(
               tooltip: view.filterVisible ? 'Hide File Filter' : 'Filter Files',
@@ -366,9 +428,29 @@ class const _Header({
               icon: AleraIcons.tune,
               onPressed: onShowViewOptions,
             ),
+            AleraIconButton(
+              tooltip: 'Refresh',
+              icon: AleraIcons.refresh,
+              onPressed: busy ? null : onRefresh,
+            ),
             const SizedBox(width: AleraTokens.space8),
           ],
         ),
+        if (writesEnabled)
+          SourceControlCommitComposer(
+            hostId: hostId,
+            workspaceId: workspaceId,
+            snapshot: snapshot,
+            busy: busy,
+          ),
+        if (snapshot.entries.isEmpty)
+          AleraEmptyState(
+            icon: AleraIcons.check,
+            title: 'Clean working tree',
+            message: snapshot.branch == null
+                ? 'There are no local changes.'
+                : 'There are no local changes on ${snapshot.branch}.',
+          ),
         if (view.filterVisible)
           Padding(
             padding: const EdgeInsets.symmetric(
@@ -387,71 +469,6 @@ class const _Header({
             child: Text('No changed files match the filter.'),
           ),
       ],
-    );
-  }
-}
-
-class const _Summary({
-  required final MobileGitStatusSnapshot snapshot,
-  required final VoidCallback onRefresh,
-}) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final fileCount = snapshot.changedFileCount;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AleraTokens.space16,
-        0,
-        AleraTokens.space16,
-        AleraTokens.space8,
-      ),
-      child: Row(
-        children: <Widget>[
-          const Icon(
-            AleraIcons.gitBranch,
-            size: 16,
-            color: AleraTokens.foregroundMuted,
-          ),
-          const SizedBox(width: AleraTokens.space8),
-          Expanded(
-            child: Text(
-              snapshot.branch ?? 'Detached',
-              maxLines: 1,
-              overflow: .ellipsis,
-              style: theme.textTheme.titleSmall,
-            ),
-          ),
-          Text(
-            '$fileCount ${fileCount == 1 ? 'file' : 'files'}',
-            style: theme.textTheme.bodySmall,
-          ),
-          if (snapshot.addedLineCount > 0) ...<Widget>[
-            const SizedBox(width: AleraTokens.space8),
-            Text(
-              '+${snapshot.addedLineCount}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AleraTokens.success,
-              ),
-            ),
-          ],
-          if (snapshot.removedLineCount > 0) ...<Widget>[
-            const SizedBox(width: AleraTokens.space8),
-            Text(
-              '-${snapshot.removedLineCount}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AleraTokens.error,
-              ),
-            ),
-          ],
-          const SizedBox(width: AleraTokens.space4),
-          AleraIconButton(
-            tooltip: 'Refresh',
-            icon: AleraIcons.refresh,
-            onPressed: onRefresh,
-          ),
-        ],
-      ),
     );
   }
 }
