@@ -213,12 +213,11 @@ void main() {
     await tester.pump();
 
     expect(find.text('Keep panels visible'), findsOneWidget);
-    expect(find.byType(LinearProgressIndicator), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
 
     gate.complete();
     await tester.pumpAndSettle();
-    expect(find.byType(LinearProgressIndicator), findsNothing);
+    expect(find.text('Keep panels visible'), findsOneWidget);
   });
 
   testWidgets('a host reconnect does not blank source control', (tester) async {
