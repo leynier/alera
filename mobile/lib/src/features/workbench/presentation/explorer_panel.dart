@@ -145,12 +145,14 @@ class const _ExplorerBody({
                   height: AleraTokens.space20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : Icon(
-                  row.entry.isDirectory
-                      ? (row.expanded
-                            ? AleraIcons.folderOpen
-                            : AleraIcons.folder)
-                      : workspaceFileIcon(row.entry.relativePath),
+              : row.entry.isDirectory
+              ? Icon(
+                  row.expanded ? AleraIcons.folderOpen : AleraIcons.folder,
+                )
+              : AleraFileIcon(
+                  pathOrName: row.entry.relativePath,
+                  kind: AleraFileIconKind.file,
+                  size: AleraTokens.iconMd,
                 ),
           title: Text(row.entry.name),
           trailing: Row(
