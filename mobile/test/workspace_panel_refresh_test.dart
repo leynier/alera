@@ -118,7 +118,7 @@ void main() {
     expect(find.text('first.dart'), findsOneWidget);
     final notice = find.widgetWithText(
       AleraNotice,
-      'Could not refresh source control. Bad state: runtime connection lost',
+      'Could not refresh source control. runtime connection lost',
     );
     expect(notice, findsOneWidget);
     expect(
