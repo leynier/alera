@@ -14,3 +14,4 @@ const String mobileExplorerCapability = 'mobileExplorerV1';
 const String mobileWorkspaceSearchCapability = 'mobileWorkspaceSearchV1';
 const String mobileSourceControlCapability = 'mobileSourceControlV1';
 const String mobilePullRequestCapability = 'mobilePullRequestV1';
+const String mobilePullRequestActionsCapability = 'mobilePullRequestActionsV1';

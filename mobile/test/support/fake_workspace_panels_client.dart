@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 
 mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
@@ -16,6 +18,13 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
     area: 'unstaged',
   );
   MobilePullRequestSnapshot pullRequest = const MobilePullRequestSnapshot();
+
+  /// Thrown by the next [pullRequestSnapshot], for refresh failures.
+  Object? pullRequestSnapshotError;
+
+  /// Holds [pullRequestSnapshot] open, so a test can land a write while a
+  /// refresh is still in flight.
+  Completer<void>? pullRequestSnapshotGate;
 
   @override
   bool get supportsExplorer => explorerSupported;
@@ -84,6 +93,14 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
     String workspaceId,
   ) async {
     calls.add('pullRequestSnapshot $workspaceId');
+    final gate = pullRequestSnapshotGate;
+    if (gate != null) {
+      await gate.future;
+    }
+    final error = pullRequestSnapshotError;
+    if (error != null) {
+      throw error;
+    }
     return pullRequest;
   }
 }

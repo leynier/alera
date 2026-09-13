@@ -6,6 +6,7 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.d
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 
+import 'fake_pull_request_actions_client.dart';
 import 'fake_workspace_files_client.dart';
 import 'fake_workspace_lifecycle_client.dart';
 import 'fake_workspace_panels_client.dart';
@@ -41,7 +42,8 @@ class FakeTerminalClient
     with
         FakeWorkspaceFilesClient,
         FakeWorkspaceLifecycleClient,
-        FakeWorkspacePanelsClient
+        FakeWorkspacePanelsClient,
+        FakePullRequestActionsClient
     implements
         MobileTerminalClient,
         MobileWorkspaceClient,
