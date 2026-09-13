@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
+import 'package:alera_mobile/src/features/workbench/domain/workspace_markdown_uri_policy.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -221,8 +222,8 @@ String _titleCase(String value) {
 
 void _openUrl(String url) {
   final parsed = Uri.tryParse(url);
-  if (parsed == null) {
+  if (!isSupportedMarkdownViewerLinkUri(parsed)) {
     return;
   }
-  unawaited(launchUrl(parsed, mode: .externalApplication));
+  unawaited(launchUrl(parsed!, mode: .externalApplication));
 }

@@ -50,11 +50,13 @@ class PullRequestController extends _$PullRequestController {
   /// that a write overtook is dropped.
   Future<String?> refresh() async {
     final generation = ++_generation;
+    final previous = state;
     final result = await AsyncValue.guard(() => build(hostId, workspaceId));
     if (generation != _generation) {
       return null;
     }
-    if (result case AsyncError(:final error) when state.hasValue) {
+    if (result case AsyncError(:final error) when previous.hasValue) {
+      state = previous;
       return pullRequestActionErrorMessage(error);
     }
     state = result;
