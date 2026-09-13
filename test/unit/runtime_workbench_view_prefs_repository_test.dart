@@ -76,6 +76,41 @@ void main() {
     );
     expect(legacy.prefs.showActiveWorkspacesOnly, isFalse);
   });
+
+  test('shares the search and source control view options', () async {
+    final client = _FakeRuntimeHostClient()
+      ..responses['workbenchViewPrefs.get'] = <String, Object?>{
+        'revision': 4,
+        'desktopInitialized': true,
+        'prefs': <String, Object?>{
+          'gitDiffViewMode': 'flat',
+          'gitDiffGroupMode': 'unified',
+          'searchViewAsTree': true,
+          'searchIncludeIgnored': true,
+        },
+      }
+      ..responses['workbenchViewPrefs.update'] = <String, Object?>{
+        'revision': 5,
+      };
+    final repository = RuntimeWorkbenchViewPrefsRepository(
+      client: client,
+      legacyRepository: _MemoryViewPrefsRepository(),
+    );
+
+    final loaded = await repository.load();
+    expect(loaded.gitDiffViewMode, GitDiffViewMode.flat);
+    expect(loaded.gitDiffGroupMode, GitDiffGroupMode.unified);
+    expect(loaded.searchViewAsTree, isTrue);
+    expect(loaded.searchIncludeIgnored, isTrue);
+
+    await repository.save(loaded.copyWith(searchViewAsTree: false));
+    final sent =
+        client.payloads['workbenchViewPrefs.update']!.single['prefs'] as Map;
+    expect(sent['searchViewAsTree'], isFalse);
+    expect(sent['searchIncludeIgnored'], isTrue);
+    expect(sent['gitDiffViewMode'], 'flat');
+    expect(sent['gitDiffGroupMode'], 'unified');
+  });
 }
 
 final class _MemoryViewPrefsRepository implements WorkbenchViewPrefsRepository {

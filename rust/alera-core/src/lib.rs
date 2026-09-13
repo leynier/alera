@@ -5,3 +5,4 @@ pub mod reading_diff;
 #[cfg(feature = "runtime")]
 pub mod runtime;
 pub mod workspace_files;
+pub mod workspace_search;

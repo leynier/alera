@@ -1,8 +1,9 @@
 use chrono::{Duration, Utc};
 
 use super::{
-    RuntimeAgentQuotaSettings, RuntimeStore, SharedWorkbenchPrefsWriter, SharedWorkbenchSortBy,
-    SharedWorkbenchViewPrefs, WorkbenchLayoutRecord, WorkspaceTabRecord,
+    RuntimeAgentQuotaSettings, RuntimeStore, SharedGitDiffGroupMode, SharedGitDiffViewMode,
+    SharedWorkbenchPrefsWriter, SharedWorkbenchSortBy, SharedWorkbenchViewPrefs,
+    WorkbenchLayoutRecord, WorkspaceTabRecord,
 };
 
 #[tokio::test]
@@ -60,6 +61,44 @@ fn legacy_shared_view_prefs_show_all_workspaces() {
     let restored: SharedWorkbenchViewPrefs = serde_json::from_value(encoded).unwrap();
 
     assert!(!restored.show_active_workspaces_only);
+}
+
+#[test]
+fn legacy_shared_view_prefs_default_the_panel_view_options() {
+    let mut encoded = serde_json::to_value(SharedWorkbenchViewPrefs::default()).unwrap();
+    let object = encoded.as_object_mut().unwrap();
+    for key in [
+        "gitDiffViewMode",
+        "gitDiffGroupMode",
+        "searchViewAsTree",
+        "searchIncludeIgnored",
+    ] {
+        object.remove(key);
+    }
+
+    let restored: SharedWorkbenchViewPrefs = serde_json::from_value(encoded).unwrap();
+
+    assert_eq!(restored.git_diff_view_mode, SharedGitDiffViewMode::Tree);
+    assert_eq!(restored.git_diff_group_mode, SharedGitDiffGroupMode::ByArea);
+    assert!(!restored.search_view_as_tree);
+    assert!(!restored.search_include_ignored);
+}
+
+#[test]
+fn panel_view_options_use_the_desktop_enum_names() {
+    let encoded = serde_json::to_value(SharedWorkbenchViewPrefs {
+        git_diff_view_mode: SharedGitDiffViewMode::Flat,
+        git_diff_group_mode: SharedGitDiffGroupMode::Unified,
+        ..SharedWorkbenchViewPrefs::default()
+    })
+    .unwrap();
+
+    assert_eq!(encoded["gitDiffViewMode"], "flat");
+    assert_eq!(encoded["gitDiffGroupMode"], "unified");
+    assert_eq!(
+        serde_json::to_value(SharedGitDiffGroupMode::ByArea).unwrap(),
+        "byArea"
+    );
 }
 
 #[tokio::test]

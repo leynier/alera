@@ -99,6 +99,18 @@ class MobileViewPrefsController extends _$MobileViewPrefsController {
     );
   }
 
+  Future<void> setGitDiffViewMode(MobileGitDiffViewMode value) =>
+      _update((prefs) => prefs.copyWith(gitDiffViewMode: value));
+
+  Future<void> setGitDiffGroupMode(MobileGitDiffGroupMode value) =>
+      _update((prefs) => prefs.copyWith(gitDiffGroupMode: value));
+
+  Future<void> setSearchViewAsTree(bool value) =>
+      _update((prefs) => prefs.copyWith(searchViewAsTree: value));
+
+  Future<void> setSearchIncludeIgnored(bool value) =>
+      _update((prefs) => prefs.copyWith(searchIncludeIgnored: value));
+
   Future<void> _update(
     MobileViewPrefs Function(MobileViewPrefs) transform,
   ) async {

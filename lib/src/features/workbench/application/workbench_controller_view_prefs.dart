@@ -341,6 +341,20 @@ mixin _WorkbenchControllerViewPrefs
     _updateViewPrefs(state.viewPrefs.copyWith(gitDiffGroupMode: mode));
   }
 
+  void setSearchViewAsTree(bool value) {
+    if (state.viewPrefs.searchViewAsTree == value) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(searchViewAsTree: value));
+  }
+
+  void setSearchIncludeIgnored(bool value) {
+    if (state.viewPrefs.searchIncludeIgnored == value) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(searchIncludeIgnored: value));
+  }
+
   void setPullRequestCreateAction(PullRequestCreateAction action) {
     if (state.viewPrefs.pullRequestCreateAction == action) {
       return;

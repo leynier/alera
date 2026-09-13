@@ -7,6 +7,7 @@ import 'package:alera_mobile/src/features/terminal/application/terminal_provider
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_panels_controller.dart';
+import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -240,6 +241,9 @@ void main() {
               removed: 0,
             ),
           ],
+        )
+        ..viewPrefs = const MobileViewPrefs(
+          gitDiffViewMode: MobileGitDiffViewMode.flat,
         );
       addTearDown(client.dispose);
 
