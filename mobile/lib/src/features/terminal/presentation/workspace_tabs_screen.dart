@@ -30,6 +30,7 @@ import 'package:logging/logging.dart';
 
 part 'workspace_tab_strip.dart';
 part 'workspace_tabs_close.dart';
+part 'workspace_tabs_panel_body.dart';
 part 'workspace_tabs_panel_menu.dart';
 
 /// Tabs of one workspace: a horizontally scrollable chip switcher with one
@@ -429,6 +430,21 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     );
   }
 
+  void _openTab(String tabId) {
+    if (!mounted) {
+      return;
+    }
+    setState(() => _selectedTabId = tabId);
+    ref
+        .read(
+          selectedWorkspacePanelControllerProvider(
+            widget.hostId,
+            widget.workspace.id,
+          ).notifier,
+        )
+        .select(WorkspacePanelDestination.terminal);
+  }
+
   Widget _terminalBody(AsyncValue<List<WorkspaceTabSummary>> tabs) {
     // The last known tab list wins over a reload: reconnecting to the host
     // rebuilds this provider, and swapping the body for a spinner disposes
@@ -456,32 +472,6 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
         ),
       ),
       _ => const Center(child: CircularProgressIndicator()),
-    };
-  }
-
-  Widget _panelBody(WorkspacePanelDestination panel) {
-    final hostId = widget.hostId;
-    final workspaceId = widget.workspace.id;
-    return switch (panel) {
-      WorkspacePanelDestination.explorer => ExplorerPanel(
-        hostId: hostId,
-        workspaceId: workspaceId,
-      ),
-      WorkspacePanelDestination.search => WorkspaceTextSearchPanel(
-        hostId: hostId,
-        workspaceId: workspaceId,
-      ),
-      WorkspacePanelDestination.sourceControl => SourceControlPanel(
-        hostId: hostId,
-        workspaceId: workspaceId,
-      ),
-      WorkspacePanelDestination.pullRequest => PullRequestPanel(
-        hostId: hostId,
-        workspaceId: workspaceId,
-      ),
-      WorkspacePanelDestination.terminal => _terminalBody(
-        ref.watch(tabsControllerProvider(widget.hostId, widget.workspace.id)),
-      ),
     };
   }
 }

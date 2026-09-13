@@ -126,6 +126,7 @@ mod coordinator_requests;
 mod coordinator_stall_policy;
 mod declared_catalog_requests;
 mod deferred_requests;
+mod deferred_workspace_lifecycle;
 mod deferred_workspace_setup;
 mod host_service_agent_quota;
 mod host_service_requests;

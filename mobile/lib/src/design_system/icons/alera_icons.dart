@@ -78,4 +78,6 @@ abstract final class const AleraIcons._() {
   static const IconData review = LucideIcons.fileSearch;
   static const IconData tool = LucideIcons.wrench;
   static const IconData public = LucideIcons.globe;
+  static const IconData comment = LucideIcons.messageSquare;
+  static const IconData send = LucideIcons.send;
 }
