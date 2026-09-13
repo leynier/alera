@@ -1,3 +1,6 @@
+//! Workspace text search and replace, shared by the desktop FRB library and
+//! the terminal-host sidecar that serves the paired phone.
+
 use std::collections::HashMap;
 use std::io;
 use std::sync::atomic::{AtomicBool, Ordering};

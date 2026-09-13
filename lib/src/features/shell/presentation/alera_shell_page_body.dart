@@ -203,6 +203,10 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                           controller.setGitDiffViewMode,
                                       onSetGitDiffGroupMode:
                                           controller.setGitDiffGroupMode,
+                                      onSetSearchViewAsTree:
+                                          controller.setSearchViewAsTree,
+                                      onSetSearchIncludeIgnored:
+                                          controller.setSearchIncludeIgnored,
                                       onFocusSourceControlFolder:
                                           canSelectSourceControlRoot
                                           ? (relativePath) {

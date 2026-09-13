@@ -6,6 +6,12 @@ enum MobileWorkbenchSortBy { name, recent, activity }
 
 enum MobileWorkspaceKindFilter { all, defaultOnly, nonDefaultOnly }
 
+/// Mirrors the desktop `GitDiffViewMode`; the names are the wire values.
+enum MobileGitDiffViewMode { tree, flat }
+
+/// Mirrors the desktop `GitDiffGroupMode`; the names are the wire values.
+enum MobileGitDiffGroupMode { byArea, unified }
+
 /// Runtime-shared sidebar state mirroring the desktop `WorkbenchViewPrefs`
 /// fields that also apply on a small screen.
 class const MobileViewPrefs({
@@ -25,6 +31,10 @@ class const MobileViewPrefs({
   final Set<String> selectedTagIds = const <String>{},
   final Set<String> collapsedProjectIds = const <String>{},
   final Set<String> collapsedParentWorkspaceIds = const <String>{},
+  final MobileGitDiffViewMode gitDiffViewMode = MobileGitDiffViewMode.tree,
+  final MobileGitDiffGroupMode gitDiffGroupMode = MobileGitDiffGroupMode.byArea,
+  final bool searchViewAsTree = false,
+  final bool searchIncludeIgnored = false,
   final int revision = 0,
   final bool desktopInitialized = false,
 }) {
@@ -44,6 +54,10 @@ class const MobileViewPrefs({
     Set<String>? selectedTagIds,
     Set<String>? collapsedProjectIds,
     Set<String>? collapsedParentWorkspaceIds,
+    MobileGitDiffViewMode? gitDiffViewMode,
+    MobileGitDiffGroupMode? gitDiffGroupMode,
+    bool? searchViewAsTree,
+    bool? searchIncludeIgnored,
     int? revision,
     bool? desktopInitialized,
   }) {
@@ -68,6 +82,10 @@ class const MobileViewPrefs({
       collapsedProjectIds: collapsedProjectIds ?? this.collapsedProjectIds,
       collapsedParentWorkspaceIds:
           collapsedParentWorkspaceIds ?? this.collapsedParentWorkspaceIds,
+      gitDiffViewMode: gitDiffViewMode ?? this.gitDiffViewMode,
+      gitDiffGroupMode: gitDiffGroupMode ?? this.gitDiffGroupMode,
+      searchViewAsTree: searchViewAsTree ?? this.searchViewAsTree,
+      searchIncludeIgnored: searchIncludeIgnored ?? this.searchIncludeIgnored,
       revision: revision ?? this.revision,
       desktopInitialized: desktopInitialized ?? this.desktopInitialized,
     );
@@ -107,6 +125,18 @@ class const MobileViewPrefs({
       collapsedParentWorkspaceIds: json
           .stringList('collapsedParentWorkspaceIds')
           .toSet(),
+      gitDiffViewMode:
+          MobileGitDiffViewMode.values
+              .where((value) => value.name == json['gitDiffViewMode'])
+              .firstOrNull ??
+          MobileGitDiffViewMode.tree,
+      gitDiffGroupMode:
+          MobileGitDiffGroupMode.values
+              .where((value) => value.name == json['gitDiffGroupMode'])
+              .firstOrNull ??
+          MobileGitDiffGroupMode.byArea,
+      searchViewAsTree: json['searchViewAsTree'] == true,
+      searchIncludeIgnored: json['searchIncludeIgnored'] == true,
     );
   }
 
@@ -134,6 +164,10 @@ class const MobileViewPrefs({
       'selectedTagIds': selectedTagIds.toList(),
       'collapsedProjectIds': collapsedProjectIds.toList(),
       'collapsedParentWorkspaceIds': collapsedParentWorkspaceIds.toList(),
+      'gitDiffViewMode': gitDiffViewMode.name,
+      'gitDiffGroupMode': gitDiffGroupMode.name,
+      'searchViewAsTree': searchViewAsTree,
+      'searchIncludeIgnored': searchIncludeIgnored,
     };
   }
 }
