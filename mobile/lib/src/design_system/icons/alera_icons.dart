@@ -57,4 +57,18 @@ abstract final class const AleraIcons._() {
   static const IconData review = LucideIcons.fileSearch;
   static const IconData tool = LucideIcons.wrench;
   static const IconData public = LucideIcons.globe;
+
+  // Source control actions
+  static const IconData gitCommit = LucideIcons.gitCommitHorizontal;
+  static const IconData gitAmend = LucideIcons.penLine;
+  static const IconData gitStage = LucideIcons.plus;
+  static const IconData gitUnstage = LucideIcons.minus;
+  static const IconData gitDiscard = LucideIcons.undo2;
+  static const IconData gitFetch = LucideIcons.cloudDownload;
+  static const IconData gitPull = LucideIcons.arrowDownToLine;
+  static const IconData gitPush = LucideIcons.arrowUpFromLine;
+  static const IconData gitSync = LucideIcons.arrowUpDown;
+  static const IconData gitPublish = LucideIcons.cloudUpload;
+  static const IconData gitStash = LucideIcons.archive;
+  static const IconData gitStashPop = LucideIcons.archiveRestore;
 }

@@ -8,6 +8,14 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
   bool explorerSupported = false;
   bool workspaceSearchSupported = false;
   bool sourceControlSupported = false;
+  bool sourceControlWritesSupported = false;
+
+  /// Answers a write; defaults to echoing [gitStatusSnapshot].
+  MobileGitStatusSnapshot Function(MobileGitWrite write)? onGitWrite;
+  final List<MobileGitWrite> gitWrites = <MobileGitWrite>[];
+
+  /// Holds `gitWrite` open until completed, to observe a write in flight.
+  Completer<void>? gitWriteGate;
   bool pullRequestsSupported = false;
   List<MobileExplorerEntry> explorerEntries = const <MobileExplorerEntry>[];
   MobileWorkspaceSearchResult searchResult =
@@ -77,6 +85,20 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
       throw error;
     }
     return gitStatusSnapshot;
+  }
+
+  @override
+  bool get supportsSourceControlWrites => sourceControlWritesSupported;
+
+  @override
+  Future<MobileGitStatusSnapshot> gitWrite(
+    String workspaceId,
+    MobileGitWrite write,
+  ) async {
+    calls.add('gitWrite $workspaceId ${write.action.verb}');
+    gitWrites.add(write);
+    await gitWriteGate?.future;
+    return onGitWrite?.call(write) ?? gitStatusSnapshot;
   }
 
   @override

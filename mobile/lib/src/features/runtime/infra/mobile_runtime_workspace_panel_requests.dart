@@ -2,6 +2,7 @@ part of 'mobile_runtime_client.dart';
 
 const Duration _workspaceSearchTimeout = Duration(minutes: 2);
 const Duration _workspacePanelTimeout = Duration(seconds: 45);
+const Duration _gitNetworkTimeout = Duration(minutes: 5);
 
 mixin MobileRuntimeWorkspacePanelRequests
     implements MobileWorkspacePanelsClient {
@@ -87,6 +88,28 @@ mixin MobileRuntimeWorkspacePanelRequests
       await requestMap('mobile.git.status', <String, Object?>{
         'workspaceId': workspaceId,
       }, _workspacePanelTimeout),
+    );
+  }
+
+  @override
+  bool get supportsSourceControlWrites =>
+      runtimeCapabilities.contains(mobileSourceControlWritesCapability);
+
+  @override
+  Future<MobileGitStatusSnapshot> gitWrite(
+    String workspaceId,
+    MobileGitWrite write,
+  ) async {
+    _requireCapability(
+      supportsSourceControlWrites,
+      'change source control from mobile',
+    );
+    return MobileGitStatusSnapshot.fromJson(
+      await requestMap(
+        write.action.verb,
+        write.payload(workspaceId),
+        write.usesNetwork ? _gitNetworkTimeout : _workspacePanelTimeout,
+      ),
     );
   }
 

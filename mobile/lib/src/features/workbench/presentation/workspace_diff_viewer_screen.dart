@@ -1,6 +1,11 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
+import 'package:alera_mobile/src/features/workbench/application/source_control_actions_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/source_control_commands.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/source_control_panel.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_path_display.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +21,26 @@ class const WorkspaceDiffViewerScreen({
     return Scaffold(
       appBar: AppBar(
         title: Text(workspaceFileBaseName(change.path), overflow: .ellipsis),
+        actions: <Widget>[
+          if (change.canStage || change.canUnstage || change.canDiscard)
+            Consumer(
+              builder: (context, ref, _) {
+                final busy =
+                    ref.watch(
+                      sourceControlActionsControllerProvider(
+                        hostId,
+                        workspaceId,
+                      ),
+                    ) !=
+                    null;
+                return AleraIconButton(
+                  tooltip: 'File Actions',
+                  icon: AleraIcons.more,
+                  onPressed: busy ? null : () => _showActions(context, ref),
+                );
+              },
+            ),
+        ],
       ),
       body: FutureBuilder<MobileGitDiffFile>(
         future: _load(ref),
@@ -73,6 +98,23 @@ class const WorkspaceDiffViewerScreen({
         },
       ),
     );
+  }
+
+  /// A successful write changes which side of the index this diff shows, so
+  /// the screen returns to the refreshed list instead of showing stale lines.
+  Future<void> _showActions(BuildContext context, WidgetRef ref) async {
+    final changed = await showSourceControlChangeActions(
+      SourceControlCommandRunner(
+        context: context,
+        ref: ref,
+        hostId: hostId,
+        workspaceId: workspaceId,
+      ),
+      change,
+    );
+    if (changed && context.mounted) {
+      Navigator.of(context).maybePop();
+    }
   }
 
   Future<MobileGitDiffFile> _load(WidgetRef ref) async {

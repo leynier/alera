@@ -254,7 +254,7 @@ void main() {
       expect(find.text('-0'), findsNothing);
       expect(
         find.text(
-          'Read-only on mobile. Stage, unstage, and commit stay on desktop.',
+          'Update the paired Alera runtime to stage and commit from mobile.',
         ),
         findsOneWidget,
       );
