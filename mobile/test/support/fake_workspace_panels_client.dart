@@ -7,6 +7,10 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
   bool workspaceSearchSupported = false;
   bool sourceControlSupported = false;
   bool pullRequestsSupported = false;
+  bool sourceControlRootSupported = false;
+  Set<String> gitRepositoryRoots = const <String>{''};
+  List<MobileExplorerEntry> ignoredExplorerEntries =
+      const <MobileExplorerEntry>[];
   List<MobileExplorerEntry> explorerEntries = const <MobileExplorerEntry>[];
   MobileWorkspaceSearchResult searchResult =
       const MobileWorkspaceSearchResult();
@@ -30,13 +34,22 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
   bool get supportsPullRequests => pullRequestsSupported;
 
   @override
+  bool get supportsSourceControlRoot => sourceControlRootSupported;
+
+  @override
   Future<List<MobileExplorerEntry>> listExplorerChildren({
     required String workspaceId,
     String relativePath = '',
     bool hideIgnored = true,
   }) async {
-    calls.add('listExplorerChildren $workspaceId $relativePath');
-    return explorerEntries
+    calls.add(
+      'listExplorerChildren $workspaceId $relativePath'
+      '${hideIgnored ? '' : ' showAll'}',
+    );
+    return <MobileExplorerEntry>[
+          ...explorerEntries,
+          if (!hideIgnored) ...ignoredExplorerEntries,
+        ]
         .where(
           (entry) => relativePath.isEmpty
               ? !entry.relativePath.contains('/')
@@ -64,8 +77,16 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
   }
 
   @override
-  Future<MobileGitStatusSnapshot> gitStatus(String workspaceId) async {
-    calls.add('gitStatus $workspaceId');
+  Future<MobileGitStatusSnapshot> gitStatus(
+    String workspaceId, {
+    String relativeRoot = '',
+  }) async {
+    calls.add(
+      'gitStatus $workspaceId${relativeRoot.isEmpty ? '' : ' $relativeRoot'}',
+    );
+    if (!gitRepositoryRoots.contains(relativeRoot)) {
+      return const MobileGitStatusSnapshot();
+    }
     return gitStatusSnapshot;
   }
 
@@ -74,8 +95,12 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
     required String workspaceId,
     required String path,
     required String area,
+    String relativeRoot = '',
   }) async {
-    calls.add('gitDiff $workspaceId $path $area');
+    calls.add(
+      'gitDiff $workspaceId $path $area'
+      '${relativeRoot.isEmpty ? '' : ' $relativeRoot'}',
+    );
     return gitDiffFile;
   }
 

@@ -13,4 +13,5 @@ const String remoteAiDictationCapability = 'aiDictationRemoteProvidersV1';
 const String mobileExplorerCapability = 'mobileExplorerV1';
 const String mobileWorkspaceSearchCapability = 'mobileWorkspaceSearchV1';
 const String mobileSourceControlCapability = 'mobileSourceControlV1';
+const String mobileSourceControlRootCapability = 'mobileSourceControlRootV1';
 const String mobilePullRequestCapability = 'mobilePullRequestV1';

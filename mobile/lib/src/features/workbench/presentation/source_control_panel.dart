@@ -4,7 +4,9 @@ import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
+import 'package:alera_mobile/src/features/workbench/application/explorer_preferences_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/source_control_controller.dart';
+import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_diff_viewer_screen.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_path_display.dart';
 import 'package:flutter/material.dart';
@@ -20,11 +22,23 @@ class const SourceControlPanel({
     final state = ref.watch(
       sourceControlControllerProvider(hostId, workspaceId),
     );
-    return switch (state) {
+    final client = ref.watch(workspaceClientProvider(hostId)).value;
+    final savedRoot = ref
+        .watch(explorerPreferencesControllerProvider(hostId, workspaceId))
+        .value
+        ?.sourceControlRoot;
+    final root = client is MobileWorkspacePanelsClient
+        ? activeSourceControlRoot(
+            client as MobileWorkspacePanelsClient,
+            savedRoot,
+          )
+        : '';
+    final body = switch (state) {
       AsyncData(value: final snapshot) => _Body(
         hostId: hostId,
         workspaceId: workspaceId,
         snapshot: snapshot,
+        relativeRoot: root,
       ),
       AsyncError(:final error) => AleraEmptyState(
         icon: AleraIcons.gitCompare,
@@ -40,6 +54,66 @@ class const SourceControlPanel({
       ),
       _ => const Center(child: CircularProgressIndicator()),
     };
+    if (root.isEmpty) {
+      return body;
+    }
+    return Column(
+      children: <Widget>[
+        _SourceControlRootBar(
+          relativeRoot: root,
+          onClear: () => ref
+              .read(
+                explorerPreferencesControllerProvider(
+                  hostId,
+                  workspaceId,
+                ).notifier,
+              )
+              .setSourceControlRoot(null),
+        ),
+        Expanded(child: body),
+      ],
+    );
+  }
+}
+
+/// Names the nested repository in use, the phone counterpart of the desktop
+/// Source Control toolbar's Clear Source Control Root button.
+class const _SourceControlRootBar({
+  required final String relativeRoot,
+  required final VoidCallback onClear,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AleraTokens.borderSubtle)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.only(
+          left: AleraTokens.space16,
+          right: AleraTokens.space8,
+        ),
+        child: Row(
+          children: <Widget>[
+            const Icon(
+              AleraIcons.gitBranch,
+              size: 16,
+              color: AleraTokens.foregroundMuted,
+            ),
+            const SizedBox(width: AleraTokens.space8),
+            Expanded(
+              child: Text(
+                'Source control root: $relativeRoot',
+                maxLines: 1,
+                overflow: .ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            TextButton(onPressed: onClear, child: const Text('Clear')),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -47,6 +121,7 @@ class const _Body({
   required final String hostId,
   required final String workspaceId,
   required final MobileGitStatusSnapshot snapshot,
+  final String relativeRoot = '',
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -125,6 +200,7 @@ class const _Body({
                 hostId: hostId,
                 workspaceId: workspaceId,
                 change: change,
+                relativeRoot: relativeRoot,
               ),
             ),
           ),

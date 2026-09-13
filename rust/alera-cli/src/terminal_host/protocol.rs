@@ -56,6 +56,9 @@ pub const RUNTIME_HOST_MOBILE_WORKSPACE_SEARCH_CAPABILITY: &str = "mobileWorkspa
 /// A paired phone can read git dirty status and a per-file diff. Write
 /// operations (stage, unstage, commit) stay desktop-only in this version.
 pub const RUNTIME_HOST_MOBILE_SOURCE_CONTROL_CAPABILITY: &str = "mobileSourceControlV1";
+/// Additive: `mobile.git.status` and `mobile.git.diff` accept a workspace-relative
+/// `relativeRoot` naming a nested repository to use as the Source Control root.
+pub const RUNTIME_HOST_MOBILE_SOURCE_CONTROL_ROOT_CAPABILITY: &str = "mobileSourceControlRootV1";
 /// A paired phone can load a usable current-branch pull-request snapshot.
 pub const RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY: &str = "mobilePullRequestV1";
 /// Retained name. Codex chat sessions are gone; older phones still feature-detect this string.
