@@ -66,6 +66,10 @@ pub const RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY: &str = "mobilePullRequest
 /// draft status, close, link, unlink and create GitHub pull requests through
 /// the `mobile.pullRequest.*` write verbs. Additive to `mobilePullRequestV1`.
 pub const RUNTIME_HOST_MOBILE_PULL_REQUEST_ACTIONS_CAPABILITY: &str = "mobilePullRequestActionsV1";
+/// A paired phone can Ship through `mobile.pullRequest.ship`: stage, commit
+/// with an AI Assist message, push, and open a GitHub pull request on the
+/// runtime in one request.
+pub const RUNTIME_HOST_MOBILE_PULL_REQUEST_SHIP_CAPABILITY: &str = "mobilePullRequestShipV1";
 /// Retained name. Codex chat sessions are gone; older phones still feature-detect this string.
 #[allow(dead_code)]
 pub const RUNTIME_HOST_MOBILE_CODEX_SESSIONS_CAPABILITY: &str = "mobileCodexSessionsV1";

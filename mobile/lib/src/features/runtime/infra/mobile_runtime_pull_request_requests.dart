@@ -25,6 +25,30 @@ mixin MobileRuntimePullRequestRequests
       runtimeCapabilities.contains(aiTextPullRequestDetailsCapability);
 
   @override
+  bool get supportsPullRequestShip =>
+      runtimeCapabilities.contains(mobilePullRequestShipCapability);
+
+  @override
+  Future<MobilePullRequestSnapshot> shipPullRequest({
+    required String workspaceId,
+    required MobilePullRequestShipInput input,
+  }) async {
+    if (!supportsPullRequestShip) {
+      throw UnsupportedError(
+        'Update the paired Alera runtime to ship changes.',
+      );
+    }
+    return MobilePullRequestSnapshot.fromJson(
+      await requestMap('mobile.pullRequest.ship', <String, Object?>{
+        'workspaceId': workspaceId,
+        'baseBranch': input.baseBranch,
+        'draft': input.draft,
+        'scope': input.stagedOnly ? 'staged' : 'all',
+      }, _pullRequestDetailsTimeout),
+    );
+  }
+
+  @override
   Future<MobilePullRequestDetails> generatePullRequestDetails({
     required String workspaceId,
     required String baseBranch,

@@ -6,6 +6,7 @@ import 'package:alera_mobile/src/features/workbench/application/workbench_provid
 import 'package:alera_mobile/src/features/workbench/domain/mobile_pull_request_conversation.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_comment_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_link_create_sheets.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/pull_request_ship_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -193,6 +194,21 @@ class const PullRequestPanelActions({
                   );
             }
           : null,
+    );
+  }
+
+  Future<void> ship(BuildContext context, MobilePullRequestSnapshot snapshot) {
+    final controller = _controller;
+    return showShipPullRequestSheet(
+      context,
+      headBranch: snapshot.branch,
+      baseBranches: snapshot.baseBranches,
+      suggestedBaseBranch: snapshot.suggestedBaseBranch,
+      onSubmit: (input) => controller.run(
+        .ship,
+        (client) =>
+            client.shipPullRequest(workspaceId: workspaceId, input: input),
+      ),
     );
   }
 

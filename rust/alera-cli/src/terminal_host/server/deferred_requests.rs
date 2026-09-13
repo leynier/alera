@@ -108,6 +108,7 @@ impl ServerActor {
             | "mobile.pullRequest.link"
             | "mobile.pullRequest.unlink"
             | "mobile.pullRequest.create"
+            | "mobile.pullRequest.ship"
             | "workspace.files.list"
             | "workspace.files.read" => {
                 self.require_auth(client_id)?;
