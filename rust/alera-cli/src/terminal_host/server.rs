@@ -150,6 +150,8 @@ mod mobile_pull_request_snapshot_extras;
 #[cfg(test)]
 mod mobile_relay_presence_tests;
 mod mobile_source_control_requests;
+mod mobile_source_control_snapshot;
+mod mobile_source_control_write_requests;
 mod mobile_terminal_requests;
 #[cfg(test)]
 mod mobile_terminal_viewport_tests;

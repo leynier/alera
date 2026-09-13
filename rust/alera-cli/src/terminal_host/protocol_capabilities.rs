@@ -48,9 +48,13 @@ pub const RUNTIME_HOST_MOBILE_WORKSPACE_SEARCH_CAPABILITY: &str = "mobileWorkspa
 /// apply them through `mobile.workspaceSearch.replace`, and cancel a running
 /// search through `mobile.workspaceSearch.cancel`. Additive: older phones ignore it.
 pub const RUNTIME_HOST_MOBILE_WORKSPACE_REPLACE_CAPABILITY: &str = "mobileWorkspaceReplaceV1";
-/// A paired phone can read git dirty status and a per-file diff. Write
-/// operations (stage, unstage, commit) stay desktop-only in this version.
+/// A paired phone can read git dirty status and a per-file diff.
 pub const RUNTIME_HOST_MOBILE_SOURCE_CONTROL_CAPABILITY: &str = "mobileSourceControlV1";
+/// A paired phone can stage, discard, commit, sync, stash and switch branches
+/// through the `mobile.git.*` write verbs, and `mobile.git.status` carries the
+/// actions the runtime allows. Additive: older phones stay read-only.
+pub const RUNTIME_HOST_MOBILE_SOURCE_CONTROL_WRITES_CAPABILITY: &str =
+    "mobileSourceControlWritesV1";
 /// A paired phone can load a usable current-branch pull-request snapshot.
 pub const RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY: &str = "mobilePullRequestV1";
 /// A paired phone can comment, reply, edit its own comments, merge, change
