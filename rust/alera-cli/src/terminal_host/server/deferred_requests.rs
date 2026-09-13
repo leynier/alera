@@ -72,6 +72,8 @@ impl ServerActor {
             | "mobile.promptAttachment.read"
             | "mobile.workspaceExplorer.list"
             | "mobile.workspaceSearch.run"
+            | "mobile.workspaceSearch.replace"
+            | "mobile.workspaceSearch.cancel"
             | "mobile.git.status"
             | "mobile.git.diff"
             | "mobile.pullRequest.snapshot"

@@ -30,6 +30,10 @@ mixin MobileRuntimeWorkspacePanelRequests
       runtimeCapabilities.contains(mobilePullRequestCapability);
 
   @override
+  bool get supportsWorkspaceReplace =>
+      runtimeCapabilities.contains(mobileWorkspaceReplaceCapability);
+
+  @override
   Future<List<MobileExplorerEntry>> listExplorerChildren({
     required String workspaceId,
     String relativePath = '',
@@ -62,8 +66,14 @@ mixin MobileRuntimeWorkspacePanelRequests
     String? includePattern,
     String? excludePattern,
     bool includeIgnored = false,
+    String? replacement,
+    bool preserveCase = false,
+    String? requestId,
   }) async {
     _requireCapability(supportsWorkspaceSearch, 'search the workspace');
+    // An older host would ignore these fields, so only send them when it can
+    // answer with previews and honor the cancellation id.
+    final withReplace = supportsWorkspaceReplace;
     return MobileWorkspaceSearchResult.fromJson(
       await requestMap('mobile.workspaceSearch.run', <String, Object?>{
         'workspaceId': workspaceId,
@@ -76,8 +86,59 @@ mixin MobileRuntimeWorkspacePanelRequests
           'includePattern': includePattern.trim(),
         if (excludePattern != null && excludePattern.trim().isNotEmpty)
           'excludePattern': excludePattern.trim(),
+        if (withReplace && replacement != null && replacement.isNotEmpty) ...{
+          'replacement': replacement,
+          'preserveCase': preserveCase,
+        },
+        if (withReplace && requestId != null) 'requestId': requestId,
       }, _workspaceSearchTimeout),
     );
+  }
+
+  @override
+  Future<MobileWorkspaceReplaceResult> replaceWorkspaceMatches({
+    required String workspaceId,
+    required MobileWorkspaceSearchQuery search,
+    required String replacement,
+    bool preserveCase = false,
+    required List<String> matchIds,
+    required List<MobileWorkspaceSearchFile> expectedFiles,
+  }) async {
+    _requireCapability(supportsWorkspaceReplace, 'replace workspace matches');
+    return MobileWorkspaceReplaceResult.fromJson(
+      await requestMap('mobile.workspaceSearch.replace', <String, Object?>{
+        'workspaceId': workspaceId,
+        'query': search.query,
+        'caseSensitive': search.caseSensitive,
+        'wholeWord': search.wholeWord,
+        'useRegex': search.useRegex,
+        'includeIgnored': search.includeIgnored,
+        if (search.includePattern.trim().isNotEmpty)
+          'includePattern': search.includePattern.trim(),
+        if (search.excludePattern.trim().isNotEmpty)
+          'excludePattern': search.excludePattern.trim(),
+        'replacement': replacement,
+        'preserveCase': preserveCase,
+        'matchIds': matchIds,
+        'expectedFiles': <Object?>[
+          for (final file in expectedFiles)
+            <String, Object?>{
+              'relativePath': file.relativePath,
+              'contentToken': file.contentToken,
+            },
+        ],
+      }, _workspaceSearchTimeout),
+    );
+  }
+
+  @override
+  Future<void> cancelWorkspaceSearch(String requestId) async {
+    if (!supportsWorkspaceReplace) {
+      return;
+    }
+    await requestMap('mobile.workspaceSearch.cancel', <String, Object?>{
+      'requestId': requestId,
+    }, _workspacePanelTimeout);
   }
 
   @override

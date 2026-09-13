@@ -36,12 +36,13 @@ mixin FakeWorkspaceLifecycleClient {
     );
   }
 
-  Future<MobileViewPrefs> loadWorkbenchViewPrefs() async =>
-      const MobileViewPrefs();
+  MobileViewPrefs viewPrefs = const MobileViewPrefs();
+
+  Future<MobileViewPrefs> loadWorkbenchViewPrefs() async => viewPrefs;
 
   Future<MobileViewPrefs> updateWorkbenchViewPrefs(
     MobileViewPrefs prefs,
-  ) async => prefs.copyWith(revision: prefs.revision + 1);
+  ) async => viewPrefs = prefs.copyWith(revision: prefs.revision + 1);
 
   Future<List<AgentPresenceSummary>> listAgentPresence() async =>
       const <AgentPresenceSummary>[];

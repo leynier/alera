@@ -34,6 +34,7 @@ impl ServerActor {
             let result = handle_mobile_workspace_file_request(
                 runtime_store,
                 runtime_dir,
+                client_id,
                 &request_type,
                 &payload,
             )
@@ -82,6 +83,7 @@ impl ServerActor {
 async fn handle_mobile_workspace_file_request(
     runtime_store: RuntimeStore,
     runtime_dir: PathBuf,
+    client_id: u64,
     request_type: &str,
     payload: &Value,
 ) -> HostResult<Value> {
@@ -110,9 +112,13 @@ async fn handle_mobile_workspace_file_request(
             super::mobile_explorer_requests::list_mobile_workspace_explorer(&runtime_store, payload)
                 .await
         }
-        "mobile.workspaceSearch.run" => {
-            super::mobile_workspace_search_requests::search_mobile_workspace(
+        "mobile.workspaceSearch.run"
+        | "mobile.workspaceSearch.replace"
+        | "mobile.workspaceSearch.cancel" => {
+            super::mobile_workspace_search_requests::handle_mobile_workspace_search_request(
                 &runtime_store,
+                client_id,
+                request_type,
                 payload,
             )
             .await
