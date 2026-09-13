@@ -36,6 +36,19 @@ Future<bool> pullRequestDetailsGenerationSupported(
   };
 }
 
+/// Whether the runtime can Ship. Like generation, the snapshot's
+/// `aiAssistEnabled` still decides whether the button shows, because Ship
+/// writes its commit message with AI Assist.
+@riverpod
+Future<bool> pullRequestShipSupported(Ref ref, String hostId) async {
+  final client = await ref.watch(workspaceClientProvider(hostId).future);
+  return switch (client) {
+    final MobilePullRequestActionsClient actions =>
+      actions.supportsPullRequestShip,
+    _ => false,
+  };
+}
+
 /// The pull request write in flight for one workspace, or null when idle.
 ///
 /// Kept alive so a merge started just before the user leaves the panel still
