@@ -8,6 +8,7 @@ This file applies under `mobile/`. The root `AGENTS.md` also applies; this file 
 
 - The mobile companion app is a separate Flutter package (`alera_mobile`) so mobile plugins and manifests never leak into the desktop package at the repo root.
 - Source follows the desktop feature architecture: `lib/src/app/` (app shell and theme), `lib/src/core/` (protocol constants and payload parsing), `lib/src/design_system/` (presentational shared widgets with `@AleraPreview` previews), and `lib/src/features/<feature>/{domain,application,infra,presentation}`.
+- `AleraFileIcon` (`lib/src/design_system/icons/alera_file_icon.dart`) is a copy of the desktop widget, because `alera_mobile` has no dependency on the root package. Keep both copies and the `vscode_material_icon_theme` version in sync, so a path draws the same glyph on the phone and on the desktop. File rows use it rather than Material icons picked by extension.
 - Mobile UI values MUST come from the mobile `AleraTokens` (`lib/src/app/theme/alera_tokens.dart`) and `ThemeData`. The app is dark-only, Inter for general text and JetBrains Mono for monospaced text, matching the desktop rules.
 
 ## State Management

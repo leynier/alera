@@ -10,8 +10,8 @@ import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces
 import 'package:alera_mobile/src/features/updater/infra/mobile_external_browser.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/domain/workspace_markdown_uri_policy.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_app_bar_title.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_markdown_preview.dart';
-import 'package:alera_mobile/src/features/workbench/presentation/workspace_path_display.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
@@ -103,10 +103,7 @@ class _WorkspaceFileViewerScreenState
     final previewing = _mode == WorkspaceFileViewMode.preview;
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          workspaceFileBaseName(widget.relativePath),
-          overflow: .ellipsis,
-        ),
+        title: WorkspaceFileAppBarTitle(widget.relativePath),
         actions: <Widget>[
           if (isWorkspaceMarkdownPath(widget.relativePath))
             IconButton(

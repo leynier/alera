@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_codex_workspace.dart';
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
-import 'package:path/path.dart' as p;
 
 final Logger _logger = Logger('WorkspaceFilePickerSheet');
 
@@ -186,7 +186,10 @@ class _WorkspaceFilePickerSheetState extends State<WorkspaceFilePickerSheet> {
                     final match = _matches[index];
                     return ListTile(
                       minTileHeight: AleraTokens.minTapTarget,
-                      leading: Icon(workspaceFileIcon(match.relativePath)),
+                      leading: AleraFileIcon(
+                        pathOrName: match.relativePath,
+                        kind: .file,
+                      ),
                       title: Text(match.relativePath),
                       onTap: () =>
                           Navigator.of(context).pop(match.relativePath),
@@ -220,15 +223,3 @@ Future<String?> showWorkspaceFilePickerSheet(
     ),
   );
 }
-
-IconData workspaceFileIcon(String path) =>
-    switch (p.extension(path).toLowerCase()) {
-      '.dart' => Icons.flutter_dash,
-      '.rs' => Icons.settings_outlined,
-      '.md' || '.mdx' => Icons.description_outlined,
-      '.json' || '.yaml' || '.yml' || '.toml' => Icons.data_object,
-      '.png' || '.jpg' || '.jpeg' || '.gif' || '.webp' => Icons.image_outlined,
-      '.sql' => Icons.storage_outlined,
-      '.sh' || '.ps1' || '.bat' => Icons.terminal,
-      _ => Icons.insert_drive_file_outlined,
-    };

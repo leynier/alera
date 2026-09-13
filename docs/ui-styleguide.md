@@ -111,7 +111,7 @@ Experimental has a separate requested panel width, constrained at render time to
 Icons come from Lucide (`lucide_icons_flutter`), the same family Orca uses and the de-facto standard for modern developer tooling. Reference icons by semantic role through `AleraIcons` (e.g. `AleraIcons.delete`, `AleraIcons.gitBranch`), never raw `Icons.*` or `LucideIcons.*` at call sites.
 
 - `AleraIcons` (`lib/src/design_system/icons/alera_icons.dart`) is the single source of truth and the only entry point to `lucide_icons_flutter`. Add a new semantic role there rather than reaching for a glyph at the call site.
-- File-type icons in the explorer keep using `vscode_material_icon_theme` (the VSCode standard for file trees) via `AleraFileIcon`; its fallbacks resolve through `AleraIcons`.
+- File-type icons in the explorer keep using `vscode_material_icon_theme` (the VSCode standard for file trees) via `AleraFileIcon`; its fallbacks resolve through `AleraIcons`. The mobile app draws the same glyphs in Explorer, Source Control, Search, Quick Open, and the file and diff viewers through its own copy of `AleraFileIcon` (`mobile/lib/src/design_system/icons/alera_file_icon.dart`), pinned to the same package version.
 
 ## Reference Paths
 

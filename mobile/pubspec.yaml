@@ -52,6 +52,7 @@ dependencies:
   shared_preferences: ^2.5.5
   package_info_plus: ^10.2.1
   url_launcher: ^6.3.2
+  vscode_material_icon_theme: ^5.37.0
   web_socket_channel: ^3.0.3
   xterm2:
     path: ../third_party/xterm
