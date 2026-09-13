@@ -74,15 +74,28 @@ abstract interface class ManagedWorkspaceRuntime {
   });
 
   Future<WorkspaceCreationResult> handOffWorkspace({
+    String? relocationId,
     required Workspace workspace,
     required String branch,
     required bool reuseExistingBranch,
+    bool moveChanges = true,
+    String? replacementBranch,
     String? name,
   });
 
   Future<WorkspaceHandOnResult> handOnWorkspace({
+    String? relocationId,
     required Workspace workspace,
     String? activeWorkspaceId,
+  });
+}
+
+abstract interface class SharedWorkspaceRuntime {
+  Future<WorkspaceCreationResult> createSharedWorkspace({
+    required Project project,
+    String? name,
+    String? hostId,
+    String? issueUrl,
   });
 }
 
@@ -130,44 +143,6 @@ class WorkspaceService._(
     return _projectService.listGitBranches(project.repoPath);
   }
 
-  Future<Workspace> ensureMainWorkspace(Project project) async {
-    final existing = await _repository.listWorkspaces(project.id);
-    final branch = project.isGitRepository
-        ? await _currentBranch(project.repoPath)
-        : null;
-    final now = _now();
-    Workspace? mainWorkspace;
-    for (final workspace in existing) {
-      if (workspace.isMain) {
-        mainWorkspace = workspace;
-        break;
-      }
-    }
-    final next =
-        (mainWorkspace ??
-                Workspace(
-                  id: _uuid.v4(),
-                  projectId: project.id,
-                  name: project.name,
-                  branch: branch,
-                  path: project.repoPath,
-                  createdAt: now,
-                  updatedAt: now,
-                  kind: .main,
-                  status: .active,
-                ))
-            .copyWith(
-              branch: branch,
-              path: project.repoPath,
-              updatedAt: now,
-              kind: .main,
-              status: .active,
-              sourceBranch: null,
-            );
-    await _repository.upsertWorkspace(next);
-    return next;
-  }
-
   Future<Workspace> renameWorkspace({
     required String workspaceId,
     required String name,
@@ -183,6 +158,52 @@ class WorkspaceService._(
     final next = workspace.copyWith(name: trimmedName, updatedAt: _now());
     await _repository.upsertWorkspace(next);
     return next;
+  }
+
+  Future<WorkspaceCreationResult> createSharedWorkspace({
+    required Project project,
+    String? name,
+    String? hostId,
+    String? issueUrl,
+  }) async {
+    final runtime = _managedRuntime;
+    if (runtime is SharedWorkspaceRuntime) {
+      return (runtime as SharedWorkspaceRuntime).createSharedWorkspace(
+        project: project,
+        name: name,
+        hostId: hostId,
+        issueUrl: issueUrl,
+      );
+    }
+    if (runtime != null || normalizedRemoteHostId(hostId) != null) {
+      throw WorkspaceException(
+        'Update the runtime to create shared workspaces.',
+      );
+    }
+    final existing = await _repository.listWorkspaces(project.id);
+    var index = 1;
+    while (existing.any((workspace) => workspace.name == 'Workspace $index')) {
+      index += 1;
+    }
+    final now = _now();
+    final workspace = Workspace(
+      id: _uuid.v4(),
+      projectId: project.id,
+      name: name?.trim().isNotEmpty == true ? name!.trim() : 'Workspace $index',
+      path: project.repoPath,
+      branch: project.isGitRepository
+          ? await _currentBranch(project.repoPath)
+          : null,
+      createdAt: now,
+      updatedAt: now,
+      kind: .main,
+      status: .active,
+    );
+    await _repository.upsertWorkspace(workspace);
+    return WorkspaceCreationResult(
+      workspace: workspace,
+      setupReport: WorktreeSetupReport.empty,
+    );
   }
 
   Future<WorkspaceCreationResult> createLinkedWorkspace({
@@ -237,7 +258,10 @@ class WorkspaceService._(
 
     final workspaces = await _repository.listWorkspaces(project.id);
     if (workspaces.any(
-      (workspace) => workspace.isActive && workspace.branch == normalizedBranch,
+      (workspace) =>
+          workspace.isActive &&
+          normalizedRemoteHostId(workspace.hostId) == null &&
+          workspace.branch == normalizedBranch,
     )) {
       throw WorkspaceException(
         'A workspace for branch "$normalizedBranch" already exists',
@@ -249,7 +273,9 @@ class WorkspaceService._(
     final workspacePath = _resolveWorkspacePath(project, pathSlug);
     if (workspaces.any(
       (workspace) =>
-          workspace.isActive && p.equals(workspace.path, workspacePath),
+          workspace.isActive &&
+          normalizedRemoteHostId(workspace.hostId) == null &&
+          p.equals(workspace.path, workspacePath),
     )) {
       throw WorkspaceException(
         'A workspace already exists at "$workspacePath"',
@@ -340,15 +366,7 @@ class WorkspaceService._(
   }
 
   Future<List<Workspace>> reconcile(Project project) async {
-    final mainWorkspace = await ensureMainWorkspace(project);
     if (!project.supportsLinkedWorkspaces) {
-      final workspaces = await _repository.listWorkspaces(project.id);
-      for (final workspace in workspaces) {
-        if (workspace.id == mainWorkspace.id) {
-          continue;
-        }
-        await _repository.removeWorkspace(workspace.id, cascadeTabs: true);
-      }
       return _repository.listWorkspaces(project.id);
     }
     final liveWorktrees = await _listLiveWorktrees(project.repoPath);
@@ -358,14 +376,14 @@ class WorkspaceService._(
     // failure never hard-deletes live workspaces.
     final canPrune =
         liveWorktrees != null &&
-        liveWorktrees.containsKey(_canonicalPath(mainWorkspace.path));
+        liveWorktrees.containsKey(_canonicalPath(project.repoPath));
     for (final workspace in workspaces) {
-      if (workspace.id == mainWorkspace.id) {
+      if (workspace.isRemote) {
         continue;
       }
       final live = liveWorktrees?[_canonicalPath(workspace.path)];
       if (live == null) {
-        if (canPrune) {
+        if (canPrune && !workspace.isMain) {
           await _repository.removeWorkspace(workspace.id, cascadeTabs: true);
         }
         continue;

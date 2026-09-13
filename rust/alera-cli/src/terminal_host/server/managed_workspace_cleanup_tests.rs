@@ -252,6 +252,12 @@ async fn managed_workspace_legacy_removal_keeps_live_sessions() {
 async fn managed_workspace_cleanup_rejects_main_before_stopping_sessions() {
     let mut fixture = Fixture::new().await;
     fixture.workspace.kind = WorkspaceKind::Main;
+    fixture.workspace.path = fixture
+        ._root
+        .path()
+        .join("repo")
+        .to_string_lossy()
+        .into_owned();
     fixture
         .actor
         .runtime_store
@@ -266,6 +272,95 @@ async fn managed_workspace_cleanup_rejects_main_before_stopping_sessions() {
         .await;
     assert_eq!(response["ok"], false);
     assert!(fixture.actor.sessions["terminal"].running());
+}
+
+#[tokio::test]
+async fn shared_workspace_removal_preserves_checkout_sibling_and_other_processes() {
+    let mut fixture = Fixture::new().await;
+    fixture.workspace.kind = WorkspaceKind::Main;
+    fixture.workspace.path = fixture
+        ._root
+        .path()
+        .join("repo")
+        .to_string_lossy()
+        .into_owned();
+    fixture
+        .actor
+        .runtime_store
+        .upsert_workspace(fixture.workspace.clone())
+        .await
+        .unwrap();
+    let mut sibling = fixture.workspace.clone();
+    sibling.id = "another-workspace".into();
+    sibling.instance_id = "another-instance".into();
+    fixture
+        .actor
+        .runtime_store
+        .upsert_workspace(sibling)
+        .await
+        .unwrap();
+    let sentinel = Path::new(&fixture.workspace.path).join("unsaved-to-git.txt");
+    std::fs::write(&sentinel, "keep shared changes").unwrap();
+    let unprepared = fixture
+        .request(
+            "workspace.removeShared",
+            json!({"id": "workspace", "closeSessions": true, "deleteBranch": false}),
+        )
+        .await;
+    assert_eq!(unprepared["ok"], false);
+    assert!(unprepared["error"]
+        .as_str()
+        .unwrap()
+        .contains("bufferGuardId"));
+    assert!(fixture.actor.sessions["terminal"].running());
+    assert!(sentinel.exists());
+    let guard = fixture
+        .actor
+        .checkout_buffer_guard_request(
+            1,
+            "workspace.bufferGuard.acquire",
+            &json!({"id": "workspace", "operation": "removeShared"}),
+        )
+        .await
+        .unwrap();
+    let response = fixture
+        .request(
+            "workspace.removeShared",
+            json!({
+                "id": "workspace", "closeSessions": true, "deleteBranch": false,
+                "bufferGuardId": guard["guardId"],
+            }),
+        )
+        .await;
+    assert_eq!(response["ok"], true, "{response}");
+    assert_eq!(
+        std::fs::read_to_string(sentinel).unwrap(),
+        "keep shared changes"
+    );
+    assert!(Path::new(&fixture.workspace.path).join(".git").exists());
+    assert!(fixture
+        .actor
+        .runtime_store
+        .find_workspace("workspace")
+        .await
+        .unwrap()
+        .is_none());
+    assert!(fixture
+        .actor
+        .runtime_store
+        .find_workspace("another-workspace")
+        .await
+        .unwrap()
+        .is_some());
+    assert!(fixture
+        .actor
+        .runtime_store
+        .list_workspace_tabs("workspace")
+        .await
+        .unwrap()
+        .is_empty());
+    assert!(!fixture.actor.sessions.contains_key("terminal"));
+    assert!(fixture.actor.sessions["other"].running());
 }
 
 #[tokio::test]

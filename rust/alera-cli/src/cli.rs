@@ -7,6 +7,7 @@ mod agent_profile;
 mod automation;
 mod issue;
 mod mobile;
+mod project;
 mod text_source;
 mod workspace;
 
@@ -14,6 +15,7 @@ pub use agent_profile::*;
 pub use automation::*;
 pub use issue::*;
 pub use mobile::*;
+pub use project::*;
 pub use text_source::*;
 pub use workspace::*;
 
@@ -230,13 +232,6 @@ pub struct TerminalHostArgs {
     pub handoff_owner_start_marker: Option<u64>,
 }
 
-#[derive(Debug, Args)]
-pub struct AutomationHostArgs {
-    /// Runtime profile directory used by the automation host.
-    #[arg(long = "runtime-dir", value_name = "path")]
-    pub runtime_dir: String,
-}
-
 #[derive(Debug, Args, Clone)]
 pub struct RuntimeDirArgs {
     /// Runtime profile directory. Defaults to ALERA_RUNTIME_DIR or ~/.alera/runtime.
@@ -314,44 +309,6 @@ pub struct RuntimeAgentsChangeArgs {
     /// Apply the change to every supported agent.
     #[arg(long, conflicts_with = "agents")]
     pub all: bool,
-}
-
-#[derive(Debug, Args)]
-pub struct ProjectCommand {
-    #[command(flatten)]
-    pub runtime: RuntimeDirArgs,
-    #[command(flatten)]
-    pub output: OutputArgs,
-    #[command(subcommand)]
-    pub action: ProjectAction,
-}
-
-#[derive(Debug, Subcommand)]
-pub enum ProjectAction {
-    /// List all projects.
-    List,
-    /// Register a local project path.
-    Add(ProjectAddArgs),
-    /// Remove a project and runtime-owned child records.
-    Remove(IdArgs),
-}
-
-#[derive(Debug, Args)]
-pub struct ProjectAddArgs {
-    #[arg(long)]
-    pub id: Option<String>,
-    #[arg(long)]
-    pub name: String,
-    #[arg(long = "repo-path")]
-    pub repo_path: String,
-    #[arg(long, value_enum, default_value_t = ProjectKindArg::GitRepository)]
-    pub kind: ProjectKindArg,
-}
-
-#[derive(Debug, Clone, Copy, ValueEnum)]
-pub enum ProjectKindArg {
-    GitRepository,
-    Folder,
 }
 
 #[derive(Debug, Args)]

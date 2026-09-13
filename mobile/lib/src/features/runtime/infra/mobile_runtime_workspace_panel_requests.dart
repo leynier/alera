@@ -86,7 +86,7 @@ mixin MobileRuntimeWorkspacePanelRequests
           'includePattern': includePattern.trim(),
         if (excludePattern != null && excludePattern.trim().isNotEmpty)
           'excludePattern': excludePattern.trim(),
-        if (withReplace && replacement != null && replacement.isNotEmpty) ...{
+        if (withReplace && replacement != null) ...{
           'replacement': replacement,
           'preserveCase': preserveCase,
         },

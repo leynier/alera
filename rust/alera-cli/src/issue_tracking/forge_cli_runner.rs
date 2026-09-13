@@ -5,6 +5,9 @@ use std::time::Duration;
 use async_trait::async_trait;
 use tokio::time::timeout;
 
+#[path = "forge_cli_executable.rs"]
+mod executable;
+
 const FORGE_CLI_TIMEOUT: Duration = Duration::from_secs(45);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,7 +29,15 @@ pub struct SystemForgeCliRunner;
 #[async_trait]
 impl ForgeCliRunner for SystemForgeCliRunner {
     async fn run(&self, program: &str, args: &[String]) -> std::io::Result<ForgeCliOutput> {
-        let mut command = alera_core::child_process::windowless_async_command(program);
+        let path = crate::login_shell_environment::login_shell_variable("PATH").await;
+        let directories = path
+            .as_deref()
+            .map(std::env::split_paths)
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        let executable = executable::resolve(program, cfg!(windows), &directories);
+        let mut command = alera_core::child_process::windowless_async_command(executable);
         command
             .args(args)
             // Every fetch passes a full URL or organization, so the working
@@ -58,5 +69,24 @@ impl ForgeCliRunner for SystemForgeCliRunner {
             stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
             stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
         })
+    }
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn windows_forge_runner_executes_a_command_shim_with_literal_arguments() {
+        let root = tempfile::tempdir().unwrap();
+        let shim = root.path().join("forge fixture.cmd");
+        std::fs::write(&shim, "@echo off\r\necho %~1\r\n").unwrap();
+        let argument = "work item with spaces";
+        let output = SystemForgeCliRunner
+            .run(shim.to_str().unwrap(), &[argument.into()])
+            .await
+            .unwrap();
+        assert_eq!(output.code, 0);
+        assert_eq!(output.stdout.trim(), argument);
     }
 }

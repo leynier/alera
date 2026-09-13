@@ -12,6 +12,50 @@ use super::{account_requests, push_delivery, runtime_mutations, ClientKind};
 /// Messages processed serially by the single server actor. Every state mutation
 /// happens here, which keeps session/client transitions deterministic.
 pub enum ServerCommand {
+    OwnerAutomationPrecheckFinished {
+        operation_id: String,
+    },
+    AutomationPrecheckFinished {
+        definition: Box<alera_core::runtime::AutomationDefinition>,
+        run: Box<alera_core::runtime::AutomationRun>,
+        host_id: String,
+        path: String,
+        result: Result<bool, String>,
+    },
+    AutomationCheckoutPrepared {
+        definition: Box<alera_core::runtime::AutomationDefinition>,
+        run: Box<alera_core::runtime::AutomationRun>,
+        project: Box<alera_core::runtime::Project>,
+        result: HostResult<alera_core::runtime::Workspace>,
+    },
+    RemoteTerminalLifecycleFinished {
+        client_id: u64,
+        request_id: i64,
+        verb: String,
+        payload: Value,
+        result: HostResult<alera_core::runtime::TerminalLifecycleOperation>,
+    },
+    OwnerTerminalLifecycleFinished {
+        client_id: u64,
+        request_id: i64,
+        operation_id: String,
+        shutdown: crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown,
+        result: HostResult<Value>,
+    },
+    RemoteSetupFinished {
+        client_id: u64,
+        request_id: i64,
+        operation: &'static str,
+        result: HostResult<Value>,
+    },
+    RemoteRecoveryFinished {
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
+    },
+    BufferGuardExpired {
+        id: String,
+    },
     RelayActivity {
         generation: u64,
         at: chrono::DateTime<chrono::Utc>,
@@ -84,6 +128,11 @@ pub enum ServerCommand {
         target_id: String,
         job_id: String,
         status: SshBootstrapStatus,
+    },
+    ProjectCheckoutRegistered {
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
     },
     ManagedWorkspaceCreated {
         client_id: u64,
@@ -237,6 +286,10 @@ pub enum ServerCommand {
     },
     /// Wakes the durable automation scheduler to evaluate due occurrences.
     AutomationTick,
+    AutomationSharedCleanupFinished {
+        attempt: Box<alera_core::runtime::AutomationCleanupAttempt>,
+        result: Result<Value, String>,
+    },
     /// A notification or server request emitted by the shared Codex process.
     CodexMessage {
         #[allow(dead_code)]

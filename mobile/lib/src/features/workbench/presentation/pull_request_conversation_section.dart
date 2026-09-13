@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 class const PullRequestConversationSection({
   super.key,
   required final List<MobilePullRequestComment> comments,
+  final bool truncated = false,
   final DateTime? now,
   final Future<bool> Function(Uri url) openUrl = openMobileExternalBrowser,
 }) extends StatefulWidget {
@@ -94,7 +95,15 @@ class _PullRequestConversationSectionState
                   ],
                 ),
         ),
-        if (conversation.isEmpty)
+        if (widget.truncated)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+            child: Text(
+              'Some comments are omitted. Open the pull request in your browser for the full conversation.',
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+        if (conversation.isEmpty && !widget.truncated)
           Text('No comments yet.', style: theme.textTheme.bodySmall)
         else
           for (final (index, entry)

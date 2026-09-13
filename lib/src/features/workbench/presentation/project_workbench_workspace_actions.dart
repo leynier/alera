@@ -22,6 +22,7 @@ const String _clearSectionAction = 'clear-section';
 const String _removeAction = 'remove';
 const String _handOffAction = 'hand-off';
 const String _handOnAction = 'hand-on';
+const String _recoveryAction = 'workspace-recovery';
 
 /// Builds the right-click menu entries for a workspace row. [hasClearParent]
 /// gates the "Clear Parent Workspace" item and [canRemove] disables the remove
@@ -56,6 +57,11 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
         value: _handOnAction,
         leading: Icon(AleraIcons.workspaceMain, size: 16),
         label: 'Hand On',
+      ),
+    if (canHandOff || canHandOn)
+      const AleraDropdownEntry<String>(
+        value: _recoveryAction,
+        label: 'Workspace Recovery',
       ),
     AleraDropdownEntry<String>(
       value: _togglePinAction,

@@ -1,3 +1,4 @@
+import 'package:alera/src/features/pull_requests/domain/review_comment_load.dart';
 import 'package:alera/src/features/pull_requests/application/base_branch_resolver.dart';
 import 'package:alera/src/features/pull_requests/application/forge_exception.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
@@ -143,6 +144,7 @@ class const WorkspacePullRequestLoader(
         mergeMethodsErrorMessage: mergeMethodsError,
         checks: checks,
         comments: comments,
+        commentsComplete: reviewCommentsComplete(comments),
         linkedManually: linkedManually,
         dismissed: dismissed,
         currentBranch: branch,

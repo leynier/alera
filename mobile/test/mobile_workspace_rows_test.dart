@@ -133,7 +133,7 @@ void main() {
     expect(_workspaceIds(rows), <String>['codex', 'terminal']);
   });
 
-  test('Composes project, tag, kind, and normalized search filters', () {
+  test('Composes project, tag, and search filters without hiding shared tasks through retired kind preferences', () {
     final now = DateTime.utc(2026, 7, 18, 12);
     final rows = buildMobileWorkspaceRows(
       workspaces: <WorkspaceSummary>[
@@ -146,7 +146,7 @@ void main() {
         ),
         _workspace('wrong-tag', now, projectId: 'p1'),
         _workspace(
-          'wrong-kind',
+          'shared',
           now,
           projectId: 'p1',
           kind: 'main',
@@ -167,7 +167,7 @@ void main() {
       now: now,
     );
 
-    expect(_workspaceIds(rows), <String>['kept']);
+    expect(_workspaceIds(rows), <String>['kept', 'shared']);
   });
 
   test('Inactive projects sort alphabetically after active projects', () {

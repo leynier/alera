@@ -42,7 +42,7 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
   // Tracks which project each workspace-tab subscription belongs to, so subs
   // can be pruned by project without relying on the (already-mutated) state.
   final Map<String, String> _tabSubProjectIds = <String, String>{};
-  final Set<String> _ensuringMainWorkspaceProjectIds = <String>{};
+  final Set<String> _reconcilingProjectIds = <String>{};
   final Set<String> _loadingLayoutWorkspaceIds = <String>{};
   final Set<String> _closingTabWorkspaceIds = <String>{};
   final Set<String> _workspaceIdsWithClearedLayout = <String>{};
@@ -199,7 +199,7 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
   }
 
   Future<void> _activateAddedProject(Project project) async {
-    await _ensureMainWorkspaceForProject(project);
+    await _reconcileProjectWorkspaces(project);
     // Expand the project (remove from collapsed set if a stale id lingered).
     // Selection set is a positive filter - leave it untouched so we don't
     // accidentally start showing this brand-new project alone.
@@ -433,12 +433,11 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     _tabFocusHistory.record(workspaceId, tabId);
   }
 
-  Future<void> _ensureMainWorkspaceForProject(Project project) async {
-    if (!_ensuringMainWorkspaceProjectIds.add(project.id)) {
+  Future<void> _reconcileProjectWorkspaces(Project project) async {
+    if (!_reconcilingProjectIds.add(project.id)) {
       return;
     }
     try {
-      await _workspaceService.ensureMainWorkspace(project);
       await _workspaceService.reconcile(project);
     } catch (error) {
       if (!_disposed) {
@@ -447,7 +446,7 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
         );
       }
     } finally {
-      _ensuringMainWorkspaceProjectIds.remove(project.id);
+      _reconcilingProjectIds.remove(project.id);
     }
   }
 

@@ -108,3 +108,89 @@ async fn workspace_removal_drops_the_link() {
     assert_eq!(remaining.len(), 1);
     assert_eq!(remaining[0].workspace_id, "b");
 }
+
+#[tokio::test]
+async fn metadata_refresh_cannot_restore_or_replace_a_changed_link() {
+    let (_dir, store) = store().await;
+    store.upsert_project(project("p")).await.unwrap();
+    store.upsert_workspace(workspace("a", "p")).await.unwrap();
+    let original = store.upsert_linked_issue(issue("a")).await.unwrap();
+    let refreshed = LinkedIssue {
+        title: Some("Fresh metadata".into()),
+        ..original.clone()
+    };
+    assert_eq!(
+        store
+            .update_linked_issue_metadata(refreshed.clone())
+            .await
+            .unwrap(),
+        Some(refreshed.clone())
+    );
+    store.remove_linked_issue("a").await.unwrap();
+    assert!(store
+        .update_linked_issue_metadata(refreshed.clone())
+        .await
+        .unwrap()
+        .is_none());
+    assert!(store.find_linked_issue("a").await.unwrap().is_none());
+    for replacement in [
+        LinkedIssue {
+            url: "https://github.com/leynier/alera/issues/759".into(),
+            ..original.clone()
+        },
+        LinkedIssue {
+            linked_at: original.linked_at + chrono::Duration::seconds(1),
+            ..original
+        },
+    ] {
+        let replacement = store.upsert_linked_issue(replacement).await.unwrap();
+        assert!(store
+            .update_linked_issue_metadata(refreshed.clone())
+            .await
+            .unwrap()
+            .is_none());
+        assert_eq!(
+            store.find_linked_issue("a").await.unwrap(),
+            Some(replacement)
+        );
+    }
+}
+
+#[tokio::test]
+async fn failed_refresh_preserves_concurrent_success_and_cannot_restore_a_link() {
+    let (_dir, store) = store().await;
+    store.upsert_project(project("p")).await.unwrap();
+    store.upsert_workspace(workspace("a", "p")).await.unwrap();
+    let original = store.upsert_linked_issue(issue("a")).await.unwrap();
+    let refreshed = LinkedIssue {
+        title: Some("New title".into()),
+        state: Some("closed".into()),
+        state_label: Some("Closed".into()),
+        fetched_at: Some(original.fetched_at.unwrap() + chrono::Duration::seconds(1)),
+        ..original.clone()
+    };
+    store
+        .update_linked_issue_metadata(refreshed.clone())
+        .await
+        .unwrap();
+    let failed = LinkedIssue {
+        fetch_error: Some("Timed out".into()),
+        ..original
+    };
+    assert_eq!(
+        store
+            .update_linked_issue_fetch_error(&failed)
+            .await
+            .unwrap(),
+        Some(LinkedIssue {
+            fetch_error: failed.fetch_error.clone(),
+            ..refreshed
+        })
+    );
+    store.remove_linked_issue("a").await.unwrap();
+    assert!(store
+        .update_linked_issue_fetch_error(&failed)
+        .await
+        .unwrap()
+        .is_none());
+}

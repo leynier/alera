@@ -37,6 +37,7 @@ impl ServerActor {
         if self.mutation_queue.has_runtime_mutations() {
             return;
         }
+        self.recover_automation_shared_cleanups().await;
         let maintenance_now = Utc::now();
         if let Err(error) = self
             .runtime_store
@@ -348,6 +349,21 @@ impl ServerActor {
         }
     }
 }
+
+#[path = "automation_checkout_preparation.rs"]
+mod automation_checkout_preparation;
+#[path = "automation_local_precheck.rs"]
+pub(super) mod automation_local_precheck;
+#[path = "automation_owner_precheck_requests.rs"]
+mod automation_owner_precheck_requests;
+#[path = "automation_precheck_authorization.rs"]
+pub(super) mod automation_precheck_authorization;
+#[path = "automation_precheck_command_owner.rs"]
+mod automation_precheck_command_owner;
+#[path = "automation_precheck_execution.rs"]
+mod automation_precheck_execution;
+#[path = "automation_project_checkout_dispatch.rs"]
+mod automation_project_checkout_dispatch;
 
 #[path = "automation_dispatch_execution.rs"]
 mod automation_dispatch_execution;

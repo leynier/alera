@@ -16,7 +16,9 @@ use crate::terminal_host::protocol::event;
 
 use super::mobile_pull_request_failures::{gh_failure, gh_missing};
 use super::mobile_pull_request_identity::{parse_github_identity, GitHubIdentity};
-use super::mobile_pull_request_links::{parse_review_reference, save_link};
+use super::mobile_pull_request_links::{
+    parse_review_reference, save_link, workspace_review_reference,
+};
 use super::mobile_pull_request_requests::{run_gh, snapshot_mobile_pull_request, view_review};
 use super::mobile_workspace_file_requests::workspace_for_mobile_file_request;
 use super::requests::{optional_string_key, require_string_key};
@@ -126,8 +128,7 @@ async fn run_mobile_pull_request_action(
     let _busy = BusyGuard::acquire(&workspace.id)?;
     match action {
         Action::Link { reference } => {
-            let number = parse_review_reference(&reference)
-                .ok_or_else(|| HostError::state("Enter a pull request number or URL."))?;
+            let number = workspace_review_reference(&reference, &identity)?;
             let review = view_review(&workspace.path, &identity.slug, number)
                 .await?
                 .ok_or_else(|| {
@@ -164,7 +165,19 @@ async fn run_mobile_pull_request_action(
             run_checked(&workspace.path, &gh_args(&action, &identity, "")).await?;
         }
     }
-    snapshot_mobile_pull_request(store, payload).await
+    Ok(completed_action_snapshot(
+        snapshot_mobile_pull_request(store, payload).await,
+    ))
+}
+
+fn completed_action_snapshot(snapshot: HostResult<Value>) -> Value {
+    match snapshot {
+        Ok(mut snapshot) => {
+            snapshot["mutationApplied"] = json!(true);
+            snapshot
+        }
+        Err(error) => json!({"mutationApplied": true, "refreshError": error.to_string()}),
+    }
 }
 
 pub(super) fn parse_action(request_type: &str, payload: &Value) -> HostResult<Action> {

@@ -37,6 +37,21 @@ Future<PromptWorkspaceCreateOutcome> runPromptWorkspaceCreate({
   void Function(String? operationId)? onOperationId,
   void Function(WorkspaceCreationResult creation)? onWorkspaceCreated,
 }) async {
+  if (request.useProjectCheckout && request.created == null) {
+    if (!requireSharedCheckoutClient(client).supportsSharedCheckoutWorkspaces) {
+      throw UnsupportedError(
+        'Update Alera on this host to create tasks in the project folder.',
+      );
+    }
+  }
+  if (request.checkoutHostId != null &&
+      request.checkoutHostId != 'local' &&
+      request.localAttachmentPaths.any(request.prompt.contains)) {
+    throw StateError(
+      'Uploaded attachments are on the paired device. Remove their paths '
+      'or select Paired Device before creating the workspace.',
+    );
+  }
   final prompt = request.prompt.trim();
   if (prompt.isEmpty) {
     throw StateError(
@@ -63,24 +78,37 @@ Future<PromptWorkspaceCreateOutcome> runPromptWorkspaceCreate({
     } finally {
       onOperationId?.call(null);
     }
-    onPhase?.call('Checking generated branch');
-    final branches = await client.listBranches(request.projectId);
-    if (request.workspaceBranches.contains(identity.branchName) ||
-        branches.branches.contains(identity.branchName)) {
-      collisionError = StateError(
-        'The generated branch "${identity.branchName}" already exists.',
+    if (!request.useProjectCheckout) {
+      onPhase?.call('Checking generated branch');
+      final branches = await client.listBranches(
+        request.projectId,
+        checkoutHostId: request.checkoutHostId,
       );
-      continue;
+      if (request.workspaceBranches.contains(identity.branchName) ||
+          branches.branches.contains(identity.branchName)) {
+        collisionError = StateError(
+          'The generated branch "${identity.branchName}" already exists.',
+        );
+        continue;
+      }
     }
     onPhase?.call('Creating workspace');
     try {
-      final created = await client.createManagedWorkspace(
-        projectId: request.projectId,
-        branch: identity.branchName,
-        sourceBranch: request.sourceBranch,
-        name: identity.workspaceName,
-        issueUrl: request.issueUrl,
-      );
+      final created = request.useProjectCheckout
+          ? await requireSharedCheckoutClient(client).createSharedWorkspace(
+              projectId: request.projectId,
+              checkoutHostId: request.checkoutHostId,
+              name: identity.workspaceName,
+              issueUrl: request.issueUrl,
+            )
+          : await client.createManagedWorkspace(
+              projectId: request.projectId,
+              checkoutHostId: request.checkoutHostId,
+              branch: identity.branchName,
+              sourceBranch: request.sourceBranch,
+              name: identity.workspaceName,
+              issueUrl: request.issueUrl,
+            );
       creation = created;
       final parentId = request.parentWorkspaceId?.trim();
       if (parentId != null && parentId.isNotEmpty) {

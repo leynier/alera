@@ -22,6 +22,7 @@ import 'package:alera/src/features/workbench/application/workspace_file_service.
 import 'package:alera/src/features/workbench/application/workspace_folder_opener.dart';
 import 'package:alera/src/features/workbench/application/workspace_graph_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
+import 'package:alera/src/features/workbench/application/workspace_removal_dependencies.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
@@ -53,6 +54,7 @@ part 'alera_shell_page_sidebar_states_test_cases.dart';
 part 'alera_shell_page_workspace_removal_test_cases.dart';
 part 'alera_shell_page_sidebar_titles_test_cases.dart';
 part 'alera_shell_page_pinning_test_cases.dart';
+part 'alera_shell_page_project_removal_test_cases.dart';
 part 'alera_shell_page_sidebar_identity_test_cases.dart';
 
 Future<AleraDatabase> _openMemoryDb() async {
@@ -63,6 +65,7 @@ Future<_ShellPumpHarness> _pumpShell(
   WidgetTester tester, {
   required WorkbenchState state,
   _FakeTerminalRuntime? terminalRuntime,
+  _FakeManagedWorkspaceRuntime? managedRuntime,
   WorkspaceFolderOpener? workspaceFolderOpener,
   _ShellTestWorkbenchController? controller,
   EditorSessionRegistry? editorSessionRegistry,
@@ -92,7 +95,7 @@ Future<_ShellPumpHarness> _pumpShell(
               AgentQuotaState.empty(state.activeWorkspace?.hostId ?? 'local'),
         ),
         managedWorkspaceRuntimeProvider.overrideWithValue(
-          const _FakeManagedWorkspaceRuntime(),
+          managedRuntime ?? const _FakeManagedWorkspaceRuntime(),
         ),
         sshTargetRepositoryProvider.overrideWithValue(
           RuntimeSshTargetRepository(_ShellRuntimeHostClient()),
@@ -134,6 +137,7 @@ class _ShellAgentProfiles extends AgentProfiles {
 void main() {
   _registerAleraShellWorkbenchTests();
   _registerAleraShellSidebarActionTests();
+  _registerProjectRemovalDependencyTests();
   _registerAleraShellSidebarMutationTests();
   _registerAleraShellSidebarStateTests();
   _registerAleraShellWorkspaceRemovalTests();

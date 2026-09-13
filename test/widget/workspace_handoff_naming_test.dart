@@ -39,13 +39,17 @@ void main() {
     });
     expect(find.text('fix/generated'), findsOneWidget);
     await tester.enterText(find.byType(TextField).first, 'fix/manual');
+    await tester.ensureVisible(find.text('Confirm Shared Impact'));
+    await tester.tap(find.text('Confirm Shared Impact'));
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Hand Off'));
     await tester.tap(find.widgetWithText(FilledButton, 'Hand Off'));
     await tester.pumpAndSettle();
     expect(result?.branch, 'fix/manual');
     expect(result?.reuseExistingBranch, isFalse);
   });
 
-  testWidgets('branch named main is reused when actual default is trunk', (
+  testWidgets('moving main requires choosing it and a replacement explicitly', (
     tester,
   ) async {
     WorkspaceHandOffRequest? result;
@@ -61,7 +65,14 @@ void main() {
         },
       );
     });
-    expect(generations, 0);
+    expect(generations, 1);
+    await tester.enterText(find.byType(TextField).first, 'main');
+    await tester.pump();
+    await tester.enterText(find.byType(TextField).at(1), 'trunk');
+    await tester.ensureVisible(find.text('Confirm Shared Impact'));
+    await tester.tap(find.text('Confirm Shared Impact'));
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Hand Off'));
     await tester.tap(find.widgetWithText(FilledButton, 'Hand Off'));
     await tester.pumpAndSettle();
     expect(result?.branch, 'main');
@@ -90,6 +101,7 @@ void main() {
       expect(find.text('fix/manual'), findsOneWidget);
       expect(find.text('fix/stale'), findsNothing);
       final beforeClose = cancelled;
+      await tester.ensureVisible(find.text('Cancel'));
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
       expect(cancelled, greaterThan(beforeClose));
@@ -112,11 +124,20 @@ void main() {
       });
       expect(find.textContaining('AI Assist failed'), findsOneWidget);
       await tester.enterText(find.byType(TextField).first, 'fix/taken');
+      await tester.ensureVisible(find.text('Confirm Shared Impact'));
+      await tester.tap(find.text('Confirm Shared Impact'));
+      await tester.pump();
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Hand Off'));
       await tester.tap(find.widgetWithText(FilledButton, 'Hand Off'));
       await tester.pumpAndSettle();
       expect(find.text('Branch already exists'), findsOneWidget);
       expect(result, isNull);
       await tester.enterText(find.byType(TextField).first, 'fix/available');
+      await tester.pump();
+      await tester.ensureVisible(find.text('Confirm Shared Impact'));
+      await tester.tap(find.text('Confirm Shared Impact'));
+      await tester.pump();
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Hand Off'));
       await tester.tap(find.widgetWithText(FilledButton, 'Hand Off'));
       await tester.pumpAndSettle();
       expect(result?.branch, 'fix/available');
@@ -127,17 +148,28 @@ void main() {
     tester,
   ) async {
     final validation = Completer<String?>();
+    var validationStarted = false;
     WorkspaceHandOffRequest? result;
     await open(tester, (context) async {
       result = await showWorkspaceHandOffDialog(
         context: context,
         currentBranch: 'feature',
         defaultBranch: 'main',
-        validateBranch: (_) => validation.future,
+        validateBranch: (_) {
+          validationStarted = true;
+          return validation.future;
+        },
       );
     });
+    await tester.enterText(find.byType(TextField).first, 'fix/initial');
+    await tester.pump();
+    await tester.ensureVisible(find.text('Confirm Shared Impact'));
+    await tester.tap(find.text('Confirm Shared Impact'));
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Hand Off'));
     await tester.tap(find.widgetWithText(FilledButton, 'Hand Off'));
     await tester.pump();
+    expect(validationStarted, isTrue);
     await tester.enterText(find.byType(TextField).first, 'fix/changed');
     validation.complete(null);
     await tester.pumpAndSettle();

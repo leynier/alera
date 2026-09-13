@@ -1,4 +1,5 @@
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/domain/project_branch_catalog.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -8,6 +9,49 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets(
+    'changing host reloads branch choices and validates against that owner',
+    (tester) async {
+      final loads = <String>[];
+      String? source;
+      await _pumpDialog(
+        tester,
+        sshTargets: [_target(id: 'ssh-box', alias: 'Build Mac')],
+        onHostId: (_) {},
+        onSourceBranch: (value) => source = value,
+        loadHostBranchCatalog: (project, hostId) async {
+          final host = hostId ?? 'local';
+          loads.add(host);
+          final branches = host == 'local' ? ['local-only'] : ['remote-only'];
+          return ProjectBranchCatalog(
+            projectId: project.id,
+            hostId: host,
+            branches: branches,
+            localBranches: branches.toSet(),
+          );
+        },
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('This Device'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Build Mac'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New Branch Name *'),
+        'local-only',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Branch "local-only" already exists'), findsNothing);
+      await tester.tap(find.text('Create Workspace'));
+      await tester.pumpAndSettle();
+      expect(loads, containsAll(['local', 'ssh-box']));
+      expect(source, 'remote-only');
+    },
+  );
+
   testWidgets('New Workspace submits the selected remote host', (tester) async {
     String? submittedHostId;
     await _pumpDialog(
@@ -111,6 +155,9 @@ Future<void> _pumpDialog(
   WidgetTester tester, {
   required List<SshTarget> sshTargets,
   required ValueChanged<String?> onHostId,
+  ValueChanged<String>? onSourceBranch,
+  Future<ProjectBranchCatalog> Function(Project, String?)?
+  loadHostBranchCatalog,
 }) async {
   final now = DateTime.utc(2026, 9, 8);
   final project = Project(
@@ -133,6 +180,7 @@ Future<void> _pumpDialog(
                     builder: (_) => CreateWorkspaceDialog(
                       projects: <Project>[project],
                       sshTargets: sshTargets,
+                      loadHostBranchCatalog: loadHostBranchCatalog,
                       loadBranches: (_) async => const <String>['main'],
                       checkBranchExists: (_, _) async => false,
                       getProjectActiveBranch: (_) => null,
@@ -149,6 +197,7 @@ Future<void> _pumpDialog(
                             issueUrl,
                           }) async {
                             onHostId(hostId);
+                            onSourceBranch?.call(sourceBranch);
                             return WorkspaceCreationResult(
                               workspace: Workspace(
                                 id: 'workspace-1',

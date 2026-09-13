@@ -1,6 +1,6 @@
+use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
-use std::time::UNIX_EPOCH;
 
 use super::{WorkspaceSearchError, WorkspaceSearchErrorKind, PROTECTED_NAMES};
 
@@ -82,12 +82,6 @@ fn is_protected_workspace_path(root: &Path, path: &Path) -> bool {
     })
 }
 
-pub(super) fn content_token(metadata: &fs::Metadata) -> String {
-    let modified = metadata
-        .modified()
-        .ok()
-        .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
-        .map(|duration| duration.as_millis())
-        .unwrap_or(0);
-    format!("{}:{modified}", metadata.len())
+pub(super) fn content_token(content: &str) -> String {
+    format!("sha256:{}", hex::encode(Sha256::digest(content.as_bytes())))
 }

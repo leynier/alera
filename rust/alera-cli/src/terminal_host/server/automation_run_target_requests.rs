@@ -57,6 +57,14 @@ impl ServerActor {
         else {
             return;
         };
+        if automation.target.project_checkout().is_some() {
+            if automation.cleanup_policy
+                == Some(alera_core::runtime::AutomationCleanupPolicy::OnSuccess)
+            {
+                self.start_automation_shared_cleanup(run).await;
+            }
+            return;
+        }
         let mut taken_over = run.taken_over;
         if run.owned_tab {
             taken_over |= !self
@@ -420,7 +428,7 @@ pub(super) fn requested_target_identity(payload: &Value) -> HostResult<Automatio
     Ok(identity)
 }
 
-fn is_durable_lifecycle_fallback(result: &HostResult<()>) -> bool {
+pub(super) fn is_durable_lifecycle_fallback(result: &HostResult<()>) -> bool {
     result.as_ref().err().is_some_and(|error| {
         matches!(
             error.wire_message().as_str(),

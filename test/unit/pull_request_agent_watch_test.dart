@@ -16,6 +16,25 @@ const _session = PullRequestAgentWatchSession(
 
 void main() {
   group('evaluatePullRequestAgentWatch', () {
+    test('waits for complete comments before merging passing checks', () {
+      for (final complete in [false, true]) {
+        final result = evaluatePullRequestAgentWatch(
+          session: _mergeSession(),
+          snapshot: pullRequestWatchSnapshot(
+            rollup: .success,
+            mergeable: .mergeable,
+            commentsComplete: complete,
+          ),
+        );
+        expect(
+          result.action,
+          complete
+              ? PullRequestAgentWatchAction.merge
+              : PullRequestAgentWatchAction.none,
+        );
+      }
+    });
+
     test('dispatches once per failing head sha', () {
       final snapshot = pullRequestWatchSnapshot(rollup: .failure);
       final first = evaluatePullRequestAgentWatch(

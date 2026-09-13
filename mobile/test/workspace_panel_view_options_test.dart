@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/design_system/forms/alera_search_field.dart';
 import 'package:alera_mobile/src/app/theme/alera_theme.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
@@ -13,6 +14,46 @@ import 'package:flutter_test/flutter_test.dart';
 import 'support/fake_terminal_client.dart';
 
 void main() {
+  testWidgets(
+    'source control restores the active filter after header remount',
+    (tester) async {
+      final client = _panelClient()
+        ..gitStatusSnapshot = MobileGitStatusSnapshot(
+          isRepository: true,
+          branch: 'main',
+          entries: [
+            for (var index = 0; index < 60; index++)
+              MobileGitChange(
+                path: 'file$index.txt',
+                area: 'unstaged',
+                status: 'modified',
+              ),
+          ],
+        );
+      addTearDown(client.dispose);
+      await _pumpWorkspace(tester, client, surface: const Size(390, 844));
+      await _openWorkspacePanel(tester, 'Source Control');
+      await tester.tap(find.byTooltip('Filter Files'));
+      await tester.pumpAndSettle();
+      final input = find.descendant(
+        of: find.byType(AleraSearchField),
+        matching: find.byType(TextField),
+      );
+      await tester.enterText(input, 'file');
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView).last, const Offset(0, -4000));
+      await tester.pumpAndSettle();
+      expect(find.byType(AleraSearchField), findsNothing);
+      await tester.drag(find.byType(ListView).last, const Offset(0, 4000));
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(input).controller!.text, 'file');
+      await tester.tap(find.byTooltip('Clear'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(input).controller!.text, isEmpty);
+    },
+  );
+
   testWidgets('source control tree view nests files and collapses', (
     tester,
   ) async {

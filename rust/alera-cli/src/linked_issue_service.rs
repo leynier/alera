@@ -86,14 +86,7 @@ pub async fn refresh_linked_issue(
         });
     }
     let fetched = fetch_issue(&reference, runner).await;
-    let current = store.find_linked_issue(&record.workspace_id).await?;
-    let Some(current) = current.filter(|current| current.url == record.url) else {
-        return Ok(LinkedIssueOutcome {
-            linked_issue: record,
-            issue: fetched.as_ref().ok().cloned(),
-            fetch_error: fetched.err(),
-        });
-    };
+    let current = record.clone();
     let (updated, issue, fetch_error) = match fetched {
         Ok(issue) => (
             LinkedIssue {
@@ -118,7 +111,12 @@ pub async fn refresh_linked_issue(
             Some(error),
         ),
     };
-    let linked_issue = store.upsert_linked_issue(updated).await?;
+    let linked_issue = if fetch_error.is_some() {
+        store.update_linked_issue_fetch_error(&updated).await?
+    } else {
+        store.update_linked_issue_metadata(updated).await?
+    }
+    .unwrap_or(record);
     Ok(LinkedIssueOutcome {
         linked_issue,
         issue,

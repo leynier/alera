@@ -18,7 +18,7 @@ use super::{
 
 pub(super) fn run_search(
     compiled: &CompiledSearch,
-    full_lines: bool,
+    omit_lines: bool,
     cancellation: Option<&AtomicBool>,
 ) -> Result<WorkspaceSearchResult, WorkspaceSearchError> {
     let mut files = Vec::<WorkspaceSearchFileResult>::new();
@@ -96,7 +96,7 @@ pub(super) fn run_search(
             &relative_path,
             &text,
             compiled,
-            full_lines,
+            omit_lines,
             &mut total_matches,
             &mut truncated,
             cancellation,
@@ -104,7 +104,7 @@ pub(super) fn run_search(
         if !matches.is_empty() {
             files.push(WorkspaceSearchFileResult {
                 relative_path,
-                content_token: content_token(&metadata),
+                content_token: content_token(&text),
                 matches,
             });
         }
@@ -121,7 +121,7 @@ fn matches_in_file(
     relative_path: &str,
     text: &str,
     compiled: &CompiledSearch,
-    full_lines: bool,
+    omit_lines: bool,
     total_matches: &mut u32,
     truncated: &mut bool,
     cancellation: Option<&AtomicBool>,
@@ -147,9 +147,9 @@ fn matches_in_file(
                 let column = line[..start].chars().count() as u32 + 1;
                 let match_length = line[start..end].chars().count() as u32;
                 let line_number = line_index as u32 + 1;
-                let clamped = if full_lines {
+                let clamped = if omit_lines {
                     LinePreview {
-                        line_content: line.to_string(),
+                        line_content: String::new(),
                         display_column: None,
                         display_match_length: None,
                     }

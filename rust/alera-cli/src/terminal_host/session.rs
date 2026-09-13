@@ -34,7 +34,7 @@ mod termination;
 mod tests;
 mod title_tracker;
 #[cfg(windows)]
-mod windows_process_job;
+pub(crate) mod windows_process_job;
 pub(crate) mod workspace_shutdown;
 
 #[cfg(test)]
@@ -56,6 +56,8 @@ fn resumed_output_stream_bytes(previous: u64, scrollback_len: usize) -> u64 {
 /// A message produced by a session's PTY reader thread.
 #[derive(Debug)]
 pub enum PtyEvent {
+    #[cfg(unix)]
+    BeforeReap,
     Output(Vec<u8>),
     #[cfg(windows)]
     ChildExited,

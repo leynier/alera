@@ -18,6 +18,7 @@ pub use containment::{contained_workspace_relative_path, ContainedWorkspacePath}
 pub use listing::{list_workspace_children, WorkspaceExplorerEntry, WorkspaceExplorerEntryKind};
 pub use prompts::{list_codex_saved_prompts, CodexSavedPrompt, CodexSavedPromptScope};
 pub use quick_open::{
+    collect_workspace_quick_open_paths, import_workspace_quick_open_paths,
     search_workspace_quick_open_session, start_workspace_quick_open_session,
     start_workspace_quick_open_session_without_symlinks, stop_workspace_quick_open_session,
     WorkspaceQuickOpenMatch, WorkspaceQuickOpenSession,

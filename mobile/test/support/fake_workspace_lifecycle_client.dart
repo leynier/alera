@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_removal_dependency.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
@@ -7,6 +8,7 @@ import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dar
 
 /// Workspace listing and mutation stubs shared by [FakeTerminalClient].
 mixin FakeWorkspaceLifecycleClient {
+  bool supportsSharedCheckoutWorkspaces = true;
   List<String> get calls;
 
   List<String> projectBranches = const <String>[];
@@ -51,7 +53,10 @@ mixin FakeWorkspaceLifecycleClient {
     return const <ProjectSummary>[];
   }
 
-  Future<ProjectBranches> listBranches(String projectId) async {
+  Future<ProjectBranches> listBranches(
+    String projectId, {
+    String? checkoutHostId,
+  }) async {
     return ProjectBranches(
       projectId: projectId,
       branches: projectBranches,
@@ -128,8 +133,40 @@ mixin FakeWorkspaceLifecycleClient {
     calls.add('unlink $parentWorkspaceId $childWorkspaceId');
   }
 
+  Future<List<WorkspaceRemovalDependency>> removalDependencies(
+    String workspaceId,
+  ) async => const [];
+  Future<void> pauseRemovalDependencies(
+    String workspaceId,
+    List<WorkspaceRemovalDependency> approved,
+  ) async {}
+
+  Future<WorkspaceCreationResult> createSharedWorkspace({
+    required String projectId,
+    String? name,
+    String? checkoutHostId,
+    String? issueUrl,
+  }) async {
+    calls.add('createSharedWorkspace $projectId');
+    return WorkspaceCreationResult(
+      workspace: WorkspaceSummary(
+        id: 'created',
+        projectId: projectId,
+        name: name ?? 'Workspace 1',
+        path: '/tmp/project',
+        kind: 'main',
+      ),
+      steps: const <WorkspaceSetupStep>[],
+    );
+  }
+
+  Future<void> removeSharedWorkspace(String workspaceId) async {
+    calls.add('removeSharedWorkspace $workspaceId');
+  }
+
   Future<WorkspaceCreationResult> createManagedWorkspace({
     required String projectId,
+    String? checkoutHostId,
     required String branch,
     String? sourceBranch,
     bool reuseExistingBranch = false,

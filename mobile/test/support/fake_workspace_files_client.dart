@@ -61,6 +61,17 @@ mixin FakeWorkspaceFilesClient implements MobileCodexWorkspaceClient {
   @override
   bool get supportsPromptAttachmentRead => false;
 
+  Future<MobileWorkspaceQuickOpenSession> startProjectCheckoutQuickOpen({
+    required String projectId,
+    String? checkoutHostId,
+  }) async {
+    calls.add('startProjectCheckoutQuickOpen $projectId');
+    return MobileWorkspaceQuickOpenSession(
+      id: 'project-quick-open-$projectId',
+      indexedFileCount: workspaceFiles.length,
+    );
+  }
+
   @override
   Future<MobileWorkspaceQuickOpenSession> startWorkspaceQuickOpen(
     String workspaceId, {

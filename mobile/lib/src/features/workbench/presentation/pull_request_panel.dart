@@ -127,7 +127,10 @@ class const _Body({
         else
           _ChecksSection(checks: review.checks),
         const SizedBox(height: AleraTokens.space16),
-        PullRequestConversationSection(comments: review.comments),
+        PullRequestConversationSection(
+          comments: review.comments,
+          truncated: review.commentsTruncated,
+        ),
       ],
     );
   }

@@ -1,27 +1,37 @@
-//! Move current git work between the main worktree and a child worktree.
+//! Relocation request contracts shared by local and SSH runtime operations.
 //!
-//! Hand off takes the main checkout's branch and uncommitted files into a new
-//! linked workspace. Hand on brings a linked workspace back onto main and then
-//! removes that child worktree. Both keep the existing workspace model.
+//! Production relocation preserves the workspace identity and journals its
+//! checkout changes. The historical transfer implementation below is test-only.
 
 use std::path::PathBuf;
 
-use alera_core::git::{self as core_git, GitErrorKind};
+#[cfg(test)]
+use alera_core::git as core_git;
+#[cfg(test)]
+use alera_core::git::GitErrorKind;
+#[cfg(test)]
 use alera_core::runtime::{
     RuntimeStore, Workspace, WorkspaceCreationResult, WorkspaceKind, WorkspaceStatus,
 };
+#[cfg(test)]
 use anyhow::{anyhow, bail, Context, Result};
+#[cfg(test)]
 use chrono::Utc;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+#[cfg(test)]
+use serde::Serialize;
 
-use crate::managed_workspace::{
-    create_managed_workspace, validate_workspace_storage_path, ManagedWorkspaceCreateRequest,
-};
+#[cfg(test)]
+use crate::managed_workspace::validate_workspace_storage_path;
+#[cfg(test)]
+use crate::managed_workspace::{create_managed_workspace, ManagedWorkspaceCreateRequest};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ManagedWorkspaceHandOffRequest {
     pub id: String,
+    #[serde(default)]
+    pub relocation_id: Option<String>,
     pub branch: String,
     #[serde(default)]
     pub name: Option<String>,
@@ -42,6 +52,8 @@ pub struct ManagedWorkspaceHandOffRequest {
 pub struct ManagedWorkspaceHandOnRequest {
     pub id: String,
     #[serde(default)]
+    pub relocation_id: Option<String>,
+    #[serde(default)]
     #[allow(dead_code)] // Retained for older callers; safe transfer never closes sessions.
     pub close_sessions: bool,
     #[serde(default)]
@@ -49,6 +61,7 @@ pub struct ManagedWorkspaceHandOnRequest {
     pub active_workspace_id: Option<String>,
 }
 
+#[cfg(test)]
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceHandOnResult {
@@ -57,6 +70,7 @@ pub struct WorkspaceHandOnResult {
     pub recovery_stash_oid: Option<String>,
 }
 
+#[cfg(test)]
 pub async fn hand_off_managed_workspace(
     store: &RuntimeStore,
     request: ManagedWorkspaceHandOffRequest,
@@ -95,6 +109,7 @@ pub async fn hand_off_managed_workspace(
     }
 }
 
+#[cfg(test)]
 pub async fn hand_on_managed_workspace(
     store: &RuntimeStore,
     request: ManagedWorkspaceHandOnRequest,
@@ -173,6 +188,7 @@ pub async fn hand_on_managed_workspace(
     })
 }
 
+#[cfg(test)]
 async fn hand_off_new_branch(
     store: &RuntimeStore,
     request: ManagedWorkspaceHandOffRequest,
@@ -219,6 +235,7 @@ async fn hand_off_new_branch(
     Ok(created)
 }
 
+#[cfg(test)]
 async fn hand_off_current_branch(
     store: &RuntimeStore,
     request: ManagedWorkspaceHandOffRequest,
@@ -263,6 +280,7 @@ async fn hand_off_current_branch(
     Ok(created)
 }
 
+#[cfg(test)]
 async fn create_child_from_existing_branch(
     store: &RuntimeStore,
     request: &ManagedWorkspaceHandOffRequest,
@@ -290,6 +308,7 @@ async fn create_child_from_existing_branch(
     .await
 }
 
+#[cfg(test)]
 async fn require_main_workspace(store: &RuntimeStore, workspace_id: &str) -> Result<Workspace> {
     let workspace = store
         .find_workspace(workspace_id)
@@ -305,6 +324,7 @@ async fn require_main_workspace(store: &RuntimeStore, workspace_id: &str) -> Res
     Ok(workspace)
 }
 
+#[cfg(test)]
 async fn validate_transfer_owner(store: &RuntimeStore, workspace: &Workspace) -> Result<()> {
     if workspace.host_id != alera_core::runtime::LOCAL_HOST_ID {
         bail!("Hand Off and Hand On require local worktrees");
@@ -316,6 +336,7 @@ async fn validate_transfer_owner(store: &RuntimeStore, workspace: &Workspace) ->
     Ok(())
 }
 
+#[cfg(test)]
 async fn find_main_workspace(store: &RuntimeStore, project_id: &str) -> Result<Workspace> {
     store
         .list_workspaces(project_id)
@@ -327,6 +348,7 @@ async fn find_main_workspace(store: &RuntimeStore, project_id: &str) -> Result<W
         .ok_or_else(|| anyhow!("Main workspace not found for project {project_id}"))
 }
 
+#[cfg(test)]
 fn apply_stashed_changes(path: &str, stashed: &Option<String>) -> Result<()> {
     if let Some(oid) = stashed {
         core_git::apply_handoff_stash(path, oid).with_context(|| {
@@ -336,6 +358,7 @@ fn apply_stashed_changes(path: &str, stashed: &Option<String>) -> Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
 fn report_recovery_stash(result: &mut WorkspaceCreationResult, stash: &Option<String>) {
     if let Some(oid) = stash {
         result.setup_report.steps.push(alera_core::runtime::WorktreeSetupStepReport {
@@ -347,10 +370,12 @@ fn report_recovery_stash(result: &mut WorkspaceCreationResult, stash: &Option<St
     }
 }
 
+#[cfg(test)]
 fn restore_stashed_main(path: &str, stashed: &Option<String>) -> Result<()> {
     apply_stashed_changes(path, stashed)
 }
 
+#[cfg(test)]
 fn restore_created_branch(
     path: &str,
     original: &str,
@@ -363,6 +388,7 @@ fn restore_created_branch(
     restore_stashed_main(path, stashed)
 }
 
+#[cfg(test)]
 fn filesystem_entry_is_missing(path: &str) -> bool {
     matches!(
         std::fs::symlink_metadata(path),
@@ -370,6 +396,7 @@ fn filesystem_entry_is_missing(path: &str) -> bool {
     )
 }
 
+#[cfg(test)]
 fn require_live_child_branch(child: &Workspace) -> Result<String> {
     let live = core_git::current_branch(&child.path)?;
     if live == "HEAD" {
@@ -387,6 +414,7 @@ fn require_live_child_branch(child: &Workspace) -> Result<String> {
     Ok(live)
 }
 
+#[cfg(test)]
 fn require_trimmed(value: &str, message: &str) -> Result<String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
@@ -395,10 +423,12 @@ fn require_trimmed(value: &str, message: &str) -> Result<String> {
     Ok(trimmed.to_string())
 }
 
+#[cfg(test)]
 fn path_equals(left: &str, right: &str) -> bool {
     canonical_path(left) == canonical_path(right)
 }
 
+#[cfg(test)]
 fn canonical_path(path: &str) -> String {
     let target = std::path::Path::new(path);
     if let Ok(resolved) = std::fs::canonicalize(target) {

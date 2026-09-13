@@ -33,6 +33,7 @@ mixin _GitLabReviewComments {
         final author = note['author'];
         final position = note['position'];
         final positioned = position is Map;
+        final resolvable = positioned || note['resolvable'] == true;
         final noteId = note['id'];
         final discussionId = discussion['id'];
         comments.add(
@@ -59,8 +60,10 @@ mixin _GitLabReviewComments {
                 ? (position['new_line'] as num? ?? position['old_line'] as num?)
                       ?.toInt()
                 : null,
-            resolved: positioned && note['resolved'] == true,
-            threadId: positioned ? '$discussionId' : null,
+            resolved: resolvable && note['resolved'] == true,
+            threadId: resolvable && discussionId != null
+                ? '$discussionId'
+                : null,
             locator: noteId == null
                 ? null
                 : ReviewCommentLocator(

@@ -112,3 +112,53 @@ fn link_mutations_wait_behind_runtime_mutations() {
     }
     assert!(!conflicts_with_runtime_mutation("issue.fetch"));
 }
+
+#[tokio::test]
+async fn shared_workspace_creation_retains_the_issue_link_from_main() {
+    let dir = tempfile::tempdir().unwrap();
+    let project_dir = dir.path().join("project");
+    std::fs::create_dir(&project_dir).unwrap();
+    let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
+    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    actor.inbox = inbox;
+    let project = crate::project_management::register_project(
+        &actor.runtime_store,
+        project_dir.to_str().unwrap(),
+        None,
+    )
+    .await
+    .unwrap()
+    .project;
+    let url = "https://example.atlassian.net/browse/ABC-1";
+    actor.start_shared_workspace_create(
+        1,
+        1,
+        serde_json::from_value(
+            json!({"id": "shared-issue", "projectId": project.id, "name": "Task"}),
+        )
+        .unwrap(),
+        Some(url.into()),
+    );
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        while let Some(command) = commands.recv().await {
+            if matches!(
+                command,
+                super::ServerCommand::ManagedWorkspaceCreated { .. }
+            ) {
+                return;
+            }
+        }
+        panic!("creation completion was not sent");
+    })
+    .await
+    .unwrap();
+    let issue = actor
+        .runtime_store
+        .find_linked_issue("shared-issue")
+        .await
+        .unwrap()
+        .expect("creation must acknowledge only after storing the issue");
+    assert_eq!(issue.url, url);
+    assert!(issue.provider.is_none());
+    assert!(project_dir.is_dir());
+}

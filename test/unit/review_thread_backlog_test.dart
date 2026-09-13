@@ -30,6 +30,38 @@ void main() {
       expect(threads, isEmpty);
     });
 
+    test('ignores an Azure conversation with an editable parent locator', () {
+      expect(
+        pendingReviewThreads(
+          comments: [
+            ReviewComment(
+              id: 'azure:12:3',
+              author: 'reviewer',
+              body: 'General discussion',
+              createdAt: DateTime.utc(2026),
+              kind: .conversation,
+              locator: const ReviewCommentLocator(
+                source: .conversation,
+                commentId: '3',
+                parentId: '12',
+              ),
+            ),
+          ],
+        ),
+        isEmpty,
+      );
+    });
+
+    test('keeps partially resolved discussions', () {
+      final threads = pendingReviewThreads(
+        comments: [
+          _comment('T1', author: 'alice', resolved: true),
+          _comment('T1', author: 'bob'),
+        ],
+      );
+      expect(threads.single.id, 'T1');
+    });
+
     test('drops resolved threads', () {
       final threads = pendingReviewThreads(
         comments: <ReviewComment>[
@@ -95,6 +127,7 @@ ReviewComment _comment(
     line: line,
     resolved: resolved,
     outdated: outdated,
+    threadId: threadId,
     locator: ReviewCommentLocator(
       source: threadId == null ? .conversation : .reviewThread,
       commentId: author,

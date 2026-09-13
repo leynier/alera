@@ -73,8 +73,9 @@ class const PromptWorkspacePipeline({
       );
       onPhase?.call('Checking generated branch');
       final collision =
-          workspaceBranches(request.project).contains(identity.branchName) ||
-          await checkBranchExists(request.project, identity.branchName);
+          !request.useProjectCheckout &&
+          (workspaceBranches(request.project).contains(identity.branchName) ||
+              await checkBranchExists(request.project, identity.branchName));
       if (collision) {
         collisionError = StateError(
           'The generated branch "${identity.branchName}" already exists.',

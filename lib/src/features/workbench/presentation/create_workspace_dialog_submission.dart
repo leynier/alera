@@ -18,7 +18,8 @@ extension _CreateWorkspaceDialogSubmission on _CreateWorkspaceDialogState {
         ? _targetBranchRequiredError()
         : null;
 
-    if (sourceBranchError != null || newBranchError != null) {
+    if (!_useProjectCheckout &&
+        (sourceBranchError != null || newBranchError != null)) {
       _update(() {
         _sourceBranchError = sourceBranchError;
         _newBranchError = newBranchError;
@@ -26,7 +27,7 @@ extension _CreateWorkspaceDialogSubmission on _CreateWorkspaceDialogState {
       return;
     }
 
-    if (_branchValidationError != null) {
+    if (!_useProjectCheckout && _branchValidationError != null) {
       return;
     }
 
@@ -41,6 +42,7 @@ extension _CreateWorkspaceDialogSubmission on _CreateWorkspaceDialogState {
     }
 
     final request = ManualWorkspaceCreateRequest(
+      useProjectCheckout: _useProjectCheckout,
       project: project,
       sourceBranch: sourceBranch,
       newBranchName: newBranchName,
@@ -139,6 +141,6 @@ extension _CreateWorkspaceDialogSubmission on _CreateWorkspaceDialogState {
       _branchValidationError = null;
       _isValidatingBranch = false;
     });
-    unawaited(_loadBranches(project));
+    if (!_useProjectCheckout) unawaited(_loadBranches(project));
   }
 }

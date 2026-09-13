@@ -1,6 +1,7 @@
 part of 'create_workspace_dialog.dart';
 
 class const _CreateWorkspaceSettingsStep({
+  required final bool useProjectCheckout,
   required final Project? project,
   required final String sourceBranch,
   required final bool reuseExistingBranch,
@@ -29,24 +30,30 @@ class const _CreateWorkspaceSettingsStep({
       mainAxisSize: .min,
       crossAxisAlignment: .start,
       children: <Widget>[
-        _WorkspaceSelectionSummary(
-          projectName: project?.name ?? '',
-          sourceBranch: sourceBranch,
-          reuseExistingBranch: reuseExistingBranch,
-        ),
+        if (useProjectCheckout)
+          Text(
+            '${project?.name ?? ''} / Project Folder',
+            style: Theme.of(context).textTheme.bodyMedium,
+          )
+        else
+          _WorkspaceSelectionSummary(
+            projectName: project?.name ?? '',
+            sourceBranch: sourceBranch,
+            reuseExistingBranch: reuseExistingBranch,
+          ),
         const SizedBox(height: AleraTokens.space16),
         if (issueField case final issueField?) ...<Widget>[
           issueField,
           const SizedBox(height: AleraTokens.space12),
         ],
-        if (reuseExistingBranch)
+        if (!useProjectCheckout && reuseExistingBranch)
           AleraTextField(
             controller: newBranchController,
             enabled: false,
             labelText: 'Existing Branch *',
             errorText: newBranchError,
           )
-        else
+        else if (!useProjectCheckout)
           AleraTextField(
             controller: newBranchController,
             autofocus: true,
@@ -101,18 +108,23 @@ class const _CreateWorkspaceSettingsStep({
           onChanged: onHostChanged,
         ),
         const SizedBox(height: AleraTokens.space16),
-        _WorkspaceCreationPreview(
-          project: project,
-          sourceBranch: sourceBranch,
-          newBranchName: newBranchController.text,
-          workspaceName: nameController.text,
-          reuseExistingBranch: reuseExistingBranch,
-          parentLabel: _selectedWorkspaceParentLabel(
-            parentCandidates,
-            selectedParentWorkspaceId,
+        if (useProjectCheckout)
+          const Text(
+            'This task shares the project folder, current branch and Git index. Its tabs and agents start fresh.',
+          )
+        else
+          _WorkspaceCreationPreview(
+            project: project,
+            sourceBranch: sourceBranch,
+            newBranchName: newBranchController.text,
+            workspaceName: nameController.text,
+            reuseExistingBranch: reuseExistingBranch,
+            parentLabel: _selectedWorkspaceParentLabel(
+              parentCandidates,
+              selectedParentWorkspaceId,
+            ),
+            hostLabel: _selectedHostLabel(sshTargets, selectedHostId),
           ),
-          hostLabel: _selectedHostLabel(sshTargets, selectedHostId),
-        ),
       ],
     );
   }

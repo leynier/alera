@@ -35,7 +35,10 @@ class _FakeLinkedIssues extends LinkedIssuesController {
 Future<FakeTerminalClient> _pump(
   WidgetTester tester, {
   required bool supportsLinkedIssues,
+  bool useProjectCheckout = false,
 }) async {
+  await tester.binding.setSurfaceSize(const Size(1000, 1400));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
   final client = FakeTerminalClient()..projectBranches = const <String>['main'];
   addTearDown(client.dispose);
   await tester.pumpWidget(
@@ -62,6 +65,8 @@ Future<FakeTerminalClient> _pump(
           ],
           workspaces: const [],
           supportsLinkedIssues: supportsLinkedIssues,
+          supportsSharedCheckoutWorkspaces: true,
+          initialUseProjectCheckout: useProjectCheckout,
         ),
       ),
     ),
@@ -96,6 +101,19 @@ void main() {
     await tester.pump(mobileIssueUrlResolveDelay);
     await tester.pumpAndSettle();
     expect(_text(tester, 'Branch Name'), 'mine');
+  });
+
+  testWidgets('a shared task uses the issue name without a branch field', (
+    tester,
+  ) async {
+    await _pump(tester, supportsLinkedIssues: true, useProjectCheckout: true);
+    await tester.tap(find.text('Manual'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(MobileIssueUrlField), _url);
+    await tester.pump(mobileIssueUrlResolveDelay);
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextField, 'Branch Name'), findsNothing);
+    expect(_text(tester, 'Display Name (Optional)'), 'Link an issue');
   });
 
   testWidgets('a resolved issue fills an empty prompt', (tester) async {

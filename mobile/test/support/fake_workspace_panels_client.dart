@@ -26,6 +26,8 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
 
   /// Holds the next responses open until completed, to observe a refresh in
   /// flight. Errors make the call fail after the gate opens.
+  Completer<void>? replaceGate;
+  Completer<void>? searchGate;
   Completer<void>? explorerGate;
   Object? explorerError;
   Completer<void>? gitStatusGate;
@@ -91,6 +93,7 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
       'preserveCase': preserveCase,
       'requestId': requestId,
     });
+    await searchGate?.future;
     return searchResult;
   }
 
@@ -112,6 +115,7 @@ mixin FakeWorkspacePanelsClient implements MobileWorkspacePanelsClient {
         for (final file in expectedFiles) file.relativePath: file.contentToken,
       },
     });
+    await replaceGate?.future;
     return replaceResult;
   }
 

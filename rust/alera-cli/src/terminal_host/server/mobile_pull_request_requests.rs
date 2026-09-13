@@ -158,7 +158,7 @@ async fn load_snapshot(runtime_store: &RuntimeStore, workspace: &Workspace) -> H
     let review_json = if let Some(review) = review {
         let number = review.get("number").and_then(Value::as_i64).unwrap_or(0);
         let checks = load_checks(&repo_path, &identity.slug, number).await;
-        let comments = super::mobile_pull_request_comments::load_comments(
+        let (comments, comments_truncated) = super::mobile_pull_request_comments::load_comments(
             &repo_path,
             &identity.host,
             &identity.owner,
@@ -170,6 +170,7 @@ async fn load_snapshot(runtime_store: &RuntimeStore, workspace: &Workspace) -> H
         if let Some(object) = review.as_object_mut() {
             object.insert("checks".into(), json!(checks));
             object.insert("comments".into(), json!(comments));
+            object.insert("commentsTruncated".into(), json!(comments_truncated));
         }
         review
     } else {
@@ -360,15 +361,27 @@ pub(super) async fn run_gh(repo_path: &str, args: &[&str]) -> HostResult<(i32, S
         .stderr(Stdio::piped());
     crate::login_shell_environment::apply_login_shell_environment(&mut command, &BTreeMap::new())
         .await;
-    let output = timeout(GH_TIMEOUT, command.output())
-        .await
-        .map_err(|_| HostError::state("The GitHub CLI timed out."))?
-        .map_err(|error| HostError::state(format!("failed to run gh: {error}")))?;
+    let output = github_cli_output(command, GH_TIMEOUT).await?;
     Ok((
         output.status.code().unwrap_or(1),
         String::from_utf8_lossy(&output.stdout).into_owned(),
         String::from_utf8_lossy(&output.stderr).into_owned(),
     ))
+}
+
+async fn github_cli_output(
+    mut command: tokio::process::Command,
+    deadline: Duration,
+) -> HostResult<std::process::Output> {
+    command.kill_on_drop(true);
+    timeout(deadline, command.output())
+        .await
+        .map_err(|_| {
+            HostError::state(
+                "The GitHub CLI timed out. Verify the pull request before retrying a write.",
+            )
+        })?
+        .map_err(|error| HostError::state(format!("failed to run gh: {error}")))
 }
 
 fn looks_like_missing_cli(error: &HostError) -> bool {
@@ -377,4 +390,27 @@ fn looks_like_missing_cli(error: &HostError) -> bool {
         || message.contains("not found")
         || message.contains("cannot find")
         || message.contains("program not found")
+}
+
+#[cfg(all(test, unix))]
+mod process_lifetime_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn github_timeout_prevents_a_delayed_process_write() {
+        let root = tempfile::tempdir().unwrap();
+        let marker = root.path().join("late-write");
+        let mut command = alera_core::child_process::windowless_async_command("/bin/sh");
+        command
+            .args(["-c", "sleep 2; printf late > \"$1\"", "fixture"])
+            .arg(&marker)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        let error = github_cli_output(command, Duration::from_millis(50))
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("timed out"));
+        tokio::time::sleep(Duration::from_millis(2200)).await;
+        assert!(!marker.exists(), "timed-out process continued writing");
+    }
 }

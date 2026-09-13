@@ -10,6 +10,8 @@ import 'package:alera_mobile/src/features/workbench/application/workspace_listin
 import 'package:alera_mobile/src/features/workbench/presentation/delete_workspace_dialog.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/parent_picker_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/sleep_workspace_dialog.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_relocation_dialog.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_relocation_recovery_launcher.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_tags_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,8 +19,11 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 part 'workspace_actions_sheet_linked_issue.dart';
+part 'workspace_actions_sheet_removal.dart';
 
 enum _WorkspaceAction {
+  relocate,
+  recovery,
   rename,
   pin,
   unpin,
@@ -80,6 +85,32 @@ Future<void> showWorkspaceActionsSheet(
                     onTap: () =>
                         Navigator.of(context).pop(_WorkspaceAction.rename),
                   ),
+                  if (data.supportsWorkspaceRelocation &&
+                      data.projects.any(
+                        (project) =>
+                            project.id == workspace.projectId &&
+                            project.supportsLinkedWorkspaces,
+                      ))
+                    ListTile(
+                      leading: const Icon(
+                        AleraIcons.gitBranch,
+                        size: AleraTokens.space20,
+                      ),
+                      title: Text(workspace.isMain ? 'Hand Off' : 'Hand On'),
+                      onTap: () =>
+                          Navigator.of(context).pop(_WorkspaceAction.relocate),
+                    ),
+                  if (data.supportsWorkspaceRelocation &&
+                      data.projects.any(
+                        (project) =>
+                            project.id == workspace.projectId &&
+                            project.supportsLinkedWorkspaces,
+                      ))
+                    ListTile(
+                      title: const Text('Workspace Recovery'),
+                      onTap: () =>
+                          Navigator.of(context).pop(_WorkspaceAction.recovery),
+                    ),
                   ListTile(
                     leading: Icon(
                       workspace.isPinned ? AleraIcons.pinOff : AleraIcons.pin,
@@ -167,22 +198,21 @@ Future<void> showWorkspaceActionsSheet(
                     onTap: () =>
                         Navigator.of(context).pop(_WorkspaceAction.sleep),
                   ),
-                  if (!workspace.isMain)
-                    ListTile(
-                      leading: Icon(
-                        AleraIcons.delete,
-                        size: 20,
+                  ListTile(
+                    leading: Icon(
+                      AleraIcons.delete,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                    title: Text(
+                      'Remove',
+                      style: TextStyle(
                         color: Theme.of(context).colorScheme.error,
                       ),
-                      title: Text(
-                        'Remove',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
-                      onTap: () =>
-                          Navigator.of(context).pop(_WorkspaceAction.delete),
                     ),
+                    onTap: () =>
+                        Navigator.of(context).pop(_WorkspaceAction.delete),
+                  ),
                 ],
               ),
             ),
@@ -197,6 +227,18 @@ Future<void> showWorkspaceActionsSheet(
   final controller = ref.read(workspaceListControllerProvider(hostId).notifier);
   try {
     switch (action) {
+      case _WorkspaceAction.recovery:
+        await showWorkspaceRecoveryFlow(
+          context,
+          hostId: hostId,
+          workspace: workspace,
+        );
+      case _WorkspaceAction.relocate:
+        await showWorkspaceRelocationDialog(
+          context,
+          hostId: hostId,
+          workspace: workspace,
+        );
       case _WorkspaceAction.rename:
         final name = await _promptForWorkspaceName(context, workspace.name);
         if (name != null) await controller.renameWorkspace(workspace.id, name);
@@ -376,40 +418,6 @@ List<String> _workspaceTagLabels(WorkspaceSummary workspace) {
       .map((tag) => tag.trim())
       .where((tag) => tag.isNotEmpty)
       .toList(growable: false);
-}
-
-Future<void> _confirmAndDelete(
-  BuildContext context,
-  WorkspaceListController controller,
-  WorkspaceSummary workspace,
-  WorkspaceListData data,
-) async {
-  var cascadeCount = 1;
-  try {
-    cascadeCount = (await controller.cascadePreview(workspace.id)).length;
-  } on Object {
-    // The preview is advisory; deletion still confirms explicitly.
-  }
-  if (!context.mounted) {
-    return;
-  }
-  final decision = data.confirmWorkspaceRemoval
-      ? await showDeleteWorkspaceDialog(
-          context,
-          workspace: workspace,
-          cascadeCount: cascadeCount,
-        )
-      : DeleteWorkspaceDecision(deleteBranch: !workspace.reusesExistingBranch);
-  if (decision == null || !context.mounted) {
-    return;
-  }
-  final messenger = ScaffoldMessenger.of(context);
-  messenger.showSnackBar(SnackBar(content: Text('Removing ${workspace.name}')));
-  await controller.deleteWorkspace(
-    workspace.id,
-    deleteBranch: decision.deleteBranch,
-  );
-  messenger.showSnackBar(SnackBar(content: Text('Removed ${workspace.name}')));
 }
 
 Future<String?> _promptForWorkspaceName(

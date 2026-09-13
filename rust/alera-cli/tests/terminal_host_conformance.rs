@@ -6,6 +6,9 @@ mod agent_integration_home_isolation;
 
 mod terminal_host_test_platform;
 
+#[path = "support/shared_task_removal_protocol.rs"]
+mod shared_removal;
+
 use agent_integration_home_isolation::alera_command_with_isolated_home;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
@@ -504,7 +507,7 @@ fn runtime_workspace_remove_terminates_active_sessions() {
     let token = "test-token";
     let (_guard, port) = spawn_host(dir.path(), &control_path, token);
     let (mut writer, mut reader) = connect(port);
-    handshake(&mut writer, &mut reader, token);
+    let folder = shared_removal::register(&mut writer, &mut reader, token, dir.path());
 
     create_long_running_session(
         &mut writer,
@@ -515,15 +518,11 @@ fn runtime_workspace_remove_terminates_active_sessions() {
         "t1",
     );
 
-    send(
-        &mut writer,
-        json!({
-            "id": 2,
-            "type": "workspace.remove",
-            "payload": {"id": "w1", "cascadeTabs": true}
-        }),
+    let removed = shared_removal::remove(&mut writer, &mut reader, 2);
+    assert_eq!(
+        std::fs::read_to_string(folder.join("retained.txt")).unwrap(),
+        "shared files stay\n"
     );
-    let removed = read_response(&mut reader, 2);
     assert_eq!(
         removed["ok"],
         json!(true),
@@ -540,7 +539,7 @@ fn runtime_linked_review_persists_and_cascades_on_workspace_remove() {
     let token = "linked-review-token";
     let (_guard, port) = spawn_host(dir.path(), &control_path, token);
     let (mut writer, mut reader) = connect(port);
-    handshake(&mut writer, &mut reader, token);
+    let folder = shared_removal::register(&mut writer, &mut reader, token, dir.path());
 
     // No review linked yet.
     send(
@@ -582,15 +581,11 @@ fn runtime_linked_review_persists_and_cascades_on_workspace_remove() {
     );
 
     // Removing the workspace cascades the linked review.
-    send(
-        &mut writer,
-        json!({
-            "id": 4,
-            "type": "workspace.remove",
-            "payload": {"id": "w1", "cascadeTabs": true}
-        }),
+    let removed = shared_removal::remove(&mut writer, &mut reader, 4);
+    assert_eq!(
+        std::fs::read_to_string(folder.join("retained.txt")).unwrap(),
+        "shared files stay\n"
     );
-    let removed = read_response(&mut reader, 4);
     assert_eq!(removed["ok"], json!(true), "remove failed: {removed}");
 
     send(
@@ -726,6 +721,8 @@ fn cli_mutations_use_running_runtime_host() {
             "CLI Project",
             "--repo-path",
             dir.path().to_str().unwrap(),
+            "--kind",
+            "folder",
         ])
         .output()
         .expect("failed to run alera project add");
@@ -736,7 +733,7 @@ fn cli_mutations_use_running_runtime_host() {
         String::from_utf8_lossy(&output.stderr)
     );
     let project: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(project["id"], json!("cli-project"));
+    assert_eq!(project["project"]["id"], json!("cli-project"));
 
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
@@ -781,6 +778,8 @@ fn cli_mutations_use_alternate_runtime_host_control_after_legacy_host_json() {
             "Alternate CLI Project",
             "--repo-path",
             dir.path().to_str().unwrap(),
+            "--kind",
+            "folder",
         ])
         .output()
         .expect("failed to run alera project add");
@@ -791,7 +790,7 @@ fn cli_mutations_use_alternate_runtime_host_control_after_legacy_host_json() {
         String::from_utf8_lossy(&output.stderr)
     );
     let project: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(project["id"], json!("alternate-cli-project"));
+    assert_eq!(project["project"]["id"], json!("alternate-cli-project"));
 
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {

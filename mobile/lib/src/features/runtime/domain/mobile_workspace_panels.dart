@@ -267,6 +267,7 @@ class const MobilePullRequestReview({
   final String? createdAt,
   final String? mergeable,
   final List<MobilePullRequestCheck> checks = const <MobilePullRequestCheck>[],
+  final bool commentsTruncated = false,
   final List<MobilePullRequestComment> comments =
       const <MobilePullRequestComment>[],
 }) {
@@ -286,6 +287,7 @@ class const MobilePullRequestReview({
         if (item is Map)
           MobilePullRequestCheck.fromJson(Map<String, Object?>.from(item)),
     ],
+    commentsTruncated: json['commentsTruncated'] == true,
     comments: <MobilePullRequestComment>[
       for (final item in json.objectList('comments'))
         if (item is Map)

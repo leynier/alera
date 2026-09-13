@@ -311,11 +311,7 @@ bool _matchesFilters(
   if (prefs.showActiveWorkspacesOnly && !hasActivity) {
     return false;
   }
-  return switch (prefs.workspaceKindFilter) {
-    MobileWorkspaceKindFilter.all => true,
-    MobileWorkspaceKindFilter.defaultOnly => workspace.isMain,
-    MobileWorkspaceKindFilter.nonDefaultOnly => !workspace.isMain,
-  };
+  return true;
 }
 
 bool _matchesSearch(
@@ -341,15 +337,6 @@ int _compareWorkspaces(
   MobileViewPrefs prefs,
   Map<String, MobileAgentActivityRank?> activityByWorkspaceId,
 ) {
-  if (prefs.workspaceSort == MobileWorkbenchSortBy.name &&
-      left.isMain != right.isMain) {
-    return left.isMain ? -1 : 1;
-  }
-  if (prefs.workspaceSort == MobileWorkbenchSortBy.recent &&
-      prefs.groupBy != MobileWorkspaceGroupBy.none &&
-      left.isMain != right.isMain) {
-    return left.isMain ? -1 : 1;
-  }
   final order = switch (prefs.workspaceSort) {
     MobileWorkbenchSortBy.name => left.name.toLowerCase().compareTo(
       right.name.toLowerCase(),

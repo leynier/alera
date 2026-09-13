@@ -145,14 +145,14 @@ void main() {
       expect(restored.gitDiffGroupMode, GitDiffGroupMode.unified);
     });
 
-    test('round-trips the workspace kind filter', () {
+    test('drops retired workspace kind filters when loading preferences', () {
       final prefs = WorkbenchViewPrefs.defaults.copyWith(
         workspaceKindFilter: .nonDefaultOnly,
       );
       final restored = WorkbenchViewPrefs.fromJson(
         Map<String, Object?>.from(prefs.toMap()),
       );
-      expect(restored.workspaceKindFilter, WorkspaceKindFilter.nonDefaultOnly);
+      expect(restored.workspaceKindFilter, WorkspaceKindFilter.all);
     });
 
     test('fromJson decodes the activity sort value', () {

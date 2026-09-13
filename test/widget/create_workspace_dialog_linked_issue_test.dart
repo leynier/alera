@@ -58,6 +58,27 @@ void main() {
     expect(_fieldText(tester, 'Workspace Name (Optional)'), 'Mine');
   });
 
+  testWidgets('a shared task keeps the issue without creating a branch', (
+    tester,
+  ) async {
+    final submitted = <ManualWorkspaceCreateRequest>[];
+    await _pumpDialog(
+      tester,
+      onEnqueue: submitted.add,
+      useProjectCheckout: true,
+    );
+    await _openSettings(tester);
+    await tester.enterText(find.widgetWithText(TextField, 'Issue URL'), _url);
+    await tester.pump(issueUrlResolveDelay);
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextField, 'New Branch Name *'), findsNothing);
+    await tester.tap(find.text('Create Workspace'));
+    await tester.pumpAndSettle();
+    expect(submitted.single.issueUrl, _url);
+    expect(submitted.single.useProjectCheckout, isTrue);
+    expect(submitted.single.name, 'Link an issue to a workspace');
+  });
+
   testWidgets('the field is hidden when the host cannot link issues', (
     tester,
   ) async {
@@ -83,6 +104,7 @@ Future<void> _pumpDialog(
   WidgetTester tester, {
   required void Function(ManualWorkspaceCreateRequest request) onEnqueue,
   Future<IssueDetails> Function(String url)? fetchIssue = _fetch,
+  bool useProjectCheckout = false,
 }) async {
   final now = DateTime.utc(2026, 9, 12);
   final project = Project(
@@ -107,6 +129,7 @@ Future<void> _pumpDialog(
                   getProjectActiveBranch: (_) => null,
                   getProjectWorkspaceBranches: (_) => const <String>{},
                   fetchIssue: fetchIssue,
+                  initialUseProjectCheckout: useProjectCheckout,
                   enqueueCreate: (request) {
                     onEnqueue(request);
                     return Future<void>.value();

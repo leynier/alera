@@ -4,6 +4,7 @@ import 'package:alera/src/features/workbench/application/workspace_service.dart'
 import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/infra/runtime_workspace_files_client.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/runtime_buffer_guard_handler.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:alera/src/rust/api/merman_viewer.dart' as merman_native;
 import 'package:alera/src/shared/infra/git/git_explorer_status.dart';
@@ -11,6 +12,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 part 'editor_session_registry.dart';
+part 'editor_buffer_guards.dart';
 
 class WorkspaceFileService {
   const WorkspaceFileService({this.remoteFiles});

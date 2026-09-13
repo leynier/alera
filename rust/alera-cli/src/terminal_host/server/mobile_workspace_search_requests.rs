@@ -1,4 +1,4 @@
-use alera_core::runtime::RuntimeStore;
+use alera_core::runtime::{RuntimeStore, LOCAL_HOST_ID};
 use alera_core::workspace_search::{
     cancel_workspace_search, preview_workspace_replace, preview_workspace_replace_cancelable,
     replace_workspace_matches, search_workspace, search_workspace_cancelable,
@@ -33,6 +33,12 @@ async fn search_mobile_workspace(
     payload: &Value,
 ) -> HostResult<Value> {
     let workspace = workspace_for_mobile_file_request(runtime_store, payload).await?;
+    let host_id = workspace.host_id.trim();
+    if !host_id.is_empty() && host_id != LOCAL_HOST_ID {
+        return Err(HostError::state(
+            "Search and replace are only available for workspaces on this runtime.",
+        ));
+    }
     let query = require_string_key(payload, "query")?;
     if query.is_empty() {
         return Ok(result_json(WorkspaceSearchResult {
@@ -45,7 +51,6 @@ async fn search_mobile_workspace(
     let replacement = payload
         .get("replacement")
         .and_then(Value::as_str)
-        .filter(|value| !value.is_empty())
         .map(ToOwned::to_owned);
     let preserve_case = bool_key(payload, "preserveCase");
     let request_id = scoped_request_id(client_id, payload);
@@ -76,6 +81,12 @@ async fn replace_mobile_workspace(
     payload: &Value,
 ) -> HostResult<Value> {
     let workspace = workspace_for_mobile_file_request(runtime_store, payload).await?;
+    let host_id = workspace.host_id.trim();
+    if !host_id.is_empty() && host_id != LOCAL_HOST_ID {
+        return Err(HostError::state(
+            "Search and replace are only available for workspaces on this runtime.",
+        ));
+    }
     let query = require_string_key(payload, "query")?;
     if query.is_empty() {
         return Err(HostError::state("Run search before replacing."));
@@ -85,6 +96,8 @@ async fn replace_mobile_workspace(
         .and_then(Value::as_str)
         .unwrap_or_default()
         .to_string();
+    let workspace_path = workspace.path.clone();
+    let workspace_id = workspace.id.clone();
     let request = WorkspaceReplaceRequest {
         options: WorkspaceReplaceOptions {
             search: search_options(workspace.path, query, payload),
@@ -95,9 +108,17 @@ async fn replace_mobile_workspace(
         expected_files: expected_files(payload),
     };
     spawn_blocking_workspace("Workspace replace", move || {
-        replace_workspace_matches(request)
-            .map(replace_result_json)
-            .map_err(search_error)
+        let paths: Vec<_> = request
+            .expected_files
+            .iter()
+            .map(|file| file.relative_path.clone())
+            .collect();
+        let result = replace_workspace_matches(request).map_err(search_error)?;
+        let mut value = replace_result_json(result);
+        value["workspaceId"] = json!(workspace_id);
+        value["workspacePath"] = json!(workspace_path);
+        value["relativePaths"] = json!(paths);
+        Ok(value)
     })
     .await
 }
@@ -191,37 +212,60 @@ fn search_error(error: WorkspaceSearchError) -> HostError {
 }
 
 fn result_json(result: WorkspaceSearchResult) -> Value {
-    let files = result
-        .files
-        .into_iter()
-        .map(|file| {
-            let matches = file
-                .matches
-                .into_iter()
-                .map(|m| {
-                    json!({
-                        "id": m.id,
-                        "line": m.line,
-                        "column": m.column,
-                        "matchLength": m.match_length,
-                        "lineContent": m.line_content,
-                        "displayColumn": m.display_column,
-                        "displayMatchLength": m.display_match_length,
-                        "replacementPreview": m.replacement_preview,
-                    })
-                })
-                .collect::<Vec<_>>();
-            json!({
-                "relativePath": file.relative_path,
-                "contentToken": file.content_token,
-                "matches": matches,
-            })
-        })
-        .collect::<Vec<_>>();
+    // Leave room for the encrypted relay envelope and bound repeated previews.
+    const RESPONSE_BYTES: usize = 256 * 1024;
+    const PREVIEW_BYTES: usize = 16 * 1024;
+    let mut remaining = RESPONSE_BYTES - 1024;
+    let mut truncated = result.truncated;
+    let mut files = Vec::new();
+    for file in result.files {
+        let mut value = json!({
+            "relativePath": file.relative_path,
+            "contentToken": file.content_token,
+            "matches": [],
+        });
+        let overhead = value.to_string().len() + 1;
+        if overhead > remaining {
+            truncated = true;
+            break;
+        }
+        remaining -= overhead;
+        let mut matches = Vec::new();
+        for m in file.matches {
+            if m.replacement_preview
+                .as_ref()
+                .is_some_and(|text| text.len() > PREVIEW_BYTES)
+            {
+                truncated = true;
+                continue;
+            }
+            let entry = json!({
+                "id": m.id,
+                "line": m.line,
+                "column": m.column,
+                "matchLength": m.match_length,
+                "lineContent": m.line_content,
+                "displayColumn": m.display_column,
+                "displayMatchLength": m.display_match_length,
+                "replacementPreview": m.replacement_preview,
+            });
+            let bytes = entry.to_string().len() + 1;
+            if bytes > remaining {
+                truncated = true;
+                continue;
+            }
+            remaining -= bytes;
+            matches.push(entry);
+        }
+        if !matches.is_empty() {
+            value["matches"] = json!(matches);
+            files.push(value);
+        }
+    }
     json!({
         "files": files,
         "totalMatches": result.total_matches,
-        "truncated": result.truncated,
+        "truncated": truncated,
     })
 }
 

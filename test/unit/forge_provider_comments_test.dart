@@ -1,3 +1,4 @@
+import 'package:alera/src/features/pull_requests/domain/review_comment_load.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
 import 'package:alera/src/features/pull_requests/infra/azure_devops_forge_provider.dart';
@@ -152,6 +153,7 @@ void main() {
       );
 
       expect(comments.single.body, 'General note');
+      expect(reviewCommentsComplete(comments), isFalse);
     });
 
     test('keeps the first thread page when the next page fails', () async {
@@ -175,6 +177,7 @@ void main() {
       );
 
       expect(comments.single.body, 'First page');
+      expect(reviewCommentsComplete(comments), isFalse);
       expect(runner.calls.last.arguments, contains('threadsAfter=THREADS-1'));
     });
 
@@ -201,6 +204,7 @@ void main() {
         );
 
         expect(comments.single.body, 'First reply page');
+        expect(reviewCommentsComplete(comments), isFalse);
         expect(
           runner.calls.last.arguments,
           contains('commentsAfter=COMMENTS-1'),
@@ -311,7 +315,8 @@ void main() {
       expect(comments.first.resolved, isTrue);
       expect(comments.first.threadId, '11');
       expect(comments.last.kind, ReviewCommentKind.conversation);
-      expect(comments.last.threadId, isNull);
+      expect(comments.last.threadId, '10');
+      expect(comments.last.resolved, isFalse);
       final call = runner.calls.single;
       expect(call.optionValue('resource'), 'pullRequestThreads');
       expect(call.optionValue('http-method'), 'GET');

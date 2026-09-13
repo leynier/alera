@@ -311,6 +311,7 @@ class const _Header({
             ),
             child: AleraSearchField(
               hintText: 'Filter files...',
+              initialValue: view.filter,
               autofocus: true,
               onChanged: onFilterChanged,
             ),

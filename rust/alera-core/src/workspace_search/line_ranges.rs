@@ -35,15 +35,20 @@ impl LineRanges {
         Some((line.start + start_byte, line.start + end_byte))
     }
 
-    pub(super) fn match_slice<'a>(
+    pub(super) fn match_context<'a>(
         &self,
         content: &'a str,
         line_number: u32,
         column: u32,
         match_length: u32,
-    ) -> Option<&'a str> {
+    ) -> Option<(&'a str, usize, usize)> {
+        let line = self.ranges.get(line_number.checked_sub(1)? as usize)?;
         let (start, end) = self.locate_match_range(content, line_number, column, match_length)?;
-        content.get(start..end)
+        Some((
+            &content[line.start..line.end],
+            start - line.start,
+            end - line.start,
+        ))
     }
 }
 

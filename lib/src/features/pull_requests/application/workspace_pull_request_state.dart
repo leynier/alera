@@ -1,3 +1,4 @@
+import 'package:alera/src/features/pull_requests/domain/review_comment_load.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
@@ -39,6 +40,7 @@ class const WorkspacePullRequestState({
   this.mergeMethodsErrorMessage,
   final List<ReviewCheck> checks = const <ReviewCheck>[],
   final List<ReviewComment> comments = const <ReviewComment>[],
+  final bool commentsComplete = true,
   final bool linkedManually = false,
   this.dismissed = false,
   this.currentBranch,
@@ -114,6 +116,7 @@ class const WorkspacePullRequestState({
     bool clearMergeMethodsError = false,
     List<ReviewCheck>? checks,
     List<ReviewComment>? comments,
+    bool? commentsComplete,
     bool? linkedManually,
     bool? dismissed,
     String? currentBranch,
@@ -146,6 +149,10 @@ class const WorkspacePullRequestState({
           : (mergeMethodsErrorMessage ?? this.mergeMethodsErrorMessage),
       checks: checks ?? this.checks,
       comments: comments ?? this.comments,
+      commentsComplete:
+          commentsComplete ??
+          (this.commentsComplete &&
+              (comments == null || reviewCommentsComplete(comments))),
       linkedManually: linkedManually ?? this.linkedManually,
       dismissed: dismissed ?? this.dismissed,
       currentBranch: currentBranch ?? this.currentBranch,
@@ -182,6 +189,6 @@ class const WorkspacePullRequestState({
     return '${review?.number}:${review?.state.name}:${review?.title}:'
         '${review?.mergeable.name}:'
         '${suggestedReview?.number}:${suggestedReview?.state.name}:$dismissed:'
-        '${review?.baseBranch}:$stackPart:$checkPart:$commentPart';
+        '${review?.baseBranch}:$stackPart:$checkPart:$commentsComplete:$commentPart';
   }
 }

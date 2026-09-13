@@ -29,7 +29,9 @@ Widget _buildMobileAutomationEditor(
             state._field(state._description, 'Description', maxLines: 3),
             _choiceField(
               state._project,
-              'Project (Optional)',
+              state._targetKind == 'projectCheckout'
+                  ? 'Project'
+                  : 'Project (Optional)',
               state.widget.options?.projects
                       .map(
                         (project) => MobileAutomationChoice(
@@ -39,7 +41,8 @@ Widget _buildMobileAutomationEditor(
                       )
                       .toList(growable: false) ??
                   const <MobileAutomationChoice>[],
-              optional: true,
+              optional: state._targetKind != 'projectCheckout',
+              onChanged: () => state._refresh(() {}),
             ),
             state._field(state._tagIds, 'Tag Ids (Comma-separated)'),
             state._field(state._prompt, 'Prompt Template', maxLines: 4),
@@ -60,25 +63,40 @@ Widget _buildMobileAutomationEditor(
                 'Maximum Scheduled Runs (Optional)',
               ),
             ],
-            _choiceField(
-              state._workspace,
-              'Workspace',
-              state.widget.options?.workspaces
-                      .map(
-                        (workspace) => MobileAutomationChoice(
-                          id: workspace.id,
-                          label: '${workspace.name} (${workspace.projectId})',
-                        ),
-                      )
-                      .toList(growable: false) ??
-                  const <MobileAutomationChoice>[],
-              onChanged: () => state._refresh(() {}),
-            ),
+            if (state._targetKind != 'projectCheckout')
+              _choiceField(
+                state._workspace,
+                'Workspace',
+                state.widget.options?.workspaces
+                        .map(
+                          (workspace) => MobileAutomationChoice(
+                            id: workspace.id,
+                            label: '${workspace.name} (${workspace.projectId})',
+                          ),
+                        )
+                        .toList(growable: false) ??
+                    const <MobileAutomationChoice>[],
+                onChanged: () => state._refresh(() {}),
+              ),
             state._dropdown('Target', state._targetKind, const <String>[
               'existingTab',
               'freshTab',
               'managedWorkspace',
+              'projectCheckout',
             ], (value) => state._refresh(() => state._targetKind = value!)),
+            if (state._targetKind == 'projectCheckout') ...[
+              _choiceField(
+                state._checkoutHost,
+                'Project Folder',
+                state.widget.options?.projectCheckouts[state._project.text
+                        .trim()] ??
+                    const [],
+              ),
+              state._field(state._nameTemplate, 'Workspace Name Template'),
+              const Text(
+                'Each run creates a new workspace on this folder using its current branch and files. Files are shared with other tasks.',
+              ),
+            ],
             if (state._targetKind != 'existingTab')
               _choiceField(
                 state._profile,
@@ -115,11 +133,12 @@ Widget _buildMobileAutomationEditor(
               maxLines: 2,
             ),
             state._field(state._precheckTimeout, 'Precheck Timeout (Seconds)'),
-            state._dropdown('Setup', state._setup, const <String>[
-              'wait',
-              'parallel',
-              'skip',
-            ], (value) => state._refresh(() => state._setup = value!)),
+            if (state._targetKind != 'projectCheckout')
+              state._dropdown('Setup', state._setup, const <String>[
+                'wait',
+                'parallel',
+                'skip',
+              ], (value) => state._refresh(() => state._setup = value!)),
             state._dropdown('Overlap', state._overlap, const <String>[
               'skip',
               'queue',
@@ -183,6 +202,7 @@ class const MobileAutomationEditorOptions({
   required final List<WorkspaceSummary> workspaces,
   required final List<AgentProfileSummary> profiles,
   required final List<WorkspaceTabSummary> tabs,
+  final Map<String, List<MobileAutomationChoice>> projectCheckouts = const {},
 }) {
   List<MobileAutomationChoice> tabsFor(String workspaceId) => tabs
       .where((tab) => tab.workspaceId == workspaceId)
@@ -204,13 +224,34 @@ Future<MobileAutomationEditorOptions> loadMobileAutomationEditorOptions(
   final tabLists = await Future.wait<List<WorkspaceTabSummary>>(
     workspaces.map((workspace) => client.listTabs(workspace.id)),
   );
+  final checkoutLists = await Future.wait([
+    for (final project in projects)
+      client.runtimeCapabilities.contains(sharedCheckoutWorkspacesCapability)
+          ? client.requestList('checkout.list', {'projectId': project.id})
+          : Future.value(<Object?>[]),
+  ]);
   return MobileAutomationEditorOptions(
+    projectCheckouts: {
+      for (var index = 0; index < projects.length; index++)
+        projects[index].id: mobileProjectFolderChoices(checkoutLists[index]),
+    },
     projects: projects,
     workspaces: workspaces,
     profiles: profiles,
     tabs: <WorkspaceTabSummary>[for (final tabs in tabLists) ...tabs],
   );
 }
+
+List<MobileAutomationChoice> mobileProjectFolderChoices(
+  List<Object?> checkouts,
+) => [
+  for (final raw in checkouts)
+    if (_map(raw)['kind'] == 'project')
+      MobileAutomationChoice(
+        id: _map(raw)['hostId'] as String,
+        label: '${_map(raw)['hostId']}: ${_map(raw)['path']}',
+      ),
+];
 
 Map<String, Object?> _map(Object? value) => value is Map
     ? <String, Object?>{
@@ -284,6 +325,7 @@ Widget _choiceField(
   return Padding(
     padding: const EdgeInsets.only(bottom: AleraTokens.spaceSm),
     child: DropdownButtonFormField<String>(
+      isExpanded: true,
       initialValue: current.isEmpty
           ? (optional ? '' : null)
           : hasCurrent || visibleChoices.any((choice) => choice.id == current)
@@ -294,7 +336,10 @@ Widget _choiceField(
         if (optional)
           const DropdownMenuItem<String>(value: '', child: Text('None')),
         for (final choice in visibleChoices)
-          DropdownMenuItem<String>(value: choice.id, child: Text(choice.label)),
+          DropdownMenuItem<String>(
+            value: choice.id,
+            child: Text(choice.label, overflow: TextOverflow.ellipsis),
+          ),
       ],
       onChanged: (value) {
         controller.text = value ?? '';

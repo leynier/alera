@@ -183,7 +183,7 @@ mixin _AzureDevOpsReviewComments {
         path: path,
         line: line,
         resolved: resolved,
-        threadId: path == null ? null : threadId,
+        threadId: threadId,
         locator: rawComment['id'] == null
             ? null
             : ReviewCommentLocator(

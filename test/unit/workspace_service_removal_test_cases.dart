@@ -144,8 +144,10 @@ void _registerWorkspaceServiceRemovalTests() {
     },
   );
 
-  test('removeWorkspace rejects removing the main workspace', () async {
-    final mainWorkspace = await service.ensureMainWorkspace(project);
+  test('removeWorkspace rejects deleting a shared checkout branch', () async {
+    final mainWorkspace = (await service.createSharedWorkspace(
+      project: project,
+    )).workspace;
 
     await expectLater(
       service.removeWorkspace(
@@ -451,7 +453,9 @@ void _registerWorkspaceServiceRemovalTests() {
     );
     final before = DateTime.now().toUtc().subtract(const Duration(seconds: 1));
 
-    final workspace = await defaultService.ensureMainWorkspace(project);
+    final workspace = (await defaultService.createSharedWorkspace(
+      project: project,
+    )).workspace;
 
     final after = DateTime.now().toUtc().add(const Duration(seconds: 1));
     expect(workspace.updatedAt.isUtc, isTrue);

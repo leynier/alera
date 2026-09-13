@@ -7,6 +7,7 @@ import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dar
 import 'package:alera_mobile/src/features/workbench/domain/workspace_search_rows.dart';
 import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:uuid/uuid.dart';
 
 part 'workspace_text_search_controller.g.dart';
 
@@ -101,14 +102,17 @@ const Object _sentinel = Object();
 
 @riverpod
 class WorkspaceTextSearchController extends _$WorkspaceTextSearchController {
+  final _instanceId = const Uuid().v4();
   Timer? _debounce;
   var _generation = 0;
   String? _activeRequestId;
+  MobileWorkspacePanelsClient? _activeSearchClient;
 
   @override
   WorkspaceTextSearchState build(String hostId, String workspaceId) {
     ref.onDispose(() {
       _debounce?.cancel();
+      _generation += 1;
       _cancelActiveRequest();
     });
     // View as tree and Search ignored files are shared with the desktop
@@ -207,10 +211,10 @@ class WorkspaceTextSearchController extends _$WorkspaceTextSearchController {
       return;
     }
     state = state.copyWith(searching: true, error: null);
-    final requestId = '$workspaceId:$generation';
+    final requestId = '$workspaceId:$_instanceId:$generation';
     try {
       final panels = await _panels();
-      if (generation != _generation) {
+      if (!ref.mounted || generation != _generation) {
         return;
       }
       if (panels == null || !panels.supportsWorkspaceSearch) {
@@ -222,6 +226,7 @@ class WorkspaceTextSearchController extends _$WorkspaceTextSearchController {
         return;
       }
       _activeRequestId = panels.supportsWorkspaceReplace ? requestId : null;
+      _activeSearchClient = panels;
       final search = state.searchQuery;
       final result = await panels.searchWorkspace(
         workspaceId: workspaceId,
@@ -236,12 +241,12 @@ class WorkspaceTextSearchController extends _$WorkspaceTextSearchController {
         preserveCase: state.preserveCase,
         requestId: requestId,
       );
-      if (generation != _generation) {
+      if (!ref.mounted || generation != _generation) {
         return;
       }
       state = state.copyWith(result: result, error: null, searching: false);
     } on Object catch (error, stackTrace) {
-      if (generation != _generation) {
+      if (!ref.mounted || generation != _generation) {
         return;
       }
       _log.warning('workspace search failed', error, stackTrace);
@@ -249,6 +254,7 @@ class WorkspaceTextSearchController extends _$WorkspaceTextSearchController {
     } finally {
       if (_activeRequestId == requestId) {
         _activeRequestId = null;
+        _activeSearchClient = null;
       }
     }
   }
@@ -257,10 +263,18 @@ class WorkspaceTextSearchController extends _$WorkspaceTextSearchController {
   /// content token from the last search goes along, so the host skips any file
   /// that changed on disk since the phone saw it instead of overwriting it.
   Future<MobileWorkspaceReplaceResult> replaceMatches(
-    Iterable<String> matchIds,
-  ) async {
-    final result = state.result;
-    if (result == null) {
+    Iterable<String> matchIds, {
+    WorkspaceTextSearchState? confirmedState,
+  }) async {
+    if (confirmedState != null && !identical(confirmedState, state)) {
+      throw StateError(
+        'Search changed after confirmation opened. Run search again.',
+      );
+    }
+    final snapshot = state;
+    final generation = _generation;
+    final result = snapshot.result;
+    if (result == null || snapshot.searching || snapshot.replacing) {
       throw StateError('Run search before replacing.');
     }
     final selected = matchIds.toSet();
@@ -275,6 +289,14 @@ class WorkspaceTextSearchController extends _$WorkspaceTextSearchController {
         'Update the paired Alera runtime to replace workspace matches.',
       );
     }
+    if (!ref.mounted) {
+      throw StateError('Search panel closed before replacement started.');
+    }
+    if (generation != _generation) {
+      throw StateError(
+        'Search changed before replacement started. Run search again.',
+      );
+    }
     final affected = selected.isEmpty
         ? result.files
         : <MobileWorkspaceSearchFile>[
@@ -286,18 +308,22 @@ class WorkspaceTextSearchController extends _$WorkspaceTextSearchController {
     try {
       final replaced = await panels.replaceWorkspaceMatches(
         workspaceId: workspaceId,
-        search: state.searchQuery,
-        replacement: state.replacement,
-        preserveCase: state.preserveCase,
+        search: snapshot.searchQuery,
+        replacement: snapshot.replacement,
+        preserveCase: snapshot.preserveCase,
         matchIds: selected.toList(growable: false),
         expectedFiles: affected,
       );
-      state = state.copyWith(replacing: false);
-      unawaited(runNow());
+      if (ref.mounted) {
+        state = state.copyWith(replacing: false);
+        unawaited(runNow());
+      }
       return replaced;
     } on Object catch (error, stackTrace) {
       _log.warning('workspace replace failed', error, stackTrace);
-      state = state.copyWith(replacing: false);
+      if (ref.mounted) {
+        state = state.copyWith(replacing: false);
+      }
       rethrow;
     }
   }
@@ -353,16 +379,21 @@ class WorkspaceTextSearchController extends _$WorkspaceTextSearchController {
 
   void _cancelActiveRequest() {
     final requestId = _activeRequestId;
-    if (requestId == null) {
+    final client = _activeSearchClient;
+    _activeSearchClient = null;
+    if (requestId == null || client == null) {
       return;
     }
     _activeRequestId = null;
-    unawaited(_cancel(requestId));
+    unawaited(_cancel(client, requestId));
   }
 
-  Future<void> _cancel(String requestId) async {
+  Future<void> _cancel(
+    MobileWorkspacePanelsClient client,
+    String requestId,
+  ) async {
     try {
-      await (await _panels())?.cancelWorkspaceSearch(requestId);
+      await client.cancelWorkspaceSearch(requestId);
     } on Object {
       // Best effort: a stale generation is discarded when it answers anyway.
     }

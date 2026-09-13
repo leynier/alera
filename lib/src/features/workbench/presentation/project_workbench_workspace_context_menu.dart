@@ -33,7 +33,9 @@ extension _WorkspaceContextMenu on _WorkspaceRowState {
       ),
     );
 
-    if (isLinkedIssueMenuAction(selected) && context.mounted) {
+    if (selected == _recoveryAction && context.mounted) {
+      await showWorkspaceRecoveryFlow(context, widget.workspace);
+    } else if (isLinkedIssueMenuAction(selected) && context.mounted) {
       launchLinkedIssueMenuAction(
         context,
         workspace: widget.workspace,

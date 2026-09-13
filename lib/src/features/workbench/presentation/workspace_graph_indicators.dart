@@ -4,23 +4,20 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:flutter/material.dart';
 
-/// Compact main-worktree marker shown next to a workspace name.
+/// Physical location marker, independent of task priority or parentage.
 class const WorkspaceRoleBadge({super.key, required final Workspace workspace})
     extends StatelessWidget {
   /// Whether [workspace] has a role to show. Callers use this to gate the
   /// adjacent spacer so the predicate lives in one place instead of being
   /// duplicated at every call site.
-  static bool hasRole(Workspace workspace) => workspace.isMain;
+  static bool hasRole(Workspace workspace) => true;
 
   @override
   Widget build(BuildContext context) {
-    if (!workspace.isMain) {
-      return const SizedBox.shrink();
-    }
-    return const Tooltip(
-      message: 'Default workspace',
+    return Tooltip(
+      message: workspace.isMain ? 'Project folder' : 'Linked worktree',
       child: Icon(
-        AleraIcons.workspaceMain,
+        workspace.isMain ? AleraIcons.workspaceMain : AleraIcons.gitBranch,
         size: 12,
         color: AleraTokens.foregroundMuted,
       ),

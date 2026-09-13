@@ -48,6 +48,7 @@ final class _TerminalHostTestServer._(
   Socket? _client;
   final Set<Socket> _clients = <Socket>{};
   String token = 'existing-token';
+  Map<String, Object?> helloPayload = {};
   int acceptedConnections = 0;
   bool _binaryFrames = false;
 
@@ -110,7 +111,7 @@ final class _TerminalHostTestServer._(
         jsonEncode(<String, Object?>{
           'id': id,
           'ok': true,
-          'payload': const <String, Object?>{},
+          'payload': helloPayload,
           if (accepted) 'binaryFrames': true,
         }),
       );

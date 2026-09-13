@@ -61,14 +61,27 @@ void main() {
         final watched = await repository.watchWorkspaces('project-1').first;
 
         expect(listed.map((workspace) => workspace.id), <String>[
-          mainWorkspace.id,
           linkedEarly.id,
+          mainWorkspace.id,
           linkedLate.id,
         ]);
         expect(watched, listed);
-        expect(listed.first.branch, isNull);
-        expect(listed.first.sourceBranch, isNull);
-        expect(listed[1].reusesExistingBranch, isTrue);
+        expect(
+          listed.singleWhere((task) => task.id == mainWorkspace.id).branch,
+          isNull,
+        );
+        expect(
+          listed
+              .singleWhere((task) => task.id == mainWorkspace.id)
+              .sourceBranch,
+          isNull,
+        );
+        expect(
+          listed
+              .singleWhere((task) => task.id == linkedEarly.id)
+              .reusesExistingBranch,
+          isTrue,
+        );
       },
     );
 

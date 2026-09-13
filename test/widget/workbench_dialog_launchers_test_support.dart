@@ -1,6 +1,8 @@
 // Shared harness for the workbench dialog launcher widget suites.
 import 'dart:async';
 
+import 'package:alera/src/features/projects/domain/project_branch_catalog.dart';
+
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/app_navigation.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
@@ -130,6 +132,7 @@ class DialogLaunchersTestController(final WorkbenchState _seed)
   List<String> sourceBranches = const <String>['main'];
   Exception? createWorkspaceError;
   String? parentLinkError;
+  bool? createdOnProjectCheckout;
   WorktreeSetupReport setupReport = .empty;
   ({
     Project project,
@@ -176,6 +179,17 @@ class DialogLaunchersTestController(final WorkbenchState _seed)
   }
 
   @override
+  Future<ProjectBranchCatalog> loadHostBranchCatalog(
+    Project project,
+    String? hostId,
+  ) async => ProjectBranchCatalog(
+    projectId: project.id,
+    hostId: hostId ?? 'local',
+    branches: sourceBranches,
+    localBranches: sourceBranches.toSet(),
+  );
+
+  @override
   Future<List<String>> listSourceBranches(Project project) async {
     return sourceBranches;
   }
@@ -186,11 +200,13 @@ class DialogLaunchersTestController(final WorkbenchState _seed)
     required String sourceBranch,
     required String newBranchName,
     bool reuseExistingBranch = false,
+    bool useProjectCheckout = false,
     String? name,
     String? parentWorkspaceId,
     String? hostId,
     String? issueUrl,
   }) async {
+    createdOnProjectCheckout = useProjectCheckout;
     if (createWorkspaceError case final Exception error) {
       throw error;
     }
@@ -296,6 +312,7 @@ class DialogLaunchersBackgroundSetupJobs extends BackgroundSetupJobs {
               sourceBranch: request.sourceBranch,
               newBranchName: request.newBranchName,
               reuseExistingBranch: request.reuseExistingBranch,
+              useProjectCheckout: request.useProjectCheckout,
               name: request.name,
               parentWorkspaceId: request.parentWorkspaceId,
               hostId: request.hostId,

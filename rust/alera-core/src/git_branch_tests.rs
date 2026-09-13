@@ -85,6 +85,10 @@ fn init_repo() -> (TempDir, Repository) {
     let mut options = RepositoryInitOptions::new();
     options.initial_head("main");
     let repo = Repository::init_opts(path, &options).expect("initialize repository");
+    repo.config()
+        .unwrap()
+        .set_bool("core.autocrlf", false)
+        .unwrap();
     fs::write(path.join("README.md"), "initial\n").expect("write README");
     fs::write(path.join("tracked.txt"), "initial\n").expect("write tracked file");
     let mut index = repo.index().expect("open index");

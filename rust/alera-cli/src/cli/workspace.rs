@@ -16,14 +16,16 @@ pub struct WorkspaceCommand {
 pub enum WorkspaceAction {
     /// List workspaces for one project or all projects.
     List(WorkspaceListArgs),
-    /// Create an Alera-managed Git worktree. Pass --host-id to create it on a bootstrapped SSH target.
+    /// Create a task on the project folder, or use --worktree for an exclusive Git worktree.
     Add(WorkspaceAddArgs),
-    /// Create a managed workspace and launch a declared agent profile.
+    /// Create a task on the project folder and launch an agent profile. Use --worktree for isolation.
     Start(WorkspaceStartArgs),
-    /// Remove an Alera-managed Git worktree workspace.
+    /// Remove task state and optionally its owned worktree. Shared project files are preserved.
     Remove(WorkspaceRemoveArgs),
     /// Apply the project's worktree setup to an existing workspace.
     Setup(WorkspaceSetupArgs),
+    /// Inspect persisted relocation phases and setup receipts without running commands.
+    Recovery(IdArgs),
     /// Register a workspace record without touching Git worktrees. --host-id is metadata only and does not create a remote worktree.
     Register(WorkspaceRegisterArgs),
     /// Remove a workspace record and related runtime records without touching Git worktrees.
@@ -42,10 +44,10 @@ pub enum WorkspaceAction {
     Untag(WorkspaceTagArgs),
     /// Preview opt-in cascade targets.
     CascadePreview(CascadePreviewArgs),
-    /// Move the main worktree's current work into a new child worktree.
+    /// Move this task from the project checkout to an exclusive worktree.
     #[command(name = "hand-off")]
     HandOff(WorkspaceHandOffArgs),
-    /// Bring a child worktree's current work back onto main.
+    /// Move this task back to its project's checkout on the same host.
     #[command(name = "hand-on")]
     HandOn(WorkspaceHandOnArgs),
     /// Show, link, or unlink the issue a workspace was created for.
@@ -62,21 +64,28 @@ pub struct WorkspaceListArgs {
 
 #[derive(Debug, Args)]
 pub struct WorkspaceAddArgs {
+    /// Create a new exclusive worktree instead of sharing the project folder.
+    #[arg(long)]
+    pub worktree: bool,
     #[arg(long)]
     pub id: Option<String>,
     #[arg(long = "project-id")]
     pub project_id: String,
-    #[arg(long)]
-    pub branch: String,
-    #[arg(long = "source-branch")]
+    #[arg(long, requires = "worktree", required_if_eq("worktree", "true"))]
+    pub branch: Option<String>,
+    #[arg(long = "source-branch", requires = "worktree")]
     pub source_branch: Option<String>,
     #[arg(long)]
     pub name: Option<String>,
-    #[arg(long = "reuse-existing-branch")]
+    #[arg(long = "reuse-existing-branch", requires = "worktree")]
     pub reuse_existing_branch: bool,
-    #[arg(long = "workspace-root", conflicts_with = "path")]
+    #[arg(
+        long = "workspace-root",
+        conflicts_with = "path",
+        requires = "worktree"
+    )]
     pub workspace_root: Option<String>,
-    #[arg(long, conflicts_with = "workspace_root")]
+    #[arg(long, conflicts_with = "workspace_root", requires = "worktree")]
     pub path: Option<String>,
     #[arg(long = "parent-workspace-id")]
     pub parent_workspace_id: Option<String>,
@@ -90,26 +99,33 @@ pub struct WorkspaceAddArgs {
 
 #[derive(Debug, Args)]
 pub struct WorkspaceStartArgs {
+    /// Create a new exclusive worktree instead of sharing the project folder.
+    #[arg(long)]
+    pub worktree: bool,
     #[command(flatten)]
     pub selector: AgentProfileSelectorArgs,
     #[command(flatten)]
     pub prompt: PromptSourceArgs,
-    /// Workspace used to infer project, source branch, and parent. Defaults to ALERA_WORKSPACE_ID.
+    /// Workspace used to infer the project and worktree source branch. Defaults to ALERA_WORKSPACE_ID.
     #[arg(long = "workspace", value_name = "workspace_id")]
     pub workspace: Option<String>,
     #[arg(long)]
     pub id: Option<String>,
     #[arg(long = "project-id")]
     pub project_id: Option<String>,
-    #[arg(long)]
+    #[arg(long, requires = "worktree")]
     pub branch: Option<String>,
-    #[arg(long = "source-branch")]
+    #[arg(long = "source-branch", requires = "worktree")]
     pub source_branch: Option<String>,
     #[arg(long)]
     pub name: Option<String>,
-    #[arg(long = "workspace-root", conflicts_with = "path")]
+    #[arg(
+        long = "workspace-root",
+        conflicts_with = "path",
+        requires = "worktree"
+    )]
     pub workspace_root: Option<String>,
-    #[arg(long, conflicts_with = "workspace_root")]
+    #[arg(long, conflicts_with = "workspace_root", requires = "worktree")]
     pub path: Option<String>,
     #[arg(long = "parent-workspace-id", conflicts_with = "no_parent")]
     pub parent_workspace_id: Option<String>,
@@ -135,6 +151,12 @@ pub struct WorkspaceRemoveArgs {
     pub delete_branch: bool,
     #[arg(long = "keep-branch", conflicts_with = "delete_branch")]
     pub keep_branch: bool,
+    /// Stop only this workspace's processes before removal; otherwise active sessions block removal.
+    #[arg(long = "close-sessions")]
+    pub close_sessions: bool,
+    /// Pause dependent automations and cancel all their active runs before removing the workspace.
+    #[arg(long = "pause-automations-and-cancel-runs")]
+    pub pause_automations_and_cancel_runs: bool,
 }
 
 #[derive(Debug, Args)]
@@ -147,6 +169,21 @@ pub struct WorkspaceSetupArgs {
     /// in shell.
     #[arg(long = "copies-only")]
     pub copies_only: bool,
+    /// Execute the persisted setup recipe for this relocation once.
+    #[arg(long, conflicts_with = "copies_only")]
+    pub relocation_id: Option<String>,
+    /// Recreate the launcher for pending relocation setup without running its commands.
+    #[arg(long, requires = "relocation_id")]
+    pub prepare: bool,
+    /// Request cancellation of the specified setup attempt.
+    #[arg(long, group = "setup_attempt_action", requires_all = ["relocation_id", "attempt_id"], conflicts_with_all = ["prepare", "copies_only"])]
+    pub cancel: bool,
+    /// Close an interrupted attempt only after verifying process closure, without repeating commands.
+    #[arg(long, group = "setup_attempt_action", requires_all = ["relocation_id", "attempt_id"], conflicts_with_all = ["prepare", "copies_only", "cancel"])]
+    pub recover: bool,
+    /// Attempt identity shown by workspace recovery; scopes cancellation or recovery.
+    #[arg(long, requires_all = ["relocation_id", "setup_attempt_action"])]
+    pub attempt_id: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -201,6 +238,9 @@ pub struct WorkspaceHandOffArgs {
     /// Main workspace to move work out of. Defaults to ALERA_WORKSPACE_ID.
     #[arg(long)]
     pub id: Option<String>,
+    /// Reuse this operation identity when retrying after a lost response.
+    #[arg(long)]
+    pub relocation_id: Option<uuid::Uuid>,
     #[arg(long)]
     pub branch: String,
     #[arg(long)]
@@ -211,6 +251,14 @@ pub struct WorkspaceHandOffArgs {
     pub workspace_root: Option<String>,
     #[arg(long, conflicts_with = "workspace_root")]
     pub path: Option<String>,
+    #[arg(long, conflicts_with = "leave_changes")]
+    pub move_changes: bool,
+    #[arg(long, conflicts_with = "move_changes")]
+    pub leave_changes: bool,
+    #[arg(long, requires = "reuse_existing_branch")]
+    pub replacement_branch: Option<String>,
+    #[arg(long)]
+    pub confirm_shared_impact: bool,
 }
 
 #[derive(Debug, Args)]
@@ -218,6 +266,12 @@ pub struct WorkspaceHandOnArgs {
     /// Child workspace to bring back onto main. Defaults to ALERA_WORKSPACE_ID.
     #[arg(long)]
     pub id: Option<String>,
+    /// Reuse this operation identity when retrying after a lost response.
+    #[arg(long)]
+    pub relocation_id: Option<uuid::Uuid>,
+    /// Confirm that every task on the project folder will share the resulting branch and files.
+    #[arg(long)]
+    pub confirm_shared_impact: bool,
 }
 
 #[derive(Debug, Args)]

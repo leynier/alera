@@ -1,13 +1,13 @@
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct ProcessIdentity {
+pub(crate) struct ProcessIdentity {
     pub pid: u32,
     pub start_marker: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) enum ProcessLookup {
+pub(crate) enum ProcessLookup {
     Live(ProcessIdentity),
     Exited,
     Unknown(String),
@@ -27,11 +27,11 @@ impl fmt::Display for ProcessLookup {
     }
 }
 
-pub(super) trait ProcessIdentityProbe {
+pub(crate) trait ProcessIdentityProbe {
     fn lookup(&self, pid: u32) -> ProcessLookup;
 }
 
-pub(super) struct SystemProcessIdentityProbe;
+pub(crate) struct SystemProcessIdentityProbe;
 
 impl ProcessIdentityProbe for SystemProcessIdentityProbe {
     fn lookup(&self, pid: u32) -> ProcessLookup {
@@ -39,7 +39,7 @@ impl ProcessIdentityProbe for SystemProcessIdentityProbe {
     }
 }
 
-pub(super) fn current_process_identity() -> Result<ProcessIdentity, String> {
+pub(crate) fn current_process_identity() -> Result<ProcessIdentity, String> {
     let pid = std::process::id();
     match SystemProcessIdentityProbe.lookup(pid) {
         ProcessLookup::Live(identity) => Ok(identity),
@@ -50,11 +50,11 @@ pub(super) fn current_process_identity() -> Result<ProcessIdentity, String> {
     }
 }
 
-pub(super) fn terminate_process(identity: ProcessIdentity) -> Result<(), String> {
+pub(crate) fn terminate_process(identity: ProcessIdentity) -> Result<(), String> {
     platform::terminate(identity)
 }
 
-pub(super) const PLATFORM: &str = std::env::consts::OS;
+pub(crate) const PLATFORM: &str = std::env::consts::OS;
 
 #[cfg(target_os = "linux")]
 mod platform {

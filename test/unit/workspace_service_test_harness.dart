@@ -168,9 +168,12 @@ class _FakeManagedWorkspaceRuntime implements ManagedWorkspaceRuntime {
 
   @override
   Future<WorkspaceCreationResult> handOffWorkspace({
+    String? relocationId,
     required Workspace workspace,
     required String branch,
     required bool reuseExistingBranch,
+    bool moveChanges = true,
+    String? replacementBranch,
     String? name,
   }) {
     throw UnimplementedError();
@@ -178,6 +181,7 @@ class _FakeManagedWorkspaceRuntime implements ManagedWorkspaceRuntime {
 
   @override
   Future<WorkspaceHandOnResult> handOnWorkspace({
+    String? relocationId,
     required Workspace workspace,
     String? activeWorkspaceId,
   }) {

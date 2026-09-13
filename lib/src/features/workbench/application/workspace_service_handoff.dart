@@ -2,9 +2,12 @@ part of 'workspace_service.dart';
 
 extension WorkspaceServiceHandoff on WorkspaceService {
   Future<WorkspaceCreationResult> handOffWorkspace({
+    String? relocationId,
     required Workspace workspace,
     required String branch,
     bool reuseExistingBranch = false,
+    bool moveChanges = true,
+    String? replacementBranch,
     String? name,
   }) async {
     if (!workspace.isMain) {
@@ -19,14 +22,18 @@ extension WorkspaceServiceHandoff on WorkspaceService {
       );
     }
     return managedRuntime.handOffWorkspace(
+      relocationId: relocationId,
       workspace: workspace,
       branch: branch.trim(),
       reuseExistingBranch: reuseExistingBranch,
+      moveChanges: moveChanges,
+      replacementBranch: replacementBranch,
       name: name,
     );
   }
 
   Future<WorkspaceHandOnResult> handOnWorkspace({
+    String? relocationId,
     required Workspace workspace,
     String? activeWorkspaceId,
   }) async {
@@ -42,6 +49,7 @@ extension WorkspaceServiceHandoff on WorkspaceService {
       );
     }
     return managedRuntime.handOnWorkspace(
+      relocationId: relocationId,
       workspace: workspace,
       activeWorkspaceId: activeWorkspaceId,
     );

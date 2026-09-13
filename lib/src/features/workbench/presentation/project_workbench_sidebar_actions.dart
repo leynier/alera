@@ -24,9 +24,7 @@ mixin _ProjectWorkbenchSidebarActions
       return;
     }
     final activeProject = state.activeProject;
-    await _createWorkspace(
-      activeProject?.supportsLinkedWorkspaces == true ? activeProject : null,
-    );
+    await _createWorkspace(activeProject);
   }
 
   Future<void> _addProject() => showAddProjectFlow(context, ref);
@@ -145,96 +143,6 @@ mixin _ProjectWorkbenchSidebarActions
     );
   }
 
-  Future<void> _deleteWorkspace(Project project, Workspace workspace) async {
-    if (workspace.isMain) {
-      return;
-    }
-    final branch = workspace.branch;
-    final canDeleteBranch =
-        !workspace.reusesExistingBranch && branch != null && branch.isNotEmpty;
-
-    final managedRuntime = ref.read(managedWorkspaceRuntimeProvider);
-    WorkspaceStorageImpact? impact;
-    if (managedRuntime is WorkspaceStorageRuntime) {
-      try {
-        final measuredImpact = await (managedRuntime as WorkspaceStorageRuntime)
-            .storageImpact(
-              workspaceId: workspace.id,
-              activeWorkspaceId: ref
-                  .read(workbenchControllerProvider)
-                  .activeWorkspaceId,
-            );
-        impact = measuredImpact;
-        if (!mounted) return;
-        if (!measuredImpact.safeToClean) {
-          await showDialog<bool>(
-            context: context,
-            builder: (_) => AleraConfirmDialog(
-              title: 'Cleanup Unavailable',
-              message:
-                  'Alera measured ${formatResourceMemory(measuredImpact.sizeBytes)} across '
-                  '${measuredImpact.entryCount} entries. Cleanup is blocked:\n\n'
-                  '${measuredImpact.blockers.map((blocker) => '• $blocker').join('\n')}',
-              confirmLabel: 'Close',
-              cancelLabel: 'Cancel',
-            ),
-          );
-          return;
-        }
-      } catch (error) {
-        if (!mounted) return;
-        AleraToast.show(
-          context,
-          message: 'Could not inspect workspace storage: $error',
-          tone: .error,
-        );
-        return;
-      }
-    }
-    final lastActivity =
-        ref.read(workspaceActivityControllerProvider)[workspace.id] ??
-        impact?.lastActivityAt ??
-        workspace.updatedAt;
-    final impactSummary = impact == null
-        ? ''
-        : 'Measured size: ${formatResourceMemory(impact.sizeBytes)} '
-              'across ${impact.entryCount} entries.\n'
-              'Last activity: ${_workspaceStorageTimestamp(lastActivity)}.\n\n';
-    final decision = await showWorkspaceRemovalDialog(
-      context,
-      workspaceName: workspace.name,
-      branch: branch,
-      canDeleteBranch: canDeleteBranch,
-      impactSummary: impactSummary,
-    );
-    if (decision == null || !mounted) {
-      return;
-    }
-    await _runWorkbenchSidebarMutation(
-      mutation: .removeWorkspace,
-      execute: () async {
-        await ref
-            .read(workbenchControllerProvider.notifier)
-            .deleteWorkspace(
-              project: project,
-              workspace: workspace,
-              deleteBranch: decision.deleteBranch,
-              activeWorkspaceId: ref
-                  .read(workbenchControllerProvider)
-                  .activeWorkspaceId,
-            );
-        return _WorkbenchSidebarMutationResult.applied;
-      },
-    );
-  }
-
-  String _workspaceStorageTimestamp(DateTime value) {
-    final local = value.toLocal();
-    String twoDigits(int part) => part.toString().padLeft(2, '0');
-    return '${local.year}-${twoDigits(local.month)}-${twoDigits(local.day)} '
-        '${twoDigits(local.hour)}:${twoDigits(local.minute)}';
-  }
-
   Future<void> _manageWorkspaceTags(Workspace workspace) {
     final controller = ref.read(workbenchControllerProvider.notifier);
     return _runWorkbenchSidebarMutation(
@@ -313,36 +221,48 @@ mixin _ProjectWorkbenchSidebarActions
   }
 
   Future<void> _removeProject(Project project) async {
-    final shouldConfirm = ref
-        .read(settingsControllerProvider)
-        .general
-        .confirmProjectRemoval;
-    final confirmed = shouldConfirm
-        ? await showDialog<bool>(
-            context: context,
-            builder: (_) => AleraConfirmDialog(
-              title: 'Remove Project?',
-              message:
-                  'This unregisters "${project.name}" and deletes its workspace '
-                  'metadata. Repository files on disk are not deleted.',
-              confirmLabel: 'Remove',
-              destructive: true,
-            ),
-          )
-        : true;
-    if (confirmed != true || !mounted) {
-      return;
-    }
-    final runtime = ref.read(terminalRuntimeProvider);
-    final workspaces = ref
-        .read(workbenchControllerProvider)
-        .workspacesFor(project.id);
-    for (final workspace in workspaces) {
-      runtime.closeWorkspace(workspace.id);
-    }
     await _runWorkbenchSidebarMutation(
       mutation: .removeProject,
       execute: () async {
+        final managedRuntime = ref.read(managedWorkspaceRuntimeProvider);
+        if (managedRuntime is! ProjectRemovalDependencyRuntime) {
+          throw StateError(
+            'Update Alera to verify project automation dependencies.',
+          );
+        }
+        final dependencyRuntime =
+            managedRuntime as ProjectRemovalDependencyRuntime;
+        final dependencies = await dependencyRuntime.projectRemovalDependencies(
+          project.id,
+        );
+        if (!mounted) return _WorkbenchSidebarMutationResult.notApplied;
+        final shouldConfirm = ref
+            .read(settingsControllerProvider)
+            .general
+            .confirmProjectRemoval;
+        final confirmed = shouldConfirm || dependencies.isNotEmpty
+            ? await showDialog<bool>(
+                context: context,
+                builder: (_) => AleraConfirmDialog(
+                  title: 'Remove Project?',
+                  message:
+                      'This unregisters "${project.name}" and deletes its workspace '
+                      'metadata. Repository files on disk are not deleted.'
+                      '${dependencies.isEmpty ? '' : '\n\n${dependencies.map((dependency) => '${dependency.name}: ${dependency.activeRuns} active runs').join('\n')}\n\nContinuing pauses these automations when needed and cancels all of their active runs. History is preserved. Their targets must be changed before resuming.'}',
+                  confirmLabel: dependencies.isEmpty
+                      ? 'Remove'
+                      : 'Pause And Remove',
+                  destructive: true,
+                ),
+              )
+            : true;
+        if (confirmed != true || !mounted) {
+          return _WorkbenchSidebarMutationResult.notApplied;
+        }
+        await dependencyRuntime.pauseProjectRemovalDependencies(
+          project.id,
+          dependencies,
+        );
         await ref
             .read(workbenchControllerProvider.notifier)
             .removeProject(project.id);

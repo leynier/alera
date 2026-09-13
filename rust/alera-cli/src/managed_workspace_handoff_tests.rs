@@ -25,6 +25,7 @@ async fn hand_off_moves_dirty_main_work_into_a_child_worktree() {
     let result = hand_off_managed_workspace(
         &fixture.store,
         ManagedWorkspaceHandOffRequest {
+            relocation_id: None,
             id: "main".to_string(),
             branch: "feat/hand-off".to_string(),
             name: Some("Hand Off Dirty".to_string()),
@@ -78,6 +79,7 @@ async fn hand_off_moves_a_feature_branch_off_the_main_worktree() {
     let result = hand_off_managed_workspace(
         &fixture.store,
         ManagedWorkspaceHandOffRequest {
+            relocation_id: None,
             id: "main".to_string(),
             branch: "feat/current".to_string(),
             name: Some("Current Feature".to_string()),
@@ -117,6 +119,7 @@ async fn hand_on_brings_child_work_back_onto_main() {
     let created = hand_off_managed_workspace(
         &fixture.store,
         ManagedWorkspaceHandOffRequest {
+            relocation_id: None,
             id: "main".to_string(),
             branch: "feat/round-trip".to_string(),
             name: Some("Round Trip".to_string()),
@@ -134,6 +137,7 @@ async fn hand_on_brings_child_work_back_onto_main() {
     let result = hand_on_managed_workspace(
         &fixture.store,
         ManagedWorkspaceHandOnRequest {
+            relocation_id: None,
             id: created.workspace.id.clone(),
             close_sessions: true,
             active_workspace_id: None,
@@ -173,6 +177,7 @@ async fn hand_off_rejects_a_child_workspace() {
     let created = hand_off_managed_workspace(
         &fixture.store,
         ManagedWorkspaceHandOffRequest {
+            relocation_id: None,
             id: "main".to_string(),
             branch: "feat/child".to_string(),
             name: Some("Child".to_string()),
@@ -189,6 +194,7 @@ async fn hand_off_rejects_a_child_workspace() {
     let error = hand_off_managed_workspace(
         &fixture.store,
         ManagedWorkspaceHandOffRequest {
+            relocation_id: None,
             id: created.workspace.id,
             branch: "feat/other".to_string(),
             name: None,
@@ -211,6 +217,7 @@ async fn hand_on_rejects_the_main_workspace() {
     let error = hand_on_managed_workspace(
         &fixture.store,
         ManagedWorkspaceHandOnRequest {
+            relocation_id: None,
             id: "main".to_string(),
             close_sessions: true,
             active_workspace_id: None,
@@ -229,6 +236,7 @@ async fn hand_on_rejects_a_dirty_main_worktree() {
     let created = hand_off_managed_workspace(
         &fixture.store,
         ManagedWorkspaceHandOffRequest {
+            relocation_id: None,
             id: "main".to_string(),
             branch: "feat/blocked".to_string(),
             name: Some("Blocked".to_string()),
@@ -246,6 +254,7 @@ async fn hand_on_rejects_a_dirty_main_worktree() {
     let error = hand_on_managed_workspace(
         &fixture.store,
         ManagedWorkspaceHandOnRequest {
+            relocation_id: None,
             id: created.workspace.id,
             close_sessions: true,
             active_workspace_id: None,
@@ -265,6 +274,7 @@ async fn hand_on_rejects_stale_metadata_when_child_checkout_moved() {
     let created = hand_off_managed_workspace(
         &fixture.store,
         ManagedWorkspaceHandOffRequest {
+            relocation_id: None,
             id: "main".to_string(),
             branch: "feat/stale-meta".to_string(),
             name: Some("Stale Meta".to_string()),
@@ -283,6 +293,7 @@ async fn hand_on_rejects_stale_metadata_when_child_checkout_moved() {
     let error = hand_on_managed_workspace(
         &fixture.store,
         ManagedWorkspaceHandOnRequest {
+            relocation_id: None,
             id: created.workspace.id.clone(),
             close_sessions: true,
             active_workspace_id: None,
@@ -324,6 +335,7 @@ async fn hand_on_rejects_a_detached_child_head() {
     let created = hand_off_managed_workspace(
         &fixture.store,
         ManagedWorkspaceHandOffRequest {
+            relocation_id: None,
             id: "main".to_string(),
             branch: "feat/detached".to_string(),
             name: Some("Detached".to_string()),
@@ -341,6 +353,7 @@ async fn hand_on_rejects_a_detached_child_head() {
     let error = hand_on_managed_workspace(
         &fixture.store,
         ManagedWorkspaceHandOnRequest {
+            relocation_id: None,
             id: created.workspace.id.clone(),
             close_sessions: true,
             active_workspace_id: None,

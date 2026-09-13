@@ -40,31 +40,37 @@ void main() {
   }
 
   group('WorkspaceRoleBadge', () {
-    testWidgets('shows home icon for the main workspace', (tester) async {
+    testWidgets('shows the project-folder location for a shared workspace', (
+      tester,
+    ) async {
       await pump(tester, WorkspaceRoleBadge(workspace: workspace(kind: .main)));
       expect(find.byIcon(AleraIcons.workspaceMain), findsOneWidget);
-      expect(find.byTooltip('Default workspace'), findsOneWidget);
+      expect(find.byTooltip('Project folder'), findsOneWidget);
       expect(find.text('default'), findsNothing);
       expect(find.text('Primary'), findsNothing);
       expect(find.text('Child'), findsNothing);
     });
 
-    testWidgets('renders nothing when the workspace has a parent', (
+    testWidgets('shows linked-worktree location independently of parentage', (
       tester,
     ) async {
       await pump(
         tester,
         WorkspaceRoleBadge(workspace: workspace(parentWorkspaceId: 'parent')),
       );
-      expect(find.byIcon(AleraIcons.workspaceMain), findsNothing);
+      expect(find.byIcon(AleraIcons.gitBranch), findsOneWidget);
+      expect(find.byTooltip('Linked worktree'), findsOneWidget);
       expect(find.text('default'), findsNothing);
       expect(find.text('Child'), findsNothing);
       expect(find.text('Primary'), findsNothing);
     });
 
-    testWidgets('renders nothing for a plain linked workspace', (tester) async {
+    testWidgets('shows linked-worktree location for an unparented task', (
+      tester,
+    ) async {
       await pump(tester, WorkspaceRoleBadge(workspace: workspace()));
-      expect(find.byIcon(AleraIcons.workspaceMain), findsNothing);
+      expect(find.byIcon(AleraIcons.gitBranch), findsOneWidget);
+      expect(find.byTooltip('Linked worktree'), findsOneWidget);
       expect(find.text('default'), findsNothing);
       expect(find.text('Primary'), findsNothing);
       expect(find.text('Child'), findsNothing);
@@ -74,9 +80,9 @@ void main() {
       expect(WorkspaceRoleBadge.hasRole(workspace(kind: .main)), isTrue);
       expect(
         WorkspaceRoleBadge.hasRole(workspace(parentWorkspaceId: 'p')),
-        isFalse,
+        isTrue,
       );
-      expect(WorkspaceRoleBadge.hasRole(workspace()), isFalse);
+      expect(WorkspaceRoleBadge.hasRole(workspace()), isTrue);
     });
   });
 

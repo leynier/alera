@@ -56,6 +56,7 @@ class const PullRequestAgentWatchSnapshot({
   final HostedReview? review,
   final ReviewChecksRollup checksRollup = ReviewChecksRollup.none,
   final List<ReviewComment> comments = const <ReviewComment>[],
+  final bool commentsComplete = true,
 });
 
 /// Problems inside the watch scope that an agent should fix.
@@ -213,6 +214,7 @@ PullRequestAgentWatchEvaluation evaluatePullRequestAgentWatch({
     );
   }
   if (session.mode == PullRequestAgentWatchMode.fixAndMerge &&
+      (!session.watchScope.comments || snapshot.commentsComplete) &&
       snapshot.checksRollup == ReviewChecksRollup.success &&
       review.state == HostedReviewState.open &&
       review.mergeable == HostedReviewMergeable.mergeable &&

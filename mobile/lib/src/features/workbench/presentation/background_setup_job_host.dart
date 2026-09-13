@@ -91,6 +91,8 @@ Future<void> _openRetryForm(
       builder: (_) => switch (snapshot) {
         final ManualWorkspaceCreateRequest request => CreateWorkspaceScreen(
           hostId: hostId,
+          supportsSharedCheckoutWorkspaces:
+              list.supportsSharedCheckoutWorkspaces,
           projects: list.projects,
           workspaces: list.workspaces,
           defaultAgentProfileId: list.defaultAgentProfileId,
@@ -107,11 +109,15 @@ Future<void> _openRetryForm(
           initialBranch: request.branch,
           initialName: request.name,
           initialReuseExistingBranch: request.reuseExistingBranch,
+          initialUseProjectCheckout: request.useProjectCheckout,
+          initialCheckoutHostId: request.checkoutHostId,
           supportsLinkedIssues: linkedIssues,
           initialIssueUrl: request.issueUrl,
         ),
         final PromptWorkspaceCreateRequest request => CreateWorkspaceScreen(
           hostId: hostId,
+          supportsSharedCheckoutWorkspaces:
+              list.supportsSharedCheckoutWorkspaces,
           projects: list.projects,
           workspaces: list.workspaces,
           defaultAgentProfileId: request.profileId,
@@ -123,6 +129,9 @@ Future<void> _openRetryForm(
           initialError: job.error,
           initialFromPrompt: true,
           initialPrompt: request.prompt,
+          initialLocalAttachmentPaths: request.localAttachmentPaths,
+          initialUseProjectCheckout: request.useProjectCheckout,
+          initialCheckoutHostId: request.checkoutHostId,
           initialProjectId: request.projectId,
           initialSourceBranch: request.sourceBranch,
           initialProfileId: request.profileId,
@@ -132,6 +141,8 @@ Future<void> _openRetryForm(
         ),
         _ => CreateWorkspaceScreen(
           hostId: hostId,
+          supportsSharedCheckoutWorkspaces:
+              list.supportsSharedCheckoutWorkspaces,
           projects: list.projects,
           workspaces: list.workspaces,
         ),

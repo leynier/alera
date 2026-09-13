@@ -29,8 +29,26 @@ class _ShellRuntimeHostClient implements RuntimeHostClient {
   }
 }
 
-class const _FakeManagedWorkspaceRuntime()
-    implements ManagedWorkspaceRuntime, WorkspaceStorageRuntime {
+class const _FakeManagedWorkspaceRuntime({
+  final List<WorkspaceRemovalDependency> dependencies = const [],
+  final VoidCallback? onPause,
+}) implements
+    ManagedWorkspaceRuntime,
+    WorkspaceStorageRuntime,
+    ProjectRemovalDependencyRuntime {
+  @override
+  Future<List<WorkspaceRemovalDependency>> projectRemovalDependencies(
+    String projectId,
+  ) async => dependencies;
+
+  @override
+  Future<void> pauseProjectRemovalDependencies(
+    String projectId,
+    List<WorkspaceRemovalDependency> approved,
+  ) async {
+    onPause?.call();
+  }
+
   @override
   Future<WorkspaceCreationResult> createLinkedWorkspace({
     required Project project,
@@ -51,14 +69,18 @@ class const _FakeManagedWorkspaceRuntime()
 
   @override
   Future<WorkspaceCreationResult> handOffWorkspace({
+    String? relocationId,
     required Workspace workspace,
     required String branch,
     required bool reuseExistingBranch,
+    bool moveChanges = true,
+    String? replacementBranch,
     String? name,
   }) => throw UnsupportedError('Hand off is not used by shell tests');
 
   @override
   Future<WorkspaceHandOnResult> handOnWorkspace({
+    String? relocationId,
     required Workspace workspace,
     String? activeWorkspaceId,
   }) => throw UnsupportedError('Hand on is not used by shell tests');

@@ -19,13 +19,48 @@ impl ServerActor {
         request_type: &str,
         payload: &Value,
     ) -> HostResult<bool> {
+        self.require_shared_checkout_support(client_id, request_type)?;
+        if self
+            .try_start_remote_terminal_lifecycle(client_id, request_id, request_type, payload)
+            .await?
+        {
+            return Ok(true);
+        }
+        if self
+            .try_start_remote_setup_control(client_id, request_id, request_type, payload)
+            .await?
+        {
+            return Ok(true);
+        }
         if self.try_start_configuration_cloud(client_id, request_id, request_type, payload)? {
             return Ok(true);
         }
         if self.try_start_account_request(client_id, request_id, request_type, payload)? {
             return Ok(true);
         }
+        if self.try_start_deferred_workspace_setup(client_id, request_id, request_type, payload)? {
+            return Ok(true);
+        }
         match request_type {
+            "terminal.ownerLifecycle" => {
+                self.start_owner_terminal_lifecycle(client_id, request_id, payload)
+                    .await?;
+                Ok(true)
+            }
+            "workspace.sshRelocationRecovery" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                let id = require_string_key(payload, "id")?;
+                let limit = super::remote_recovery_requests::recovery_limit(payload)?;
+                self.start_remote_relocation_recovery(
+                    client_id,
+                    request_id,
+                    id,
+                    limit,
+                    crate::ssh_remote::LiveSshRemoteHost,
+                );
+                Ok(true)
+            }
             "mobile.status.get"
                 if payload.get("includeNetworkStatus").and_then(Value::as_bool) != Some(false) =>
             {
@@ -63,10 +98,13 @@ impl ServerActor {
             "aiText.speechMessage.generate" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
-                self.start_ai_assist_speech_message(client_id, request_id, payload)?;
+                self.start_ai_assist_speech_message(client_id, request_id, payload)
+                    .await?;
                 Ok(true)
             }
-            "mobile.workspaceQuickOpen.start"
+            "project.branches.list"
+            | "checkout.quickOpen.start"
+            | "mobile.workspaceQuickOpen.start"
             | "mobile.workspaceQuickOpen.search"
             | "mobile.workspaceFile.read"
             | "mobile.promptAttachment.read"
@@ -106,6 +144,33 @@ impl ServerActor {
                 self.start_mobile_prompt_file_request(client_id, request_id, request_type, payload);
                 Ok(true)
             }
+            "project.checkout.register" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_project_checkout_registration(
+                    client_id,
+                    request_id,
+                    parse_payload(payload)?,
+                );
+                Ok(true)
+            }
+            "workspace.createShared" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                let issue_url = super::requests::optional_string_key(payload, "issueUrl")
+                    .filter(|url| !url.trim().is_empty());
+                if let Some(url) = issue_url.as_deref() {
+                    crate::issue_tracking::parse_issue_reference(url)
+                        .map_err(|error| HostError::format(error.to_string()))?;
+                }
+                self.start_shared_workspace_create(
+                    client_id,
+                    request_id,
+                    parse_payload(payload)?,
+                    issue_url,
+                );
+                Ok(true)
+            }
             "issue.fetch" | "linkedIssue.link" | "linkedIssue.refresh" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
@@ -133,7 +198,37 @@ impl ServerActor {
                 self.require_request_allowed(client_id, request_type)?;
                 let mut request: ManagedWorkspaceHandOffRequest = parse_payload(payload)?;
                 request.setup_script_directory = self.setup_script_directory();
-                self.start_managed_workspace_hand_off(client_id, request_id, request);
+                if payload
+                    .get("sharedImpactConfirmed")
+                    .and_then(Value::as_bool)
+                    != Some(true)
+                {
+                    return Err(HostError::state("Confirm the shared checkout impact with sharedImpactConfirmed before Hand Off"));
+                }
+                let move_changes = payload.get("moveChanges").and_then(Value::as_bool).ok_or_else(|| HostError::state("Choose whether to move all transferable changes or leave them in the project folder with moveChanges"))?;
+                let replacement_branch = payload
+                    .get("replacementBranch")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .map(str::to_string);
+                let buffer_guard = self.claim_checkout_buffer_guard(
+                    client_id,
+                    request_id,
+                    &request.id,
+                    "handOff",
+                    payload,
+                )?;
+                self.start_runtime_mutation(
+                    client_id,
+                    request_id,
+                    RuntimeMutationRequest::HandOffWorkspace {
+                        request,
+                        move_changes,
+                        replacement_branch,
+                        buffer_guard,
+                    },
+                );
                 Ok(true)
             }
             "workspace.handOn" => {
@@ -152,22 +247,28 @@ impl ServerActor {
                         "Workspace is owned by an active automation",
                     ));
                 }
+                if payload
+                    .get("sharedImpactConfirmed")
+                    .and_then(Value::as_bool)
+                    != Some(true)
+                {
+                    return Err(HostError::state("Confirm the impact on other workspaces with sharedImpactConfirmed before Hand On"));
+                }
+                let buffer_guard = self.claim_checkout_buffer_guard(
+                    client_id,
+                    request_id,
+                    &request.id,
+                    "handOn",
+                    payload,
+                )?;
                 self.start_runtime_mutation(
                     client_id,
                     request_id,
-                    RuntimeMutationRequest::HandOnWorkspace { request },
+                    RuntimeMutationRequest::HandOnWorkspace {
+                        request,
+                        buffer_guard,
+                    },
                 );
-                Ok(true)
-            }
-            "workspace.runSetup" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let workspace_id = require_string_key(payload, "id")?;
-                let copies_only = payload
-                    .get("copiesOnly")
-                    .and_then(Value::as_bool)
-                    .unwrap_or(false);
-                self.start_workspace_setup(client_id, request_id, workspace_id, copies_only);
                 Ok(true)
             }
             "workspace.storageImpact" => {
@@ -188,6 +289,42 @@ impl ServerActor {
                         .get("closeSessions")
                         .and_then(Value::as_bool)
                         .unwrap_or(false),
+                );
+                Ok(true)
+            }
+            "workspace.removeShared" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                let request = parse_payload(payload)?;
+                crate::shared_workspace_removal::validate_shared_workspace_removal_target(
+                    &self.runtime_store,
+                    &request,
+                )
+                .await
+                .map_err(|error| HostError::state(error.to_string()))?;
+                let remote_automation_cleanup = self
+                    .requested_remote_automation_cleanup(client_id, &request.id, payload)
+                    .await?;
+                let automation_cleanup = self
+                    .requested_automation_shared_cleanup(&request.id, payload)
+                    .await?;
+                let buffer_guard = self.claim_checkout_buffer_guard(
+                    client_id,
+                    request_id,
+                    &request.id,
+                    "removeShared",
+                    payload,
+                )?;
+                self.start_runtime_mutation(
+                    client_id,
+                    request_id,
+                    RuntimeMutationRequest::RemoveSharedWorkspace {
+                        remote_automation_cleanup,
+                        automation_cleanup,
+                        remote_retirement: None,
+                        request,
+                        buffer_guard,
+                    },
                 );
                 Ok(true)
             }
@@ -225,12 +362,6 @@ impl ServerActor {
                 crate::managed_workspace::validate_managed_workspace_removal(
                     &self.runtime_store,
                     &request,
-                )
-                .await
-                .map_err(|error| HostError::state(error.to_string()))?;
-                crate::managed_workspace::validate_workspace_storage_path(
-                    &self.runtime_store,
-                    &request.id,
                 )
                 .await
                 .map_err(|error| HostError::state(error.to_string()))?;

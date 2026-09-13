@@ -3,16 +3,36 @@ use serde_json::{json, Value};
 
 use crate::hosted_review_retention;
 use crate::managed_workspace::{remove_managed_workspace, ManagedWorkspaceRemoveRequest};
-use crate::managed_workspace_handoff::{hand_on_managed_workspace, ManagedWorkspaceHandOnRequest};
+use crate::managed_workspace_handoff::{
+    ManagedWorkspaceHandOffRequest, ManagedWorkspaceHandOnRequest,
+};
 use crate::terminal_host::host_error::{HostError, HostResult};
 
 #[path = "runtime_mutation_hosted_review_retention.rs"]
 mod hosted_review_retentions;
+#[path = "runtime_remote_workspace_relocation.rs"]
+mod remote_workspace_relocation;
 #[cfg(test)]
 mod tests;
+#[path = "runtime_workspace_relocation.rs"]
+mod workspace_relocation;
 
 #[derive(Clone)]
 pub(crate) enum RuntimeMutationRequest {
+    RecoverRelocationSetup {
+        workspace_id: String,
+        relocation_id: String,
+        attempt_id: String,
+    },
+    PrepareRelocationSetup {
+        workspace_id: String,
+        relocation_id: String,
+        directory: std::path::PathBuf,
+    },
+    RunRelocationSetup {
+        workspace_id: String,
+        relocation_id: String,
+    },
     RemoveProject {
         project_id: String,
     },
@@ -26,8 +46,22 @@ pub(crate) enum RuntimeMutationRequest {
     RemoveManagedWorkspace {
         request: ManagedWorkspaceRemoveRequest,
     },
+    RemoveSharedWorkspace {
+        remote_automation_cleanup: Option<Box<alera_core::runtime::RemoteAutomationCleanup>>,
+        automation_cleanup: Option<Box<alera_core::runtime::AutomationRun>>,
+        request: ManagedWorkspaceRemoveRequest,
+        buffer_guard: super::checkout_buffer_guard_claims::CheckoutBufferGuardProof,
+        remote_retirement: Option<crate::remote_shared_retirement::RemoteRetirementProof>,
+    },
     HandOnWorkspace {
         request: ManagedWorkspaceHandOnRequest,
+        buffer_guard: super::checkout_buffer_guard_claims::CheckoutBufferGuardProof,
+    },
+    HandOffWorkspace {
+        request: ManagedWorkspaceHandOffRequest,
+        move_changes: bool,
+        replacement_branch: Option<String>,
+        buffer_guard: super::checkout_buffer_guard_claims::CheckoutBufferGuardProof,
     },
     RemoveTab {
         tab_id: String,
@@ -76,6 +110,7 @@ pub(crate) struct RuntimeMutationFinished {
 }
 
 pub(super) enum RuntimeMutationEffect {
+    SetupFinished,
     ProjectRemoved {
         project_id: String,
         workspace_ids: Vec<String>,
@@ -90,6 +125,11 @@ pub(super) enum RuntimeMutationEffect {
     ManagedWorkspaceRemoved {
         project_id: String,
         workspace_id: String,
+    },
+    WorkspaceRelocated {
+        project_id: String,
+        workspace_id: String,
+        source_path: String,
     },
     TabRemoved {
         tab_id: String,
@@ -113,6 +153,19 @@ pub(super) async fn run_runtime_mutation(
     let mut effect_on_error = None;
     let result = async {
         match request {
+            RuntimeMutationRequest::RecoverRelocationSetup { workspace_id, relocation_id, attempt_id } => {
+                let report = crate::workspace_relocation_recovery::recover(&runtime_store, &workspace_id, &relocation_id, &attempt_id).await.map_err(runtime_store_error)?;
+                Ok(RuntimeMutationCompletion { response: serde_json::to_value(report).map_err(runtime_store_error)?, effect: RuntimeMutationEffect::SetupFinished, closed_tab_ids: Vec::new(), hand_on_relocate: None })
+            }
+            RuntimeMutationRequest::PrepareRelocationSetup { workspace_id, relocation_id, directory } => {
+                let workspace = runtime_store.find_workspace(&workspace_id).await.map_err(runtime_store_error)?.ok_or_else(|| HostError::state("Workspace no longer exists"))?;
+                let (setup_report, deferred_setup_command) = crate::workspace_relocation_setup::prepare_launcher(&runtime_store, &workspace, &relocation_id, &directory).await.map_err(runtime_store_error)?;
+                Ok(RuntimeMutationCompletion { response: json!({"setupReport": setup_report, "deferredSetupCommand": deferred_setup_command, "relocationId": relocation_id}), effect: RuntimeMutationEffect::SetupFinished, closed_tab_ids: Vec::new(), hand_on_relocate: None })
+            }
+            RuntimeMutationRequest::RunRelocationSetup { workspace_id, relocation_id } => {
+                let report = crate::workspace_relocation_setup::run(&runtime_store, &workspace_id, &relocation_id).await.map_err(runtime_store_error)?;
+                Ok(RuntimeMutationCompletion { response: serde_json::to_value(report).map_err(runtime_store_error)?, effect: RuntimeMutationEffect::SetupFinished, closed_tab_ids: Vec::new(), hand_on_relocate: None })
+            }
             RuntimeMutationRequest::RemoveProject { project_id } => {
                 let workspace_ids = workspace_ids_for_project(&runtime_store, &project_id).await?;
                 runtime_store
@@ -160,6 +213,41 @@ pub(super) async fn run_runtime_mutation(
                     hand_on_relocate: None,
                 })
             }
+            RuntimeMutationRequest::RemoveSharedWorkspace {
+                remote_automation_cleanup,
+                automation_cleanup,
+                request,
+                buffer_guard,
+                remote_retirement,
+            } => {
+                buffer_guard.verify()?;
+                let workspace = if let Some(scope) = remote_automation_cleanup {
+                    let workspace = crate::shared_workspace_removal::validate_shared_workspace_removal(&runtime_store, &request).await.map_err(runtime_store_error)?;
+                    buffer_guard.verify_workspace(&workspace)?;
+                    runtime_store.retire_verified_remote_automation_workspace(&scope, &workspace).await.map_err(runtime_store_error)?;
+                    workspace
+                } else if let Some(run) = automation_cleanup {
+                    let workspace = crate::shared_workspace_removal::validate_shared_workspace_removal(&runtime_store, &request).await.map_err(runtime_store_error)?;
+                    buffer_guard.verify_workspace(&workspace)?;
+                    if workspace.host_id != alera_core::runtime::LOCAL_HOST_ID {
+                        remote_retirement.as_ref().ok_or_else(|| HostError::state("Automatic SSH cleanup requires a verified owner retirement receipt"))?.verify(&workspace).map_err(runtime_store_error)?;
+                    }
+                    runtime_store.retire_verified_automation_shared_workspace(&run, &workspace).await.map_err(runtime_store_error)?;
+                    workspace
+                } else { match remote_retirement {
+                    Some(proof) => crate::shared_workspace_removal::remove_after_remote_retirement(&runtime_store, &request, &proof).await,
+                    None => crate::shared_workspace_removal::remove_shared_workspace(&runtime_store, &request).await,
+                }.map_err(runtime_store_error)? };
+                Ok(RuntimeMutationCompletion {
+                    response: serde_json::to_value(&workspace).map_err(runtime_store_error)?,
+                    effect: RuntimeMutationEffect::ManagedWorkspaceRemoved {
+                        project_id: workspace.project_id,
+                        workspace_id: workspace.id,
+                    },
+                    closed_tab_ids: Vec::new(),
+                    hand_on_relocate: None,
+                })
+            }
             RuntimeMutationRequest::RemoveManagedWorkspace { request } => {
                 let workspace_id = request.id.clone();
                 let workspace = remove_managed_workspace(&runtime_store, request)
@@ -176,35 +264,73 @@ pub(super) async fn run_runtime_mutation(
                     hand_on_relocate: None,
                 })
             }
-            RuntimeMutationRequest::HandOnWorkspace { request } => {
-                let workspace_id = request.id.clone();
-                let source_path = runtime_store
-                    .find_workspace(&workspace_id)
-                    .await
-                    .ok()
-                    .flatten()
-                    .map(|workspace| workspace.path);
-                let result = hand_on_managed_workspace(&runtime_store, request)
-                    .await
-                    .map_err(runtime_store_error)?;
-                let project_id = result.workspace.project_id.clone();
-                let dest_path = result.workspace.path.clone();
-                let destination_workspace_id = result.workspace.id.clone();
+            RuntimeMutationRequest::HandOffWorkspace { request, move_changes, replacement_branch, buffer_guard } => {
+                buffer_guard.verify()?;
+                if buffer_guard.is_remote() {
+                    if request.reuse_existing_branch != replacement_branch.is_some() {
+                        return Err(HostError::state("Moving the current branch requires an explicit replacement branch"));
+                    }
+                    let workspace = runtime_store.find_workspace(&request.id).await.map_err(runtime_store_error)?.ok_or_else(|| HostError::state("Workspace no longer exists"))?;
+                    if request.name.as_deref().map(str::trim).is_some_and(|name| !name.is_empty() && name != workspace.name) {
+                        return Err(HostError::state("Hand Off preserves the task name. Rename it separately."));
+                    }
+                    return remote_workspace_relocation::run(&runtime_store, alera_core::runtime::WorkspaceRelocationIntent {
+                        workspace_id: request.id, to_project_checkout: false, destination_path: request.path,
+                        branch: Some(request.branch), replacement_branch, move_changes, shared_impact_confirmed: true,
+                    }, request.relocation_id, request.workspace_root, &buffer_guard).await.map_err(runtime_store_error);
+                }
+                let journal = workspace_relocation::prepare_hand_off(&runtime_store, &request, move_changes, replacement_branch).await.map_err(runtime_store_error)?;
+                effect_on_error = Some(RuntimeMutationEffect::WorkspaceRelocated {
+                    project_id: journal.source.project_id.clone(), workspace_id: journal.source.id.clone(), source_path: journal.source.path.clone(),
+                });
+                let project = runtime_store.find_project(&journal.source.project_id).await.map_err(runtime_store_error)?.ok_or_else(|| HostError::state("Project disappeared before relocation"))?;
+                crate::workspace_relocation_setup::prepare(&runtime_store, &project, &journal.id).await.map_err(runtime_store_error)?;
+                let workspace = runtime_store.resume_local_workspace_relocation(&journal.id, || buffer_guard.verify().map_err(|error| anyhow::anyhow!(error.wire_message()))).await.map_err(runtime_store_error)?;
+                let (setup_report, deferred_setup_command) = if request.defer_setup {
+                    crate::workspace_relocation_setup::defer(&runtime_store, &workspace, &journal.id, request.setup_script_directory.as_deref()).await.map_err(runtime_store_error)?
+                } else {
+                    (crate::workspace_relocation_setup::run(&runtime_store, &workspace.id, &journal.id).await.map_err(runtime_store_error)?, None)
+                };
+                let effect = RuntimeMutationEffect::WorkspaceRelocated { project_id: workspace.project_id.clone(), workspace_id: workspace.id.clone(), source_path: journal.source.path };
+                let mut response = serde_json::to_value(alera_core::runtime::WorkspaceCreationResult { workspace, setup_report, deferred_setup_command }).map_err(runtime_store_error)?;
+                response["relocationId"] = json!(journal.id);
                 Ok(RuntimeMutationCompletion {
-                    response: serde_json::to_value(result).map_err(runtime_store_error)?,
-                    effect: RuntimeMutationEffect::ManagedWorkspaceRemoved {
+                    response,
+                    effect, closed_tab_ids: Vec::new(), hand_on_relocate: None,
+                })
+            }
+            RuntimeMutationRequest::HandOnWorkspace { request, buffer_guard } => {
+                let workspace_id = request.id.clone();
+                buffer_guard.verify()?;
+                if buffer_guard.is_remote() {
+                    return remote_workspace_relocation::run(&runtime_store, alera_core::runtime::WorkspaceRelocationIntent {
+                        workspace_id, to_project_checkout: true, destination_path: None, branch: None,
+                        replacement_branch: None, move_changes: true, shared_impact_confirmed: true,
+                    }, request.relocation_id, None, &buffer_guard).await.map_err(runtime_store_error);
+                }
+                let journal = runtime_store.prepare_local_workspace_relocation_with_id(alera_core::runtime::WorkspaceRelocationIntent {
+                    workspace_id: workspace_id.clone(), to_project_checkout: true,
+                    destination_path: None, branch: None, replacement_branch: None,
+                    move_changes: true, shared_impact_confirmed: true,
+                }, request.relocation_id.clone()).await.map_err(runtime_store_error)?;
+                effect_on_error = Some(RuntimeMutationEffect::WorkspaceRelocated {
+                    project_id: journal.source.project_id.clone(),
+                    workspace_id: workspace_id.clone(),
+                    source_path: journal.source.path.clone(),
+                });
+                let workspace = runtime_store.resume_local_workspace_relocation(&journal.id, || {
+                    buffer_guard.verify().map_err(|error| anyhow::anyhow!(error.wire_message()))
+                }).await.map_err(runtime_store_error)?;
+                let project_id = workspace.project_id.clone();
+                Ok(RuntimeMutationCompletion {
+                    response: json!({"workspace": workspace, "removedWorkspaceId": null, "recoveryStashOid": runtime_store.find_workspace_relocation(&journal.id).await.map_err(runtime_store_error)?.and_then(|journal| journal.recovery_stash_oid), "relocationId": journal.id}),
+                    effect: RuntimeMutationEffect::WorkspaceRelocated {
                         project_id,
-                        workspace_id: workspace_id.clone(),
+                        workspace_id,
+                        source_path: journal.source.path,
                     },
                     closed_tab_ids: Vec::new(),
-                    hand_on_relocate: source_path.map(|source_path| {
-                        Box::new(HandOnSessionRelocate {
-                            source_workspace_id: workspace_id,
-                            destination_workspace_id,
-                            source_path,
-                            dest_path,
-                        })
-                    }),
+                    hand_on_relocate: None,
                 })
             }
             RuntimeMutationRequest::RemoveTab { tab_id } => {

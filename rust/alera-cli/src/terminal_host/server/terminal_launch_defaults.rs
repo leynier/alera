@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::terminal_host::protocol::TerminalHostLaunch;
 
-pub(super) struct DefaultTerminalLaunch {
+pub(crate) struct DefaultTerminalLaunch {
     pub launch: TerminalHostLaunch,
     pub interactive_shell: String,
 }
@@ -14,7 +14,7 @@ enum TerminalPlatform {
     Windows,
 }
 
-pub(super) async fn default_terminal_launch(
+pub(crate) async fn default_terminal_launch(
     working_directory: &str,
     login_shell: bool,
 ) -> DefaultTerminalLaunch {

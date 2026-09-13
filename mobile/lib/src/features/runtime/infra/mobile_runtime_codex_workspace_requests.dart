@@ -26,6 +26,18 @@ mixin MobileRuntimeCodexWorkspaceRequests {
   bool get supportsPromptAttachmentRead =>
       runtimeCapabilities.contains(mobilePromptAttachmentReadCapability);
 
+  Future<MobileWorkspaceQuickOpenSession> startProjectCheckoutQuickOpen({
+    required String projectId,
+    String? checkoutHostId,
+  }) async {
+    return MobileWorkspaceQuickOpenSession.fromJson(
+      await requestMap('checkout.quickOpen.start', <String, Object?>{
+        'projectId': projectId,
+        'hostId': ?checkoutHostId,
+      }, _workspaceQuickOpenIndexTimeout),
+    );
+  }
+
   Future<MobileWorkspaceQuickOpenSession> startWorkspaceQuickOpen(
     String workspaceId, {
     String? cwd,

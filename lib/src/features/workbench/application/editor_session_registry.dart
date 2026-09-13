@@ -1,6 +1,10 @@
 part of 'workspace_file_service.dart';
 
 class EditorSessionRegistry extends ChangeNotifier {
+  final Map<String, EditorBufferGuardScope> _bufferGuards = {};
+  final Set<String> _pendingSaveTabs = {};
+  final Set<String> _retiredBufferTabs = {};
+  void _notifyBufferGuardsChanged() => notifyListeners();
   final Map<String, EditorDocumentSession> _documents =
       <String, EditorDocumentSession>{};
   final Map<String, EditorSessionHandle> _sessions =
@@ -15,7 +19,10 @@ class EditorSessionRegistry extends ChangeNotifier {
   EditorDocumentSession documentFor(String tabId) {
     return _documents.putIfAbsent(
       tabId,
-      () => EditorDocumentSession(onChanged: () => _documentChanged(tabId)),
+      () => EditorDocumentSession(
+        onChanged: () => _documentChanged(tabId),
+        canEdit: () => !isBufferGuarded(tabId),
+      ),
     );
   }
 
@@ -42,7 +49,55 @@ class EditorSessionRegistry extends ChangeNotifier {
   }
 
   Future<void> save(String tabId) async {
-    await _sessions[tabId]?.save();
+    _beginGuardedSave(tabId);
+    try {
+      await _sessions[tabId]?.save();
+    } finally {
+      _pendingSaveTabs.remove(tabId);
+    }
+  }
+
+  Future<void> saveDocument(
+    String tabId,
+    WorkspaceFileService workspaceFiles,
+  ) async {
+    requireBufferWritable(tabId);
+    final handle = _sessions[tabId];
+    if (handle != null) {
+      await save(tabId);
+      return;
+    }
+    final document = _documents[tabId];
+    if (document == null || !document.isDirty) return;
+    final workspacePath = document.workspacePath;
+    final relativePath = document.relativePath;
+    if (!document.canSave || workspacePath == null || relativePath == null) {
+      throw StateError(
+        'The editor cannot save this document. Open it to resolve the error.',
+      );
+    }
+    _beginGuardedSave(tabId);
+    final contentBeingSaved = document.currentText ?? '';
+    try {
+      final saved = await workspaceFiles.writeEditorTextFile(
+        workspacePath: workspacePath,
+        relativePath: relativePath,
+        currentDisplayContent: contentBeingSaved,
+        originalRawContent: document.loadedRawText,
+        originalDisplayContent: document.loadedText,
+        expectedContentToken: document.contentToken,
+        overwriteIfChanged: false,
+        tabSize: document.tabSize,
+      );
+      document.acceptSaved(
+        saved,
+        preserveCurrentText: document.currentText == contentBeingSaved
+            ? null
+            : document.currentText,
+      );
+    } finally {
+      _pendingSaveTabs.remove(tabId);
+    }
   }
 
   Future<int> saveAll(WorkspaceFileService workspaceFiles) async {
@@ -52,7 +107,7 @@ class EditorSessionRegistry extends ChangeNotifier {
       if (!isDirty(tabId)) {
         continue;
       }
-      await _sessions[tabId]?.save();
+      await save(tabId);
       if (!isDirty(tabId)) {
         savedCount += 1;
       }
@@ -67,24 +122,22 @@ class EditorSessionRegistry extends ChangeNotifier {
           document.relativePath == null) {
         continue;
       }
-      final saved = await workspaceFiles.writeEditorTextFile(
-        workspacePath: document.workspacePath!,
-        relativePath: document.relativePath!,
-        currentDisplayContent: document.currentText ?? '',
-        originalRawContent: document.loadedRawText,
-        originalDisplayContent: document.loadedText,
-        expectedContentToken: document.contentToken,
-        overwriteIfChanged: false,
-        tabSize: document.tabSize,
-      );
-      document.acceptSaved(saved);
+      await saveDocument(tabId, workspaceFiles);
       savedCount += 1;
     }
     return savedCount;
   }
 
   Future<void> discard(String tabId) async {
-    await _sessions[tabId]?.discard();
+    requireBufferWritable(tabId);
+    final handle = _sessions[tabId];
+    if (handle != null) {
+      await handle.discard();
+    } else {
+      final document = _documents[tabId];
+      final loaded = document?.loadedText;
+      if (loaded != null) document!.updateCurrentText(loaded);
+    }
   }
 
   List<String> dirtyPathsFor({
@@ -113,6 +166,7 @@ class EditorSessionRegistry extends ChangeNotifier {
   String? dirtyTextForPath({
     required String workspacePath,
     required String relativePath,
+    Set<String>? ownerTabIds,
   }) {
     final path = _EditorDocumentPath(workspacePath, relativePath);
     final tabIds = _tabIdsByPath[path];
@@ -120,6 +174,7 @@ class EditorSessionRegistry extends ChangeNotifier {
       return null;
     }
     for (final tabId in tabIds) {
+      if (ownerTabIds != null && !ownerTabIds.contains(tabId)) continue;
       final document = _documents[tabId];
       if (document != null &&
           document.loadError == null &&
@@ -200,6 +255,7 @@ class EditorSessionRegistry extends ChangeNotifier {
   }
 
   void forget(String tabId) {
+    _retiredBufferTabs.remove(tabId);
     final hadSession = _sessions.remove(tabId) != null;
     final hadDocument = _documents.remove(tabId) != null;
     final path = _pathByTabId.remove(tabId);
@@ -327,6 +383,7 @@ class const _EditorDocumentPath(
 
 class const EditorSessionHandle({
   required final bool Function() isDirty,
+  final bool Function()? isSaving,
   required final Future<void> Function() save,
   required final Future<void> Function() discard,
   final void Function(WorkspaceEditorRevealTarget target)? reveal,
@@ -339,7 +396,10 @@ class const WorkspaceEditorRevealTarget({
   required final int matchLength,
 });
 
-class EditorDocumentSession({final VoidCallback? _onChanged}) {
+class EditorDocumentSession({
+  final VoidCallback? _onChanged,
+  final bool Function()? _canEdit,
+}) {
   String? workspacePath;
   String? relativePath;
   String? loadedRawText;
@@ -364,9 +424,16 @@ class EditorDocumentSession({final VoidCallback? _onChanged}) {
         this.relativePath == relativePath) {
       return;
     }
+    final changedCheckout =
+        this.workspacePath != null && this.workspacePath != workspacePath;
     this.workspacePath = workspacePath;
     this.relativePath = relativePath;
-    _notifyChanged();
+    if (changedCheckout && !isDirty) {
+      // Other clients can relocate this task without transferring our documents.
+      clearSnapshot();
+    } else {
+      _notifyChanged();
+    }
   }
 
   void acceptLoaded(native.WorkspaceEditorTextFile file, {int tabSize = 4}) {
@@ -379,8 +446,16 @@ class EditorDocumentSession({final VoidCallback? _onChanged}) {
     _notifyChanged();
   }
 
-  void acceptSaved(native.WorkspaceEditorTextFile file, {int? tabSize}) {
+  void acceptSaved(
+    native.WorkspaceEditorTextFile file, {
+    int? tabSize,
+    String? preserveCurrentText,
+  }) {
     acceptLoaded(file, tabSize: tabSize ?? this.tabSize);
+    if (preserveCurrentText != null) {
+      currentText = preserveCurrentText;
+      _notifyChanged();
+    }
   }
 
   void acceptLoadError(Object error) {
@@ -402,7 +477,7 @@ class EditorDocumentSession({final VoidCallback? _onChanged}) {
   }
 
   void updateCurrentText(String text) {
-    if (currentText == text) {
+    if (currentText == text || !(_canEdit?.call() ?? true)) {
       return;
     }
     currentText = text;

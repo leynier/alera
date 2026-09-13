@@ -76,7 +76,7 @@ impl Connection {
         let hello = connection.request(
             0,
             "hello",
-            json!({"protocolVersion": PROTOCOL_VERSION, "token": token}),
+            json!({"protocolVersion": PROTOCOL_VERSION, "token": token, "sharedCheckoutWorkspacesV1": true}),
         );
         assert_eq!(hello["ok"], json!(true), "handshake rejected: {hello}");
         connection
@@ -121,23 +121,16 @@ fn linked_issues_persist_broadcast_and_cascade() {
         "linkedIssuesV1 is not advertised: {status}"
     );
 
+    let folder = dir.path().join("project");
+    std::fs::create_dir(&folder).unwrap();
+    let project = host.request(20, "project.register", json!({"id":"p1", "path":folder}));
+    assert_eq!(project["ok"], true, "{project}");
     let workspace = host.request(
         2,
-        "workspace.upsert",
-        json!({
-            "id": "w1", "instanceId": "w1-instance", "hostId": "local", "projectId": "p1",
-            "name": "Workspace", "branch": null, "path": dir.path().to_string_lossy(),
-            "createdAt": "2026-09-12T00:00:00Z", "updatedAt": "2026-09-12T00:00:00Z",
-            "kind": "main", "status": "active", "sourceBranch": null,
-            "reusesExistingBranch": false, "isPinned": false, "tagIds": [], "tagNames": [],
-            "parentWorkspaceId": null, "childCount": 0
-        }),
+        "workspace.createShared",
+        json!({"id":"w1", "projectId":"p1", "name":"Issue task"}),
     );
-    assert_eq!(
-        workspace["ok"],
-        json!(true),
-        "workspace.upsert failed: {workspace}"
-    );
+    assert_eq!(workspace["ok"], true, "{workspace}");
 
     let invalid = host.request(
         3,
@@ -181,10 +174,17 @@ fn linked_issues_persist_broadcast_and_cascade() {
     );
     assert_eq!(rejected_create["ok"], json!(false), "{rejected_create}");
 
+    let guard = host.request(
+        21,
+        "workspace.bufferGuard.acquire",
+        json!({"id":"w1", "operation":"removeShared"}),
+    );
+    assert_eq!(guard["ok"], true, "{guard}");
+    assert_eq!(guard["payload"]["ready"], true, "{guard}");
     let removed = host.request(
         7,
-        "workspace.remove",
-        json!({"id": "w1", "cascadeTabs": true}),
+        "workspace.removeShared",
+        json!({"id":"w1", "closeSessions":true, "deleteBranch":false, "bufferGuardId":guard["payload"]["guardId"]}),
     );
     assert_eq!(
         removed["ok"],

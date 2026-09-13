@@ -228,5 +228,8 @@ class const WorkbenchViewPrefs({
   );
 
   factory fromJson(Map<String, Object?> json) =>
-      WorkbenchViewPrefsMapper.fromMap(Map<String, dynamic>.from(json));
+      WorkbenchViewPrefsMapper.fromMap(<String, dynamic>{
+        ...json,
+        'workspaceKindFilter': 'all',
+      });
 }

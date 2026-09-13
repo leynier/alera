@@ -37,6 +37,28 @@ MobilePullRequestComment _comment(
 }
 
 void main() {
+  testWidgets(
+    'a truncated conversation shows its limitation even with no retained comments',
+    (tester) async {
+      final review = MobilePullRequestReview.fromJson({
+        'commentsTruncated': true,
+      });
+      expect(MobilePullRequestReview.fromJson({}).commentsTruncated, isFalse);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PullRequestConversationSection(
+              comments: review.comments,
+              truncated: review.commentsTruncated,
+            ),
+          ),
+        ),
+      );
+      expect(find.textContaining('Some comments are omitted.'), findsOneWidget);
+      expect(find.text('No comments yet.'), findsNothing);
+    },
+  );
+
   group('MobilePullRequestComment', () {
     test('parses review thread fields', () {
       final comment = MobilePullRequestComment.fromJson(const <String, Object?>{

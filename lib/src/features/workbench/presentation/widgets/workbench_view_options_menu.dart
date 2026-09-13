@@ -33,8 +33,6 @@ class const WorkbenchViewOptionsButton({super.key}) extends ConsumerWidget {
     final hasFilters =
         prefs.selectedProjectIds.isNotEmpty ||
         prefs.selectedTagIds.isNotEmpty ||
-        prefs.workspaceKindFilter !=
-            WorkbenchViewPrefs.defaults.workspaceKindFilter ||
         prefs.showActiveWorkspacesOnly !=
             WorkbenchViewPrefs.defaults.showActiveWorkspacesOnly ||
         prefs.showPinnedWorkspacesBelow !=
@@ -288,11 +286,6 @@ class _WorkbenchViewOptionsPanelState
                   ],
                   const SizedBox(height: AleraTokens.space12),
                   _SectionLabel(text: 'Show Workspaces'),
-                  const SizedBox(height: AleraTokens.space6),
-                  _WorkspaceKindSegmented(
-                    value: prefs.workspaceKindFilter,
-                    onChanged: controller.setWorkspaceKindFilter,
-                  ),
                   const SizedBox(height: AleraTokens.space6),
                   Align(
                     alignment: Alignment.centerLeft,

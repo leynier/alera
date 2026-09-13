@@ -51,7 +51,7 @@ pub(super) async fn load_comments(
     owner: &str,
     repo: &str,
     number: i64,
-) -> Vec<Value> {
+) -> (Vec<Value>, bool) {
     let conversation_endpoint =
         format!("repos/{owner}/{repo}/issues/{number}/comments?per_page=100");
     let reviews_endpoint = format!("repos/{owner}/{repo}/pulls/{number}/reviews?per_page=100");
@@ -64,7 +64,23 @@ pub(super) async fn load_comments(
     comments.extend(map_review_summaries(&reviews));
     comments.extend(threads);
     sort_by_created_at(&mut comments);
-    comments
+    bounded_comments(comments)
+}
+
+fn bounded_comments(mut comments: Vec<Value>) -> (Vec<Value>, bool) {
+    let mut remaining = 256 * 1024;
+    let mut truncated = false;
+    comments.retain(|comment| {
+        // Reserve space for the array separator and later canEdit decoration.
+        let bytes = comment.to_string().len() + 32;
+        if bytes > remaining {
+            truncated = true;
+            return false;
+        }
+        remaining -= bytes;
+        true
+    });
+    (comments, truncated)
 }
 
 /// A failed or unparsable source yields nothing, so one unavailable endpoint
@@ -239,6 +255,22 @@ fn sort_by_created_at(comments: &mut [Value]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bounds_combined_comments_without_cutting_bodies() {
+        for body in ["x".repeat(12000), "\"".repeat(12000)] {
+            let original: Vec<_> = (0..100).map(|id| json!({"id": id, "body": body})).collect();
+            let (comments, truncated) = bounded_comments(original);
+            assert!(truncated);
+            assert!(!comments.is_empty());
+            assert!(comments.len() < 100);
+            assert_eq!(comments[0]["body"], body);
+            let payload = serde_json::to_vec(&comments).unwrap();
+            assert!(payload.len() < 256 * 1024);
+            assert!(crate::terminal_host::relay_wire::fragment(&payload).is_ok());
+        }
+        assert!(!bounded_comments(vec![json!({"body": "short"})]).1);
+    }
 
     #[test]
     fn flattens_slurped_rest_pages() {

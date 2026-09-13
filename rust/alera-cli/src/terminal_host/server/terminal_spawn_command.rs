@@ -247,6 +247,8 @@ mod tests {
             AGENT_NATIVE_SESSION_AGENT_KEY: "codex",
         }));
         assert_eq!(line(&codex), "'codex' 'resume' 'sess-1'");
+        assert!(matches!(resolve_spawn_command(&codex, "pwsh.exe").unwrap(),
+            Some(SpawnCommand::Line(command)) if command == "& 'codex' 'resume' 'sess-1'"));
 
         let ccs = tab(json!({
             AGENT_NATIVE_SESSION_ID_KEY: "sess-1",

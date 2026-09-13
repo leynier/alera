@@ -38,8 +38,12 @@ async fn next_wait(store: &RuntimeStore) -> Result<Duration, String> {
         .await
         .map_err(|error| error.to_string())?;
     let now = Utc::now();
-    let mut nearest: Option<DateTime<Utc>> = None;
-    let mut overdue_circuit = false;
+    let cleanup_at = store
+        .next_automation_shared_cleanup_at()
+        .await
+        .map_err(|error| error.to_string())?;
+    let mut nearest = cleanup_at.filter(|deadline| *deadline > now);
+    let mut overdue_circuit = cleanup_at.is_some_and(|deadline| deadline <= now);
     for definition in definitions {
         if let Some(deadline) = definition.circuit_reset_at() {
             if deadline <= now {

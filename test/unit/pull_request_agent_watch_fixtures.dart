@@ -25,6 +25,7 @@ PullRequestAgentWatchSnapshot pullRequestWatchSnapshot({
   ReviewChecksRollup rollup = ReviewChecksRollup.none,
   String headSha = 'abc123',
   List<ReviewComment> comments = const <ReviewComment>[],
+  bool commentsComplete = true,
 }) {
   return PullRequestAgentWatchSnapshot(
     review: HostedReview(
@@ -39,6 +40,7 @@ PullRequestAgentWatchSnapshot pullRequestWatchSnapshot({
     ),
     checksRollup: rollup,
     comments: comments,
+    commentsComplete: commentsComplete,
   );
 }
 
@@ -57,6 +59,7 @@ ReviewComment pullRequestWatchThread(
     path: 'lib/a.dart',
     line: 3,
     resolved: resolved,
+    threadId: id,
     locator: ReviewCommentLocator(
       source: .reviewThread,
       commentId: '1',

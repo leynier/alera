@@ -22,9 +22,7 @@ pub(crate) async fn list_workspace_files(
     relative_path: &str,
     hide_ignored: bool,
 ) -> Result<Vec<WorkspaceExplorerEntry>> {
-    if !is_remote_host_id(Some(&workspace.host_id))
-        || std::path::Path::new(&workspace.path).exists()
-    {
+    if !is_remote_host_id(Some(&workspace.host_id)) {
         return list_workspace_children(&workspace.path, relative_path, hide_ignored)
             .map_err(|error| anyhow!(error.to_string()));
     }
@@ -108,9 +106,7 @@ pub(crate) async fn try_read_remote_from_payload(
     workspace: &Workspace,
     payload: &Value,
 ) -> Result<Option<Value>> {
-    if !is_remote_host_id(Some(&workspace.host_id))
-        || std::path::Path::new(&workspace.path).exists()
-    {
+    if !is_remote_host_id(Some(&workspace.host_id)) {
         return Ok(None);
     }
     let relative_path = payload

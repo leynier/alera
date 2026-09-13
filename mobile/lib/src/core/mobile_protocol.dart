@@ -15,6 +15,25 @@ const String mobileWorkspaceSearchCapability = 'mobileWorkspaceSearchV1';
 const String mobileWorkspaceReplaceCapability = 'mobileWorkspaceReplaceV1';
 const String mobileSourceControlCapability = 'mobileSourceControlV1';
 const String mobilePullRequestCapability = 'mobilePullRequestV1';
+const String sharedCheckoutWorkspacesCapability = 'sharedCheckoutWorkspacesV1';
+
+bool requiresSharedCheckoutSupport(String operation) => switch (operation) {
+  'workspace.upsert' ||
+  'checkout.quickOpen.start' ||
+  'workspace.createShared' ||
+  'workspace.removeShared' ||
+  'workspace.handOff' ||
+  'workspace.handOn' ||
+  'workspace.runSetup' ||
+  'workspace.prepareRelocationSetup' ||
+  'workspace.recoverRelocationSetup' ||
+  'workspace.cancelRelocationSetup' ||
+  'workspace.remove' ||
+  'workspace.removeForProject' ||
+  'project.register' ||
+  'project.clone.start' => true,
+  _ => operation.startsWith('workspace.bufferGuard.'),
+};
 
 /// Linked issues (`linkedIssue.*`, `issue.fetch`, `issueUrl` on
 /// `workspace.createManaged`). Additive: never bump the protocol version.

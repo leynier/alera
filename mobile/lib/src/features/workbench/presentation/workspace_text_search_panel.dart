@@ -179,11 +179,12 @@ class _WorkspaceTextSearchPanelState
         return;
       }
     }
+    if (!mounted) return;
     String message;
     try {
       final result = await ref
           .read(_provider.notifier)
-          .replaceMatches(matchIds);
+          .replaceMatches(matchIds, confirmedState: state);
       message =
           workspaceSearchReplaceConflictMessage(result) ??
           'Replaced ${_count(result.matchesReplaced, 'match', 'matches')}.';

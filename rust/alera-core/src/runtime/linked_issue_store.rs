@@ -88,6 +88,53 @@ impl RuntimeStore {
             .unwrap_or(issue))
     }
 
+    /// A completed fetch may update metadata only while its original link still exists.
+    pub async fn update_linked_issue_metadata(
+        &self,
+        issue: LinkedIssue,
+    ) -> Result<Option<LinkedIssue>> {
+        let row = sqlx::query(
+            "UPDATE linkedIssues SET repository = ?, number = ?, title = ?, state = ?, \
+             stateLabel = ?, fetchedAt = ?, fetchError = ? \
+             WHERE workspaceId = ? AND url = ? AND linkedAt = ? \
+             RETURNING workspaceId, url, provider, repository, number, title, state, \
+             stateLabel, fetchedAt, fetchError, linkedAt",
+        )
+        .bind(&issue.repository)
+        .bind(issue.number)
+        .bind(&issue.title)
+        .bind(&issue.state)
+        .bind(&issue.state_label)
+        .bind(issue.fetched_at.map(format_timestamp))
+        .bind(&issue.fetch_error)
+        .bind(&issue.workspace_id)
+        .bind(&issue.url)
+        .bind(format_timestamp(issue.linked_at))
+        .fetch_optional(self.pool())
+        .await?;
+        row.map(linked_issue_from_row).transpose()
+    }
+
+    /// A failed fetch must preserve metadata written by a concurrent success.
+    pub async fn update_linked_issue_fetch_error(
+        &self,
+        issue: &LinkedIssue,
+    ) -> Result<Option<LinkedIssue>> {
+        let row = sqlx::query(
+            "UPDATE linkedIssues SET fetchError = ? \
+             WHERE workspaceId = ? AND url = ? AND linkedAt = ? \
+             RETURNING workspaceId, url, provider, repository, number, title, state, \
+             stateLabel, fetchedAt, fetchError, linkedAt",
+        )
+        .bind(&issue.fetch_error)
+        .bind(&issue.workspace_id)
+        .bind(&issue.url)
+        .bind(format_timestamp(issue.linked_at))
+        .fetch_optional(self.pool())
+        .await?;
+        row.map(linked_issue_from_row).transpose()
+    }
+
     /// Returns whether a link existed.
     pub async fn remove_linked_issue(&self, workspace_id: &str) -> Result<bool> {
         let result = sqlx::query("DELETE FROM linkedIssues WHERE workspaceId = ?")

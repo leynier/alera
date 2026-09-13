@@ -271,15 +271,36 @@ impl ServerActor {
     ) -> HostResult<Value> {
         let id = require_string_key(payload, "run")?;
         let identity = requested_target_identity(payload)?;
-        let actor = self.resolve_execution_actor(&id, actor, &identity).await?;
-        self.verify_lifecycle_target_identity(client_id, &id, &identity, &actor)
-            .await?;
         let current = self
             .runtime_store
             .find_automation_run(&id)
             .await
             .map_err(|error| HostError::state(error.to_string()))?
             .ok_or_else(|| HostError::state(format!("automation run not found: {id}")))?;
+        let actor = if current.precheck == Some(true) && current.started_at.is_none() {
+            // The planned profile is recorded before any agent is launched.
+            // Cancelling its precheck belongs to the authenticated caller.
+            actor
+        } else {
+            self.resolve_execution_actor(&id, actor, &identity).await?
+        };
+        let verified = self
+            .verify_lifecycle_target_identity(client_id, &id, &identity, &actor)
+            .await;
+        let cli_precheck_cancel = actor.kind == AutomationActorKind::LocalCli
+            && current.precheck == Some(true)
+            && current.started_at.is_none()
+            && self.clients.get(&client_id).is_some_and(|client| {
+                client.authenticated
+                    && client.kind == super::ClientKind::Local
+                    && client.local_role == super::client_delivery::LocalClientRole::Cli
+            })
+            && super::automation_run_target_requests::is_durable_lifecycle_fallback(&verified);
+        // Before allocation a precheck has no PTY. Only cancellation may use
+        // the exact durable identity from a human CLI in this state.
+        if !cli_precheck_cancel {
+            verified?;
+        }
         if current.status.is_final() {
             return serde_json::to_value(current)
                 .map_err(|error| HostError::state(error.to_string()));

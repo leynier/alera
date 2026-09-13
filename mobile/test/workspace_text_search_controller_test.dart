@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_view_prefs_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
@@ -67,6 +69,100 @@ const _result = MobileWorkspaceSearchResult(
 }
 
 void main() {
+  test(
+    'replacement rejects a search changed while confirmation was open',
+    () async {
+      final (container, client) = _setUp();
+      final provider = workspaceTextSearchControllerProvider('host-1', 'ws-1');
+      final subscription = container.listen(provider, (_, _) {});
+      addTearDown(subscription.close);
+      final notifier = container.read(provider.notifier);
+      notifier.setQuery('foo');
+      await notifier.runNow();
+      final confirmed = container.read(provider);
+      notifier.toggleIncludeIgnored();
+      await notifier.runNow();
+      await expectLater(
+        notifier.replaceMatches(const [], confirmedState: confirmed),
+        throwsA(isA<StateError>()),
+      );
+      expect(client.replaceRequests, isEmpty);
+    },
+  );
+
+  test('reopening search uses a new request identity', () async {
+    final (container, client) = _setUp();
+    final provider = workspaceTextSearchControllerProvider('host-1', 'ws-1');
+    for (var opening = 0; opening < 2; opening++) {
+      final subscription = container.listen(provider, (_, _) {});
+      final notifier = container.read(provider.notifier);
+      notifier.setQuery('foo');
+      await notifier.runNow();
+      subscription.close();
+      await container.pump();
+      expect(container.exists(provider), isFalse);
+    }
+    final ids = client.searchRequests.map((request) => request['requestId']);
+    expect(ids.toSet(), hasLength(2));
+  });
+
+  test(
+    'replacement rejects inputs changed while resolving the client',
+    () async {
+      final (container, client) = _setUp();
+      final provider = workspaceTextSearchControllerProvider('host-1', 'ws-1');
+      final subscription = container.listen(provider, (_, _) {});
+      addTearDown(subscription.close);
+      final notifier = container.read(provider.notifier);
+      notifier.setQuery('foo');
+      await notifier.runNow();
+      final replacing = notifier.replaceMatches(const <String>[]);
+      notifier.setQuery('bar');
+      await expectLater(replacing, throwsA(isA<StateError>()));
+      expect(client.replaceRequests, isEmpty);
+      notifier.clear();
+    },
+  );
+
+  test(
+    'disposing an active search cancels it through its original client',
+    () async {
+      final (container, client) = _setUp();
+      final provider = workspaceTextSearchControllerProvider('host-1', 'ws-1');
+      final subscription = container.listen(provider, (_, _) {});
+      final notifier = container.read(provider.notifier);
+      client.searchGate = Completer<void>();
+      notifier.setQuery('foo');
+      final searching = notifier.runNow();
+      await Future<void>.delayed(Duration.zero);
+      final requestId = client.searchRequests.single['requestId'];
+      subscription.close();
+      await container.pump();
+      expect(container.exists(provider), isFalse);
+      expect(client.calls, contains('cancelWorkspaceSearch $requestId'));
+      client.searchGate!.complete();
+      await searching;
+    },
+  );
+
+  test('replacement returns success after its provider is disposed', () async {
+    final (container, client) = _setUp();
+    final provider = workspaceTextSearchControllerProvider('host-1', 'ws-1');
+    final subscription = container.listen(provider, (_, _) {});
+    final notifier = container.read(provider.notifier);
+    notifier.setQuery('foo');
+    await notifier.runNow();
+    client.replaceGate = Completer<void>();
+    final replacing = notifier.replaceMatches(const <String>[]);
+    await Future<void>.delayed(Duration.zero);
+    expect(client.replaceRequests, hasLength(1));
+    subscription.close();
+    await container.pump();
+    expect(container.exists(provider), isFalse);
+    client.replaceGate!.complete();
+    expect((await replacing).matchesReplaced, 1);
+  });
+
   test('search sends the replacement and a cancellation id', () async {
     final (container, client) = _setUp();
     final provider = workspaceTextSearchControllerProvider('host-1', 'ws-1');

@@ -1,5 +1,9 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/features/runtime/domain/workspace_relocation_client.dart';
+
+import 'package:alera_mobile/src/features/runtime/domain/workspace_removal_dependency.dart';
+
 import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
@@ -37,6 +41,8 @@ class const WorkspaceListData({
   final bool supportsPromptImageUpload = false,
   final bool supportsPromptFileUpload = false,
   final bool supportsWorkspaceFiles = false,
+  final bool supportsWorkspaceRelocation = false,
+  final bool supportsSharedCheckoutWorkspaces = false,
   required final List<WorkspaceTagSummary> tags,
   required final Map<String, DateTime> activity,
   required final bool confirmWorkspaceRemoval,
@@ -85,6 +91,13 @@ class WorkspaceListController extends _$WorkspaceListController {
       workspaces: snapshot.workspaces,
       projects: snapshot.projects,
       supportsMutations: client.supportsWorkspaceMutations,
+      supportsSharedCheckoutWorkspaces:
+          client is MobileSharedCheckoutClient &&
+          (client as MobileSharedCheckoutClient)
+              .supportsSharedCheckoutWorkspaces,
+      supportsWorkspaceRelocation:
+          client is WorkspaceRelocationClient &&
+          (client as WorkspaceRelocationClient).supportsWorkspaceRelocation,
       supportsPromptWorkspaceCreation: client.supportsPromptWorkspaceCreation,
       supportsPromptImageUpload: client.supportsPromptImageUpload,
       // Sibling interface of MobileWorkspaceClient rather than a subtype: the
@@ -188,9 +201,11 @@ class WorkspaceListController extends _$WorkspaceListController {
 
   Future<WorkspaceCreationResult> createWorkspace({
     required String projectId,
+    String? checkoutHostId,
     required String branch,
     String? sourceBranch,
     bool reuseExistingBranch = false,
+    bool useProjectCheckout = false,
     String? name,
     String? parentWorkspaceId,
     String? issueUrl,
@@ -198,14 +213,22 @@ class WorkspaceListController extends _$WorkspaceListController {
     final keepAlive = ref.keepAlive();
     try {
       final client = await ref.read(workspaceClientProvider(hostId).future);
-      final creation = await client.createManagedWorkspace(
-        projectId: projectId,
-        branch: branch,
-        sourceBranch: sourceBranch,
-        reuseExistingBranch: reuseExistingBranch,
-        name: name,
-        issueUrl: issueUrl,
-      );
+      final creation = useProjectCheckout
+          ? await requireSharedCheckoutClient(client).createSharedWorkspace(
+              projectId: projectId,
+              name: name,
+              issueUrl: issueUrl,
+              checkoutHostId: checkoutHostId,
+            )
+          : await client.createManagedWorkspace(
+              projectId: projectId,
+              checkoutHostId: checkoutHostId,
+              branch: branch,
+              sourceBranch: sourceBranch,
+              reuseExistingBranch: reuseExistingBranch,
+              name: name,
+              issueUrl: issueUrl,
+            );
       var result = creation;
       if (creation.hasDeferredSetup) {
         final terminalClient = await ref.read(
@@ -231,12 +254,44 @@ class WorkspaceListController extends _$WorkspaceListController {
     }
   }
 
+  Future<List<WorkspaceRemovalDependency>> removalDependencies(
+    String workspaceId,
+  ) async {
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    return requireSharedCheckoutClient(client).removalDependencies(workspaceId);
+  }
+
+  Future<void> pauseRemovalDependencies(
+    String workspaceId,
+    List<WorkspaceRemovalDependency> approved,
+  ) async {
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    await requireSharedCheckoutClient(client)
+        .pauseRemovalDependencies(workspaceId, approved);
+  }
+
   Future<void> deleteWorkspace(String workspaceId, {bool? deleteBranch}) async {
     final client = await ref.read(workspaceClientProvider(hostId).future);
-    await client.removeManagedWorkspace(
-      workspaceId,
-      deleteBranch: deleteBranch,
-    );
+    final workspace = (await client.listWorkspaces())
+        .where((workspace) => workspace.id == workspaceId)
+        .firstOrNull;
+    if (workspace == null) {
+      throw StateError('Workspace no longer exists. Refresh the list.');
+    }
+    if (workspace.isMain) {
+      if (deleteBranch == true) {
+        throw StateError(
+          'Removing a shared workspace cannot delete its branch.',
+        );
+      }
+      await requireSharedCheckoutClient(client)
+          .removeSharedWorkspace(workspaceId);
+    } else {
+      await client.removeManagedWorkspace(
+        workspaceId,
+        deleteBranch: deleteBranch,
+      );
+    }
     _invalidateIfMounted();
   }
 

@@ -11,10 +11,20 @@ mixin _WorkbenchControllerProjects
 
   Future<Project> addLocalProject({required String path, String? name}) async {
     try {
+      final existingIds = (await _projectsService.projectRepository.listAll())
+          .map((project) => project.id)
+          .toSet();
       final project = await _projectsService.addLocalProject(
         path: path,
         name: name,
       );
+      if (!existingIds.contains(project.id) &&
+          _projectsService.runtimeProjectManagement == null) {
+        await _workspaceService.createSharedWorkspace(
+          project: project,
+          name: project.name,
+        );
+      }
       await _activateAddedProject(project);
       return project;
     } catch (error) {
@@ -34,6 +44,12 @@ mixin _WorkbenchControllerProjects
         destinationPath: destinationPath,
         name: name,
       );
+      if (_projectsService.runtimeProjectManagement == null) {
+        await _workspaceService.createSharedWorkspace(
+          project: project,
+          name: project.name,
+        );
+      }
       await _activateAddedProject(project);
       return project;
     } catch (error) {

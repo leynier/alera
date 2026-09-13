@@ -70,9 +70,14 @@ mod ai_assist_fx_plan;
 mod ai_assist_grok_plan;
 mod ai_assist_model_defaults;
 mod ai_assist_open_code;
+mod ai_assist_operation_registry;
+mod ai_assist_process_journal;
 mod ai_assist_requests;
 mod ai_assist_speech_message;
 mod ai_assist_workspace_identity;
+mod ai_assist_workspace_owner;
+#[cfg(test)]
+mod ai_assist_workspace_owner_tests;
 mod ai_dictation_credentials;
 mod ai_dictation_openai;
 mod ai_dictation_remote_requests;
@@ -93,6 +98,9 @@ mod automation_request_routes;
 mod automation_requests;
 mod automation_run_target_requests;
 mod automation_scheduler;
+mod automation_shared_cleanup_jobs;
+mod automation_shared_cleanup_requests;
+mod automation_target_location;
 mod client_accept_loop;
 mod client_delivery;
 mod codex_app_server;
@@ -102,11 +110,22 @@ mod codex_server_startup;
 mod configuration_requests;
 mod configuration_transfers;
 mod mobile_gateway_replacement;
+mod owner_terminal_lifecycle;
+mod owner_terminal_natural_exit;
+mod project_checkout_file_requests;
+mod project_checkout_requests;
+mod remote_recovery_requests;
+#[cfg(test)]
+mod remote_relocation_terminal_restore_tests;
+mod remote_setup_requests;
+mod remote_terminal_lifecycle;
+pub(crate) mod shared_checkout_compatibility;
 use mobile_gateway_replacement::MobileGatewayReplacement;
 mod coordinator_requests;
 mod coordinator_stall_policy;
 mod declared_catalog_requests;
 mod deferred_requests;
+mod deferred_workspace_setup;
 mod host_service_agent_quota;
 mod host_service_requests;
 mod host_status;
@@ -172,14 +191,16 @@ mod server_shutdown;
 mod session_termination;
 #[cfg(test)]
 mod session_termination_tests;
+mod ssh_bootstrap_job_events;
 mod tab_compatibility;
 #[cfg(test)]
 mod tab_compatibility_tests;
 #[cfg(test)]
 mod tab_profile_launch_compatibility_tests;
 mod terminal_driver;
+mod terminal_initial_input;
 mod terminal_input_requests;
-mod terminal_launch_defaults;
+pub(crate) mod terminal_launch_defaults;
 mod terminal_prompt_rearm;
 mod terminal_pulse;
 mod terminal_session_requests;
@@ -187,6 +208,7 @@ mod terminal_spawn;
 mod terminal_spawn_command;
 mod terminal_startup_commands;
 mod workspace_handoff_relocate;
+mod workspace_mutation_preparation;
 mod workspace_pinning;
 mod workspace_section_requests;
 #[cfg(test)]
@@ -216,9 +238,16 @@ pub(crate) enum ClientKind {
     Mobile,
 }
 
+mod checkout_buffer_guard_claims;
+mod checkout_buffer_guards;
+#[cfg(test)]
+mod checkout_buffer_guards_tests;
+
 struct ClientState {
     handle: ClientHandle,
     authenticated: bool,
+    shared_checkout_workspaces: bool,
+    checkout_buffer_guards: bool,
     binary_frames: bool,
     kind: ClientKind,
     local_role: client_delivery::LocalClientRole,
@@ -251,6 +280,11 @@ struct ServerActor {
     project_clone_jobs: HashMap<String, tokio::sync::oneshot::Sender<()>>,
     agent_title_jobs: HashMap<String, agent_title_generation::AgentTitleJob>,
     managed_workspace_jobs: usize,
+    automation_checkout_jobs: std::collections::HashSet<String>,
+    automation_precheck_jobs: std::collections::HashSet<String>,
+    pending_terminal_lifecycle_shutdowns:
+        HashMap<String, crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown>,
+    checkout_buffer_guards: HashMap<String, checkout_buffer_guards::CheckoutBufferGuard>,
     mutation_queue: runtime_mutation_queue::RuntimeMutationQueue,
     agent_quota_cache: Option<(Instant, u64, Value)>,
     configuration_transfers: configuration_transfers::ConfigurationTransfers,
@@ -423,6 +457,63 @@ impl ServerActor {
 
     async fn handle(&mut self, command: ServerCommand) {
         match command {
+            ServerCommand::OwnerAutomationPrecheckFinished { operation_id } => {
+                self.finish_owner_precheck(&operation_id)
+            }
+            ServerCommand::AutomationPrecheckFinished {
+                definition,
+                run,
+                host_id,
+                path,
+                result,
+            } => {
+                self.finish_automation_precheck(*definition, *run, host_id, path, result)
+                    .await;
+            }
+            ServerCommand::AutomationCheckoutPrepared {
+                definition,
+                run,
+                project,
+                result,
+            } => {
+                self.finish_automation_checkout_preparation(*definition, *run, *project, result)
+                    .await;
+            }
+            ServerCommand::RemoteTerminalLifecycleFinished {
+                client_id,
+                request_id,
+                verb,
+                payload,
+                result,
+            } => {
+                self.finish_remote_terminal_lifecycle(client_id, request_id, verb, payload, result)
+                    .await;
+            }
+            ServerCommand::OwnerTerminalLifecycleFinished {
+                client_id,
+                request_id,
+                operation_id,
+                shutdown,
+                result,
+            } => {
+                self.finish_owner_terminal_lifecycle(
+                    client_id,
+                    request_id,
+                    operation_id,
+                    shutdown,
+                    result,
+                )
+                .await;
+            }
+            ServerCommand::RemoteSetupFinished {
+                client_id,
+                request_id,
+                operation,
+                result,
+            } => {
+                self.finish_remote_setup_control(client_id, request_id, operation, result);
+            }
+            ServerCommand::BufferGuardExpired { id } => self.expire_checkout_buffer_guard(&id),
             command @ (ServerCommand::RelayActivity { .. }
             | ServerCommand::RelayStatus { .. }
             | ServerCommand::RelayClientConnected { .. }
@@ -433,6 +524,8 @@ impl ServerActor {
                     ClientState {
                         handle,
                         authenticated: false,
+                        shared_checkout_workspaces: false,
+                        checkout_buffer_guards: false,
                         binary_frames: false,
                         kind,
                         local_role: client_delivery::LocalClientRole::Cli,
@@ -454,6 +547,13 @@ impl ServerActor {
                 payload,
             } => {
                 self.finish_mobile_network_snapshot(client_id, request_id, payload);
+            }
+            ServerCommand::RemoteRecoveryFinished {
+                client_id,
+                request_id,
+                result,
+            } => {
+                self.finish_remote_relocation_recovery(client_id, request_id, result);
             }
             ServerCommand::Pty {
                 session_id,
@@ -493,6 +593,11 @@ impl ServerActor {
                 job_id,
                 status,
             } => self.handle_ssh_bootstrap_finished(target_id, job_id, status),
+            ServerCommand::ProjectCheckoutRegistered {
+                client_id,
+                request_id,
+                result,
+            } => self.handle_project_checkout_registered(client_id, request_id, result),
             ServerCommand::ManagedWorkspaceCreated {
                 client_id,
                 request_id,
@@ -698,6 +803,11 @@ impl ServerActor {
                 self.handle_resource_sample_ready(snapshot)
             }
             ServerCommand::AutomationTick => self.handle_automation_tick().await,
+            ServerCommand::AutomationSharedCleanupFinished { attempt, result } => {
+                self.finish_automation_shared_cleanup(&attempt, result)
+                    .await;
+            }
+
             ServerCommand::CodexMessage { .. } => {}
             ServerCommand::CodexMalformed { reason } => {
                 tracing::warn!(reason, "Codex app-server returned malformed JSON");
@@ -1058,67 +1168,6 @@ impl ServerActor {
         Ok(target)
     }
 
-    fn list_ssh_bootstrap_jobs(&self) -> Value {
-        let jobs = self
-            .ssh_bootstrap_jobs
-            .values()
-            .map(|job| {
-                json!(SshTargetBootstrapJob {
-                    job_id: job.job_id.clone(),
-                    target_id: job.target_id.clone(),
-                    status: job.status,
-                })
-            })
-            .collect::<Vec<_>>();
-        json!(jobs)
-    }
-
-    fn handle_ssh_bootstrap_progress(&mut self, progress: SshTargetBootstrapProgress) {
-        let Some(job) = self.ssh_bootstrap_jobs.get_mut(&progress.target_id) else {
-            return;
-        };
-        if job.job_id != progress.job_id {
-            return;
-        }
-        job.status = progress.status;
-        self.broadcast_authenticated(event("sshTargetBootstrapProgress", json!(progress)));
-        self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
-    }
-
-    fn handle_ssh_bootstrap_finished(
-        &mut self,
-        target_id: String,
-        job_id: String,
-        status: SshBootstrapStatus,
-    ) {
-        if self
-            .ssh_bootstrap_jobs
-            .get(&target_id)
-            .is_some_and(|job| job.job_id == job_id)
-        {
-            self.ssh_bootstrap_jobs.remove(&target_id);
-            self.broadcast_authenticated(event(
-                "sshTargetBootstrapProgress",
-                json!(SshTargetBootstrapProgress {
-                    job_id,
-                    target_id,
-                    status,
-                    stage: status.as_str().to_string(),
-                    message: match status {
-                        SshBootstrapStatus::Installed => "Remote Runtime Installed",
-                        SshBootstrapStatus::Failed => "Remote Runtime Install Failed",
-                        SshBootstrapStatus::Cancelled => "Remote Runtime Install Cancelled",
-                        _ => "Remote Runtime Bootstrap Updated",
-                    }
-                    .to_string(),
-                    error: None,
-                }),
-            ));
-            self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
-            self.schedule_shutdown_if_idle();
-        }
-    }
-
     fn spawn_checkpoint_timer(&self, session_id: String, generation: u64) {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
@@ -1179,6 +1228,10 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            automation_checkout_jobs: Default::default(),
+            automation_precheck_jobs: Default::default(),
+            pending_terminal_lifecycle_shutdowns: Default::default(),
+            checkout_buffer_guards: HashMap::new(),
             mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
@@ -1254,6 +1307,10 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            automation_checkout_jobs: Default::default(),
+            automation_precheck_jobs: Default::default(),
+            pending_terminal_lifecycle_shutdowns: Default::default(),
+            checkout_buffer_guards: HashMap::new(),
             mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
@@ -1347,6 +1404,10 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            automation_checkout_jobs: Default::default(),
+            automation_precheck_jobs: Default::default(),
+            pending_terminal_lifecycle_shutdowns: Default::default(),
+            checkout_buffer_guards: HashMap::new(),
             mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
@@ -1435,6 +1496,10 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            automation_checkout_jobs: Default::default(),
+            automation_precheck_jobs: Default::default(),
+            pending_terminal_lifecycle_shutdowns: Default::default(),
+            checkout_buffer_guards: HashMap::new(),
             mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
@@ -1545,6 +1610,10 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            automation_checkout_jobs: Default::default(),
+            automation_precheck_jobs: Default::default(),
+            pending_terminal_lifecycle_shutdowns: Default::default(),
+            checkout_buffer_guards: HashMap::new(),
             mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
@@ -1628,6 +1697,10 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            automation_checkout_jobs: Default::default(),
+            automation_precheck_jobs: Default::default(),
+            pending_terminal_lifecycle_shutdowns: Default::default(),
+            checkout_buffer_guards: HashMap::new(),
             mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
@@ -1704,3 +1777,6 @@ mod tests {
         assert!(actor.agent_presence.is_injection_ready("term-1"));
     }
 }
+
+#[cfg(test)]
+mod remote_automation_cleanup_runtime_tests;

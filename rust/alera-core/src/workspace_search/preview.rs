@@ -6,9 +6,10 @@ use regex::Regex;
 use super::compile::{compile_search, CompiledSearch};
 use super::engine::{ensure_not_cancelled, run_search};
 use super::line_ranges::LineRanges;
-use super::paths::resolve_replace_file;
+use super::paths::{content_token, resolve_replace_file};
 use super::{
-    WorkspaceReplaceOptions, WorkspaceReplacePreview, WorkspaceSearchError, WorkspaceSearchMatch,
+    WorkspaceReplaceOptions, WorkspaceReplacePreview, WorkspaceSearchError,
+    WorkspaceSearchErrorKind, WorkspaceSearchMatch,
 };
 
 pub(super) fn preview_workspace_replace_impl(
@@ -22,6 +23,12 @@ pub(super) fn preview_workspace_replace_impl(
         let (path, _) = resolve_replace_file(&compiled.root, &file.relative_path)?;
         let content = fs::read_to_string(&path)
             .map_err(|error| WorkspaceSearchError::from_io(error, file.relative_path.clone()))?;
+        if content_token(&content) != file.content_token {
+            return Err(WorkspaceSearchError::new(
+                WorkspaceSearchErrorKind::Io,
+                "File changed while preparing replacement previews.",
+            ));
+        }
         let line_ranges = LineRanges::new(&content);
         for m in &mut file.matches {
             ensure_not_cancelled(cancellation)?;
@@ -49,28 +56,38 @@ pub(super) fn preview_replacement(
     options: &WorkspaceReplaceOptions,
 ) -> String {
     line_ranges
-        .match_slice(content, m.line, m.column, m.match_length)
-        .map(|matched| replacement_for_slice(matched, &compiled.replacement_regex, options))
+        .match_context(content, m.line, m.column, m.match_length)
+        .and_then(|(line, start, end)| {
+            replacement_for_match(line, start, end, &compiled.replacement_regex, options)
+        })
         .unwrap_or_else(|| options.replacement.clone())
 }
 
-pub(super) fn replacement_for_slice(
-    matched: &str,
+pub(super) fn replacement_for_match(
+    line: &str,
+    start: usize,
+    end: usize,
     regex: &Regex,
     options: &WorkspaceReplaceOptions,
-) -> String {
+) -> Option<String> {
+    let matched = line.get(start..end)?;
     let replacement = if options.search.use_regex {
-        regex
-            .replace(matched, options.replacement.as_str())
-            .to_string()
+        let captures = regex.captures_at(line, start)?;
+        let whole = captures.get(0)?;
+        if whole.start() != start || whole.end() != end {
+            return None;
+        }
+        let mut expanded = String::new();
+        captures.expand(&options.replacement, &mut expanded);
+        expanded
     } else {
         options.replacement.clone()
     };
-    if options.preserve_case {
+    Some(if options.preserve_case {
         preserve_case(matched, &replacement)
     } else {
         replacement
-    }
+    })
 }
 
 pub(super) fn preserve_case(source: &str, replacement: &str) -> String {

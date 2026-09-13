@@ -147,25 +147,34 @@ fn state_error(error: impl std::fmt::Display) -> HostError {
     HostError::state(error.to_string())
 }
 
-/// Links the issue a `workspace.createManaged` request named, once the
-/// workspace exists. A failure never fails the creation: the worktree is
-/// already on disk and the user can link the issue again.
-pub(super) async fn link_created_workspace_issue(
+/// Stores the local association before creation is acknowledged; fetching stays deferred.
+pub(super) async fn persist_created_workspace_issue(
     store: &alera_core::runtime::RuntimeStore,
     inbox: &tokio::sync::mpsc::UnboundedSender<ServerCommand>,
-    workspace_id: &str,
-    url: &str,
-) {
+    workspace_id: Option<&str>,
+    url: Option<&str>,
+) -> Option<alera_core::runtime::LinkedIssue> {
+    let workspace_id = workspace_id?;
+    let url = url?;
     let record = match persist_issue_link(store, workspace_id, url).await {
         Ok(record) => record,
         Err(error) => {
             tracing::warn!(%error, "could not link the issue of a new workspace");
-            return;
+            return None;
         }
     };
     let _ = inbox.send(ServerCommand::LinkedIssuesChanged {
         workspace_id: workspace_id.to_string(),
     });
+    Some(record)
+}
+
+pub(super) async fn refresh_created_workspace_issue(
+    store: &alera_core::runtime::RuntimeStore,
+    inbox: &tokio::sync::mpsc::UnboundedSender<ServerCommand>,
+    record: alera_core::runtime::LinkedIssue,
+) {
+    let workspace_id = record.workspace_id.clone();
     if record.provider.is_none() {
         return;
     }

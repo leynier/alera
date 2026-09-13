@@ -32,6 +32,7 @@ void main() {
         child: MaterialApp(
           navigatorKey: aleraNavigatorKey,
           home: const CreateWorkspaceScreen(
+            supportsSharedCheckoutWorkspaces: true,
             hostId: 'host-1',
             projects: <ProjectSummary>[
               ProjectSummary(
@@ -49,10 +50,14 @@ void main() {
 
     await tester.tap(find.text('Manual'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('New Worktree'));
+    await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextField, 'Branch Name'),
       'feature/one',
     );
+    await tester.drag(find.byType(ListView), const Offset(0, -240));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Create Another'));
     await tester.pump();
     expect(
@@ -105,6 +110,7 @@ void main() {
         child: MaterialApp(
           navigatorKey: aleraNavigatorKey,
           home: const CreateWorkspaceScreen(
+            supportsSharedCheckoutWorkspaces: true,
             hostId: 'host-1',
             projects: <ProjectSummary>[
               ProjectSummary(
@@ -124,7 +130,14 @@ void main() {
       find.widgetWithText(TextField, 'Initial Prompt'),
       'Build offline support',
     );
-    await tester.ensureVisible(find.text('Create Another'));
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Create Another'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Create Another'));
     final scrollState = tester.state<ScrollableState>(
       find.byType(Scrollable).first,
@@ -185,6 +198,7 @@ void main() {
         child: MaterialApp(
           navigatorKey: aleraNavigatorKey,
           home: const CreateWorkspaceScreen(
+            supportsSharedCheckoutWorkspaces: true,
             hostId: 'host-1',
             projects: <ProjectSummary>[
               ProjectSummary(
@@ -236,6 +250,7 @@ void main() {
         ],
         child: MaterialApp(
           home: CreateWorkspaceScreen(
+            supportsSharedCheckoutWorkspaces: true,
             hostId: 'host-1',
             projects: const <ProjectSummary>[
               ProjectSummary(
@@ -273,8 +288,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Alera / Main - main'), findsOneWidget);
-    await tester.tap(find.text('Alera / Main - main'));
+    expect(find.text('No Parent'), findsOneWidget);
+    await tester.tap(find.text('No Parent'));
     await tester.pumpAndSettle();
     expect(find.text('Notes / Shared - feature/shared'), findsOneWidget);
     await tester.tap(find.text('Notes / Shared - feature/shared'));
@@ -283,7 +298,7 @@ void main() {
 
     await tester.tap(find.text('Alera'));
     await tester.pumpAndSettle();
-    expect(find.text('Notes'), findsNothing);
+    expect(find.text('Notes'), findsOneWidget);
   });
 
   testWidgets('From Prompt shows AI Dictation when it is enabled', (
@@ -307,6 +322,7 @@ void main() {
         child: MaterialApp(
           navigatorKey: aleraNavigatorKey,
           home: const CreateWorkspaceScreen(
+            supportsSharedCheckoutWorkspaces: true,
             hostId: 'host-1',
             projects: <ProjectSummary>[
               ProjectSummary(
@@ -359,6 +375,7 @@ void main() {
         child: MaterialApp(
           navigatorKey: aleraNavigatorKey,
           home: const CreateWorkspaceScreen(
+            supportsSharedCheckoutWorkspaces: true,
             hostId: 'host-1',
             projects: <ProjectSummary>[
               ProjectSummary(

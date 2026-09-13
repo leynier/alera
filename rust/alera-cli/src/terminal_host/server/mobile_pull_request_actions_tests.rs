@@ -196,3 +196,35 @@ fn a_workspace_runs_one_write_at_a_time() {
     drop(first);
     assert!(BusyGuard::acquire("busy-test").is_ok());
 }
+
+#[test]
+fn completed_mutation_is_not_reported_as_failed_when_refresh_fails() {
+    let failed_refresh = completed_action_snapshot(Err(HostError::state("forge unavailable")));
+    assert_eq!(failed_refresh["mutationApplied"], true);
+    assert_eq!(failed_refresh["refreshError"], "forge unavailable");
+    let fresh = completed_action_snapshot(Ok(json!({"review":{"number":7}})));
+    assert_eq!(fresh["mutationApplied"], true);
+    assert_eq!(fresh["review"]["number"], 7);
+}
+
+#[test]
+fn link_urls_must_identify_the_workspace_repository() {
+    for reference in ["#7", "7", "https://github.com/leynier/alera/pull/7/files"] {
+        assert_eq!(
+            workspace_review_reference(reference, &identity()).unwrap(),
+            7
+        );
+    }
+    for reference in [
+        "https://github.com/other/alera/pull/7",
+        "https://github.com/leynier/other/pull/7",
+        "https://example.com/leynier/alera/pull/7",
+        "https://github.com/leynier/alera/issues/7",
+        "https://github.com/leynier/alera/pull/7wrong",
+    ] {
+        assert!(
+            workspace_review_reference(reference, &identity()).is_err(),
+            "{reference}"
+        );
+    }
+}

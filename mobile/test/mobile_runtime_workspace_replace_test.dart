@@ -64,6 +64,33 @@ Map<String, Object?> _lastPayload(
         as Map<String, Object?>;
 
 void main() {
+  test(
+    'preserves an empty deletion preview and omits a null replacement',
+    () async {
+      final (client, requests) = await _connect(<String>[
+        mobileWorkspaceSearchCapability,
+        mobileWorkspaceReplaceCapability,
+      ]);
+      await client.searchWorkspace(
+        workspaceId: 'ws-1',
+        query: 'foo',
+        replacement: '',
+      );
+      expect(
+        _lastPayload(requests, 'mobile.workspaceSearch.run')['replacement'],
+        '',
+      );
+      await client.searchWorkspace(workspaceId: 'ws-1', query: 'foo');
+      expect(
+        _lastPayload(
+          requests,
+          'mobile.workspaceSearch.run',
+        ).containsKey('replacement'),
+        isFalse,
+      );
+    },
+  );
+
   test('sends replace, preview, and cancel to a capable host', () async {
     final (client, requests) = await _connect(<String>[
       mobileWorkspaceSearchCapability,

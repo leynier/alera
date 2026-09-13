@@ -14,13 +14,13 @@ class const _EmptyProjectsDialog({
         children: [
           AleraEmptyState(
             icon: AleraIcons.folderOff,
-            title: 'No Git projects yet',
-            message: 'Linked workspaces require a Git project. Add one to get started.',
+            title: 'No projects yet',
+            message: 'Add a project to create its first workspace.',
             action: onAddProject != null
                 ? FilledButton.icon(
                     onPressed: onAddProject,
                     icon: const Icon(AleraIcons.add, size: 16),
-                    label: const Text('Add Git Project'),
+                    label: const Text('Add Project'),
                   )
                 : null,
           ),

@@ -4,8 +4,8 @@ use std::fs;
 use super::compile::compile_search;
 use super::engine::run_search;
 use super::line_ranges::LineRanges;
-use super::paths::resolve_replace_file;
-use super::preview::replacement_for_slice;
+use super::paths::{content_token, resolve_replace_file};
+use super::preview::replacement_for_match;
 use super::{
     WorkspaceReplaceConflict, WorkspaceReplaceRequest, WorkspaceReplaceResult,
     WorkspaceSearchError, WorkspaceSearchErrorKind,
@@ -13,6 +13,13 @@ use super::{
 
 pub(super) fn replace_workspace_matches_impl(
     request: WorkspaceReplaceRequest,
+) -> Result<WorkspaceReplaceResult, WorkspaceSearchError> {
+    replace_with_file_checkpoint(request, |_, _| {})
+}
+
+pub(super) fn replace_with_file_checkpoint(
+    request: WorkspaceReplaceRequest,
+    mut checkpoint: impl FnMut(&std::path::Path, bool),
 ) -> Result<WorkspaceReplaceResult, WorkspaceSearchError> {
     let compiled = compile_search(&request.options.search)?;
     let expected = request
@@ -89,6 +96,7 @@ pub(super) fn replace_workspace_matches_impl(
                 continue;
             }
         };
+        checkpoint(&path, false);
         let content = match fs::read_to_string(&path) {
             Ok(content) => content,
             Err(error) => {
@@ -99,21 +107,40 @@ pub(super) fn replace_workspace_matches_impl(
                 continue;
             }
         };
+        if content_token(&content) != file.content_token {
+            conflicts.push(WorkspaceReplaceConflict {
+                relative_path: file.relative_path,
+                reason: "File changed on disk".to_string(),
+            });
+            continue;
+        }
         let line_ranges = LineRanges::new(&content);
         let mut ranges = Vec::new();
+        let selected_matches_count = selected_matches.len();
         for m in selected_matches {
             if let Some(range) =
                 line_ranges.locate_match_range(&content, m.line, m.column, m.match_length)
             {
-                let replacement = replacement_for_slice(
-                    &content[range.0..range.1],
-                    &compiled.replacement_regex,
-                    &request.options,
-                );
-                ranges.push((range.0, range.1, replacement));
+                if let Some((line, start, end)) =
+                    line_ranges.match_context(&content, m.line, m.column, m.match_length)
+                {
+                    if let Some(replacement) = replacement_for_match(
+                        line,
+                        start,
+                        end,
+                        &compiled.replacement_regex,
+                        &request.options,
+                    ) {
+                        ranges.push((range.0, range.1, replacement));
+                    }
+                }
             }
         }
-        if ranges.is_empty() {
+        if ranges.len() != selected_matches_count {
+            conflicts.push(WorkspaceReplaceConflict {
+                relative_path: file.relative_path,
+                reason: "Selected match is no longer available".to_string(),
+            });
             continue;
         }
         ranges.sort_by_key(|range| range.0);
@@ -130,6 +157,16 @@ pub(super) fn replace_workspace_matches_impl(
             file_matches_replaced += 1;
         }
         next.push_str(&content[cursor..]);
+        checkpoint(&path, true);
+        if resolve_replace_file(&compiled.root, &file.relative_path).is_err()
+            || fs::read(&path).ok().as_deref() != Some(content.as_bytes())
+        {
+            conflicts.push(WorkspaceReplaceConflict {
+                relative_path: file.relative_path,
+                reason: "File changed on disk".to_string(),
+            });
+            continue;
+        }
         if let Err(error) = fs::write(&path, next) {
             conflicts.push(WorkspaceReplaceConflict {
                 relative_path: file.relative_path,

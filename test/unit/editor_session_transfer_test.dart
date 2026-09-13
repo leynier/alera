@@ -3,6 +3,54 @@ import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('external checkout changes invalidate clean cached document state', () {
+    final registry = EditorSessionRegistry();
+    addTearDown(registry.dispose);
+    final document = registry.documentFor('editor')
+      ..attachFile(workspacePath: '/source', relativePath: 'file.txt')
+      ..acceptLoaded(
+        native.WorkspaceEditorTextFile(
+          rawContent: 'source bytes',
+          displayContent: 'source bytes',
+          contentToken: 'old-token',
+          modifiedMillis: 0,
+          size: .zero,
+        ),
+      );
+    document.attachFile(
+      workspacePath: '/destination',
+      relativePath: 'file.txt',
+    );
+    expect(document.hasSnapshot, isFalse);
+    expect(document.contentToken, isNull);
+    expect(document.canSave, isFalse);
+  });
+
+  test(
+    'relocation drops clean source bytes and save token before reloading',
+    () {
+      final registry = EditorSessionRegistry();
+      addTearDown(registry.dispose);
+      final document = registry.documentFor('editor')
+        ..attachFile(workspacePath: '/source', relativePath: 'file.txt')
+        ..acceptLoaded(
+          native.WorkspaceEditorTextFile(
+            rawContent: 'saved source changes',
+            displayContent: 'saved source changes',
+            contentToken: 'source-token',
+            modifiedMillis: 0,
+            size: .zero,
+          ),
+        );
+      registry.transferDocuments(['editor'], '/source', '/destination');
+      expect(document.workspacePath, '/destination');
+      expect(document.hasSnapshot, isFalse);
+      expect(document.contentToken, isNull);
+      expect(document.canSave, isFalse);
+      expect(document.isDirty, isFalse);
+    },
+  );
+
   test('transfer preserves dirty content and token and leaves external documents alone', () {
     final registry = EditorSessionRegistry();
     final document = registry.documentFor('editor')

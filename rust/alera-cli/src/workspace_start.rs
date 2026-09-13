@@ -14,6 +14,7 @@ const IDENTITY_GENERATE_TIMEOUT_MS: u64 = 11 * 60 * 1000;
 
 #[derive(Debug, Clone)]
 pub struct InferredWorkspaceCreate {
+    pub use_project_checkout: bool,
     pub id: Option<String>,
     pub project_id: Option<String>,
     pub branch: Option<String>,
@@ -69,10 +70,12 @@ async fn run_inner(
     )
     .await?;
     let profile = resolve_selected_profile(&mut client, &args.selector).await?;
+    let no_parent = args.no_parent || args.parent_workspace_id.is_none();
     let created = create_inferred_workspace(
         runtime,
         &mut client,
         InferredWorkspaceCreate {
+            use_project_checkout: !args.worktree,
             id: args.id,
             project_id: args.project_id,
             branch: args.branch,
@@ -81,7 +84,7 @@ async fn run_inner(
             workspace_root: args.workspace_root,
             path: args.path,
             parent_workspace_id: args.parent_workspace_id,
-            no_parent: args.no_parent,
+            no_parent,
             from_workspace: args.workspace,
             host_id: args.host_id,
             issue_url,
@@ -168,6 +171,29 @@ pub async fn create_inferred_workspace(
             "--project-id is required (or run inside an Alera terminal where ALERA_WORKSPACE_ID is set)."
         )
     })?;
+    if request.use_project_checkout {
+        if request.branch.is_some()
+            || request.source_branch.is_some()
+            || request.path.is_some()
+            || request.workspace_root.is_some()
+        {
+            bail!("Branch and worktree path options require --worktree. Project-folder tasks use the current files and branch.");
+        }
+        let name = match nonempty(request.name) {
+            Some(name) => name,
+            None => {
+                generate_identity(client, &project_id, prompt_for_identity)
+                    .await
+                    .context("Could not name the task; specify --name to continue")?
+                    .0
+            }
+        };
+        return client.request_value("workspace.createShared", &json!({
+            "id": request.id, "projectId": project_id, "name": name,
+            "parentWorkspaceId": if request.no_parent { None } else { request.parent_workspace_id },
+            "hostId": request.host_id,
+        })).await.context("could not create shared workspace");
+    }
     let source_branch = first_non_empty([
         request.source_branch.as_deref(),
         context.as_ref().and_then(WorkspaceContext::source_branch),
@@ -289,8 +315,10 @@ async fn generate_identity(
 
 fn needs_workspace_context(request: &InferredWorkspaceCreate) -> bool {
     first_non_empty([request.project_id.as_deref()]).is_none()
-        || first_non_empty([request.source_branch.as_deref()]).is_none()
-        || (!request.no_parent
+        || (!request.use_project_checkout
+            && first_non_empty([request.source_branch.as_deref()]).is_none())
+        || (!request.use_project_checkout
+            && !request.no_parent
             && first_non_empty([request.parent_workspace_id.as_deref()]).is_none())
 }
 

@@ -28,9 +28,18 @@ impl std::error::Error for GitCliError {}
 
 /// Runs `git <args>` with `dir` as the working directory and returns stdout.
 pub fn git_in_dir(dir: &Path, args: &[&str]) -> Result<String, GitCliError> {
+    git_in_dir_with_environment(dir, args, &std::collections::BTreeMap::new())
+}
+
+pub fn git_in_dir_with_environment(
+    dir: &Path,
+    args: &[&str],
+    environment: &std::collections::BTreeMap<String, String>,
+) -> Result<String, GitCliError> {
     let mut command = windowless_command("git");
     command
         .args(args)
+        .envs(environment)
         .current_dir(dir)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())

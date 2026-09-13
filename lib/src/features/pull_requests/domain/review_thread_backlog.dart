@@ -21,7 +21,7 @@ List<PendingReviewThread> pendingReviewThreads({
 }) {
   final threads = <String, List<ReviewComment>>{};
   for (final comment in comments) {
-    final threadId = comment.locator?.parentId;
+    final threadId = comment.threadId;
     if (threadId == null || threadId.isEmpty) {
       continue;
     }
@@ -30,7 +30,7 @@ List<PendingReviewThread> pendingReviewThreads({
   final author = reviewAuthor?.trim().toLowerCase();
   return <PendingReviewThread>[
     for (final MapEntry(key: id, value: thread) in threads.entries)
-      if (!thread.any((comment) => comment.resolved) &&
+      if (!thread.every((comment) => comment.resolved) &&
           !thread.every((comment) => comment.outdated) &&
           !(author != null &&
               author.isNotEmpty &&

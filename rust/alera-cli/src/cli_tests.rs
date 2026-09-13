@@ -2,8 +2,27 @@ use clap::Parser;
 
 use crate::cli::{
     AgentProfileAction, Cli, Command, IdArgs, TerminalHostArgs, WorkspaceAction, WorkspaceCommand,
+    WorkspaceRemoveArgs,
 };
 use crate::cli_orchestration::{OrchestrationAction, OrchestrationCommand};
+
+#[test]
+fn project_removal_requires_explicit_automation_cancellation_flag() {
+    for approved in [false, true] {
+        let mut arguments = vec!["alera", "project", "remove", "--id", "project"];
+        if approved {
+            arguments.push("--pause-automations-and-cancel-runs");
+        }
+        let parsed = Cli::try_parse_from(arguments).unwrap();
+        let Command::Project(command) = parsed.command else {
+            panic!("project command expected");
+        };
+        let crate::cli::ProjectAction::Remove(args) = command.action else {
+            panic!("remove action expected");
+        };
+        assert_eq!(args.pause_automations_and_cancel_runs, approved);
+    }
+}
 
 #[test]
 fn runtime_clear_parses_force_as_an_explicit_live_host_override() {
@@ -233,6 +252,7 @@ fn convenience_launch_verbs_reject_conflicting_sources() {
         "alera",
         "workspace",
         "add",
+        "--worktree",
         "--project-id",
         "proj",
         "--branch",
@@ -241,6 +261,63 @@ fn convenience_launch_verbs_reject_conflicting_sources() {
         "main",
     ])
     .is_ok());
+}
+
+#[test]
+fn shared_workspace_cli_defaults_and_explicit_worktree_options() {
+    let cli =
+        Cli::try_parse_from(["alera", "workspace", "add", "--project-id", "project"]).unwrap();
+    match cli.command {
+        Command::Workspace(WorkspaceCommand {
+            action: WorkspaceAction::Add(args),
+            ..
+        }) => {
+            assert!(!args.worktree);
+            assert!(args.branch.is_none());
+            assert!(args.parent_workspace_id.is_none());
+        }
+        other => panic!("unexpected command: {other:?}"),
+    }
+    assert!(Cli::try_parse_from([
+        "alera",
+        "workspace",
+        "add",
+        "--project-id",
+        "project",
+        "--branch",
+        "topic"
+    ])
+    .is_err());
+    assert!(Cli::try_parse_from([
+        "alera",
+        "workspace",
+        "add",
+        "--project-id",
+        "project",
+        "--worktree"
+    ])
+    .is_err());
+    let cli = Cli::try_parse_from([
+        "alera",
+        "workspace",
+        "remove",
+        "--id",
+        "task",
+        "--close-sessions",
+        "--keep-branch",
+    ])
+    .unwrap();
+    assert!(matches!(
+        cli.command,
+        Command::Workspace(WorkspaceCommand {
+            action: WorkspaceAction::Remove(WorkspaceRemoveArgs {
+                close_sessions: true,
+                keep_branch: true,
+                ..
+            }),
+            ..
+        })
+    ));
 }
 
 #[test]
@@ -372,70 +449,5 @@ fn task_wait_defaults_include_every_terminal_task_state() {
     ));
 }
 
-#[test]
-fn issue_commands_parse_urls_and_workspace_targets() {
-    use crate::cli::{IssueAction, WorkspaceIssueAction};
-
-    let show = Cli::try_parse_from([
-        "alera",
-        "issue",
-        "--json",
-        "show",
-        "https://github.com/leynier/alera/issues/758",
-    ])
-    .unwrap();
-    let Command::Issue(command) = show.command else {
-        panic!("expected issue command");
-    };
-    assert!(command.output.json);
-    let IssueAction::Show(args) = command.action;
-    assert_eq!(args.url, "https://github.com/leynier/alera/issues/758");
-
-    let link = Cli::try_parse_from([
-        "alera",
-        "workspace",
-        "issue",
-        "link",
-        "--workspace-id",
-        "w1",
-        "https://gitlab.com/a/b/-/issues/3",
-    ])
-    .unwrap();
-    let Command::Workspace(WorkspaceCommand {
-        action: WorkspaceAction::Issue(issue),
-        ..
-    }) = link.command
-    else {
-        panic!("expected workspace issue command");
-    };
-    let WorkspaceIssueAction::Link(args) = issue.action else {
-        panic!("expected link");
-    };
-    assert_eq!(args.target.workspace_id.as_deref(), Some("w1"));
-    assert_eq!(args.url, "https://gitlab.com/a/b/-/issues/3");
-
-    let add = Cli::try_parse_from([
-        "alera",
-        "workspace",
-        "add",
-        "--project-id",
-        "p",
-        "--branch",
-        "b",
-        "--issue",
-        "https://dev.azure.com/o/p/_workitems/edit/1",
-    ])
-    .unwrap();
-    let Command::Workspace(WorkspaceCommand {
-        action: WorkspaceAction::Add(args),
-        ..
-    }) = add.command
-    else {
-        panic!("expected workspace add");
-    };
-    assert_eq!(
-        args.issue.as_deref(),
-        Some("https://dev.azure.com/o/p/_workitems/edit/1")
-    );
-    assert!(Cli::try_parse_from(["alera", "workspace", "issue", "link"]).is_err());
-}
+#[path = "cli_issue_tests.rs"]
+mod issue_tests;

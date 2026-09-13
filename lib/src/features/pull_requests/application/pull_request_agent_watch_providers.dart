@@ -157,6 +157,7 @@ class PullRequestAgentWatchController
         review: panel.review,
         checksRollup: panel.checksRollup,
         comments: panel.comments,
+        commentsComplete: panel.commentsComplete,
       );
     }
     final async = ref.read(
@@ -170,6 +171,7 @@ class PullRequestAgentWatchController
       review: current.review,
       checksRollup: current.checksRollup,
       comments: current.comments,
+      commentsComplete: current.commentsComplete,
     );
   }
 

@@ -5,6 +5,7 @@ import 'package:alera/src/features/projects/application/project_providers.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_clone_job.dart';
 import 'package:alera/src/features/workbench/application/prompt_workspace_pipeline.dart';
+import 'package:alera/src/features/workbench/application/prompt_workspace_branch_checks.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/domain/background_setup_job.dart';
 import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
@@ -80,6 +81,7 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs
       final result = await ref
           .read(workbenchControllerProvider.notifier)
           .createWorkspace(
+            useProjectCheckout: request.useProjectCheckout,
             project: request.project,
             sourceBranch: request.sourceBranch,
             newBranchName: request.newBranchName,
@@ -136,23 +138,39 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs
         ref.read(runtimeHostClientProvider),
         beforeAccess: ref.read(runtimeStateMigrationProvider).ensureMigrated,
       );
+      final branchChecks = PromptWorkspaceBranchChecks(
+        hostId: requestToRun.hostId,
+        git: ref.read(gitBackendProvider),
+        loadHostCatalog: controller.loadHostBranchCatalog,
+        workspaces: () => ref
+            .read(workbenchControllerProvider)
+            .workspacesByProject
+            .values
+            .expand((workspaces) => workspaces),
+      );
       final pipeline = PromptWorkspacePipeline(
         generateIdentity: runtime.generateIdentity,
-        checkBranchExists: (project, branchName) {
-          return ref
-              .read(gitBackendProvider)
-              .branchExists(project.repoPath, branchName);
-        },
-        workspaceBranches: (project) {
-          return ref
-              .read(workbenchControllerProvider)
-              .workspacesFor(project.id)
-              .where((workspace) => workspace.isActive)
-              .map((workspace) => workspace.branch?.trim() ?? '')
-              .where((branch) => branch.isNotEmpty)
-              .toSet();
-        },
-        createWorkspace: controller.createWorkspaceForPrompt,
+        checkBranchExists: branchChecks.branchExists,
+        workspaceBranches: branchChecks.workspaceBranches,
+        createWorkspace:
+            ({
+              required project,
+              required sourceBranch,
+              required newBranchName,
+              required name,
+              parentWorkspaceId,
+              hostId,
+              issueUrl,
+            }) => controller.createWorkspaceForPrompt(
+              useProjectCheckout: requestToRun.useProjectCheckout,
+              project: project,
+              sourceBranch: sourceBranch,
+              newBranchName: newBranchName,
+              name: name,
+              parentWorkspaceId: parentWorkspaceId,
+              hostId: hostId,
+              issueUrl: issueUrl,
+            ),
         launchAgent: runtime.launchAgent,
         onPhase: (phase) => _setPhase(id, phase),
       );

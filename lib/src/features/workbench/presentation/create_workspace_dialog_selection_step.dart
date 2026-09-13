@@ -1,6 +1,8 @@
 part of 'create_workspace_dialog.dart';
 
 class const _CreateWorkspaceSelectionStep({
+  required final bool useProjectCheckout,
+  required final ValueChanged<bool>? onLocationChanged,
   required final List<Project> projects,
   required final Project? selectedProject,
   required final String projectQuery,
@@ -50,38 +52,55 @@ class const _CreateWorkspaceSelectionStep({
           getProjectActiveBranch: getProjectActiveBranch,
         ),
         const SizedBox(height: AleraTokens.space16),
-        AleraSegmentedButton<bool>(
-          segments: const <ButtonSegment<bool>>[
-            ButtonSegment<bool>(value: false, label: Text('New Branch')),
-            ButtonSegment<bool>(value: true, label: Text('Existing Branch')),
-          ],
-          selected: reuseExistingBranch,
-          onSelectionChanged: onReuseExistingBranchChanged,
-        ),
-        const SizedBox(height: AleraTokens.space16),
-        if (loadingBranches)
-          const _LoadingBranches()
-        else if (branches.isNotEmpty)
-          _SourceBranchPicker(
-            label: _branchLabel,
-            searchHint: _branchSearchHint,
-            emptyMessage: _emptyBranchesMessage,
-            branches: branches,
-            selectedBranch: selectedBranch,
-            query: branchQuery,
-            controller: branchSearchController,
-            onQueryChanged: onBranchQueryChanged,
-            onSelectBranch: onSelectBranch,
-          )
-        else
-          _ManualSourceBranchField(
-            label: _branchLabel,
-            controller: sourceBranchController,
-            errorText: sourceBranchError,
-            loadError: branchesError,
-            onRetry: onRetryBranches,
-            onChanged: onManualSourceBranchChanged,
+        if (onLocationChanged != null) ...[
+          AleraSegmentedButton<bool>(
+            segments: <ButtonSegment<bool>>[
+              const ButtonSegment(value: true, label: Text('Project Folder')),
+              ButtonSegment(
+                value: false,
+                label: const Text('New Worktree'),
+                enabled: selectedProject?.isGitRepository == true,
+              ),
+            ],
+            selected: useProjectCheckout,
+            onSelectionChanged: onLocationChanged!,
           ),
+          const SizedBox(height: AleraTokens.space16),
+        ],
+        if (!useProjectCheckout) ...[
+          AleraSegmentedButton<bool>(
+            segments: const <ButtonSegment<bool>>[
+              ButtonSegment<bool>(value: false, label: Text('New Branch')),
+              ButtonSegment<bool>(value: true, label: Text('Existing Branch')),
+            ],
+            selected: reuseExistingBranch,
+            onSelectionChanged: onReuseExistingBranchChanged,
+          ),
+          const SizedBox(height: AleraTokens.space16),
+          if (loadingBranches)
+            const _LoadingBranches()
+          else if (branches.isNotEmpty)
+            _SourceBranchPicker(
+              label: _branchLabel,
+              searchHint: _branchSearchHint,
+              emptyMessage: _emptyBranchesMessage,
+              branches: branches,
+              selectedBranch: selectedBranch,
+              query: branchQuery,
+              controller: branchSearchController,
+              onQueryChanged: onBranchQueryChanged,
+              onSelectBranch: onSelectBranch,
+            )
+          else
+            _ManualSourceBranchField(
+              label: _branchLabel,
+              controller: sourceBranchController,
+              errorText: sourceBranchError,
+              loadError: branchesError,
+              onRetry: onRetryBranches,
+              onChanged: onManualSourceBranchChanged,
+            ),
+        ],
       ],
     );
   }

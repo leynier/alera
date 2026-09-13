@@ -10,9 +10,6 @@ use crate::managed_workspace::{
     create_managed_workspace, measure_workspace_storage, workspace_has_active_automation_owner,
     ManagedWorkspaceCreateRequest,
 };
-use crate::managed_workspace_handoff::{
-    hand_off_managed_workspace, ManagedWorkspaceHandOffRequest,
-};
 use crate::terminal_host::host_error::HostResult;
 use crate::terminal_host::protocol::{error_response, ok_response};
 use crate::worktree_setup::run_workspace_setup;
@@ -22,6 +19,47 @@ use super::runtime_change_broadcasts::string_scope;
 use super::{ServerActor, ServerCommand};
 
 impl ServerActor {
+    pub(super) fn start_shared_workspace_create(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        request: crate::shared_workspace::SharedWorkspaceCreateRequest,
+        issue_url: Option<String>,
+    ) {
+        self.managed_workspace_jobs += 1;
+        self.cancel_shutdown_timer();
+        let store = self.runtime_store.clone();
+        let inbox = self.inbox.clone();
+        tokio::spawn(async move {
+            let created = crate::shared_workspace::create_shared_workspace(&store, request).await;
+            let linked_workspace_id = created
+                .as_ref()
+                .ok()
+                .filter(|_| issue_url.is_some())
+                .map(|creation| creation.workspace.id.clone());
+            let linked_issue = super::linked_issue_requests::persist_created_workspace_issue(
+                &store,
+                &inbox,
+                linked_workspace_id.as_deref(),
+                issue_url.as_deref(),
+            )
+            .await;
+            let result = json_result(created);
+            let _ = inbox.send(ServerCommand::ManagedWorkspaceCreated {
+                client_id,
+                request_id,
+                result,
+                handoff_source_workspace_id: None,
+            });
+            if let Some(record) = linked_issue {
+                super::linked_issue_requests::refresh_created_workspace_issue(
+                    &store, &inbox, record,
+                )
+                .await;
+            }
+        });
+    }
+
     pub(super) fn start_workspace_storage_measurement(
         &mut self,
         client_id: u64,
@@ -125,6 +163,13 @@ impl ServerActor {
                 .ok()
                 .filter(|_| issue_url.is_some())
                 .map(|creation| creation.workspace.id.clone());
+            let linked_issue = super::linked_issue_requests::persist_created_workspace_issue(
+                &store,
+                &inbox,
+                linked_workspace_id.as_deref(),
+                issue_url.as_deref(),
+            )
+            .await;
             let result = json_result(created);
             let _ = inbox.send(ServerCommand::ManagedWorkspaceCreated {
                 client_id,
@@ -132,37 +177,12 @@ impl ServerActor {
                 result,
                 handoff_source_workspace_id: None,
             });
-            if let (Some(workspace_id), Some(url)) = (linked_workspace_id, issue_url) {
-                super::linked_issue_requests::link_created_workspace_issue(
-                    &store,
-                    &inbox,
-                    &workspace_id,
-                    &url,
+            if let Some(record) = linked_issue {
+                super::linked_issue_requests::refresh_created_workspace_issue(
+                    &store, &inbox, record,
                 )
                 .await;
             }
-        });
-    }
-
-    pub(super) fn start_managed_workspace_hand_off(
-        &mut self,
-        client_id: u64,
-        request_id: i64,
-        request: ManagedWorkspaceHandOffRequest,
-    ) {
-        self.managed_workspace_jobs += 1;
-        self.cancel_shutdown_timer();
-        let store = self.runtime_store.clone();
-        let inbox = self.inbox.clone();
-        let handoff_source_workspace_id = Some(request.id.clone());
-        tokio::spawn(async move {
-            let result = json_result(hand_off_managed_workspace(&store, request).await);
-            let _ = inbox.send(ServerCommand::ManagedWorkspaceCreated {
-                client_id,
-                request_id,
-                result,
-                handoff_source_workspace_id,
-            });
         });
     }
 

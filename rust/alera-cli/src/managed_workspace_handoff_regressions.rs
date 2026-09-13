@@ -6,6 +6,7 @@ async fn handoff(fixture: &Fixture, branch: &str) -> Workspace {
     hand_off_managed_workspace(
         &fixture.store,
         ManagedWorkspaceHandOffRequest {
+            relocation_id: None,
             id: "main".into(),
             branch: branch.into(),
             name: None,
@@ -103,6 +104,7 @@ async fn handoff_round_trip_persists_ids_paths_layout_and_existing_destination_t
     hand_on_managed_workspace(
         &fixture.store,
         ManagedWorkspaceHandOnRequest {
+            relocation_id: None,
             id: child.id.clone(),
             close_sessions: false,
             active_workspace_id: None,
@@ -151,6 +153,7 @@ async fn handon_refuses_ignored_child_files_before_mutation() {
     let error = hand_on_managed_workspace(
         &fixture.store,
         ManagedWorkspaceHandOnRequest {
+            relocation_id: None,
             id: child.id.clone(),
             close_sessions: true,
             active_workspace_id: None,
@@ -183,6 +186,7 @@ async fn handon_refuses_main_operation_before_stashing_child() {
     assert!(hand_on_managed_workspace(
         &fixture.store,
         ManagedWorkspaceHandOnRequest {
+            relocation_id: None,
             id: child.id.clone(),
             close_sessions: true,
             active_workspace_id: None
@@ -207,6 +211,7 @@ async fn reuse_custom_default_preserves_branch_ownership_and_returns_main_to_tru
     let child = hand_off_managed_workspace(
         &fixture.store,
         ManagedWorkspaceHandOffRequest {
+            relocation_id: None,
             id: "main".into(),
             branch: "feat/current".into(),
             name: None,
@@ -248,6 +253,7 @@ async fn handoff_refuses_occupied_default_before_stashing() {
     let error = hand_off_managed_workspace(
         &fixture.store,
         ManagedWorkspaceHandOffRequest {
+            relocation_id: None,
             id: "main".into(),
             branch: "feat/current".into(),
             name: None,
@@ -287,6 +293,7 @@ async fn handoff_and_handon_preserve_partial_staging() {
     let result = hand_on_managed_workspace(
         &fixture.store,
         ManagedWorkspaceHandOnRequest {
+            relocation_id: None,
             id: child.id,
             close_sessions: false,
             active_workspace_id: None,

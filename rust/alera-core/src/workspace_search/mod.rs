@@ -22,6 +22,8 @@ mod ignore_tests;
 #[cfg(test)]
 mod preview_tests;
 #[cfg(test)]
+mod replace_snapshot_tests;
+#[cfg(test)]
 mod replace_tests;
 #[cfg(test)]
 mod tests;

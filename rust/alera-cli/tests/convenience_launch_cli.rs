@@ -7,6 +7,9 @@ use std::process::{Command, Output};
 use alera_core::child_process::windowless_command;
 use serde_json::Value;
 
+#[path = "support/shared_checkout_launch_cases.rs"]
+mod shared_checkout_launch_cases;
+
 struct RuntimeGuard {
     runtime_dir: PathBuf,
 }
@@ -119,7 +122,7 @@ fn workspace_start_and_profile_launch_create_a_tab_snapshot() {
             "git-repository",
         ],
     );
-    let project_id = project["id"].as_str().unwrap();
+    let project_id = project["project"]["id"].as_str().unwrap();
 
     success_json(
         &runtime_dir,
@@ -142,6 +145,7 @@ fn workspace_start_and_profile_launch_create_a_tab_snapshot() {
         &[
             "workspace",
             "start",
+            "--worktree",
             "--profile",
             "Recorder",
             "--prompt",
@@ -210,12 +214,13 @@ fn workspace_start_rejects_unknown_profile_before_creating_a_worktree() {
             "git-repository",
         ],
     );
-    let project_id = project["id"].as_str().unwrap();
+    let project_id = project["project"]["id"].as_str().unwrap();
     let failed = alera(
         &runtime_dir,
         &[
             "workspace",
             "start",
+            "--worktree",
             "--profile",
             "Missing",
             "--prompt",
@@ -274,7 +279,7 @@ fn workspace_start_rejects_missing_source_branch_before_identity_generation() {
             "git-repository",
         ],
     );
-    let project_id = project["id"].as_str().unwrap();
+    let project_id = project["project"]["id"].as_str().unwrap();
     success_json(
         &runtime_dir,
         &[
@@ -295,6 +300,7 @@ fn workspace_start_rejects_missing_source_branch_before_identity_generation() {
         &[
             "workspace",
             "start",
+            "--worktree",
             "--profile",
             "Recorder",
             "--prompt",
@@ -348,7 +354,7 @@ fn orchestration_delegate_creates_a_task_for_the_declared_profile() {
             "git-repository",
         ],
     );
-    let project_id = project["id"].as_str().unwrap();
+    let project_id = project["project"]["id"].as_str().unwrap();
     success_json(
         &runtime_dir,
         &[
@@ -369,6 +375,7 @@ fn orchestration_delegate_creates_a_task_for_the_declared_profile() {
         &[
             "workspace",
             "add",
+            "--worktree",
             "--project-id",
             project_id,
             "--branch",

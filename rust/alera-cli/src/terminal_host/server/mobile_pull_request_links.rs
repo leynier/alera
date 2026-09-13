@@ -10,6 +10,8 @@ use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
+use super::mobile_pull_request_identity::GitHubIdentity;
+
 pub(super) const PROVIDER: &str = "github";
 
 /// Parses `123`, `#123`, or a review URL into a number, like the desktop's
@@ -29,6 +31,46 @@ pub(super) fn parse_review_reference(input: &str) -> Option<i64> {
         }
     }
     None
+}
+
+pub(super) fn workspace_review_reference(
+    input: &str,
+    identity: &GitHubIdentity,
+) -> HostResult<i64> {
+    let input = input.trim();
+    let digits = input.strip_prefix('#').unwrap_or(input);
+    if !digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit()) {
+        return parse_review_reference(input)
+            .ok_or_else(|| HostError::state("Enter a positive pull request number."));
+    }
+    let url = url::Url::parse(input)
+        .map_err(|_| HostError::state("Enter a pull request number or URL."))?;
+    let host = match url.port() {
+        Some(port) => format!("{}:{port}", url.host_str().unwrap_or_default()),
+        None => url.host_str().unwrap_or_default().to_string(),
+    };
+    let segments = url
+        .path_segments()
+        .map(Iterator::collect::<Vec<_>>)
+        .unwrap_or_default();
+    if !matches!(url.scheme(), "https" | "http")
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || !host.eq_ignore_ascii_case(&identity.host)
+        || segments.len() < 4
+        || !segments[0].eq_ignore_ascii_case(&identity.owner)
+        || !segments[1].eq_ignore_ascii_case(&identity.repo)
+        || segments[2] != "pull"
+    {
+        return Err(HostError::state(
+            "The pull request URL must belong to this workspace repository.",
+        ));
+    }
+    segments[3]
+        .parse::<i64>()
+        .ok()
+        .filter(|number| *number > 0)
+        .ok_or_else(|| HostError::state("Enter a valid pull request URL."))
 }
 
 /// The review the workspace pinned explicitly, if any.

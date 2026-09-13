@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:uuid/uuid.dart';
+
 import 'package:alera_mobile/src/features/runtime/domain/connection_attempt.dart';
 import 'package:alera_mobile/src/features/accounts/infra/alera_cloud_api.dart';
 
@@ -28,6 +30,9 @@ import 'package:alera_mobile/src/features/linked_issues/domain/mobile_linked_iss
 import 'package:alera_mobile/src/features/linked_issues/infra/mobile_runtime_linked_issue_requests.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_workspace_sidebar_client.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_workspace_client.dart';
+import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_relocation_client.dart';
+import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_recovery_client.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_relocation_client.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_project_client.dart';
 import 'package:alera_mobile/src/core/logging/log_redaction.dart';
 import 'package:logging/logging.dart';
@@ -54,6 +59,8 @@ class MobileRuntimeClient._(
 }) with
         MobileRuntimeWorkspaceSidebarClient,
         MobileRuntimeWorkspaceClient,
+        MobileRuntimeRelocationClient,
+        MobileRuntimeRecoveryClient,
         MobileRuntimeProjectClient,
         MobileRuntimeClientHostTools,
         MobileRuntimeClientRelay,
@@ -66,6 +73,9 @@ class MobileRuntimeClient._(
     implements
         MobileTerminalClient,
         MobileWorkspaceClient,
+        WorkspaceRelocationClient,
+        MobileSharedCheckoutClient,
+        MobileCheckoutCatalogClient,
         MobileAgentTitleClient,
         MobileCodexWorkspaceClient,
         MobileWorkspacePanelsClient,
@@ -206,6 +216,7 @@ class MobileRuntimeClient._(
     registerLogSecret(deviceToken);
     final payload = await requestMap('mobile.hello', <String, Object?>{
       'protocolVersion': aleraMobileProtocolVersion,
+      'sharedCheckoutWorkspacesV1': true,
       'deviceId': deviceId,
       'deviceToken': deviceToken,
       'cloudDeviceId': ?cloudDeviceId,
@@ -279,6 +290,14 @@ class MobileRuntimeClient._(
   ]) {
     if (_disposed) {
       throw StateError('Mobile runtime client is disposed.');
+    }
+    if (requiresSharedCheckoutSupport(type) &&
+        !_runtimeCapabilities.contains(sharedCheckoutWorkspacesCapability)) {
+      return Future<Object?>.error(
+        StateError(
+          'Update the Alera runtime before using $type. Existing terminal sessions remain available.',
+        ),
+      );
     }
     final closedError = _closedError;
     if (closedError != null) {

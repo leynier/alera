@@ -16,6 +16,16 @@ impl ServerActor {
         definition: &AutomationDefinition,
     ) -> Result<AutomationTargetIdentity, String> {
         match &definition.target {
+            AutomationTarget::ProjectCheckout {
+                agent_profile_id, ..
+            } => Ok(AutomationTargetIdentity {
+                workspace_id: None,
+                tab_id: None,
+                session_id: None,
+                profile_id: Some(agent_profile_id.clone()),
+                conversation_id: None,
+                terminal_handle: None,
+            }),
             AutomationTarget::ExistingTab {
                 workspace_id,
                 tab_id,
@@ -237,6 +247,17 @@ impl ServerActor {
             Err(_) => return,
         };
         for run in runs {
+            // A precheck reserves its run before any dispatch attempt starts.
+            // Its completion owns finalization while the command is in flight.
+            if self.automation_precheck_jobs.contains(&run.id) {
+                continue;
+            }
+            if self.resume_remote_automation_precheck(&run).await {
+                continue;
+            }
+            if self.retain_unverified_precheck(&run).await {
+                continue;
+            }
             if run.cancel_requested_at.is_some() && run.started_at.is_none() {
                 let _ = self
                     .runtime_store
@@ -246,6 +267,9 @@ impl ServerActor {
                         Some("automation cancellation requested before dispatch".to_string()),
                     )
                     .await;
+                continue;
+            }
+            if self.recover_interrupted_automation_precheck(&run).await {
                 continue;
             }
             let Some(started) = run.started_at else {
@@ -380,6 +404,7 @@ pub(super) fn is_non_retryable_dispatch_error(error: &HostError) -> bool {
 pub(super) fn is_non_retryable_reason(reason: &str) -> bool {
     let message = reason.to_ascii_lowercase();
     message.starts_with("automation existing tab ")
+        || message.starts_with("runtime restarted during automation precheck;")
         || message.contains("conversation continuity")
         || message.contains("conversation identity")
         || message.contains("interactive authentication")

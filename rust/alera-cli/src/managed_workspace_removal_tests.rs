@@ -151,6 +151,30 @@ async fn recovers_when_worktree_and_branch_are_missing() {
 
     assert_eq!(removed.id, fixture.workspace_id);
     assert!(fixture.workspace_record().await.is_none());
+    assert_eq!(
+        fixture
+            .store
+            .workspace_retirement_receipt(&removed.id, &removed.instance_id)
+            .await
+            .unwrap(),
+        Some(removed),
+    );
+}
+
+#[tokio::test]
+async fn completed_linked_cleanup_records_its_exact_identity() {
+    let fixture = RemovalFixture::new("receipt").await;
+    let before = fixture.workspace_record().await.unwrap();
+    fixture.remove_managed_workspace().await.unwrap();
+    assert!(!fixture.worktree_path.exists());
+    assert_eq!(
+        fixture
+            .store
+            .workspace_retirement_receipt(&before.id, &before.instance_id)
+            .await
+            .unwrap(),
+        Some(before)
+    );
 }
 
 #[tokio::test]
@@ -354,4 +378,25 @@ async fn successful_cleanup_after_safe_impact_removes_worktree_and_record() {
     assert!(!fixture.worktree_path.exists());
     assert!(fixture.workspace_record().await.is_none());
     assert!(fixture.branch_exists());
+}
+
+#[tokio::test]
+async fn unresolved_process_evidence_prevents_physical_worktree_cleanup() {
+    let fixture = RemovalFixture::new("pending-process").await;
+    let workspace = fixture.workspace_record().await.unwrap();
+    let job = fixture
+        .store
+        .begin_workspace_process_job(&workspace, "speech", std::env::consts::OS, None)
+        .await
+        .unwrap();
+    let marker = fixture.worktree_path.join("preserve.txt");
+    std::fs::write(&marker, "shared task work").unwrap();
+    let error = fixture
+        .remove_managed_workspace_with(Some(false))
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains(&job.id), "{error}");
+    assert_eq!(std::fs::read_to_string(marker).unwrap(), "shared task work");
+    assert!(fixture.branch_exists());
+    assert!(fixture.workspace_record().await.is_some());
 }

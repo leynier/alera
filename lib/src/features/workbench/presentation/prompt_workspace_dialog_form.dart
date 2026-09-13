@@ -49,18 +49,52 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
               onChanged: _selectProject,
             ),
             const SizedBox(height: AleraTokens.space12),
-            AleraDropdownField<String>(
-              labelText: 'Source Branch',
-              hintText: _loadingBranches ? 'Loading branches' : 'Select Branch',
-              value: _sourceBranch,
-              entries: <AleraDropdownFieldEntry<String>>[
-                for (final branch in _branches)
-                  AleraDropdownFieldEntry<String>(value: branch, label: branch),
-              ],
-              enabled: !_working && !_loadingBranches && created == null,
-              filterable: true,
-              onChanged: (branch) => _update(() => _sourceBranch = branch),
-            ),
+            if (widget.enqueuePrompt != null) ...[
+              AleraSegmentedButton<bool>(
+                segments: <ButtonSegment<bool>>[
+                  ButtonSegment(
+                    value: true,
+                    label: const Text('Project Folder'),
+                    enabled: !_working && created == null,
+                  ),
+                  ButtonSegment(
+                    value: false,
+                    label: const Text('New Worktree'),
+                    enabled:
+                        !_working &&
+                        created == null &&
+                        _project?.isGitRepository == true,
+                  ),
+                ],
+                selected: _useProjectCheckout,
+                onSelectionChanged: (value) {
+                  _update(() => _useProjectCheckout = value);
+                  final project = _project;
+                  if (!value && project != null) {
+                    unawaited(_loadBranches(project));
+                  }
+                },
+              ),
+              const SizedBox(height: AleraTokens.space12),
+            ],
+            if (!_useProjectCheckout)
+              AleraDropdownField<String>(
+                labelText: 'Source Branch',
+                hintText: _loadingBranches
+                    ? 'Loading branches'
+                    : 'Select Branch',
+                value: _sourceBranch,
+                entries: <AleraDropdownFieldEntry<String>>[
+                  for (final branch in _branches)
+                    AleraDropdownFieldEntry<String>(
+                      value: branch,
+                      label: branch,
+                    ),
+                ],
+                enabled: !_working && !_loadingBranches && created == null,
+                filterable: true,
+                onChanged: (branch) => _update(() => _sourceBranch = branch),
+              ),
             const SizedBox(height: AleraTokens.space12),
             AleraDropdownField<String?>(
               labelText: 'Parent Workspace',
@@ -88,7 +122,16 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
               sshTargets: widget.sshTargets,
               supportsRemoteSshWorkspaces: widget.supportsRemoteSshWorkspaces,
               enabled: !_working && created == null,
-              onChanged: (hostId) => _update(() => _selectedHostId = hostId),
+              onChanged: (hostId) {
+                _update(() {
+                  _selectedHostId = hostId;
+                  _sourceBranch = null;
+                });
+                final project = _project;
+                if (!_useProjectCheckout && project != null) {
+                  unawaited(_loadBranches(project));
+                }
+              },
             ),
             const SizedBox(height: AleraTokens.space12),
             AleraDropdownField<AgentProfile>(
@@ -159,7 +202,7 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
                     onPressed:
                         _orderedProjects.isEmpty ||
                             widget.agentProfiles.isEmpty ||
-                            _loadingBranches
+                            (!_useProjectCheckout && _loadingBranches)
                         ? null
                         : _submit,
                     icon: const Icon(AleraIcons.agent, size: 16),

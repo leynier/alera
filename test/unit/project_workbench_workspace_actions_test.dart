@@ -57,7 +57,7 @@ void main() {
         isPinned: false,
         canHandOff: true,
       ).whereType<AleraDropdownEntry<String>>().map((entry) => entry.label),
-      contains('Hand Off'),
+      containsAll(['Hand Off', 'Workspace Recovery']),
     );
     expect(
       workspaceContextMenuEntries(
@@ -67,7 +67,7 @@ void main() {
         isPinned: false,
         canHandOn: true,
       ).whereType<AleraDropdownEntry<String>>().map((entry) => entry.label),
-      contains('Hand On'),
+      containsAll(['Hand On', 'Workspace Recovery']),
     );
   });
 

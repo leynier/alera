@@ -42,7 +42,17 @@ void _registerAleraShellSidebarStateTests() {
         .toList();
 
     expect(dots, hasLength(2));
-    expect(dots.map((dot) => dot.active), <bool>[true, false]);
+    for (final entry in {'workspace-1': true, 'workspace-2': false}.entries) {
+      final dot = tester.widget<AleraStatusDot>(
+        find.descendant(
+          of: find.byKey(
+            ValueKey<String>('workspace-row:regular:${entry.key}'),
+          ),
+          matching: find.byType(AleraStatusDot),
+        ),
+      );
+      expect(dot.active, entry.value);
+    }
   });
 
   testWidgets('workspace agent pill toggles expanded rows', (tester) async {

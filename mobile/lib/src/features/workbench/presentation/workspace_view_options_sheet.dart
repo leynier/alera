@@ -103,23 +103,6 @@ class const _WorkspaceViewOptions({
                 entries: _sortEntries,
               ),
             const SizedBox(height: AleraTokens.space12),
-            AleraDropdownField<MobileWorkspaceKindFilter>(
-              labelText: 'Show Workspaces',
-              value: prefs.workspaceKindFilter,
-              onChanged: controller.setKindFilter,
-              entries:
-                  const <AleraDropdownFieldEntry<MobileWorkspaceKindFilter>>[
-                    AleraDropdownFieldEntry(value: .all, label: 'All'),
-                    AleraDropdownFieldEntry(
-                      value: .defaultOnly,
-                      label: 'Default Only',
-                    ),
-                    AleraDropdownFieldEntry(
-                      value: .nonDefaultOnly,
-                      label: 'Non-Default Only',
-                    ),
-                  ],
-            ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Active Workspaces Only'),

@@ -35,11 +35,15 @@ extension on _AutomationEditorDialogState {
     required ValueChanged<String?> onChanged,
   }) {
     return DropdownButtonFormField<String>(
+      isExpanded: true,
       initialValue: value,
       decoration: InputDecoration(labelText: label),
       items: <DropdownMenuItem<String>>[
         for (final option in values)
-          DropdownMenuItem<String>(value: option, child: Text(_title(option))),
+          DropdownMenuItem<String>(
+            value: option,
+            child: Text(_title(option), overflow: TextOverflow.ellipsis),
+          ),
       ],
       onChanged: onChanged,
     );
@@ -61,11 +65,15 @@ extension on _AutomationEditorDialogState {
     }
     final value = labels.containsKey(current) ? current : '';
     return DropdownButtonFormField<String>(
+      isExpanded: true,
       initialValue: value,
       decoration: InputDecoration(labelText: label),
       items: <DropdownMenuItem<String>>[
         for (final entry in labels.entries)
-          DropdownMenuItem<String>(value: entry.key, child: Text(entry.value)),
+          DropdownMenuItem<String>(
+            value: entry.key,
+            child: Text(entry.value, overflow: TextOverflow.ellipsis),
+          ),
       ],
       onChanged: (next) {
         if (next == null) {
@@ -91,7 +99,10 @@ extension on _AutomationEditorDialogState {
       setState(() => _error = promptError);
       return;
     }
-    if (_workspaceId.text.trim().isEmpty ||
+    if ((_targetKind == 'projectCheckout'
+            ? (_projectId.text.trim().isEmpty ||
+                  _checkoutHostId.text.trim().isEmpty)
+            : _workspaceId.text.trim().isEmpty) ||
         (_targetKind == 'existingTab' && _tabId.text.trim().isEmpty) ||
         (_targetKind != 'existingTab' && _profileId.text.trim().isEmpty)) {
       // ignore: invalid_use_of_protected_member
@@ -110,6 +121,14 @@ extension on _AutomationEditorDialogState {
           'tabId': _tabId.text.trim(),
           if (_conversationId.text.trim().isNotEmpty)
             'conversationId': _conversationId.text.trim(),
+        },
+      },
+      'projectCheckout' => <String, Object?>{
+        'projectCheckout': <String, Object?>{
+          'projectId': _projectId.text.trim(),
+          'hostId': _checkoutHostId.text.trim(),
+          'nameTemplate': _nameTemplate.text.trim(),
+          'agentProfileId': _profileId.text.trim(),
         },
       },
       'managedWorkspace' => <String, Object?>{
@@ -214,6 +233,7 @@ extension on _AutomationEditorDialogState {
     'existingTab' => 'Existing Tab',
     'freshTab' => 'Fresh Tab',
     'managedWorkspace' => 'Managed Workspace',
+    'projectCheckout' => 'Project Folder',
     _ => '${value[0].toUpperCase()}${value.substring(1)}',
   };
 

@@ -157,9 +157,9 @@ fn rejects_creating_a_ship_branch_when_head_moved() {
         current_branch(path_str(repo.path())).expect("read current branch"),
         "other"
     );
-    assert!(!repo
+    assert!(repo
         .find_branch("ship/local-commit", BranchType::Local)
-        .is_ok());
+        .is_err());
 }
 
 #[test]

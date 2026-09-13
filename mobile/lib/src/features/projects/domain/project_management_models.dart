@@ -48,13 +48,15 @@ class const HostDirectoryListing({
 
 class const ProjectRegistrationResult({
   required final ProjectSummary project,
-  required final WorkspaceSummary mainWorkspace,
+  required final WorkspaceSummary? initialWorkspace,
   required final bool created,
 }) {
   factory fromJson(Map<String, Object?> json) {
     return ProjectRegistrationResult(
       project: .fromJson(asJsonMap(json['project'])),
-      mainWorkspace: .fromJson(asJsonMap(json['mainWorkspace'])),
+      initialWorkspace: json['initialWorkspace'] == null
+          ? null
+          : WorkspaceSummary.fromJson(asJsonMap(json['initialWorkspace'])),
       created: json['created'] == true,
     );
   }
