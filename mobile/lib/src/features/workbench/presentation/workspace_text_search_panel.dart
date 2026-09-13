@@ -1,13 +1,27 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_search_field.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/design_system/layout/alera_confirm_dialog.dart';
+import 'package:alera_mobile/src/design_system/menus/alera_action_sheet.dart';
+import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
+import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_text_search_controller.dart';
+import 'package:alera_mobile/src/features/workbench/domain/workspace_search_rows.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_viewer_screen.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_path_display.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+part 'workspace_text_search_panel_inputs.dart';
+part 'workspace_text_search_panel_results.dart';
+
+enum _SearchViewOption { viewMode, collapseAll, includeIgnored }
 
 class const WorkspaceTextSearchPanel({
   super.key,
@@ -22,170 +36,195 @@ class const WorkspaceTextSearchPanel({
 class _WorkspaceTextSearchPanelState
     extends ConsumerState<WorkspaceTextSearchPanel> {
   final TextEditingController _query = TextEditingController();
+  final TextEditingController _replacement = TextEditingController();
+  final TextEditingController _include = TextEditingController();
+  final TextEditingController _exclude = TextEditingController();
+  bool _replaceVisible = false;
+  bool _filtersVisible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final state = ref.read(_provider);
+    _replaceVisible = state.replacement.isNotEmpty;
+    _filtersVisible =
+        state.includePattern.isNotEmpty || state.excludePattern.isNotEmpty;
+  }
 
   @override
   void dispose() {
     _query.dispose();
+    _replacement.dispose();
+    _include.dispose();
+    _exclude.dispose();
     super.dispose();
   }
 
+  WorkspaceTextSearchControllerProvider get _provider =>
+      workspaceTextSearchControllerProvider(widget.hostId, widget.workspaceId);
+
   @override
   Widget build(BuildContext context) {
-    final hostId = widget.hostId;
-    final workspaceId = widget.workspaceId;
-    final state = ref.watch(
-      workspaceTextSearchControllerProvider(hostId, workspaceId),
-    );
-    final notifier = ref.read(
-      workspaceTextSearchControllerProvider(hostId, workspaceId).notifier,
-    );
+    final state = ref.watch(_provider);
+    final notifier = ref.read(_provider.notifier);
+    final client = ref.watch(workspaceClientProvider(widget.hostId)).value;
+    final canReplace = switch (client) {
+      final MobileWorkspacePanelsClient panels =>
+        panels.supportsWorkspaceReplace,
+      _ => false,
+    };
+    _sync(_query, state.query);
+    _sync(_replacement, state.replacement);
+    _sync(_include, state.includePattern);
+    _sync(_exclude, state.excludePattern);
+    final replaceVisible = canReplace && _replaceVisible;
     return Column(
       children: <Widget>[
-        Padding(
-          padding: AleraTokens.contentPadding,
-          child: Column(
-            children: <Widget>[
-              AleraSearchField(
-                controller: _query,
-                hintText: 'Search',
-                autofocus: true,
-                onChanged: notifier.setQuery,
-              ),
-              const SizedBox(height: AleraTokens.space8),
-              Row(
-                children: <Widget>[
-                  _Toggle(
-                    label: 'Aa',
-                    tooltip: 'Match Case',
-                    active: state.caseSensitive,
-                    onPressed: notifier.toggleCaseSensitive,
-                  ),
-                  _Toggle(
-                    label: 'ab',
-                    tooltip: 'Match Whole Word',
-                    active: state.wholeWord,
-                    onPressed: notifier.toggleWholeWord,
-                  ),
-                  _Toggle(
-                    label: '.*',
-                    tooltip: 'Use Regular Expression',
-                    active: state.useRegex,
-                    onPressed: notifier.toggleUseRegex,
-                  ),
-                ],
-              ),
-              const SizedBox(height: AleraTokens.space8),
-              AleraTextField(
-                hintText: 'Include files',
-                onChanged: notifier.setIncludePattern,
-              ),
-              const SizedBox(height: AleraTokens.space8),
-              AleraTextField(
-                hintText: 'Exclude files',
-                onChanged: notifier.setExcludePattern,
-              ),
-            ],
-          ),
+        _SearchInputs(
+          state: state,
+          query: _query,
+          replacement: _replacement,
+          include: _include,
+          exclude: _exclude,
+          canReplace: canReplace,
+          replaceVisible: replaceVisible,
+          filtersVisible: _filtersVisible,
+          notifier: notifier,
+          onToggleReplace: () =>
+              setState(() => _replaceVisible = !_replaceVisible),
+          onToggleFilters: () =>
+              setState(() => _filtersVisible = !_filtersVisible),
+          onShowViewOptions: () => unawaited(_showViewOptions(state)),
+          onReplaceAll: state.canReplaceAll
+              ? () => unawaited(_replace(const <String>[], all: true))
+              : null,
         ),
-        if (state.searching)
+        if (state.searching || state.replacing)
           const LinearProgressIndicator(minHeight: AleraTokens.space2),
         Expanded(
           child: _Results(
-            hostId: hostId,
-            workspaceId: workspaceId,
             state: state,
+            replaceVisible: replaceVisible,
+            notifier: notifier,
+            onOpenMatch: _openMatch,
+            onReplace: (matchIds) => unawaited(_replace(matchIds, all: false)),
           ),
         ),
       ],
     );
   }
-}
 
-class const _Toggle({
-  required final String label,
-  required final String tooltip,
-  required final bool active,
-  required final VoidCallback onPressed,
-}) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: AleraTokens.space8),
-      child: Tooltip(
-        message: tooltip,
-        child: FilterChip(
-          label: Text(label),
-          selected: active,
-          onSelected: (_) => onPressed(),
+  Future<void> _showViewOptions(WorkspaceTextSearchState state) async {
+    final notifier = ref.read(_provider.notifier);
+    final choice = await showAleraActionSheet<_SearchViewOption>(
+      context,
+      entries: <AleraActionSheetEntry<_SearchViewOption>>[
+        AleraActionSheetEntry<_SearchViewOption>(
+          value: .viewMode,
+          label: state.viewAsTree ? 'View as List' : 'View as Tree',
+          leading: Icon(
+            state.viewAsTree ? AleraIcons.listView : AleraIcons.treeView,
+          ),
+        ),
+        if (state.result?.files.isNotEmpty ?? false)
+          AleraActionSheetEntry<_SearchViewOption>(
+            value: .collapseAll,
+            label: state.allResultsCollapsed ? 'Expand All' : 'Collapse All',
+            leading: Icon(
+              state.allResultsCollapsed
+                  ? AleraIcons.expandAll
+                  : AleraIcons.collapseAll,
+            ),
+          ),
+        AleraActionSheetEntry<_SearchViewOption>(
+          value: .includeIgnored,
+          label: state.includeIgnored
+              ? 'Ignore Ignored Files'
+              : 'Search Ignored Files',
+          leading: Icon(
+            state.includeIgnored ? AleraIcons.hidden : AleraIcons.visible,
+          ),
+        ),
+      ],
+    );
+    switch (choice) {
+      case _SearchViewOption.viewMode:
+        notifier.toggleViewAsTree();
+      case _SearchViewOption.collapseAll:
+        notifier.toggleAllResultsCollapsed();
+      case _SearchViewOption.includeIgnored:
+        notifier.toggleIncludeIgnored();
+      case null:
+        break;
+    }
+  }
+
+  Future<void> _replace(Iterable<String> matchIds, {required bool all}) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final state = ref.read(_provider);
+    if (all) {
+      final matches = state.result?.totalMatches ?? 0;
+      final files = state.result?.files.length ?? 0;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (_) => AleraConfirmDialog(
+          title: 'Replace All',
+          message:
+              'Replace ${_count(matches, 'match', 'matches')} in ${_count(files, 'file', 'files')} with "${state.replacement}"? This writes the files on the paired computer.',
+          confirmLabel: 'Replace',
+          destructive: true,
+        ),
+      );
+      if (confirmed != true) {
+        return;
+      }
+    }
+    String message;
+    try {
+      final result = await ref
+          .read(_provider.notifier)
+          .replaceMatches(matchIds);
+      message =
+          workspaceSearchReplaceConflictMessage(result) ??
+          'Replaced ${_count(result.matchesReplaced, 'match', 'matches')}.';
+    } on StateError catch (error) {
+      message = error.message;
+    } on UnsupportedError catch (error) {
+      message = error.message ?? 'Replace is unavailable.';
+    } on Object catch (error) {
+      message = 'Replace failed: $error';
+    }
+    messenger.showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _openMatch(
+    MobileWorkspaceSearchFile file,
+    MobileWorkspaceSearchMatch match,
+  ) {
+    unawaited(
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => WorkspaceFileViewerScreen(
+            hostId: widget.hostId,
+            workspaceId: widget.workspaceId,
+            relativePath: file.relativePath,
+            highlightLine: match.line,
+          ),
         ),
       ),
     );
   }
-}
 
-class const _Results({
-  required final String hostId,
-  required final String workspaceId,
-  required final WorkspaceTextSearchState state,
-}) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    if (state.error != null) {
-      return AleraEmptyState(
-        icon: AleraIcons.search,
-        message: state.error.toString(),
-      );
+  void _sync(TextEditingController controller, String value) {
+    if (controller.text == value) {
+      return;
     }
-    if (state.query.trim().isEmpty) {
-      return const AleraEmptyState(
-        icon: AleraIcons.search,
-        title: 'Search',
-        message: 'Type to search the workspace.',
-      );
-    }
-    final result = state.result;
-    if (result == null || result.files.isEmpty) {
-      return const AleraEmptyState(
-        icon: AleraIcons.search,
-        title: 'No matches',
-        message: 'Nothing in this workspace matched the query.',
-      );
-    }
-    return ListView.builder(
-      itemCount: result.files.length,
-      itemBuilder: (context, index) {
-        final file = result.files[index];
-        return ExpansionTile(
-          leading: AleraFileIcon(pathOrName: file.relativePath, kind: .file),
-          title: Text(file.relativePath),
-          subtitle: Text(
-            '${file.matches.length} ${file.matches.length == 1 ? 'match' : 'matches'}',
-          ),
-          children: <Widget>[
-            for (final match in file.matches)
-              ListTile(
-                minTileHeight: AleraTokens.minTapTarget,
-                title: Text(
-                  match.lineContent,
-                  maxLines: 1,
-                  overflow: .ellipsis,
-                  style: AleraTokens.monoStyle,
-                ),
-                subtitle: Text('Line ${match.line}'),
-                onTap: () => Navigator.of(context).push<void>(
-                  MaterialPageRoute<void>(
-                    builder: (_) => WorkspaceFileViewerScreen(
-                      hostId: hostId,
-                      workspaceId: workspaceId,
-                      relativePath: file.relativePath,
-                      highlightLine: match.line,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        );
-      },
+    controller.value = TextEditingValue(
+      text: value,
+      selection: .collapsed(offset: value.length),
     );
   }
 }
+
+String _count(int value, String singular, String plural) =>
+    '$value ${value == 1 ? singular : plural}';

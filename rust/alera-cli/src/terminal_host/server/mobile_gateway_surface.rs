@@ -30,6 +30,7 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY, RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
     RUNTIME_HOST_MOBILE_SOURCE_CONTROL_CAPABILITY, RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
     RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
+    RUNTIME_HOST_MOBILE_WORKSPACE_REPLACE_CAPABILITY,
     RUNTIME_HOST_MOBILE_WORKSPACE_SEARCH_CAPABILITY, RUNTIME_HOST_RESTART_CAPABILITY,
     RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
     RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY, RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY,
@@ -81,6 +82,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY,
     RUNTIME_HOST_MOBILE_EXPLORER_CAPABILITY,
     RUNTIME_HOST_MOBILE_WORKSPACE_SEARCH_CAPABILITY,
+    RUNTIME_HOST_MOBILE_WORKSPACE_REPLACE_CAPABILITY,
     RUNTIME_HOST_MOBILE_SOURCE_CONTROL_CAPABILITY,
     RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY,
     crate::terminal_host::protocol::RUNTIME_HOST_MOBILE_PULL_REQUEST_ACTIONS_CAPABILITY,
@@ -152,6 +154,8 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "mobile.workspaceFile.read"
             | "mobile.workspaceExplorer.list"
             | "mobile.workspaceSearch.run"
+            | "mobile.workspaceSearch.replace"
+            | "mobile.workspaceSearch.cancel"
             | "mobile.git.status"
             | "mobile.git.diff"
             | "mobile.pullRequest.snapshot"
@@ -276,11 +280,16 @@ mod mobile_codex_file_surface_tests {
         assert!(
             MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_WORKSPACE_SEARCH_CAPABILITY)
         );
+        assert!(
+            MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_WORKSPACE_REPLACE_CAPABILITY)
+        );
         assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_SOURCE_CONTROL_CAPABILITY));
         assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY));
         for request in [
             "mobile.workspaceExplorer.list",
             "mobile.workspaceSearch.run",
+            "mobile.workspaceSearch.replace",
+            "mobile.workspaceSearch.cancel",
             "mobile.git.status",
             "mobile.git.diff",
             "mobile.pullRequest.snapshot",

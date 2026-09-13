@@ -45,6 +45,16 @@ abstract final class const AleraIcons._() {
   static const IconData gitPullRequest = LucideIcons.gitPullRequest;
   static const IconData gitCompare = LucideIcons.gitCompare;
   static const IconData listView = LucideIcons.list;
+  static const IconData treeView = LucideIcons.gitGraph;
+  static const IconData expandAll = LucideIcons.chevronsUpDown;
+  static const IconData collapseAll = LucideIcons.chevronsDownUp;
+  static const IconData findReplace = LucideIcons.replace;
+  static const IconData replaceAll = LucideIcons.replaceAll;
+  static const IconData visible = LucideIcons.eye;
+  static const IconData hidden = LucideIcons.eyeOff;
+  static const IconData filter = LucideIcons.listFilter;
+  static const IconData groupByArea = LucideIcons.layoutGrid;
+  static const IconData ungrouped = LucideIcons.tableOfContents;
   static const IconData viewImage = LucideIcons.image;
   static const IconData imageError = LucideIcons.imageOff;
   static const IconData sourceView = LucideIcons.code;

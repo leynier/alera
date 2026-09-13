@@ -109,6 +109,8 @@ class const WorkbenchViewPrefs({
   this.explorerMode = WorkspaceExplorerMode.hideIgnored,
   this.gitDiffViewMode = GitDiffViewMode.tree,
   this.gitDiffGroupMode = GitDiffGroupMode.byArea,
+  this.searchViewAsTree = false,
+  this.searchIncludeIgnored = false,
   this.pullRequestCreateAction = PullRequestCreateAction.publish,
   this.workspaceKindFilter = WorkspaceKindFilter.all,
   this.showActiveWorkspacesOnly = false,
@@ -173,6 +175,13 @@ class const WorkbenchViewPrefs({
   /// Whether Source Control groups files by staged state or shows one list.
   final GitDiffGroupMode gitDiffGroupMode;
 
+  /// Whether Search lists results as a folder tree. Shared with paired phones
+  /// through the runtime view prefs, like the Source Control view modes.
+  final bool searchViewAsTree;
+
+  /// Whether Search also walks gitignored files.
+  final bool searchIncludeIgnored;
+
   /// Sticky create-PR split-button action (publish vs draft). App-wide and
   /// persisted with the rest of the workbench view prefs.
   final PullRequestCreateAction pullRequestCreateAction;
@@ -211,6 +220,8 @@ class const WorkbenchViewPrefs({
     explorerMode: .hideIgnored,
     gitDiffViewMode: .tree,
     gitDiffGroupMode: .byArea,
+    searchViewAsTree: false,
+    searchIncludeIgnored: false,
     pullRequestCreateAction: .publish,
     workspaceKindFilter: .all,
     showActiveWorkspacesOnly: false,

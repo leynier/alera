@@ -53,6 +53,10 @@ pub const RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY: &str =
 pub const RUNTIME_HOST_MOBILE_EXPLORER_CAPABILITY: &str = "mobileExplorerV1";
 /// A paired phone can run workspace text search through `mobile.workspaceSearch.run`.
 pub const RUNTIME_HOST_MOBILE_WORKSPACE_SEARCH_CAPABILITY: &str = "mobileWorkspaceSearchV1";
+/// A paired phone can preview replacements through `mobile.workspaceSearch.run`,
+/// apply them through `mobile.workspaceSearch.replace`, and cancel a running
+/// search through `mobile.workspaceSearch.cancel`. Additive: older phones ignore it.
+pub const RUNTIME_HOST_MOBILE_WORKSPACE_REPLACE_CAPABILITY: &str = "mobileWorkspaceReplaceV1";
 /// A paired phone can read git dirty status and a per-file diff. Write
 /// operations (stage, unstage, commit) stay desktop-only in this version.
 pub const RUNTIME_HOST_MOBILE_SOURCE_CONTROL_CAPABILITY: &str = "mobileSourceControlV1";

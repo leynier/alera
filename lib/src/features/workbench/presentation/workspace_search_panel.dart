@@ -32,6 +32,10 @@ class const WorkspaceSearchPanel({
   super.key,
   required final Workspace workspace,
   required final ValueChanged<WorkspaceSearchMatchTarget> onOpenMatch,
+  final bool? viewAsTree,
+  final bool? includeIgnored,
+  final ValueChanged<bool>? onSetViewAsTree,
+  final ValueChanged<bool>? onSetIncludeIgnored,
 }) extends ConsumerStatefulWidget {
   @override
   ConsumerState<WorkspaceSearchPanel> createState() =>
@@ -61,6 +65,37 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
     _replacementController = TextEditingController();
     _includeController = TextEditingController();
     _excludeController = TextEditingController();
+    _scheduleViewPrefsSync();
+  }
+
+  @override
+  void didUpdateWidget(WorkspaceSearchPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.viewAsTree != widget.viewAsTree ||
+        oldWidget.includeIgnored != widget.includeIgnored ||
+        oldWidget.workspace.id != widget.workspace.id) {
+      _scheduleViewPrefsSync();
+    }
+  }
+
+  /// The persisted view prefs are the source of truth, but the per-workspace
+  /// controller still owns the search request. Providers cannot change while
+  /// the tree builds, so the sync runs after the frame.
+  void _scheduleViewPrefsSync() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final controller = ref.read(
+        workspaceSearchControllerProvider(widget.workspace.id).notifier,
+      );
+      if (widget.viewAsTree case final viewAsTree?) {
+        controller.setViewAsTree(viewAsTree);
+      }
+      if (widget.includeIgnored case final includeIgnored?) {
+        controller.setIncludeIgnored(widget.workspace.path, includeIgnored);
+      }
+    });
   }
 
   @override
@@ -100,9 +135,16 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
                 onRefresh: () =>
                     unawaited(controller.searchNow(widget.workspace.path)),
                 onClear: controller.clearSearchResults,
-                onToggleIncludeIgnored: () =>
-                    controller.toggleIncludeIgnored(widget.workspace.path),
-                onToggleViewAsTree: controller.toggleViewAsTree,
+                onToggleIncludeIgnored: () {
+                  controller.toggleIncludeIgnored(widget.workspace.path);
+                  widget.onSetIncludeIgnored?.call(
+                    ref.read(provider).includeIgnored,
+                  );
+                },
+                onToggleViewAsTree: () {
+                  controller.toggleViewAsTree();
+                  widget.onSetViewAsTree?.call(ref.read(provider).viewAsTree);
+                },
                 onToggleAllResultsCollapsed:
                     controller.toggleAllResultsCollapsed,
               ),
