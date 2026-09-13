@@ -3,6 +3,7 @@ import 'package:alera_mobile/src/features/runtime/domain/mobile_source_control.d
 
 export 'package:alera_mobile/src/core/mobile_protocol.dart'
     show
+        aiTextCommitMessageCapability,
         mobileExplorerCapability,
         mobilePullRequestCapability,
         mobileSourceControlCapability,
@@ -129,115 +130,6 @@ class const MobileWorkspaceSearchQuery({
   final String excludePattern = '',
   final bool includeIgnored = false,
 });
-
-class const MobileGitChange({
-  required final String path,
-  required final String area,
-  required final String status,
-  final String? oldPath,
-  final int? added,
-  final int? removed,
-  final bool isBinary = false,
-  final bool isSubmodule = false,
-  final bool canStage = false,
-  final bool canUnstage = false,
-  final bool canDiscard = false,
-}) {
-  factory fromJson(Map<String, Object?> json) => MobileGitChange(
-    path: json.requiredString('path'),
-    oldPath: json.optionalString('oldPath'),
-    area: json.optionalString('area') ?? 'unstaged',
-    status: json.optionalString('status') ?? 'modified',
-    added: (json['added'] as num?)?.toInt(),
-    removed: (json['removed'] as num?)?.toInt(),
-    isBinary: json['isBinary'] == true,
-    isSubmodule: json['isSubmodule'] == true,
-    canStage: json['canStage'] == true,
-    canUnstage: json['canUnstage'] == true,
-    canDiscard: json['canDiscard'] == true,
-  );
-}
-
-class const MobileGitStatusSnapshot({
-  final bool isRepository = false,
-  final String? branch,
-  final List<MobileGitChange> entries = const <MobileGitChange>[],
-
-  /// True only from a runtime that serves the write verbs; older runtimes
-  /// always send false, which keeps the panel read-only.
-  final bool writable = false,
-  final MobileGitRepositoryState repository = const MobileGitRepositoryState(),
-  final List<MobileGitStash> stashes = const <MobileGitStash>[],
-  final MobileSourceControlActions actions = const MobileSourceControlActions(),
-  final String? primaryAction,
-  final bool aiCommitMessageEnabled = false,
-}) {
-  factory fromJson(Map<String, Object?> json) => MobileGitStatusSnapshot(
-    isRepository: json['isRepository'] == true,
-    branch: json.optionalString('branch'),
-    entries: <MobileGitChange>[
-      for (final item in json.objectList('entries'))
-        if (item is Map)
-          MobileGitChange.fromJson(Map<String, Object?>.from(item)),
-    ],
-    writable: json['writable'] == true,
-    repository: switch (json['repository']) {
-      final Map<Object?, Object?> repository =>
-        MobileGitRepositoryState.fromJson(
-          Map<String, Object?>.from(repository),
-        ),
-      _ => const MobileGitRepositoryState(),
-    },
-    stashes: <MobileGitStash>[
-      for (final item in json.objectList('stashes'))
-        if (item is Map)
-          MobileGitStash.fromJson(Map<String, Object?>.from(item)),
-    ],
-    actions: switch (json['actions']) {
-      final Map<Object?, Object?> actions =>
-        MobileSourceControlActions.fromJson(Map<String, Object?>.from(actions)),
-      _ => const MobileSourceControlActions(),
-    },
-    primaryAction: json.optionalString('primaryAction'),
-    aiCommitMessageEnabled: json['aiCommitMessageEnabled'] == true,
-  );
-
-  int get changedFileCount => entries.length;
-  int get addedLineCount =>
-      entries.fold(0, (total, entry) => total + (entry.added ?? 0));
-  int get removedLineCount =>
-      entries.fold(0, (total, entry) => total + (entry.removed ?? 0));
-}
-
-class const MobileGitDiffLine({
-  required final String kind,
-  required final String text,
-}) {
-  factory fromJson(Map<String, Object?> json) => MobileGitDiffLine(
-    kind: json.optionalString('kind') ?? 'context',
-    text: json.optionalString('text') ?? '',
-  );
-}
-
-class const MobileGitDiffFile({
-  required final String path,
-  required final String area,
-  final bool isBinary = false,
-  final bool truncated = false,
-  final List<MobileGitDiffLine> lines = const <MobileGitDiffLine>[],
-}) {
-  factory fromJson(Map<String, Object?> json) => MobileGitDiffFile(
-    path: json.requiredString('path'),
-    area: json.optionalString('area') ?? 'unstaged',
-    isBinary: json['isBinary'] == true,
-    truncated: json['truncated'] == true,
-    lines: <MobileGitDiffLine>[
-      for (final item in json.objectList('lines'))
-        if (item is Map)
-          MobileGitDiffLine.fromJson(Map<String, Object?>.from(item)),
-    ],
-  );
-}
 
 class const MobilePullRequestCheck({
   required final String name,
@@ -476,6 +368,18 @@ abstract interface class MobileWorkspacePanelsClient {
   });
 
   bool get supportsSourceControlWrites;
+
+  bool get supportsCommitMessageGeneration;
+
+  Future<MobileGitBranches> gitBranches(String workspaceId);
+
+  /// Asks the runtime's AI Assist agent for a message over the staged changes.
+  Future<GeneratedCommitMessage> generateCommitMessage({
+    required String operationId,
+    required String workspaceId,
+  });
+
+  Future<void> cancelCommitMessage(String operationId);
 
   /// Runs [write] and resolves with the status snapshot that follows it.
   Future<MobileGitStatusSnapshot> gitWrite(
