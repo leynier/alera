@@ -155,22 +155,25 @@ final class LinkedIssuesSupportedProvider
 }
 
 String _$linkedIssuesSupportedHash() =>
-    r'e573c10fbc822208283b9b2275c8e4d540255f63';
+    r'62064df8469fc9c8d2b7599a57a9175d6019bd6c';
 
 /// The linked issue of one workspace, or null. Selects from the shared
-/// snapshot so a sidebar with many rows costs one host request per change.
+/// snapshot so a sidebar with many rows costs one host request per change;
+/// a row rebuilds only when its own link changes.
 
 @ProviderFor(workspaceLinkedIssue)
 final workspaceLinkedIssueProvider = WorkspaceLinkedIssueFamily._();
 
 /// The linked issue of one workspace, or null. Selects from the shared
-/// snapshot so a sidebar with many rows costs one host request per change.
+/// snapshot so a sidebar with many rows costs one host request per change;
+/// a row rebuilds only when its own link changes.
 
 final class WorkspaceLinkedIssueProvider
     extends $FunctionalProvider<LinkedIssue?, LinkedIssue?, LinkedIssue?>
     with $Provider<LinkedIssue?> {
   /// The linked issue of one workspace, or null. Selects from the shared
-  /// snapshot so a sidebar with many rows costs one host request per change.
+  /// snapshot so a sidebar with many rows costs one host request per change;
+  /// a row rebuilds only when its own link changes.
   WorkspaceLinkedIssueProvider._({
     required WorkspaceLinkedIssueFamily super.from,
     required String super.argument,
@@ -223,10 +226,11 @@ final class WorkspaceLinkedIssueProvider
 }
 
 String _$workspaceLinkedIssueHash() =>
-    r'3b91addd92ac831c0fd5b7bfc35cfabf0ebbc039';
+    r'2d379fe9960cf621c66a6a1c36cd5a1745980d6b';
 
 /// The linked issue of one workspace, or null. Selects from the shared
-/// snapshot so a sidebar with many rows costs one host request per change.
+/// snapshot so a sidebar with many rows costs one host request per change;
+/// a row rebuilds only when its own link changes.
 
 final class WorkspaceLinkedIssueFamily extends $Family
     with $FunctionalFamilyOverride<LinkedIssue?, String> {
@@ -240,7 +244,8 @@ final class WorkspaceLinkedIssueFamily extends $Family
       );
 
   /// The linked issue of one workspace, or null. Selects from the shared
-  /// snapshot so a sidebar with many rows costs one host request per change.
+  /// snapshot so a sidebar with many rows costs one host request per change;
+  /// a row rebuilds only when its own link changes.
 
   WorkspaceLinkedIssueProvider call(String workspaceId) =>
       WorkspaceLinkedIssueProvider._(argument: workspaceId, from: this);

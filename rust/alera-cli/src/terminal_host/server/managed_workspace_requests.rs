@@ -222,11 +222,16 @@ impl ServerActor {
         self.schedule_shutdown_if_idle();
     }
 
-    async fn relocate_sessions_after_hand_off(
+    pub(super) async fn relocate_sessions_after_hand_off(
         &mut self,
         source_workspace_id: &str,
         payload: &Value,
     ) {
+        // The worktree transfer already moved the linked issue row, so the
+        // watchers have to rebuild even when no session can be relocated below.
+        // The scope stays a wildcard: both workspaces change, and naming one
+        // would leave the other showing a stale glyph.
+        self.broadcast_linked_issues_changed(None);
         let Some(dest_path) = payload
             .get("workspace")
             .and_then(|workspace| workspace.get("path"))

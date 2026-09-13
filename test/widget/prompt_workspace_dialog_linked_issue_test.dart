@@ -6,7 +6,6 @@ import 'package:alera/src/features/settings/application/settings_controller.dart
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/domain/background_setup_job.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
-import 'package:alera/src/features/workbench/infra/prompt_workspace_runtime_client.dart';
 import 'package:alera/src/features/workbench/presentation/prompt_workspace_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

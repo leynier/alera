@@ -268,6 +268,9 @@ impl ServerActor {
         source_path: &str,
         dest_path: &str,
     ) {
+        // Hand On moved the linked issue back with the work, so watchers must
+        // rebuild. Wildcard scope: both workspaces change.
+        self.broadcast_linked_issues_changed(None);
         self.relocate_sessions_after_handoff(
             WorkspaceHandoffDirection::HandOn,
             source_workspace_id,
