@@ -14,7 +14,6 @@ import 'package:alera_mobile/src/features/workbench/application/explorer_prefere
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/explorer_actions_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/explorer_panel_toolbar.dart';
-import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_picker_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_viewer_screen.dart';
 import 'package:alera_mobile/src/features/workspace_agent_comments/presentation/workspace_agent_comment_queue.dart';
 import 'package:flutter/material.dart';

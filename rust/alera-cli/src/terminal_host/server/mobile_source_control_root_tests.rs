@@ -29,11 +29,11 @@ fn nested_root_reads_its_own_repository() {
     let workspace_root = workspace.path().to_string_lossy();
 
     let at_workspace =
-        git_status_snapshot(&source_control_root(&workspace_root, None).unwrap()).unwrap();
+        git_status_snapshot(&source_control_root(&workspace_root, None).unwrap(), true).unwrap();
     assert_eq!(at_workspace["isRepository"], false);
 
     let root = source_control_root(&workspace_root, Some("service")).unwrap();
-    let snapshot = git_status_snapshot(&root).unwrap();
+    let snapshot = git_status_snapshot(&root, true).unwrap();
     assert_eq!(snapshot["isRepository"], true);
     let entries = snapshot["entries"].as_array().unwrap();
     assert!(entries
@@ -46,7 +46,10 @@ fn nested_root_without_repository_reports_none() {
     let workspace = tempfile::tempdir().unwrap();
     fs::create_dir(workspace.path().join("docs")).unwrap();
     let root = source_control_root(&workspace.path().to_string_lossy(), Some("docs")).unwrap();
-    assert_eq!(git_status_snapshot(&root).unwrap()["isRepository"], false);
+    assert_eq!(
+        git_status_snapshot(&root, true).unwrap()["isRepository"],
+        false
+    );
 }
 
 #[cfg(unix)]

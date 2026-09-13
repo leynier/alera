@@ -30,6 +30,7 @@ import 'package:logging/logging.dart';
 
 part 'workspace_tab_strip.dart';
 part 'workspace_tabs_close.dart';
+part 'workspace_tabs_panel_body.dart';
 part 'workspace_tabs_panel_menu.dart';
 
 /// Tabs of one workspace: a horizontally scrollable chip switcher with one
@@ -456,48 +457,6 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
         ),
       ),
       _ => const Center(child: CircularProgressIndicator()),
-    };
-  }
-
-  void _openTab(String tabId) {
-    if (!mounted) {
-      return;
-    }
-    setState(() => _selectedTabId = tabId);
-    ref
-        .read(
-          selectedWorkspacePanelControllerProvider(
-            widget.hostId,
-            widget.workspace.id,
-          ).notifier,
-        )
-        .select(WorkspacePanelDestination.terminal);
-  }
-
-  Widget _panelBody(WorkspacePanelDestination panel) {
-    final hostId = widget.hostId;
-    final workspaceId = widget.workspace.id;
-    return switch (panel) {
-      WorkspacePanelDestination.explorer => ExplorerPanel(
-        hostId: hostId,
-        workspace: widget.workspace,
-        onOpenTab: _openTab,
-      ),
-      WorkspacePanelDestination.search => WorkspaceTextSearchPanel(
-        hostId: hostId,
-        workspaceId: workspaceId,
-      ),
-      WorkspacePanelDestination.sourceControl => SourceControlPanel(
-        hostId: hostId,
-        workspaceId: workspaceId,
-      ),
-      WorkspacePanelDestination.pullRequest => PullRequestPanel(
-        hostId: hostId,
-        workspaceId: workspaceId,
-      ),
-      WorkspacePanelDestination.terminal => _terminalBody(
-        ref.watch(tabsControllerProvider(widget.hostId, widget.workspace.id)),
-      ),
     };
   }
 }
