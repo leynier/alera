@@ -16,6 +16,25 @@ mixin FakePullRequestActionsClient implements MobilePullRequestActionsClient {
   @override
   bool get supportsPullRequestActions => pullRequestActionsSupported;
 
+  bool pullRequestDetailsSupported = false;
+  MobilePullRequestDetails generatedDetails = (title: '', body: '');
+
+  @override
+  bool get supportsPullRequestDetailsGeneration => pullRequestDetailsSupported;
+
+  @override
+  Future<MobilePullRequestDetails> generatePullRequestDetails({
+    required String workspaceId,
+    required String baseBranch,
+  }) async {
+    calls.add('generatePullRequestDetails $baseBranch');
+    final error = actionError;
+    if (error != null) {
+      throw error;
+    }
+    return generatedDetails;
+  }
+
   Future<MobilePullRequestSnapshot> _answer(String call) async {
     calls.add(call);
     final error = actionError;

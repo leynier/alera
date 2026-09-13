@@ -46,10 +46,15 @@ pub enum GitErrorKind {
     InvalidBranchName,
     WorktreeAlreadyExists,
     WorktreeNotFound,
+    CloneFailed,
     GitCli,
     DetachedHead,
-    Conflict,
+    NoUpstream,
     RemoteNotFound,
+    NothingToCommit,
+    Conflict,
+    WorkspaceScope,
+    MissingIdentity,
     Internal,
 }
 
@@ -67,8 +72,21 @@ impl GitError {
         }
     }
 
-    fn from_git2(error: git2::Error) -> Self {
+    pub fn from_git2(error: git2::Error) -> Self {
         let message = error.message().to_string();
+        let lowered = message.to_lowercase();
+        let kind = if lowered.contains("permission denied")
+            || lowered.contains("operation not permitted")
+        {
+            GitErrorKind::AccessDenied
+        } else {
+            GitErrorKind::Internal
+        };
+        Self::new(kind, message)
+    }
+
+    pub fn from_io(error: std::io::Error) -> Self {
+        let message = error.to_string();
         let lowered = message.to_lowercase();
         let kind = if lowered.contains("permission denied")
             || lowered.contains("operation not permitted")

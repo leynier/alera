@@ -2,8 +2,8 @@ use std::path::Path;
 
 use git2::{Oid, Repository};
 
-use super::git::git_diff_paths::GitPathContext;
-use super::git::{open_repo, GitChangeArea, GitError};
+use super::git::{GitChangeArea, GitError};
+use alera_core::source_control::{open_repo, GitPathContext};
 
 const MAX_DIFF_BLOB_BYTES: u64 = 20 * 1024 * 1024;
 

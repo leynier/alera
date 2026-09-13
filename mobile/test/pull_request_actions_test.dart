@@ -22,6 +22,7 @@ MobilePullRequestSnapshot _snapshot({
   List<String> mergeMethods = const <String>['squash', 'rebase'],
   List<Map<String, Object?>> comments = const <Map<String, Object?>>[],
   bool withReview = true,
+  bool aiAssistEnabled = false,
 }) {
   return MobilePullRequestSnapshot.fromJson(<String, Object?>{
     'branch': 'feat/actions',
@@ -33,6 +34,7 @@ MobilePullRequestSnapshot _snapshot({
     'mergeMethods': mergeMethods,
     'baseBranches': <String>['develop', 'feat/actions', 'main'],
     'suggestedBaseBranch': 'main',
+    'aiAssistEnabled': aiAssistEnabled,
     'review': withReview
         ? <String, Object?>{
             'number': 700,
@@ -345,6 +347,40 @@ void main() {
 
     expect(await refresh, isNull);
     expect(container.read(provider).value?.review?.state, 'MERGED');
+  });
+
+  testWidgets('generates the title and description with AI Assist', (
+    tester,
+  ) async {
+    final client = _client(_snapshot(withReview: false, aiAssistEnabled: true))
+      ..pullRequestDetailsSupported = true
+      ..generatedDetails = (
+        title: 'Add mobile pull request actions',
+        body: 'Why it matters',
+      );
+    addTearDown(client.dispose);
+    await _openPullRequest(tester, client);
+
+    await tester.tap(find.text('Create Pull Request'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Generate With AI'));
+    await tester.pumpAndSettle();
+
+    expect(client.calls, contains('generatePullRequestDetails main'));
+    expect(find.text('Add mobile pull request actions'), findsOneWidget);
+    expect(find.text('Why it matters'), findsOneWidget);
+  });
+
+  testWidgets('hides generation when AI Assist is off', (tester) async {
+    final client = _client(_snapshot(withReview: false))
+      ..pullRequestDetailsSupported = true;
+    addTearDown(client.dispose);
+    await _openPullRequest(tester, client);
+
+    await tester.tap(find.text('Create Pull Request'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Generate With AI'), findsNothing);
   });
 
   testWidgets('an older runtime keeps the panel read-only', (tester) async {

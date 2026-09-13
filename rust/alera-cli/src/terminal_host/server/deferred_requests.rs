@@ -60,6 +60,18 @@ impl ServerActor {
                 self.start_ai_assist_workspace_identity(client_id, request_id, payload)?;
                 Ok(true)
             }
+            "aiText.commitMessage.generate" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_ai_assist_commit_message(client_id, request_id, payload)?;
+                Ok(true)
+            }
+            "aiText.pullRequestDetails.generate" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_ai_assist_pull_request_details(client_id, request_id, payload)?;
+                Ok(true)
+            }
             "aiText.speechMessage.generate" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
@@ -74,6 +86,19 @@ impl ServerActor {
             | "mobile.workspaceSearch.run"
             | "mobile.git.status"
             | "mobile.git.diff"
+            | "mobile.git.stage"
+            | "mobile.git.unstage"
+            | "mobile.git.discard"
+            | "mobile.git.commit"
+            | "mobile.git.fetch"
+            | "mobile.git.pull"
+            | "mobile.git.push"
+            | "mobile.git.sync"
+            | "mobile.git.stash"
+            | "mobile.git.stashPop"
+            | "mobile.git.branches"
+            | "mobile.git.checkout"
+            | "mobile.git.createBranch"
             | "mobile.pullRequest.snapshot"
             | "mobile.pullRequest.comment"
             | "mobile.pullRequest.commentUpdate"

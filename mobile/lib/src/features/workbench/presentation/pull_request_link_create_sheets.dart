@@ -89,6 +89,7 @@ Future<void> showCreatePullRequestSheet(
   required String? suggestedBaseBranch,
   required Future<String?> Function(MobilePullRequestCreateInput input)
   onSubmit,
+  Future<MobilePullRequestDetails> Function(String baseBranch)? onGenerate,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -99,13 +100,15 @@ Future<void> showCreatePullRequestSheet(
       baseBranches: baseBranches,
       suggestedBaseBranch: suggestedBaseBranch,
       onSubmit: onSubmit,
+      onGenerate: onGenerate,
     ),
   );
 }
 
 /// Form for a new pull request from the workspace branch. Like the comment
 /// composer, it keeps its fields while [onSubmit] runs and shows the error
-/// inline.
+/// inline. [onGenerate], when set, fills the title and description with AI
+/// Assist for the selected base branch.
 class const CreatePullRequestSheet({
   super.key,
   required final String? headBranch,
@@ -113,6 +116,8 @@ class const CreatePullRequestSheet({
   required final String? suggestedBaseBranch,
   required final Future<String?> Function(MobilePullRequestCreateInput input)
   onSubmit,
+  final Future<MobilePullRequestDetails> Function(String baseBranch)?
+  onGenerate,
 }) extends StatefulWidget {
   @override
   State<CreatePullRequestSheet> createState() => _CreatePullRequestSheetState();
@@ -124,7 +129,40 @@ class _CreatePullRequestSheetState extends State<CreatePullRequestSheet> {
   late String? _base = _initialBase();
   bool _draft = false;
   bool _submitting = false;
+  bool _generating = false;
   String? _error;
+
+  Future<void> _generate() async {
+    final generate = widget.onGenerate;
+    final base = _base;
+    if (generate == null || _generating || _submitting) {
+      return;
+    }
+    if (base == null) {
+      setState(() => _error = 'Select a base branch.');
+      return;
+    }
+    setState(() {
+      _generating = true;
+      _error = null;
+    });
+    try {
+      final details = await generate(base);
+      if (!mounted) {
+        return;
+      }
+      _title.text = details.title;
+      _body.text = details.body;
+    } on Object catch (error) {
+      if (mounted) {
+        setState(() => _error = pullRequestActionErrorMessage(error));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _generating = false);
+      }
+    }
+  }
 
   List<String> get _bases => <String>[
     for (final branch in widget.baseBranches)
@@ -238,11 +276,28 @@ class _CreatePullRequestSheetState extends State<CreatePullRequestSheet> {
                 ],
                 onChanged: (branch) => setState(() => _base = branch),
               ),
-              const SizedBox(height: AleraTokens.space12),
+              if (widget.onGenerate != null)
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: TextButton.icon(
+                    onPressed: _generating || _submitting ? null : _generate,
+                    icon: _generating
+                        ? const SizedBox.square(
+                            dimension: AleraTokens.iconSm,
+                            child: CircularProgressIndicator(
+                              strokeWidth: AleraTokens.strokeMd,
+                            ),
+                          )
+                        : const Icon(AleraIcons.sparkles),
+                    label: const Text('Generate With AI'),
+                  ),
+                )
+              else
+                const SizedBox(height: AleraTokens.space12),
               AleraTextField(
                 controller: _title,
                 labelText: 'Title',
-                enabled: !_submitting,
+                enabled: !_submitting && !_generating,
               ),
               const SizedBox(height: AleraTokens.space12),
               AleraTextField(
@@ -251,7 +306,7 @@ class _CreatePullRequestSheetState extends State<CreatePullRequestSheet> {
                 keyboardType: TextInputType.multiline,
                 minLines: 3,
                 maxLines: 8,
-                enabled: !_submitting,
+                enabled: !_submitting && !_generating,
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
