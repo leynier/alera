@@ -9,7 +9,8 @@ use tokio::sync::oneshot;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
-use super::ai_assist_requests::{active_generations, plan_command, run_command};
+use super::ai_assist_operation_registry::active_generations;
+use super::ai_assist_requests::{plan_command, run_command};
 use super::host_service_requests::required_non_blank;
 use super::mobile_source_control_snapshot::git_host_error;
 use super::mobile_workspace_file_requests::spawn_blocking_workspace;
