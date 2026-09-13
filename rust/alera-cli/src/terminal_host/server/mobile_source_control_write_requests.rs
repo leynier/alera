@@ -11,6 +11,7 @@ use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
+use super::ai_assist_commit_message::ai_commit_message_enabled;
 use super::mobile_source_control_snapshot::{git_host_error, git_status_snapshot, parse_area};
 use super::mobile_workspace_file_requests::{
     spawn_blocking_workspace, workspace_for_mobile_file_request,
@@ -71,16 +72,21 @@ pub(super) async fn handle_mobile_git_request(
     request_type: &str,
     payload: &Value,
 ) -> HostResult<Value> {
-    match request_type {
-        "mobile.git.status" => {
-            super::mobile_source_control_requests::mobile_git_status(runtime_store, payload).await
-        }
+    let mut snapshot = match request_type {
         "mobile.git.diff" => {
-            super::mobile_source_control_requests::mobile_git_diff(runtime_store, payload).await
+            return super::mobile_source_control_requests::mobile_git_diff(runtime_store, payload)
+                .await
         }
-        "mobile.git.branches" => mobile_git_branches(runtime_store, payload).await,
-        _ => mobile_git_write(runtime_store, request_type, payload).await,
+        "mobile.git.branches" => return mobile_git_branches(runtime_store, payload).await,
+        "mobile.git.status" => {
+            super::mobile_source_control_requests::mobile_git_status(runtime_store, payload).await?
+        }
+        _ => mobile_git_write(runtime_store, request_type, payload).await?,
+    };
+    if snapshot["isRepository"] == true {
+        snapshot["aiCommitMessageEnabled"] = json!(ai_commit_message_enabled(runtime_store).await);
     }
+    Ok(snapshot)
 }
 
 async fn mobile_git_write(
@@ -110,10 +116,7 @@ async fn mobile_git_write(
     .await
 }
 
-async fn mobile_git_branches(
-    runtime_store: &RuntimeStore,
-    payload: &Value,
-) -> HostResult<Value> {
+async fn mobile_git_branches(runtime_store: &RuntimeStore, payload: &Value) -> HostResult<Value> {
     let workspace = workspace_for_mobile_file_request(runtime_store, payload).await?;
     let root = workspace.path.clone();
     spawn_blocking_workspace("Git branches", move || {
