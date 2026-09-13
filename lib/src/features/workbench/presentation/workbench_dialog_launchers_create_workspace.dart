@@ -68,6 +68,13 @@ Future<void> _runCreateWorkspaceFlow(
     beforeAccess: ref.read(runtimeStateMigrationProvider).ensureMigrated,
   );
   final sshTargets = await _loadSshTargets(ref);
+  // Read from the snapshot the sidebar already keeps rather than asking the
+  // host again, so opening the form never waits on a runtime connection, and
+  // never starts a watch of its own when nothing else is watching.
+  final issueRepository = ref.read(linkedIssueRepositoryProvider);
+  final linkedIssuesSupported =
+      ref.exists(linkedIssueSnapshotProvider) &&
+      ref.read(linkedIssuesSupportedProvider);
   if (!context.mounted) {
     return;
   }
@@ -81,6 +88,7 @@ Future<void> _runCreateWorkspaceFlow(
     resolvedInitialProject: resolvedInitialProject,
     profiles: profiles,
     runtime: runtime,
+    fetchIssue: linkedIssuesSupported ? issueRepository.fetch : null,
     retryManual: retryManual,
     retryPrompt: retryPrompt,
     retryError: retryError,
@@ -98,6 +106,7 @@ Future<void> _showCreateWorkspaceDialogs(
   required Project? resolvedInitialProject,
   required List<AgentProfile> profiles,
   required PromptWorkspaceRuntimeClient runtime,
+  required Future<IssueDetails> Function(String url)? fetchIssue,
   ManualWorkspaceCreateRequest? retryManual,
   PromptWorkspaceCreateRequest? retryPrompt,
   String? retryError,
@@ -118,6 +127,8 @@ Future<void> _showCreateWorkspaceDialogs(
       initialSourceBranch: retryPrompt?.sourceBranch,
       initialParentWorkspaceId: retryPrompt?.parentWorkspaceId,
       initialHostId: retryPrompt?.hostId,
+      initialIssueUrl: retryPrompt?.issueUrl,
+      fetchIssue: fetchIssue,
       initialError: retryPrompt == null ? null : retryError,
       initialMode: retryManual != null
           ? NewWorkspaceMode.manual
@@ -132,6 +143,7 @@ Future<void> _showCreateWorkspaceDialogs(
         resolvedInitialProject: resolvedInitialProject,
         retryManual: retryManual,
         retryError: retryError,
+        fetchIssue: fetchIssue,
         enqueueCreate: (request) {
           boundJobId ??= const Uuid().v4();
           final done = ref
@@ -185,6 +197,7 @@ Future<void> _showCreateWorkspaceDialogs(
             required name,
             parentWorkspaceId,
             hostId,
+            issueUrl,
           }) {
             return controller.createWorkspaceForPrompt(
               project: project,
@@ -193,6 +206,7 @@ Future<void> _showCreateWorkspaceDialogs(
               name: name,
               parentWorkspaceId: parentWorkspaceId,
               hostId: hostId,
+              issueUrl: issueUrl,
             );
           },
       launchAgent: runtime.launchAgent,
@@ -235,6 +249,7 @@ Widget _buildManualWorkspaceForm(
   required Project? resolvedInitialProject,
   required Future<void>? Function(ManualWorkspaceCreateRequest request)
   enqueueCreate,
+  required Future<IssueDetails> Function(String url)? fetchIssue,
   ManualWorkspaceCreateRequest? retryManual,
   String? retryError,
 }) {
@@ -247,6 +262,8 @@ Widget _buildManualWorkspaceForm(
     initialName: retryManual?.name,
     initialParentWorkspaceId: retryManual?.parentWorkspaceId,
     initialHostId: retryManual?.hostId,
+    initialIssueUrl: retryManual?.issueUrl,
+    fetchIssue: fetchIssue,
     initialReuseExistingBranch: retryManual?.reuseExistingBranch ?? false,
     initialCreationError: retryManual == null ? null : retryError,
     enqueueCreate: enqueueCreate,
@@ -292,6 +309,7 @@ Widget _buildManualWorkspaceForm(
           name,
           parentWorkspaceId,
           hostId,
+          issueUrl,
         }) async {
           return controller.createWorkspace(
             project: project,
@@ -301,6 +319,7 @@ Widget _buildManualWorkspaceForm(
             name: name,
             parentWorkspaceId: parentWorkspaceId,
             hostId: hostId,
+            issueUrl: issueUrl,
           );
         },
     onAddProject: () {

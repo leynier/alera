@@ -104,12 +104,26 @@ impl ServerActor {
                 self.start_mobile_prompt_file_request(client_id, request_id, request_type, payload);
                 Ok(true)
             }
+            "issue.fetch" | "linkedIssue.link" | "linkedIssue.refresh" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_linked_issue_request(client_id, request_id, request_type, payload)?;
+                Ok(true)
+            }
             "workspace.createManaged" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let mut request: ManagedWorkspaceCreateRequest = parse_payload(payload)?;
                 request.setup_script_directory = self.setup_script_directory();
-                self.start_managed_workspace_create(client_id, request_id, request);
+                // Validated before the worktree exists, so a typo cannot leave
+                // a workspace behind with a link that was never stored.
+                let issue_url = super::requests::optional_string_key(payload, "issueUrl")
+                    .filter(|url| !url.trim().is_empty());
+                if let Some(url) = issue_url.as_deref() {
+                    crate::issue_tracking::parse_issue_reference(url)
+                        .map_err(|error| HostError::format(error.to_string()))?;
+                }
+                self.start_managed_workspace_create(client_id, request_id, request, issue_url);
                 Ok(true)
             }
             "workspace.handOff" => {

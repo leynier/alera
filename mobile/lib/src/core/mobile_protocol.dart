@@ -14,3 +14,7 @@ const String mobileExplorerCapability = 'mobileExplorerV1';
 const String mobileWorkspaceSearchCapability = 'mobileWorkspaceSearchV1';
 const String mobileSourceControlCapability = 'mobileSourceControlV1';
 const String mobilePullRequestCapability = 'mobilePullRequestV1';
+
+/// Linked issues (`linkedIssue.*`, `issue.fetch`, `issueUrl` on
+/// `workspace.createManaged`). Additive: never bump the protocol version.
+const String linkedIssuesCapability = 'linkedIssuesV1';

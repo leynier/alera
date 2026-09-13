@@ -134,6 +134,7 @@ mixin FakeWorkspaceLifecycleClient {
     bool reuseExistingBranch = false,
     String? name,
     String? parentWorkspaceId,
+    String? issueUrl,
   }) async {
     calls.add('createWorkspace $projectId $branch');
     return WorkspaceCreationResult(

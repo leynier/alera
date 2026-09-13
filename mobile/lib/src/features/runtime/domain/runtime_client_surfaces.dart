@@ -227,6 +227,7 @@ abstract interface class MobileWorkspaceClient {
     bool reuseExistingBranch = false,
     String? name,
     String? parentWorkspaceId,
+    String? issueUrl,
   });
   Future<void> removeManagedWorkspace(String workspaceId, {bool? deleteBranch});
   Future<List<String>> cascadePreview(String workspaceId);

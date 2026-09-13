@@ -48,6 +48,7 @@ extension _CreateWorkspaceDialogSubmission on _CreateWorkspaceDialogState {
       name: name.isEmpty ? null : name,
       parentWorkspaceId: _selectedParentWorkspaceId,
       hostId: _selectedHostId,
+      issueUrl: _linkedIssueUrl(),
     );
     final enqueue = widget.enqueueCreate;
     if (enqueue != null) {
@@ -95,6 +96,7 @@ extension _CreateWorkspaceDialogSubmission on _CreateWorkspaceDialogState {
         name: name.isEmpty ? null : name,
         parentWorkspaceId: _selectedParentWorkspaceId,
         hostId: _selectedHostId,
+        issueUrl: _linkedIssueUrl(),
       );
       if (!mounted) {
         return;
@@ -123,10 +125,13 @@ extension _CreateWorkspaceDialogSubmission on _CreateWorkspaceDialogState {
     _sourceBranchController.clear();
     _newBranchController.clear();
     _nameController.clear();
+    _issueUrlController.clear();
     _update(() {
       _selectedParentWorkspaceId = null;
       _reuseExistingBranch = false;
       _nameTouched = false;
+      _nameFromIssue = false;
+      _branchFromIssue = null;
       _creating = false;
       _creationError = null;
       _sourceBranchError = null;

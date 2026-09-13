@@ -29,6 +29,9 @@ import 'package:alera/src/features/workbench/application/workspace_agent_run_gro
 import 'package:alera/src/features/workbench/application/workspace_agent_status_projection.dart';
 import 'package:alera/src/features/workbench/application/repository_browser_opener.dart';
 import 'package:alera/src/features/workbench/application/repository_browser_providers.dart';
+import 'package:alera/src/features/linked_issues/application/linked_issue_providers.dart';
+import 'package:alera/src/features/linked_issues/presentation/workspace_linked_issue_indicator.dart';
+import 'package:alera/src/features/linked_issues/presentation/workspace_linked_issue_menu.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_monitor_providers.dart';
 import 'package:alera/src/features/pull_requests/presentation/workspace_pull_request_status_indicator.dart';

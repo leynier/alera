@@ -10,6 +10,7 @@ import 'package:alera_mobile/src/design_system/forms/alera_search_field.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
+import 'package:alera_mobile/src/features/linked_issues/application/linked_issues_controller.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/hosts/presentation/rename_host_dialog.dart';
 import 'package:alera_mobile/src/features/projects/presentation/projects_screen.dart';
@@ -170,6 +171,10 @@ class const RuntimeWorkspacesScreen({
                           data.value!.supportsPromptFileUpload,
                       supportsWorkspaceFiles:
                           data.value!.supportsWorkspaceFiles,
+                      supportsLinkedIssues: _linkedIssuesSupported(
+                        ref,
+                        host.id,
+                      ),
                     ),
                   ),
                 );
@@ -250,6 +255,10 @@ class const _WorkspaceListBody({
     final expandedWorkspaceIds =
         ref.watch(workspaceAgentExpansionControllerProvider(hostId)).value ??
         const <String>{};
+    final linkedIssues = ref
+        .watch(linkedIssuesControllerProvider(hostId))
+        .value
+        ?.byWorkspace;
     final rows = buildMobileWorkspaceRows(
       sections: data.sections,
       workspaces: data.workspaces,
@@ -334,6 +343,7 @@ class const _WorkspaceListBody({
                     ),
                   MobileWorkspaceEntryRow() => MobileWorkspaceListRow(
                     row: row,
+                    linkedIssue: linkedIssues?[row.entry.workspace.id],
                     terminalTabCount:
                         data.terminalTabCountByWorkspaceId[row
                             .entry
@@ -482,3 +492,6 @@ class const _ConnectionError({
     );
   }
 }
+
+bool _linkedIssuesSupported(WidgetRef ref, String hostId) =>
+    ref.read(linkedIssuesControllerProvider(hostId)).value?.supported ?? false;

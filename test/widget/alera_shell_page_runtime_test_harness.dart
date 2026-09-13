@@ -39,6 +39,7 @@ class const _FakeManagedWorkspaceRuntime()
     required bool reuseExistingBranch,
     String? name,
     String? hostId,
+    String? issueUrl,
   }) => throw UnsupportedError('Workspace creation is not used by shell tests');
 
   @override

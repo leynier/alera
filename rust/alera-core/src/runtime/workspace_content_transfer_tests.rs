@@ -264,3 +264,32 @@ async fn invalid_payload_rolls_back_all_prior_tab_moves_and_layout_changes() {
         .unwrap()
         .is_none());
 }
+
+#[tokio::test]
+async fn linked_issue_follows_the_transferred_work() {
+    let (_dir, store, main, child) = fixture().await;
+    let linked = crate::runtime::LinkedIssue {
+        workspace_id: main.id.clone(),
+        url: "https://github.com/leynier/alera/issues/758".into(),
+        provider: Some("github".into()),
+        repository: Some("leynier/alera".into()),
+        number: Some(758),
+        title: Some("Link an issue".into()),
+        state: Some("open".into()),
+        state_label: Some("Open".into()),
+        fetched_at: None,
+        fetch_error: None,
+        linked_at: Utc::now(),
+    };
+    store.upsert_linked_issue(linked.clone()).await.unwrap();
+
+    store
+        .transfer_workspace_contents(&main, &child)
+        .await
+        .unwrap();
+
+    assert!(store.find_linked_issue(&main.id).await.unwrap().is_none());
+    let moved = store.find_linked_issue(&child.id).await.unwrap().unwrap();
+    assert_eq!(moved.url, linked.url);
+    assert_eq!(moved.number, Some(758));
+}

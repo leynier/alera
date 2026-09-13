@@ -19,6 +19,9 @@ mod cli_orchestration_timeouts;
 mod cli_tests;
 mod host_tools;
 mod hosted_review_retention;
+mod issue_commands;
+mod issue_tracking;
+mod linked_issue_service;
 mod login_shell_environment;
 mod managed_workspace;
 mod managed_workspace_handoff;
@@ -56,6 +59,7 @@ mod terminal_host;
 mod workspace_add;
 mod workspace_context;
 mod workspace_handoff;
+mod workspace_issue_commands;
 mod workspace_pinning;
 mod workspace_registration;
 mod workspace_setup_command;
@@ -141,6 +145,7 @@ async fn run(cli: Cli) -> i32 {
         Command::Runtime(command) => runtime_commands::run_runtime_command(command).await,
         Command::Project(command) => run_project_command(command).await,
         Command::Workspace(command) => run_workspace_command(command).await,
+        Command::Issue(command) => issue_commands::run(command).await,
         Command::Tag(command) => run_tag_command(command).await,
         Command::Tab(command) => run_tab_command(command).await,
         Command::Terminal(command) => run_terminal_command(command).await,
@@ -352,6 +357,9 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
         }
         WorkspaceAction::Add(args) => {
             return workspace_add::run(runtime, args, json_output).await;
+        }
+        WorkspaceAction::Issue(command) => {
+            return workspace_issue_commands::run(runtime, command, json_output).await;
         }
         WorkspaceAction::Setup(args) => {
             let client = match runtime_host_required(&runtime).await {

@@ -193,6 +193,7 @@ class WorkspaceListController extends _$WorkspaceListController {
     bool reuseExistingBranch = false,
     String? name,
     String? parentWorkspaceId,
+    String? issueUrl,
   }) async {
     final keepAlive = ref.keepAlive();
     try {
@@ -203,6 +204,7 @@ class WorkspaceListController extends _$WorkspaceListController {
         sourceBranch: sourceBranch,
         reuseExistingBranch: reuseExistingBranch,
         name: name,
+        issueUrl: issueUrl,
       );
       var result = creation;
       if (creation.hasDeferredSetup) {

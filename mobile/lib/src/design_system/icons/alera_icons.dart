@@ -37,6 +37,10 @@ abstract final class const AleraIcons._() {
   static const IconData warning = LucideIcons.triangleAlert;
   static const IconData circle = LucideIcons.circle;
   static const IconData link = LucideIcons.link;
+  static const IconData unlink = LucideIcons.unlink;
+  static const IconData issueOpen = LucideIcons.circleDot;
+  static const IconData issueClosed = LucideIcons.circleCheckBig;
+  static const IconData issueUnknown = LucideIcons.circleDashed;
   static const IconData external = LucideIcons.externalLink;
   static const IconData theme = LucideIcons.moon;
   static const IconData workspaces = LucideIcons.folders;

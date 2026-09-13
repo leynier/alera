@@ -48,6 +48,8 @@ pub enum WorkspaceAction {
     /// Bring a child worktree's current work back onto main.
     #[command(name = "hand-on")]
     HandOn(WorkspaceHandOnArgs),
+    /// Show, link, or unlink the issue a workspace was created for.
+    Issue(WorkspaceIssueCommand),
 }
 
 #[derive(Debug, Args)]
@@ -81,6 +83,9 @@ pub struct WorkspaceAddArgs {
     /// Bootstrapped SSH target that should own the Git worktree. Omit for the local host.
     #[arg(long = "host-id")]
     pub host_id: Option<String>,
+    /// Issue URL to link to the new workspace (GitHub, GitLab, Azure DevOps, or any tracker URL).
+    #[arg(long = "issue", value_name = "url")]
+    pub issue: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -117,6 +122,9 @@ pub struct WorkspaceStartArgs {
     /// Stable mutation id used to retry the profile launch.
     #[arg(long = "client-mutation-id", value_name = "id")]
     pub client_mutation_id: Option<String>,
+    /// Issue URL to link to the new workspace (GitHub, GitLab, Azure DevOps, or any tracker URL).
+    #[arg(long = "issue", value_name = "url")]
+    pub issue: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -222,4 +230,45 @@ pub struct CascadePreviewArgs {
     pub include_descendants: bool,
     #[arg(long = "tags")]
     pub include_tags: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceIssueCommand {
+    #[command(subcommand)]
+    pub action: WorkspaceIssueAction,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum WorkspaceIssueAction {
+    /// Print the linked issue, fetched fresh from its forge (title, state, body, labels).
+    Show(WorkspaceIssueShowArgs),
+    /// Link an issue URL to a workspace, replacing any linked issue.
+    Link(WorkspaceIssueLinkArgs),
+    /// Remove the workspace's linked issue.
+    Unlink(WorkspaceIssueTargetArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceIssueTargetArgs {
+    /// Workspace to act on. Defaults to ALERA_WORKSPACE_ID.
+    #[arg(long = "workspace-id", value_name = "id")]
+    pub workspace_id: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceIssueShowArgs {
+    #[command(flatten)]
+    pub target: WorkspaceIssueTargetArgs,
+    /// Print the cached title and state without contacting the forge.
+    #[arg(long)]
+    pub cached: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceIssueLinkArgs {
+    #[command(flatten)]
+    pub target: WorkspaceIssueTargetArgs,
+    /// Issue URL. Unrecognized trackers are stored as a plain link.
+    #[arg(value_name = "url")]
+    pub url: String,
 }

@@ -112,19 +112,35 @@ impl ServerActor {
         client_id: u64,
         request_id: i64,
         request: ManagedWorkspaceCreateRequest,
+        issue_url: Option<String>,
     ) {
         self.managed_workspace_jobs += 1;
         self.cancel_shutdown_timer();
         let store = self.runtime_store.clone();
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
-            let result = json_result(create_managed_workspace(&store, request).await);
+            let created = create_managed_workspace(&store, request).await;
+            let linked_workspace_id = created
+                .as_ref()
+                .ok()
+                .filter(|_| issue_url.is_some())
+                .map(|creation| creation.workspace.id.clone());
+            let result = json_result(created);
             let _ = inbox.send(ServerCommand::ManagedWorkspaceCreated {
                 client_id,
                 request_id,
                 result,
                 handoff_source_workspace_id: None,
             });
+            if let (Some(workspace_id), Some(url)) = (linked_workspace_id, issue_url) {
+                super::linked_issue_requests::link_created_workspace_issue(
+                    &store,
+                    &inbox,
+                    &workspace_id,
+                    &url,
+                )
+                .await;
+            }
         });
     }
 
@@ -206,11 +222,16 @@ impl ServerActor {
         self.schedule_shutdown_if_idle();
     }
 
-    async fn relocate_sessions_after_hand_off(
+    pub(super) async fn relocate_sessions_after_hand_off(
         &mut self,
         source_workspace_id: &str,
         payload: &Value,
     ) {
+        // The worktree transfer already moved the linked issue row, so the
+        // watchers have to rebuild even when no session can be relocated below.
+        // The scope stays a wildcard: both workspaces change, and naming one
+        // would leave the other showing a stale glyph.
+        self.broadcast_linked_issues_changed(None);
         let Some(dest_path) = payload
             .get("workspace")
             .and_then(|workspace| workspace.get("path"))

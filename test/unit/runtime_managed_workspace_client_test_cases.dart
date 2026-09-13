@@ -202,6 +202,55 @@ void _registerRuntimeManagedWorkspaceClientTests() {
     );
   });
 
+  test('RuntimeManagedWorkspaceClient links an issue only when the sidecar supports it', () async {
+    final client = _FakeRuntimeHostClient();
+    final repository = RuntimeManagedWorkspaceClient(client);
+    client.responses['status.get'] = <String, Object?>{
+      'runtimeCapabilities': <String>[aleraRuntimeHostLinkedIssuesCapability],
+    };
+    client.responses['workspace.createManaged'] = <String, Object?>{
+      'workspace': _workspaceJson(id: 'workspace-issue'),
+      'setupReport': <String, Object?>{'steps': <Object?>[]},
+    };
+
+    await repository.createLinkedWorkspace(
+      project: _project(id: 'project-1', name: 'Alera'),
+      sourceBranch: 'main',
+      newBranchName: '758-link-an-issue',
+      reuseExistingBranch: false,
+      issueUrl: ' https://github.com/leynier/alera/issues/758 ',
+    );
+    await repository.createLinkedWorkspace(
+      project: _project(id: 'project-1', name: 'Alera'),
+      sourceBranch: 'main',
+      newBranchName: 'no-issue',
+      reuseExistingBranch: false,
+      issueUrl: '  ',
+    );
+
+    final payloads = client.payloads['workspace.createManaged']!;
+    expect(
+      payloads.first['issueUrl'],
+      'https://github.com/leynier/alera/issues/758',
+    );
+    expect(payloads.last.containsKey('issueUrl'), isFalse);
+
+    client.responses['status.get'] = <String, Object?>{
+      'runtimeCapabilities': <String>[],
+    };
+    await expectLater(
+      repository.createLinkedWorkspace(
+        project: _project(id: 'project-1', name: 'Alera'),
+        sourceBranch: 'main',
+        newBranchName: 'old-host',
+        reuseExistingBranch: false,
+        issueUrl: 'https://github.com/leynier/alera/issues/758',
+      ),
+      throwsA(isA<WorkspaceException>()),
+    );
+    expect(payloads, hasLength(2));
+  });
+
   test('RuntimeManagedWorkspaceClient refuses hostId without remoteSshWorkspacesV1', () async {
     final client = _FakeRuntimeHostClient();
     final repository = RuntimeManagedWorkspaceClient(client);

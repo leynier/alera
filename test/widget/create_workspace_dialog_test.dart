@@ -550,6 +550,7 @@ Future<void> _pumpDialogLauncher(
                             name,
                             parentWorkspaceId,
                             hostId,
+                            issueUrl,
                           }) async {
                             onSubmit((
                               project: project,

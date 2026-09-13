@@ -79,6 +79,7 @@ Future<PromptWorkspaceCreateOutcome> runPromptWorkspaceCreate({
         branch: identity.branchName,
         sourceBranch: request.sourceBranch,
         name: identity.workspaceName,
+        issueUrl: request.issueUrl,
       );
       creation = created;
       final parentId = request.parentWorkspaceId?.trim();

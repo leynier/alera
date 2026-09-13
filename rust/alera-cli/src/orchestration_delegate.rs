@@ -71,6 +71,7 @@ async fn run_inner(
                     no_parent: args.no_parent,
                     from_workspace: args.from_workspace,
                     host_id: None,
+                    issue_url: None,
                 },
                 &spec,
             )

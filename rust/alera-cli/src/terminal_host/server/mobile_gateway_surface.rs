@@ -18,8 +18,9 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_AI_DICTATION_MODELS_CAPABILITY, RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
     RUNTIME_HOST_BINARY_FRAMES_CAPABILITY, RUNTIME_HOST_CAPABILITY,
     RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY, RUNTIME_HOST_LIFECYCLE_CAPABILITY,
-    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY, RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CAPABILITY, RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
+    RUNTIME_HOST_LINKED_ISSUES_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+    RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY, RUNTIME_HOST_MOBILE_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
     RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY, RUNTIME_HOST_MOBILE_EXPLORER_CAPABILITY,
     RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY, RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
     RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
@@ -54,6 +55,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
     RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY,
+    RUNTIME_HOST_LINKED_ISSUES_CAPABILITY,
     RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
     RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
     RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
@@ -194,6 +196,12 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "cliRegistration.install"
             | "agentSkill.install"
             | "linkedReview.find"
+            | "linkedIssue.list"
+            | "linkedIssue.find"
+            | "linkedIssue.link"
+            | "linkedIssue.refresh"
+            | "linkedIssue.remove"
+            | "issue.fetch"
             | "layout.find"
             | "workspaceSection.list"
             | "workspaceSection.create"
@@ -308,6 +316,21 @@ mod mobile_codex_file_surface_tests {
         }
         assert!(!mobile_request_allowed("linkedReview.upsert"));
         assert!(!mobile_request_allowed("linkedReview.remove"));
+    }
+
+    #[test]
+    fn advertises_and_allows_linked_issues() {
+        assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_LINKED_ISSUES_CAPABILITY));
+        for request in [
+            "linkedIssue.list",
+            "linkedIssue.find",
+            "linkedIssue.link",
+            "linkedIssue.refresh",
+            "linkedIssue.remove",
+            "issue.fetch",
+        ] {
+            assert!(mobile_request_allowed(request), "{request}");
+        }
     }
 
     #[test]

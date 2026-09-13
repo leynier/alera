@@ -5,12 +5,14 @@ use crate::terminal_host::protocol::{
 };
 mod agent_profile;
 mod automation;
+mod issue;
 mod mobile;
 mod text_source;
 mod workspace;
 
 pub use agent_profile::*;
 pub use automation::*;
+pub use issue::*;
 pub use mobile::*;
 pub use text_source::*;
 pub use workspace::*;
@@ -49,6 +51,9 @@ pub enum Command {
     Project(ProjectCommand),
     /// Create, list, tag, relate, and remove runtime-owned workspaces.
     Workspace(WorkspaceCommand),
+
+    /// Read issues from GitHub, GitLab, or Azure DevOps through their CLIs.
+    Issue(IssueCommand),
 
     /// Manage global workspace tags.
     Tag(TagCommand),

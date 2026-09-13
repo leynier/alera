@@ -111,6 +111,9 @@ mod host_service_agent_quota;
 mod host_service_requests;
 mod host_status;
 mod lifecycle;
+mod linked_issue_requests;
+#[cfg(test)]
+mod linked_issue_requests_tests;
 #[cfg(test)]
 mod managed_workspace_cleanup_tests;
 mod managed_workspace_requests;
@@ -533,6 +536,14 @@ impl ServerActor {
                 request_id,
                 result,
             } => self.handle_ai_dictation_finished(client_id, request_id, result),
+            ServerCommand::LinkedIssueRequestFinished {
+                client_id,
+                request_id,
+                result,
+            } => self.handle_linked_issue_request_finished(client_id, request_id, result),
+            ServerCommand::LinkedIssuesChanged { workspace_id } => {
+                self.broadcast_linked_issues_changed(Some(&workspace_id))
+            }
             ServerCommand::MobileWorkspaceFileFinished {
                 client_id,
                 request_id,

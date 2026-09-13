@@ -25,6 +25,7 @@ extension _CreateWorkspaceDialogInteractions on _CreateWorkspaceDialogState {
   void _onNameChanged(String value) {
     _update(() {
       _nameTouched = value.isNotEmpty;
+      _nameFromIssue = false;
     });
   }
 

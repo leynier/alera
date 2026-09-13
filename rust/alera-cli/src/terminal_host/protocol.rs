@@ -28,6 +28,11 @@ pub const RUNTIME_HOST_REMOTE_SSH_WORKSPACES_CAPABILITY: &str = "remoteSshWorksp
 pub const RUNTIME_HOST_MOBILE_CAPABILITY: &str = "mobileCompanionAccess";
 pub const RUNTIME_HOST_MOBILE_NETBIRD_CAPABILITY: &str = "mobileNetBirdGatewayV1";
 pub const RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY: &str = "workspaceSectionsV1";
+/// The host stores one linked issue per workspace (`linkedIssue.*`), fetches
+/// issues through `issue.fetch`, and links one from `workspace.createManaged`
+/// when it carries `issueUrl`. Additive: an older host rejects the verbs and
+/// ignores `issueUrl`, so clients feature-check this capability.
+pub const RUNTIME_HOST_LINKED_ISSUES_CAPABILITY: &str = "linkedIssuesV1";
 // Advertised once mobile clients may call workspace mutations (pin, link,
 // create/remove managed, tab removal). Mobile apps feature-check this instead
 // of the strict-equality mobile protocol version.

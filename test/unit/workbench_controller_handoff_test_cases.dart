@@ -236,6 +236,7 @@ class _HandoffManagedWorkspaceRuntime implements ManagedWorkspaceRuntime {
     required bool reuseExistingBranch,
     String? name,
     String? hostId,
+    String? issueUrl,
   }) {
     throw UnimplementedError();
   }

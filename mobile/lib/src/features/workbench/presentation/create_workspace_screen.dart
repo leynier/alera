@@ -6,6 +6,10 @@ import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
 import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_control.dart';
 import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_review_bar.dart';
+import 'package:alera_mobile/src/features/linked_issues/application/linked_issues_controller.dart';
+import 'package:alera_mobile/src/features/linked_issues/domain/mobile_issue_workspace_identity.dart';
+import 'package:alera_mobile/src/features/linked_issues/domain/mobile_linked_issue.dart';
+import 'package:alera_mobile/src/features/linked_issues/presentation/mobile_issue_url_field.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_selection_order.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
@@ -25,6 +29,7 @@ import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_s
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+part 'create_workspace_linked_issue.dart';
 part 'create_workspace_manual.dart';
 part 'create_workspace_prompt.dart';
 part 'create_workspace_prompt_attachments.dart';
@@ -39,6 +44,8 @@ class const CreateWorkspaceScreen({
   final bool supportsPromptImageUpload = false,
   final bool supportsPromptFileUpload = false,
   final bool supportsWorkspaceFiles = false,
+  final bool supportsLinkedIssues = false,
+  final String? initialIssueUrl,
   final String? retryJobId,
   final String? initialError,
   final bool? initialFromPrompt,
@@ -60,6 +67,12 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
   final TextEditingController _branch = TextEditingController();
   final TextEditingController _name = TextEditingController();
   final TextEditingController _prompt = TextEditingController();
+  late final TextEditingController _issueUrl = TextEditingController(
+    text: widget.initialIssueUrl,
+  );
+  String? _branchFromIssue;
+  String? _nameFromIssue;
+  String? _promptFromIssue;
   bool _fromPrompt = true;
   String? _projectId;
   List<String> _branches = const <String>[];
@@ -213,6 +226,7 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
     _branch.dispose();
     _name.dispose();
     _prompt.dispose();
+    _issueUrl.dispose();
     final jobs = _jobs;
     if (jobs != null) {
       scheduleMicrotask(jobs.endForm);
@@ -315,6 +329,7 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
             reuseExistingBranch: _reuseExistingBranch,
             name: name.isEmpty ? null : name,
             parentWorkspaceId: _parentWorkspaceId,
+            issueUrl: _linkedIssueUrl(),
           ),
           jobId: jobId,
         );
@@ -346,6 +361,7 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
     _applyRetryHydration = false;
     _branch.clear();
     _name.clear();
+    _issueUrl.clear();
     setState(() {
       _parentWorkspaceId = null;
       _reuseExistingBranch = false;

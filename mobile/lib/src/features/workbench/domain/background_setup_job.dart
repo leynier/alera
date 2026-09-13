@@ -12,6 +12,7 @@ class const ManualWorkspaceCreateRequest({
   final bool reuseExistingBranch = false,
   final String? name,
   final String? parentWorkspaceId,
+  final String? issueUrl,
 }) {
   String get displayName {
     final trimmed = name?.trim();
@@ -30,6 +31,7 @@ class const PromptWorkspaceCreateRequest({
   required final String profileId,
   required final Set<String> workspaceBranches,
   final String? parentWorkspaceId,
+  final String? issueUrl,
   final WorkspaceCreationResult? created,
   final String? clientMutationId,
   final bool? originalLaunchWasIdempotent,
@@ -49,6 +51,7 @@ class const PromptWorkspaceCreateRequest({
       profileId: profileId,
       workspaceBranches: workspaceBranches,
       parentWorkspaceId: parentWorkspaceId,
+      issueUrl: issueUrl,
       created: created,
       clientMutationId: clientMutationId ?? this.clientMutationId,
       originalLaunchWasIdempotent:

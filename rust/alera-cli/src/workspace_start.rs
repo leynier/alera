@@ -25,6 +25,20 @@ pub struct InferredWorkspaceCreate {
     pub no_parent: bool,
     pub from_workspace: Option<String>,
     pub host_id: Option<String>,
+    pub issue_url: Option<String>,
+}
+
+/// Rejects a malformed `--issue` before any worktree is created.
+pub(crate) fn validated_issue_url(issue: Option<String>) -> Result<Option<String>> {
+    let Some(url) = issue
+        .map(|url| url.trim().to_string())
+        .filter(|url| !url.is_empty())
+    else {
+        return Ok(None);
+    };
+    crate::issue_tracking::parse_issue_reference(&url)
+        .map_err(|error| anyhow!(error.to_string()))?;
+    Ok(Some(url))
 }
 
 pub async fn run(runtime: RuntimeDirArgs, args: WorkspaceStartArgs, json_output: bool) -> i32 {
@@ -41,7 +55,10 @@ async fn run_inner(
     json_output: bool,
 ) -> Result<bool> {
     let prompt = args.prompt.read()?;
-    let required = if crate::ssh_remote::is_remote_host_id(args.host_id.as_deref()) {
+    let issue_url = validated_issue_url(args.issue)?;
+    let required = if issue_url.is_some() {
+        crate::terminal_host::protocol::RUNTIME_HOST_LINKED_ISSUES_CAPABILITY
+    } else if crate::ssh_remote::is_remote_host_id(args.host_id.as_deref()) {
         crate::terminal_host::protocol::RUNTIME_HOST_REMOTE_SSH_WORKSPACES_CAPABILITY
     } else {
         RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY
@@ -67,6 +84,7 @@ async fn run_inner(
             no_parent: args.no_parent,
             from_workspace: args.workspace,
             host_id: args.host_id,
+            issue_url,
         },
         &prompt,
     )
@@ -193,6 +211,7 @@ pub async fn create_inferred_workspace(
         },
         "parentWorkspaceId": parent_workspace_id,
         "hostId": request.host_id,
+        "issueUrl": request.issue_url,
     });
     client
         .request_value("workspace.createManaged", &payload)
