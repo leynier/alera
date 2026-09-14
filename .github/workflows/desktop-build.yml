@@ -1,13 +1,33 @@
 name: Desktop Builds
+run-name: Desktop validation - ${{ inputs.source_sha || github.sha }}
 
 on:
   workflow_call:
+    inputs:
+      source_sha:
+        description: Expected triggering commit SHA; empty skips the assertion.
+        type: string
+        default: ''
+      full_validation:
+        description: Also run golden tests and Linux desktop E2E.
+        type: boolean
+        default: false
   workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Expected 40-character SHA of the selected workflow ref.
+        type: string
+        default: ''
+      full_validation:
+        description: Also run golden tests and Linux desktop E2E.
+        type: boolean
+        default: false
 
 # A newer commit makes the checks for the previous one irrelevant, and superseded
 # runs otherwise keep saturating the runner pool for the whole repository.
+# Explicit SHA dispatches remain independent from automatic builds and each other.
 concurrency:
-  group: desktop-builds-${{ github.event.pull_request.number || github.ref }}
+  group: desktop-builds-${{ github.event.pull_request.number || github.ref }}-${{ inputs.source_sha }}-${{ inputs.full_validation }}
   cancel-in-progress: true
 
 permissions:
@@ -17,7 +37,55 @@ env:
   ALERA_FLAVOR: release
 
 jobs:
+  revision:
+    name: validation revision
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.revision.outputs.sha }}
+    steps:
+      - name: Require an immutable revision
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
+          TRIGGER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::source_sha must be a full lowercase commit SHA, not a branch or tag."
+            exit 1
+          fi
+          if [ "$SOURCE_SHA" != "$TRIGGER_SHA" ]; then
+            echo "::error::source_sha must match the selected workflow ref. Dispatch from the branch containing that commit."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          submodules: false
+          persist-credentials: false
+
+      - name: Record validation revision
+        id: revision
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$SOURCE_SHA"
+          echo "sha=$actual" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Desktop validation revision"
+            echo "Source commit: $actual"
+            echo "Workflow commit: $WORKFLOW_SHA"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   build:
+    needs: revision
     name: build ${{ matrix.platform }}
     timeout-minutes: 90
     strategy:
@@ -35,7 +103,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
+          ref: ${{ github.sha }}
           submodules: false
+          persist-credentials: false
 
       - name: Setup Flutter workspace
         uses: ./.github/actions/setup-flutter-workspace
@@ -173,3 +243,104 @@ jobs:
             sccache --show-stats || true
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  golden:
+    name: validation golden
+    if: inputs.full_validation
+    needs: revision
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          submodules: false
+          persist-credentials: false
+
+      - name: Setup Flutter workspace
+        uses: ./.github/actions/setup-flutter-workspace
+        with:
+          linux-toolchain: 'false'
+
+      - name: Golden tests
+        run: flutter test test/golden
+
+      - name: Upload golden failures
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: golden-failures-${{ needs.revision.outputs.sha }}
+          path: test/golden/**/failures/**
+          if-no-files-found: ignore
+
+  desktop_e2e_linux:
+    name: validation desktop e2e linux
+    env:
+      # Flutter parses the first CMake binary name, which is the dev executable.
+      ALERA_FLAVOR: dev
+    if: inputs.full_validation
+    needs: revision
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          submodules: false
+          persist-credentials: false
+
+      - name: Setup Flutter workspace
+        uses: ./.github/actions/setup-flutter-workspace
+        with:
+          xvfb: 'true'
+          enable-linux-desktop: 'true'
+          rust: 'true'
+
+      # Separate launches are required by the desktop integration test runner.
+      - name: Desktop E2E
+        env:
+          ALERA_NATIVE_TEST_CLIPBOARD: '1'
+        run: |
+          set -euo pipefail
+          for suite in integration_test/*_test.dart; do
+            echo "::group::${suite}"
+            xvfb-run -a flutter test "${suite}" -d linux -r github
+            echo "::endgroup::"
+          done
+
+      - name: Report sccache statistics
+        if: always()
+        run: |
+          {
+            echo "### sccache desktop E2E"
+            echo '```text'
+            sccache --show-stats || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  validation_ready:
+    name: desktop-validation-ready
+    if: ${{ always() && inputs.full_validation }}
+    needs: [revision, build, golden, desktop_e2e_linux]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require all validation jobs
+        shell: bash
+        env:
+          REVISION_RESULT: ${{ needs.revision.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          GOLDEN_RESULT: ${{ needs.golden.result }}
+          E2E_RESULT: ${{ needs.desktop_e2e_linux.result }}
+          SOURCE_SHA: ${{ needs.revision.outputs.sha }}
+        run: |
+          set -euo pipefail
+          for result in "$REVISION_RESULT" "$BUILD_RESULT" "$GOLDEN_RESULT" "$E2E_RESULT"; do
+            if [ "$result" != success ]; then
+              echo "::error::Desktop validation did not pass: $result"
+              exit 1
+            fi
+          done
+          echo "Full desktop validation passed for $SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"
