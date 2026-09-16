@@ -589,4 +589,53 @@ void _registerAleraShellSidebarStateTests() {
     await tester.pumpAndSettle();
     expect(decorationOf(terminalContainer).color, Colors.transparent);
   });
+
+  testWidgets('the selected workspace uses a stronger sidebar highlight', (
+    tester,
+  ) async {
+    await _pumpShell(
+      tester,
+      state: _linkedWorkbenchState(linkedExpanded: true),
+    );
+
+    BoxDecoration decorationOf(String workspaceId) {
+      final row = find.byKey(
+        ValueKey<String>('workspace-row:regular:$workspaceId'),
+      );
+      final container = find
+          .ancestor(of: row, matching: find.byType(AnimatedContainer))
+          .first;
+      return tester.widget<AnimatedContainer>(container).decoration!
+          as BoxDecoration;
+    }
+
+    Color nameColor(String workspaceId, String name) {
+      return tester
+          .widget<Text>(
+            find.descendant(
+              of: find.byKey(
+                ValueKey<String>('workspace-row:regular:$workspaceId'),
+              ),
+              matching: find.text(name),
+            ),
+          )
+          .style!
+          .color!;
+    }
+
+    final selected = decorationOf('workspace-1');
+    final idle = decorationOf('workspace-2');
+
+    expect(selected.color, AleraTokens.accentSubtle);
+    expect(selected.border?.top.color, AleraTokens.border);
+    expect(nameColor('workspace-1', 'Main'), AleraTokens.foreground);
+
+    expect(idle.color, Colors.transparent);
+    expect(idle.border?.top.color, Colors.transparent);
+    expect(
+      nameColor('workspace-2', 'Feature login'),
+      AleraTokens.foregroundMuted,
+    );
+    expect(selected.color, isNot(idle.color));
+  });
 }
