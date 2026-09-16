@@ -197,8 +197,13 @@ mixin _WorkbenchControllerWorkspacePanel
       return;
     }
     // Inactive tabs are not mounted yet, so the session only exists after
-    // the new surface builds. Retry once that frame has landed.
-    SchedulerBinding.instance.addPostFrameCallback((_) {
+    // the new surface builds. Retry once that frame has landed. Unit tests
+    // have no Flutter binding; skip the deferred focus there.
+    final scheduler = _schedulerBindingOrNull;
+    if (scheduler == null) {
+      return;
+    }
+    scheduler.addPostFrameCallback((_) {
       if (_disposed || state.activeWorkspaceId != workspaceId) {
         return;
       }
@@ -207,6 +212,14 @@ mixin _WorkbenchControllerWorkspacePanel
       }
       runtime.peekSession(id)?.requestFocus();
     });
+  }
+
+  SchedulerBinding? get _schedulerBindingOrNull {
+    try {
+      return SchedulerBinding.instance;
+    } catch (_) {
+      return null;
+    }
   }
 
   void closeWorkspaceTool(String workspaceId, WorkspaceTool tool) {
