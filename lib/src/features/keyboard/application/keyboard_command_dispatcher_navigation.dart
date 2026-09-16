@@ -14,7 +14,7 @@ extension _KeyboardCommandDispatcherNavigation on KeyboardCommandDispatcher {
     }
     final registry = ref.read(workbenchPaneFocusRegistryProvider);
     final controller = ref.read(workbenchControllerProvider.notifier);
-    final keys = _workspacePanelNavigationKeys;
+    final keys = _workspacePanelPaneKeys;
     if (keys.isEmpty) {
       return;
     }

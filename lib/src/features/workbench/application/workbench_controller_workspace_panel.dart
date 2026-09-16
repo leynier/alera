@@ -190,7 +190,23 @@ mixin _WorkbenchControllerWorkspacePanel
     if (id == null) {
       return;
     }
-    ref.read(terminalRuntimeProvider).peekSession(id)?.requestFocus();
+    final runtime = ref.read(terminalRuntimeProvider);
+    final session = runtime.peekSession(id);
+    if (session != null) {
+      session.requestFocus();
+      return;
+    }
+    // Inactive tabs are not mounted yet, so the session only exists after
+    // the new surface builds. Retry once that frame has landed.
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (_disposed || state.activeWorkspaceId != workspaceId) {
+        return;
+      }
+      if (state.workspacePanelFor(workspaceId).focusedKey != key) {
+        return;
+      }
+      runtime.peekSession(id)?.requestFocus();
+    });
   }
 
   void closeWorkspaceTool(String workspaceId, WorkspaceTool tool) {

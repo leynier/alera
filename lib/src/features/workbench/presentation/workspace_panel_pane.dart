@@ -273,24 +273,30 @@ class _WorkspacePanelPaneState extends State<_WorkspacePanelPane> {
     if (widget.tree == WorkspacePanelTree.main) {
       header = ColoredBox(color: AleraTokens.surface, child: header);
     }
-    return _WorkspacePaneDropTarget(
-      workspaceId: widget.workspaceId,
-      groupId: widget.groupId,
-      tabCount: _keys.length,
-      hoverZone: _hoverZone,
-      onHoverZone: (zone) {
-        if (zone != _hoverZone) {
-          setState(() => _hoverZone = zone);
-        }
-      },
-      onMoveTab: widget.onMoveTab,
-      tree: widget.tree,
-      child: Column(
-        crossAxisAlignment: .stretch,
-        children: <Widget>[
-          header,
-          Expanded(child: ClipRect(child: surface)),
-        ],
+    // Keep focus in this column when the active tab unmounts so a sibling
+    // pane does not steal it and reselect its tab.
+    return FocusScope(
+      debugLabel: 'WorkspacePanelPane ${widget.groupId}',
+      skipTraversal: true,
+      child: _WorkspacePaneDropTarget(
+        workspaceId: widget.workspaceId,
+        groupId: widget.groupId,
+        tabCount: _keys.length,
+        hoverZone: _hoverZone,
+        onHoverZone: (zone) {
+          if (zone != _hoverZone) {
+            setState(() => _hoverZone = zone);
+          }
+        },
+        onMoveTab: widget.onMoveTab,
+        tree: widget.tree,
+        child: Column(
+          crossAxisAlignment: .stretch,
+          children: <Widget>[
+            header,
+            Expanded(child: ClipRect(child: surface)),
+          ],
+        ),
       ),
     );
   }

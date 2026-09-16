@@ -223,8 +223,20 @@ class const KeyboardCommandDispatcher({
         return;
       }
     }
-    final tab = state.activeWorkspaceTab;
-    if (workspace == null || tab == null) {
+    if (workspace == null) {
+      return;
+    }
+    final focusedTabId = WorkspacePanel.tabId(
+      state.workspacePanelFor(workspace.id).focusedKey,
+    );
+    final tab = focusedTabId == null
+        ? state.activeWorkspaceTab
+        : state
+                  .tabsFor(workspace.id)
+                  .where((candidate) => candidate.id == focusedTabId)
+                  .firstOrNull ??
+              state.activeWorkspaceTab;
+    if (tab == null) {
       return;
     }
     unawaited(() async {
@@ -252,33 +264,36 @@ class const KeyboardCommandDispatcher({
   }
 
   void _cycleTab(int delta) {
-    final state = ref.read(workbenchControllerProvider);
-    if (state.activeWorkspaceId != null) {
-      final panel = state.workspacePanelFor(state.activeWorkspaceId!);
-      final keys = _workspacePanelNavigationKeys;
-      if (keys.isEmpty) return;
-      final index = keys.indexOf(panel.focusedKey ?? '');
-      final base = index < 0 ? 0 : index;
-      final nextIndex = (base + delta) % keys.length;
-      final wrapped = nextIndex < 0 ? nextIndex + keys.length : nextIndex;
-      _goToTabIndex(wrapped);
+    final keys = _focusedPaneTabKeys;
+    if (keys.length < 2) {
+      return;
     }
+    final currentKey = _focusedPaneKey;
+    final index = keys.indexOf(currentKey ?? '');
+    final base = index < 0 ? 0 : index;
+    _goToTabIndex(_wrapIndex(base + delta, keys.length));
   }
 
   void _goToTabIndex(int index) {
     final state = ref.read(workbenchControllerProvider);
-    if (state.activeWorkspaceId != null) {
-      final keys = _workspacePanelNavigationKeys;
-      if (index >= 0 && index < keys.length) {
-        ref
-            .read(workbenchControllerProvider.notifier)
-            .selectWorkspacePanelKey(state.activeWorkspaceId!, keys[index]);
-      }
+    final workspaceId = state.activeWorkspaceId;
+    if (workspaceId == null) {
+      return;
+    }
+    final keys = _focusedPaneTabKeys;
+    if (index >= 0 && index < keys.length) {
+      ref
+          .read(workbenchControllerProvider.notifier)
+          .selectWorkspacePanelKey(workspaceId, keys[index]);
     }
   }
 
   void _goToLastTab() {
-    _goToTabIndex(_workspacePanelNavigationKeys.length - 1);
+    final keys = _focusedPaneTabKeys;
+    if (keys.isEmpty) {
+      return;
+    }
+    _goToTabIndex(keys.length - 1);
   }
 
   void _split(WorkbenchDropZone zone) {
@@ -341,5 +356,69 @@ class const KeyboardCommandDispatcher({
       for (final key in panel.tabKeys)
         if (!panel.mainKeys.contains(key)) key,
     ];
+  }
+
+  /// Active tab of each visible pane, main column then right sidebar, so
+  /// Focus Next/Previous Pane moves between columns rather than tabs.
+  List<String> get _workspacePanelPaneKeys {
+    final state = ref.read(workbenchControllerProvider);
+    final id = state.activeWorkspaceId;
+    if (id == null) {
+      return const <String>[];
+    }
+    final panel = state.workspacePanelFor(id);
+    final seen = <String>{};
+    final keys = <String>[];
+    void addFrom(WorkbenchLayout layout) {
+      for (final groupId in layout.paneGroupIds) {
+        final key = layout.groups[groupId]?.activeTabId;
+        if (key == null || !seen.add(key)) {
+          continue;
+        }
+        keys.add(key);
+      }
+    }
+
+    addFrom(panel.ensuredMainLayout(id));
+    addFrom(panel.ensuredLayout(id));
+    return keys;
+  }
+
+  String? get _focusedPaneKey {
+    final state = ref.read(workbenchControllerProvider);
+    final workspaceId = state.activeWorkspaceId;
+    if (workspaceId == null) {
+      return null;
+    }
+    final panel = state.workspacePanelFor(workspaceId);
+    return panel.focusedKey ??
+        (state.activeWorkspaceTab == null
+            ? null
+            : WorkspacePanel.tabKey(state.activeWorkspaceTab!.id));
+  }
+
+  List<String> get _focusedPaneTabKeys {
+    final state = ref.read(workbenchControllerProvider);
+    final workspaceId = state.activeWorkspaceId;
+    if (workspaceId == null) {
+      return const <String>[];
+    }
+    final panel = state.workspacePanelFor(workspaceId);
+    final key = _focusedPaneKey;
+    if (key != null) {
+      final main = panel.ensuredMainLayout(workspaceId);
+      final mainGroupId = main.groupIdForTab(key);
+      if (mainGroupId != null) {
+        return main.groups[mainGroupId]?.tabIds ?? const <String>[];
+      }
+      final right = panel.ensuredLayout(workspaceId);
+      final rightGroupId = right.groupIdForTab(key);
+      if (rightGroupId != null) {
+        return right.groups[rightGroupId]?.tabIds ?? const <String>[];
+      }
+    }
+    return panel.ensuredMainLayout(workspaceId).activeGroup?.tabIds ??
+        panel.ensuredLayout(workspaceId).activeGroup?.tabIds ??
+        const <String>[];
   }
 }
