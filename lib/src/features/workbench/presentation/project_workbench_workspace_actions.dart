@@ -125,13 +125,13 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
     if (supportsSections && hasSection)
       const AleraDropdownEntry<String>(
         value: _clearSectionAction,
-        leading: Icon(AleraIcons.folderOff, size: 16),
+        leading: Icon(AleraIcons.sectionOff, size: 16),
         label: 'Clear Section',
       ),
     if (supportsSections && hasDescendants && hasTreeSection)
       const AleraDropdownEntry<String>(
         value: _clearSectionTreeAction,
-        leading: Icon(AleraIcons.folderOff, size: 16),
+        leading: Icon(AleraIcons.sectionOff, size: 16),
         label: 'Clear Section Tree',
       ),
     const PopupMenuDivider(height: AleraTokens.space8),
@@ -189,7 +189,7 @@ PopupMenuEntry<String> _setSectionMenuEntry({
   required List<WorkspaceSection> sections,
   required String? currentSectionId,
 }) {
-  const leading = Icon(AleraIcons.folder, size: 16);
+  const leading = Icon(AleraIcons.section, size: 16);
   if (sections.length < workspaceSectionSubmenuLimit) {
     return AleraDropdownSubmenuEntry<String>(
       leading: leading,

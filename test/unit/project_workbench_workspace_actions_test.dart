@@ -1,3 +1,4 @@
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_submenu_entry.dart';
 import 'package:alera/src/features/workbench/domain/workspace_section.dart';
@@ -68,6 +69,23 @@ void main() {
       expect(unassigned, isNot(contains('Clear Section Tree')));
       expect(unassigned, isNot(contains('Pin Workspace Tree')));
       expect(unassigned, isNot(contains('Unpin Workspace Tree')));
+      final withTree = workspaceContextMenuEntries(
+        fileManagerLabel: 'Files',
+        hasClearParent: false,
+        canRemove: true,
+        isPinned: false,
+        supportsSections: true,
+        hasSection: true,
+        hasDescendants: true,
+        hasTreeSection: true,
+      );
+      expect(_leadingIcon(withTree, 'Set Section'), AleraIcons.section);
+      expect(_leadingIcon(withTree, 'Set Section Tree'), AleraIcons.section);
+      expect(_leadingIcon(withTree, 'Clear Section'), AleraIcons.sectionOff);
+      expect(
+        _leadingIcon(withTree, 'Clear Section Tree'),
+        AleraIcons.sectionOff,
+      );
     },
   );
 
@@ -119,6 +137,7 @@ void main() {
       ),
       contains('Set Section'),
     );
+    expect(_leadingIcon(entries, 'Set Section'), AleraIcons.section);
   });
 
   test('hand off and hand on are first-class workspace actions', () {
@@ -169,4 +188,20 @@ void main() {
       'Remove',
     ]);
   });
+}
+
+IconData? _leadingIcon(List<PopupMenuEntry<String>> entries, String label) {
+  for (final entry in entries) {
+    final leading = switch (entry) {
+      final AleraDropdownEntry<String> item when item.label == label =>
+        item.leading,
+      final AleraDropdownSubmenuEntry<String> item when item.label == label =>
+        item.leading,
+      _ => null,
+    };
+    if (leading is Icon) {
+      return leading.icon;
+    }
+  }
+  return null;
 }

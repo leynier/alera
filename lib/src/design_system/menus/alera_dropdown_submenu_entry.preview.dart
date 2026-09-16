@@ -15,7 +15,7 @@ Widget aleraDropdownSubmenuEntryPreview() => Material(
   child: const Padding(
     padding: EdgeInsets.all(AleraTokens.space8),
     child: AleraDropdownSubmenuEntry<String>(
-      leading: Icon(AleraIcons.folder, size: 16),
+      leading: Icon(AleraIcons.section, size: 16),
       label: 'Set Section',
       items: <PopupMenuEntry<String>>[],
       enabled: false,

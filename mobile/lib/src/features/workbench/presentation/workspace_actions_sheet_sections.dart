@@ -66,13 +66,13 @@ List<Widget> _sectionActionTiles(
   }
   return <Widget>[
     ListTile(
-      leading: const Icon(AleraIcons.folder, size: 20),
+      leading: const Icon(AleraIcons.section, size: 20),
       title: const Text('Set Section'),
       onTap: () => Navigator.pop(context, _WorkspaceAction.setSection),
     ),
     if (hasDescendants)
       ListTile(
-        leading: const Icon(AleraIcons.folder, size: 20),
+        leading: const Icon(AleraIcons.section, size: 20),
         title: const Text('Set Section Tree'),
         onTap: () => Navigator.pop(context, _WorkspaceAction.setSectionTree),
       ),
@@ -144,13 +144,13 @@ List<Widget> _clearSectionTiles(
   return <Widget>[
     if (hasSection)
       ListTile(
-        leading: const Icon(AleraIcons.folderOff, size: 20),
+        leading: const Icon(AleraIcons.sectionOff, size: 20),
         title: const Text('Clear Section'),
         onTap: () => Navigator.pop(context, _WorkspaceAction.clearSection),
       ),
     if (hasDescendants && hasTreeSection)
       ListTile(
-        leading: const Icon(AleraIcons.folderOff, size: 20),
+        leading: const Icon(AleraIcons.sectionOff, size: 20),
         title: const Text('Clear Section Tree'),
         onTap: () => Navigator.pop(context, _WorkspaceAction.clearSectionTree),
       ),
@@ -167,7 +167,7 @@ class const _SectionSubmenuTile({
   @override
   Widget build(BuildContext context) {
     return ExpansionTile(
-      leading: const Icon(AleraIcons.folder, size: 20),
+      leading: const Icon(AleraIcons.section, size: 20),
       title: Text(title),
       children: <Widget>[
         for (final section in sections)
