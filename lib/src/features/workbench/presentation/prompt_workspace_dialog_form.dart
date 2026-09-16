@@ -1,6 +1,14 @@
 part of 'prompt_workspace_dialog.dart';
 
 extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
+  bool get _canSubmit {
+    return !_working &&
+        _created == null &&
+        _orderedProjects.isNotEmpty &&
+        widget.agentProfiles.isNotEmpty &&
+        (_useProjectCheckout || !_loadingBranches);
+  }
+
   Widget _buildPromptMode(ThemeData theme) {
     final created = _created;
     return Flexible(

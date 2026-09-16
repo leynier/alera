@@ -256,14 +256,6 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
     if (!_useProjectCheckout) unawaited(_loadBranches(project));
   }
 
-  bool get _canSubmit {
-    return !_working &&
-        _created == null &&
-        _orderedProjects.isNotEmpty &&
-        widget.agentProfiles.isNotEmpty &&
-        (_useProjectCheckout || !_loadingBranches);
-  }
-
   Future<void> _submit() async {
     if (!_canSubmit) {
       return;
