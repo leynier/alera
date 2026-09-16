@@ -485,7 +485,9 @@ void _registerAleraShellSidebarStateTests() {
     final events = <AleraToastData>[];
     final subscription = AleraToast.stream.listen(events.add);
     addTearDown(subscription.cancel);
-    final state = _linkedWorkbenchState(linkedExpanded: true);
+    final state = _withSidebarAgentRows(
+      _linkedWorkbenchState(linkedExpanded: true),
+    );
 
     final harness = await _pumpShell(
       tester,
@@ -525,7 +527,7 @@ void _registerAleraShellSidebarStateTests() {
     const description = 'Codex · Waiting for input';
     await _pumpShell(
       tester,
-      state: _linkedWorkbenchState(linkedExpanded: true),
+      state: _withSidebarAgentRows(_linkedWorkbenchState(linkedExpanded: true)),
       agentStatuses: <String, AgentStatusEntry>{
         'tab-2': _agentStatusEntry(
           terminalSessionId: 'tab-2',

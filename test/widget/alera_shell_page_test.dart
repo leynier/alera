@@ -26,6 +26,7 @@ import 'package:alera/src/features/workbench/application/workspace_removal_depen
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_section.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
@@ -35,7 +36,7 @@ import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart'
 import 'package:alera/src/features/workbench/presentation/widgets/agent_run_spinner_scope.dart';
 import 'package:alera/src/features/workbench/presentation/project_workbench_sidebar.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/workspace_agent_compact_summary.dart';
-import 'package:alera/src/features/workbench/presentation/workspace_workbench_view.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_panel_view.dart';
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
@@ -159,6 +160,41 @@ void main() {
   _registerAleraShellSidebarIdentityTests();
 }
 
+WorkbenchLayout _panelKeyedLayout(WorkbenchLayout layout) {
+  String keyFor(String id) => id.startsWith('tab:') || id.startsWith('tool:')
+      ? id
+      : WorkspacePanel.tabKey(id);
+  return WorkbenchLayout(
+    workspaceId: layout.workspaceId,
+    root: layout.root,
+    groups: <String, WorkbenchPaneGroup>{
+      for (final entry in layout.groups.entries)
+        entry.key: WorkbenchPaneGroup(
+          id: entry.value.id,
+          tabIds: <String>[for (final id in entry.value.tabIds) keyFor(id)],
+          activeTabId: entry.value.activeTabId == null
+              ? null
+              : keyFor(entry.value.activeTabId!),
+        ),
+    },
+    activeGroupId: layout.activeGroupId,
+  );
+}
+
+WorkbenchViewPrefs _prefsWithPanels(Map<String, WorkbenchLayout> layouts) {
+  return WorkbenchViewPrefs.defaults.copyWith(
+    workspacePanels: <String, WorkspacePanel>{
+      for (final entry in layouts.entries)
+        entry.key: () {
+          final keyed = _panelKeyedLayout(entry.value);
+          final focused =
+              keyed.activeTabId ?? workspacePanelLayoutKeys(keyed).first;
+          return const WorkspacePanel().applyMainLayout(keyed).select(focused);
+        }(),
+    },
+  );
+}
+
 WorkbenchState _stackedWorkbenchState() {
   final now = DateTime.utc(2026, 5, 22);
   final project = Project(
@@ -210,6 +246,12 @@ WorkbenchState _stackedWorkbenchState() {
     activeProjectId: project.id,
     activeWorkspaceId: workspace.id,
     activeTabIdByWorkspace: <String, String>{workspace.id: secondTab.id},
+    viewPrefs: _prefsWithPanels(<String, WorkbenchLayout>{
+      workspace.id: WorkbenchLayout.single(
+        workspaceId: workspace.id,
+        tabIds: <String>[firstTab.id, secondTab.id],
+      ),
+    }),
     bootstrapped: true,
   );
 }
@@ -258,6 +300,12 @@ WorkbenchState _populatedWorkbenchState() {
         tabIds: <String>[tab.id],
       ),
     },
+    viewPrefs: _prefsWithPanels(<String, WorkbenchLayout>{
+      workspace.id: WorkbenchLayout.single(
+        workspaceId: workspace.id,
+        tabIds: <String>[tab.id],
+      ),
+    }),
     bootstrapped: true,
   );
 }
@@ -284,15 +332,17 @@ WorkbenchState _diffTabWorkbenchState() {
     },
   );
   final tabs = <WorkspaceTabRecord>[...base.tabsFor(workspace.id), diffTab];
+  final layout = WorkbenchLayout.single(
+    workspaceId: workspace.id,
+    tabIds: <String>[for (final tab in tabs) tab.id],
+  );
   return base.copyWith(
     tabsByWorkspace: <String, List<WorkspaceTabRecord>>{workspace.id: tabs},
     activeTabIdByWorkspace: <String, String>{workspace.id: diffTab.id},
-    layoutByWorkspace: <String, WorkbenchLayout>{
-      workspace.id: WorkbenchLayout.single(
-        workspaceId: workspace.id,
-        tabIds: <String>[for (final tab in tabs) tab.id],
-      ),
-    },
+    layoutByWorkspace: <String, WorkbenchLayout>{workspace.id: layout},
+    viewPrefs: _prefsWithPanels(<String, WorkbenchLayout>{
+      workspace.id: layout,
+    }),
   );
 }
 
@@ -355,6 +405,9 @@ WorkbenchState _splitWorkbenchState() {
     activeProjectId: project.id,
     activeWorkspaceId: workspace.id,
     activeTabIdByWorkspace: <String, String>{workspace.id: secondTab.id},
+    viewPrefs: _prefsWithPanels(<String, WorkbenchLayout>{
+      workspace.id: layout,
+    }),
     bootstrapped: true,
   );
 }
@@ -438,10 +491,56 @@ WorkbenchState _linkedWorkbenchState({
         tabIds: <String>[linkedTab.id],
       ),
     },
-    viewPrefs: WorkbenchViewPrefs.defaults.copyWith(
-      expandedWorkspaceIds: expandedWorkspaceIds,
-    ),
+    viewPrefs: _prefsWithPanels(<String, WorkbenchLayout>{
+      mainWorkspace.id: WorkbenchLayout.single(
+        workspaceId: mainWorkspace.id,
+        tabIds: <String>[mainTab.id],
+      ),
+      linkedWorkspace.id: WorkbenchLayout.single(
+        workspaceId: linkedWorkspace.id,
+        tabIds: <String>[linkedTab.id],
+      ),
+    }).copyWith(expandedWorkspaceIds: expandedWorkspaceIds),
     bootstrapped: true,
+  );
+}
+
+/// Keeps original tabs in the right pane. Reconcile would otherwise adopt the
+/// first terminal as the hidden primary and hide agent rows / pane chrome.
+WorkbenchState _withSidebarAgentRows(WorkbenchState state) {
+  final nextTabs = <String, List<WorkspaceTabRecord>>{...state.tabsByWorkspace};
+  final nextPanels = <String, WorkspacePanel>{
+    ...state.viewPrefs.workspacePanels,
+  };
+  final now = DateTime.utc(2026, 5, 22);
+  for (final workspaceId in nextTabs.keys) {
+    final tabs = nextTabs[workspaceId]!;
+    if (tabs.isEmpty || tabs.any((tab) => tab.id == '$workspaceId-primary')) {
+      continue;
+    }
+    final dummy = WorkspaceTabRecord(
+      id: '$workspaceId-primary',
+      workspaceId: workspaceId,
+      title: 'Primary terminal',
+      createdAt: now,
+      updatedAt: now,
+    );
+    final all = <WorkspaceTabRecord>[dummy, ...tabs];
+    nextTabs[workspaceId] = all;
+    final existing = nextPanels[workspaceId] ?? const WorkspacePanel();
+    nextPanels[workspaceId] = existing
+        .applyMainLayout(
+          WorkbenchLayout.single(
+            workspaceId: workspaceId,
+            tabIds: <String>[WorkspacePanel.tabKey(dummy.id)],
+            groupId: '$workspaceId/${WorkspacePanel.mainLayoutGroupSuffix}',
+          ),
+        )
+        .reconcile(all, preferredPrimaryId: dummy.id, workspaceId: workspaceId);
+  }
+  return state.copyWith(
+    tabsByWorkspace: nextTabs,
+    viewPrefs: state.viewPrefs.copyWith(workspacePanels: nextPanels),
   );
 }
 

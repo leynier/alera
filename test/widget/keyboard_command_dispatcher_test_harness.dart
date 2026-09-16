@@ -166,6 +166,7 @@ class _DispatcherTestWorkbenchController(
     String workspaceId,
     String key, {
     String? groupId,
+    bool recordSelection = true,
   }) {
     selectedWorkspacePanelKeys.add(key);
     final panel = state
@@ -415,9 +416,11 @@ class _FakeTerminalSessionHandle({
   void requestFocus() {
     requestFocusCalls += 1;
     onFocus();
-    if (focusNode.context != null) {
-      focusNode.requestFocus();
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (focusNode.context != null) {
+        focusNode.requestFocus();
+      }
+    });
   }
 
   @override

@@ -169,9 +169,9 @@ void main() {
     expect(controller.createdTerminalWorkspaceIds, <String>[workspace.id]);
     expect(runtime.everFocusedTabIds, contains(newTab.id));
     expect(controller.selectedWorkspacePanelKeys, <String>[
-      'tab:${firstTab.id}',
-      'tab:${newTab.id}',
       'tab:${secondTab.id}',
+      'tab:${newTab.id}',
+      'tab:${thirdTab.id}',
       'tab:${newTab.id}',
     ]);
     expect(runtime.closedTabIds, <String>[newTab.id]);
@@ -220,18 +220,28 @@ void main() {
     expect(controller.closedTabIds, isEmpty);
   });
 
-  testWidgets('previousTab wraps from the first workspace panel key', (
+  testWidgets('previousTab wraps from the first tab in the focused pane', (
     tester,
   ) async {
     final workspace = _workspace();
     final firstTab = _tab(id: 'tab-1');
     final secondTab = _tab(id: 'tab-2');
     final thirdTab = _tab(id: 'tab-3');
-    final panel = const WorkspacePanel(
-      primaryTabId: 'tab-1',
-      tabKeys: ['tab:tab-2', 'tab:tab-3'],
-      focusedKey: 'tab:tab-1',
-    );
+    final layout =
+        WorkbenchLayout.single(
+          workspaceId: workspace.id,
+          tabIds: <String>[
+            WorkspacePanel.tabKey(firstTab.id),
+            WorkspacePanel.tabKey(secondTab.id),
+            WorkspacePanel.tabKey(thirdTab.id),
+          ],
+        ).setActiveTab(
+          groupId: WorkbenchLayout.defaultGroupId(workspace.id),
+          tabId: WorkspacePanel.tabKey(firstTab.id),
+        );
+    final panel = const WorkspacePanel()
+        .applyMainLayout(layout)
+        .select(WorkspacePanel.tabKey(firstTab.id));
     final controller = _DispatcherTestWorkbenchController(
       WorkbenchState(
         workspacesByProject: <String, List<Workspace>>{
