@@ -8,7 +8,7 @@ mixin _WorkbenchControllerTabOpening
     on
         _$WorkbenchController,
         _WorkbenchControllerInternals,
-        _WorkbenchControllerExperimentalLayout {
+        _WorkbenchControllerWorkspacePanel {
   Future<WorkspaceTabRecord> createTerminalTab(
     Workspace workspace, {
     String? targetGroupId,
@@ -19,8 +19,7 @@ mixin _WorkbenchControllerTabOpening
     bool autoCloseOnSuccess = false,
   }) async {
     try {
-      final previousTabs = state.tabsFor(workspace.id);
-      final layout = _layoutForMutation(workspace.id, previousTabs);
+      final sleepGeneration = _workspaceSleepGeneration[workspace.id] ?? 0;
       final tab = await _workspaceTabService.createTerminalTab(
         workspace.id,
         title: title,
@@ -29,26 +28,25 @@ mixin _WorkbenchControllerTabOpening
         initialCommandOnce: initialCommandOnce,
         autoCloseOnSuccess: autoCloseOnSuccess,
       );
-      final tabs = <WorkspaceTabRecord>[...previousTabs, tab];
-      _setTabsForWorkspace(workspace.id, tabs);
-      if (state.isExperimentalLayout) {
-        addTerminalToExperimentalPane(
-          workspaceId: workspace.id,
-          tab: tab,
-          tabs: tabs,
-          previousTabs: previousTabs,
-          targetGroupId: targetGroupId,
-        );
-      } else {
-        final groupId = targetGroupId ?? layout.activeGroupId;
-        final nextLayout = layout.addTabToGroup(
-          groupId: groupId,
-          tabId: tab.id,
-        );
-        await _applyLayout(nextLayout.sanitize(tabs), persist: true);
+      if (_isStaleWorkspaceOpen(workspace.id, sleepGeneration) ||
+          _isClosedTabId(tab.id)) {
+        await _discardStalePrimaryTerminal(workspace, tab);
+        throw StateError('Workspace is no longer available for a new terminal');
       }
-      if (state.isExperimentalLayout &&
-          state.activeWorkspaceId == workspace.id) {
+      final live = state
+          .tabsFor(workspace.id)
+          .where((existing) => existing.id != tab.id)
+          .toList(growable: false);
+      final tabs = <WorkspaceTabRecord>[...live, tab];
+      _setTabsForWorkspace(workspace.id, tabs);
+      addTerminalToWorkspacePanel(
+        workspaceId: workspace.id,
+        tab: tab,
+        tabs: tabs,
+        previousTabs: live,
+        targetGroupId: targetGroupId,
+      );
+      if (state.activeWorkspaceId == workspace.id) {
         ref
             .read(terminalRuntimeProvider)
             .sessionFor(workspace: workspace, tab: tab)
@@ -97,28 +95,47 @@ mixin _WorkbenchControllerTabOpening
     String? targetGroupId,
   }) async {
     try {
-      final previousTabs = state.tabsFor(workspace.id);
-      final layout = _layoutForMutation(workspace.id, previousTabs);
+      final sleepGeneration = _workspaceSleepGeneration[workspace.id] ?? 0;
+      final previousIds = <String>{
+        for (final candidate in state.tabsFor(workspace.id)) candidate.id,
+      };
       final tab = await _workspaceTabService.openOrCreateMermanPreviewTab(
         workspaceId: workspace.id,
         relativePath: relativePath,
       );
-      final alreadyOpen = previousTabs.any(
-        (candidate) => candidate.id == tab.id,
-      );
-      final tabs = alreadyOpen
-          ? previousTabs
-          : <WorkspaceTabRecord>[...previousTabs, tab];
+      final existedBeforeRequest = previousIds.contains(tab.id);
+      if (_isStaleWorkspaceOpen(workspace.id, sleepGeneration) ||
+          _isClosedTabId(tab.id)) {
+        await _discardStaleOpenedTab(
+          tab,
+          existedBeforeRequest: existedBeforeRequest && !_isClosedTabId(tab.id),
+        );
+        throw StateError('Workspace is no longer available for a preview tab');
+      }
+      final live = state.tabsFor(workspace.id);
+      final tabs =
+          existedBeforeRequest ||
+              live.any((candidate) => candidate.id == tab.id)
+          ? live
+                .map((candidate) => candidate.id == tab.id ? tab : candidate)
+                .toList(growable: false)
+          : <WorkspaceTabRecord>[...live, tab];
       _setTabsForWorkspace(workspace.id, tabs);
-      final groupId = targetGroupId ?? layout.activeGroupId;
-      final nextLayout = alreadyOpen
-          ? layout.setActiveTab(
-              groupId: layout.groupIdForTab(tab.id) ?? groupId,
-              tabId: tab.id,
-            )
-          : layout.addTabToGroup(groupId: groupId, tabId: tab.id);
-      await _applyLayout(nextLayout.sanitize(tabs), persist: true);
-      state = state.copyWith(error: null);
+      _selectOpenedWorkspaceTab(
+        workspaceId: workspace.id,
+        tab: tab,
+        existedBeforeRequest: existedBeforeRequest,
+        targetGroupId: targetGroupId,
+      );
+      final persisted = _layoutForMutation(workspace.id, tabs);
+      state = state.copyWith(
+        layoutByWorkspace: <String, WorkbenchLayout>{
+          ...state.layoutByWorkspace,
+          workspace.id: persisted,
+        },
+        error: null,
+      );
+      _persistLayoutInBackground(persisted);
       return tab;
     } catch (error) {
       state = state.copyWith(error: error.toString());

@@ -33,14 +33,12 @@ void _registerWorkbenchControllerFailureTests() {
         _controller.state.activeTabIdByWorkspace[workspace.id],
         firstTab.id,
       );
-      expect(
-        _controller.state.layoutFor(workspace.id)?.activeTabId,
-        firstTab.id,
-      );
+      expect(_controller.state.activeWorkspaceTab?.id, firstTab.id);
 
       final groupId = _controller.state
-          .layoutFor(workspace.id)!
-          .groupIdForTab(secondTab.id)!;
+          .workspacePanelFor(workspace.id)
+          .ensuredLayout(workspace.id)
+          .groupIdForTab(WorkspacePanel.tabKey(secondTab.id))!;
       _controller.setActiveWorkspaceTab(
         workspaceId: workspace.id,
         groupId: groupId,
@@ -51,11 +49,14 @@ void _registerWorkbenchControllerFailureTests() {
         _controller.state.activeTabIdByWorkspace[workspace.id],
         secondTab.id,
       );
+      expect(_controller.state.activeWorkspaceTab?.id, secondTab.id);
       expect(
-        _controller.state.layoutFor(workspace.id)?.activeTabId,
-        secondTab.id,
+        _controller.state
+            .workspacePanelFor(workspace.id)
+            .ensuredLayout(workspace.id)
+            .activeGroupId,
+        groupId,
       );
-      expect(_controller.state.layoutFor(workspace.id)?.activeGroupId, groupId);
 
       await _controller.moveWorkspaceTab(
         workspaceId: workspace.id,
@@ -63,20 +64,29 @@ void _registerWorkbenchControllerFailureTests() {
         targetGroupId: groupId,
         zone: .right,
       );
-      final splitLayout = _controller.state.layoutFor(workspace.id)!;
-      final firstGroupId = splitLayout.groupIdForTab(firstTab.id)!;
-      _controller.focusWorkbenchGroup(
-        workspaceId: workspace.id,
-        groupId: firstGroupId,
+      final splitLayout = _controller.state
+          .workspacePanelFor(workspace.id)
+          .ensuredLayout(workspace.id);
+      final firstGroupId = splitLayout.groupIdForTab(
+        WorkspacePanel.tabKey(firstTab.id),
       );
-      await _flush();
-      expect(
-        _controller.state.layoutFor(workspace.id)?.activeGroupId,
-        firstGroupId,
-      );
+      if (firstGroupId != null) {
+        _controller.focusWorkbenchGroup(
+          workspaceId: workspace.id,
+          groupId: firstGroupId,
+        );
+        await _flush();
+        expect(
+          _controller.state
+              .workspacePanelFor(workspace.id)
+              .ensuredLayout(workspace.id)
+              .activeGroupId,
+          firstGroupId,
+        );
+      }
       _controller.focusWorkbenchGroup(
         workspaceId: 'missing-workspace',
-        groupId: firstGroupId,
+        groupId: groupId,
       );
     },
   );

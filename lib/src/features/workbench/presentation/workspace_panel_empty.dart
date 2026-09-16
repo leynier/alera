@@ -1,12 +1,12 @@
-part of 'experimental_workspace_panel_view.dart';
+part of 'workspace_panel_view.dart';
 
-class const _ExperimentalPanelEmpty({
+class const _WorkspacePanelEmpty({
   required final ValueChanged<String> onSelect,
   required final VoidCallback onNewTerminal,
   required final VoidCallback onHide,
   required final Widget content,
   final String workspaceId =
-      ExperimentalWorkspacePanel.fallbackLayoutWorkspaceId,
+      WorkspacePanel.fallbackLayoutWorkspaceId,
   final List<AgentProfile> newTabMenuProfiles = const <AgentProfile>[],
   final void Function({required String profileId, String? targetGroupId})?
   onLaunchAgentProfile,
@@ -87,8 +87,8 @@ class const _ExperimentalPanelEmpty({
                           ),
                           const SizedBox(height: AleraTokens.space16),
                           for (final tool
-                              in ExperimentalWorkspaceTool.values) ...<Widget>[
-                            _ExperimentalPanelEmptyChoice(
+                              in WorkspaceTool.values) ...<Widget>[
+                            _WorkspacePanelEmptyChoice(
                               icon: _iconForTool(tool),
                               label: tool.label,
                               description: _descriptionForTool(tool),
@@ -96,7 +96,7 @@ class const _ExperimentalPanelEmpty({
                             ),
                             const SizedBox(height: AleraTokens.space8),
                           ],
-                          _ExperimentalPanelEmptyChoice(
+                          _WorkspacePanelEmptyChoice(
                             icon: AleraIcons.terminal,
                             label: 'Terminal',
                             description: 'Start a new terminal tab.',
@@ -104,7 +104,7 @@ class const _ExperimentalPanelEmpty({
                           ),
                           if (onLaunchAgentProfile != null) ...<Widget>[
                             const SizedBox(height: AleraTokens.space8),
-                            _ExperimentalPanelEmptyChoice(
+                            _WorkspacePanelEmptyChoice(
                               icon: AleraIcons.agent,
                               label: 'Agents',
                               description:
@@ -126,17 +126,17 @@ class const _ExperimentalPanelEmpty({
   }
 }
 
-String _descriptionForTool(ExperimentalWorkspaceTool tool) {
+String _descriptionForTool(WorkspaceTool tool) {
   return switch (tool) {
-    ExperimentalWorkspaceTool.explorer => 'Browse files in this workspace.',
-    ExperimentalWorkspaceTool.search => 'Find text across the workspace.',
-    ExperimentalWorkspaceTool.sourceControl =>
+    WorkspaceTool.explorer => 'Browse files in this workspace.',
+    WorkspaceTool.search => 'Find text across the workspace.',
+    WorkspaceTool.sourceControl =>
       'Review git changes and commits.',
-    ExperimentalWorkspaceTool.pullRequest => 'Open and review pull requests.',
+    WorkspaceTool.pullRequest => 'Open and review pull requests.',
   };
 }
 
-class const _ExperimentalPanelEmptyChoice({
+class const _WorkspacePanelEmptyChoice({
   required final IconData icon,
   required final String label,
   required final String description,

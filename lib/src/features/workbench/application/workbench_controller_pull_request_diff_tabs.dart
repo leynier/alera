@@ -13,10 +13,13 @@ mixin _WorkbenchControllerPullRequestDiffTabs
     String? targetGroupId,
   }) async {
     var retainedByTab = false;
-    WorkspaceTabRecord? newTab;
+    WorkspaceTabRecord? createdTab;
+    var existedBeforeRequest = false;
+    final sleepGeneration = _workspaceSleepGeneration[workspace.id] ?? 0;
     try {
-      final previousTabs = state.tabsFor(workspace.id);
-      final layout = _layoutForMutation(workspace.id, previousTabs);
+      final previousIds = <String>{
+        for (final candidate in state.tabsFor(workspace.id)) candidate.id,
+      };
       final tab = await _workspaceTabService.openOrCreateGitPullRequestDiffTab(
         workspaceId: workspace.id,
         gitDiffRoot: gitDiffRoot,
@@ -26,12 +29,8 @@ mixin _WorkbenchControllerPullRequestDiffTabs
         retentionId: retentionId,
         subject: subject,
       );
-      final alreadyOpen = previousTabs.any(
-        (candidate) => candidate.id == tab.id,
-      );
-      if (!alreadyOpen) {
-        newTab = tab;
-      }
+      createdTab = tab;
+      existedBeforeRequest = previousIds.contains(tab.id);
       if (tab.gitDiffHostedReviewRetentionId == retentionId) {
         await _persistHostedReviewRetention(
           workspace: workspace,
@@ -46,25 +45,38 @@ mixin _WorkbenchControllerPullRequestDiffTabs
           retentionId: retentionId,
         );
       }
-      final tabs = alreadyOpen
-          ? previousTabs
-          : <WorkspaceTabRecord>[...previousTabs, tab];
+      if (_isStaleWorkspaceOpen(workspace.id, sleepGeneration) ||
+          _closedTabIds.contains(tab.id)) {
+        throw StateError('Workspace is no longer available for a review tab');
+      }
+      final live = state.tabsFor(workspace.id);
+      final tabs =
+          existedBeforeRequest ||
+              live.any((candidate) => candidate.id == tab.id)
+          ? live
+                .map((candidate) => candidate.id == tab.id ? tab : candidate)
+                .toList(growable: false)
+          : <WorkspaceTabRecord>[...live, tab];
       _setTabsForWorkspace(workspace.id, tabs);
-      final groupId = targetGroupId ?? layout.activeGroupId;
-      final nextLayout = alreadyOpen
-          ? layout.setActiveTab(
-              groupId: layout.groupIdForTab(tab.id) ?? groupId,
-              tabId: tab.id,
-            )
-          : layout.addTabToGroup(groupId: groupId, tabId: tab.id);
-      await _applyLayout(nextLayout.sanitize(tabs), persist: true);
+      _selectOpenedWorkspaceTab(
+        workspaceId: workspace.id,
+        tab: tab,
+        existedBeforeRequest: existedBeforeRequest,
+        targetGroupId: targetGroupId,
+      );
+      final persisted = _layoutForMutation(workspace.id, tabs);
+      await _applyLayout(persisted, persist: true);
       state = state.copyWith(error: null);
       return tab;
     } catch (error) {
-      if (!retainedByTab) {
-        if (newTab case final tab?) {
-          await _workspaceTabService.closeTab(tab.id);
-        }
+      final canceled =
+          _isStaleWorkspaceOpen(workspace.id, sleepGeneration) ||
+          (createdTab != null && _closedTabIds.contains(createdTab.id));
+      if (createdTab case final tab?
+          when !existedBeforeRequest && (canceled || !retainedByTab)) {
+        await _discardStaleOpenedTab(tab);
+      }
+      if (!retainedByTab || (canceled && !existedBeforeRequest)) {
         await _releaseHostedReviewRetention(
           workspace: workspace,
           relativeRoot: gitDiffRoot,

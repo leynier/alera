@@ -45,14 +45,14 @@ import 'package:path/path.dart' as p;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
-import '../domain/experimental_workspace_panel.dart';
+import '../domain/workspace_panel.dart';
 import '../domain/workspace_relocation_recovery.dart';
 import '../infra/workspace_relocation_recovery_client.dart';
 
 part 'workbench_controller.g.dart';
 part 'workbench_controller_internals.dart';
 part 'workbench_controller_workspace_reconciliation.dart';
-part 'workbench_controller_experimental_layout.dart';
+part 'workbench_controller_workspace_panel.dart';
 part 'workbench_controller_projects.dart';
 part 'workbench_controller_project_branches.dart';
 part 'workbench_controller_workspace_sleep.dart';
@@ -73,7 +73,7 @@ class WorkbenchController extends _$WorkbenchController
     with
         _WorkbenchControllerInternals,
         _WorkbenchControllerWorkspaceReconciliation,
-        _WorkbenchControllerExperimentalLayout,
+        _WorkbenchControllerWorkspacePanel,
         _WorkbenchControllerTabOpening,
         _WorkbenchControllerFileTabs,
         _WorkbenchControllerPullRequestDiffTabs,
@@ -119,9 +119,7 @@ class WorkbenchController extends _$WorkbenchController
         try {
           final prefs = await repo.load();
           state = state.copyWith(viewPrefs: prefs);
-          _viewPrefsSub = repo.changes.listen((prefs) {
-            if (!_disposed) state = state.copyWith(viewPrefs: prefs);
-          });
+          _viewPrefsSub = repo.changes.listen(_applySharedViewPrefs);
         } catch (_) {
           // Fall back to defaults if loading fails; never block bootstrap.
         }
@@ -140,6 +138,7 @@ class WorkbenchController extends _$WorkbenchController
       _onProjectsChanged(initialProjects);
       await Future.wait<void>(initialProjects.map(_reconcileProjectWorkspaces));
       state = state.copyWith(bootstrapped: true, error: null);
+      _pruneStaleWorkspacePrefs();
     } catch (error) {
       state = state.copyWith(
         bootstrapped: true,

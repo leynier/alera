@@ -78,13 +78,20 @@ void _registerWorkbenchControllerLayoutPersistenceTests() {
       'layout connection closed',
     );
 
-    _controller.updateWorkbenchSplitRatio(
-      workspaceId: workspace.id,
-      nodePath: const <int>[],
-      ratio: 0.6,
-    );
+    await _controller.createTerminalTab(workspace);
     await _flushUntil(() => _controller.state.error != null);
 
     expect(_controller.state.error, contains('layout connection closed'));
+  });
+
+  test('view-pref save failures are recorded on state', () async {
+    await _controller.bootstrap();
+    await _selectMainWorkspace(_controller, _harness);
+    _harness.viewPrefsRepository.saveError = StateError('prefs write failed');
+
+    _controller.setRightSidebarWidth(360);
+    await _flushUntil(() => _controller.state.error != null);
+
+    expect(_controller.state.error, contains('prefs write failed'));
   });
 }

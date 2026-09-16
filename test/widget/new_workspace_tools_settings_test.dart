@@ -1,15 +1,15 @@
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/design_system/forms/alera_checkbox.dart';
-import 'package:alera/src/features/settings/presentation/panes/experimental_new_workspace_tools_settings.dart';
-import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
+import 'package:alera/src/features/settings/presentation/panes/new_workspace_tools_settings.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets('toggles and reorders new workspace tools', (tester) async {
-    var selected = <ExperimentalWorkspaceTool>[
-      ExperimentalWorkspaceTool.explorer,
-      ExperimentalWorkspaceTool.search,
+    var selected = <WorkspaceTool>[
+      WorkspaceTool.explorer,
+      WorkspaceTool.search,
     ];
     await tester.pumpWidget(
       MaterialApp(
@@ -17,7 +17,7 @@ void main() {
         home: Scaffold(
           body: StatefulBuilder(
             builder: (context, setState) {
-              return ExperimentalNewWorkspaceToolsSettings(
+              return NewWorkspaceToolsSettings(
                 selected: selected,
                 onChanged: (next) => setState(() => selected = next),
               );
@@ -30,7 +30,7 @@ void main() {
     expect(find.text('New Workspace Tools'), findsOneWidget);
     expect(
       find.text(
-        'Open these tools in the right panel of workspaces created while Experimental Mode is on. Drag to change their order. Existing workspaces keep their own panel.',
+        'Open these tools in the right panel of new workspaces. Drag to change their order. Existing workspaces keep their own panel.',
       ),
       findsOneWidget,
     );
@@ -48,26 +48,20 @@ void main() {
     await tester.tap(find.text('Source Control'));
     await tester.pump();
     expect(selected, [
-      ExperimentalWorkspaceTool.explorer,
-      ExperimentalWorkspaceTool.search,
-      ExperimentalWorkspaceTool.sourceControl,
+      WorkspaceTool.explorer,
+      WorkspaceTool.search,
+      WorkspaceTool.sourceControl,
     ]);
 
     await tester.tap(find.text('Explorer'));
     await tester.pump();
-    expect(selected, [
-      ExperimentalWorkspaceTool.search,
-      ExperimentalWorkspaceTool.sourceControl,
-    ]);
+    expect(selected, [WorkspaceTool.search, WorkspaceTool.sourceControl]);
 
     final list = tester.widget<ReorderableListView>(
       find.byType(ReorderableListView),
     );
     list.onReorderItem!(1, 2);
     await tester.pump();
-    expect(selected, [
-      ExperimentalWorkspaceTool.sourceControl,
-      ExperimentalWorkspaceTool.search,
-    ]);
+    expect(selected, [WorkspaceTool.sourceControl, WorkspaceTool.search]);
   });
 }

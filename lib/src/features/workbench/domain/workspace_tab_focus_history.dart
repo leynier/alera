@@ -24,17 +24,33 @@ class WorkspaceTabFocusHistory({this.limit = 50}) {
 
   /// The most recently focused tab that is still open, or null when none of
   /// the remembered tabs survived.
+  ///
+  /// Does not mutate history. Call [pruneClosed] after a successful close so a
+  /// failed close cannot drop a tab that is still open.
   String? mostRecentOpen(String workspaceId, Set<String> openTabIds) {
     final history = _byWorkspace[workspaceId];
     if (history == null) {
       return null;
     }
+    for (final tabId in history) {
+      if (openTabIds.contains(tabId)) {
+        return tabId;
+      }
+    }
+    return null;
+  }
+
+  /// Drops remembered tabs that are no longer open. An emptied workspace is
+  /// removed from the map.
+  void pruneClosed(String workspaceId, Set<String> openTabIds) {
+    final history = _byWorkspace[workspaceId];
+    if (history == null) {
+      return;
+    }
     history.removeWhere((tabId) => !openTabIds.contains(tabId));
     if (history.isEmpty) {
       _byWorkspace.remove(workspaceId);
-      return null;
     }
-    return history.first;
   }
 
   /// Drops a workspace's history. Called when the workspace or its project

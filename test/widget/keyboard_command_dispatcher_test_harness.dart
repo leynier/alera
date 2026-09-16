@@ -46,8 +46,9 @@ class _DispatcherTestWorkbenchController(
   final List<String> createdTerminalWorkspaceIds = <String>[];
 
   final List<String> closedTabIds = <String>[];
+  final List<WorkspaceTool> closedTools = <WorkspaceTool>[];
   final List<String> selectedTabIds = <String>[];
-  final List<String> selectedExperimentalKeys = <String>[];
+  final List<String> selectedWorkspacePanelKeys = <String>[];
   final List<({String workspaceId, String groupId, WorkbenchDropZone zone})>
   splitRequests =
       <({String workspaceId, String groupId, WorkbenchDropZone zone})>[];
@@ -98,10 +99,20 @@ class _DispatcherTestWorkbenchController(
     final tab = createdTab ?? _tab(id: 'tab-new');
     final currentTabs = state.tabsFor(workspace.id);
     final layout = state.layoutFor(workspace.id);
+    final tabs = <WorkspaceTabRecord>[...currentTabs, tab];
+    final panel = state
+        .copyWith(
+          tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
+            ...state.tabsByWorkspace,
+            workspace.id: tabs,
+          },
+        )
+        .workspacePanelFor(workspace.id)
+        .select(WorkspacePanel.tabKey(tab.id), groupId: targetGroupId);
     state = state.copyWith(
       tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
         ...state.tabsByWorkspace,
-        workspace.id: <WorkspaceTabRecord>[...currentTabs, tab],
+        workspace.id: tabs,
       },
       layoutByWorkspace: <String, WorkbenchLayout>{
         ...state.layoutByWorkspace,
@@ -115,6 +126,12 @@ class _DispatcherTestWorkbenchController(
         ...state.activeTabIdByWorkspace,
         workspace.id: tab.id,
       },
+      viewPrefs: state.viewPrefs.copyWith(
+        workspacePanels: <String, WorkspacePanel>{
+          ...state.viewPrefs.workspacePanels,
+          workspace.id: panel,
+        },
+      ),
     );
     return tab;
   }
@@ -132,12 +149,36 @@ class _DispatcherTestWorkbenchController(
   }
 
   @override
-  void selectExperimentalPanelKey(
+  void closeWorkspaceTool(String workspaceId, WorkspaceTool tool) {
+    closedTools.add(tool);
+    state = state.copyWith(
+      viewPrefs: state.viewPrefs.copyWith(
+        workspacePanels: <String, WorkspacePanel>{
+          ...state.viewPrefs.workspacePanels,
+          workspaceId: state.workspacePanelFor(workspaceId).closeTool(tool),
+        },
+      ),
+    );
+  }
+
+  @override
+  void selectWorkspacePanelKey(
     String workspaceId,
     String key, {
     String? groupId,
   }) {
-    selectedExperimentalKeys.add(key);
+    selectedWorkspacePanelKeys.add(key);
+    final panel = state
+        .workspacePanelFor(workspaceId)
+        .select(key, groupId: groupId);
+    state = state.copyWith(
+      viewPrefs: state.viewPrefs.copyWith(
+        workspacePanels: <String, WorkspacePanel>{
+          ...state.viewPrefs.workspacePanels,
+          workspaceId: panel,
+        },
+      ),
+    );
   }
 
   @override

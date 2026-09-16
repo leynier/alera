@@ -4,7 +4,7 @@ mixin _WorkbenchControllerTabs
     on
         _$WorkbenchController,
         _WorkbenchControllerInternals,
-        _WorkbenchControllerExperimentalLayout {
+        _WorkbenchControllerWorkspacePanel {
   Future<void> closeWorkspaceTab({
     required Workspace workspace,
     required String tabId,
@@ -20,19 +20,33 @@ mixin _WorkbenchControllerTabs
     if (ids.isEmpty) {
       return;
     }
-    // Capture before closing: the tab watcher can sanitise the layout (and
-    // replace the active tab) synchronously while the close is in flight.
-    final priorActiveTabId = state.layoutFor(workspace.id)?.activeTabId;
-    final closedActiveTab =
-        priorActiveTabId != null && ids.contains(priorActiveTabId);
+    final focusedKeyBeforeClose = state
+        .workspacePanelFor(workspace.id)
+        .focusedKey;
+    final focusedTabId = WorkspacePanel.tabId(focusedKeyBeforeClose);
+    final closedFocusedTab = focusedTabId != null && ids.contains(focusedTabId);
+    final selectionRevisionBeforeClose =
+        _panelSelectionRevisionByWorkspace[workspace.id] ?? 0;
+    final sleepGeneration = _workspaceSleepGeneration[workspace.id] ?? 0;
     final closingTabs = <String, WorkspaceTabRecord>{
       for (final tab in state.tabsFor(workspace.id))
         if (ids.contains(tab.id)) tab.id: tab,
     };
     try {
       _closingTabWorkspaceIds.add(workspace.id);
+      final closedIds = <String>{};
+      Object? closeError;
+      StackTrace? closeStack;
       for (final tabId in ids) {
-        await _workspaceTabService.closeTab(tabId);
+        try {
+          await _workspaceTabService.closeTab(tabId);
+        } catch (error, stackTrace) {
+          closeError = error;
+          closeStack = stackTrace;
+          break;
+        }
+        closedIds.add(tabId);
+        _closedTabIds.add(tabId);
         final closedTab = closingTabs[tabId];
         if (closedTab != null) {
           await _releaseHostedReviewTab(workspace, closedTab);
@@ -44,52 +58,100 @@ mixin _WorkbenchControllerTabs
         ref.read(terminalRuntimeProvider).closeTab(tabId);
         ref.read(editorSessionRegistryProvider).forget(tabId);
       }
-      final remaining = state
-          .tabsFor(workspace.id)
-          .where((tab) => !ids.contains(tab.id))
-          .toList(growable: false);
-      if (remaining.isNotEmpty) {
-        _setTabsForWorkspace(workspace.id, remaining);
-        var layout = _layoutForMutation(workspace.id, remaining);
-        for (final tabId in ids) {
-          layout = layout.removeTab(tabId);
+      if (_isStaleWorkspaceOpen(workspace.id, sleepGeneration)) {
+        _pruneExplorerSessions();
+        if (closeError != null) {
+          state = state.copyWith(error: closeError.toString());
+          Error.throwWithStackTrace(closeError, closeStack ?? StackTrace.current);
         }
-        layout = layout.sanitize(remaining);
-        if (closedActiveTab) {
-          layout = refocusMostRecentlyUsedTab(
-            layout: layout,
-            history: _tabFocusHistory,
-            workspaceId: workspace.id,
-            remaining: remaining,
-          );
-        }
-        await _applyLayout(layout, persist: true);
-      } else {
-        _tabFocusHistory.forget(workspace.id);
-        _setTabsForWorkspace(workspace.id, const <WorkspaceTabRecord>[]);
-        final layout = WorkbenchLayout.single(
-          workspaceId: workspace.id,
-          tabIds: const <String>[],
-        );
-        await _applyLayout(layout, persist: true);
+        return;
       }
-      state = state.copyWith(
-        activeWorkspaceId:
-            remaining.isEmpty && state.activeWorkspaceId == workspace.id
-            ? null
-            : state.activeWorkspaceId,
-        error: null,
-      );
+      if (closedIds.isNotEmpty) {
+        await _finalizeClosedWorkspaceTabs(
+          workspace: workspace,
+          closedIds: closedIds,
+          closedFocusedTab: closedFocusedTab && closedIds.contains(focusedTabId),
+          selectionRevisionBeforeClose: selectionRevisionBeforeClose,
+        );
+      }
+      if (closeError != null) {
+        state = state.copyWith(error: closeError.toString());
+        Error.throwWithStackTrace(closeError, closeStack ?? StackTrace.current);
+      }
     } catch (error) {
       state = state.copyWith(error: error.toString());
       rethrow;
     } finally {
       _closingTabWorkspaceIds.remove(workspace.id);
-      if (state.isExperimentalLayout &&
-          state.activeWorkspaceId == workspace.id) {
+      if (state.activeWorkspaceId == workspace.id &&
+          !_isStaleWorkspaceOpen(workspace.id, sleepGeneration)) {
+        _maybeEnsurePrimaryTerminal(workspace);
         _ensureSelectionHasTab();
       }
     }
+  }
+
+  Future<void> _finalizeClosedWorkspaceTabs({
+    required Workspace workspace,
+    required Set<String> closedIds,
+    required bool closedFocusedTab,
+    required int selectionRevisionBeforeClose,
+  }) async {
+    final remaining = state
+        .tabsFor(workspace.id)
+        .where((tab) => !closedIds.contains(tab.id))
+        .toList(growable: false);
+    if (remaining.isNotEmpty) {
+      _setTabsForWorkspace(workspace.id, remaining);
+      var panel = state.workspacePanelFor(workspace.id);
+      for (final tabId in closedIds) {
+        panel = panel.closeKey(WorkspacePanel.tabKey(tabId));
+      }
+      final remainingIds = <String>{for (final tab in remaining) tab.id};
+      final selectionChangedDuringClose =
+          (_panelSelectionRevisionByWorkspace[workspace.id] ?? 0) >
+          selectionRevisionBeforeClose;
+      final liveRecentId = closedFocusedTab && !selectionChangedDuringClose
+          ? _tabFocusHistory.mostRecentOpen(workspace.id, remainingIds)
+          : null;
+      if (liveRecentId != null) {
+        panel = panel.select(WorkspacePanel.tabKey(liveRecentId));
+      }
+      _saveWorkspacePanel(
+        workspace.id,
+        panel,
+        reveal:
+            state.activeWorkspaceId == workspace.id &&
+            panel.focusedKey != null &&
+            panel.treeForKey(panel.focusedKey!) == WorkspacePanelTree.right,
+      );
+      if (closedFocusedTab &&
+          !selectionChangedDuringClose &&
+          state.activeWorkspaceId == workspace.id) {
+        _focusPanelTerminal(workspace.id, panel.focusedKey);
+      }
+      _tabFocusHistory.pruneClosed(workspace.id, remainingIds);
+      final layout = _layoutForMutation(workspace.id, remaining);
+      await _applyLayout(layout, persist: true);
+      return;
+    }
+    _tabFocusHistory.forget(workspace.id);
+    _panelSelectionRevisionByWorkspace.remove(workspace.id);
+    _setTabsForWorkspace(workspace.id, const <WorkspaceTabRecord>[]);
+    final layout = WorkbenchLayout.single(
+      workspaceId: workspace.id,
+      tabIds: const <String>[],
+    );
+    await _applyLayout(layout, persist: true);
+    final activeTabs = Map<String, String>.from(state.activeTabIdByWorkspace)
+      ..remove(workspace.id);
+    state = state.copyWith(
+      activeWorkspaceId: state.activeWorkspaceId == workspace.id
+          ? null
+          : state.activeWorkspaceId,
+      activeTabIdByWorkspace: activeTabs,
+    );
+    _pruneExplorerSessions();
   }
 
   Future<void> renameWorkspaceTab({
@@ -198,16 +260,21 @@ mixin _WorkbenchControllerTabs
     required String workspaceId,
     required String groupId,
   }) {
-    final layout = state.layoutFor(workspaceId);
-    if (layout == null || layout.activeGroupId == groupId) {
+    final panel = state.workspacePanelFor(workspaceId);
+    if (panel.treeForGroup(groupId) == null) {
       return;
     }
-    final tabId = layout.groups[groupId]?.activeTabId;
-    if (tabId == null) {
+    final layout = panel.treeForGroup(groupId) == WorkspacePanelTree.main
+        ? panel.ensuredMainLayout(workspaceId)
+        : panel.ensuredLayout(workspaceId);
+    if (layout.activeGroupId == groupId) {
       return;
     }
-    final nextLayout = layout.setActiveTab(groupId: groupId, tabId: tabId);
-    _applyLayoutInBackground(nextLayout, persist: false);
+    final key = layout.groups[groupId]?.activeTabId;
+    if (key == null) {
+      return;
+    }
+    selectWorkspacePanelKey(workspaceId, key, groupId: groupId);
   }
 
   Future<void> moveWorkspaceTab({
@@ -217,102 +284,36 @@ mixin _WorkbenchControllerTabs
     required WorkbenchDropZone zone,
     int? index,
   }) async {
-    if (state.isExperimentalLayout) {
-      final panel = state.experimentalPanelFor(workspaceId);
-      final key = _experimentalPaneKey(tabId);
-      await moveExperimentalPaneTab(
-        workspaceId: workspaceId,
-        tabId: tabId,
-        targetGroupId: targetGroupId,
-        zone: zone,
-        index: index,
-        source: panel.treeForKey(key) ?? ExperimentalPanelTree.right,
-        target:
-            panel.treeForGroup(targetGroupId) ?? ExperimentalPanelTree.right,
-      );
-      return;
-    }
-    try {
-      final tabs = state.tabsFor(workspaceId);
-      final layout = _layoutForMutation(workspaceId, tabs);
-      final nextLayout = layout
-          .moveTab(
-            tabId: tabId,
-            targetGroupId: targetGroupId,
-            zone: zone,
-            newGroupId: _newPaneGroupId(),
-            index: index,
-          )
-          .sanitize(tabs);
-      await _applyLayout(nextLayout, persist: true);
-      state = state.copyWith(error: null);
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
-      rethrow;
-    }
+    final panel = state.workspacePanelFor(workspaceId);
+    final key = _workspacePaneKey(tabId);
+    await moveWorkspacePaneTab(
+      workspaceId: workspaceId,
+      tabId: tabId,
+      targetGroupId: targetGroupId,
+      zone: zone,
+      index: index,
+      source: panel.treeForKey(key) ?? WorkspacePanelTree.right,
+      target: panel.treeForGroup(targetGroupId) ?? WorkspacePanelTree.right,
+    );
   }
 
   Future<WorkspaceTabRecord> splitWorkbenchGroupWithTerminal({
     required Workspace workspace,
     required String groupId,
     required WorkbenchDropZone zone,
-  }) async {
-    if (state.isExperimentalLayout) {
-      return splitExperimentalPaneWithTerminal(
-        workspace: workspace,
-        groupId: groupId,
-        zone: zone,
-      );
-    }
-    try {
-      final previousTabs = state.tabsFor(workspace.id);
-      final layout = _layoutForMutation(workspace.id, previousTabs);
-      final tab = await _workspaceTabService.createTerminalTab(workspace.id);
-      final tabs = <WorkspaceTabRecord>[...previousTabs, tab];
-      _setTabsForWorkspace(workspace.id, tabs);
-      final nextLayout = layout
-          .splitWithGroup(
-            targetGroupId: groupId,
-            zone: zone,
-            newGroup: WorkbenchPaneGroup(
-              id: _newPaneGroupId(),
-              tabIds: <String>[tab.id],
-              activeTabId: tab.id,
-            ),
-          )
-          .sanitize(tabs);
-      await _applyLayout(nextLayout, persist: true);
-      state = state.copyWith(error: null);
-      return tab;
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
-      rethrow;
-    }
+  }) {
+    return splitWorkspacePaneWithTerminal(
+      workspace: workspace,
+      groupId: groupId,
+      zone: zone,
+    );
   }
 
   Future<void> mergeWorkbenchGroupIntoSibling({
     required String workspaceId,
     required String groupId,
   }) async {
-    if (state.isExperimentalLayout) {
-      mergeExperimentalPaneIntoSibling(
-        workspaceId: workspaceId,
-        groupId: groupId,
-      );
-      return;
-    }
-    try {
-      final tabs = state.tabsFor(workspaceId);
-      final layout = _layoutForMutation(
-        workspaceId,
-        tabs,
-      ).mergeGroupIntoSibling(groupId).sanitize(tabs);
-      await _applyLayout(layout, persist: true);
-      state = state.copyWith(error: null);
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
-      rethrow;
-    }
+    mergeWorkspacePaneIntoSibling(workspaceId: workspaceId, groupId: groupId);
   }
 
   void updateWorkbenchSplitRatio({
@@ -320,19 +321,14 @@ mixin _WorkbenchControllerTabs
     required List<int> nodePath,
     required double ratio,
   }) {
-    if (state.isExperimentalLayout) {
-      updateExperimentalPaneSplitRatio(
-        workspaceId: workspaceId,
-        nodePath: nodePath,
-        ratio: ratio,
-      );
-      return;
-    }
-    final tabs = state.tabsFor(workspaceId);
-    final layout = _layoutForMutation(
-      workspaceId,
-      tabs,
-    ).updateSplitRatio(nodePath, ratio).sanitize(tabs);
-    _applyLayoutInBackground(layout, persist: true);
+    final panel = state.workspacePanelFor(workspaceId);
+    final tree =
+        panel.treeForKey(panel.focusedKey ?? '') ?? WorkspacePanelTree.right;
+    updateWorkspacePaneSplitRatio(
+      workspaceId: workspaceId,
+      nodePath: nodePath,
+      ratio: ratio,
+      tree: tree,
+    );
   }
 }

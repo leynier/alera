@@ -2,16 +2,13 @@ import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 
-part 'experimental_workspace_panel.mapper.dart';
+part 'workspace_panel.mapper.dart';
 
-@MappableEnum()
-enum DesktopWorkspaceLayout { classic, experimental }
-
-enum ExperimentalPanelTree { main, right }
+enum WorkspacePanelTree { main, right }
 
 /// Tool keys belong to desktop preferences, never to runtime tab records.
 @MappableEnum()
-enum ExperimentalWorkspaceTool {
+enum WorkspaceTool {
   explorer,
   search,
   sourceControl,
@@ -25,62 +22,58 @@ enum ExperimentalWorkspaceTool {
     pullRequest => 'Pull Request',
   };
 
-  static ExperimentalWorkspaceTool? forKey(String? key) =>
+  static WorkspaceTool? forKey(String? key) =>
       values.where((tool) => tool.key == key).firstOrNull;
 
-  static List<ExperimentalWorkspaceTool> uniqueInOrder(
-    Iterable<ExperimentalWorkspaceTool> tools,
-  ) {
-    final seen = <ExperimentalWorkspaceTool>{};
-    return <ExperimentalWorkspaceTool>[
+  static List<WorkspaceTool> uniqueInOrder(Iterable<WorkspaceTool> tools) {
+    final seen = <WorkspaceTool>{};
+    return <WorkspaceTool>[
       for (final tool in tools)
         if (seen.add(tool)) tool,
     ];
   }
 
-  static List<ExperimentalWorkspaceTool> settingsOrder(
-    Iterable<ExperimentalWorkspaceTool> selected,
-  ) {
+  static List<WorkspaceTool> settingsOrder(Iterable<WorkspaceTool> selected) {
     final enabled = uniqueInOrder(selected);
-    return <ExperimentalWorkspaceTool>[
+    return <WorkspaceTool>[
       ...enabled,
       for (final tool in values)
         if (!enabled.contains(tool)) tool,
     ];
   }
 
-  static List<ExperimentalWorkspaceTool> selectedFromOrder({
-    required Iterable<ExperimentalWorkspaceTool> order,
-    required Iterable<ExperimentalWorkspaceTool> selected,
+  static List<WorkspaceTool> selectedFromOrder({
+    required Iterable<WorkspaceTool> order,
+    required Iterable<WorkspaceTool> selected,
   }) {
     final enabled = selected.toSet();
-    return <ExperimentalWorkspaceTool>[
+    return <WorkspaceTool>[
       for (final tool in uniqueInOrder(order))
         if (enabled.contains(tool)) tool,
     ];
   }
 }
 
-bool isExperimentalPrimaryCandidate(WorkspaceTabRecord tab) =>
+bool isPrimaryTerminalCandidate(WorkspaceTabRecord tab) =>
     tab.kind == WorkspaceTabKind.terminal &&
     !tab.autoCloseOnSuccess &&
     !tab.initialCommandOnce &&
     tab.title != 'Setup';
 
-List<String> experimentalLayoutKeys(WorkbenchLayout layout) => <String>[
+List<String> workspacePanelLayoutKeys(WorkbenchLayout layout) => <String>[
   for (final groupId in layout.paneGroupIds)
     ...layout.groups[groupId]?.tabIds ?? const <String>[],
 ];
 
 @MappableClass()
-class const ExperimentalWorkspacePanel({
+class const WorkspacePanel({
   this.primaryTabId,
   this.tabKeys = const <String>[],
   this.activeKey,
   this.focusedKey,
   this.paneLayout,
   this.mainLayout,
-}) with ExperimentalWorkspacePanelMappable {
+}) with WorkspacePanelMappable {
   final String? primaryTabId;
   final List<String> tabKeys;
   final String? activeKey;
@@ -92,16 +85,12 @@ class const ExperimentalWorkspacePanel({
   static String? tabId(String? key) =>
       key != null && key.startsWith('tab:') ? key.substring(4) : null;
 
-  static ExperimentalWorkspacePanel fromNewWorkspaceTools(
-    Iterable<ExperimentalWorkspaceTool> tools,
-  ) {
-    return const ExperimentalWorkspacePanel().openToolsInOrder(tools);
+  static WorkspacePanel fromNewWorkspaceTools(Iterable<WorkspaceTool> tools) {
+    return const WorkspacePanel().openToolsInOrder(tools);
   }
 
-  ExperimentalWorkspacePanel openToolsInOrder(
-    Iterable<ExperimentalWorkspaceTool> tools,
-  ) {
-    final unique = ExperimentalWorkspaceTool.uniqueInOrder(tools);
+  WorkspacePanel openToolsInOrder(Iterable<WorkspaceTool> tools) {
+    final unique = WorkspaceTool.uniqueInOrder(tools);
     if (unique.isEmpty) {
       return this;
     }
@@ -112,12 +101,12 @@ class const ExperimentalWorkspacePanel({
     return panel.select(unique.first.key);
   }
 
-  static const String fallbackLayoutWorkspaceId = 'experimental-panel';
-  static const String mainLayoutGroupSuffix = 'experimental-main';
+  static const String fallbackLayoutWorkspaceId = 'workspace-panel';
+  static const String mainLayoutGroupSuffix = 'workspace-main';
 
   List<String> get mainKeys => mainLayout == null
       ? const <String>[]
-      : experimentalLayoutKeys(mainLayout!);
+      : workspacePanelLayoutKeys(mainLayout!);
 
   bool get showsMainChrome => mainKeys.length > 1;
 
@@ -179,41 +168,40 @@ class const ExperimentalWorkspacePanel({
     );
   }
 
-  ExperimentalWorkspacePanel applyPaneLayout(WorkbenchLayout layout) {
-    final keys = experimentalLayoutKeys(layout);
+  WorkspacePanel applyPaneLayout(WorkbenchLayout layout) {
+    final keys = workspacePanelLayoutKeys(layout);
     final active = keys.contains(layout.activeTabId)
         ? layout.activeTabId
         : keys.firstOrNull;
     return copyWith(paneLayout: layout, tabKeys: keys, activeKey: active);
   }
 
-  ExperimentalWorkspacePanel applyMainLayout(WorkbenchLayout layout) {
-    final keys = experimentalLayoutKeys(layout);
+  WorkspacePanel applyMainLayout(WorkbenchLayout layout) {
+    final keys = workspacePanelLayoutKeys(layout);
     final primary = keys.length == 1 ? tabId(keys.single) : null;
     return copyWith(mainLayout: layout, primaryTabId: primary);
   }
 
-  ExperimentalWorkspacePanel reconcile(
+  WorkspacePanel reconcile(
     List<WorkspaceTabRecord> tabs, {
     String? preferredPrimaryId,
     String? workspaceId,
   }) {
-    final candidates = tabs.where(isExperimentalPrimaryCandidate).toList();
+    final candidates = tabs.where(isPrimaryTerminalCandidate).toList();
     final preferred =
         candidates.where((tab) => tab.id == primaryTabId).firstOrNull ??
         candidates.where((tab) => tab.id == preferredPrimaryId).firstOrNull ??
         candidates.firstOrNull;
     final validTabKeys = <String>{for (final tab in tabs) tabKey(tab.id)};
     var main = ensuredMainLayout(workspaceId ?? mainLayout?.workspaceId);
-    var mainKeySet = experimentalLayoutKeys(main)
+    var mainKeySet = workspacePanelLayoutKeys(main)
         .where(
           (key) =>
-              ExperimentalWorkspaceTool.forKey(key) != null ||
-              validTabKeys.contains(key),
+              WorkspaceTool.forKey(key) != null || validTabKeys.contains(key),
         )
         .toSet();
-    main = main.sanitizeIds(mainKeySet, orphanGroupId: main.activeGroupId);
-    mainKeySet = experimentalLayoutKeys(main).toSet();
+    main = main.sanitizeIds(mainKeySet);
+    mainKeySet = workspacePanelLayoutKeys(main).toSet();
     if (mainKeySet.isEmpty && preferred != null) {
       main = _singleMainLayout(workspaceId ?? main.workspaceId, <String>[
         tabKey(preferred.id),
@@ -227,8 +215,7 @@ class const ExperimentalWorkspacePanel({
     final rightKeys = <String>{
       for (final key in tabKeys)
         if (!mainKeySet.contains(key) &&
-            (ExperimentalWorkspaceTool.forKey(key) != null ||
-                availableRight.contains(key)))
+            (WorkspaceTool.forKey(key) != null || availableRight.contains(key)))
           key,
       ...availableRight,
     };
@@ -237,7 +224,7 @@ class const ExperimentalWorkspacePanel({
       rightKeys,
       orphanGroupId: currentRight.activeGroupId,
     );
-    final rightList = experimentalLayoutKeys(right);
+    final rightList = workspacePanelLayoutKeys(right);
     final rightActive = rightList.contains(right.activeTabId)
         ? right.activeTabId
         : rightList.firstOrNull;
@@ -266,27 +253,27 @@ class const ExperimentalWorkspacePanel({
     return next;
   }
 
-  ExperimentalPanelTree? treeForKey(String key) {
+  WorkspacePanelTree? treeForKey(String key) {
     if (ensuredMainLayout().groupIdForTab(key) != null) {
-      return ExperimentalPanelTree.main;
+      return WorkspacePanelTree.main;
     }
     if (ensuredLayout().groupIdForTab(key) != null) {
-      return ExperimentalPanelTree.right;
+      return WorkspacePanelTree.right;
     }
     return null;
   }
 
-  ExperimentalPanelTree? treeForGroup(String groupId) {
+  WorkspacePanelTree? treeForGroup(String groupId) {
     if (ensuredMainLayout().groups.containsKey(groupId)) {
-      return ExperimentalPanelTree.main;
+      return WorkspacePanelTree.main;
     }
     if (ensuredLayout().groups.containsKey(groupId)) {
-      return ExperimentalPanelTree.right;
+      return WorkspacePanelTree.right;
     }
     return null;
   }
 
-  ExperimentalWorkspacePanel select(String key, {String? groupId}) {
+  WorkspacePanel select(String key, {String? groupId}) {
     if (key == tabKey(primaryTabId ?? '')) {
       return copyWith(focusedKey: key);
     }
@@ -316,17 +303,19 @@ class const ExperimentalWorkspacePanel({
     ).copyWith(focusedKey: key);
   }
 
-  ExperimentalWorkspacePanel closeTool(ExperimentalWorkspaceTool tool) {
+  WorkspacePanel closeTool(WorkspaceTool tool) {
     return closeKey(tool.key);
   }
 
-  ExperimentalWorkspacePanel closeKey(String key) {
+  WorkspacePanel closeKey(String key) {
     final main = mainLayout ?? ensuredMainLayout();
     if (main.groupIdForTab(key) != null) {
       final next = applyMainLayout(main.removeTab(key));
       return next.copyWith(
         focusedKey: focusedKey == key
-            ? (next.mainKeys.firstOrNull ?? next.activeKey)
+            ? (next.ensuredMainLayout().activeTabId ??
+                  next.mainKeys.firstOrNull ??
+                  next.activeKey)
             : focusedKey,
       );
     }
@@ -336,16 +325,18 @@ class const ExperimentalWorkspacePanel({
     }
     final next = applyPaneLayout(layout.removeTab(key));
     final active = next.activeKey;
+    final mainFallback =
+        next.ensuredMainLayout().activeTabId ?? next.mainKeys.firstOrNull;
     return next.copyWith(
       focusedKey: focusedKey == key
-          ? active ?? (primaryTabId == null ? null : tabKey(primaryTabId!))
+          ? active ?? mainFallback
           : focusedKey,
     );
   }
 
-  ExperimentalWorkspacePanel moveKey({
+  WorkspacePanel moveKey({
     required String key,
-    required ExperimentalPanelTree target,
+    required WorkspacePanelTree target,
     required String targetGroupId,
     required WorkbenchDropZone zone,
     required String newGroupId,
@@ -359,9 +350,7 @@ class const ExperimentalWorkspacePanel({
     } else {
       sourceRight = sourceRight.removeTab(key);
     }
-    final dest = target == ExperimentalPanelTree.main
-        ? sourceMain
-        : sourceRight;
+    final dest = target == WorkspacePanelTree.main ? sourceMain : sourceRight;
     final resolvedTarget = dest.groups.containsKey(targetGroupId)
         ? targetGroupId
         : dest.activeGroupId;
@@ -373,7 +362,7 @@ class const ExperimentalWorkspacePanel({
       newGroupId: newGroupId,
       index: index,
     );
-    final next = target == ExperimentalPanelTree.main
+    final next = target == WorkspacePanelTree.main
         ? applyMainLayout(placed).applyPaneLayout(sourceRight)
         : applyMainLayout(sourceMain).applyPaneLayout(placed);
     return next.copyWith(focusedKey: key);

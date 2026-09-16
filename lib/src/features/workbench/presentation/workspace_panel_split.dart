@@ -1,6 +1,6 @@
-part of 'experimental_workspace_panel_view.dart';
+part of 'workspace_panel_view.dart';
 
-class const _ExperimentalPanelSplitLayout({
+class const _WorkspacePanelSplitLayout({
   required final WorkbenchSplitAxis axis,
   required final double persistedRatio,
   required final Widget first,
@@ -8,18 +8,18 @@ class const _ExperimentalPanelSplitLayout({
   required final ValueChanged<double> onPersistRatio,
 }) extends StatefulWidget {
   @override
-  State<_ExperimentalPanelSplitLayout> createState() =>
-      _ExperimentalPanelSplitLayoutState();
+  State<_WorkspacePanelSplitLayout> createState() =>
+      _WorkspacePanelSplitLayoutState();
 }
 
-class _ExperimentalPanelSplitLayoutState
-    extends State<_ExperimentalPanelSplitLayout> {
+class _WorkspacePanelSplitLayoutState
+    extends State<_WorkspacePanelSplitLayout> {
   double? _transientRatio;
 
   double get _ratio => _transientRatio ?? widget.persistedRatio;
 
   @override
-  void didUpdateWidget(covariant _ExperimentalPanelSplitLayout oldWidget) {
+  void didUpdateWidget(covariant _WorkspacePanelSplitLayout oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (_transientRatio != null &&
         (widget.persistedRatio - _transientRatio!).abs() < 0.0001) {
@@ -49,7 +49,7 @@ class _ExperimentalPanelSplitLayoutState
               height: horizontal ? null : firstExtent,
               child: ClipRect(child: widget.first),
             ),
-            _ExperimentalPanelResizeHandle(
+            _WorkspacePanelResizeHandle(
               axis: widget.axis,
               onRatioDelta: (delta) {
                 if (contentExtent <= 0) {
@@ -84,18 +84,18 @@ class _ExperimentalPanelSplitLayoutState
   }
 }
 
-class const _ExperimentalPanelResizeHandle({
+class const _WorkspacePanelResizeHandle({
   required final WorkbenchSplitAxis axis,
   required final ValueChanged<double> onRatioDelta,
   final VoidCallback? onDragEnd,
 }) extends StatefulWidget {
   @override
-  State<_ExperimentalPanelResizeHandle> createState() =>
-      _ExperimentalPanelResizeHandleState();
+  State<_WorkspacePanelResizeHandle> createState() =>
+      _WorkspacePanelResizeHandleState();
 }
 
-class _ExperimentalPanelResizeHandleState
-    extends State<_ExperimentalPanelResizeHandle> {
+class _WorkspacePanelResizeHandleState
+    extends State<_WorkspacePanelResizeHandle> {
   bool _hovered = false;
   bool _dragging = false;
 

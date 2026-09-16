@@ -1,24 +1,24 @@
 part of 'alera_shell_page.dart';
 
-extension _ExperimentalPanelTabs on _AleraShellPageBodyState {
-  Widget _buildExperimentalPanelView({
+extension _WorkspacePanelTabs on _AleraShellPageBodyState {
+  Widget _buildWorkspacePanelView({
     required Workspace workspace,
     required Project? project,
-    required ExperimentalWorkspacePanel panel,
+    required WorkspacePanel panel,
     required WorkspaceSourceControlScope? sourceControlScope,
     required List<WorkspaceTabRecord> tabs,
     required bool bootstrapped,
     required bool hasProjects,
     required WorkbenchLayout? layout,
     required Widget Function(WorkbenchContextPanelTab tab) toolFor,
-    ExperimentalPanelTree tree = ExperimentalPanelTree.right,
+    WorkspacePanelTree tree = WorkspacePanelTree.right,
     bool showHide = true,
   }) {
     final controller = ref.read(workbenchControllerProvider.notifier);
     final newTabMenuProfiles =
         ref.watch(agentProfilesProvider).asData?.value ??
         const <AgentProfile>[];
-    return ExperimentalWorkspacePanelView(
+    return WorkspacePanelView(
       workspaceId: workspace.id,
       panel: panel,
       tabs: tabs,
@@ -38,7 +38,7 @@ extension _ExperimentalPanelTabs on _AleraShellPageBodyState {
           ),
         );
       },
-      tabBuilder: (tab, active, groupId) => _buildExperimentalPanelTab(
+      tabBuilder: (tab, active, groupId) => _buildWorkspacePanelTab(
         workspace: workspace,
         panel: panel,
         tabs: tabs,
@@ -47,18 +47,17 @@ extension _ExperimentalPanelTabs on _AleraShellPageBodyState {
         tree: tree,
         groupId: groupId,
       ),
-      onSelect: (key) =>
-          controller.selectExperimentalPanelKey(workspace.id, key),
-      onSelectInGroup: (groupId, key) => controller.selectExperimentalPanelKey(
+      onSelect: (key) => controller.selectWorkspacePanelKey(workspace.id, key),
+      onSelectInGroup: (groupId, key) => controller.selectWorkspacePanelKey(
         workspace.id,
         key,
         groupId: groupId,
       ),
       onClose: (key) async {
-        final tool = ExperimentalWorkspaceTool.forKey(key);
+        final tool = WorkspaceTool.forKey(key);
         if (tool != null) {
-          controller.closeExperimentalTool(workspace.id, tool);
-        } else if (ExperimentalWorkspacePanel.tabId(key) case final String id) {
+          controller.closeWorkspaceTool(workspace.id, tool);
+        } else if (WorkspacePanel.tabId(key) case final String id) {
           if (await _confirmCloseDirtyTabs(tabs, <String>[id])) {
             await controller.closeWorkspaceTab(workspace: workspace, tabId: id);
           }
@@ -96,7 +95,7 @@ extension _ExperimentalPanelTabs on _AleraShellPageBodyState {
             index,
           }) {
             unawaited(
-              controller.moveExperimentalPaneTab(
+              controller.moveWorkspacePaneTab(
                 workspaceId: workspace.id,
                 tabId: key,
                 targetGroupId: targetGroupId,
@@ -108,7 +107,7 @@ extension _ExperimentalPanelTabs on _AleraShellPageBodyState {
             );
           },
       onUpdateSplitRatio: (path, ratio) {
-        controller.updateExperimentalPaneSplitRatio(
+        controller.updateWorkspacePaneSplitRatio(
           workspaceId: workspace.id,
           nodePath: path,
           ratio: ratio,
@@ -119,20 +118,20 @@ extension _ExperimentalPanelTabs on _AleraShellPageBodyState {
       showHide: showHide,
       onHide: controller.toggleRightSidebarVisible,
       surfaceBuilder: (key) {
-        final tool = ExperimentalWorkspaceTool.forKey(key);
+        final tool = WorkspaceTool.forKey(key);
         if (tool != null) {
           // A scope, like the workbench panes: focus released inside this
           // tool must not land on a sibling surface and reselect its key.
           return WorkbenchRegisteredFocusScope(
             registryKey: key,
             registry: ref.read(workbenchPaneFocusRegistryProvider),
-            debugLabel: 'ExperimentalTool $key',
+            debugLabel: 'WorkspaceTool $key',
             onFocusChange: (focused) {
               if (focused) {
-                controller.selectExperimentalPanelKey(workspace.id, key);
+                controller.selectWorkspacePanelKey(workspace.id, key);
               }
             },
-            child: _experimentalToolSurface(tool, toolFor),
+            child: _workspaceToolSurface(tool, toolFor),
           );
         }
         return _buildContent(
@@ -144,17 +143,17 @@ extension _ExperimentalPanelTabs on _AleraShellPageBodyState {
           tabs: tabs,
           layout: layout,
           singleSurface: true,
-          singleTabId: ExperimentalWorkspacePanel.tabId(key),
+          singleTabId: WorkspacePanel.tabId(key),
         );
       },
       content: const SizedBox.shrink(),
     );
   }
 
-  Widget _buildExperimentalCenter({
+  Widget _buildWorkspaceCenter({
     required Workspace workspace,
     required Project? project,
-    required ExperimentalWorkspacePanel panel,
+    required WorkspacePanel panel,
     required WorkspaceSourceControlScope? sourceControlScope,
     required List<WorkspaceTabRecord> tabs,
     required bool bootstrapped,
@@ -164,7 +163,7 @@ extension _ExperimentalPanelTabs on _AleraShellPageBodyState {
   }) {
     final controller = ref.read(workbenchControllerProvider.notifier);
     if (panel.showsMainChrome) {
-      return _buildExperimentalPanelView(
+      return _buildWorkspacePanelView(
         workspace: workspace,
         project: project,
         panel: panel,
@@ -174,15 +173,23 @@ extension _ExperimentalPanelTabs on _AleraShellPageBodyState {
         hasProjects: hasProjects,
         layout: layout,
         toolFor: toolFor,
-        tree: ExperimentalPanelTree.main,
+        tree: WorkspacePanelTree.main,
         showHide: false,
       );
     }
     final main = panel.ensuredMainLayout(workspace.id);
     final key = panel.mainKeys.firstOrNull;
-    final tool = ExperimentalWorkspaceTool.forKey(key);
+    final tool = WorkspaceTool.forKey(key);
     final surface = tool != null
-        ? _experimentalToolSurface(tool, toolFor)
+        ? Focus(
+            canRequestFocus: false,
+            onFocusChange: (focused) {
+              if (focused && key != null) {
+                controller.selectWorkspacePanelKey(workspace.id, key);
+              }
+            },
+            child: _workspaceToolSurface(tool, toolFor),
+          )
         : _buildContent(
             bootstrapped: bootstrapped,
             hasProjects: hasProjects,
@@ -192,10 +199,9 @@ extension _ExperimentalPanelTabs on _AleraShellPageBodyState {
             tabs: tabs,
             layout: layout,
             singleSurface: true,
-            singleTabId:
-                ExperimentalWorkspacePanel.tabId(key) ?? panel.primaryTabId,
+            singleTabId: WorkspacePanel.tabId(key) ?? panel.primaryTabId,
           );
-    return ExperimentalMainDropSurface(
+    return WorkspaceMainDropSurface(
       workspaceId: workspace.id,
       groupId: main.activeGroupId,
       onMoveTab:
@@ -207,14 +213,14 @@ extension _ExperimentalPanelTabs on _AleraShellPageBodyState {
             index,
           }) {
             unawaited(
-              controller.moveExperimentalPaneTab(
+              controller.moveWorkspacePaneTab(
                 workspaceId: workspace.id,
                 tabId: key,
                 targetGroupId: targetGroupId,
                 zone: zone,
                 index: index,
                 source: source,
-                target: ExperimentalPanelTree.main,
+                target: WorkspacePanelTree.main,
               ),
             );
           },
@@ -222,25 +228,25 @@ extension _ExperimentalPanelTabs on _AleraShellPageBodyState {
     );
   }
 
-  Widget _buildExperimentalPanelTab({
+  Widget _buildWorkspacePanelTab({
     required Workspace workspace,
-    required ExperimentalWorkspacePanel panel,
+    required WorkspacePanel panel,
     required List<WorkspaceTabRecord> tabs,
     required WorkspaceTabRecord tab,
     required bool active,
     required String groupId,
-    ExperimentalPanelTree tree = ExperimentalPanelTree.right,
+    WorkspacePanelTree tree = WorkspacePanelTree.right,
   }) {
     final controller = ref.read(workbenchControllerProvider.notifier);
     final tabsById = <String, WorkspaceTabRecord>{
       for (final record in tabs) record.id: record,
     };
-    final keys = tree == ExperimentalPanelTree.main
+    final keys = tree == WorkspacePanelTree.main
         ? panel.mainKeys
         : panel.tabKeys;
     final panelTabs = <WorkspaceTabRecord>[
       for (final key in keys)
-        if (tabsById[ExperimentalWorkspacePanel.tabId(key)]
+        if (tabsById[WorkspacePanel.tabId(key)]
             case final WorkspaceTabRecord record)
           record,
     ];
@@ -251,16 +257,16 @@ extension _ExperimentalPanelTabs on _AleraShellPageBodyState {
             (statuses) => statuses[tab.terminalSessionId],
           ),
         );
-        return buildExperimentalWorkspaceTabChip(
+        return buildWorkspacePanelTabChip(
           tab: tab,
           tabs: panelTabs,
           active: active,
           runtime: ref.read(terminalRuntimeProvider),
           status: status,
           acknowledgements: _completionAcknowledgements,
-          onSelect: () => controller.selectExperimentalPanelKey(
+          onSelect: () => controller.selectWorkspacePanelKey(
             workspace.id,
-            ExperimentalWorkspacePanel.tabKey(tab.id),
+            WorkspacePanel.tabKey(tab.id),
           ),
           onCloseTabs: (ids) async {
             if (await _confirmCloseDirtyTabs(tabs, ids)) {
@@ -286,19 +292,17 @@ extension _ExperimentalPanelTabs on _AleraShellPageBodyState {
     );
   }
 
-  Widget _experimentalToolSurface(
-    ExperimentalWorkspaceTool tool,
+  Widget _workspaceToolSurface(
+    WorkspaceTool tool,
     Widget Function(WorkbenchContextPanelTab tab) toolFor,
   ) {
     return ColoredBox(
       color: AleraTokens.surfaceVariant,
       child: toolFor(switch (tool) {
-        ExperimentalWorkspaceTool.explorer => WorkbenchContextPanelTab.explorer,
-        ExperimentalWorkspaceTool.search => WorkbenchContextPanelTab.search,
-        ExperimentalWorkspaceTool.sourceControl =>
-          WorkbenchContextPanelTab.gitDiff,
-        ExperimentalWorkspaceTool.pullRequest =>
-          WorkbenchContextPanelTab.pullRequests,
+        WorkspaceTool.explorer => WorkbenchContextPanelTab.explorer,
+        WorkspaceTool.search => WorkbenchContextPanelTab.search,
+        WorkspaceTool.sourceControl => WorkbenchContextPanelTab.gitDiff,
+        WorkspaceTool.pullRequest => WorkbenchContextPanelTab.pullRequests,
       }),
     );
   }

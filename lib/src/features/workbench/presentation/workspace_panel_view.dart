@@ -11,19 +11,19 @@ import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:alera/src/features/agent_task_dispatch/domain/agent_task_dispatch.dart';
 import 'package:alera/src/features/agent_task_dispatch/presentation/agent_task_dispatch_launcher.dart';
-import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_drop_zones.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_split_glyphs.dart';
 import 'package:flutter/material.dart';
 
-part 'experimental_workspace_panel_pane.dart';
-part 'experimental_workspace_panel_split.dart';
-part 'experimental_workspace_panel_menus.dart';
-part 'experimental_workspace_panel_empty.dart';
+part 'workspace_panel_pane.dart';
+part 'workspace_panel_split.dart';
+part 'workspace_panel_menus.dart';
+part 'workspace_panel_empty.dart';
 
-class const ExperimentalMainDropSurface({
+class const WorkspaceMainDropSurface({
   super.key,
   required final String workspaceId,
   required final String groupId,
@@ -32,23 +32,23 @@ class const ExperimentalMainDropSurface({
     required String key,
     required String targetGroupId,
     required WorkbenchDropZone zone,
-    required ExperimentalPanelTree source,
+    required WorkspacePanelTree source,
     int? index,
   })
   onMoveTab,
 }) extends StatefulWidget {
   @override
-  State<ExperimentalMainDropSurface> createState() =>
-      _ExperimentalMainDropSurfaceState();
+  State<WorkspaceMainDropSurface> createState() =>
+      _WorkspaceMainDropSurfaceState();
 }
 
-class _ExperimentalMainDropSurfaceState
-    extends State<ExperimentalMainDropSurface> {
+class _WorkspaceMainDropSurfaceState
+    extends State<WorkspaceMainDropSurface> {
   WorkbenchDropZone? _hoverZone;
 
   @override
   Widget build(BuildContext context) {
-    return _ExperimentalPaneDropTarget(
+    return _WorkspacePaneDropTarget(
       workspaceId: widget.workspaceId,
       groupId: widget.groupId,
       tabCount: 1,
@@ -59,24 +59,24 @@ class _ExperimentalMainDropSurfaceState
         }
       },
       onMoveTab: widget.onMoveTab,
-      tree: ExperimentalPanelTree.main,
+      tree: WorkspacePanelTree.main,
       child: widget.child,
     );
   }
 }
 
-class const ExperimentalPaneTabDragData({
+class const WorkspacePaneTabDragData({
   required final String workspaceId,
   required final String sourceGroupId,
   required final String key,
-  final ExperimentalPanelTree tree = ExperimentalPanelTree.right,
+  final WorkspacePanelTree tree = WorkspacePanelTree.right,
 });
 
-class const ExperimentalWorkspacePanelView({
+class const WorkspacePanelView({
   super.key,
   final String workspaceId =
-      ExperimentalWorkspacePanel.fallbackLayoutWorkspaceId,
-  required final ExperimentalWorkspacePanel panel,
+      WorkspacePanel.fallbackLayoutWorkspaceId,
+  required final WorkspacePanel panel,
   required final List<WorkspaceTabRecord> tabs,
   required final ValueChanged<String> onSelect,
   required final ValueChanged<String> onClose,
@@ -97,21 +97,21 @@ class const ExperimentalWorkspacePanelView({
     required String key,
     required String targetGroupId,
     required WorkbenchDropZone zone,
-    required ExperimentalPanelTree source,
+    required WorkspacePanelTree source,
     int? index,
   })?
   onMoveTab,
   final void Function(List<int> path, double ratio)? onUpdateSplitRatio,
-  final ExperimentalPanelTree tree = ExperimentalPanelTree.right,
+  final WorkspacePanelTree tree = WorkspacePanelTree.right,
   final bool showHide = true,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final layout = tree == ExperimentalPanelTree.main
+    final layout = tree == WorkspacePanelTree.main
         ? panel.ensuredMainLayout(workspaceId)
         : panel.ensuredLayout(workspaceId);
-    if (tree == ExperimentalPanelTree.right && panel.tabKeys.isEmpty) {
-      return _ExperimentalPanelEmpty(
+    if (tree == WorkspacePanelTree.right && panel.tabKeys.isEmpty) {
+      return _WorkspacePanelEmpty(
         onSelect: onSelect,
         onNewTerminal: onNewTerminal,
         onHide: onHide,
@@ -121,7 +121,7 @@ class const ExperimentalWorkspacePanelView({
         onLaunchAgentProfile: onLaunchAgentProfile,
       );
     }
-    return _ExperimentalPanelLayoutNode(
+    return _WorkspacePanelLayoutNode(
       workspaceId: workspaceId,
       panel: panel,
       tabs: tabs,
@@ -149,9 +149,9 @@ class const ExperimentalWorkspacePanelView({
   }
 }
 
-class const _ExperimentalPanelLayoutNode({
+class const _WorkspacePanelLayoutNode({
   required final String workspaceId,
-  required final ExperimentalWorkspacePanel panel,
+  required final WorkspacePanel panel,
   required final List<WorkspaceTabRecord> tabs,
   required final WorkbenchLayout layout,
   required final WorkbenchLayoutNode node,
@@ -175,19 +175,19 @@ class const _ExperimentalPanelLayoutNode({
     required String key,
     required String targetGroupId,
     required WorkbenchDropZone zone,
-    required ExperimentalPanelTree source,
+    required WorkspacePanelTree source,
     int? index,
   })?
   onMoveTab,
   final void Function(List<int> path, double ratio)? onUpdateSplitRatio,
-  final ExperimentalPanelTree tree = ExperimentalPanelTree.right,
+  final WorkspacePanelTree tree = WorkspacePanelTree.right,
   final bool showHide = true,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final groupId = node.groupId;
     if (groupId != null) {
-      return _ExperimentalPanelPane(
+      return _WorkspacePanelPane(
         workspaceId: workspaceId,
         panel: panel,
         tabs: tabs,
@@ -211,10 +211,10 @@ class const _ExperimentalPanelLayoutNode({
         onMoveTab: onMoveTab,
       );
     }
-    return _ExperimentalPanelSplitLayout(
+    return _WorkspacePanelSplitLayout(
       axis: node.axis!,
       persistedRatio: node.ratio!,
-      first: _ExperimentalPanelLayoutNode(
+      first: _WorkspacePanelLayoutNode(
         workspaceId: workspaceId,
         panel: panel,
         tabs: tabs,
@@ -239,7 +239,7 @@ class const _ExperimentalPanelLayoutNode({
         tree: tree,
         showHide: showHide,
       ),
-      second: _ExperimentalPanelLayoutNode(
+      second: _WorkspacePanelLayoutNode(
         workspaceId: workspaceId,
         panel: panel,
         tabs: tabs,
@@ -269,12 +269,12 @@ class const _ExperimentalPanelLayoutNode({
   }
 }
 
-IconData _iconForTool(ExperimentalWorkspaceTool? tool) {
+IconData _iconForTool(WorkspaceTool? tool) {
   return switch (tool) {
-    ExperimentalWorkspaceTool.explorer => AleraIcons.folder,
-    ExperimentalWorkspaceTool.search => AleraIcons.search,
-    ExperimentalWorkspaceTool.sourceControl => AleraIcons.gitBranch,
-    ExperimentalWorkspaceTool.pullRequest => AleraIcons.gitPullRequest,
+    WorkspaceTool.explorer => AleraIcons.folder,
+    WorkspaceTool.search => AleraIcons.search,
+    WorkspaceTool.sourceControl => AleraIcons.gitBranch,
+    WorkspaceTool.pullRequest => AleraIcons.gitPullRequest,
     null => AleraIcons.terminal,
   };
 }

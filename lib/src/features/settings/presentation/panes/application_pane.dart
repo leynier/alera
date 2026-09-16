@@ -6,13 +6,12 @@ import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_diagnostics_section.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_support_section.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_workspace_directory_row.dart';
-import 'package:alera/src/features/settings/presentation/panes/experimental_new_workspace_tools_settings.dart';
+import 'package:alera/src/features/settings/presentation/panes/new_workspace_tools_settings.dart';
 import 'package:alera/src/features/automations/presentation/automation_settings_section.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:alera/src/features/updater/presentation/update_settings_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
 
 /// App-level preferences: storage, safety confirmations, runtime lifecycle,
 /// updates, and the support row.
@@ -27,13 +26,6 @@ class const ApplicationSettingsPane({
   Widget build(BuildContext context, WidgetRef ref) {
     final starState = ref.watch(gitHubStarControllerProvider);
     final controller = ref.read(settingsControllerProvider.notifier);
-    final experimental = ref.watch(
-      workbenchControllerProvider.select(
-        (state) =>
-            state.viewPrefs.desktopLayout ==
-            DesktopWorkspaceLayout.experimental,
-      ),
-    );
     return Column(
       crossAxisAlignment: .stretch,
       children: <Widget>[
@@ -80,35 +72,21 @@ class const ApplicationSettingsPane({
             description:
                 'Tray icon and dock or taskbar badge while Alera is running.',
             children: <Widget>[
-              SettingsSwitchRow(
-                title: 'Experimental Mode',
-                description: 'Use one primary terminal beside a tabbed panel. Applies to all workspaces.',
-                value: experimental,
-                onChanged: (value) => ref
-                    .read(workbenchControllerProvider.notifier)
-                    .setDesktopWorkspaceLayout(
-                      value
-                          ? DesktopWorkspaceLayout.experimental
-                          : DesktopWorkspaceLayout.classic,
+              Consumer(
+                builder: (context, ref, _) {
+                  final tools = ref.watch(
+                    workbenchControllerProvider.select(
+                      (state) => state.viewPrefs.newWorkspaceTools,
                     ),
+                  );
+                  return NewWorkspaceToolsSettings(
+                    selected: tools,
+                    onChanged: (next) => ref
+                        .read(workbenchControllerProvider.notifier)
+                        .setNewWorkspaceTools(next),
+                  );
+                },
               ),
-              if (experimental)
-                Consumer(
-                  builder: (context, ref, _) {
-                    final tools = ref.watch(
-                      workbenchControllerProvider.select(
-                        (state) =>
-                            state.viewPrefs.experimentalNewWorkspaceTools,
-                      ),
-                    );
-                    return ExperimentalNewWorkspaceToolsSettings(
-                      selected: tools,
-                      onChanged: (next) => ref
-                          .read(workbenchControllerProvider.notifier)
-                          .setExperimentalNewWorkspaceTools(next),
-                    );
-                  },
-                ),
               SettingsSwitchRow(
                 title: 'Show Tray Icon',
                 description: 'Keep Alera in the menu extra (macOS), notification area (Windows), or status bar (Ubuntu). Closing the window hides it; Quit from the tray or the app menu exits.',

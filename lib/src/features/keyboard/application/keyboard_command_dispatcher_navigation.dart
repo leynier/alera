@@ -14,42 +14,25 @@ extension _KeyboardCommandDispatcherNavigation on KeyboardCommandDispatcher {
     }
     final registry = ref.read(workbenchPaneFocusRegistryProvider);
     final controller = ref.read(workbenchControllerProvider.notifier);
-    if (state.isExperimentalLayout) {
-      final keys = _experimentalNavigationKeys;
-      if (keys.isEmpty) {
-        return;
-      }
-      final panel = state.experimentalPanelFor(workspace.id);
-      final focused = registry.focusedKeyAmong(keys);
-      final target = focused == null
-          ? (keys.contains(panel.focusedKey) ? panel.focusedKey! : keys.first)
-          : keys[_wrapIndex(keys.indexOf(focused) + delta, keys.length)];
-      if (target == focused) {
-        return;
-      }
-      controller.selectExperimentalPanelKey(workspace.id, target);
-      _focusSurface(registry, target, workspace, state);
+    final keys = _workspacePanelNavigationKeys;
+    if (keys.isEmpty) {
       return;
     }
-    final layout = state.activeLayout;
-    if (layout == null) {
-      return;
-    }
-    final groupIds = layout.paneGroupIds;
-    final focused = registry.focusedKeyAmong(groupIds);
-    final target = focused == null
-        ? layout.activeGroupId
-        : groupIds[_wrapIndex(
-            groupIds.indexOf(focused) + delta,
-            groupIds.length,
-          )];
-    if (target == focused) {
+    final panel = state.workspacePanelFor(workspace.id);
+    final focused = registry.focusedKeyAmong(keys);
+    if (focused != null && keys.length == 1) {
       // A single pane that already holds the focus: leave whatever descendant
       // has it (the composer, a toolbar field) alone.
       return;
     }
-    controller.focusWorkbenchGroup(workspaceId: workspace.id, groupId: target);
-    _focusContent(registry, target, _tabForGroup(state, workspace.id, target));
+    final target = focused == null
+        ? (keys.contains(panel.focusedKey) ? panel.focusedKey! : keys.first)
+        : keys[_wrapIndex(keys.indexOf(focused) + delta, keys.length)];
+    if (target == focused) {
+      return;
+    }
+    controller.selectWorkspacePanelKey(workspace.id, target);
+    _focusSurface(registry, target, workspace, state);
   }
 
   /// Focuses the active pane unless a pane already holds the focus. Used after
@@ -62,25 +45,11 @@ extension _KeyboardCommandDispatcherNavigation on KeyboardCommandDispatcher {
       return;
     }
     final registry = ref.read(workbenchPaneFocusRegistryProvider);
-    if (state.isExperimentalLayout) {
-      final keys = _experimentalNavigationKeys;
-      final key = state.experimentalPanelFor(workspace.id).focusedKey;
-      if (key != null && registry.focusedKeyAmong(keys) == null) {
-        _focusSurface(registry, key, workspace, state);
-      }
-      return;
+    final keys = _workspacePanelNavigationKeys;
+    final key = state.workspacePanelFor(workspace.id).focusedKey;
+    if (key != null && registry.focusedKeyAmong(keys) == null) {
+      _focusSurface(registry, key, workspace, state);
     }
-    final layout = state.activeLayout;
-    if (layout == null ||
-        registry.focusedKeyAmong(layout.paneGroupIds) != null) {
-      return;
-    }
-    final groupId = layout.activeGroupId;
-    _focusContent(
-      registry,
-      groupId,
-      _tabForGroup(state, workspace.id, groupId),
-    );
   }
 
   void _focusSurface(
@@ -89,7 +58,7 @@ extension _KeyboardCommandDispatcherNavigation on KeyboardCommandDispatcher {
     Workspace workspace,
     WorkbenchState state,
   ) {
-    final tabId = ExperimentalWorkspacePanel.tabId(key);
+    final tabId = WorkspacePanel.tabId(key);
     final tab = tabId == null
         ? null
         : state.tabsFor(workspace.id).where((t) => t.id == tabId).firstOrNull;
@@ -114,18 +83,6 @@ extension _KeyboardCommandDispatcherNavigation on KeyboardCommandDispatcher {
       }
     }
     registry.focus(key);
-  }
-
-  WorkspaceTabRecord? _tabForGroup(
-    WorkbenchState state,
-    String workspaceId,
-    String groupId,
-  ) {
-    final tabId = state.layoutFor(workspaceId)?.groups[groupId]?.activeTabId;
-    if (tabId == null) {
-      return null;
-    }
-    return state.tabsFor(workspaceId).where((t) => t.id == tabId).firstOrNull;
   }
 
   /// Selects the workspace [delta] rows away in the sidebar's rendered order,

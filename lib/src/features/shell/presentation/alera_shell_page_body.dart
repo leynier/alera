@@ -4,7 +4,6 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
   String? _lastErrorMessage;
   final WorkbenchTabCompletionAcknowledgements _completionAcknowledgements =
       WorkbenchTabCompletionAcknowledgements();
-  Widget Function(WorkbenchContextPanelTab tab)? _experimentalToolFor;
 
   @override
   void initState() {
@@ -64,19 +63,13 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
 
     final project = shell.activeProject;
     final workspace = shell.activeWorkspace;
-    final experimental =
-        shell.viewPrefs.desktopLayout == DesktopWorkspaceLayout.experimental;
     final panel = workspace == null
-        ? const ExperimentalWorkspacePanel()
-        : ref
-              .read(workbenchControllerProvider)
-              .experimentalPanelFor(workspace.id);
-    final toolTab = switch (ExperimentalWorkspaceTool.forKey(panel.activeKey)) {
-      ExperimentalWorkspaceTool.search => WorkbenchContextPanelTab.search,
-      ExperimentalWorkspaceTool.sourceControl =>
-        WorkbenchContextPanelTab.gitDiff,
-      ExperimentalWorkspaceTool.pullRequest =>
-        WorkbenchContextPanelTab.pullRequests,
+        ? const WorkspacePanel()
+        : ref.read(workbenchControllerProvider).workspacePanelFor(workspace.id);
+    final toolTab = switch (WorkspaceTool.forKey(panel.activeKey)) {
+      WorkspaceTool.search => WorkbenchContextPanelTab.search,
+      WorkspaceTool.sourceControl => WorkbenchContextPanelTab.gitDiff,
+      WorkspaceTool.pullRequest => WorkbenchContextPanelTab.pullRequests,
       _ => WorkbenchContextPanelTab.explorer,
     };
     final controller = ref.read(workbenchControllerProvider.notifier);
@@ -103,28 +96,30 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                           child: LayoutBuilder(
                             builder: (context, workbenchConstraints) {
                               final maximumPanelWidth =
-                                  experimentalPanelMaximumWidth(
+                                  workspacePanelMaximumWidth(
                                     workbenchConstraints.maxWidth,
                                   );
                               final showContextSidebar =
                                   workspace != null &&
-                                  (experimental
-                                      ? maximumPanelWidth >=
-                                            (shell.viewPrefs.rightSidebarVisible
-                                                ? AleraTokens.sidebarMinWidth
-                                                : AleraTokens
-                                                      .sidebarCollapsedWidth)
-                                      : _canShowContextSidebar(
-                                          shellWidth: constraints.maxWidth,
-                                          collapsed: shell.collapsed,
-                                          prefs: shell.viewPrefs,
-                                        ));
+                                  maximumPanelWidth >=
+                                      (shell.viewPrefs.rightSidebarVisible
+                                          ? AleraTokens.sidebarMinWidth
+                                          : AleraTokens.sidebarCollapsedWidth);
+                              final toolFor = workspace == null
+                                  ? null
+                                  : _workspaceToolFactory(
+                                      workspace: workspace,
+                                      prefs: shell.viewPrefs,
+                                      sourceControlScope: sourceControlScope,
+                                      canSelectSourceControlRoot:
+                                          canSelectSourceControlRoot,
+                                    );
                               return Row(
                                 crossAxisAlignment: .stretch,
                                 children: <Widget>[
                                   Expanded(
-                                    child: experimental && workspace != null
-                                        ? _buildExperimentalCenter(
+                                    child: workspace != null
+                                        ? _buildWorkspaceCenter(
                                             workspace: workspace,
                                             project: project,
                                             panel: panel,
@@ -135,7 +130,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                             hasProjects: shell.hasProjects,
                                             layout: shell.layout,
                                             toolFor:
-                                                _experimentalToolFor ??
+                                                toolFor ??
                                                 ((_) =>
                                                     const SizedBox.shrink()),
                                           )
@@ -148,42 +143,40 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                                 sourceControlScope,
                                             tabs: shell.tabs,
                                             layout: shell.layout,
-                                            singleSurface: experimental,
+                                            singleSurface: true,
                                             singleTabId: panel.primaryTabId,
                                           ),
                                   ),
                                   if (workspace != null && showContextSidebar)
                                     WorkspaceContextSidebar(
                                       workspace: workspace,
-                                      prefs: experimental
-                                          ? shell.viewPrefs.copyWith(
-                                              activeContextPanelTab: toolTab,
-                                              rightSidebarWidth: shell
+                                      prefs: shell.viewPrefs.copyWith(
+                                        activeContextPanelTab: toolTab,
+                                        rightSidebarWidth: shell.viewPrefs
+                                            .rightSidebarWidthFor(
+                                              workspace.id,
+                                              fallback: shell
                                                   .viewPrefs
-                                                  .experimentalRightSidebarWidth,
-                                            )
-                                          : shell.viewPrefs,
-                                      maximumWidth: experimental
-                                          ? maximumPanelWidth
-                                          : AleraTokens.sidebarMaxWidth,
-                                      panelBuilder: experimental
-                                          ? (toolFor) {
-                                              _experimentalToolFor = toolFor;
-                                              return _buildExperimentalPanelView(
-                                                workspace: workspace,
-                                                project: project,
-                                                panel: panel,
-                                                sourceControlScope:
-                                                    sourceControlScope,
-                                                tabs: shell.tabs,
-                                                bootstrapped:
-                                                    shell.bootstrapped,
-                                                hasProjects: shell.hasProjects,
-                                                layout: shell.layout,
-                                                toolFor: toolFor,
-                                              );
-                                            }
-                                          : null,
+                                                  .rightSidebarWidth,
+                                            ),
+                                      ),
+                                      maximumWidth: maximumPanelWidth,
+                                      panelBuilder: (_) {
+                                        return _buildWorkspacePanelView(
+                                          workspace: workspace,
+                                          project: project,
+                                          panel: panel,
+                                          sourceControlScope:
+                                              sourceControlScope,
+                                          tabs: shell.tabs,
+                                          bootstrapped: shell.bootstrapped,
+                                          hasProjects: shell.hasProjects,
+                                          layout: shell.layout,
+                                          toolFor:
+                                              toolFor ??
+                                              ((_) => const SizedBox.shrink()),
+                                        );
+                                      },
                                       sourceControlScope: sourceControlScope,
                                       focusedSourceControlRoot:
                                           canSelectSourceControlRoot
@@ -407,6 +400,151 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
       if (confirmed != true) return false;
     }
     return true;
+  }
+
+  Widget Function(WorkbenchContextPanelTab tab) _workspaceToolFactory({
+    required Workspace workspace,
+    required WorkbenchViewPrefs prefs,
+    required WorkspaceSourceControlScope? sourceControlScope,
+    required bool canSelectSourceControlRoot,
+  }) {
+    final controller = ref.read(workbenchControllerProvider.notifier);
+    return (tab) {
+      return WorkspaceContextSidebar.toolFor(
+        tab: tab,
+        workspace: workspace,
+        prefs: prefs,
+        sourceControlScope: sourceControlScope,
+        focusedSourceControlRoot: canSelectSourceControlRoot
+            ? prefs.sourceControlRootByWorkspaceId[workspace.id]
+            : null,
+        onSetExplorerMode: controller.setExplorerMode,
+        onSetGitDiffViewMode: controller.setGitDiffViewMode,
+        onSetGitDiffGroupMode: controller.setGitDiffGroupMode,
+        onSetSearchViewAsTree: controller.setSearchViewAsTree,
+        onSetSearchIncludeIgnored: controller.setSearchIncludeIgnored,
+        onFocusSourceControlFolder: canSelectSourceControlRoot
+            ? (relativePath) {
+                return controller.focusSourceControlFolder(
+                  workspace: workspace,
+                  relativePath: relativePath,
+                );
+              }
+            : null,
+        onClearSourceControlRoot: canSelectSourceControlRoot
+            ? () {
+                controller.clearFocusedSourceControlFolder(
+                  workspace: workspace,
+                );
+              }
+            : null,
+        onOpenFile: (relativePath) {
+          unawaited(
+            controller.openFileTab(
+              workspace: workspace,
+              relativePath: relativePath,
+              preview: true,
+            ),
+          );
+        },
+        onOpenFilePermanently: (relativePath) {
+          unawaited(
+            controller.openFileTab(
+              workspace: workspace,
+              relativePath: relativePath,
+            ),
+          );
+        },
+        onRevealInExplorer: (relativePath) {
+          controller.revealInExplorer(
+            workspace: workspace,
+            relativePath: relativePath,
+          );
+        },
+        onOpenGitDiff:
+            ({
+              relativePath,
+              area,
+              gitDiffRoot,
+              required scope,
+              preview = false,
+            }) {
+              return controller.openGitDiffTab(
+                workspace: workspace,
+                relativePath: relativePath,
+                area: area,
+                scope: scope,
+                gitDiffRoot: gitDiffRoot,
+                preview: preview,
+              );
+            },
+        onOpenGitCommitDiff:
+            ({
+              relativePath,
+              oldPath,
+              required scope,
+              gitDiffRoot,
+              required commitOid,
+              parentOid,
+              required compareRef,
+              subject,
+              message,
+              preview = false,
+            }) {
+              return controller.openGitCommitDiffTab(
+                workspace: workspace,
+                relativePath: relativePath,
+                oldPath: oldPath,
+                scope: scope,
+                gitDiffRoot: gitDiffRoot,
+                commitOid: commitOid,
+                parentOid: parentOid,
+                compareRef: compareRef,
+                subject: subject,
+                message: message,
+                preview: preview,
+              );
+            },
+        onOpenSearchMatch: (target) {
+          unawaited(() async {
+            final tab = await controller.openEditorTab(
+              workspace: workspace,
+              relativePath: target.relativePath,
+              preview: true,
+            );
+            ref
+                .read(editorSessionRegistryProvider)
+                .reveal(
+                  tab.id,
+                  WorkspaceEditorRevealTarget(
+                    line: target.line,
+                    column: target.column,
+                    matchLength: target.matchLength,
+                  ),
+                );
+          }());
+        },
+        onPathMoved: (oldRelativePath, newRelativePath) async {
+          await controller.syncFileTabsAfterPathMove(
+            workspace: workspace,
+            oldRelativePath: oldRelativePath,
+            newRelativePath: newRelativePath,
+          );
+          ref
+              .read(editorSessionRegistryProvider)
+              .updateDocumentPathsAfterMove(
+                workspacePath: workspace.path,
+                oldRelativePath: oldRelativePath,
+                newRelativePath: newRelativePath,
+              );
+          controller.syncSourceControlRootAfterPathMove(
+            workspace: workspace,
+            oldRelativePath: oldRelativePath,
+            newRelativePath: newRelativePath,
+          );
+        },
+      );
+    };
   }
 
   void _showError(String message) {

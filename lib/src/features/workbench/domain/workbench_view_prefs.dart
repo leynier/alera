@@ -1,7 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 
-import 'experimental_workspace_panel.dart';
+import 'workspace_panel.dart';
 
 part 'workbench_view_prefs.mapper.dart';
 
@@ -50,10 +50,57 @@ class WorkbenchViewPrefsDecodeHook extends MappingHook {
       map['activeContextPanelTab'] = 'explorer';
       changed = true;
     }
-    final rawTools = map['experimentalNewWorkspaceTools'];
+    if (map.containsKey('experimentalPanels') &&
+        !map.containsKey('workspacePanels')) {
+      map['workspacePanels'] = map['experimentalPanels'];
+      changed = true;
+    }
+    if (map.containsKey('experimentalNewWorkspaceTools') &&
+        !map.containsKey('newWorkspaceTools')) {
+      map['newWorkspaceTools'] = map['experimentalNewWorkspaceTools'];
+      changed = true;
+    }
+    if (map.containsKey('experimentalRightSidebarWidth')) {
+      final experimentalWidth = map['experimentalRightSidebarWidth'];
+      if (experimentalWidth is num &&
+          (map['rightSidebarWidth'] == null ||
+              map.containsKey('desktopLayout'))) {
+        map['rightSidebarWidth'] = experimentalWidth;
+        changed = true;
+      }
+    }
+    if (map.remove('desktopLayout') != null ||
+        map.remove('experimentalPanels') != null ||
+        map.remove('experimentalNewWorkspaceTools') != null ||
+        map.remove('experimentalRightSidebarWidth') != null) {
+      changed = true;
+    }
+    final rawFallback = map['rightSidebarWidth'];
+    final fallbackWidth = rawFallback is num ? rawFallback.toDouble() : 280.0;
+    final rawWidths = map['rightSidebarWidthByWorkspaceId'];
+    if (rawWidths is Map) {
+      final compact = <String, double>{};
+      for (final entry in rawWidths.entries) {
+        final stored = entry.value;
+        if (stored is! num) {
+          continue;
+        }
+        final width = stored.toDouble();
+        if ((width - fallbackWidth).abs() < 0.5) {
+          changed = true;
+          continue;
+        }
+        compact[entry.key.toString()] = width;
+      }
+      if (compact.length != rawWidths.length) {
+        changed = true;
+      }
+      map['rightSidebarWidthByWorkspaceId'] = compact;
+    }
+    final rawTools = map['newWorkspaceTools'];
     if (rawTools is List) {
       final known = <String>{
-        for (final tool in ExperimentalWorkspaceTool.values) tool.name,
+        for (final tool in WorkspaceTool.values) tool.name,
       };
       final seen = <String>{};
       final tools = <String>[
@@ -62,7 +109,7 @@ class WorkbenchViewPrefsDecodeHook extends MappingHook {
       ];
       if (tools.length != rawTools.length ||
           !_sameStringList(tools, rawTools)) {
-        map['experimentalNewWorkspaceTools'] = tools;
+        map['newWorkspaceTools'] = tools;
         changed = true;
       }
     }
@@ -84,9 +131,7 @@ class WorkbenchViewPrefsDecodeHook extends MappingHook {
 
 @MappableClass(hook: WorkbenchViewPrefsDecodeHook())
 class const WorkbenchViewPrefs({
-  this.desktopLayout = DesktopWorkspaceLayout.classic,
-  this.experimentalPanels = const <String, ExperimentalWorkspacePanel>{},
-  this.experimentalRightSidebarWidth = 280,
+  this.workspacePanels = const <String, WorkspacePanel>{},
   this.sectionSort = WorkbenchSortBy.name,
   this.collapsedSectionIds = const <String>{},
   this.othersSectionCollapsed = false,
@@ -104,6 +149,7 @@ class const WorkbenchViewPrefs({
   this.sourceControlRootByWorkspaceId = const <String, String>{},
   this.rightSidebarVisible = true,
   this.rightSidebarWidth = 280,
+  this.rightSidebarWidthByWorkspaceId = const <String, double>{},
   this.sidebarWidth = AleraTokens.sidebarDefaultWidth,
   this.activeContextPanelTab = WorkbenchContextPanelTab.explorer,
   this.explorerMode = WorkspaceExplorerMode.hideIgnored,
@@ -114,11 +160,9 @@ class const WorkbenchViewPrefs({
   this.pullRequestCreateAction = PullRequestCreateAction.publish,
   this.workspaceKindFilter = WorkspaceKindFilter.all,
   this.showActiveWorkspacesOnly = false,
-  this.experimentalNewWorkspaceTools = const <ExperimentalWorkspaceTool>[],
+  this.newWorkspaceTools = const <WorkspaceTool>[],
 }) with WorkbenchViewPrefsMappable {
-  final DesktopWorkspaceLayout desktopLayout;
-  final Map<String, ExperimentalWorkspacePanel> experimentalPanels;
-  final double experimentalRightSidebarWidth;
+  final Map<String, WorkspacePanel> workspacePanels;
   final WorkbenchGroupBy groupBy;
   final WorkbenchSortBy sectionSort;
   final Set<String> collapsedSectionIds;
@@ -164,9 +208,23 @@ class const WorkbenchViewPrefs({
   final bool rightSidebarVisible;
   final double rightSidebarWidth;
 
+  /// Per-workspace right context-panel width. Missing ids use
+  /// [rightSidebarWidth]. Entries are pruned when the workspace is removed.
+  final Map<String, double> rightSidebarWidthByWorkspaceId;
+
   /// Width of the left sidebar (project/workbench list panel). Persisted so
   /// the user's preferred panel size survives app restarts.
   final double sidebarWidth;
+
+  double rightSidebarWidthFor(String? workspaceId, {double? fallback}) {
+    if (workspaceId != null) {
+      final stored = rightSidebarWidthByWorkspaceId[workspaceId];
+      if (stored != null) {
+        return stored;
+      }
+    }
+    return fallback ?? rightSidebarWidth;
+  }
 
   final WorkbenchContextPanelTab activeContextPanelTab;
   final WorkspaceExplorerMode explorerMode;
@@ -195,10 +253,10 @@ class const WorkbenchViewPrefs({
   /// workspaces.
   final bool showActiveWorkspacesOnly;
 
-  /// Experimental tools opened in the right panel, in order, when a new
-  /// workspace is created. Empty keeps that panel empty until the user adds a
-  /// tool. Existing workspaces keep their own saved panel.
-  final List<ExperimentalWorkspaceTool> experimentalNewWorkspaceTools;
+  /// Tools opened in the right panel, in order, when a new workspace is
+  /// created. Empty keeps that panel empty until the user adds a tool.
+  /// Existing workspaces keep their own saved panel.
+  final List<WorkspaceTool> newWorkspaceTools;
 
   static const WorkbenchViewPrefs defaults = WorkbenchViewPrefs(
     groupBy: .project,
@@ -215,6 +273,7 @@ class const WorkbenchViewPrefs({
     sourceControlRootByWorkspaceId: <String, String>{},
     rightSidebarVisible: true,
     rightSidebarWidth: 280,
+    rightSidebarWidthByWorkspaceId: <String, double>{},
     sidebarWidth: AleraTokens.sidebarDefaultWidth,
     activeContextPanelTab: .explorer,
     explorerMode: .hideIgnored,

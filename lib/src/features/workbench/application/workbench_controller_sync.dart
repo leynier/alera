@@ -88,6 +88,7 @@ mixin _WorkbenchControllerSync
   /// termination request for sessions this client no longer owns.
   void _releaseRetiredWorkspaceSessions(String workspaceId) {
     _tabFocusHistory.forget(workspaceId);
+    _panelSelectionRevisionByWorkspace.remove(workspaceId);
     ref.read(terminalRuntimeProvider).releaseWorkspace(workspaceId);
     final editorSessions = ref.read(editorSessionRegistryProvider);
     for (final tab in state.tabsFor(workspaceId)) {
@@ -138,16 +139,31 @@ mixin _WorkbenchControllerSync
             (workspaceId, _) =>
                 removedProjectWorkspaceIds.contains(workspaceId),
           );
+    final prunedRightSidebarWidths =
+        Map<String, double>.from(prefs.rightSidebarWidthByWorkspaceId)
+          ..removeWhere(
+            (workspaceId, _) =>
+                removedProjectWorkspaceIds.contains(workspaceId),
+          );
+    final prunedWorkspacePanels =
+        Map<String, WorkspacePanel>.from(prefs.workspacePanels)..removeWhere(
+          (workspaceId, _) => removedProjectWorkspaceIds.contains(workspaceId),
+        );
     final prefsChanged =
         prunedCollapsed.length != prefs.collapsedProjectIds.length ||
         prunedSelected.length != prefs.selectedProjectIds.length ||
         prunedSourceControlRoots.length !=
-            prefs.sourceControlRootByWorkspaceId.length;
+            prefs.sourceControlRootByWorkspaceId.length ||
+        prunedRightSidebarWidths.length !=
+            prefs.rightSidebarWidthByWorkspaceId.length ||
+        prunedWorkspacePanels.length != prefs.workspacePanels.length;
     final prunedViewPrefs = prefsChanged
         ? prefs.copyWith(
             collapsedProjectIds: prunedCollapsed,
             selectedProjectIds: prunedSelected,
             sourceControlRootByWorkspaceId: prunedSourceControlRoots,
+            rightSidebarWidthByWorkspaceId: prunedRightSidebarWidths,
+            workspacePanels: prunedWorkspacePanels,
           )
         : prefs;
     final updatedWorkspaces = <String, List<Workspace>>{
@@ -199,6 +215,7 @@ mixin _WorkbenchControllerSync
     if (viewPrefsChanged) {
       unawaited(_persistViewPrefs());
     }
+    _pruneExplorerSessions();
 
     for (final project in projects) {
       if (_workspaceSubs.containsKey(project.id)) {
@@ -334,16 +351,48 @@ mixin _WorkbenchControllerSync
         )..removeWhere(
           (workspaceId, _) => removedWorkspaceIds.contains(workspaceId),
         );
+    final prunedRightSidebarWidths =
+        Map<String, double>.from(
+          expandedViewPrefs.rightSidebarWidthByWorkspaceId,
+        )..removeWhere(
+          (workspaceId, _) => removedWorkspaceIds.contains(workspaceId),
+        );
+    final prunedWorkspacePanels =
+        Map<String, WorkspacePanel>.from(expandedViewPrefs.workspacePanels)
+          ..removeWhere(
+            (workspaceId, _) => removedWorkspaceIds.contains(workspaceId),
+          );
     final sourceControlRootsChanged =
         prunedSourceControlRoots.length !=
         expandedViewPrefs.sourceControlRootByWorkspaceId.length;
-    final workspacePrunedViewPrefs = sourceControlRootsChanged
-        ? expandedViewPrefs.copyWith(
-            sourceControlRootByWorkspaceId: prunedSourceControlRoots,
-          )
-        : expandedViewPrefs;
+    final rightSidebarWidthsChanged =
+        prunedRightSidebarWidths.length !=
+        expandedViewPrefs.rightSidebarWidthByWorkspaceId.length;
+    final workspacePanelsChanged =
+        prunedWorkspacePanels.length !=
+        expandedViewPrefs.workspacePanels.length;
+    var workspacePrunedViewPrefs = expandedViewPrefs;
+    if (sourceControlRootsChanged ||
+        rightSidebarWidthsChanged ||
+        workspacePanelsChanged) {
+      workspacePrunedViewPrefs = expandedViewPrefs.copyWith(
+        sourceControlRootByWorkspaceId: sourceControlRootsChanged
+            ? prunedSourceControlRoots
+            : expandedViewPrefs.sourceControlRootByWorkspaceId,
+        rightSidebarWidthByWorkspaceId: rightSidebarWidthsChanged
+            ? prunedRightSidebarWidths
+            : expandedViewPrefs.rightSidebarWidthByWorkspaceId,
+        workspacePanels: workspacePanelsChanged
+            ? prunedWorkspacePanels
+            : expandedViewPrefs.workspacePanels,
+      );
+    }
     final nextViewPrefs = workspacePrunedViewPrefs;
-    final viewPrefsChanged = expansionChanged || sourceControlRootsChanged;
+    final viewPrefsChanged =
+        expansionChanged ||
+        sourceControlRootsChanged ||
+        rightSidebarWidthsChanged ||
+        workspacePanelsChanged;
     state = state.copyWith(
       workspacesByProject: nextWorkspaces,
       viewPrefs: nextViewPrefs,
@@ -363,26 +412,81 @@ mixin _WorkbenchControllerSync
     if (viewPrefsChanged) {
       unawaited(_persistViewPrefs());
     }
+    _pruneExplorerSessions();
     _ensureSelectionHasTab();
+    _pruneStaleWorkspacePrefs();
+  }
+
+  bool _workspaceInventoryReady() {
+    if (!state.bootstrapped) {
+      return false;
+    }
+    for (final project in state.projects) {
+      if (!_workspaceSubs.containsKey(project.id) ||
+          !state.workspacesByProject.containsKey(project.id)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void _pruneStaleWorkspacePrefs() {
+    if (!_workspaceInventoryReady()) {
+      return;
+    }
+    final liveWorkspaceIds = <String>{
+      for (final workspaces in state.workspacesByProject.values)
+        for (final workspace in workspaces) workspace.id,
+    };
+    final prefs = state.viewPrefs;
+    final prunedSourceControlRoots = Map<String, String>.from(
+      prefs.sourceControlRootByWorkspaceId,
+    )..removeWhere((workspaceId, _) => !liveWorkspaceIds.contains(workspaceId));
+    final prunedRightSidebarWidths = Map<String, double>.from(
+      prefs.rightSidebarWidthByWorkspaceId,
+    )..removeWhere((workspaceId, _) => !liveWorkspaceIds.contains(workspaceId));
+    final prunedWorkspacePanels = Map<String, WorkspacePanel>.from(
+      prefs.workspacePanels,
+    )..removeWhere((workspaceId, _) => !liveWorkspaceIds.contains(workspaceId));
+    final changed =
+        prunedSourceControlRoots.length !=
+            prefs.sourceControlRootByWorkspaceId.length ||
+        prunedRightSidebarWidths.length !=
+            prefs.rightSidebarWidthByWorkspaceId.length ||
+        prunedWorkspacePanels.length != prefs.workspacePanels.length;
+    if (!changed) {
+      return;
+    }
+    state = state.copyWith(
+      viewPrefs: prefs.copyWith(
+        sourceControlRootByWorkspaceId: prunedSourceControlRoots,
+        rightSidebarWidthByWorkspaceId: prunedRightSidebarWidths,
+        workspacePanels: prunedWorkspacePanels,
+      ),
+    );
+    unawaited(_persistViewPrefs());
   }
 
   void _onTabsChanged(String workspaceId, List<WorkspaceTabRecord> tabs) {
     _enqueueWorkspaceSync(() async {
-      final incomingIds = tabs.map((tab) => tab.id).toSet();
+      final incoming = _tabsWithoutClosedIds(tabs);
+      final incomingIds = incoming.map((tab) => tab.id).toSet();
       final removed = state
           .tabsFor(workspaceId)
           .any((tab) => !incomingIds.contains(tab.id));
-      final staleOwner = tabs.any(
+      final staleOwner = incoming.any(
         (tab) =>
             _transferredTabOwners.containsKey(tab.id) &&
             _transferredTabOwners[tab.id] != workspaceId,
       );
       if (!removed && !staleOwner) {
-        _applyTabsChanged(workspaceId, tabs);
+        _applyTabsChanged(workspaceId, incoming);
         return;
       }
       await _reconcileMigratedTabs(workspaceId);
-      final live = await _repository.listWorkspaceTabs(workspaceId);
+      final live = _tabsWithoutClosedIds(
+        await _repository.listWorkspaceTabs(workspaceId),
+      );
       final layout = await _repository.findWorkbenchLayout(workspaceId);
       if (_disposed) return;
       if (layout != null) await _applyLayout(layout, persist: false);
@@ -394,10 +498,12 @@ mixin _WorkbenchControllerSync
     if (!_tabSubProjectIds.containsKey(workspaceId)) {
       return;
     }
-    final liveTabIds = <String>{for (final tab in tabs) tab.id};
+    final liveTabs = _tabsWithoutClosedIds(tabs);
+    final liveTabIds = <String>{for (final tab in liveTabs) tab.id};
     final removedTabs = state
         .tabsFor(workspaceId)
-        .where((tab) => !liveTabIds.contains(tab.id));
+        .where((tab) => !liveTabIds.contains(tab.id))
+        .toList(growable: false);
     final workspace = _workspaceById(workspaceId);
     if (workspace != null) {
       _releaseHostedReviewTabsInBackground(workspace, removedTabs);
@@ -423,54 +529,66 @@ mixin _WorkbenchControllerSync
     }
     final nextTabs = Map<String, List<WorkspaceTabRecord>>.from(
       state.tabsByWorkspace,
-    )..[workspaceId] = tabs;
-    if (tabs.isEmpty && _workspaceIdsWithClearedLayout.contains(workspaceId)) {
+    )..[workspaceId] = liveTabs;
+    final storedPanel = state.viewPrefs.workspacePanels[workspaceId];
+    if (storedPanel != null && removedTabs.isNotEmpty) {
+      var panel = storedPanel;
+      for (final tab in removedTabs) {
+        panel = panel.closeKey(WorkspacePanel.tabKey(tab.id));
+      }
+      _saveWorkspacePanel(
+        workspaceId,
+        panel,
+        recordFocus: false,
+        requestTerminalFocus: false,
+      );
+    }
+    if (_workspaceIdsWithClearedLayout.contains(workspaceId)) {
       final nextLayouts = Map<String, WorkbenchLayout>.from(
         state.layoutByWorkspace,
       )..remove(workspaceId);
       final activeTabs = Map<String, String>.from(state.activeTabIdByWorkspace)
         ..remove(workspaceId);
+      final sleptTabs = liveTabs.isEmpty
+          ? nextTabs
+          : (Map<String, List<WorkspaceTabRecord>>.from(state.tabsByWorkspace)
+              ..[workspaceId] = const <WorkspaceTabRecord>[]);
       state = state.copyWith(
-        tabsByWorkspace: nextTabs,
+        tabsByWorkspace: sleptTabs,
         layoutByWorkspace: nextLayouts,
         activeTabIdByWorkspace: activeTabs,
       );
-      _ensureSelectionHasTab();
+      _pruneExplorerSessions();
       return;
-    }
-    if (tabs.isNotEmpty) {
-      _workspaceIdsWithClearedLayout.remove(workspaceId);
     }
     final currentLayout = state.layoutFor(workspaceId);
     if (currentLayout == null) {
       state = state.copyWith(tabsByWorkspace: nextTabs);
-      if (!_loadingLayoutWorkspaceIds.contains(workspaceId)) {
+      if (!_workspaceIdsWithClearedLayout.contains(workspaceId) &&
+          !_loadingLayoutWorkspaceIds.contains(workspaceId)) {
         unawaited(_loadLayoutForWorkspace(workspaceId));
       }
-      _ensureSelectionHasTab();
+      _pruneExplorerSessions();
+      if (liveTabs.isNotEmpty) {
+        _ensureSelectionHasTab();
+      }
       return;
     }
 
-    final layout = currentLayout.sanitize(tabs);
+    final layout = currentLayout.sanitize(liveTabs);
     final nextLayouts = Map<String, WorkbenchLayout>.from(
       state.layoutByWorkspace,
     )..[workspaceId] = layout;
-    final activeTabs = _activeTabsWithLayout(layout);
     state = state.copyWith(
       tabsByWorkspace: nextTabs,
       layoutByWorkspace: nextLayouts,
-      activeTabIdByWorkspace: activeTabs,
     );
     if (layout != currentLayout) {
       _persistLayoutInBackground(layout);
     }
-    if (state.isExperimentalLayout ||
-        state.viewPrefs.experimentalPanels.containsKey(workspaceId)) {
-      _saveExperimentalPanel(
-        workspaceId,
-        state.experimentalPanelFor(workspaceId),
-      );
+    _pruneExplorerSessions();
+    if (liveTabs.isNotEmpty) {
+      _ensureSelectionHasTab();
     }
-    _ensureSelectionHasTab();
   }
 }

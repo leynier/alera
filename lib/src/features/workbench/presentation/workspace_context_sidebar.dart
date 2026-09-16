@@ -11,7 +11,7 @@ import 'package:alera/src/features/workbench/presentation/workspace_git_diff_pan
 import 'package:alera/src/features/workbench/presentation/workspace_search_panel.dart';
 import 'package:flutter/material.dart';
 
-import '../domain/experimental_panel_width.dart';
+import '../domain/workspace_panel_width.dart';
 
 class const WorkspaceContextSidebar({
   super.key,
@@ -54,11 +54,12 @@ class const WorkspaceContextSidebar({
       ),
       child: prefs.rightSidebarVisible
           ? _ResizableRightSidebar(
+              key: ValueKey<String>(workspace.id),
               persistedWidth: prefs.rightSidebarWidth,
               maximumWidth: maximumWidth,
               onPersistWidth: onResize,
               child:
-                  panelBuilder?.call(_toolFor) ??
+                  panelBuilder?.call(_boundToolFor) ??
                   Column(
                     children: <Widget>[
                       _ContextTabHeader(
@@ -66,7 +67,7 @@ class const WorkspaceContextSidebar({
                         onSetActiveTab: onSetContextPanelTab,
                         onToggleVisible: onToggleVisible,
                       ),
-                      Expanded(child: _toolFor(activeTab)),
+                      Expanded(child: _boundToolFor(activeTab)),
                     ],
                   ),
             )
@@ -93,8 +94,55 @@ class const WorkspaceContextSidebar({
     );
   }
 
-  Widget _toolFor(WorkbenchContextPanelTab tab) {
-    final sourceControlScope = this.sourceControlScope;
+  Widget _boundToolFor(WorkbenchContextPanelTab tab) {
+    return toolFor(
+      tab: tab,
+      workspace: workspace,
+      prefs: prefs,
+      sourceControlScope: sourceControlScope,
+      focusedSourceControlRoot: focusedSourceControlRoot,
+      onSetExplorerMode: onSetExplorerMode,
+      onSetGitDiffViewMode: onSetGitDiffViewMode,
+      onSetGitDiffGroupMode: onSetGitDiffGroupMode,
+      onSetSearchViewAsTree: onSetSearchViewAsTree,
+      onSetSearchIncludeIgnored: onSetSearchIncludeIgnored,
+      onFocusSourceControlFolder: onFocusSourceControlFolder,
+      onClearSourceControlRoot: onClearSourceControlRoot,
+      onOpenFile: onOpenFile,
+      onOpenFilePermanently: onOpenFilePermanently,
+      onRevealInExplorer: onRevealInExplorer,
+      onOpenGitDiff: onOpenGitDiff,
+      onOpenGitCommitDiff: onOpenGitCommitDiff,
+      onOpenSearchMatch: onOpenSearchMatch,
+      onPathMoved: onPathMoved,
+    );
+  }
+
+  static Widget toolFor({
+    required WorkbenchContextPanelTab tab,
+    required Workspace workspace,
+    required WorkbenchViewPrefs prefs,
+    WorkspaceSourceControlScope? sourceControlScope,
+    String? focusedSourceControlRoot,
+    required ValueChanged<WorkspaceExplorerMode> onSetExplorerMode,
+    required ValueChanged<GitDiffViewMode> onSetGitDiffViewMode,
+    required ValueChanged<GitDiffGroupMode> onSetGitDiffGroupMode,
+    ValueChanged<bool>? onSetSearchViewAsTree,
+    ValueChanged<bool>? onSetSearchIncludeIgnored,
+    Future<bool> Function(String relativePath)? onFocusSourceControlFolder,
+    VoidCallback? onClearSourceControlRoot,
+    required ValueChanged<String> onOpenFile,
+    ValueChanged<String>? onOpenFilePermanently,
+    ValueChanged<String>? onRevealInExplorer,
+    required OpenGitDiffTabCallback onOpenGitDiff,
+    required OpenGitCommitDiffTabCallback onOpenGitCommitDiff,
+    required ValueChanged<WorkspaceSearchMatchTarget> onOpenSearchMatch,
+    required Future<void> Function(
+      String oldRelativePath,
+      String newRelativePath,
+    )
+    onPathMoved,
+  }) {
     return switch (tab) {
       WorkbenchContextPanelTab.explorer => WorkspaceExplorer(
         key: ValueKey<String>(
@@ -164,6 +212,7 @@ class const WorkspaceContextSidebar({
 }
 
 class const _ResizableRightSidebar({
+  super.key,
   required final double persistedWidth,
   required final double maximumWidth,
   required final ValueChanged<double> onPersistWidth,
@@ -176,7 +225,7 @@ class const _ResizableRightSidebar({
 class _ResizableRightSidebarState extends State<_ResizableRightSidebar> {
   double? _transientWidth;
 
-  double get _width => experimentalPanelWidth(
+  double get _width => workspacePanelWidth(
     _transientWidth ?? widget.persistedWidth,
     widget.maximumWidth,
   );
@@ -190,10 +239,7 @@ class _ResizableRightSidebarState extends State<_ResizableRightSidebar> {
           currentWidth: _width,
           onResize: (width) {
             setState(() {
-              _transientWidth = experimentalPanelWidth(
-                width,
-                widget.maximumWidth,
-              );
+              _transientWidth = workspacePanelWidth(width, widget.maximumWidth);
             });
           },
           onResizeEnd: (width) {

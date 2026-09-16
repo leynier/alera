@@ -4,7 +4,7 @@ mixin _WorkbenchControllerProjects
     on
         _$WorkbenchController,
         _WorkbenchControllerInternals,
-        _WorkbenchControllerExperimentalLayout,
+        _WorkbenchControllerWorkspacePanel,
         _WorkbenchControllerTabOpening {
   Future<List<String>> listSourceBranches(Project project) =>
       _workspaceService.listSourceBranches(project);
@@ -145,6 +145,9 @@ mixin _WorkbenchControllerProjects
       // The managed runtime has already stopped the process trees. Keep local
       // disposal here so deletion from any caller releases the UI resources.
       ref.read(terminalRuntimeProvider).closeWorkspace(workspace.id);
+      for (final tab in workspaceTabs) {
+        ref.read(terminalRuntimeProvider).closeTab(tab.id);
+      }
       for (final tab in workspaceTabs) {
         ref.read(editorSessionRegistryProvider).forget(tab.id);
       }
@@ -437,6 +440,10 @@ mixin _WorkbenchControllerProjects
     bool recordHistory = true,
   }) async {
     _workspaceSelectionRevision++;
+    _workspaceIdsWithClearedLayout.remove(workspace.id);
+    final sleepGeneration = _workspaceSleepGeneration[workspace.id] ?? 0;
+    final selectionRevisionBeforeActivation =
+        _panelSelectionRevisionByWorkspace[workspace.id] ?? 0;
     final prefs = state.viewPrefs;
     final nextPrefs = prefs;
     state = state.copyWith(
@@ -448,24 +455,57 @@ mixin _WorkbenchControllerProjects
     if (!identical(nextPrefs, prefs)) {
       unawaited(_persistViewPrefs());
     }
+    _pruneExplorerSessions();
     if (ensureInitialTerminal) {
-      if (state.isExperimentalLayout) {
-        await _ensureExperimentalPrimary(workspace);
-      } else {
-        await _workspaceTabService.ensureInitialTerminalTab(workspace.id);
-      }
+      await _ensurePrimaryTerminal(workspace);
+    }
+    if ((_workspaceSleepGeneration[workspace.id] ?? 0) != sleepGeneration) {
+      return;
     }
     final tabs = await _workspaceTabService.listTabs(workspace.id);
+    if ((_workspaceSleepGeneration[workspace.id] ?? 0) != sleepGeneration) {
+      return;
+    }
     _setTabsForWorkspace(workspace.id, tabs);
-    final layout = await _ensureWorkbenchLayout(workspace.id, tabs);
+    final layout = await _ensureWorkbenchLayout(
+      workspace.id,
+      tabs,
+      sleepGeneration: sleepGeneration,
+    );
+    if ((_workspaceSleepGeneration[workspace.id] ?? 0) != sleepGeneration) {
+      return;
+    }
     await _applyLayout(layout, persist: false);
-    if (state.isExperimentalLayout) {
-      final primaryId = state.experimentalPanelFor(workspace.id).primaryTabId;
-      if (primaryId != null) {
-        selectExperimentalPanelKey(
+    if ((_workspaceSleepGeneration[workspace.id] ?? 0) != sleepGeneration) {
+      return;
+    }
+    final storedPanel = state.viewPrefs.workspacePanels[workspace.id];
+    final selectionChangedDuringActivation =
+        (_panelSelectionRevisionByWorkspace[workspace.id] ?? 0) >
+        selectionRevisionBeforeActivation;
+    if (!selectionChangedDuringActivation &&
+        state.activeWorkspaceId == workspace.id) {
+      final panel = state.workspacePanelFor(workspace.id);
+      final savedKey = storedPanel?.focusedKey;
+      final savedKeyIsLive =
+          savedKey != null &&
+          (panel.occupiedKeys.contains(savedKey) ||
+              WorkspaceTool.forKey(savedKey) != null);
+      if (savedKeyIsLive) {
+        selectWorkspacePanelKey(
           workspace.id,
-          ExperimentalWorkspacePanel.tabKey(primaryId),
+          savedKey,
+          recordSelection: false,
         );
+      } else {
+        final preferredId = layout.activeTabId ?? panel.primaryTabId;
+        if (preferredId != null) {
+          selectWorkspacePanelKey(
+            workspace.id,
+            WorkspacePanel.tabKey(preferredId),
+            recordSelection: false,
+          );
+        }
       }
     }
     if (recordHistory &&
@@ -492,5 +532,6 @@ mixin _WorkbenchControllerProjects
     if (!identical(nextPrefs, prefs)) {
       unawaited(_persistViewPrefs());
     }
+    _pruneExplorerSessions();
   }
 }

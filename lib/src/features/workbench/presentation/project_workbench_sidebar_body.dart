@@ -107,12 +107,10 @@ class const _SidebarBody({
       );
     }
     if (row is WorkbenchWorkspaceRow) {
-      final panel = state.isExperimentalLayout
-          ? state.experimentalPanelFor(row.workspace.id)
-          : null;
+      final panel = state.workspacePanelFor(row.workspace.id);
       final mainTabIds = <String>{
-        for (final key in panel?.mainKeys ?? const <String>[])
-          if (ExperimentalWorkspacePanel.tabId(key) case final String id) id,
+        for (final key in panel.mainKeys)
+          if (WorkspacePanel.tabId(key) case final String id) id,
       };
       final mainRuns = row.agentRuns
           .where((run) => mainTabIds.contains(run.tab.id))
@@ -120,11 +118,12 @@ class const _SidebarBody({
       final rightRuns = row.agentRuns
           .where((run) => !mainTabIds.contains(run.tab.id))
           .toList();
-      final mergeMainAgent = state.isExperimentalLayout && mainRuns.length <= 1;
+      final mergeMainAgent = mainRuns.length <= 1;
       final primaryRun = mergeMainAgent ? mainRuns.firstOrNull : null;
-      final secondaryRuns = state.isExperimentalLayout
-          ? <WorkspaceAgentRun>[if (!mergeMainAgent) ...mainRuns, ...rightRuns]
-          : row.agentRuns;
+      final secondaryRuns = <WorkspaceAgentRun>[
+        if (!mergeMainAgent) ...mainRuns,
+        ...rightRuns,
+      ];
       final leftPadding = _indentPadding(row.indent);
       final workspaces = [
         for (final group in state.workspacesByProject.values) ...group,
@@ -139,20 +138,12 @@ class const _SidebarBody({
           project: row.project,
           workspace: row.workspace,
           agentRuns: secondaryRuns,
-          agentRunGroups: state.isExperimentalLayout
-              ? groupWorkspaceAgentRuns(secondaryRuns)
-              : row.agentRunGroups,
-          status: state.isExperimentalLayout
-              ? primaryRun?.status
-              : row.aggregateStatus,
+          agentRunGroups: groupWorkspaceAgentRuns(secondaryRuns),
+          status: primaryRun?.status,
           primaryStatus: primaryRun?.status,
           hasTerminalTabs: row.hasTerminalTabs,
           isActive: row.workspace.id == state.activeWorkspaceId,
-          activeTabId: state.isExperimentalLayout
-              ? ExperimentalWorkspacePanel.tabId(
-                  state.experimentalPanelFor(row.workspace.id).focusedKey,
-                )
-              : state.activeTabIdByWorkspace[row.workspace.id],
+          activeTabId: WorkspacePanel.tabId(panel.focusedKey),
           showProject: row.showProjectChip,
           expanded: row.expanded,
           visibleChildCount: row.visibleChildCount,

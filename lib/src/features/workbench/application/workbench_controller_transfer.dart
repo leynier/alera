@@ -260,10 +260,39 @@ mixin _WorkbenchControllerTransfer
     final active = {...state.activeTabIdByWorkspace};
     final activeTab = active.remove(source.id);
     if (activeTab != null) active[destination.id] = activeTab;
+    final panels = Map<String, WorkspacePanel>.from(
+      state.viewPrefs.workspacePanels,
+    );
+    final sourcePanel = panels[source.id];
+    if (sourcePanel != null) {
+      final remainingSource = tabs[source.id] ?? const <WorkspaceTabRecord>[];
+      final destinationTabs =
+          tabs[destination.id] ?? const <WorkspaceTabRecord>[];
+      if (remainingSource.isEmpty) {
+        panels.remove(source.id);
+        panels[destination.id] = sourcePanel.reconcile(
+          destinationTabs,
+          workspaceId: destination.id,
+        );
+      } else {
+        panels[source.id] = sourcePanel.reconcile(
+          remainingSource,
+          workspaceId: source.id,
+        );
+        final destinationPanel =
+            panels[destination.id] ?? const WorkspacePanel();
+        panels[destination.id] = destinationPanel.reconcile(
+          destinationTabs,
+          workspaceId: destination.id,
+        );
+      }
+    }
     state = state.copyWith(
       tabsByWorkspace: tabs,
       layoutByWorkspace: layouts,
       activeTabIdByWorkspace: active,
+      viewPrefs: state.viewPrefs.copyWith(workspacePanels: panels),
     );
+    unawaited(_persistViewPrefs());
   }
 }

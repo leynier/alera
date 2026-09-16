@@ -1,6 +1,6 @@
-part of 'experimental_workspace_panel_view.dart';
+part of 'workspace_panel_view.dart';
 
-enum _ExperimentalToolMenuAction {
+enum _WorkspaceToolMenuAction {
   splitUp,
   splitDown,
   splitLeft,
@@ -10,7 +10,7 @@ enum _ExperimentalToolMenuAction {
   closeRight,
 }
 
-enum _ExperimentalPaneMenuAction {
+enum _WorkspacePaneMenuAction {
   splitRight,
   splitDown,
   splitLeft,
@@ -18,7 +18,7 @@ enum _ExperimentalPaneMenuAction {
   closeSplit,
 }
 
-class const _ExperimentalPaneMenuButton({
+class const _WorkspacePaneMenuButton({
   required final bool canCloseSplit,
   required final ValueChanged<WorkbenchDropZone> onSplitGroup,
   required final VoidCallback onMergeGroup,
@@ -35,13 +35,13 @@ class const _ExperimentalPaneMenuButton({
       button.size.bottomRight(.zero),
       ancestor: overlay,
     );
-    final selected = await showMenu<_ExperimentalPaneMenuAction>(
+    final selected = await showMenu<_WorkspacePaneMenuAction>(
       context: context,
       position: .fromRect(
         .fromPoints(topLeft, bottomRight),
         Offset.zero & overlay.size,
       ),
-      items: <PopupMenuEntry<_ExperimentalPaneMenuAction>>[
+      items: <PopupMenuEntry<_WorkspacePaneMenuAction>>[
         const AleraDropdownEntry(
           value: .splitRight,
           label: 'Split Right',
@@ -71,15 +71,15 @@ class const _ExperimentalPaneMenuButton({
       return;
     }
     switch (selected) {
-      case _ExperimentalPaneMenuAction.splitRight:
+      case _WorkspacePaneMenuAction.splitRight:
         onSplitGroup(.right);
-      case _ExperimentalPaneMenuAction.splitDown:
+      case _WorkspacePaneMenuAction.splitDown:
         onSplitGroup(.down);
-      case _ExperimentalPaneMenuAction.splitLeft:
+      case _WorkspacePaneMenuAction.splitLeft:
         onSplitGroup(.left);
-      case _ExperimentalPaneMenuAction.splitUp:
+      case _WorkspacePaneMenuAction.splitUp:
         onSplitGroup(.up);
-      case _ExperimentalPaneMenuAction.closeSplit:
+      case _WorkspacePaneMenuAction.closeSplit:
         onMergeGroup();
     }
   }
@@ -95,7 +95,7 @@ class const _ExperimentalPaneMenuButton({
   }
 }
 
-class const _ExperimentalPanelToolChip({
+class const _WorkspacePanelToolChip({
   required final String label,
   required final IconData icon,
   required final bool active,
@@ -117,14 +117,14 @@ class const _ExperimentalPanelToolChip({
     final closeRight = tabIndex < 0
         ? const <String>[]
         : groupKeys.skip(tabIndex + 1).toList();
-    final selected = await showMenu<_ExperimentalToolMenuAction>(
+    final selected = await showMenu<_WorkspaceToolMenuAction>(
       context: context,
       position: .fromRect(
         .fromPoints(globalPosition, globalPosition),
         Offset.zero & overlay.size,
       ),
-      items: <PopupMenuEntry<_ExperimentalToolMenuAction>>[
-        if (onSplit != null) ...<PopupMenuEntry<_ExperimentalToolMenuAction>>[
+      items: <PopupMenuEntry<_WorkspaceToolMenuAction>>[
+        if (onSplit != null) ...<PopupMenuEntry<_WorkspaceToolMenuAction>>[
           const AleraDropdownEntry(
             value: .splitUp,
             label: 'Split Up',
@@ -182,19 +182,19 @@ class const _ExperimentalPanelToolChip({
       return;
     }
     switch (selected) {
-      case _ExperimentalToolMenuAction.splitUp:
+      case _WorkspaceToolMenuAction.splitUp:
         onSplit?.call(.up);
-      case _ExperimentalToolMenuAction.splitDown:
+      case _WorkspaceToolMenuAction.splitDown:
         onSplit?.call(.down);
-      case _ExperimentalToolMenuAction.splitLeft:
+      case _WorkspaceToolMenuAction.splitLeft:
         onSplit?.call(.left);
-      case _ExperimentalToolMenuAction.splitRight:
+      case _WorkspaceToolMenuAction.splitRight:
         onSplit?.call(.right);
-      case _ExperimentalToolMenuAction.close:
+      case _WorkspaceToolMenuAction.close:
         onClose();
-      case _ExperimentalToolMenuAction.closeOthers:
+      case _WorkspaceToolMenuAction.closeOthers:
         onCloseKeys(closeOthers);
-      case _ExperimentalToolMenuAction.closeRight:
+      case _WorkspaceToolMenuAction.closeRight:
         onCloseKeys(closeRight);
     }
   }
@@ -265,21 +265,21 @@ class const _ExperimentalPanelToolChip({
   }
 }
 
-sealed class _ExperimentalAddTabMenuAction {
-  const _ExperimentalAddTabMenuAction();
+sealed class _WorkspaceAddTabMenuAction {
+  const _WorkspaceAddTabMenuAction();
 }
 
-class const _ExperimentalAddToolMenuAction(final String key)
-    extends _ExperimentalAddTabMenuAction {}
+class const _WorkspaceAddToolMenuAction(final String key)
+    extends _WorkspaceAddTabMenuAction {}
 
-class const _ExperimentalAddTerminalMenuAction()
-    extends _ExperimentalAddTabMenuAction {}
+class const _WorkspaceAddTerminalMenuAction()
+    extends _WorkspaceAddTabMenuAction {}
 
-class const _ExperimentalAddAgentProfileMenuAction(final String profileId)
-    extends _ExperimentalAddTabMenuAction {}
+class const _WorkspaceAddAgentProfileMenuAction(final String profileId)
+    extends _WorkspaceAddTabMenuAction {}
 
-class const _ExperimentalPanelAddButton({
-  required final List<ExperimentalWorkspaceTool> availableTools,
+class const _WorkspacePanelAddButton({
+  required final List<WorkspaceTool> availableTools,
   required final List<AgentProfile> profiles,
   required final ValueChanged<String> onSelect,
   required final VoidCallback onNewTerminal,
@@ -297,16 +297,16 @@ class const _ExperimentalPanelAddButton({
       button.size.bottomRight(.zero),
       ancestor: overlay,
     );
-    final selected = await showMenu<_ExperimentalAddTabMenuAction>(
+    final selected = await showMenu<_WorkspaceAddTabMenuAction>(
       context: context,
       position: .fromRect(
         .fromPoints(topLeft, bottomRight),
         Offset.zero & overlay.size,
       ),
-      items: <PopupMenuEntry<_ExperimentalAddTabMenuAction>>[
+      items: <PopupMenuEntry<_WorkspaceAddTabMenuAction>>[
         for (final tool in availableTools)
           AleraDropdownEntry(
-            value: _ExperimentalAddToolMenuAction(tool.key),
+            value: _WorkspaceAddToolMenuAction(tool.key),
             label: tool.label,
             leading: Icon(
               _iconForTool(tool),
@@ -315,7 +315,7 @@ class const _ExperimentalPanelAddButton({
             ),
           ),
         const AleraDropdownEntry(
-          value: _ExperimentalAddTerminalMenuAction(),
+          value: _WorkspaceAddTerminalMenuAction(),
           label: 'Terminal',
           leading: Icon(
             AleraIcons.terminal,
@@ -326,7 +326,7 @@ class const _ExperimentalPanelAddButton({
         for (final profile in profiles)
           if (profile.showInNewTabMenu)
             AleraDropdownEntry(
-              value: _ExperimentalAddAgentProfileMenuAction(profile.id),
+              value: _WorkspaceAddAgentProfileMenuAction(profile.id),
               label: profile.name,
               leading: AgentIdentityIcon(
                 agentType:
@@ -341,11 +341,11 @@ class const _ExperimentalPanelAddButton({
       return;
     }
     switch (selected) {
-      case _ExperimentalAddToolMenuAction(:final key):
+      case _WorkspaceAddToolMenuAction(:final key):
         onSelect(key);
-      case _ExperimentalAddTerminalMenuAction():
+      case _WorkspaceAddTerminalMenuAction():
         onNewTerminal();
-      case _ExperimentalAddAgentProfileMenuAction(:final profileId):
+      case _WorkspaceAddAgentProfileMenuAction(:final profileId):
         onLaunchAgentProfile?.call(profileId);
     }
   }
@@ -364,21 +364,21 @@ class const _ExperimentalPanelAddButton({
   }
 }
 
-class const _ExperimentalStripChipDropTarget({
+class const _WorkspaceStripChipDropTarget({
   required final int chipIndex,
   required final String workspaceId,
   required final bool showLeadingIndicator,
   required final bool showTrailingIndicator,
-  required final void Function(ExperimentalPaneTabDragData data, int gapIndex)
+  required final void Function(WorkspacePaneTabDragData data, int gapIndex)
   onHoverGap,
   required final VoidCallback onLeave,
-  required final void Function(ExperimentalPaneTabDragData data, int gapIndex)
+  required final void Function(WorkspacePaneTabDragData data, int gapIndex)
   onDropGap,
   required final Widget child,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return DragTarget<ExperimentalPaneTabDragData>(
+    return DragTarget<WorkspacePaneTabDragData>(
       onWillAcceptWithDetails: (details) =>
           details.data.workspaceId == workspaceId,
       onMove: (details) =>
@@ -397,7 +397,7 @@ class const _ExperimentalStripChipDropTarget({
                 top: 0,
                 bottom: 0,
                 width: AleraTokens.space2,
-                child: _ExperimentalStripInsertionIndicator(),
+                child: _WorkspaceStripInsertionIndicator(),
               ),
             if (showTrailingIndicator)
               const Positioned(
@@ -405,7 +405,7 @@ class const _ExperimentalStripChipDropTarget({
                 top: 0,
                 bottom: 0,
                 width: AleraTokens.space2,
-                child: _ExperimentalStripInsertionIndicator(),
+                child: _WorkspaceStripInsertionIndicator(),
               ),
           ],
         );
@@ -415,9 +415,9 @@ class const _ExperimentalStripChipDropTarget({
 
   void _reportGap(
     BuildContext context,
-    ExperimentalPaneTabDragData data,
+    WorkspacePaneTabDragData data,
     Offset globalOffset,
-    void Function(ExperimentalPaneTabDragData data, int gapIndex) callback,
+    void Function(WorkspacePaneTabDragData data, int gapIndex) callback,
   ) {
     final renderObject = context.findRenderObject();
     if (renderObject is! RenderBox || !renderObject.hasSize) {
@@ -435,14 +435,14 @@ class const _ExperimentalStripChipDropTarget({
   }
 }
 
-class const _ExperimentalStripAppendDropTarget({
+class const _WorkspaceStripAppendDropTarget({
   required final String workspaceId,
   required final int tabCount,
   required final bool enabled,
-  required final void Function(ExperimentalPaneTabDragData data, int gapIndex)
+  required final void Function(WorkspacePaneTabDragData data, int gapIndex)
   onHoverGap,
   required final VoidCallback onLeave,
-  required final void Function(ExperimentalPaneTabDragData data, int gapIndex)
+  required final void Function(WorkspacePaneTabDragData data, int gapIndex)
   onDropGap,
   required final Widget child,
 }) extends StatelessWidget {
@@ -451,7 +451,7 @@ class const _ExperimentalStripAppendDropTarget({
     if (!enabled) {
       return child;
     }
-    return DragTarget<ExperimentalPaneTabDragData>(
+    return DragTarget<WorkspacePaneTabDragData>(
       onWillAcceptWithDetails: (details) =>
           details.data.workspaceId == workspaceId,
       onMove: (details) => onHoverGap(details.data, tabCount),
@@ -462,7 +462,7 @@ class const _ExperimentalStripAppendDropTarget({
   }
 }
 
-class const _ExperimentalStripInsertionIndicator() extends StatelessWidget {
+class const _WorkspaceStripInsertionIndicator() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const DecoratedBox(
