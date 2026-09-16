@@ -2,7 +2,10 @@ part of 'workbench_controller.dart';
 
 /// Opening and pinning file-backed tabs, including shared preview replacement.
 mixin _WorkbenchControllerFileTabs
-    on _$WorkbenchController, _WorkbenchControllerInternals {
+    on
+        _$WorkbenchController,
+        _WorkbenchControllerInternals,
+        _WorkbenchControllerInternalLayout {
   Future<WorkspaceTabRecord> openEditorTab({
     required Workspace workspace,
     required String relativePath,

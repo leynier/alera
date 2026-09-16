@@ -1,7 +1,10 @@
 part of 'workbench_controller.dart';
 
 mixin _WorkbenchControllerPullRequestDiffTabs
-    on _$WorkbenchController, _WorkbenchControllerInternals {
+    on
+        _$WorkbenchController,
+        _WorkbenchControllerInternals,
+        _WorkbenchControllerInternalLayout {
   Future<WorkspaceTabRecord> openGitPullRequestDiffTab({
     required Workspace workspace,
     String? gitDiffRoot,

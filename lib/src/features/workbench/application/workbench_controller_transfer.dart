@@ -7,7 +7,8 @@ mixin _WorkbenchControllerTransfer
         _WorkbenchControllerWorkspaceReconciliation,
         _WorkbenchControllerTabOpening,
         _WorkbenchControllerProjects,
-        _WorkbenchControllerProjectSelection {
+        _WorkbenchControllerProjectSelection,
+        _WorkbenchControllerInternalLayout {
   Future<void> resumeWorkspaceRelocation(
     Workspace workspace,
     WorkspaceRelocationRecoveryEntry entry,

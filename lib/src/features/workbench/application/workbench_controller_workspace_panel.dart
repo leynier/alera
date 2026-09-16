@@ -1,7 +1,10 @@
 part of 'workbench_controller.dart';
 
 mixin _WorkbenchControllerWorkspacePanel
-    on _$WorkbenchController, _WorkbenchControllerInternals {
+    on
+        _$WorkbenchController,
+        _WorkbenchControllerInternals,
+        _WorkbenchControllerInternalLayout {
   final Map<String, Future<void>> _primaryTerminalLoads = {};
 
   @override

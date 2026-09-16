@@ -1,6 +1,12 @@
 part of 'workbench_controller.dart';
 
-extension _WorkbenchControllerSyncHelpers on _WorkbenchControllerSync {
+mixin _WorkbenchControllerSyncApply
+    on
+        _$WorkbenchController,
+        _WorkbenchControllerInternals,
+        _WorkbenchControllerInternalLayout,
+        _WorkbenchControllerSync {
+  @override
   void _onWorkspacesChanged(Project project, List<Workspace> workspaces) {
     _enqueueWorkspaceSync(() async {
       final ids = workspaces.map((workspace) => workspace.id).toSet();
@@ -14,6 +20,7 @@ extension _WorkbenchControllerSyncHelpers on _WorkbenchControllerSync {
     });
   }
 
+  @override
   void _applyWorkspacesChanged(Project project, List<Workspace> workspaces) {
     final nextWorkspaces = Map<String, List<Workspace>>.from(
       state.workspacesByProject,
@@ -242,6 +249,7 @@ extension _WorkbenchControllerSyncHelpers on _WorkbenchControllerSync {
     });
   }
 
+  @override
   void _applyTabsChanged(String workspaceId, List<WorkspaceTabRecord> tabs) {
     if (!_tabSubProjectIds.containsKey(workspaceId)) {
       return;

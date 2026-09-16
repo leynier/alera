@@ -9,6 +9,11 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
   Future<void> _workspaceSyncQueue = Future<void>.value();
   final Map<String, String> _transferredTabOwners = {};
   Future<void> _refreshProjectAfterTransfer(Project project);
+  void _onWorkspacesChanged(Project project, List<Workspace> workspaces);
+  void _applyWorkspacesChanged(Project project, List<Workspace> workspaces);
+  void _applyTabsChanged(String workspaceId, List<WorkspaceTabRecord> tabs);
+  void _recordLayoutError(Object error);
+  void _maybeEnsurePrimaryTerminal(Workspace workspace);
 
   ProjectsService get _projectsService => ref.read(projectsServiceProvider);
 

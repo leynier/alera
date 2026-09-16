@@ -77,6 +77,7 @@ part 'workbench_controller_sections.dart';
 class WorkbenchController extends _$WorkbenchController
     with
         _WorkbenchControllerInternals,
+        _WorkbenchControllerInternalLayout,
         _WorkbenchControllerWorkspaceReconciliation,
         _WorkbenchControllerWorkspacePanel,
         _WorkbenchControllerWorkspacePanelPanes,
@@ -96,6 +97,7 @@ class WorkbenchController extends _$WorkbenchController
         _WorkbenchControllerViewPrefs,
         _WorkbenchControllerSourceControlRoot,
         _WorkbenchControllerSync,
+        _WorkbenchControllerSyncApply,
         _WorkbenchControllerSections {
   @override
   WorkbenchState build() {

@@ -5,7 +5,8 @@ mixin _WorkbenchControllerSync
         _$WorkbenchController,
         _WorkbenchControllerInternals,
         _WorkbenchControllerWorkspaceReconciliation,
-        _WorkbenchControllerTransfer {
+        _WorkbenchControllerTransfer,
+        _WorkbenchControllerInternalLayout {
   void _enqueueWorkspaceSync(Future<void> Function() update) {
     if (_transferringWorkspace) {
       _refreshAfterTransfer = true;

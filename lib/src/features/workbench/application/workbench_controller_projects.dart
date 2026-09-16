@@ -5,7 +5,8 @@ mixin _WorkbenchControllerProjects
         _$WorkbenchController,
         _WorkbenchControllerInternals,
         _WorkbenchControllerWorkspacePanel,
-        _WorkbenchControllerTabOpening {
+        _WorkbenchControllerTabOpening,
+        _WorkbenchControllerInternalLayout {
   Future<List<String>> listSourceBranches(Project project) =>
       _workspaceService.listSourceBranches(project);
 

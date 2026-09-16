@@ -4,7 +4,8 @@ mixin _WorkbenchControllerWorkspacePanelPanes
     on
         _$WorkbenchController,
         _WorkbenchControllerInternals,
-        _WorkbenchControllerWorkspacePanel {
+        _WorkbenchControllerWorkspacePanel,
+        _WorkbenchControllerInternalLayout {
   String _workspacePaneKey(String tabIdOrKey) {
     if (tabIdOrKey.startsWith('tab:') || tabIdOrKey.startsWith('tool:')) {
       return tabIdOrKey;

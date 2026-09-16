@@ -6,7 +6,8 @@ mixin _WorkbenchControllerProjectSelection
         _WorkbenchControllerInternals,
         _WorkbenchControllerWorkspacePanel,
         _WorkbenchControllerTabOpening,
-        _WorkbenchControllerProjects {
+        _WorkbenchControllerProjects,
+        _WorkbenchControllerInternalLayout {
   Future<List<WorkspaceTag>> listWorkspaceTags() async {
     try {
       final tags = await _workspaceGraphRepository.listTags();

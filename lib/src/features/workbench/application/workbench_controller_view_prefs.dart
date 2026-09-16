@@ -4,7 +4,8 @@ mixin _WorkbenchControllerViewPrefs
     on
         _$WorkbenchController,
         _WorkbenchControllerInternals,
-        _WorkbenchControllerWorkspacePanelPanes {
+        _WorkbenchControllerWorkspacePanelPanes,
+        _WorkbenchControllerInternalLayout {
   void toggleExpanded(String projectId) {
     toggleProjectCollapsed(projectId);
   }

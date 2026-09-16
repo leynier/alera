@@ -7,7 +7,8 @@ mixin _WorkbenchControllerNavigation
         _WorkbenchControllerProjects,
         _WorkbenchControllerProjectSelection,
         _WorkbenchControllerWorkspacePanel,
-        _WorkbenchControllerWorkspacePanelPanes {
+        _WorkbenchControllerWorkspacePanelPanes,
+        _WorkbenchControllerInternalLayout {
   Future<String> launchAgentProfileTab({
     required Workspace workspace,
     required String profileId,

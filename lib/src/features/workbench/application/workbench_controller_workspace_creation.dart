@@ -11,7 +11,8 @@ mixin _WorkbenchControllerWorkspaceCreation
         _WorkbenchControllerWorkspaceReconciliation,
         _WorkbenchControllerTabOpening,
         _WorkbenchControllerProjects,
-        _WorkbenchControllerProjectSelection {
+        _WorkbenchControllerProjectSelection,
+        _WorkbenchControllerInternalLayout {
   Future<WorkspaceCreationResult> createWorkspace({
     bool useProjectCheckout = false,
     required Project project,

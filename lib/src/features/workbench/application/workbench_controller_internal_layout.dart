@@ -1,7 +1,7 @@
 part of 'workbench_controller.dart';
 
-extension _WorkbenchControllerInternalsHelpers
-    on _WorkbenchControllerInternals {
+mixin _WorkbenchControllerInternalLayout
+    on _$WorkbenchController, _WorkbenchControllerInternals {
   Future<void> _activateAddedProject(Project project) async {
     await _reconcileProjectWorkspaces(project);
     // Expand the project (remove from collapsed set if a stale id lingered).
@@ -61,8 +61,6 @@ extension _WorkbenchControllerInternalsHelpers
       unawaited(_loadLayoutForWorkspace(workspace.id));
     }
   }
-
-  void _maybeEnsurePrimaryTerminal(Workspace workspace) {}
 
   Future<void> _loadLayoutForWorkspace(String workspaceId) async {
     if (!_loadingLayoutWorkspaceIds.add(workspaceId)) {
@@ -166,6 +164,7 @@ extension _WorkbenchControllerInternalsHelpers
     );
   }
 
+  @override
   void _recordLayoutError(Object error) {
     if (!_disposed) {
       state = state.copyWith(error: error.toString());
