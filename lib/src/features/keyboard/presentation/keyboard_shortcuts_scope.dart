@@ -11,13 +11,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// A focused terminal handles its own keys (and intercepts Alera shortcuts via
 /// [TerminalSurface]), so those events never bubble here. When focus is on the
 /// sidebar, a dialog, or no editable field, unhandled chords bubble up to this
-/// ancestor [Focus] and are dispatched.
+/// ancestor and are dispatched.
+///
+/// This is a [FocusScope] rather than a plain [Focus] so that focus which
+/// falls off the content (a focused widget unmounts and nothing else claims
+/// it) lands on this node instead of the route scope above it. Key events are
+/// only delivered to the primary focus and its ancestors, so focus parked on
+/// the route would put every shortcut out of reach.
 class const KeyboardShortcutsScope({super.key, required final Widget child})
     extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Focus(
-      canRequestFocus: false,
+    return FocusScope(
+      debugLabel: 'KeyboardShortcutsScope',
+      skipTraversal: true,
       onKeyEvent: (node, event) => _handleKey(context, ref, event),
       child: child,
     );

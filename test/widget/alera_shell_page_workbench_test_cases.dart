@@ -75,13 +75,12 @@ void _registerAleraShellWorkbenchTests() {
   ) async {
     final harness = await _pumpShell(tester, state: _splitWorkbenchState());
     final before = harness.controller.state.layoutFor('workspace-1')!;
-    final paneFocus = tester.widget<Focus>(
+    final paneFocus = tester.widget<FocusScope>(
       find
           .byWidgetPredicate(
             (widget) =>
-                widget is Focus &&
+                widget is FocusScope &&
                 widget.onFocusChange != null &&
-                widget.canRequestFocus == false &&
                 widget.skipTraversal == true,
           )
           .first,
@@ -263,40 +262,6 @@ void _registerAleraShellWorkbenchTests() {
     // post-frame callback that requestFocus() defers to.
     await tester.pump();
     await tester.pump();
-
-    expect(harness.runtime.totalFocusRequests, 1);
-  });
-
-  testWidgets('new-terminal shortcut focuses the new session', (tester) async {
-    final harness = await _pumpShell(tester, state: _populatedWorkbenchState());
-
-    // Focus a descendant so key events bubble up to the global scope.
-    await tester.tap(find.byType(TextField).first);
-    await tester.pumpAndSettle();
-
-    await tester.sendKeyDownEvent(.controlLeft);
-    await tester.sendKeyDownEvent(.keyT);
-    await tester.sendKeyUpEvent(.keyT);
-    await tester.sendKeyUpEvent(.controlLeft);
-    await tester.pumpAndSettle();
-
-    expect(harness.runtime.totalFocusRequests, 1);
-  });
-
-  testWidgets('split shortcut focuses the new pane terminal', (tester) async {
-    final harness = await _pumpShell(tester, state: _populatedWorkbenchState());
-
-    await tester.tap(find.byType(TextField).first);
-    await tester.pumpAndSettle();
-
-    // Ctrl+Shift+D is the split-right default off macOS.
-    await tester.sendKeyDownEvent(.controlLeft);
-    await tester.sendKeyDownEvent(.shiftLeft);
-    await tester.sendKeyDownEvent(.keyD);
-    await tester.sendKeyUpEvent(.keyD);
-    await tester.sendKeyUpEvent(.shiftLeft);
-    await tester.sendKeyUpEvent(.controlLeft);
-    await tester.pumpAndSettle();
 
     expect(harness.runtime.totalFocusRequests, 1);
   });

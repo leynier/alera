@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 part 'workspace_workbench_view_helper_test_cases.dart';
+part 'workspace_workbench_view_pane_focus_test_cases.dart';
 part 'workspace_workbench_view_pane_test_cases.dart';
 part 'workspace_workbench_view_tab_drop_test_cases.dart';
 part 'workspace_workbench_view_tab_test_cases.dart';
@@ -57,6 +58,7 @@ void main() {
 
     _registerExperimentalWorkbenchViewTests();
     _registerWorkspaceWorkbenchViewPaneTests();
+    _registerWorkspaceWorkbenchViewPaneFocusTests();
     _registerWorkspaceWorkbenchViewTabTests();
     _registerWorkspaceWorkbenchViewPreviewTabTests();
     _registerWorkspaceWorkbenchViewTabDropTests();

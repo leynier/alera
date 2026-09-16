@@ -35,6 +35,7 @@ class const WorkspaceGitDiffSurface({
   super.key,
   required final Workspace workspace,
   required final WorkspaceTabRecord tab,
+  final bool autofocus = false,
 }) extends ConsumerStatefulWidget {
   @override
   ConsumerState<WorkspaceGitDiffSurface> createState() =>
@@ -43,6 +44,10 @@ class const WorkspaceGitDiffSurface({
 
 class _WorkspaceGitDiffSurfaceState
     extends ConsumerState<WorkspaceGitDiffSurface> {
+  // The diff is read-only text with nothing focusable inside, so the surface
+  // owns a node like the image and PDF viewers do: clicking it makes its pane
+  // the active group, and Ctrl+W / Ctrl+Tab keep reaching the shortcut layer.
+  final FocusNode _focusNode = FocusNode(debugLabel: 'WorkspaceGitDiffSurface');
   Future<GitDiffResult>? _future;
   GitDiffResult? _loadedResult;
   ReadingDiffResult? _readingDiffResult;
@@ -65,6 +70,9 @@ class _WorkspaceGitDiffSurfaceState
   void initState() {
     super.initState();
     _load();
+    if (widget.autofocus) {
+      _requestFocusNextFrame();
+    }
   }
 
   @override
@@ -75,6 +83,17 @@ class _WorkspaceGitDiffSurfaceState
         _diffSelectionChanged(oldWidget.tab, widget.tab)) {
       _load();
     }
+    if (!oldWidget.autofocus && widget.autofocus) {
+      _requestFocusNextFrame();
+    }
+  }
+
+  void _requestFocusNextFrame() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _focusNode.requestFocus();
+      }
+    });
   }
 
   bool _diffSelectionChanged(
@@ -102,6 +121,7 @@ class _WorkspaceGitDiffSurfaceState
     if (activeRequest != null) {
       ref.read(readingDiffServiceProvider).cancel(activeRequest);
     }
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -113,7 +133,7 @@ class _WorkspaceGitDiffSurfaceState
         (settings) => settings.aiAssist.enabled,
       ),
     );
-    return DecoratedBox(
+    final surface = DecoratedBox(
       decoration: const BoxDecoration(color: AleraTokens.bg),
       child: Column(
         crossAxisAlignment: .stretch,
@@ -215,6 +235,10 @@ class _WorkspaceGitDiffSurfaceState
           ),
         ],
       ),
+    );
+    return Listener(
+      onPointerDown: (_) => _focusNode.requestFocus(),
+      child: Focus(focusNode: _focusNode, child: surface),
     );
   }
 

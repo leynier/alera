@@ -63,6 +63,7 @@ class const _WorkspaceTabContent({
       WorkspaceTabKind.gitDiff => WorkspaceGitDiffSurface(
         workspace: workspace,
         tab: tab,
+        autofocus: autofocus,
       ),
     };
   }

@@ -41,8 +41,14 @@ class const _WorkbenchPane({
     // Promote this pane to the workbench's active group whenever any descendant
     // widget (terminal view, tab strip controls, etc.) gains real focus, so
     // keyboard shortcuts like split-right/down act on the focused pane.
-    return Focus(
-      canRequestFocus: false,
+    //
+    // A scope, not a plain Focus: when the active tab's content unmounts (a
+    // keyboard tab switch, or a terminal replaced by a diff) Flutter hands
+    // focus to the enclosing scope's most recently focused child. Without a
+    // per-pane scope that child is the terminal in a sibling pane, which then
+    // steals the active group, or the route scope above the shortcut layer.
+    return FocusScope(
+      debugLabel: 'WorkbenchPane $groupId',
       skipTraversal: true,
       onFocusChange: (hasFocus) {
         if (hasFocus) {

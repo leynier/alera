@@ -256,8 +256,11 @@ class _WorkspaceWorkbenchViewState extends State<WorkspaceWorkbenchView> {
           ),
         );
       }
-      return Focus(
-        canRequestFocus: false,
+      // A scope for the same reason as _WorkbenchPane: focus released by
+      // unmounting content must stay in this surface, not jump to a sibling.
+      return FocusScope(
+        debugLabel: 'WorkbenchSingleSurface ${tab.id}',
+        skipTraversal: true,
         onFocusChange: (focused) {
           if (focused) widget.onSelectTab(groupId: '', tabId: tab.id);
         },
