@@ -1,6 +1,7 @@
 import 'package:dart_mappable/dart_mappable.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -162,6 +163,70 @@ void main() {
         expect(restored.rightSidebarWidth, 400);
       },
     );
+
+    test('fromJson maps retired experimental panel keys', () {
+      final restored = WorkbenchViewPrefs.fromJson(<String, Object?>{
+        'groupBy': 'project',
+        'projectSort': 'name',
+        'workspaceSort': 'name',
+        'selectedProjectIds': <String>[],
+        'collapsedProjectIds': <String>[],
+        'expandedWorkspaceIds': <String>[],
+        'experimentalPanels': <String, Object?>{
+          'w-1': const WorkspacePanel(primaryTabId: 'primary').toMap(),
+        },
+        'experimentalNewWorkspaceTools': <Object?>[
+          'explorer',
+          'unknown',
+          'explorer',
+          'search',
+        ],
+      });
+
+      expect(restored.workspacePanels.keys, <String>['w-1']);
+      expect(restored.workspacePanels['w-1']?.primaryTabId, 'primary');
+      expect(restored.newWorkspaceTools, <WorkspaceTool>[
+        WorkspaceTool.explorer,
+        WorkspaceTool.search,
+      ]);
+    });
+
+    test('fromJson keeps a valid new-workspace tools list unchanged', () {
+      final restored = WorkbenchViewPrefs.fromJson(<String, Object?>{
+        'groupBy': 'project',
+        'projectSort': 'name',
+        'workspaceSort': 'name',
+        'selectedProjectIds': <String>[],
+        'collapsedProjectIds': <String>[],
+        'expandedWorkspaceIds': <String>[],
+        'newWorkspaceTools': <String>['search', 'pullRequest'],
+      });
+
+      expect(restored.newWorkspaceTools, <WorkspaceTool>[
+        WorkspaceTool.search,
+        WorkspaceTool.pullRequest,
+      ]);
+    });
+
+    test('fromJson drops non-numeric right-sidebar width entries', () {
+      final restored = WorkbenchViewPrefs.fromJson(<String, Object?>{
+        'groupBy': 'project',
+        'projectSort': 'name',
+        'workspaceSort': 'name',
+        'selectedProjectIds': <String>[],
+        'collapsedProjectIds': <String>[],
+        'expandedWorkspaceIds': <String>[],
+        'rightSidebarWidth': 280,
+        'rightSidebarWidthByWorkspaceId': <String, Object?>{
+          'w-wide': 400,
+          'w-bad': 'wide',
+        },
+      });
+
+      expect(restored.rightSidebarWidthByWorkspaceId, <String, double>{
+        'w-wide': 400,
+      });
+    });
 
     test('fromJson drops right-sidebar widths that match the fallback', () {
       final restored = WorkbenchViewPrefs.fromJson(<String, Object?>{
