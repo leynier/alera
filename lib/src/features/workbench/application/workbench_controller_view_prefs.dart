@@ -1,7 +1,10 @@
 part of 'workbench_controller.dart';
 
 mixin _WorkbenchControllerViewPrefs
-    on _$WorkbenchController, _WorkbenchControllerInternals {
+    on
+        _$WorkbenchController,
+        _WorkbenchControllerInternals,
+        _WorkbenchControllerWorkspacePanelPanes {
   void toggleExpanded(String projectId) {
     toggleProjectCollapsed(projectId);
   }

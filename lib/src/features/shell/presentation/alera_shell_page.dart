@@ -43,6 +43,7 @@ import 'package:alera/src/features/workbench/domain/workspace_panel_width.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_panel_view.dart';
 
 part 'alera_shell_page_body.dart';
+part 'alera_shell_page_body_tools.dart';
 part 'alera_shell_page_body_content.dart';
 part 'alera_shell_page_workspace_panel.dart';
 

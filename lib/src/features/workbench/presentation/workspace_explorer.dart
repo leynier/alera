@@ -34,6 +34,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 part 'workspace_explorer_actions.dart';
 part 'workspace_explorer_refresh.dart';
 part 'workspace_explorer_widgets.dart';
+part 'workspace_explorer_tree.dart';
 
 bool _isDirectoryEntry(native.WorkspaceFileEntry? entry) =>
     entry?.kind.name == 'directory';
@@ -140,125 +141,6 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
     _scrollController.dispose();
     _controller.dispose();
     super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    _listenForRevealRequest();
-    return Column(
-      crossAxisAlignment: .stretch,
-      children: <Widget>[
-        _ExplorerToolbar(
-          title: widget.workspace.name,
-          mode: widget.mode,
-          loading: _loading,
-          onRefresh: () => unawaited(_reloadRoot()),
-          onCollapseAll: _controller.expansions.collapseAll,
-          onToggleMode: _toggleMode,
-          onSaveAll: () => unawaited(_saveAllEditors()),
-          onNewFile: () => unawaited(_createEntry(directory: false)),
-          onNewFolder: () => unawaited(_createEntry(directory: true)),
-        ),
-        const Divider(height: 1, color: AleraTokens.borderSubtle),
-        WorkspaceAgentCommentDraftScope(workspaceId: widget.workspace.id),
-        Expanded(
-          child: _ExplorerBackgroundMenu(
-            shouldSuppress: _consumeBackgroundMenuSuppression,
-            onAction: _handleBackgroundAction,
-            child: _loading && _controller.visibleNodes.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : tree.DirectoryTreeTheme(
-                    data: const tree.DirectoryTreeThemeData(
-                      rowHeight: AleraTokens.space32,
-                      indent: AleraTokens.space16,
-                      selectionColor: AleraTokens.surfaceElevated,
-                      focusColor: AleraTokens.surfaceElevated,
-                      hoverColor: AleraTokens.surface,
-                      roundedCorners: false,
-                    ),
-                    child: tree.DirectoryTreeView(
-                      controller: _controller,
-                      scrollController: _scrollController,
-                      padding: const .symmetric(vertical: AleraTokens.space4),
-                      expanderSize: AleraTokens.space24,
-                      expanderGap: 0,
-                      expanderBuilder: _buildExpander,
-                      contextMenuDelegate: _ExplorerMenuDelegate(
-                        fileManagerLabel: _folderOpener.fileManagerLabel,
-                        canFocusSourceControlFolders:
-                            widget.onFocusSourceControlFolder != null,
-                        isFocusedSourceControlRoot: (node) {
-                          return _entryByNodeId[node.id]?.relativePath ==
-                              widget.focusedSourceControlRoot;
-                        },
-                        onMenuOpening: _suppressBackgroundMenuOnce,
-                        onAction: _handleMenuAction,
-                      ),
-                      nodeBuilder: _buildNode,
-                    ),
-                  ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildExpander(
-    BuildContext context,
-    tree.VisibleNode node,
-    bool expanded,
-    VoidCallback _,
-  ) {
-    return InkWell(
-      onTap: () => unawaited(_toggleDirectory(node)),
-      // InkWell defaults to adaptiveClickable, which is the basic arrow off the
-      // web, so the hand cursor has to be requested explicitly here.
-      mouseCursor: SystemMouseCursors.click,
-      child: Icon(
-        expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
-        size: 16,
-        color: AleraTokens.foregroundMuted,
-      ),
-    );
-  }
-
-  Widget _buildNode(
-    BuildContext context,
-    tree.VisibleNode node,
-    tree.NodeVisualState state,
-  ) {
-    final entry = _entryByNodeId[node.id];
-    final selected = _controller.selection.isSelected(node.id);
-    final child = _ExplorerRow(
-      name: node.name,
-      entry: entry,
-      expanded: state.isExpanded,
-      selected: selected,
-      sourceControlRoot:
-          entry != null &&
-          entry.relativePath == widget.focusedSourceControlRoot,
-      onTap: () => unawaited(_handlePrimaryTap(node)),
-    );
-    if (entry == null) {
-      return child;
-    }
-    return DragTarget<_ExplorerDragData>(
-      onWillAcceptWithDetails: (details) =>
-          _canDrop(details.data, entry.relativePath),
-      onAcceptWithDetails: (details) =>
-          unawaited(_moveEntry(details.data.relativePath, entry.relativePath)),
-      builder: (context, _, _) => TerminalPathDraggable<_ExplorerDragData>(
-        data: _ExplorerDragData(
-          relativePath: entry.relativePath,
-          absolutePath: _absolutePath(entry.relativePath),
-        ),
-        feedback: Material(
-          color: Colors.transparent,
-          child: SizedBox(width: AleraTokens.sidebarDefaultWidth, child: child),
-        ),
-        child: child,
-      ),
-    );
   }
 
   Future<void> _reloadRoot({bool restoreSession = false}) async {
@@ -551,24 +433,65 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
       native.WorkspaceExplorerTreeNodeKind.file => tree.NodeType.file,
     };
   }
-}
-
-class const _AleraFlattenStrategy() extends tree.FlattenStrategy {
-  static const tree.DefaultFlattenStrategy _delegate =
-      tree.DefaultFlattenStrategy();
 
   @override
-  List<tree.VisibleNode> flatten({
-    required tree.TreeData data,
-    required Set<String> expandedIds,
-    String? filterQuery,
-  }) {
-    return _delegate
-        .flatten(data: data, expandedIds: expandedIds, filterQuery: filterQuery)
-        .where(
-          (node) =>
-              !node.id.startsWith(_WorkspaceExplorerState._placeholderPrefix),
-        )
-        .toList(growable: false);
+  Widget build(BuildContext context) {
+    _listenForRevealRequest();
+    return Column(
+      crossAxisAlignment: .stretch,
+      children: <Widget>[
+        _ExplorerToolbar(
+          title: widget.workspace.name,
+          mode: widget.mode,
+          loading: _loading,
+          onRefresh: () => unawaited(_reloadRoot()),
+          onCollapseAll: _controller.expansions.collapseAll,
+          onToggleMode: _toggleMode,
+          onSaveAll: () => unawaited(_saveAllEditors()),
+          onNewFile: () => unawaited(_createEntry(directory: false)),
+          onNewFolder: () => unawaited(_createEntry(directory: true)),
+        ),
+        const Divider(height: 1, color: AleraTokens.borderSubtle),
+        WorkspaceAgentCommentDraftScope(workspaceId: widget.workspace.id),
+        Expanded(
+          child: _ExplorerBackgroundMenu(
+            shouldSuppress: _consumeBackgroundMenuSuppression,
+            onAction: _handleBackgroundAction,
+            child: _loading && _controller.visibleNodes.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : tree.DirectoryTreeTheme(
+                    data: const tree.DirectoryTreeThemeData(
+                      rowHeight: AleraTokens.space32,
+                      indent: AleraTokens.space16,
+                      selectionColor: AleraTokens.surfaceElevated,
+                      focusColor: AleraTokens.surfaceElevated,
+                      hoverColor: AleraTokens.surface,
+                      roundedCorners: false,
+                    ),
+                    child: tree.DirectoryTreeView(
+                      controller: _controller,
+                      scrollController: _scrollController,
+                      padding: const .symmetric(vertical: AleraTokens.space4),
+                      expanderSize: AleraTokens.space24,
+                      expanderGap: 0,
+                      expanderBuilder: _buildExpander,
+                      contextMenuDelegate: _ExplorerMenuDelegate(
+                        fileManagerLabel: _folderOpener.fileManagerLabel,
+                        canFocusSourceControlFolders:
+                            widget.onFocusSourceControlFolder != null,
+                        isFocusedSourceControlRoot: (node) {
+                          return _entryByNodeId[node.id]?.relativePath ==
+                              widget.focusedSourceControlRoot;
+                        },
+                        onMenuOpening: _suppressBackgroundMenuOnce,
+                        onAction: _handleMenuAction,
+                      ),
+                      nodeBuilder: _buildNode,
+                    ),
+                  ),
+          ),
+        ),
+      ],
+    );
   }
 }

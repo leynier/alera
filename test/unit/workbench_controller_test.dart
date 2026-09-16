@@ -47,10 +47,13 @@ import 'fake_project_config.dart';
 
 part 'workbench_controller_lifecycle_test_cases.dart';
 part 'workbench_controller_workspace_panel_test_cases.dart';
+part 'workbench_controller_workspace_panel_primary_test_cases.dart';
 part 'workbench_controller_new_workspace_tools_test_cases.dart';
 part 'workbench_controller_workspace_panel_main_test_cases.dart';
 part 'workbench_controller_tab_focus_test_cases.dart';
+part 'workbench_controller_tab_focus_close_test_cases.dart';
 part 'workbench_controller_sleep_test_cases.dart';
+part 'workbench_controller_sleep_open_test_cases.dart';
 part 'workbench_controller_layout_persistence_test_cases.dart';
 part 'workbench_controller_view_prefs_test_cases.dart';
 part 'workbench_controller_source_control_context_test_cases.dart';
@@ -64,6 +67,7 @@ part 'workbench_controller_pinning_test_cases.dart';
 part 'workbench_controller_watcher_recovery_test_cases.dart';
 part 'workbench_controller_navigation_test_cases.dart';
 part 'workbench_controller_preview_tab_test_cases.dart';
+part 'workbench_controller_preview_close_test_cases.dart';
 part 'workbench_controller_view_prefs_test_repository.dart';
 part 'workbench_controller_test_harness.dart';
 part 'workbench_controller_terminal_runtime_fakes.dart';
@@ -86,10 +90,13 @@ void main() {
 
     _registerWorkbenchControllerLifecycleTests();
     _registerWorkspacePanelTests();
+    _registerWorkspacePanelPrimaryTests();
     _registerNewWorkspaceToolsTests();
     _registerWorkspacePanelMainTests();
     _registerWorkbenchControllerTabFocusTests();
+    _registerWorkbenchControllerTabFocusCloseTests();
     _registerWorkbenchControllerSleepTests();
+    _registerWorkbenchControllerSleepOpenTests();
     _registerWorkbenchControllerLayoutPersistenceTests();
     _registerWorkbenchControllerViewPrefsTests();
     _registerWorkbenchControllerSourceControlContextTests();
@@ -103,6 +110,7 @@ void main() {
     _registerWorkbenchControllerWatcherRecoveryTests();
     _registerWorkbenchControllerNavigationTests();
     _registerWorkbenchControllerPreviewTabTests();
+    _registerWorkbenchControllerPreviewCloseTests();
     _registerWorkbenchControllerTerminalCleanupTests();
   });
 }

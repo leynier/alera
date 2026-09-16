@@ -4,7 +4,8 @@ mixin _WorkbenchControllerTabs
     on
         _$WorkbenchController,
         _WorkbenchControllerInternals,
-        _WorkbenchControllerWorkspacePanel {
+        _WorkbenchControllerWorkspacePanel,
+        _WorkbenchControllerWorkspacePanelPanes {
   Future<void> closeWorkspaceTab({
     required Workspace workspace,
     required String tabId,

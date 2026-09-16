@@ -8,7 +8,8 @@ mixin _WorkbenchControllerTabOpening
     on
         _$WorkbenchController,
         _WorkbenchControllerInternals,
-        _WorkbenchControllerWorkspacePanel {
+        _WorkbenchControllerWorkspacePanel,
+        _WorkbenchControllerWorkspacePanelPanes {
   Future<WorkspaceTabRecord> createTerminalTab(
     Workspace workspace, {
     String? targetGroupId,

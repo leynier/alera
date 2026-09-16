@@ -449,3 +449,23 @@ enum _ExplorerAction {
   focusSourceControlRoot,
   clearSourceControlRoot,
 }
+
+class const _AleraFlattenStrategy() extends tree.FlattenStrategy {
+  static const tree.DefaultFlattenStrategy _delegate =
+      tree.DefaultFlattenStrategy();
+
+  @override
+  List<tree.VisibleNode> flatten({
+    required tree.TreeData data,
+    required Set<String> expandedIds,
+    String? filterQuery,
+  }) {
+    return _delegate
+        .flatten(data: data, expandedIds: expandedIds, filterQuery: filterQuery)
+        .where(
+          (node) =>
+              !node.id.startsWith(_WorkspaceExplorerState._placeholderPrefix),
+        )
+        .toList(growable: false);
+  }
+}

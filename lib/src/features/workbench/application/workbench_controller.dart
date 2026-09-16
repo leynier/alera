@@ -52,9 +52,12 @@ import '../infra/workspace_relocation_recovery_client.dart';
 
 part 'workbench_controller.g.dart';
 part 'workbench_controller_internals.dart';
+part 'workbench_controller_internal_layout.dart';
 part 'workbench_controller_workspace_reconciliation.dart';
 part 'workbench_controller_workspace_panel.dart';
+part 'workbench_controller_workspace_panel_panes.dart';
 part 'workbench_controller_projects.dart';
+part 'workbench_controller_project_selection.dart';
 part 'workbench_controller_project_branches.dart';
 part 'workbench_controller_workspace_sleep.dart';
 part 'workbench_controller_navigation.dart';
@@ -67,6 +70,7 @@ part 'workbench_controller_tabs.dart';
 part 'workbench_controller_view_prefs.dart';
 part 'workbench_controller_source_control_root.dart';
 part 'workbench_controller_sync.dart';
+part 'workbench_controller_sync_apply.dart';
 part 'workbench_controller_sections.dart';
 
 @Riverpod(keepAlive: true)
@@ -75,10 +79,12 @@ class WorkbenchController extends _$WorkbenchController
         _WorkbenchControllerInternals,
         _WorkbenchControllerWorkspaceReconciliation,
         _WorkbenchControllerWorkspacePanel,
+        _WorkbenchControllerWorkspacePanelPanes,
         _WorkbenchControllerTabOpening,
         _WorkbenchControllerFileTabs,
         _WorkbenchControllerPullRequestDiffTabs,
         _WorkbenchControllerProjects,
+        _WorkbenchControllerProjectSelection,
         _WorkbenchControllerProjectBranches,
         _WorkbenchControllerWorkspaceSleep,
         _WorkbenchControllerNavigation,
