@@ -259,6 +259,35 @@ void main() {
     });
   });
 
+  group('ghLooksLikePlanRestrictedGitHubFeature', () {
+    test('matches the gh api 403 from a private Free repository', () {
+      expect(
+        ghLooksLikePlanRestrictedGitHubFeature(
+          'gh: Upgrade to GitHub Pro or make this repository public '
+          'to enable this feature. (HTTP 403)',
+        ),
+        isTrue,
+      );
+    });
+
+    test('matches the GitHub Team wording', () {
+      expect(
+        ghLooksLikePlanRestrictedGitHubFeature(
+          'Upgrade to GitHub Team or make this repository public to enable '
+          'this feature.',
+        ),
+        isTrue,
+      );
+    });
+
+    test('leaves unrelated stderr unclassified', () {
+      expect(
+        ghLooksLikePlanRestrictedGitHubFeature('API rate limit exceeded'),
+        isFalse,
+      );
+    });
+  });
+
   group('mapGitHubDisallowedMergeMethodMessage', () {
     test('rewrites the GraphQL merge-commit rejection', () {
       expect(

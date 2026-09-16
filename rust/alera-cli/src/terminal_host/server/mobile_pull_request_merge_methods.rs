@@ -42,7 +42,7 @@ pub(super) async fn allowed_merge_methods(
         identity.repo,
         encode_path_segment(base_branch)
     );
-    let rules = gh_json(
+    let rules = match gh_json(
         repo_path,
         &[
             "api",
@@ -53,7 +53,16 @@ pub(super) async fn allowed_merge_methods(
             &endpoint,
         ],
     )
-    .await?;
+    .await
+    {
+        Ok(value) => value,
+        // Private repos on GitHub Free 403 this endpoint even when no ruleset
+        // exists. Treat that as unconstrained so repository settings still apply.
+        Err(detail) if looks_like_plan_restricted_github_feature(&detail) => {
+            return Ok(repo_allowed);
+        }
+        Err(detail) => return Err(detail),
+    };
     let Some(rule_allowed) = map_ruleset_allowed(&rules)? else {
         return Ok(repo_allowed);
     };
@@ -173,6 +182,12 @@ fn parse_methods(
         };
     }
     Ok(Some(methods))
+}
+
+fn looks_like_plan_restricted_github_feature(stderr: &str) -> bool {
+    let lower = stderr.to_ascii_lowercase();
+    lower.contains("make this repository public to enable this feature")
+        || (lower.contains("upgrade to github") && lower.contains("enable this feature"))
 }
 
 /// Same output as Dart's `Uri.encodeComponent` for a branch name.
