@@ -30,3 +30,20 @@ Set<String> workspaceIdsDescendedFrom(
   visit(workspaceId);
   return descendants;
 }
+
+/// True when [workspaceId] or any descendant currently has a section.
+bool workspaceTreeHasSection(
+  Iterable<Workspace> workspaces,
+  String workspaceId,
+) {
+  final ids = <String>{
+    workspaceId,
+    ...workspaceIdsDescendedFrom(workspaces, workspaceId),
+  };
+  for (final workspace in workspaces) {
+    if (ids.contains(workspace.id) && workspace.sectionId != null) {
+      return true;
+    }
+  }
+  return false;
+}

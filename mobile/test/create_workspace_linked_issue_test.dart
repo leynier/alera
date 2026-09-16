@@ -37,7 +37,7 @@ Future<FakeTerminalClient> _pump(
   required bool supportsLinkedIssues,
   bool useProjectCheckout = false,
 }) async {
-  await tester.binding.setSurfaceSize(const Size(1000, 1400));
+  await tester.binding.setSurfaceSize(const Size(1000, 2200));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final client = FakeTerminalClient()..projectBranches = const <String>['main'];
   addTearDown(client.dispose);
@@ -81,6 +81,20 @@ String _text(WidgetTester tester, String label) => tester
     .text;
 
 void main() {
+  testWidgets('From Prompt shows project and location before the prompt', (
+    tester,
+  ) async {
+    await _pump(tester, supportsLinkedIssues: true);
+    double y(String label) => tester.getTopLeft(find.text(label)).dy;
+    expect(y('Project'), lessThan(y('Project Folder')));
+    expect(y('Project Folder'), lessThan(y('Parent Workspace')));
+    expect(y('Parent Workspace'), lessThan(y('Agent Profile')));
+    expect(y('Agent Profile'), lessThan(y('Issue URL (Optional)')));
+    expect(y('Issue URL (Optional)'), lessThan(y('Initial Prompt')));
+    expect(y('Initial Prompt'), lessThan(y('Create Another')));
+    expect(y('Create Another'), lessThan(y('Create And Start Agent')));
+  });
+
   testWidgets('a resolved issue fills the manual branch and name', (
     tester,
   ) async {

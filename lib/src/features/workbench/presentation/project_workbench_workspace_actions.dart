@@ -18,7 +18,16 @@ const String _unpinWorkspaceTreeAction = 'unpin-workspace-tree';
 const String _setParentAction = 'set-parent';
 const String _clearParentAction = 'clear-parent';
 const String _setSectionAction = 'set-section';
+const String _setSectionTreeAction = 'set-section-tree';
 const String _clearSectionAction = 'clear-section';
+const String _clearSectionTreeAction = 'clear-section-tree';
+const String _newSectionAction = 'new-section';
+const String _newSectionTreeAction = 'new-section-tree';
+const String _assignSectionPrefix = 'assign-section:';
+const String _assignSectionTreePrefix = 'assign-section-tree:';
+
+/// Inline section lists stay in the context menu below this count.
+const int workspaceSectionSubmenuLimit = 10;
 const String _removeAction = 'remove';
 const String _handOffAction = 'hand-off';
 const String _handOnAction = 'hand-on';
@@ -35,6 +44,9 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
   required bool canRemove,
   required bool isPinned,
   bool hasDescendants = false,
+  bool hasTreeSection = false,
+  List<WorkspaceSection> sections = const <WorkspaceSection>[],
+  String? currentSectionId,
   bool canHandOff = false,
   bool canHandOn = false,
   List<PopupMenuEntry<String>> linkedIssueEntries =
@@ -97,16 +109,30 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
         label: 'Clear Parent Workspace',
       ),
     if (supportsSections)
-      const AleraDropdownEntry<String>(
-        value: _setSectionAction,
-        leading: Icon(AleraIcons.section, size: 16),
+      _setSectionMenuEntry(
         label: 'Set Section',
+        tree: false,
+        sections: sections,
+        currentSectionId: currentSectionId,
+      ),
+    if (supportsSections && hasDescendants)
+      _setSectionMenuEntry(
+        label: 'Set Section Tree',
+        tree: true,
+        sections: sections,
+        currentSectionId: currentSectionId,
       ),
     if (supportsSections && hasSection)
       const AleraDropdownEntry<String>(
         value: _clearSectionAction,
         leading: Icon(AleraIcons.sectionOff, size: 16),
         label: 'Clear Section',
+      ),
+    if (supportsSections && hasDescendants && hasTreeSection)
+      const AleraDropdownEntry<String>(
+        value: _clearSectionTreeAction,
+        leading: Icon(AleraIcons.sectionOff, size: 16),
+        label: 'Clear Section Tree',
       ),
     const PopupMenuDivider(height: AleraTokens.space8),
     ...linkedIssueEntries,
@@ -153,6 +179,53 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
       ),
       label: 'Remove',
       enabled: canRemove,
+    ),
+  ];
+}
+
+PopupMenuEntry<String> _setSectionMenuEntry({
+  required String label,
+  required bool tree,
+  required List<WorkspaceSection> sections,
+  required String? currentSectionId,
+}) {
+  const leading = Icon(AleraIcons.section, size: 16);
+  if (sections.length < workspaceSectionSubmenuLimit) {
+    return AleraDropdownSubmenuEntry<String>(
+      leading: leading,
+      label: label,
+      items: _sectionChoiceEntries(
+        sections: sections,
+        currentSectionId: currentSectionId,
+        tree: tree,
+      ),
+    );
+  }
+  return AleraDropdownEntry<String>(
+    value: tree ? _setSectionTreeAction : _setSectionAction,
+    leading: leading,
+    label: label,
+  );
+}
+
+List<PopupMenuEntry<String>> _sectionChoiceEntries({
+  required List<WorkspaceSection> sections,
+  required String? currentSectionId,
+  required bool tree,
+}) {
+  return <PopupMenuEntry<String>>[
+    for (final section in sections)
+      AleraDropdownEntry<String>(
+        value:
+            '${tree ? _assignSectionTreePrefix : _assignSectionPrefix}${section.id}',
+        label: section.name,
+        selected: section.id == currentSectionId,
+      ),
+    if (sections.isNotEmpty) const PopupMenuDivider(height: AleraTokens.space8),
+    AleraDropdownEntry<String>(
+      value: tree ? _newSectionTreeAction : _newSectionAction,
+      leading: const Icon(AleraIcons.add, size: 16),
+      label: 'New Section',
     ),
   ];
 }

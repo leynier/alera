@@ -4,6 +4,7 @@ import 'package:alera_mobile/src/design_system/chips/alera_chip.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/linked_issues/application/linked_issues_controller.dart';
 import 'package:alera_mobile/src/features/linked_issues/presentation/mobile_link_issue_dialog.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_listing_tree.dart';
@@ -20,6 +21,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 part 'workspace_actions_sheet_linked_issue.dart';
 part 'workspace_actions_sheet_removal.dart';
+part 'workspace_actions_sheet_sections.dart';
 
 enum _WorkspaceAction {
   relocate,
@@ -33,7 +35,11 @@ enum _WorkspaceAction {
   configureParent,
   unlinkParent,
   setSection,
+  setSectionTree,
+  newSection,
+  newSectionTree,
   clearSection,
+  clearSectionTree,
   openIssue,
   linkIssue,
   changeIssue,
@@ -58,10 +64,12 @@ Future<void> showWorkspaceActionsSheet(
   }
   final issues = ref.read(linkedIssuesControllerProvider(hostId)).value;
   final linkedIssue = issues?.byWorkspace[workspace.id];
-  final hasDescendants = workspaceDescendantIds(
-    data.workspaces,
-    workspace.id,
-  ).isNotEmpty;
+  final descendantIds = workspaceDescendantIds(data.workspaces, workspace.id);
+  final hasDescendants = descendantIds.isNotEmpty;
+  final treeIds = <String>{workspace.id, ...descendantIds};
+  final hasTreeSection = data.workspaces.any(
+    (item) => treeIds.contains(item.id) && item.sectionId != null,
+  );
   final action = await showModalBottomSheet<_WorkspaceAction>(
     context: context,
     isScrollControlled: true,
@@ -160,20 +168,15 @@ Future<void> showWorkspaceActionsSheet(
                           Navigator.of(context)
                               .pop(_WorkspaceAction.unlinkParent),
                     ),
-                  if (data.supportsSections)
-                    ListTile(
-                      leading: const Icon(AleraIcons.section, size: 20),
-                      title: const Text('Set Section'),
-                      onTap: () =>
-                          Navigator.pop(context, _WorkspaceAction.setSection),
-                    ),
-                  if (data.supportsSections && workspace.sectionId != null)
-                    ListTile(
-                      leading: const Icon(AleraIcons.sectionOff, size: 20),
-                      title: const Text('Clear Section'),
-                      onTap: () =>
-                          Navigator.pop(context, _WorkspaceAction.clearSection),
-                    ),
+                  ..._sectionActionTiles(
+                    context,
+                    ref: ref,
+                    hostId: hostId,
+                    workspace: workspace,
+                    data: data,
+                    hasDescendants: hasDescendants,
+                    hasTreeSection: hasTreeSection,
+                  ),
                   ..._linkedIssueActionTiles(
                     context,
                     supported: issues?.supported ?? false,
@@ -265,14 +268,20 @@ Future<void> showWorkspaceActionsSheet(
         }
       case _WorkspaceAction.unlinkParent:
         await controller.unlinkParent(workspace);
-      case _WorkspaceAction.setSection:
-        await showSectionPickerSheet(
+      case _WorkspaceAction.setSection ||
+          _WorkspaceAction.setSectionTree ||
+          _WorkspaceAction.newSection ||
+          _WorkspaceAction.newSectionTree ||
+          _WorkspaceAction.clearSection ||
+          _WorkspaceAction.clearSectionTree:
+        await _runSectionAction(
           context,
+          controller,
           hostId: hostId,
           workspace: workspace,
+          data: data,
+          action: action,
         );
-      case _WorkspaceAction.clearSection:
-        await controller.setSection(workspace.id, null);
       case _WorkspaceAction.tags:
         await showWorkspaceTagsSheet(
           context,

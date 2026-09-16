@@ -55,6 +55,7 @@ part 'alera_shell_page_sidebar_states_test_cases.dart';
 part 'alera_shell_page_workspace_removal_test_cases.dart';
 part 'alera_shell_page_sidebar_titles_test_cases.dart';
 part 'alera_shell_page_pinning_test_cases.dart';
+part 'alera_shell_page_section_menu_test_cases.dart';
 part 'alera_shell_page_project_removal_test_cases.dart';
 part 'alera_shell_page_sidebar_identity_test_cases.dart';
 
@@ -144,6 +145,7 @@ void main() {
   _registerAleraShellWorkspaceRemovalTests();
   _registerAleraShellSidebarTitleTests();
   _registerAleraShellPinningTests();
+  _registerAleraShellSectionMenuTests();
   _registerAleraShellSidebarIdentityTests();
 }
 
