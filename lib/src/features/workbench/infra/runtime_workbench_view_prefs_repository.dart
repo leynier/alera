@@ -11,6 +11,13 @@ class RuntimeWorkbenchViewPrefsRepository({
   final Future<void> Function()? beforeAccess,
 }) implements WorkbenchViewPrefsRepository {
   int? _revision;
+  Future<void> _writeQueue = Future<void>.value();
+
+  Future<T> _serializedWrite<T>(Future<T> Function() action) {
+    final result = _writeQueue.then((_) => action());
+    _writeQueue = result.then<void>((_) {}, onError: (_) {});
+    return result;
+  }
 
   @override
   Stream<WorkbenchViewPrefs> get changes => client.runtimeEvents
@@ -19,20 +26,28 @@ class RuntimeWorkbenchViewPrefsRepository({
 
   @override
   Future<WorkbenchViewPrefs> load() async {
-    final local = await legacyRepository.load();
     try {
       await beforeAccess?.call();
       final record = _asMap(
         await client.runtimeRequest('workbenchViewPrefs.get'),
       );
-      _revision = (record['revision'] as num?)?.toInt() ?? 0;
+      final fetchedRevision = (record['revision'] as num?)?.toInt() ?? 0;
       if (record['desktopInitialized'] != true) {
-        await _writeShared(local);
-        return await _forRuntime(local);
+        final latestLocal = await legacyRepository.load();
+        await _serializedWrite(() => _writeShared(latestLocal));
+        return await _forRuntime(await legacyRepository.load());
       }
-      final merged = _mergeShared(local, _asMap(record['prefs']));
-      await legacyRepository.save(merged);
-      return await _forRuntime(merged);
+      final shared = _asMap(record['prefs']);
+      return await _serializedWrite(() async {
+        if (_revision != null && fetchedRevision < _revision!) {
+          return await _forRuntime(await legacyRepository.load());
+        }
+        final latestLocal = await legacyRepository.load();
+        final merged = _mergeShared(latestLocal, shared);
+        await legacyRepository.save(merged);
+        _revision = fetchedRevision;
+        return await _forRuntime(merged);
+      });
     } catch (error, stackTrace) {
       // The local prefs still render, so the only visible symptom is that a
       // change made on another device never arrives.
@@ -41,7 +56,7 @@ class RuntimeWorkbenchViewPrefsRepository({
         error,
         stackTrace,
       );
-      return _forRuntime(local);
+      return await _forRuntime(await legacyRepository.load());
     }
   }
 
@@ -62,10 +77,12 @@ class RuntimeWorkbenchViewPrefsRepository({
   }
 
   @override
-  Future<void> save(WorkbenchViewPrefs prefs) async {
-    await legacyRepository.save(prefs);
-    await beforeAccess?.call();
-    await _writeShared(prefs);
+  Future<void> save(WorkbenchViewPrefs prefs) {
+    return _serializedWrite(() async {
+      await legacyRepository.save(prefs);
+      await beforeAccess?.call();
+      await _writeShared(prefs);
+    });
   }
 
   Future<void> _writeShared(WorkbenchViewPrefs prefs) async {
