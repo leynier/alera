@@ -32,9 +32,9 @@ class _AleraDropdownSubmenuEntryState<T>
     _opening = true;
     try {
       final itemBox = context.findRenderObject()! as RenderBox;
-      final overlay = Navigator.of(
-        context,
-      ).overlay!.context.findRenderObject()! as RenderBox;
+      final overlay =
+          Navigator.of(context).overlay!.context.findRenderObject()!
+              as RenderBox;
       final topLeft = itemBox.localToGlobal(Offset.zero, ancestor: overlay);
       final selected = await showMenu<T>(
         context: context,
