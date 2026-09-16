@@ -23,6 +23,7 @@ class _Controller extends WorkbenchController {
   String? name;
   String? section;
   bool fail = false;
+  bool tree = false;
   @override
   Future<List<WorkspaceSection>> listWorkspaceSections() async => [
     WorkspaceSection(
@@ -43,17 +44,41 @@ class _Controller extends WorkbenchController {
     name = newName;
     section = sectionId;
   }
+
+  @override
+  Future<void> saveWorkspaceSectionTree(
+    String workspaceId, {
+    String? sectionId,
+    String? newName,
+  }) async {
+    tree = true;
+    await saveWorkspaceSection(
+      workspaceId,
+      sectionId: sectionId,
+      newName: newName,
+    );
+  }
 }
 
-Future<void> _open(WidgetTester tester, _Controller controller) async {
+Future<void> _open(
+  WidgetTester tester,
+  _Controller controller, {
+  bool applyToTree = false,
+  bool createMode = false,
+}) async {
   await tester.pumpWidget(
     MaterialApp(
       theme: aleraDarkTheme,
       home: Scaffold(
         body: Builder(
           builder: (context) => TextButton(
-            onPressed: () =>
-                showWorkspaceSectionDialog(context, controller, _workspace),
+            onPressed: () => showWorkspaceSectionDialog(
+              context,
+              controller,
+              _workspace,
+              applyToTree: applyToTree,
+              createMode: createMode,
+            ),
             child: const Text('Open'),
           ),
         ),
@@ -108,5 +133,30 @@ void main() {
     await tester.pumpAndSettle();
     expect(controller.section, 'existing');
     expect(controller.saves, 1);
+  });
+
+  testWidgets('create mode shows the name field without picking New Section', (
+    tester,
+  ) async {
+    final controller = _Controller();
+    await _open(tester, controller, createMode: true);
+    await tester.enterText(find.byType(TextField), 'Fresh');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(controller.name, 'Fresh');
+    expect(controller.tree, isFalse);
+  });
+
+  testWidgets('tree mode saves through saveWorkspaceSectionTree', (
+    tester,
+  ) async {
+    final controller = _Controller();
+    await _open(tester, controller, applyToTree: true);
+    expect(find.text('Set Section Tree'), findsOneWidget);
+    await _choose(tester, 'Existing');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(controller.tree, isTrue);
+    expect(controller.section, 'existing');
   });
 }

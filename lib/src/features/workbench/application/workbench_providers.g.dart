@@ -210,6 +210,63 @@ final class WorkbenchSidebarRowsProvider
 String _$workbenchSidebarRowsHash() =>
     r'0b482653907b020b8dfc01c1a3a1f2550bcee5b2';
 
+/// Focus handles for the mounted workbench surfaces, so keyboard shortcuts can
+/// move focus between panes without a pointer.
+
+@ProviderFor(workbenchPaneFocusRegistry)
+final workbenchPaneFocusRegistryProvider =
+    WorkbenchPaneFocusRegistryProvider._();
+
+/// Focus handles for the mounted workbench surfaces, so keyboard shortcuts can
+/// move focus between panes without a pointer.
+
+final class WorkbenchPaneFocusRegistryProvider
+    extends
+        $FunctionalProvider<
+          WorkbenchPaneFocusRegistry,
+          WorkbenchPaneFocusRegistry,
+          WorkbenchPaneFocusRegistry
+        >
+    with $Provider<WorkbenchPaneFocusRegistry> {
+  /// Focus handles for the mounted workbench surfaces, so keyboard shortcuts can
+  /// move focus between panes without a pointer.
+  WorkbenchPaneFocusRegistryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'workbenchPaneFocusRegistryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$workbenchPaneFocusRegistryHash();
+
+  @$internal
+  @override
+  $ProviderElement<WorkbenchPaneFocusRegistry> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  WorkbenchPaneFocusRegistry create(Ref ref) {
+    return workbenchPaneFocusRegistry(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(WorkbenchPaneFocusRegistry value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<WorkbenchPaneFocusRegistry>(value),
+    );
+  }
+}
+
+String _$workbenchPaneFocusRegistryHash() =>
+    r'ea8c56f066826f6024f8195c6cb0d97054ed30d0';
+
 /// Rechecks the terminal memory budget when the active workspace changes.
 
 @ProviderFor(terminalRuntimeActiveWorkspaceCoordinator)

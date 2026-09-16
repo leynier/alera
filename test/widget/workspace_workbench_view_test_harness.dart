@@ -326,6 +326,10 @@ class _FakeTerminalSessionHandle({
   int requestFocusCalls = 0;
   int _visibilityLeaseCount = 0;
 
+  /// Stands in for the xterm view's node so tests can observe where focus
+  /// lands when panes switch tabs.
+  final FocusNode focusNode = FocusNode();
+
   @override
   TerminalVisibilityLease acquireVisibility() {
     _visibilityLeaseCount += 1;
@@ -349,7 +353,14 @@ class _FakeTerminalSessionHandle({
     bool autofocus = false,
     FocusOnKeyEventCallback? onKeyEvent,
   }) {
-    return SizedBox.expand(key: ValueKey<String>('terminal-$tabId'));
+    // Keyed per tab like the real TerminalView, so switching tabs mounts a
+    // fresh Focus whose autofocus is honored instead of reusing the old one.
+    return Focus(
+      key: ValueKey<String>('terminal-focus-$tabId'),
+      focusNode: focusNode,
+      autofocus: autofocus,
+      child: SizedBox.expand(key: ValueKey<String>('terminal-$tabId')),
+    );
   }
 
   @override

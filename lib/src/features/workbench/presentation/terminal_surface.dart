@@ -14,6 +14,7 @@ import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart'
 import 'package:alera/src/features/workbench/presentation/terminal_search_controller.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_search_overlay.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_surface_toolbar.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_registry.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
@@ -57,6 +58,21 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
       _attachComposer(widget.session);
       _scheduleStart(widget.session);
     }
+    if (!oldWidget.autofocus && widget.autofocus) {
+      _claimFocusIfPaneIdle();
+    }
+  }
+
+  /// The pane just became the active group without a pointer (Focus Next
+  /// Pane on a pane never focused before, a merged split, a dropped tab). Give
+  /// the emulator the keyboard only while the focus is parked on a scope, so
+  /// a field the user is typing in, or the composer of this pane, keeps it.
+  void _claimFocusIfPaneIdle() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && workbenchFocusIsParked()) {
+        widget.session.requestFocus();
+      }
+    });
   }
 
   @override

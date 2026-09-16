@@ -284,7 +284,10 @@ abstract interface class MobileWorkspaceClient {
 abstract interface class MobileWorkspaceSectionClient {
   bool get supportsWorkspaceSections;
   Future<List<WorkspaceSectionSummary>> listWorkspaceSections();
-  Future<void> createWorkspaceSection(String name, String workspaceId);
+  Future<WorkspaceSectionSummary> createWorkspaceSection(
+    String name,
+    String workspaceId,
+  );
   Future<void> setWorkspaceSection(String workspaceId, String? sectionId);
   Future<void> removeWorkspaceSection(String sectionId);
 }

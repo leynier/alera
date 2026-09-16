@@ -39,6 +39,7 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_c
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_pty_session.dart';
 import 'package:alera/src/features/workbench/infra/terminal_shell_startup_preparer.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_registry.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/process/process_providers.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
@@ -108,6 +109,13 @@ List<WorkbenchSidebarRow> workbenchSidebarRows(Ref ref) {
     agentStatuses: ref.watch(agentStatusControllerProvider),
     lastActivityByWorkspaceId: ref.watch(workspaceActivityControllerProvider),
   );
+}
+
+/// Focus handles for the mounted workbench surfaces, so keyboard shortcuts can
+/// move focus between panes without a pointer.
+@Riverpod(keepAlive: true)
+WorkbenchPaneFocusRegistry workbenchPaneFocusRegistry(Ref ref) {
+  return WorkbenchPaneFocusRegistry();
 }
 
 /// Rechecks the terminal memory budget when the active workspace changes.

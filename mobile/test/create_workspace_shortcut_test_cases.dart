@@ -42,6 +42,12 @@ void _registerCreateWorkspaceShortcutTests() {
       );
       await tester.pumpAndSettle();
 
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextField, 'Initial Prompt'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
       await tester.enterText(
         find.widgetWithText(TextField, 'Initial Prompt'),
         'Build offline support',
@@ -103,6 +109,12 @@ void _registerCreateWorkspaceShortcutTests() {
     );
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.widgetWithText(TextField, 'Initial Prompt'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextField, 'Initial Prompt'),
       'Build offline support',

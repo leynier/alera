@@ -27,6 +27,7 @@ import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace_section.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/domain/workspace_hand_on_result.dart';
 import 'package:alera/src/features/workbench/domain/workspace_storage_impact.dart';
@@ -35,6 +36,9 @@ import 'package:alera/src/features/workbench/presentation/widgets/agent_run_spin
 import 'package:alera/src/features/workbench/presentation/project_workbench_sidebar.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/workspace_agent_compact_summary.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_workbench_view.dart';
+import 'package:alera/src/shared/infra/git/git_backend.dart';
+import 'package:alera/src/shared/infra/git/git_diff_models.dart';
+import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:alera/src/shared/infra/storage/drift_database.dart';
 import 'package:drift/native.dart';
@@ -45,15 +49,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../unit/fake_git_backend.dart';
+
 part 'alera_shell_page_test_harness.dart';
 part 'alera_shell_page_runtime_test_harness.dart';
 part 'alera_shell_page_workbench_test_cases.dart';
+part 'alera_shell_page_shortcut_test_cases.dart';
 part 'alera_shell_page_sidebar_actions_test_cases.dart';
 part 'alera_shell_page_sidebar_mutation_test_cases.dart';
 part 'alera_shell_page_sidebar_states_test_cases.dart';
 part 'alera_shell_page_workspace_removal_test_cases.dart';
 part 'alera_shell_page_sidebar_titles_test_cases.dart';
 part 'alera_shell_page_pinning_test_cases.dart';
+part 'alera_shell_page_section_menu_test_cases.dart';
 part 'alera_shell_page_project_removal_test_cases.dart';
 part 'alera_shell_page_sidebar_identity_test_cases.dart';
 
@@ -69,6 +77,7 @@ Future<_ShellPumpHarness> _pumpShell(
   WorkspaceFolderOpener? workspaceFolderOpener,
   _ShellTestWorkbenchController? controller,
   EditorSessionRegistry? editorSessionRegistry,
+  GitBackend? gitBackend,
   AleraSettings? settings,
   Map<String, AgentStatusEntry> agentStatuses =
       const <String, AgentStatusEntry>{},
@@ -105,6 +114,8 @@ Future<_ShellPumpHarness> _pumpShell(
           editorSessionRegistryProvider.overrideWithValue(
             editorSessionRegistry,
           ),
+        if (gitBackend != null)
+          gitBackendProvider.overrideWithValue(gitBackend),
         terminalHostWarmupCoordinatorProvider.overrideWith((ref) {}),
         settingsControllerProvider.overrideWith(() => settingsController),
         agentTitleAvailableProvider.overrideWith(
@@ -136,6 +147,7 @@ class _ShellAgentProfiles extends AgentProfiles {
 
 void main() {
   _registerAleraShellWorkbenchTests();
+  _registerAleraShellShortcutTests();
   _registerAleraShellSidebarActionTests();
   _registerProjectRemovalDependencyTests();
   _registerAleraShellSidebarMutationTests();
@@ -143,6 +155,7 @@ void main() {
   _registerAleraShellWorkspaceRemovalTests();
   _registerAleraShellSidebarTitleTests();
   _registerAleraShellPinningTests();
+  _registerAleraShellSectionMenuTests();
   _registerAleraShellSidebarIdentityTests();
 }
 
@@ -246,6 +259,40 @@ WorkbenchState _populatedWorkbenchState() {
       ),
     },
     bootstrapped: true,
+  );
+}
+
+/// One terminal tab plus an unstaged-file diff tab, with the diff active: the
+/// shape the workbench has right after a Source Control file is clicked.
+WorkbenchState _diffTabWorkbenchState() {
+  final base = _populatedWorkbenchState();
+  final workspace = base.activeWorkspace!;
+  final now = DateTime.utc(2026, 5, 22);
+  final diffTab = WorkspaceTabRecord(
+    id: 'tab-2',
+    workspaceId: workspace.id,
+    kind: .gitDiff,
+    title: 'main.dart unstaged',
+    createdAt: now,
+    updatedAt: now,
+    payload: <String, Object?>{
+      workspaceTabGitDiffSourcePayloadKey:
+          WorkspaceGitDiffSource.workingTree.key,
+      workspaceTabGitDiffScopePayloadKey: WorkspaceGitDiffScope.file.key,
+      workspaceTabFilePathPayloadKey: 'lib/main.dart',
+      workspaceTabGitDiffAreaPayloadKey: GitChangeArea.unstaged.key,
+    },
+  );
+  final tabs = <WorkspaceTabRecord>[...base.tabsFor(workspace.id), diffTab];
+  return base.copyWith(
+    tabsByWorkspace: <String, List<WorkspaceTabRecord>>{workspace.id: tabs},
+    activeTabIdByWorkspace: <String, String>{workspace.id: diffTab.id},
+    layoutByWorkspace: <String, WorkbenchLayout>{
+      workspace.id: WorkbenchLayout.single(
+        workspaceId: workspace.id,
+        tabIds: <String>[for (final tab in tabs) tab.id],
+      ),
+    },
   );
 }
 

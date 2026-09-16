@@ -16,6 +16,7 @@ import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_registry.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/features/workspace_agent_comments/domain/workspace_agent_comment_location.dart';
@@ -136,6 +137,16 @@ class _WorkspaceEditorSurfaceState
       }
       _registerSession(widget.tab.id);
       _restoreDocumentOrLoad();
+    }
+    if (!oldWidget.autofocus && widget.autofocus) {
+      // The pane became active without a pointer; take the keyboard only
+      // while the focus is parked on a scope, never from a field in use.
+      final node = _focusNode;
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted && node == _focusNode && workbenchFocusIsParked()) {
+          node.requestFocus();
+        }
+      });
     }
   }
 

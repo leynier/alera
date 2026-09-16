@@ -15,6 +15,9 @@ abstract final class const AleraIcons._() {
   static const IconData pinOff = LucideIcons.pinOff;
   static const IconData folderSpecial = LucideIcons.folderGit2;
   static const IconData tag = LucideIcons.tag;
+  // Workspace sections group workspaces; they are not filesystem folders.
+  static const IconData section = LucideIcons.layers;
+  static const IconData sectionOff = LucideIcons.layersMinus;
   static const IconData workspaceMain = LucideIcons.home;
   static const IconData workspaceChildren = LucideIcons.workflow;
   static const IconData gitBranch = LucideIcons.gitBranch;

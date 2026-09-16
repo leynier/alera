@@ -90,6 +90,7 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
           tabs: tabs,
           layout: layout,
           terminalRuntime: terminalRuntime,
+          paneFocusRegistry: ref.read(workbenchPaneFocusRegistryProvider),
           mobileDriverPresence: WorkbenchMobileDriverPresence(
             drivers: mobileDrivers,
             onReclaim: (sessionId) =>

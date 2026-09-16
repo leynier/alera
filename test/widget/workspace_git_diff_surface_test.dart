@@ -28,12 +28,14 @@ import 'package:path/path.dart' as p;
 
 import '../unit/fake_git_backend.dart';
 
+part 'workspace_git_diff_surface_focus_cases.dart';
 part 'workspace_git_diff_surface_pull_request_cases.dart';
 part 'workspace_git_diff_surface_reading_diff_cases.dart';
 part 'workspace_git_diff_surface_reading_diff_support.dart';
 part 'workspace_git_diff_surface_test_support.dart';
 
 void main() {
+  _registerWorkspaceGitDiffSurfaceFocusTests();
   _registerWorkspaceGitDiffSurfacePullRequestTests();
   _registerWorkspaceGitDiffSurfaceReadingDiffTests();
   testWidgets('diff line comments include the hunk and send-to-agent bar', (

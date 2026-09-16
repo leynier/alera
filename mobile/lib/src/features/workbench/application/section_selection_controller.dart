@@ -75,7 +75,7 @@ class SectionSelectionController extends _$SectionSelectionController {
     }
   }
 
-  Future<bool> save() async {
+  Future<bool> save({List<String> extraWorkspaceIds = const []}) async {
     final current = state.value;
     if (current == null || current.saving) return false;
     final creating = current.selected == '__new__';
@@ -97,13 +97,20 @@ class SectionSelectionController extends _$SectionSelectionController {
     try {
       final client = await ref.read(workspaceClientProvider(hostId).future);
       final sections = client as MobileWorkspaceSectionClient;
+      String? assignedId = current.selected.isEmpty ? null : current.selected;
       if (creating) {
-        await sections.createWorkspaceSection(name, workspaceId);
-      } else {
-        await sections.setWorkspaceSection(
+        assignedId = (await sections.createWorkspaceSection(
+          name,
           workspaceId,
-          current.selected.isEmpty ? null : current.selected,
-        );
+        )).id;
+      } else {
+        await sections.setWorkspaceSection(workspaceId, assignedId);
+      }
+      for (final id in extraWorkspaceIds) {
+        if (id == workspaceId) {
+          continue;
+        }
+        await sections.setWorkspaceSection(id, assignedId);
       }
       if (ref.mounted) {
         state = AsyncData(current.copyWith(saving: false, error: ''));

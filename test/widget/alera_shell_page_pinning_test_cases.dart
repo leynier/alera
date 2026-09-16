@@ -269,4 +269,36 @@ void _registerAleraShellPinningTests() {
     );
     expect(find.byTooltip('Hide Child Workspaces'), findsAtLeastNWidgets(2));
   });
+
+  testWidgets('section grouping uses layers instead of folder', (tester) async {
+    final seeded = _linkedWorkbenchState(linkedExpanded: true);
+    final workspaces = seeded.workspacesFor('project-1');
+    final assigned = workspaces.first.copyWith(sectionId: 'section-client');
+    await _pumpShell(
+      tester,
+      state: seeded.copyWith(
+        supportsSections: true,
+        sections: <WorkspaceSection>[
+          WorkspaceSection(
+            id: 'section-client',
+            name: 'Client Work',
+            createdAt: DateTime.utc(2026, 5, 22),
+            updatedAt: DateTime.utc(2026, 5, 22),
+          ),
+        ],
+        workspacesByProject: <String, List<Workspace>>{
+          'project-1': <Workspace>[assigned, workspaces.last],
+        },
+        viewPrefs: WorkbenchViewPrefs.defaults.copyWith(
+          groupBy: .section,
+          expandedWorkspaceIds: <String>{assigned.id, workspaces.last.id},
+        ),
+      ),
+    );
+
+    expect(find.text('Client Work'), findsOneWidget);
+    expect(find.text('Others'), findsOneWidget);
+    expect(find.byIcon(AleraIcons.section), findsNWidgets(2));
+    expect(find.byIcon(AleraIcons.folder), findsNothing);
+  });
 }
