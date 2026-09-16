@@ -125,23 +125,39 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
           ),
         Stack(
           children: <Widget>[
-            TextField(
-              controller: _prompt,
-              enabled: promptEnabled,
-              minLines: 4,
-              maxLines: 8,
-              decoration: InputDecoration(
-                labelText: 'Initial Prompt',
-                hintText: 'Describe what the agent should build',
-                alignLabelWithHint: true,
-                contentPadding: dictationEnabled
-                    ? const EdgeInsets.fromLTRB(
-                        AleraTokens.spaceMd,
-                        AleraTokens.spaceMd,
-                        AleraTokens.minTapTarget,
-                        AleraTokens.minTapTarget,
-                      )
-                    : null,
+            CallbackShortcuts(
+              bindings: <ShortcutActivator, VoidCallback>{
+                const SingleActivator(
+                  .enter,
+                  control: true,
+                  includeRepeats: false,
+                ): () =>
+                    _submitPromptFromKeyboard(controller, promptState),
+                const SingleActivator(
+                  .enter,
+                  meta: true,
+                  includeRepeats: false,
+                ): () =>
+                    _submitPromptFromKeyboard(controller, promptState),
+              },
+              child: TextField(
+                controller: _prompt,
+                enabled: promptEnabled,
+                minLines: 4,
+                maxLines: 8,
+                decoration: InputDecoration(
+                  labelText: 'Initial Prompt',
+                  hintText: 'Describe what the agent should build',
+                  alignLabelWithHint: true,
+                  contentPadding: dictationEnabled
+                      ? const EdgeInsets.fromLTRB(
+                          AleraTokens.spaceMd,
+                          AleraTokens.spaceMd,
+                          AleraTokens.minTapTarget,
+                          AleraTokens.minTapTarget,
+                        )
+                      : null,
+                ),
               ),
             ),
             if (dictationEnabled)
@@ -253,21 +269,35 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
           )
         else
           FilledButton.icon(
-            onPressed:
-                !_checkoutReady(promptState.projectId) ||
-                    promptState.projectId == null ||
-                    (!_useProjectCheckout &&
-                        promptState.sourceBranch == null) ||
-                    promptState.profileId == null ||
-                    _uploadingAttachment ||
-                    _creating
-                ? null
-                : () => _createFromPrompt(controller),
+            onPressed: _canSubmitPrompt(promptState)
+                ? () => _createFromPrompt(controller)
+                : null,
             icon: const Icon(Icons.smart_toy_outlined),
             label: const Text('Create And Start Agent'),
           ),
       ],
     );
+  }
+
+  bool _canSubmitPrompt(PromptWorkspaceState promptState) {
+    return !promptState.loading &&
+        promptState.creation == null &&
+        _checkoutReady(promptState.projectId) &&
+        promptState.projectId != null &&
+        (_useProjectCheckout || promptState.sourceBranch != null) &&
+        promptState.profileId != null &&
+        !_uploadingAttachment &&
+        !_creating;
+  }
+
+  void _submitPromptFromKeyboard(
+    PromptWorkspaceController controller,
+    PromptWorkspaceState promptState,
+  ) {
+    if (!_canSubmitPrompt(promptState)) {
+      return;
+    }
+    unawaited(_createFromPrompt(controller));
   }
 
   Future<void> _createFromPrompt(PromptWorkspaceController controller) async {

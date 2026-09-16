@@ -41,6 +41,29 @@ void main() {
     await tester.pump();
 
     expect(sends, 1);
+
+    await tester.sendKeyDownEvent(.controlLeft);
+    await tester.sendKeyEvent(.enter);
+    await tester.sendKeyUpEvent(.controlLeft);
+    await tester.pump();
+
+    expect(sends, 2);
+
+    await tester.sendKeyDownEvent(.metaLeft);
+    await tester.sendKeyEvent(.enter);
+    await tester.sendKeyUpEvent(.metaLeft);
+    await tester.pump();
+
+    expect(sends, 3);
+
+    await tester.sendKeyDownEvent(.controlLeft);
+    await tester.sendKeyDownEvent(.enter);
+    await tester.sendKeyRepeatEvent(.enter);
+    await tester.sendKeyUpEvent(.enter);
+    await tester.sendKeyUpEvent(.controlLeft);
+    await tester.pump();
+
+    expect(sends, 4);
   });
 
   testWidgets(

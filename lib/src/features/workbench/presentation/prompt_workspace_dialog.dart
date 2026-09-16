@@ -196,6 +196,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
         _error = null;
       }
       _branches = const <String>[];
+      _sourceBranch = null;
     });
     try {
       final catalog = await widget.loadHostBranchCatalog?.call(project, hostId);
@@ -223,6 +224,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
           generation == _branchLoadGeneration) {
         setState(() {
           _loadingBranches = false;
+          _sourceBranch = null;
           _error = error.toString();
         });
       }
@@ -246,6 +248,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
     _update(() {
       _project = project;
       _selectedParentWorkspaceId = null;
+      _sourceBranch = null;
       if (!project.isGitRepository && widget.enqueuePrompt != null) {
         _useProjectCheckout = true;
       }
@@ -254,6 +257,9 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   }
 
   Future<void> _submit() async {
+    if (!_canSubmit) {
+      return;
+    }
     final project = _project;
     final profile = _profile;
     final sourceBranch = _sourceBranch ?? '';

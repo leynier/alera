@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/workbench/domain/background_setup_job.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/infra/prompt_workspace_clipboard.dart';
@@ -17,11 +20,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 part 'prompt_workspace_dialog_clipboard_test_cases.dart';
 part 'prompt_workspace_dialog_mode_test_cases.dart';
+part 'prompt_workspace_dialog_shortcut_test_cases.dart';
 part 'prompt_workspace_dialog_test_support.dart';
 
 void main() {
   _registerPromptWorkspaceClipboardTests();
   _registerPromptWorkspaceModeTests();
+  _registerPromptWorkspaceShortcutTests();
 
   testWidgets('creates an AI-named workspace and launches the profile', (
     tester,

@@ -1,6 +1,14 @@
 part of 'prompt_workspace_dialog.dart';
 
 extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
+  bool get _canSubmit {
+    return !_working &&
+        _created == null &&
+        _orderedProjects.isNotEmpty &&
+        widget.agentProfiles.isNotEmpty &&
+        (_useProjectCheckout || !_loadingBranches);
+  }
+
   Widget _buildPromptMode(ThemeData theme) {
     final created = _created;
     return Flexible(
@@ -147,6 +155,7 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
                 maxLines: 8,
                 enabled: !_working && created == null,
                 onPaste: _pastePromptClipboard,
+                onCommandEnter: () => unawaited(_submit()),
                 suffix: const SizedBox(width: AleraTokens.space32),
               ),
             ),
@@ -198,12 +207,7 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
                   ),
                 ] else
                   FilledButton.icon(
-                    onPressed:
-                        _orderedProjects.isEmpty ||
-                            widget.agentProfiles.isEmpty ||
-                            (!_useProjectCheckout && _loadingBranches)
-                        ? null
-                        : _submit,
+                    onPressed: _canSubmit ? _submit : null,
                     icon: const Icon(AleraIcons.agent, size: 16),
                     label: const Text('Create And Start Agent'),
                   ),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/app/app_navigation.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
 import 'package:alera_mobile/src/features/ai_dictation/domain/mobile_ai_dictation_settings.dart';
@@ -8,13 +10,17 @@ import 'package:alera_mobile/src/features/workbench/application/workbench_provid
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/create_workspace_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/fake_ai_dictation_settings.dart';
 import 'support/fake_terminal_client.dart';
 
+part 'create_workspace_shortcut_test_cases.dart';
+
 void main() {
+  _registerCreateWorkspaceShortcutTests();
   testWidgets('Create Another keeps the mobile form open and resets it', (
     tester,
   ) async {

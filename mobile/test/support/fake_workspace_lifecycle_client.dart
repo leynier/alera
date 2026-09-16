@@ -25,6 +25,7 @@ mixin FakeWorkspaceLifecycleClient {
   int launchFailuresRemaining = 0;
   final List<String> agentLaunchMutationIds = <String>[];
   Future<void>? listAgentProfilesDelay;
+  Future<void>? generateWorkspaceIdentityDelay;
   Object? listAgentProfilesError;
 
   Future<WorkspaceSidebarSnapshot> workspaceSidebarSnapshot() async {
@@ -83,6 +84,10 @@ mixin FakeWorkspaceLifecycleClient {
     required String prompt,
   }) async {
     calls.add('generateWorkspaceIdentity $projectId');
+    final delay = generateWorkspaceIdentityDelay;
+    if (delay != null) {
+      await delay;
+    }
     return generatedWorkspaceIdentity;
   }
 

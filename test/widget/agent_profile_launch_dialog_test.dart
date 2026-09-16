@@ -77,6 +77,37 @@ void main() {
     expect(launched, ['Review the composer\n\nAttached files:\nlib/main.dart']);
   });
 
+  testWidgets('Control+Enter starts the agent from the prompt field', (
+    tester,
+  ) async {
+    final launched = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AgentProfileLaunchDialog(
+          profile: profile,
+          workspacePath: '/repo/workspace',
+          onLaunch: ({required prompt}) async {
+            launched.add(prompt);
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Initial Prompt'),
+      'Review the composer',
+    );
+    await tester.pump();
+    await tester.sendKeyDownEvent(.controlLeft);
+    await tester.sendKeyEvent(.enter);
+    await tester.sendKeyUpEvent(.controlLeft);
+    await tester.pumpAndSettle();
+
+    expect(launched, ['Review the composer']);
+    expect(find.byType(AgentProfileLaunchDialog), findsNothing);
+  });
+
   testWidgets('pastes an image as an attachment', (tester) async {
     final clipboard = _FakeTerminalClipboard(imagePath: '/tmp/alera-paste.png');
     await tester.pumpWidget(
