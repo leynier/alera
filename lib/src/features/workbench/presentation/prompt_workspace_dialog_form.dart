@@ -30,6 +30,7 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
                 autofocus: true,
                 enabled: !_working && created == null,
                 onPaste: _pastePromptClipboard,
+                onCommandEnter: () => unawaited(_submit()),
                 suffix: const SizedBox(width: AleraTokens.space32),
               ),
             ),
@@ -199,12 +200,7 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
                   ),
                 ] else
                   FilledButton.icon(
-                    onPressed:
-                        _orderedProjects.isEmpty ||
-                            widget.agentProfiles.isEmpty ||
-                            (!_useProjectCheckout && _loadingBranches)
-                        ? null
-                        : _submit,
+                    onPressed: _canSubmit ? _submit : null,
                     icon: const Icon(AleraIcons.agent, size: 16),
                     label: const Text('Create And Start Agent'),
                   ),

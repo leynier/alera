@@ -278,6 +278,7 @@ class _AgentProfileLaunchDialogState extends State<AgentProfileLaunchDialog> {
                           }
                         },
                         onPaste: _pasteClipboard,
+                        onCommandEnter: () => unawaited(_submit(skip: false)),
                         suffix: const SizedBox(width: AleraTokens.space32),
                       ),
                     ),
