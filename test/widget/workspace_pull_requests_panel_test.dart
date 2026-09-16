@@ -12,7 +12,9 @@ import 'package:alera/src/features/pull_requests/presentation/pull_request_compo
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
+import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -27,6 +29,7 @@ import '../unit/fake_forge_provider.dart';
 import '../unit/fake_git_backend.dart';
 
 part 'workspace_pull_requests_panel_reading_diff_cases.dart';
+part 'workspace_pull_requests_panel_removal_cases.dart';
 
 HostedReview _review(int number) => HostedReview(
   provider: .github,
@@ -43,6 +46,11 @@ HostedReview _review(int number) => HostedReview(
 );
 
 class _PanelWorkbenchController extends WorkbenchController {
+  _PanelWorkbenchController([this._state = const WorkbenchState()]);
+
+  final WorkbenchState _state;
+  bool? lastDeleteBranch;
+  int deleteWorkspaceCalls = 0;
   final List<
     ({int number, String commitOid, String? gitDiffRoot, String parentOid})
   >
@@ -52,7 +60,18 @@ class _PanelWorkbenchController extends WorkbenchController {
       >[];
 
   @override
-  WorkbenchState build() => const WorkbenchState();
+  WorkbenchState build() => _state;
+
+  @override
+  Future<void> deleteWorkspace({
+    required Project project,
+    required Workspace workspace,
+    bool deleteBranch = true,
+    String? activeWorkspaceId,
+  }) async {
+    deleteWorkspaceCalls++;
+    lastDeleteBranch = deleteBranch;
+  }
 
   @override
   Future<WorkspaceTabRecord> openGitPullRequestDiffTab({
@@ -90,6 +109,7 @@ class _PanelWorkbenchController extends WorkbenchController {
 
 void main() {
   _registerWorkspacePullRequestsPanelReadingDiffTests();
+  _registerWorkspacePullRequestsPanelRemovalTests();
 
   testWidgets('places borderless dictation controls in pull request fields', (
     tester,

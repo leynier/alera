@@ -25,6 +25,7 @@ import 'package:alera/src/features/pull_requests/presentation/pull_request_stack
 import 'package:alera/src/features/pull_requests/presentation/workspace_pull_request_stack_candidates.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_removal_launcher.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -103,6 +104,7 @@ class const WorkspacePullRequestsPanel({
         return _VisiblePullRequestsPanel(
           key: ValueKey<WorkspacePullRequestScope>(scope),
           workspace: workspace,
+          project: localContext.project,
           scope: scope,
           repoPath: repoPath,
           gitDiffRoot: gitDiffRoot,
@@ -134,6 +136,7 @@ class const _VisiblePullRequestsPanel({
   super.key,
   required final WorkspacePullRequestScope scope,
   required final Workspace workspace,
+  final Project? project,
   required final String repoPath,
   final String? gitDiffRoot,
   required final Map<String, Workspace> workspaceByBranch,
@@ -205,6 +208,7 @@ class _VisiblePullRequestsPanelState
           candidates: widget.stackWorkspaceCandidates,
           branch: state.currentBranch,
         );
+        final project = widget.project;
         return _PullRequestBody(
           repoPath: widget.repoPath,
           state: state,
@@ -214,6 +218,16 @@ class _VisiblePullRequestsPanelState
           localWorkspaceBranches: widget.workspaceByBranch.keys.toSet(),
           stackWorkspaceCandidates: candidates,
           onOpenWorkspaceBranch: widget.onOpenWorkspaceBranch,
+          onRemoveWorkspace: project == null
+              ? null
+              : () => unawaited(
+                  showWorkspaceRemovalFlow(
+                    context: context,
+                    ref: ref,
+                    project: project,
+                    workspace: widget.workspace,
+                  ),
+                ),
           onOpenUrl: (url) =>
               ref.read(externalUriLauncherProvider).open(Uri.parse(url)),
           onOpenDiff: _openingDiff ? null : _openDiff,

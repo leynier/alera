@@ -58,6 +58,7 @@ class const PullRequestReviewView({
   final VoidCallback? onOpenDiff,
   final Future<void> Function(String branch)? onOpenWorkspaceBranch,
   required final Future<void> Function() onUnlink,
+  final VoidCallback? onRemoveWorkspace,
   final Future<void> Function(List<int> reviewNumbers) onLinkStack =
       _ignorePullRequestStackLink,
   final Future<void> Function(ReviewStackWorkspaceRequest request)
@@ -254,6 +255,7 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
             onClose: widget.onClose,
             onDraftStatusChanged: widget.onDraftStatusChanged,
             onUnlink: widget.onUnlink,
+            onRemoveWorkspace: widget.onRemoveWorkspace,
           ),
         ],
       ),
