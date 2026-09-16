@@ -198,40 +198,37 @@ void main() {
       ]);
     });
 
-    test(
-      'keeps repository methods when GitHub withholds rulesets on the current plan',
-      () async {
-        final runner = FakeRecordingProcessRunner(<Object>[
-          _ok('''
+    test('keeps repository methods when GitHub withholds rulesets on the current plan', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[
+        _ok('''
 {"mergeCommitAllowed":true,"squashMergeAllowed":true,"rebaseMergeAllowed":false}
 '''),
-          const ProcessRunOutput(
-            exitCode: 1,
-            stdout: '',
-            stderr:
-                'gh: Upgrade to GitHub Pro or make this repository public '
-                'to enable this feature. (HTTP 403)',
-          ),
-        ]);
-        final provider = GitHubForgeProvider(runner);
+        const ProcessRunOutput(
+          exitCode: 1,
+          stdout: '',
+          stderr:
+              'gh: Upgrade to GitHub Pro or make this repository public '
+              'to enable this feature. (HTTP 403)',
+        ),
+      ]);
+      final provider = GitHubForgeProvider(runner);
 
-        final methods = await provider.allowedMergeMethods(
-          identity: _identity,
-          repoPath: '/repo',
-          baseBranch: 'ach-nacha-file',
-        );
+      final methods = await provider.allowedMergeMethods(
+        identity: _identity,
+        repoPath: '/repo',
+        baseBranch: 'ach-nacha-file',
+      );
 
-        expect(methods, <ReviewMergeMethod>[
-          ReviewMergeMethod.mergeCommit,
-          ReviewMergeMethod.squash,
-        ]);
-        expect(runner.calls, hasLength(2));
-        expect(
-          runner.calls[1].arguments.last,
-          'repos/leynier/alera/rules/branches/ach-nacha-file',
-        );
-      },
-    );
+      expect(methods, <ReviewMergeMethod>[
+        ReviewMergeMethod.mergeCommit,
+        ReviewMergeMethod.squash,
+      ]);
+      expect(runner.calls, hasLength(2));
+      expect(
+        runner.calls[1].arguments.last,
+        'repos/leynier/alera/rules/branches/ach-nacha-file',
+      );
+    });
 
     test('fails closed when branch rulesets are not found', () async {
       final runner = FakeRecordingProcessRunner(<Object>[
