@@ -121,8 +121,12 @@ extension _ExperimentalPanelTabs on _AleraShellPageBodyState {
       surfaceBuilder: (key) {
         final tool = ExperimentalWorkspaceTool.forKey(key);
         if (tool != null) {
-          return Focus(
-            canRequestFocus: false,
+          // A scope, like the workbench panes: focus released inside this
+          // tool must not land on a sibling surface and reselect its key.
+          return WorkbenchRegisteredFocusScope(
+            registryKey: key,
+            registry: ref.read(workbenchPaneFocusRegistryProvider),
+            debugLabel: 'ExperimentalTool $key',
             onFocusChange: (focused) {
               if (focused) {
                 controller.selectExperimentalPanelKey(workspace.id, key);

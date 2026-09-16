@@ -10,6 +10,7 @@ import 'package:alera/src/design_system/menus/alera_text_selection_toolbar.dart'
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_registry.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_editor_surface.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_markdown_uri_policy.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_markdown_viewer_images.dart';
@@ -23,6 +24,7 @@ class const WorkspaceMarkdownViewerSurface({
   required final Workspace workspace,
   required final WorkspaceTabRecord tab,
   required final ValueChanged<String> onOpenEditorTab,
+  final bool autofocus = false,
 }) extends ConsumerStatefulWidget {
   @override
   ConsumerState<WorkspaceMarkdownViewerSurface> createState() =>
@@ -33,6 +35,12 @@ class _WorkspaceMarkdownViewerSurfaceState
     extends ConsumerState<WorkspaceMarkdownViewerSurface> {
   late final WorkspaceFileService _workspaceFiles;
   late final EditorSessionRegistry _editorSessions;
+  // Like the other read-only surfaces: owning the focus is what lets a click
+  // activate this pane and keeps shortcuts reachable while it is the active
+  // tab.
+  final FocusNode _focusNode = FocusNode(
+    debugLabel: 'WorkspaceMarkdownViewerSurface',
+  );
   String? _content;
   Object? _loadError;
   bool _loading = true;
@@ -48,6 +56,9 @@ class _WorkspaceMarkdownViewerSurfaceState
     _editorSessions = ref.read(editorSessionRegistryProvider);
     _subscribeToEditorDocument();
     unawaited(_load());
+    if (widget.autofocus) {
+      _requestFocusNextFrame(onlyIfParked: false);
+    }
   }
 
   @override
@@ -58,11 +69,25 @@ class _WorkspaceMarkdownViewerSurfaceState
       _subscribeToEditorDocument();
       unawaited(_load());
     }
+    if (!oldWidget.autofocus && widget.autofocus) {
+      // The pane became active while this tab was already showing; take the
+      // keyboard only if nothing else is being typed in.
+      _requestFocusNextFrame(onlyIfParked: true);
+    }
+  }
+
+  void _requestFocusNextFrame({required bool onlyIfParked}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && (!onlyIfParked || workbenchFocusIsParked())) {
+        _focusNode.requestFocus();
+      }
+    });
   }
 
   @override
   void dispose() {
     _editorDocumentChanges?.removeListener(_handleEditorSessionChanged);
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -107,7 +132,7 @@ class _WorkspaceMarkdownViewerSurfaceState
       );
     }
 
-    return DecoratedBox(
+    final surface = DecoratedBox(
       decoration: const BoxDecoration(color: AleraTokens.bg),
       child: Column(
         crossAxisAlignment: .stretch,
@@ -125,6 +150,10 @@ class _WorkspaceMarkdownViewerSurfaceState
           Expanded(child: content),
         ],
       ),
+    );
+    return Listener(
+      onPointerDown: (_) => _focusNode.requestFocus(),
+      child: Focus(focusNode: _focusNode, child: surface),
     );
   }
 

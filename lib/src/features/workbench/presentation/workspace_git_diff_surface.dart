@@ -18,6 +18,7 @@ import 'package:alera/src/features/workbench/application/workspace_file_preview_
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_registry.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_git_diff_image_row.dart';
 import 'package:alera/src/features/workspace_agent_comments/presentation/workspace_agent_comment_bar.dart';
 import 'package:alera/src/features/workspace_agent_comments/presentation/workspace_agent_comment_composer.dart';
@@ -35,6 +36,7 @@ class const WorkspaceGitDiffSurface({
   super.key,
   required final Workspace workspace,
   required final WorkspaceTabRecord tab,
+  final bool autofocus = false,
 }) extends ConsumerStatefulWidget {
   @override
   ConsumerState<WorkspaceGitDiffSurface> createState() =>
@@ -43,6 +45,10 @@ class const WorkspaceGitDiffSurface({
 
 class _WorkspaceGitDiffSurfaceState
     extends ConsumerState<WorkspaceGitDiffSurface> {
+  // The diff is read-only text with nothing focusable inside, so the surface
+  // owns a node like the image and PDF viewers do: clicking it makes its pane
+  // the active group, and Ctrl+W / Ctrl+Tab keep reaching the shortcut layer.
+  final FocusNode _focusNode = FocusNode(debugLabel: 'WorkspaceGitDiffSurface');
   Future<GitDiffResult>? _future;
   GitDiffResult? _loadedResult;
   ReadingDiffResult? _readingDiffResult;
@@ -65,6 +71,9 @@ class _WorkspaceGitDiffSurfaceState
   void initState() {
     super.initState();
     _load();
+    if (widget.autofocus) {
+      _requestFocusNextFrame(onlyIfParked: false);
+    }
   }
 
   @override
@@ -75,6 +84,19 @@ class _WorkspaceGitDiffSurfaceState
         _diffSelectionChanged(oldWidget.tab, widget.tab)) {
       _load();
     }
+    if (!oldWidget.autofocus && widget.autofocus) {
+      // The pane became active while this tab was already showing; take the
+      // keyboard only if nothing else is being typed in.
+      _requestFocusNextFrame(onlyIfParked: true);
+    }
+  }
+
+  void _requestFocusNextFrame({required bool onlyIfParked}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && (!onlyIfParked || workbenchFocusIsParked())) {
+        _focusNode.requestFocus();
+      }
+    });
   }
 
   bool _diffSelectionChanged(
@@ -102,6 +124,7 @@ class _WorkspaceGitDiffSurfaceState
     if (activeRequest != null) {
       ref.read(readingDiffServiceProvider).cancel(activeRequest);
     }
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -113,7 +136,7 @@ class _WorkspaceGitDiffSurfaceState
         (settings) => settings.aiAssist.enabled,
       ),
     );
-    return DecoratedBox(
+    final surface = DecoratedBox(
       decoration: const BoxDecoration(color: AleraTokens.bg),
       child: Column(
         crossAxisAlignment: .stretch,
@@ -215,6 +238,10 @@ class _WorkspaceGitDiffSurfaceState
           ),
         ],
       ),
+    );
+    return Listener(
+      onPointerDown: (_) => _focusNode.requestFocus(),
+      child: Focus(focusNode: _focusNode, child: surface),
     );
   }
 

@@ -86,6 +86,12 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
         return KeyboardActionId.addProject;
       case r'toggleSidebar':
         return KeyboardActionId.toggleSidebar;
+      case r'toggleContextPanel':
+        return KeyboardActionId.toggleContextPanel;
+      case r'showExplorer':
+        return KeyboardActionId.showExplorer;
+      case r'showSourceControl':
+        return KeyboardActionId.showSourceControl;
       case r'createWorkspace':
         return KeyboardActionId.createWorkspace;
       case r'handOffWorkspace':
@@ -96,6 +102,10 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
         return KeyboardActionId.navigateBack;
       case r'navigateForward':
         return KeyboardActionId.navigateForward;
+      case r'previousWorkspace':
+        return KeyboardActionId.previousWorkspace;
+      case r'nextWorkspace':
+        return KeyboardActionId.nextWorkspace;
       case r'findInFiles':
         return KeyboardActionId.findInFiles;
       case r'findInTerminal':
@@ -138,6 +148,10 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
         return KeyboardActionId.splitDown;
       case r'closeSplit':
         return KeyboardActionId.closeSplit;
+      case r'focusNextPane':
+        return KeyboardActionId.focusNextPane;
+      case r'focusPreviousPane':
+        return KeyboardActionId.focusPreviousPane;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -158,6 +172,12 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
         return r'addProject';
       case KeyboardActionId.toggleSidebar:
         return r'toggleSidebar';
+      case KeyboardActionId.toggleContextPanel:
+        return r'toggleContextPanel';
+      case KeyboardActionId.showExplorer:
+        return r'showExplorer';
+      case KeyboardActionId.showSourceControl:
+        return r'showSourceControl';
       case KeyboardActionId.createWorkspace:
         return r'createWorkspace';
       case KeyboardActionId.handOffWorkspace:
@@ -168,6 +188,10 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
         return r'navigateBack';
       case KeyboardActionId.navigateForward:
         return r'navigateForward';
+      case KeyboardActionId.previousWorkspace:
+        return r'previousWorkspace';
+      case KeyboardActionId.nextWorkspace:
+        return r'nextWorkspace';
       case KeyboardActionId.findInFiles:
         return r'findInFiles';
       case KeyboardActionId.findInTerminal:
@@ -210,6 +234,10 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
         return r'splitDown';
       case KeyboardActionId.closeSplit:
         return r'closeSplit';
+      case KeyboardActionId.focusNextPane:
+        return r'focusNextPane';
+      case KeyboardActionId.focusPreviousPane:
+        return r'focusPreviousPane';
     }
   }
 }

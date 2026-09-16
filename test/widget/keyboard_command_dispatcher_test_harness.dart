@@ -54,6 +54,10 @@ class _DispatcherTestWorkbenchController(
   final List<({String workspaceId, String groupId})> mergedSplits =
       <({String workspaceId, String groupId})>[];
   final List<String> navigationCalls = <String>[];
+  final List<String> focusedGroupIds = <String>[];
+  final List<String> selectedWorkspaceIds = <String>[];
+  final List<WorkbenchContextPanelTab> contextPanelTabs =
+      <WorkbenchContextPanelTab>[];
 
   @override
   WorkbenchState build() => _seed;
@@ -165,6 +169,52 @@ class _DispatcherTestWorkbenchController(
     required String groupId,
   }) async {
     mergedSplits.add((workspaceId: workspaceId, groupId: groupId));
+  }
+
+  @override
+  void focusWorkbenchGroup({
+    required String workspaceId,
+    required String groupId,
+  }) {
+    focusedGroupIds.add(groupId);
+    final layout = state.layoutFor(workspaceId);
+    final tabId = layout?.groups[groupId]?.activeTabId;
+    if (layout == null || tabId == null) {
+      return;
+    }
+    state = state.copyWith(
+      layoutByWorkspace: <String, WorkbenchLayout>{
+        ...state.layoutByWorkspace,
+        workspaceId: layout.setActiveTab(groupId: groupId, tabId: tabId),
+      },
+    );
+  }
+
+  @override
+  Future<void> selectWorkspace({
+    required Project project,
+    required Workspace workspace,
+  }) async {
+    selectedWorkspaceIds.add(workspace.id);
+    state = state.copyWith(
+      activeProjectId: project.id,
+      activeWorkspaceId: workspace.id,
+    );
+  }
+
+  @override
+  void setRightSidebarVisible(bool visible) {
+    state = state.copyWith(
+      viewPrefs: state.viewPrefs.copyWith(rightSidebarVisible: visible),
+    );
+  }
+
+  @override
+  void setContextPanelTab(WorkbenchContextPanelTab tab) {
+    contextPanelTabs.add(tab);
+    state = state.copyWith(
+      viewPrefs: state.viewPrefs.copyWith(activeContextPanelTab: tab),
+    );
   }
 
   @override
@@ -301,19 +351,38 @@ class _FakeTerminalSessionHandle({
   TerminalVisibilityLease acquireVisibility() =>
       const NoopTerminalVisibilityLease();
 
+  /// Attached by tests that mount the view, so focus requests move the real
+  /// primary focus the way the production emulator does.
+  final FocusNode focusNode = FocusNode();
+
   @override
   Widget buildView({
     Key? key,
     bool autofocus = false,
     FocusOnKeyEventCallback? onKeyEvent,
   }) {
-    return const SizedBox.shrink();
+    return Focus(
+      key: key,
+      focusNode: focusNode,
+      autofocus: autofocus,
+      onKeyEvent: onKeyEvent,
+      child: SizedBox.expand(key: ValueKey<String>('terminal-${tab.id}')),
+    );
   }
 
   @override
   void requestFocus() {
     requestFocusCalls += 1;
     onFocus();
+    if (focusNode.context != null) {
+      focusNode.requestFocus();
+    }
+  }
+
+  @override
+  void dispose() {
+    focusNode.dispose();
+    super.dispose();
   }
 }
 
@@ -326,6 +395,7 @@ Future<_DispatcherPumpHarness> _pumpDispatcherHarness(
   WidgetTester tester, {
   required _DispatcherTestWorkbenchController controller,
   required _FakeTerminalRuntime runtime,
+  Widget Function(BuildContext context, WidgetRef ref)? body,
 }) async {
   final container = ProviderContainer(
     overrides: [
@@ -352,7 +422,7 @@ Future<_DispatcherPumpHarness> _pumpDispatcherHarness(
           builder: (context, ref, _) {
             dispatcherRef = ref;
             dispatcherContext = context;
-            return const SizedBox.shrink();
+            return body?.call(context, ref) ?? const SizedBox.shrink();
           },
         ),
       ),
