@@ -53,6 +53,7 @@ class const _WorkspaceTabContent({
       WorkspaceTabKind.markdownViewer => WorkspaceMarkdownViewerSurface(
         workspace: workspace,
         tab: tab,
+        autofocus: autofocus,
         onOpenEditorTab: onOpenEditorTab,
       ),
       WorkspaceTabKind.pdf => WorkspacePdfViewerSurface(

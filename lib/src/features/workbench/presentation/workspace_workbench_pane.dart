@@ -47,9 +47,12 @@ class const _WorkbenchPane({
     // focus to the enclosing scope's most recently focused child. Without a
     // per-pane scope that child is the terminal in a sibling pane, which then
     // steals the active group, or the route scope above the shortcut layer.
-    return FocusScope(
+    // The scope is registered under the group id so Focus Next/Previous Pane
+    // can move keyboard focus here without a pointer.
+    return WorkbenchRegisteredFocusScope(
+      registryKey: groupId,
+      registry: _PaneFocusRegistryScope.maybeOf(context),
       debugLabel: 'WorkbenchPane $groupId',
-      skipTraversal: true,
       onFocusChange: (hasFocus) {
         if (hasFocus) {
           onActivateGroup(groupId: groupId);

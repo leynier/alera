@@ -141,6 +141,10 @@ class _FakeTerminalRuntime implements TerminalRuntime {
     (sum, session) => sum + session.requestFocusCalls,
   );
 
+  /// Whether the fake emulator of [tabId] currently holds the primary focus.
+  bool terminalHasFocus(String tabId) =>
+      _sessions[tabId]?.focusNode.hasFocus ?? false;
+
   /// Tab ids that received at least one `requestFocus()` call.
   Iterable<String> get focusedTabIds => _sessions.entries
       .where((entry) => entry.value.requestFocusCalls > 0)
@@ -239,15 +243,25 @@ class _FakeTerminalSessionHandle({
   TerminalVisibilityLease acquireVisibility() =>
       const NoopTerminalVisibilityLease();
 
+  /// A real node, so the terminal-focused shortcut hook and the pane focus
+  /// registry see the same focus tree they do with the production emulator.
+  final FocusNode focusNode = FocusNode();
+
   @override
   Widget buildView({
     Key? key,
     bool autofocus = false,
     FocusOnKeyEventCallback? onKeyEvent,
   }) {
-    return Center(
-      key: ValueKey<String>('fake-terminal-${tab.id}'),
-      child: Text('Terminal ${tab.title}'),
+    return Focus(
+      key: key,
+      focusNode: focusNode,
+      autofocus: autofocus,
+      onKeyEvent: onKeyEvent,
+      child: Center(
+        key: ValueKey<String>('fake-terminal-${tab.id}'),
+        child: Text('Terminal ${tab.title}'),
+      ),
     );
   }
 
@@ -256,6 +270,15 @@ class _FakeTerminalSessionHandle({
   @override
   void requestFocus() {
     requestFocusCalls += 1;
+    if (focusNode.context != null) {
+      focusNode.requestFocus();
+    }
+  }
+
+  @override
+  void dispose() {
+    focusNode.dispose();
+    super.dispose();
   }
 }
 

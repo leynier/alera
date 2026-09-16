@@ -10,6 +10,7 @@ import 'package:alera/src/features/remote_hosts/application/ssh_target_providers
 import 'package:alera/src/features/remote_hosts/infra/runtime_ssh_target_repository.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
+import 'package:alera/src/features/workbench/application/workspace_search_reveal.dart';
 import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
@@ -17,11 +18,13 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+part 'keyboard_command_dispatcher_navigation_test_cases.dart';
 part 'keyboard_command_dispatcher_test_harness.dart';
 
 class _DispatcherAgentProfiles extends AgentProfiles {
@@ -30,6 +33,8 @@ class _DispatcherAgentProfiles extends AgentProfiles {
 }
 
 void main() {
+  _registerKeyboardCommandDispatcherNavigationTests();
+
   testWidgets('split command stays safe after the dispatcher host unmounts', (
     tester,
   ) async {

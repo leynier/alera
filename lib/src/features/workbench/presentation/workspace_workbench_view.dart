@@ -15,6 +15,7 @@ import 'package:alera/src/features/agent_status/presentation/agent_identity_icon
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_tab_attention.dart';
+import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -24,6 +25,7 @@ import 'package:alera/src/features/workbench/presentation/mobile_driver_overlay.
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_surface.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_registry.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_markdown_viewer_surface.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_editor_surface.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_git_diff_surface.dart';
@@ -228,6 +230,7 @@ class const WorkspaceWorkbenchView({
   final ValueChanged<String>? onKeepPreviewTab,
   final bool singleSurface = false,
   final String? singleTabId,
+  final WorkbenchPaneFocusRegistry? paneFocusRegistry,
 }) extends StatefulWidget {
   @override
   State<WorkspaceWorkbenchView> createState() => _WorkspaceWorkbenchViewState();
@@ -258,9 +261,10 @@ class _WorkspaceWorkbenchViewState extends State<WorkspaceWorkbenchView> {
       }
       // A scope for the same reason as _WorkbenchPane: focus released by
       // unmounting content must stay in this surface, not jump to a sibling.
-      return FocusScope(
+      return WorkbenchRegisteredFocusScope(
+        registryKey: ExperimentalWorkspacePanel.tabKey(tab.id),
+        registry: widget.paneFocusRegistry,
         debugLabel: 'WorkbenchSingleSurface ${tab.id}',
-        skipTraversal: true,
         onFocusChange: (focused) {
           if (focused) widget.onSelectTab(groupId: '', tabId: tab.id);
         },
@@ -290,39 +294,59 @@ class _WorkspaceWorkbenchViewState extends State<WorkspaceWorkbenchView> {
         );
     return _WorkbenchTabDragScope(
       notifier: _tabDragController,
-      child: _KeepPreviewTabScope(
-        onKeep: widget.onKeepPreviewTab,
-        child: _WorkbenchLayoutView(
-          workspace: widget.workspace,
-          sourceControlScope: widget.sourceControlScope,
-          tabs: widget.tabs,
-          layout: resolvedLayout,
-          node: resolvedLayout.root,
-          nodePath: const <int>[],
-          terminalRuntime: widget.terminalRuntime,
-          mobileDriverPresence: widget.mobileDriverPresence,
-          agentStatuses: widget.agentStatuses,
-          completionAcknowledgements: widget.completionAcknowledgements,
-          onCreateTab: widget.onCreateTab,
-          newTabMenuProfiles: widget.newTabMenuProfiles,
-          onLaunchAgentProfile: widget.onLaunchAgentProfile,
-          onOpenEditorTab: widget.onOpenEditorTab,
-          onOpenMarkdownViewerTab: widget.onOpenMarkdownViewerTab,
-          onSelectTab: widget.onSelectTab,
-          onCloseTab: widget.onCloseTab,
-          onCloseTabs: widget.onCloseTabs,
-          onRenameTab: widget.onRenameTab,
-          onOpenEditor: widget.onOpenEditor,
-          onOpenMermanPreview: widget.onOpenMermanPreview,
-          onMoveTab: widget.onMoveTab,
-          onSplitGroup: widget.onSplitGroup,
-          onMergeGroup: widget.onMergeGroup,
-          onActivateGroup: widget.onActivateGroup,
-          onUpdateSplitRatio: widget.onUpdateSplitRatio,
+      child: _PaneFocusRegistryScope(
+        registry: widget.paneFocusRegistry,
+        child: _KeepPreviewTabScope(
+          onKeep: widget.onKeepPreviewTab,
+          child: _WorkbenchLayoutView(
+            workspace: widget.workspace,
+            sourceControlScope: widget.sourceControlScope,
+            tabs: widget.tabs,
+            layout: resolvedLayout,
+            node: resolvedLayout.root,
+            nodePath: const <int>[],
+            terminalRuntime: widget.terminalRuntime,
+            mobileDriverPresence: widget.mobileDriverPresence,
+            agentStatuses: widget.agentStatuses,
+            completionAcknowledgements: widget.completionAcknowledgements,
+            onCreateTab: widget.onCreateTab,
+            newTabMenuProfiles: widget.newTabMenuProfiles,
+            onLaunchAgentProfile: widget.onLaunchAgentProfile,
+            onOpenEditorTab: widget.onOpenEditorTab,
+            onOpenMarkdownViewerTab: widget.onOpenMarkdownViewerTab,
+            onSelectTab: widget.onSelectTab,
+            onCloseTab: widget.onCloseTab,
+            onCloseTabs: widget.onCloseTabs,
+            onRenameTab: widget.onRenameTab,
+            onOpenEditor: widget.onOpenEditor,
+            onOpenMermanPreview: widget.onOpenMermanPreview,
+            onMoveTab: widget.onMoveTab,
+            onSplitGroup: widget.onSplitGroup,
+            onMergeGroup: widget.onMergeGroup,
+            onActivateGroup: widget.onActivateGroup,
+            onUpdateSplitRatio: widget.onUpdateSplitRatio,
+          ),
         ),
       ),
     );
   }
+}
+
+/// Hands the pane focus registry to every `_WorkbenchPane` in the layout tree
+/// without threading it through the split views.
+class const _PaneFocusRegistryScope({
+  required final WorkbenchPaneFocusRegistry? registry,
+  required super.child,
+}) extends InheritedWidget {
+  static WorkbenchPaneFocusRegistry? maybeOf(BuildContext context) {
+    return context
+        .dependOnInheritedWidgetOfExactType<_PaneFocusRegistryScope>()
+        ?.registry;
+  }
+
+  @override
+  bool updateShouldNotify(_PaneFocusRegistryScope oldWidget) =>
+      registry != oldWidget.registry;
 }
 
 class _WorkbenchTabDragController() extends ValueNotifier<bool> {

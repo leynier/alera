@@ -9,6 +9,7 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_scrollable_actions.dart';
 import 'package:alera/src/features/workbench/application/workspace_search_controller.dart';
+import 'package:alera/src/features/workbench/application/workspace_search_reveal.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/rust/api/workspace_search.dart' as native;
 import 'package:flutter/material.dart';
@@ -47,6 +48,12 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
   late final TextEditingController _replacementController;
   late final TextEditingController _includeController;
   late final TextEditingController _excludeController;
+  final FocusNode _queryFocusNode = FocusNode(
+    debugLabel: 'WorkspaceSearchQuery',
+  );
+  final FocusNode _replacementFocusNode = FocusNode(
+    debugLabel: 'WorkspaceSearchReplacement',
+  );
   bool _replaceVisible = false;
   bool _detailsVisible = false;
   String? _initializedOptionalSectionsWorkspaceId;
@@ -66,6 +73,31 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
     _includeController = TextEditingController();
     _excludeController = TextEditingController();
     _scheduleViewPrefsSync();
+    // A shortcut that opened this panel set the request before it mounted, so
+    // the listener registered in build would never see it.
+    final pending = ref.read(workspaceSearchRevealProvider);
+    if (pending != null) {
+      _replaceVisible = _replaceVisible || pending.replace;
+      _handleReveal(pending);
+    }
+  }
+
+  /// Focuses the query, or shows the replace row and focuses the replacement,
+  /// for Find in Files and Replace in Files while the panel is already open.
+  void _handleReveal(WorkspaceSearchRevealRequest request) {
+    if (request.replace && !_replaceVisible) {
+      setState(() => _replaceVisible = true);
+    }
+    final target = request.replace ? _replacementFocusNode : _queryFocusNode;
+    // Deferred: this may run from initState, where providers cannot be
+    // modified, and the replacement field mounts on the coming frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      ref.read(workspaceSearchRevealProvider.notifier).consume(request);
+      target.requestFocus();
+    });
   }
 
   @override
@@ -104,11 +136,18 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
     _replacementController.dispose();
     _includeController.dispose();
     _excludeController.dispose();
+    _queryFocusNode.dispose();
+    _replacementFocusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(workspaceSearchRevealProvider, (previous, request) {
+      if (request != null) {
+        _handleReveal(request);
+      }
+    });
     final provider = workspaceSearchControllerProvider(widget.workspace.id);
     final state = ref.watch(provider);
     _syncController(_queryController, state.query);
@@ -160,7 +199,9 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
                   children: <Widget>[
                     _WorkspaceSearchInputs(
                       queryController: _queryController,
+                      queryFocusNode: _queryFocusNode,
                       replacementController: _replacementController,
+                      replacementFocusNode: _replacementFocusNode,
                       includeController: _includeController,
                       excludeController: _excludeController,
                       state: state,

@@ -50,11 +50,16 @@ enum KeyboardActionId {
   openCommandPalette,
   addProject,
   toggleSidebar,
+  toggleContextPanel,
+  showExplorer,
+  showSourceControl,
   createWorkspace,
   handOffWorkspace,
   handOnWorkspace,
   navigateBack,
   navigateForward,
+  previousWorkspace,
+  nextWorkspace,
   findInFiles,
   findInTerminal,
   toggleTerminalComposer,
@@ -75,7 +80,9 @@ enum KeyboardActionId {
   goToTab9,
   splitRight,
   splitDown,
-  closeSplit;
+  closeSplit,
+  focusNextPane,
+  focusPreviousPane;
 
   /// For `goToTabN` actions, the 1-based tab index; null otherwise.
   int? get tabIndex {
@@ -196,6 +203,33 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     allowInTerminal: true,
   ),
   KeybindingDefinition(
+    id: .toggleContextPanel,
+    label: 'Toggle Context Panel',
+    group: .global,
+    description: 'Collapse or expand the Explorer, Search, Source Control and Pull Request panel.',
+    defaultBindings: .uniform(<String>['Mod+Alt+B']),
+    searchKeywords: <String>['hide', 'show', 'right', 'sidebar'],
+    allowInTerminal: true,
+  ),
+  KeybindingDefinition(
+    id: .showExplorer,
+    label: 'Show Explorer',
+    group: .global,
+    description: 'Open the Explorer panel for the active workspace.',
+    defaultBindings: .uniform(<String>['Mod+Shift+E']),
+    searchKeywords: <String>['files', 'tree', 'panel'],
+    allowInTerminal: true,
+  ),
+  KeybindingDefinition(
+    id: .showSourceControl,
+    label: 'Show Source Control',
+    group: .global,
+    description: 'Open the Source Control panel for the active workspace.',
+    defaultBindings: .uniform(<String>['Mod+Shift+G']),
+    searchKeywords: <String>['git', 'changes', 'diff', 'commit', 'panel'],
+    allowInTerminal: true,
+  ),
+  KeybindingDefinition(
     id: .createWorkspace,
     label: 'New Workspace',
     group: .workspace,
@@ -247,6 +281,24 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
       linux: <String>['Alt+ArrowRight'],
     ),
     searchKeywords: <String>['history', 'next', 'worktree'],
+  ),
+  KeybindingDefinition(
+    id: .previousWorkspace,
+    label: 'Previous Workspace',
+    group: .workspace,
+    description: 'Select the workspace above the active one in the sidebar.',
+    defaultBindings: .uniform(<String>['Mod+Alt+ArrowUp']),
+    searchKeywords: <String>['sidebar', 'up', 'worktree', 'switch'],
+    allowInTerminal: true,
+  ),
+  KeybindingDefinition(
+    id: .nextWorkspace,
+    label: 'Next Workspace',
+    group: .workspace,
+    description: 'Select the workspace below the active one in the sidebar.',
+    defaultBindings: .uniform(<String>['Mod+Alt+ArrowDown']),
+    searchKeywords: <String>['sidebar', 'down', 'worktree', 'switch'],
+    allowInTerminal: true,
   ),
   KeybindingDefinition(
     id: .findInFiles,
@@ -304,9 +356,12 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     id: .closeTab,
     label: 'Close Tab',
     group: .tabs,
-    description: 'Close the active terminal tab.',
+    description: 'Close the active tab.',
     defaultBindings: .uniform(<String>['Mod+W']),
   ),
+  // Tab switching stays intercepted under terminal-first: a PTY has no
+  // encoding for Ctrl+Tab or Ctrl+digit, so deferring them to the shell only
+  // made the tab unreachable from the keyboard.
   KeybindingDefinition(
     id: .nextTab,
     label: 'Next Tab',
@@ -317,6 +372,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
       windows: <String>['Ctrl+Tab'],
       linux: <String>['Ctrl+Tab'],
     ),
+    allowInTerminal: true,
   ),
   KeybindingDefinition(
     id: .previousTab,
@@ -328,6 +384,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
       windows: <String>['Ctrl+Shift+Tab'],
       linux: <String>['Ctrl+Shift+Tab'],
     ),
+    allowInTerminal: true,
   ),
   KeybindingDefinition(
     id: .goToTab1,
@@ -335,6 +392,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     group: .tabs,
     description: 'Select the first tab in the active pane.',
     defaultBindings: .uniform(<String>['Mod+1']),
+    allowInTerminal: true,
   ),
   KeybindingDefinition(
     id: .goToTab2,
@@ -342,6 +400,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     group: .tabs,
     description: 'Select the second tab in the active pane.',
     defaultBindings: .uniform(<String>['Mod+2']),
+    allowInTerminal: true,
   ),
   KeybindingDefinition(
     id: .goToTab3,
@@ -349,6 +408,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     group: .tabs,
     description: 'Select the third tab in the active pane.',
     defaultBindings: .uniform(<String>['Mod+3']),
+    allowInTerminal: true,
   ),
   KeybindingDefinition(
     id: .goToTab4,
@@ -356,6 +416,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     group: .tabs,
     description: 'Select the fourth tab in the active pane.',
     defaultBindings: .uniform(<String>['Mod+4']),
+    allowInTerminal: true,
   ),
   KeybindingDefinition(
     id: .goToTab5,
@@ -363,6 +424,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     group: .tabs,
     description: 'Select the fifth tab in the active pane.',
     defaultBindings: .uniform(<String>['Mod+5']),
+    allowInTerminal: true,
   ),
   KeybindingDefinition(
     id: .goToTab6,
@@ -370,6 +432,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     group: .tabs,
     description: 'Select the sixth tab in the active pane.',
     defaultBindings: .uniform(<String>['Mod+6']),
+    allowInTerminal: true,
   ),
   KeybindingDefinition(
     id: .goToTab7,
@@ -377,6 +440,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     group: .tabs,
     description: 'Select the seventh tab in the active pane.',
     defaultBindings: .uniform(<String>['Mod+7']),
+    allowInTerminal: true,
   ),
   KeybindingDefinition(
     id: .goToTab8,
@@ -384,6 +448,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     group: .tabs,
     description: 'Select the eighth tab in the active pane.',
     defaultBindings: .uniform(<String>['Mod+8']),
+    allowInTerminal: true,
   ),
   KeybindingDefinition(
     id: .goToTab9,
@@ -391,6 +456,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     group: .tabs,
     description: 'Select the last tab in the active pane.',
     defaultBindings: .uniform(<String>['Mod+9']),
+    allowInTerminal: true,
   ),
   KeybindingDefinition(
     id: .splitRight,
@@ -423,6 +489,25 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     description: 'Merge the active pane back into its sibling.',
     defaultBindings: .uniform(<String>['Mod+Shift+W']),
     searchKeywords: <String>['merge', 'pane'],
+    allowInTerminal: true,
+  ),
+  KeybindingDefinition(
+    id: .focusNextPane,
+    label: 'Focus Next Pane',
+    group: .panes,
+    description: 'Move keyboard focus to the next pane, or into the active pane from the sidebar.',
+    defaultBindings: .uniform(<String>['Mod+Alt+ArrowRight']),
+    searchKeywords: <String>['split', 'column', 'terminal', 'switch'],
+    allowInTerminal: true,
+  ),
+  KeybindingDefinition(
+    id: .focusPreviousPane,
+    label: 'Focus Previous Pane',
+    group: .panes,
+    description: 'Move keyboard focus to the previous pane, or into the active pane from the sidebar.',
+    defaultBindings: .uniform(<String>['Mod+Alt+ArrowLeft']),
+    searchKeywords: <String>['split', 'column', 'terminal', 'switch'],
+    allowInTerminal: true,
   ),
 ];
 

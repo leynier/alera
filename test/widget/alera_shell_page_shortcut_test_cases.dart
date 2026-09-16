@@ -110,4 +110,78 @@ void _registerAleraShellShortcutTests() {
 
     expect(harness.runtime.totalFocusRequests, 1);
   });
+
+  testWidgets('pane focus and next-tab shortcuts stay in the chosen column', (
+    tester,
+  ) async {
+    final base = _splitWorkbenchState();
+    final workspace = base.activeWorkspace!;
+    final now = DateTime.utc(2026, 5, 22);
+    final thirdTab = WorkspaceTabRecord(
+      id: 'tab-3',
+      workspaceId: workspace.id,
+      title: 'Terminal 3',
+      createdAt: now,
+      updatedAt: now,
+    );
+    final leftGroupId = WorkbenchLayout.defaultGroupId(workspace.id);
+    final layout =
+        WorkbenchLayout.single(
+              workspaceId: workspace.id,
+              tabIds: <String>['tab-1', thirdTab.id],
+            )
+            .setActiveTab(groupId: leftGroupId, tabId: 'tab-1')
+            .splitWithGroup(
+              targetGroupId: leftGroupId,
+              zone: .right,
+              newGroup: WorkbenchPaneGroup(
+                id: 'group-2',
+                tabIds: <String>['tab-2'],
+                activeTabId: 'tab-2',
+              ),
+            );
+    final harness = await _pumpShell(
+      tester,
+      state: base.copyWith(
+        tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
+          workspace.id: <WorkspaceTabRecord>[
+            ...base.tabsFor(workspace.id),
+            thirdTab,
+          ],
+        },
+        layoutByWorkspace: <String, WorkbenchLayout>{workspace.id: layout},
+      ),
+    );
+    await tester.pumpAndSettle();
+    // The right column is active and its terminal holds the focus.
+    expect(harness.runtime.terminalHasFocus('tab-2'), isTrue);
+
+    // Ctrl+Alt+Left is the focus-previous-pane default off macOS.
+    await tester.sendKeyDownEvent(.controlLeft);
+    await tester.sendKeyDownEvent(.altLeft);
+    await tester.sendKeyDownEvent(.arrowLeft);
+    await tester.sendKeyUpEvent(.arrowLeft);
+    await tester.sendKeyUpEvent(.altLeft);
+    await tester.sendKeyUpEvent(.controlLeft);
+    await tester.pumpAndSettle();
+
+    var current = harness.controller.state.layoutFor(workspace.id)!;
+    expect(current.activeGroupId, leftGroupId);
+    expect(harness.runtime.terminalHasFocus('tab-1'), isTrue);
+    expect(harness.runtime.terminalHasFocus('tab-2'), isFalse);
+
+    // Ctrl+Tab cycles inside the focused column, and the focus follows the
+    // newly active tab rather than jumping to the other column.
+    await tester.sendKeyDownEvent(.controlLeft);
+    await tester.sendKeyDownEvent(.tab);
+    await tester.sendKeyUpEvent(.tab);
+    await tester.sendKeyUpEvent(.controlLeft);
+    await tester.pumpAndSettle();
+
+    current = harness.controller.state.layoutFor(workspace.id)!;
+    expect(current.activeGroupId, leftGroupId);
+    expect(current.groups[leftGroupId]!.activeTabId, thirdTab.id);
+    expect(harness.runtime.terminalHasFocus('tab-3'), isTrue);
+    expect(harness.runtime.terminalHasFocus('tab-2'), isFalse);
+  });
 }

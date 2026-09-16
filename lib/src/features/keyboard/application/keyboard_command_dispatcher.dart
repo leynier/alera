@@ -1,19 +1,25 @@
 import 'dart:async';
 
-import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
-
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_command_palette_dialog.dart';
+import 'package:alera/src/features/workbench/application/workbench_listing.dart';
+import 'package:alera/src/features/workbench/application/workbench_state.dart';
+import 'package:alera/src/features/workbench/application/workspace_search_reveal.dart';
+import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
+import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_hand_off_launchers.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+part 'keyboard_command_dispatcher_navigation.dart';
 
 /// Maps a [KeyboardActionId] to concrete app behavior, reusing existing
 /// controller methods and dialog flows. Construct one per dispatch with the
@@ -42,6 +48,12 @@ class const KeyboardCommandDispatcher({
         unawaited(showAddProjectFlow(context, ref));
       case KeyboardActionId.toggleSidebar:
         _toggleSidebar();
+      case KeyboardActionId.toggleContextPanel:
+        _toggleContextPanel();
+      case KeyboardActionId.showExplorer:
+        _showContextPanel(.explorer);
+      case KeyboardActionId.showSourceControl:
+        _showContextPanel(.gitDiff);
       case KeyboardActionId.createWorkspace:
         final project = ref.read(workbenchControllerProvider).activeProject;
         unawaited(
@@ -55,14 +67,18 @@ class const KeyboardCommandDispatcher({
         unawaited(ref.read(workbenchControllerProvider.notifier).goBack());
       case KeyboardActionId.navigateForward:
         unawaited(ref.read(workbenchControllerProvider.notifier).goForward());
+      case KeyboardActionId.previousWorkspace:
+        _cycleWorkspace(-1);
+      case KeyboardActionId.nextWorkspace:
+        _cycleWorkspace(1);
       case KeyboardActionId.findInFiles:
-        _showContextPanel(.search);
+        _revealWorkspaceSearch(replace: false);
       case KeyboardActionId.findInTerminal:
         _openTerminalSearch();
       case KeyboardActionId.toggleTerminalComposer:
         _toggleTerminalComposer();
       case KeyboardActionId.replaceInFiles:
-        _showContextPanel(.search);
+        _revealWorkspaceSearch(replace: true);
       case KeyboardActionId.saveFile:
         _saveActiveEditor();
       case KeyboardActionId.newTerminalTab:
@@ -90,6 +106,10 @@ class const KeyboardCommandDispatcher({
         _split(.down);
       case KeyboardActionId.closeSplit:
         _closeSplit();
+      case KeyboardActionId.focusNextPane:
+        _focusPane(1);
+      case KeyboardActionId.focusPreviousPane:
+        _focusPane(-1);
     }
   }
 
@@ -120,6 +140,11 @@ class const KeyboardCommandDispatcher({
     final controller = ref.read(workbenchControllerProvider.notifier);
     final collapsed = ref.read(workbenchControllerProvider).collapsed;
     controller.setCollapsed(!collapsed);
+    if (!collapsed) {
+      // Collapsing the sidebar that held the focus (its search field, a row
+      // menu) must not park the keyboard on the shortcut layer.
+      _focusActivePane();
+    }
   }
 
   void _newTerminalTab() {

@@ -123,9 +123,10 @@ extension _ExperimentalPanelTabs on _AleraShellPageBodyState {
         if (tool != null) {
           // A scope, like the workbench panes: focus released inside this
           // tool must not land on a sibling surface and reselect its key.
-          return FocusScope(
+          return WorkbenchRegisteredFocusScope(
+            registryKey: key,
+            registry: ref.read(workbenchPaneFocusRegistryProvider),
             debugLabel: 'ExperimentalTool $key',
-            skipTraversal: true,
             onFocusChange: (focused) {
               if (focused) {
                 controller.selectExperimentalPanelKey(workspace.id, key);
