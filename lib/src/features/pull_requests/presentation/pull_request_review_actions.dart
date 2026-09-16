@@ -11,6 +11,7 @@ class const _PullRequestReviewActions({
   required final Future<void> Function() onClose,
   required final Future<void> Function(bool draft) onDraftStatusChanged,
   required final Future<void> Function() onUnlink,
+  final VoidCallback? onRemoveWorkspace,
 }) extends StatefulWidget {
   @override
   State<_PullRequestReviewActions> createState() =>
@@ -32,6 +33,9 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
         _PullRequestReviewAction.convertToDraft,
       if (review.isOpen && widget.canCloseReview)
         _PullRequestReviewAction.close,
+      if (review.state == HostedReviewState.merged &&
+          widget.onRemoveWorkspace != null)
+        _PullRequestReviewAction.removeWorkspace,
       _PullRequestReviewAction.unlink,
     ];
     return actions;
@@ -71,6 +75,8 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
           _PullRequestReviewAction.convertToDraft =>
             review.state == HostedReviewState.open &&
                 widget.canChangeDraftStatus,
+          _PullRequestReviewAction.removeWorkspace =>
+            widget.onRemoveWorkspace != null,
           _PullRequestReviewAction.unlink => true,
         };
     final showProgress = switch (action) {
@@ -85,6 +91,7 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
       _PullRequestReviewAction.markReady ||
       _PullRequestReviewAction.convertToDraft =>
         widget.action == PullRequestAction.draftStatus,
+      _PullRequestReviewAction.removeWorkspace => false,
       _PullRequestReviewAction.unlink =>
         widget.action == PullRequestAction.unlink,
     };
@@ -122,6 +129,9 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
         return;
       case _PullRequestReviewAction.unlink:
         await _confirmUnlink();
+        return;
+      case _PullRequestReviewAction.removeWorkspace:
+        widget.onRemoveWorkspace?.call();
         return;
       case _PullRequestReviewAction.markReady:
         await _confirmDraftStatus(draft: false);
@@ -230,6 +240,7 @@ enum _PullRequestReviewAction {
   markReady,
   convertToDraft,
   close,
+  removeWorkspace,
   unlink;
 
   factory fromMergeMethod(ReviewMergeMethod method) {
@@ -251,6 +262,7 @@ enum _PullRequestReviewAction {
     _PullRequestReviewAction.markReady ||
     _PullRequestReviewAction.convertToDraft ||
     _PullRequestReviewAction.close ||
+    _PullRequestReviewAction.removeWorkspace ||
     _PullRequestReviewAction.unlink => null,
   };
 
@@ -263,6 +275,7 @@ enum _PullRequestReviewAction {
     _PullRequestReviewAction.markReady => 'Mark Ready For Review',
     _PullRequestReviewAction.convertToDraft => 'Convert To Draft',
     _PullRequestReviewAction.close => 'Close Pull Request',
+    _PullRequestReviewAction.removeWorkspace => 'Remove Workspace',
     _PullRequestReviewAction.unlink => 'Unlink Pull Request',
   };
 
@@ -274,10 +287,13 @@ enum _PullRequestReviewAction {
     _PullRequestReviewAction.markReady => AleraIcons.success,
     _PullRequestReviewAction.convertToDraft => AleraIcons.edit,
     _PullRequestReviewAction.close => AleraIcons.gitPullRequestClosed,
+    _PullRequestReviewAction.removeWorkspace => AleraIcons.delete,
     _PullRequestReviewAction.unlink => AleraIcons.unlink,
   };
 
-  bool get destructive => this == _PullRequestReviewAction.close;
+  bool get destructive =>
+      this == _PullRequestReviewAction.close ||
+      this == _PullRequestReviewAction.removeWorkspace;
 }
 
 class const _PullRequestActionButton({

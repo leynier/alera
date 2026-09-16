@@ -12,6 +12,8 @@ import 'package:alera/src/features/pull_requests/presentation/pull_request_revie
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+part 'pull_request_review_view_removal_cases.dart';
+
 const _review = HostedReview(
   provider: .github,
   number: 42,
@@ -26,6 +28,7 @@ const _review = HostedReview(
 class _Callbacks {
   int unlinkCalls = 0;
   int closeCalls = 0;
+  int removeWorkspaceCalls = 0;
   bool? draftStatus;
   final List<String> commentBodies = <String>[];
   bool addCommentResult = true;
@@ -48,6 +51,7 @@ Widget _wrap(
   bool canCloseReview = true,
   bool canChangeDraftStatus = true,
   bool canComment = true,
+  bool offerRemoveWorkspace = true,
 }) {
   return MaterialApp(
     home: Scaffold(
@@ -65,6 +69,11 @@ Widget _wrap(
         onUnlink: () async {
           callbacks.unlinkCalls++;
         },
+        onRemoveWorkspace: offerRemoveWorkspace
+            ? () {
+                callbacks.removeWorkspaceCalls++;
+              }
+            : null,
         onMerge: (method) async => callbacks.mergeMethod = method,
         onClose: () async => callbacks.closeCalls++,
         onDraftStatusChanged: (draft) async {
@@ -85,6 +94,8 @@ Widget _wrap(
 }
 
 void main() {
+  _registerPullRequestReviewViewRemovalTests();
+
   testWidgets('offers every available review action in one menu', (
     tester,
   ) async {
@@ -104,9 +115,11 @@ void main() {
     expect(find.text('Convert To Draft'), findsOneWidget);
     expect(find.text('Close Pull Request'), findsOneWidget);
     expect(find.text('Unlink Pull Request'), findsOneWidget);
+    expect(find.text('Remove Workspace'), findsNothing);
     expect(callbacks.mergeMethod, isNull);
     expect(callbacks.closeCalls, 0);
     expect(callbacks.unlinkCalls, 0);
+    expect(callbacks.removeWorkspaceCalls, 0);
   });
 
   testWidgets('confirms the primary merge method before invoking it', (
@@ -284,24 +297,6 @@ void main() {
 
     expect(find.text('Unlink Pull Request #42?'), findsNothing);
     expect(callbacks.unlinkCalls, 0);
-  });
-
-  testWidgets('shows a single unlink action after the PR is merged', (
-    tester,
-  ) async {
-    final callbacks = _Callbacks();
-    await tester.pumpWidget(
-      _wrap(callbacks, review: _review.copyWith(state: .merged)),
-    );
-
-    expect(find.text('Create Merge Commit'), findsNothing);
-    expect(find.text('Close Pull Request'), findsNothing);
-    expect(find.text('Unlink Pull Request'), findsOneWidget);
-    expect(find.byTooltip('Pull Request Actions'), findsNothing);
-
-    await tester.tap(find.text('Unlink Pull Request'));
-    await tester.pumpAndSettle();
-    expect(find.text('Unlink Pull Request #42?'), findsOneWidget);
   });
 
   testWidgets('edit mode sends only the changed fields on save', (

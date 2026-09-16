@@ -7,7 +7,6 @@ enum _WorkbenchSidebarMutation(final String successMessage) {
   unpinWorkspace('Workspace unpinned'),
   pinWorkspaceTree('Workspace tree pinned'),
   unpinWorkspaceTree('Workspace tree unpinned'),
-  removeWorkspace('Workspace removed'),
   updateWorkspaceTags('Workspace tags updated'),
   updateWorkspaceParent('Workspace parent updated'),
   clearWorkspaceParent('Workspace parent cleared'),
@@ -50,6 +49,15 @@ mixin _ProjectWorkbenchSidebarActions
   Future<void> _openWorkspace(Project project, Workspace workspace) async {
     final controller = ref.read(workbenchControllerProvider.notifier);
     await controller.selectWorkspace(project: project, workspace: workspace);
+  }
+
+  Future<void> _deleteWorkspace(Project project, Workspace workspace) {
+    return showWorkspaceRemovalFlow(
+      context: context,
+      ref: ref,
+      project: project,
+      workspace: workspace,
+    );
   }
 
   Future<void> _renameProject(Project project) async {
