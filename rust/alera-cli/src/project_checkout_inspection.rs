@@ -30,7 +30,8 @@ pub(crate) async fn inspect(path: String, kind: ProjectKind) -> Result<CheckoutI
         let branch = match kind {
             ProjectKind::GitRepository => Some(alera_core::git::project_checkout_branch(&path)?),
             ProjectKind::Folder => {
-                if canonical.join(".git").try_exists()? {
+                // Presence of `.git` is not enough: an empty leftover is not a checkout.
+                if alera_core::git::project_checkout_branch(&path).is_ok() {
                     bail!("The selected folder is a Git checkout but this project is registered as a folder");
                 }
                 None
@@ -114,5 +115,56 @@ mod tests {
                 .await
                 .is_err());
         }
+    }
+
+    #[tokio::test]
+    async fn folder_inspection_ignores_leftover_git_entries_and_rejects_real_checkouts() {
+        let dir = tempfile::tempdir().unwrap();
+        let leftover = dir.path().join("leftover");
+        std::fs::create_dir(&leftover).unwrap();
+        std::fs::create_dir(leftover.join(".git")).unwrap();
+        inspect(leftover.to_str().unwrap().into(), ProjectKind::Folder)
+            .await
+            .unwrap();
+
+        let git_file = dir.path().join("git-file");
+        std::fs::create_dir(&git_file).unwrap();
+        std::fs::write(git_file.join(".git"), "not a gitdir pointer").unwrap();
+        inspect(git_file.to_str().unwrap().into(), ProjectKind::Folder)
+            .await
+            .unwrap();
+
+        let nested = dir.path().join("nested");
+        std::fs::create_dir(&nested).unwrap();
+        init_main_repo(&nested.join("main"));
+        inspect(nested.to_str().unwrap().into(), ProjectKind::Folder)
+            .await
+            .unwrap();
+
+        let checkout = dir.path().join("checkout");
+        init_main_repo(&checkout);
+        let error = inspect(checkout.to_str().unwrap().into(), ProjectKind::Folder)
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains(
+            "The selected folder is a Git checkout but this project is registered as a folder"
+        ));
+    }
+
+    fn init_main_repo(path: &std::path::Path) {
+        std::fs::create_dir_all(path).unwrap();
+        let repo = git2::Repository::init(path).unwrap();
+        repo.set_head("refs/heads/main").unwrap();
+        let tree = repo.index().unwrap().write_tree().unwrap();
+        let signature = git2::Signature::now("Test", "test@example.test").unwrap();
+        repo.commit(
+            Some("HEAD"),
+            &signature,
+            &signature,
+            "Initial",
+            &repo.find_tree(tree).unwrap(),
+            &[],
+        )
+        .unwrap();
     }
 }
