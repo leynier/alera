@@ -18,6 +18,7 @@ import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workbench_view_prefs_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_activity_controller.dart';
 import 'package:alera/src/features/workbench/application/workspace_activity_repository.dart';
+import 'package:alera/src/features/workbench/application/workspace_explorer_session_store.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_graph_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_search_service.dart';
@@ -127,6 +128,11 @@ void terminalRuntimeActiveWorkspaceCoordinator(Ref ref) {
     (previous, next) => runtime.setActiveWorkspace(next),
     fireImmediately: true,
   );
+}
+
+@Riverpod(keepAlive: true)
+WorkspaceExplorerSessionStore workspaceExplorerSessionStore(Ref ref) {
+  return WorkspaceExplorerSessionStore();
 }
 
 @Riverpod(keepAlive: true)

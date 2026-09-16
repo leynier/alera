@@ -264,6 +264,9 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
         }
       }
       ancestor = ancestor.isEmpty ? part : '$ancestor/$part';
+      if (!_isDirectoryEntry(_entryByPath[ancestor])) {
+        return;
+      }
     }
   }
 

@@ -316,6 +316,57 @@ final class TerminalRuntimeActiveWorkspaceCoordinatorProvider
 String _$terminalRuntimeActiveWorkspaceCoordinatorHash() =>
     r'e01d17c5ce70a9aaa04ee477b661703888484b84';
 
+@ProviderFor(workspaceExplorerSessionStore)
+final workspaceExplorerSessionStoreProvider =
+    WorkspaceExplorerSessionStoreProvider._();
+
+final class WorkspaceExplorerSessionStoreProvider
+    extends
+        $FunctionalProvider<
+          WorkspaceExplorerSessionStore,
+          WorkspaceExplorerSessionStore,
+          WorkspaceExplorerSessionStore
+        >
+    with $Provider<WorkspaceExplorerSessionStore> {
+  WorkspaceExplorerSessionStoreProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'workspaceExplorerSessionStoreProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$workspaceExplorerSessionStoreHash();
+
+  @$internal
+  @override
+  $ProviderElement<WorkspaceExplorerSessionStore> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  WorkspaceExplorerSessionStore create(Ref ref) {
+    return workspaceExplorerSessionStore(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(WorkspaceExplorerSessionStore value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<WorkspaceExplorerSessionStore>(
+        value,
+      ),
+    );
+  }
+}
+
+String _$workspaceExplorerSessionStoreHash() =>
+    r'4c69fb84153edb3a18be749ab4cfa3f94858a22a';
+
 @ProviderFor(workspaceActivityRepository)
 final workspaceActivityRepositoryProvider =
     WorkspaceActivityRepositoryProvider._();
