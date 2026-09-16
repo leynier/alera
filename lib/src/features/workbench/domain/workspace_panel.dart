@@ -328,9 +328,7 @@ class const WorkspacePanel({
     final mainFallback =
         next.ensuredMainLayout().activeTabId ?? next.mainKeys.firstOrNull;
     return next.copyWith(
-      focusedKey: focusedKey == key
-          ? active ?? mainFallback
-          : focusedKey,
+      focusedKey: focusedKey == key ? active ?? mainFallback : focusedKey,
     );
   }
 

@@ -5,8 +5,7 @@ class const _WorkspacePanelEmpty({
   required final VoidCallback onNewTerminal,
   required final VoidCallback onHide,
   required final Widget content,
-  final String workspaceId =
-      WorkspacePanel.fallbackLayoutWorkspaceId,
+  final String workspaceId = WorkspacePanel.fallbackLayoutWorkspaceId,
   final List<AgentProfile> newTabMenuProfiles = const <AgentProfile>[],
   final void Function({required String profileId, String? targetGroupId})?
   onLaunchAgentProfile,
@@ -86,8 +85,7 @@ class const _WorkspacePanelEmpty({
                             ),
                           ),
                           const SizedBox(height: AleraTokens.space16),
-                          for (final tool
-                              in WorkspaceTool.values) ...<Widget>[
+                          for (final tool in WorkspaceTool.values) ...<Widget>[
                             _WorkspacePanelEmptyChoice(
                               icon: _iconForTool(tool),
                               label: tool.label,
@@ -130,8 +128,7 @@ String _descriptionForTool(WorkspaceTool tool) {
   return switch (tool) {
     WorkspaceTool.explorer => 'Browse files in this workspace.',
     WorkspaceTool.search => 'Find text across the workspace.',
-    WorkspaceTool.sourceControl =>
-      'Review git changes and commits.',
+    WorkspaceTool.sourceControl => 'Review git changes and commits.',
     WorkspaceTool.pullRequest => 'Open and review pull requests.',
   };
 }

@@ -492,11 +492,7 @@ mixin _WorkbenchControllerProjects
           (panel.occupiedKeys.contains(savedKey) ||
               WorkspaceTool.forKey(savedKey) != null);
       if (savedKeyIsLive) {
-        selectWorkspacePanelKey(
-          workspace.id,
-          savedKey,
-          recordSelection: false,
-        );
+        selectWorkspacePanelKey(workspace.id, savedKey, recordSelection: false);
       } else {
         final preferredId = layout.activeTabId ?? panel.primaryTabId;
         if (preferredId != null) {

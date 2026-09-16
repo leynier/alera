@@ -23,70 +23,67 @@ void _registerWorkspacePanelTests() {
     },
   );
 
-  test(
-    'closing the last main tool reveals a hidden sidebar tab',
-    () async {
-      await _controller.bootstrap();
-      final workspace = await _selectMainWorkspace(_controller, _harness);
-      final terminal = _controller.state.activeWorkspaceTab!;
-      final editor = await _controller.openFileTab(
-        workspace: workspace,
-        relativePath: 'lib/keep.dart',
-      );
-      await _flush();
-      _controller.setContextPanelTab(WorkbenchContextPanelTab.explorer);
-      await _flush();
-      final mainGroup = _controller.state
+  test('closing the last main tool reveals a hidden sidebar tab', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+    final terminal = _controller.state.activeWorkspaceTab!;
+    final editor = await _controller.openFileTab(
+      workspace: workspace,
+      relativePath: 'lib/keep.dart',
+    );
+    await _flush();
+    _controller.setContextPanelTab(WorkbenchContextPanelTab.explorer);
+    await _flush();
+    final mainGroup = _controller.state
+        .workspacePanelFor(workspace.id)
+        .ensuredMainLayout(workspace.id)
+        .activeGroupId;
+    await _controller.moveWorkspacePaneTab(
+      workspaceId: workspace.id,
+      tabId: WorkspaceTool.explorer.key,
+      targetGroupId: mainGroup,
+      zone: WorkbenchDropZone.center,
+      source: WorkspacePanelTree.right,
+      target: WorkspacePanelTree.main,
+    );
+    await _flush();
+    await _controller.moveWorkspacePaneTab(
+      workspaceId: workspace.id,
+      tabId: terminal.id,
+      targetGroupId: _controller.state
           .workspacePanelFor(workspace.id)
-          .ensuredMainLayout(workspace.id)
-          .activeGroupId;
-      await _controller.moveWorkspacePaneTab(
-        workspaceId: workspace.id,
-        tabId: WorkspaceTool.explorer.key,
-        targetGroupId: mainGroup,
-        zone: WorkbenchDropZone.center,
-        source: WorkspacePanelTree.right,
-        target: WorkspacePanelTree.main,
-      );
-      await _flush();
-      await _controller.moveWorkspacePaneTab(
-        workspaceId: workspace.id,
-        tabId: terminal.id,
-        targetGroupId: _controller.state
-            .workspacePanelFor(workspace.id)
-            .ensuredLayout(workspace.id)
-            .activeGroupId,
-        zone: WorkbenchDropZone.center,
-        source: WorkspacePanelTree.main,
-        target: WorkspacePanelTree.right,
-      );
-      await _flush();
-      _controller.setActiveTab(workspaceId: workspace.id, tabId: editor.id);
-      await _flush();
-      _controller.selectWorkspacePanelKey(
-        workspace.id,
-        WorkspaceTool.explorer.key,
-      );
-      await _flush();
-      _controller.setRightSidebarVisible(false);
-      await _flush();
-      expect(_controller.state.viewPrefs.rightSidebarVisible, isFalse);
-      expect(
-        _controller.state.workspacePanelFor(workspace.id).focusedKey,
-        WorkspaceTool.explorer.key,
-      );
+          .ensuredLayout(workspace.id)
+          .activeGroupId,
+      zone: WorkbenchDropZone.center,
+      source: WorkspacePanelTree.main,
+      target: WorkspacePanelTree.right,
+    );
+    await _flush();
+    _controller.setActiveTab(workspaceId: workspace.id, tabId: editor.id);
+    await _flush();
+    _controller.selectWorkspacePanelKey(
+      workspace.id,
+      WorkspaceTool.explorer.key,
+    );
+    await _flush();
+    _controller.setRightSidebarVisible(false);
+    await _flush();
+    expect(_controller.state.viewPrefs.rightSidebarVisible, isFalse);
+    expect(
+      _controller.state.workspacePanelFor(workspace.id).focusedKey,
+      WorkspaceTool.explorer.key,
+    );
 
-      _controller.closeWorkspaceTool(workspace.id, WorkspaceTool.explorer);
-      await _flush();
+    _controller.closeWorkspaceTool(workspace.id, WorkspaceTool.explorer);
+    await _flush();
 
-      expect(_controller.state.viewPrefs.rightSidebarVisible, isTrue);
-      expect(_controller.state.activeWorkspaceTab?.id, editor.id);
-      expect(
-        _controller.state.workspacePanelFor(workspace.id).focusedKey,
-        WorkspacePanel.tabKey(editor.id),
-      );
-    },
-  );
+    expect(_controller.state.viewPrefs.rightSidebarVisible, isTrue);
+    expect(_controller.state.activeWorkspaceTab?.id, editor.id);
+    expect(
+      _controller.state.workspacePanelFor(workspace.id).focusedKey,
+      WorkspacePanel.tabKey(editor.id),
+    );
+  });
 
   test(
     'closing a focused main tool keeps the surviving pane active tab',

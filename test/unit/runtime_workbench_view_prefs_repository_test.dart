@@ -235,53 +235,50 @@ void main() {
     },
   );
 
-  test(
-    'a queued echo does not overlay an older shared snapshot after a newer save',
-    () async {
-      final getStarted = Completer<void>();
-      final releaseGet = Completer<void>();
-      final client = _FakeRuntimeHostClient()
-        ..supportsSections = true
-        ..responses['workbenchViewPrefs.get'] = <String, Object?>{
-          'revision': 4,
-          'desktopInitialized': true,
-          'prefs': <String, Object?>{'searchViewAsTree': false},
-        }
-        ..responses['workbenchViewPrefs.update'] = <String, Object?>{
-          'revision': 5,
-        }
-        ..requestGates['workbenchViewPrefs.get'] = (
-          started: getStarted,
-          release: releaseGet,
-        );
-      final legacy = _MemoryViewPrefsRepository()
-        ..prefs = WorkbenchViewPrefs.defaults.copyWith(searchViewAsTree: false);
-      final repository = RuntimeWorkbenchViewPrefsRepository(
-        client: client,
-        legacyRepository: legacy,
+  test('a queued echo does not overlay an older shared snapshot after a newer save', () async {
+    final getStarted = Completer<void>();
+    final releaseGet = Completer<void>();
+    final client = _FakeRuntimeHostClient()
+      ..supportsSections = true
+      ..responses['workbenchViewPrefs.get'] = <String, Object?>{
+        'revision': 4,
+        'desktopInitialized': true,
+        'prefs': <String, Object?>{'searchViewAsTree': false},
+      }
+      ..responses['workbenchViewPrefs.update'] = <String, Object?>{
+        'revision': 5,
+      }
+      ..requestGates['workbenchViewPrefs.get'] = (
+        started: getStarted,
+        release: releaseGet,
       );
+    final legacy = _MemoryViewPrefsRepository()
+      ..prefs = WorkbenchViewPrefs.defaults.copyWith(searchViewAsTree: false);
+    final repository = RuntimeWorkbenchViewPrefsRepository(
+      client: client,
+      legacyRepository: legacy,
+    );
 
-      final echo = repository.load();
-      await getStarted.future;
-      await repository.save(
-        WorkbenchViewPrefs.defaults.copyWith(searchViewAsTree: true),
-      );
-      expect(legacy.prefs.searchViewAsTree, isTrue);
+    final echo = repository.load();
+    await getStarted.future;
+    await repository.save(
+      WorkbenchViewPrefs.defaults.copyWith(searchViewAsTree: true),
+    );
+    expect(legacy.prefs.searchViewAsTree, isTrue);
 
-      releaseGet.complete();
-      final echoed = await echo;
-      expect(echoed.searchViewAsTree, isTrue);
-      expect(legacy.prefs.searchViewAsTree, isTrue);
+    releaseGet.complete();
+    final echoed = await echo;
+    expect(echoed.searchViewAsTree, isTrue);
+    expect(legacy.prefs.searchViewAsTree, isTrue);
 
-      await repository.save(
-        WorkbenchViewPrefs.defaults.copyWith(searchViewAsTree: false),
-      );
-      expect(
-        client.payloads['workbenchViewPrefs.update']!.last['expectedRevision'],
-        5,
-      );
-    },
-  );
+    await repository.save(
+      WorkbenchViewPrefs.defaults.copyWith(searchViewAsTree: false),
+    );
+    expect(
+      client.payloads['workbenchViewPrefs.update']!.last['expectedRevision'],
+      5,
+    );
+  });
 }
 
 final class _MemoryViewPrefsRepository implements WorkbenchViewPrefsRepository {

@@ -53,9 +53,7 @@ void main() {
       final selected = <String>[];
       final closed = <String>[];
       final panel = WorkspacePanel(
-        tabKeys: [
-          for (final tool in WorkspaceTool.values) tool.key,
-        ],
+        tabKeys: [for (final tool in WorkspaceTool.values) tool.key],
         activeKey: 'tool:search',
       );
       await tester.pumpWidget(
@@ -231,10 +229,7 @@ void main() {
               height: 500,
               child: WorkspacePanelView(
                 panel: WorkspacePanel(
-                  tabKeys: [
-                    for (final tool in WorkspaceTool.values)
-                      tool.key,
-                  ],
+                  tabKeys: [for (final tool in WorkspaceTool.values) tool.key],
                   activeKey: 'tool:search',
                 ),
                 tabs: const [],

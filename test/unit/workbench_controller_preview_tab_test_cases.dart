@@ -228,58 +228,51 @@ void _registerWorkbenchControllerPreviewTabTests() {
     },
   );
 
-  test(
-    'a partial bulk close does not discard a later reopen of the unattempted tab',
-    () async {
-      await _controller.bootstrap();
-      final workspace = await _selectMainWorkspace(_controller, _harness);
-      final first = await _controller.openFileTab(
+  test('a partial bulk close does not discard a later reopen of the unattempted tab', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+    final first = await _controller.openFileTab(
+      workspace: workspace,
+      relativePath: 'lib/keep.dart',
+      preview: true,
+    );
+    final second = await _controller.openFileTab(
+      workspace: workspace,
+      relativePath: 'lib/fail.dart',
+    );
+    final third = await _controller.openFileTab(
+      workspace: workspace,
+      relativePath: 'lib/drop.dart',
+    );
+    await _flush();
+    _harness.workbenchRepository.removeWorkspaceTabErrorsById[second.id] =
+        StateError('close failed');
+    await expectLater(
+      _controller.closeWorkspaceTabs(
         workspace: workspace,
-        relativePath: 'lib/keep.dart',
-        preview: true,
-      );
-      final second = await _controller.openFileTab(
-        workspace: workspace,
-        relativePath: 'lib/fail.dart',
-      );
-      final third = await _controller.openFileTab(
-        workspace: workspace,
-        relativePath: 'lib/drop.dart',
-      );
-      await _flush();
-      _harness.workbenchRepository.removeWorkspaceTabErrorsById[second.id] =
-          StateError('close failed');
-      await expectLater(
-        _controller.closeWorkspaceTabs(
-          workspace: workspace,
-          tabIds: <String>[first.id, second.id, third.id],
-        ),
-        throwsStateError,
-      );
-      _harness.workbenchRepository.removeWorkspaceTabErrorsById.clear();
-      await _flush();
+        tabIds: <String>[first.id, second.id, third.id],
+      ),
+      throwsStateError,
+    );
+    _harness.workbenchRepository.removeWorkspaceTabErrorsById.clear();
+    await _flush();
 
-      final reopened = await _controller.openFileTab(
-        workspace: workspace,
-        relativePath: 'lib/drop.dart',
-      );
-      await _flush();
+    final reopened = await _controller.openFileTab(
+      workspace: workspace,
+      relativePath: 'lib/drop.dart',
+    );
+    await _flush();
 
-      expect(reopened.id, third.id);
-      expect(
-        _controller.state
-            .tabsFor(workspace.id)
-            .any((tab) => tab.id == third.id),
-        isTrue,
-      );
-      expect(
-        _controller.state
-            .tabsFor(workspace.id)
-            .any((tab) => tab.id == first.id),
-        isFalse,
-      );
-    },
-  );
+    expect(reopened.id, third.id);
+    expect(
+      _controller.state.tabsFor(workspace.id).any((tab) => tab.id == third.id),
+      isTrue,
+    );
+    expect(
+      _controller.state.tabsFor(workspace.id).any((tab) => tab.id == first.id),
+      isFalse,
+    );
+  });
 
   test(
     'a partial bulk close finalizes successful closes and keeps remaining tabs',
@@ -375,9 +368,7 @@ void _registerWorkbenchControllerPreviewTabTests() {
         containsAll(<String>[b.id, c.id, d.id]),
       );
       expect(
-        _controller.state
-            .tabsFor(workspace.id)
-            .any((tab) => tab.id == a.id),
+        _controller.state.tabsFor(workspace.id).any((tab) => tab.id == a.id),
         isFalse,
       );
       expect(_controller.state.activeWorkspaceTab?.id, c.id);

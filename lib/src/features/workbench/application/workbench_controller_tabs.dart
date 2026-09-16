@@ -62,7 +62,10 @@ mixin _WorkbenchControllerTabs
         _pruneExplorerSessions();
         if (closeError != null) {
           state = state.copyWith(error: closeError.toString());
-          Error.throwWithStackTrace(closeError, closeStack ?? StackTrace.current);
+          Error.throwWithStackTrace(
+            closeError,
+            closeStack ?? StackTrace.current,
+          );
         }
         return;
       }
@@ -70,7 +73,8 @@ mixin _WorkbenchControllerTabs
         await _finalizeClosedWorkspaceTabs(
           workspace: workspace,
           closedIds: closedIds,
-          closedFocusedTab: closedFocusedTab && closedIds.contains(focusedTabId),
+          closedFocusedTab:
+              closedFocusedTab && closedIds.contains(focusedTabId),
           selectionRevisionBeforeClose: selectionRevisionBeforeClose,
         );
       }

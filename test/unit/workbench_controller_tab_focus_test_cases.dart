@@ -291,50 +291,44 @@ void _registerWorkbenchControllerTabFocusTests() {
     },
   );
 
-  test(
-    'closing a focused main tab reveals a hidden MRU sidebar tab',
-    () async {
-      await _controller.bootstrap();
-      final workspace = await _selectMainWorkspace(_controller, _harness);
-      final first = _controller.state.activeWorkspaceTab!;
-      final extra = await _controller.createTerminalTab(workspace);
-      final other = await _controller.createTerminalTab(workspace);
-      await _flush();
-      final mainGroup = _controller.state
-          .workspacePanelFor(workspace.id)
-          .ensuredMainLayout(workspace.id)
-          .activeGroupId;
-      await _controller.moveWorkspacePaneTab(
-        workspaceId: workspace.id,
-        tabId: other.id,
-        targetGroupId: mainGroup,
-        zone: WorkbenchDropZone.center,
-        source: WorkspacePanelTree.right,
-        target: WorkspacePanelTree.main,
-      );
-      await _flush();
-      _controller.setActiveTab(workspaceId: workspace.id, tabId: extra.id);
-      _controller.setActiveTab(workspaceId: workspace.id, tabId: first.id);
-      await _flush();
-      _controller.setRightSidebarVisible(false);
-      await _flush();
-      expect(_controller.state.viewPrefs.rightSidebarVisible, isFalse);
-      expect(_controller.state.activeWorkspaceTab?.id, first.id);
+  test('closing a focused main tab reveals a hidden MRU sidebar tab', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+    final first = _controller.state.activeWorkspaceTab!;
+    final extra = await _controller.createTerminalTab(workspace);
+    final other = await _controller.createTerminalTab(workspace);
+    await _flush();
+    final mainGroup = _controller.state
+        .workspacePanelFor(workspace.id)
+        .ensuredMainLayout(workspace.id)
+        .activeGroupId;
+    await _controller.moveWorkspacePaneTab(
+      workspaceId: workspace.id,
+      tabId: other.id,
+      targetGroupId: mainGroup,
+      zone: WorkbenchDropZone.center,
+      source: WorkspacePanelTree.right,
+      target: WorkspacePanelTree.main,
+    );
+    await _flush();
+    _controller.setActiveTab(workspaceId: workspace.id, tabId: extra.id);
+    _controller.setActiveTab(workspaceId: workspace.id, tabId: first.id);
+    await _flush();
+    _controller.setRightSidebarVisible(false);
+    await _flush();
+    expect(_controller.state.viewPrefs.rightSidebarVisible, isFalse);
+    expect(_controller.state.activeWorkspaceTab?.id, first.id);
 
-      await _controller.closeWorkspaceTab(
-        workspace: workspace,
-        tabId: first.id,
-      );
-      await _flush();
+    await _controller.closeWorkspaceTab(workspace: workspace, tabId: first.id);
+    await _flush();
 
-      expect(_controller.state.viewPrefs.rightSidebarVisible, isTrue);
-      expect(_controller.state.activeWorkspaceTab?.id, extra.id);
-      expect(
-        _controller.state.workspacePanelFor(workspace.id).focusedKey,
-        WorkspacePanel.tabKey(extra.id),
-      );
-    },
-  );
+    expect(_controller.state.viewPrefs.rightSidebarVisible, isTrue);
+    expect(_controller.state.activeWorkspaceTab?.id, extra.id);
+    expect(
+      _controller.state.workspacePanelFor(workspace.id).focusedKey,
+      WorkspacePanel.tabKey(extra.id),
+    );
+  });
 
   test(
     'hiding the sidebar focuses the split main pane instead of a hidden tool',
@@ -433,9 +427,9 @@ void _registerWorkbenchControllerTabFocusTests() {
       _controller.setActiveTab(workspaceId: workspace.id, tabId: extra.id);
       await _flush();
       _harness.terminalRuntime.sessionFor(workspace: workspace, tab: extra);
-      final extraHandle =
-          _harness.terminalRuntime.peekSession(extra.id)
-              as _FakeTerminalSessionHandle;
+      final extraHandle = _harness.terminalRuntime.peekSession(
+        extra.id,
+      ) as _FakeTerminalSessionHandle;
       final other = await _harness.workbenchRepository.upsertWorkspace(
         workspace.copyWith(id: 'other-hidden-sidebar', name: 'Other'),
       );
@@ -511,9 +505,9 @@ void _registerWorkbenchControllerTabFocusTests() {
       _harness.terminalRuntime.sessionFor(workspace: workspace, tab: firstTab);
       _harness.terminalRuntime.sessionFor(workspace: workspace, tab: secondTab);
       _harness.terminalRuntime.sessionFor(workspace: workspace, tab: thirdTab);
-      final secondHandle =
-          _harness.terminalRuntime.peekSession(secondTab.id)
-              as _FakeTerminalSessionHandle;
+      final secondHandle = _harness.terminalRuntime.peekSession(
+        secondTab.id,
+      ) as _FakeTerminalSessionHandle;
       final before = secondHandle.requestFocusCalls;
       final closeGate = Completer<void>();
       _harness.workbenchRepository.removeWorkspaceTabGate = closeGate;

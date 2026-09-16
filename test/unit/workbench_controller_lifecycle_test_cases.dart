@@ -255,14 +255,16 @@ void _registerWorkbenchControllerLifecycleTests() {
       final extra = await _controller.createTerminalTab(workspace);
       await _flush();
       final releaseGate = Completer<void>();
-      _harness.workbenchRepository.findWorkspaceTabByIdReleaseGate = releaseGate;
+      _harness.workbenchRepository.findWorkspaceTabByIdReleaseGate =
+          releaseGate;
       final delayed = _controller.openPersistedWorkspaceTab(
         workspaceId: workspace.id,
         tabId: extra.id,
       );
       await _flushUntil(
         () =>
-            _harness.workbenchRepository.findWorkspaceTabByIdReleaseGate == null,
+            _harness.workbenchRepository.findWorkspaceTabByIdReleaseGate ==
+            null,
       );
       await _controller.closeWorkspaceTab(
         workspace: workspace,

@@ -42,8 +42,7 @@ class const WorkspaceMainDropSurface({
       _WorkspaceMainDropSurfaceState();
 }
 
-class _WorkspaceMainDropSurfaceState
-    extends State<WorkspaceMainDropSurface> {
+class _WorkspaceMainDropSurfaceState extends State<WorkspaceMainDropSurface> {
   WorkbenchDropZone? _hoverZone;
 
   @override
@@ -74,8 +73,7 @@ class const WorkspacePaneTabDragData({
 
 class const WorkspacePanelView({
   super.key,
-  final String workspaceId =
-      WorkspacePanel.fallbackLayoutWorkspaceId,
+  final String workspaceId = WorkspacePanel.fallbackLayoutWorkspaceId,
   required final WorkspacePanel panel,
   required final List<WorkspaceTabRecord> tabs,
   required final ValueChanged<String> onSelect,

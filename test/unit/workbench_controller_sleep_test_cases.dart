@@ -438,45 +438,42 @@ void _registerWorkbenchControllerSleepTests() {
     },
   );
 
-  test(
-    'delayed workspace activation does not overwrite a tool selected while it is pending',
-    () async {
-      await _controller.bootstrap();
-      final workspace = await _selectMainWorkspace(_controller, _harness);
-      final original = _controller.state.activeWorkspaceTab!;
-      await _controller.createTerminalTab(workspace);
-      await _flush();
-      final other = await _harness.workbenchRepository.upsertWorkspace(
-        workspace.copyWith(id: 'other-tool-activation', name: 'Other'),
-      );
-      await _controller.selectWorkspace(
-        project: _harness.project,
-        workspace: other,
-      );
-      await _flush();
+  test('delayed workspace activation does not overwrite a tool selected while it is pending', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+    final original = _controller.state.activeWorkspaceTab!;
+    await _controller.createTerminalTab(workspace);
+    await _flush();
+    final other = await _harness.workbenchRepository.upsertWorkspace(
+      workspace.copyWith(id: 'other-tool-activation', name: 'Other'),
+    );
+    await _controller.selectWorkspace(
+      project: _harness.project,
+      workspace: other,
+    );
+    await _flush();
 
-      final listGate = Completer<void>();
-      _harness.workbenchRepository.listWorkspaceTabsGate = listGate;
-      final delayed = _controller.selectWorkspaceTab(
-        workspaceId: workspace.id,
-        tabId: original.id,
-      );
-      await _flushUntil(
-        () => _harness.workbenchRepository.listWorkspaceTabsGate == null,
-      );
-      _controller.setContextPanelTab(WorkbenchContextPanelTab.search);
-      await _flush();
-      listGate.complete();
-      await delayed;
-      await _flush();
+    final listGate = Completer<void>();
+    _harness.workbenchRepository.listWorkspaceTabsGate = listGate;
+    final delayed = _controller.selectWorkspaceTab(
+      workspaceId: workspace.id,
+      tabId: original.id,
+    );
+    await _flushUntil(
+      () => _harness.workbenchRepository.listWorkspaceTabsGate == null,
+    );
+    _controller.setContextPanelTab(WorkbenchContextPanelTab.search);
+    await _flush();
+    listGate.complete();
+    await delayed;
+    await _flush();
 
-      expect(_controller.state.activeWorkspaceTab, isNull);
-      expect(
-        _controller.state.workspacePanelFor(workspace.id).focusedKey,
-        WorkspaceTool.search.key,
-      );
-    },
-  );
+    expect(_controller.state.activeWorkspaceTab, isNull);
+    expect(
+      _controller.state.workspacePanelFor(workspace.id).focusedKey,
+      WorkspaceTool.search.key,
+    );
+  });
 
   test(
     'closing a published pull-request tab discards a delayed retention persist',
@@ -617,7 +614,9 @@ void _registerWorkbenchControllerSleepTests() {
       await _flushUntil(
         () => _controller.state
             .tabsFor(workspace.id)
-            .any((tab) => tab.id != primary.id && isPrimaryTerminalCandidate(tab)),
+            .any(
+              (tab) => tab.id != primary.id && isPrimaryTerminalCandidate(tab),
+            ),
       );
       final pendingId = _controller.state
           .tabsFor(workspace.id)
@@ -660,7 +659,9 @@ void _registerWorkbenchControllerSleepTests() {
       await _controller.bootstrap();
       final workspace = await _selectMainWorkspace(_controller, _harness);
       expect(
-        _controller.state.tabsFor(workspace.id).where(isPrimaryTerminalCandidate),
+        _controller.state
+            .tabsFor(workspace.id)
+            .where(isPrimaryTerminalCandidate),
         hasLength(1),
       );
       final other = await _harness.workbenchRepository.upsertWorkspace(
@@ -695,16 +696,19 @@ void _registerWorkbenchControllerSleepTests() {
       await delayed;
       await reselect;
       await _flushUntil(
-        () => _controller.state
-            .tabsFor(workspace.id)
-            .where(isPrimaryTerminalCandidate)
-            .length ==
-        1,
+        () =>
+            _controller.state
+                .tabsFor(workspace.id)
+                .where(isPrimaryTerminalCandidate)
+                .length ==
+            1,
       );
 
       expect(_controller.state.activeWorkspaceId, workspace.id);
       expect(
-        _controller.state.tabsFor(workspace.id).where(isPrimaryTerminalCandidate),
+        _controller.state
+            .tabsFor(workspace.id)
+            .where(isPrimaryTerminalCandidate),
         hasLength(1),
       );
     },
@@ -721,7 +725,8 @@ void _registerWorkbenchControllerSleepTests() {
         relativePath: 'lib/keep.dart',
       );
       await _flush();
-      final beforeCreates = _harness.workbenchRepository.upsertWorkspaceTabCalls;
+      final beforeCreates =
+          _harness.workbenchRepository.upsertWorkspaceTabCalls;
       _harness.workbenchRepository.upsertWorkspaceTabError = StateError(
         'cannot create terminal',
       );
@@ -735,10 +740,7 @@ void _registerWorkbenchControllerSleepTests() {
       _harness.workbenchRepository.upsertWorkspaceTabError = null;
 
       expect(afterCreates - beforeCreates, 1);
-      expect(
-        _controller.state.error,
-        contains('cannot create terminal'),
-      );
+      expect(_controller.state.error, contains('cannot create terminal'));
       expect(
         _controller.state
             .tabsFor(workspace.id)
