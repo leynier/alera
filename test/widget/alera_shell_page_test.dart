@@ -27,6 +27,7 @@ import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace_section.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/domain/workspace_hand_on_result.dart';
 import 'package:alera/src/features/workbench/domain/workspace_storage_impact.dart';
@@ -54,6 +55,7 @@ part 'alera_shell_page_sidebar_states_test_cases.dart';
 part 'alera_shell_page_workspace_removal_test_cases.dart';
 part 'alera_shell_page_sidebar_titles_test_cases.dart';
 part 'alera_shell_page_pinning_test_cases.dart';
+part 'alera_shell_page_section_menu_test_cases.dart';
 part 'alera_shell_page_project_removal_test_cases.dart';
 part 'alera_shell_page_sidebar_identity_test_cases.dart';
 
@@ -143,6 +145,7 @@ void main() {
   _registerAleraShellWorkspaceRemovalTests();
   _registerAleraShellSidebarTitleTests();
   _registerAleraShellPinningTests();
+  _registerAleraShellSectionMenuTests();
   _registerAleraShellSidebarIdentityTests();
 }
 

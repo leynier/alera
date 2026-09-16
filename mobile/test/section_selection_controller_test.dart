@@ -27,11 +27,21 @@ class _Client implements MobileWorkspaceClient, MobileWorkspaceSectionClient {
   Future<List<WorkspaceSectionSummary>> listWorkspaceSections() async =>
       sections;
   @override
-  Future<void> createWorkspaceSection(String name, String workspaceId) async {
+  Future<WorkspaceSectionSummary> createWorkspaceSection(
+    String name,
+    String workspaceId,
+  ) async {
     writes++;
     this.name = name;
+    return WorkspaceSectionSummary(
+      id: 'created',
+      name: name,
+      createdAt: DateTime.utc(2026),
+      updatedAt: DateTime.utc(2026),
+    );
   }
 
+  final List<String> assignedWorkspaceIds = <String>[];
   @override
   Future<void> setWorkspaceSection(
     String workspaceId,
@@ -43,6 +53,7 @@ class _Client implements MobileWorkspaceClient, MobileWorkspaceSectionClient {
     }
     writes++;
     this.sectionId = sectionId;
+    assignedWorkspaceIds.add(workspaceId);
   }
 
   @override
@@ -122,6 +133,29 @@ void main() {
     expect(client.writes, 1);
     expect(container.read(provider).requireValue.saving, isFalse);
   });
+
+  test(
+    'save assigns extra workspace ids after the selected workspace',
+    () async {
+      final client = _Client();
+      final container = ProviderContainer.test(
+        overrides: [
+          workspaceClientProvider('host').overrideWith((ref) async => client),
+        ],
+      );
+      final provider = sectionSelectionControllerProvider(
+        'host',
+        'workspace',
+        null,
+      );
+      container.listen(provider, (_, _) {});
+      await container.read(provider.future);
+      final controller = container.read(provider.notifier);
+      controller.select('s');
+      expect(await controller.save(extraWorkspaceIds: ['child']), isTrue);
+      expect(client.assignedWorkspaceIds, <String>['workspace', 'child']);
+    },
+  );
   test(
     'missing section refreshes options without closing and allows retry',
     () async {

@@ -4,6 +4,8 @@ import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.d
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/prompt_image_upload.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
+import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
@@ -112,6 +114,11 @@ void main() {
     expect(client.calls, contains('setPinned child true'));
     expect(client.calls, contains('setPinned grandchild true'));
 
+    await notifier.saveTreeSection('a', sectionId: 'work');
+    expect(client.calls, contains('setSection a work'));
+    expect(client.calls, contains('setSection child work'));
+    expect(client.calls, contains('setSection grandchild work'));
+
     await notifier.linkParent(childWorkspaceId: 'a', parentWorkspaceId: 'b');
     expect(client.calls, contains('link b a'));
 
@@ -173,7 +180,8 @@ WorkspaceSummary _workspace(String id, {String? parent}) {
   );
 }
 
-class _FakeWorkspaceClient() implements MobileWorkspaceClient {
+class _FakeWorkspaceClient()
+    implements MobileWorkspaceClient, MobileWorkspaceSectionClient {
   this {
     _events = StreamController<MobileRuntimeEvent>.broadcast(
       onListen: () => eventSubscriptionCount += 1,
@@ -431,6 +439,40 @@ class _FakeWorkspaceClient() implements MobileWorkspaceClient {
     String workspaceId,
     List<String> tagIds,
   ) async => _workspace(workspaceId);
+
+  @override
+  bool get supportsWorkspaceSections => true;
+
+  @override
+  Future<List<WorkspaceSectionSummary>> listWorkspaceSections() async =>
+      const <WorkspaceSectionSummary>[];
+
+  @override
+  Future<WorkspaceSectionSummary> createWorkspaceSection(
+    String name,
+    String workspaceId,
+  ) async {
+    calls.add('createSection $name $workspaceId');
+    return WorkspaceSectionSummary(
+      id: 'created',
+      name: name,
+      createdAt: DateTime.utc(2026),
+      updatedAt: DateTime.utc(2026),
+    );
+  }
+
+  @override
+  Future<void> setWorkspaceSection(
+    String workspaceId,
+    String? sectionId,
+  ) async {
+    calls.add('setSection $workspaceId $sectionId');
+  }
+
+  @override
+  Future<void> removeWorkspaceSection(String sectionId) async {
+    calls.add('removeSection $sectionId');
+  }
 }
 
 final class _CapturingEventStream(

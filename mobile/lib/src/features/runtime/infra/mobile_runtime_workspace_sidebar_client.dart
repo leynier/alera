@@ -16,11 +16,16 @@ mixin MobileRuntimeWorkspaceSidebarClient
       WorkspaceSectionSummary.fromJson(asJsonMap(item)),
   ];
   @override
-  Future<void> createWorkspaceSection(String name, String workspaceId) async {
-    await request('workspaceSection.create', {
-      'name': name,
-      'workspaceId': workspaceId,
-    });
+  Future<WorkspaceSectionSummary> createWorkspaceSection(
+    String name,
+    String workspaceId,
+  ) async {
+    return WorkspaceSectionSummary.fromJson(
+      await requestMap('workspaceSection.create', {
+        'name': name,
+        'workspaceId': workspaceId,
+      }),
+    );
   }
 
   @override

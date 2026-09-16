@@ -10,16 +10,30 @@ import 'package:flutter/material.dart';
 Future<void> showWorkspaceSectionDialog(
   BuildContext context,
   WorkbenchController controller,
-  Workspace workspace,
-) => showDialog<void>(
+  Workspace workspace, {
+  bool applyToTree = false,
+  bool createMode = false,
+}) => showDialog<void>(
   context: context,
-  builder: (_) => _SectionDialog(controller: controller, workspace: workspace),
+  builder: (_) => _SectionDialog(
+    controller: controller,
+    workspace: workspace,
+    applyToTree: applyToTree,
+    createMode: createMode,
+  ),
 );
 
 class _SectionDialog extends StatefulWidget {
-  const _SectionDialog({required this.controller, required this.workspace});
+  const _SectionDialog({
+    required this.controller,
+    required this.workspace,
+    required this.applyToTree,
+    required this.createMode,
+  });
   final WorkbenchController controller;
   final Workspace workspace;
+  final bool applyToTree;
+  final bool createMode;
   @override
   State<_SectionDialog> createState() => _SectionDialogState();
 }
@@ -37,6 +51,7 @@ class _SectionDialogState extends State<_SectionDialog> {
   void initState() {
     super.initState();
     _selected = widget.workspace.sectionId;
+    _create = widget.createMode;
     _load();
   }
 
@@ -77,11 +92,19 @@ class _SectionDialogState extends State<_SectionDialog> {
       _error = null;
     });
     try {
-      await widget.controller.saveWorkspaceSection(
-        widget.workspace.id,
-        sectionId: _selected,
-        newName: _create ? name : null,
-      );
+      if (widget.applyToTree) {
+        await widget.controller.saveWorkspaceSectionTree(
+          widget.workspace.id,
+          sectionId: _selected,
+          newName: _create ? name : null,
+        );
+      } else {
+        await widget.controller.saveWorkspaceSection(
+          widget.workspace.id,
+          sectionId: _selected,
+          newName: _create ? name : null,
+        );
+      }
       if (mounted) Navigator.pop(context);
     } catch (error) {
       if (!mounted) return;
@@ -111,7 +134,7 @@ class _SectionDialogState extends State<_SectionDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Set Section',
+                widget.applyToTree ? 'Set Section Tree' : 'Set Section',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: AleraTokens.space16),

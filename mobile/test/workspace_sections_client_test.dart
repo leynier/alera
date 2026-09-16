@@ -37,6 +37,12 @@ void main() {
               },
             },
             'workspaceSection.list' => <Object?>[],
+            'workspaceSection.create' => {
+              'id': 'created',
+              'name': 'Work',
+              'createdAt': '2026-08-30T00:00:00Z',
+              'updatedAt': '2026-08-30T00:00:00Z',
+            },
             _ => <String, Object?>{},
           };
           socket.add(
