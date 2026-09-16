@@ -383,6 +383,11 @@ void main() {
       supportsPromptFileUpload: true,
     );
 
+    await tester.scrollUntilVisible(
+      find.text('Add Attachment'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('Add Attachment'));
     await tester.pumpAndSettle();
 
@@ -411,6 +416,8 @@ Future<void> _pumpCreateScreen(
   bool supportsSharedCheckoutWorkspaces = true,
   List<WorkspaceSummary> workspaces = const <WorkspaceSummary>[],
 }) async {
+  await tester.binding.setSurfaceSize(const Size(800, 2000));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -443,7 +450,13 @@ Future<void> _pumpCreateScreen(
 
 /// Opens the attachment sheet and taps one source.
 Future<void> _openAttachmentSource(WidgetTester tester, String source) async {
-  await tester.tap(find.text('Add Attachment'));
+  final addAttachment = find.text('Add Attachment');
+  await tester.scrollUntilVisible(
+    addAttachment,
+    200,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.tap(addAttachment);
   await tester.pumpAndSettle();
   await tester.tap(find.text(source));
   await tester.pump();

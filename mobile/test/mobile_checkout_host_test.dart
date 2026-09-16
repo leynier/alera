@@ -56,6 +56,9 @@ void main() {
   testWidgets('retry attachments index the saved SSH checkout', (tester) async {
     final client = _CheckoutClient()..workspaceFiles = ['remote/task.dart'];
     addTearDown(client.dispose);
+    tester.view.physicalSize = const Size(800, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -93,6 +96,11 @@ void main() {
     await tester.tap(find.text('From Prompt'));
     await tester.pumpAndSettle();
     expect(find.text('Build Mac'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Add Attachment'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('Add Attachment'));
     await tester.pumpAndSettle();
     expect(find.text('Photo Library'), findsNothing);

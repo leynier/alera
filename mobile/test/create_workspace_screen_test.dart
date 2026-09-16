@@ -338,6 +338,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.widgetWithText(TextField, 'Initial Prompt'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     final promptField = tester.getRect(
       find.widgetWithText(TextField, 'Initial Prompt'),
     );

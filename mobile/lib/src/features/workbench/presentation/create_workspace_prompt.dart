@@ -30,63 +30,6 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
     return ListView(
       padding: AleraTokens.pagePadding,
       children: <Widget>[
-        ..._linkedIssueField(forPrompt: true, enabled: promptEnabled),
-        if (dictationEnabled)
-          MobileAiDictationReviewBar(
-            hostId: widget.hostId,
-            targetKey: promptDictationTarget,
-          ),
-        Stack(
-          children: <Widget>[
-            TextField(
-              controller: _prompt,
-              enabled: promptEnabled,
-              minLines: 4,
-              maxLines: 8,
-              decoration: InputDecoration(
-                labelText: 'Initial Prompt',
-                hintText: 'Describe what the agent should build',
-                alignLabelWithHint: true,
-                contentPadding: dictationEnabled
-                    ? const EdgeInsets.fromLTRB(
-                        AleraTokens.spaceMd,
-                        AleraTokens.spaceMd,
-                        AleraTokens.minTapTarget,
-                        AleraTokens.minTapTarget,
-                      )
-                    : null,
-              ),
-            ),
-            if (dictationEnabled)
-              Positioned(
-                right: AleraTokens.space4,
-                bottom: AleraTokens.space4,
-                child: MobileAiDictationControl(
-                  key: const ValueKey<String>(
-                    'prompt-workspace-dictation-control',
-                  ),
-                  hostId: widget.hostId,
-                  targetKey: promptDictationTarget,
-                  controller: _prompt,
-                  enabled: promptEnabled,
-                ),
-              ),
-          ],
-        ),
-        if (hasAttachmentSources) ...<Widget>[
-          const SizedBox(height: AleraTokens.spaceMd),
-          OutlinedButton.icon(
-            onPressed:
-                promptState.loading || created != null || _uploadingAttachment
-                ? null
-                : () => unawaited(
-                    _showPromptAttachmentPicker(workspaceFilesSourceId),
-                  ),
-            icon: const Icon(Icons.attach_file),
-            label: const Text('Add Attachment'),
-          ),
-        ],
-        const SizedBox(height: AleraTokens.spaceLg),
         AleraDropdownField<String>(
           value: promptState.projectId,
           labelText: 'Project',
@@ -173,6 +116,63 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
           filterHintText: 'Search Agent Profiles',
           onChanged: controller.selectProfile,
         ),
+        const SizedBox(height: AleraTokens.spaceLg),
+        ..._linkedIssueField(forPrompt: true, enabled: promptEnabled),
+        if (dictationEnabled)
+          MobileAiDictationReviewBar(
+            hostId: widget.hostId,
+            targetKey: promptDictationTarget,
+          ),
+        Stack(
+          children: <Widget>[
+            TextField(
+              controller: _prompt,
+              enabled: promptEnabled,
+              minLines: 4,
+              maxLines: 8,
+              decoration: InputDecoration(
+                labelText: 'Initial Prompt',
+                hintText: 'Describe what the agent should build',
+                alignLabelWithHint: true,
+                contentPadding: dictationEnabled
+                    ? const EdgeInsets.fromLTRB(
+                        AleraTokens.spaceMd,
+                        AleraTokens.spaceMd,
+                        AleraTokens.minTapTarget,
+                        AleraTokens.minTapTarget,
+                      )
+                    : null,
+              ),
+            ),
+            if (dictationEnabled)
+              Positioned(
+                right: AleraTokens.space4,
+                bottom: AleraTokens.space4,
+                child: MobileAiDictationControl(
+                  key: const ValueKey<String>(
+                    'prompt-workspace-dictation-control',
+                  ),
+                  hostId: widget.hostId,
+                  targetKey: promptDictationTarget,
+                  controller: _prompt,
+                  enabled: promptEnabled,
+                ),
+              ),
+          ],
+        ),
+        if (hasAttachmentSources) ...<Widget>[
+          const SizedBox(height: AleraTokens.spaceMd),
+          OutlinedButton.icon(
+            onPressed:
+                promptState.loading || created != null || _uploadingAttachment
+                ? null
+                : () => unawaited(
+                    _showPromptAttachmentPicker(workspaceFilesSourceId),
+                  ),
+            icon: const Icon(Icons.attach_file),
+            label: const Text('Add Attachment'),
+          ),
+        ],
         if ((promptState.error ?? _retryError) case final error?) ...<Widget>[
           const SizedBox(height: AleraTokens.spaceMd),
           Text(
