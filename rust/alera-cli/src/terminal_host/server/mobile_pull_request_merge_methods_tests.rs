@@ -50,6 +50,19 @@ fn malformed_rules_fail_closed() {
 }
 
 #[test]
+fn plan_restricted_ruleset_errors_are_unconstrained() {
+    assert!(looks_like_plan_restricted_github_feature(
+        "gh: Upgrade to GitHub Pro or make this repository public to enable this feature. (HTTP 403)"
+    ));
+    assert!(looks_like_plan_restricted_github_feature(
+        "Upgrade to GitHub Team or make this repository public to enable this feature."
+    ));
+    assert!(!looks_like_plan_restricted_github_feature(
+        "API rate limit exceeded"
+    ));
+}
+
+#[test]
 fn encodes_branch_names_like_uri_encode_component() {
     assert_eq!(encode_path_segment("feat/mobile pr"), "feat%2Fmobile%20pr");
     assert_eq!(encode_path_segment("release-1.0_x"), "release-1.0_x");

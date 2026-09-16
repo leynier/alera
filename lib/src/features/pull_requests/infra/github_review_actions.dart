@@ -64,15 +64,25 @@ mixin _GitHubReviewActions {
     required String baseBranch,
   }) async {
     final provider = this as GitHubForgeProvider;
-    final output = await provider._run(<String>[
-      'api',
-      '--hostname',
-      identity.host,
-      '--paginate',
-      '--slurp',
-      '${provider._apiRepoPath(identity)}/rules/branches/'
-          '${Uri.encodeComponent(baseBranch)}',
-    ], repoPath);
+    final String? output;
+    try {
+      output = await provider._run(<String>[
+        'api',
+        '--hostname',
+        identity.host,
+        '--paginate',
+        '--slurp',
+        '${provider._apiRepoPath(identity)}/rules/branches/'
+            '${Uri.encodeComponent(baseBranch)}',
+      ], repoPath);
+    } on ForgeRequestFailed catch (error) {
+      // Private repos on GitHub Free 403 this endpoint even when no ruleset
+      // exists. Treat that as unconstrained so repository settings still apply.
+      if (ghLooksLikePlanRestrictedGitHubFeature(error.message)) {
+        return null;
+      }
+      rethrow;
+    }
     return mapGitHubRulesetAllowedMergeMethods(provider._decodeJson(output));
   }
 

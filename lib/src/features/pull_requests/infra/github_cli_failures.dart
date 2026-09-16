@@ -21,6 +21,16 @@ bool _looksUnauthenticated(String stderr) {
       lower.contains('gh auth login');
 }
 
+/// GitHub Free withholds rulesets (and some other APIs) on private
+/// repositories. `gh api .../rules/branches/{branch}` then exits 403 with this
+/// copy, which is "no rulesets apply", not a merge-method failure.
+bool ghLooksLikePlanRestrictedGitHubFeature(String stderr) {
+  final lower = stderr.toLowerCase();
+  return lower.contains('make this repository public to enable this feature') ||
+      (lower.contains('upgrade to github') &&
+          lower.contains('enable this feature'));
+}
+
 /// User-facing copy when GitHub rejects a merge method that the repository or
 /// a ruleset does not allow. Null when [stderr] is some other failure.
 String? mapGitHubDisallowedMergeMethodMessage(String stderr) {
