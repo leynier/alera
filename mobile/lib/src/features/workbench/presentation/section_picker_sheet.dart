@@ -212,7 +212,7 @@ class MobileCustomSectionHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) => MobileSectionHeader(
     label: row.section?.name ?? 'Others',
-    icon: AleraIcons.folder,
+    icon: AleraIcons.section,
     count: row.count,
     collapsed: row.collapsed,
     onToggle: () => ref

@@ -1,5 +1,7 @@
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/workbench/presentation/project_workbench_sidebar.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -45,6 +47,34 @@ void main() {
       expect(unassigned, isNot(contains('Clear Section')));
       expect(unassigned, isNot(contains('Pin Workspace Tree')));
       expect(unassigned, isNot(contains('Unpin Workspace Tree')));
+      expect(
+        _leadingIcon(
+          workspaceContextMenuEntries(
+            fileManagerLabel: 'Files',
+            hasClearParent: false,
+            canRemove: true,
+            isPinned: false,
+            supportsSections: true,
+            hasSection: true,
+          ),
+          'Set Section',
+        ),
+        AleraIcons.section,
+      );
+      expect(
+        _leadingIcon(
+          workspaceContextMenuEntries(
+            fileManagerLabel: 'Files',
+            hasClearParent: false,
+            canRemove: true,
+            isPinned: false,
+            supportsSections: true,
+            hasSection: true,
+          ),
+          'Clear Section',
+        ),
+        AleraIcons.sectionOff,
+      );
     },
   );
 
@@ -97,4 +127,14 @@ void main() {
       ],
     );
   });
+}
+
+IconData? _leadingIcon(List<PopupMenuEntry<String>> entries, String label) {
+  for (final entry in entries) {
+    if (entry is AleraDropdownEntry<String> && entry.label == label) {
+      final leading = entry.leading;
+      return leading is Icon ? leading.icon : null;
+    }
+  }
+  return null;
 }

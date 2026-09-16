@@ -86,6 +86,9 @@ abstract final class const AleraIcons._() {
   // Workspace graph
   static const IconData host = LucideIcons.server;
   static const IconData tag = LucideIcons.tag;
+  // Workspace sections group workspaces; they are not filesystem folders.
+  static const IconData section = LucideIcons.layers;
+  static const IconData sectionOff = LucideIcons.layersMinus;
 
   // Mobile companion
   static const IconData mobileDevice = LucideIcons.smartphone;

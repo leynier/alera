@@ -99,13 +99,13 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
     if (supportsSections)
       const AleraDropdownEntry<String>(
         value: _setSectionAction,
-        leading: Icon(AleraIcons.folder, size: 16),
+        leading: Icon(AleraIcons.section, size: 16),
         label: 'Set Section',
       ),
     if (supportsSections && hasSection)
       const AleraDropdownEntry<String>(
         value: _clearSectionAction,
-        leading: Icon(AleraIcons.folderOff, size: 16),
+        leading: Icon(AleraIcons.sectionOff, size: 16),
         label: 'Clear Section',
       ),
     const PopupMenuDivider(height: AleraTokens.space8),

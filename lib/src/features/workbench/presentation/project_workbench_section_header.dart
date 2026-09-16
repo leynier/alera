@@ -49,7 +49,7 @@ class _WorkspaceSectionHeader extends StatelessWidget {
         ? null
         : (event) => _menu(context, event.globalPosition),
     child: _SidebarSectionTile(
-      leadingIcon: AleraIcons.folder,
+      leadingIcon: AleraIcons.section,
       label: row.label,
       count: row.workspaceCount,
       expanded: !row.collapsed,

@@ -162,14 +162,14 @@ Future<void> showWorkspaceActionsSheet(
                     ),
                   if (data.supportsSections)
                     ListTile(
-                      leading: const Icon(AleraIcons.folder, size: 20),
+                      leading: const Icon(AleraIcons.section, size: 20),
                       title: const Text('Set Section'),
                       onTap: () =>
                           Navigator.pop(context, _WorkspaceAction.setSection),
                     ),
                   if (data.supportsSections && workspace.sectionId != null)
                     ListTile(
-                      leading: const Icon(AleraIcons.folderOff, size: 20),
+                      leading: const Icon(AleraIcons.sectionOff, size: 20),
                       title: const Text('Clear Section'),
                       onTap: () =>
                           Navigator.pop(context, _WorkspaceAction.clearSection),
