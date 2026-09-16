@@ -132,6 +132,48 @@ class WorkspaceListController extends _$WorkspaceListController {
     }
   }
 
+  /// Assigns or clears a section on [workspaceId] and every descendant.
+  Future<void> saveTreeSection(
+    String workspaceId, {
+    String? sectionId,
+    String? newName,
+  }) async {
+    final data = state.value;
+    if (data == null) {
+      return;
+    }
+    final targetIds = <String>[
+      workspaceId,
+      ...workspaceDescendantIds(data.workspaces, workspaceId),
+    ];
+    try {
+      final client = await ref.read(workspaceClientProvider(hostId).future);
+      final sections = client as MobileWorkspaceSectionClient;
+      var assignedId = sectionId;
+      if (newName != null) {
+        assignedId = (await sections.createWorkspaceSection(
+          newName,
+          workspaceId,
+        )).id;
+      }
+      for (final id in targetIds) {
+        if (newName != null && id == workspaceId) {
+          continue;
+        }
+        final workspace = data.workspaceById(id);
+        if (workspace == null || workspace.sectionId == assignedId) {
+          continue;
+        }
+        await sections.setWorkspaceSection(id, assignedId);
+      }
+      _invalidateIfMounted();
+    } catch (error, stack) {
+      Logger('WorkspaceListController')
+          .warning('Could not set workspace tree section', error, stack);
+      rethrow;
+    }
+  }
+
   Future<void> removeSection(String sectionId) async {
     try {
       final client = await ref.read(workspaceClientProvider(hostId).future);

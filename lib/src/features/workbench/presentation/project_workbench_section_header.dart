@@ -58,18 +58,29 @@ class _WorkspaceSectionHeader extends StatelessWidget {
   );
 }
 
-Future<void> _clearSection(
+Future<void> _saveWorkspaceSection(
   BuildContext context,
   WorkbenchController controller,
-  Workspace workspace,
-) async {
+  Workspace workspace, {
+  required bool tree,
+  String? sectionId,
+}) async {
   try {
-    await controller.saveWorkspaceSection(workspace.id);
+    if (tree) {
+      await controller.saveWorkspaceSectionTree(
+        workspace.id,
+        sectionId: sectionId,
+      );
+    } else {
+      await controller.saveWorkspaceSection(workspace.id, sectionId: sectionId);
+    }
   } catch (error) {
     if (context.mounted) {
       AleraToast.show(
         context,
-        message: 'Could not clear section: $error',
+        message: sectionId == null
+            ? 'Could not clear section: $error'
+            : 'Could not set section: $error',
         tone: AleraToastTone.error,
       );
     }

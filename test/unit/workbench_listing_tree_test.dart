@@ -100,6 +100,23 @@ void main() {
 
     expect(workspaceIdsDescendedFrom(workspaces, 'a'), <String>{'b', 'c'});
     expect(workspaceIdsDescendedFrom(workspaces, 'd'), isEmpty);
+    expect(
+      workspaceTreeHasSection([
+        workspaces.first.copyWith(sectionId: 's'),
+        ...workspaces.skip(1),
+      ], 'a'),
+      isTrue,
+    );
+    expect(workspaceTreeHasSection(workspaces, 'a'), isFalse);
+    expect(
+      workspaceTreeHasSection([
+        workspaces[1].copyWith(sectionId: 's'),
+        workspaces[0],
+        workspaces[2],
+        workspaces[3],
+      ], 'a'),
+      isTrue,
+    );
   });
 
   test('a parent cycle does not treat the root as its own descendant', () {

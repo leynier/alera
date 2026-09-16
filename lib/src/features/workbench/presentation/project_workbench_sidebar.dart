@@ -19,6 +19,8 @@ import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
+import 'package:alera/src/design_system/menus/alera_dropdown_submenu_entry.dart';
+import 'package:alera/src/features/workbench/domain/workspace_section.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_resize_handle.dart';
@@ -54,6 +56,7 @@ import 'package:flutter/services.dart';
 
 part 'project_workbench_collapsed_sidebar.dart';
 part 'project_workbench_sidebar_body.dart';
+part 'project_workbench_sidebar_headers.dart';
 part 'project_workbench_section_header.dart';
 part 'project_workbench_workspace_actions.dart';
 part 'project_workbench_workspace_rows.dart';
@@ -65,3 +68,5 @@ part 'project_workbench_sidebar_shell.dart';
 part 'project_workbench_sidebar_actions.dart';
 
 typedef _TerminalTabCallback = void Function(Workspace workspace, String tabId);
+
+enum _SectionTarget { workspace, tree }

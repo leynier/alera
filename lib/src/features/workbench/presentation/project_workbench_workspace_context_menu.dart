@@ -17,11 +17,14 @@ extension _WorkspaceContextMenu on _WorkspaceRowState {
       items: workspaceContextMenuEntries(
         fileManagerLabel: widget.fileManagerLabel,
         supportsSections: widget.onSetSection != null,
-        hasSection: widget.onClearSection != null,
+        hasSection: widget.workspace.sectionId != null,
         hasClearParent: widget.onClearParent != null,
         canRemove: widget.onDelete != null,
         isPinned: widget.workspace.isPinned,
         hasDescendants: widget.onPinWorkspaceTree != null,
+        hasTreeSection: widget.hasTreeSection,
+        sections: widget.sections,
+        currentSectionId: widget.workspace.sectionId,
         canHandOff: widget.onHandOff != null,
         canHandOn: widget.onHandOn != null,
         linkedIssueEntries: linkedIssueMenuEntries(
@@ -58,9 +61,28 @@ extension _WorkspaceContextMenu on _WorkspaceRowState {
     } else if (selected == _manageTagsAction) {
       widget.onManageTags();
     } else if (selected == _setSectionAction) {
-      widget.onSetSection?.call();
+      widget.onSetSection?.call(_SectionTarget.workspace, false);
+    } else if (selected == _setSectionTreeAction) {
+      widget.onSetSection?.call(_SectionTarget.tree, false);
+    } else if (selected == _newSectionAction) {
+      widget.onSetSection?.call(_SectionTarget.workspace, true);
+    } else if (selected == _newSectionTreeAction) {
+      widget.onSetSection?.call(_SectionTarget.tree, true);
     } else if (selected == _clearSectionAction) {
-      widget.onClearSection?.call();
+      widget.onClearSection?.call(_SectionTarget.workspace);
+    } else if (selected == _clearSectionTreeAction) {
+      widget.onClearSection?.call(_SectionTarget.tree);
+    } else if (selected != null &&
+        selected.startsWith(_assignSectionTreePrefix)) {
+      widget.onAssignSection?.call(
+        _SectionTarget.tree,
+        selected.substring(_assignSectionTreePrefix.length),
+      );
+    } else if (selected != null && selected.startsWith(_assignSectionPrefix)) {
+      widget.onAssignSection?.call(
+        _SectionTarget.workspace,
+        selected.substring(_assignSectionPrefix.length),
+      );
     } else if (selected == _setParentAction) {
       widget.onSetParent();
     } else if (selected == _clearParentAction) {
