@@ -100,10 +100,14 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
           child: AnimatedContainer(
             duration: AleraTokens.durationMid,
             decoration: BoxDecoration(
+              // surfaceElevated is nearly the same as the sidebar chrome.
               color: isActive
-                  ? AleraTokens.surfaceElevated
+                  ? AleraTokens.accentSubtle
                   : (_hovered ? AleraTokens.surface : Colors.transparent),
               borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+              border: Border.all(
+                color: isActive ? AleraTokens.border : Colors.transparent,
+              ),
             ),
             child: InkWell(
               key: ValueKey<String>(
@@ -167,7 +171,9 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                     softWrap: false,
                                     overflow: .ellipsis,
                                     style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: AleraTokens.foreground,
+                                      color: isActive || _hovered
+                                          ? AleraTokens.foreground
+                                          : AleraTokens.foregroundMuted,
                                       fontWeight: .w600,
                                     ),
                                   ),
