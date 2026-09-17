@@ -52,6 +52,9 @@ pub enum WorkspaceAction {
     HandOn(WorkspaceHandOnArgs),
     /// Show, link, or unlink the issue a workspace was created for.
     Issue(WorkspaceIssueCommand),
+    /// Start, stop, or inspect Watch and Fix for the workspace pull request.
+    #[command(name = "pr-watch")]
+    PrWatch(WorkspacePrWatchCommand),
 }
 
 #[derive(Debug, Args)]
@@ -325,4 +328,57 @@ pub struct WorkspaceIssueLinkArgs {
     /// Issue URL. Unrecognized trackers are stored as a plain link.
     #[arg(value_name = "url")]
     pub url: String,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspacePrWatchCommand {
+    #[command(subcommand)]
+    pub action: WorkspacePrWatchAction,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum WorkspacePrWatchAction {
+    /// Print the active Watch and Fix session for a workspace.
+    Show(WorkspacePrWatchTargetArgs),
+    /// Watch the linked pull request and send fix prompts to an agent.
+    Start(WorkspacePrWatchStartArgs),
+    /// Stop Watch and Fix for a workspace.
+    Stop(WorkspacePrWatchTargetArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspacePrWatchTargetArgs {
+    /// Workspace to act on. Defaults to ALERA_WORKSPACE_ID.
+    #[arg(long = "workspace-id", value_name = "id")]
+    pub workspace_id: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspacePrWatchStartArgs {
+    #[command(flatten)]
+    pub target: WorkspacePrWatchTargetArgs,
+    /// Merge once the watched scope is clear (Watch, Fix and Merge).
+    #[arg(long)]
+    pub merge: bool,
+    /// Skip failing CI checks.
+    #[arg(long = "no-checks")]
+    pub no_checks: bool,
+    /// Skip unresolved review comments.
+    #[arg(long = "no-comments")]
+    pub no_comments: bool,
+    /// Skip merge conflicts.
+    #[arg(long = "no-conflicts")]
+    pub no_conflicts: bool,
+    /// Pull request number. Defaults to the workspace's linked review.
+    #[arg(long = "review-number", value_name = "n")]
+    pub review_number: Option<i64>,
+    /// Terminal handle to dispatch to. Defaults to ALERA_TERMINAL_HANDLE.
+    #[arg(long)]
+    pub handle: Option<String>,
+    /// Stable agent profile id used when the bound terminal is gone.
+    #[arg(long = "profile-id", value_name = "id")]
+    pub profile_id: Option<String>,
+    /// Unique agent profile name. Alias for looking up --profile-id.
+    #[arg(long = "profile", value_name = "name", conflicts_with = "profile_id")]
+    pub profile: Option<String>,
 }

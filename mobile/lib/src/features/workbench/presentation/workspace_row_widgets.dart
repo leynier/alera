@@ -3,6 +3,7 @@ import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/linked_issues/domain/mobile_linked_issue.dart';
 import 'package:alera_mobile/src/features/linked_issues/presentation/mobile_linked_issue_icon.dart';
+import 'package:alera_mobile/src/features/pull_requests/domain/mobile_pull_request_watch.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_workspace_rows.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
@@ -33,6 +34,7 @@ class const MobileWorkspaceListRow({
   final bool showProjectIcon = false,
   final String? projectName,
   final MobileLinkedIssue? linkedIssue,
+  final MobilePullRequestWatch? pullRequestWatch,
 }) extends StatelessWidget {
   /// Fixed leading slot so status glyphs do not shift the title (desktop: 14).
   static const double _statusSlotSize = 14;
@@ -83,6 +85,18 @@ class const MobileWorkspaceListRow({
             AleraIcons.pin,
             size: _trayIconSize,
             color: AleraTokens.foregroundMuted,
+          ),
+        ),
+      ],
+      if (pullRequestWatch case final watch?) ...<Widget>[
+        const SizedBox(width: AleraTokens.space6),
+        Tooltip(
+          message: watch.tooltip,
+          child: Icon(
+            AleraIcons.visible,
+            size: _trayIconSize,
+            color: AleraTokens.foregroundMuted,
+            key: const Key('workspace-tray-pr-watch'),
           ),
         ),
       ],

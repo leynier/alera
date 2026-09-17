@@ -68,3 +68,37 @@ fn issue_commands_parse_urls_and_workspace_targets() {
     );
     assert!(Cli::try_parse_from(["alera", "workspace", "issue", "link"]).is_err());
 }
+
+#[test]
+fn workspace_pr_watch_parses_merge_and_scope_flags() {
+    use crate::cli::WorkspacePrWatchAction;
+
+    let parsed = Cli::try_parse_from([
+        "alera",
+        "workspace",
+        "pr-watch",
+        "start",
+        "--workspace-id",
+        "w1",
+        "--merge",
+        "--no-conflicts",
+        "--profile",
+        "Grok Build",
+    ])
+    .unwrap();
+    let Command::Workspace(WorkspaceCommand {
+        action: WorkspaceAction::PrWatch(command),
+        ..
+    }) = parsed.command
+    else {
+        panic!("expected workspace pr-watch");
+    };
+    let WorkspacePrWatchAction::Start(args) = command.action else {
+        panic!("expected start");
+    };
+    assert_eq!(args.target.workspace_id.as_deref(), Some("w1"));
+    assert!(args.merge);
+    assert!(!args.no_checks);
+    assert!(args.no_conflicts);
+    assert_eq!(args.profile.as_deref(), Some("Grok Build"));
+}

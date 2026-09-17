@@ -38,6 +38,7 @@ import 'package:alera/src/features/linked_issues/presentation/workspace_linked_i
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_monitor_providers.dart';
 import 'package:alera/src/features/pull_requests/presentation/workspace_pull_request_status_indicator.dart';
+import 'package:alera/src/features/pull_requests/presentation/workspace_pull_request_watch_indicator.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';

@@ -102,3 +102,33 @@ fn issue_commands_document_their_providers_and_workspace_default() {
             || clap_help(&["issue"]).contains("az boards")
     );
 }
+
+#[test]
+fn workspace_pr_watch_help_documents_start_stop_and_defaults() {
+    let help = clap_help(&["workspace", "pr-watch"]);
+    for verb in ["show", "start", "stop"] {
+        assert!(
+            help.contains(verb),
+            "workspace pr-watch should list {verb}: {help}"
+        );
+    }
+    let start = clap_help(&["workspace", "pr-watch", "start"]);
+    assert!(
+        start.contains("ALERA_WORKSPACE_ID"),
+        "start should default the workspace: {start}"
+    );
+    assert!(
+        start.contains("ALERA_TERMINAL_HANDLE"),
+        "start should default the terminal handle: {start}"
+    );
+    assert!(
+        start.contains("--merge"),
+        "start should document --merge: {start}"
+    );
+    assert!(
+        start.contains("--no-checks")
+            && start.contains("--no-comments")
+            && start.contains("--no-conflicts"),
+        "start should document scope flags: {start}"
+    );
+}

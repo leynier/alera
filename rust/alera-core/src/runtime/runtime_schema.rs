@@ -81,6 +81,26 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
      WHEN NEW.status = 'removed' BEGIN
         DELETE FROM linkedIssues WHERE workspaceId = NEW.id;
     END",
+    "CREATE TABLE IF NOT EXISTS pullRequestWatches (
+        workspaceId TEXT PRIMARY KEY,
+        reviewNumber INTEGER NOT NULL,
+        mode TEXT NOT NULL,
+        checks INTEGER NOT NULL,
+        comments INTEGER NOT NULL,
+        conflicts INTEGER NOT NULL,
+        tabId TEXT,
+        profileId TEXT,
+        label TEXT,
+        lastDispatchJson TEXT,
+        lastMergedHeadSha TEXT
+    )",
+    "CREATE TRIGGER IF NOT EXISTS pullRequestWatchWorkspaceDeleted AFTER DELETE ON workspaces BEGIN
+        DELETE FROM pullRequestWatches WHERE workspaceId = OLD.id;
+    END",
+    "CREATE TRIGGER IF NOT EXISTS pullRequestWatchWorkspaceRemoved AFTER UPDATE OF status ON workspaces
+     WHEN NEW.status = 'removed' BEGIN
+        DELETE FROM pullRequestWatches WHERE workspaceId = NEW.id;
+    END",
     "CREATE TABLE IF NOT EXISTS workbenchLayouts (
         workspaceId TEXT PRIMARY KEY,
         dataJson TEXT NOT NULL

@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/agent_task_dispatch/application/agent_task_dispatch_providers.dart';
 import 'package:alera/src/features/agent_task_dispatch/domain/agent_task_dispatch.dart';
 import 'package:alera/src/features/agent_task_dispatch/presentation/agent_task_dispatch_launcher.dart';
+import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_controller.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_prompts.dart';
@@ -11,16 +12,31 @@ import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
+import 'package:alera/src/features/pull_requests/infra/runtime_pull_request_watch_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'pull_request_agent_watch_providers.g.dart';
 
 @Riverpod(keepAlive: true)
+RuntimePullRequestWatchRepository pullRequestAgentWatchRepository(Ref ref) {
+  return RuntimePullRequestWatchRepository(
+    ref.watch(runtimeHostClientProvider),
+    coalescer: ref.watch(runtimeChangeCoalescerProvider),
+  );
+}
+
+@Riverpod(keepAlive: true)
 class PullRequestAgentWatchController
     extends _$PullRequestAgentWatchController {
   final Set<String> _inFlight = <String>{};
+  final Set<String> _dirty = <String>{};
+  PullRequestAgentWatchRecords _hostRecords =
+      const PullRequestAgentWatchRecords();
   Timer? _timer;
 
   @override
@@ -28,7 +44,17 @@ class PullRequestAgentWatchController
     ref.onDispose(() {
       _timer?.cancel();
       _inFlight.clear();
+      _dirty.clear();
     });
+    final client = ref.watch(runtimeHostClientProvider);
+    final subscription = client.runtimeEvents.listen((event) {
+      if (event.name == 'pullRequestWatchChanged' ||
+          event.name == aleraRuntimeHostConnectedEvent) {
+        unawaited(_hydrateFromHost());
+      }
+    });
+    ref.onDispose(subscription.cancel);
+    unawaited(_hydrateFromHost());
     ref.listen<Set<String>>(
       workbenchControllerProvider.select(
         (workbench) => <String>{
@@ -42,9 +68,10 @@ class PullRequestAgentWatchController
         }
         for (final workspaceId in state.keys.toList(growable: false)) {
           if (!next.contains(workspaceId)) {
-            _remove(workspaceId, detach: false);
+            _remove(workspaceId, detach: false, persist: false);
           }
         }
+        _reconcileHost();
       },
     );
     return const <String, PullRequestAgentWatchSession>{};
@@ -80,18 +107,23 @@ class PullRequestAgentWatchController
       ),
     };
     _ensureTimer();
+    _persist(state[scope.workspaceId]!);
     unawaited(_evaluate(scope.workspaceId));
   }
 
   void stop(String workspaceId) {
-    _remove(workspaceId, detach: true);
+    _remove(workspaceId, detach: true, persist: true);
   }
 
   void onPanelState(String workspaceId, WorkspacePullRequestState? panel) {
     unawaited(_evaluate(workspaceId, panel: panel));
   }
 
-  void _remove(String workspaceId, {required bool detach}) {
+  void _remove(
+    String workspaceId, {
+    required bool detach,
+    required bool persist,
+  }) {
     final session = state[workspaceId];
     if (session == null) {
       return;
@@ -107,6 +139,9 @@ class PullRequestAgentWatchController
     if (state.isEmpty) {
       _timer?.cancel();
       _timer = null;
+    }
+    if (persist) {
+      _persistStop(workspaceId);
     }
   }
 
@@ -136,7 +171,7 @@ class PullRequestAgentWatchController
         case PullRequestAgentWatchAction.none:
           return;
         case PullRequestAgentWatchAction.stop:
-          _remove(workspaceId, detach: true);
+          _remove(workspaceId, detach: true, persist: true);
           return;
         case PullRequestAgentWatchAction.dispatch:
           await _dispatch(session, evaluation);
@@ -216,6 +251,7 @@ class PullRequestAgentWatchController
       ...state,
       session.workspaceId: next,
     };
+    _persist(next);
   }
 
   Future<void> _merge(
@@ -253,9 +289,176 @@ class PullRequestAgentWatchController
       ...state,
       session.workspaceId: next,
     };
+    _persist(next);
   }
 
   ReviewMergeMethod? _preferredMergeMethod(List<ReviewMergeMethod> methods) {
     return preferredReviewMergeMethod(methods);
+  }
+
+  Future<void> _hydrateFromHost() async {
+    try {
+      final repository = ref.read(pullRequestAgentWatchRepositoryProvider);
+      if (!await repository.isSupported()) {
+        _hostRecords = const PullRequestAgentWatchRecords();
+        return;
+      }
+      _applyHostRecords(
+        PullRequestAgentWatchRecords(
+          supported: true,
+          byWorkspace: await repository.listAll(),
+        ),
+      );
+    } on Object {
+      // Older or unreachable hosts keep whatever the UI started locally.
+    }
+  }
+
+  void _applyHostRecords(PullRequestAgentWatchRecords records) {
+    _hostRecords = records;
+    _reconcileHost();
+  }
+
+  void _reconcileHost() {
+    if (!_hostRecords.supported) {
+      return;
+    }
+    final next = Map<String, PullRequestAgentWatchSession>.from(state);
+    var changed = false;
+    for (final record in _hostRecords.byWorkspace.values) {
+      if (_dirty.contains(record.workspaceId)) {
+        continue;
+      }
+      final scope = _scopeFor(record.workspaceId);
+      if (scope == null) {
+        continue;
+      }
+      final existing = next[record.workspaceId];
+      if (existing != null && _sameWatch(existing, record)) {
+        continue;
+      }
+      if (existing == null) {
+        ref
+            .read(workspacePullRequestControllerProvider(scope).notifier)
+            .attachWatcher();
+      }
+      next[record.workspaceId] = PullRequestAgentWatchSession(
+        workspaceId: record.workspaceId,
+        reviewNumber: record.reviewNumber,
+        mode: record.mode,
+        binding: record.binding,
+        scope: scope,
+        watchScope: record.watchScope,
+        lastDispatch: record.lastDispatch,
+        lastMergedHeadSha: record.lastMergedHeadSha,
+      );
+      changed = true;
+    }
+    for (final workspaceId in next.keys.toList(growable: false)) {
+      if (_dirty.contains(workspaceId) ||
+          _hostRecords.byWorkspace.containsKey(workspaceId)) {
+        continue;
+      }
+      final session = next.remove(workspaceId);
+      if (session == null) {
+        continue;
+      }
+      ref
+          .read(workspacePullRequestControllerProvider(session.scope).notifier)
+          .detachWatcher();
+      changed = true;
+    }
+    if (!changed) {
+      return;
+    }
+    state = Map<String, PullRequestAgentWatchSession>.unmodifiable(next);
+    if (state.isEmpty) {
+      _timer?.cancel();
+      _timer = null;
+      return;
+    }
+    _ensureTimer();
+    for (final workspaceId in state.keys) {
+      unawaited(_evaluate(workspaceId));
+    }
+  }
+
+  bool _sameWatch(
+    PullRequestAgentWatchSession session,
+    PullRequestAgentWatchRecord record,
+  ) {
+    return session.reviewNumber == record.reviewNumber &&
+        session.mode == record.mode &&
+        session.watchScope == record.watchScope &&
+        session.binding.tabId == record.tabId &&
+        session.binding.profileId == record.profileId &&
+        session.lastMergedHeadSha == record.lastMergedHeadSha;
+  }
+
+  WorkspacePullRequestScope? _scopeFor(String workspaceId) {
+    final workspace = _workspace(workspaceId);
+    if (workspace == null) {
+      return null;
+    }
+    return WorkspacePullRequestScope(
+      workspaceId: workspace.id,
+      repoPath: workspace.path,
+      branch: workspace.branch,
+      sourceBranch: workspace.sourceBranch,
+      providerOverride: ref
+          .read(effectiveHostingProviderOverrideProvider(workspace.projectId))
+          .asData
+          ?.value,
+    );
+  }
+
+  Workspace? _workspace(String workspaceId) {
+    final workbench = ref.read(workbenchControllerProvider);
+    for (final workspaces in workbench.workspacesByProject.values) {
+      for (final workspace in workspaces) {
+        if (workspace.id == workspaceId && workspace.isActive) {
+          return workspace;
+        }
+      }
+    }
+    return null;
+  }
+
+  void _persist(PullRequestAgentWatchSession session) {
+    _dirty.add(session.workspaceId);
+    unawaited(_push(session));
+  }
+
+  void _persistStop(String workspaceId) {
+    _dirty.add(workspaceId);
+    unawaited(_pushStop(workspaceId));
+  }
+
+  Future<void> _push(PullRequestAgentWatchSession session) async {
+    try {
+      final repository = ref.read(pullRequestAgentWatchRepositoryProvider);
+      if (!await repository.isSupported()) {
+        return;
+      }
+      await repository.upsert(PullRequestAgentWatchRecord.fromSession(session));
+    } on Object {
+      // Keep the in-memory watch if the host is gone or older.
+    } finally {
+      _dirty.remove(session.workspaceId);
+    }
+  }
+
+  Future<void> _pushStop(String workspaceId) async {
+    try {
+      final repository = ref.read(pullRequestAgentWatchRepositoryProvider);
+      if (!await repository.isSupported()) {
+        return;
+      }
+      await repository.remove(workspaceId);
+    } on Object {
+      // Local stop already happened.
+    } finally {
+      _dirty.remove(workspaceId);
+    }
   }
 }

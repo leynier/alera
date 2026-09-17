@@ -14,6 +14,10 @@ const String aleraRuntimeHostWorkspaceSectionsCapability =
 /// `workspace.createManaged`. Additive: do not bump
 /// [aleraTerminalHostProtocolVersion].
 const String aleraRuntimeHostLinkedIssuesCapability = 'linkedIssuesV1';
+
+/// Feature-detect `pullRequestWatch.*`. Additive: do not bump
+/// [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostPullRequestWatchCapability = 'pullRequestWatchV1';
 const String aleraRuntimeHostBootstrapCapability = 'sshTargetBootstrap';
 const String aleraRuntimeHostManagedWorkspaceCapability =
     'managedWorkspaceLifecycle';

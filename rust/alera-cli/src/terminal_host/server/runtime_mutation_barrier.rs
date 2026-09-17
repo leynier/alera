@@ -69,6 +69,8 @@ pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
                 | "linkedIssue.link"
                 | "linkedIssue.refresh"
                 | "linkedIssue.remove"
+                | "pullRequestWatch.start"
+                | "pullRequestWatch.stop"
                 | "workbenchViewPrefs.update"
                 | "automation.upsert"
                 | "automation.approve"

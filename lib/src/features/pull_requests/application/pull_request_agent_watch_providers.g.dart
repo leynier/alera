@@ -9,6 +9,57 @@ part of 'pull_request_agent_watch_providers.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 
+@ProviderFor(pullRequestAgentWatchRepository)
+final pullRequestAgentWatchRepositoryProvider =
+    PullRequestAgentWatchRepositoryProvider._();
+
+final class PullRequestAgentWatchRepositoryProvider
+    extends
+        $FunctionalProvider<
+          RuntimePullRequestWatchRepository,
+          RuntimePullRequestWatchRepository,
+          RuntimePullRequestWatchRepository
+        >
+    with $Provider<RuntimePullRequestWatchRepository> {
+  PullRequestAgentWatchRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'pullRequestAgentWatchRepositoryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$pullRequestAgentWatchRepositoryHash();
+
+  @$internal
+  @override
+  $ProviderElement<RuntimePullRequestWatchRepository> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  RuntimePullRequestWatchRepository create(Ref ref) {
+    return pullRequestAgentWatchRepository(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(RuntimePullRequestWatchRepository value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<RuntimePullRequestWatchRepository>(
+        value,
+      ),
+    );
+  }
+}
+
+String _$pullRequestAgentWatchRepositoryHash() =>
+    r'a588b23bd4f34e2c09252df150b788cb5a591d4a';
+
 @ProviderFor(PullRequestAgentWatchController)
 final pullRequestAgentWatchControllerProvider =
     PullRequestAgentWatchControllerProvider._();
@@ -48,7 +99,7 @@ final class PullRequestAgentWatchControllerProvider
 }
 
 String _$pullRequestAgentWatchControllerHash() =>
-    r'016f47f20352731f26ffd5ab9ebddefedb277e7a';
+    r'dea5d78f7c62632d06b079d368a19256d69c5f68';
 
 abstract class _$PullRequestAgentWatchController
     extends $Notifier<Map<String, PullRequestAgentWatchSession>> {

@@ -33,6 +33,13 @@ impl ServerActor {
         ));
     }
 
+    pub(super) fn broadcast_pull_request_watch_changed(&self, workspace_id: Option<&str>) {
+        self.broadcast_authenticated(event(
+            "pullRequestWatchChanged",
+            scope_payload("workspaceId", workspace_id),
+        ));
+    }
+
     pub(super) fn broadcast_workspaces_changed(&self, project_id: Option<&str>) {
         self.broadcast_authenticated(event(
             "workspacesChanged",

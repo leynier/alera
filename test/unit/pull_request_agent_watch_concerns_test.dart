@@ -1,3 +1,4 @@
+import 'package:alera/src/features/agent_task_dispatch/domain/agent_task_dispatch.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_prompts.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
@@ -106,6 +107,42 @@ void main() {
       pullRequestAgentWatchModeLabel(.fixAndMerge),
       'Watching: Fix and Merge',
     );
+  });
+
+  test('tooltip lists mode and each scope toggle', () {
+    expect(
+      pullRequestAgentWatchTooltip(
+        mode: .fixAndMerge,
+        scope: const PullRequestAgentWatchScope(conflicts: false),
+      ),
+      'Watching: Fix and Merge\n'
+      'Failed Checks: On\n'
+      'Review Comments: On\n'
+      'Merge Conflicts: Off',
+    );
+  });
+
+  test('watch records round-trip through json', () {
+    const session = PullRequestAgentWatchSession(
+      workspaceId: 'w',
+      reviewNumber: 801,
+      mode: .fix,
+      binding: AgentTaskDispatchBinding(tabId: 'tab-1', label: 'Grok'),
+      scope: pullRequestWatchTestScope,
+      watchScope: PullRequestAgentWatchScope(comments: false),
+      lastDispatch: PullRequestAgentWatchDispatchMark(
+        headSha: 'abc',
+        checksFailed: true,
+        threadIds: <String>{'T1'},
+      ),
+    );
+    final record = PullRequestAgentWatchRecord.fromSession(session);
+    final restored = PullRequestAgentWatchRecord.fromJson(record.toJson());
+    expect(restored.workspaceId, 'w');
+    expect(restored.reviewNumber, 801);
+    expect(restored.watchScope.comments, isFalse);
+    expect(restored.lastDispatch?.headSha, 'abc');
+    expect(restored.lastDispatch?.threadIds, <String>{'T1'});
   });
 
   group('pullRequestAgentWatchConcerns', () {

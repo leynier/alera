@@ -20,7 +20,28 @@ class const PullRequestAgentWatchDispatchMark({
   final bool checksFailed = false,
   final bool conflict = false,
   final Set<String> threadIds = const <String>{},
-});
+}) {
+  factory fromJson(Map<String, Object?> json) {
+    final threadIds = json['threadIds'];
+    return PullRequestAgentWatchDispatchMark(
+      headSha: json['headSha'] as String?,
+      checksFailed: json['checksFailed'] == true,
+      conflict: json['conflict'] == true,
+      threadIds: <String>{
+        if (threadIds is List)
+          for (final id in threadIds)
+            if (id is String && id.isNotEmpty) id,
+      },
+    );
+  }
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'headSha': headSha,
+    'checksFailed': checksFailed,
+    'conflict': conflict,
+    'threadIds': threadIds.toList(growable: false)..sort(),
+  };
+}
 
 class const PullRequestAgentWatchSession({
   required final String workspaceId,
@@ -148,6 +169,123 @@ String pullRequestAgentWatchModeLabel(PullRequestAgentWatchMode mode) {
     PullRequestAgentWatchMode.fix => 'Watching: Fix',
     PullRequestAgentWatchMode.fixAndMerge => 'Watching: Fix and Merge',
   };
+}
+
+String pullRequestAgentWatchModeToJson(PullRequestAgentWatchMode mode) {
+  return switch (mode) {
+    PullRequestAgentWatchMode.fix => 'fix',
+    PullRequestAgentWatchMode.fixAndMerge => 'fixAndMerge',
+  };
+}
+
+PullRequestAgentWatchMode pullRequestAgentWatchModeFromJson(String? value) {
+  return value == 'fixAndMerge'
+      ? PullRequestAgentWatchMode.fixAndMerge
+      : PullRequestAgentWatchMode.fix;
+}
+
+/// Sidebar tooltip for an active watch: mode plus each scope toggle.
+String pullRequestAgentWatchTooltip({
+  required PullRequestAgentWatchMode mode,
+  required PullRequestAgentWatchScope scope,
+}) {
+  String line(String label, bool enabled) =>
+      '$label: ${enabled ? 'On' : 'Off'}';
+  return <String>[
+    pullRequestAgentWatchModeLabel(mode),
+    line('Failed Checks', scope.checks),
+    line('Review Comments', scope.comments),
+    line('Merge Conflicts', scope.conflicts),
+  ].join('\n');
+}
+
+/// Host-persisted watch session. Desktop reconstructs [WorkspacePullRequestScope]
+/// from the live workspace; the host does not store repo paths.
+class const PullRequestAgentWatchRecord({
+  required this.workspaceId,
+  required this.reviewNumber,
+  required this.mode,
+  this.watchScope = PullRequestAgentWatchScope.defaults,
+  this.tabId,
+  this.profileId,
+  this.label,
+  this.lastDispatch,
+  this.lastMergedHeadSha,
+}) {
+  final String workspaceId;
+  final int reviewNumber;
+  final PullRequestAgentWatchMode mode;
+  final PullRequestAgentWatchScope watchScope;
+  final String? tabId;
+  final String? profileId;
+  final String? label;
+  final PullRequestAgentWatchDispatchMark? lastDispatch;
+  final String? lastMergedHeadSha;
+
+  AgentTaskDispatchBinding get binding => AgentTaskDispatchBinding(
+    tabId: tabId,
+    profileId: profileId,
+    label: label,
+  );
+
+  factory fromSession(PullRequestAgentWatchSession session) {
+    return PullRequestAgentWatchRecord(
+      workspaceId: session.workspaceId,
+      reviewNumber: session.reviewNumber,
+      mode: session.mode,
+      watchScope: session.watchScope,
+      tabId: session.binding.tabId,
+      profileId: session.binding.profileId,
+      label: session.binding.label,
+      lastDispatch: session.lastDispatch,
+      lastMergedHeadSha: session.lastMergedHeadSha,
+    );
+  }
+
+  factory fromJson(Map<String, Object?> json) {
+    final lastDispatch = json['lastDispatch'];
+    return PullRequestAgentWatchRecord(
+      workspaceId: json['workspaceId'] as String? ?? '',
+      reviewNumber: (json['reviewNumber'] as num?)?.toInt() ?? 0,
+      mode: pullRequestAgentWatchModeFromJson(json['mode'] as String?),
+      watchScope: PullRequestAgentWatchScope(
+        checks: json['checks'] != false,
+        comments: json['comments'] != false,
+        conflicts: json['conflicts'] != false,
+      ),
+      tabId: json['tabId'] as String?,
+      profileId: json['profileId'] as String?,
+      label: json['label'] as String?,
+      lastDispatch: lastDispatch is Map
+          ? PullRequestAgentWatchDispatchMark.fromJson(
+              Map<String, Object?>.from(lastDispatch),
+            )
+          : null,
+      lastMergedHeadSha: json['lastMergedHeadSha'] as String?,
+    );
+  }
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'workspaceId': workspaceId,
+    'reviewNumber': reviewNumber,
+    'mode': pullRequestAgentWatchModeToJson(mode),
+    'checks': watchScope.checks,
+    'comments': watchScope.comments,
+    'conflicts': watchScope.conflicts,
+    'tabId': tabId,
+    'profileId': profileId,
+    'label': label,
+    'lastDispatch': lastDispatch?.toJson(),
+    'lastMergedHeadSha': lastMergedHeadSha,
+  };
+}
+
+class const PullRequestAgentWatchRecords({
+  this.supported = false,
+  this.byWorkspace = const <String, PullRequestAgentWatchRecord>{},
+}) {
+  final bool supported;
+  final Map<String, PullRequestAgentWatchRecord> byWorkspace;
 }
 
 /// Keep the watch eligible to retry when dispatch did not actually send.

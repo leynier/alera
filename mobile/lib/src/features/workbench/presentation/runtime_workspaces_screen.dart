@@ -11,6 +11,7 @@ import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
 import 'package:alera_mobile/src/features/linked_issues/application/linked_issues_controller.dart';
+import 'package:alera_mobile/src/features/pull_requests/application/pull_request_watch_controller.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/hosts/presentation/rename_host_dialog.dart';
 import 'package:alera_mobile/src/features/projects/presentation/projects_screen.dart';
@@ -134,11 +135,9 @@ class const RuntimeWorkspacesScreen({
             children: <Widget>[
               _WorkspaceToolbar(hostId: host.id, data: data.value),
               Expanded(
-                child: _ConnectionError(
+                child: _connectionError(
                   error: error,
-                  onRetry: () {
-                    unawaited(_retryConnection(ref, host.id));
-                  },
+                  onRetry: () => unawaited(_retryConnection(ref, host.id)),
                 ),
               ),
             ],
@@ -173,10 +172,12 @@ class const RuntimeWorkspacesScreen({
                           data.value!.supportsPromptFileUpload,
                       supportsWorkspaceFiles:
                           data.value!.supportsWorkspaceFiles,
-                      supportsLinkedIssues: _linkedIssuesSupported(
-                        ref,
-                        host.id,
-                      ),
+                      supportsLinkedIssues:
+                          ref
+                              .read(linkedIssuesControllerProvider(host.id))
+                              .value
+                              ?.supported ??
+                          false,
                     ),
                   ),
                 );
@@ -259,8 +260,10 @@ class const _WorkspaceListBody({
         const <String>{};
     final linkedIssues = ref
         .watch(linkedIssuesControllerProvider(hostId))
-        .value
-        ?.byWorkspace;
+        .value;
+    final pullRequestWatches = ref
+        .watch(pullRequestWatchControllerProvider(hostId))
+        .value;
     final rows = buildMobileWorkspaceRows(
       sections: data.sections,
       workspaces: data.workspaces,
@@ -345,7 +348,10 @@ class const _WorkspaceListBody({
                     ),
                   MobileWorkspaceEntryRow() => MobileWorkspaceListRow(
                     row: row,
-                    linkedIssue: linkedIssues?[row.entry.workspace.id],
+                    linkedIssue:
+                        linkedIssues?.byWorkspace[row.entry.workspace.id],
+                    pullRequestWatch:
+                        pullRequestWatches?.byWorkspace[row.entry.workspace.id],
                     terminalTabCount:
                         data.terminalTabCountByWorkspaceId[row
                             .entry
@@ -475,25 +481,19 @@ class const _WorkspaceToolbar({
   }
 }
 
-class const _ConnectionError({
-  required final Object error,
-  required final VoidCallback onRetry,
-}) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final updateRequired = error is UnsupportedError;
-    return AleraEmptyState(
-      title: updateRequired ? 'Update required' : 'Connection failed',
-      message: error.toString(),
-      icon: updateRequired ? AleraIcons.systemUpdate : AleraIcons.cloudOff,
-      action: FilledButton.icon(
-        onPressed: onRetry,
-        icon: const Icon(AleraIcons.sync),
-        label: const Text('Retry'),
-      ),
-    );
-  }
+Widget _connectionError({
+  required Object error,
+  required VoidCallback onRetry,
+}) {
+  final updateRequired = error is UnsupportedError;
+  return AleraEmptyState(
+    title: updateRequired ? 'Update required' : 'Connection failed',
+    message: error.toString(),
+    icon: updateRequired ? AleraIcons.systemUpdate : AleraIcons.cloudOff,
+    action: FilledButton.icon(
+      onPressed: onRetry,
+      icon: const Icon(AleraIcons.sync),
+      label: const Text('Retry'),
+    ),
+  );
 }
-
-bool _linkedIssuesSupported(WidgetRef ref, String hostId) =>
-    ref.read(linkedIssuesControllerProvider(hostId)).value?.supported ?? false;

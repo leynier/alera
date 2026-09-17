@@ -650,6 +650,10 @@ impl RuntimeStore {
                 .bind(&workspace_id)
                 .execute(&mut *tx)
                 .await?;
+            sqlx::query("DELETE FROM pullRequestWatches WHERE workspaceId = ?")
+                .bind(&workspace_id)
+                .execute(&mut *tx)
+                .await?;
             sqlx::query(
                 "DELETE FROM workspaceRelations \
                  WHERE parentWorkspaceId = ? OR childWorkspaceId = ?",
@@ -860,6 +864,10 @@ impl RuntimeStore {
                 .await?;
         }
         sqlx::query("DELETE FROM linkedReviews WHERE workspaceId = ?")
+            .bind(workspace_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM pullRequestWatches WHERE workspaceId = ?")
             .bind(workspace_id)
             .execute(&mut *tx)
             .await?;

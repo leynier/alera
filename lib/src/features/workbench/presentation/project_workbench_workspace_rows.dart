@@ -255,6 +255,9 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                     );
                                   },
                                 ),
+                                WorkspacePullRequestWatchIndicator(
+                                  workspaceId: widget.workspace.id,
+                                ),
                                 WorkspaceLinkedIssueTrayIcon(
                                   workspaceId: widget.workspace.id,
                                 ),
