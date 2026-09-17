@@ -15,6 +15,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'support/fake_terminal_client.dart';
 
+part 'pull_request_actions_removal_cases.dart';
+
 MobilePullRequestSnapshot _snapshot({
   String state = 'OPEN',
   bool isDraft = false,
@@ -54,8 +56,14 @@ MobilePullRequestSnapshot _snapshot({
 
 void main() {
   group('availablePullRequestReviewActions', () {
-    List<String> labels(MobilePullRequestSnapshot snapshot) => <String>[
-      for (final action in availablePullRequestReviewActions(snapshot))
+    List<String> labels(
+      MobilePullRequestSnapshot snapshot, {
+      bool offerRemoveWorkspace = true,
+    }) => <String>[
+      for (final action in availablePullRequestReviewActions(
+        snapshot,
+        offerRemoveWorkspace: offerRemoveWorkspace,
+      ))
         action.label,
     ];
 
@@ -85,8 +93,22 @@ void main() {
       expect(pullRequestReviewActionEnabled(merge, snapshot.review!), isFalse);
     });
 
-    test('a merged pull request only offers unlink', () {
+    test('a merged pull request defaults to Remove Workspace', () {
       expect(labels(_snapshot(state: 'MERGED')), <String>[
+        'Remove Workspace',
+        'Unlink Pull Request',
+      ]);
+    });
+
+    test('a merged pull request omits Remove Workspace when not offered', () {
+      expect(
+        labels(_snapshot(state: 'MERGED'), offerRemoveWorkspace: false),
+        <String>['Unlink Pull Request'],
+      );
+    });
+
+    test('a closed pull request only offers unlink', () {
+      expect(labels(_snapshot(state: 'CLOSED')), <String>[
         'Unlink Pull Request',
       ]);
     });
@@ -419,6 +441,8 @@ void main() {
     expect(find.text('Squash and Merge'), findsNothing);
     expect(find.text('Add Comment'), findsNothing);
   });
+
+  _registerPullRequestActionsRemovalTests();
 }
 
 FakeTerminalClient _client(MobilePullRequestSnapshot snapshot) {
@@ -429,10 +453,20 @@ FakeTerminalClient _client(MobilePullRequestSnapshot snapshot) {
     ..pullRequest = snapshot;
 }
 
+const _workspace = WorkspaceSummary(
+  id: 'workspace-1',
+  projectId: 'project-1',
+  name: 'Workspace',
+  path: '/repo',
+  branch: 'feat/actions',
+);
+
 Future<void> _openPullRequest(
   WidgetTester tester,
-  FakeTerminalClient client,
-) async {
+  FakeTerminalClient client, {
+  Widget? home,
+}) async {
+  client.workspaces = <WorkspaceSummary>[_workspace];
   await tester.binding.setSurfaceSize(const Size(390, 844));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
@@ -443,19 +477,17 @@ Future<void> _openPullRequest(
       ],
       child: MaterialApp(
         theme: buildAleraMobileDarkTheme(),
-        home: const WorkspaceTabsScreen(
-          hostId: 'host-1',
-          workspace: WorkspaceSummary(
-            id: 'workspace-1',
-            projectId: 'project-1',
-            name: 'Workspace',
-            path: '/repo',
-          ),
-        ),
+        home:
+            home ??
+            const WorkspaceTabsScreen(hostId: 'host-1', workspace: _workspace),
       ),
     ),
   );
   await tester.pumpAndSettle();
+  if (home != null) {
+    await tester.tap(find.text('Workspace List'));
+    await tester.pumpAndSettle();
+  }
   await tester.tap(find.byTooltip('More Actions'));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Pull Request'));

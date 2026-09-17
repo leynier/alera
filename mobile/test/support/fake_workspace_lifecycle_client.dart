@@ -28,14 +28,18 @@ mixin FakeWorkspaceLifecycleClient {
   Future<void>? generateWorkspaceIdentityDelay;
   Object? listAgentProfilesError;
 
+  List<ProjectSummary> projects = const <ProjectSummary>[];
+  List<WorkspaceSummary> workspaces = const <WorkspaceSummary>[];
+  bool confirmWorkspaceRemoval = true;
+
   Future<WorkspaceSidebarSnapshot> workspaceSidebarSnapshot() async {
-    return const WorkspaceSidebarSnapshot(
-      projects: <ProjectSummary>[],
-      workspaces: <WorkspaceSummary>[],
-      tags: <WorkspaceTagSummary>[],
-      activity: <String, DateTime>{},
-      viewPrefs: MobileViewPrefs(),
-      confirmWorkspaceRemoval: true,
+    return WorkspaceSidebarSnapshot(
+      projects: projects,
+      workspaces: workspaces,
+      tags: const <WorkspaceTagSummary>[],
+      activity: const <String, DateTime>{},
+      viewPrefs: const MobileViewPrefs(),
+      confirmWorkspaceRemoval: confirmWorkspaceRemoval,
     );
   }
 
@@ -52,7 +56,7 @@ mixin FakeWorkspaceLifecycleClient {
   Future<List<AgentPresenceSummary>> listAgentPresence() async => agentPresence;
 
   Future<List<ProjectSummary>> listProjects() async {
-    return const <ProjectSummary>[];
+    return projects;
   }
 
   Future<ProjectBranches> listBranches(
@@ -114,7 +118,7 @@ mixin FakeWorkspaceLifecycleClient {
   }
 
   Future<List<WorkspaceSummary>> listWorkspaces() async {
-    return const <WorkspaceSummary>[];
+    return workspaces;
   }
 
   Future<void> setWorkspacePinned(String workspaceId, bool isPinned) async {
