@@ -49,10 +49,10 @@ void _registerPullRequestActionsRemovalTests() {
 
     await tester.tap(find.text('Remove Workspace'));
     await tester.pumpAndSettle();
-    expect(find.text('Delete Workspace'), findsOneWidget);
+    expect(find.text('Remove Workspace?'), findsOneWidget);
     expect(client.calls, isNot(contains('removeWorkspace workspace-1 true')));
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
     await tester.pumpAndSettle();
 
     expect(client.calls, contains('removeWorkspace workspace-1 true'));
@@ -89,7 +89,7 @@ void _registerPullRequestActionsRemovalTests() {
 
     await tester.tap(find.text('Remove Workspace'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
     await tester.pumpAndSettle();
 
     expect(find.text('Workspace List'), findsOneWidget);

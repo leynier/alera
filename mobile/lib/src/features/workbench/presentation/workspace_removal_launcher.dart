@@ -1,6 +1,6 @@
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
-import 'package:alera_mobile/src/features/workbench/presentation/delete_workspace_dialog.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_removal_dialog.dart';
 import 'package:flutter/material.dart';
 
 /// Confirms and removes [workspace] using the same dialog as the workspace
@@ -24,16 +24,20 @@ Future<bool> confirmAndDeleteWorkspace(
   if (!context.mounted) {
     return false;
   }
+  final branch = workspace.branch?.trim();
+  final canDeleteBranch =
+      !workspace.isMain &&
+      !workspace.reusesExistingBranch &&
+      branch != null &&
+      branch.isNotEmpty;
   final decision = data.confirmWorkspaceRemoval || dependencies.isNotEmpty
-      ? await showDeleteWorkspaceDialog(
+      ? await showWorkspaceRemovalDialog(
           context,
           workspace: workspace,
           cascadeCount: cascadeCount,
           dependencies: dependencies,
         )
-      : DeleteWorkspaceDecision(
-          deleteBranch: !workspace.isMain && !workspace.reusesExistingBranch,
-        );
+      : WorkspaceRemovalDecision(deleteBranch: canDeleteBranch);
   if (decision == null || !context.mounted) {
     return false;
   }
