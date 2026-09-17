@@ -328,6 +328,7 @@ class _WorkspaceEditorSurfaceState
             .read(workbenchControllerProvider.notifier)
             .openGitDiffTab(
               workspace: widget.workspace,
+              sourceKey: 'tab:${widget.tab.id}',
               relativePath: filePath,
               area: entries.single.area,
               scope: .file,
@@ -345,6 +346,7 @@ class _WorkspaceEditorSurfaceState
             .read(workbenchControllerProvider.notifier)
             .openGitDiffTab(
               workspace: widget.workspace,
+              sourceKey: 'tab:${widget.tab.id}',
               relativePath: filePath,
               scope: .fileAll,
               gitDiffRoot: diffTarget.gitDiffRoot,
@@ -356,6 +358,7 @@ class _WorkspaceEditorSurfaceState
           .read(workbenchControllerProvider.notifier)
           .openGitDiffTab(
             workspace: widget.workspace,
+            sourceKey: 'tab:${widget.tab.id}',
             relativePath: filePath,
             area: choice.area,
             scope: .file,

@@ -300,6 +300,7 @@ class _VisiblePullRequestsPanelState
       await ref
           .read(workbenchControllerProvider.notifier)
           .openGitPullRequestDiffTab(
+            sourceKey: 'tool:pullRequest',
             workspace: widget.workspace,
             gitDiffRoot: widget.gitDiffRoot,
             pullRequestNumber: review.number,
