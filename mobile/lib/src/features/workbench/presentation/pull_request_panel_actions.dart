@@ -3,10 +3,12 @@ import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_act
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_action_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_pull_request_conversation.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_comment_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_link_create_sheets.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_ship_sheet.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_removal_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -30,6 +32,10 @@ class const PullRequestPanelActions({
   ) async {
     final review = snapshot.review;
     if (review == null) {
+      return;
+    }
+    if (action.kind == .removeWorkspace) {
+      await _removeWorkspace(context);
       return;
     }
     final controller = _controller;
@@ -77,6 +83,9 @@ class const PullRequestPanelActions({
           number: number,
           url: review.url.isEmpty ? null : review.url,
         ),
+      ),
+      .removeWorkspace => throw StateError(
+        'Remove Workspace uses the workspace removal dialog.',
       ),
     };
     _report(messenger, error);
@@ -233,6 +242,51 @@ class const PullRequestPanelActions({
       return true;
     } on Object {
       return true;
+    }
+  }
+
+  Future<void> _removeWorkspace(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    late final WorkspaceListData list;
+    final loaded = ref.read(workspaceListControllerProvider(hostId)).value;
+    if (loaded != null) {
+      list = loaded;
+    } else {
+      try {
+        list = await ref.read(workspaceListControllerProvider(hostId).future);
+      } on Object catch (error) {
+        _report(messenger, pullRequestActionErrorMessage(error));
+        return;
+      }
+    }
+    if (!list.supportsMutations) {
+      _report(
+        messenger,
+        'Update the paired Alera runtime to remove workspaces.',
+      );
+      return;
+    }
+    final workspace = list.workspaceById(workspaceId);
+    if (workspace == null) {
+      _report(messenger, 'Workspace no longer exists. Refresh the list.');
+      return;
+    }
+    if (!context.mounted) {
+      return;
+    }
+    try {
+      final removed = await confirmAndDeleteWorkspace(
+        context,
+        ref.read(workspaceListControllerProvider(hostId).notifier),
+        workspace,
+        list,
+      );
+      if (removed && context.mounted) {
+        await navigator.maybePop();
+      }
+    } on Object catch (error) {
+      _report(messenger, pullRequestActionErrorMessage(error));
     }
   }
 
