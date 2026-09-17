@@ -107,6 +107,16 @@ void main() {
       pullRequestAgentWatchModeLabel(.fixAndMerge),
       'Watching: Fix and Merge',
     );
+    expect(pullRequestAgentWatchModeToJson(.fix), 'fix');
+    expect(pullRequestAgentWatchModeToJson(.fixAndMerge), 'fixAndMerge');
+    expect(
+      pullRequestAgentWatchModeFromJson('fix'),
+      PullRequestAgentWatchMode.fix,
+    );
+    expect(
+      pullRequestAgentWatchModeFromJson('fixAndMerge'),
+      PullRequestAgentWatchMode.fixAndMerge,
+    );
   });
 
   test('tooltip lists mode and each scope toggle', () {
