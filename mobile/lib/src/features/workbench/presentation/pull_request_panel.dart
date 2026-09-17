@@ -12,6 +12,7 @@ import 'package:alera_mobile/src/features/workbench/application/pull_request_act
 import 'package:alera_mobile/src/features/workbench/application/pull_request_agent_watch_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_agent_watch_scope_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_controller.dart';
+import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/domain/pull_request_agent_watch.dart';
 import 'package:alera_mobile/src/features/workbench/domain/pull_request_agent_watch_scope.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_action_bar.dart';
@@ -43,6 +44,14 @@ class const PullRequestPanel({
         false;
     final canShip =
         ref.watch(pullRequestShipSupportedProvider(hostId)).value ?? false;
+    // Default to offering removal until the list answers; hiding it after a
+    // merged review would promote Unlink into the primary button for a frame.
+    final offerRemoveWorkspace =
+        ref
+            .watch(workspaceListControllerProvider(hostId))
+            .value
+            ?.supportsMutations ??
+        true;
     final busy = ref.watch(
       pullRequestActionControllerProvider(hostId, workspaceId),
     );
@@ -119,6 +128,7 @@ class const PullRequestPanel({
             onReload: reload,
             canGenerate: canGenerate && snapshot.aiAssistEnabled,
             canShip: canShip && snapshot.aiAssistEnabled,
+            offerRemoveWorkspace: offerRemoveWorkspace,
           ),
         ),
       ],
@@ -138,6 +148,7 @@ class const _Body({
   required final VoidCallback onReload,
   required final bool canGenerate,
   required final bool canShip,
+  required final bool offerRemoveWorkspace,
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -239,7 +250,10 @@ class const _Body({
             )
           else ...<Widget>[
             PullRequestActionBar(
-              actions: availablePullRequestReviewActions(snapshot),
+              actions: availablePullRequestReviewActions(
+                snapshot,
+                offerRemoveWorkspace: offerRemoveWorkspace,
+              ),
               isEnabled: (action) =>
                   pullRequestReviewActionEnabled(action, review),
               busy: !idle,

@@ -144,6 +144,7 @@ enum MobilePullRequestReviewActionKind {
   merge,
   convertToDraft,
   close,
+  removeWorkspace,
   unlink,
 }
 
@@ -157,10 +158,11 @@ final class const MobilePullRequestReviewAction({
     .merge => method!.label,
     .convertToDraft => 'Convert To Draft',
     .close => 'Close Pull Request',
+    .removeWorkspace => 'Remove Workspace',
     .unlink => 'Unlink Pull Request',
   };
 
-  bool get destructive => kind == .close;
+  bool get destructive => kind == .close || kind == .removeWorkspace;
 
   @override
   bool operator ==(Object other) =>
@@ -176,12 +178,17 @@ final class const MobilePullRequestReviewAction({
 bool _isOpen(MobilePullRequestReview review) =>
     review.state.toUpperCase() == 'OPEN';
 
+bool _isMerged(MobilePullRequestReview review) =>
+    review.state.toUpperCase() == 'MERGED';
+
 /// The desktop's action set (`_PullRequestReviewActions`), in its order: ready
 /// first for a draft, then the allowed merge methods, draft conversion, close,
-/// and unlink, which is always available.
+/// Remove Workspace when the review is merged, and unlink, which is always
+/// available.
 List<MobilePullRequestReviewAction> availablePullRequestReviewActions(
-  MobilePullRequestSnapshot snapshot,
-) {
+  MobilePullRequestSnapshot snapshot, {
+  bool offerRemoveWorkspace = true,
+}) {
   final review = snapshot.review;
   if (review == null) {
     return const <MobilePullRequestReviewAction>[];
@@ -197,6 +204,8 @@ List<MobilePullRequestReviewAction> availablePullRequestReviewActions(
     if (open && !review.isDraft)
       const MobilePullRequestReviewAction(kind: .convertToDraft),
     if (open) const MobilePullRequestReviewAction(kind: .close),
+    if (_isMerged(review) && offerRemoveWorkspace)
+      const MobilePullRequestReviewAction(kind: .removeWorkspace),
     const MobilePullRequestReviewAction(kind: .unlink),
   ];
 }
@@ -259,6 +268,9 @@ MobilePullRequestActionConfirmation pullRequestActionConfirmation(
       message: 'This will convert the pull request to draft on GitHub.',
       confirmLabel: 'Convert To Draft',
       destructive: false,
+    ),
+    .removeWorkspace => throw StateError(
+      'Remove Workspace uses the workspace removal dialog.',
     ),
   };
 }
