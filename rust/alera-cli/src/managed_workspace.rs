@@ -695,6 +695,10 @@ fn canonical_path(path: &str) -> String {
 }
 
 #[cfg(test)]
+#[path = "managed_workspace_source_branch_tests.rs"]
+mod managed_workspace_source_branch_tests;
+
+#[cfg(test)]
 mod tests {
     use std::path::Path;
     use std::process::Command as StdCommand;

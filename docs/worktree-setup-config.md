@@ -65,7 +65,7 @@ Like the worktree settings, this value can be stored in `alera.toml` or edited u
 
 ## Default Source Branch
 
-`new_workspace.source_branch` is the branch pre-selected in Source Branch pickers (New Workspace, including From Prompt) when that branch exists in the project. If the exact name is missing, Alera also tries the local or `origin/` twin. When the configured branch is absent, Alera keeps the previous fallback (`main`, then `master`, then the first listed branch). The value is a branch name, not a required Git ref at save time.
+`new_workspace.source_branch` is the branch pre-selected in Source Branch pickers (New Workspace, including From Prompt) when that branch exists in the project. If the exact name is missing, Alera also tries the local or `origin/` twin. Pickers then keep the previous fallback (`main`, then `master`, then the first listed branch). `alera workspace add --worktree` uses the same twin resolution when `--source-branch` is omitted, but does not fall back to `main`/`master`; a missing name still fails. The value is a branch name, not a required Git ref at save time.
 
 Desktop and mobile Settings > Projects can set the same field as a UI override. `alera workspace add --worktree` uses it when `--source-branch` is omitted. `alera workspace start` still infers from the current workspace first.
 

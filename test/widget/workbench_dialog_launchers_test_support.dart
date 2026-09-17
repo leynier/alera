@@ -13,6 +13,7 @@ import 'package:alera/src/features/workbench/domain/background_setup_job.dart';
 import 'package:alera/src/features/workbench/presentation/background_setup_job_host.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
+import 'package:alera/src/features/projects/application/project_config_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
 import 'package:alera/src/features/remote_hosts/infra/runtime_ssh_target_repository.dart';
@@ -27,12 +28,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../unit/fake_git_backend.dart';
+import '../unit/fake_project_config.dart';
 
 Future<void> pumpFlowHarness(
   WidgetTester tester, {
   required DialogLaunchersTestController controller,
   required Future<void> Function(BuildContext context, WidgetRef ref) onPressed,
 }) async {
+  final configRepository = FakeProjectConfigRepository();
+  addTearDown(configRepository.dispose);
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -44,6 +48,12 @@ Future<void> pumpFlowHarness(
           () => DialogLaunchersAgentProfiles(),
         ),
         gitBackendProvider.overrideWithValue(FakeGitBackend()),
+        projectConfigServiceProvider.overrideWithValue(
+          ProjectConfigService(
+            repository: configRepository,
+            fileStore: FakeProjectConfigFileStore(),
+          ),
+        ),
         sshTargetRepositoryProvider.overrideWithValue(
           RuntimeSshTargetRepository(_HarnessRuntimeHostClient()),
         ),
