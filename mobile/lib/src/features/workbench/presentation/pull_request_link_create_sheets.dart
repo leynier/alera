@@ -5,6 +5,7 @@ import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_dialog.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_actions.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/background_submission.dart';
 import 'package:flutter/material.dart';
 
 /// Asks for a pull request number or URL and pops with the trimmed value.
@@ -105,10 +106,7 @@ Future<void> showCreatePullRequestSheet(
   );
 }
 
-/// Form for a new pull request from the workspace branch. Like the comment
-/// composer, it keeps its fields while [onSubmit] runs and shows the error
-/// inline. [onGenerate], when set, fills the title and description with AI
-/// Assist for the selected base branch.
+/// Creates a pull request in the background, retaining the draft on failure.
 class const CreatePullRequestSheet({
   super.key,
   required final String? headBranch,
@@ -116,6 +114,7 @@ class const CreatePullRequestSheet({
   required final String? suggestedBaseBranch,
   required final Future<String?> Function(MobilePullRequestCreateInput input)
   onSubmit,
+  final MobilePullRequestCreateInput? initialInput,
   final Future<MobilePullRequestDetails> Function(String baseBranch)?
   onGenerate,
 }) extends StatefulWidget {
@@ -124,10 +123,14 @@ class const CreatePullRequestSheet({
 }
 
 class _CreatePullRequestSheetState extends State<CreatePullRequestSheet> {
-  final TextEditingController _title = TextEditingController();
-  final TextEditingController _body = TextEditingController();
+  late final TextEditingController _title = TextEditingController(
+    text: widget.initialInput?.title,
+  );
+  late final TextEditingController _body = TextEditingController(
+    text: widget.initialInput?.body,
+  );
   late String? _base = _initialBase();
-  bool _draft = false;
+  late bool _draft = widget.initialInput?.draft ?? false;
   bool _submitting = false;
   bool _generating = false;
   String? _error;
@@ -170,7 +173,8 @@ class _CreatePullRequestSheetState extends State<CreatePullRequestSheet> {
   ];
 
   String? _initialBase() {
-    final suggested = widget.suggestedBaseBranch;
+    final suggested =
+        widget.initialInput?.baseBranch ?? widget.suggestedBaseBranch;
     if (suggested != null && _bases.contains(suggested)) {
       return suggested;
     }
@@ -197,32 +201,27 @@ class _CreatePullRequestSheetState extends State<CreatePullRequestSheet> {
       );
       return;
     }
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    final navigator = Navigator.of(context);
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
-    final error = await widget.onSubmit((
+    _submitting = true;
+    final input = (
       baseBranch: base,
       title: title,
       body: _body.text,
       draft: _draft,
-    ));
-    if (!mounted) {
-      if (error != null) {
-        messenger?.showSnackBar(SnackBar(content: Text(error)));
-      }
-      return;
-    }
-    if (error == null) {
-      navigator.pop();
-      return;
-    }
-    setState(() {
-      _submitting = false;
-      _error = error;
-    });
+    );
+    final form = widget;
+    submitInBackground(
+      context,
+      title: 'Create pull request',
+      action: () => form.onSubmit(input),
+      restoreForm: (_) => CreatePullRequestSheet(
+        headBranch: form.headBranch,
+        baseBranches: form.baseBranches,
+        suggestedBaseBranch: form.suggestedBaseBranch,
+        initialInput: input,
+        onSubmit: form.onSubmit,
+        onGenerate: form.onGenerate,
+      ),
+    );
   }
 
   @override

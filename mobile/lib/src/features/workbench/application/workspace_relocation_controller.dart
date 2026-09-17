@@ -69,10 +69,35 @@ class WorkspaceRelocationController extends _$WorkspaceRelocationController {
     if (!state.busy) state = state.copyWith(confirmed: value);
   }
 
+  WorkspaceRelocationForm get draft => state;
+
+  void restoreDraft(WorkspaceRelocationForm draft) {
+    if (!state.busy) state = draft.copyWith(busy: false);
+  }
+
+  String? validate(WorkspaceSummary workspace) {
+    if (!state.confirmed) return 'Confirm the shared checkout impact first.';
+    if (workspace.id != workspaceId) return 'The selected task changed.';
+    if (workspace.isMain) {
+      final branch = state.useCurrentBranch
+          ? workspace.branch?.trim() ?? ''
+          : state.branch.trim();
+      if (branch.isEmpty || branch == 'HEAD') {
+        return 'Choose a branch before Hand Off.';
+      }
+      if (state.useCurrentBranch &&
+          (state.replacementBranch.trim().isEmpty || !state.moveChanges)) {
+        return 'Moving the current branch requires an existing replacement branch and all transferable changes.';
+      }
+    }
+    return null;
+  }
+
   Future<bool> submit(WorkspaceSummary workspace) async {
     if (state.busy) return false;
     final draft = state;
     final keepAlive = ref.keepAlive();
+    final keepClient = ref.listen(workspaceClientProvider(hostId), (_, _) {});
     state = state.copyWith(busy: true);
     try {
       if (!draft.confirmed) {
@@ -158,6 +183,7 @@ class WorkspaceRelocationController extends _$WorkspaceRelocationController {
         );
         ref.invalidate(workspaceListControllerProvider(hostId));
       }
+      keepClient.close();
       keepAlive.close();
     }
   }

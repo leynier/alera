@@ -4,6 +4,7 @@ import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_actions.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_source_control.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/background_submission.dart';
 import 'package:flutter/material.dart';
 
 /// Whether Ship should ask All vs Staged. A loaded snapshot with no entries
@@ -37,14 +38,14 @@ Future<void> showShipPullRequestSheet(
 }
 
 /// The phone's Ship: pick the base branch and what to commit, and the runtime
-/// does the rest. It keeps the choices while [onSubmit] runs and shows the
-/// error inline, like the other pull request sheets.
+/// does the rest in the background, retaining choices for failure recovery.
 class const ShipPullRequestSheet({
   super.key,
   required final String? headBranch,
   required final List<String> baseBranches,
   required final String? suggestedBaseBranch,
   final bool askWorkingTreeScope = true,
+  final MobilePullRequestShipInput? initialInput,
   required final Future<String?> Function(MobilePullRequestShipInput input)
   onSubmit,
 }) extends StatefulWidget {
@@ -62,11 +63,14 @@ class _ShipPullRequestSheetState extends State<ShipPullRequestSheet> {
   @override
   void initState() {
     super.initState();
-    _stagedOnly = !widget.askWorkingTreeScope;
+    _stagedOnly =
+        widget.initialInput?.stagedOnly ?? !widget.askWorkingTreeScope;
+    _draft = widget.initialInput?.draft ?? false;
   }
 
   String? _initialBase() {
-    final suggested = widget.suggestedBaseBranch;
+    final suggested =
+        widget.initialInput?.baseBranch ?? widget.suggestedBaseBranch;
     if (suggested != null && widget.baseBranches.contains(suggested)) {
       return suggested;
     }
@@ -82,31 +86,22 @@ class _ShipPullRequestSheetState extends State<ShipPullRequestSheet> {
       setState(() => _error = 'Select a base branch.');
       return;
     }
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    final navigator = Navigator.of(context);
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
-    final error = await widget.onSubmit((
-      baseBranch: base,
-      draft: _draft,
-      stagedOnly: _stagedOnly,
-    ));
-    if (!mounted) {
-      if (error != null) {
-        messenger?.showSnackBar(SnackBar(content: Text(error)));
-      }
-      return;
-    }
-    if (error == null) {
-      navigator.pop();
-      return;
-    }
-    setState(() {
-      _submitting = false;
-      _error = error;
-    });
+    _submitting = true;
+    final input = (baseBranch: base, draft: _draft, stagedOnly: _stagedOnly);
+    final form = widget;
+    submitInBackground(
+      context,
+      title: 'Ship changes',
+      action: () => form.onSubmit(input),
+      restoreForm: (_) => ShipPullRequestSheet(
+        headBranch: form.headBranch,
+        baseBranches: form.baseBranches,
+        suggestedBaseBranch: form.suggestedBaseBranch,
+        askWorkingTreeScope: form.askWorkingTreeScope,
+        initialInput: input,
+        onSubmit: form.onSubmit,
+      ),
+    );
   }
 
   @override

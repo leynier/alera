@@ -9,6 +9,7 @@ import 'package:alera_mobile/src/features/terminal/application/terminal_provider
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/background_operation_cards.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -232,6 +233,15 @@ Future<void> _openPullRequest(
       ],
       child: MaterialApp(
         theme: buildAleraMobileDarkTheme(),
+        builder: (context, child) => Stack(
+          children: [
+            child!,
+            const Align(
+              alignment: Alignment.bottomCenter,
+              child: BackgroundOperationCards(),
+            ),
+          ],
+        ),
         home:
             home ??
             const WorkspaceTabsScreen(hostId: 'host-1', workspace: _workspace),

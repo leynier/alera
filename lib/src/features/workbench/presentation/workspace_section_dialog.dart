@@ -5,6 +5,7 @@ import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_section.dart';
+import 'package:alera/src/features/workbench/presentation/background_submission.dart';
 import 'package:flutter/material.dart';
 
 Future<void> showWorkspaceSectionDialog(
@@ -29,11 +30,17 @@ class _SectionDialog extends StatefulWidget {
     required this.workspace,
     required this.applyToTree,
     required this.createMode,
+    this.initialName,
+    this.initialSectionId,
+    this.restoreSelection = false,
   });
   final WorkbenchController controller;
   final Workspace workspace;
   final bool applyToTree;
   final bool createMode;
+  final String? initialName;
+  final String? initialSectionId;
+  final bool restoreSelection;
   @override
   State<_SectionDialog> createState() => _SectionDialogState();
 }
@@ -50,7 +57,10 @@ class _SectionDialogState extends State<_SectionDialog> {
   @override
   void initState() {
     super.initState();
-    _selected = widget.workspace.sectionId;
+    _selected = widget.restoreSelection
+        ? widget.initialSectionId
+        : widget.workspace.sectionId;
+    _name.text = widget.initialName ?? '';
     _create = widget.createMode;
     _load();
   }
@@ -87,32 +97,42 @@ class _SectionDialogState extends State<_SectionDialog> {
       setState(() => _error = 'Enter a unique section name other than Others.');
       return;
     }
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    try {
-      if (widget.applyToTree) {
-        await widget.controller.saveWorkspaceSectionTree(
-          widget.workspace.id,
-          sectionId: _selected,
-          newName: _create ? name : null,
-        );
-      } else {
-        await widget.controller.saveWorkspaceSection(
-          widget.workspace.id,
-          sectionId: _selected,
-          newName: _create ? name : null,
-        );
-      }
-      if (mounted) Navigator.pop(context);
-    } catch (error) {
-      if (!mounted) return;
-      setState(() => _error = '$error');
-      await _load();
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
+    if (_saving) return;
+    _saving = true;
+    final form = widget;
+    final selected = _selected;
+    final create = _create;
+    submitInBackground(
+      context,
+      title: 'Save section',
+      successMessage: () => 'Section saved.',
+      operationKey: 'section/${form.workspace.id}',
+      action: () async {
+        if (form.applyToTree) {
+          await form.controller.saveWorkspaceSectionTree(
+            form.workspace.id,
+            sectionId: selected,
+            newName: create ? name : null,
+          );
+        } else {
+          await form.controller.saveWorkspaceSection(
+            form.workspace.id,
+            sectionId: selected,
+            newName: create ? name : null,
+          );
+        }
+        return null;
+      },
+      restoreForm: (_) => _SectionDialog(
+        controller: form.controller,
+        workspace: form.workspace,
+        applyToTree: form.applyToTree,
+        createMode: create,
+        initialName: name,
+        initialSectionId: selected,
+        restoreSelection: true,
+      ),
+    );
   }
 
   @override
@@ -123,7 +143,7 @@ class _SectionDialogState extends State<_SectionDialog> {
 
   @override
   Widget build(BuildContext context) => PopScope(
-    canPop: !_saving,
+    canPop: true,
     child: AleraDialog(
       maxWidth: AleraTokens.dialogWidth,
       child: SingleChildScrollView(

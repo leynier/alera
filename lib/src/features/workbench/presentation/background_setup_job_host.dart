@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:alera/src/app/app_navigation.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_job_card.dart';
+import 'package:alera/src/features/workbench/application/background_operations.dart';
 import 'package:alera/src/features/workbench/application/background_setup_jobs.dart';
 import 'package:alera/src/features/workbench/domain/background_setup_job.dart';
+import 'package:alera/src/features/workbench/presentation/background_operation_cards.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,7 +16,7 @@ class const BackgroundSetupJobHost({super.key}) extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final jobsState = ref.watch(backgroundSetupJobsProvider);
     final jobs = jobsState.visible;
-    if (jobs.isEmpty) {
+    if (jobs.isEmpty && ref.watch(backgroundOperationsProvider).isEmpty) {
       return const SizedBox.shrink();
     }
     return Align(
@@ -24,29 +26,37 @@ class const BackgroundSetupJobHost({super.key}) extends ConsumerWidget {
           right: AleraTokens.space16,
           bottom: AleraTokens.space48,
         ),
-        child: Column(
-          mainAxisSize: .min,
-          crossAxisAlignment: .end,
-          children: <Widget>[
-            for (var i = 0; i < jobs.length; i++) ...<Widget>[
-              _BackgroundSetupJobCard(
-                job: jobs[i],
-                onRetry: () => unawaited(_retry(ref, jobs[i])),
-                onCancel: jobs[i].canCancel
-                    ? () => unawaited(
-                        ref
-                            .read(backgroundSetupJobsProvider.notifier)
-                            .cancel(jobs[i].id),
-                      )
-                    : null,
-                onDismiss: () => ref
-                    .read(backgroundSetupJobsProvider.notifier)
-                    .dismiss(jobs[i].id),
-              ),
-              if (i < jobs.length - 1)
-                const SizedBox(height: AleraTokens.space8),
-            ],
-          ],
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height / 3,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: .min,
+              crossAxisAlignment: .end,
+              children: <Widget>[
+                const BackgroundOperationCards(),
+                for (var i = 0; i < jobs.length; i++) ...<Widget>[
+                  _BackgroundSetupJobCard(
+                    job: jobs[i],
+                    onRetry: () => unawaited(_retry(ref, jobs[i])),
+                    onCancel: jobs[i].canCancel
+                        ? () => unawaited(
+                            ref
+                                .read(backgroundSetupJobsProvider.notifier)
+                                .cancel(jobs[i].id),
+                          )
+                        : null,
+                    onDismiss: () => ref
+                        .read(backgroundSetupJobsProvider.notifier)
+                        .dismiss(jobs[i].id),
+                  ),
+                  if (i < jobs.length - 1)
+                    const SizedBox(height: AleraTokens.space8),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );

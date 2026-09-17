@@ -2,21 +2,20 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_dialog.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_relocation_controller.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/background_submission.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-Future<bool> showWorkspaceRelocationDialog(
+Future<void> showWorkspaceRelocationDialog(
   BuildContext context, {
   required String hostId,
   required WorkspaceSummary workspace,
-}) async =>
-    await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) =>
-          WorkspaceRelocationDialog(hostId: hostId, workspace: workspace),
-    ) ==
-    true;
+}) => showDialog<void>(
+  context: context,
+  barrierDismissible: true,
+  builder: (_) =>
+      WorkspaceRelocationDialog(hostId: hostId, workspace: workspace),
+);
 
 class const WorkspaceRelocationDialog({
   super.key,
@@ -34,7 +33,7 @@ class const WorkspaceRelocationDialog({
     final action = workspace.isMain ? 'Hand Off' : 'Hand On';
     final theme = Theme.of(context);
     return PopScope(
-      canPop: !state.busy,
+      canPop: true,
       child: AleraDialog(
         maxWidth: AleraTokens.emptyStateMaxWidth,
         child: SingleChildScrollView(
@@ -132,7 +131,7 @@ class const WorkspaceRelocationDialog({
                       child: OutlinedButton(
                         onPressed: state.busy
                             ? null
-                            : () => Navigator.of(context).pop(false),
+                            : () => Navigator.of(context).pop(),
                         child: const Text('Cancel'),
                       ),
                     ),
@@ -141,21 +140,63 @@ class const WorkspaceRelocationDialog({
                       child: FilledButton(
                         onPressed: state.busy || !state.confirmed
                             ? null
-                            : () async {
-                                final messenger = ScaffoldMessenger.of(context);
-                                final completed = await controller.submit(
-                                  workspace,
-                                );
-                                if (completed && context.mounted) {
-                                  final warning = ref.read(provider).warning;
-                                  if (warning != null) {
-                                    messenger.showSnackBar(
-                                      SnackBar(content: Text(warning)),
-                                    );
-                                  }
-                                  Navigator.of(context).pop(true);
+                            : () {
+                                final error = controller.validate(workspace);
+                                if (error != null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(error)),
+                                  );
+                                  return;
                                 }
+                                final draft = controller.draft;
+                                final container = ProviderScope.containerOf(
+                                  context,
+                                  listen: false,
+                                );
+                                String? warning;
+                                submitInBackground(
+                                  context,
+                                  title: 'Move workspace',
+                                  operationKey:
+                                      'relocation/$hostId/${workspace.id}',
+                                  bottomSheet: false,
+                                  action: () async {
+                                    final lease = container.listen(
+                                      provider,
+                                      (_, _) {},
+                                    );
+                                    try {
+                                      final completed = await controller.submit(
+                                        workspace,
+                                      );
+                                      warning = controller.draft.warning;
+                                      return completed
+                                          ? null
+                                          : controller.draft.error ??
+                                                'Workspace transfer failed.';
+                                    } finally {
+                                      lease.close();
+                                    }
+                                  },
+                                  successMessage: () =>
+                                      warning ?? 'Workspace moved.',
+                                  prepareRestore: () {
+                                    final lease = container.listen(
+                                      provider,
+                                      (_, _) {},
+                                    );
+                                    container
+                                        .read(provider.notifier)
+                                        .restoreDraft(draft);
+                                    return lease.close;
+                                  },
+                                  restoreForm: (_) => WorkspaceRelocationDialog(
+                                    hostId: hostId,
+                                    workspace: workspace,
+                                  ),
+                                );
                               },
+
                         child: Text(
                           state.busy
                               ? 'Moving…'

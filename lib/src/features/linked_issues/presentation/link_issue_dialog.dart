@@ -1,15 +1,12 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/linked_issues/application/linked_issue_repository.dart';
 import 'package:alera/src/features/linked_issues/domain/linked_issue_link_result.dart';
 import 'package:alera/src/features/linked_issues/presentation/issue_url_field.dart';
-import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
+import 'package:alera/src/features/workbench/presentation/background_submission.dart';
 import 'package:flutter/material.dart';
 
-/// Links (or replaces) the issue of one workspace. The dialog closes once the
-/// URL is stored; a failed fetch surfaces as a toast rather than keeping the
-/// user in the form, because the link itself already succeeded.
+/// Links an issue in the background; metadata fetch warnings do not undo the link.
 Future<void> showLinkIssueDialog(
   BuildContext context, {
   required LinkedIssueRepository repository,
@@ -57,49 +54,42 @@ class _LinkIssueDialogState extends State<_LinkIssueDialog> {
       setState(() => _error = 'Paste the URL of the issue to link.');
       return;
     }
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    try {
-      final result = await widget.repository.link(widget.workspaceId, url);
-      if (!mounted) {
-        return;
-      }
-      Navigator.of(context).pop();
-      _announce(result);
-    } catch (error) {
-      if (mounted) {
-        setState(() {
-          _saving = false;
-          _error = userFacingExceptionMessage(error);
-        });
-      }
-    }
+    if (_saving) return;
+    _saving = true;
+    final form = widget;
+    late LinkedIssueLinkResult result;
+    submitInBackground(
+      context,
+      title: 'Link issue',
+      operationKey: 'link-issue/${form.workspaceId}',
+      action: () async {
+        result = await form.repository.link(form.workspaceId, url);
+        return null;
+      },
+      successMessage: () => _resultMessage(result),
+      restoreForm: (_) => _LinkIssueDialog(
+        repository: form.repository,
+        workspaceId: form.workspaceId,
+        workspaceName: form.workspaceName,
+        initialUrl: url,
+      ),
+    );
   }
 
-  void _announce(LinkedIssueLinkResult result) {
+  String _resultMessage(LinkedIssueLinkResult result) {
     final failure = result.fetchError;
-    if (failure == null) {
-      AleraToast.publish(message: 'Issue linked', tone: .success);
-    } else if (failure.isUnsupported) {
-      AleraToast.publish(
-        message: 'Issue linked. No provider can read this tracker, so only the link is kept.',
-      );
-    } else {
-      AleraToast.publish(
-        message:
-            'Issue linked, but its details could not be read: ${failure.message}',
-        tone: .error,
-      );
+    if (failure == null) return 'Issue linked.';
+    if (failure.isUnsupported) {
+      return 'Issue linked. No provider can read this tracker, so only the link is kept.';
     }
+    return 'Issue linked, but its details could not be read: ${failure.message}';
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return PopScope(
-      canPop: !_saving,
+      canPop: true,
       child: AleraDialog(
         maxWidth: AleraTokens.dialogWidth,
         child: Padding(

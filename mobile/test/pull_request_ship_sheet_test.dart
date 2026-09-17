@@ -179,20 +179,29 @@ Future<void> _pumpSheet(
   Future<String?> Function(MobilePullRequestShipInput input)? onSubmit,
 }) async {
   await tester.pumpWidget(
-    MaterialApp(
-      theme: buildAleraMobileDarkTheme(),
-      home: Scaffold(
-        body: ShipPullRequestSheet(
-          headBranch: 'feat/ship',
-          baseBranches: const <String>['main'],
-          suggestedBaseBranch: 'main',
-          askWorkingTreeScope: askWorkingTreeScope,
-          onSubmit: onSubmit ?? (_) async => null,
+    ProviderScope(
+      child: MaterialApp(
+        theme: buildAleraMobileDarkTheme(),
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showShipPullRequestSheet(
+                context,
+                headBranch: 'feat/ship',
+                baseBranches: const ['main'],
+                suggestedBaseBranch: 'main',
+                askWorkingTreeScope: askWorkingTreeScope,
+                onSubmit: onSubmit ?? (_) async => null,
+              ),
+              child: const Text('Open'),
+            ),
+          ),
         ),
       ),
     ),
   );
-  await tester.pump();
+  await tester.tap(find.text('Open'));
+  await tester.pumpAndSettle();
 }
 
 Future<void> _openPullRequest(
