@@ -39,6 +39,7 @@ pub async fn run_terminal_host_server(
 
     let (inbox, mut rx) = mpsc::unbounded_channel::<ServerCommand>();
     let shutdown_signal = spawn_termination_listener(inbox.clone());
+    let watch_ticker = pull_request_watch_runtime::spawn(inbox.clone());
     let automation_wake = Arc::new(Notify::new());
     let automation_ticker = automation_scheduler::spawn(
         runtime_store.clone(),
@@ -69,6 +70,7 @@ pub async fn run_terminal_host_server(
         runtime_store,
         automation_wake,
         automations_active: false,
+        pull_request_watches: Default::default(),
         sessions: HashMap::new(),
         ssh_bootstrap_jobs: HashMap::new(),
         project_clone_jobs: HashMap::new(),
@@ -154,6 +156,8 @@ pub async fn run_terminal_host_server(
             break;
         }
     }
+    watch_ticker.abort();
+    let _ = watch_ticker.await;
     automation_ticker.abort();
     let _ = automation_ticker.await;
     if let Some(shutdown_signal) = shutdown_signal {

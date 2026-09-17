@@ -183,9 +183,11 @@ mod prompt_image_requests;
 mod prompt_image_store;
 mod pty_event_forwarder;
 mod pty_events;
+mod pull_request_watch_evaluation;
 mod pull_request_watch_requests;
 #[cfg(test)]
 mod pull_request_watch_requests_tests;
+mod pull_request_watch_runtime;
 mod push_delivery;
 mod remote_relay;
 mod request_payloads;
@@ -285,6 +287,7 @@ struct ServerActor {
     store: TerminalHostHistoryStore,
     runtime_store: RuntimeStore,
     automation_wake: Arc<Notify>,
+    pull_request_watches: pull_request_watch_runtime::WatchRuntime,
     automations_active: bool,
     sessions: HashMap<String, Session>,
     ssh_bootstrap_jobs: HashMap<String, SshBootstrapJobState>,
@@ -813,6 +816,23 @@ impl ServerActor {
             ServerCommand::ResourceSampleReady { snapshot } => {
                 self.handle_resource_sample_ready(snapshot)
             }
+            ServerCommand::PullRequestWatchTick => self.poll_pull_request_watches().await,
+            ServerCommand::PullRequestWatchSnapshot {
+                watch,
+                generation,
+                result,
+            } => {
+                self.finish_pull_request_watch_snapshot(*watch, generation, result)
+                    .await
+            }
+            ServerCommand::PullRequestWatchMerged {
+                watch,
+                generation,
+                result,
+            } => {
+                self.finish_pull_request_watch_merge(*watch, generation, result)
+                    .await
+            }
             ServerCommand::AutomationTick => self.handle_automation_tick().await,
             ServerCommand::AutomationSharedCleanupFinished { attempt, result } => {
                 self.finish_automation_shared_cleanup(&attempt, result)
@@ -1226,6 +1246,7 @@ mod tests {
             runtime_store: runtime_store.clone(),
             automation_wake: Arc::new(Notify::new()),
             automations_active: false,
+            pull_request_watches: Default::default(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::from([(
                 "remote".to_string(),
@@ -1313,6 +1334,7 @@ mod tests {
             runtime_store: runtime_store.clone(),
             automation_wake: Arc::new(Notify::new()),
             automations_active: false,
+            pull_request_watches: Default::default(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
@@ -1410,6 +1432,7 @@ mod tests {
             runtime_store: runtime_store.clone(),
             automation_wake: Arc::new(Notify::new()),
             automations_active: false,
+            pull_request_watches: Default::default(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
@@ -1502,6 +1525,7 @@ mod tests {
             runtime_store: runtime_store.clone(),
             automation_wake: Arc::new(Notify::new()),
             automations_active: false,
+            pull_request_watches: Default::default(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
@@ -1616,6 +1640,7 @@ mod tests {
             runtime_store: runtime_store.clone(),
             automation_wake: Arc::new(Notify::new()),
             automations_active: false,
+            pull_request_watches: Default::default(),
             sessions: HashMap::from([("term-1".to_string(), session)]),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
@@ -1703,6 +1728,7 @@ mod tests {
             runtime_store: runtime_store.clone(),
             automation_wake: Arc::new(Notify::new()),
             automations_active: false,
+            pull_request_watches: Default::default(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),

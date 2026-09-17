@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/features/agent_task_dispatch/application/agent_task_dispatch_service.dart';
+import 'package:alera_mobile/src/features/pull_requests/domain/mobile_pull_request_watch.dart';
 import 'package:alera_mobile/src/features/agent_task_dispatch/domain/agent_task_dispatch.dart';
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
@@ -99,7 +100,13 @@ Future<void> startPullRequestAgentWatch({
   }
   var binding = choice.binding;
   PullRequestAgentWatchDispatchMark? dispatched;
-  if (pullRequestAgentWatchInjectsOnStart(concerns)) {
+  final client = await ref.read(workspaceClientProvider(hostId).future);
+  final runtimeOwned =
+      client is MobilePullRequestWatchExecutionClient &&
+      (client as MobilePullRequestWatchExecutionClient)
+          .supportsPullRequestWatchExecution;
+  if (!context.mounted) return;
+  if (!runtimeOwned && pullRequestAgentWatchInjectsOnStart(concerns)) {
     final result = await completeAgentTaskDispatch(
       ref: ref,
       request: choice.request,
@@ -114,18 +121,22 @@ Future<void> startPullRequestAgentWatch({
       );
     }
   }
-  ref
-      .read(
-        pullRequestAgentWatchControllerProvider(hostId, workspaceId).notifier,
-      )
-      .start(
-        reviewNumber: review.number,
-        mode: mode,
-        binding: binding,
-        watchScope: watchScope,
-        lastDispatch: dispatched,
-        snapshot: snapshot,
-      );
+  try {
+    await ref
+        .read(
+          pullRequestAgentWatchControllerProvider(hostId, workspaceId).notifier,
+        )
+        .start(
+          reviewNumber: review.number,
+          mode: mode,
+          binding: binding,
+          watchScope: watchScope,
+          lastDispatch: dispatched,
+          snapshot: snapshot,
+        );
+  } on Object catch (error) {
+    if (context.mounted) _snack(context, 'Could not start watching. $error');
+  }
 }
 
 class const AgentTaskDispatchChoice({

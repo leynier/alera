@@ -12,6 +12,14 @@ class RuntimePullRequestWatchRepository {
   final RuntimeHostClient _client;
   final RuntimeChangeCoalescer _coalescer;
 
+  Future<bool> supportsExecution() async {
+    final client = _client;
+    return client is RuntimeHostCapabilityClient &&
+        await (client as RuntimeHostCapabilityClient).supportsRuntimeCapability(
+          'pullRequestWatchExecutionV1',
+        );
+  }
+
   Future<bool> isSupported() async {
     final client = _client;
     return client is RuntimeHostCapabilityClient &&

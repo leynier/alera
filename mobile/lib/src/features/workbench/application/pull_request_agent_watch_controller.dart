@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/features/pull_requests/application/pull_request_watch_controller.dart';
+import 'package:alera_mobile/src/features/pull_requests/domain/mobile_pull_request_watch.dart';
+
 import 'package:alera_mobile/src/app/lifecycle/app_lifecycle_controller.dart';
 import 'package:alera_mobile/src/features/agent_task_dispatch/application/agent_task_dispatch_service.dart';
 import 'package:alera_mobile/src/features/agent_task_dispatch/domain/agent_task_dispatch.dart';
@@ -24,9 +27,8 @@ part 'pull_request_agent_watch_controller.g.dart';
 
 final Logger _logger = Logger('PullRequestAgentWatchController');
 
-/// Client-side Watch and Fix for one workspace. `keepAlive` so leaving the
-/// Pull Request panel does not drop the session; polling pauses while the app
-/// is backgrounded and resumes with the next snapshot.
+/// Mirrors the runtime watch for the PR panel. Older hosts retain the local
+/// polling fallback, kept alive across panel navigation and paused in background.
 @Riverpod(keepAlive: true)
 class PullRequestAgentWatchController
     extends _$PullRequestAgentWatchController {
@@ -34,9 +36,39 @@ class PullRequestAgentWatchController
 
   var _inFlight = false;
   Timer? _timer;
+  bool _runtimeOwned = false;
 
   @override
   PullRequestAgentWatchSession? build(String hostId, String workspaceId) {
+    ref.listen(pullRequestWatchControllerProvider(hostId), (_, next) {
+      final snapshot = next.asData?.value;
+      if (snapshot == null || !snapshot.supported) return;
+      final watch = snapshot.byWorkspace[workspaceId];
+      if (watch == null && !_runtimeOwned) return;
+      _runtimeOwned = true;
+      _timer?.cancel();
+      _timer = null;
+      state = watch == null
+          ? null
+          : PullRequestAgentWatchSession(
+              hostId: hostId,
+              workspaceId: workspaceId,
+              reviewNumber: watch.reviewNumber,
+              mode: watch.merge
+                  ? PullRequestAgentWatchMode.fixAndMerge
+                  : PullRequestAgentWatchMode.fix,
+              binding: AgentTaskDispatchBinding(
+                tabId: watch.tabId,
+                profileId: watch.profileId,
+                label: watch.label,
+              ),
+              watchScope: PullRequestAgentWatchScope(
+                checks: watch.checks,
+                comments: watch.comments,
+                conflicts: watch.conflicts,
+              ),
+            );
+    });
     ref.onDispose(() {
       _timer?.cancel();
       _inFlight = false;
@@ -52,17 +84,64 @@ class PullRequestAgentWatchController
         unawaited(_poll());
       }
     });
-    return null;
+    final existing = ref
+        .read(pullRequestWatchControllerProvider(hostId))
+        .value
+        ?.byWorkspace[workspaceId];
+    if (existing == null) return null;
+    _runtimeOwned = true;
+    return PullRequestAgentWatchSession(
+      hostId: hostId,
+      workspaceId: workspaceId,
+      reviewNumber: existing.reviewNumber,
+      mode: existing.merge
+          ? PullRequestAgentWatchMode.fixAndMerge
+          : PullRequestAgentWatchMode.fix,
+      binding: AgentTaskDispatchBinding(
+        tabId: existing.tabId,
+        profileId: existing.profileId,
+        label: existing.label,
+      ),
+      watchScope: PullRequestAgentWatchScope(
+        checks: existing.checks,
+        comments: existing.comments,
+        conflicts: existing.conflicts,
+      ),
+    );
   }
 
-  void start({
+  Future<void> start({
     required int reviewNumber,
     required PullRequestAgentWatchMode mode,
     required AgentTaskDispatchBinding binding,
     PullRequestAgentWatchScope watchScope = PullRequestAgentWatchScope.defaults,
     PullRequestAgentWatchDispatchMark? lastDispatch,
     MobilePullRequestSnapshot? snapshot,
-  }) {
+  }) async {
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    if (!ref.mounted) return;
+    if (client is MobilePullRequestWatchExecutionClient &&
+        (client as MobilePullRequestWatchExecutionClient)
+            .supportsPullRequestWatchExecution) {
+      await (client as MobilePullRequestWatchExecutionClient)
+          .startPullRequestWatch(<String, Object?>{
+            'workspaceId': workspaceId,
+            'reviewNumber': reviewNumber,
+            'mode': mode.name,
+            'checks': watchScope.checks,
+            'comments': watchScope.comments,
+            'conflicts': watchScope.conflicts,
+            'tabId': binding.tabId,
+            'profileId': binding.profileId,
+            'label': binding.label,
+          });
+      if (!ref.mounted) return;
+      _runtimeOwned = true;
+      ref.invalidate(pullRequestWatchControllerProvider(hostId));
+      await ref.read(pullRequestWatchControllerProvider(hostId).future);
+      return;
+    }
+    _runtimeOwned = false;
     state = PullRequestAgentWatchSession(
       hostId: hostId,
       workspaceId: workspaceId,
@@ -76,7 +155,19 @@ class PullRequestAgentWatchController
     unawaited(_evaluate(panel: snapshot ?? _loadedPanel()));
   }
 
-  void stop() {
+  Future<void> stop() async {
+    if (_runtimeOwned) {
+      final client = await ref.read(workspaceClientProvider(hostId).future);
+      if (client is! MobilePullRequestWatchExecutionClient ||
+          !(client as MobilePullRequestWatchExecutionClient)
+              .supportsPullRequestWatchExecution) {
+        throw StateError('Update the runtime to stop this watch from mobile.');
+      }
+      await (client as MobilePullRequestWatchExecutionClient)
+          .stopPullRequestWatch(workspaceId);
+      if (!ref.mounted) return;
+      ref.invalidate(pullRequestWatchControllerProvider(hostId));
+    }
     _timer?.cancel();
     _timer = null;
     state = null;
@@ -89,7 +180,7 @@ class PullRequestAgentWatchController
   void _syncTimer() {
     final resumed =
         ref.read(appLifecycleControllerProvider) == AppLifecycleState.resumed;
-    if (state != null && resumed) {
+    if (!_runtimeOwned && state != null && resumed) {
       _timer ??= Timer.periodic(pollInterval, (_) => unawaited(_poll()));
       return;
     }
@@ -99,7 +190,7 @@ class PullRequestAgentWatchController
 
   Future<void> _poll() async {
     final session = state;
-    if (session == null) {
+    if (session == null || _runtimeOwned) {
       return;
     }
     try {
@@ -133,7 +224,7 @@ class PullRequestAgentWatchController
 
   Future<void> _evaluate({MobilePullRequestSnapshot? panel}) async {
     final session = state;
-    if (session == null || _inFlight) {
+    if (session == null || _runtimeOwned || _inFlight) {
       return;
     }
     _inFlight = true;
@@ -150,7 +241,7 @@ class PullRequestAgentWatchController
         case PullRequestAgentWatchAction.none:
           return;
         case PullRequestAgentWatchAction.stop:
-          stop();
+          await stop();
           return;
         case PullRequestAgentWatchAction.dispatch:
           await _dispatch(session, evaluation, resolved);

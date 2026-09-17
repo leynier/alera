@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
+
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/agent_task_dispatch/application/agent_task_dispatch_providers.dart';
 import 'package:alera/src/features/agent_task_dispatch/domain/agent_task_dispatch.dart';
@@ -15,12 +17,13 @@ import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_s
 import 'package:alera/src/features/pull_requests/infra/runtime_pull_request_watch_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
-import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:logging/logging.dart';
 
 part 'pull_request_agent_watch_providers.g.dart';
+part 'pull_request_agent_watch_persistence.dart';
 
 @Riverpod(keepAlive: true)
 RuntimePullRequestWatchRepository pullRequestAgentWatchRepository(Ref ref) {
@@ -31,10 +34,9 @@ RuntimePullRequestWatchRepository pullRequestAgentWatchRepository(Ref ref) {
 }
 
 @Riverpod(keepAlive: true)
-class PullRequestAgentWatchController
-    extends _$PullRequestAgentWatchController {
+class PullRequestAgentWatchController extends _$PullRequestAgentWatchController
+    with _PullRequestAgentWatchPersistence {
   final Set<String> _inFlight = <String>{};
-  final Set<String> _dirty = <String>{};
   PullRequestAgentWatchRecords _hostRecords =
       const PullRequestAgentWatchRecords();
   Timer? _timer;
@@ -46,15 +48,16 @@ class PullRequestAgentWatchController
       _inFlight.clear();
       _dirty.clear();
     });
-    final client = ref.watch(runtimeHostClientProvider);
-    final subscription = client.runtimeEvents.listen((event) {
-      if (event.name == 'pullRequestWatchChanged' ||
-          event.name == aleraRuntimeHostConnectedEvent) {
-        unawaited(_hydrateFromHost());
-      }
-    });
+    final subscription = ref
+        .watch(pullRequestAgentWatchRepositoryProvider)
+        .watchSnapshot()
+        .listen(
+          _applyHostRecords,
+          onError: (Object error, StackTrace stack) =>
+              Logger('PullRequestAgentWatch')
+                  .warning('Could not refresh runtime watches', error, stack),
+        );
     ref.onDispose(subscription.cancel);
-    unawaited(_hydrateFromHost());
     ref.listen<Set<String>>(
       workbenchControllerProvider.select(
         (workbench) => <String>{
@@ -80,14 +83,38 @@ class PullRequestAgentWatchController
   PullRequestAgentWatchSession? sessionFor(String workspaceId) =>
       state[workspaceId];
 
-  void start({
+  Future<void> start({
     required WorkspacePullRequestScope scope,
     required int reviewNumber,
     required PullRequestAgentWatchMode mode,
     required AgentTaskDispatchBinding binding,
     PullRequestAgentWatchScope watchScope = PullRequestAgentWatchScope.defaults,
     PullRequestAgentWatchDispatchMark? lastDispatch,
-  }) {
+  }) async {
+    final repository = ref.read(pullRequestAgentWatchRepositoryProvider);
+    if (await repository.supportsExecution() &&
+        ref
+                .read(workspacePullRequestControllerProvider(scope))
+                .asData
+                ?.value
+                .review
+                ?.provider ==
+            GitHostingProvider.github) {
+      await repository.upsert(
+        PullRequestAgentWatchRecord.fromSession(
+          PullRequestAgentWatchSession(
+            workspaceId: scope.workspaceId,
+            reviewNumber: reviewNumber,
+            mode: mode,
+            binding: binding,
+            scope: scope,
+            watchScope: watchScope,
+          ),
+        ),
+      );
+      await _hydrateFromHost();
+      return;
+    }
     final existing = state[scope.workspaceId];
     if (existing == null) {
       ref
@@ -111,7 +138,20 @@ class PullRequestAgentWatchController
     unawaited(_evaluate(scope.workspaceId));
   }
 
-  void stop(String workspaceId) {
+  Future<void> stop(String workspaceId) async {
+    final repository = ref.read(pullRequestAgentWatchRepositoryProvider);
+    if (await repository.supportsExecution()) {
+      try {
+        await repository.remove(workspaceId);
+        await _hydrateFromHost();
+      } on Object catch (error) {
+        AleraToast.publish(
+          message: 'Could not stop watching. $error',
+          tone: .error,
+        );
+      }
+      return;
+    }
     _remove(workspaceId, detach: true, persist: true);
   }
 
@@ -163,6 +203,13 @@ class PullRequestAgentWatchController
     }
     try {
       final snapshot = _snapshotFor(session, panel: panel);
+      if ((snapshot?.review == null ||
+              snapshot?.review?.provider == GitHostingProvider.github) &&
+          await ref
+              .read(pullRequestAgentWatchRepositoryProvider)
+              .supportsExecution()) {
+        return;
+      }
       final evaluation = evaluatePullRequestAgentWatch(
         session: session,
         snapshot: snapshot,
@@ -424,43 +471,5 @@ class PullRequestAgentWatchController
       }
     }
     return null;
-  }
-
-  void _persist(PullRequestAgentWatchSession session) {
-    _dirty.add(session.workspaceId);
-    unawaited(_push(session));
-  }
-
-  void _persistStop(String workspaceId) {
-    _dirty.add(workspaceId);
-    unawaited(_pushStop(workspaceId));
-  }
-
-  Future<void> _push(PullRequestAgentWatchSession session) async {
-    try {
-      final repository = ref.read(pullRequestAgentWatchRepositoryProvider);
-      if (!await repository.isSupported()) {
-        return;
-      }
-      await repository.upsert(PullRequestAgentWatchRecord.fromSession(session));
-    } on Object {
-      // Keep the in-memory watch if the host is gone or older.
-    } finally {
-      _dirty.remove(session.workspaceId);
-    }
-  }
-
-  Future<void> _pushStop(String workspaceId) async {
-    try {
-      final repository = ref.read(pullRequestAgentWatchRepositoryProvider);
-      if (!await repository.isSupported()) {
-        return;
-      }
-      await repository.remove(workspaceId);
-    } on Object {
-      // Local stop already happened.
-    } finally {
-      _dirty.remove(workspaceId);
-    }
   }
 }

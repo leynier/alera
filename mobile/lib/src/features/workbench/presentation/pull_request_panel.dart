@@ -209,14 +209,26 @@ class const _Body({
                 ),
               ),
               onStopAgentWatch: watching
-                  ? () => ref
-                        .read(
-                          pullRequestAgentWatchControllerProvider(
-                            hostId,
-                            workspaceId,
-                          ).notifier,
-                        )
-                        .stop()
+                  ? () async {
+                      try {
+                        await ref
+                            .read(
+                              pullRequestAgentWatchControllerProvider(
+                                hostId,
+                                workspaceId,
+                              ).notifier,
+                            )
+                            .stop();
+                      } on Object catch (error) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Could not stop watching. $error'),
+                            ),
+                          );
+                        }
+                      }
+                    }
                   : null,
             ),
           ),

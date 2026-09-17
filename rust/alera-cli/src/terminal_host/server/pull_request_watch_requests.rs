@@ -32,12 +32,32 @@ impl ServerActor {
                 serde_json::to_value(watch).map_err(state_error)
             }
             "pullRequestWatch.start" => {
-                let watch = self.resolve_watch(payload).await?;
+                let mut watch = self.resolve_watch(payload).await?;
+                if let Some(previous) = self
+                    .runtime_store
+                    .find_pull_request_watch(&watch.workspace_id)
+                    .await
+                    .map_err(state_error)?
+                {
+                    if previous.review_number == watch.review_number
+                        && previous.tab_id == watch.tab_id
+                        && previous.profile_id == watch.profile_id
+                    {
+                        // Retrying an activation after a lost response must not replay delivered work.
+                        watch.last_dispatch = watch.last_dispatch.or(previous.last_dispatch);
+                        watch.last_merged_head_sha =
+                            watch.last_merged_head_sha.or(previous.last_merged_head_sha);
+                    }
+                }
                 let stored = self
                     .runtime_store
                     .upsert_pull_request_watch(watch)
                     .await
                     .map_err(state_error)?;
+                self.pull_request_watches.cancel(&stored.workspace_id);
+                self.pull_request_watches.active = true;
+                self.cancel_shutdown_timer();
+                let _ = self.inbox.send(super::ServerCommand::PullRequestWatchTick);
                 self.broadcast_pull_request_watch_changed(Some(&stored.workspace_id));
                 serde_json::to_value(stored).map_err(state_error)
             }
@@ -48,6 +68,8 @@ impl ServerActor {
                     .remove_pull_request_watch(&workspace_id)
                     .await
                     .map_err(state_error)?;
+                self.pull_request_watches.cancel(&workspace_id);
+                let _ = self.inbox.send(super::ServerCommand::PullRequestWatchTick);
                 if removed {
                     self.broadcast_pull_request_watch_changed(Some(&workspace_id));
                 }

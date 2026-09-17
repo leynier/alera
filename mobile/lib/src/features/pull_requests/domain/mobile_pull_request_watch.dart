@@ -8,6 +8,9 @@ class const MobilePullRequestWatch({
   final bool checks = true,
   final bool comments = true,
   final bool conflicts = true,
+  final String? tabId,
+  final String? profileId,
+  final String? label,
 }) {
   factory fromJson(Map<String, Object?> json) => MobilePullRequestWatch(
     workspaceId: json.requiredString('workspaceId'),
@@ -16,6 +19,9 @@ class const MobilePullRequestWatch({
     checks: json['checks'] != false,
     comments: json['comments'] != false,
     conflicts: json['conflicts'] != false,
+    tabId: json.optionalString('tabId'),
+    profileId: json.optionalString('profileId'),
+    label: json.optionalString('label'),
   );
 
   bool get merge => mode == 'fixAndMerge';
@@ -41,4 +47,11 @@ class const MobilePullRequestWatchSnapshot({
 abstract interface class MobilePullRequestWatchClient {
   bool get supportsPullRequestWatch;
   Future<List<MobilePullRequestWatch>> listPullRequestWatches();
+}
+
+abstract interface class MobilePullRequestWatchExecutionClient
+    implements MobilePullRequestWatchClient {
+  bool get supportsPullRequestWatchExecution;
+  Future<void> startPullRequestWatch(Map<String, Object?> watch);
+  Future<void> stopPullRequestWatch(String workspaceId);
 }
