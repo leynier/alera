@@ -70,6 +70,12 @@ async fn run_inner(
     )
     .await?;
     let profile = resolve_selected_profile(&mut client, &args.selector).await?;
+    let resolved_section_id = crate::workspace_sections::resolve_optional_section_id(
+        &mut client,
+        args.section.as_deref(),
+        args.section_id.as_deref(),
+    )
+    .await?;
     let no_parent = args.no_parent || args.parent_workspace_id.is_none();
     let created = create_inferred_workspace(
         runtime,
@@ -101,6 +107,14 @@ async fn run_inner(
         .and_then(Value::as_str)
         .ok_or_else(|| anyhow!("workspace create returned no workspace id"))?
         .to_string();
+    if let Some(section_id) = resolved_section_id.as_deref() {
+        crate::workspace_sections::set_for_workspace_on_client(
+            &mut client,
+            &workspace_id,
+            Some(section_id),
+        )
+        .await?;
+    }
     let launch = launch_profile(
         &mut client,
         &workspace_id,
@@ -118,6 +132,9 @@ async fn run_inner(
         "name": workspace.get("name"),
         "workspace": workspace,
     });
+    if let Some(section_id) = &resolved_section_id {
+        envelope["sectionId"] = json!(section_id);
+    }
     match launch {
         Ok(launch) => {
             envelope
