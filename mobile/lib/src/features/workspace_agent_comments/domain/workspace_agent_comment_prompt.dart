@@ -2,7 +2,7 @@ import 'package:alera_mobile/src/features/workspace_agent_comments/domain/worksp
 
 // Ported from the desktop `workspace_agent_comment_prompt.dart` so an agent
 // receives the same prompt whichever surface the comments were written on.
-// Keep the two in sync.
+// Keep the two in sync, including mixed file+diff queues.
 const int workspaceAgentCommentMaxSnippetChars = 2000;
 const int workspaceAgentCommentMaxSnippetLines = 24;
 
@@ -41,8 +41,23 @@ String workspaceAgentCommentPrompt(List<WorkspaceAgentComment> comments) {
 }
 
 String _commentBlock(int number, WorkspaceAgentComment comment, String body) {
-  final buffer = StringBuffer('## $number. File `${comment.path}`');
+  final header = StringBuffer('## $number. ')
+    ..write(comment.kind == WorkspaceAgentCommentKind.diff ? 'Diff' : 'File')
+    ..write(' `${comment.path}`');
+  final area = comment.areaLabel?.trim();
+  if (area != null && area.isNotEmpty) {
+    header.write(' ($area)');
+  }
+  final hunk = comment.hunkHeader?.trim();
+  if (hunk != null && hunk.isNotEmpty) {
+    header.write(' hunk `$hunk`');
+  }
+  final range = comment.lineRange;
+  if (range != null) {
+    header.write(' ${range.label}');
+  }
   final snippet = capWorkspaceAgentCommentSnippet(comment.snippet);
+  final buffer = StringBuffer(header.toString());
   if (snippet != null) {
     buffer
       ..write('\n```\n')

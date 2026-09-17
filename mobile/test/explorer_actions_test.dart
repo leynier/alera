@@ -168,6 +168,7 @@ void main() {
     await tester.tap(find.text('Comment on File'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Rename the entry point');
+    await tester.pump();
     await tester.tap(find.text('Add Comment'));
     await tester.pumpAndSettle();
 
