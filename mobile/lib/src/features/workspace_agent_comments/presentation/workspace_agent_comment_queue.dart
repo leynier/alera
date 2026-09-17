@@ -14,8 +14,8 @@ import 'package:logging/logging.dart';
 
 final Logger _logger = Logger('WorkspaceAgentCommentQueue');
 
-/// Wires the comment draft bar to the workspace's queue and send flow. Renders
-/// nothing while the queue is empty.
+/// Wires the comment draft bar to the workspace's file+diff queue and send
+/// flow. Renders nothing while the queue is empty.
 class const WorkspaceAgentCommentQueue({
   super.key,
   required final String hostId,

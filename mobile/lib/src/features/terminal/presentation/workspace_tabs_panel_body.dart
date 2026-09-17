@@ -17,6 +17,7 @@ extension _WorkspaceTabsPanelBody on _WorkspaceTabsScreenState {
       WorkspacePanelDestination.sourceControl => SourceControlPanel(
         hostId: hostId,
         workspaceId: workspaceId,
+        onOpenTab: _openTab,
       ),
       WorkspacePanelDestination.pullRequest => PullRequestPanel(
         hostId: hostId,

@@ -8,23 +8,23 @@ part of 'workspace_agent_comment_controller.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Draft file comments for one workspace, held in memory like the desktop
-/// queue. `keepAlive` so switching panels does not discard them.
+/// Draft file and diff comments for one workspace, held in memory like the
+/// desktop queue. `keepAlive` so switching panels does not discard them.
 
 @ProviderFor(WorkspaceAgentCommentController)
 final workspaceAgentCommentControllerProvider =
     WorkspaceAgentCommentControllerFamily._();
 
-/// Draft file comments for one workspace, held in memory like the desktop
-/// queue. `keepAlive` so switching panels does not discard them.
+/// Draft file and diff comments for one workspace, held in memory like the
+/// desktop queue. `keepAlive` so switching panels does not discard them.
 final class WorkspaceAgentCommentControllerProvider
     extends
         $NotifierProvider<
           WorkspaceAgentCommentController,
           List<WorkspaceAgentComment>
         > {
-  /// Draft file comments for one workspace, held in memory like the desktop
-  /// queue. `keepAlive` so switching panels does not discard them.
+  /// Draft file and diff comments for one workspace, held in memory like the
+  /// desktop queue. `keepAlive` so switching panels does not discard them.
   WorkspaceAgentCommentControllerProvider._({
     required WorkspaceAgentCommentControllerFamily super.from,
     required (String, String) super.argument,
@@ -71,10 +71,10 @@ final class WorkspaceAgentCommentControllerProvider
 }
 
 String _$workspaceAgentCommentControllerHash() =>
-    r'26e6e45f6fbd1f4615092418f9f5b51c157750db';
+    r'9efc66b54ba466904525de4a91cb5e3f1f51e6d3';
 
-/// Draft file comments for one workspace, held in memory like the desktop
-/// queue. `keepAlive` so switching panels does not discard them.
+/// Draft file and diff comments for one workspace, held in memory like the
+/// desktop queue. `keepAlive` so switching panels does not discard them.
 
 final class WorkspaceAgentCommentControllerFamily extends $Family
     with
@@ -94,8 +94,8 @@ final class WorkspaceAgentCommentControllerFamily extends $Family
         isAutoDispose: false,
       );
 
-  /// Draft file comments for one workspace, held in memory like the desktop
-  /// queue. `keepAlive` so switching panels does not discard them.
+  /// Draft file and diff comments for one workspace, held in memory like the
+  /// desktop queue. `keepAlive` so switching panels does not discard them.
 
   WorkspaceAgentCommentControllerProvider call(
     String hostId,
@@ -109,8 +109,8 @@ final class WorkspaceAgentCommentControllerFamily extends $Family
   String toString() => r'workspaceAgentCommentControllerProvider';
 }
 
-/// Draft file comments for one workspace, held in memory like the desktop
-/// queue. `keepAlive` so switching panels does not discard them.
+/// Draft file and diff comments for one workspace, held in memory like the
+/// desktop queue. `keepAlive` so switching panels does not discard them.
 
 abstract class _$WorkspaceAgentCommentController
     extends $Notifier<List<WorkspaceAgentComment>> {
