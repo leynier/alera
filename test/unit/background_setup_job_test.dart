@@ -152,6 +152,7 @@ void main() {
       sourceBranch: 'main',
       parentWorkspaceId: 'parent-1',
       hostId: 'local',
+      autoAssignSection: true,
       clientMutationId: 'mut-1',
       originalLaunchWasIdempotent: true,
       setupStarted: false,
@@ -163,6 +164,7 @@ void main() {
       setupStarted: true,
     );
     expect(copied.created, created);
+    expect(copied.autoAssignSection, isTrue);
     expect(copied.clientMutationId, 'mut-2');
     expect(copied.originalLaunchWasIdempotent, isFalse);
     expect(copied.setupStarted, isTrue);

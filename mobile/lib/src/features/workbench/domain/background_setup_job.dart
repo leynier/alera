@@ -37,6 +37,7 @@ class const PromptWorkspaceCreateRequest({
   final bool useProjectCheckout = false,
   final String? parentWorkspaceId,
   final String? issueUrl,
+  final bool autoAssignSection = false,
   final WorkspaceCreationResult? created,
   final String? clientMutationId,
   final bool? originalLaunchWasIdempotent,
@@ -60,6 +61,7 @@ class const PromptWorkspaceCreateRequest({
       useProjectCheckout: useProjectCheckout,
       parentWorkspaceId: parentWorkspaceId,
       issueUrl: issueUrl,
+      autoAssignSection: autoAssignSection,
       created: created,
       clientMutationId: clientMutationId ?? this.clientMutationId,
       originalLaunchWasIdempotent:

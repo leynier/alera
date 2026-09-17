@@ -19,12 +19,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 part 'prompt_workspace_dialog_clipboard_test_cases.dart';
+part 'prompt_workspace_dialog_auto_assign_test_cases.dart';
 part 'prompt_workspace_dialog_mode_test_cases.dart';
 part 'prompt_workspace_dialog_shortcut_test_cases.dart';
 part 'prompt_workspace_dialog_test_support.dart';
 
 void main() {
   _registerPromptWorkspaceClipboardTests();
+  _registerPromptWorkspaceAutoAssignTests();
   _registerPromptWorkspaceModeTests();
   _registerPromptWorkspaceShortcutTests();
 
@@ -76,6 +78,7 @@ void main() {
                             required operationId,
                             required projectId,
                             required prompt,
+                            required autoAssignSection,
                           }) async {
                             generatedPrompt = prompt;
                             return const GeneratedWorkspaceIdentity(
@@ -216,6 +219,7 @@ void main() {
                           required operationId,
                           required projectId,
                           required prompt,
+                          required autoAssignSection,
                         }) async => const GeneratedWorkspaceIdentity(
                           workspaceName: 'Prompt Workspace',
                           branchName: 'feat/prompt-workspace',
@@ -380,6 +384,7 @@ void main() {
                           required operationId,
                           required projectId,
                           required prompt,
+                          required autoAssignSection,
                         }) async => const GeneratedWorkspaceIdentity(
                           workspaceName: 'Prompt Workspace',
                           branchName: 'feat/prompt-workspace',

@@ -68,7 +68,11 @@ pub(super) fn workspace_identity_prompt(
             lines.push(format!("- {}", section.name));
         }
     }
-    lines.extend([String::new(), "User task:".to_string(), initial_prompt.trim().to_string()]);
+    lines.extend([
+        String::new(),
+        "User task:".to_string(),
+        initial_prompt.trim().to_string(),
+    ]);
     if !custom_instructions.trim().is_empty() {
         lines.extend([
             String::new(),
@@ -79,7 +83,10 @@ pub(super) fn workspace_identity_prompt(
     lines.join("\n")
 }
 
-pub(super) fn parse_workspace_identity(raw: &str, sections: &[WorkspaceSection]) -> HostResult<Value> {
+pub(super) fn parse_workspace_identity(
+    raw: &str,
+    sections: &[WorkspaceSection],
+) -> HostResult<Value> {
     let trimmed = raw.trim();
     let unfenced = trimmed
         .strip_prefix("```json")

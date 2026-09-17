@@ -3,6 +3,7 @@ import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/workbench/application/deferred_workspace_setup_launcher.dart';
 import 'package:alera_mobile/src/features/workbench/domain/background_setup_job.dart';
+import 'package:logging/logging.dart';
 
 class PromptWorkspaceLaunchException implements Exception {
   PromptWorkspaceLaunchException({
@@ -74,6 +75,7 @@ Future<PromptWorkspaceCreateOutcome> runPromptWorkspaceCreate({
         operationId: operationId,
         projectId: request.projectId,
         prompt: identityPrompt,
+        autoAssignSection: request.autoAssignSection,
       );
     } finally {
       onOperationId?.call(null);
@@ -110,6 +112,18 @@ Future<PromptWorkspaceCreateOutcome> runPromptWorkspaceCreate({
               issueUrl: request.issueUrl,
             );
       creation = created;
+      final sectionId = request.autoAssignSection ? identity.sectionId : null;
+      if (sectionId != null && client is MobileWorkspaceSectionClient) {
+        try {
+          await client.setWorkspaceSection(created.workspace.id, sectionId);
+        } catch (error, stack) {
+          // Section assignment is best-effort: the workspace itself was
+          // already created, so a failure must not fail the flow.
+          Logger(
+            'PromptWorkspacePipeline',
+          ).warning('Could not assign workspace section', error, stack);
+        }
+      }
       final parentId = request.parentWorkspaceId?.trim();
       if (parentId != null && parentId.isNotEmpty) {
         try {
