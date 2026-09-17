@@ -20,6 +20,9 @@ class const WorkspaceAgentCommentQueue({
   super.key,
   required final String hostId,
   required final String workspaceId,
+
+  /// Opt-in jump to the tab that received the comments. Send itself never
+  /// selects a workspace or tab.
   final ValueChanged<String>? onOpenTab,
 }) extends ConsumerStatefulWidget {
   @override

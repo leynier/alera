@@ -46,7 +46,8 @@ class WorkspaceAgentCommentController
   void clear() => state = const <WorkspaceAgentComment>[];
 
   /// Delivers every queued comment as one prompt and returns the tab that
-  /// received it. The queue is cleared only after the host accepted the
+  /// received it. Does not select that tab or workspace; callers may offer an
+  /// opt-in Open action. The queue is cleared only after the host accepted the
   /// prompt, so a failed send keeps the comments for a retry.
   Future<String> sendTo(WorkspaceAgentCommentTarget target) async {
     final prompt = workspaceAgentCommentPrompt(state);
