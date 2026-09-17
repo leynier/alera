@@ -20,6 +20,7 @@ import 'package:alera_mobile/src/features/terminal/application/agent_presence_co
 import 'package:alera_mobile/src/features/terminal/application/tabs_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_tab_session.dart';
+import 'package:alera_mobile/src/features/terminal/presentation/agent_profile_launch_sheet.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_keys_settings_screen.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_tab_view.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
@@ -63,8 +64,8 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     switch (action) {
       case _NewTerminalTabAction():
         await _createTab();
-      case _NewAgentProfileTabAction(:final profileId):
-        await _launchProfileTab(profileId);
+      case _NewAgentProfileTabAction(:final profile):
+        await _launchProfileTab(profile);
     }
   }
 
@@ -76,37 +77,31 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
         .listNewTabMenuProfiles();
   }
 
-  Future<void> _launchProfileTab(String profileId) async {
-    if (_creating) {
+  Future<void> _launchProfileTab(AgentProfileSummary profile) async {
+    if (_creating || !profile.showInNewTabMenu) {
       return;
     }
-    setState(() {
-      _creating = true;
-    });
-    try {
-      final tabId = await ref
-          .read(
-            tabsControllerProvider(widget.hostId, widget.workspace.id).notifier,
-          )
-          .launchAgentProfileTab(profileId);
-      if (mounted) {
-        setState(() {
-          _selectedTabId = tabId;
-        });
-      }
-    } on Object catch (error, stackTrace) {
-      _logger.warning('could not launch agent profile tab', error, stackTrace);
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _creating = false;
-        });
-      }
-    }
+    await showAgentProfileLaunchSheet(
+      context,
+      profile: profile,
+      hostId: widget.hostId,
+      workspaceId: widget.workspace.id,
+      onLaunch: ({required prompt}) async {
+        final tabId = await ref
+            .read(
+              tabsControllerProvider(
+                widget.hostId,
+                widget.workspace.id,
+              ).notifier,
+            )
+            .launchAgentProfileTab(profile.id, prompt: prompt);
+        if (mounted) {
+          setState(() {
+            _selectedTabId = tabId;
+          });
+        }
+      },
+    );
   }
 
   Future<void> _createTab() async {

@@ -81,6 +81,8 @@ abstract final class const AleraIcons._() {
   static const IconData folderOff = LucideIcons.folderX;
   static const IconData file = LucideIcons.fileText;
   static const IconData fileGeneric = LucideIcons.file;
+  static const IconData attach = LucideIcons.paperclip;
+  static const IconData agent = LucideIcons.bot;
   static const IconData cloudOff = LucideIcons.cloudOff;
   static const IconData systemUpdate = LucideIcons.download;
   static const IconData contextCompact = LucideIcons.foldHorizontal;
