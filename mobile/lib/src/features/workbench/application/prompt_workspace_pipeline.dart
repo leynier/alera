@@ -119,9 +119,8 @@ Future<PromptWorkspaceCreateOutcome> runPromptWorkspaceCreate({
         } catch (error, stack) {
           // Section assignment is best-effort: the workspace itself was
           // already created, so a failure must not fail the flow.
-          Logger(
-            'PromptWorkspacePipeline',
-          ).warning('Could not assign workspace section', error, stack);
+          Logger('PromptWorkspacePipeline')
+              .warning('Could not assign workspace section', error, stack);
         }
       }
       final parentId = request.parentWorkspaceId?.trim();

@@ -97,9 +97,7 @@ class const PromptWorkspacePipeline({
           hostId: request.hostId,
           issueUrl: request.issueUrl,
         );
-        final sectionId = request.autoAssignSection
-            ? identity.sectionId
-            : null;
+        final sectionId = request.autoAssignSection ? identity.sectionId : null;
         final sectionAssignment = assignSection;
         if (sectionId != null && sectionAssignment != null) {
           try {
