@@ -22,23 +22,10 @@ applicationSearchEntries = buildSettingsSearchEntryCatalog(const {
     ),
   },
   'desktop': {
-    'Experimental Mode': SettingsSearchEntryDetails(
-      description: 'Use one primary terminal beside a tabbed panel. Applies to all workspaces.',
-      keywords: <String>[
-        'workspace',
-        'layout',
-        'primary',
-        'terminal',
-        'panel',
-        'tabs',
-        'experimental',
-        'classic',
-      ],
-    ),
     'New Workspace Tools': SettingsSearchEntryDetails(
-      description: 'Choose which Experimental tools open, and in what order, for workspaces created while Experimental Mode is on.',
+      description:
+          'Choose which tools open, and in what order, for new workspaces.',
       keywords: <String>[
-        'experimental',
         'tools',
         'tabs',
         'order',
@@ -47,6 +34,7 @@ applicationSearchEntries = buildSettingsSearchEntryCatalog(const {
         'source control',
         'pull request',
         'workspace',
+        'panel',
       ],
     ),
     'Show Tray Icon': SettingsSearchEntryDetails(

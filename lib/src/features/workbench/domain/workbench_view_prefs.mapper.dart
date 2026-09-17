@@ -412,8 +412,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
   static WorkbenchViewPrefsMapper ensureInitialized() {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = WorkbenchViewPrefsMapper._());
-      DesktopWorkspaceLayoutMapper.ensureInitialized();
-      ExperimentalWorkspacePanelMapper.ensureInitialized();
+      WorkspacePanelMapper.ensureInitialized();
       WorkbenchSortByMapper.ensureInitialized();
       WorkbenchGroupByMapper.ensureInitialized();
       WorkbenchContextPanelTabMapper.ensureInitialized();
@@ -422,7 +421,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       GitDiffGroupModeMapper.ensureInitialized();
       PullRequestCreateActionMapper.ensureInitialized();
       WorkspaceKindFilterMapper.ensureInitialized();
-      ExperimentalWorkspaceToolMapper.ensureInitialized();
+      WorkspaceToolMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -430,36 +429,14 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
   @override
   final String id = 'WorkbenchViewPrefs';
 
-  static DesktopWorkspaceLayout _$desktopLayout(WorkbenchViewPrefs v) =>
-      v.desktopLayout;
-  static const Field<WorkbenchViewPrefs, DesktopWorkspaceLayout>
-  _f$desktopLayout = Field(
-    'desktopLayout',
-    _$desktopLayout,
+  static Map<String, WorkspacePanel> _$workspacePanels(WorkbenchViewPrefs v) =>
+      v.workspacePanels;
+  static const Field<WorkbenchViewPrefs, Map<String, WorkspacePanel>>
+  _f$workspacePanels = Field(
+    'workspacePanels',
+    _$workspacePanels,
     opt: true,
-    def: DesktopWorkspaceLayout.classic,
-  );
-  static Map<String, ExperimentalWorkspacePanel> _$experimentalPanels(
-    WorkbenchViewPrefs v,
-  ) => v.experimentalPanels;
-  static const Field<
-    WorkbenchViewPrefs,
-    Map<String, ExperimentalWorkspacePanel>
-  >
-  _f$experimentalPanels = Field(
-    'experimentalPanels',
-    _$experimentalPanels,
-    opt: true,
-    def: const <String, ExperimentalWorkspacePanel>{},
-  );
-  static double _$experimentalRightSidebarWidth(WorkbenchViewPrefs v) =>
-      v.experimentalRightSidebarWidth;
-  static const Field<WorkbenchViewPrefs, double>
-  _f$experimentalRightSidebarWidth = Field(
-    'experimentalRightSidebarWidth',
-    _$experimentalRightSidebarWidth,
-    opt: true,
-    def: 280,
+    def: const <String, WorkspacePanel>{},
   );
   static WorkbenchSortBy _$sectionSort(WorkbenchViewPrefs v) => v.sectionSort;
   static const Field<WorkbenchViewPrefs, WorkbenchSortBy> _f$sectionSort =
@@ -574,6 +551,16 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     opt: true,
     def: 280,
   );
+  static Map<String, double> _$rightSidebarWidthByWorkspaceId(
+    WorkbenchViewPrefs v,
+  ) => v.rightSidebarWidthByWorkspaceId;
+  static const Field<WorkbenchViewPrefs, Map<String, double>>
+  _f$rightSidebarWidthByWorkspaceId = Field(
+    'rightSidebarWidthByWorkspaceId',
+    _$rightSidebarWidthByWorkspaceId,
+    opt: true,
+    def: const <String, double>{},
+  );
   static double _$sidebarWidth(WorkbenchViewPrefs v) => v.sidebarWidth;
   static const Field<WorkbenchViewPrefs, double> _f$sidebarWidth = Field(
     'sidebarWidth',
@@ -661,22 +648,19 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
         opt: true,
         def: false,
       );
-  static List<ExperimentalWorkspaceTool> _$experimentalNewWorkspaceTools(
-    WorkbenchViewPrefs v,
-  ) => v.experimentalNewWorkspaceTools;
-  static const Field<WorkbenchViewPrefs, List<ExperimentalWorkspaceTool>>
-  _f$experimentalNewWorkspaceTools = Field(
-    'experimentalNewWorkspaceTools',
-    _$experimentalNewWorkspaceTools,
+  static List<WorkspaceTool> _$newWorkspaceTools(WorkbenchViewPrefs v) =>
+      v.newWorkspaceTools;
+  static const Field<WorkbenchViewPrefs, List<WorkspaceTool>>
+  _f$newWorkspaceTools = Field(
+    'newWorkspaceTools',
+    _$newWorkspaceTools,
     opt: true,
-    def: const <ExperimentalWorkspaceTool>[],
+    def: const <WorkspaceTool>[],
   );
 
   @override
   final MappableFields<WorkbenchViewPrefs> fields = const {
-    #desktopLayout: _f$desktopLayout,
-    #experimentalPanels: _f$experimentalPanels,
-    #experimentalRightSidebarWidth: _f$experimentalRightSidebarWidth,
+    #workspacePanels: _f$workspacePanels,
     #sectionSort: _f$sectionSort,
     #collapsedSectionIds: _f$collapsedSectionIds,
     #othersSectionCollapsed: _f$othersSectionCollapsed,
@@ -694,6 +678,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     #sourceControlRootByWorkspaceId: _f$sourceControlRootByWorkspaceId,
     #rightSidebarVisible: _f$rightSidebarVisible,
     #rightSidebarWidth: _f$rightSidebarWidth,
+    #rightSidebarWidthByWorkspaceId: _f$rightSidebarWidthByWorkspaceId,
     #sidebarWidth: _f$sidebarWidth,
     #activeContextPanelTab: _f$activeContextPanelTab,
     #explorerMode: _f$explorerMode,
@@ -704,16 +689,14 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     #pullRequestCreateAction: _f$pullRequestCreateAction,
     #workspaceKindFilter: _f$workspaceKindFilter,
     #showActiveWorkspacesOnly: _f$showActiveWorkspacesOnly,
-    #experimentalNewWorkspaceTools: _f$experimentalNewWorkspaceTools,
+    #newWorkspaceTools: _f$newWorkspaceTools,
   };
 
   @override
   final MappingHook hook = const WorkbenchViewPrefsDecodeHook();
   static WorkbenchViewPrefs _instantiate(DecodingData data) {
     return WorkbenchViewPrefs(
-      desktopLayout: data.dec(_f$desktopLayout),
-      experimentalPanels: data.dec(_f$experimentalPanels),
-      experimentalRightSidebarWidth: data.dec(_f$experimentalRightSidebarWidth),
+      workspacePanels: data.dec(_f$workspacePanels),
       sectionSort: data.dec(_f$sectionSort),
       collapsedSectionIds: data.dec(_f$collapsedSectionIds),
       othersSectionCollapsed: data.dec(_f$othersSectionCollapsed),
@@ -733,6 +716,9 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       ),
       rightSidebarVisible: data.dec(_f$rightSidebarVisible),
       rightSidebarWidth: data.dec(_f$rightSidebarWidth),
+      rightSidebarWidthByWorkspaceId: data.dec(
+        _f$rightSidebarWidthByWorkspaceId,
+      ),
       sidebarWidth: data.dec(_f$sidebarWidth),
       activeContextPanelTab: data.dec(_f$activeContextPanelTab),
       explorerMode: data.dec(_f$explorerMode),
@@ -743,7 +729,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       pullRequestCreateAction: data.dec(_f$pullRequestCreateAction),
       workspaceKindFilter: data.dec(_f$workspaceKindFilter),
       showActiveWorkspacesOnly: data.dec(_f$showActiveWorkspacesOnly),
-      experimentalNewWorkspaceTools: data.dec(_f$experimentalNewWorkspaceTools),
+      newWorkspaceTools: data.dec(_f$newWorkspaceTools),
     );
   }
 
@@ -821,26 +807,22 @@ abstract class WorkbenchViewPrefsCopyWith<
   MapCopyWith<
     $R,
     String,
-    ExperimentalWorkspacePanel,
-    ExperimentalWorkspacePanelCopyWith<
-      $R,
-      ExperimentalWorkspacePanel,
-      ExperimentalWorkspacePanel
-    >
+    WorkspacePanel,
+    WorkspacePanelCopyWith<$R, WorkspacePanel, WorkspacePanel>
   >
-  get experimentalPanels;
+  get workspacePanels;
   MapCopyWith<$R, String, String, ObjectCopyWith<$R, String, String>>
   get sourceControlRootByWorkspaceId;
+  MapCopyWith<$R, String, double, ObjectCopyWith<$R, double, double>>
+  get rightSidebarWidthByWorkspaceId;
   ListCopyWith<
     $R,
-    ExperimentalWorkspaceTool,
-    ObjectCopyWith<$R, ExperimentalWorkspaceTool, ExperimentalWorkspaceTool>
+    WorkspaceTool,
+    ObjectCopyWith<$R, WorkspaceTool, WorkspaceTool>
   >
-  get experimentalNewWorkspaceTools;
+  get newWorkspaceTools;
   $R call({
-    DesktopWorkspaceLayout? desktopLayout,
-    Map<String, ExperimentalWorkspacePanel>? experimentalPanels,
-    double? experimentalRightSidebarWidth,
+    Map<String, WorkspacePanel>? workspacePanels,
     WorkbenchSortBy? sectionSort,
     Set<String>? collapsedSectionIds,
     bool? othersSectionCollapsed,
@@ -858,6 +840,7 @@ abstract class WorkbenchViewPrefsCopyWith<
     Map<String, String>? sourceControlRootByWorkspaceId,
     bool? rightSidebarVisible,
     double? rightSidebarWidth,
+    Map<String, double>? rightSidebarWidthByWorkspaceId,
     double? sidebarWidth,
     WorkbenchContextPanelTab? activeContextPanelTab,
     WorkspaceExplorerMode? explorerMode,
@@ -868,7 +851,7 @@ abstract class WorkbenchViewPrefsCopyWith<
     PullRequestCreateAction? pullRequestCreateAction,
     WorkspaceKindFilter? workspaceKindFilter,
     bool? showActiveWorkspacesOnly,
-    List<ExperimentalWorkspaceTool>? experimentalNewWorkspaceTools,
+    List<WorkspaceTool>? newWorkspaceTools,
   });
   WorkbenchViewPrefsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -887,17 +870,13 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
   MapCopyWith<
     $R,
     String,
-    ExperimentalWorkspacePanel,
-    ExperimentalWorkspacePanelCopyWith<
-      $R,
-      ExperimentalWorkspacePanel,
-      ExperimentalWorkspacePanel
-    >
+    WorkspacePanel,
+    WorkspacePanelCopyWith<$R, WorkspacePanel, WorkspacePanel>
   >
-  get experimentalPanels => MapCopyWith(
-    $value.experimentalPanels,
+  get workspacePanels => MapCopyWith(
+    $value.workspacePanels,
     (v, t) => v.copyWith.$chain(t),
-    (v) => call(experimentalPanels: v),
+    (v) => call(workspacePanels: v),
   );
   @override
   MapCopyWith<$R, String, String, ObjectCopyWith<$R, String, String>>
@@ -907,21 +886,26 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     (v) => call(sourceControlRootByWorkspaceId: v),
   );
   @override
+  MapCopyWith<$R, String, double, ObjectCopyWith<$R, double, double>>
+  get rightSidebarWidthByWorkspaceId => MapCopyWith(
+    $value.rightSidebarWidthByWorkspaceId,
+    (v, t) => ObjectCopyWith(v, $identity, t),
+    (v) => call(rightSidebarWidthByWorkspaceId: v),
+  );
+  @override
   ListCopyWith<
     $R,
-    ExperimentalWorkspaceTool,
-    ObjectCopyWith<$R, ExperimentalWorkspaceTool, ExperimentalWorkspaceTool>
+    WorkspaceTool,
+    ObjectCopyWith<$R, WorkspaceTool, WorkspaceTool>
   >
-  get experimentalNewWorkspaceTools => ListCopyWith(
-    $value.experimentalNewWorkspaceTools,
+  get newWorkspaceTools => ListCopyWith(
+    $value.newWorkspaceTools,
     (v, t) => ObjectCopyWith(v, $identity, t),
-    (v) => call(experimentalNewWorkspaceTools: v),
+    (v) => call(newWorkspaceTools: v),
   );
   @override
   $R call({
-    DesktopWorkspaceLayout? desktopLayout,
-    Map<String, ExperimentalWorkspacePanel>? experimentalPanels,
-    double? experimentalRightSidebarWidth,
+    Map<String, WorkspacePanel>? workspacePanels,
     WorkbenchSortBy? sectionSort,
     Set<String>? collapsedSectionIds,
     bool? othersSectionCollapsed,
@@ -939,6 +923,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     Map<String, String>? sourceControlRootByWorkspaceId,
     bool? rightSidebarVisible,
     double? rightSidebarWidth,
+    Map<String, double>? rightSidebarWidthByWorkspaceId,
     double? sidebarWidth,
     WorkbenchContextPanelTab? activeContextPanelTab,
     WorkspaceExplorerMode? explorerMode,
@@ -949,13 +934,10 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     PullRequestCreateAction? pullRequestCreateAction,
     WorkspaceKindFilter? workspaceKindFilter,
     bool? showActiveWorkspacesOnly,
-    List<ExperimentalWorkspaceTool>? experimentalNewWorkspaceTools,
+    List<WorkspaceTool>? newWorkspaceTools,
   }) => $apply(
     FieldCopyWithData({
-      if (desktopLayout != null) #desktopLayout: desktopLayout,
-      if (experimentalPanels != null) #experimentalPanels: experimentalPanels,
-      if (experimentalRightSidebarWidth != null)
-        #experimentalRightSidebarWidth: experimentalRightSidebarWidth,
+      if (workspacePanels != null) #workspacePanels: workspacePanels,
       if (sectionSort != null) #sectionSort: sectionSort,
       if (collapsedSectionIds != null)
         #collapsedSectionIds: collapsedSectionIds,
@@ -983,6 +965,8 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
       if (rightSidebarVisible != null)
         #rightSidebarVisible: rightSidebarVisible,
       if (rightSidebarWidth != null) #rightSidebarWidth: rightSidebarWidth,
+      if (rightSidebarWidthByWorkspaceId != null)
+        #rightSidebarWidthByWorkspaceId: rightSidebarWidthByWorkspaceId,
       if (sidebarWidth != null) #sidebarWidth: sidebarWidth,
       if (activeContextPanelTab != null)
         #activeContextPanelTab: activeContextPanelTab,
@@ -998,21 +982,12 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
         #workspaceKindFilter: workspaceKindFilter,
       if (showActiveWorkspacesOnly != null)
         #showActiveWorkspacesOnly: showActiveWorkspacesOnly,
-      if (experimentalNewWorkspaceTools != null)
-        #experimentalNewWorkspaceTools: experimentalNewWorkspaceTools,
+      if (newWorkspaceTools != null) #newWorkspaceTools: newWorkspaceTools,
     }),
   );
   @override
   WorkbenchViewPrefs $make(CopyWithData data) => WorkbenchViewPrefs(
-    desktopLayout: data.get(#desktopLayout, or: $value.desktopLayout),
-    experimentalPanels: data.get(
-      #experimentalPanels,
-      or: $value.experimentalPanels,
-    ),
-    experimentalRightSidebarWidth: data.get(
-      #experimentalRightSidebarWidth,
-      or: $value.experimentalRightSidebarWidth,
-    ),
+    workspacePanels: data.get(#workspacePanels, or: $value.workspacePanels),
     sectionSort: data.get(#sectionSort, or: $value.sectionSort),
     collapsedSectionIds: data.get(
       #collapsedSectionIds,
@@ -1066,6 +1041,10 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
       #rightSidebarWidth,
       or: $value.rightSidebarWidth,
     ),
+    rightSidebarWidthByWorkspaceId: data.get(
+      #rightSidebarWidthByWorkspaceId,
+      or: $value.rightSidebarWidthByWorkspaceId,
+    ),
     sidebarWidth: data.get(#sidebarWidth, or: $value.sidebarWidth),
     activeContextPanelTab: data.get(
       #activeContextPanelTab,
@@ -1091,9 +1070,9 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
       #showActiveWorkspacesOnly,
       or: $value.showActiveWorkspacesOnly,
     ),
-    experimentalNewWorkspaceTools: data.get(
-      #experimentalNewWorkspaceTools,
-      or: $value.experimentalNewWorkspaceTools,
+    newWorkspaceTools: data.get(
+      #newWorkspaceTools,
+      or: $value.newWorkspaceTools,
     ),
   );
 

@@ -257,6 +257,7 @@ class _FakeTerminalSessionHandle({
       key: key,
       focusNode: focusNode,
       autofocus: autofocus,
+      skipTraversal: true,
       onKeyEvent: onKeyEvent,
       child: Center(
         key: ValueKey<String>('fake-terminal-${tab.id}'),
@@ -270,9 +271,12 @@ class _FakeTerminalSessionHandle({
   @override
   void requestFocus() {
     requestFocusCalls += 1;
-    if (focusNode.context != null) {
-      focusNode.requestFocus();
-    }
+    // Match production: the new tab is often not mounted until the next frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (focusNode.context != null) {
+        focusNode.requestFocus();
+      }
+    });
   }
 
   @override

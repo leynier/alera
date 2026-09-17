@@ -1,6 +1,6 @@
-import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
-import 'package:alera/src/features/workbench/presentation/experimental_workspace_panel_view.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_panel_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -14,10 +14,10 @@ void main() {
               String key,
               String targetGroupId,
               WorkbenchDropZone zone,
-              ExperimentalPanelTree source,
+              WorkspacePanelTree source,
             })
           >[];
-      final panel = const ExperimentalWorkspacePanel(primaryTabId: 'primary')
+      final panel = const WorkspacePanel(primaryTabId: 'primary')
           .select('tool:search');
       await tester.pumpWidget(
         MaterialApp(
@@ -29,7 +29,7 @@ void main() {
                 children: <Widget>[
                   SizedBox(
                     width: 360,
-                    child: ExperimentalWorkspacePanelView(
+                    child: WorkspacePanelView(
                       workspaceId: 'workspace',
                       panel: panel,
                       tabs: const [],
@@ -48,9 +48,9 @@ void main() {
                     ),
                   ),
                   Expanded(
-                    child: ExperimentalMainDropSurface(
+                    child: WorkspaceMainDropSurface(
                       workspaceId: 'workspace',
-                      groupId: 'workspace/experimental-main',
+                      groupId: 'workspace/workspace-main',
                       onMoveTab:
                           ({
                             required key,
@@ -90,8 +90,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(moves, isNotEmpty);
       expect(moves.single.key, 'tool:search');
-      expect(moves.single.source, ExperimentalPanelTree.right);
-      expect(moves.single.targetGroupId, 'workspace/experimental-main');
+      expect(moves.single.source, WorkspacePanelTree.right);
+      expect(moves.single.targetGroupId, 'workspace/workspace-main');
     },
   );
 }

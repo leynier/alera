@@ -30,18 +30,8 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      '015f20186c958770a1b7365fe1b457b0e4663bc06d4166b37405457ba0a3788a',
+      '6fbadb85c688878bcfedd1cd17dd0911c23892ace81121a9234bd1d9f4df6fe6',
     );
-  });
-
-  test('global experimental mode is searchable under Desktop', () {
-    final entry = applicationSearchEntries.singleWhere(
-      (entry) => entry.title == 'Experimental Mode',
-    );
-    expect(entry.groupId, 'desktop');
-    expect(entry.matches('experimental'), isTrue);
-    expect(entry.matches('classic'), isTrue);
-    expect(entry.matches('layout'), isTrue);
   });
 
   test('new workspace tools are searchable under Desktop', () {

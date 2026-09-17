@@ -4,14 +4,17 @@ mixin _WorkbenchControllerWorkspaceSleep
     on
         _$WorkbenchController,
         _WorkbenchControllerInternals,
-        _WorkbenchControllerExperimentalLayout,
+        _WorkbenchControllerWorkspacePanel,
         _WorkbenchControllerTabOpening {
   Future<void> sleepWorkspace(Workspace workspace) async {
     try {
       final workspaceTabs = state.tabsFor(workspace.id);
       _closingTabWorkspaceIds.add(workspace.id);
       _workspaceIdsWithClearedLayout.add(workspace.id);
+      _workspaceSleepGeneration[workspace.id] =
+          (_workspaceSleepGeneration[workspace.id] ?? 0) + 1;
       _tabFocusHistory.forget(workspace.id);
+      _panelSelectionRevisionByWorkspace.remove(workspace.id);
       await _repository.removeWorkspaceTabsForWorkspace(workspace.id);
       for (final tab in workspaceTabs) {
         await _releaseHostedReviewTab(workspace, tab);
@@ -28,7 +31,14 @@ mixin _WorkbenchControllerWorkspaceSleep
       )..remove(workspace.id);
       final wasActive = state.activeWorkspaceId == workspace.id;
       final prefs = state.viewPrefs;
-      final nextPrefs = prefs;
+      var nextPrefs = prefs;
+      if (prefs.rightSidebarWidthByWorkspaceId.containsKey(workspace.id)) {
+        nextPrefs = prefs.copyWith(
+          rightSidebarWidthByWorkspaceId: Map<String, double>.from(
+            prefs.rightSidebarWidthByWorkspaceId,
+          )..remove(workspace.id),
+        );
+      }
 
       state = state.copyWith(
         tabsByWorkspace: tabsByWorkspace,
@@ -41,6 +51,7 @@ mixin _WorkbenchControllerWorkspaceSleep
       if (!identical(nextPrefs, prefs)) {
         unawaited(_persistViewPrefs());
       }
+      _pruneExplorerSessions();
     } catch (error) {
       _workspaceIdsWithClearedLayout.remove(workspace.id);
       state = state.copyWith(error: error.toString());

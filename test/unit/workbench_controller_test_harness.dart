@@ -273,6 +273,7 @@ class _FakeProjectRepository(final List<Project> _projects)
   final StreamController<List<Project>> _projectsController =
       StreamController<List<Project>>.broadcast();
   Object? listAllError;
+  Completer<void>? listAllGate;
   Object? addError;
   Object? updateError;
   Object? removeError;
@@ -281,6 +282,10 @@ class _FakeProjectRepository(final List<Project> _projects)
   Future<List<Project>> listAll() async {
     if (listAllError case final Object error) {
       throw error;
+    }
+    final gate = listAllGate;
+    if (gate != null && !gate.isCompleted) {
+      await gate.future;
     }
     return List<Project>.from(_projects);
   }
@@ -337,8 +342,16 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   _tabControllers = <String, StreamController<List<WorkspaceTabRecord>>>{};
   Future<WorkbenchLayout?>? _findWorkbenchLayoutOverride;
   Object? upsertWorkspaceError, upsertWorkspaceTabError;
+  Completer<void>? upsertWorkspaceTabGate;
+  Completer<void>? upsertWorkspaceTabReleaseGate;
+  Completer<void>? removeWorkspaceTabGate;
+  Completer<void>? findWorkspaceTabByIdGate;
+  Completer<void>? findWorkspaceTabByIdReleaseGate;
+  Completer<void>? listWorkspaceTabsGate;
   Object? upsertWorkbenchLayoutError, removeWorkspaceTabError;
+  final Map<String, Object> removeWorkspaceTabErrorsById = <String, Object>{};
   int upsertWorkbenchLayoutCalls = 0;
+  int upsertWorkspaceTabCalls = 0;
   @override
   Future<List<Workspace>> listWorkspaces(String projectId) async {
     return List<Workspace>.from(
@@ -451,6 +464,11 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
 
   @override
   Future<List<WorkspaceTabRecord>> listWorkspaceTabs(String workspaceId) async {
+    final gate = listWorkspaceTabsGate;
+    if (gate != null && !gate.isCompleted) {
+      listWorkspaceTabsGate = null;
+      await gate.future;
+    }
     return List<WorkspaceTabRecord>.from(
       _tabsByWorkspace[workspaceId] ?? const <WorkspaceTabRecord>[],
     );
@@ -468,14 +486,29 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
 
   @override
   Future<WorkspaceTabRecord?> findWorkspaceTabById(String tabId) async {
+    final gate = findWorkspaceTabByIdGate;
+    if (gate != null && !gate.isCompleted) {
+      findWorkspaceTabByIdGate = null;
+      await gate.future;
+    }
+    WorkspaceTabRecord? found;
     for (final tabs in _tabsByWorkspace.values) {
       for (final tab in tabs) {
         if (tab.id == tabId) {
-          return tab;
+          found = tab;
+          break;
         }
       }
+      if (found != null) {
+        break;
+      }
     }
-    return null;
+    final releaseGate = findWorkspaceTabByIdReleaseGate;
+    if (releaseGate != null && !releaseGate.isCompleted) {
+      findWorkspaceTabByIdReleaseGate = null;
+      await releaseGate.future;
+    }
+    return found;
   }
 
   @override
@@ -492,8 +525,14 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
     WorkspaceTabRecord tab, {
     bool manualRename = false,
   }) async {
+    upsertWorkspaceTabCalls += 1;
     if (upsertWorkspaceTabError case final Object error) {
       throw error;
+    }
+    final gate = upsertWorkspaceTabGate;
+    if (gate != null && !gate.isCompleted) {
+      upsertWorkspaceTabGate = null;
+      await gate.future;
     }
     // Tab IDs are globally unique in the authoritative runtime store.
     for (final entry in _tabsByWorkspace.entries) {
@@ -520,6 +559,11 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
     _tabControllers[tab.workspaceId]?.add(
       List<WorkspaceTabRecord>.from(current),
     );
+    final releaseGate = upsertWorkspaceTabReleaseGate;
+    if (releaseGate != null && !releaseGate.isCompleted) {
+      upsertWorkspaceTabReleaseGate = null;
+      await releaseGate.future;
+    }
     return tab;
   }
 
@@ -569,8 +613,16 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
 
   @override
   Future<void> removeWorkspaceTab(String tabId) async {
+    if (removeWorkspaceTabErrorsById[tabId] case final Object error) {
+      throw error;
+    }
     if (removeWorkspaceTabError case final Object error) {
       throw error;
+    }
+    final gate = removeWorkspaceTabGate;
+    if (gate != null && !gate.isCompleted) {
+      removeWorkspaceTabGate = null;
+      await gate.future;
     }
     for (final entry in _tabsByWorkspace.entries) {
       final previousLength = entry.value.length;

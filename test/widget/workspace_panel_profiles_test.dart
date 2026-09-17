@@ -1,7 +1,7 @@
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
-import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
-import 'package:alera/src/features/workbench/presentation/experimental_workspace_panel_view.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_panel_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -19,9 +19,9 @@ void main() {
             child: SizedBox(
               width: 800,
               height: 500,
-              child: ExperimentalWorkspacePanelView(
+              child: WorkspacePanelView(
                 workspaceId: 'workspace',
-                panel: const ExperimentalWorkspacePanel(
+                panel: const WorkspacePanel(
                   tabKeys: ['tool:search'],
                   activeKey: 'tool:search',
                 ),
@@ -85,8 +85,8 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: ExperimentalWorkspacePanelView(
-            panel: const ExperimentalWorkspacePanel(),
+          body: WorkspacePanelView(
+            panel: const WorkspacePanel(),
             tabs: const [],
             onSelect: (_) {},
             onClose: (_) {},

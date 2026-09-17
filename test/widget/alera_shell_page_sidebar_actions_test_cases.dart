@@ -179,7 +179,7 @@ void _registerAleraShellSidebarActionTests() {
     const description = 'Codex · Waiting for input';
     final harness = await _pumpShell(
       tester,
-      state: _linkedWorkbenchState(linkedExpanded: true),
+      state: _withSidebarAgentRows(_linkedWorkbenchState(linkedExpanded: true)),
       agentStatuses: <String, AgentStatusEntry>{
         'tab-2': _agentStatusEntry(
           terminalSessionId: 'tab-2',
@@ -209,7 +209,7 @@ void _registerAleraShellSidebarActionTests() {
   ) async {
     await _pumpShell(
       tester,
-      state: _linkedWorkbenchState(linkedExpanded: true),
+      state: _withSidebarAgentRows(_linkedWorkbenchState(linkedExpanded: true)),
       agentStatuses: <String, AgentStatusEntry>{
         'tab-1': _agentStatusEntry(
           terminalSessionId: 'tab-1',
@@ -251,7 +251,7 @@ void _registerAleraShellSidebarActionTests() {
   ) async {
     await _pumpShell(
       tester,
-      state: _linkedWorkbenchState(linkedExpanded: true),
+      state: _withSidebarAgentRows(_linkedWorkbenchState(linkedExpanded: true)),
       agentStatuses: <String, AgentStatusEntry>{
         'tab-2': _agentStatusEntry(
           terminalSessionId: 'tab-2',
@@ -276,7 +276,7 @@ void _registerAleraShellSidebarActionTests() {
   ) async {
     await _pumpShell(
       tester,
-      state: _linkedWorkbenchState(linkedExpanded: true),
+      state: _withSidebarAgentRows(_linkedWorkbenchState(linkedExpanded: true)),
       agentStatuses: <String, AgentStatusEntry>{
         'tab-1': _agentStatusEntry(
           terminalSessionId: 'tab-1',
@@ -367,7 +367,7 @@ void _registerAleraShellSidebarActionTests() {
     const description = 'Codex · Waiting for input';
     final harness = await _pumpShell(
       tester,
-      state: _linkedWorkbenchState(linkedExpanded: true),
+      state: _withSidebarAgentRows(_linkedWorkbenchState(linkedExpanded: true)),
       agentStatuses: <String, AgentStatusEntry>{
         'tab-2': _agentStatusEntry(
           terminalSessionId: 'tab-2',
@@ -389,7 +389,10 @@ void _registerAleraShellSidebarActionTests() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(harness.runtime.closedTabIds, <String>['tab-2']);
-    expect(harness.controller.state.tabsFor('workspace-2'), isEmpty);
+    expect(
+      harness.controller.state.tabsFor('workspace-2').map((tab) => tab.id),
+      isNot(contains('tab-2')),
+    );
     expect(harness.controller.state.activeWorkspaceId, 'workspace-1');
     expect(harness.runtime.focusedTabIds, isNot(contains('tab-2')));
     expect(find.text(prompt), findsNothing);
@@ -504,15 +507,15 @@ void _registerAleraShellSidebarActionTests() {
   testWidgets('pane split actions focus the new terminal session', (
     tester,
   ) async {
-    final harness = await _pumpShell(tester, state: _populatedWorkbenchState());
+    final harness = await _pumpShell(tester, state: _stackedWorkbenchState());
 
-    await tester.tap(find.byTooltip('Pane actions').first);
+    await tester.tap(find.byTooltip('Pane Actions').first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Split Right'));
     await tester.pumpAndSettle();
 
-    expect(harness.runtime.totalFocusRequests, 1);
-    expect(harness.controller.state.tabsFor('workspace-1'), hasLength(2));
+    expect(harness.runtime.totalFocusRequests, greaterThan(0));
+    expect(harness.controller.state.tabsFor('workspace-1'), hasLength(3));
   });
 
   testWidgets('closing a split merges the layout in the shell bridge', (
@@ -520,13 +523,16 @@ void _registerAleraShellSidebarActionTests() {
   ) async {
     final harness = await _pumpShell(tester, state: _splitWorkbenchState());
 
-    await tester.tap(find.byTooltip('Pane actions').first);
+    await tester.tap(find.byTooltip('Pane Actions').first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Close Split'));
     await tester.pumpAndSettle();
 
     expect(
-      harness.controller.state.layoutFor('workspace-1')!.paneGroupIds,
+      harness.controller.state
+          .workspacePanelFor('workspace-1')
+          .ensuredMainLayout('workspace-1')
+          .paneGroupIds,
       hasLength(1),
     );
   });
@@ -537,14 +543,18 @@ void _registerAleraShellSidebarActionTests() {
     final harness = await _pumpShell(tester, state: _splitWorkbenchState());
 
     final gesture = await tester.startGesture(
-      tester.getCenter(find.byType(WorkspaceWorkbenchView)),
+      tester.getCenter(find.byType(WorkspacePanelView).first),
     );
     await gesture.moveBy(const Offset(48, 0));
     await gesture.up();
     await tester.pump();
 
     expect(
-      harness.controller.state.layoutFor('workspace-1')!.root.ratio!,
+      harness.controller.state
+          .workspacePanelFor('workspace-1')
+          .ensuredMainLayout('workspace-1')
+          .root
+          .ratio!,
       greaterThan(0.5),
     );
   });

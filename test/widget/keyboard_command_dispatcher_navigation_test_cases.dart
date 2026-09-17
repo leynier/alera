@@ -33,6 +33,15 @@ WorkbenchLayout _splitLayout({
   );
 }
 
+WorkspacePanel _splitMainPanel({
+  required WorkbenchLayout layout,
+  required String focusedTabId,
+}) {
+  return const WorkspacePanel()
+      .applyMainLayout(layout)
+      .select(WorkspacePanel.tabKey(focusedTabId));
+}
+
 /// Two side-by-side pane scopes whose terminals are the runtime's fake
 /// handles, so a dispatched focus command moves the real primary focus.
 Widget _twoPaneBody(
@@ -41,19 +50,19 @@ Widget _twoPaneBody(
   required Workspace workspace,
   required WorkspaceTabRecord leftTab,
   required WorkspaceTabRecord rightTab,
-  required String leftGroupId,
-  required String rightGroupId,
   bool autofocusLeft = true,
   Widget? leading,
 }) {
   final registry = ref.read(workbenchPaneFocusRegistryProvider);
+  final leftKey = WorkspacePanel.tabKey(leftTab.id);
+  final rightKey = WorkspacePanel.tabKey(rightTab.id);
   return Row(
     children: <Widget>[
       ?leading,
       Expanded(
         child: WorkbenchRegisteredFocusScope(
-          registryKey: leftGroupId,
-          debugLabel: leftGroupId,
+          registryKey: leftKey,
+          debugLabel: leftKey,
           registry: registry,
           child: runtime
               .sessionFor(workspace: workspace, tab: leftTab)
@@ -62,8 +71,8 @@ Widget _twoPaneBody(
       ),
       Expanded(
         child: WorkbenchRegisteredFocusScope(
-          registryKey: rightGroupId,
-          debugLabel: rightGroupId,
+          registryKey: rightKey,
+          debugLabel: rightKey,
           registry: registry,
           child: runtime
               .sessionFor(workspace: workspace, tab: rightTab)
@@ -100,6 +109,14 @@ void _registerKeyboardCommandDispatcherNavigationTests() {
         layoutByWorkspace: <String, WorkbenchLayout>{workspace.id: layout},
         activeProjectId: project.id,
         activeWorkspaceId: workspace.id,
+        viewPrefs: WorkbenchViewPrefs.defaults.copyWith(
+          workspacePanels: <String, WorkspacePanel>{
+            workspace.id: _splitMainPanel(
+              layout: layout,
+              focusedTabId: leftTab.id,
+            ),
+          },
+        ),
       ),
     );
     final runtime = _FakeTerminalRuntime();
@@ -113,8 +130,6 @@ void _registerKeyboardCommandDispatcherNavigationTests() {
         workspace: workspace,
         leftTab: leftTab,
         rightTab: rightTab,
-        leftGroupId: leftGroupId,
-        rightGroupId: 'group-right',
       ),
     );
     await tester.pump();
@@ -135,14 +150,19 @@ void _registerKeyboardCommandDispatcherNavigationTests() {
     dispatcher.dispatch(.focusNextPane);
     await tester.pump();
 
-    expect(controller.focusedGroupIds, <String>['group-right']);
+    expect(controller.selectedWorkspacePanelKeys, <String>[
+      WorkspacePanel.tabKey(rightTab.id),
+    ]);
     expect(right.focusNode.hasFocus, isTrue);
     expect(left.focusNode.hasFocus, isFalse);
 
     dispatcher.dispatch(.focusPreviousPane);
     await tester.pump();
 
-    expect(controller.focusedGroupIds, <String>['group-right', leftGroupId]);
+    expect(controller.selectedWorkspacePanelKeys, <String>[
+      WorkspacePanel.tabKey(rightTab.id),
+      WorkspacePanel.tabKey(leftTab.id),
+    ]);
     expect(left.focusNode.hasFocus, isTrue);
     expect(right.focusNode.hasFocus, isFalse);
   });
@@ -154,7 +174,6 @@ void _registerKeyboardCommandDispatcherNavigationTests() {
       final workspace = _workspace();
       final leftTab = _tab(id: 'tab-left');
       final rightTab = _tab(id: 'tab-right');
-      final leftGroupId = WorkbenchLayout.defaultGroupId(workspace.id);
       final layout = _splitLayout(
         workspace: workspace,
         leftTab: leftTab,
@@ -172,6 +191,14 @@ void _registerKeyboardCommandDispatcherNavigationTests() {
           layoutByWorkspace: <String, WorkbenchLayout>{workspace.id: layout},
           activeProjectId: project.id,
           activeWorkspaceId: workspace.id,
+          viewPrefs: WorkbenchViewPrefs.defaults.copyWith(
+            workspacePanels: <String, WorkspacePanel>{
+              workspace.id: _splitMainPanel(
+                layout: layout,
+                focusedTabId: rightTab.id,
+              ),
+            },
+          ),
         ),
       );
       final runtime = _FakeTerminalRuntime();
@@ -187,8 +214,6 @@ void _registerKeyboardCommandDispatcherNavigationTests() {
           workspace: workspace,
           leftTab: leftTab,
           rightTab: rightTab,
-          leftGroupId: leftGroupId,
-          rightGroupId: 'group-right',
           autofocusLeft: false,
           leading: Focus(
             focusNode: sidebarNode,
@@ -210,7 +235,9 @@ void _registerKeyboardCommandDispatcherNavigationTests() {
         workspace: workspace,
         tab: rightTab,
       ) as _FakeTerminalSessionHandle;
-      expect(controller.focusedGroupIds, <String>['group-right']);
+      expect(controller.selectedWorkspacePanelKeys, <String>[
+        WorkspacePanel.tabKey(rightTab.id),
+      ]);
       expect(right.focusNode.hasFocus, isTrue);
       expect(sidebarNode.hasFocus, isFalse);
     },
@@ -222,7 +249,11 @@ void _registerKeyboardCommandDispatcherNavigationTests() {
     final project = _project();
     final workspace = _workspace();
     final tab = _tab(id: 'tab-1');
-    final groupId = WorkbenchLayout.defaultGroupId(workspace.id);
+    final tabKey = WorkspacePanel.tabKey(tab.id);
+    final layout = WorkbenchLayout.single(
+      workspaceId: workspace.id,
+      tabIds: <String>[tab.id],
+    );
     final controller = _DispatcherTestWorkbenchController(
       WorkbenchState(
         projects: <Project>[project],
@@ -232,14 +263,16 @@ void _registerKeyboardCommandDispatcherNavigationTests() {
         tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
           workspace.id: <WorkspaceTabRecord>[tab],
         },
-        layoutByWorkspace: <String, WorkbenchLayout>{
-          workspace.id: WorkbenchLayout.single(
-            workspaceId: workspace.id,
-            tabIds: <String>[tab.id],
-          ),
-        },
+        layoutByWorkspace: <String, WorkbenchLayout>{workspace.id: layout},
         activeProjectId: project.id,
         activeWorkspaceId: workspace.id,
+        viewPrefs: WorkbenchViewPrefs.defaults.copyWith(
+          workspacePanels: <String, WorkspacePanel>{
+            workspace.id: const WorkspacePanel()
+                .applyMainLayout(layout)
+                .select(tabKey),
+          },
+        ),
       ),
     );
     final runtime = _FakeTerminalRuntime();
@@ -250,8 +283,8 @@ void _registerKeyboardCommandDispatcherNavigationTests() {
       controller: controller,
       runtime: runtime,
       body: (context, ref) => WorkbenchRegisteredFocusScope(
-        registryKey: groupId,
-        debugLabel: groupId,
+        registryKey: tabKey,
+        debugLabel: tabKey,
         registry: ref.read(workbenchPaneFocusRegistryProvider),
         child: Column(
           children: <Widget>[
@@ -284,7 +317,7 @@ void _registerKeyboardCommandDispatcherNavigationTests() {
     ) as _FakeTerminalSessionHandle;
     expect(composerNode.hasFocus, isTrue);
     expect(session.requestFocusCalls, 0);
-    expect(controller.focusedGroupIds, isEmpty);
+    expect(controller.selectedWorkspacePanelKeys, isEmpty);
   });
 
   testWidgets('workspace cycling follows the sidebar order and wraps', (

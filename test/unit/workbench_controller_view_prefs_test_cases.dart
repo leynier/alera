@@ -209,6 +209,109 @@ void _registerWorkbenchControllerViewPrefsTests() {
     expect(_harness.viewPrefsRepository.saveCount, greaterThan(0));
   });
 
+  test('stores right-sidebar width per workspace', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+
+    _controller.setRightSidebarWidth(420);
+    await _flush();
+
+    expect(_controller.state.viewPrefs.rightSidebarWidth, 280);
+    expect(
+      _controller.state.viewPrefs.rightSidebarWidthFor(
+        workspace.id,
+        fallback: _controller.state.viewPrefs.rightSidebarWidth,
+      ),
+      420,
+    );
+  });
+
+  test(
+    'setRightSidebarWidth stores a compact override per workspace',
+    () async {
+      await _controller.bootstrap();
+      final first = await _selectMainWorkspace(_controller, _harness);
+
+      _controller.setRightSidebarWidth(360);
+      await _flush();
+
+      expect(_controller.state.viewPrefs.rightSidebarWidth, 280);
+      expect(_controller.state.viewPrefs.rightSidebarWidthFor(first.id), 360);
+      expect(_controller.state.viewPrefs.rightSidebarWidthByWorkspaceId, {
+        first.id: 360,
+      });
+
+      _controller.setRightSidebarWidth(280);
+      await _flush();
+      expect(
+        _controller.state.viewPrefs.rightSidebarWidthByWorkspaceId,
+        isEmpty,
+      );
+
+      _controller.setRightSidebarWidth(360);
+      await _flush();
+
+      final second = (await _controller.createWorkspace(
+        project: _harness.project,
+        sourceBranch: 'main',
+        newBranchName: 'feature/sidebar-width',
+      )).workspace;
+      await _controller.selectWorkspace(
+        project: _harness.project,
+        workspace: second,
+      );
+      await _flush();
+
+      expect(_controller.state.viewPrefs.rightSidebarWidthFor(second.id), 280);
+      _controller.setRightSidebarWidth(400);
+      await _flush();
+
+      expect(_controller.state.viewPrefs.rightSidebarWidthFor(first.id), 360);
+      expect(_controller.state.viewPrefs.rightSidebarWidthFor(second.id), 400);
+      expect(_controller.state.viewPrefs.rightSidebarWidthByWorkspaceId, {
+        first.id: 360,
+        second.id: 400,
+      });
+    },
+  );
+
+  test(
+    'workspace updates prune right-sidebar widths for removed workspaces',
+    () async {
+      await _controller.bootstrap();
+      await _selectMainWorkspace(_controller, _harness);
+      final linkedWorkspace = (await _controller.createWorkspace(
+        project: _harness.project,
+        sourceBranch: 'main',
+        newBranchName: 'feature/remove-sidebar-width',
+      )).workspace;
+      await _controller.selectWorkspace(
+        project: _harness.project,
+        workspace: linkedWorkspace,
+      );
+      await _flush();
+
+      _controller.setRightSidebarWidth(360);
+      await _flush();
+      expect(
+        _controller.state.viewPrefs.rightSidebarWidthByWorkspaceId,
+        containsPair(linkedWorkspace.id, 360),
+      );
+
+      await _harness.workbenchRepository.removeWorkspace(linkedWorkspace.id);
+      await _flush();
+
+      expect(
+        _controller.state.viewPrefs.rightSidebarWidthByWorkspaceId,
+        isNot(contains(linkedWorkspace.id)),
+      );
+      expect(
+        _controller.state.viewPrefs.workspacePanels,
+        isNot(contains(linkedWorkspace.id)),
+      );
+    },
+  );
+
   test('bootstrap prunes stale persisted project filters', () async {
     _harness.viewPrefsRepository.prefs = WorkbenchViewPrefs.defaults.copyWith(
       collapsedProjectIds: <String>{'stale-project', _harness.project.id},
@@ -226,6 +329,79 @@ void _registerWorkbenchControllerViewPrefsTests() {
     expect(_controller.state.viewPrefs.selectedProjectIds, <String>{
       _harness.project.id,
     });
+  });
+
+  test(
+    'bootstrap prunes stale workspace prefs after workspaces arrive first',
+    () async {
+      _harness.viewPrefsRepository.prefs = WorkbenchViewPrefs.defaults.copyWith(
+        workspacePanels: <String, WorkspacePanel>{
+          'stale-workspace': const WorkspacePanel(),
+        },
+        rightSidebarWidthByWorkspaceId: const <String, double>{
+          'stale-workspace': 400,
+        },
+      );
+      final gate = Completer<void>();
+      _harness.projectRepository.listAllGate = gate;
+      final bootstrap = _controller.bootstrap();
+      await _flush();
+      expect(_controller.state.bootstrapped, isFalse);
+      expect(
+        _controller.state.viewPrefs.workspacePanels.containsKey(
+          'stale-workspace',
+        ),
+        isTrue,
+      );
+      gate.complete();
+      await bootstrap;
+      await _flushUntil(
+        () => _controller.state.workspacesFor(_harness.project.id).isNotEmpty,
+      );
+      await _flush();
+
+      expect(
+        _controller.state.viewPrefs.workspacePanels.containsKey(
+          'stale-workspace',
+        ),
+        isFalse,
+      );
+      expect(
+        _controller.state.viewPrefs.rightSidebarWidthByWorkspaceId.containsKey(
+          'stale-workspace',
+        ),
+        isFalse,
+      );
+    },
+  );
+
+  test('bootstrap prunes stale persisted workspace panel prefs', () async {
+    _harness.viewPrefsRepository.prefs = WorkbenchViewPrefs.defaults.copyWith(
+      workspacePanels: <String, WorkspacePanel>{
+        'stale-workspace': const WorkspacePanel(),
+      },
+      rightSidebarWidthByWorkspaceId: const <String, double>{
+        'stale-workspace': 400,
+      },
+    );
+
+    await _controller.bootstrap();
+    await _flushUntil(
+      () => _controller.state.workspacesFor(_harness.project.id).isNotEmpty,
+    );
+
+    expect(
+      _controller.state.viewPrefs.workspacePanels.containsKey(
+        'stale-workspace',
+      ),
+      isFalse,
+    );
+    expect(
+      _controller.state.viewPrefs.rightSidebarWidthByWorkspaceId.containsKey(
+        'stale-workspace',
+      ),
+      isFalse,
+    );
   });
 
   test('bootstrap surfaces project repository failures', () async {
@@ -371,7 +547,8 @@ void _registerWorkbenchControllerViewPrefsTests() {
     expect(_controller.state.error, contains('Tab title must not be empty'));
 
     final firstGroupId = _controller.state
-        .layoutFor(workspace.id)!
+        .workspacePanelFor(workspace.id)
+        .ensuredMainLayout(workspace.id)
         .activeGroupId;
     final splitTab = await _controller.splitWorkbenchGroupWithTerminal(
       workspace: workspace,
@@ -380,39 +557,32 @@ void _registerWorkbenchControllerViewPrefsTests() {
     );
     await _flush();
 
-    final splitLayout = _controller.state.layoutFor(workspace.id)!;
-    final splitGroupId = splitLayout.groupIdForTab(splitTab.id)!;
+    final splitLayout = _controller.state
+        .workspacePanelFor(workspace.id)
+        .ensuredMainLayout(workspace.id);
+    final splitGroupId = splitLayout.groupIdForTab(
+      WorkspacePanel.tabKey(splitTab.id),
+    )!;
     final targetGroupId = splitLayout.paneGroupIds.firstWhere(
       (groupId) => groupId != splitGroupId,
     );
 
-    _harness.workbenchRepository.upsertWorkbenchLayoutError = StateError(
-      'cannot persist layout',
+    await _controller.moveWorkspaceTab(
+      workspaceId: workspace.id,
+      tabId: splitTab.id,
+      targetGroupId: targetGroupId,
+      zone: .center,
     );
-    await expectLater(
-      _controller.moveWorkspaceTab(
-        workspaceId: workspace.id,
-        tabId: splitTab.id,
-        targetGroupId: targetGroupId,
-        zone: .center,
-      ),
-      throwsStateError,
-    );
-    expect(_controller.state.error, contains('cannot persist layout'));
+    await _flush();
+    expect(_controller.state.error, isNull);
 
-    await expectLater(
-      _controller.mergeWorkbenchGroupIntoSibling(
-        workspaceId: workspace.id,
-        groupId: splitGroupId,
-      ),
-      throwsStateError,
-    );
-    expect(_controller.state.error, contains('cannot persist layout'));
-    _harness.workbenchRepository.upsertWorkbenchLayoutError = null;
-
+    final afterMove = _controller.state
+        .workspacePanelFor(workspace.id)
+        .ensuredMainLayout(workspace.id);
+    final remainingGroupId = afterMove.paneGroupIds.first;
     await _controller.mergeWorkbenchGroupIntoSibling(
       workspaceId: workspace.id,
-      groupId: splitGroupId,
+      groupId: remainingGroupId,
     );
     await _flush();
     expect(_controller.state.error, isNull);

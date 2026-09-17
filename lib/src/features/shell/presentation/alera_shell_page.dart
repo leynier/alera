@@ -38,13 +38,14 @@ import 'package:alera/src/features/workbench/presentation/workspace_workbench_vi
 import 'package:alera/src/features/settings/presentation/github_star_prompt_watch.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
-import 'package:alera/src/features/workbench/domain/experimental_panel_width.dart';
-import 'package:alera/src/features/workbench/presentation/experimental_workspace_panel_view.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel_width.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_panel_view.dart';
 
 part 'alera_shell_page_body.dart';
+part 'alera_shell_page_body_tools.dart';
 part 'alera_shell_page_body_content.dart';
-part 'alera_shell_page_experimental_panel.dart';
+part 'alera_shell_page_workspace_panel.dart';
 
 class const AleraShellPage({super.key}) extends ConsumerWidget {
   @override
@@ -102,20 +103,6 @@ class const _AleraShellPageBody() extends ConsumerStatefulWidget {
   @override
   ConsumerState<_AleraShellPageBody> createState() =>
       _AleraShellPageBodyState();
-}
-
-bool _canShowContextSidebar({
-  required double shellWidth,
-  required bool collapsed,
-  required WorkbenchViewPrefs prefs,
-}) {
-  final leftWidth = collapsed
-      ? AleraTokens.sidebarCollapsedWidth
-      : prefs.sidebarWidth;
-  final rightWidth = prefs.rightSidebarVisible
-      ? prefs.rightSidebarWidth
-      : AleraTokens.sidebarCollapsedWidth;
-  return shellWidth - leftWidth - rightWidth >= AleraTokens.emptyStateMaxWidth;
 }
 
 String buildRawLogClipboardText(List<String> logs) {

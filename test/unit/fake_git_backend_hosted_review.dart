@@ -44,6 +44,9 @@ mixin _FakeGitBackendHostedReview {
     );
   }
 
+  Object? persistHostedReviewRangeError;
+  Completer<void>? persistHostedReviewRangeGate;
+
   Future<void> persistHostedReviewRange({
     required String path,
     required String retentionId,
@@ -54,5 +57,13 @@ mixin _FakeGitBackendHostedReview {
         'retentionId': retentionId,
       }),
     );
+    final gate = persistHostedReviewRangeGate;
+    if (gate != null && !gate.isCompleted) {
+      persistHostedReviewRangeGate = null;
+      await gate.future;
+    }
+    if (persistHostedReviewRangeError case final Object error) {
+      throw error;
+    }
   }
 }

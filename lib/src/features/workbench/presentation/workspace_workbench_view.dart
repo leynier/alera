@@ -15,7 +15,7 @@ import 'package:alera/src/features/agent_status/presentation/agent_identity_icon
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_tab_attention.dart';
-import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -89,7 +89,7 @@ typedef RenameWorkspaceTabCallback = Future<void> Function({
 });
 typedef OpenWorkspaceFileCallback = Future<void> Function(String relativePath);
 
-Widget buildExperimentalWorkspaceTabChip({
+Widget buildWorkspacePanelTabChip({
   required WorkspaceTabRecord tab,
   required List<WorkspaceTabRecord> tabs,
   required bool active,
@@ -107,7 +107,7 @@ Widget buildExperimentalWorkspaceTabChip({
     padding: const EdgeInsets.only(right: AleraTokens.space8),
     child: _KeepPreviewTabScope(
       onKeep: onKeep,
-      child: _ExperimentalPreviewKeepTap(
+      child: _WorkspacePreviewKeepTap(
         tab: tab,
         onSelect: onSelect,
         onKeep: onKeep,
@@ -262,7 +262,7 @@ class _WorkspaceWorkbenchViewState extends State<WorkspaceWorkbenchView> {
       // A scope for the same reason as _WorkbenchPane: focus released by
       // unmounting content must stay in this surface, not jump to a sibling.
       return WorkbenchRegisteredFocusScope(
-        registryKey: ExperimentalWorkspacePanel.tabKey(tab.id),
+        registryKey: WorkspacePanel.tabKey(tab.id),
         registry: widget.paneFocusRegistry,
         debugLabel: 'WorkbenchSingleSurface ${tab.id}',
         onFocusChange: (focused) {
@@ -286,6 +286,8 @@ class _WorkspaceWorkbenchViewState extends State<WorkspaceWorkbenchView> {
         ),
       );
     }
+    // Desktop rendering lives in WorkspacePanelView. This branch only exists
+    // for widget tests that still pump the tab-strip layout directly.
     final resolvedLayout =
         widget.layout ??
         WorkbenchLayout.single(
@@ -395,8 +397,8 @@ class const _WorkbenchTabDragScope({
   }
 }
 
-class _ExperimentalPreviewKeepTap extends StatefulWidget {
-  const _ExperimentalPreviewKeepTap({
+class _WorkspacePreviewKeepTap extends StatefulWidget {
+  const _WorkspacePreviewKeepTap({
     required this.tab,
     required this.onSelect,
     required this.onKeep,
@@ -409,12 +411,11 @@ class _ExperimentalPreviewKeepTap extends StatefulWidget {
   final Widget Function(VoidCallback onTap) builder;
 
   @override
-  State<_ExperimentalPreviewKeepTap> createState() =>
-      _ExperimentalPreviewKeepTapState();
+  State<_WorkspacePreviewKeepTap> createState() =>
+      _WorkspacePreviewKeepTapState();
 }
 
-class _ExperimentalPreviewKeepTapState
-    extends State<_ExperimentalPreviewKeepTap> {
+class _WorkspacePreviewKeepTapState extends State<_WorkspacePreviewKeepTap> {
   String? _lastId;
   DateTime? _lastAt;
 

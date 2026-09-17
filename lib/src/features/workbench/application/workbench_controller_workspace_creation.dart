@@ -10,7 +10,9 @@ mixin _WorkbenchControllerWorkspaceCreation
         _WorkbenchControllerInternals,
         _WorkbenchControllerWorkspaceReconciliation,
         _WorkbenchControllerTabOpening,
-        _WorkbenchControllerProjects {
+        _WorkbenchControllerProjects,
+        _WorkbenchControllerProjectSelection,
+        _WorkbenchControllerInternalLayout {
   Future<WorkspaceCreationResult> createWorkspace({
     bool useProjectCheckout = false,
     required Project project,
@@ -96,7 +98,7 @@ mixin _WorkbenchControllerWorkspaceCreation
       _reconcileCreatedWorkspace(project, result.workspace);
       if (initializeTabs) {
         await selectWorkspace(project: project, workspace: result.workspace);
-        _seedExperimentalNewWorkspacePanel(result.workspace.id);
+        _seedNewWorkspacePanel(result.workspace.id);
         await _openDeferredSetupTab(result);
       }
       final parentId = parentWorkspaceId?.trim();
@@ -149,7 +151,7 @@ mixin _WorkbenchControllerWorkspaceCreation
       workspace: workspace,
       ensureInitialTerminal: !expectsPromptTab,
     );
-    _seedExperimentalNewWorkspacePanel(workspace.id);
+    _seedNewWorkspacePanel(workspace.id);
     if (openDeferredSetup) {
       await _openDeferredSetupTab(creation);
     }

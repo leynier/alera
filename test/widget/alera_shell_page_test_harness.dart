@@ -50,20 +50,7 @@ class _ShellTestWorkbenchController(
 
   @override
   void setActiveTab({required String workspaceId, required String tabId}) {
-    final layout = state.layoutFor(workspaceId);
-    final groupId = layout?.groupIdForTab(tabId);
-    state = state.copyWith(
-      activeWorkspaceId: workspaceId,
-      activeTabIdByWorkspace: <String, String>{
-        ...state.activeTabIdByWorkspace,
-        workspaceId: tabId,
-      },
-      layoutByWorkspace: <String, WorkbenchLayout>{
-        ...state.layoutByWorkspace,
-        if (layout != null && groupId != null)
-          workspaceId: layout.setActiveTab(groupId: groupId, tabId: tabId),
-      },
-    );
+    selectWorkspacePanelKey(workspaceId, WorkspacePanel.tabKey(tabId));
   }
 
   @override
@@ -104,6 +91,10 @@ class _ShellTestWorkbenchController(
     } else {
       nextActiveTabIdByWorkspace[workspace.id] = remaining.last.id;
     }
+    var panel = state.workspacePanelFor(workspace.id);
+    for (final tabId in ids) {
+      panel = panel.closeKey(WorkspacePanel.tabKey(tabId));
+    }
     state = state.copyWith(
       tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
         ...state.tabsByWorkspace,
@@ -122,6 +113,12 @@ class _ShellTestWorkbenchController(
           closedTabIds: ids,
         ),
       },
+      viewPrefs: state.viewPrefs.copyWith(
+        workspacePanels: <String, WorkspacePanel>{
+          ...state.viewPrefs.workspacePanels,
+          workspace.id: panel,
+        },
+      ),
     );
   }
 
@@ -131,6 +128,12 @@ class _ShellTestWorkbenchController(
       ..remove(workspace.id);
     final nextActiveTabs = <String, String>{...state.activeTabIdByWorkspace}
       ..remove(workspace.id);
+    final nextPanels = <String, WorkspacePanel>{
+      ...state.viewPrefs.workspacePanels,
+    }..remove(workspace.id);
+    final nextWidths = <String, double>{
+      ...state.viewPrefs.rightSidebarWidthByWorkspaceId,
+    }..remove(workspace.id);
     state = state.copyWith(
       tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
         ...state.tabsByWorkspace,
@@ -141,6 +144,10 @@ class _ShellTestWorkbenchController(
       activeWorkspaceId: state.activeWorkspaceId == workspace.id
           ? null
           : state.activeWorkspaceId,
+      viewPrefs: state.viewPrefs.copyWith(
+        workspacePanels: nextPanels,
+        rightSidebarWidthByWorkspaceId: nextWidths,
+      ),
     );
   }
 
@@ -158,11 +165,16 @@ class _ShellTestWorkbenchController(
     final tab = _newTerminalTab(workspace.id, tabs.length + 1);
     final nextTabs = <WorkspaceTabRecord>[...tabs, tab];
     _setTabsForWorkspace(workspace.id, nextTabs);
-    final layout = _layoutForWorkspace(workspace.id, tabs);
-    final groupId = targetGroupId ?? layout.activeGroupId;
-    _applyLayout(
-      layout.addTabToGroup(groupId: groupId, tabId: tab.id).sanitize(nextTabs),
-    );
+    final panel = state
+        .workspacePanelFor(workspace.id)
+        .select(WorkspacePanel.tabKey(tab.id), groupId: targetGroupId);
+    _savePanel(workspace.id, panel);
+    if (state.activeWorkspaceId == workspace.id) {
+      ref
+          .read(terminalRuntimeProvider)
+          .sessionFor(workspace: workspace, tab: tab)
+          .requestFocus();
+    }
     return tab;
   }
 
@@ -176,20 +188,37 @@ class _ShellTestWorkbenchController(
     final tab = _newTerminalTab(workspace.id, tabs.length + 1);
     final nextTabs = <WorkspaceTabRecord>[...tabs, tab];
     _setTabsForWorkspace(workspace.id, nextTabs);
-    final layout = _layoutForWorkspace(workspace.id, tabs);
-    _applyLayout(
-      layout
-          .splitWithGroup(
-            targetGroupId: groupId,
-            zone: zone,
-            newGroup: WorkbenchPaneGroup(
-              id: _newPaneGroupId(),
-              tabIds: <String>[tab.id],
-              activeTabId: tab.id,
-            ),
-          )
-          .sanitize(nextTabs),
+    final current = state.workspacePanelFor(workspace.id);
+    final addToMain = current
+        .ensuredMainLayout(workspace.id)
+        .groups
+        .containsKey(groupId);
+    var layout = addToMain
+        ? current.ensuredMainLayout(workspace.id)
+        : current.ensuredLayout(workspace.id);
+    final key = WorkspacePanel.tabKey(tab.id);
+    if (layout.groupIdForTab(key) != null) {
+      layout = layout.removeTab(key);
+    }
+    final split = layout.splitWithGroup(
+      targetGroupId: groupId,
+      zone: zone,
+      newGroup: WorkbenchPaneGroup(
+        id: _newPaneGroupId(),
+        tabIds: <String>[key],
+        activeTabId: key,
+      ),
     );
+    final panel = addToMain
+        ? current.applyMainLayout(split)
+        : current.applyPaneLayout(split);
+    _savePanel(workspace.id, panel.copyWith(focusedKey: key));
+    if (state.activeWorkspaceId == workspace.id) {
+      ref
+          .read(terminalRuntimeProvider)
+          .sessionFor(workspace: workspace, tab: tab)
+          .requestFocus();
+    }
     return tab;
   }
 
@@ -201,18 +230,62 @@ class _ShellTestWorkbenchController(
     required WorkbenchDropZone zone,
     int? index,
   }) async {
-    final tabs = state.tabsFor(workspaceId);
-    _applyLayout(
-      _layoutForWorkspace(workspaceId, tabs)
-          .moveTab(
-            tabId: tabId,
-            targetGroupId: targetGroupId,
-            zone: zone,
-            newGroupId: _newPaneGroupId(),
-            index: index,
-          )
-          .sanitize(tabs),
+    final panel = state.workspacePanelFor(workspaceId);
+    final key = tabId.startsWith('tab:') || tabId.startsWith('tool:')
+        ? tabId
+        : WorkspacePanel.tabKey(tabId);
+    await moveWorkspacePaneTab(
+      workspaceId: workspaceId,
+      tabId: key,
+      targetGroupId: targetGroupId,
+      zone: zone,
+      index: index,
+      source: panel.treeForKey(key) ?? WorkspacePanelTree.right,
+      target: panel.treeForGroup(targetGroupId) ?? WorkspacePanelTree.right,
     );
+  }
+
+  @override
+  Future<void> moveWorkspacePaneTab({
+    required String workspaceId,
+    required String tabId,
+    required String targetGroupId,
+    required WorkbenchDropZone zone,
+    WorkspacePanelTree source = WorkspacePanelTree.right,
+    WorkspacePanelTree target = WorkspacePanelTree.right,
+    int? index,
+  }) async {
+    final panel = state.workspacePanelFor(workspaceId);
+    final key = tabId.startsWith('tab:') || tabId.startsWith('tool:')
+        ? tabId
+        : WorkspacePanel.tabKey(tabId);
+    final newGroupId = _newPaneGroupId();
+    final WorkspacePanel next;
+    if (source == target) {
+      final layout = source == WorkspacePanelTree.main
+          ? panel.ensuredMainLayout(workspaceId)
+          : panel.ensuredLayout(workspaceId);
+      final moved = layout.moveTab(
+        tabId: key,
+        targetGroupId: targetGroupId,
+        zone: zone,
+        newGroupId: newGroupId,
+        index: index,
+      );
+      next = source == WorkspacePanelTree.main
+          ? panel.applyMainLayout(moved)
+          : panel.applyPaneLayout(moved);
+    } else {
+      next = panel.moveKey(
+        key: key,
+        target: target,
+        targetGroupId: targetGroupId,
+        zone: zone,
+        newGroupId: newGroupId,
+        index: index,
+      );
+    }
+    _savePanel(workspaceId, next.copyWith(focusedKey: key));
   }
 
   @override
@@ -220,28 +293,34 @@ class _ShellTestWorkbenchController(
     required String workspaceId,
     required String groupId,
   }) async {
-    final tabs = state.tabsFor(workspaceId);
-    _applyLayout(
-      _layoutForWorkspace(
-        workspaceId,
-        tabs,
-      ).mergeGroupIntoSibling(groupId).sanitize(tabs),
-    );
+    final panel = state.workspacePanelFor(workspaceId);
+    final tree = panel.treeForGroup(groupId) ?? WorkspacePanelTree.main;
+    final layout = tree == WorkspacePanelTree.main
+        ? panel.ensuredMainLayout(workspaceId)
+        : panel.ensuredLayout(workspaceId);
+    final nextLayout = layout.mergeGroupIntoSibling(groupId);
+    final next = tree == WorkspacePanelTree.main
+        ? panel.applyMainLayout(nextLayout)
+        : panel.applyPaneLayout(nextLayout);
+    _savePanel(workspaceId, next);
   }
 
   @override
-  void updateWorkbenchSplitRatio({
+  void updateWorkspacePaneSplitRatio({
     required String workspaceId,
     required List<int> nodePath,
     required double ratio,
+    WorkspacePanelTree tree = WorkspacePanelTree.right,
   }) {
-    final tabs = state.tabsFor(workspaceId);
-    _applyLayout(
-      _layoutForWorkspace(
-        workspaceId,
-        tabs,
-      ).updateSplitRatio(nodePath, ratio).sanitize(tabs),
-    );
+    final panel = state.workspacePanelFor(workspaceId);
+    final layout = tree == WorkspacePanelTree.main
+        ? panel.ensuredMainLayout(workspaceId)
+        : panel.ensuredLayout(workspaceId);
+    final nextLayout = layout.updateSplitRatio(nodePath, ratio);
+    final next = tree == WorkspacePanelTree.main
+        ? panel.applyMainLayout(nextLayout)
+        : panel.applyPaneLayout(nextLayout);
+    _savePanel(workspaceId, next);
   }
 
   @override
@@ -467,19 +546,45 @@ class _ShellTestWorkbenchController(
     required String groupId,
     required String tabId,
   }) {
-    final layout = state.layoutFor(workspaceId);
-    state = state.copyWith(
-      activeWorkspaceId: workspaceId,
-      activeTabIdByWorkspace: <String, String>{
-        ...state.activeTabIdByWorkspace,
-        workspaceId: tabId,
-      },
-      layoutByWorkspace: <String, WorkbenchLayout>{
-        ...state.layoutByWorkspace,
-        if (layout != null)
-          workspaceId: layout.setActiveTab(groupId: groupId, tabId: tabId),
-      },
+    selectWorkspacePanelKey(
+      workspaceId,
+      WorkspacePanel.tabKey(tabId),
+      groupId: groupId,
     );
+  }
+
+  @override
+  void selectWorkspacePanelKey(
+    String workspaceId,
+    String key, {
+    String? groupId,
+    bool recordSelection = true,
+  }) {
+    final panel = state
+        .workspacePanelFor(workspaceId)
+        .select(key, groupId: groupId);
+    _savePanel(workspaceId, panel);
+    if (state.activeWorkspaceId != workspaceId) {
+      return;
+    }
+    final tabId = WorkspacePanel.tabId(key);
+    if (tabId == null) {
+      return;
+    }
+    final workspace = state.activeWorkspace;
+    final tab = workspace == null
+        ? null
+        : state
+              .tabsFor(workspaceId)
+              .where((candidate) => candidate.id == tabId)
+              .firstOrNull;
+    if (workspace == null || tab == null) {
+      return;
+    }
+    ref
+        .read(terminalRuntimeProvider)
+        .sessionFor(workspace: workspace, tab: tab)
+        .requestFocus();
   }
 
   int _nextPaneIndex = 1;
@@ -555,20 +660,21 @@ class _ShellTestWorkbenchController(
     );
   }
 
-  void _applyLayout(WorkbenchLayout layout) {
-    final activeTabs = <String, String>{...state.activeTabIdByWorkspace};
-    final activeTabId = layout.activeTabId;
-    if (activeTabId == null) {
-      activeTabs.remove(layout.workspaceId);
-    } else {
-      activeTabs[layout.workspaceId] = activeTabId;
-    }
+  void _savePanel(String workspaceId, WorkspacePanel panel) {
+    final focusedTabId = WorkspacePanel.tabId(panel.focusedKey);
     state = state.copyWith(
-      layoutByWorkspace: <String, WorkbenchLayout>{
-        ...state.layoutByWorkspace,
-        layout.workspaceId: layout,
-      },
-      activeTabIdByWorkspace: activeTabs,
+      viewPrefs: state.viewPrefs.copyWith(
+        workspacePanels: <String, WorkspacePanel>{
+          ...state.viewPrefs.workspacePanels,
+          workspaceId: panel,
+        },
+      ),
+      activeTabIdByWorkspace: focusedTabId == null
+          ? state.activeTabIdByWorkspace
+          : <String, String>{
+              ...state.activeTabIdByWorkspace,
+              workspaceId: focusedTabId,
+            },
     );
   }
 }

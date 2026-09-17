@@ -1,8 +1,8 @@
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
-import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
-import 'package:alera/src/features/workbench/presentation/experimental_workspace_panel_view.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_panel_view.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,8 +16,8 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: ExperimentalWorkspacePanelView(
-              panel: const ExperimentalWorkspacePanel(),
+            body: WorkspacePanelView(
+              panel: const WorkspacePanel(),
               tabs: const [],
               onSelect: selected.add,
               onClose: (_) {},
@@ -52,10 +52,8 @@ void main() {
     (tester) async {
       final selected = <String>[];
       final closed = <String>[];
-      final panel = ExperimentalWorkspacePanel(
-        tabKeys: [
-          for (final tool in ExperimentalWorkspaceTool.values) tool.key,
-        ],
+      final panel = WorkspacePanel(
+        tabKeys: [for (final tool in WorkspaceTool.values) tool.key],
         activeKey: 'tool:search',
       );
       await tester.pumpWidget(
@@ -66,7 +64,7 @@ void main() {
               child: SizedBox(
                 width: 240,
                 height: 500,
-                child: ExperimentalWorkspacePanelView(
+                child: WorkspacePanelView(
                   panel: panel,
                   tabs: const [],
                   onSelect: selected.add,
@@ -100,8 +98,8 @@ void main() {
             child: SizedBox(
               width: 800,
               height: 500,
-              child: ExperimentalWorkspacePanelView(
-                panel: const ExperimentalWorkspacePanel(
+              child: WorkspacePanelView(
+                panel: const WorkspacePanel(
                   tabKeys: ['tool:search'],
                   activeKey: 'tool:search',
                 ),
@@ -141,8 +139,8 @@ void main() {
             child: SizedBox(
               width: 800,
               height: 500,
-              child: ExperimentalWorkspacePanelView(
-                panel: const ExperimentalWorkspacePanel(
+              child: WorkspacePanelView(
+                panel: const WorkspacePanel(
                   tabKeys: ['tool:search', 'tool:explorer'],
                   activeKey: 'tool:search',
                 ),
@@ -183,8 +181,8 @@ void main() {
             child: SizedBox(
               width: 800,
               height: 500,
-              child: ExperimentalWorkspacePanelView(
-                panel: const ExperimentalWorkspacePanel(
+              child: WorkspacePanelView(
+                panel: const WorkspacePanel(
                   tabKeys: ['tool:explorer'],
                   activeKey: 'tool:explorer',
                 ),
@@ -229,12 +227,9 @@ void main() {
             child: SizedBox(
               width: 160,
               height: 500,
-              child: ExperimentalWorkspacePanelView(
-                panel: ExperimentalWorkspacePanel(
-                  tabKeys: [
-                    for (final tool in ExperimentalWorkspaceTool.values)
-                      tool.key,
-                  ],
+              child: WorkspacePanelView(
+                panel: WorkspacePanel(
+                  tabKeys: [for (final tool in WorkspaceTool.values) tool.key],
                   activeKey: 'tool:search',
                 ),
                 tabs: const [],
@@ -269,8 +264,8 @@ void main() {
             child: SizedBox(
               width: 280,
               height: 500,
-              child: ExperimentalWorkspacePanelView(
-                panel: const ExperimentalWorkspacePanel(
+              child: WorkspacePanelView(
+                panel: const WorkspacePanel(
                   tabKeys: ['tool:search', 'tool:explorer'],
                   activeKey: 'tool:search',
                 ),
@@ -312,8 +307,8 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: ExperimentalWorkspacePanelView(
-            panel: const ExperimentalWorkspacePanel(
+          body: WorkspacePanelView(
+            panel: const WorkspacePanel(
               tabKeys: ['tool:search'],
               activeKey: 'tool:search',
             ),
@@ -343,12 +338,12 @@ void main() {
   });
 
   testWidgets('Hide Panel stays on the top-right split', (tester) async {
-    final selected = const ExperimentalWorkspacePanel().select('tool:explorer');
+    final selected = const WorkspacePanel().select('tool:explorer');
     final layout = selected.ensuredLayout();
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: ExperimentalWorkspacePanelView(
+          body: WorkspacePanelView(
             panel: selected.applyPaneLayout(
               layout.splitWithGroup(
                 targetGroupId: layout.activeGroupId,
@@ -381,13 +376,13 @@ void main() {
   testWidgets('add tab omits tools that already sit in the main tree', (
     tester,
   ) async {
-    final panel = ExperimentalWorkspacePanel(
+    final panel = WorkspacePanel(
       tabKeys: const ['tool:explorer'],
       activeKey: 'tool:explorer',
       mainLayout: WorkbenchLayout.single(
         workspaceId: 'workspace',
         tabIds: const ['tool:search'],
-        groupId: 'workspace/experimental-main',
+        groupId: 'workspace/workspace-main',
       ),
     );
     await tester.pumpWidget(
@@ -398,7 +393,7 @@ void main() {
             child: SizedBox(
               width: 800,
               height: 500,
-              child: ExperimentalWorkspacePanelView(
+              child: WorkspacePanelView(
                 workspaceId: 'workspace',
                 panel: panel,
                 tabs: const [],
@@ -429,21 +424,21 @@ void main() {
   testWidgets('main tree with two keys shows the strip without Hide Panel', (
     tester,
   ) async {
-    final panel = ExperimentalWorkspacePanel(
+    final panel = WorkspacePanel(
       mainLayout: WorkbenchLayout.single(
         workspaceId: 'workspace',
         tabIds: const ['tab:primary', 'tool:search'],
-        groupId: 'workspace/experimental-main',
+        groupId: 'workspace/workspace-main',
       ),
     );
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: ExperimentalWorkspacePanelView(
+          body: WorkspacePanelView(
             workspaceId: 'workspace',
             panel: panel,
             tabs: const [],
-            tree: ExperimentalPanelTree.main,
+            tree: WorkspacePanelTree.main,
             showHide: false,
             onSelect: (_) {},
             onClose: (_) {},

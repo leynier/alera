@@ -1,8 +1,8 @@
 import 'package:flutter/widgets.dart';
 
 /// Keyboard-focus handles for the workbench surfaces, keyed by the id the
-/// keyboard dispatcher already reasons about: a pane's group id in the classic
-/// layout, a panel key (`tab:<id>` or a tool key) in the experimental layout.
+/// keyboard dispatcher already reasons about: a panel key (`tab:<id>` or a
+/// tool key).
 ///
 /// Surfaces register the [FocusScopeNode] that encloses their content, so a
 /// shortcut can move focus into a pane without knowing what kind of tab it

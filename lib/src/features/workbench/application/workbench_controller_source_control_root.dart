@@ -50,7 +50,7 @@ mixin _WorkbenchControllerSourceControlRoot
       ),
     );
     state = state.copyWith(error: null);
-    if (state.isExperimentalLayout) setContextPanelTab(.gitDiff);
+    setContextPanelTab(.gitDiff);
     return true;
   }
 

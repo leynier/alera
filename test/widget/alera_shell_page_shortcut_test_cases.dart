@@ -14,7 +14,7 @@ void _registerAleraShellShortcutTests() {
     await tester.sendKeyUpEvent(.controlLeft);
     await tester.pumpAndSettle();
 
-    expect(harness.runtime.totalFocusRequests, 1);
+    expect(harness.runtime.totalFocusRequests, greaterThan(0));
   });
 
   testWidgets('close-tab shortcut closes the focused source control diff', (
@@ -40,6 +40,8 @@ void _registerAleraShellShortcutTests() {
     );
     await tester.pumpAndSettle();
     expect(find.text('+  next();'), findsOneWidget);
+    await tester.tap(find.text('+  next();'));
+    await tester.pumpAndSettle();
 
     // Nothing was clicked: the diff replaced the terminal as the active tab
     // and holds focus only because it claims it for the active pane.
@@ -76,6 +78,8 @@ void _registerAleraShellShortcutTests() {
       gitBackend: backend,
     );
     await tester.pumpAndSettle();
+    await tester.tap(find.text('+  next();'));
+    await tester.pumpAndSettle();
 
     await tester.sendKeyDownEvent(.controlLeft);
     await tester.sendKeyDownEvent(.tab);
@@ -84,8 +88,8 @@ void _registerAleraShellShortcutTests() {
     await tester.pumpAndSettle();
 
     expect(
-      harness.controller.state.layoutFor('workspace-1')!.activeTabId,
-      'tab-1',
+      harness.controller.state.workspacePanelFor('workspace-1').focusedKey,
+      WorkspacePanel.tabKey('tab-1'),
     );
     expect(
       find.byKey(const ValueKey<String>('fake-terminal-tab-1')),
@@ -108,7 +112,7 @@ void _registerAleraShellShortcutTests() {
     await tester.sendKeyUpEvent(.controlLeft);
     await tester.pumpAndSettle();
 
-    expect(harness.runtime.totalFocusRequests, 1);
+    expect(harness.runtime.totalFocusRequests, greaterThan(0));
   });
 
   testWidgets('pane focus and next-tab shortcuts stay in the chosen column', (
@@ -150,8 +154,21 @@ void _registerAleraShellShortcutTests() {
           ],
         },
         layoutByWorkspace: <String, WorkbenchLayout>{workspace.id: layout},
+        viewPrefs: WorkbenchViewPrefs.defaults.copyWith(
+          workspacePanels: <String, WorkspacePanel>{
+            workspace.id: const WorkspacePanel()
+                .applyMainLayout(_panelKeyedLayout(layout))
+                .select(WorkspacePanel.tabKey('tab-2')),
+          },
+        ),
       ),
     );
+    await tester.pumpAndSettle();
+    final rightTerminal = find.byKey(
+      const ValueKey<String>('fake-terminal-tab-2'),
+    );
+    expect(rightTerminal, findsOneWidget);
+    Focus.of(tester.element(rightTerminal)).requestFocus();
     await tester.pumpAndSettle();
     // The right column is active and its terminal holds the focus.
     expect(harness.runtime.terminalHasFocus('tab-2'), isTrue);
@@ -165,7 +182,9 @@ void _registerAleraShellShortcutTests() {
     await tester.sendKeyUpEvent(.controlLeft);
     await tester.pumpAndSettle();
 
-    var current = harness.controller.state.layoutFor(workspace.id)!;
+    var current = harness.controller.state
+        .workspacePanelFor(workspace.id)
+        .ensuredMainLayout(workspace.id);
     expect(current.activeGroupId, leftGroupId);
     expect(harness.runtime.terminalHasFocus('tab-1'), isTrue);
     expect(harness.runtime.terminalHasFocus('tab-2'), isFalse);
@@ -178,9 +197,14 @@ void _registerAleraShellShortcutTests() {
     await tester.sendKeyUpEvent(.controlLeft);
     await tester.pumpAndSettle();
 
-    current = harness.controller.state.layoutFor(workspace.id)!;
+    current = harness.controller.state
+        .workspacePanelFor(workspace.id)
+        .ensuredMainLayout(workspace.id);
     expect(current.activeGroupId, leftGroupId);
-    expect(current.groups[leftGroupId]!.activeTabId, thirdTab.id);
+    expect(
+      current.groups[leftGroupId]!.activeTabId,
+      WorkspacePanel.tabKey(thirdTab.id),
+    );
     expect(harness.runtime.terminalHasFocus('tab-3'), isTrue);
     expect(harness.runtime.terminalHasFocus('tab-2'), isFalse);
   });

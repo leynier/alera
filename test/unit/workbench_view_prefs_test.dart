@@ -1,6 +1,7 @@
 import 'package:dart_mappable/dart_mappable.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -18,6 +19,10 @@ void main() {
       expect(WorkbenchViewPrefs.defaults.showActiveWorkspacesOnly, isFalse);
       expect(
         WorkbenchViewPrefs.defaults.sourceControlRootByWorkspaceId,
+        isEmpty,
+      );
+      expect(
+        WorkbenchViewPrefs.defaults.rightSidebarWidthByWorkspaceId,
         isEmpty,
       );
       expect(WorkbenchViewPrefs.defaults.rightSidebarVisible, isTrue);
@@ -51,6 +56,7 @@ void main() {
         sourceControlRootByWorkspaceId: <String, String>{
           'w-folder': 'packages/app',
         },
+        rightSidebarWidthByWorkspaceId: <String, double>{'w-folder': 400},
         rightSidebarVisible: false,
         rightSidebarWidth: 360,
         sidebarWidth: 360,
@@ -72,6 +78,9 @@ void main() {
       expect(restored.showActiveWorkspacesOnly, isTrue);
       expect(restored.sourceControlRootByWorkspaceId, <String, String>{
         'w-folder': 'packages/app',
+      });
+      expect(restored.rightSidebarWidthByWorkspaceId, <String, double>{
+        'w-folder': 400,
       });
       expect(restored.rightSidebarVisible, isFalse);
       expect(restored.rightSidebarWidth, 360);
@@ -133,6 +142,123 @@ void main() {
       expect(restored.showPinnedWorkspacesBelow, isTrue);
       expect(restored.showActiveWorkspacesOnly, isFalse);
       expect(restored.gitDiffGroupMode, GitDiffGroupMode.byArea);
+      expect(restored.rightSidebarWidthByWorkspaceId, isEmpty);
+    });
+
+    test(
+      'fromJson prefers the former panel width when both legacy widths exist',
+      () {
+        final restored = WorkbenchViewPrefs.fromJson(<String, Object?>{
+          'groupBy': 'project',
+          'projectSort': 'name',
+          'workspaceSort': 'name',
+          'selectedProjectIds': <String>[],
+          'collapsedProjectIds': <String>[],
+          'expandedWorkspaceIds': <String>[],
+          'desktopLayout': 'classic',
+          'rightSidebarWidth': 280,
+          'experimentalRightSidebarWidth': 400,
+        });
+
+        expect(restored.rightSidebarWidth, 400);
+      },
+    );
+
+    test('fromJson maps retired experimental panel keys', () {
+      final restored = WorkbenchViewPrefs.fromJson(<String, Object?>{
+        'groupBy': 'project',
+        'projectSort': 'name',
+        'workspaceSort': 'name',
+        'selectedProjectIds': <String>[],
+        'collapsedProjectIds': <String>[],
+        'expandedWorkspaceIds': <String>[],
+        'experimentalPanels': <String, Object?>{
+          'w-1': const WorkspacePanel(primaryTabId: 'primary').toMap(),
+        },
+        'experimentalNewWorkspaceTools': <Object?>[
+          'explorer',
+          'unknown',
+          'explorer',
+          'search',
+        ],
+      });
+
+      expect(restored.workspacePanels.keys, <String>['w-1']);
+      expect(restored.workspacePanels['w-1']?.primaryTabId, 'primary');
+      expect(restored.newWorkspaceTools, <WorkspaceTool>[
+        WorkspaceTool.explorer,
+        WorkspaceTool.search,
+      ]);
+    });
+
+    test('fromJson keeps a valid new-workspace tools list unchanged', () {
+      final restored = WorkbenchViewPrefs.fromJson(<String, Object?>{
+        'groupBy': 'project',
+        'projectSort': 'name',
+        'workspaceSort': 'name',
+        'selectedProjectIds': <String>[],
+        'collapsedProjectIds': <String>[],
+        'expandedWorkspaceIds': <String>[],
+        'newWorkspaceTools': <String>['search', 'pullRequest'],
+      });
+
+      expect(restored.newWorkspaceTools, <WorkspaceTool>[
+        WorkspaceTool.search,
+        WorkspaceTool.pullRequest,
+      ]);
+    });
+
+    test('fromJson drops non-numeric right-sidebar width entries', () {
+      final restored = WorkbenchViewPrefs.fromJson(<String, Object?>{
+        'groupBy': 'project',
+        'projectSort': 'name',
+        'workspaceSort': 'name',
+        'selectedProjectIds': <String>[],
+        'collapsedProjectIds': <String>[],
+        'expandedWorkspaceIds': <String>[],
+        'rightSidebarWidth': 280,
+        'rightSidebarWidthByWorkspaceId': <String, Object?>{
+          'w-wide': 400,
+          'w-bad': 'wide',
+        },
+      });
+
+      expect(restored.rightSidebarWidthByWorkspaceId, <String, double>{
+        'w-wide': 400,
+      });
+    });
+
+    test('fromJson drops right-sidebar widths that match the fallback', () {
+      final restored = WorkbenchViewPrefs.fromJson(<String, Object?>{
+        'groupBy': 'project',
+        'projectSort': 'name',
+        'workspaceSort': 'name',
+        'selectedProjectIds': <String>[],
+        'collapsedProjectIds': <String>[],
+        'expandedWorkspaceIds': <String>[],
+        'rightSidebarWidth': 280,
+        'rightSidebarWidthByWorkspaceId': <String, Object?>{
+          'w-default': 280,
+          'w-wide': 400,
+        },
+      });
+
+      expect(restored.rightSidebarWidthByWorkspaceId, <String, double>{
+        'w-wide': 400,
+      });
+    });
+
+    test('rightSidebarWidthFor prefers the workspace override', () {
+      final prefs = WorkbenchViewPrefs.defaults.copyWith(
+        rightSidebarWidth: 280,
+        rightSidebarWidthByWorkspaceId: const <String, double>{'w-1': 400},
+      );
+
+      expect(prefs.rightSidebarWidthFor(null), 280);
+      expect(prefs.rightSidebarWidthFor('missing'), 280);
+      expect(prefs.rightSidebarWidthFor('w-1'), 400);
+      expect(prefs.rightSidebarWidthFor('missing', fallback: 320), 320);
+      expect(prefs.rightSidebarWidthFor('w-1', fallback: 320), 400);
     });
 
     test('round-trips the git diff group mode', () {

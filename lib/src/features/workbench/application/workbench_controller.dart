@@ -41,19 +41,23 @@ import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_state_migration.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:path/path.dart' as p;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
-import '../domain/experimental_workspace_panel.dart';
+import '../domain/workspace_panel.dart';
 import '../domain/workspace_relocation_recovery.dart';
 import '../infra/workspace_relocation_recovery_client.dart';
 
 part 'workbench_controller.g.dart';
 part 'workbench_controller_internals.dart';
+part 'workbench_controller_internal_layout.dart';
 part 'workbench_controller_workspace_reconciliation.dart';
-part 'workbench_controller_experimental_layout.dart';
+part 'workbench_controller_workspace_panel.dart';
+part 'workbench_controller_workspace_panel_panes.dart';
 part 'workbench_controller_projects.dart';
+part 'workbench_controller_project_selection.dart';
 part 'workbench_controller_project_branches.dart';
 part 'workbench_controller_workspace_sleep.dart';
 part 'workbench_controller_navigation.dart';
@@ -66,18 +70,22 @@ part 'workbench_controller_tabs.dart';
 part 'workbench_controller_view_prefs.dart';
 part 'workbench_controller_source_control_root.dart';
 part 'workbench_controller_sync.dart';
+part 'workbench_controller_sync_apply.dart';
 part 'workbench_controller_sections.dart';
 
 @Riverpod(keepAlive: true)
 class WorkbenchController extends _$WorkbenchController
     with
         _WorkbenchControllerInternals,
+        _WorkbenchControllerInternalLayout,
         _WorkbenchControllerWorkspaceReconciliation,
-        _WorkbenchControllerExperimentalLayout,
+        _WorkbenchControllerWorkspacePanel,
+        _WorkbenchControllerWorkspacePanelPanes,
         _WorkbenchControllerTabOpening,
         _WorkbenchControllerFileTabs,
         _WorkbenchControllerPullRequestDiffTabs,
         _WorkbenchControllerProjects,
+        _WorkbenchControllerProjectSelection,
         _WorkbenchControllerProjectBranches,
         _WorkbenchControllerWorkspaceSleep,
         _WorkbenchControllerNavigation,
@@ -89,6 +97,7 @@ class WorkbenchController extends _$WorkbenchController
         _WorkbenchControllerViewPrefs,
         _WorkbenchControllerSourceControlRoot,
         _WorkbenchControllerSync,
+        _WorkbenchControllerSyncApply,
         _WorkbenchControllerSections {
   @override
   WorkbenchState build() {
@@ -119,9 +128,7 @@ class WorkbenchController extends _$WorkbenchController
         try {
           final prefs = await repo.load();
           state = state.copyWith(viewPrefs: prefs);
-          _viewPrefsSub = repo.changes.listen((prefs) {
-            if (!_disposed) state = state.copyWith(viewPrefs: prefs);
-          });
+          _viewPrefsSub = repo.changes.listen(_applySharedViewPrefs);
         } catch (_) {
           // Fall back to defaults if loading fails; never block bootstrap.
         }
@@ -140,6 +147,7 @@ class WorkbenchController extends _$WorkbenchController
       _onProjectsChanged(initialProjects);
       await Future.wait<void>(initialProjects.map(_reconcileProjectWorkspaces));
       state = state.copyWith(bootstrapped: true, error: null);
+      _pruneStaleWorkspacePrefs();
     } catch (error) {
       state = state.copyWith(
         bootstrapped: true,

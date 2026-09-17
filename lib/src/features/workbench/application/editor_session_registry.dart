@@ -26,6 +26,8 @@ class EditorSessionRegistry extends ChangeNotifier {
     );
   }
 
+  EditorDocumentSession? documentIfPresent(String tabId) => _documents[tabId];
+
   Listenable documentChangesForPath({
     required String workspacePath,
     required String relativePath,

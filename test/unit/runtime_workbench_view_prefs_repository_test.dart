@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera/src/features/workbench/application/workbench_view_prefs_repository.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/infra/runtime_workbench_view_prefs_repository.dart';
@@ -111,6 +113,172 @@ void main() {
     expect(sent['gitDiffViewMode'], 'flat');
     expect(sent['gitDiffGroupMode'], 'unified');
   });
+
+  test(
+    'a paused echo does not restore a locally removed right-sidebar width',
+    () async {
+      final getStarted = Completer<void>();
+      final releaseGet = Completer<void>();
+      final client = _FakeRuntimeHostClient()
+        ..supportsSections = true
+        ..responses['workbenchViewPrefs.get'] = <String, Object?>{
+          'revision': 4,
+          'desktopInitialized': true,
+          'prefs': <String, Object?>{'groupBy': 'project'},
+        }
+        ..responses['workbenchViewPrefs.update'] = <String, Object?>{
+          'revision': 5,
+        }
+        ..requestGates['workbenchViewPrefs.get'] = (
+          started: getStarted,
+          release: releaseGet,
+        );
+      final legacy = _MemoryViewPrefsRepository()
+        ..prefs = WorkbenchViewPrefs.defaults.copyWith(
+          rightSidebarWidthByWorkspaceId: const <String, double>{'w-1': 360},
+        );
+      final repository = RuntimeWorkbenchViewPrefsRepository(
+        client: client,
+        legacyRepository: legacy,
+      );
+
+      final echo = repository.load();
+      await getStarted.future;
+      await repository.save(
+        WorkbenchViewPrefs.defaults.copyWith(
+          rightSidebarWidthByWorkspaceId: const <String, double>{},
+        ),
+      );
+      expect(legacy.prefs.rightSidebarWidthByWorkspaceId, isEmpty);
+
+      releaseGet.complete();
+      final echoed = await echo;
+      expect(echoed.rightSidebarWidthByWorkspaceId, isEmpty);
+      expect(legacy.prefs.rightSidebarWidthByWorkspaceId, isEmpty);
+    },
+  );
+
+  test(
+    'a failed echo uses the latest local prefs, not the pre-request snapshot',
+    () async {
+      final getStarted = Completer<void>();
+      final releaseGet = Completer<void>();
+      final client = _FakeRuntimeHostClient()
+        ..supportsSections = true
+        ..requestGates['workbenchViewPrefs.get'] = (
+          started: getStarted,
+          release: releaseGet,
+        );
+      final legacy = _MemoryViewPrefsRepository()
+        ..prefs = WorkbenchViewPrefs.defaults.copyWith(
+          rightSidebarWidthByWorkspaceId: const <String, double>{'w-1': 360},
+        );
+      final repository = RuntimeWorkbenchViewPrefsRepository(
+        client: client,
+        legacyRepository: legacy,
+      );
+
+      final echo = repository.load();
+      await getStarted.future;
+      await repository.save(
+        WorkbenchViewPrefs.defaults.copyWith(
+          rightSidebarWidthByWorkspaceId: const <String, double>{},
+        ),
+      );
+      releaseGet.completeError(StateError('runtime unavailable'));
+      final echoed = await echo;
+      expect(echoed.rightSidebarWidthByWorkspaceId, isEmpty);
+      expect(legacy.prefs.rightSidebarWidthByWorkspaceId, isEmpty);
+    },
+  );
+
+  test(
+    'a concurrent local save after merge still wins the load result',
+    () async {
+      final getStarted = Completer<void>();
+      final releaseGet = Completer<void>();
+      final client = _FakeRuntimeHostClient()
+        ..supportsSections = true
+        ..responses['workbenchViewPrefs.get'] = <String, Object?>{
+          'revision': 4,
+          'desktopInitialized': true,
+          'prefs': <String, Object?>{'groupBy': 'project'},
+        }
+        ..responses['workbenchViewPrefs.update'] = <String, Object?>{
+          'revision': 5,
+        }
+        ..requestGates['workbenchViewPrefs.get'] = (
+          started: getStarted,
+          release: releaseGet,
+        );
+      final legacy = _MemoryViewPrefsRepository()
+        ..prefs = WorkbenchViewPrefs.defaults.copyWith(
+          rightSidebarWidthByWorkspaceId: const <String, double>{'w-1': 360},
+        );
+      final repository = RuntimeWorkbenchViewPrefsRepository(
+        client: client,
+        legacyRepository: legacy,
+      );
+
+      final echo = repository.load();
+      await getStarted.future;
+      final sleepSave = repository.save(
+        WorkbenchViewPrefs.defaults.copyWith(
+          rightSidebarWidthByWorkspaceId: const <String, double>{},
+        ),
+      );
+      releaseGet.complete();
+      await echo;
+      await sleepSave;
+      expect(legacy.prefs.rightSidebarWidthByWorkspaceId, isEmpty);
+      expect((await echo).rightSidebarWidthByWorkspaceId, isEmpty);
+    },
+  );
+
+  test('a queued echo does not overlay an older shared snapshot after a newer save', () async {
+    final getStarted = Completer<void>();
+    final releaseGet = Completer<void>();
+    final client = _FakeRuntimeHostClient()
+      ..supportsSections = true
+      ..responses['workbenchViewPrefs.get'] = <String, Object?>{
+        'revision': 4,
+        'desktopInitialized': true,
+        'prefs': <String, Object?>{'searchViewAsTree': false},
+      }
+      ..responses['workbenchViewPrefs.update'] = <String, Object?>{
+        'revision': 5,
+      }
+      ..requestGates['workbenchViewPrefs.get'] = (
+        started: getStarted,
+        release: releaseGet,
+      );
+    final legacy = _MemoryViewPrefsRepository()
+      ..prefs = WorkbenchViewPrefs.defaults.copyWith(searchViewAsTree: false);
+    final repository = RuntimeWorkbenchViewPrefsRepository(
+      client: client,
+      legacyRepository: legacy,
+    );
+
+    final echo = repository.load();
+    await getStarted.future;
+    await repository.save(
+      WorkbenchViewPrefs.defaults.copyWith(searchViewAsTree: true),
+    );
+    expect(legacy.prefs.searchViewAsTree, isTrue);
+
+    releaseGet.complete();
+    final echoed = await echo;
+    expect(echoed.searchViewAsTree, isTrue);
+    expect(legacy.prefs.searchViewAsTree, isTrue);
+
+    await repository.save(
+      WorkbenchViewPrefs.defaults.copyWith(searchViewAsTree: false),
+    );
+    expect(
+      client.payloads['workbenchViewPrefs.update']!.last['expectedRevision'],
+      5,
+    );
+  });
 }
 
 final class _MemoryViewPrefsRepository implements WorkbenchViewPrefsRepository {
@@ -137,6 +305,8 @@ final class _FakeRuntimeHostClient
       supportsSections && capability == 'workspaceSectionsV1';
   final responses = <String, Object?>{};
   final payloads = <String, List<Map<String, Object?>>>{};
+  final requestGates =
+      <String, ({Completer<void> started, Completer<void> release})>{};
 
   @override
   Stream<RuntimeHostEvent> get runtimeEvents =>
@@ -149,6 +319,11 @@ final class _FakeRuntimeHostClient
     Duration? timeout,
   ]) async {
     payloads.putIfAbsent(type, () => <Map<String, Object?>>[]).add(payload);
+    final gate = requestGates.remove(type);
+    if (gate != null) {
+      gate.started.complete();
+      await gate.release.future;
+    }
     return responses[type];
   }
 }

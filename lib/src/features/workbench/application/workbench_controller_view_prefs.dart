@@ -1,7 +1,11 @@
 part of 'workbench_controller.dart';
 
 mixin _WorkbenchControllerViewPrefs
-    on _$WorkbenchController, _WorkbenchControllerInternals {
+    on
+        _$WorkbenchController,
+        _WorkbenchControllerInternals,
+        _WorkbenchControllerWorkspacePanelPanes,
+        _WorkbenchControllerInternalLayout {
   void toggleExpanded(String projectId) {
     toggleProjectCollapsed(projectId);
   }
@@ -235,17 +239,16 @@ mixin _WorkbenchControllerViewPrefs
       return;
     }
     _updateViewPrefs(state.viewPrefs.copyWith(rightSidebarVisible: visible));
-    if (!visible &&
-        state.isExperimentalLayout &&
-        state.activeWorkspaceId != null) {
+    if (!visible && state.activeWorkspaceId != null) {
       final id = state.activeWorkspaceId!;
-      final panel = state.experimentalPanelFor(id);
-      if (panel.primaryTabId case final String primary) {
-        _saveExperimentalPanel(
-          id,
-          panel.select(ExperimentalWorkspacePanel.tabKey(primary)),
-        );
-        ref.read(terminalRuntimeProvider).peekSession(primary)?.requestFocus();
+      final panel = state.workspacePanelFor(id);
+      _panelSelectionRevisionByWorkspace[id] =
+          (_panelSelectionRevisionByWorkspace[id] ?? 0) + 1;
+      final mainKey =
+          panel.ensuredMainLayout(id).activeTabId ?? panel.mainKeys.firstOrNull;
+      if (mainKey != null) {
+        _saveWorkspacePanel(id, panel.select(mainKey));
+        _focusPanelTerminal(id, mainKey);
       }
     }
   }
@@ -255,50 +258,65 @@ mixin _WorkbenchControllerViewPrefs
   }
 
   void setRightSidebarWidth(double value) {
-    if (!value.isFinite) return;
-    if (state.isExperimentalLayout) {
-      _updateViewPrefs(
-        state.viewPrefs.copyWith(
-          experimentalRightSidebarWidth: value.clamp(
-            AleraTokens.sidebarMinWidth,
-            double.infinity,
-          ),
-        ),
-      );
+    if (!value.isFinite) {
       return;
     }
-    final clamped = value.clamp(
-      AleraTokens.sidebarMinWidth,
-      AleraTokens.sidebarMaxWidth,
+    final clamped = value.clamp(AleraTokens.sidebarMinWidth, double.infinity);
+    final workspaceId = state.activeWorkspaceId;
+    final prefs = state.viewPrefs;
+    final fallback = prefs.rightSidebarWidth;
+    if (workspaceId == null) {
+      if ((fallback - clamped).abs() < 0.5) {
+        return;
+      }
+      _updateViewPrefs(prefs.copyWith(rightSidebarWidth: clamped));
+      return;
+    }
+    final nextWidths = Map<String, double>.from(
+      prefs.rightSidebarWidthByWorkspaceId,
     );
-    if ((state.viewPrefs.rightSidebarWidth - clamped).abs() < 0.5) {
+    if ((fallback - clamped).abs() < 0.5) {
+      if (!nextWidths.containsKey(workspaceId)) {
+        return;
+      }
+      nextWidths.remove(workspaceId);
+    } else if ((prefs.rightSidebarWidthFor(workspaceId, fallback: fallback) -
+                clamped)
+            .abs() <
+        0.5) {
       return;
+    } else {
+      nextWidths[workspaceId] = clamped;
     }
-    _updateViewPrefs(state.viewPrefs.copyWith(rightSidebarWidth: clamped));
+    _updateViewPrefs(
+      prefs.copyWith(rightSidebarWidthByWorkspaceId: nextWidths),
+    );
   }
 
   void setContextPanelTab(WorkbenchContextPanelTab tab) {
-    if (state.isExperimentalLayout && state.activeWorkspaceId != null) {
-      final tool = switch (tab) {
-        WorkbenchContextPanelTab.explorer => ExperimentalWorkspaceTool.explorer,
-        WorkbenchContextPanelTab.search => ExperimentalWorkspaceTool.search,
-        WorkbenchContextPanelTab.gitDiff =>
-          ExperimentalWorkspaceTool.sourceControl,
-        WorkbenchContextPanelTab.pullRequests =>
-          ExperimentalWorkspaceTool.pullRequest,
-      };
-      final id = state.activeWorkspaceId!;
-      _saveExperimentalPanel(
-        id,
-        state.experimentalPanelFor(id).select(tool.key),
-        reveal: true,
-      );
+    var prefs = state.viewPrefs;
+    if (prefs.activeContextPanelTab != tab) {
+      prefs = prefs.copyWith(activeContextPanelTab: tab);
+      state = state.copyWith(viewPrefs: prefs);
+      unawaited(_persistViewPrefs());
+    }
+    final id = state.activeWorkspaceId;
+    if (id == null) {
       return;
     }
-    if (state.viewPrefs.activeContextPanelTab == tab) {
-      return;
-    }
-    _updateViewPrefs(state.viewPrefs.copyWith(activeContextPanelTab: tab));
+    final tool = switch (tab) {
+      WorkbenchContextPanelTab.explorer => WorkspaceTool.explorer,
+      WorkbenchContextPanelTab.search => WorkspaceTool.search,
+      WorkbenchContextPanelTab.gitDiff => WorkspaceTool.sourceControl,
+      WorkbenchContextPanelTab.pullRequests => WorkspaceTool.pullRequest,
+    };
+    _panelSelectionRevisionByWorkspace[id] =
+        (_panelSelectionRevisionByWorkspace[id] ?? 0) + 1;
+    _saveWorkspacePanel(
+      id,
+      state.workspacePanelFor(id).select(tool.key),
+      reveal: true,
+    );
   }
 
   void revealInExplorer({
@@ -362,9 +380,9 @@ mixin _WorkbenchControllerViewPrefs
     _updateViewPrefs(state.viewPrefs.copyWith(pullRequestCreateAction: action));
   }
 
-  void setExperimentalNewWorkspaceTools(List<ExperimentalWorkspaceTool> tools) {
-    final next = ExperimentalWorkspaceTool.uniqueInOrder(tools);
-    final current = state.viewPrefs.experimentalNewWorkspaceTools;
+  void setNewWorkspaceTools(List<WorkspaceTool> tools) {
+    final next = WorkspaceTool.uniqueInOrder(tools);
+    final current = state.viewPrefs.newWorkspaceTools;
     if (current.length == next.length) {
       var same = true;
       for (var i = 0; i < current.length; i++) {
@@ -377,14 +395,34 @@ mixin _WorkbenchControllerViewPrefs
         return;
       }
     }
-    _updateViewPrefs(
-      state.viewPrefs.copyWith(experimentalNewWorkspaceTools: next),
-    );
+    _updateViewPrefs(state.viewPrefs.copyWith(newWorkspaceTools: next));
   }
 
   void _updateViewPrefs(WorkbenchViewPrefs prefs) {
     state = state.copyWith(viewPrefs: prefs);
     unawaited(_persistViewPrefs());
+  }
+
+  void _applySharedViewPrefs(WorkbenchViewPrefs prefs) {
+    if (_disposed) {
+      return;
+    }
+    final current = state.viewPrefs;
+    state = state.copyWith(
+      viewPrefs: prefs.copyWith(
+        workspacePanels: current.workspacePanels,
+        expandedWorkspaceIds: current.expandedWorkspaceIds,
+        sourceControlRootByWorkspaceId: current.sourceControlRootByWorkspaceId,
+        rightSidebarVisible: current.rightSidebarVisible,
+        rightSidebarWidth: current.rightSidebarWidth,
+        rightSidebarWidthByWorkspaceId: current.rightSidebarWidthByWorkspaceId,
+        sidebarWidth: current.sidebarWidth,
+        activeContextPanelTab: current.activeContextPanelTab,
+        explorerMode: current.explorerMode,
+        pullRequestCreateAction: current.pullRequestCreateAction,
+        newWorkspaceTools: current.newWorkspaceTools,
+      ),
+    );
   }
 
   void setSearchQuery(String query) {

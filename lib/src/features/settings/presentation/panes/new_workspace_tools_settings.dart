@@ -1,51 +1,50 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/forms/alera_checkbox.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
-import 'package:alera/src/features/workbench/domain/experimental_workspace_panel.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
 import 'package:flutter/material.dart';
 
-/// Chooses which Experimental tools open, and in what order, on a new workspace.
-class ExperimentalNewWorkspaceToolsSettings extends StatefulWidget {
-  const ExperimentalNewWorkspaceToolsSettings({
+/// Chooses which tools open, and in what order, on a new workspace.
+class NewWorkspaceToolsSettings extends StatefulWidget {
+  const NewWorkspaceToolsSettings({
     super.key,
     required this.selected,
     required this.onChanged,
   });
 
-  final List<ExperimentalWorkspaceTool> selected;
-  final ValueChanged<List<ExperimentalWorkspaceTool>> onChanged;
+  final List<WorkspaceTool> selected;
+  final ValueChanged<List<WorkspaceTool>> onChanged;
 
   @override
-  State<ExperimentalNewWorkspaceToolsSettings> createState() =>
-      _ExperimentalNewWorkspaceToolsSettingsState();
+  State<NewWorkspaceToolsSettings> createState() =>
+      _NewWorkspaceToolsSettingsState();
 }
 
-class _ExperimentalNewWorkspaceToolsSettingsState
-    extends State<ExperimentalNewWorkspaceToolsSettings> {
-  late List<ExperimentalWorkspaceTool> _order;
+class _NewWorkspaceToolsSettingsState extends State<NewWorkspaceToolsSettings> {
+  late List<WorkspaceTool> _order;
 
   @override
   void initState() {
     super.initState();
-    _order = ExperimentalWorkspaceTool.settingsOrder(widget.selected);
+    _order = WorkspaceTool.settingsOrder(widget.selected);
   }
 
   @override
-  void didUpdateWidget(ExperimentalNewWorkspaceToolsSettings oldWidget) {
+  void didUpdateWidget(NewWorkspaceToolsSettings oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (_sameTools(oldWidget.selected, widget.selected)) {
       return;
     }
     final selectedSet = widget.selected.toSet();
-    final fromOrder = <ExperimentalWorkspaceTool>[
+    final fromOrder = <WorkspaceTool>[
       for (final tool in _order)
         if (selectedSet.contains(tool)) tool,
     ];
     if (_sameTools(fromOrder, widget.selected) &&
-        _order.toSet().containsAll(ExperimentalWorkspaceTool.values)) {
+        _order.toSet().containsAll(WorkspaceTool.values)) {
       return;
     }
-    _order = ExperimentalWorkspaceTool.settingsOrder(widget.selected);
+    _order = WorkspaceTool.settingsOrder(widget.selected);
   }
 
   @override
@@ -66,7 +65,7 @@ class _ExperimentalNewWorkspaceToolsSettingsState
           ),
           const SizedBox(height: AleraTokens.space4),
           Text(
-            'Open these tools in the right panel of workspaces created while Experimental Mode is on. Drag to change their order. Existing workspaces keep their own panel.',
+            'Open these tools in the right panel of new workspaces. Drag to change their order. Existing workspaces keep their own panel.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: AleraTokens.foregroundMuted,
             ),
@@ -81,7 +80,7 @@ class _ExperimentalNewWorkspaceToolsSettingsState
             itemBuilder: (context, index) {
               final tool = _order[index];
               return Padding(
-                key: ValueKey<ExperimentalWorkspaceTool>(tool),
+                key: ValueKey<WorkspaceTool>(tool),
                 padding: const EdgeInsets.symmetric(
                   vertical: AleraTokens.space4,
                 ),
@@ -119,8 +118,8 @@ class _ExperimentalNewWorkspaceToolsSettingsState
     _emit(widget.selected.toSet());
   }
 
-  void _toggle(ExperimentalWorkspaceTool tool, bool enabled) {
-    final next = <ExperimentalWorkspaceTool>{...widget.selected.toSet()};
+  void _toggle(WorkspaceTool tool, bool enabled) {
+    final next = <WorkspaceTool>{...widget.selected.toSet()};
     if (enabled) {
       next.add(tool);
     } else {
@@ -129,19 +128,13 @@ class _ExperimentalNewWorkspaceToolsSettingsState
     _emit(next);
   }
 
-  void _emit(Set<ExperimentalWorkspaceTool> selected) {
+  void _emit(Set<WorkspaceTool> selected) {
     widget.onChanged(
-      ExperimentalWorkspaceTool.selectedFromOrder(
-        order: _order,
-        selected: selected,
-      ),
+      WorkspaceTool.selectedFromOrder(order: _order, selected: selected),
     );
   }
 
-  static bool _sameTools(
-    List<ExperimentalWorkspaceTool> left,
-    List<ExperimentalWorkspaceTool> right,
-  ) {
+  static bool _sameTools(List<WorkspaceTool> left, List<WorkspaceTool> right) {
     if (left.length != right.length) {
       return false;
     }
