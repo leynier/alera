@@ -17,16 +17,20 @@ Future<void> _confirmAndDelete(
   }
   final dependencies = await controller.removalDependencies(workspace.id);
   if (!context.mounted) return;
+  final branch = workspace.branch?.trim();
+  final canDeleteBranch =
+      !workspace.isMain &&
+      !workspace.reusesExistingBranch &&
+      branch != null &&
+      branch.isNotEmpty;
   final decision = data.confirmWorkspaceRemoval || dependencies.isNotEmpty
-      ? await showDeleteWorkspaceDialog(
+      ? await showWorkspaceRemovalDialog(
           context,
           workspace: workspace,
           cascadeCount: cascadeCount,
           dependencies: dependencies,
         )
-      : DeleteWorkspaceDecision(
-          deleteBranch: !workspace.isMain && !workspace.reusesExistingBranch,
-        );
+      : WorkspaceRemovalDecision(deleteBranch: canDeleteBranch);
   if (decision == null || !context.mounted) {
     return;
   }
