@@ -60,7 +60,7 @@ class _MobileLinkIssueDialogState
     );
     final container = ProviderScope.containerOf(context, listen: false);
     MobileLinkIssueResult? result;
-    submitInBackground(
+    _saving = submitInBackground(
       context,
       title: 'Link issue',
       operationKey: 'link-issue/${form.hostId}/${form.workspaceId}',

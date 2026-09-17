@@ -5,7 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Captures everything before removing the route; completion must never pop
 /// whichever screen the user navigated to while the request was in flight.
-void submitInBackground(
+/// Returns false for a duplicate so the caller can keep its draft editable.
+bool submitInBackground(
   BuildContext context, {
   String? operationKey,
   required String title,
@@ -49,10 +50,12 @@ void submitInBackground(
             }
           },
   );
-  navigator.pop();
   if (!started) {
     messenger?.showSnackBar(
       const SnackBar(content: Text('This operation is already running.')),
     );
+    return false;
   }
+  navigator.pop();
+  return true;
 }

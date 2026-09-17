@@ -58,7 +58,7 @@ class _LinkIssueDialogState extends State<_LinkIssueDialog> {
     _saving = true;
     final form = widget;
     late LinkedIssueLinkResult result;
-    submitInBackground(
+    _saving = submitInBackground(
       context,
       title: 'Link issue',
       operationKey: 'link-issue/${form.workspaceId}',

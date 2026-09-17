@@ -26,6 +26,8 @@ The desktop and mobile packages keep separate implementations, matching their ex
 
 The queue never automatically retries a write: a transport failure can occur after the host has committed, pushed, created a section, or moved a workspace. Errors are logged and retained for explicit review. Runtime protocol versions and server mutation semantics are unchanged.
 
+A refused duplicate leaves the current route and its draft in place and reports that the operation is already running. Submission helpers return whether the write started so forms can remain editable after a refusal. Repeated submissions during a closing transition cannot pop the underlying workspace screen.
+
 ## Validation
 
 Focused controller and widget tests cover delayed requests, route dismissal before completion, navigation while Ship runs, failure visibility, comment and Ship input recovery, duplicate suppression, section retries, and relocation identity preservation. Static analysis runs for both Flutter packages.

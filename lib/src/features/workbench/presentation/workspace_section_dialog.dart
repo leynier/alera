@@ -102,7 +102,7 @@ class _SectionDialogState extends State<_SectionDialog> {
     final form = widget;
     final selected = _selected;
     final create = _create;
-    submitInBackground(
+    _saving = submitInBackground(
       context,
       title: 'Save section',
       successMessage: () => 'Section saved.',

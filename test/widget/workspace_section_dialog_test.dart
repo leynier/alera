@@ -114,6 +114,36 @@ Future<void> _choose(WidgetTester tester, String name) async {
 }
 
 void main() {
+  testWidgets('a refused section save retains its draft and remains editable', (
+    tester,
+  ) async {
+    final controller = _Controller()..pending = Completer<void>();
+    await _open(tester, controller, createMode: true);
+    await tester.enterText(find.byType(TextField), 'First section');
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.text('Open'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.enterText(find.byType(TextField), 'Second section');
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Set Section'), findsOneWidget);
+    expect(find.text('Second section'), findsOneWidget);
+    expect(find.text('This operation is already running.'), findsOneWidget);
+    controller.pending!.complete();
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Updated section');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(controller.saves, 2);
+    expect(controller.name, 'Updated section');
+    expect(find.text('Set Section'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('section save releases the dialog before the request finishes', (
     tester,
   ) async {
