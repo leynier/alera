@@ -1,5 +1,9 @@
 import 'package:alera_mobile/src/app/theme/alera_theme.dart';
+import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
+import 'package:alera_mobile/src/features/terminal/application/agent_presence_controller.dart';
+import 'package:alera_mobile/src/features/terminal/application/tabs_controller.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_diff_viewer_screen.dart';
 import 'package:alera_mobile/src/features/workspace_agent_comments/application/workspace_agent_comment_controller.dart';
@@ -164,4 +168,96 @@ void main() {
     expect(find.text('1 comment'), findsOneWidget);
     expect(find.textContaining('Rewrite this hunk.'), findsOneWidget);
   });
+
+  testWidgets('Open after send pops the diff and reveals the agent tab', (
+    tester,
+  ) async {
+    final opened = <String>[];
+    final client =
+        sourceControlClient(
+            writableSnapshot(entries: <MobileGitChange>[unstagedChange()]),
+          )
+          ..gitDiffFile = _diff
+          ..agentProfiles = const <AgentProfileSummary>[
+            AgentProfileSummary(
+              id: 'profile-1',
+              name: 'Codex',
+              agentType: 'codex',
+              showInNewTabMenu: true,
+            ),
+          ];
+    addTearDown(client.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          terminalClientProvider('host-1').overrideWith((ref) async => client),
+          workspaceClientProvider('host-1').overrideWith((ref) async => client),
+        ],
+        child: MaterialApp(
+          theme: buildAleraMobileDarkTheme(),
+          home: Consumer(
+            builder: (context, ref, _) {
+              ref.watch(agentPresenceControllerProvider('host-1'));
+              ref.watch(tabsControllerProvider('host-1', 'workspace-1'));
+              return _PushedDiffHome(onOpenTab: opened.add);
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Show Diff'));
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(WorkspaceDiffViewerScreen)),
+    );
+    container
+        .read(
+          workspaceAgentCommentControllerProvider(
+            'host-1',
+            'workspace-1',
+          ).notifier,
+        )
+        .add(path: 'lib/main.dart', body: 'Rename x');
+    await tester.pump();
+
+    await tester.tap(find.text('Send'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Codex'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(WorkspaceDiffViewerScreen), findsOneWidget);
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(WorkspaceDiffViewerScreen), findsNothing);
+    expect(find.text('Show Diff'), findsOneWidget);
+    expect(opened, <String>['agent-tab']);
+  });
+}
+
+class const _PushedDiffHome({required final ValueChanged<String> onOpenTab})
+    extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: TextButton(
+        onPressed: () {
+          Navigator.of(context).push<void>(
+            MaterialPageRoute<void>(
+              builder: (_) => WorkspaceDiffViewerScreen(
+                hostId: 'host-1',
+                workspaceId: 'workspace-1',
+                change: unstagedChange(),
+                onOpenTab: onOpenTab,
+              ),
+            ),
+          );
+        },
+        child: const Text('Show Diff'),
+      ),
+    );
+  }
 }

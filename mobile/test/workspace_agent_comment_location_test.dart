@@ -46,6 +46,33 @@ void main() {
       );
     });
 
+    test('skips no-newline markers so the next code line keeps its number', () {
+      const lines = <MobileGitDiffLine>[
+        MobileGitDiffLine(kind: 'hunk', text: '@@ -1 +1 @@'),
+        MobileGitDiffLine(kind: 'deletion', text: '-old'),
+        MobileGitDiffLine(
+          kind: 'context',
+          text: r'\ No newline at end of file',
+        ),
+        MobileGitDiffLine(kind: 'addition', text: '+new'),
+      ];
+      final anchors = workspaceAgentDiffLineAnchors(lines);
+      expect(anchors, hasLength(4));
+      expect(
+        workspaceAgentCommentRangeForDiffAnchor(anchors[1]),
+        const WorkspaceAgentCommentLineRange(
+          startLine: 1,
+          endLine: 1,
+          side: WorkspaceAgentCommentLineSide.oldSide,
+        ),
+      );
+      expect(workspaceAgentCommentRangeForDiffAnchor(anchors[2]), isNull);
+      expect(
+        workspaceAgentCommentRangeForDiffAnchor(anchors[3]),
+        const WorkspaceAgentCommentLineRange(startLine: 1, endLine: 1),
+      );
+    });
+
     test('treats omitted hunk counts as one', () {
       final anchors = workspaceAgentDiffLineAnchors(const <MobileGitDiffLine>[
         MobileGitDiffLine(kind: 'hunk', text: '@@ -1 +1 @@'),

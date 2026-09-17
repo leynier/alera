@@ -98,25 +98,39 @@ List<WorkspaceAgentDiffLineAnchor> workspaceAgentDiffLineAnchors(
           ),
         );
       default:
-        final thisOld = oldLine;
-        final thisNew = newLine;
-        if (thisOld != null) {
-          oldLine = thisOld + 1;
+        // Mobile git.diff labels "\ No newline at end of file" as context.
+        // Counting it would shift the following code line.
+        if (line.text.startsWith(r'\')) {
+          anchors.add(
+            WorkspaceAgentDiffLineAnchor(
+              index: index,
+              line: line,
+              hunkHeader: hunkHeader,
+              hunkNewStart: hunkNewStart,
+              hunkNewEnd: hunkNewEnd,
+            ),
+          );
+        } else {
+          final thisOld = oldLine;
+          final thisNew = newLine;
+          if (thisOld != null) {
+            oldLine = thisOld + 1;
+          }
+          if (thisNew != null) {
+            newLine = thisNew + 1;
+          }
+          anchors.add(
+            WorkspaceAgentDiffLineAnchor(
+              index: index,
+              line: line,
+              hunkHeader: hunkHeader,
+              oldLine: thisOld,
+              newLine: thisNew,
+              hunkNewStart: hunkNewStart,
+              hunkNewEnd: hunkNewEnd,
+            ),
+          );
         }
-        if (thisNew != null) {
-          newLine = thisNew + 1;
-        }
-        anchors.add(
-          WorkspaceAgentDiffLineAnchor(
-            index: index,
-            line: line,
-            hunkHeader: hunkHeader,
-            oldLine: thisOld,
-            newLine: thisNew,
-            hunkNewStart: hunkNewStart,
-            hunkNewEnd: hunkNewEnd,
-          ),
-        );
     }
   }
   return anchors;

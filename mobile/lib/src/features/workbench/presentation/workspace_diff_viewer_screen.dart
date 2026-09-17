@@ -24,6 +24,7 @@ class const WorkspaceDiffViewerScreen({
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final openTab = onOpenTab;
     return Scaffold(
       appBar: AppBar(
         title: Text(workspaceFileBaseName(change.path), overflow: .ellipsis),
@@ -54,7 +55,12 @@ class const WorkspaceDiffViewerScreen({
           WorkspaceAgentCommentQueue(
             hostId: hostId,
             workspaceId: workspaceId,
-            onOpenTab: onOpenTab,
+            onOpenTab: openTab == null
+                ? null
+                : (tabId) {
+                    openTab(tabId);
+                    Navigator.of(context).maybePop();
+                  },
           ),
           Expanded(
             child: FutureBuilder<MobileGitDiffFile>(
