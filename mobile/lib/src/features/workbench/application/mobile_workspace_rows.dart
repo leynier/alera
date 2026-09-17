@@ -308,6 +308,11 @@ bool _matchesFilters(
       !workspace.tagIds.any(prefs.selectedTagIds.contains)) {
     return false;
   }
+  if (prefs.selectedSectionIds.isNotEmpty &&
+      (workspace.sectionId == null ||
+          !prefs.selectedSectionIds.contains(workspace.sectionId))) {
+    return false;
+  }
   if (prefs.showActiveWorkspacesOnly && !hasActivity) {
     return false;
   }

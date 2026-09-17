@@ -112,10 +112,13 @@ void main() {
       visible.whereType<MobileWorkspaceEntryRow>().single.entry.workspace.id,
       'child',
     );
-    final restored = MobileViewPrefs.fromJson(collapsed.toJson());
+    final restored = MobileViewPrefs.fromJson(
+      collapsed.copyWith(selectedSectionIds: {'a'}).toJson(),
+    );
     expect(restored.groupBy, MobileWorkspaceGroupBy.section);
     expect(restored.collapsedSectionIds, {'a'});
     expect(restored.othersSectionCollapsed, isTrue);
+    expect(restored.selectedSectionIds, {'a'});
     expect(
       MobileViewPrefs.fromJson({}).sectionSort,
       MobileWorkbenchSortBy.name,
