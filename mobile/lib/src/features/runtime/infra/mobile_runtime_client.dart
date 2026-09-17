@@ -27,6 +27,7 @@ import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_act
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/ai_dictation/domain/speech_capabilities.dart';
+import 'package:alera_mobile/src/features/voice/domain/mobile_voice_settings.dart';
 import 'package:alera_mobile/src/features/linked_issues/domain/mobile_linked_issue.dart';
 import 'package:alera_mobile/src/features/linked_issues/infra/mobile_runtime_linked_issue_requests.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_workspace_sidebar_client.dart';
@@ -48,6 +49,7 @@ part 'mobile_runtime_client_relay.dart';
 part 'mobile_runtime_transport_connection.dart';
 part 'mobile_runtime_relay_authorization.dart';
 part 'mobile_runtime_dictation_requests.dart';
+part 'mobile_runtime_voice_requests.dart';
 part 'mobile_runtime_terminal_requests.dart';
 part 'mobile_terminal_output_resync.dart';
 part 'mobile_runtime_codex_workspace_requests.dart';
@@ -67,6 +69,7 @@ class MobileRuntimeClient._(
         MobileRuntimeClientHostTools,
         MobileRuntimeClientRelay,
         MobileRuntimeDictationRequests,
+        MobileRuntimeVoiceRequests,
         MobileRuntimeTerminalRequests,
         MobileRuntimeTerminalOutputResync,
         MobileRuntimeCodexWorkspaceRequests,
