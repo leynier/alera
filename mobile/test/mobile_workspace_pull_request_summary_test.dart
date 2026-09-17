@@ -61,6 +61,62 @@ void main() {
     });
   });
 
+  group('MobileWorkspacePullRequestSummaries', () {
+    test('parses summaries with evaluated and eligible ids', () {
+      final fresh = MobileWorkspacePullRequestSummaries.fromJson(
+        <String, Object?>{
+          'summaries': <Object?>[
+            <String, Object?>{'workspaceId': 'ws-1', 'number': 4},
+          ],
+          'evaluatedWorkspaceIds': <String>['ws-1', 'ws-2'],
+          'eligibleWorkspaceIds': <String>['ws-1', 'ws-2', 'ws-3'],
+        },
+      );
+
+      expect(fresh.byWorkspace.keys, <String>['ws-1']);
+      expect(fresh.evaluatedWorkspaceIds, <String>{'ws-1', 'ws-2'});
+      expect(fresh.eligibleWorkspaceIds, <String>{'ws-1', 'ws-2', 'ws-3'});
+    });
+
+    test('merge keeps unevaluated icons and clears evaluated ones without a review', () {
+      const previous = <String, MobileWorkspacePullRequestSummary>{
+        'ws-1': MobileWorkspacePullRequestSummary(
+          workspaceId: 'ws-1',
+          number: 1,
+        ),
+        'ws-2': MobileWorkspacePullRequestSummary(
+          workspaceId: 'ws-2',
+          number: 2,
+        ),
+        'ws-gone': MobileWorkspacePullRequestSummary(
+          workspaceId: 'ws-gone',
+          number: 9,
+        ),
+      };
+      const fresh = MobileWorkspacePullRequestSummaries(
+        byWorkspace: <String, MobileWorkspacePullRequestSummary>{
+          'ws-3': MobileWorkspacePullRequestSummary(
+            workspaceId: 'ws-3',
+            number: 3,
+          ),
+        },
+        evaluatedWorkspaceIds: <String>{'ws-2', 'ws-3'},
+        eligibleWorkspaceIds: <String>{'ws-1', 'ws-2', 'ws-3'},
+      );
+
+      final merged = fresh.mergedOver(previous);
+
+      // ws-1 is eligible but unevaluated (failed batch): icon kept.
+      expect(merged['ws-1']?.number, 1);
+      // ws-2 evaluated with no review: stale icon cleared.
+      expect(merged.containsKey('ws-2'), isFalse);
+      // New reviews land.
+      expect(merged['ws-3']?.number, 3);
+      // ws-gone left the eligible set: dropped.
+      expect(merged.containsKey('ws-gone'), isFalse);
+    });
+  });
+
   group('mobileWorkspacePullRequestStatusTooltip', () {
     test('describes failing checks with hidden overflow', () {
       final summary = MobileWorkspacePullRequestSummary.fromJson(

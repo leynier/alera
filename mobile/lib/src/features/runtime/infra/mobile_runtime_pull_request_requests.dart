@@ -39,28 +39,19 @@ mixin MobileRuntimePullRequestRequests
       runtimeCapabilities.contains(mobilePullRequestSummariesCapability);
 
   @override
-  Future<Map<String, MobileWorkspacePullRequestSummary>>
-  pullRequestSummaries() async {
+  Future<MobileWorkspacePullRequestSummaries> pullRequestSummaries() async {
     if (!supportsPullRequestSummaries) {
       throw UnsupportedError(
         'Update the paired Alera runtime to show pull request status.',
       );
     }
-    final payload = await requestMap(
-      'mobile.pullRequest.summaries',
-      const <String, Object?>{},
-      _pullRequestSummariesTimeout,
+    return MobileWorkspacePullRequestSummaries.fromJson(
+      await requestMap(
+        'mobile.pullRequest.summaries',
+        const <String, Object?>{},
+        _pullRequestSummariesTimeout,
+      ),
     );
-    final summaries = <String, MobileWorkspacePullRequestSummary>{};
-    for (final item in payload.objectList('summaries')) {
-      final json = asJsonMap(item);
-      if (json.isEmpty) {
-        continue;
-      }
-      final summary = MobileWorkspacePullRequestSummary.fromJson(json);
-      summaries[summary.workspaceId] = summary;
-    }
-    return summaries;
   }
 
   @override

@@ -37,7 +37,10 @@ class WorkspacePullRequestSummariesController
       ref.onDispose(subscription.cancel);
     }
     try {
-      return await summaries.pullRequestSummaries();
+      final fresh = await summaries.pullRequestSummaries();
+      return fresh.mergedOver(
+        state.value ?? const <String, MobileWorkspacePullRequestSummary>{},
+      );
     } on Object catch (error, stackTrace) {
       Logger('WorkspacePullRequestSummariesController')
           .warning('Could not load pull request summaries', error, stackTrace);

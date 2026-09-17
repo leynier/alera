@@ -125,11 +125,13 @@ IconData _iconFor(MobileWorkspacePullRequestState state) => switch (state) {
   MobileWorkspacePullRequestState.closed => AleraIcons.gitPullRequestClosed,
 };
 
+/// Matches the desktop `WorkspacePullRequestStatusIndicator` mapping so a
+/// review reads the same on both surfaces.
 Color _colorFor(MobileWorkspacePullRequestState state) => switch (state) {
   MobileWorkspacePullRequestState.open => AleraTokens.success,
-  MobileWorkspacePullRequestState.draft => AleraTokens.warning,
-  MobileWorkspacePullRequestState.merged => AleraTokens.info,
-  MobileWorkspacePullRequestState.closed => AleraTokens.foregroundMuted,
+  MobileWorkspacePullRequestState.draft => AleraTokens.foregroundMuted,
+  MobileWorkspacePullRequestState.merged => AleraTokens.done,
+  MobileWorkspacePullRequestState.closed => AleraTokens.error,
 };
 
 ({IconData icon, Color color})? _badgeFor(

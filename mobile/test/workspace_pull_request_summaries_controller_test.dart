@@ -43,7 +43,10 @@ void main() {
     );
 
     client
-      ..summaries = <String, MobileWorkspacePullRequestSummary>{}
+      ..snapshot = const MobileWorkspacePullRequestSummaries(
+        evaluatedWorkspaceIds: <String>{'ws-1', 'ws-2'},
+        eligibleWorkspaceIds: <String>{'ws-1', 'ws-2'},
+      )
       ..emit('linkedReviewsChanged');
     await Future.pause(Duration.zero);
     await container.read(
@@ -76,6 +79,47 @@ void main() {
     expect(summaries.keys, containsAll(<String>['ws-1', 'ws-2']));
     expect(client.requestCount, 2);
   });
+
+  test('an unevaluated workspace keeps its previous icon', () async {
+    final client = _FakeSummariesClient();
+    final container = _container(client);
+    await container.read(
+      workspacePullRequestSummariesControllerProvider('host-1').future,
+    );
+
+    // ws-1 stays eligible but its batch failed, so its last icon survives;
+    // ws-2 evaluated with no review and loses its icon.
+    client.snapshot = MobileWorkspacePullRequestSummaries(
+      byWorkspace: const <String, MobileWorkspacePullRequestSummary>{},
+      evaluatedWorkspaceIds: const <String>{'ws-2'},
+      eligibleWorkspaceIds: const <String>{'ws-1', 'ws-2'},
+    );
+    client.emit('linkedReviewsChanged');
+    await Future.pause(Duration.zero);
+    final summaries = await container.read(
+      workspacePullRequestSummariesControllerProvider('host-1').future,
+    );
+
+    expect(summaries.keys, <String>['ws-1']);
+    expect(summaries['ws-1']?.number, 1);
+  });
+
+  test('workspaces that leave the eligible set are dropped', () async {
+    final client = _FakeSummariesClient();
+    final container = _container(client);
+    await container.read(
+      workspacePullRequestSummariesControllerProvider('host-1').future,
+    );
+
+    client.snapshot = const MobileWorkspacePullRequestSummaries();
+    client.emit('workspacesChanged');
+    await Future.pause(Duration.zero);
+    final summaries = await container.read(
+      workspacePullRequestSummariesControllerProvider('host-1').future,
+    );
+
+    expect(summaries, isEmpty);
+  });
 }
 
 ProviderContainer _container(_FakeSummariesClient client) {
@@ -104,11 +148,15 @@ class _FakeSummariesClient
   bool supported = true;
   Object? error;
   int requestCount = 0;
-  Map<String, MobileWorkspacePullRequestSummary>
-  summaries = <String, MobileWorkspacePullRequestSummary>{
-    'ws-1': MobileWorkspacePullRequestSummary(workspaceId: 'ws-1', number: 1),
-    'ws-2': MobileWorkspacePullRequestSummary(workspaceId: 'ws-2', number: 2),
-  };
+  MobileWorkspacePullRequestSummaries
+  snapshot = MobileWorkspacePullRequestSummaries(
+    byWorkspace: <String, MobileWorkspacePullRequestSummary>{
+      'ws-1': MobileWorkspacePullRequestSummary(workspaceId: 'ws-1', number: 1),
+      'ws-2': MobileWorkspacePullRequestSummary(workspaceId: 'ws-2', number: 2),
+    },
+    evaluatedWorkspaceIds: const <String>{'ws-1', 'ws-2'},
+    eligibleWorkspaceIds: const <String>{'ws-1', 'ws-2'},
+  );
 
   void emit(String name) {
     _events.add(MobileRuntimeEvent(name, const <String, Object?>{}));
@@ -123,14 +171,13 @@ class _FakeSummariesClient
   bool get supportsPullRequestSummaries => supported;
 
   @override
-  Future<Map<String, MobileWorkspacePullRequestSummary>>
-  pullRequestSummaries() async {
+  Future<MobileWorkspacePullRequestSummaries> pullRequestSummaries() async {
     requestCount += 1;
     final failure = error;
     if (failure != null) {
       throw failure;
     }
-    return summaries;
+    return snapshot;
   }
 
   @override

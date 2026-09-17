@@ -69,11 +69,58 @@ class const MobileWorkspacePullRequestSummary({
   }
 }
 
+/// One `mobile.pullRequest.summaries` answer: the fresh reviews plus the two
+/// workspace id sets the merge needs. `evaluatedWorkspaceIds` names the
+/// groups whose batch completed (a group with no review for a workspace
+/// clears its icon); `eligibleWorkspaceIds` names every workspace the host
+/// considered, so ids that left the set are dropped. Workspaces that are
+/// eligible but unevaluated had a failed batch and keep their previous icons,
+/// mirroring the desktop monitor's per-group preserve-on-error merge.
+class const MobileWorkspacePullRequestSummaries({
+  final Map<String, MobileWorkspacePullRequestSummary> byWorkspace =
+      const <String, MobileWorkspacePullRequestSummary>{},
+  final Set<String> evaluatedWorkspaceIds = const <String>{},
+  final Set<String> eligibleWorkspaceIds = const <String>{},
+}) {
+  /// Merges this fresh answer over [previous] like the desktop monitor: drop
+  /// every evaluated workspace, then add the fresh reviews; keep previous
+  /// icons for eligible-but-unevaluated workspaces and drop ids the host no
+  /// longer considers.
+  Map<String, MobileWorkspacePullRequestSummary> mergedOver(
+    Map<String, MobileWorkspacePullRequestSummary> previous,
+  ) {
+    return <String, MobileWorkspacePullRequestSummary>{
+      for (final entry in previous.entries)
+        if (!evaluatedWorkspaceIds.contains(entry.key) &&
+            eligibleWorkspaceIds.contains(entry.key))
+          entry.key: entry.value,
+      ...byWorkspace,
+    };
+  }
+
+  factory fromJson(Map<String, Object?> json) {
+    final byWorkspace = <String, MobileWorkspacePullRequestSummary>{};
+    for (final item in json.objectList('summaries')) {
+      final fields = asJsonMap(item);
+      if (fields.isEmpty) {
+        continue;
+      }
+      final summary = MobileWorkspacePullRequestSummary.fromJson(fields);
+      byWorkspace[summary.workspaceId] = summary;
+    }
+    return MobileWorkspacePullRequestSummaries(
+      byWorkspace: byWorkspace,
+      evaluatedWorkspaceIds: json.stringList('evaluatedWorkspaceIds').toSet(),
+      eligibleWorkspaceIds: json.stringList('eligibleWorkspaceIds').toSet(),
+    );
+  }
+}
+
 /// Per-host pull-request status for the workspace list, one request for every
 /// row. Feature-detected through [supportsPullRequestSummaries] because the
 /// runtime enforces an exact mobile protocol version match.
 abstract interface class MobileWorkspacePullRequestSummariesClient {
   bool get supportsPullRequestSummaries;
 
-  Future<Map<String, MobileWorkspacePullRequestSummary>> pullRequestSummaries();
+  Future<MobileWorkspacePullRequestSummaries> pullRequestSummaries();
 }

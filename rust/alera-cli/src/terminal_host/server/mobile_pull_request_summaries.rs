@@ -7,8 +7,16 @@
 //! whole list costs one `gh` invocation per project. Check counting mirrors
 //! `WorkspacePullRequestSummary.fromChecks` so a phone row and a desktop row
 //! describe the same review identically.
+//!
+//! The response carries `eligibleWorkspaceIds` (every workspace considered)
+//! and `evaluatedWorkspaceIds` (the groups whose batch completed) so the
+//! phone merges like the desktop monitor: a failed `gh` batch leaves the
+//! previous icons in place instead of reading as "these workspaces have no
+//! PR", while an evaluated workspace with no review clears its stale icon. A
+//! repository without a GitHub remote is a quiet empty group, never a warned
+//! failure, because mobile pull requests are GitHub-only by design.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use alera_core::git as core_git;
 use alera_core::runtime::{ProjectKind, RuntimeStore, Workspace, WorkspaceStatus};
@@ -56,7 +64,12 @@ pub(super) async fn load_mobile_pull_request_summaries(
     }
 
     let mut summaries = Vec::<Value>::new();
+    let mut eligible = BTreeSet::<String>::new();
+    let mut evaluated = BTreeSet::<String>::new();
     for (project_id, group) in by_project {
+        for workspace in &group {
+            eligible.insert(workspace.id.clone());
+        }
         let Some(repo_path) = projects
             .iter()
             .find(|project| project.id == project_id)
@@ -65,11 +78,17 @@ pub(super) async fn load_mobile_pull_request_summaries(
             continue;
         };
         match pull_request_summaries_for_project(runtime_store, &repo_path, &group).await {
-            Ok(mut project_summaries) => summaries.append(&mut project_summaries),
+            Ok(mut project_summaries) => {
+                summaries.append(&mut project_summaries);
+                for workspace in &group {
+                    evaluated.insert(workspace.id.clone());
+                }
+            }
             Err(error) => {
-                // One unreachable repository must not blank the rows of the
-                // others; the phone keeps whatever it had and retries on the
-                // next refresh.
+                // A failed batch must not read as "these workspaces have no
+                // PR": the group stays out of `evaluatedWorkspaceIds` so the
+                // phone keeps its last-known icons and retries on the next
+                // refresh, like the desktop monitor preserving `previous`.
                 warn!(
                     "could not load mobile pull request summaries for {}: {error}",
                     project_id
@@ -77,7 +96,23 @@ pub(super) async fn load_mobile_pull_request_summaries(
             }
         }
     }
-    Ok(json!({ "summaries": summaries }))
+    Ok(summaries_envelope(summaries, evaluated, eligible))
+}
+
+/// The merge contract the phone implements: `summaries` replaces every
+/// evaluated workspace (an evaluated workspace with no entry has no review),
+/// unevaluated-but-eligible workspaces keep their previous icons, and
+/// workspaces that left the eligible set are dropped.
+fn summaries_envelope(
+    summaries: Vec<Value>,
+    evaluated: BTreeSet<String>,
+    eligible: BTreeSet<String>,
+) -> Value {
+    json!({
+        "summaries": summaries,
+        "evaluatedWorkspaceIds": evaluated.into_iter().collect::<Vec<_>>(),
+        "eligibleWorkspaceIds": eligible.into_iter().collect::<Vec<_>>(),
+    })
 }
 
 async fn pull_request_summaries_for_project(
@@ -93,10 +128,13 @@ async fn pull_request_summaries_for_project(
             .ok()
             .flatten()
     };
-    let identity = remote_url
-        .as_deref()
-        .and_then(parse_github_identity)
-        .ok_or_else(|| HostError::state("This project has no GitHub remote."))?;
+    let identity = remote_url.as_deref().and_then(parse_github_identity);
+    let Some(identity) = identity else {
+        // Mobile pull requests are GitHub-only, so a non-GitHub remote is a
+        // quiet empty group: these rows genuinely have nothing to show, and
+        // warning here would spam every refresh.
+        return Ok(Vec::new());
+    };
 
     let mut linked_numbers = BTreeMap::<&str, Option<i64>>::new();
     let mut dismissed_numbers = BTreeMap::<&str, Option<i64>>::new();
@@ -211,10 +249,39 @@ async fn graphql_review_batch(
     if branches.is_empty() && review_numbers.is_empty() {
         return Ok(BTreeMap::new());
     }
+    // The query rides inside argv as `query=...`; the separate binding only
+    // exists so tests can assert on the selection shape.
+    let (_query, args) = review_batch_request(identity, branches, review_numbers);
+    let arg_refs = args.iter().map(String::as_str).collect::<Vec<_>>();
+
+    let (code, stdout, stderr) = run_gh(repo_path, &arg_refs).await?;
+    if code != 0 {
+        return Err(HostError::state(if stderr.is_empty() {
+            stdout
+        } else {
+            stderr
+        }));
+    }
+    let parsed: Value = serde_json::from_str(&stdout)
+        .map_err(|error| HostError::state(format!("Could not parse gh output: {error}")))?;
+    Ok(parse_review_batch_response(
+        &parsed,
+        branches,
+        review_numbers,
+    ))
+}
+
+/// Builds the `gh api graphql` query and argv for one repository batch. Pure
+/// so the selection shape stays covered without spawning `gh`.
+fn review_batch_request(
+    identity: &GitHubIdentity,
+    branches: &[&str],
+    review_numbers: &[i64],
+) -> (String, Vec<String>) {
     let mut query = String::from("query($owner:String!,$name:String!");
     let mut selections = String::new();
     for (index, _branch) in branches.iter().enumerate() {
-        query.push_str(&format!(",branch{index}:String!"));
+        query.push_str(&format!(",$branch{index}:String!"));
         selections.push_str(&format!(
             "branch{index}:pullRequests(first:1,headRefName:$branch{index},"
         ));
@@ -222,7 +289,7 @@ async fn graphql_review_batch(
         selections.push_str("{nodes{...ReviewStatus}}");
     }
     for (index, _number) in review_numbers.iter().enumerate() {
-        query.push_str(&format!(",number{index}:Int!"));
+        query.push_str(&format!(",$number{index}:Int!"));
         selections.push_str(&format!("review{index}:pullRequest(number:$number{index})"));
         selections.push_str("{...ReviewStatus}");
     }
@@ -258,18 +325,18 @@ async fn graphql_review_batch(
     }
     args.push("-f".to_string());
     args.push(format!("query={query}"));
-    let arg_refs = args.iter().map(String::as_str).collect::<Vec<_>>();
+    (query, args)
+}
 
-    let (code, stdout, stderr) = run_gh(repo_path, &arg_refs).await?;
-    if code != 0 {
-        return Err(HostError::state(if stderr.is_empty() {
-            stdout
-        } else {
-            stderr
-        }));
-    }
-    let parsed: Value = serde_json::from_str(&stdout)
-        .map_err(|error| HostError::state(format!("Could not parse gh output: {error}")))?;
+/// Indexes a batch GraphQL response by workspace lookup key: `branch:<name>`
+/// for branch detections and `review:<number>` for linked numbers. A missing
+/// branch connection or a null review stays absent, and a null entry must
+/// never read as a review.
+fn parse_review_batch_response(
+    parsed: &Value,
+    branches: &[&str],
+    review_numbers: &[i64],
+) -> BTreeMap<String, Value> {
     let repository = parsed
         .get("data")
         .and_then(|data| data.get("repository"))
@@ -293,7 +360,7 @@ async fn graphql_review_batch(
             batch.insert(format!("review:{number}"), node);
         }
     }
-    Ok(batch)
+    batch
 }
 
 fn status_rollup_contexts(snapshot: &Value) -> Vec<Value> {

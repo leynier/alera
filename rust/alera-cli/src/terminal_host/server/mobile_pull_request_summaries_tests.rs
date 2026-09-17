@@ -138,3 +138,52 @@ fn closed_branch_match_never_autodetects_but_linked_number_does() {
     assert!(summary_snapshot(None, None, "main", &batch).is_none());
     assert!(summary_snapshot(Some(7), None, "main", &batch).is_some());
 }
+
+#[test]
+fn envelope_reports_evaluated_and_eligible_workspace_ids() {
+    let envelope = summaries_envelope(
+        vec![json!({"workspaceId": "ws-1"})],
+        BTreeSet::from(["ws-1".to_string()]),
+        BTreeSet::from(["ws-1".to_string(), "ws-2".to_string()]),
+    );
+    assert_eq!(envelope["summaries"].as_array().unwrap().len(), 1);
+    assert_eq!(envelope["evaluatedWorkspaceIds"], json!(["ws-1"]));
+    assert_eq!(envelope["eligibleWorkspaceIds"], json!(["ws-1", "ws-2"]));
+}
+
+#[test]
+fn batch_request_queries_branches_and_numbers() {
+    let identity = GitHubIdentity {
+        host: "github.com".to_string(),
+        owner: "leynier".to_string(),
+        repo: "alera".to_string(),
+        slug: "leynier/alera".to_string(),
+    };
+    let (query, args) = review_batch_request(&identity, &["feature/login"], &[7]);
+    assert!(query.contains("$branch0:String!"));
+    assert!(query.contains("$number0:Int!"));
+    assert!(query.contains("branch0:pullRequests(first:1,headRefName:$branch0,"));
+    assert!(query.contains("review0:pullRequest(number:$number0)"));
+    assert!(args.contains(&"-F".to_string()));
+    assert!(args.contains(&"number0=7".to_string()));
+    assert!(args.contains(&"branch0=feature/login".to_string()));
+}
+
+#[test]
+fn batch_response_indexes_branches_and_numbers() {
+    let branch_review = review_node("OPEN", false, json!([]));
+    let linked_review = review_node("MERGED", false, json!([]));
+    let parsed = json!({
+        "data": {
+            "repository": {
+                "branch0": {"nodes": [branch_review]},
+                "review0": linked_review,
+                "review1": Value::Null,
+            }
+        }
+    });
+    let batch = parse_review_batch_response(&parsed, &["feature/login"], &[7, 9]);
+    assert_eq!(batch["branch:feature/login"]["state"], "OPEN");
+    assert_eq!(batch["review:7"]["state"], "MERGED");
+    assert!(!batch.contains_key("review:9"));
+}
