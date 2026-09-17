@@ -408,26 +408,47 @@ Widget _commentImage(
   double? height,
 ) {
   if (!isSupportedMarkdownViewerRemoteImageUri(Uri.tryParse(imageUrl))) {
-    return const _CommentImagePlaceholder();
+    return _CommentImagePlaceholder(width: width, height: height);
+  }
+  final image = Image.network(
+    imageUrl,
+    width: width,
+    height: height,
+    fit: .contain,
+    errorBuilder: (_, _, _) =>
+        _CommentImagePlaceholder(width: width, height: height),
+  );
+  // Bot glyphs (spinners, 9px logos) are HTML-sized under space24. radiusMd
+  // would round an 11px image into a dot.
+  if (_isInlineCommentImage(width, height)) {
+    return image;
   }
   return ClipRRect(
     borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-    child: Image.network(
-      imageUrl,
-      width: width,
-      height: height,
-      fit: .contain,
-      errorBuilder: (_, _, _) => const _CommentImagePlaceholder(),
-    ),
+    child: image,
   );
 }
 
-class const _CommentImagePlaceholder() extends StatelessWidget {
+bool _isInlineCommentImage(double? width, double? height) {
+  final sides = <double>[
+    if (width != null && width > 0) width,
+    if (height != null && height > 0) height,
+  ];
+  if (sides.isEmpty) {
+    return false;
+  }
+  return sides.every((side) => side <= AleraTokens.space24);
+}
+
+class const _CommentImagePlaceholder({
+  final double? width,
+  final double? height,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: AleraTokens.space48,
-      height: AleraTokens.space48,
+      width: width ?? AleraTokens.space48,
+      height: height ?? AleraTokens.space48,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: AleraTokens.surface,

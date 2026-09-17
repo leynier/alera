@@ -138,6 +138,7 @@ final value = 1;
     );
     expect(image.width, 400);
     expect(image.height, 300);
+    expect(find.byType(ClipRRect), findsOneWidget);
     expect(find.byIcon(AleraIcons.imageError), findsOneWidget);
 
     final errorWidget = image.errorBuilder!(
@@ -150,6 +151,36 @@ final value = 1;
     expect(find.byType(Image), findsNothing);
     expect(find.byIcon(AleraIcons.imageError), findsOneWidget);
   });
+
+  test('treats html-sized glyphs as inline comment images', () {
+    expect(isInlinePullRequestCommentImage(11, null), isTrue);
+    expect(isInlinePullRequestCommentImage(9, 9), isTrue);
+    expect(isInlinePullRequestCommentImage(24, 24), isTrue);
+    expect(isInlinePullRequestCommentImage(25, 25), isFalse);
+    expect(isInlinePullRequestCommentImage(null, null), isFalse);
+  });
+
+  testWidgets('renders html-sized bot glyphs at the declared pixel size', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _surface(
+        '- [ ] <img src="https://uploads.pullfrog.com/Progress%20Indicator.gif" '
+        'width="11" /> Checkout PR',
+      ),
+    );
+    await tester.pump();
+
+    final image = tester.widget<Image>(find.byType(Image));
+    expect(
+      (image.image as NetworkImage).url,
+      'https://uploads.pullfrog.com/Progress%20Indicator.gif',
+    );
+    expect(image.width, 11);
+    expect(image.height, isNull);
+    expect(find.textContaining('Checkout PR'), findsOneWidget);
+  });
+
   testWidgets('renders bot html footers as images and links', (tester) async {
     await tester.pumpWidget(
       _surface(
@@ -159,14 +190,16 @@ final value = 1;
         '<source media="(prefers-color-scheme: dark)" '
         'srcset="https://pullfrog.com/logos/frog-white-full-18px.png">'
         '<img src="https://pullfrog.com/logos/frog-green-full-18px.png" '
-        'alt="Pullfrog"></picture></a>&nbsp;&nbsp; | '
+        'width="9px" height="9px" alt="Pullfrog"></picture></a>&nbsp;&nbsp; | '
         '[View workflow run](https://example.com/run) | via '
         '[Pullfrog](https://pullfrog.com)</sub>',
       ),
     );
     await tester.pump();
 
-    expect(find.byType(Image), findsOneWidget);
+    final image = tester.widget<Image>(find.byType(Image));
+    expect(image.width, 9);
+    expect(image.height, 9);
     expect(find.textContaining('<picture'), findsNothing);
     expect(find.textContaining('<img'), findsNothing);
     expect(find.textContaining('PULLFROG_DIVIDER'), findsNothing);
