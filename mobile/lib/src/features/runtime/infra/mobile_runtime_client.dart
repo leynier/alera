@@ -25,6 +25,7 @@ import 'package:alera_mobile/src/features/settings/domain/portable_host_settings
 import 'package:alera_mobile/src/features/quotas/domain/quota_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_actions.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
+import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_pull_request_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/ai_dictation/domain/speech_capabilities.dart';
 import 'package:alera_mobile/src/features/linked_issues/domain/mobile_linked_issue.dart';
@@ -83,7 +84,8 @@ class MobileRuntimeClient._(
         MobileCodexWorkspaceClient,
         MobileWorkspacePanelsClient,
         MobileLinkedIssueClient,
-        MobilePullRequestActionsClient {
+        MobilePullRequestActionsClient,
+        MobileWorkspacePullRequestSummariesClient {
   this {
     _subscription = _channel.stream.listen(
       _handleMessage,
