@@ -29,6 +29,7 @@ class const PromptWorkspacePipeline({
     required String operationId,
     required String projectId,
     required String prompt,
+    required bool autoAssignSection,
   })
   generateIdentity,
   required final Future<bool> Function(Project project, String branchName)
@@ -52,6 +53,8 @@ class const PromptWorkspacePipeline({
     required bool requireIdempotency,
   })
   launchAgent,
+  final Future<void> Function(String workspaceId, String sectionId)?
+  assignSection,
   final void Function(String phase)? onPhase,
   final String Function()? createOperationId,
 }) {
@@ -70,6 +73,7 @@ class const PromptWorkspacePipeline({
         operationId: createOperationId?.call() ?? const Uuid().v4(),
         projectId: request.project.id,
         prompt: identityPrompt,
+        autoAssignSection: request.autoAssignSection,
       );
       onPhase?.call('Checking generated branch');
       final collision =
@@ -93,6 +97,16 @@ class const PromptWorkspacePipeline({
           hostId: request.hostId,
           issueUrl: request.issueUrl,
         );
+        final sectionId = identity.sectionId;
+        final sectionAssignment = assignSection;
+        if (sectionId != null && sectionAssignment != null) {
+          try {
+            await sectionAssignment(creation.workspace.id, sectionId);
+          } catch (_) {
+            // Section assignment is best-effort: the workspace itself was
+            // already created, so a failure must not fail the flow.
+          }
+        }
         break;
       } catch (error) {
         if (attempt == 0 && _looksLikeCollision(error)) {

@@ -57,6 +57,7 @@ class const PromptWorkspaceDialog({
     required String operationId,
     required String projectId,
     required String prompt,
+    required bool autoAssignSection,
   })
   generateIdentity,
   required final Future<void> Function(String operationId) cancelGeneration,
@@ -102,6 +103,9 @@ class const PromptWorkspaceDialog({
   final String? initialError,
   final NewWorkspaceMode initialMode = .fromPrompt,
   final Widget? manualForm,
+  final bool hasWorkspaceSections = false,
+  final Future<void> Function(String workspaceId, String sectionId)?
+  assignSection,
 }) extends StatefulWidget {
   @override
   State<PromptWorkspaceDialog> createState() => _PromptWorkspaceDialogState();
@@ -129,7 +133,11 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   String? _agentLaunchMutationId;
   bool? _originalAgentLaunchWasIdempotent;
   bool _createAnother = false;
+  bool _autoAssignSection = true;
   bool _useProjectCheckout = false;
+
+  bool get _autoAssignSectionEffective =>
+      widget.hasWorkspaceSections && _autoAssignSection;
 
   @override
   void initState() {
