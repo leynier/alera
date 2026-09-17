@@ -19,6 +19,20 @@ enum MobilePullRequestMergeMethod(final String wireName, final String label) {
   }
 }
 
+/// First method the runtime listed, matching desktop `preferredReviewMergeMethod`
+/// once provider-default has already been dropped.
+MobilePullRequestMergeMethod? preferredMobilePullRequestMergeMethod(
+  Iterable<String> wireNames,
+) {
+  for (final name in wireNames) {
+    final method = MobilePullRequestMergeMethod.fromWireName(name);
+    if (method != null) {
+      return method;
+    }
+  }
+  return null;
+}
+
 /// The pull request write in flight for one workspace.
 enum PullRequestActionKind {
   comment,

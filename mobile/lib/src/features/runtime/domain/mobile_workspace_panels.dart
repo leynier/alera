@@ -160,6 +160,7 @@ class const MobilePullRequestComment({
   final String? path,
   final int? line,
   final bool resolved = false,
+  final bool outdated = false,
   final String? threadId,
   final bool canEdit = false,
 }) {
@@ -183,6 +184,7 @@ class const MobilePullRequestComment({
     path: json.optionalString('path'),
     line: (json['line'] as num?)?.toInt(),
     resolved: json['resolved'] == true,
+    outdated: json['outdated'] == true,
     threadId: json.optionalString('threadId'),
     canEdit: json['canEdit'] == true,
   );
@@ -206,11 +208,14 @@ class const MobilePullRequestReview({
   final String? baseRefName,
   final String? createdAt,
   final String? mergeable,
+  final String? headSha,
   final List<MobilePullRequestCheck> checks = const <MobilePullRequestCheck>[],
   final bool commentsTruncated = false,
   final List<MobilePullRequestComment> comments =
       const <MobilePullRequestComment>[],
 }) {
+  bool get isOpen => state.toUpperCase() == 'OPEN';
+
   factory fromJson(Map<String, Object?> json) => MobilePullRequestReview(
     number: (json['number'] as num?)?.toInt() ?? 0,
     title: json.optionalString('title') ?? '',
@@ -222,6 +227,7 @@ class const MobilePullRequestReview({
     baseRefName: json.optionalString('baseRefName'),
     createdAt: json.optionalString('createdAt'),
     mergeable: json.optionalString('mergeable'),
+    headSha: json.optionalString('headSha'),
     checks: <MobilePullRequestCheck>[
       for (final item in json.objectList('checks'))
         if (item is Map)

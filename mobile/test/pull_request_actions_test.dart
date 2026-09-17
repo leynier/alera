@@ -12,6 +12,9 @@ import 'package:alera_mobile/src/features/workbench/application/workbench_provid
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 import 'support/fake_terminal_client.dart';
 
@@ -53,6 +56,14 @@ MobilePullRequestSnapshot _snapshot({
 }
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    SharedPreferencesAsyncPlatform.instance =
+        InMemorySharedPreferencesAsync.empty();
+  });
+
+  tearDown(() => SharedPreferencesAsyncPlatform.instance = null);
+
   group('availablePullRequestReviewActions', () {
     List<String> labels(MobilePullRequestSnapshot snapshot) => <String>[
       for (final action in availablePullRequestReviewActions(snapshot))
@@ -89,6 +100,17 @@ void main() {
       expect(labels(_snapshot(state: 'MERGED')), <String>[
         'Unlink Pull Request',
       ]);
+    });
+
+    test('prefers the first listed merge method', () {
+      expect(
+        preferredMobilePullRequestMergeMethod(const <String>[
+          'octopus',
+          'squash',
+          'rebase',
+        ]),
+        MobilePullRequestMergeMethod.squash,
+      );
     });
 
     test('unknown merge methods are ignored', () {

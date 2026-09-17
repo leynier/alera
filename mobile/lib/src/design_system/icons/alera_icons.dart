@@ -88,6 +88,8 @@ abstract final class const AleraIcons._() {
   static const IconData public = LucideIcons.globe;
   static const IconData comment = LucideIcons.messageSquare;
   static const IconData send = LucideIcons.send;
+  static const IconData agent = LucideIcons.bot;
+  static const IconData restore = LucideIcons.history;
 
   // Source control actions
   static const IconData gitCommit = LucideIcons.gitCommitHorizontal;
