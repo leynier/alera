@@ -191,6 +191,21 @@ Widget buildPullRequestCommentImage(
       height: safeHeight,
     );
   }
+  final image = Image.network(
+    imageUrl,
+    width: safeWidth,
+    height: safeHeight,
+    fit: .contain,
+    errorBuilder: (_, _, _) => _PullRequestCommentImagePlaceholder(
+      width: safeWidth,
+      height: safeHeight,
+    ),
+  );
+  // Bot glyphs (spinners, 9px logos) are HTML-sized under space24. radiusMd
+  // would round an 11px image into a dot.
+  if (isInlinePullRequestCommentImage(safeWidth, safeHeight)) {
+    return image;
+  }
   return ConstrainedBox(
     constraints: const BoxConstraints(
       maxWidth: AleraTokens.imageMaxWidth,
@@ -198,18 +213,20 @@ Widget buildPullRequestCommentImage(
     ),
     child: ClipRRect(
       borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-      child: Image.network(
-        imageUrl,
-        width: safeWidth,
-        height: safeHeight,
-        fit: .contain,
-        errorBuilder: (_, _, _) => _PullRequestCommentImagePlaceholder(
-          width: safeWidth,
-          height: safeHeight,
-        ),
-      ),
+      child: image,
     ),
   );
+}
+
+bool isInlinePullRequestCommentImage(double? width, double? height) {
+  final sides = <double>[
+    if (width != null && width > 0) width,
+    if (height != null && height > 0) height,
+  ];
+  if (sides.isEmpty) {
+    return false;
+  }
+  return sides.every((side) => side <= AleraTokens.space24);
 }
 
 double? _limitImageDimension(double? value, double maximum) {

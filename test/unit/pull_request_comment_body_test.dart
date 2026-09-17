@@ -23,6 +23,35 @@ void main() {
     );
   });
 
+  test('encodes html image pixel sizes in the markdown alt', () {
+    expect(
+      sanitizePullRequestCommentBody(
+        '<img src="https://uploads.pullfrog.com/Progress%20Indicator.gif" '
+        'width="11" style="max-width: 100%;">',
+      ),
+      '![11](https://uploads.pullfrog.com/Progress%20Indicator.gif)',
+    );
+    expect(
+      sanitizePullRequestCommentBody(
+        '<img src="https://example.com/logo.png" alt="Logo" '
+        'width="9px" height="9px">',
+      ),
+      '![9x9 Logo](https://example.com/logo.png)',
+    );
+    expect(
+      sanitizePullRequestCommentBody(
+        '<img src="https://example.com/wide.png" height="18">',
+      ),
+      '![x18](https://example.com/wide.png)',
+    );
+    expect(
+      sanitizePullRequestCommentBody(
+        '<img src="https://example.com/full.png" width="100%">',
+      ),
+      '![](https://example.com/full.png)',
+    );
+  });
+
   test('prefers the dark picture source on this dark-only app', () {
     const body =
         '<picture><source media="(prefers-color-scheme: dark)" '
@@ -55,6 +84,14 @@ void main() {
         '</a>',
       ),
       '![Logo](https://example.com/logo.png)',
+    );
+    expect(
+      sanitizePullRequestCommentBody(
+        '<a href="https://example.com">'
+        '<img src="https://example.com/spin.gif" width="11">'
+        '</a>',
+      ),
+      '![11](https://example.com/spin.gif)',
     );
   });
 
@@ -101,7 +138,7 @@ void main() {
     expect(
       sanitized,
       contains(
-        '![Pullfrog](https://pullfrog.com/logos/frog-white-full-18px.png)',
+        '![9x9 Pullfrog](https://pullfrog.com/logos/frog-white-full-18px.png)',
       ),
     );
     expect(sanitized, contains('[View workflow run](https://example.com/run)'));
