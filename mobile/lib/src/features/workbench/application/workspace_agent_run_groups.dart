@@ -9,6 +9,24 @@ class const WorkspaceAgentRunGroup({
   required final List<AgentPresenceSummary> runs,
 });
 
+/// One agent is shown on the workspace row; two or more stay as nested runs.
+class const WorkspaceAgentPresenceSplit({
+  final AgentPresenceSummary? primary,
+  final List<AgentPresenceSummary> listed = const <AgentPresenceSummary>[],
+});
+
+/// Desktop hides a single main-panel agent as nested rows and shows its
+/// identity on the workspace instead. Mobile has no pane split, so one
+/// agent in the workspace is the same case.
+WorkspaceAgentPresenceSplit splitWorkspaceAgentPresence(
+  List<AgentPresenceSummary> presence,
+) {
+  if (presence.length <= 1) {
+    return WorkspaceAgentPresenceSplit(primary: presence.firstOrNull);
+  }
+  return WorkspaceAgentPresenceSplit(listed: presence);
+}
+
 /// Groups a workspace's agent presence by visual state for the compact summary
 /// pill. Interruption wins over the reported state, mirroring the per-row
 /// indicator.

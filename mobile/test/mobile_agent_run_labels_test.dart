@@ -53,6 +53,18 @@ void main() {
 
     expect(mobileAgentRunTitle(status), 'Map Monetization');
     expect(mobileAgentRunActivity(status), isNull);
+    expect(mobileAgentRunDescription(status), 'Codex · Waiting for input');
+  });
+
+  test('description prefers activity text', () {
+    final status = _presence(
+      title: 'Map Monetization',
+      state: 'working',
+      toolName: 'Read',
+      toolInput: 'lib/foo.dart',
+    );
+
+    expect(mobileAgentRunDescription(status), 'Read: lib/foo.dart');
   });
 }
 

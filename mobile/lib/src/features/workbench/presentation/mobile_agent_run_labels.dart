@@ -1,5 +1,6 @@
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/agent_identity_icon.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/agent_run_state_indicator.dart';
 
 /// Primary label for a workspace agent row. Matches the desktop tab title
 /// when the host sent one; never falls back to activity text.
@@ -9,6 +10,12 @@ String mobileAgentRunTitle(AgentPresenceSummary status) {
     return title;
   }
   return agentDisplayName(status.agentType);
+}
+
+/// Tooltip for a merged primary agent on the workspace row.
+String mobileAgentRunDescription(AgentPresenceSummary status) {
+  return mobileAgentRunActivity(status) ??
+      '${agentDisplayName(status.agentType)} · ${agentRunStateLabel(status)}';
 }
 
 /// Tool or assistant activity for the secondary line. Null when there is
