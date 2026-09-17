@@ -48,6 +48,9 @@ class const MobileWorkspaceListRow({
     final rowLeft = AleraTokens.space12 + depthPad;
     final canToggleChildren = entry.hasVisibleChildren;
     final hasAgents = agentPresence.isNotEmpty;
+    final split = splitWorkspaceAgentPresence(agentPresence);
+    final listedAgents = split.listed;
+    final hasListedAgents = listedAgents.isNotEmpty;
     final metadataIcons = <Widget>[
       if (showProjectIcon &&
           (projectName?.trim().isNotEmpty ?? false)) ...<Widget>[
@@ -166,6 +169,20 @@ class const MobileWorkspaceListRow({
                               ),
                             ),
                             const SizedBox(width: AleraTokens.space8),
+                            if (split.primary
+                                case final AgentPresenceSummary
+                                    primary) ...<Widget>[
+                              Tooltip(
+                                message: mobileAgentRunDescription(primary),
+                                child: AgentIdentityIcon(
+                                  key: const Key('workspace-primary-agent'),
+                                  agentType: primary.agentType,
+                                  size: AleraTokens.space16,
+                                  color: AleraTokens.foregroundMuted,
+                                ),
+                              ),
+                              const SizedBox(width: AleraTokens.space6),
+                            ],
                             Expanded(
                               child: Align(
                                 alignment: Alignment.centerLeft,
@@ -196,16 +213,16 @@ class const MobileWorkspaceListRow({
                     ),
                   ),
                 ),
-                if (hasAgents || canToggleChildren)
+                if (hasListedAgents || canToggleChildren)
                   _WorkspaceActionTray(
                     childCount: entry.visibleChildCount,
                     childrenCollapsed: entry.childrenCollapsed,
                     onToggleChildren: canToggleChildren
                         ? onToggleChildren
                         : null,
-                    statuses: agentPresence,
+                    statuses: listedAgents,
                     agentsExpanded: agentsExpanded,
-                    onToggleAgents: hasAgents ? onToggleAgents : null,
+                    onToggleAgents: hasListedAgents ? onToggleAgents : null,
                   ),
                 Align(
                   alignment: Alignment.center,
@@ -219,13 +236,13 @@ class const MobileWorkspaceListRow({
               ],
             ),
           ),
-          if (hasAgents && agentsExpanded) ...<Widget>[
+          if (hasListedAgents && agentsExpanded) ...<Widget>[
             const SizedBox(height: AleraTokens.space4),
             Padding(
               padding: EdgeInsets.only(left: rowLeft + AleraTokens.space20),
               child: Column(
                 children: <Widget>[
-                  for (final status in agentPresence)
+                  for (final status in listedAgents)
                     _AgentPresenceRow(
                       status: status,
                       onTap: () => onAgentTap(status),
