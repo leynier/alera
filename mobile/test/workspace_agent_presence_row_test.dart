@@ -136,9 +136,37 @@ void main() {
       expect(find.text('Other Agent'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'a single main-panel agent stays on the row when a secondary agent is listed',
+    (tester) async {
+      await tester.pumpWidget(
+        _rowApp(
+          <AgentPresenceSummary>[
+            _presence(title: 'Map Monetization', state: 'working'),
+            _presence(
+              title: 'Other Agent',
+              state: 'done',
+              tabId: 'tab-2',
+              sessionId: 'session-2',
+            ),
+          ],
+          mainTabIds: <String>{'tab-1'},
+        ),
+      );
+
+      expect(find.byKey(const Key('workspace-primary-agent')), findsOneWidget);
+      expect(find.byType(MobileWorkspaceAgentCompactSummary), findsOneWidget);
+      expect(find.text('Map Monetization'), findsNothing);
+      expect(find.text('Other Agent'), findsOneWidget);
+    },
+  );
 }
 
-Widget _rowApp(List<AgentPresenceSummary> agentPresence) {
+Widget _rowApp(
+  List<AgentPresenceSummary> agentPresence, {
+  Set<String> mainTabIds = const <String>{},
+}) {
   return MaterialApp(
     theme: buildAleraMobileDarkTheme(),
     home: Scaffold(
@@ -166,6 +194,7 @@ Widget _rowApp(List<AgentPresenceSummary> agentPresence) {
         onAgentTap: (_) {},
         onCloseAgent: (_) {},
         agentPresence: agentPresence,
+        mainTabIds: mainTabIds,
       ),
     ),
   );

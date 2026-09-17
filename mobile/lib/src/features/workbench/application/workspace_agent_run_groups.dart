@@ -15,16 +15,31 @@ class const WorkspaceAgentPresenceSplit({
   final List<AgentPresenceSummary> listed = const <AgentPresenceSummary>[],
 });
 
-/// Desktop hides a single main-panel agent as nested rows and shows its
-/// identity on the workspace instead. Mobile has no pane split, so one
-/// agent in the workspace is the same case.
+/// Desktop merges at most one main-panel agent onto the workspace row and
+/// always lists right-pane runs. [mainTabIds] are those main-panel tabs;
+/// an empty set is an older host, so every agent counts as main.
 WorkspaceAgentPresenceSplit splitWorkspaceAgentPresence(
-  List<AgentPresenceSummary> presence,
-) {
-  if (presence.length <= 1) {
-    return WorkspaceAgentPresenceSplit(primary: presence.firstOrNull);
+  List<AgentPresenceSummary> presence, {
+  Set<String> mainTabIds = const <String>{},
+}) {
+  if (presence.isEmpty) {
+    return const WorkspaceAgentPresenceSplit();
   }
-  return WorkspaceAgentPresenceSplit(listed: presence);
+  final hasMainAssignment = mainTabIds.isNotEmpty;
+  final mainRuns = hasMainAssignment
+      ? presence.where((run) => mainTabIds.contains(run.tabId)).toList()
+      : presence;
+  final secondaryRuns = hasMainAssignment
+      ? presence.where((run) => !mainTabIds.contains(run.tabId)).toList()
+      : const <AgentPresenceSummary>[];
+  final mergeMainAgent = mainRuns.length <= 1;
+  return WorkspaceAgentPresenceSplit(
+    primary: mergeMainAgent ? mainRuns.firstOrNull : null,
+    listed: <AgentPresenceSummary>[
+      if (!mergeMainAgent) ...mainRuns,
+      ...secondaryRuns,
+    ],
+  );
 }
 
 /// Groups a workspace's agent presence by visual state for the compact summary

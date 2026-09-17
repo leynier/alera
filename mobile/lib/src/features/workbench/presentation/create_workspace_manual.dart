@@ -1,6 +1,21 @@
 part of 'create_workspace_screen.dart';
 
 extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
+  Future<String?> _preferredSourceFor(String projectId) async {
+    try {
+      final client = await ref.read(
+        workspaceClientProvider(widget.hostId).future,
+      );
+      if (client case final MobileRuntimeProjectClient projects) {
+        final effective = await projects.effectiveProjectConfig(projectId);
+        return effective.config.preferredSourceBranch;
+      }
+      return null;
+    } on Object {
+      return null;
+    }
+  }
+
   Widget _buildForm(BuildContext context) {
     return ListView(
       padding: AleraTokens.pagePadding,

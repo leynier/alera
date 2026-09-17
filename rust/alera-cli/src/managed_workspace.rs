@@ -102,7 +102,7 @@ pub async fn create_managed_workspace(
 
 pub(crate) async fn create_managed_workspace_with<E: RemoteHostExecutor>(
     store: &RuntimeStore,
-    request: ManagedWorkspaceCreateRequest,
+    mut request: ManagedWorkspaceCreateRequest,
     executor: &E,
 ) -> Result<WorkspaceCreationResult> {
     let project = store
@@ -132,12 +132,16 @@ pub(crate) async fn create_managed_workspace_with<E: RemoteHostExecutor>(
     }
 
     let branch = require_trimmed(&request.branch, "New Branch Name Is Required")?;
-    let source_branch = request
+    let mut source_branch = request
         .source_branch
         .as_deref()
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(ToString::to_string);
+    if !request.reuse_existing_branch && source_branch.is_none() {
+        source_branch = crate::worktree_setup::preferred_source_branch(store, &project).await;
+        request.source_branch.clone_from(&source_branch);
+    }
     if !request.reuse_existing_branch && source_branch.is_none() {
         bail!("Source Branch Is Required");
     }
@@ -689,6 +693,10 @@ fn canonical_path(path: &str) -> String {
     }
     path.trim_end_matches('/').to_string()
 }
+
+#[cfg(test)]
+#[path = "managed_workspace_source_branch_tests.rs"]
+mod managed_workspace_source_branch_tests;
 
 #[cfg(test)]
 mod tests {

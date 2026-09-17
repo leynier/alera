@@ -3,9 +3,10 @@
 // Markdown plus <u>, so raw tags like <picture>, <img>, <a>, <sub> or <br>
 // would otherwise show up as literal text (bot footers are the usual case).
 // Fenced code blocks and inline code spans pass through untouched so code
-// samples that mention HTML stay exact. HTML width/height attributes are
-// intentionally dropped: the comment image builder caps dimensions. Mirrors
-// the desktop sanitizer in
+// samples that mention HTML stay exact. Pixel width/height from <img> go
+// into the markdown alt as `WxH`, the format gpt_markdown uses for
+// imageBuilder size. Unsized images still cap through the comment image
+// builder. Mirrors the desktop sanitizer in
 // lib/src/features/pull_requests/domain/pull_request_comment_body.dart.
 // alera_mobile cannot import the root package, so keep both copies in sync.
 
@@ -192,12 +193,9 @@ String _pictureReplacement(String inner) {
     }
   }
   final imgMatch = _imgTag.firstMatch(inner);
-  final imgSrc = imgMatch == null
-      ? ''
-      : _attributeValue(imgMatch.group(0)!, 'src') ?? '';
-  final imgAlt = imgMatch == null
-      ? ''
-      : _attributeValue(imgMatch.group(0)!, 'alt') ?? '';
+  final imgTag = imgMatch?.group(0);
+  final imgSrc = imgTag == null ? '' : _attributeValue(imgTag, 'src') ?? '';
+  final imgAlt = imgTag == null ? '' : _attributeValue(imgTag, 'alt') ?? '';
   final chosen = darkUrl.isNotEmpty
       ? darkUrl
       : imgSrc.isNotEmpty
@@ -206,17 +204,29 @@ String _pictureReplacement(String inner) {
   if (chosen.isEmpty) {
     return _sanitizeInline(inner);
   }
-  return _imageMarkdownFor(src: chosen, alt: imgAlt);
+  return _imageMarkdownFor(
+    src: chosen,
+    alt: imgAlt,
+    width: _htmlPixelSizeFromTag(imgTag, 'width'),
+    height: _htmlPixelSizeFromTag(imgTag, 'height'),
+  );
 }
 
 String _imageMarkdownForTag(String tag) {
   return _imageMarkdownFor(
     src: _attributeValue(tag, 'src') ?? '',
     alt: _attributeValue(tag, 'alt') ?? '',
+    width: _htmlPixelSizeFromTag(tag, 'width'),
+    height: _htmlPixelSizeFromTag(tag, 'height'),
   );
 }
 
-String _imageMarkdownFor({required String src, required String alt}) {
+String _imageMarkdownFor({
+  required String src,
+  required String alt,
+  double? width,
+  double? height,
+}) {
   final url = _decodeEntities(src).trim().replaceAll(' ', '%20');
   final cleanAlt = _decodeEntities(alt)
       .replaceAll('[', '(')
@@ -226,7 +236,56 @@ String _imageMarkdownFor({required String src, required String alt}) {
   if (url.isEmpty) {
     return cleanAlt;
   }
-  return '![$cleanAlt]($url)';
+  final size = _markdownImageSizeLabel(width, height);
+  final label = <String>[?size, if (cleanAlt.isNotEmpty) cleanAlt].join(' ');
+  return '![$label]($url)';
+}
+
+double? _htmlPixelSizeFromTag(String? tag, String name) {
+  if (tag == null) {
+    return null;
+  }
+  return _htmlPixelSize(_attributeValue(tag, name));
+}
+
+double? _htmlPixelSize(String? raw) {
+  if (raw == null) {
+    return null;
+  }
+  var value = raw.trim().toLowerCase();
+  if (value.isEmpty || value.endsWith('%')) {
+    return null;
+  }
+  if (value.endsWith('px')) {
+    value = value.substring(0, value.length - 2).trim();
+  }
+  final parsed = double.tryParse(value);
+  if (parsed == null || parsed <= 0) {
+    return null;
+  }
+  return parsed;
+}
+
+String? _markdownImageSizeLabel(double? width, double? height) {
+  final w = _pixelSizeToken(width);
+  final h = _pixelSizeToken(height);
+  if (w == null && h == null) {
+    return null;
+  }
+  if (w != null && h != null) {
+    return '${w}x$h';
+  }
+  if (w != null) {
+    return w;
+  }
+  return 'x$h';
+}
+
+String? _pixelSizeToken(double? value) {
+  if (value == null) {
+    return null;
+  }
+  return value.round().toString();
 }
 
 String _preReplacement(String inner) {

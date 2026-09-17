@@ -52,7 +52,7 @@ alera project remove --id <project-id>
 
 ## Managed Workspaces
 
-Create a new Git worktree workspace from a source branch:
+Create a new Git worktree workspace from a source branch. `--source-branch` may be omitted on `workspace add --worktree` when the project sets `new_workspace.source_branch` in `alera.toml` or Settings → Projects:
 
 This command is the same from Bash, PowerShell, and CMD when no explicit path is passed:
 

@@ -221,6 +221,7 @@ mod terminal_spawn;
 mod terminal_spawn_command;
 mod terminal_startup_commands;
 mod workspace_handoff_relocate;
+mod workspace_main_tabs;
 mod workspace_mutation_preparation;
 mod workspace_pinning;
 mod workspace_section_requests;

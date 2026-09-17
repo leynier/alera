@@ -133,6 +133,7 @@ mod workspace_relocation_store_tests;
 mod workspace_section_store;
 #[cfg(test)]
 mod workspace_section_store_tests;
+mod workspace_tab_store;
 mod workspace_transfer_layout;
 mod worktree_setup_models;
 pub use relocation_setup_store::RelocationSetupReceipt;

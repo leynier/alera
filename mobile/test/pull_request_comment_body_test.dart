@@ -15,7 +15,7 @@ void main() {
         '<source media="(prefers-color-scheme: dark)" '
         'srcset="https://pullfrog.com/logos/frog-white-full-18px.png">'
         '<img src="https://pullfrog.com/logos/frog-green-full-18px.png" '
-        'alt="Pullfrog"></picture></a>&nbsp;&nbsp; | '
+        'width="9px" height="9px" alt="Pullfrog"></picture></a>&nbsp;&nbsp; | '
         '[View workflow run](https://example.com/run) | via '
         '[Pullfrog](https://pullfrog.com)</sub>';
     final sanitized = sanitizePullRequestCommentBody(body);
@@ -26,10 +26,20 @@ void main() {
     expect(
       sanitized,
       contains(
-        '![Pullfrog](https://pullfrog.com/logos/frog-white-full-18px.png)',
+        '![9x9 Pullfrog](https://pullfrog.com/logos/frog-white-full-18px.png)',
       ),
     );
     expect(sanitized, contains('[View workflow run](https://example.com/run)'));
+  });
+
+  test('encodes html image pixel sizes in the markdown alt', () {
+    expect(
+      sanitizePullRequestCommentBody(
+        '<img src="https://uploads.pullfrog.com/Progress%20Indicator.gif" '
+        'width="11">',
+      ),
+      '![11](https://uploads.pullfrog.com/Progress%20Indicator.gif)',
+    );
   });
 
   test('leaves fenced code untouched', () {

@@ -39,6 +39,37 @@ void main() {
     expect(refreshed.workspaces, hasLength(2));
   });
 
+  test(
+    'exposes main-panel tab ids and refreshes when view prefs change',
+    () async {
+      final client = _FakeWorkspaceClient()
+        ..workspaceMainTabIds = <String, List<String>>{
+          'a': <String>['tab-1'],
+        };
+      final container = _container(client);
+
+      final data = await container.read(
+        workspaceListControllerProvider('host-1').future,
+      );
+      expect(data.workspaceMainTabIds, <String, List<String>>{
+        'a': <String>['tab-1'],
+      });
+
+      client.workspaceMainTabIds = <String, List<String>>{
+        'a': <String>['tab-2'],
+      };
+      client.emit('workbenchViewPrefsChanged');
+      await Future.pause(.zero);
+
+      final refreshed = await container.read(
+        workspaceListControllerProvider('host-1').future,
+      );
+      expect(refreshed.workspaceMainTabIds, <String, List<String>>{
+        'a': <String>['tab-2'],
+      });
+    },
+  );
+
   test('ignores a runtime event delivered after controller disposal', () async {
     final client = _FakeWorkspaceClient();
     final container = _container(client);

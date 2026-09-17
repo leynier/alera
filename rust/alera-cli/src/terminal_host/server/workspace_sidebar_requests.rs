@@ -116,6 +116,15 @@ impl ServerActor {
             .terminal_tab_counts_by_workspace()
             .await
             .map_err(state_error)?;
+        let tabs = self
+            .runtime_store
+            .list_all_workspace_tabs()
+            .await
+            .map_err(state_error)?;
+        let workspace_main_tab_ids = super::workspace_main_tabs::resolve_workspace_main_tab_ids(
+            &view_prefs.prefs.workspace_main_tab_ids,
+            &tabs,
+        );
         let agent_presence = self.agent_presence_items_with_titles().await?;
         Ok(json!({
             "projects": projects,
@@ -127,6 +136,7 @@ impl ServerActor {
             "runtimeSettings": runtime_settings,
             "agentPresence": agent_presence,
             "terminalTabCountByWorkspaceId": terminal_tab_count_by_workspace_id,
+            "workspaceMainTabIds": workspace_main_tab_ids,
         }))
     }
 
@@ -319,7 +329,7 @@ fn format_error(error: impl std::fmt::Display) -> HostError {
 /// Keys a client may not know yet. A client that predates a key sends its
 /// whole view without it, and deserializing that would reset the other
 /// client's choice to the default on every write, so the stored value is kept.
-const BACKFILLED_SHARED_PREF_KEYS: [&str; 8] = [
+const BACKFILLED_SHARED_PREF_KEYS: [&str; 9] = [
     "sectionSort",
     "collapsedSectionIds",
     "othersSectionCollapsed",
@@ -328,6 +338,7 @@ const BACKFILLED_SHARED_PREF_KEYS: [&str; 8] = [
     "searchViewAsTree",
     "searchIncludeIgnored",
     "selectedSectionIds",
+    "workspaceMainTabIds",
 ];
 
 fn backfill_omitted_shared_prefs(prefs: &mut serde_json::Map<String, Value>, current: &Value) {
@@ -353,6 +364,7 @@ mod shared_prefs_backfill_tests {
             "searchViewAsTree": true,
             "searchIncludeIgnored": true,
             "selectedSectionIds": ["sec-1"],
+            "workspaceMainTabIds": { "ws-1": ["tab-1"] },
         });
         let mut sent = json!({ "searchViewAsTree": false });
         let prefs = sent.as_object_mut().unwrap();
@@ -365,5 +377,6 @@ mod shared_prefs_backfill_tests {
         assert_eq!(prefs["sectionSort"], "recent");
         assert_eq!(prefs["searchViewAsTree"], false);
         assert_eq!(prefs["selectedSectionIds"], json!(["sec-1"]));
+        assert_eq!(prefs["workspaceMainTabIds"], json!({ "ws-1": ["tab-1"] }));
     }
 }
