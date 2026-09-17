@@ -2,7 +2,6 @@ import 'package:alera_mobile/src/design_system/layout/alera_confirm_dialog.dart'
 import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_actions.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_action_controller.dart';
-import 'package:alera_mobile/src/features/workbench/application/source_control_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_pull_request_conversation.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_comment_sheet.dart';
@@ -221,27 +220,15 @@ class const PullRequestPanelActions({
     );
   }
 
-  /// Uses the Source Control snapshot already loaded for this workspace, or
-  /// `mobile.git.status` through that controller. A host without the verb, or
-  /// a status that fails, keeps All/Staged, matching desktop.
+  /// Statuses the workspace root, not the Source Control panel's nested root.
+  /// Host Ship always plans against `workspace.path`, matching desktop.
   Future<bool> _askWorkingTreeScope() async {
     try {
       final client = await ref.read(workspaceClientProvider(hostId).future);
-      if (client case MobileWorkspacePanelsClient(
-        supportsSourceControl: true,
-      )) {
-        final provider = sourceControlControllerProvider(hostId, workspaceId);
-        final subscription = ref.listenManual(
-          provider,
-          (_, _) {},
-          onError: (_, _) {},
-        );
-        try {
-          final snapshot = await ref.read(provider.future);
-          return shipShowsWorkingTreeScopeChoice(snapshot);
-        } finally {
-          subscription.close();
-        }
+      if (client case final MobileWorkspacePanelsClient panels
+          when panels.supportsSourceControl) {
+        final snapshot = await panels.gitStatus(workspaceId);
+        return shipShowsWorkingTreeScopeChoice(snapshot);
       }
       return true;
     } on Object {

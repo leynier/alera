@@ -5,13 +5,16 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart'
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
+import 'package:alera_mobile/src/features/workbench/application/explorer_preferences_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera_mobile/src/features/workbench/domain/explorer_preferences.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_ship_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/fake_terminal_client.dart';
+import 'support/memory_explorer_preferences_repository.dart';
 
 const _dirtySnapshot = MobileGitStatusSnapshot(
   isRepository: true,
@@ -125,6 +128,30 @@ void main() {
       expect(find.text('All Changes'), findsOneWidget);
       expect(find.text('Staged Changes'), findsOneWidget);
     });
+
+    testWidgets(
+      'keeps All vs Staged when a nested source control root is clean',
+      (tester) async {
+        final client = _shipClient()
+          ..sourceControlSupported = true
+          ..sourceControlRootSupported = true
+          ..gitStatusSnapshot = _dirtySnapshot;
+        addTearDown(client.dispose);
+        final preferences = MemoryExplorerPreferencesRepository()
+          ..saved['host-1/workspace-1'] = const ExplorerPreferences(
+            sourceControlRoot: 'service',
+          );
+        await _openPullRequest(tester, client, preferences: preferences);
+
+        await tester.tap(find.text('Ship Changes'));
+        await tester.pumpAndSettle();
+
+        expect(client.calls, contains('gitStatus workspace-1'));
+        expect(client.calls, isNot(contains('gitStatus workspace-1 service')));
+        expect(find.text('All Changes'), findsOneWidget);
+        expect(find.text('Staged Changes'), findsOneWidget);
+      },
+    );
   });
 }
 
@@ -170,8 +197,9 @@ Future<void> _pumpSheet(
 
 Future<void> _openPullRequest(
   WidgetTester tester,
-  FakeTerminalClient client,
-) async {
+  FakeTerminalClient client, {
+  MemoryExplorerPreferencesRepository? preferences,
+}) async {
   await tester.binding.setSurfaceSize(const Size(390, 844));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
@@ -179,6 +207,10 @@ Future<void> _openPullRequest(
       overrides: [
         terminalClientProvider('host-1').overrideWith((ref) async => client),
         workspaceClientProvider('host-1').overrideWith((ref) async => client),
+        if (preferences != null)
+          explorerPreferencesRepositoryProvider.overrideWith(
+            (ref) => preferences,
+          ),
       ],
       child: MaterialApp(
         theme: buildAleraMobileDarkTheme(),
