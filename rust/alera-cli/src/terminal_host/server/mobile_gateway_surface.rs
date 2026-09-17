@@ -30,8 +30,9 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_MOBILE_PROMPT_ATTACHMENT_READ_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROMPT_FILE_UPLOAD_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY,
-    RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY, RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
-    RUNTIME_HOST_MOBILE_SOURCE_CONTROL_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PULL_REQUEST_SUMMARIES_CAPABILITY,
+    RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY, RUNTIME_HOST_MOBILE_SOURCE_CONTROL_CAPABILITY,
     RUNTIME_HOST_MOBILE_SOURCE_CONTROL_WRITES_CAPABILITY,
     RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY, RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
     RUNTIME_HOST_MOBILE_WORKSPACE_REPLACE_CAPABILITY,
@@ -99,6 +100,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY,
     crate::terminal_host::protocol::RUNTIME_HOST_MOBILE_PULL_REQUEST_ACTIONS_CAPABILITY,
     crate::terminal_host::protocol::RUNTIME_HOST_MOBILE_PULL_REQUEST_SHIP_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PULL_REQUEST_SUMMARIES_CAPABILITY,
     RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_MODELS_CAPABILITY,
@@ -204,6 +206,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "mobile.git.checkout"
             | "mobile.git.createBranch"
             | "mobile.pullRequest.snapshot"
+            | "mobile.pullRequest.summaries"
             | "mobile.pullRequest.comment"
             | "mobile.pullRequest.commentUpdate"
             | "mobile.pullRequest.merge"
@@ -342,6 +345,8 @@ mod mobile_codex_file_surface_tests {
             &crate::terminal_host::protocol::RUNTIME_HOST_MOBILE_SOURCE_CONTROL_ROOT_CAPABILITY
         ));
         assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY));
+        assert!(MOBILE_HELLO_CAPABILITIES
+            .contains(&RUNTIME_HOST_MOBILE_PULL_REQUEST_SUMMARIES_CAPABILITY));
         for request in [
             "mobile.workspaceExplorer.list",
             "mobile.workspaceSearch.run",
@@ -350,6 +355,7 @@ mod mobile_codex_file_surface_tests {
             "mobile.git.status",
             "mobile.git.diff",
             "mobile.pullRequest.snapshot",
+            "mobile.pullRequest.summaries",
         ] {
             assert!(mobile_request_allowed(request), "{request}");
         }

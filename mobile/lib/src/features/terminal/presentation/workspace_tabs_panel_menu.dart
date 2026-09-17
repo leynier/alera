@@ -45,7 +45,7 @@ sealed class _NewTabAction {
 
 class const _NewTerminalTabAction() extends _NewTabAction {}
 
-class const _NewAgentProfileTabAction(final String profileId)
+class const _NewAgentProfileTabAction(final AgentProfileSummary profile)
     extends _NewTabAction {}
 
 sealed class _TabsMenuAction {

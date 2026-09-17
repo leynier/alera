@@ -197,13 +197,21 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                   widget.workspace,
                                 )) ...<Widget>[
                                   const SizedBox(width: AleraTokens.space6),
-                                  const Tooltip(
-                                    message: 'Project folder',
+                                  Tooltip(
+                                    message: widget.workspace.isMain
+                                        ? 'Project folder'
+                                        : 'Linked worktree',
                                     child: Icon(
-                                      AleraIcons.workspaceMain,
+                                      widget.workspace.isMain
+                                          ? AleraIcons.workspaceMain
+                                          : AleraIcons.gitFork,
                                       size: 12,
                                       color: AleraTokens.foregroundMuted,
-                                      key: Key('workspace-tray-home'),
+                                      key: Key(
+                                        widget.workspace.isMain
+                                            ? 'workspace-tray-home'
+                                            : 'workspace-tray-worktree',
+                                      ),
                                     ),
                                   ),
                                 ],

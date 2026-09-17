@@ -65,6 +65,11 @@ pub const RUNTIME_HOST_MOBILE_SOURCE_CONTROL_WRITES_CAPABILITY: &str =
 pub const RUNTIME_HOST_MOBILE_SOURCE_CONTROL_ROOT_CAPABILITY: &str = "mobileSourceControlRootV1";
 /// A paired phone can load a usable current-branch pull-request snapshot.
 pub const RUNTIME_HOST_MOBILE_PULL_REQUEST_CAPABILITY: &str = "mobilePullRequestV1";
+/// A paired phone can read compact per-workspace pull-request summaries for
+/// the whole workspace list in one request through
+/// `mobile.pullRequest.summaries`. Additive to `mobilePullRequestV1`.
+pub const RUNTIME_HOST_MOBILE_PULL_REQUEST_SUMMARIES_CAPABILITY: &str =
+    "mobilePullRequestSummariesV1";
 /// A paired phone can comment, reply, edit its own comments, merge, change
 /// draft status, close, link, unlink and create GitHub pull requests through
 /// the `mobile.pullRequest.*` write verbs. Additive to `mobilePullRequestV1`.

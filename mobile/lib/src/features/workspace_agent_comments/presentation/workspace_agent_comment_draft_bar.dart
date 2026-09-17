@@ -4,8 +4,8 @@ import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/workspace_agent_comments/domain/workspace_agent_comment.dart';
 import 'package:flutter/material.dart';
 
-/// Queued file comments with Send and Clear. Presentational: the caller owns
-/// the queue and what sending means.
+/// Queued file and diff comments with Send and Clear. Presentational: the
+/// caller owns the queue and what sending means.
 class const WorkspaceAgentCommentDraftBar({
   super.key,
   required final List<WorkspaceAgentComment> comments,
@@ -62,7 +62,7 @@ class const WorkspaceAgentCommentDraftBar({
                 children: <Widget>[
                   Expanded(
                     child: Text(
-                      '${comment.path}: ${comment.body}',
+                      '${workspaceAgentCommentLocationLabel(comment)}: ${comment.body}',
                       maxLines: 1,
                       overflow: .ellipsis,
                       style: theme.textTheme.bodySmall,
