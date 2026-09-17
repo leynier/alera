@@ -3,6 +3,7 @@ mod legacy_orchestration;
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::Path;
+use std::time::Duration;
 
 use anyhow::Result;
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
@@ -61,11 +62,13 @@ impl RuntimeStore {
             .filename(&path)
             .create_if_missing(true)
             .journal_mode(SqliteJournalMode::Wal)
-            .synchronous(SqliteSynchronous::Normal);
+            .synchronous(SqliteSynchronous::Normal)
+            .busy_timeout(Duration::from_secs(5));
         // SQLite gives every pooled connection its own worker thread. The
         // runtime actor serializes ordinary mutations, while a few background
         // jobs can read concurrently, so the default of ten only leaves idle
-        // threads and connection-local caches behind after a burst.
+        // threads and connection-local caches behind after a burst. A busy
+        // timeout lets those writers wait on WAL instead of returning SQLITE_BUSY.
         let pool = SqlitePoolOptions::new()
             .max_connections(RUNTIME_STORE_MAX_CONNECTIONS)
             .connect_with(options)
