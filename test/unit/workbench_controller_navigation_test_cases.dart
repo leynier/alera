@@ -371,11 +371,19 @@ void _registerWorkbenchControllerNavigationTests() {
         sourceBranch: 'main',
         newBranchName: 'feature/navigation-first',
       )).workspace;
+      await _controller.selectWorkspace(
+        project: _harness.project,
+        workspace: first,
+      );
       final second = (await _controller.createWorkspace(
         project: _harness.project,
         sourceBranch: 'main',
         newBranchName: 'feature/navigation-second',
       )).workspace;
+      await _controller.selectWorkspace(
+        project: _harness.project,
+        workspace: second,
+      );
       expect(_controller.state.activeWorkspaceId, second.id);
 
       await _controller.goBack();
@@ -406,11 +414,19 @@ void _registerWorkbenchControllerNavigationTests() {
       sourceBranch: 'main',
       newBranchName: 'feature/navigation-removed',
     )).workspace;
+    await _controller.selectWorkspace(
+      project: _harness.project,
+      workspace: removedWorkspace,
+    );
     final currentWorkspace = (await _controller.createWorkspace(
       project: _harness.project,
       sourceBranch: 'main',
       newBranchName: 'feature/navigation-current',
     )).workspace;
+    await _controller.selectWorkspace(
+      project: _harness.project,
+      workspace: currentWorkspace,
+    );
 
     await _harness.workbenchRepository.removeWorkspace(removedWorkspace.id);
     await _flushUntil(
@@ -462,6 +478,10 @@ void _registerWorkbenchControllerNavigationTests() {
       sourceBranch: 'main',
       newBranchName: 'feature/navigation-project',
     )).workspace;
+    await _controller.selectWorkspace(
+      project: _harness.project,
+      workspace: secondWorkspace,
+    );
     expect(_controller.state.activeWorkspaceId, secondWorkspace.id);
 
     final otherProject = await _harness.addProject('project-2', 'Other');

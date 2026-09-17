@@ -35,11 +35,11 @@ void _registerWorkbenchControllerCreateWorkspaceTests() {
 
     expect(result.hasParentLinkError, isFalse);
     expect(_harness.workspaceGraphRepository.linkedWorkspaces, isEmpty);
-    expect(_controller.state.activeWorkspaceId, result.workspace.id);
+    expect(_controller.state.activeWorkspaceId, isNot(result.workspace.id));
   });
 
   test(
-    'createWorkspace selects the workspace before its watcher catches up',
+    'createWorkspace initializes tabs without selecting the workspace',
     () async {
       await _harness.dispose();
       _harness = _WorkbenchHarness(
@@ -58,15 +58,46 @@ void _registerWorkbenchControllerCreateWorkspaceTests() {
       );
 
       expect(_controller.state.activeProjectId, _harness.project.id);
-      expect(_controller.state.activeWorkspace, result.workspace);
-      expect(_controller.state.activeWorkspaceTab?.title, 'Terminal 1');
-      expect(_controller.state.activeLayout?.workspaceId, result.workspace.id);
+      expect(_controller.state.activeWorkspace, isNull);
+      expect(
+        _controller.state.tabsFor(result.workspace.id).map((tab) => tab.title),
+        <String>['Terminal 1'],
+      );
+      expect(
+        _controller.state.layoutFor(result.workspace.id)?.workspaceId,
+        result.workspace.id,
+      );
 
       await _harness.workbenchRepository.upsertWorkspace(result.workspace);
       await _flush();
 
-      expect(_controller.state.activeWorkspace, result.workspace);
+      expect(_controller.state.activeWorkspace, isNull);
+      expect(
+        _controller.state.tabsFor(result.workspace.id).map((tab) => tab.title),
+        <String>['Terminal 1'],
+      );
+    },
+  );
+
+  test(
+    'createWorkspace keeps the currently selected workspace visible',
+    () async {
+      await _controller.bootstrap();
+      final current = await _selectMainWorkspace(_controller, _harness);
+
+      final result = await _controller.createWorkspace(
+        project: _harness.project,
+        sourceBranch: 'main',
+        newBranchName: 'feature/background-create',
+      );
+
+      expect(_controller.state.activeWorkspaceId, current.id);
+      expect(
+        _controller.state.tabsFor(result.workspace.id).map((tab) => tab.title),
+        <String>['Terminal 1'],
+      );
       expect(_controller.state.activeWorkspaceTab?.title, 'Terminal 1');
+      expect(_controller.state.activeWorkspaceTab?.workspaceId, current.id);
     },
   );
 
@@ -118,7 +149,11 @@ void _registerWorkbenchControllerCreateWorkspaceTests() {
       expect(setup.initialCommandOnce, isTrue);
       expect(setup.spawnOnCreate, isTrue);
       expect(setup.autoCloseOnSuccess, isTrue);
-      expect(_controller.state.activeWorkspaceTab?.title, 'Setup');
+      expect(_controller.state.activeWorkspace, isNull);
+      expect(
+        _controller.state.workspacePanelFor(result.workspace.id).focusedKey,
+        WorkspacePanel.tabKey(setup.id),
+      );
       expect(_controller.state.error, isNull);
     },
   );
@@ -167,7 +202,11 @@ void _registerWorkbenchControllerCreateWorkspaceTests() {
     expect(tabs.last.initialCommand, _setupCommand);
     expect(tabs.last.initialCommandOnce, isTrue);
     expect(tabs.last.autoCloseOnSuccess, isTrue);
-    expect(_controller.state.activeWorkspaceTab?.id, 'agent-tab');
+    expect(_controller.state.activeWorkspace, isNull);
+    expect(
+      _controller.state.activeTabIdByWorkspace[result.workspace.id],
+      'agent-tab',
+    );
   });
 
   test('createWorkspace leaves the workspace with one terminal when nothing is deferred', () async {
