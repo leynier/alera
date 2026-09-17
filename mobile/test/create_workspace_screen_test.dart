@@ -439,6 +439,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.text('Create Another'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     expect(find.text('Auto Assign Section'), findsNothing);
     expect(find.text('Create Another'), findsOneWidget);
   });
