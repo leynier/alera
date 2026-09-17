@@ -162,3 +162,39 @@ fn primary_action_follows_the_desktop_order() {
         );
     }
 }
+
+#[test]
+fn same_named_upstream_is_the_published_branch() {
+    assert!(state("main", Some("origin/main"), 0, 0).tracks_same_named_upstream());
+    assert!(state("feature/foo", Some("origin/feature/foo"), 1, 0).tracks_same_named_upstream());
+    assert!(!state("fix/git-push-issue", Some("origin/develop"), 1, 0).tracks_same_named_upstream());
+    assert!(!state("main", None, 0, 0).tracks_same_named_upstream());
+    assert!(!state("main", Some(""), 0, 0).tracks_same_named_upstream());
+    assert!(!state("main", Some("origin"), 0, 0).tracks_same_named_upstream());
+}
+
+#[test]
+fn mismatched_source_upstream_is_unpublished() {
+    let entries = [entry("a", GitChangeArea::Staged)];
+    let repository = state("fix/git-push-issue", Some("origin/develop"), 2, 0);
+    let actions = source_control_actions(&entries, &repository, 0);
+    assert!(actions.publish_branch);
+    assert!(!actions.sync && !actions.commit_sync);
+    assert_eq!(
+        source_control_primary_action(&entries, &repository),
+        SourceControlPrimaryAction::PublishBranch
+    );
+
+    let published = state(
+        "fix/git-push-issue",
+        Some("origin/fix/git-push-issue"),
+        2,
+        0,
+    );
+    let actions = source_control_actions(&entries, &published, 0);
+    assert!(!actions.publish_branch && actions.sync && actions.commit_sync);
+    assert_eq!(
+        source_control_primary_action(&entries, &published),
+        SourceControlPrimaryAction::Push
+    );
+}
