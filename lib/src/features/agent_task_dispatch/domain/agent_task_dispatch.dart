@@ -56,6 +56,19 @@ class const AgentTaskDispatchCatalog({
   bool get isEmpty => runningAgents.isEmpty && profiles.isEmpty;
 }
 
+/// Whether injecting into [workspaceId] should also focus that tab.
+///
+/// Background Watch and Fix follow-ups pass [activate] false so they never
+/// call `selectWorkspace` or `selectWorkspaceTab`. A user-initiated send may
+/// still focus the agent tab, but only while that workspace is already visible.
+bool agentTaskDispatchShouldActivate({
+  required bool activate,
+  required String workspaceId,
+  required String? activeWorkspaceId,
+}) {
+  return activate && activeWorkspaceId == workspaceId;
+}
+
 AgentTaskDispatchCatalog buildAgentTaskDispatchCatalog({
   required Iterable<WorkspaceTabRecord> tabs,
   required Map<String, AgentStatusEntry> agentStatuses,

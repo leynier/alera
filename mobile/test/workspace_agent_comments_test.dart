@@ -198,6 +198,7 @@ void main() {
       );
 
       expect(tabId, 'tab-agent');
+      expect(client.attachments, isEmpty);
       final write = client.calls.singleWhere(
         (call) => call.startsWith('write '),
       );
@@ -269,6 +270,7 @@ void main() {
       );
 
       expect(tabId, 'agent-tab');
+      expect(client.attachments, isEmpty);
       expect(
         client.calls.where((call) => call.startsWith('launchAgentProfile ')),
         hasLength(1),

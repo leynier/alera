@@ -206,19 +206,43 @@ class const PullRequestPanelActions({
     );
   }
 
-  Future<void> ship(BuildContext context, MobilePullRequestSnapshot snapshot) {
+  Future<void> ship(
+    BuildContext context,
+    MobilePullRequestSnapshot snapshot,
+  ) async {
     final controller = _controller;
+    final askWorkingTreeScope = await _askWorkingTreeScope();
+    if (!context.mounted) {
+      return;
+    }
     return showShipPullRequestSheet(
       context,
       headBranch: snapshot.branch,
       baseBranches: snapshot.baseBranches,
       suggestedBaseBranch: snapshot.suggestedBaseBranch,
+      askWorkingTreeScope: askWorkingTreeScope,
       onSubmit: (input) => controller.run(
         .ship,
         (client) =>
             client.shipPullRequest(workspaceId: workspaceId, input: input),
       ),
     );
+  }
+
+  /// Statuses the workspace root, not the Source Control panel's nested root.
+  /// Host Ship always plans against `workspace.path`, matching desktop.
+  Future<bool> _askWorkingTreeScope() async {
+    try {
+      final client = await ref.read(workspaceClientProvider(hostId).future);
+      if (client case final MobileWorkspacePanelsClient panels
+          when panels.supportsSourceControl) {
+        final snapshot = await panels.gitStatus(workspaceId);
+        return shipShowsWorkingTreeScopeChoice(snapshot);
+      }
+      return true;
+    } on Object {
+      return true;
+    }
   }
 
   Future<void> _removeWorkspace(BuildContext context) async {

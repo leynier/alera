@@ -133,6 +133,7 @@ class _GitDiffSurfaceTestController extends WorkbenchController {
     required Workspace workspace,
     required String relativePath,
     String? targetGroupId,
+    String? sourceKey,
     bool preview = false,
   }) async {
     openedRelativePaths.add(relativePath);

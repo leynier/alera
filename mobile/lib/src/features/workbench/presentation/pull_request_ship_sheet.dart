@@ -3,7 +3,15 @@ import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_actions.dart';
+import 'package:alera_mobile/src/features/runtime/domain/mobile_source_control.dart';
 import 'package:flutter/material.dart';
+
+/// Whether Ship should ask All vs Staged. A loaded snapshot with no entries
+/// ships staged without the choice, matching desktop. A missing snapshot
+/// (status unread or failed) keeps the control.
+bool shipShowsWorkingTreeScopeChoice(MobileGitStatusSnapshot? snapshot) {
+  return snapshot == null || snapshot.entries.isNotEmpty;
+}
 
 /// Opens [ShipPullRequestSheet].
 Future<void> showShipPullRequestSheet(
@@ -11,6 +19,7 @@ Future<void> showShipPullRequestSheet(
   required String? headBranch,
   required List<String> baseBranches,
   required String? suggestedBaseBranch,
+  bool askWorkingTreeScope = true,
   required Future<String?> Function(MobilePullRequestShipInput input) onSubmit,
 }) {
   return showModalBottomSheet<void>(
@@ -21,6 +30,7 @@ Future<void> showShipPullRequestSheet(
       headBranch: headBranch,
       baseBranches: baseBranches,
       suggestedBaseBranch: suggestedBaseBranch,
+      askWorkingTreeScope: askWorkingTreeScope,
       onSubmit: onSubmit,
     ),
   );
@@ -34,6 +44,7 @@ class const ShipPullRequestSheet({
   required final String? headBranch,
   required final List<String> baseBranches,
   required final String? suggestedBaseBranch,
+  final bool askWorkingTreeScope = true,
   required final Future<String?> Function(MobilePullRequestShipInput input)
   onSubmit,
 }) extends StatefulWidget {
@@ -43,10 +54,16 @@ class const ShipPullRequestSheet({
 
 class _ShipPullRequestSheetState extends State<ShipPullRequestSheet> {
   late String? _base = _initialBase();
-  bool _stagedOnly = false;
+  late bool _stagedOnly;
   bool _draft = false;
   bool _submitting = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _stagedOnly = !widget.askWorkingTreeScope;
+  }
 
   String? _initialBase() {
     final suggested = widget.suggestedBaseBranch;
@@ -143,21 +160,26 @@ class _ShipPullRequestSheetState extends State<ShipPullRequestSheet> {
                 ],
                 onChanged: (branch) => setState(() => _base = branch),
               ),
-              const SizedBox(height: AleraTokens.space12),
-              SegmentedButton<bool>(
-                segments: const <ButtonSegment<bool>>[
-                  ButtonSegment<bool>(value: false, label: Text('All Changes')),
-                  ButtonSegment<bool>(
-                    value: true,
-                    label: Text('Staged Changes'),
-                  ),
-                ],
-                selected: <bool>{_stagedOnly},
-                onSelectionChanged: _submitting
-                    ? null
-                    : (selection) =>
-                          setState(() => _stagedOnly = selection.first),
-              ),
+              if (widget.askWorkingTreeScope) ...<Widget>[
+                const SizedBox(height: AleraTokens.space12),
+                SegmentedButton<bool>(
+                  segments: const <ButtonSegment<bool>>[
+                    ButtonSegment<bool>(
+                      value: false,
+                      label: Text('All Changes'),
+                    ),
+                    ButtonSegment<bool>(
+                      value: true,
+                      label: Text('Staged Changes'),
+                    ),
+                  ],
+                  selected: <bool>{_stagedOnly},
+                  onSelectionChanged: _submitting
+                      ? null
+                      : (selection) =>
+                            setState(() => _stagedOnly = selection.first),
+                ),
+              ],
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Create As Draft'),

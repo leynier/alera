@@ -95,7 +95,9 @@ mixin _WorkbenchControllerTabOpening
     required Workspace workspace,
     required String relativePath,
     String? targetGroupId,
+    String? sourceKey,
   }) async {
+    targetGroupId ??= _groupForOpening(workspace.id, sourceKey);
     try {
       final sleepGeneration = _workspaceSleepGeneration[workspace.id] ?? 0;
       final previousIds = <String>{

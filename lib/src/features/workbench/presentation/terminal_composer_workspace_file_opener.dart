@@ -14,8 +14,12 @@ TerminalComposerDropTarget buildTerminalComposerForWorkspace(
     session: session,
     child: TerminalComposer(
       session: session,
-      onOpenWorkspaceFile: (filePath) =>
-          openTerminalComposerWorkspaceFile(ref, session.workspaceId, filePath),
+      onOpenWorkspaceFile: (filePath) => openTerminalComposerWorkspaceFile(
+        ref,
+        session.workspaceId,
+        filePath,
+        sourceKey: 'tab:${session.tabId}',
+      ),
     ),
   );
 }
@@ -23,8 +27,9 @@ TerminalComposerDropTarget buildTerminalComposerForWorkspace(
 Future<bool> openTerminalComposerWorkspaceFile(
   WidgetRef ref,
   String workspaceId,
-  String filePath,
-) async {
+  String filePath, {
+  String? sourceKey,
+}) async {
   final workspace = findWorkspaceById(
     ref.read(workbenchControllerProvider),
     workspaceId,
@@ -38,6 +43,10 @@ Future<bool> openTerminalComposerWorkspaceFile(
     workspaceFiles: ref.read(workspaceFileServiceProvider),
     openFile: (relativePath) => ref
         .read(workbenchControllerProvider.notifier)
-        .openFileTab(workspace: workspace, relativePath: relativePath),
+        .openFileTab(
+          workspace: workspace,
+          relativePath: relativePath,
+          sourceKey: sourceKey,
+        ),
   );
 }

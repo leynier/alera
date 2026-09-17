@@ -79,6 +79,13 @@ void main() {
 
         expect(inserted.groups[groupId]?.tabIds, <String>['tab-2', 'tab-1']);
         expect(inserted.activeTabId, 'tab-2');
+        final background = layout.addTabToGroup(
+          groupId: groupId,
+          tabId: 'tab-2',
+          activate: false,
+        );
+        expect(background.groups[groupId]?.tabIds, <String>['tab-1', 'tab-2']);
+        expect(background.activeTabId, 'tab-1');
         expect(
           inserted.setActiveTab(groupId: 'missing', tabId: 'tab-2'),
           same(inserted),

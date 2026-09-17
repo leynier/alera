@@ -43,6 +43,7 @@ mixin _WorkbenchControllerNavigation
     required String tabId,
     String? targetGroupId,
     int? sleepGeneration,
+    bool activate = true,
   }) async {
     final generation =
         sleepGeneration ?? (_workspaceSleepGeneration[workspaceId] ?? 0);
@@ -75,8 +76,11 @@ mixin _WorkbenchControllerNavigation
       tabs: tabs,
       previousTabs: currentTabs,
       targetGroupId: targetGroupId,
+      focus: activate,
     );
-    if (!_disposed && !_isStaleWorkspaceOpen(workspaceId, generation)) {
+    if (activate &&
+        !_disposed &&
+        !_isStaleWorkspaceOpen(workspaceId, generation)) {
       await selectWorkspaceTab(workspaceId: workspaceId, tabId: tabId);
     }
   }

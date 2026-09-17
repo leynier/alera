@@ -130,6 +130,9 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
               workspace: workspace,
               relativePath: relativePath,
               targetGroupId: targetGroupId,
+              sourceKey: singleTabId == null
+                  ? null
+                  : WorkspacePanel.tabKey(singleTabId),
             );
           },
           onOpenMarkdownViewerTab:
@@ -138,6 +141,9 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
                   workspace: workspace,
                   relativePath: relativePath,
                   targetGroupId: targetGroupId,
+                  sourceKey: singleTabId == null
+                      ? null
+                      : WorkspacePanel.tabKey(singleTabId),
                 );
               },
           onKeepPreviewTab: (tabId) {
@@ -178,12 +184,18 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
             await controller.openEditorTab(
               workspace: workspace,
               relativePath: relativePath,
+              sourceKey: singleTabId == null
+                  ? null
+                  : WorkspacePanel.tabKey(singleTabId),
             );
           },
           onOpenMermanPreview: (relativePath) async {
             await controller.openMermanPreviewTab(
               workspace: workspace,
               relativePath: relativePath,
+              sourceKey: singleTabId == null
+                  ? null
+                  : WorkspacePanel.tabKey(singleTabId),
             );
           },
           onMoveTab:

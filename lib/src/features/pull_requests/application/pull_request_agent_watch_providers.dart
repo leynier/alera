@@ -198,6 +198,8 @@ class PullRequestAgentWatchController
         ref,
         workspaceId: session.workspaceId,
       ),
+      // Timer and panel-state follow-ups must not steal the visible workspace.
+      activate: false,
     );
     final latest = state[session.workspaceId];
     if (latest == null) {

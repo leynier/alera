@@ -83,6 +83,7 @@ class _PanelWorkbenchController extends WorkbenchController {
     required String retentionId,
     String? subject,
     String? targetGroupId,
+    String? sourceKey,
   }) async {
     openedPullRequestDiffs.add((
       number: pullRequestNumber,

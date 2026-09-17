@@ -52,6 +52,8 @@ pub enum WorkspaceAction {
     HandOn(WorkspaceHandOnArgs),
     /// Show, link, or unlink the issue a workspace was created for.
     Issue(WorkspaceIssueCommand),
+    /// List, create, assign, and remove workspace sections.
+    Section(WorkspaceSectionCommand),
 }
 
 #[derive(Debug, Args)]
@@ -95,6 +97,12 @@ pub struct WorkspaceAddArgs {
     /// Issue URL to link to the new workspace (GitHub, GitLab, Azure DevOps, or any tracker URL).
     #[arg(long = "issue", value_name = "url")]
     pub issue: Option<String>,
+    /// Assign the new workspace to this section by unique name (case-insensitive).
+    #[arg(long = "section", conflicts_with = "section_id")]
+    pub section: Option<String>,
+    /// Assign the new workspace to this section by id.
+    #[arg(long = "section-id", conflicts_with = "section")]
+    pub section_id: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -141,6 +149,12 @@ pub struct WorkspaceStartArgs {
     /// Issue URL to link to the new workspace (GitHub, GitLab, Azure DevOps, or any tracker URL).
     #[arg(long = "issue", value_name = "url")]
     pub issue: Option<String>,
+    /// Assign the new workspace to this section by unique name (case-insensitive).
+    #[arg(long = "section", conflicts_with = "section_id")]
+    pub section: Option<String>,
+    /// Assign the new workspace to this section by id.
+    #[arg(long = "section-id", conflicts_with = "section")]
+    pub section_id: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -325,4 +339,58 @@ pub struct WorkspaceIssueLinkArgs {
     /// Issue URL. Unrecognized trackers are stored as a plain link.
     #[arg(value_name = "url")]
     pub url: String,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceSectionCommand {
+    #[command(subcommand)]
+    pub action: WorkspaceSectionAction,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum WorkspaceSectionAction {
+    /// List workspace sections.
+    List,
+    /// Create a section and assign its first workspace.
+    Create(WorkspaceSectionCreateArgs),
+    /// Assign a workspace to an existing section.
+    Set(WorkspaceSectionSetArgs),
+    /// Move a workspace to Others (no section).
+    Clear(WorkspaceSectionWorkspaceArgs),
+    /// Delete a section. Workspaces are kept and moved to Others.
+    Remove(IdArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceSectionCreateArgs {
+    #[arg(long)]
+    pub name: String,
+    #[arg(long = "workspace-id")]
+    pub workspace_id: String,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceSectionSetArgs {
+    #[arg(long = "workspace-id")]
+    pub workspace_id: String,
+    /// Unique section name, matched case-insensitively.
+    #[arg(
+        long = "section",
+        required_unless_present = "section_id",
+        conflicts_with = "section_id"
+    )]
+    pub section: Option<String>,
+    /// Section id.
+    #[arg(
+        long = "section-id",
+        required_unless_present = "section",
+        conflicts_with = "section"
+    )]
+    pub section_id: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceSectionWorkspaceArgs {
+    #[arg(long = "workspace-id")]
+    pub workspace_id: String,
 }

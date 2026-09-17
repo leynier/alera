@@ -259,6 +259,10 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
     if (workspace == null || _matches.isEmpty) {
       return;
     }
+    final sourceKey = ref
+        .read(workbenchControllerProvider)
+        .workspacePanelFor(workspace.id)
+        .focusedKey;
     final relativePath = _matches[_selectedIndex].relativePath;
     Navigator.of(context).pop();
     unawaited(
@@ -267,6 +271,7 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
           .openFileTab(
             workspace: workspace,
             relativePath: relativePath,
+            sourceKey: sourceKey,
             preview: true,
           ),
     );
