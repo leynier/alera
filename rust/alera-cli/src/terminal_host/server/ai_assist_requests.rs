@@ -57,6 +57,12 @@ impl ServerActor {
             .get("tabId")
             .and_then(Value::as_str)
             .map(str::to_string);
+        // Additive: an older client never sends this flag and gets the
+        // original two-field identity prompt.
+        let auto_assign_section = payload
+            .get("autoAssignSection")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         let project = self.runtime_store.clone();
         let inbox = self.inbox.clone();
         let (registration, cancel_rx) = active_generations().register(operation_id, None)?;
@@ -71,6 +77,16 @@ impl ServerActor {
                     .effective_ai_assist_settings()
                     .await
                     .map_err(|error| HostError::state(error.to_string()))?;
+                // Section assignment is best-effort: a sections lookup failure
+                // must not break identity generation.
+                let sections = if auto_assign_section {
+                    project.list_workspace_sections().await.unwrap_or_else(|error| {
+                        tracing::warn!("could not list workspace sections for identity generation: {error}");
+                        Vec::new()
+                    })
+                } else {
+                    Vec::new()
+                };
                 let mut initial_prompt = initial_prompt;
                 if let Some(tab_id) = tab_id {
                     if let Some(tab) = project
@@ -96,6 +112,7 @@ impl ServerActor {
                     &initial_prompt,
                     settings,
                     cancel_rx,
+                    &sections,
                 )
                 .await
             }
@@ -134,6 +151,7 @@ async fn generate_workspace_identity(
     initial_prompt: &str,
     settings: RuntimeAiAssistSettings,
     cancel_rx: oneshot::Receiver<()>,
+    sections: &[alera_core::runtime::WorkspaceSection],
 ) -> HostResult<Value> {
     if !settings.enabled {
         return Err(HostError::state("AI Assist is disabled."));
@@ -150,11 +168,12 @@ async fn generate_workspace_identity(
             .get("workspaceIdentity")
             .map(String::as_str)
             .unwrap_or_default(),
+        sections,
     );
     let plan = plan_command(&settings, "workspaceIdentity", &prompt)?;
     let timeout_seconds = settings.timeout_seconds;
     let result = run_command(plan, working_directory, timeout_seconds, cancel_rx).await?;
-    parse_workspace_identity(&result)
+    parse_workspace_identity(&result, sections)
 }
 
 pub(super) fn plan_command(

@@ -27,6 +27,7 @@ mixin FakeWorkspaceLifecycleClient {
   Future<void>? listAgentProfilesDelay;
   Future<void>? generateWorkspaceIdentityDelay;
   Object? listAgentProfilesError;
+  bool? lastGenerateWorkspaceIdentityAutoAssign;
 
   List<ProjectSummary> projects = const <ProjectSummary>[];
   List<WorkspaceSummary> workspaces = const <WorkspaceSummary>[];
@@ -86,8 +87,10 @@ mixin FakeWorkspaceLifecycleClient {
     required String operationId,
     required String projectId,
     required String prompt,
+    bool autoAssignSection = false,
   }) async {
     calls.add('generateWorkspaceIdentity $projectId');
+    lastGenerateWorkspaceIdentityAutoAssign = autoAssignSection;
     final delay = generateWorkspaceIdentityDelay;
     if (delay != null) {
       await delay;

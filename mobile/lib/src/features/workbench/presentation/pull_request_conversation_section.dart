@@ -9,6 +9,7 @@ import 'package:alera_mobile/src/design_system/markdown/alera_markdown_view.dart
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/updater/infra/mobile_external_browser.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_pull_request_conversation.dart';
+import 'package:alera_mobile/src/features/workbench/domain/pull_request_comment_body.dart';
 import 'package:alera_mobile/src/features/workbench/domain/workspace_markdown_uri_policy.dart';
 import 'package:flutter/material.dart';
 
@@ -393,7 +394,7 @@ class const _CommentBody({
   @override
   Widget build(BuildContext context) {
     return AleraMarkdownView(
-      data: body,
+      data: sanitizePullRequestCommentBody(body),
       onLinkTap: onOpen,
       imageBuilder: _commentImage,
     );

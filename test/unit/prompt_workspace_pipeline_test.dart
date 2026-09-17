@@ -27,11 +27,15 @@ void main() {
     final phases = <String>[];
     final pipeline = PromptWorkspacePipeline(
       generateIdentity:
-          ({required operationId, required projectId, required prompt}) async =>
-              const GeneratedWorkspaceIdentity(
-                workspaceName: 'Prompt Workspace',
-                branchName: 'feat/prompt-workspace',
-              ),
+          ({
+            required operationId,
+            required projectId,
+            required prompt,
+            required autoAssignSection,
+          }) async => const GeneratedWorkspaceIdentity(
+            workspaceName: 'Prompt Workspace',
+            branchName: 'feat/prompt-workspace',
+          ),
       checkBranchExists: (_, _) async => false,
       workspaceBranches: (_) => const <String>{},
       createWorkspace:
@@ -92,7 +96,12 @@ void main() {
     var attempts = 0;
     final pipeline = PromptWorkspacePipeline(
       generateIdentity:
-          ({required operationId, required projectId, required prompt}) async {
+          ({
+            required operationId,
+            required projectId,
+            required prompt,
+            required autoAssignSection,
+          }) async {
             attempts += 1;
             return GeneratedWorkspaceIdentity(
               workspaceName: 'Prompt Workspace',
@@ -150,11 +159,15 @@ void main() {
   test('launch failure keeps the created workspace', () async {
     final pipeline = PromptWorkspacePipeline(
       generateIdentity:
-          ({required operationId, required projectId, required prompt}) async =>
-              const GeneratedWorkspaceIdentity(
-                workspaceName: 'Prompt Workspace',
-                branchName: 'feat/prompt-workspace',
-              ),
+          ({
+            required operationId,
+            required projectId,
+            required prompt,
+            required autoAssignSection,
+          }) async => const GeneratedWorkspaceIdentity(
+            workspaceName: 'Prompt Workspace',
+            branchName: 'feat/prompt-workspace',
+          ),
       checkBranchExists: (_, _) async => false,
       workspaceBranches: (_) => const <String>{},
       createWorkspace:
@@ -210,5 +223,157 @@ void main() {
             ),
       ),
     );
+  });
+
+  test('assigns the generated section after creation', () async {
+    var forwardedAutoAssign = false;
+    final assignments = <String>[];
+    final pipeline = PromptWorkspacePipeline(
+      generateIdentity:
+          ({
+            required operationId,
+            required projectId,
+            required prompt,
+            required autoAssignSection,
+          }) async {
+            forwardedAutoAssign = autoAssignSection;
+            return const GeneratedWorkspaceIdentity(
+              workspaceName: 'Prompt Workspace',
+              branchName: 'feat/prompt-workspace',
+              sectionId: 'section-1',
+            );
+          },
+      checkBranchExists: (_, _) async => false,
+      workspaceBranches: (_) => const <String>{},
+      createWorkspace:
+          ({
+            required project,
+            required sourceBranch,
+            required newBranchName,
+            required name,
+            parentWorkspaceId,
+            hostId,
+            issueUrl,
+          }) async {
+            return WorkspaceCreationResult(
+              workspace: Workspace(
+                id: 'workspace-4',
+                projectId: project.id,
+                name: name,
+                branch: newBranchName,
+                path: '/repo/ws',
+                createdAt: now,
+                updatedAt: now,
+                kind: .linked,
+                status: .active,
+                sourceBranch: sourceBranch,
+              ),
+              setupReport: .empty,
+            );
+          },
+      assignSection: (workspaceId, sectionId) async {
+        assignments.add('$workspaceId $sectionId');
+      },
+      launchAgent:
+          ({
+            required workspaceId,
+            required profileId,
+            required prompt,
+            required clientMutationId,
+            required requireIdempotency,
+          }) async => const AgentProfileLaunchResult(
+            tabId: 'tab-4',
+            agentType: 'codex',
+            profileId: 'profile-1',
+            idempotent: true,
+          ),
+    );
+
+    final result = await pipeline.run(
+      PromptWorkspaceCreateRequest(
+        project: project,
+        prompt: 'Build the feature',
+        profileId: 'profile-1',
+        sourceBranch: 'main',
+        autoAssignSection: true,
+      ),
+    );
+
+    expect(forwardedAutoAssign, isTrue);
+    expect(assignments, <String>['workspace-4 section-1']);
+    expect(result.creation.workspace.id, 'workspace-4');
+  });
+
+  test('a section assignment failure does not fail the flow', () async {
+    final pipeline = PromptWorkspacePipeline(
+      generateIdentity:
+          ({
+            required operationId,
+            required projectId,
+            required prompt,
+            required autoAssignSection,
+          }) async => const GeneratedWorkspaceIdentity(
+            workspaceName: 'Prompt Workspace',
+            branchName: 'feat/prompt-workspace',
+            sectionId: 'section-1',
+          ),
+      checkBranchExists: (_, _) async => false,
+      workspaceBranches: (_) => const <String>{},
+      createWorkspace:
+          ({
+            required project,
+            required sourceBranch,
+            required newBranchName,
+            required name,
+            parentWorkspaceId,
+            hostId,
+            issueUrl,
+          }) async {
+            return WorkspaceCreationResult(
+              workspace: Workspace(
+                id: 'workspace-5',
+                projectId: project.id,
+                name: name,
+                branch: newBranchName,
+                path: '/repo/ws',
+                createdAt: now,
+                updatedAt: now,
+                kind: .linked,
+                status: .active,
+                sourceBranch: sourceBranch,
+              ),
+              setupReport: .empty,
+            );
+          },
+      assignSection: (_, _) async {
+        throw StateError('section gone');
+      },
+      launchAgent:
+          ({
+            required workspaceId,
+            required profileId,
+            required prompt,
+            required clientMutationId,
+            required requireIdempotency,
+          }) async => const AgentProfileLaunchResult(
+            tabId: 'tab-5',
+            agentType: 'codex',
+            profileId: 'profile-1',
+            idempotent: true,
+          ),
+    );
+
+    final result = await pipeline.run(
+      PromptWorkspaceCreateRequest(
+        project: project,
+        prompt: 'Build the feature',
+        profileId: 'profile-1',
+        sourceBranch: 'main',
+        autoAssignSection: true,
+      ),
+    );
+
+    expect(result.creation.workspace.id, 'workspace-5');
+    expect(result.agentTabId, 'tab-5');
   });
 }

@@ -3,6 +3,7 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 class const GeneratedWorkspaceIdentity({
   required final String workspaceName,
   required final String branchName,
+  final String? sectionId,
 });
 
 class const AgentProfileLaunchResult({
@@ -27,6 +28,7 @@ class PromptWorkspaceRuntimeClient(
     required String projectId,
     required String prompt,
     String? tabId,
+    bool autoAssignSection = false,
   }) async {
     await beforeAccess?.call();
     final payload = _asMap(
@@ -37,6 +39,9 @@ class PromptWorkspaceRuntimeClient(
           'projectId': projectId,
           'prompt': prompt,
           'tabId': ?tabId,
+          // Additive: an older host ignores the flag and simply omits
+          // sectionId from the response.
+          'autoAssignSection': autoAssignSection,
         },
         const Duration(minutes: 11),
       ),
@@ -44,6 +49,7 @@ class PromptWorkspaceRuntimeClient(
     return GeneratedWorkspaceIdentity(
       workspaceName: _requiredString(payload, 'workspaceName'),
       branchName: _requiredString(payload, 'branchName'),
+      sectionId: _optionalString(payload, 'sectionId'),
     );
   }
 
@@ -128,4 +134,12 @@ String _requiredString(Map<String, Object?> value, String key) {
     return field;
   }
   throw FormatException('Runtime response is missing "$key".');
+}
+
+String? _optionalString(Map<String, Object?> value, String key) {
+  final field = value[key];
+  if (field is String && field.trim().isNotEmpty) {
+    return field;
+  }
+  return null;
 }

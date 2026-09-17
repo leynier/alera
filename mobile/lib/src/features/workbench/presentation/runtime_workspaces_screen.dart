@@ -150,6 +150,7 @@ class const RuntimeWorkspacesScreen({
                           data.value!.supportsSharedCheckoutWorkspaces,
                       projects: data.value!.projects,
                       workspaces: data.value!.workspaces,
+                      sections: data.value!.sections,
                       defaultAgentProfileId: data.value!.defaultAgentProfileId,
                       supportsPromptWorkspaceCreation:
                           data.value!.supportsPromptWorkspaceCreation,

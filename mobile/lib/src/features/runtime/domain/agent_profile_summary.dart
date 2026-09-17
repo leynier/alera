@@ -21,6 +21,7 @@ class const AgentProfileSummary({
 class const GeneratedWorkspaceIdentity({
   required final String workspaceName,
   required final String branchName,
+  final String? sectionId,
 });
 
 class const AgentProfileLaunchResult({

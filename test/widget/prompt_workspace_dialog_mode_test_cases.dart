@@ -34,6 +34,7 @@ void _registerPromptWorkspaceModeTests() {
                             required operationId,
                             required projectId,
                             required prompt,
+                            required autoAssignSection,
                           }) async => const GeneratedWorkspaceIdentity(
                             workspaceName: 'Prompt Workspace',
                             branchName: 'feat/prompt-workspace',

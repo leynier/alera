@@ -1,5 +1,84 @@
-use super::*;
+use clap::Parser;
 
+use crate::cli::{Cli, Command, IdArgs, WorkspaceAction, WorkspaceCommand, WorkspaceRemoveArgs};
+
+#[test]
+fn shared_workspace_cli_defaults_and_explicit_worktree_options() {
+    let cli =
+        Cli::try_parse_from(["alera", "workspace", "add", "--project-id", "project"]).unwrap();
+    match cli.command {
+        Command::Workspace(WorkspaceCommand {
+            action: WorkspaceAction::Add(args),
+            ..
+        }) => {
+            assert!(!args.worktree);
+            assert!(args.branch.is_none());
+            assert!(args.parent_workspace_id.is_none());
+        }
+        other => panic!("unexpected command: {other:?}"),
+    }
+    assert!(Cli::try_parse_from([
+        "alera",
+        "workspace",
+        "add",
+        "--project-id",
+        "project",
+        "--branch",
+        "topic"
+    ])
+    .is_err());
+    assert!(Cli::try_parse_from([
+        "alera",
+        "workspace",
+        "add",
+        "--project-id",
+        "project",
+        "--worktree"
+    ])
+    .is_err());
+    let cli = Cli::try_parse_from([
+        "alera",
+        "workspace",
+        "remove",
+        "--id",
+        "task",
+        "--close-sessions",
+        "--keep-branch",
+    ])
+    .unwrap();
+    assert!(matches!(
+        cli.command,
+        Command::Workspace(WorkspaceCommand {
+            action: WorkspaceAction::Remove(WorkspaceRemoveArgs {
+                close_sessions: true,
+                keep_branch: true,
+                ..
+            }),
+            ..
+        })
+    ));
+}
+#[test]
+fn workspace_pin_commands_parse_workspace_ids() {
+    let pin = Cli::try_parse_from(["alera", "workspace", "pin", "--id", "workspace-1"]).unwrap();
+    let unpin =
+        Cli::try_parse_from(["alera", "workspace", "unpin", "--id", "workspace-2"]).unwrap();
+
+    assert!(matches!(
+        pin.command,
+        Command::Workspace(WorkspaceCommand {
+            action: WorkspaceAction::Pin(IdArgs { id }),
+            ..
+        }) if id == "workspace-1"
+    ));
+    assert!(matches!(
+        unpin.command,
+        Command::Workspace(WorkspaceCommand {
+            action: WorkspaceAction::Unpin(IdArgs { id }),
+            ..
+        }) if id == "workspace-2"
+    ));
+}
 #[test]
 fn workspace_section_commands_parse_names_ids_and_json_list() {
     use crate::cli::{WorkspaceSectionAction, WorkspaceSectionCommand};

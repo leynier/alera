@@ -67,6 +67,7 @@ Future<void> _pumpEnqueuePromptDialog(
                       required operationId,
                       required projectId,
                       required prompt,
+                      required autoAssignSection,
                     }) async => throw UnimplementedError(),
                     cancelGeneration: (_) async {},
                     createWorkspace: ({
