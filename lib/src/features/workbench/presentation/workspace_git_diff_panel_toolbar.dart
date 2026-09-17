@@ -64,8 +64,7 @@ class const _SourceControlToolbar({
                 ),
               ),
               Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: .horizontal,
+                child: AleraHorizontalScrollView(
                   reverse: true,
                   child: Row(
                     mainAxisSize: .min,
