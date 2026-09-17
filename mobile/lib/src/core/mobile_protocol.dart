@@ -20,6 +20,8 @@ const String mobileSourceControlWritesCapability =
 const String aiTextCommitMessageCapability = 'aiTextCommitMessageV1';
 const String mobilePullRequestCapability = 'mobilePullRequestV1';
 const String mobilePullRequestActionsCapability = 'mobilePullRequestActionsV1';
+const String mobilePullRequestSummariesCapability =
+    'mobilePullRequestSummariesV1';
 const String aiTextPullRequestDetailsCapability = 'aiTextPullRequestDetailsV1';
 const String mobilePullRequestShipCapability = 'mobilePullRequestShipV1';
 const String sharedCheckoutWorkspacesCapability = 'sharedCheckoutWorkspacesV1';

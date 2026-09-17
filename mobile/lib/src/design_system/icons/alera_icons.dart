@@ -21,6 +21,7 @@ abstract final class const AleraIcons._() {
   static const IconData workspaceMain = LucideIcons.home;
   static const IconData workspaceChildren = LucideIcons.workflow;
   static const IconData gitBranch = LucideIcons.gitBranch;
+  static const IconData gitFork = LucideIcons.gitFork;
   static const IconData success = LucideIcons.circleCheck;
   static const IconData check = LucideIcons.check;
   static const IconData notifications = LucideIcons.bell;

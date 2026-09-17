@@ -24,6 +24,7 @@ import 'package:alera_mobile/src/features/workbench/application/mobile_workspace
 import 'package:alera_mobile/src/features/workbench/application/background_setup_jobs.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_agent_expansion_controller.dart';
+import 'package:alera_mobile/src/features/workbench/application/workspace_pull_request_summaries_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_search_controller.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/create_workspace_screen.dart';
@@ -261,6 +262,9 @@ class const _WorkspaceListBody({
         .watch(linkedIssuesControllerProvider(hostId))
         .value
         ?.byWorkspace;
+    final pullRequestSummaries = ref
+        .watch(workspacePullRequestSummariesControllerProvider(hostId))
+        .value;
     final rows = buildMobileWorkspaceRows(
       sections: data.sections,
       workspaces: data.workspaces,
@@ -277,7 +281,11 @@ class const _WorkspaceListBody({
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(workspaceListControllerProvider(hostId));
+        ref.invalidate(workspacePullRequestSummariesControllerProvider(hostId));
         await ref.read(workspaceListControllerProvider(hostId).future);
+        await ref.read(
+          workspacePullRequestSummariesControllerProvider(hostId).future,
+        );
       },
       child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -346,6 +354,8 @@ class const _WorkspaceListBody({
                   MobileWorkspaceEntryRow() => MobileWorkspaceListRow(
                     row: row,
                     linkedIssue: linkedIssues?[row.entry.workspace.id],
+                    pullRequestSummary:
+                        pullRequestSummaries?[row.entry.workspace.id],
                     terminalTabCount:
                         data.terminalTabCountByWorkspaceId[row
                             .entry

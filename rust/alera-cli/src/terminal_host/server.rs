@@ -152,6 +152,7 @@ mod mobile_pull_request_merge_methods;
 mod mobile_pull_request_requests;
 mod mobile_pull_request_ship;
 mod mobile_pull_request_snapshot_extras;
+mod mobile_pull_request_summaries;
 #[cfg(test)]
 mod mobile_relay_presence_tests;
 mod mobile_source_control_requests;

@@ -6,8 +6,14 @@ const Duration _pullRequestWriteTimeout = Duration(seconds: 90);
 /// An agent CLI reading the whole range can take minutes on a large branch.
 const Duration _pullRequestDetailsTimeout = Duration(minutes: 5);
 
+/// One summaries request fans out to every repository on the runtime, so it
+/// waits on the slowest `gh` batch rather than a single pull request.
+const Duration _pullRequestSummariesTimeout = Duration(minutes: 2);
+
 mixin MobileRuntimePullRequestRequests
-    implements MobilePullRequestActionsClient {
+    implements
+        MobilePullRequestActionsClient,
+        MobileWorkspacePullRequestSummariesClient {
   Set<String> get runtimeCapabilities;
 
   Future<Map<String, Object?>> requestMap(
@@ -27,6 +33,35 @@ mixin MobileRuntimePullRequestRequests
   @override
   bool get supportsPullRequestShip =>
       runtimeCapabilities.contains(mobilePullRequestShipCapability);
+
+  @override
+  bool get supportsPullRequestSummaries =>
+      runtimeCapabilities.contains(mobilePullRequestSummariesCapability);
+
+  @override
+  Future<Map<String, MobileWorkspacePullRequestSummary>>
+  pullRequestSummaries() async {
+    if (!supportsPullRequestSummaries) {
+      throw UnsupportedError(
+        'Update the paired Alera runtime to show pull request status.',
+      );
+    }
+    final payload = await requestMap(
+      'mobile.pullRequest.summaries',
+      const <String, Object?>{},
+      _pullRequestSummariesTimeout,
+    );
+    final summaries = <String, MobileWorkspacePullRequestSummary>{};
+    for (final item in payload.objectList('summaries')) {
+      final json = asJsonMap(item);
+      if (json.isEmpty) {
+        continue;
+      }
+      final summary = MobileWorkspacePullRequestSummary.fromJson(json);
+      summaries[summary.workspaceId] = summary;
+    }
+    return summaries;
+  }
 
   @override
   Future<MobilePullRequestSnapshot> shipPullRequest({

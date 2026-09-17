@@ -142,6 +142,7 @@ impl ServerActor {
             | "mobile.git.checkout"
             | "mobile.git.createBranch"
             | "mobile.pullRequest.snapshot"
+            | "mobile.pullRequest.summaries"
             | "mobile.pullRequest.comment"
             | "mobile.pullRequest.commentUpdate"
             | "mobile.pullRequest.merge"

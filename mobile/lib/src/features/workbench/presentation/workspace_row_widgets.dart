@@ -4,6 +4,7 @@ import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/linked_issues/domain/mobile_linked_issue.dart';
 import 'package:alera_mobile/src/features/linked_issues/presentation/mobile_linked_issue_icon.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_pull_request_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_workspace_rows.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_agent_run_groups.dart';
@@ -11,6 +12,7 @@ import 'package:alera_mobile/src/features/workbench/presentation/agent_identity_
 import 'package:alera_mobile/src/features/workbench/presentation/agent_run_state_indicator.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/mobile_agent_run_labels.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/mobile_workspace_agent_compact_summary.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/mobile_workspace_pull_request_status_icon.dart';
 import 'package:flutter/material.dart';
 
 part 'workspace_row_trays.dart';
@@ -33,6 +35,7 @@ class const MobileWorkspaceListRow({
   final bool showProjectIcon = false,
   final String? projectName,
   final MobileLinkedIssue? linkedIssue,
+  final MobileWorkspacePullRequestSummary? pullRequestSummary,
 }) extends StatelessWidget {
   /// Fixed leading slot so status glyphs do not shift the title (desktop: 14).
   static const double _statusSlotSize = 14;
@@ -74,6 +77,16 @@ class const MobileWorkspaceListRow({
             color: AleraTokens.foregroundMuted,
           ),
         ),
+      ] else ...<Widget>[
+        const SizedBox(width: AleraTokens.space6),
+        const Tooltip(
+          message: 'Linked worktree',
+          child: Icon(
+            AleraIcons.gitFork,
+            size: _trayIconSize,
+            color: AleraTokens.foregroundMuted,
+          ),
+        ),
       ],
       if (workspace.isPinned && !row.isPinnedCopy) ...<Widget>[
         const SizedBox(width: AleraTokens.space6),
@@ -85,6 +98,10 @@ class const MobileWorkspaceListRow({
             color: AleraTokens.foregroundMuted,
           ),
         ),
+      ],
+      if (pullRequestSummary case final summary?) ...<Widget>[
+        const SizedBox(width: AleraTokens.space6),
+        MobileWorkspacePullRequestStatusIcon(summary: summary),
       ],
       if (linkedIssue case final issue?) ...<Widget>[
         const SizedBox(width: AleraTokens.space6),
