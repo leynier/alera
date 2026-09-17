@@ -120,4 +120,9 @@ async fn removing_a_workspace_drops_its_pull_request_watch() {
     removed.status = WorkspaceStatus::Removed;
     store.upsert_workspace(removed).await.unwrap();
     assert!(store.find_pull_request_watch("a").await.unwrap().is_none());
+
+    store.upsert_workspace(workspace("b", "p")).await.unwrap();
+    store.upsert_pull_request_watch(watch("b")).await.unwrap();
+    store.remove_workspace("b", true).await.unwrap();
+    assert!(store.find_pull_request_watch("b").await.unwrap().is_none());
 }
