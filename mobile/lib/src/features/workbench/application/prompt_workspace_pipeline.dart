@@ -113,9 +113,15 @@ Future<PromptWorkspaceCreateOutcome> runPromptWorkspaceCreate({
             );
       creation = created;
       final sectionId = request.autoAssignSection ? identity.sectionId : null;
-      if (sectionId != null && client is MobileWorkspaceSectionClient) {
+      final sectionClient = client is MobileWorkspaceSectionClient
+          ? client as MobileWorkspaceSectionClient
+          : null;
+      if (sectionId != null && sectionClient != null) {
         try {
-          await client.setWorkspaceSection(created.workspace.id, sectionId);
+          await sectionClient.setWorkspaceSection(
+            created.workspace.id,
+            sectionId,
+          );
         } catch (error, stack) {
           // Section assignment is best-effort: the workspace itself was
           // already created, so a failure must not fail the flow.
