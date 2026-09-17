@@ -1,6 +1,7 @@
 import 'package:alera_mobile/src/app/theme/alera_theme.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_linked_worktree_icon.dart';
+import 'package:alera_mobile/src/features/pull_requests/domain/mobile_pull_request_watch.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_pull_request_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_workspace_rows.dart';
@@ -70,40 +71,78 @@ void main() {
 
     expect(find.byType(MobileWorkspacePullRequestStatusIcon), findsNothing);
   });
+
+  testWidgets(
+    'a linked review and an active watch stay visible on a narrow row',
+    (tester) async {
+      await tester.pumpWidget(
+        _rowApp(
+          summary: MobileWorkspacePullRequestSummary(
+            workspaceId: 'workspace-1',
+            number: 12,
+            title: 'Add fork indicators',
+            state: MobileWorkspacePullRequestState.open,
+            mergeable: MobileWorkspacePullRequestMergeable.mergeable,
+            checksRollup: MobileWorkspacePullRequestChecksRollup.pending,
+            pendingCheckCount: 2,
+          ),
+          watch: const MobilePullRequestWatch(
+            workspaceId: 'workspace-1',
+            reviewNumber: 12,
+            mode: 'fix',
+          ),
+          width: 320,
+        ),
+      );
+
+      expect(
+        find.byKey(const Key('workspace-tray-pull-request')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('workspace-tray-pr-watch')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
 
 Widget _rowApp({
   String kind = 'linked',
   MobileWorkspacePullRequestSummary? summary,
+  MobilePullRequestWatch? watch,
+  double? width,
 }) {
   return MaterialApp(
     theme: buildAleraMobileDarkTheme(),
     home: Scaffold(
-      body: MobileWorkspaceListRow(
-        row: MobileWorkspaceEntryRow(
-          entry: WorkspaceTreeEntry(
-            workspace: WorkspaceSummary(
-              id: 'workspace-1',
-              projectId: 'project-1',
-              name: 'Workspace',
-              path: '/repo',
-              kind: kind,
+      body: SizedBox(
+        width: width,
+        child: MobileWorkspaceListRow(
+          row: MobileWorkspaceEntryRow(
+            entry: WorkspaceTreeEntry(
+              workspace: WorkspaceSummary(
+                id: 'workspace-1',
+                projectId: 'project-1',
+                name: 'Workspace',
+                path: '/repo',
+                kind: kind,
+              ),
+              depth: 0,
+              visibleChildCount: 0,
+              childrenCollapsed: false,
             ),
-            depth: 0,
-            visibleChildCount: 0,
-            childrenCollapsed: false,
           ),
+          onTap: () {},
+          onLongPress: () {},
+          onMore: () {},
+          onToggleChildren: () {},
+          terminalTabCount: 1,
+          agentsExpanded: false,
+          onToggleAgents: () {},
+          onAgentTap: (_) {},
+          onCloseAgent: (_) {},
+          pullRequestSummary: summary,
+          pullRequestWatch: watch,
         ),
-        onTap: () {},
-        onLongPress: () {},
-        onMore: () {},
-        onToggleChildren: () {},
-        terminalTabCount: 1,
-        agentsExpanded: false,
-        onToggleAgents: () {},
-        onAgentTap: (_) {},
-        onCloseAgent: (_) {},
-        pullRequestSummary: summary,
       ),
     ),
   );

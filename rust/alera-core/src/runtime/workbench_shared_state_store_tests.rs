@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use chrono::{Duration, Utc};
 
 use super::{
@@ -129,6 +131,35 @@ fn panel_view_options_use_the_desktop_enum_names() {
         serde_json::to_value(SharedGitDiffGroupMode::ByArea).unwrap(),
         "byArea"
     );
+}
+
+#[test]
+fn shared_view_prefs_roundtrip_workspace_main_tab_ids() {
+    let prefs = SharedWorkbenchViewPrefs {
+        workspace_main_tab_ids: BTreeMap::from([(
+            "ws-1".to_string(),
+            vec!["tab-1".to_string(), "tab-2".to_string()],
+        )]),
+        ..SharedWorkbenchViewPrefs::default()
+    };
+    let encoded = serde_json::to_value(&prefs).unwrap();
+    assert_eq!(
+        encoded["workspaceMainTabIds"],
+        serde_json::json!({ "ws-1": ["tab-1", "tab-2"] })
+    );
+    let restored: SharedWorkbenchViewPrefs = serde_json::from_value(encoded).unwrap();
+    assert_eq!(
+        restored.workspace_main_tab_ids["ws-1"],
+        vec!["tab-1".to_string(), "tab-2".to_string()]
+    );
+
+    let mut omitted = serde_json::to_value(SharedWorkbenchViewPrefs::default()).unwrap();
+    omitted
+        .as_object_mut()
+        .unwrap()
+        .remove("workspaceMainTabIds");
+    let legacy: SharedWorkbenchViewPrefs = serde_json::from_value(omitted).unwrap();
+    assert!(legacy.workspace_main_tab_ids.is_empty());
 }
 
 #[tokio::test]
