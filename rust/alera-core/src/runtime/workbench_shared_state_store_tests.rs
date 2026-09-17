@@ -64,6 +64,36 @@ fn legacy_shared_view_prefs_show_all_workspaces() {
 }
 
 #[test]
+fn shared_view_prefs_roundtrips_selected_section_ids() {
+    let prefs = SharedWorkbenchViewPrefs {
+        selected_section_ids: vec!["sec-1".to_string(), "sec-2".to_string()],
+        ..SharedWorkbenchViewPrefs::default()
+    };
+    let encoded = serde_json::to_value(&prefs).unwrap();
+    assert_eq!(
+        encoded["selectedSectionIds"],
+        serde_json::json!(["sec-1", "sec-2"])
+    );
+    let restored: SharedWorkbenchViewPrefs = serde_json::from_value(encoded).unwrap();
+    assert_eq!(
+        restored.selected_section_ids,
+        vec!["sec-1".to_string(), "sec-2".to_string()]
+    );
+}
+
+#[test]
+fn legacy_shared_view_prefs_default_selected_section_ids() {
+    let mut encoded = serde_json::to_value(SharedWorkbenchViewPrefs::default()).unwrap();
+    encoded
+        .as_object_mut()
+        .unwrap()
+        .remove("selectedSectionIds");
+
+    let restored: SharedWorkbenchViewPrefs = serde_json::from_value(encoded).unwrap();
+    assert!(restored.selected_section_ids.is_empty());
+}
+
+#[test]
 fn legacy_shared_view_prefs_default_the_panel_view_options() {
     let mut encoded = serde_json::to_value(SharedWorkbenchViewPrefs::default()).unwrap();
     let object = encoded.as_object_mut().unwrap();

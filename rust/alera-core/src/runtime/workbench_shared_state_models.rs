@@ -62,6 +62,8 @@ pub struct SharedWorkbenchViewPrefs {
     #[serde(default)]
     pub selected_tag_ids: Vec<String>,
     #[serde(default)]
+    pub selected_section_ids: Vec<String>,
+    #[serde(default)]
     pub collapsed_project_ids: Vec<String>,
     #[serde(default)]
     pub collapsed_parent_workspace_ids: Vec<String>,
@@ -99,6 +101,7 @@ impl Default for SharedWorkbenchViewPrefs {
             workspace_sort: SharedWorkbenchSortBy::Name,
             selected_project_ids: Vec::new(),
             selected_tag_ids: Vec::new(),
+            selected_section_ids: Vec::new(),
             collapsed_project_ids: Vec::new(),
             collapsed_parent_workspace_ids: Vec::new(),
             pinned_section_collapsed: false,

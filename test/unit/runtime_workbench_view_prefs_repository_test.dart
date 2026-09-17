@@ -19,6 +19,7 @@ void main() {
           'sectionSort': 'recent',
           'collapsedSectionIds': ['s'],
           'othersSectionCollapsed': true,
+          'selectedSectionIds': ['sec-1'],
         },
       };
       final repo = RuntimeWorkbenchViewPrefsRepository(
@@ -29,6 +30,7 @@ void main() {
       expect(prefs.groupBy, WorkbenchGroupBy.section);
       expect(prefs.sectionSort, WorkbenchSortBy.recent);
       expect(prefs.collapsedSectionIds, {'s'});
+      expect(prefs.selectedSectionIds, {'sec-1'});
       await repo.save(prefs);
       expect(
         client.payloads['workbenchViewPrefs.update']!.last['prefs'],
@@ -38,17 +40,48 @@ void main() {
         client.payloads['workbenchViewPrefs.update']!.last['prefs'],
         containsPair('othersSectionCollapsed', true),
       );
+      expect(
+        client.payloads['workbenchViewPrefs.update']!.last['prefs'],
+        containsPair('selectedSectionIds', ['sec-1']),
+      );
       client.supportsSections = false;
       final fallback = await repo.load();
       expect(fallback.groupBy, WorkbenchGroupBy.project);
       expect(fallback.sectionSort, WorkbenchSortBy.recent);
       expect(fallback.collapsedSectionIds, {'s'});
+      expect(fallback.selectedSectionIds, {'sec-1'});
       await repo.save(prefs);
       final old =
           client.payloads['workbenchViewPrefs.update']!.last['prefs'] as Map;
       expect(old['groupBy'], 'project');
       expect(old.containsKey('sectionSort'), isFalse);
       expect(old.containsKey('collapsedSectionIds'), isFalse);
+      expect(old.containsKey('selectedSectionIds'), isFalse);
+    },
+  );
+
+  test(
+    'an echo that omits selectedSectionIds preserves the local selection',
+    () async {
+      final client = _FakeRuntimeHostClient()
+        ..supportsSections = true
+        ..responses['workbenchViewPrefs.get'] = <String, Object?>{
+          'revision': 4,
+          'desktopInitialized': true,
+          'prefs': <String, Object?>{'groupBy': 'project'},
+        };
+      final legacy = _MemoryViewPrefsRepository()
+        ..prefs = WorkbenchViewPrefs.defaults.copyWith(
+          selectedSectionIds: const <String>{'sec-1'},
+        );
+      final repository = RuntimeWorkbenchViewPrefsRepository(
+        client: client,
+        legacyRepository: legacy,
+      );
+
+      final loaded = await repository.load();
+      expect(loaded.selectedSectionIds, const <String>{'sec-1'});
+      expect(legacy.prefs.selectedSectionIds, const <String>{'sec-1'});
     },
   );
 

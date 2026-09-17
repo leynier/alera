@@ -95,6 +95,7 @@ class RuntimeWorkbenchViewPrefsRepository({
       shared.remove('sectionSort');
       shared.remove('collapsedSectionIds');
       shared.remove('othersSectionCollapsed');
+      shared.remove('selectedSectionIds');
       if (prefs.groupBy == WorkbenchGroupBy.section) {
         shared['groupBy'] = 'project';
       }
@@ -166,7 +167,9 @@ WorkbenchViewPrefs _mergeShared(
       local.workspaceSort,
     ),
     selectedProjectIds: _stringSet(shared['selectedProjectIds']),
-    selectedSectionIds: _stringSet(shared['selectedSectionIds']),
+    selectedSectionIds: shared.containsKey('selectedSectionIds')
+        ? _stringSet(shared['selectedSectionIds'])
+        : local.selectedSectionIds,
     selectedTagIds: _stringSet(shared['selectedTagIds']),
     collapsedProjectIds: _stringSet(shared['collapsedProjectIds']),
     collapsedParentWorkspaceIds: _stringSet(
