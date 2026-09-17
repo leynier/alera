@@ -2915,6 +2915,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
       AgentSettingsMapper.ensureInitialized();
       AiAssistSettingsMapper.ensureInitialized();
       AiDictationSettingsMapper.ensureInitialized();
+      VoiceSettingsMapper.ensureInitialized();
       TextActionsSettingsMapper.ensureInitialized();
       EditorSettingsMapper.ensureInitialized();
       DiagnosticsSettingsMapper.ensureInitialized();
@@ -2954,6 +2955,13 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
     opt: true,
     def: AiDictationSettings.defaults,
   );
+  static VoiceSettings _$voice(AleraSettings v) => v.voice;
+  static const Field<AleraSettings, VoiceSettings> _f$voice = Field(
+    'voice',
+    _$voice,
+    opt: true,
+    def: VoiceSettings.defaults,
+  );
   static TextActionsSettings _$textActions(AleraSettings v) => v.textActions;
   static const Field<AleraSettings, TextActionsSettings> _f$textActions = Field(
     'textActions',
@@ -2990,6 +2998,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
     #agents: _f$agents,
     #aiAssist: _f$aiAssist,
     #aiDictation: _f$aiDictation,
+    #voice: _f$voice,
     #textActions: _f$textActions,
     #editor: _f$editor,
     #diagnostics: _f$diagnostics,
@@ -3005,6 +3014,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
       agents: data.dec(_f$agents),
       aiAssist: data.dec(_f$aiAssist),
       aiDictation: data.dec(_f$aiDictation),
+      voice: data.dec(_f$voice),
       textActions: data.dec(_f$textActions),
       editor: data.dec(_f$editor),
       diagnostics: data.dec(_f$diagnostics),
@@ -3080,6 +3090,7 @@ abstract class AleraSettingsCopyWith<$R, $In extends AleraSettings, $Out>
   AiAssistSettingsCopyWith<$R, AiAssistSettings, AiAssistSettings> get aiAssist;
   AiDictationSettingsCopyWith<$R, AiDictationSettings, AiDictationSettings>
   get aiDictation;
+  VoiceSettingsCopyWith<$R, VoiceSettings, VoiceSettings> get voice;
   TextActionsSettingsCopyWith<$R, TextActionsSettings, TextActionsSettings>
   get textActions;
   EditorSettingsCopyWith<$R, EditorSettings, EditorSettings> get editor;
@@ -3097,6 +3108,7 @@ abstract class AleraSettingsCopyWith<$R, $In extends AleraSettings, $Out>
     AgentSettings? agents,
     AiAssistSettings? aiAssist,
     AiDictationSettings? aiDictation,
+    VoiceSettings? voice,
     TextActionsSettings? textActions,
     EditorSettings? editor,
     DiagnosticsSettings? diagnostics,
@@ -3128,6 +3140,9 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   get aiDictation =>
       $value.aiDictation.copyWith.$chain((v) => call(aiDictation: v));
   @override
+  VoiceSettingsCopyWith<$R, VoiceSettings, VoiceSettings> get voice =>
+      $value.voice.copyWith.$chain((v) => call(voice: v));
+  @override
   TextActionsSettingsCopyWith<$R, TextActionsSettings, TextActionsSettings>
   get textActions =>
       $value.textActions.copyWith.$chain((v) => call(textActions: v));
@@ -3154,6 +3169,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
     AgentSettings? agents,
     AiAssistSettings? aiAssist,
     AiDictationSettings? aiDictation,
+    VoiceSettings? voice,
     TextActionsSettings? textActions,
     EditorSettings? editor,
     DiagnosticsSettings? diagnostics,
@@ -3165,6 +3181,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
       if (agents != null) #agents: agents,
       if (aiAssist != null) #aiAssist: aiAssist,
       if (aiDictation != null) #aiDictation: aiDictation,
+      if (voice != null) #voice: voice,
       if (textActions != null) #textActions: textActions,
       if (editor != null) #editor: editor,
       if (diagnostics != null) #diagnostics: diagnostics,
@@ -3178,6 +3195,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
     agents: data.get(#agents, or: $value.agents),
     aiAssist: data.get(#aiAssist, or: $value.aiAssist),
     aiDictation: data.get(#aiDictation, or: $value.aiDictation),
+    voice: data.get(#voice, or: $value.voice),
     textActions: data.get(#textActions, or: $value.textActions),
     editor: data.get(#editor, or: $value.editor),
     diagnostics: data.get(#diagnostics, or: $value.diagnostics),

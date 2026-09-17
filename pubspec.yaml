@@ -59,6 +59,7 @@ dependencies:
   pdfrx: ^2.5.0
   pretty_qr_code: ^3.6.0
   sentry: ^9.28.0
+  flutter_soloud: ^4.1.7
 dev_dependencies:
   alchemist: ^0.14.0
   build_runner: ^2.16.0

@@ -8,11 +8,13 @@ import 'package:alera/src/features/keyboard/presentation/keyboard_settings_pane.
 import 'package:alera/src/features/settings/infra/system_font_service.dart';
 import 'package:alera/src/features/settings/presentation/account_settings_search_entries.dart';
 import 'package:alera/src/features/settings/presentation/ai_dictation_search_entries.dart';
+import 'package:alera/src/features/settings/presentation/voice_search_entries.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_profiles_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/agents_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_quota_settings_group.dart';
 import 'package:alera/src/features/settings/presentation/panes/ai_assist_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/ai_dictation_pane.dart';
+import 'package:alera/src/features/settings/presentation/panes/voice_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/editor_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/mobile_devices_pane.dart';
@@ -197,6 +199,11 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsGroupSpec(id: 'processing', title: 'Speech Processing'),
       SettingsGroupSpec(id: 'test', title: 'Test AI Dictation'),
     ];
+    const voiceGroups = <SettingsGroupSpec>[
+      SettingsGroupSpec(id: 'pipeline', title: 'Pipeline'),
+      SettingsGroupSpec(id: 'speech', title: 'Speech Providers'),
+      SettingsGroupSpec(id: 'home', title: 'Home Agent'),
+    ];
     const terminalGroups = <SettingsGroupSpec>[
       SettingsGroupSpec(id: 'typography', title: 'Typography'),
       SettingsGroupSpec(id: 'cursor', title: 'Cursor'),
@@ -302,6 +309,21 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
           settings: settings.aiDictation,
           groupKeys: _paneKeys('aiDictation', aiDictationGroups),
           onChanged: controller.updateAiDictation,
+        ),
+      ),
+      SettingsSectionData(
+        id: 'voice',
+        title: 'Voice',
+        description:
+            'Global voice home agent, STT/TTS pipeline, and realtime providers.',
+        icon: AleraIcons.mic,
+        entries: voiceSearchEntries,
+        groups: voiceGroups,
+        onReset: controller.resetVoice,
+        builder: (_) => VoiceSettingsPane(
+          settings: settings.voice,
+          groupKeys: _paneKeys('voice', voiceGroups),
+          onChanged: controller.updateVoice,
         ),
       ),
       SettingsSectionData(

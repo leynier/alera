@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_settings.dart';
+import 'package:alera/src/features/voice/domain/voice_settings.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_shortcut_settings.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
@@ -442,6 +443,7 @@ class const AleraSettings({
   this.agents = AgentSettings.defaults,
   this.aiAssist = AiAssistSettings.defaults,
   this.aiDictation = AiDictationSettings.defaults,
+  this.voice = VoiceSettings.defaults,
   this.textActions = TextActionsSettings.defaults,
   this.editor = EditorSettings.defaults,
   this.diagnostics = DiagnosticsSettings.defaults,
@@ -454,6 +456,7 @@ class const AleraSettings({
   @MappableField(key: 'aiTextGeneration')
   final AiAssistSettings aiAssist;
   final AiDictationSettings aiDictation;
+  final VoiceSettings voice;
   final TextActionsSettings textActions;
   final EditorSettings editor;
   final DiagnosticsSettings diagnostics;
@@ -465,6 +468,7 @@ class const AleraSettings({
     agents: .defaults,
     aiAssist: .defaults,
     aiDictation: .defaults,
+    voice: .defaults,
     editor: .defaults,
     diagnostics: .defaults,
     terminal: .defaults,
