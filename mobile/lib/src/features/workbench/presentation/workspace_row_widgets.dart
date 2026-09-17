@@ -33,6 +33,7 @@ class const MobileWorkspaceListRow({
   required final ValueChanged<AgentPresenceSummary> onCloseAgent,
   final List<AgentPresenceSummary> agentPresence =
       const <AgentPresenceSummary>[],
+  final Set<String> mainTabIds = const <String>{},
   final bool showProjectIcon = false,
   final String? projectName,
   final MobileLinkedIssue? linkedIssue,
@@ -53,7 +54,10 @@ class const MobileWorkspaceListRow({
     final rowLeft = AleraTokens.space12 + depthPad;
     final canToggleChildren = entry.hasVisibleChildren;
     final hasAgents = agentPresence.isNotEmpty;
-    final split = splitWorkspaceAgentPresence(agentPresence);
+    final split = splitWorkspaceAgentPresence(
+      agentPresence,
+      mainTabIds: mainTabIds,
+    );
     final listedAgents = split.listed;
     final hasListedAgents = listedAgents.isNotEmpty;
     final metadataIcons = <Widget>[
@@ -103,7 +107,11 @@ class const MobileWorkspaceListRow({
       ],
       if (pullRequestSummary case final summary?) ...<Widget>[
         const SizedBox(width: AleraTokens.space6),
-        MobileWorkspacePullRequestStatusIcon(summary: summary),
+        MobileWorkspacePullRequestStatusIcon(
+          key: const Key('workspace-tray-pull-request'),
+          summary: summary,
+          size: _trayIconSize,
+        ),
       ],
       if (pullRequestWatch case final watch?) ...<Widget>[
         const SizedBox(width: AleraTokens.space6),

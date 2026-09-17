@@ -1602,7 +1602,7 @@ fn project_from_row(row: sqlx::sqlite::SqliteRow) -> Result<Project> {
     })
 }
 
-fn tab_from_row(row: sqlx::sqlite::SqliteRow) -> Result<WorkspaceTabRecord> {
+pub(crate) fn tab_from_row(row: sqlx::sqlite::SqliteRow) -> Result<WorkspaceTabRecord> {
     let payload_json: String = row.try_get("payloadJson")?;
     Ok(WorkspaceTabRecord {
         id: row.try_get("id")?,

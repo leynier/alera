@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -84,6 +86,10 @@ pub struct SharedWorkbenchViewPrefs {
     pub search_view_as_tree: bool,
     #[serde(default)]
     pub search_include_ignored: bool,
+    /// Main-panel terminal tab ids per workspace. Desktop writes this from
+    /// `workspacePanels`; a phone omits it so the host backfill keeps it.
+    #[serde(default)]
+    pub workspace_main_tab_ids: BTreeMap<String, Vec<String>>,
 }
 
 fn default_true() -> bool {
@@ -113,6 +119,7 @@ impl Default for SharedWorkbenchViewPrefs {
             git_diff_group_mode: SharedGitDiffGroupMode::ByArea,
             search_view_as_tree: false,
             search_include_ignored: false,
+            workspace_main_tab_ids: BTreeMap::new(),
         }
     }
 }

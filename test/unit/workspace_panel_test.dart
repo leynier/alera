@@ -32,6 +32,25 @@ void main() {
     expect(WorkspacePanel.tabId('tab:aux'), 'aux');
   });
 
+  test('shared main tab ids come from the main panel, not the right pane', () {
+    final panel = const WorkspacePanel()
+        .reconcile([terminal('primary'), terminal('side')])
+        .select('tab:side');
+    expect(workspacePanelMainTabIds(panel), <String>['primary']);
+    expect(panel.tabKeys, contains('tab:side'));
+    expect(sharedWorkspaceMainTabIds({'ws': panel}), {
+      'ws': <String>['primary'],
+    });
+    expect(
+      workspacePanelMainTabIds(const WorkspacePanel(primaryTabId: 'seeded')),
+      <String>['seeded'],
+    );
+    expect(
+      sharedWorkspaceMainTabIds(const <String, WorkspacePanel>{}),
+      isEmpty,
+    );
+  });
+
   test('adopts active normal terminal once and retains every auxiliary', () {
     final tabs = <WorkspaceTabRecord>[
       terminal('setup', title: 'Setup'),

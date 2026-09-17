@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:alera/src/features/workbench/application/workbench_view_prefs_repository.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/runtime_workbench_view_prefs_repository.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -145,6 +147,49 @@ void main() {
     expect(sent['searchIncludeIgnored'], isTrue);
     expect(sent['gitDiffViewMode'], 'flat');
     expect(sent['gitDiffGroupMode'], 'unified');
+  });
+
+  test('shares main-panel tab ids from workspace panels', () async {
+    final client = _FakeRuntimeHostClient()
+      ..responses['workbenchViewPrefs.get'] = <String, Object?>{
+        'revision': 4,
+        'desktopInitialized': true,
+        'prefs': <String, Object?>{'groupBy': 'project'},
+      }
+      ..responses['workbenchViewPrefs.update'] = <String, Object?>{
+        'revision': 5,
+      };
+    final panel = const WorkspacePanel().reconcile(<WorkspaceTabRecord>[
+      WorkspaceTabRecord(
+        id: 'primary',
+        workspaceId: 'w-1',
+        title: 'Terminal',
+        createdAt: DateTime.utc(2026),
+        updatedAt: DateTime.utc(2026),
+      ),
+      WorkspaceTabRecord(
+        id: 'side',
+        workspaceId: 'w-1',
+        title: 'Review',
+        createdAt: DateTime.utc(2026),
+        updatedAt: DateTime.utc(2026),
+      ),
+    ]);
+    final repository = RuntimeWorkbenchViewPrefsRepository(
+      client: client,
+      legacyRepository: _MemoryViewPrefsRepository(),
+    );
+
+    await repository.save(
+      WorkbenchViewPrefs.defaults.copyWith(
+        workspacePanels: <String, WorkspacePanel>{'w-1': panel},
+      ),
+    );
+    final sent =
+        client.payloads['workbenchViewPrefs.update']!.single['prefs'] as Map;
+    expect(sent['workspaceMainTabIds'], {
+      'w-1': <String>['primary'],
+    });
   });
 
   test(

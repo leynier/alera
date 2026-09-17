@@ -153,6 +153,9 @@ class const RuntimeWorkspacesListBody({
                               status.workspaceId == row.entry.workspace.id,
                         )
                         .toList(),
+                    mainTabIds: {
+                      ...?data.workspaceMainTabIds[row.entry.workspace.id],
+                    },
                     agentsExpanded: expandedWorkspaceIds.contains(
                       row.entry.workspace.id,
                     ),

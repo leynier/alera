@@ -29,6 +29,7 @@ const Set<String> _refreshEvents = <String>{
   'workspaceActivityChanged',
   'runtimeSettingsChanged',
   'agentPresenceChanged',
+  'workbenchViewPrefsChanged',
 };
 
 class const WorkspaceListData({
@@ -49,6 +50,8 @@ class const WorkspaceListData({
   required final List<AgentPresenceSummary> agentPresence,
   final String? defaultAgentProfileId,
   final Map<String, int> terminalTabCountByWorkspaceId = const <String, int>{},
+  final Map<String, List<String>> workspaceMainTabIds =
+      const <String, List<String>>{},
 }) {
   /// False against runtimes that predate the mobile mutation allowlist; the
   /// UI hides mutating actions in that case.
@@ -114,6 +117,7 @@ class WorkspaceListController extends _$WorkspaceListController {
       agentPresence: snapshot.agentPresence,
       defaultAgentProfileId: snapshot.defaultAgentProfileId,
       terminalTabCountByWorkspaceId: snapshot.terminalTabCountByWorkspaceId,
+      workspaceMainTabIds: snapshot.workspaceMainTabIds,
     );
   }
 

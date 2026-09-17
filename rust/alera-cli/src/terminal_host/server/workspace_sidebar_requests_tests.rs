@@ -50,3 +50,61 @@ async fn sidebar_agent_presence_includes_tab_title() {
     let listed = actor.agent_presence_items_with_titles().await.unwrap();
     assert_eq!(listed[0]["title"], "Map Monetization");
 }
+
+#[tokio::test]
+async fn sidebar_snapshot_falls_back_to_the_first_primary_candidate() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mobile, _events) = ClientHandle::test_channels();
+    let actor = test_actor(
+        &dir,
+        HashMap::from([(2, mobile_client(mobile, "phone"))]),
+        HashMap::new(),
+    )
+    .await;
+    let now = Utc::now();
+    actor
+        .runtime_store
+        .upsert_workspace_tab(WorkspaceTabRecord {
+            id: "setup".into(),
+            workspace_id: "workspace-1".into(),
+            kind: "terminal".into(),
+            title: "Setup".into(),
+            created_at: now,
+            updated_at: now,
+            payload: json!({}),
+        })
+        .await
+        .unwrap();
+    actor
+        .runtime_store
+        .upsert_workspace_tab(WorkspaceTabRecord {
+            id: "primary".into(),
+            workspace_id: "workspace-1".into(),
+            kind: "terminal".into(),
+            title: "Codex".into(),
+            created_at: now + chrono::Duration::seconds(1),
+            updated_at: now,
+            payload: json!({}),
+        })
+        .await
+        .unwrap();
+    actor
+        .runtime_store
+        .upsert_workspace_tab(WorkspaceTabRecord {
+            id: "side".into(),
+            workspace_id: "workspace-1".into(),
+            kind: "terminal".into(),
+            title: "Review".into(),
+            created_at: now + chrono::Duration::seconds(2),
+            updated_at: now,
+            payload: json!({}),
+        })
+        .await
+        .unwrap();
+
+    let snapshot = actor.workspace_sidebar_snapshot(2).await.unwrap();
+    assert_eq!(
+        snapshot["workspaceMainTabIds"],
+        json!({ "workspace-1": ["primary"] })
+    );
+}

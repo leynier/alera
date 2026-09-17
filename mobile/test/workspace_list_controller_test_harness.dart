@@ -17,6 +17,8 @@ class _FakeWorkspaceClient()
   Completer<void>? pinCompletion;
   int eventSubscriptionCount = 0;
   List<WorkspaceSummary> workspaces = <WorkspaceSummary>[_workspace('a')];
+  Map<String, List<String>> workspaceMainTabIds =
+      const <String, List<String>>{};
   List<String> cascadeIds = <String>['a'];
 
   void emit(String name) {
@@ -65,6 +67,7 @@ class _FakeWorkspaceClient()
       activity: const <String, DateTime>{},
       viewPrefs: const MobileViewPrefs(),
       confirmWorkspaceRemoval: true,
+      workspaceMainTabIds: workspaceMainTabIds,
     );
   }
 
