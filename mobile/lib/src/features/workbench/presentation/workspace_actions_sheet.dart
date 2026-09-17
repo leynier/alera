@@ -8,7 +8,7 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summa
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_listing_tree.dart';
-import 'package:alera_mobile/src/features/workbench/presentation/delete_workspace_dialog.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_removal_dialog.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/parent_picker_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/sleep_workspace_dialog.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_relocation_dialog.dart';

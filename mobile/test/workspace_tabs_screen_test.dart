@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
 import 'package:alera_mobile/src/design_system/markdown/alera_markdown_view.dart';
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
@@ -11,6 +12,7 @@ import 'package:alera_mobile/src/features/terminal/presentation/terminal_keys_se
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_tab_view.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/agent_identity_icon.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_viewer_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -278,6 +280,35 @@ void main() {
       tester.getTopLeft(find.text('New Terminal')).dy,
       lessThan(tester.getTopLeft(find.text('Shown Codex')).dy),
     );
+    expect(
+      find.descendant(
+        of: find
+            .ancestor(of: find.text('New Terminal'), matching: find.byType(Row))
+            .first,
+        matching: find.byIcon(Icons.terminal),
+      ),
+      findsOneWidget,
+    );
+    final shownProfileIcon = find.descendant(
+      of: find
+          .ancestor(of: find.text('Shown Codex'), matching: find.byType(Row))
+          .first,
+      matching: find.byType(AgentIdentityIcon),
+    );
+    expect(shownProfileIcon, findsOneWidget);
+    expect(
+      tester.widget<AgentIdentityIcon>(shownProfileIcon).agentType,
+      'codex',
+    );
+    expect(
+      tester.widget<AgentIdentityIcon>(shownProfileIcon).size,
+      AleraTokens.space20,
+    );
+    expect(
+      tester.widget<AgentIdentityIcon>(shownProfileIcon).showTooltip,
+      isFalse,
+    );
+    expect(find.byIcon(Icons.smart_toy), findsNothing);
 
     await tester.tapAt(const Offset(1, 1));
     await tester.pumpAndSettle();
