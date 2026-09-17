@@ -122,7 +122,7 @@ class _NewTabButtonState extends State<_NewTabButton> {
         ),
         for (final profile in profiles)
           PopupMenuItem<_NewTabAction>(
-            value: _NewAgentProfileTabAction(profile.id),
+            value: _NewAgentProfileTabAction(profile),
             height: AleraTokens.minTapTarget,
             child: _NewTabMenuRow(
               leading: AgentIdentityIcon(

@@ -72,7 +72,8 @@ class TabsController extends _$TabsController {
     ]);
   }
 
-  /// Starts an opted-in agent profile in a new tab without a user prompt.
+  /// Starts an agent profile in a new tab. [prompt] is the startup prompt the
+  /// host already accepts; an empty value opens the agent with no task.
   Future<String> launchAgentProfileTab(
     String profileId, {
     String prompt = '',
