@@ -73,16 +73,26 @@ NewWorkspaceConfig _newWorkspaceConfigFrom(Object? value) {
     throw ProjectConfigException('alera.toml [new_workspace] must be a table');
   }
   final table = Map<String, Object?>.from(value);
-  final promptAppend = table['prompt_append'];
-  if (promptAppend == null) {
-    return NewWorkspaceConfig.defaults;
+  return NewWorkspaceConfig(
+    promptAppend: _optionalConfigString(
+      table['prompt_append'],
+      'new_workspace.prompt_append',
+    ),
+    sourceBranch: _optionalConfigString(
+      table['source_branch'],
+      'new_workspace.source_branch',
+    ),
+  );
+}
+
+String _optionalConfigString(Object? value, String label) {
+  if (value == null) {
+    return '';
   }
-  if (promptAppend is! String) {
-    throw ProjectConfigException(
-      'new_workspace.prompt_append must be a string',
-    );
+  if (value is! String) {
+    throw ProjectConfigException('$label must be a string');
   }
-  return NewWorkspaceConfig(promptAppend: promptAppend.trim());
+  return value.trim();
 }
 
 GitHostingProvider? _gitHostingProviderFrom(Object? value) {

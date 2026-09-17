@@ -14,6 +14,7 @@ import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/linked_issues/domain/issue_details.dart';
 import 'package:alera/src/features/linked_issues/domain/issue_workspace_identity.dart';
 import 'package:alera/src/features/linked_issues/presentation/issue_url_field.dart';
+import 'package:alera/src/features/projects/domain/preferred_source_branch.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_branch_catalog.dart';
 import 'package:alera/src/features/projects/domain/project_selection_order.dart';
@@ -68,6 +69,7 @@ class const CreateWorkspaceDialog({
   final bool initialUseProjectCheckout = true,
   final List<SshTarget> sshTargets = const <SshTarget>[],
   final bool supportsRemoteSshWorkspaces = true,
+  final Future<String?> Function(Project project)? loadPreferredSourceBranch,
   final String? initialSourceBranch,
   final String? initialNewBranchName,
   final String? initialName,
@@ -114,6 +116,8 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   String _projectQuery = '';
   String _branchQuery = '';
   String? _sourceBranchError;
+  String? _projectPreferredSource;
+  final Map<String, String?> _preferredSourceByProject = <String, String?>{};
   String? _newBranchError;
   String? _selectedParentWorkspaceId;
   String? _selectedHostId;
@@ -191,21 +195,14 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
     return _orderedProjects.firstOrNull;
   }
 
-  String? _pickDefaultSourceBranch(List<String> branches) {
-    for (final preferred in const <String>[
-      'main',
-      'origin/main',
-      'master',
-      'origin/master',
-    ]) {
-      if (branches.contains(preferred)) {
-        return preferred;
-      }
-    }
-    if (branches.isEmpty) {
-      return null;
-    }
-    return branches.first;
+  String? _pickDefaultSourceBranch(
+    List<String> branches, {
+    bool useProjectPreference = true,
+  }) {
+    return pickDefaultSourceBranch(
+      branches,
+      preferred: useProjectPreference ? _projectPreferredSource : null,
+    );
   }
 
   Future<List<String>> _filterLocalBranches(
@@ -260,7 +257,10 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
     if (currentBranch.isNotEmpty && availableBranches.contains(currentBranch)) {
       return currentBranch;
     }
-    return _pickDefaultSourceBranch(availableBranches);
+    return _pickDefaultSourceBranch(
+      availableBranches,
+      useProjectPreference: !reuseExistingBranch,
+    );
   }
 
   void _selectProject(Project project) {

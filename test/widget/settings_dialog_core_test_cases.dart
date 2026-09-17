@@ -156,6 +156,16 @@ void _registerSettingsDialogCoreTests() {
     await tester.pump();
     await tester.tap(find.byType(AleraCheckbox).first);
     await tester.pump();
+    await tester.ensureVisible(find.text('Default Source Branch'));
+    await tester.pump();
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('source-branch-field')),
+        matching: find.byType(TextField),
+      ),
+      'develop',
+    );
+    await tester.pump();
     await tester.ensureVisible(find.text('Add Setup Command'));
     await tester.pump();
     await tester.tap(find.text('Add Setup Command'));
@@ -178,6 +188,7 @@ void _registerSettingsDialogCoreTests() {
     expect(saved.worktree.copy.single.to, '.env.local');
     expect(saved.worktree.copy.single.overwrite, isTrue);
     expect(saved.worktree.setup, <String>['pnpm install']);
+    expect(saved.newWorkspace.sourceBranch, 'develop');
   });
 
   testWidgets('clears dirty project setup edits when using repo file', (

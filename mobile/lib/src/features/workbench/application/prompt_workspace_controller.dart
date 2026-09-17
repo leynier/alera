@@ -1,4 +1,6 @@
+import 'package:alera_mobile/src/features/projects/domain/preferred_source_branch.dart';
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
+import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_project_client.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
@@ -113,9 +115,18 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
       }
       final branches = (results[0] as ProjectBranches).branches;
       final profiles = results[1] as List<AgentProfileSummary>;
+      final projectPreferred = await _preferredSourceFor(projectId);
+      if (!ref.mounted ||
+          state.projectId != projectId ||
+          generation != _selectionGeneration) {
+        return;
+      }
       state = state.copyWith(
         branches: branches,
-        sourceBranch: _defaultBranch(branches),
+        sourceBranch: pickDefaultSourceBranch(
+          branches,
+          preferred: projectPreferred,
+        ),
         profiles: profiles,
         profileId: state.profileId ?? _preferredProfileId(profiles),
         loading: false,
@@ -326,18 +337,17 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
     await client.cancelWorkspaceIdentity(operationId);
   }
 
-  String? _defaultBranch(List<String> branches) {
-    for (final preferred in const <String>[
-      'main',
-      'origin/main',
-      'master',
-      'origin/master',
-    ]) {
-      if (branches.contains(preferred)) {
-        return preferred;
+  Future<String?> _preferredSourceFor(String projectId) async {
+    try {
+      final client = await ref.read(workspaceClientProvider(hostId).future);
+      if (client case final MobileRuntimeProjectClient projects) {
+        final effective = await projects.effectiveProjectConfig(projectId);
+        return effective.config.preferredSourceBranch;
       }
+      return null;
+    } on Object {
+      return null;
     }
-    return branches.firstOrNull;
   }
 
   String? _preferredProfileId(List<AgentProfileSummary> profiles) {

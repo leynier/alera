@@ -462,6 +462,7 @@ impl ProjectConfig {
         self.worktree.copy.is_empty()
             && self.worktree.setup.is_empty()
             && self.new_workspace.prompt_append.trim().is_empty()
+            && self.new_workspace.source_branch.trim().is_empty()
             && self.git_hosting_provider.is_none()
     }
 }
@@ -471,6 +472,8 @@ impl ProjectConfig {
 pub struct NewWorkspaceConfig {
     #[serde(default)]
     pub prompt_append: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub source_branch: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
