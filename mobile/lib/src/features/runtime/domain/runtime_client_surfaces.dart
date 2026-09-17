@@ -233,6 +233,7 @@ abstract interface class MobileWorkspaceClient {
     required String operationId,
     required String projectId,
     required String prompt,
+    bool autoAssignSection = false,
   });
   Future<void> cancelWorkspaceIdentity(String operationId);
   Future<PromptImageUploadResult> uploadPromptImage({

@@ -17,7 +17,7 @@ use super::mobile_workspace_file_requests::workspace_for_mobile_file_request;
 
 const GH_TIMEOUT: Duration = Duration::from_secs(45);
 const GH_REVIEW_FIELDS: &str =
-    "number,title,state,url,createdAt,isDraft,mergeable,headRefName,baseRefName,author";
+    "number,title,state,url,createdAt,isDraft,mergeable,headRefName,baseRefName,headRefOid,author";
 const GH_CHECK_FIELDS: &str = "name,state,bucket,link";
 
 pub(super) async fn snapshot_mobile_pull_request(
@@ -348,7 +348,30 @@ fn normalize_review(value: Value) -> Option<Value> {
         "baseRefName": object.get("baseRefName").and_then(Value::as_str),
         "createdAt": object.get("createdAt").and_then(Value::as_str),
         "mergeable": object.get("mergeable").and_then(Value::as_str),
+        "headSha": object.get("headRefOid").and_then(Value::as_str),
     }))
+}
+
+#[cfg(test)]
+mod normalize_review_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn maps_head_ref_oid_to_head_sha() {
+        let review = normalize_review(json!({
+            "number": 42,
+            "title": "feat",
+            "state": "OPEN",
+            "url": "https://github.com/leynier/alera/pull/42",
+            "headRefOid": "abc123",
+            "headRefName": "feat",
+            "baseRefName": "main",
+        }))
+        .unwrap();
+        assert_eq!(review["headSha"], "abc123");
+        assert_eq!(review["number"], 42);
+    }
 }
 
 pub(super) async fn run_gh(repo_path: &str, args: &[&str]) -> HostResult<(i32, String, String)> {

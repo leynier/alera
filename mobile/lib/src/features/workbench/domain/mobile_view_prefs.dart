@@ -28,6 +28,7 @@ class const MobileViewPrefs({
       MobileWorkspaceKindFilter.all,
   final bool showActiveWorkspacesOnly = false,
   final Set<String> selectedProjectIds = const <String>{},
+  final Set<String> selectedSectionIds = const <String>{},
   final Set<String> selectedTagIds = const <String>{},
   final Set<String> collapsedProjectIds = const <String>{},
   final Set<String> collapsedParentWorkspaceIds = const <String>{},
@@ -51,6 +52,7 @@ class const MobileViewPrefs({
     MobileWorkspaceKindFilter? workspaceKindFilter,
     bool? showActiveWorkspacesOnly,
     Set<String>? selectedProjectIds,
+    Set<String>? selectedSectionIds,
     Set<String>? selectedTagIds,
     Set<String>? collapsedProjectIds,
     Set<String>? collapsedParentWorkspaceIds,
@@ -78,6 +80,7 @@ class const MobileViewPrefs({
       showActiveWorkspacesOnly:
           showActiveWorkspacesOnly ?? this.showActiveWorkspacesOnly,
       selectedProjectIds: selectedProjectIds ?? this.selectedProjectIds,
+      selectedSectionIds: selectedSectionIds ?? this.selectedSectionIds,
       selectedTagIds: selectedTagIds ?? this.selectedTagIds,
       collapsedProjectIds: collapsedProjectIds ?? this.collapsedProjectIds,
       collapsedParentWorkspaceIds:
@@ -118,6 +121,7 @@ class const MobileViewPrefs({
       workspaceKindFilter: .all,
       showActiveWorkspacesOnly: json['showActiveWorkspacesOnly'] == true,
       selectedProjectIds: json.stringList('selectedProjectIds').toSet(),
+      selectedSectionIds: json.stringList('selectedSectionIds').toSet(),
       selectedTagIds: json.stringList('selectedTagIds').toSet(),
       collapsedProjectIds: json.stringList('collapsedProjectIds').toSet(),
       collapsedParentWorkspaceIds: json
@@ -159,6 +163,7 @@ class const MobileViewPrefs({
       'workspaceKindFilter': workspaceKindFilter.name,
       'showActiveWorkspacesOnly': showActiveWorkspacesOnly,
       'selectedProjectIds': selectedProjectIds.toList(),
+      'selectedSectionIds': selectedSectionIds.toList(),
       'selectedTagIds': selectedTagIds.toList(),
       'collapsedProjectIds': collapsedProjectIds.toList(),
       'collapsedParentWorkspaceIds': collapsedParentWorkspaceIds.toList(),

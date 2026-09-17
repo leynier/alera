@@ -107,6 +107,9 @@ Future<void> _showCreateWorkspaceDialogs(
   String? remainingRetryJobId,
 }) async {
   var boundJobId = remainingRetryJobId;
+  final workbenchState = ref.read(workbenchControllerProvider);
+  final hasWorkspaceSections =
+      workbenchState.supportsSections && workbenchState.sections.isNotEmpty;
   final promptResult = await showDialog<PromptWorkspaceDialogResult>(
     context: context,
     builder: (_) => PromptWorkspaceDialog(
@@ -183,6 +186,10 @@ Future<void> _showCreateWorkspaceDialogs(
         for (final candidate in parentCandidates) candidate.workspace,
       ],
       initialUseProjectCheckout: retryPrompt?.useProjectCheckout ?? true,
+      hasWorkspaceSections: hasWorkspaceSections,
+      initialAutoAssignSection: retryPrompt?.autoAssignSection ?? true,
+      assignSection: (workspaceId, sectionId) =>
+          controller.saveWorkspaceSection(workspaceId, sectionId: sectionId),
       generateIdentity: runtime.generateIdentity,
       cancelGeneration: runtime.cancel,
       createWorkspace:

@@ -170,6 +170,7 @@ class _WorkbenchSidebarRowBuilder(
   ) {
     final filtersHideEmptyProjects =
         query.isNotEmpty ||
+        prefs.selectedSectionIds.isNotEmpty ||
         prefs.selectedTagIds.isNotEmpty ||
         prefs.workspaceKindFilter != WorkspaceKindFilter.all ||
         prefs.showActiveWorkspacesOnly ||

@@ -169,13 +169,28 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
               ),
             ],
             const SizedBox(height: AleraTokens.space12),
-            AleraCheckbox(
-              value: _createAnother,
-              enabled: !_working && created == null,
-              onChanged: (value) {
-                _update(() => _createAnother = value);
-              },
-              label: 'Create Another',
+            Row(
+              children: <Widget>[
+                if (widget.hasWorkspaceSections) ...<Widget>[
+                  AleraCheckbox(
+                    value: _autoAssignSection,
+                    enabled: !_working && created == null,
+                    onChanged: (value) {
+                      _update(() => _autoAssignSection = value);
+                    },
+                    label: 'Auto Assign Section',
+                  ),
+                  const SizedBox(width: AleraTokens.space12),
+                ],
+                AleraCheckbox(
+                  value: _createAnother,
+                  enabled: !_working && created == null,
+                  onChanged: (value) {
+                    _update(() => _createAnother = value);
+                  },
+                  label: 'Create Another',
+                ),
+              ],
             ),
             const SizedBox(height: AleraTokens.space20),
             Row(

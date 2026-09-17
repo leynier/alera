@@ -57,6 +57,7 @@ class const PromptWorkspaceDialog({
     required String operationId,
     required String projectId,
     required String prompt,
+    required bool autoAssignSection,
   })
   generateIdentity,
   required final Future<void> Function(String operationId) cancelGeneration,
@@ -102,6 +103,10 @@ class const PromptWorkspaceDialog({
   final String? initialError,
   final NewWorkspaceMode initialMode = .fromPrompt,
   final Widget? manualForm,
+  final bool hasWorkspaceSections = false,
+  final bool initialAutoAssignSection = true,
+  final Future<void> Function(String workspaceId, String sectionId)?
+  assignSection,
 }) extends StatefulWidget {
   @override
   State<PromptWorkspaceDialog> createState() => _PromptWorkspaceDialogState();
@@ -129,11 +134,16 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   String? _agentLaunchMutationId;
   bool? _originalAgentLaunchWasIdempotent;
   bool _createAnother = false;
+  bool _autoAssignSection = true;
   bool _useProjectCheckout = false;
+
+  bool get _autoAssignSectionEffective =>
+      widget.hasWorkspaceSections && _autoAssignSection;
 
   @override
   void initState() {
     super.initState();
+    _autoAssignSection = widget.initialAutoAssignSection;
     _useProjectCheckout =
         widget.enqueuePrompt != null && widget.initialUseProjectCheckout;
     _mode = widget.initialMode;
@@ -295,6 +305,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
           parentWorkspaceId: _selectedParentWorkspaceId,
           hostId: _selectedHostId,
           issueUrl: _linkedIssueUrl(),
+          autoAssignSection: _autoAssignSectionEffective,
         ),
       );
       if (done == null) {
@@ -353,6 +364,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
             operationId: operationId,
             projectId: project.id,
             prompt: identityPrompt,
+            autoAssignSection: _autoAssignSectionEffective,
           );
         } finally {
           if (_activeOperationId == operationId) {
@@ -388,6 +400,18 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
             hostId: _selectedHostId,
             issueUrl: _linkedIssueUrl(),
           );
+          final sectionId = _autoAssignSectionEffective
+              ? identity.sectionId
+              : null;
+          final assignSection = widget.assignSection;
+          if (sectionId != null && assignSection != null) {
+            try {
+              await assignSection(creation.workspace.id, sectionId);
+            } catch (_) {
+              // Section assignment is best-effort: the workspace itself was
+              // already created, so a failure must not fail the flow.
+            }
+          }
           break;
         } catch (error) {
           if (attempt == 0 && _looksLikeCollision(error)) {
@@ -442,42 +466,6 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
     final message = error.toString().toLowerCase();
     return message.contains('already exists') ||
         message.contains('workspace for branch');
-  }
-
-  Future<void> _cancelGeneration() async {
-    final operationId = _activeOperationId;
-    if (operationId != null) {
-      await widget.cancelGeneration(operationId);
-    }
-  }
-
-  Future<void> _finishCreation(
-    WorkspaceCreationResult creation,
-    String agentTabId,
-  ) async {
-    if (!_createAnother) {
-      Navigator.of(context).pop(
-        PromptWorkspaceDialogResult(creation: creation, agentTabId: agentTabId),
-      );
-      return;
-    }
-    await widget.onCreateAnother?.call(
-      creation: creation,
-      agentTabId: agentTabId,
-    );
-    if (!mounted) {
-      return;
-    }
-    _promptController.clear();
-    _issueUrlController.clear();
-    _agentLaunchMutationId = null;
-    _originalAgentLaunchWasIdempotent = null;
-    setState(() {
-      _working = false;
-      _phase = null;
-      _error = null;
-      _created = null;
-    });
   }
 
   void _selectMode(NewWorkspaceMode mode) {

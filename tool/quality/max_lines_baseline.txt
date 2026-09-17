@@ -83,3 +83,4 @@
 975	lib/src/features/workbench/presentation/workspace_git_diff_panel.dart
 585	rust/alera-cli/src/cli_orchestration.rs
 625	rust/alera-core/src/runtime/orchestration_task_store.rs
+567	rust/alera-cli/src/cli_tests.rs
