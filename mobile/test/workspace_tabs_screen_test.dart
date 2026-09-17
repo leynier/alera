@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
 import 'package:alera_mobile/src/design_system/markdown/alera_markdown_view.dart';
+import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
@@ -16,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/fake_ai_dictation_settings.dart';
 import 'support/fake_terminal_client.dart';
 import 'support/fake_workspace_files_client.dart';
 
@@ -243,12 +245,18 @@ void main() {
         ),
       ];
     addTearDown(client.dispose);
+    tester.view.physicalSize = const Size(800, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           terminalClientProvider('host-1').overrideWith((ref) async => client),
           workspaceClientProvider('host-1').overrideWith((ref) async => client),
+          mobileAiDictationSettingsControllerProvider.overrideWith(
+            () => FakeMobileAiDictationSettingsController(),
+          ),
         ],
         child: const MaterialApp(
           home: WorkspaceTabsScreen(
@@ -312,6 +320,15 @@ void main() {
     await tester.tap(find.byTooltip('New Tab'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Shown Codex'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Start Shown Codex'), findsOneWidget);
+    expect(
+      client.calls.where((call) => call.startsWith('launchAgentProfile')),
+      isEmpty,
+    );
+
+    await tester.tap(find.text('Skip'));
     await tester.pumpAndSettle();
 
     expect(
