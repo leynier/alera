@@ -247,11 +247,12 @@ impl ServerActor {
         source_workspace_id: &str,
         payload: &Value,
     ) {
-        // The worktree transfer already moved the linked issue row, so the
-        // watchers have to rebuild even when no session can be relocated below.
-        // The scope stays a wildcard: both workspaces change, and naming one
-        // would leave the other showing a stale glyph.
+        // The worktree transfer already moved the linked issue and watch rows,
+        // so the watchers have to rebuild even when no session can be relocated
+        // below. The scope stays a wildcard: both workspaces change, and naming
+        // one would leave the other showing a stale glyph.
         self.broadcast_linked_issues_changed(None);
+        self.broadcast_pull_request_watch_changed(None);
         let Some(dest_path) = payload
             .get("workspace")
             .and_then(|workspace| workspace.get("path"))

@@ -239,11 +239,11 @@ async fn relocate_does_not_fail_when_every_session_must_be_skipped() {
     );
 }
 
-/// The worktree transfer moves the linked issue row, and every watcher listens
-/// only to `linkedIssuesChanged`, so a missing broadcast leaves the glyph on the
-/// workspace the work came from until the app reconnects.
+/// The worktree transfer moves the linked issue and watch rows, and every
+/// watcher listens only to those change events, so a missing broadcast leaves
+/// the glyph on the workspace the work came from until the app reconnects.
 #[tokio::test]
-async fn hand_off_and_hand_on_publish_a_wildcard_linked_issues_change() {
+async fn hand_off_and_hand_on_publish_wildcard_linked_issue_and_watch_changes() {
     let dir = tempfile::tempdir().unwrap();
     let (client, mut events) = crate::terminal_host::client::ClientHandle::test_channels();
     let mut actor = test_actor(
@@ -259,24 +259,39 @@ async fn hand_off_and_hand_on_publish_a_wildcard_linked_issues_change() {
             &serde_json::json!({"workspace": {"id": "child", "path": "/worktrees/feat"}}),
         )
         .await;
-    assert_eq!(next_linked_issues_event(&mut events), serde_json::json!({}));
+    assert_eq!(
+        next_named_event(&mut events, "linkedIssuesChanged"),
+        serde_json::json!({})
+    );
+    assert_eq!(
+        next_named_event(&mut events, "pullRequestWatchChanged"),
+        serde_json::json!({})
+    );
 
     actor.relocate_sessions_after_hand_on("child", "main", "/worktrees/feat", "/repo");
-    assert_eq!(next_linked_issues_event(&mut events), serde_json::json!({}));
+    assert_eq!(
+        next_named_event(&mut events, "linkedIssuesChanged"),
+        serde_json::json!({})
+    );
+    assert_eq!(
+        next_named_event(&mut events, "pullRequestWatchChanged"),
+        serde_json::json!({})
+    );
 }
 
-/// The payload of the next `linkedIssuesChanged` event, skipping the tab and
-/// workspace events the same paths emit.
-fn next_linked_issues_event(
+/// Payload of the next named event, skipping the tab and workspace events the
+/// same paths emit.
+fn next_named_event(
     events: &mut tokio::sync::mpsc::UnboundedReceiver<crate::terminal_host::client::ClientFrame>,
+    name: &str,
 ) -> serde_json::Value {
     while let Ok(message) = events.try_recv() {
         let Some(value) = message.as_json() else {
             continue;
         };
-        if value["event"] == serde_json::json!("linkedIssuesChanged") {
+        if value["event"] == name {
             return value["payload"].clone();
         }
     }
-    panic!("no linkedIssuesChanged event was published");
+    panic!("no {name} event was published");
 }
