@@ -6,6 +6,7 @@ import 'package:alera/src/features/workbench/application/workbench_controller.da
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workspace_graph_repository.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
+import 'package:alera/src/features/workbench/domain/workspace_section.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/workbench_view_options_menu.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -250,6 +251,70 @@ void main() {
       await tester.pumpAndSettle();
       expect(decorationOf().color, Colors.transparent);
     });
+
+    testWidgets('filters by sections when supported', (tester) async {
+      final now = DateTime.utc(2026, 5, 25);
+      final controller = _ViewOptionsTestController(
+        WorkbenchState(
+          supportsSections: true,
+          sections: <WorkspaceSection>[
+            WorkspaceSection(
+              id: 'sec-1',
+              name: 'Alpha',
+              createdAt: now,
+              updatedAt: now,
+            ),
+            WorkspaceSection(
+              id: 'sec-2',
+              name: 'Beta',
+              createdAt: now,
+              updatedAt: now,
+            ),
+          ],
+        ),
+      );
+
+      await _pumpButton(tester, controller);
+      await tester.tap(_viewOptionsButton());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sections'), findsOneWidget);
+      await tester.ensureVisible(find.text('Alpha').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Alpha').last);
+      await tester.pumpAndSettle();
+
+      expect(controller.state.viewPrefs.selectedSectionIds, <String>{'sec-1'});
+
+      final field = _sectionSearchField();
+      await tester.ensureVisible(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, 'be');
+      await tester.pumpAndSettle();
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(controller.state.viewPrefs.selectedSectionIds, <String>{
+        'sec-1',
+        'sec-2',
+      });
+
+      await tester.tap(find.byIcon(AleraIcons.close).last);
+      await tester.pumpAndSettle();
+      expect(controller.state.viewPrefs.selectedSectionIds, <String>{'sec-1'});
+
+      final sectionsHeaderRow = find.ancestor(
+        of: find.text('Sections'),
+        matching: find.byType(Row),
+      );
+      final sectionsClear = find.descendant(
+        of: sectionsHeaderRow,
+        matching: find.text('Clear'),
+      );
+      await tester.tap(sectionsClear);
+      await tester.pumpAndSettle();
+      expect(controller.state.viewPrefs.selectedSectionIds, isEmpty);
+    });
   });
 }
 
@@ -273,6 +338,14 @@ Finder _projectSearchField() {
     (widget) =>
         widget is TextField &&
         widget.decoration?.hintText == 'Add project\u2026',
+  );
+}
+
+Finder _sectionSearchField() {
+  return find.byWidgetPredicate(
+    (widget) =>
+        widget is TextField &&
+        widget.decoration?.hintText == 'Add section\u2026',
   );
 }
 
@@ -363,6 +436,36 @@ class _ViewOptionsTestController(final WorkbenchState _seed)
   void clearProjectFilters() {
     state = state.copyWith(
       viewPrefs: state.viewPrefs.copyWith(selectedProjectIds: <String>{}),
+    );
+  }
+
+  @override
+  void addSectionFilter(String sectionId) {
+    state = state.copyWith(
+      viewPrefs: state.viewPrefs.copyWith(
+        selectedSectionIds: <String>{
+          ...state.viewPrefs.selectedSectionIds,
+          sectionId,
+        },
+      ),
+    );
+  }
+
+  @override
+  void removeSectionFilter(String sectionId) {
+    state = state.copyWith(
+      viewPrefs: state.viewPrefs.copyWith(
+        selectedSectionIds: state.viewPrefs.selectedSectionIds
+            .where((id) => id != sectionId)
+            .toSet(),
+      ),
+    );
+  }
+
+  @override
+  void clearSectionFilters() {
+    state = state.copyWith(
+      viewPrefs: state.viewPrefs.copyWith(selectedSectionIds: <String>{}),
     );
   }
 

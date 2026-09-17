@@ -118,6 +118,7 @@ Map<String, Object?> _sharedJson(WorkbenchViewPrefs prefs) {
     'projectSort': prefs.projectSort.name,
     'workspaceSort': prefs.workspaceSort.name,
     'selectedProjectIds': prefs.selectedProjectIds.toList(),
+    'selectedSectionIds': prefs.selectedSectionIds.toList(),
     'selectedTagIds': prefs.selectedTagIds.toList(),
     'collapsedProjectIds': prefs.collapsedProjectIds.toList(),
     'collapsedParentWorkspaceIds': prefs.collapsedParentWorkspaceIds.toList(),
@@ -165,6 +166,7 @@ WorkbenchViewPrefs _mergeShared(
       local.workspaceSort,
     ),
     selectedProjectIds: _stringSet(shared['selectedProjectIds']),
+    selectedSectionIds: _stringSet(shared['selectedSectionIds']),
     selectedTagIds: _stringSet(shared['selectedTagIds']),
     collapsedProjectIds: _stringSet(shared['collapsedProjectIds']),
     collapsedParentWorkspaceIds: _stringSet(

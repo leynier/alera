@@ -223,4 +223,28 @@ void main() {
       ..remove('othersSectionCollapsed');
     expect(WorkbenchViewPrefs.fromJson(old).sectionSort, WorkbenchSortBy.name);
   });
+
+  test('selectedSectionIds filters workspaces and section headers', () {
+    final state = _state();
+    final filtered = state.copyWith(
+      viewPrefs: state.viewPrefs.copyWith(
+        selectedSectionIds: {'a'},
+      ),
+    );
+    expect(countVisibleWorkspaces(filtered), 2);
+    final rows = buildSidebarRows(filtered);
+    expect(
+      rows
+          .whereType<WorkbenchSectionHeaderRow>()
+          .map((row) => row.label),
+      ['Alpha'],
+    );
+    expect(
+      rows
+          .whereType<WorkbenchWorkspaceRow>()
+          .where((row) => !row.isPinnedCopy)
+          .map((row) => row.workspace.id),
+      ['parent', 'same'],
+    );
+  });
 }

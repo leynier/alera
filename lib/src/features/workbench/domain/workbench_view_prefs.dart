@@ -141,6 +141,7 @@ class const WorkbenchViewPrefs({
   required this.selectedProjectIds,
   required this.collapsedProjectIds,
   required this.expandedWorkspaceIds,
+  this.selectedSectionIds = const <String>{},
   this.selectedTagIds = const <String>{},
   this.collapsedParentWorkspaceIds = const <String>{},
   this.pinnedSectionCollapsed = false,
@@ -181,6 +182,12 @@ class const WorkbenchViewPrefs({
   /// default; the per-row chevron lets the user toggle membership without
   /// changing the active selection.
   final Set<String> expandedWorkspaceIds;
+
+  /// Sections the user has explicitly added to the visibility filter. Empty
+  /// means no section filtering; non-empty shows workspaces belonging to at
+  /// least one of the selected sections (OR semantics, mirroring
+  /// [selectedProjectIds] and [selectedTagIds]).
+  final Set<String> selectedSectionIds;
 
   /// Tags the user has explicitly added to the visibility filter. Empty means
   /// no tag filtering; non-empty shows workspaces carrying at least one of the
@@ -265,6 +272,7 @@ class const WorkbenchViewPrefs({
     selectedProjectIds: <String>{},
     collapsedProjectIds: <String>{},
     expandedWorkspaceIds: <String>{},
+    selectedSectionIds: <String>{},
     selectedTagIds: <String>{},
     collapsedParentWorkspaceIds: <String>{},
     pinnedSectionCollapsed: false,
