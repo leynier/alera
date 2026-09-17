@@ -77,7 +77,6 @@ impl ServerActor {
                     .map_err(state_error)?,
             )?,
         };
-        let tab_id = self.resolve_tab_id(&workspace_id, payload).await?;
         let profile_id = optional_string_key(payload, "profileId");
         let profile = match profile_id.as_deref() {
             Some(id) => Some(
@@ -89,6 +88,9 @@ impl ServerActor {
             ),
             None => None,
         };
+        let tab_id = self
+            .resolve_tab_id(&workspace_id, payload, profile.is_some())
+            .await?;
         let label = optional_string_key(payload, "label").or_else(|| {
             profile
                 .as_ref()
@@ -114,20 +116,26 @@ impl ServerActor {
         &self,
         workspace_id: &str,
         payload: &Value,
+        has_profile: bool,
     ) -> HostResult<Option<String>> {
         if let Some(tab_id) = optional_string_key(payload, "tabId") {
-            let tab = self
+            match self
                 .runtime_store
                 .find_workspace_tab(&tab_id)
                 .await
                 .map_err(state_error)?
-                .ok_or_else(|| HostError::format("Terminal tab not found."))?;
-            if tab.workspace_id != workspace_id {
-                return Err(HostError::format(
-                    "Terminal tab does not belong to this workspace.",
-                ));
+            {
+                Some(tab) => {
+                    if tab.workspace_id != workspace_id {
+                        return Err(HostError::format(
+                            "Terminal tab does not belong to this workspace.",
+                        ));
+                    }
+                    return Ok(Some(tab_id));
+                }
+                None if has_profile => return Ok(None),
+                None => return Err(HostError::format("Terminal tab not found.")),
             }
-            return Ok(Some(tab_id));
         }
         let Some(handle) = optional_string_key(payload, "handle") else {
             return Ok(None);
