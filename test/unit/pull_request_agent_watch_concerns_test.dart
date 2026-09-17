@@ -9,6 +9,12 @@ import 'pull_request_agent_watch_fixtures.dart';
 
 void main() {
   group('prompts', () {
+    test('restack prompt names the merge base and forbids a push', () {
+      expect(pullRequestRestackPrompt, contains('since the merge base'));
+      expect(pullRequestRestackPrompt, contains('Do not push.'));
+      expect(pullRequestRestackPrompt, isNot(contains('`')));
+    });
+
     test('failed checks prompt names the pull request and omits logs', () {
       final prompt = pullRequestFailedChecksPrompt(42);
       expect(prompt, contains('Pull request #42 checks failed'));
