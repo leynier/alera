@@ -93,6 +93,7 @@ mod workspace_context;
 mod workspace_handoff;
 mod workspace_issue_commands;
 mod workspace_pinning;
+mod workspace_pr_watch_commands;
 mod workspace_registration;
 mod workspace_relocation_recovery;
 mod workspace_relocation_setup;
@@ -355,6 +356,9 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
         WorkspaceAction::Issue(command) => {
             return workspace_issue_commands::run(runtime, command, json_output).await;
         }
+        WorkspaceAction::PrWatch(command) => {
+            return workspace_pr_watch_commands::run(runtime, command, json_output).await;
+        }
         WorkspaceAction::Section(command) => {
             return workspace_sections::run(runtime, command, json_output).await;
         }
@@ -493,10 +497,10 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
             }
         }
         WorkspaceAction::Pin(IdArgs { id }) => {
-            return workspace_pinning::run(runtime_dir(&runtime), json_output, id, true).await
+            return workspace_pinning::run(runtime_dir(&runtime), json_output, id, true).await;
         }
         WorkspaceAction::Unpin(IdArgs { id }) => {
-            return workspace_pinning::run(runtime_dir(&runtime), json_output, id, false).await
+            return workspace_pinning::run(runtime_dir(&runtime), json_output, id, false).await;
         }
         WorkspaceAction::Link(args) => {
             let payload = json!({

@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('runtime host events include project clone job updates', () {
     expect(runtimeHostEventNames, contains('projectCloneJobsChanged'));
+    expect(runtimeHostEventNames, contains('pullRequestWatchChanged'));
   });
 
   test('failed jobs stay retryable until dismissed', () {

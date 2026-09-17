@@ -47,3 +47,6 @@ bool requiresSharedCheckoutSupport(String operation) => switch (operation) {
 /// Linked issues (`linkedIssue.*`, `issue.fetch`, `issueUrl` on
 /// `workspace.createManaged`). Additive: never bump the protocol version.
 const String linkedIssuesCapability = 'linkedIssuesV1';
+
+/// Watch and Fix sessions (`pullRequestWatch.list` / `find`). Additive.
+const String pullRequestWatchCapability = 'pullRequestWatchV1';

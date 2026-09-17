@@ -4,6 +4,7 @@ import 'package:alera_mobile/src/design_system/forms/alera_search_field.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/linked_issues/application/linked_issues_controller.dart';
+import 'package:alera_mobile/src/features/pull_requests/application/pull_request_watch_controller.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_view_prefs_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_workspace_rows.dart';
@@ -42,6 +43,9 @@ class const RuntimeWorkspacesListBody({
     final pullRequestSummaries = ref
         .watch(workspacePullRequestSummariesControllerProvider(hostId))
         .value;
+    final pullRequestWatches = ref
+        .watch(pullRequestWatchControllerProvider(hostId))
+        .value;
     final rows = buildMobileWorkspaceRows(
       sections: data.sections,
       workspaces: data.workspaces,
@@ -59,10 +63,12 @@ class const RuntimeWorkspacesListBody({
       onRefresh: () async {
         ref.invalidate(workspaceListControllerProvider(hostId));
         ref.invalidate(workspacePullRequestSummariesControllerProvider(hostId));
+        ref.invalidate(pullRequestWatchControllerProvider(hostId));
         await ref.read(workspaceListControllerProvider(hostId).future);
         await ref.read(
           workspacePullRequestSummariesControllerProvider(hostId).future,
         );
+        await ref.read(pullRequestWatchControllerProvider(hostId).future);
       },
       child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -133,6 +139,8 @@ class const RuntimeWorkspacesListBody({
                     linkedIssue: linkedIssues?[row.entry.workspace.id],
                     pullRequestSummary:
                         pullRequestSummaries?[row.entry.workspace.id],
+                    pullRequestWatch:
+                        pullRequestWatches?.byWorkspace[row.entry.workspace.id],
                     terminalTabCount:
                         data.terminalTabCountByWorkspaceId[row
                             .entry

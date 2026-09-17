@@ -490,6 +490,13 @@ impl ServerActor {
                 self.linked_issue_request(client_id, request_type, payload)
                     .await
             }
+            "pullRequestWatch.list"
+            | "pullRequestWatch.find"
+            | "pullRequestWatch.start"
+            | "pullRequestWatch.stop" => {
+                self.pull_request_watch_request(client_id, request_type, payload)
+                    .await
+            }
             "workspaceSection.list"
             | "workspaceSection.create"
             | "workspaceSection.setForWorkspace"

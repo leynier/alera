@@ -183,6 +183,20 @@ alera workspace --json issue show
 alera issue --json show https://dev.azure.com/org/project/_workitems/edit/42
 ```
 
+### Watch And Fix
+
+Start, inspect, or stop the pull-request watch from an Alera terminal. The calling terminal is the default agent (`ALERA_TERMINAL_HANDLE`). The workspace must already have a linked pull request.
+
+```bash
+alera workspace pr-watch show
+alera workspace pr-watch start
+alera workspace pr-watch start --merge
+alera workspace pr-watch start --no-conflicts --profile "Grok Build"
+alera workspace pr-watch stop
+```
+
+`--merge` is Watch, Fix and Merge. `--no-checks`, `--no-comments`, and `--no-conflicts` turn off those problems; at least one must stay on. `--handle` and `--profile` / `--profile-id` override the bound agent. `--workspace-id` and `--review-number` override the defaults. Use `--json` for structured output.
+
 ## Tags, Tabs, And Relations
 
 Common runtime metadata commands:

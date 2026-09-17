@@ -19,6 +19,11 @@ pub const RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY: &str = "workspaceSectionsV
 /// when it carries `issueUrl`. Additive: an older host rejects the verbs and
 /// ignores `issueUrl`, so clients feature-check this capability.
 pub const RUNTIME_HOST_LINKED_ISSUES_CAPABILITY: &str = "linkedIssuesV1";
+/// The host stores Watch and Fix sessions (`pullRequestWatch.*`) so the CLI,
+/// desktop, and mobile share one active watch per workspace. Additive: older
+/// hosts reject the verbs, so callers feature-check this instead of the
+/// protocol version.
+pub const RUNTIME_HOST_PULL_REQUEST_WATCH_CAPABILITY: &str = "pullRequestWatchV1";
 // Advertised once mobile clients may call workspace mutations (pin, link,
 // create/remove managed, tab removal). Mobile apps feature-check this instead
 // of the strict-equality mobile protocol version.

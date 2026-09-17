@@ -299,6 +299,7 @@ const Set<String> runtimeHostEventNames = <String>{
   'projectCloneJobsChanged',
   'linkedReviewsChanged',
   'linkedIssuesChanged',
+  'pullRequestWatchChanged',
   'sshTargetsChanged',
   'sshTargetBootstrapProgress',
   'mobileSettingsChanged',

@@ -183,6 +183,9 @@ mod prompt_image_requests;
 mod prompt_image_store;
 mod pty_event_forwarder;
 mod pty_events;
+mod pull_request_watch_requests;
+#[cfg(test)]
+mod pull_request_watch_requests_tests;
 mod push_delivery;
 mod remote_relay;
 mod request_payloads;

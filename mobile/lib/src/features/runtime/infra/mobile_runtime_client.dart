@@ -30,6 +30,8 @@ import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces
 import 'package:alera_mobile/src/features/ai_dictation/domain/speech_capabilities.dart';
 import 'package:alera_mobile/src/features/linked_issues/domain/mobile_linked_issue.dart';
 import 'package:alera_mobile/src/features/linked_issues/infra/mobile_runtime_linked_issue_requests.dart';
+import 'package:alera_mobile/src/features/pull_requests/domain/mobile_pull_request_watch.dart';
+import 'package:alera_mobile/src/features/pull_requests/infra/mobile_runtime_pull_request_watch_requests.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_workspace_sidebar_client.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_workspace_client.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_relocation_client.dart';
@@ -73,6 +75,7 @@ class MobileRuntimeClient._(
         MobileRuntimeCodexWorkspaceRequests,
         MobileRuntimeWorkspacePanelRequests,
         MobileRuntimeLinkedIssueRequests,
+        MobileRuntimePullRequestWatchRequests,
         MobileRuntimePullRequestRequests
     implements
         MobileTerminalClient,
@@ -84,6 +87,7 @@ class MobileRuntimeClient._(
         MobileCodexWorkspaceClient,
         MobileWorkspacePanelsClient,
         MobileLinkedIssueClient,
+        MobilePullRequestWatchClient,
         MobilePullRequestActionsClient,
         MobileWorkspacePullRequestSummariesClient {
   this {
