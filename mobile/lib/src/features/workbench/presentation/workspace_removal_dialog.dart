@@ -152,24 +152,27 @@ class const _WorkspaceRemovalDialog({
   ) {
     final details = StringBuffer(impactSummary);
     if (workspace.isMain) {
-      return 'Remove "${workspace.name}" and close its tabs, terminals and agents? '
-          'Files, branches and other workspaces in the project folder will be kept. '
-          'If removal fails after processes stop, those processes will not restart automatically.';
-    }
-    details.write('This removes the worktree for "${workspace.name}".');
-    if (canDeleteBranch) {
       details.write(
-        ' Remove also attempts safe deletion of "$currentBranch". '
-        'Merged branches, including squash and rebase merges, can be deleted. '
-        'Unmerged or protected branches are retained.',
-      );
-    } else if (currentBranch == null || currentBranch.isEmpty) {
-      details.write(
-        ' The workspace branch is unknown. Keep its branches when removing '
-        'the workspace.',
+        'Remove "${workspace.name}" and close its tabs, terminals and agents? '
+        'Files, branches and other workspaces in the project folder will be kept. '
+        'If removal fails after processes stop, those processes will not restart automatically.',
       );
     } else {
-      details.write(' Branch "$currentBranch" will be kept.');
+      details.write('This removes the worktree for "${workspace.name}".');
+      if (canDeleteBranch) {
+        details.write(
+          ' Remove also attempts safe deletion of "$currentBranch". '
+          'Merged branches, including squash and rebase merges, can be deleted. '
+          'Unmerged or protected branches are retained.',
+        );
+      } else if (currentBranch == null || currentBranch.isEmpty) {
+        details.write(
+          ' The workspace branch is unknown. Keep its branches when removing '
+          'the workspace.',
+        );
+      } else {
+        details.write(' Branch "$currentBranch" will be kept.');
+      }
     }
     if (descendants > 0) {
       details.write(
@@ -178,11 +181,13 @@ class const _WorkspaceRemovalDialog({
         'be unlinked, not deleted.',
       );
     }
-    details.write(
-      '\n\nAll tabs will close and running terminals, agents, and their child '
-      'processes will stop. Unsaved changes will be lost. If removal fails, '
-      'stopped sessions will not restart automatically.',
-    );
+    if (!workspace.isMain) {
+      details.write(
+        '\n\nAll tabs will close and running terminals, agents, and their child '
+        'processes will stop. Unsaved changes will be lost. If removal fails, '
+        'stopped sessions will not restart automatically.',
+      );
+    }
     return details.toString();
   }
 }

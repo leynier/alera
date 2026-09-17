@@ -215,6 +215,40 @@ void main() {
     },
   );
 
+  testWidgets('main workspace with linked descendants shows unlink notice', (
+    tester,
+  ) async {
+    await open(tester, (context) async {
+      await showWorkspaceRemovalDialog(
+        context,
+        workspace: const WorkspaceSummary(
+          id: 'ws-main',
+          projectId: 'p-1',
+          name: 'Main repo',
+          path: '/repo',
+          branch: 'main',
+          kind: 'main',
+        ),
+        cascadeCount: 3,
+      );
+    });
+    expect(
+      find.textContaining(
+        'Files, branches and other workspaces in the project folder will be kept.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'This workspace has 2 linked descendants. They will be unlinked, not deleted.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Keep Branch'), findsNothing);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('descendants notice informs that linked children are unlinked', (
     tester,
   ) async {
