@@ -143,6 +143,19 @@ void main() {
     expect(restored.watchScope.comments, isFalse);
     expect(restored.lastDispatch?.headSha, 'abc');
     expect(restored.lastDispatch?.threadIds, <String>{'T1'});
+    expect(record.binding.tabId, 'tab-1');
+    expect(record.binding.label, 'Grok');
+    expect(restored.binding.profileId, isNull);
+    final sparse = PullRequestAgentWatchRecord.fromJson(const <String, Object?>{
+      'lastDispatch': 'ignored',
+    });
+    expect(sparse.workspaceId, isEmpty);
+    expect(sparse.reviewNumber, 0);
+    expect(sparse.lastDispatch, isNull);
+    expect(sparse.watchScope.checks, isTrue);
+    const records = PullRequestAgentWatchRecords(supported: true);
+    expect(records.supported, isTrue);
+    expect(records.byWorkspace, isEmpty);
   });
 
   group('pullRequestAgentWatchConcerns', () {
