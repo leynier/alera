@@ -109,6 +109,7 @@ impl ServerActor {
                 }
                 generate_workspace_identity(
                     &project_record.repo_path,
+                    &project_record.name,
                     &initial_prompt,
                     settings,
                     cancel_rx,
@@ -148,6 +149,7 @@ impl ServerActor {
 
 async fn generate_workspace_identity(
     working_directory: &str,
+    project_name: &str,
     initial_prompt: &str,
     settings: RuntimeAiAssistSettings,
     cancel_rx: oneshot::Receiver<()>,
@@ -168,6 +170,8 @@ async fn generate_workspace_identity(
             .get("workspaceIdentity")
             .map(String::as_str)
             .unwrap_or_default(),
+        project_name,
+        working_directory,
         sections,
     );
     let plan = plan_command(&settings, "workspaceIdentity", &prompt)?;
