@@ -17,7 +17,7 @@ class const WorkspaceRoleBadge({super.key, required final Workspace workspace})
     return Tooltip(
       message: workspace.isMain ? 'Project folder' : 'Linked worktree',
       child: Icon(
-        workspace.isMain ? AleraIcons.workspaceMain : AleraIcons.gitBranch,
+        workspace.isMain ? AleraIcons.workspaceMain : AleraIcons.gitFork,
         size: 12,
         color: AleraTokens.foregroundMuted,
       ),

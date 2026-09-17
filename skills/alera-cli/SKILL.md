@@ -9,7 +9,7 @@ Use the managed `alera` CLI for Alera resources. Inside Alera terminals, its shi
 
 ## Choose The Relevant Workflow
 
-- Projects, worktrees, hand-off/hand-on, linked issues, tags, tabs, and relations: read [workspaces](references/workspaces.md).
+- Projects, worktrees, hand-off/hand-on, linked issues, tags, tabs, relations, and sections: read [workspaces](references/workspaces.md).
 - SSH targets and remote workspace setup: read [hosts](references/hosts.md).
 - Automation definitions, approvals, and execution: read [automations](references/automations.md).
 - Missing runtime host, external-shell configuration, or metadata repair: read [recovery](references/recovery.md).
@@ -22,4 +22,4 @@ Load only the workflow needed for the current request.
 
 Use `workspace add/remove` for real managed worktrees. Use `register/unregister` only for intentional metadata repair; `register --host-id` does not create a remote worktree. SSH bootstrap installs only the sidecar; `workspace add --host-id` creates the remote worktree.
 
-Do not use raw `git worktree add/remove` or edit runtime metadata unless the user requests low-level recovery. Inspect exact IDs and state before destructive operations. Keep user-created branches unless deletion is explicitly requested; default removal deletes only branches Alera created. Use `workspace pin/unpin` for sidebar placement.
+Do not use raw `git worktree add/remove` or edit runtime metadata unless the user requests low-level recovery. Inspect exact IDs and state before destructive operations. Keep user-created branches unless deletion is explicitly requested; default removal deletes only branches Alera created. Use `workspace pin/unpin` for sidebar placement. Use `workspace section` to assign sidebar sections; do not edit `runtime.sqlite` to assign sections.

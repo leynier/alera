@@ -12,6 +12,7 @@ import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_act
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_action_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_controller.dart';
+import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_action_bar.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_checks_section.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_conversation_section.dart';
@@ -38,6 +39,14 @@ class const PullRequestPanel({
         false;
     final canShip =
         ref.watch(pullRequestShipSupportedProvider(hostId)).value ?? false;
+    // Default to offering removal until the list answers; hiding it after a
+    // merged review would promote Unlink into the primary button for a frame.
+    final offerRemoveWorkspace =
+        ref
+            .watch(workspaceListControllerProvider(hostId))
+            .value
+            ?.supportsMutations ??
+        true;
     final busy = ref.watch(
       pullRequestActionControllerProvider(hostId, workspaceId),
     );
@@ -91,6 +100,7 @@ class const PullRequestPanel({
             onReload: reload,
             canGenerate: canGenerate && snapshot.aiAssistEnabled,
             canShip: canShip && snapshot.aiAssistEnabled,
+            offerRemoveWorkspace: offerRemoveWorkspace,
           ),
         ),
       ],
@@ -106,6 +116,7 @@ class const _Body({
   required final VoidCallback onReload,
   required final bool canGenerate,
   required final bool canShip,
+  required final bool offerRemoveWorkspace,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -150,7 +161,10 @@ class const _Body({
             )
           else ...<Widget>[
             PullRequestActionBar(
-              actions: availablePullRequestReviewActions(snapshot),
+              actions: availablePullRequestReviewActions(
+                snapshot,
+                offerRemoveWorkspace: offerRemoveWorkspace,
+              ),
               isEnabled: (action) =>
                   pullRequestReviewActionEnabled(action, review),
               busy: !idle,

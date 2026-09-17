@@ -1,6 +1,11 @@
-part of 'workspace_actions_sheet.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
+import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_removal_dialog.dart';
+import 'package:flutter/material.dart';
 
-Future<void> _confirmAndDelete(
+/// Confirms and removes [workspace] using the same dialog as the workspace
+/// actions sheet. Returns true when the workspace was removed.
+Future<bool> confirmAndDeleteWorkspace(
   BuildContext context,
   WorkspaceListController controller,
   WorkspaceSummary workspace,
@@ -13,10 +18,12 @@ Future<void> _confirmAndDelete(
     // The preview is advisory; deletion still confirms explicitly.
   }
   if (!context.mounted) {
-    return;
+    return false;
   }
   final dependencies = await controller.removalDependencies(workspace.id);
-  if (!context.mounted) return;
+  if (!context.mounted) {
+    return false;
+  }
   final branch = workspace.branch?.trim();
   final canDeleteBranch =
       !workspace.isMain &&
@@ -32,7 +39,7 @@ Future<void> _confirmAndDelete(
         )
       : WorkspaceRemovalDecision(deleteBranch: canDeleteBranch);
   if (decision == null || !context.mounted) {
-    return;
+    return false;
   }
   final messenger = ScaffoldMessenger.of(context);
   messenger.showSnackBar(SnackBar(content: Text('Removing ${workspace.name}')));
@@ -44,4 +51,5 @@ Future<void> _confirmAndDelete(
     deleteBranch: decision.deleteBranch,
   );
   messenger.showSnackBar(SnackBar(content: Text('Removed ${workspace.name}')));
+  return true;
 }

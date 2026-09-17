@@ -301,6 +301,27 @@ void main() {
     });
   });
 
+  group('background follow-up focus', () {
+    test('never activates, even on the watched workspace', () {
+      expect(
+        agentTaskDispatchShouldActivate(
+          activate: false,
+          workspaceId: _session.workspaceId,
+          activeWorkspaceId: _session.workspaceId,
+        ),
+        isFalse,
+      );
+      expect(
+        agentTaskDispatchShouldActivate(
+          activate: false,
+          workspaceId: _session.workspaceId,
+          activeWorkspaceId: 'workspace-other',
+        ),
+        isFalse,
+      );
+    });
+  });
+
   group('session updates', () {
     test('keeps the watch eligible after a failed dispatch or merge', () {
       const concerns = PullRequestAgentWatchConcerns(checksFailed: true);

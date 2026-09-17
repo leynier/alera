@@ -67,10 +67,15 @@ AgentTaskDispatchService wireAgentTaskDispatchService({
       }
       return null;
     },
+    activeWorkspaceId: () => currentWorkbench().activeWorkspaceId,
     activateTab: (id, tabId) =>
         controller.selectWorkspaceTab(workspaceId: id, tabId: tabId),
-    openPersistedTab: (id, tabId) =>
-        controller.openPersistedWorkspaceTab(workspaceId: id, tabId: tabId),
+    openPersistedTab: (id, tabId, {bool activate = true}) =>
+        controller.openPersistedWorkspaceTab(
+          workspaceId: id,
+          tabId: tabId,
+          activate: activate,
+        ),
     submitPrompt: ({required workspace, required tab, required prompt}) async {
       final handle = terminalRuntime.sessionFor(workspace: workspace, tab: tab);
       for (var attempt = 0; attempt < 5; attempt++) {

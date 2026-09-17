@@ -211,3 +211,25 @@ alera terminal write --handle <terminal-handle> --stdin --enter
 ```
 
 JSON list commands return a consistent `{ "kind": "...", "items": [...], "filters": {...} }` envelope. Read `items` rather than relying on a resource-specific top-level array.
+
+## Sections
+
+Sections group workspaces in the sidebar without moving files or changing parent links. Prefer a live runtime host so connected apps refresh; when no host is connected the CLI updates the runtime store the same way `workspace pin` does. Do not edit `runtime.sqlite` to assign sections.
+
+`--section` resolves by case-insensitive unique name from `section list`. Ambiguous or missing names fail closed. `--section` and `--section-id` on `workspace add` and `workspace start` are optional and default unset.
+
+These commands are the same from Bash, PowerShell, and CMD:
+
+```bash
+alera workspace section list
+alera workspace --json section list
+alera workspace section create --name Alera --workspace-id <workspace-id>
+alera workspace section set --workspace-id <workspace-id> --section-id <section-id>
+alera workspace section set --workspace-id <workspace-id> --section Alera
+alera workspace section clear --workspace-id <workspace-id>
+alera workspace section remove --id <section-id>
+alera workspace add --project-id <project-id> --worktree --branch <branch> --source-branch main --section Alera
+alera workspace --json start --worktree --profile "Grok Build" --prompt "Add the feature" --section Alera
+```
+
+JSON section lists use `{ "kind": "workspaceSections", "items": [...], "filters": {} }`.

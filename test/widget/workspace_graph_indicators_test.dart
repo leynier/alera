@@ -58,7 +58,7 @@ void main() {
         tester,
         WorkspaceRoleBadge(workspace: workspace(parentWorkspaceId: 'parent')),
       );
-      expect(find.byIcon(AleraIcons.gitBranch), findsOneWidget);
+      expect(find.byIcon(AleraIcons.gitFork), findsOneWidget);
       expect(find.byTooltip('Linked worktree'), findsOneWidget);
       expect(find.text('default'), findsNothing);
       expect(find.text('Child'), findsNothing);
@@ -69,7 +69,7 @@ void main() {
       tester,
     ) async {
       await pump(tester, WorkspaceRoleBadge(workspace: workspace()));
-      expect(find.byIcon(AleraIcons.gitBranch), findsOneWidget);
+      expect(find.byIcon(AleraIcons.gitFork), findsOneWidget);
       expect(find.byTooltip('Linked worktree'), findsOneWidget);
       expect(find.text('default'), findsNothing);
       expect(find.text('Primary'), findsNothing);
