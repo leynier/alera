@@ -312,7 +312,9 @@ mixin _WorkbenchControllerInternalLayout
         state.viewPrefs.workspacePanels[workspaceId]?.focusedKey;
     final focusedTabId = WorkspacePanel.tabId(panel.focusedKey);
     final alreadyStored = state.viewPrefs.workspacePanels[workspaceId] == panel;
-    final alreadyRevealed = !reveal || state.viewPrefs.rightSidebarVisible;
+    final shouldReveal = reveal && state.activeWorkspaceId == workspaceId;
+    final alreadyRevealed =
+        !shouldReveal || state.viewPrefs.rightSidebarVisible;
     final alreadyActive =
         focusedTabId == null ||
         state.activeTabIdByWorkspace[workspaceId] == focusedTabId;
@@ -328,7 +330,7 @@ mixin _WorkbenchControllerInternalLayout
           ...state.viewPrefs.workspacePanels,
           workspaceId: panel,
         },
-        rightSidebarVisible: reveal
+        rightSidebarVisible: shouldReveal
             ? true
             : state.viewPrefs.rightSidebarVisible,
       ),

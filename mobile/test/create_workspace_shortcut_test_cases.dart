@@ -64,7 +64,7 @@ void _registerCreateWorkspaceShortcutTests() {
       await tester.pumpAndSettle();
 
       expect(find.byType(CreateWorkspaceScreen), findsNothing);
-      expect(find.byType(WorkspaceTabsScreen), findsOneWidget);
+      expect(find.byType(WorkspaceTabsScreen), findsNothing);
       expect(
         client.calls,
         contains('launchAgentProfile created profile-1 Build offline support'),

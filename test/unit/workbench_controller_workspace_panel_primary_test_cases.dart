@@ -156,6 +156,10 @@ void _registerWorkspacePanelPrimaryTests() {
         newBranchName: 'simple-second',
       )).workspace;
       expect(_controller.state.workspacePanelFor(second.id).tabKeys, isEmpty);
+      await _controller.selectWorkspace(
+        project: _harness.project,
+        workspace: second,
+      );
       _controller.setContextPanelTab(WorkbenchContextPanelTab.gitDiff);
       final secondPanel = _controller.state.workspacePanelFor(second.id);
       await _controller.selectWorkspace(
