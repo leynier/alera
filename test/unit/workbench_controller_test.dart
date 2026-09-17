@@ -67,6 +67,7 @@ part 'workbench_controller_workspace_graph_test_cases.dart';
 part 'workbench_controller_pinning_test_cases.dart';
 part 'workbench_controller_watcher_recovery_test_cases.dart';
 part 'workbench_controller_navigation_test_cases.dart';
+part 'workbench_controller_navigation_history_test_cases.dart';
 part 'workbench_controller_preview_tab_test_cases.dart';
 part 'workbench_controller_preview_close_test_cases.dart';
 part 'workbench_controller_view_prefs_test_repository.dart';
@@ -111,6 +112,7 @@ void main() {
     _registerWorkbenchControllerPinningTests();
     _registerWorkbenchControllerWatcherRecoveryTests();
     _registerWorkbenchControllerNavigationTests();
+    _registerWorkbenchControllerNavigationHistoryTests();
     _registerWorkbenchControllerPreviewTabTests();
     _registerWorkbenchControllerPreviewCloseTests();
     _registerWorkbenchControllerTerminalCleanupTests();

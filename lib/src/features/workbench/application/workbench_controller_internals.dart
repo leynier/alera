@@ -209,4 +209,9 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
   void _focusPanelTerminal(String workspaceId, String? key);
 
   void _seedNewWorkspacePanel(String workspaceId);
+
+  Future<void> _ensurePrimaryTerminal(
+    Workspace workspace, {
+    bool requireActive = true,
+  });
 }

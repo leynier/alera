@@ -127,7 +127,11 @@ void _registerNewWorkspaceToolsTests() {
         WorkspacePanel.tabKey(setup.id),
       ]);
       expect(panel.activeKey, WorkspacePanel.tabKey(setup.id));
-      expect(_controller.state.activeWorkspaceTab?.id, 'agent-tab');
+      expect(_controller.state.activeWorkspaceId, isNot(result.workspace.id));
+      expect(
+        _controller.state.activeTabIdByWorkspace[result.workspace.id],
+        'agent-tab',
+      );
     },
   );
 }

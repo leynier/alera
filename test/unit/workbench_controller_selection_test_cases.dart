@@ -96,6 +96,10 @@ void _registerWorkbenchControllerSelectionTests() {
         sourceBranch: 'main',
         newBranchName: 'feature/active',
       )).workspace;
+      await _controller.selectWorkspace(
+        project: _harness.project,
+        workspace: linked,
+      );
       await _flush();
       expect(_controller.state.activeWorkspaceId, linked.id);
       expect(_controller.state.activeProjectId, _harness.project.id);

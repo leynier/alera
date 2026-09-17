@@ -35,6 +35,8 @@ pub(super) fn handoff_identity_context(
 pub(super) fn workspace_identity_prompt(
     initial_prompt: &str,
     custom_instructions: &str,
+    project_name: &str,
+    project_path: &str,
     sections: &[WorkspaceSection],
 ) -> String {
     let fields = if sections.is_empty() {
@@ -52,7 +54,7 @@ pub(super) fn workspace_identity_prompt(
     ];
     if !sections.is_empty() {
         lines.push(
-            "- section: the workspace section the task belongs to. Answer with exactly one of the section names listed below, or \"Others\" when none fits."
+            "- section: the workspace section the task belongs to. Use the project name and path together with the user task. Answer with exactly one of the section names listed below, or \"Others\" when none fits."
                 .to_string(),
         );
     }
@@ -61,6 +63,7 @@ pub(super) fn workspace_identity_prompt(
         "- Do not include markdown, explanations, quotes around the whole object, or extra fields."
             .to_string(),
     ]);
+    append_project_context(&mut lines, project_name, project_path);
     if !sections.is_empty() {
         lines.push(String::new());
         lines.push("Sections:".to_string());
@@ -81,6 +84,26 @@ pub(super) fn workspace_identity_prompt(
         ]);
     }
     lines.join("\n")
+}
+
+fn append_project_context(lines: &mut Vec<String>, project_name: &str, project_path: &str) {
+    let name = project_name.trim();
+    let path = project_path.trim();
+    if name.is_empty() && path.is_empty() {
+        return;
+    }
+    lines.push(String::new());
+    lines.push("Project:".to_string());
+    if !name.is_empty() {
+        lines.push(format!("- name: {}", bound_prompt_text(name, 200)));
+    }
+    if !path.is_empty() {
+        lines.push(format!("- path: {}", bound_prompt_text(path, 500)));
+    }
+}
+
+fn bound_prompt_text(text: &str, max: usize) -> String {
+    text.chars().take(max).collect()
 }
 
 pub(super) fn parse_workspace_identity(
@@ -159,17 +182,36 @@ mod tests {
         }
     }
 
+    fn prompt_text(task: &str, instructions: &str, sections: &[WorkspaceSection]) -> String {
+        workspace_identity_prompt(task, instructions, "Alera", "/repo/alera", sections)
+    }
+
     #[test]
     fn identity_prompt_includes_custom_workspace_instructions() {
-        let prompt = workspace_identity_prompt("Add offline mode", "Use fix/ branches.", &[]);
+        let prompt = prompt_text("Add offline mode", "Use fix/ branches.", &[]);
         assert!(prompt.contains("Add offline mode"));
         assert!(prompt.contains("Use fix/ branches."));
         assert!(prompt.contains("workspaceName"));
     }
 
     #[test]
+    fn identity_prompt_includes_project_name_and_path() {
+        let prompt = prompt_text("Add offline mode", "", &[]);
+        assert!(prompt.contains("Project:\n- name: Alera\n- path: /repo/alera"));
+    }
+
+    #[test]
+    fn identity_prompt_omits_empty_project_fields() {
+        let prompt = workspace_identity_prompt("Add offline mode", "", "", "", &[]);
+        assert!(!prompt.contains("Project:"));
+        let name_only = workspace_identity_prompt("Add offline mode", "", "Alera", "", &[]);
+        assert!(name_only.contains("Project:\n- name: Alera"));
+        assert!(!name_only.contains("- path:"));
+    }
+
+    #[test]
     fn identity_prompt_without_sections_omits_the_section_rule() {
-        let prompt = workspace_identity_prompt("Add offline mode", "", &[]);
+        let prompt = prompt_text("Add offline mode", "", &[]);
         assert!(prompt.contains("workspaceName and branchName"));
         assert!(!prompt.contains("Sections:"));
         assert!(!prompt.contains("Others"));
@@ -178,10 +220,12 @@ mod tests {
     #[test]
     fn identity_prompt_lists_sections_with_others_fallback() {
         let sections = vec![section("a", "Work"), section("b", "Personal")];
-        let prompt = workspace_identity_prompt("Add offline mode", "", &sections);
+        let prompt = prompt_text("Add offline mode", "", &sections);
         assert!(prompt.contains("workspaceName, branchName, and section"));
+        assert!(prompt.contains("Project:\n- name: Alera\n- path: /repo/alera"));
         assert!(prompt.contains("Sections:\n- Work\n- Personal"));
         assert!(prompt.contains("\"Others\" when none fits"));
+        assert!(prompt.contains("Use the project name and path together with the user task"));
     }
 
     #[test]

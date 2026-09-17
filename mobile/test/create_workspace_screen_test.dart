@@ -188,7 +188,7 @@ void main() {
     );
   });
 
-  testWidgets('From Prompt opens the new workspace after a background create', (
+  testWidgets('From Prompt closes the form without opening the new workspace', (
     tester,
   ) async {
     final client = FakeTerminalClient()
@@ -237,7 +237,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(CreateWorkspaceScreen), findsNothing);
-    expect(find.byType(WorkspaceTabsScreen), findsOneWidget);
+    expect(find.byType(WorkspaceTabsScreen), findsNothing);
     expect(
       client.calls,
       contains('launchAgentProfile created profile-1 Build offline support'),
