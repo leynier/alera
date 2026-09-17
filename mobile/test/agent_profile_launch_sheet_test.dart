@@ -37,6 +37,36 @@ void main() {
     expect(find.byType(AgentProfileLaunchSheet), findsNothing);
   });
 
+  testWidgets('programmatic prompt updates enable start agent', (tester) async {
+    final launched = <String>[];
+    await _pumpSheet(
+      tester,
+      onLaunch: ({required prompt}) async => launched.add(prompt),
+    );
+
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNull,
+    );
+
+    tester
+        .widget<TextField>(find.widgetWithText(TextField, 'Initial Prompt'))
+        .controller!
+        .value = const TextEditingValue(
+      text: 'Dictated task',
+    );
+    await tester.pump();
+
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNotNull,
+    );
+    await tester.tap(find.text('Start Agent'));
+    await tester.pumpAndSettle();
+
+    expect(launched, ['Dictated task']);
+  });
+
   testWidgets('start agent sends the typed prompt', (tester) async {
     final launched = <String>[];
     await _pumpSheet(

@@ -63,6 +63,7 @@ class _AgentProfileLaunchSheetState
   final TextEditingController _promptController = TextEditingController();
   bool _working = false;
   bool _attaching = false;
+  bool _hasPrompt = false;
   String? _error;
 
   String get _dictationTarget =>
@@ -70,12 +71,29 @@ class _AgentProfileLaunchSheetState
 
   bool get _busy => _working || _attaching;
 
-  bool get _canStart => !_busy && _promptController.text.trim().isNotEmpty;
+  bool get _canStart => !_busy && _hasPrompt;
+
+  @override
+  void initState() {
+    super.initState();
+    _promptController.addListener(_onPromptChanged);
+  }
 
   @override
   void dispose() {
+    _promptController.removeListener(_onPromptChanged);
     _promptController.dispose();
     super.dispose();
+  }
+
+  void _onPromptChanged() {
+    final hasPrompt = _promptController.text.trim().isNotEmpty;
+    if (!mounted || (hasPrompt == _hasPrompt && _error == null)) {
+      return;
+    }
+    setState(() {
+      _hasPrompt = hasPrompt;
+    });
   }
 
   void _update(VoidCallback update) => setState(update);
@@ -207,11 +225,6 @@ class _AgentProfileLaunchSheetState
                       suffix: dictationEnabled
                           ? const SizedBox(width: AleraTokens.minTapTarget)
                           : null,
-                      onChanged: (_) {
-                        if (_error != null || !_busy) {
-                          setState(() {});
-                        }
-                      },
                     ),
                   ),
                   if (dictationEnabled)
