@@ -140,8 +140,8 @@ void _registerAleraShellSidebarStateTests() {
   ) async {
     await _pumpShell(tester, state: _linkedWorkbenchState());
 
-    expect(find.byIcon(AleraIcons.gitBranch), findsNWidgets(2));
     expect(find.byKey(const Key('workspace-tray-branch')), findsNWidgets(2));
+    expect(find.byType(AleraLinkedWorktreeIcon), findsOneWidget);
     expect(
       find.byWidgetPredicate(
         (widget) => widget is Tooltip && widget.message == 'feature/login',

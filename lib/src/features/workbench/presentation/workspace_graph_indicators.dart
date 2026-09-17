@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/chips/alera_chip.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/icons/alera_linked_worktree_icon.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:flutter/material.dart';
 
@@ -16,11 +17,13 @@ class const WorkspaceRoleBadge({super.key, required final Workspace workspace})
   Widget build(BuildContext context) {
     return Tooltip(
       message: workspace.isMain ? 'Project folder' : 'Linked worktree',
-      child: Icon(
-        workspace.isMain ? AleraIcons.workspaceMain : AleraIcons.gitFork,
-        size: 12,
-        color: AleraTokens.foregroundMuted,
-      ),
+      child: workspace.isMain
+          ? const Icon(
+              AleraIcons.workspaceMain,
+              size: 12,
+              color: AleraTokens.foregroundMuted,
+            )
+          : const AleraLinkedWorktreeIcon(),
     );
   }
 }

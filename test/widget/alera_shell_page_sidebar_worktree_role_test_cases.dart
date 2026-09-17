@@ -11,7 +11,7 @@ void _registerAleraShellSidebarWorktreeRoleTests() {
     expect(find.byIcon(AleraIcons.workspaceMain), findsOneWidget);
     expect(find.byKey(const Key('workspace-tray-worktree')), findsOneWidget);
     expect(find.byTooltip('Linked worktree'), findsOneWidget);
-    expect(find.byIcon(AleraIcons.gitFork), findsOneWidget);
+    expect(find.byType(AleraLinkedWorktreeIcon), findsOneWidget);
   });
 
   testWidgets('folder project workspaces keep the project folder glyph', (
@@ -53,6 +53,6 @@ void _registerAleraShellSidebarWorktreeRoleTests() {
 
     expect(find.byIcon(AleraIcons.workspaceMain), findsOneWidget);
     expect(find.byTooltip('Project folder'), findsOneWidget);
-    expect(find.byIcon(AleraIcons.gitFork), findsNothing);
+    expect(find.byType(AleraLinkedWorktreeIcon), findsNothing);
   });
 }
