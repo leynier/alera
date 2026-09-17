@@ -93,6 +93,7 @@ pub async fn run_terminal_host_server(
         coordinators: HashMap::new(),
         resources: ResourceMonitorState::default(),
         terminal_pulses: Default::default(),
+        voice: Default::default(),
         codex: None,
         codex_starting: None,
         inbox,

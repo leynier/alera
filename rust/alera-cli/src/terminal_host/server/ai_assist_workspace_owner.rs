@@ -38,7 +38,9 @@ impl ServerActor {
             .map_err(|error| HostError::state(error.to_string()))?
             .ok_or_else(|| HostError::state(format!("Workspace not found: {id}")))?;
         if workspace.host_id != LOCAL_HOST_ID {
-            return Err(HostError::state("AI Assist must run on the workspace's owning host. Remote speech processing is not available yet."));
+            return Err(HostError::state(
+                "AI Assist must run on the workspace's owning host. Remote speech processing is not available yet.",
+            ));
         }
         if self
             .mutation_queue

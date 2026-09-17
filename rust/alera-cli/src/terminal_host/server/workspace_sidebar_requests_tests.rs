@@ -50,3 +50,56 @@ async fn sidebar_agent_presence_includes_tab_title() {
     let listed = actor.agent_presence_items_with_titles().await.unwrap();
     assert_eq!(listed[0]["title"], "Map Monetization");
 }
+
+#[tokio::test]
+async fn sidebar_hides_voice_home_activity_presence_and_terminal_counts() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mobile, _events) = ClientHandle::test_channels();
+    let mut session = Session::driver_test_stub("home-session", 80, 24);
+    session.workspace_id = alera_core::runtime::VOICE_HOME_WORKSPACE_ID.into();
+    session.tab_id = "home-tab".into();
+    let mut actor = test_actor(
+        &dir,
+        HashMap::from([(2, mobile_client(mobile, "phone"))]),
+        HashMap::from([("home-session".into(), session)]),
+    )
+    .await;
+    let now = Utc::now();
+    actor
+        .runtime_store
+        .upsert_workspace_tab(WorkspaceTabRecord {
+            id: "home-tab".into(),
+            workspace_id: alera_core::runtime::VOICE_HOME_WORKSPACE_ID.into(),
+            kind: "terminal".into(),
+            title: "Voice".into(),
+            created_at: now,
+            updated_at: now,
+            payload: json!({}),
+        })
+        .await
+        .unwrap();
+    actor
+        .agent_presence
+        .update("home-session", "codex".into(), AgentPresenceState::Working);
+    actor
+        .runtime_store
+        .record_workspace_activity_batch(std::collections::BTreeMap::from([(
+            alera_core::runtime::VOICE_HOME_WORKSPACE_ID.to_string(),
+            now,
+        )]))
+        .await
+        .unwrap();
+
+    let snapshot = actor.workspace_sidebar_snapshot(2).await.unwrap();
+    assert!(snapshot["agentPresence"].as_array().unwrap().is_empty());
+    assert!(snapshot["activity"]
+        .as_object()
+        .unwrap()
+        .get(alera_core::runtime::VOICE_HOME_WORKSPACE_ID)
+        .is_none());
+    assert!(snapshot["terminalTabCountByWorkspaceId"]
+        .as_object()
+        .unwrap()
+        .get(alera_core::runtime::VOICE_HOME_WORKSPACE_ID)
+        .is_none());
+}

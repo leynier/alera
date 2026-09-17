@@ -9,6 +9,7 @@ mod issue;
 mod mobile;
 mod project;
 mod text_source;
+mod voice;
 mod workspace;
 
 pub use agent_profile::*;
@@ -17,6 +18,7 @@ pub use issue::*;
 pub use mobile::*;
 pub use project::*;
 pub use text_source::*;
+pub use voice::*;
 pub use workspace::*;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
@@ -82,6 +84,9 @@ pub enum Command {
 
     /// Inter-agent orchestration: messaging, task DAG, dispatch, gates, coordinator.
     Orchestration(OrchestrationCommand),
+
+    /// Global voice home agent: speak, status, and the runtime home folder.
+    Voice(VoiceCommand),
 }
 
 #[derive(Debug, Args)]

@@ -312,6 +312,7 @@ impl ServerActor {
         for session_id in session_ids {
             self.disarm_terminal_pulse(&session_id);
             self.queue_terminal_exit_push(&session_id, None).await;
+            self.abandon_home_inject(&session_id);
             self.cleanup_orchestration_for_closed_session(
                 &session_id,
                 "terminal was explicitly terminated",

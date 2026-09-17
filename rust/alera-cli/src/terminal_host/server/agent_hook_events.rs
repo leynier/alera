@@ -6,6 +6,7 @@ use crate::agent_status::{
 };
 use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
 
+use super::terminal_startup_commands::tab_agent_type;
 use super::ServerActor;
 
 impl ServerActor {
@@ -47,7 +48,8 @@ impl ServerActor {
                 pending.get("agent").and_then(serde_json::Value::as_str)
                     == Some(event.agent_type.as_str())
             });
-        if !settings.is_enabled(&event.agent_type) && !pending_prompt {
+        let home_session = alera_core::runtime::is_voice_home_workspace_id(&session.workspace_id);
+        if !settings.is_enabled(&event.agent_type) && !pending_prompt && !home_session {
             return;
         }
         self.observe_hook_native_session(&event).await;
@@ -73,6 +75,8 @@ impl ServerActor {
         }
         if hook_event_closes_session(&event) {
             let previous = self.agent_presence.get(&event.terminal_session_id);
+            let previous_agent = previous.map(|presence| presence.agent_type.clone());
+            let previous_is_none = previous.is_none();
             let identity = resolve_agent_status_identity(
                 previous,
                 &event.agent_type,
@@ -80,7 +84,34 @@ impl ServerActor {
                 now,
                 AGENT_STATUS_IDENTITY_STALE_THRESHOLD,
             );
-            if identity.should_ignore_event || previous.is_none() {
+            if identity.should_ignore_event {
+                return;
+            }
+            if self.voice.home_session_id.as_deref() == Some(event.terminal_session_id.as_str()) {
+                let matches_home = if let Some(agent) = previous_agent {
+                    agent == event.agent_type
+                } else {
+                    let tab_id = self
+                        .sessions
+                        .get(&event.terminal_session_id)
+                        .map(|session| session.tab_id.clone());
+                    match tab_id {
+                        Some(tab_id) => self
+                            .runtime_store
+                            .find_workspace_tab(&tab_id)
+                            .await
+                            .ok()
+                            .flatten()
+                            .and_then(|tab| tab_agent_type(&tab).map(str::to_string))
+                            .is_some_and(|agent| agent == event.agent_type),
+                        None => false,
+                    }
+                };
+                if matches_home {
+                    self.voice.home_cli_exited = true;
+                }
+            }
+            if previous_is_none {
                 return;
             }
             let _ = self

@@ -248,7 +248,7 @@ pub(super) fn parse_action(request_type: &str, payload: &Value) -> HostResult<Ac
                 "providerDefault" => {
                     return Err(HostError::state(
                         "GitHub does not expose a provider-default merge method through gh.",
-                    ))
+                    ));
                 }
                 other => return Err(HostError::state(format!("Unknown merge method: {other}"))),
             },
@@ -308,7 +308,7 @@ pub(super) fn parse_action(request_type: &str, payload: &Value) -> HostResult<Ac
                     None | Some("all") => ShipScope::All,
                     Some("staged") => ShipScope::Staged,
                     Some(other) => {
-                        return Err(HostError::state(format!("Unknown ship scope: {other}")))
+                        return Err(HostError::state(format!("Unknown ship scope: {other}")));
                     }
                 },
             })
@@ -316,7 +316,7 @@ pub(super) fn parse_action(request_type: &str, payload: &Value) -> HostResult<Ac
         other => {
             return Err(HostError::state(format!(
                 "Unsupported pull request action: {other}"
-            )))
+            )));
         }
     })
 }
@@ -433,7 +433,7 @@ async fn run_checked(repo_path: &str, args: &[String]) -> HostResult<String> {
     let (code, stdout, stderr) = match run_gh(repo_path, &args).await {
         Ok(output) => output,
         Err(error) if error.wire_message().starts_with("failed to run gh") => {
-            return Err(gh_missing())
+            return Err(gh_missing());
         }
         Err(error) => return Err(error),
     };

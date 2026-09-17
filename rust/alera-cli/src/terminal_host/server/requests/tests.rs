@@ -217,6 +217,61 @@ async fn authenticated_mobile_client_can_request_a_safe_runtime_restart() {
     assert!(inbox_receiver.try_recv().is_err());
 }
 
+#[tokio::test]
+async fn mobile_runtime_settings_update_persists_voice() {
+    let dir = tempfile::tempdir().unwrap();
+    let (handle, mut receiver) = crate::terminal_host::client::ClientHandle::test_channels();
+    let mut actor = crate::terminal_host::server::actor_test_harness::test_actor(
+        &dir,
+        std::collections::HashMap::from([(
+            1,
+            crate::terminal_host::server::actor_test_harness::mobile_client(handle, "phone"),
+        )]),
+        std::collections::HashMap::new(),
+    )
+    .await;
+
+    actor
+        .handle_line(
+            1,
+            serde_json::json!({
+                "id": 1,
+                "type": "mobile.runtimeSettings.update",
+                "payload": {
+                    "voice": {
+                        "pipeline": "realtime",
+                        "sttProvider": "localWhisper",
+                        "ttsProvider": "geminiFlashTts",
+                        "realtimeProvider": "geminiFlashLive",
+                        "ackWhileThinking": true
+                    }
+                },
+            })
+            .to_string(),
+        )
+        .await;
+
+    let mut response = None;
+    while let Some(frame) = receiver.recv().await {
+        let value = frame.as_json().unwrap();
+        if value.get("id") == Some(&serde_json::json!(1)) {
+            response = Some(value);
+            break;
+        }
+    }
+    let response = response.expect("mobile.runtimeSettings.update response");
+    assert_eq!(response["ok"], true);
+    assert_eq!(response["payload"]["voice"]["pipeline"], "realtime");
+    assert_eq!(response["payload"]["voice"]["ackWhileThinking"], true);
+
+    let settings = actor.runtime_store.voice_settings().await.unwrap();
+    assert_eq!(
+        settings.pipeline,
+        alera_core::runtime::RuntimeVoicePipeline::Realtime
+    );
+    assert!(settings.ack_while_thinking);
+}
+
 #[test]
 fn mobile_allowlist_includes_workspace_mutations() {
     assert!(mobile_request_allowed("workspace.setPinned"));

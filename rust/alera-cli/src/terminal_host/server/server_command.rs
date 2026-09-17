@@ -303,4 +303,31 @@ pub enum ServerCommand {
     },
     Account(account_requests::AccountCommand),
     Push(push_delivery::PushCommand),
+    VoiceRealtime {
+        generation: u64,
+        event: super::voice_realtime::VoiceRealtimeEvent,
+    },
+    VoiceRealtimeReconnect {
+        generation: u64,
+    },
+    VoiceGeminiTranscriptSettle {
+        generation: u64,
+        token: u64,
+    },
+    VoiceTurnFinished {
+        client_id: u64,
+        request_id: i64,
+        job_id: u64,
+        session_generation: u64,
+        from_realtime: bool,
+        cancel_home: Option<bool>,
+        result: HostResult<String>,
+    },
+    VoiceSynthesizeFinished {
+        client_id: u64,
+        request_id: i64,
+        job_id: u64,
+        session_generation: u64,
+        result: HostResult<Value>,
+    },
 }

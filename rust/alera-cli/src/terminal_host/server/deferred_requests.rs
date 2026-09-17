@@ -72,6 +72,22 @@ impl ServerActor {
                     .await?;
                 Ok(true)
             }
+            "voice.turn" | "mobile.voice.turn" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                if payload.get("audioBase64").is_some() {
+                    self.start_voice_turn(client_id, request_id, payload)?;
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            }
+            "voice.synthesize" | "mobile.voice.synthesize" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_voice_synthesize(client_id, request_id, payload)?;
+                Ok(true)
+            }
             "aiDictation.transcribe" => {
                 self.require_authenticated_local_request(client_id, request_type)?;
                 self.start_ai_dictation(client_id, request_id, payload)
