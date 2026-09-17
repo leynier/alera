@@ -206,6 +206,25 @@ void main() {
     expect(find.text('Fix Failed Checks'), findsOneWidget);
   });
 
+  testWidgets('restack stays on a linked review without write capability', (
+    tester,
+  ) async {
+    final client = _client(_snapshot())..pullRequestActionsSupported = false;
+    addTearDown(client.dispose);
+    await _openPullRequest(tester, client);
+
+    expect(find.textContaining('Comments are read-only'), findsOneWidget);
+    expect(find.text('Squash and Merge'), findsNothing);
+    expect(
+      find.byKey(const Key('pull-request-restack-button')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('pull-request-restack-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Codex'), findsOneWidget);
+  });
+
   testWidgets('restack on the empty composer sits above ship', (tester) async {
     final client = _client(_snapshot(withReview: false))
       ..pullRequestShipSupported = true;

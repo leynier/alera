@@ -218,26 +218,26 @@ class const _Body({
             ],
           ],
           const SizedBox(height: AleraTokens.space12),
+          if (review.isOpen) ...<Widget>[
+            PullRequestRestackButton(
+              enabled: idle,
+              onPressed: () => unawaited(
+                dispatchPullRequestRestack(
+                  context: context,
+                  ref: ref,
+                  hostId: hostId,
+                  workspaceId: workspaceId,
+                ),
+              ),
+            ),
+            const SizedBox(height: AleraTokens.space8),
+          ],
           if (actions == null)
             const AleraNotice(
               icon: AleraIcons.info,
               message: 'Comments are read-only. Update the paired Alera runtime to reply, edit, and merge from the phone.',
             )
           else ...<Widget>[
-            if (review.isOpen) ...<Widget>[
-              PullRequestRestackButton(
-                enabled: idle,
-                onPressed: () => unawaited(
-                  dispatchPullRequestRestack(
-                    context: context,
-                    ref: ref,
-                    hostId: hostId,
-                    workspaceId: workspaceId,
-                  ),
-                ),
-              ),
-              const SizedBox(height: AleraTokens.space8),
-            ],
             PullRequestActionBar(
               actions: availablePullRequestReviewActions(snapshot),
               isEnabled: (action) =>

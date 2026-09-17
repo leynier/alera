@@ -61,6 +61,7 @@ class PullRequestAgentWatchController
     required AgentTaskDispatchBinding binding,
     PullRequestAgentWatchScope watchScope = PullRequestAgentWatchScope.defaults,
     PullRequestAgentWatchDispatchMark? lastDispatch,
+    MobilePullRequestSnapshot? snapshot,
   }) {
     state = PullRequestAgentWatchSession(
       hostId: hostId,
@@ -72,7 +73,7 @@ class PullRequestAgentWatchController
       lastDispatch: lastDispatch,
     );
     _syncTimer();
-    unawaited(_evaluate());
+    unawaited(_evaluate(panel: snapshot ?? _loadedPanel()));
   }
 
   void stop() {
@@ -122,6 +123,14 @@ class PullRequestAgentWatchController
     }
   }
 
+  MobilePullRequestSnapshot? _loadedPanel() {
+    final provider = pullRequestControllerProvider(hostId, workspaceId);
+    if (!ref.exists(provider)) {
+      return null;
+    }
+    return ref.read(provider).value;
+  }
+
   Future<void> _evaluate({MobilePullRequestSnapshot? panel}) async {
     final session = state;
     if (session == null || _inFlight) {
@@ -129,9 +138,10 @@ class PullRequestAgentWatchController
     }
     _inFlight = true;
     try {
-      final snapshot = panel == null
+      final resolved = panel ?? _loadedPanel();
+      final snapshot = resolved == null
           ? null
-          : pullRequestAgentWatchSnapshotFrom(panel);
+          : pullRequestAgentWatchSnapshotFrom(resolved);
       final evaluation = evaluatePullRequestAgentWatch(
         session: session,
         snapshot: snapshot,
@@ -143,9 +153,9 @@ class PullRequestAgentWatchController
           stop();
           return;
         case PullRequestAgentWatchAction.dispatch:
-          await _dispatch(session, evaluation, panel);
+          await _dispatch(session, evaluation, resolved);
         case PullRequestAgentWatchAction.merge:
-          await _merge(session, evaluation.headSha, panel);
+          await _merge(session, evaluation.headSha, resolved);
       }
     } finally {
       _inFlight = false;

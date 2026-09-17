@@ -124,6 +124,7 @@ Future<void> startPullRequestAgentWatch({
         binding: binding,
         watchScope: watchScope,
         lastDispatch: dispatched,
+        snapshot: snapshot,
       );
 }
 
