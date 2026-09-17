@@ -56,6 +56,23 @@ pub struct GitRepositoryState {
     pub head_message: Option<String>,
 }
 
+impl GitRepositoryState {
+    /// True when HEAD tracks a remote branch with the same name.
+    ///
+    /// New worktrees inherit the source branch's upstream (`origin/develop`
+    /// while HEAD is `fix/foo`). Git's default `push.default=simple` then
+    /// refuses a bare `git push`, so Push/Publish must treat that as
+    /// unpublished and push `origin/<local-branch>` instead.
+    pub fn tracks_same_named_upstream(&self) -> bool {
+        let Some(upstream) = self.upstream.as_deref().filter(|value| !value.is_empty()) else {
+            return false;
+        };
+        upstream
+            .split_once('/')
+            .is_some_and(|(_, tracked)| !tracked.is_empty() && tracked == self.branch)
+    }
+}
+
 pub struct GitStashEntry {
     pub index: u32,
     pub reference: String,
