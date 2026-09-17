@@ -34,6 +34,7 @@ final _attribute = RegExp(
   '\\b([a-zA-Z][a-zA-Z0-9-]*)\\s*=\\s*("([^"]*)"|\'([^\']*)\'|([^\\s>]+))',
 );
 final _br = RegExp(r'<br\s*/?>', caseSensitive: false);
+final _brWithNewline = RegExp(r'<br\s*/?>\n?', caseSensitive: false);
 final _imageMarkdown = RegExp(r'^!\[[^\[\]]*\]\([^()\s]+\)$');
 final _blankLines = RegExp(r'\n{3,}');
 final _uOpen = RegExp(r'<u\b[^>]*>', caseSensitive: false);
@@ -75,7 +76,9 @@ String sanitizePullRequestCommentBody(String body) {
     } else if (inFence) {
       buffer.add(line);
     } else {
-      segment.add(line);
+      // Fence lines and fenced content stay byte-exact, but prose segments
+      // normalize CRLF so a stray \r never leaks into the rendered Markdown.
+      segment.add(stripped);
     }
   }
   flush();
@@ -121,7 +124,9 @@ String _sanitizeHtml(String text) {
     (match) => _preReplacement(match.group(1)!),
   );
   result = _replaceFormatting(result);
-  result = result.replaceAll(_br, '  \n');
+  // A break already ends the line, so one following newline belongs to it;
+  // a second one still separates paragraphs.
+  result = result.replaceAll(_brWithNewline, '  \n');
   result = _replaceBlocks(result);
   result = result.replaceAllMapped(_uOpen, (_) => '<u>');
   result = result.replaceAll(_remainingTag, '');
@@ -131,13 +136,12 @@ String _sanitizeHtml(String text) {
 }
 
 // Anchor labels, table cells and other inline contexts: no links, blocks or
-// code fences, only images, formatting and plain text.
+// code fences, only images, formatting and plain text. There is no <picture>
+// arm here on purpose: the block-level pass above already converted every
+// complete picture, and a picture fallback inner cannot hold another complete
+// picture, so one could never match.
 String _sanitizeInline(String text) {
   var result = text.replaceAll(_htmlComment, '');
-  result = result.replaceAllMapped(
-    _picture,
-    (match) => _pictureReplacement(match.group(1)!),
-  );
   result = result.replaceAllMapped(
     _img,
     (match) => _imageMarkdownForTag(match.group(0)!),
@@ -311,7 +315,7 @@ String _replaceBlocks(String text) {
       caseSensitive: false,
     ),
     (match) {
-      final inner = _sanitizeInline(match.group(2)!).trim();
+      final inner = _sanitizeInline(match.group(1)!).trim();
       if (inner.isEmpty) {
         return '';
       }

@@ -115,4 +115,63 @@ void main() {
     expect(sanitized.indexOf('[ ]'), isNonNegative);
     expect(sanitized.indexOf('[ ]') < sanitized.indexOf('[x]'), isTrue);
   });
+
+  test('converts blockquotes to markdown quote lines', () {
+    expect(
+      sanitizePullRequestCommentBody('<blockquote>quoted</blockquote>'),
+      '\n\n> quoted\n\n',
+    );
+    expect(sanitizePullRequestCommentBody('<blockquote></blockquote>'), '');
+  });
+
+  test('converts pre blocks to fenced code and drops empty ones', () {
+    expect(
+      sanitizePullRequestCommentBody('<pre><code>final x = 1;</code></pre>'),
+      '\n\n```\nfinal x = 1;\n```\n\n',
+    );
+    expect(sanitizePullRequestCommentBody('<pre></pre>'), '');
+  });
+
+  test('converts strikethrough and inline code', () {
+    expect(
+      sanitizePullRequestCommentBody('<s>gone</s> and <code>tick</code>'),
+      '~~gone~~ and `tick`',
+    );
+    expect(sanitizePullRequestCommentBody('<code>a`b</code>'), 'a`b');
+    expect(
+      sanitizePullRequestCommentBody('<code>line1\nline2</code>'),
+      '\n\n```\nline1\nline2\n```\n\n',
+    );
+  });
+
+  test('converts headings, summaries and list items', () {
+    expect(
+      sanitizePullRequestCommentBody('<h2>Title</h2>'),
+      '\n\n## Title\n\n',
+    );
+    expect(
+      sanitizePullRequestCommentBody(
+        '<details><summary>More</summary>hidden</details>',
+      ),
+      contains('**More**'),
+    );
+    expect(
+      sanitizePullRequestCommentBody('<ul><li>one</li><li>two</li></ul>'),
+      contains('- one'),
+    );
+  });
+
+  test('handles windows line endings and pictures without images', () {
+    expect(sanitizePullRequestCommentBody('a<br>\r\nb'), 'a  \nb');
+    expect(
+      sanitizePullRequestCommentBody(
+        '<picture><img src="https://example.com/light.png" alt="Logo"></picture>',
+      ),
+      '![Logo](https://example.com/light.png)',
+    );
+    expect(
+      sanitizePullRequestCommentBody('<picture><img alt="Logo"></picture>'),
+      'Logo',
+    );
+  });
 }

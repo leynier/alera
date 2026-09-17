@@ -36,4 +36,11 @@ void main() {
     const body = '```html\n<img src="x">\n```';
     expect(sanitizePullRequestCommentBody(body), body);
   });
+
+  test('converts blockquotes to markdown quote lines', () {
+    expect(
+      sanitizePullRequestCommentBody('<blockquote>quoted</blockquote>'),
+      '\n\n> quoted\n\n',
+    );
+  });
 }
