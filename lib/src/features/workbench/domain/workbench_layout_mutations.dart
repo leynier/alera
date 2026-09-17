@@ -112,6 +112,7 @@ extension WorkbenchLayoutMutations on WorkbenchLayout {
     required String groupId,
     required String tabId,
     int? index,
+    bool activate = true,
   }) {
     final group = groups[groupId];
     if (group == null) {
@@ -125,9 +126,12 @@ extension WorkbenchLayoutMutations on WorkbenchLayout {
     return copyWith(
       groups: <String, WorkbenchPaneGroup>{
         ...groups,
-        groupId: group.copyWith(tabIds: tabIds, activeTabId: tabId),
+        groupId: group.copyWith(
+          tabIds: tabIds,
+          activeTabId: activate ? tabId : (group.activeTabId ?? tabId),
+        ),
       },
-      activeGroupId: groupId,
+      activeGroupId: activate ? groupId : activeGroupId,
     );
   }
 

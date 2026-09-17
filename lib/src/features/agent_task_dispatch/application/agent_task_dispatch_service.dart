@@ -20,6 +20,7 @@ class AgentTaskDispatchService {
     required this.catalog,
     required this._findWorkspace,
     required this._findTab,
+    required this._activeWorkspaceId,
     required this._activateTab,
     required this._openPersistedTab,
     required this._submitPrompt,
@@ -30,8 +31,9 @@ class AgentTaskDispatchService {
   final AgentTaskDispatchCatalog catalog;
   final Workspace? Function(String workspaceId) _findWorkspace;
   final WorkspaceTabRecord? Function(String workspaceId, String tabId) _findTab;
+  final String? Function() _activeWorkspaceId;
   final Future<void> Function(String workspaceId, String tabId) _activateTab;
-  final Future<void> Function(String workspaceId, String tabId)
+  final Future<void> Function(String workspaceId, String tabId, {bool activate})
   _openPersistedTab;
   final Future<bool> Function({
     required Workspace workspace,
@@ -50,8 +52,9 @@ class AgentTaskDispatchService {
 
   Future<AgentTaskDispatchResult> dispatch(
     AgentTaskDispatchRequest request,
-    AgentTaskDispatchSelection selection,
-  ) {
+    AgentTaskDispatchSelection selection, {
+    bool activate = true,
+  }) {
     final prompt = request.prompt.trim();
     if (prompt.isEmpty) {
       throw const AgentTaskDispatchException('The prompt is empty.');
@@ -62,19 +65,22 @@ class AgentTaskDispatchService {
         tabId: tabId,
         prompt: prompt,
         openedNewTab: false,
+        activate: activate,
       ),
       AgentTaskDispatchNewTabSelection(:final profileId) => _dispatchToProfile(
         workspaceId: request.workspaceId,
         profileId: profileId,
         prompt: prompt,
+        activate: activate,
       ),
     };
   }
 
   Future<AgentTaskDispatchResult> dispatchBinding(
     AgentTaskDispatchRequest request,
-    AgentTaskDispatchBinding binding,
-  ) async {
+    AgentTaskDispatchBinding binding, {
+    bool activate = true,
+  }) async {
     final tabId = binding.tabId?.trim();
     if (tabId != null &&
         tabId.isNotEmpty &&
@@ -86,6 +92,7 @@ class AgentTaskDispatchService {
         openedNewTab: false,
         profileId: binding.profileId,
         label: binding.label,
+        activate: activate,
       );
     }
     final profileId = binding.profileId?.trim();
@@ -94,6 +101,7 @@ class AgentTaskDispatchService {
         workspaceId: request.workspaceId,
         profileId: profileId,
         prompt: request.prompt,
+        activate: activate,
       );
     }
     throw const AgentTaskDispatchException(
@@ -106,6 +114,7 @@ class AgentTaskDispatchService {
     required String tabId,
     required String prompt,
     required bool openedNewTab,
+    required bool activate,
     String? profileId,
     String? label,
   }) async {
@@ -116,7 +125,9 @@ class AgentTaskDispatchService {
         'The selected agent is no longer available.',
       );
     }
-    await _activateTab(workspaceId, tabId);
+    if (_shouldActivate(workspaceId, activate)) {
+      await _activateTab(workspaceId, tabId);
+    }
     if (!await _submitPrompt(workspace: workspace, tab: tab, prompt: prompt)) {
       throw const AgentTaskDispatchException(
         'Could not send the prompt to the agent.',
@@ -137,6 +148,7 @@ class AgentTaskDispatchService {
     required String workspaceId,
     required String profileId,
     required String prompt,
+    required bool activate,
   }) async {
     final profile = _profileById(profileId);
     if (profile == null) {
@@ -155,7 +167,11 @@ class AgentTaskDispatchService {
       prompt: prompt,
       clientMutationId: _createMutationId(),
     );
-    await _openPersistedTab(workspaceId, launch.tabId);
+    await _openPersistedTab(
+      workspaceId,
+      launch.tabId,
+      activate: _shouldActivate(workspaceId, activate),
+    );
     return AgentTaskDispatchResult(
       workspaceId: workspaceId,
       tabId: launch.tabId,
@@ -165,6 +181,14 @@ class AgentTaskDispatchService {
       agentType:
           AgentType.tryParse(launch.agentType) ??
           AgentType.tryParse(profile.agentType),
+    );
+  }
+
+  bool _shouldActivate(String workspaceId, bool activate) {
+    return agentTaskDispatchShouldActivate(
+      activate: activate,
+      workspaceId: workspaceId,
+      activeWorkspaceId: _activeWorkspaceId(),
     );
   }
 

@@ -99,7 +99,7 @@ final class PullRequestAgentWatchControllerProvider
 }
 
 String _$pullRequestAgentWatchControllerHash() =>
-    r'dea5d78f7c62632d06b079d368a19256d69c5f68';
+    r'54d2e10dc14270699baae36fdeb13a73bed78289';
 
 abstract class _$PullRequestAgentWatchController
     extends $Notifier<Map<String, PullRequestAgentWatchSession>> {

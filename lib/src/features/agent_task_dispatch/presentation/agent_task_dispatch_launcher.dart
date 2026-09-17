@@ -108,6 +108,10 @@ Future<AgentTaskDispatchSelection?> showAgentTaskDispatchPicker(
   );
 }
 
+/// Injects [request] into [selection] or [binding].
+///
+/// Pass [activate] false for background follow-ups so the send does not
+/// change the visible workspace, tab, or panel.
 Future<AgentTaskDispatchResult?> completeAgentTaskDispatch({
   WidgetRef? ref,
   required AgentTaskDispatchRequest request,
@@ -115,6 +119,7 @@ Future<AgentTaskDispatchResult?> completeAgentTaskDispatch({
   AgentTaskDispatchBinding? binding,
   AgentTaskDispatchCatalog? catalog,
   AgentTaskDispatchService? service,
+  bool activate = true,
 }) async {
   final resolved =
       service ??
@@ -125,10 +130,11 @@ Future<AgentTaskDispatchResult?> completeAgentTaskDispatch({
       );
   try {
     final result = selection != null
-        ? await resolved.dispatch(request, selection)
+        ? await resolved.dispatch(request, selection, activate: activate)
         : await resolved.dispatchBinding(
             request,
             binding ?? const AgentTaskDispatchBinding(),
+            activate: activate,
           );
     AleraToast.publish(
       message: result.openedNewTab

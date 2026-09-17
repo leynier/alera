@@ -100,10 +100,14 @@ void main() {
       final profile = _profile('profile-1', 'Codex Builder', now);
       String? launchedPrompt;
       String? openedTab;
+      var openedActivate = false;
       final service = _service(
         catalog: AgentTaskDispatchCatalog(profiles: <AgentProfile>[profile]),
         workspace: workspace,
-        onOpenPersisted: (tabId) => openedTab = tabId,
+        onOpenPersisted: (tabId, {required bool activate}) {
+          openedTab = tabId;
+          openedActivate = activate;
+        },
         onLaunch: (prompt) {
           launchedPrompt = prompt;
           return const AgentProfileLaunchResult(
@@ -125,6 +129,7 @@ void main() {
 
       expect(launchedPrompt, 'Fix the failing checks.');
       expect(openedTab, 'tab-new');
+      expect(openedActivate, isTrue);
       expect(result.openedNewTab, isTrue);
       expect(result.tabId, 'tab-new');
       expect(result.profileId, 'profile-1');
@@ -162,6 +167,7 @@ void main() {
     test('reuses a binding tab when it is still present', () async {
       final tab = _tab('tab-1');
       var submits = 0;
+      String? activated;
       final service = _service(
         catalog: buildAgentTaskDispatchCatalog(
           tabs: <WorkspaceTabRecord>[tab],
@@ -172,6 +178,7 @@ void main() {
         ),
         workspace: _workspace(),
         tab: tab,
+        onActivate: (tabId) => activated = tabId,
         onSubmit: (_) {
           submits += 1;
           return true;
@@ -187,6 +194,7 @@ void main() {
       );
 
       expect(submits, 1);
+      expect(activated, 'tab-1');
     });
 
     test(
@@ -275,8 +283,9 @@ AgentTaskDispatchService _service({
   required AgentTaskDispatchCatalog catalog,
   required Workspace workspace,
   WorkspaceTabRecord? tab,
+  String? Function()? activeWorkspaceId,
   void Function(String tabId)? onActivate,
-  void Function(String tabId)? onOpenPersisted,
+  void Function(String tabId, {required bool activate})? onOpenPersisted,
   bool Function(String prompt)? onSubmit,
   AgentProfileLaunchResult Function(String prompt)? onLaunch,
 }) {
@@ -285,9 +294,10 @@ AgentTaskDispatchService _service({
     findWorkspace: (id) => id == workspace.id ? workspace : null,
     findTab: (workspaceId, tabId) =>
         workspaceId == workspace.id && tab?.id == tabId ? tab : null,
+    activeWorkspaceId: activeWorkspaceId ?? () => workspace.id,
     activateTab: (workspaceId, tabId) async => onActivate?.call(tabId),
-    openPersistedTab: (workspaceId, tabId) async =>
-        onOpenPersisted?.call(tabId),
+    openPersistedTab: (workspaceId, tabId, {bool activate = true}) async =>
+        onOpenPersisted?.call(tabId, activate: activate),
     submitPrompt: ({required workspace, required tab, required prompt}) async =>
         onSubmit?.call(prompt) ?? false,
     launchProfile:
