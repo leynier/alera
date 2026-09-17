@@ -201,18 +201,16 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                     message: widget.workspace.isMain
                                         ? 'Project folder'
                                         : 'Linked worktree',
-                                    child: Icon(
-                                      widget.workspace.isMain
-                                          ? AleraIcons.workspaceMain
-                                          : AleraIcons.gitFork,
-                                      size: 12,
-                                      color: AleraTokens.foregroundMuted,
-                                      key: Key(
-                                        widget.workspace.isMain
-                                            ? 'workspace-tray-home'
-                                            : 'workspace-tray-worktree',
-                                      ),
-                                    ),
+                                    child: widget.workspace.isMain
+                                        ? const Icon(
+                                            AleraIcons.workspaceMain,
+                                            size: 12,
+                                            color: AleraTokens.foregroundMuted,
+                                            key: Key('workspace-tray-home'),
+                                          )
+                                        : const AleraLinkedWorktreeIcon(
+                                            key: Key('workspace-tray-worktree'),
+                                          ),
                                   ),
                                 ],
                                 if (widget.workspace.isPinned) ...<Widget>[

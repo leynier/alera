@@ -1,4 +1,5 @@
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/icons/alera_linked_worktree_icon.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_graph_indicators.dart';
 import 'package:flutter/material.dart';
@@ -58,7 +59,8 @@ void main() {
         tester,
         WorkspaceRoleBadge(workspace: workspace(parentWorkspaceId: 'parent')),
       );
-      expect(find.byIcon(AleraIcons.gitFork), findsOneWidget);
+      expect(find.byType(AleraLinkedWorktreeIcon), findsOneWidget);
+      expect(find.byIcon(AleraIcons.gitBranch), findsOneWidget);
       expect(find.byTooltip('Linked worktree'), findsOneWidget);
       expect(find.text('default'), findsNothing);
       expect(find.text('Child'), findsNothing);
@@ -69,7 +71,18 @@ void main() {
       tester,
     ) async {
       await pump(tester, WorkspaceRoleBadge(workspace: workspace()));
-      expect(find.byIcon(AleraIcons.gitFork), findsOneWidget);
+      expect(find.byType(AleraLinkedWorktreeIcon), findsOneWidget);
+      expect(
+        tester
+            .widget<RotatedBox>(
+              find.descendant(
+                of: find.byType(AleraLinkedWorktreeIcon),
+                matching: find.byType(RotatedBox),
+              ),
+            )
+            .quarterTurns,
+        AleraLinkedWorktreeIcon.quarterTurns,
+      );
       expect(find.byTooltip('Linked worktree'), findsOneWidget);
       expect(find.text('default'), findsNothing);
       expect(find.text('Primary'), findsNothing);

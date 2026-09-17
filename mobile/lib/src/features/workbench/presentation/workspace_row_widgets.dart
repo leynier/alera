@@ -1,6 +1,7 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/design_system/icons/alera_linked_worktree_icon.dart';
 import 'package:alera_mobile/src/features/linked_issues/domain/mobile_linked_issue.dart';
 import 'package:alera_mobile/src/features/linked_issues/presentation/mobile_linked_issue_icon.dart';
 import 'package:alera_mobile/src/features/pull_requests/domain/mobile_pull_request_watch.dart';
@@ -83,11 +84,7 @@ class const MobileWorkspaceListRow({
         const SizedBox(width: AleraTokens.space6),
         const Tooltip(
           message: 'Linked worktree',
-          child: Icon(
-            AleraIcons.gitFork,
-            size: _trayIconSize,
-            color: AleraTokens.foregroundMuted,
-          ),
+          child: AleraLinkedWorktreeIcon(size: _trayIconSize),
         ),
       ],
       if (workspace.isPinned && !row.isPinnedCopy) ...<Widget>[
