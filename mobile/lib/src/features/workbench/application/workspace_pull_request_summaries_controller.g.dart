@@ -68,7 +68,7 @@ final class WorkspacePullRequestSummariesControllerProvider
 }
 
 String _$workspacePullRequestSummariesControllerHash() =>
-    r'8843c35f77b5f3e71998fc5a1086fb6b4f4a13ef';
+    r'475e8314446cb97608de5e5e9687dd87c4ffac51';
 
 /// Every workspace row indicator on one host. Refreshed when the runtime
 /// reports topology or link changes; a transient failure keeps the last
