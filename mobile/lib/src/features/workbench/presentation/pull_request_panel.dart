@@ -272,8 +272,9 @@ class const _Body({
           AleraSectionHeader(
             label: 'Checks',
             padding: const EdgeInsets.only(bottom: AleraTokens.space8),
-            trailing: Row(
-              mainAxisSize: .min,
+            trailing: Wrap(
+              alignment: .end,
+              crossAxisAlignment: .center,
               children: <Widget>[
                 if (review.checks.isNotEmpty)
                   Text(
