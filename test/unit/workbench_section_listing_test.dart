@@ -227,16 +227,12 @@ void main() {
   test('selectedSectionIds filters workspaces and section headers', () {
     final state = _state();
     final filtered = state.copyWith(
-      viewPrefs: state.viewPrefs.copyWith(
-        selectedSectionIds: {'a'},
-      ),
+      viewPrefs: state.viewPrefs.copyWith(selectedSectionIds: {'a'}),
     );
     expect(countVisibleWorkspaces(filtered), 2);
     final rows = buildSidebarRows(filtered);
     expect(
-      rows
-          .whereType<WorkbenchSectionHeaderRow>()
-          .map((row) => row.label),
+      rows.whereType<WorkbenchSectionHeaderRow>().map((row) => row.label),
       ['Alpha'],
     );
     expect(
