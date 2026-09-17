@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
+
 import 'package:alera/src/shared/infra/runtime/runtime_change_coalescer.dart';
 
 import 'package:alera/src/features/pull_requests/infra/runtime_pull_request_watch_repository.dart';
@@ -169,6 +172,41 @@ void main() {
       container.read(workbenchControllerProvider).activeWorkspaceId,
       'other',
     );
+    for (final provider in GitHostingProvider.values) {
+      container
+          .read(watchProvider.notifier)
+          .onPanelState(
+            'w',
+            WorkspacePullRequestState(
+              identity: GitRemoteIdentity(
+                provider: provider,
+                host: 'forge.example',
+                owner: 'owner',
+                repo: 'repo',
+              ),
+            ),
+          );
+      await settle();
+      if (provider == GitHostingProvider.github) {
+        expect(container.read(watchProvider)['w'], isNotNull);
+      } else {
+        expect(
+          container.read(watchProvider),
+          isEmpty,
+          reason: '${provider.name} must stop when its review disappears',
+        );
+        expect(runtime.watch, isNull);
+        await container
+            .read(watchProvider.notifier)
+            .start(
+              scope: _scope,
+              reviewNumber: 42,
+              mode: .fixAndMerge,
+              binding: const AgentTaskDispatchBinding(tabId: 'desktop-agent'),
+            );
+        await settle();
+      }
+    }
     runtime.watch = null;
     runtime.changed();
     await settle();

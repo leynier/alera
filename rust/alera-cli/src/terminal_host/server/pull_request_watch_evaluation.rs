@@ -147,16 +147,16 @@ pub(super) fn evaluate(watch: &PullRequestWatch, snapshot: &Value) -> Evaluation
         && thread_ids.is_empty()
     {
         if let Some(head) = head.filter(|head| Some(head) != watch.last_merged_head_sha.as_ref()) {
-            for method in ["squash", "mergeCommit", "rebase"] {
-                if snapshot["mergeMethods"]
-                    .as_array()
-                    .is_some_and(|methods| methods.iter().any(|m| m == method))
-                {
-                    return Evaluation::Merge {
-                        head,
-                        method: method.into(),
-                    };
-                }
+            if let Some(method) = snapshot["mergeMethods"].as_array().and_then(|methods| {
+                methods
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .find(|method| matches!(*method, "mergeCommit" | "squash" | "rebase"))
+            }) {
+                return Evaluation::Merge {
+                    head,
+                    method: method.into(),
+                };
             }
         }
     }
@@ -177,6 +177,25 @@ mod tests {
             "checks":[{"bucket":"pass"}],"comments":[],"commentsTruncated":false
         }})
     }
+    #[test]
+    fn merge_method_follows_snapshot_preference_order() {
+        for (methods, expected) in [
+            (json!(["mergeCommit", "squash", "rebase"]), "mergeCommit"),
+            (json!(["squash", "rebase"]), "squash"),
+            (json!(["rebase", "squash"]), "rebase"),
+        ] {
+            let mut snapshot = snapshot();
+            snapshot["mergeMethods"] = methods;
+            assert_eq!(
+                evaluate(&watch(), &snapshot),
+                Evaluation::Merge {
+                    head: "abc".into(),
+                    method: expected.into()
+                }
+            );
+        }
+    }
+
     #[test]
     fn green_review_merges_only_with_complete_known_state() {
         assert_eq!(

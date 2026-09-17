@@ -203,8 +203,18 @@ class PullRequestAgentWatchController extends _$PullRequestAgentWatchController
     }
     try {
       final snapshot = _snapshotFor(session, panel: panel);
-      if ((snapshot?.review == null ||
-              snapshot?.review?.provider == GitHostingProvider.github) &&
+      final provider =
+          snapshot?.review?.provider ??
+          (panel ??
+                  ref
+                      .read(
+                        workspacePullRequestControllerProvider(session.scope),
+                      )
+                      .asData
+                      ?.value)
+              ?.identity
+              ?.provider;
+      if (provider == GitHostingProvider.github &&
           await ref
               .read(pullRequestAgentWatchRepositoryProvider)
               .supportsExecution()) {
