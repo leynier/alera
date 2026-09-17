@@ -125,7 +125,11 @@ class _NewTabButtonState extends State<_NewTabButton> {
             value: _NewAgentProfileTabAction(profile.id),
             height: AleraTokens.minTapTarget,
             child: _NewTabMenuRow(
-              leading: Icon(Icons.smart_toy, size: AleraTokens.space20),
+              leading: AgentIdentityIcon(
+                agentType: profile.agentType,
+                size: AleraTokens.space20,
+                showTooltip: false,
+              ),
               label: profile.name,
             ),
           ),
