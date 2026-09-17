@@ -132,3 +132,39 @@ fn workspace_pr_watch_help_documents_start_stop_and_defaults() {
         "start should document scope flags: {start}"
     );
 }
+
+#[test]
+fn workspace_section_commands_are_documented() {
+    let workspace = clap_help(&["workspace"]);
+    assert!(
+        workspace.contains("section"),
+        "workspace help should list section: {workspace}"
+    );
+    let section = clap_help(&["workspace", "section"]);
+    for verb in ["list", "create", "set", "clear", "remove"] {
+        assert!(
+            section.contains(verb),
+            "workspace section should list {verb}: {section}"
+        );
+    }
+    let create = clap_help(&["workspace", "section", "create"]);
+    assert!(
+        create.contains("--name") && create.contains("--workspace-id"),
+        "section create should document name and workspace: {create}"
+    );
+    let set = clap_help(&["workspace", "section", "set"]);
+    assert!(
+        set.contains("--section") && set.contains("--section-id") && set.contains("--workspace-id"),
+        "section set should document name, id, and workspace: {set}"
+    );
+    let add = clap_help(&["workspace", "add"]);
+    assert!(
+        add.contains("--section") && add.contains("--section-id"),
+        "workspace add should document optional section flags: {add}"
+    );
+    let start = clap_help(&["workspace", "start"]);
+    assert!(
+        start.contains("--section") && start.contains("--section-id"),
+        "workspace start should document optional section flags: {start}"
+    );
+}

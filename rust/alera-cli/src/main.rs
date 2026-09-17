@@ -98,6 +98,7 @@ mod workspace_registration;
 mod workspace_relocation_recovery;
 mod workspace_relocation_setup;
 mod workspace_removal_dependencies;
+mod workspace_sections;
 mod workspace_setup_command;
 mod workspace_start;
 mod worktree_copy;
@@ -357,6 +358,9 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
         }
         WorkspaceAction::PrWatch(command) => {
             return workspace_pr_watch_commands::run(runtime, command, json_output).await;
+        }
+        WorkspaceAction::Section(command) => {
+            return workspace_sections::run(runtime, command, json_output).await;
         }
         WorkspaceAction::Setup(args) => {
             let client = match runtime_host_required(&runtime).await {

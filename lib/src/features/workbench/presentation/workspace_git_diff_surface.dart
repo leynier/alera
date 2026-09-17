@@ -457,6 +457,7 @@ class _WorkspaceGitDiffSurfaceState
         .read(workbenchControllerProvider.notifier)
         .openEditorTab(
           workspace: widget.workspace,
+          sourceKey: 'tab:${widget.tab.id}',
           relativePath: _sourceControlScope.toWorkspaceRelativePath(file.path)!,
         );
   }
