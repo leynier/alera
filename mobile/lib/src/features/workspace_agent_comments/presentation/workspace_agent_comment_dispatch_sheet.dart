@@ -6,12 +6,16 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snaps
 import 'package:alera_mobile/src/features/workspace_agent_comments/domain/workspace_agent_comment_target.dart';
 import 'package:flutter/material.dart';
 
-/// Lets the user pick a running agent or an Agent Profile for queued comments.
-/// Pops with the chosen target, or `null` when dismissed.
+/// Lets the user pick a running agent or an Agent Profile.
+///
+/// File comments, Restack, Fix Failed Checks, and Watch and Fix share this
+/// sheet. Pops with the chosen target, or `null` when dismissed.
 Future<WorkspaceAgentCommentTarget?> showWorkspaceAgentCommentDispatchSheet(
   BuildContext context, {
   required List<AgentPresenceSummary> runningAgents,
   required List<AgentProfileSummary> profiles,
+  String title = 'Send Comments to Agent',
+  String? message,
 }) {
   return showModalBottomSheet<WorkspaceAgentCommentTarget>(
     context: context,
@@ -20,6 +24,8 @@ Future<WorkspaceAgentCommentTarget?> showWorkspaceAgentCommentDispatchSheet(
     builder: (context) => WorkspaceAgentCommentDispatchSheet(
       runningAgents: runningAgents,
       profiles: profiles,
+      title: title,
+      message: message,
     ),
   );
 }
@@ -28,10 +34,16 @@ class const WorkspaceAgentCommentDispatchSheet({
   super.key,
   required final List<AgentPresenceSummary> runningAgents,
   required final List<AgentProfileSummary> profiles,
+  this.title = 'Send Comments to Agent',
+  this.message,
 }) extends StatelessWidget {
+  final String title;
+  final String? message;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final description = message?.trim();
     return SafeArea(
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -44,11 +56,23 @@ class const WorkspaceAgentCommentDispatchSheet({
               padding: const EdgeInsets.symmetric(
                 horizontal: AleraTokens.space16,
               ),
-              child: Text(
-                'Send Comments to Agent',
-                style: theme.textTheme.titleMedium,
-              ),
+              child: Text(title, style: theme.textTheme.titleMedium),
             ),
+            if (description != null && description.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AleraTokens.space16,
+                  AleraTokens.space8,
+                  AleraTokens.space16,
+                  0,
+                ),
+                child: Text(
+                  description,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AleraTokens.foregroundMuted,
+                  ),
+                ),
+              ),
             if (runningAgents.isEmpty && profiles.isEmpty)
               const Padding(
                 padding: AleraTokens.contentPadding,

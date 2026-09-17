@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
-import 'package:alera_mobile/src/design_system/badges/alera_badge.dart';
-import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_refresh_progress.dart';
@@ -11,15 +9,22 @@ import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart'
 import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_actions.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_action_controller.dart';
+import 'package:alera_mobile/src/features/workbench/application/pull_request_agent_watch_controller.dart';
+import 'package:alera_mobile/src/features/workbench/application/pull_request_agent_watch_scope_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
+import 'package:alera_mobile/src/features/workbench/domain/pull_request_agent_watch.dart';
+import 'package:alera_mobile/src/features/workbench/domain/pull_request_agent_watch_scope.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_action_bar.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/pull_request_agent_actions.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/pull_request_agent_dispatch.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_checks_section.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_conversation_section.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_panel_actions.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/pull_request_panel_header.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/pull_request_restack_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class const PullRequestPanel({
   super.key,
@@ -50,6 +55,25 @@ class const PullRequestPanel({
     final busy = ref.watch(
       pullRequestActionControllerProvider(hostId, workspaceId),
     );
+    final watchSession = ref.watch(
+      pullRequestAgentWatchControllerProvider(hostId, workspaceId),
+    );
+    final watchScope =
+        ref.watch(pullRequestAgentWatchScopeControllerProvider).value ??
+        PullRequestAgentWatchScope.defaults;
+    ref.listen(provider, (previous, next) {
+      final snapshot = next.value;
+      if (snapshot != null) {
+        ref
+            .read(
+              pullRequestAgentWatchControllerProvider(
+                hostId,
+                workspaceId,
+              ).notifier,
+            )
+            .onSnapshot(snapshot);
+      }
+    });
     final actions = supportsActions
         ? PullRequestPanelActions(
             ref: ref,
@@ -93,9 +117,13 @@ class const PullRequestPanel({
           ),
         Expanded(
           child: _Body(
+            hostId: hostId,
+            workspaceId: workspaceId,
             snapshot: snapshot,
             actions: actions,
             busy: busy,
+            watchSession: watchSession,
+            watchScope: watchScope,
             onRefresh: refresh,
             onReload: reload,
             canGenerate: canGenerate && snapshot.aiAssistEnabled,
@@ -109,21 +137,27 @@ class const PullRequestPanel({
 }
 
 class const _Body({
+  required final String hostId,
+  required final String workspaceId,
   required final MobilePullRequestSnapshot snapshot,
   required final PullRequestPanelActions? actions,
   required final PullRequestActionKind? busy,
+  required final PullRequestAgentWatchSession? watchSession,
+  required final PullRequestAgentWatchScope watchScope,
   required final Future<void> Function() onRefresh,
   required final VoidCallback onReload,
   required final bool canGenerate,
   required final bool canShip,
   required final bool offerRemoveWorkspace,
-}) extends StatelessWidget {
+}) extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final review = snapshot.review;
     final actions = this.actions;
     if (review == null) {
-      return _NoReview(
+      return PullRequestPanelEmptyState(
+        hostId: hostId,
+        workspaceId: workspaceId,
         snapshot: snapshot,
         actions: actions,
         busy: busy,
@@ -134,6 +168,8 @@ class const _Body({
     }
     final theme = Theme.of(context);
     final idle = busy == null;
+    final watching = watchSession != null;
+    final checksFailed = pullRequestChecksFailed(review.checks);
     return RefreshIndicator(
       onRefresh: onRefresh,
       // Pull-to-refresh stays disabled while a write runs, like the header
@@ -148,12 +184,65 @@ class const _Body({
           AleraTokens.space24,
         ),
         children: <Widget>[
-          _Header(
+          PullRequestPanelHeader(
             snapshot: snapshot,
             review: review,
             onRefresh: idle ? () => unawaited(onRefresh()) : null,
+            watchButton: PullRequestWatchHeaderButton(
+              reviewIsOpen: review.isOpen,
+              busy: !idle,
+              watchMode: watchSession?.mode,
+              watchScope: watchScope,
+              canFixAndMerge: actions != null,
+              onWatchScopeChanged: (scope) =>
+                  unawaited(persistPullRequestAgentWatchScope(ref, scope)),
+              onWatchStarted: (result) => unawaited(
+                startPullRequestAgentWatch(
+                  context: context,
+                  ref: ref,
+                  hostId: hostId,
+                  workspaceId: workspaceId,
+                  review: review,
+                  mode: result.mode,
+                  watchScope: result.scope,
+                  snapshot: snapshot,
+                ),
+              ),
+              onStopAgentWatch: watching
+                  ? () => ref
+                        .read(
+                          pullRequestAgentWatchControllerProvider(
+                            hostId,
+                            workspaceId,
+                          ).notifier,
+                        )
+                        .stop()
+                  : null,
+            ),
           ),
+          if (watchSession != null) ...<Widget>[
+            const SizedBox(height: AleraTokens.space8),
+            PullRequestWatchStatus(mode: watchSession!.mode),
+            if (watchSession!.lastError case final error?) ...<Widget>[
+              const SizedBox(height: AleraTokens.space8),
+              AleraNotice(icon: AleraIcons.warning, message: error),
+            ],
+          ],
           const SizedBox(height: AleraTokens.space12),
+          if (review.isOpen) ...<Widget>[
+            PullRequestRestackButton(
+              enabled: idle,
+              onPressed: () => unawaited(
+                dispatchPullRequestRestack(
+                  context: context,
+                  ref: ref,
+                  hostId: hostId,
+                  workspaceId: workspaceId,
+                ),
+              ),
+            ),
+            const SizedBox(height: AleraTokens.space8),
+          ],
           if (actions == null)
             const AleraNotice(
               icon: AleraIcons.info,
@@ -183,14 +272,31 @@ class const _Body({
           AleraSectionHeader(
             label: 'Checks',
             padding: const EdgeInsets.only(bottom: AleraTokens.space8),
-            trailing: review.checks.isEmpty
-                ? null
-                : Text(
+            trailing: Wrap(
+              alignment: .end,
+              crossAxisAlignment: .center,
+              children: <Widget>[
+                if (review.checks.isNotEmpty)
+                  Text(
                     pullRequestChecksSummary(review.checks),
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: AleraTokens.foregroundFaint,
                     ),
                   ),
+                PullRequestFixFailedChecksButton(
+                  visible: review.isOpen && idle && !watching && checksFailed,
+                  onPressed: () => unawaited(
+                    dispatchPullRequestFailedChecks(
+                      context: context,
+                      ref: ref,
+                      hostId: hostId,
+                      workspaceId: workspaceId,
+                      review: review,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           if (review.checks.isEmpty)
             Text(
@@ -218,221 +324,4 @@ class const _Body({
       ),
     );
   }
-}
-
-/// No review to show: say why, and on a runtime that can write, offer to link
-/// one or create one for the workspace branch.
-class const _NoReview({
-  required final MobilePullRequestSnapshot snapshot,
-  required final PullRequestPanelActions? actions,
-  required final PullRequestActionKind? busy,
-  required final Future<void> Function() onRefresh,
-  required final bool canGenerate,
-  required final bool canShip,
-}) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final actions = this.actions;
-    final canWrite =
-        actions != null &&
-        snapshot.provider == 'github' &&
-        snapshot.authStatus == 'authenticated';
-    final idle = busy == null;
-    final suggested = snapshot.suggestedReview;
-    return AleraEmptyState(
-      icon: AleraIcons.gitPullRequest,
-      title: snapshot.identity?.label ?? snapshot.branch ?? 'Pull Request',
-      message:
-          snapshot.unavailableReason ??
-          'No pull request is available for this workspace.',
-      action: Column(
-        mainAxisSize: .min,
-        crossAxisAlignment: .stretch,
-        children: <Widget>[
-          if (canWrite) ...<Widget>[
-            if (canShip)
-              FilledButton.icon(
-                onPressed: idle
-                    ? () => unawaited(actions.ship(context, snapshot))
-                    : null,
-                icon: const Icon(AleraIcons.gitPullRequest),
-                label: const Text('Ship Changes'),
-              ),
-            if (suggested != null)
-              FilledButton.icon(
-                onPressed: idle
-                    ? () => unawaited(
-                        actions.link(
-                          context,
-                          reference: '#${suggested.number}',
-                        ),
-                      )
-                    : null,
-                icon: const Icon(AleraIcons.link),
-                label: Text('Link #${suggested.number}'),
-              ),
-            OutlinedButton.icon(
-              onPressed: idle ? () => unawaited(actions.link(context)) : null,
-              icon: const Icon(AleraIcons.link),
-              label: const Text('Link Pull Request'),
-            ),
-            OutlinedButton.icon(
-              onPressed: idle
-                  ? () => unawaited(
-                      actions.create(
-                        context,
-                        snapshot,
-                        canGenerate: canGenerate,
-                      ),
-                    )
-                  : null,
-              icon: const Icon(AleraIcons.gitPullRequest),
-              label: const Text('Create Pull Request'),
-            ),
-          ],
-          TextButton.icon(
-            onPressed: idle ? () => unawaited(onRefresh()) : null,
-            icon: const Icon(AleraIcons.refresh),
-            label: const Text('Refresh'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class const _Header({
-  required final MobilePullRequestSnapshot snapshot,
-  required final MobilePullRequestReview review,
-  required final VoidCallback? onRefresh,
-}) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final identity = snapshot.identity?.label;
-    final stateLabel = _reviewStateLabel(review);
-    return Column(
-      crossAxisAlignment: .start,
-      children: <Widget>[
-        if (identity != null)
-          Text(
-            identity,
-            maxLines: 1,
-            overflow: .ellipsis,
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: AleraTokens.foregroundMuted,
-            ),
-          ),
-        Row(
-          crossAxisAlignment: .center,
-          children: <Widget>[
-            Expanded(
-              child: Text(review.title, style: theme.textTheme.titleLarge),
-            ),
-            AleraIconButton(
-              tooltip: 'Refresh',
-              icon: AleraIcons.refresh,
-              onPressed: onRefresh,
-            ),
-            if (review.url.isNotEmpty)
-              AleraIconButton(
-                tooltip: 'Open In Browser',
-                icon: AleraIcons.external,
-                onPressed: () => _openUrl(review.url),
-              ),
-          ],
-        ),
-        const SizedBox(height: AleraTokens.space8),
-        Wrap(
-          spacing: AleraTokens.space8,
-          runSpacing: AleraTokens.space6,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: <Widget>[
-            AleraBadge(
-              label: stateLabel,
-              color: _reviewStateColor(stateLabel).withValues(alpha: 0.16),
-              foregroundColor: _reviewStateColor(stateLabel),
-            ),
-            Text('#${review.number}', style: theme.textTheme.bodySmall),
-            if (review.author != null)
-              Text(review.author!, style: theme.textTheme.bodySmall),
-          ],
-        ),
-        if (review.baseRefName != null &&
-            review.headRefName != null) ...<Widget>[
-          const SizedBox(height: AleraTokens.space8),
-          Row(
-            children: <Widget>[
-              const Icon(
-                AleraIcons.gitBranch,
-                size: 14,
-                color: AleraTokens.foregroundMuted,
-              ),
-              const SizedBox(width: AleraTokens.space6),
-              Expanded(
-                child: Text(
-                  review.headRefName!,
-                  maxLines: 1,
-                  overflow: .ellipsis,
-                  style: AleraTokens.monoStyle,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AleraTokens.space6,
-                ),
-                child: Text('into', style: theme.textTheme.bodySmall),
-              ),
-              Flexible(
-                child: Text(
-                  review.baseRefName!,
-                  maxLines: 1,
-                  overflow: .ellipsis,
-                  style: AleraTokens.monoStyle,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-String _reviewStateLabel(MobilePullRequestReview review) {
-  if (review.isDraft) {
-    return 'Draft';
-  }
-  return switch (review.state.toUpperCase()) {
-    'MERGED' => 'Merged',
-    'CLOSED' => 'Closed',
-    'OPEN' => 'Open',
-    _ => _titleCase(review.state),
-  };
-}
-
-Color _reviewStateColor(String label) {
-  return switch (label) {
-    'Open' => AleraTokens.success,
-    'Merged' => AleraTokens.info,
-    'Draft' => AleraTokens.warning,
-    'Closed' => AleraTokens.foregroundMuted,
-    _ => AleraTokens.foregroundMuted,
-  };
-}
-
-String _titleCase(String value) {
-  if (value.isEmpty) {
-    return value;
-  }
-  final lower = value.toLowerCase().replaceAll('_', ' ');
-  return lower[0].toUpperCase() + lower.substring(1);
-}
-
-void _openUrl(String url) {
-  final parsed = Uri.tryParse(url);
-  if (parsed == null) {
-    return;
-  }
-  unawaited(launchUrl(parsed, mode: .externalApplication));
 }
