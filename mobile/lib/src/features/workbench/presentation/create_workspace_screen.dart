@@ -12,7 +12,9 @@ import 'package:alera_mobile/src/features/linked_issues/application/linked_issue
 import 'package:alera_mobile/src/features/linked_issues/domain/mobile_issue_workspace_identity.dart';
 import 'package:alera_mobile/src/features/linked_issues/domain/mobile_linked_issue.dart';
 import 'package:alera_mobile/src/features/linked_issues/presentation/mobile_issue_url_field.dart';
+import 'package:alera_mobile/src/features/projects/domain/preferred_source_branch.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_selection_order.dart';
+import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_project_client.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
@@ -274,6 +276,7 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
         projectId,
         checkoutHostId: checkoutHostId,
       );
+      final projectPreferred = await _preferredSourceFor(projectId);
       if (!mounted ||
           _projectId != projectId ||
           _checkoutHostId != checkoutHostId ||
@@ -282,11 +285,10 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
       }
       setState(() {
         _branches = branches.branches;
-        _sourceBranch =
-            preferredSource != null &&
-                branches.branches.contains(preferredSource)
-            ? preferredSource
-            : (branches.branches.isEmpty ? null : branches.branches.first);
+        _sourceBranch = pickDefaultSourceBranch(
+          branches.branches,
+          preferred: preferredSource ?? projectPreferred,
+        );
         _parentWorkspaceId = isRetryProject ? preferredParent : null;
       });
     } on Object catch (error) {

@@ -11,6 +11,7 @@ import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/linked_issues/domain/issue_details.dart';
 import 'package:alera/src/features/linked_issues/domain/issue_workspace_identity.dart';
 import 'package:alera/src/features/linked_issues/presentation/issue_url_field.dart';
+import 'package:alera/src/features/projects/domain/preferred_source_branch.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_branch_catalog.dart';
 import 'package:alera/src/features/projects/domain/project_selection_order.dart';
@@ -94,6 +95,7 @@ class const PromptWorkspaceDialog({
   final Future<void>? Function(PromptWorkspaceCreateRequest request)?
   enqueuePrompt,
   final String? initialPrompt,
+  final Future<String?> Function(Project project)? loadPreferredSourceBranch,
   final String? initialSourceBranch,
   final String? initialParentWorkspaceId,
   final String? initialHostId,
@@ -211,6 +213,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
     try {
       final catalog = await widget.loadHostBranchCatalog?.call(project, hostId);
       final branches = catalog?.branches ?? await widget.loadBranches(project);
+      final projectPreferred = await _preferredSourceFor(project);
       if (!mounted ||
           _project?.id != project.id ||
           _selectedHostId != hostId ||
@@ -224,7 +227,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
             : null;
         _sourceBranch = (preferred != null && branches.contains(preferred)
             ? preferred
-            : _defaultBranch(branches));
+            : pickDefaultSourceBranch(branches, preferred: projectPreferred));
         _loadingBranches = false;
       });
     } catch (error) {

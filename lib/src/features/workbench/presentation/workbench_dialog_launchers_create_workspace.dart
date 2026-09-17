@@ -121,6 +121,7 @@ Future<void> _showCreateWorkspaceDialogs(
           ref.read(settingsControllerProvider).agents.defaultAgentProfileId,
       initialProject: resolvedInitialProject,
       initialPrompt: retryPrompt?.prompt,
+      loadPreferredSourceBranch: _loadPreferredSourceBranch(ref),
       initialSourceBranch: retryPrompt?.sourceBranch,
       initialParentWorkspaceId: retryPrompt?.parentWorkspaceId,
       initialHostId: retryPrompt?.hostId,
@@ -260,6 +261,7 @@ Widget _buildManualWorkspaceForm(
     embedded: true,
     projects: projects,
     initialProject: resolvedInitialProject,
+    loadPreferredSourceBranch: _loadPreferredSourceBranch(ref),
     initialSourceBranch: retryManual?.sourceBranch,
     initialNewBranchName: retryManual?.newBranchName,
     initialName: retryManual?.name,
@@ -337,6 +339,21 @@ Widget _buildManualWorkspaceForm(
       }
     },
   );
+}
+
+Future<String?> Function(Project project) _loadPreferredSourceBranch(
+  WidgetRef ref,
+) {
+  return (project) async {
+    try {
+      final effective = await ref
+          .read(projectConfigServiceProvider)
+          .resolve(project);
+      return effective.config.newWorkspace.preferredSourceBranch;
+    } catch (_) {
+      return null;
+    }
+  };
 }
 
 Future<List<SshTarget>> _loadSshTargets(WidgetRef ref) async {

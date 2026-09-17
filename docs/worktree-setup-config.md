@@ -22,6 +22,7 @@ setup = [
 ]
 
 [new_workspace]
+source_branch = "develop"
 prompt_append = """
 Follow the project's contributor instructions.
 Run the focused tests before finishing.
@@ -61,6 +62,12 @@ Use setup commands when the workspace needs to install dependencies, generate fi
 `new_workspace.prompt_append` is optional project-specific text added last to the prompt before Alera starts the selected agent profile from the **New Workspace** flow. When the profile has a Custom Prompt, the delivered order is the user prompt, the profile prompt, then this project prompt, with blank lines between non-empty sections. Alera does not send this append text through AI Assist and does not use it to generate the workspace name or branch.
 
 Like the worktree settings, this value can be stored in `alera.toml` or edited under **Settings > Projects**. A UI override replaces the complete repository `alera.toml` config for that project, including this value. It does not disable `.worktreeinclude`.
+
+## Default Source Branch
+
+`new_workspace.source_branch` is the branch pre-selected in Source Branch pickers (New Workspace, including From Prompt) when that branch exists in the project. If the exact name is missing, Alera also tries the local or `origin/` twin. When the configured branch is absent, Alera keeps the previous fallback (`main`, then `master`, then the first listed branch). The value is a branch name, not a required Git ref at save time.
+
+Desktop and mobile Settings > Projects can set the same field as a UI override. `alera workspace add --worktree` uses it when `--source-branch` is omitted. `alera workspace start` still infers from the current workspace first.
 
 ## Where the setup runs
 

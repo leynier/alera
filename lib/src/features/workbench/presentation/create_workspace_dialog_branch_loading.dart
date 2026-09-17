@@ -1,6 +1,22 @@
 part of 'create_workspace_dialog.dart';
 
 extension _CreateWorkspaceDialogBranchLoading on _CreateWorkspaceDialogState {
+  Future<String?> _preferredSourceFor(Project project) async {
+    if (_preferredSourceByProject.containsKey(project.id)) {
+      return _preferredSourceByProject[project.id];
+    }
+    String? value;
+    try {
+      value = await widget.loadPreferredSourceBranch?.call(project);
+    } catch (_) {
+      value = null;
+    }
+    final trimmed = value?.trim();
+    final preferred = (trimmed == null || trimmed.isEmpty) ? null : trimmed;
+    _preferredSourceByProject[project.id] = preferred;
+    return preferred;
+  }
+
   Future<void> _loadBranches(Project project) async {
     final generation = ++_branchLoadGeneration;
     final hostId = _selectedHostId;
@@ -20,17 +36,20 @@ extension _CreateWorkspaceDialogBranchLoading on _CreateWorkspaceDialogState {
     try {
       final catalog = await widget.loadHostBranchCatalog?.call(project, hostId);
       final branches = catalog?.branches ?? await widget.loadBranches(project);
+      final projectPreferred = await _preferredSourceFor(project);
       if (!mounted ||
           _selectedProject?.id != project.id ||
           _selectedHostId != hostId ||
           generation != _branchLoadGeneration) {
         return;
       }
+      _projectPreferredSource = projectPreferred;
       final selected =
           preferredSource.isNotEmpty && branches.contains(preferredSource)
           ? preferredSource
           : _pickDefaultSourceBranch(
               _reuseExistingBranch ? const <String>[] : branches,
+              useProjectPreference: !_reuseExistingBranch,
             );
       _update(() {
         _branches = branches;
@@ -101,7 +120,10 @@ extension _CreateWorkspaceDialogBranchLoading on _CreateWorkspaceDialogState {
     final selectedBranch = _reuseExistingBranch
         ? (preferredSource.isNotEmpty && localBranches.contains(preferredSource)
               ? preferredSource
-              : _pickDefaultSourceBranch(localBranches))
+              : _pickDefaultSourceBranch(
+                  localBranches,
+                  useProjectPreference: false,
+                ))
         : _selectedSourceBranch;
     _update(() {
       _localBranches = localBranches;

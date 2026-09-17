@@ -284,6 +284,19 @@ fn append_copy_rules(
     false
 }
 
+pub(crate) async fn preferred_source_branch(
+    store: &RuntimeStore,
+    project: &Project,
+) -> Option<String> {
+    let config = effective_project_config(store, project).await.ok()?;
+    let branch = config.new_workspace.source_branch.trim();
+    if branch.is_empty() {
+        None
+    } else {
+        Some(branch.to_string())
+    }
+}
+
 pub(crate) async fn effective_project_config(
     store: &RuntimeStore,
     project: &Project,

@@ -18,5 +18,16 @@ void main() {
     });
 
     expect(config.promptAppend, isEmpty);
+    expect(config.sourceBranch, isEmpty);
+    expect(config.preferredSourceBranch, isNull);
+  });
+
+  test('round-trips New Workspace source branch', () {
+    const config = MobileProjectConfig(sourceBranch: 'develop');
+
+    final restored = MobileProjectConfig.fromJson(config.toJson());
+
+    expect(restored.sourceBranch, 'develop');
+    expect(restored.preferredSourceBranch, 'develop');
   });
 }
