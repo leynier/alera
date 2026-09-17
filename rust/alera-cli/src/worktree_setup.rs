@@ -306,12 +306,9 @@ pub(crate) fn resolve_configured_source_branch(
     branches: &[String],
     preferred: &str,
 ) -> Option<String> {
-    for candidate in preferred_source_branch_candidates(preferred) {
-        if branches.iter().any(|branch| branch == &candidate) {
-            return Some(candidate);
-        }
-    }
-    None
+    preferred_source_branch_candidates(preferred)
+        .into_iter()
+        .find(|candidate| branches.iter().any(|branch| branch == candidate))
 }
 
 pub(crate) async fn preferred_source_branch(
