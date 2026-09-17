@@ -50,6 +50,7 @@ part 'workbench_controller_workspace_panel_test_cases.dart';
 part 'workbench_controller_workspace_panel_primary_test_cases.dart';
 part 'workbench_controller_new_workspace_tools_test_cases.dart';
 part 'workbench_controller_workspace_panel_main_test_cases.dart';
+part 'workbench_controller_origin_panel_test_cases.dart';
 part 'workbench_controller_tab_focus_test_cases.dart';
 part 'workbench_controller_tab_focus_close_test_cases.dart';
 part 'workbench_controller_sleep_test_cases.dart';
@@ -93,6 +94,7 @@ void main() {
     _registerWorkspacePanelPrimaryTests();
     _registerNewWorkspaceToolsTests();
     _registerWorkspacePanelMainTests();
+    _registerOriginPanelTests();
     _registerWorkbenchControllerTabFocusTests();
     _registerWorkbenchControllerTabFocusCloseTests();
     _registerWorkbenchControllerSleepTests();

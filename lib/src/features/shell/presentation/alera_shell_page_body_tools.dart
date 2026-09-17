@@ -9,6 +9,13 @@ extension _AleraShellPageBodyTools on _AleraShellPageBodyState {
   }) {
     final controller = ref.read(workbenchControllerProvider.notifier);
     return (tab) {
+      final sourceKey = switch (tab) {
+        WorkbenchContextPanelTab.explorer => WorkspaceTool.explorer.key,
+        WorkbenchContextPanelTab.search => WorkspaceTool.search.key,
+        WorkbenchContextPanelTab.gitDiff => WorkspaceTool.sourceControl.key,
+        WorkbenchContextPanelTab.pullRequests => WorkspaceTool.pullRequest.key,
+      };
+
       return WorkspaceContextSidebar.toolFor(
         tab: tab,
         workspace: workspace,
@@ -41,6 +48,7 @@ extension _AleraShellPageBodyTools on _AleraShellPageBodyState {
           unawaited(
             controller.openFileTab(
               workspace: workspace,
+              sourceKey: sourceKey,
               relativePath: relativePath,
               preview: true,
             ),
@@ -50,6 +58,7 @@ extension _AleraShellPageBodyTools on _AleraShellPageBodyState {
           unawaited(
             controller.openFileTab(
               workspace: workspace,
+              sourceKey: sourceKey,
               relativePath: relativePath,
             ),
           );
@@ -70,6 +79,7 @@ extension _AleraShellPageBodyTools on _AleraShellPageBodyState {
             }) {
               return controller.openGitDiffTab(
                 workspace: workspace,
+                sourceKey: sourceKey,
                 relativePath: relativePath,
                 area: area,
                 scope: scope,
@@ -92,6 +102,7 @@ extension _AleraShellPageBodyTools on _AleraShellPageBodyState {
             }) {
               return controller.openGitCommitDiffTab(
                 workspace: workspace,
+                sourceKey: sourceKey,
                 relativePath: relativePath,
                 oldPath: oldPath,
                 scope: scope,
@@ -108,6 +119,7 @@ extension _AleraShellPageBodyTools on _AleraShellPageBodyState {
           unawaited(() async {
             final tab = await controller.openEditorTab(
               workspace: workspace,
+              sourceKey: sourceKey,
               relativePath: target.relativePath,
               preview: true,
             );

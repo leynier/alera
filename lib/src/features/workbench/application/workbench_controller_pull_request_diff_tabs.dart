@@ -14,7 +14,9 @@ mixin _WorkbenchControllerPullRequestDiffTabs
     required String retentionId,
     String? subject,
     String? targetGroupId,
+    String? sourceKey,
   }) async {
+    targetGroupId ??= _groupForOpening(workspace.id, sourceKey);
     var retainedByTab = false;
     WorkspaceTabRecord? createdTab;
     var existedBeforeRequest = false;

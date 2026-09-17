@@ -177,6 +177,13 @@ mixin _WorkbenchControllerInternalLayout
         _workspaceIdsWithClearedLayout.contains(workspaceId);
   }
 
+  String? _groupForOpening(String workspaceId, String? sourceKey) {
+    if (sourceKey == null) return null;
+    final panel = state.workspacePanelFor(workspaceId);
+    return panel.ensuredMainLayout(workspaceId).groupIdForTab(sourceKey) ??
+        panel.ensuredLayout(workspaceId).groupIdForTab(sourceKey);
+  }
+
   void _selectOpenedWorkspaceTab({
     required String workspaceId,
     required WorkspaceTabRecord tab,
