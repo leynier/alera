@@ -4,6 +4,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/forms/alera_checkbox.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_text_selection_toolbar.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_comment_body.dart';
 import 'package:flutter/material.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 
@@ -57,7 +58,7 @@ class const PullRequestCommentMarkdown({
         child: DefaultTextStyle(
           style: bodyStyle,
           child: GptMarkdown(
-            body,
+            sanitizePullRequestCommentBody(body),
             style: bodyStyle,
             components: components,
             codeBuilder: _buildCodeBlock,

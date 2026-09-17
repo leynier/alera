@@ -150,6 +150,29 @@ final value = 1;
     expect(find.byType(Image), findsNothing);
     expect(find.byIcon(AleraIcons.imageError), findsOneWidget);
   });
+  testWidgets('renders bot html footers as images and links', (tester) async {
+    await tester.pumpWidget(
+      _surface(
+        'New pull request. Leaping into action...\n\n'
+        '<!-- PULLFROG_DIVIDER_DO_NOT_REMOVE_PLZ -->\n'
+        '<sub><a href="https://pullfrog.com"><picture>'
+        '<source media="(prefers-color-scheme: dark)" '
+        'srcset="https://pullfrog.com/logos/frog-white-full-18px.png">'
+        '<img src="https://pullfrog.com/logos/frog-green-full-18px.png" '
+        'alt="Pullfrog"></picture></a>&nbsp;&nbsp; | '
+        '[View workflow run](https://example.com/run) | via '
+        '[Pullfrog](https://pullfrog.com)</sub>',
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(Image), findsOneWidget);
+    expect(find.textContaining('<picture'), findsNothing);
+    expect(find.textContaining('<img'), findsNothing);
+    expect(find.textContaining('PULLFROG_DIVIDER'), findsNothing);
+    expect(find.text('View workflow run'), findsOneWidget);
+    expect(find.text('Pullfrog'), findsWidgets);
+  });
 }
 
 Widget _surface(String body, {Future<void> Function(String url)? onOpenUrl}) {
