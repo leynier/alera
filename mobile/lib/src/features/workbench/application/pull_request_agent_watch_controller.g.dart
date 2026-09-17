@@ -76,7 +76,7 @@ final class PullRequestAgentWatchControllerProvider
 }
 
 String _$pullRequestAgentWatchControllerHash() =>
-    r'48109511fdc86817bf87b8e2ebc3e4b3eb92ad69';
+    r'1e1115ef9f0477f7d34adf1f91fb7edda04fc1bd';
 
 /// Client-side Watch and Fix for one workspace. `keepAlive` so leaving the
 /// Pull Request panel does not drop the session; polling pauses while the app
