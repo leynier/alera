@@ -5,6 +5,15 @@ part 'workspace.mapper.dart';
 @MappableEnum()
 enum WorkspaceKind { main, linked }
 
+const String aleraVoiceHomeProjectId = 'alera-home';
+const String aleraVoiceHomeWorkspaceId = 'alera-home';
+
+bool isVoiceHomeProjectId(String projectId) =>
+    projectId == aleraVoiceHomeProjectId;
+
+bool isVoiceHomeWorkspaceId(String workspaceId) =>
+    workspaceId == aleraVoiceHomeWorkspaceId;
+
 @MappableEnum()
 enum WorkspaceStatus { active, removed }
 

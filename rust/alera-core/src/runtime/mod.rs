@@ -105,6 +105,7 @@ mod ssh_target_store_tests;
 mod store;
 mod store_error;
 mod text_actions_validation;
+mod voice_home;
 mod workbench_shared_state_models;
 mod workbench_shared_state_store;
 #[cfg(test)]
@@ -163,6 +164,7 @@ pub use settings_models::*;
 pub use store::*;
 pub use store_error::*;
 pub use text_actions_validation::{validate_text_actions_settings, AI_ASSIST_AGENTS};
+pub use voice_home::*;
 pub use workbench_shared_state_models::*;
 pub use workspace_location_path::relocated_path as relocated_workspace_path;
 pub use workspace_relocation_models::*;

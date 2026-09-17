@@ -27,6 +27,8 @@ pub struct RuntimeSettings {
     pub text_actions: Option<RuntimeTextActionsSettings>,
     #[serde(default)]
     pub automation: RuntimeAutomationSettings,
+    #[serde(default)]
+    pub voice: RuntimeVoiceSettings,
 }
 
 impl Default for RuntimeSettings {
@@ -42,7 +44,97 @@ impl Default for RuntimeSettings {
             ai_assist: None,
             text_actions: None,
             automation: RuntimeAutomationSettings::default(),
+            voice: RuntimeVoiceSettings::default(),
         }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeVoiceSettings {
+    #[serde(default)]
+    pub home_agent_profile_id: Option<String>,
+    #[serde(default)]
+    pub pipeline: RuntimeVoicePipeline,
+    #[serde(default)]
+    pub stt_provider: RuntimeVoiceSttProvider,
+    #[serde(default)]
+    pub tts_provider: RuntimeVoiceTtsProvider,
+    #[serde(default)]
+    pub realtime_provider: RuntimeVoiceRealtimeProvider,
+    #[serde(default)]
+    pub tts_voice: Option<String>,
+    #[serde(default)]
+    pub ack_while_thinking: bool,
+}
+
+impl Default for RuntimeVoiceSettings {
+    fn default() -> Self {
+        Self {
+            home_agent_profile_id: None,
+            pipeline: RuntimeVoicePipeline::Chained,
+            stt_provider: RuntimeVoiceSttProvider::LocalWhisper,
+            tts_provider: RuntimeVoiceTtsProvider::GeminiFlashTts,
+            realtime_provider: RuntimeVoiceRealtimeProvider::GeminiFlashLive,
+            tts_voice: None,
+            ack_while_thinking: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum RuntimeVoicePipeline {
+    Chained,
+    Realtime,
+}
+
+impl Default for RuntimeVoicePipeline {
+    fn default() -> Self {
+        Self::Chained
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum RuntimeVoiceSttProvider {
+    LocalWhisper,
+    GeminiTranscribeLive,
+    OpenAiCompatible,
+    CodexRealtime,
+}
+
+impl Default for RuntimeVoiceSttProvider {
+    fn default() -> Self {
+        Self::LocalWhisper
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum RuntimeVoiceTtsProvider {
+    GeminiFlashTts,
+    OpenAiTts,
+}
+
+impl Default for RuntimeVoiceTtsProvider {
+    fn default() -> Self {
+        Self::GeminiFlashTts
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum RuntimeVoiceRealtimeProvider {
+    GeminiFlashLive,
+    GptRealtimeMini,
+    GptRealtime,
+    GptLive1,
+}
+
+impl Default for RuntimeVoiceRealtimeProvider {
+    fn default() -> Self {
+        Self::GeminiFlashLive
     }
 }
 
