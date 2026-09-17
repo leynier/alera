@@ -2,6 +2,7 @@ import 'package:alera_mobile/src/design_system/layout/alera_confirm_dialog.dart'
 import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_actions.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_action_controller.dart';
+import 'package:alera_mobile/src/features/workbench/application/source_control_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_pull_request_conversation.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_comment_sheet.dart';
@@ -197,19 +198,55 @@ class const PullRequestPanelActions({
     );
   }
 
-  Future<void> ship(BuildContext context, MobilePullRequestSnapshot snapshot) {
+  Future<void> ship(
+    BuildContext context,
+    MobilePullRequestSnapshot snapshot,
+  ) async {
     final controller = _controller;
+    final askWorkingTreeScope = await _askWorkingTreeScope();
+    if (!context.mounted) {
+      return;
+    }
     return showShipPullRequestSheet(
       context,
       headBranch: snapshot.branch,
       baseBranches: snapshot.baseBranches,
       suggestedBaseBranch: snapshot.suggestedBaseBranch,
+      askWorkingTreeScope: askWorkingTreeScope,
       onSubmit: (input) => controller.run(
         .ship,
         (client) =>
             client.shipPullRequest(workspaceId: workspaceId, input: input),
       ),
     );
+  }
+
+  /// Uses the Source Control snapshot already loaded for this workspace, or
+  /// `mobile.git.status` through that controller. A host without the verb, or
+  /// a status that fails, keeps All/Staged, matching desktop.
+  Future<bool> _askWorkingTreeScope() async {
+    try {
+      final client = await ref.read(workspaceClientProvider(hostId).future);
+      if (client case MobileWorkspacePanelsClient(
+        supportsSourceControl: true,
+      )) {
+        final provider = sourceControlControllerProvider(hostId, workspaceId);
+        final subscription = ref.listenManual(
+          provider,
+          (_, _) {},
+          onError: (_, _) {},
+        );
+        try {
+          final snapshot = await ref.read(provider.future);
+          return shipShowsWorkingTreeScopeChoice(snapshot);
+        } finally {
+          subscription.close();
+        }
+      }
+      return true;
+    } on Object {
+      return true;
+    }
   }
 
   void _report(ScaffoldMessengerState messenger, String? error) {
