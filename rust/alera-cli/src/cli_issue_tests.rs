@@ -1,4 +1,6 @@
-use super::*;
+use clap::Parser;
+
+use crate::cli::{Cli, Command, WorkspaceAction, WorkspaceCommand};
 
 #[test]
 fn issue_commands_parse_urls_and_workspace_targets() {
