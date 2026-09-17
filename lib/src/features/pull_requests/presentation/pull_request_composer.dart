@@ -15,6 +15,7 @@ import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_ship_scope.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_field_decoration.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_link_form.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_restack_button.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
@@ -53,6 +54,7 @@ class const PullRequestComposer({
   required final PullRequestCreateAction createAction,
   required final ValueChanged<CreateReviewDraft> onCreate,
   required final PullRequestShipCallback onShip,
+  final VoidCallback? onRestack,
   required final ValueChanged<String> onLink,
   required final ValueChanged<PullRequestCreateAction> onCreateActionChanged,
   final bool canCreateStack = false,
@@ -388,6 +390,13 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
                 ],
                 const SizedBox(height: AleraTokens.space16),
                 if (_mode == _ComposerMode.create) ...<Widget>[
+                  if (widget.onRestack != null) ...<Widget>[
+                    PullRequestRestackButton(
+                      enabled: !widget.busy && !_generating,
+                      onPressed: widget.onRestack!,
+                    ),
+                    const SizedBox(height: AleraTokens.space8),
+                  ],
                   _ShipPullRequestButton(
                     shipping: widget.shipping,
                     aiEnabled: aiEnabled,

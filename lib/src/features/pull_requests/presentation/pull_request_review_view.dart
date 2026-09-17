@@ -23,6 +23,7 @@ import 'package:alera/src/features/pull_requests/domain/update_review_result.dar
 import 'package:alera/src/features/pull_requests/presentation/pull_request_check_list.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_conversation.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_field_decoration.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_restack_button.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_stack_link_dialog.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_stack_section.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_stack_workspace_dialog.dart';
@@ -79,6 +80,7 @@ class const PullRequestReviewView({
       PullRequestAgentWatchScope.defaults,
   final ValueChanged<PullRequestAgentWatchScope>? onAgentWatchScopeChanged,
   final VoidCallback? onFixFailedChecks,
+  final VoidCallback? onRestack,
   final ValueChanged<PullRequestAgentWatchScope>? onWatchAndFix,
   final ValueChanged<PullRequestAgentWatchScope>? onWatchFixAndMerge,
   final VoidCallback? onStopAgentWatch,
@@ -243,6 +245,13 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
               ],
             ),
           ),
+          if (widget.onRestack != null && review.isOpen) ...<Widget>[
+            const SizedBox(height: AleraTokens.space8),
+            PullRequestRestackButton(
+              enabled: !_busy,
+              onPressed: widget.onRestack!,
+            ),
+          ],
           const SizedBox(height: AleraTokens.space8),
           _PullRequestReviewActions(
             review: review,

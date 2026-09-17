@@ -1,5 +1,16 @@
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch.dart';
 
+/// Rewrite local history since the merge base without pushing.
+///
+/// The prompt may reach a shell as a launch argument, so it avoids backticks
+/// and other characters a shell would expand. It names no files, SHAs, or
+/// commit messages; the agent inspects the workspace itself.
+const pullRequestRestackPrompt =
+    'Refactor all committed and uncommitted changes since the merge base '
+    'into logical, easy-to-review commits. Inspect the complete diff first, '
+    'then reorder, split, squash, and edit commits as needed. Preserve the '
+    'final tree and behavior. Do not push.';
+
 /// Short, log-free prompt for failed pull request checks.
 ///
 /// Check names, logs, and payloads stay out of the prompt so the agent looks

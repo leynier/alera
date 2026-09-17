@@ -110,6 +110,15 @@ class const _PullRequestBody({
                 ),
               )
             : null,
+        onRestack: review.isOpen
+            ? () => unawaited(
+                dispatchPullRequestRestack(
+                  context: context,
+                  ref: ref,
+                  workspaceId: controller.scope.workspaceId,
+                ),
+              )
+            : null,
         onWatchAndFix: review.isOpen
             ? (watchScope) => unawaited(
                 startPullRequestAgentWatch(
@@ -202,6 +211,13 @@ class const _PullRequestBody({
           },
       onCreateStack: (draft) =>
           _openWorkspaceStackDialog(context, currentDraft: draft),
+      onRestack: () => unawaited(
+        dispatchPullRequestRestack(
+          context: context,
+          ref: ref,
+          workspaceId: controller.scope.workspaceId,
+        ),
+      ),
       onLink: controller.link,
       onCreateActionChanged: onCreateActionChanged,
     );
