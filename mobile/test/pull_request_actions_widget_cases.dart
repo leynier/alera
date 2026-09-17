@@ -71,6 +71,9 @@ void _registerPullRequestActionsWidgetTests() {
     await tester.pumpAndSettle();
 
     expect(find.text('Offline.'), findsOneWidget);
+    expect(find.text('Post Comment'), findsNothing);
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
     expect(find.text('Looks good'), findsOneWidget);
 
     client.actionError = null;

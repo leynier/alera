@@ -79,16 +79,11 @@ Future<void> _runLinkedIssueAction(
             .unlink(workspace.id);
       }
     default:
-      final result = await showMobileLinkIssueDialog(
+      await showMobileLinkIssueDialog(
         context,
         hostId: hostId,
         workspaceId: workspace.id,
         initialUrl: action == _WorkspaceAction.changeIssue ? url : null,
       );
-      if (result != null && context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(mobileLinkIssueMessage(result))));
-      }
   }
 }

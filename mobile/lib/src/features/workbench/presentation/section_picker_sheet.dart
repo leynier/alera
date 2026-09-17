@@ -1,14 +1,15 @@
-import 'package:alera_mobile/src/features/workbench/application/mobile_workspace_rows.dart';
-import 'package:alera_mobile/src/features/workbench/application/mobile_view_prefs_controller.dart';
-import 'package:alera_mobile/src/features/workbench/presentation/mobile_section_header.dart';
-import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
+import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
+import 'package:alera_mobile/src/features/workbench/application/mobile_view_prefs_controller.dart';
+import 'package:alera_mobile/src/features/workbench/application/mobile_workspace_rows.dart';
 import 'package:alera_mobile/src/features/workbench/application/section_selection_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_listing_tree.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/background_submission.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/mobile_section_header.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -22,8 +23,8 @@ Future<void> showSectionPickerSheet(
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
-  isDismissible: false,
-  enableDrag: false,
+  isDismissible: true,
+  enableDrag: true,
   builder: (_) => _SectionPicker(
     hostId: hostId,
     workspace: workspace,
@@ -77,7 +78,7 @@ class _SectionPickerState extends ConsumerState<_SectionPicker> {
       });
     }
     return PopScope(
-      canPop: current?.saving != true,
+      canPop: true,
       child: SafeArea(
         child: Padding(
           padding: EdgeInsets.only(
@@ -170,14 +171,56 @@ class _SectionPickerState extends ConsumerState<_SectionPicker> {
                     FilledButton(
                       onPressed: current == null || current.saving
                           ? null
-                          : () async {
-                              if (await controller.save(
-                                    extraWorkspaceIds: widget.extraWorkspaceIds,
-                                  ) &&
-                                  context.mounted) {
-                                Navigator.pop(context);
-                              }
+                          : () {
+                              if (!controller.validate()) return;
+                              var recovery = current;
+                              final form = widget;
+                              final container = ProviderScope.containerOf(
+                                context,
+                                listen: false,
+                              );
+                              submitInBackground(
+                                context,
+                                title: 'Save section',
+                                operationKey:
+                                    'section/${form.hostId}/${form.workspace.id}',
+                                action: () async {
+                                  final lease = container.listen(
+                                    provider,
+                                    (_, _) {},
+                                  );
+                                  try {
+                                    final saved = await controller.save(
+                                      extraWorkspaceIds: form.extraWorkspaceIds,
+                                    );
+                                    recovery = controller.draft ?? current;
+                                    return saved
+                                        ? null
+                                        : controller.draft?.error ??
+                                              'Could not save section.';
+                                  } finally {
+                                    lease.close();
+                                  }
+                                },
+                                prepareRestore: () {
+                                  final lease = container.listen(
+                                    provider,
+                                    (_, _) {},
+                                  );
+                                  container
+                                      .read(provider.notifier)
+                                      .restoreDraft(recovery);
+                                  return lease.close;
+                                },
+                                restoreForm: (_) => _SectionPicker(
+                                  hostId: form.hostId,
+                                  workspace: form.workspace,
+                                  extraWorkspaceIds: form.extraWorkspaceIds,
+                                  createMode: false,
+                                ),
+                              );
                             },
+
                       child: Text(
                         current?.saving == true ? 'Saving...' : 'Save',
                       ),

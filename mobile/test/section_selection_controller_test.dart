@@ -98,6 +98,14 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('New Section'));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(find.text('Set Section'), findsOneWidget);
+      expect(client.writes, 0);
+      expect(
+        find.text('Enter a unique section name other than Others.'),
+        findsOneWidget,
+      );
       await tester.enterText(find.byType(TextField), 'New Work');
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();

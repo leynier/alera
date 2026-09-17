@@ -1,6 +1,7 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/background_submission.dart';
 import 'package:flutter/material.dart';
 
 /// Opens [PullRequestCommentSheet] for a new comment, a thread reply, or an
@@ -25,9 +26,7 @@ Future<void> showPullRequestCommentSheet(
   );
 }
 
-/// Composer for a pull request comment. It stays open while [onSubmit] runs
-/// and shows the error inline, so a failed post never loses the text; when the
-/// sheet was dismissed first, the error goes to the snack bar instead.
+/// Submits comments in the background and retains their text for recovery.
 class const PullRequestCommentSheet({
   super.key,
   required final String title,
@@ -45,7 +44,6 @@ class _PullRequestCommentSheetState extends State<PullRequestCommentSheet> {
     text: widget.initialText,
   );
   bool _submitting = false;
-  String? _error;
 
   @override
   void dispose() {
@@ -58,27 +56,19 @@ class _PullRequestCommentSheetState extends State<PullRequestCommentSheet> {
     if (body.trim().isEmpty || _submitting) {
       return;
     }
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    final navigator = Navigator.of(context);
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
-    final error = await widget.onSubmit(body);
-    if (!mounted) {
-      if (error != null) {
-        messenger?.showSnackBar(SnackBar(content: Text(error)));
-      }
-      return;
-    }
-    if (error == null) {
-      navigator.pop();
-      return;
-    }
-    setState(() {
-      _submitting = false;
-      _error = error;
-    });
+    _submitting = true;
+    final form = widget;
+    submitInBackground(
+      context,
+      title: form.title,
+      action: () => form.onSubmit(body),
+      restoreForm: (_) => PullRequestCommentSheet(
+        title: form.title,
+        submitLabel: form.submitLabel,
+        initialText: body,
+        onSubmit: form.onSubmit,
+      ),
+    );
   }
 
   @override
@@ -108,7 +98,6 @@ class _PullRequestCommentSheetState extends State<PullRequestCommentSheet> {
                 minLines: 4,
                 maxLines: 10,
                 enabled: !_submitting,
-                errorText: _error,
               ),
               const SizedBox(height: AleraTokens.space12),
               Row(

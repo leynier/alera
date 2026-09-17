@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_section.dart';
+import 'package:alera/src/features/workbench/presentation/background_operation_cards.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_section_dialog.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 final _now = DateTime.utc(2026, 8, 30);
@@ -24,6 +28,7 @@ class _Controller extends WorkbenchController {
   String? section;
   bool fail = false;
   bool tree = false;
+  Completer<void>? pending;
   @override
   Future<List<WorkspaceSection>> listWorkspaceSections() async => [
     WorkspaceSection(
@@ -39,6 +44,7 @@ class _Controller extends WorkbenchController {
     String? sectionId,
     String? newName,
   }) async {
+    await pending?.future;
     if (fail) throw StateError('Section no longer exists');
     saves++;
     name = newName;
@@ -67,19 +73,30 @@ Future<void> _open(
   bool createMode = false,
 }) async {
   await tester.pumpWidget(
-    MaterialApp(
-      theme: aleraDarkTheme,
-      home: Scaffold(
-        body: Builder(
-          builder: (context) => TextButton(
-            onPressed: () => showWorkspaceSectionDialog(
-              context,
-              controller,
-              _workspace,
-              applyToTree: applyToTree,
-              createMode: createMode,
+    ProviderScope(
+      child: MaterialApp(
+        theme: aleraDarkTheme,
+        builder: (context, child) => Stack(
+          children: [
+            child!,
+            const Align(
+              alignment: Alignment.bottomRight,
+              child: BackgroundOperationCards(),
             ),
-            child: const Text('Open'),
+          ],
+        ),
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showWorkspaceSectionDialog(
+                context,
+                controller,
+                _workspace,
+                applyToTree: applyToTree,
+                createMode: createMode,
+              ),
+              child: const Text('Open'),
+            ),
           ),
         ),
       ),
@@ -97,6 +114,57 @@ Future<void> _choose(WidgetTester tester, String name) async {
 }
 
 void main() {
+  testWidgets('a refused section save retains its draft and remains editable', (
+    tester,
+  ) async {
+    final controller = _Controller()..pending = Completer<void>();
+    await _open(tester, controller, createMode: true);
+    await tester.enterText(find.byType(TextField), 'First section');
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.text('Open'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.enterText(find.byType(TextField), 'Second section');
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Set Section'), findsOneWidget);
+    expect(find.text('Second section'), findsOneWidget);
+    expect(find.text('This operation is already running.'), findsOneWidget);
+    controller.pending!.complete();
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Updated section');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(controller.saves, 2);
+    expect(controller.name, 'Updated section');
+    expect(find.text('Set Section'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('section save releases the dialog before the request finishes', (
+    tester,
+  ) async {
+    final controller = _Controller()..pending = Completer<void>();
+    await _open(tester, controller);
+    await _choose(tester, 'Existing');
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Set Section'), findsNothing);
+    expect(find.text('You can keep using the app.'), findsOneWidget);
+    await tester.tap(find.text('Open'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    controller.pending!.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('Set Section'), findsOneWidget);
+    expect(controller.saves, 1);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('creating is deferred until Save and Cancel creates nothing', (
     tester,
   ) async {
@@ -118,22 +186,26 @@ void main() {
     expect(controller.saves, 1);
     expect(find.text('Set Section'), findsNothing);
   });
-  testWidgets('selects an existing section and keeps errors open for retry', (
-    tester,
-  ) async {
-    final controller = _Controller()..fail = true;
-    await _open(tester, controller);
-    await _choose(tester, 'Existing');
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('Section no longer exists'), findsOneWidget);
-    expect(find.text('Set Section'), findsOneWidget);
-    controller.fail = false;
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
-    expect(controller.section, 'existing');
-    expect(controller.saves, 1);
-  });
+  testWidgets(
+    'selects an existing section and restores the form after a failed background save',
+    (tester) async {
+      final controller = _Controller()..fail = true;
+      await _open(tester, controller);
+      await _choose(tester, 'Existing');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Section no longer exists'), findsOneWidget);
+      expect(find.text('Set Section'), findsNothing);
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+      expect(find.text('Set Section'), findsOneWidget);
+      controller.fail = false;
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(controller.section, 'existing');
+      expect(controller.saves, 1);
+    },
+  );
 
   testWidgets('create mode shows the name field without picking New Section', (
     tester,
