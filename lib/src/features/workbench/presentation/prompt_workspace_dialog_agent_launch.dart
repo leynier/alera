@@ -78,7 +78,7 @@ extension _PromptWorkspaceDialogAgentLaunch on _PromptWorkspaceDialogState {
     _issueUrlController.clear();
     _agentLaunchMutationId = null;
     _originalAgentLaunchWasIdempotent = null;
-    setState(() {
+    _update(() {
       _working = false;
       _phase = null;
       _error = null;
