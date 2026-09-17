@@ -24,6 +24,7 @@ import 'package:alera_mobile/src/features/workbench/presentation/source_control_
 import 'package:alera_mobile/src/features/workbench/presentation/source_control_header.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_diff_viewer_screen.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_path_display.dart';
+import 'package:alera_mobile/src/features/workspace_agent_comments/presentation/workspace_agent_comment_queue.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -35,6 +36,7 @@ class const SourceControlPanel({
   super.key,
   required final String hostId,
   required final String workspaceId,
+  final ValueChanged<String>? onOpenTab,
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -99,6 +101,11 @@ class const SourceControlPanel({
               action: TextButton(onPressed: reload, child: const Text('Retry')),
             ),
           ),
+        WorkspaceAgentCommentQueue(
+          hostId: hostId,
+          workspaceId: workspaceId,
+          onOpenTab: onOpenTab,
+        ),
         Expanded(
           child: _Body(
             hostId: hostId,
@@ -107,6 +114,7 @@ class const SourceControlPanel({
             onRefresh: reload,
             busy: writing,
             relativeRoot: root,
+            onOpenTab: onOpenTab,
           ),
         ),
       ],
@@ -162,6 +170,7 @@ class const _Body({
   required final VoidCallback onRefresh,
   required final bool busy,
   final String relativeRoot = '',
+  final ValueChanged<String>? onOpenTab,
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -297,6 +306,7 @@ class const _Body({
                       change: change,
                       relativeRoot: relativeRoot,
                       writesEnabled: writesEnabled,
+                      onOpenTab: onOpenTab,
                     ),
                   ),
                 ),
