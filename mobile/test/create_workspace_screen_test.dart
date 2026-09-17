@@ -4,6 +4,7 @@ import 'package:alera_mobile/src/app/app_navigation.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
 import 'package:alera_mobile/src/features/ai_dictation/domain/mobile_ai_dictation_settings.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
@@ -18,9 +19,11 @@ import 'support/fake_ai_dictation_settings.dart';
 import 'support/fake_terminal_client.dart';
 
 part 'create_workspace_shortcut_test_cases.dart';
+part 'create_workspace_section_assignment_test_cases.dart';
 
 void main() {
   _registerCreateWorkspaceShortcutTests();
+  _registerCreateWorkspaceSectionAssignmentTests();
   testWidgets('Create Another keeps the mobile form open and resets it', (
     tester,
   ) async {

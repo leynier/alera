@@ -120,6 +120,7 @@ Future<void> _openRetryForm(
               list.supportsSharedCheckoutWorkspaces,
           projects: list.projects,
           workspaces: list.workspaces,
+          sections: list.sections,
           defaultAgentProfileId: request.profileId,
           supportsPromptWorkspaceCreation: list.supportsPromptWorkspaceCreation,
           supportsPromptImageUpload: list.supportsPromptImageUpload,
@@ -138,6 +139,7 @@ Future<void> _openRetryForm(
           initialParentWorkspaceId: request.parentWorkspaceId,
           supportsLinkedIssues: linkedIssues,
           initialIssueUrl: request.issueUrl,
+          initialAutoAssignSection: request.autoAssignSection,
         ),
         _ => CreateWorkspaceScreen(
           hostId: hostId,

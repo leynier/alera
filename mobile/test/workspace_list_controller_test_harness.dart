@@ -112,6 +112,7 @@ class _FakeWorkspaceClient()
     required String operationId,
     required String projectId,
     required String prompt,
+    bool autoAssignSection = false,
   }) async {
     return const GeneratedWorkspaceIdentity(
       workspaceName: 'Generated Workspace',

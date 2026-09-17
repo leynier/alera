@@ -172,6 +172,8 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs
               issueUrl: issueUrl,
             ),
         launchAgent: runtime.launchAgent,
+        assignSection: (workspaceId, sectionId) =>
+            controller.saveWorkspaceSection(workspaceId, sectionId: sectionId),
         onPhase: (phase) => _setPhase(id, phase),
       );
       try {

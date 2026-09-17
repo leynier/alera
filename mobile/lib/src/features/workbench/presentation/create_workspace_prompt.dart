@@ -204,6 +204,20 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
           ),
         ],
         const SizedBox(height: AleraTokens.spaceMd),
+        if (widget.sections.isNotEmpty)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: .leading,
+            value: _autoAssignSection,
+            onChanged:
+                promptState.loading || created != null || _uploadingAttachment
+                ? null
+                : (value) {
+                    _update(() => _autoAssignSection = value ?? false);
+                  },
+            title: const Text('Auto Assign Section'),
+            subtitle: const Text('Pick the section that fits the prompt'),
+          ),
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           controlAffinity: .leading,
@@ -357,6 +371,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
             useProjectCheckout: _useProjectCheckout,
             parentWorkspaceId: _promptParentWorkspaceId,
             issueUrl: _linkedIssueUrl(),
+            autoAssignSection: widget.sections.isNotEmpty && _autoAssignSection,
           ),
           jobId: jobId,
         );

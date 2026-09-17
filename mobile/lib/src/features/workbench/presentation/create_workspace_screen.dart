@@ -15,6 +15,7 @@ import 'package:alera_mobile/src/features/linked_issues/presentation/mobile_issu
 import 'package:alera_mobile/src/features/runtime/domain/project_selection_order.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/background_setup_jobs.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
@@ -43,6 +44,8 @@ class const CreateWorkspaceScreen({
   final String? initialCheckoutHostId,
   required final List<ProjectSummary> projects,
   required final List<WorkspaceSummary> workspaces,
+  final List<WorkspaceSectionSummary> sections = const [],
+  final bool initialAutoAssignSection = true,
   final String? defaultAgentProfileId,
   final bool supportsPromptWorkspaceCreation = true,
   final bool supportsPromptImageUpload = false,
@@ -96,6 +99,7 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
   String? _promptParentWorkspaceId;
   bool _reuseExistingBranch = false;
   bool _useProjectCheckout = true;
+  bool _autoAssignSection = true;
   bool _createAnother = false;
   bool _creating = false;
   bool _loadingBranches = false;
@@ -165,6 +169,7 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
     _retryJobId = widget.retryJobId;
     _applyRetryHydration = widget.initialProjectId != null;
     _jobs = ref.read(backgroundSetupJobsProvider.notifier);
+    _autoAssignSection = widget.initialAutoAssignSection;
     _reuseExistingBranch = widget.initialReuseExistingBranch;
     _useProjectCheckout =
         widget.supportsSharedCheckoutWorkspaces &&
