@@ -7,6 +7,7 @@ import 'package:alera/src/features/pull_requests/domain/pull_request_agent_promp
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -89,7 +90,13 @@ Future<void> startPullRequestAgentWatch({
   }
   var binding = choice.binding;
   PullRequestAgentWatchDispatchMark? dispatched;
-  if (pullRequestAgentWatchInjectsOnStart(concerns)) {
+  final runtimeOwned =
+      review.provider == GitHostingProvider.github &&
+      await ref
+          .read(pullRequestAgentWatchRepositoryProvider)
+          .supportsExecution();
+  if (!context.mounted) return;
+  if (!runtimeOwned && pullRequestAgentWatchInjectsOnStart(concerns)) {
     final result = await completeAgentTaskDispatch(
       ref: ref,
       request: choice.request,
@@ -105,14 +112,24 @@ Future<void> startPullRequestAgentWatch({
       );
     }
   }
-  ref
-      .read(pullRequestAgentWatchControllerProvider.notifier)
-      .start(
-        scope: scope,
-        reviewNumber: review.number,
-        mode: mode,
-        binding: binding,
-        watchScope: watchScope,
-        lastDispatch: dispatched,
+  try {
+    await ref
+        .read(pullRequestAgentWatchControllerProvider.notifier)
+        .start(
+          scope: scope,
+          reviewNumber: review.number,
+          mode: mode,
+          binding: binding,
+          watchScope: watchScope,
+          lastDispatch: dispatched,
+        );
+  } on Object catch (error) {
+    if (context.mounted) {
+      AleraToast.show(
+        context,
+        message: 'Could not start watching. $error',
+        tone: .error,
       );
+    }
+  }
 }

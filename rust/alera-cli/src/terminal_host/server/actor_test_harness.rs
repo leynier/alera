@@ -97,6 +97,7 @@ pub(super) async fn test_actor(
         runtime_store,
         automation_wake: Arc::new(tokio::sync::Notify::new()),
         automations_active: false,
+        pull_request_watches: Default::default(),
         sessions,
         ssh_bootstrap_jobs: HashMap::new(),
         project_clone_jobs: HashMap::new(),

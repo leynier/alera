@@ -10,7 +10,7 @@ use super::actor_test_harness::{local_client, mobile_client, test_actor};
 use crate::terminal_host::client::ClientHandle;
 
 #[tokio::test]
-async fn pull_request_watch_start_stop_broadcasts_and_mobile_can_read() {
+async fn pull_request_watch_start_from_mobile_stop_from_desktop_broadcasts() {
     let dir = tempfile::tempdir().unwrap();
     let (desktop, mut desktop_events) = ClientHandle::test_channels();
     let (mobile, mut mobile_events) = ClientHandle::test_channels();
@@ -80,7 +80,7 @@ async fn pull_request_watch_start_stop_broadcasts_and_mobile_can_read() {
 
     let started = actor
         .pull_request_watch_request(
-            1,
+            2,
             "pullRequestWatch.start",
             &json!({
                 "workspaceId": "w",
@@ -284,4 +284,16 @@ async fn pull_request_watch_start_keeps_watermarks_when_the_bound_tab_is_gone() 
     assert_eq!(stored["lastMergedHeadSha"], "abc123");
     assert_eq!(stored["lastDispatch"]["headSha"], "abc123");
     assert_eq!(stored["lastDispatch"]["checksFailed"], true);
+    let retried = actor
+        .pull_request_watch_request(
+            1,
+            "pullRequestWatch.start",
+            &json!({
+                "workspaceId": "w", "profileId": "prof_1", "mode": "fixAndMerge"
+            }),
+        )
+        .await
+        .unwrap();
+    assert_eq!(retried["lastDispatch"], stored["lastDispatch"]);
+    assert_eq!(retried["lastMergedHeadSha"], stored["lastMergedHeadSha"]);
 }

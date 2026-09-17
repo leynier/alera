@@ -285,6 +285,17 @@ pub enum ServerCommand {
         snapshot: Value,
     },
     /// Wakes the durable automation scheduler to evaluate due occurrences.
+    PullRequestWatchTick,
+    PullRequestWatchSnapshot {
+        watch: Box<alera_core::runtime::PullRequestWatch>,
+        generation: uuid::Uuid,
+        result: HostResult<Value>,
+    },
+    PullRequestWatchMerged {
+        watch: Box<alera_core::runtime::PullRequestWatch>,
+        generation: uuid::Uuid,
+        result: HostResult<String>,
+    },
     AutomationTick,
     AutomationSharedCleanupFinished {
         attempt: Box<alera_core::runtime::AutomationCleanupAttempt>,

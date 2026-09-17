@@ -23,6 +23,8 @@ pub const RUNTIME_HOST_LINKED_ISSUES_CAPABILITY: &str = "linkedIssuesV1";
 /// desktop, and mobile share one active watch per workspace. Additive: older
 /// hosts reject the verbs, so callers feature-check this instead of the
 /// protocol version.
+pub const RUNTIME_HOST_PULL_REQUEST_WATCH_EXECUTION_CAPABILITY: &str =
+    "pullRequestWatchExecutionV1";
 pub const RUNTIME_HOST_PULL_REQUEST_WATCH_CAPABILITY: &str = "pullRequestWatchV1";
 // Advertised once mobile clients may call workspace mutations (pin, link,
 // create/remove managed, tab removal). Mobile apps feature-check this instead

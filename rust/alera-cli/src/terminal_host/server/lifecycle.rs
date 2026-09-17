@@ -78,6 +78,7 @@ impl ServerActor {
             || self.account_push.relay_task.is_some()
             || !self.coordinators.is_empty()
             || self.account_push.active_subscriptions > 0
+            || self.pull_request_watches.active
             || self.automations_active
         {
             self.cancel_shutdown_timer();

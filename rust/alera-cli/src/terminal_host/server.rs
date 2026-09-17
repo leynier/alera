@@ -170,6 +170,7 @@ mod orchestration_owned_spawn;
 mod orchestration_policy_requests;
 mod orchestration_profile_spawn;
 mod orchestration_requests;
+mod orchestration_terminal_input;
 mod orchestration_terminal_requests;
 mod orchestration_validation;
 mod orchestration_wait_requests;
@@ -183,9 +184,11 @@ mod prompt_image_requests;
 mod prompt_image_store;
 mod pty_event_forwarder;
 mod pty_events;
+mod pull_request_watch_evaluation;
 mod pull_request_watch_requests;
 #[cfg(test)]
 mod pull_request_watch_requests_tests;
+mod pull_request_watch_runtime;
 mod push_delivery;
 mod remote_relay;
 mod request_payloads;
@@ -286,6 +289,7 @@ struct ServerActor {
     store: TerminalHostHistoryStore,
     runtime_store: RuntimeStore,
     automation_wake: Arc<Notify>,
+    pull_request_watches: pull_request_watch_runtime::WatchRuntime,
     automations_active: bool,
     sessions: HashMap<String, Session>,
     ssh_bootstrap_jobs: HashMap<String, SshBootstrapJobState>,
@@ -814,6 +818,23 @@ impl ServerActor {
             ServerCommand::ResourceSampleReady { snapshot } => {
                 self.handle_resource_sample_ready(snapshot)
             }
+            ServerCommand::PullRequestWatchTick => self.poll_pull_request_watches().await,
+            ServerCommand::PullRequestWatchSnapshot {
+                watch,
+                generation,
+                result,
+            } => {
+                self.finish_pull_request_watch_snapshot(*watch, generation, result)
+                    .await
+            }
+            ServerCommand::PullRequestWatchMerged {
+                watch,
+                generation,
+                result,
+            } => {
+                self.finish_pull_request_watch_merge(*watch, generation, result)
+                    .await
+            }
             ServerCommand::AutomationTick => self.handle_automation_tick().await,
             ServerCommand::AutomationSharedCleanupFinished { attempt, result } => {
                 self.finish_automation_shared_cleanup(&attempt, result)
@@ -979,49 +1000,6 @@ impl ServerActor {
                 force_submit,
             });
         });
-    }
-
-    pub(super) fn queue_orchestration_paste(
-        &mut self,
-        session_id: &str,
-        prompt: &str,
-        message_ids: Vec<String>,
-        force_submit: bool,
-    ) -> HostResult<()> {
-        let session = self
-            .sessions
-            .get_mut(session_id)
-            .ok_or_else(|| HostError::state(format!("terminal {session_id} vanished")))?;
-        let session_instance_id = session.instance_id();
-        let paste = prompt_injection::build_agent_prompt_paste_bytes(prompt);
-        session.queue_write(
-            PtyWriteCompletion::OrchestrationPaste {
-                session_instance_id,
-                message_ids,
-                force_submit,
-            },
-            &paste,
-        )
-    }
-
-    pub(super) fn queue_orchestration_control(
-        &mut self,
-        session_id: &str,
-        bytes: &[u8],
-    ) -> HostResult<()> {
-        let session = self
-            .sessions
-            .get_mut(session_id)
-            .filter(|session| session.running())
-            .ok_or_else(|| HostError::state(format!("terminal is not running: {session_id}")))?;
-        let session_instance_id = session.instance_id();
-        session.queue_write(
-            PtyWriteCompletion::OrchestrationEnter {
-                session_instance_id,
-                message_ids: Vec::new(),
-            },
-            bytes,
-        )
     }
 
     fn broadcast_terminal_error(&self, session_id: &str, message: String) {
@@ -1227,6 +1205,7 @@ mod tests {
             runtime_store: runtime_store.clone(),
             automation_wake: Arc::new(Notify::new()),
             automations_active: false,
+            pull_request_watches: Default::default(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::from([(
                 "remote".to_string(),
@@ -1314,6 +1293,7 @@ mod tests {
             runtime_store: runtime_store.clone(),
             automation_wake: Arc::new(Notify::new()),
             automations_active: false,
+            pull_request_watches: Default::default(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
@@ -1411,6 +1391,7 @@ mod tests {
             runtime_store: runtime_store.clone(),
             automation_wake: Arc::new(Notify::new()),
             automations_active: false,
+            pull_request_watches: Default::default(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
@@ -1503,6 +1484,7 @@ mod tests {
             runtime_store: runtime_store.clone(),
             automation_wake: Arc::new(Notify::new()),
             automations_active: false,
+            pull_request_watches: Default::default(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
@@ -1617,6 +1599,7 @@ mod tests {
             runtime_store: runtime_store.clone(),
             automation_wake: Arc::new(Notify::new()),
             automations_active: false,
+            pull_request_watches: Default::default(),
             sessions: HashMap::from([("term-1".to_string(), session)]),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
@@ -1704,6 +1687,7 @@ mod tests {
             runtime_store: runtime_store.clone(),
             automation_wake: Arc::new(Notify::new()),
             automations_active: false,
+            pull_request_watches: Default::default(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),

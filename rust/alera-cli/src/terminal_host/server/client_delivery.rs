@@ -303,6 +303,7 @@ mod tests {
             runtime_store,
             automation_wake: Arc::new(Notify::new()),
             automations_active: false,
+            pull_request_watches: Default::default(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),

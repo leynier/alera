@@ -37,9 +37,9 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY, RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
     RUNTIME_HOST_MOBILE_WORKSPACE_REPLACE_CAPABILITY,
     RUNTIME_HOST_MOBILE_WORKSPACE_SEARCH_CAPABILITY, RUNTIME_HOST_PULL_REQUEST_WATCH_CAPABILITY,
-    RUNTIME_HOST_RESTART_CAPABILITY, RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY,
-    RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY, RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
-    RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY,
+    RUNTIME_HOST_PULL_REQUEST_WATCH_EXECUTION_CAPABILITY, RUNTIME_HOST_RESTART_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY, RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY,
 };
 
 /// What `mobile.hello` tells a phone this host can do.
@@ -64,6 +64,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY,
     RUNTIME_HOST_LINKED_ISSUES_CAPABILITY,
     RUNTIME_HOST_PULL_REQUEST_WATCH_CAPABILITY,
+    RUNTIME_HOST_PULL_REQUEST_WATCH_EXECUTION_CAPABILITY,
     RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
     RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
     RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
@@ -255,6 +256,8 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "issue.fetch"
             | "pullRequestWatch.list"
             | "pullRequestWatch.find"
+            | "pullRequestWatch.start"
+            | "pullRequestWatch.stop"
             | "layout.find"
             | "workspaceSection.list"
             | "workspaceSection.create"
@@ -405,13 +408,15 @@ mod mobile_codex_file_surface_tests {
     }
 
     #[test]
-    fn advertises_and_allows_pull_request_watch_reads() {
+    fn advertises_and_allows_pull_request_watch_execution() {
+        assert!(MOBILE_HELLO_CAPABILITIES
+            .contains(&RUNTIME_HOST_PULL_REQUEST_WATCH_EXECUTION_CAPABILITY));
         assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_PULL_REQUEST_WATCH_CAPABILITY));
         for request in ["pullRequestWatch.list", "pullRequestWatch.find"] {
             assert!(mobile_request_allowed(request), "{request}");
         }
-        assert!(!mobile_request_allowed("pullRequestWatch.start"));
-        assert!(!mobile_request_allowed("pullRequestWatch.stop"));
+        assert!(mobile_request_allowed("pullRequestWatch.start"));
+        assert!(mobile_request_allowed("pullRequestWatch.stop"));
     }
 
     #[test]

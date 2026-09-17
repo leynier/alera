@@ -8,26 +8,23 @@ part of 'pull_request_agent_watch_controller.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Client-side Watch and Fix for one workspace. `keepAlive` so leaving the
-/// Pull Request panel does not drop the session; polling pauses while the app
-/// is backgrounded and resumes with the next snapshot.
+/// Mirrors the runtime watch for the PR panel. Older hosts retain the local
+/// polling fallback, kept alive across panel navigation and paused in background.
 
 @ProviderFor(PullRequestAgentWatchController)
 final pullRequestAgentWatchControllerProvider =
     PullRequestAgentWatchControllerFamily._();
 
-/// Client-side Watch and Fix for one workspace. `keepAlive` so leaving the
-/// Pull Request panel does not drop the session; polling pauses while the app
-/// is backgrounded and resumes with the next snapshot.
+/// Mirrors the runtime watch for the PR panel. Older hosts retain the local
+/// polling fallback, kept alive across panel navigation and paused in background.
 final class PullRequestAgentWatchControllerProvider
     extends
         $NotifierProvider<
           PullRequestAgentWatchController,
           PullRequestAgentWatchSession?
         > {
-  /// Client-side Watch and Fix for one workspace. `keepAlive` so leaving the
-  /// Pull Request panel does not drop the session; polling pauses while the app
-  /// is backgrounded and resumes with the next snapshot.
+  /// Mirrors the runtime watch for the PR panel. Older hosts retain the local
+  /// polling fallback, kept alive across panel navigation and paused in background.
   PullRequestAgentWatchControllerProvider._({
     required PullRequestAgentWatchControllerFamily super.from,
     required (String, String) super.argument,
@@ -76,11 +73,10 @@ final class PullRequestAgentWatchControllerProvider
 }
 
 String _$pullRequestAgentWatchControllerHash() =>
-    r'1e1115ef9f0477f7d34adf1f91fb7edda04fc1bd';
+    r'91877fdb252d829be05fd5a70863252d256f6021';
 
-/// Client-side Watch and Fix for one workspace. `keepAlive` so leaving the
-/// Pull Request panel does not drop the session; polling pauses while the app
-/// is backgrounded and resumes with the next snapshot.
+/// Mirrors the runtime watch for the PR panel. Older hosts retain the local
+/// polling fallback, kept alive across panel navigation and paused in background.
 
 final class PullRequestAgentWatchControllerFamily extends $Family
     with
@@ -100,9 +96,8 @@ final class PullRequestAgentWatchControllerFamily extends $Family
         isAutoDispose: false,
       );
 
-  /// Client-side Watch and Fix for one workspace. `keepAlive` so leaving the
-  /// Pull Request panel does not drop the session; polling pauses while the app
-  /// is backgrounded and resumes with the next snapshot.
+  /// Mirrors the runtime watch for the PR panel. Older hosts retain the local
+  /// polling fallback, kept alive across panel navigation and paused in background.
 
   PullRequestAgentWatchControllerProvider call(
     String hostId,
@@ -116,9 +111,8 @@ final class PullRequestAgentWatchControllerFamily extends $Family
   String toString() => r'pullRequestAgentWatchControllerProvider';
 }
 
-/// Client-side Watch and Fix for one workspace. `keepAlive` so leaving the
-/// Pull Request panel does not drop the session; polling pauses while the app
-/// is backgrounded and resumes with the next snapshot.
+/// Mirrors the runtime watch for the PR panel. Older hosts retain the local
+/// polling fallback, kept alive across panel navigation and paused in background.
 
 abstract class _$PullRequestAgentWatchController
     extends $Notifier<PullRequestAgentWatchSession?> {
