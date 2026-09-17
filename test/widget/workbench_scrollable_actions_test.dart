@@ -1,4 +1,5 @@
 import 'package:alera/src/features/workbench/presentation/workbench_scrollable_actions.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -69,4 +70,36 @@ void main() {
       expect(find.text('B'), findsOneWidget);
     },
   );
+
+  testWidgets('scrolls overflowing actions with a vertical mouse wheel', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 80,
+            height: 40,
+            child: WorkbenchScrollableActions(
+              children: <Widget>[
+                SizedBox(width: 60, child: Text('A')),
+                SizedBox(width: 60, child: Text('B')),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
+    expect(scrollable.position.pixels, 0);
+
+    final location = tester.getCenter(find.byType(Scrollable));
+    final pointer = TestPointer(1, PointerDeviceKind.mouse);
+    pointer.hover(location);
+    await tester.sendEventToBinding(pointer.scroll(const Offset(0, -30)));
+    await tester.pump();
+
+    expect(scrollable.position.pixels, 30);
+  });
 }

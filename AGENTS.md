@@ -143,6 +143,7 @@ When planning is needed, use a spec-driven development flow. Do not jump straigh
 - Shared, reusable UI components live in `lib/src/design_system/`, grouped by role and prefixed `Alera`. New screens MUST reuse these before introducing ad-hoc widgets; a genuinely new shared component belongs here, with a co-located `*.preview.dart`.
 - Design-system components MUST be presentational: data and callbacks in via parameters, no Riverpod reads and no native (`dart:io`/`dart:ffi`) code, so they stay previewable. Wire providers in a thin feature-level wrapper instead.
 - Preview functions MUST use the `@AleraPreview` annotation (not the bare `@Preview`). Launch with `flutter widget-preview start`.
+- Horizontal-only strips (tab bars, toolbars, chip rows) MUST use `AleraHorizontalScrollView` or wrap a horizontal `ListView` with `AleraMouseWheelHorizontalScroll` so a vertical mouse wheel scrolls them. Do not add a third wheel mapper. Shift+wheel and trackpad horizontal deltas stay on Flutter's built-in path.
 
 ## Keyboard Shortcuts
 
