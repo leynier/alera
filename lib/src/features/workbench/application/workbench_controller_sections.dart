@@ -28,6 +28,9 @@ mixin _WorkbenchControllerSections
                 collapsedSectionIds: snapshot.supported
                     ? state.viewPrefs.collapsedSectionIds.intersection(ids)
                     : state.viewPrefs.collapsedSectionIds,
+                selectedSectionIds: snapshot.supported
+                    ? state.viewPrefs.selectedSectionIds.intersection(ids)
+                    : state.viewPrefs.selectedSectionIds,
               ),
             );
           },

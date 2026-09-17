@@ -130,6 +130,22 @@ class const _WorkspaceViewOptions({
                   _toggle(prefs.selectedProjectIds, project.id),
                 ),
               ),
+            if (data.supportsSections && data.sections.isNotEmpty) ...[
+              const Divider(height: 1),
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Sections'),
+              ),
+              for (final section in data.sections)
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(section.name),
+                  value: prefs.selectedSectionIds.contains(section.id),
+                  onChanged: (_) => controller.setSectionFilter(
+                    _toggle(prefs.selectedSectionIds, section.id),
+                  ),
+                ),
+            ],
             const Divider(height: 1),
             const ListTile(
               contentPadding: EdgeInsets.zero,

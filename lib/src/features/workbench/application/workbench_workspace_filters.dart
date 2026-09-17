@@ -11,6 +11,23 @@ bool workspaceMatchesTagFilter(WorkbenchViewPrefs prefs, Workspace workspace) {
   return workspace.tagIds.any(prefs.selectedTagIds.contains);
 }
 
+/// OR semantics over the selected section filter: an empty selection shows
+/// every workspace; otherwise a workspace must belong to at least one selected
+/// section.
+bool workspaceMatchesSectionFilter(
+  WorkbenchViewPrefs prefs,
+  Workspace workspace,
+) {
+  if (prefs.selectedSectionIds.isEmpty) {
+    return true;
+  }
+  final sectionId = workspace.sectionId;
+  if (sectionId == null) {
+    return false;
+  }
+  return prefs.selectedSectionIds.contains(sectionId);
+}
+
 /// Legacy saved kind filters no longer hide tasks on shared checkouts.
 bool workspaceMatchesKindFilter(WorkbenchViewPrefs prefs, Workspace workspace) {
   return true;

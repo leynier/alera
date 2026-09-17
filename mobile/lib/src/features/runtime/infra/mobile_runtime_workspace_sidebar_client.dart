@@ -81,6 +81,7 @@ mixin MobileRuntimeWorkspaceSidebarClient
       shared.remove('sectionSort');
       shared.remove('collapsedSectionIds');
       shared.remove('othersSectionCollapsed');
+      shared.remove('selectedSectionIds');
       if (prefs.groupBy == MobileWorkspaceGroupBy.section) {
         shared['groupBy'] = 'project';
       }

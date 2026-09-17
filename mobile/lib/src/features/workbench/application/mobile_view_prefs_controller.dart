@@ -76,6 +76,10 @@ class MobileViewPrefsController extends _$MobileViewPrefsController {
     return _update((prefs) => prefs.copyWith(selectedProjectIds: ids));
   }
 
+  Future<void> setSectionFilter(Set<String> ids) {
+    return _update((prefs) => prefs.copyWith(selectedSectionIds: ids));
+  }
+
   Future<void> setTagFilter(Set<String> ids) {
     return _update((prefs) => prefs.copyWith(selectedTagIds: ids));
   }

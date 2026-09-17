@@ -483,6 +483,15 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       v.expandedWorkspaceIds;
   static const Field<WorkbenchViewPrefs, Set<String>> _f$expandedWorkspaceIds =
       Field('expandedWorkspaceIds', _$expandedWorkspaceIds);
+  static Set<String> _$selectedSectionIds(WorkbenchViewPrefs v) =>
+      v.selectedSectionIds;
+  static const Field<WorkbenchViewPrefs, Set<String>> _f$selectedSectionIds =
+      Field(
+        'selectedSectionIds',
+        _$selectedSectionIds,
+        opt: true,
+        def: const <String>{},
+      );
   static Set<String> _$selectedTagIds(WorkbenchViewPrefs v) => v.selectedTagIds;
   static const Field<WorkbenchViewPrefs, Set<String>> _f$selectedTagIds = Field(
     'selectedTagIds',
@@ -670,6 +679,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     #selectedProjectIds: _f$selectedProjectIds,
     #collapsedProjectIds: _f$collapsedProjectIds,
     #expandedWorkspaceIds: _f$expandedWorkspaceIds,
+    #selectedSectionIds: _f$selectedSectionIds,
     #selectedTagIds: _f$selectedTagIds,
     #collapsedParentWorkspaceIds: _f$collapsedParentWorkspaceIds,
     #pinnedSectionCollapsed: _f$pinnedSectionCollapsed,
@@ -706,6 +716,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       selectedProjectIds: data.dec(_f$selectedProjectIds),
       collapsedProjectIds: data.dec(_f$collapsedProjectIds),
       expandedWorkspaceIds: data.dec(_f$expandedWorkspaceIds),
+      selectedSectionIds: data.dec(_f$selectedSectionIds),
       selectedTagIds: data.dec(_f$selectedTagIds),
       collapsedParentWorkspaceIds: data.dec(_f$collapsedParentWorkspaceIds),
       pinnedSectionCollapsed: data.dec(_f$pinnedSectionCollapsed),
@@ -832,6 +843,7 @@ abstract class WorkbenchViewPrefsCopyWith<
     Set<String>? selectedProjectIds,
     Set<String>? collapsedProjectIds,
     Set<String>? expandedWorkspaceIds,
+    Set<String>? selectedSectionIds,
     Set<String>? selectedTagIds,
     Set<String>? collapsedParentWorkspaceIds,
     bool? pinnedSectionCollapsed,
@@ -915,6 +927,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     Set<String>? selectedProjectIds,
     Set<String>? collapsedProjectIds,
     Set<String>? expandedWorkspaceIds,
+    Set<String>? selectedSectionIds,
     Set<String>? selectedTagIds,
     Set<String>? collapsedParentWorkspaceIds,
     bool? pinnedSectionCollapsed,
@@ -951,6 +964,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
         #collapsedProjectIds: collapsedProjectIds,
       if (expandedWorkspaceIds != null)
         #expandedWorkspaceIds: expandedWorkspaceIds,
+      if (selectedSectionIds != null) #selectedSectionIds: selectedSectionIds,
       if (selectedTagIds != null) #selectedTagIds: selectedTagIds,
       if (collapsedParentWorkspaceIds != null)
         #collapsedParentWorkspaceIds: collapsedParentWorkspaceIds,
@@ -1011,6 +1025,10 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     expandedWorkspaceIds: data.get(
       #expandedWorkspaceIds,
       or: $value.expandedWorkspaceIds,
+    ),
+    selectedSectionIds: data.get(
+      #selectedSectionIds,
+      or: $value.selectedSectionIds,
     ),
     selectedTagIds: data.get(#selectedTagIds, or: $value.selectedTagIds),
     collapsedParentWorkspaceIds: data.get(

@@ -34,6 +34,7 @@ void main() {
                 'sectionSort': 'recent',
                 'collapsedSectionIds': ['s'],
                 'othersSectionCollapsed': true,
+                'selectedSectionIds': ['s1'],
               },
             },
             'workspaceSection.list' => <Object?>[],
@@ -66,6 +67,7 @@ void main() {
       );
       expect(prefs.sectionSort, MobileWorkbenchSortBy.recent);
       expect(prefs.collapsedSectionIds, {'s'});
+      expect(prefs.selectedSectionIds, {'s1'});
       await client.updateWorkbenchViewPrefs(
         prefs.copyWith(groupBy: MobileWorkspaceGroupBy.section),
       );
@@ -77,6 +79,7 @@ void main() {
       expect(shared.containsKey('sectionSort'), supported);
       expect(shared.containsKey('collapsedSectionIds'), supported);
       expect(shared.containsKey('othersSectionCollapsed'), supported);
+      expect(shared.containsKey('selectedSectionIds'), supported);
       if (supported) {
         expect(await client.listWorkspaceSections(), isEmpty);
         await client.createWorkspaceSection('Work', 'w');
