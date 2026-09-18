@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/buttons/alera_floating_pill_button.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_accessory_layout_controller.dart';
@@ -50,7 +51,71 @@ void main() {
     },
   );
 
-  testWidgets('Scrolling a hidden-cursor TUI does not walk the cell buffer', (
+  testWidgets(
+    'Scrolling an inline hidden-cursor transcript walks history, not the PTY',
+    (tester) async {
+      await _setPhoneSurface(tester, AleraTokens.previewPhoneSize);
+      final client = FakeTerminalClient()
+        ..tabs = <WorkspaceTabSummary>[
+          fakeTab(id: 'tab-1', title: 'Terminal 1'),
+        ];
+      await _pumpTab(tester, client);
+
+      final terminal = _terminalOf(tester);
+      terminal.write('\x1b[?25l');
+      for (var line = 0; line < 60; line++) {
+        terminal.write('history-$line\r\n');
+      }
+      terminal.write('LIVE');
+      await tester.pump();
+
+      final scroll = tester
+          .widget<TerminalView>(find.byType(TerminalView))
+          .scrollController!;
+      final offsetBefore = scroll.offset;
+      final writesBefore = client.writes.length;
+
+      await tester.drag(find.byType(TerminalView), const Offset(0, 120));
+      await tester.pumpAndSettle();
+
+      expect(scroll.offset, lessThan(offsetBefore));
+      expect(client.writes.length, writesBefore);
+      expect(terminal.buffer.getText(), contains('LIVE'));
+    },
+  );
+
+  testWidgets(
+    'Compose mode still hands wheel reports to a full-screen mouse-mode TUI',
+    (tester) async {
+      await _setPhoneSurface(tester, AleraTokens.previewPhoneSize);
+      final client = FakeTerminalClient()
+        ..tabs = <WorkspaceTabSummary>[
+          fakeTab(id: 'tab-1', title: 'Terminal 1'),
+        ];
+      await _pumpTab(tester, client);
+
+      final terminal = _terminalOf(tester);
+      terminal.write('\x1b[?1049h\x1b[?1000h\x1b[?1006h\x1b[?25l');
+      await tester.pump();
+      expect(
+        tester.widget<TerminalView>(find.byType(TerminalView)).readOnly,
+        isTrue,
+      );
+      final writesBefore = client.writes.length;
+
+      await tester.drag(find.byType(TerminalView), const Offset(0, 120));
+      await tester.pumpAndSettle();
+
+      final sent = utf8.decode(
+        client.writes.sublist(writesBefore).expand((bytes) => bytes).toList(),
+      );
+      expect(sent, contains('\x1B[<64;'));
+      expect(sent, isNot(contains('\x1B[A')));
+      expect(find.byType(AleraFloatingPillButton), findsNothing);
+    },
+  );
+
+  testWidgets('Jump To Latest appears in history and returns to the bottom', (
     tester,
   ) async {
     await _setPhoneSurface(tester, AleraTokens.previewPhoneSize);
@@ -59,31 +124,51 @@ void main() {
     await _pumpTab(tester, client);
 
     final terminal = _terminalOf(tester);
-    terminal.write('\x1b[?25l');
-    for (var line = 0; line < 60; line++) {
+    for (var line = 0; line < 120; line++) {
       terminal.write('history-$line\r\n');
     }
-    terminal.write('LIVE');
     await tester.pump();
+    expect(find.byType(AleraFloatingPillButton), findsNothing);
 
     final scroll = tester
         .widget<TerminalView>(find.byType(TerminalView))
         .scrollController!;
-    final offsetBefore = scroll.offset;
-    final writesBefore = client.writes.length;
+    scroll.jumpTo(0);
+    await tester.pumpAndSettle();
+    expect(find.text('Jump To Latest'), findsOneWidget);
 
-    await tester.drag(find.byType(TerminalView), const Offset(0, -120));
+    await tester.tap(find.text('Jump To Latest'));
     await tester.pumpAndSettle();
 
-    expect(scroll.offset, offsetBefore);
-    expect(client.writes.length, greaterThan(writesBefore));
-    expect(
-      utf8.decode(
-        client.writes.sublist(writesBefore).expand((bytes) => bytes).toList(),
-      ),
-      contains('\x1B[B'),
-    );
-    expect(terminal.buffer.getText(), contains('LIVE'));
+    expect(scroll.offset, scroll.position.maxScrollExtent);
+    expect(find.byType(AleraFloatingPillButton), findsNothing);
+  });
+
+  testWidgets('Sending a composed prompt returns the view to the bottom', (
+    tester,
+  ) async {
+    await _setPhoneSurface(tester, AleraTokens.previewPhoneSize);
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
+    await _pumpTab(tester, client);
+
+    final terminal = _terminalOf(tester);
+    for (var line = 0; line < 120; line++) {
+      terminal.write('history-$line\r\n');
+    }
+    await tester.pump();
+    final scroll = tester
+        .widget<TerminalView>(find.byType(TerminalView))
+        .scrollController!;
+    scroll.jumpTo(0);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).last, 'hello agent');
+    await tester.tap(find.byTooltip('Send'));
+    await tester.pumpAndSettle();
+
+    expect(scroll.offset, scroll.position.maxScrollExtent);
+    expect(client.writes.map(utf8.decode).join(), contains('hello agent'));
   });
 
   testWidgets('A settled orientation change pulses the new viewport', (
