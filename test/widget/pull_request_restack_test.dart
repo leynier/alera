@@ -119,7 +119,7 @@ void main() {
       find.byKey(const Key('pull-request-ship-button')),
     );
     expect(restack.dy, lessThan(ship.dy));
-    expect(find.text('Restack'), findsOneWidget);
+    expect(find.text('Restack Changes'), findsOneWidget);
 
     await tester.tap(find.byKey(_restackKey));
     await tester.pump();

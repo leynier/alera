@@ -42,7 +42,7 @@ Future<void> dispatchPullRequestRestack({
     request: AgentTaskDispatchRequest(
       workspaceId: workspaceId,
       prompt: pullRequestRestackPrompt,
-      title: 'Restack',
+      title: 'Restack Changes',
       message: _agentDispatchMessage,
     ),
   );

@@ -171,7 +171,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('pull-request-restack-button')));
     await tester.pumpAndSettle();
-    expect(find.text('Restack'), findsWidgets);
+    expect(find.text('Restack Changes'), findsWidgets);
     expect(find.text('Codex'), findsOneWidget);
     expect(find.text('Hidden Grok'), findsOneWidget);
   });

@@ -184,7 +184,7 @@ class const _ShipPullRequestButton({
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(AleraIcons.send, size: 16),
-          label: Text(shipping ? 'Shipping' : 'Ship'),
+          label: Text(shipping ? 'Shipping Changes' : 'Ship Changes'),
         ),
       ),
     );

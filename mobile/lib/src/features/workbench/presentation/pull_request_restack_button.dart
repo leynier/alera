@@ -15,7 +15,7 @@ class const PullRequestRestackButton({
         key: const Key('pull-request-restack-button'),
         onPressed: enabled ? onPressed : null,
         icon: const Icon(AleraIcons.restore),
-        label: const Text('Restack'),
+        label: const Text('Restack Changes'),
       ),
     );
   }
