@@ -82,6 +82,7 @@ abstract final class const AleraIcons._() {
   static const IconData link = LucideIcons.link;
   static const IconData unlink = LucideIcons.unlink;
   static const IconData unarchive = LucideIcons.archiveRestore;
+  static const IconData archive = LucideIcons.archive;
 
   // Workspace graph
   static const IconData host = LucideIcons.server;

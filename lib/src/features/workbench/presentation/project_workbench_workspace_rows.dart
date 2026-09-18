@@ -19,6 +19,7 @@ class const _WorkspaceRow({
   required final VoidCallback onOpenInBrowser,
   required final VoidCallback onOpenProjectSettings,
   required final VoidCallback onSleep,
+  final VoidCallback? onToggleArchived,
   required final VoidCallback onToggleExpanded,
   required final String fileManagerLabel,
   required final VoidCallback onRename,
@@ -222,6 +223,18 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                       size: 12,
                                       color: AleraTokens.foregroundMuted,
                                       key: Key('workspace-tray-pinned'),
+                                    ),
+                                  ),
+                                ],
+                                if (widget.workspace.isArchived) ...<Widget>[
+                                  const SizedBox(width: AleraTokens.space6),
+                                  const Tooltip(
+                                    message: 'Archived workspace',
+                                    child: Icon(
+                                      AleraIcons.archive,
+                                      size: 12,
+                                      color: AleraTokens.foregroundMuted,
+                                      key: Key('workspace-tray-archived'),
                                     ),
                                   ),
                                 ],

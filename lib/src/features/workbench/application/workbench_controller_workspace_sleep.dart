@@ -6,29 +6,13 @@ mixin _WorkbenchControllerWorkspaceSleep
         _WorkbenchControllerInternals,
         _WorkbenchControllerWorkspacePanel,
         _WorkbenchControllerTabOpening {
+  /// Sleeps a workspace: live terminal sessions stop, but tab records, layout,
+  /// branch, and files are preserved so agent sessions resume on wake through
+  /// their stored native session ids.
   Future<void> sleepWorkspace(Workspace workspace) async {
     try {
-      final workspaceTabs = state.tabsFor(workspace.id);
-      _closingTabWorkspaceIds.add(workspace.id);
-      _workspaceIdsWithClearedLayout.add(workspace.id);
-      _workspaceSleepGeneration[workspace.id] =
-          (_workspaceSleepGeneration[workspace.id] ?? 0) + 1;
-      _tabFocusHistory.forget(workspace.id);
-      _panelSelectionRevisionByWorkspace.remove(workspace.id);
-      await _repository.removeWorkspaceTabsForWorkspace(workspace.id);
-      for (final tab in workspaceTabs) {
-        await _releaseHostedReviewTab(workspace, tab);
-      }
-
-      final tabsByWorkspace = Map<String, List<WorkspaceTabRecord>>.from(
-        state.tabsByWorkspace,
-      )..[workspace.id] = const <WorkspaceTabRecord>[];
-      final layoutsByWorkspace = Map<String, WorkbenchLayout>.from(
-        state.layoutByWorkspace,
-      )..remove(workspace.id);
-      final activeTabsByWorkspace = Map<String, String>.from(
-        state.activeTabIdByWorkspace,
-      )..remove(workspace.id);
+      await _repository.sleepWorkspace(workspace.id);
+      ref.read(terminalRuntimeProvider).closeWorkspace(workspace.id);
       final wasActive = state.activeWorkspaceId == workspace.id;
       final prefs = state.viewPrefs;
       var nextPrefs = prefs;
@@ -39,11 +23,7 @@ mixin _WorkbenchControllerWorkspaceSleep
           )..remove(workspace.id),
         );
       }
-
       state = state.copyWith(
-        tabsByWorkspace: tabsByWorkspace,
-        layoutByWorkspace: layoutsByWorkspace,
-        activeTabIdByWorkspace: activeTabsByWorkspace,
         activeWorkspaceId: wasActive ? null : state.activeWorkspaceId,
         viewPrefs: nextPrefs,
         error: null,
@@ -53,11 +33,8 @@ mixin _WorkbenchControllerWorkspaceSleep
       }
       _pruneExplorerSessions();
     } catch (error) {
-      _workspaceIdsWithClearedLayout.remove(workspace.id);
       state = state.copyWith(error: error.toString());
       rethrow;
-    } finally {
-      _closingTabWorkspaceIds.remove(workspace.id);
     }
   }
 }

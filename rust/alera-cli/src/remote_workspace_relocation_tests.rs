@@ -69,6 +69,7 @@ pub(crate) async fn fixture() -> (
         source_branch: None,
         reuses_existing_branch: false,
         is_pinned: true,
+        is_archived: false,
         tag_ids: vec![],
         tag_names: vec![],
         section_id: None,

@@ -14,6 +14,11 @@ pub const RUNTIME_HOST_REMOTE_SSH_WORKSPACES_CAPABILITY: &str = "remoteSshWorksp
 pub const RUNTIME_HOST_MOBILE_CAPABILITY: &str = "mobileCompanionAccess";
 pub const RUNTIME_HOST_MOBILE_NETBIRD_CAPABILITY: &str = "mobileNetBirdGatewayV1";
 pub const RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY: &str = "workspaceSectionsV1";
+/// The host archives workspaces (`workspace.archive` / `workspace.unarchive`)
+/// instead of deleting them: live sessions stop, but tab records, layout,
+/// branch, and files are preserved so agent sessions can resume on unarchive.
+/// Additive: older hosts reject the verbs, so clients feature-check this.
+pub const RUNTIME_HOST_WORKSPACE_ARCHIVE_CAPABILITY: &str = "workspaceArchiveV1";
 /// The host stores one linked issue per workspace (`linkedIssue.*`), fetches
 /// issues through `issue.fetch`, and links one from `workspace.createManaged`
 /// when it carries `issueUrl`. Additive: an older host rejects the verbs and

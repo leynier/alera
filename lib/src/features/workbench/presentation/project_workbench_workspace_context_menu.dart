@@ -21,6 +21,8 @@ extension _WorkspaceContextMenu on _WorkspaceRowState {
         hasClearParent: widget.onClearParent != null,
         canRemove: widget.onDelete != null,
         isPinned: widget.workspace.isPinned,
+        isArchived: widget.workspace.isArchived,
+        supportsArchive: widget.onToggleArchived != null,
         hasDescendants: widget.onPinWorkspaceTree != null,
         hasTreeSection: widget.hasTreeSection,
         sections: widget.sections,
@@ -95,6 +97,8 @@ extension _WorkspaceContextMenu on _WorkspaceRowState {
       widget.onOpenInBrowser();
     } else if (selected == _sleepAction) {
       widget.onSleep();
+    } else if (selected == _archiveAction || selected == _unarchiveAction) {
+      widget.onToggleArchived?.call();
     } else if (selected == _removeAction) {
       widget.onDelete?.call();
     }

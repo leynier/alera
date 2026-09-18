@@ -161,6 +161,7 @@ class const WorkbenchViewPrefs({
   this.pullRequestCreateAction = PullRequestCreateAction.publish,
   this.workspaceKindFilter = WorkspaceKindFilter.all,
   this.showActiveWorkspacesOnly = false,
+  this.showArchivedWorkspaces = false,
   this.newWorkspaceTools = const <WorkspaceTool>[],
 }) with WorkbenchViewPrefsMappable {
   final Map<String, WorkspacePanel> workspacePanels;
@@ -260,6 +261,10 @@ class const WorkbenchViewPrefs({
   /// workspaces.
   final bool showActiveWorkspacesOnly;
 
+  /// Whether the sidebar shows archived workspaces. Defaults to false so
+  /// archived workspaces stay out of the way until explicitly requested.
+  final bool showArchivedWorkspaces;
+
   /// Tools opened in the right panel, in order, when a new workspace is
   /// created. Empty keeps that panel empty until the user adds a tool.
   /// Existing workspaces keep their own saved panel.
@@ -292,6 +297,7 @@ class const WorkbenchViewPrefs({
     pullRequestCreateAction: .publish,
     workspaceKindFilter: .all,
     showActiveWorkspacesOnly: false,
+    showArchivedWorkspaces: false,
   );
 
   factory fromJson(Map<String, Object?> json) =>

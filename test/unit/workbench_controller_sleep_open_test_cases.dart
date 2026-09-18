@@ -89,68 +89,72 @@ void _registerWorkbenchControllerSleepOpenTests() {
     },
   );
 
-  test(
-    'sleep skips close-tab layout persistence after the workspace was cleared',
-    () async {
-      await _controller.bootstrap();
-      final workspace = await _selectMainWorkspace(_controller, _harness);
-      final extra = await _controller.createTerminalTab(workspace);
-      await _flush();
-      final closeGate = Completer<void>();
-      _harness.workbenchRepository.removeWorkspaceTabGate = closeGate;
-      final closing = _controller.closeWorkspaceTab(
-        workspace: workspace,
-        tabId: extra.id,
-      );
-      await _flush();
-      await _controller.sleepWorkspace(workspace);
-      await _flush();
-      closeGate.complete();
-      await closing;
-      await _flush();
-
-      expect(_controller.state.tabsFor(workspace.id), isEmpty);
-      expect(_controller.state.layoutFor(workspace.id), isNull);
-      expect(
-        await _harness.workbenchRepository.findWorkbenchLayout(workspace.id),
-        isNull,
-      );
-    },
-  );
-
-  test('sleep rejects a queued file open requested before the workspace was cleared', () async {
+  test('sleep preserves remaining tabs when a close finishes after the workspace slept', () async {
     await _controller.bootstrap();
     final workspace = await _selectMainWorkspace(_controller, _harness);
-    final firstGate = Completer<void>();
-    _harness.workbenchRepository.upsertWorkspaceTabGate = firstGate;
-    final first = _controller.openFileTab(
+    final extra = await _controller.createTerminalTab(workspace);
+    await _flush();
+    final closeGate = Completer<void>();
+    _harness.workbenchRepository.removeWorkspaceTabGate = closeGate;
+    final closing = _controller.closeWorkspaceTab(
       workspace: workspace,
-      relativePath: 'lib/first.dart',
+      tabId: extra.id,
     );
     await _flush();
-    final second = _controller.openFileTab(
-      workspace: workspace,
-      relativePath: 'lib/second.dart',
-    );
     await _controller.sleepWorkspace(workspace);
     await _flush();
-    await _controller.selectWorkspace(
-      project: _harness.project,
-      workspace: workspace,
-    );
-    await _flush();
-    firstGate.complete();
-    await expectLater(first, throwsStateError);
-    await expectLater(second, throwsStateError);
+    closeGate.complete();
+    await closing;
     await _flush();
 
     expect(
-      _controller.state
-          .tabsFor(workspace.id)
-          .where((tab) => tab.kind == WorkspaceTabKind.editor),
-      isEmpty,
+      _controller.state.tabsFor(workspace.id).map((tab) => tab.id),
+      isNot(contains(extra.id)),
+    );
+    expect(_controller.state.tabsFor(workspace.id), isNotEmpty);
+    expect(_controller.state.layoutFor(workspace.id), isNotNull);
+    expect(
+      await _harness.workbenchRepository.findWorkbenchLayout(workspace.id),
+      isNotNull,
     );
   });
+
+  test(
+    'sleep preserves queued file opens requested before the workspace slept',
+    () async {
+      await _controller.bootstrap();
+      final workspace = await _selectMainWorkspace(_controller, _harness);
+      final firstGate = Completer<void>();
+      _harness.workbenchRepository.upsertWorkspaceTabGate = firstGate;
+      final first = _controller.openFileTab(
+        workspace: workspace,
+        relativePath: 'lib/first.dart',
+      );
+      await _flush();
+      final second = _controller.openFileTab(
+        workspace: workspace,
+        relativePath: 'lib/second.dart',
+      );
+      await _controller.sleepWorkspace(workspace);
+      await _flush();
+      await _controller.selectWorkspace(
+        project: _harness.project,
+        workspace: workspace,
+      );
+      await _flush();
+      firstGate.complete();
+      await first;
+      await second;
+      await _flush();
+
+      expect(
+        _controller.state
+            .tabsFor(workspace.id)
+            .where((tab) => tab.kind == WorkspaceTabKind.editor),
+        hasLength(2),
+      );
+    },
+  );
 
   test(
     'closing a pending automatic primary still creates a replacement',
@@ -237,7 +241,12 @@ void _registerWorkbenchControllerSleepOpenTests() {
       await _flush();
       await _controller.sleepWorkspace(workspace);
       await _flush();
-      expect(_controller.state.tabsFor(workspace.id), isEmpty);
+      expect(
+        _controller.state
+            .tabsFor(workspace.id)
+            .where(isPrimaryTerminalCandidate),
+        hasLength(1),
+      );
 
       final listGate = Completer<void>();
       _harness.workbenchRepository.listWorkspaceTabsGate = listGate;
@@ -313,33 +322,32 @@ void _registerWorkbenchControllerSleepOpenTests() {
     },
   );
 
-  test(
-    'selecting a slept workspace creates one primary without restoring width',
-    () async {
-      await _controller.bootstrap();
-      final workspace = await _selectMainWorkspace(_controller, _harness);
-      _controller.setRightSidebarWidth(360);
-      await _flush();
-      await _controller.sleepWorkspace(workspace);
-      await _flush();
+  test('selecting a slept workspace shows its preserved tabs without restoring width', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+    _controller.setRightSidebarWidth(360);
+    await _flush();
+    await _controller.sleepWorkspace(workspace);
+    await _flush();
+    expect(
+      _controller.state.tabsFor(workspace.id).where(isPrimaryTerminalCandidate),
+      hasLength(1),
+    );
 
-      await _controller.selectWorkspace(
-        project: _harness.project,
-        workspace: workspace,
-      );
-      await _flush();
+    await _controller.selectWorkspace(
+      project: _harness.project,
+      workspace: workspace,
+    );
+    await _flush();
 
-      expect(
-        _controller.state
-            .tabsFor(workspace.id)
-            .where(isPrimaryTerminalCandidate),
-        hasLength(1),
-      );
-      expect(_controller.state.activeWorkspaceId, workspace.id);
-      expect(
-        _controller.state.viewPrefs.rightSidebarWidthByWorkspaceId,
-        isNot(contains(workspace.id)),
-      );
-    },
-  );
+    expect(
+      _controller.state.tabsFor(workspace.id).where(isPrimaryTerminalCandidate),
+      hasLength(1),
+    );
+    expect(_controller.state.activeWorkspaceId, workspace.id);
+    expect(
+      _controller.state.viewPrefs.rightSidebarWidthByWorkspaceId,
+      isNot(contains(workspace.id)),
+    );
+  });
 }

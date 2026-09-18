@@ -128,7 +128,7 @@ fn upsert_tab(
 }
 
 #[test]
-fn workspace_sleep_removes_all_tabs_layout_and_sessions() {
+fn workspace_sleep_terminates_sessions_but_preserves_tabs_and_layout() {
     let dir = tempfile::tempdir().unwrap();
     let control_path = dir.path().join("runtime-host.json");
     let _guard = spawn_host(dir.path(), &control_path);
@@ -183,12 +183,18 @@ fn workspace_sleep_removes_all_tabs_layout_and_sessions() {
         &mut writer,
         json!({"id": 7, "type": "tab.list", "payload": {"workspaceId": "w1"}}),
     );
-    assert_eq!(read_response(&mut reader, 7)["payload"], json!([]));
+    assert_eq!(
+        read_response(&mut reader, 7)["payload"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
     send(
         &mut writer,
         json!({"id": 8, "type": "layout.find", "payload": {"workspaceId": "w1"}}),
     );
-    assert_eq!(read_response(&mut reader, 8)["payload"], Value::Null);
+    assert!(read_response(&mut reader, 8)["payload"].is_object());
     send(
         &mut writer,
         json!({"id": 9, "type": "tab.list", "payload": {"workspaceId": "w2"}}),

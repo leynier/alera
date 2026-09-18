@@ -8,6 +8,7 @@ import 'package:alera_mobile/src/features/workbench/domain/mobile_pull_request_c
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_comment_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_link_create_sheets.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_ship_sheet.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/archive_workspace_dialog.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_removal_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,6 +33,10 @@ class const PullRequestPanelActions({
   ) async {
     final review = snapshot.review;
     if (review == null) {
+      return;
+    }
+    if (action.kind == .archiveWorkspace) {
+      await _archiveWorkspace(context);
       return;
     }
     if (action.kind == .removeWorkspace) {
@@ -83,6 +88,9 @@ class const PullRequestPanelActions({
           number: number,
           url: review.url.isEmpty ? null : review.url,
         ),
+      ),
+      .archiveWorkspace => throw StateError(
+        'Archive Workspace uses the workspace archive dialog.',
       ),
       .removeWorkspace => throw StateError(
         'Remove Workspace uses the workspace removal dialog.',
@@ -242,6 +250,55 @@ class const PullRequestPanelActions({
       return true;
     } on Object {
       return true;
+    }
+  }
+
+  Future<void> _archiveWorkspace(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    late final WorkspaceListData list;
+    final loaded = ref.read(workspaceListControllerProvider(hostId)).value;
+    if (loaded != null) {
+      list = loaded;
+    } else {
+      try {
+        list = await ref.read(workspaceListControllerProvider(hostId).future);
+      } on Object catch (error) {
+        _report(messenger, pullRequestActionErrorMessage(error));
+        return;
+      }
+    }
+    if (!list.supportsArchive) {
+      _report(
+        messenger,
+        'Update the paired Alera runtime to archive workspaces.',
+      );
+      return;
+    }
+    final workspace = list.workspaceById(workspaceId);
+    if (workspace == null) {
+      _report(messenger, 'Workspace no longer exists. Refresh the list.');
+      return;
+    }
+    if (!context.mounted) {
+      return;
+    }
+    final confirmed = await showArchiveWorkspaceDialog(
+      context,
+      workspace: workspace,
+    );
+    if (!confirmed || !context.mounted) {
+      return;
+    }
+    try {
+      await ref
+          .read(workspaceListControllerProvider(hostId).notifier)
+          .archiveWorkspace(workspaceId);
+      if (context.mounted) {
+        await navigator.maybePop();
+      }
+    } on Object catch (error) {
+      _report(messenger, pullRequestActionErrorMessage(error));
     }
   }
 

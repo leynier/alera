@@ -1044,6 +1044,18 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   ) async => throw StateError('Workspace not found');
 
   @override
+  Future<Workspace> setWorkspaceArchived(
+    String workspaceId,
+    bool isArchived,
+  ) async => throw StateError('Workspace not found');
+
+  @override
+  Future<void> sleepWorkspace(String workspaceId) async {}
+
+  @override
+  Future<bool> supportsArchive() async => true;
+
+  @override
   Stream<List<WorkspaceTabRecord>> watchWorkspaceTabs(String workspaceId) =>
       const Stream<List<WorkspaceTabRecord>>.empty();
 

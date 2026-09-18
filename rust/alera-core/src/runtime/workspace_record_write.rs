@@ -11,14 +11,14 @@ pub(super) async fn write_workspace_record(
     let result = sqlx::query(
         "INSERT INTO workspaces \
          (id, instanceId, hostId, projectId, name, branch, path, createdAt, updatedAt, \
-          kind, status, sourceBranch, reusesExistingBranch, isPinned) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+          kind, status, sourceBranch, reusesExistingBranch, isPinned, isArchived) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
          ON CONFLICT(id) DO UPDATE SET \
          instanceId = excluded.instanceId, hostId = excluded.hostId, projectId = excluded.projectId, \
          name = excluded.name, branch = excluded.branch, path = excluded.path, \
          updatedAt = excluded.updatedAt, kind = excluded.kind, status = excluded.status, \
          sourceBranch = excluded.sourceBranch, reusesExistingBranch = excluded.reusesExistingBranch, \
-         isPinned = excluded.isPinned WHERE ?",
+         isPinned = excluded.isPinned, isArchived = excluded.isArchived WHERE ?",
     )
     .bind(&workspace.id)
     .bind(&workspace.instance_id)
@@ -34,6 +34,7 @@ pub(super) async fn write_workspace_record(
     .bind(&workspace.source_branch)
     .bind(if workspace.reuses_existing_branch { 1_i64 } else { 0_i64 })
     .bind(if workspace.is_pinned { 1_i64 } else { 0_i64 })
+    .bind(if workspace.is_archived { 1_i64 } else { 0_i64 })
     .bind(allow_update)
     .execute(&mut **tx)
     .await?;

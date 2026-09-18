@@ -44,6 +44,9 @@ class _FakeWorkspaceClient()
   bool get supportsWorkspaceMutations => true;
 
   @override
+  bool get supportsWorkspaceArchive => true;
+
+  @override
   bool get supportsWorkspaceSidebarParity => true;
 
   @override
@@ -243,6 +246,16 @@ class _FakeWorkspaceClient()
   @override
   Future<void> sleepWorkspace(String workspaceId) async {
     calls.add('sleep $workspaceId');
+  }
+
+  @override
+  Future<void> archiveWorkspace(String workspaceId) async {
+    calls.add('archive $workspaceId');
+  }
+
+  @override
+  Future<void> unarchiveWorkspace(String workspaceId) async {
+    calls.add('unarchive $workspaceId');
   }
 
   @override

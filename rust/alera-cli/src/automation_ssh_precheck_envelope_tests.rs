@@ -35,6 +35,7 @@ async fn linked_envelope_preserves_scope_with_or_without_owner_principal() {
         source_branch: None,
         reuses_existing_branch: false,
         is_pinned: false,
+        is_archived: false,
         tag_ids: vec![],
         tag_names: vec![],
         section_id: None,

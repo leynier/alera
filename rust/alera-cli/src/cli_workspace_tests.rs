@@ -80,6 +80,28 @@ fn workspace_pin_commands_parse_workspace_ids() {
     ));
 }
 #[test]
+fn workspace_archive_commands_parse_workspace_ids() {
+    let archive =
+        Cli::try_parse_from(["alera", "workspace", "archive", "--id", "workspace-1"]).unwrap();
+    let unarchive =
+        Cli::try_parse_from(["alera", "workspace", "unarchive", "--id", "workspace-2"]).unwrap();
+
+    assert!(matches!(
+        archive.command,
+        Command::Workspace(WorkspaceCommand {
+            action: WorkspaceAction::Archive(IdArgs { id }),
+            ..
+        }) if id == "workspace-1"
+    ));
+    assert!(matches!(
+        unarchive.command,
+        Command::Workspace(WorkspaceCommand {
+            action: WorkspaceAction::Unarchive(IdArgs { id }),
+            ..
+        }) if id == "workspace-2"
+    ));
+}
+#[test]
 fn workspace_section_commands_parse_names_ids_and_json_list() {
     use crate::cli::{WorkspaceSectionAction, WorkspaceSectionCommand};
 

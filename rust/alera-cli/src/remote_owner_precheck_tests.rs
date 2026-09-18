@@ -298,6 +298,7 @@ async fn linked_precheck_enrollment_preserves_legacy_origin_without_registering_
         source_branch: Some("main".into()),
         reuses_existing_branch: false,
         is_pinned: false,
+        is_archived: false,
         tag_ids: vec![],
         tag_names: vec![],
         section_id: None,

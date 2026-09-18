@@ -9,6 +9,7 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart'
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_listing_tree.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/parent_picker_sheet.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/archive_workspace_dialog.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/sleep_workspace_dialog.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_relocation_dialog.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_relocation_recovery_launcher.dart';
@@ -19,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+part 'workspace_actions_sheet_archive.dart';
 part 'workspace_actions_sheet_linked_issue.dart';
 part 'workspace_actions_sheet_sections.dart';
 
@@ -46,6 +48,8 @@ enum _WorkspaceAction {
   openRepository,
   copyPath,
   sleep,
+  archive,
+  unarchive,
   delete,
 }
 
@@ -200,6 +204,11 @@ Future<void> showWorkspaceActionsSheet(
                     onTap: () =>
                         Navigator.of(context).pop(_WorkspaceAction.sleep),
                   ),
+                  ..._archiveActionTiles(
+                    context,
+                    workspace: workspace,
+                    data: data,
+                  ),
                   ListTile(
                     leading: Icon(
                       AleraIcons.delete,
@@ -322,6 +331,13 @@ Future<void> showWorkspaceActionsSheet(
         if (confirmed) {
           await controller.sleepWorkspace(workspace.id);
         }
+      case _WorkspaceAction.archive || _WorkspaceAction.unarchive:
+        await _runArchiveAction(
+          context,
+          controller,
+          workspace: workspace,
+          action: action,
+        );
       case _WorkspaceAction.delete:
         await confirmAndDeleteWorkspace(context, controller, workspace, data);
     }

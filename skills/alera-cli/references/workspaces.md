@@ -211,6 +211,8 @@ alera workspace untag --workspace-id <workspace-id> --tag-id <tag-id>
 alera workspace link --parent-workspace-id <parent-id> --child-workspace-id <child-id>
 alera workspace pin --id <workspace-id>
 alera workspace unpin --id <workspace-id>
+alera workspace archive --id <workspace-id>
+alera workspace unarchive --id <workspace-id>
 alera tab list --workspace-id <workspace-id>
 alera tab create --workspace-id <workspace-id> --title "Terminal" --kind terminal
 ```

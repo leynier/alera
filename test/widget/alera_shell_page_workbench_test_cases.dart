@@ -306,7 +306,7 @@ void _registerAleraShellWorkbenchTests() {
     expect(find.text('Remove Workspace?'), findsOneWidget);
   });
 
-  testWidgets('workspace context menu sleep confirms and closes every tab', (
+  testWidgets('workspace context menu sleep confirms and preserves every tab', (
     tester,
   ) async {
     final runtime = _FakeTerminalRuntime();
@@ -363,9 +363,7 @@ void _registerAleraShellWorkbenchTests() {
 
     expect(find.text('Sleep Workspace?'), findsOneWidget);
     expect(
-      find.textContaining(
-        'One editor has unsaved changes that will be discarded.',
-      ),
+      find.textContaining('Tabs, branch, and files will be preserved'),
       findsOneWidget,
     );
     expect(runtime.closedWorkspaceIds, isEmpty);
@@ -375,6 +373,9 @@ void _registerAleraShellWorkbenchTests() {
     await tester.pumpAndSettle();
 
     expect(runtime.closedWorkspaceIds, <String>['workspace-1']);
+    // Sleep deselects the workspace, so its preserved tabs leave the view
+    // until it is selected again. Tab preservation itself is covered by the
+    // controller unit tests.
     expect(find.text('Terminal 1'), findsNothing);
     expect(find.text('Main'), findsAtLeastNWidgets(1));
   });

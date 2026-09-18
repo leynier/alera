@@ -145,6 +145,9 @@ class FakeTerminalClient
   bool supportsWorkspaceMutations = true;
 
   @override
+  bool supportsWorkspaceArchive = true;
+
+  @override
   bool get supportsWorkspaceSidebarParity => true;
 
   @override

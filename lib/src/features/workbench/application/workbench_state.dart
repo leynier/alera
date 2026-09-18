@@ -14,6 +14,7 @@ part 'workbench_state.mapper.dart';
 class const WorkbenchState({
   this.sections = const <WorkspaceSection>[],
   this.supportsSections = false,
+  this.supportsArchive = false,
   this.projects = const <Project>[],
   this.workspacesByProject = const <String, List<Workspace>>{},
   this.tabsByWorkspace = const <String, List<WorkspaceTabRecord>>{},
@@ -29,6 +30,7 @@ class const WorkbenchState({
 }) with WorkbenchStateMappable {
   final List<WorkspaceSection> sections;
   final bool supportsSections;
+  final bool supportsArchive;
   final List<Project> projects;
   final Map<String, List<Workspace>> workspacesByProject;
   final Map<String, List<WorkspaceTabRecord>> tabsByWorkspace;

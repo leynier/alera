@@ -20,10 +20,13 @@ pub(super) async fn for_request(
             workspace_id,
             cascade_tabs: true,
         }
-        | RuntimeMutationRequest::RemoveWorkspaceTabs { workspace_id }
-        | RuntimeMutationRequest::SleepWorkspace { workspace_id } => {
+        | RuntimeMutationRequest::RemoveWorkspaceTabs { workspace_id } => {
             hosted_review_retention::for_workspace(runtime_store, workspace_id).await
         }
+        // Sleep and archive preserve tab records (and their hosted diff tabs),
+        // so their retained review refs must survive the operation.
+        RuntimeMutationRequest::SleepWorkspace { .. }
+        | RuntimeMutationRequest::ArchiveWorkspace { .. } => Vec::new(),
         RuntimeMutationRequest::RemoveManagedWorkspace { request }
         | RuntimeMutationRequest::RemoveSharedWorkspace { request, .. } => {
             hosted_review_retention::for_workspace(runtime_store, &request.id).await

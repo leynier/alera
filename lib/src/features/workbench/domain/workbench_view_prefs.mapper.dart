@@ -657,6 +657,15 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
         opt: true,
         def: false,
       );
+  static bool _$showArchivedWorkspaces(WorkbenchViewPrefs v) =>
+      v.showArchivedWorkspaces;
+  static const Field<WorkbenchViewPrefs, bool> _f$showArchivedWorkspaces =
+      Field(
+        'showArchivedWorkspaces',
+        _$showArchivedWorkspaces,
+        opt: true,
+        def: false,
+      );
   static List<WorkspaceTool> _$newWorkspaceTools(WorkbenchViewPrefs v) =>
       v.newWorkspaceTools;
   static const Field<WorkbenchViewPrefs, List<WorkspaceTool>>
@@ -699,6 +708,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     #pullRequestCreateAction: _f$pullRequestCreateAction,
     #workspaceKindFilter: _f$workspaceKindFilter,
     #showActiveWorkspacesOnly: _f$showActiveWorkspacesOnly,
+    #showArchivedWorkspaces: _f$showArchivedWorkspaces,
     #newWorkspaceTools: _f$newWorkspaceTools,
   };
 
@@ -740,6 +750,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       pullRequestCreateAction: data.dec(_f$pullRequestCreateAction),
       workspaceKindFilter: data.dec(_f$workspaceKindFilter),
       showActiveWorkspacesOnly: data.dec(_f$showActiveWorkspacesOnly),
+      showArchivedWorkspaces: data.dec(_f$showArchivedWorkspaces),
       newWorkspaceTools: data.dec(_f$newWorkspaceTools),
     );
   }
@@ -863,6 +874,7 @@ abstract class WorkbenchViewPrefsCopyWith<
     PullRequestCreateAction? pullRequestCreateAction,
     WorkspaceKindFilter? workspaceKindFilter,
     bool? showActiveWorkspacesOnly,
+    bool? showArchivedWorkspaces,
     List<WorkspaceTool>? newWorkspaceTools,
   });
   WorkbenchViewPrefsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
@@ -947,6 +959,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     PullRequestCreateAction? pullRequestCreateAction,
     WorkspaceKindFilter? workspaceKindFilter,
     bool? showActiveWorkspacesOnly,
+    bool? showArchivedWorkspaces,
     List<WorkspaceTool>? newWorkspaceTools,
   }) => $apply(
     FieldCopyWithData({
@@ -996,6 +1009,8 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
         #workspaceKindFilter: workspaceKindFilter,
       if (showActiveWorkspacesOnly != null)
         #showActiveWorkspacesOnly: showActiveWorkspacesOnly,
+      if (showArchivedWorkspaces != null)
+        #showArchivedWorkspaces: showArchivedWorkspaces,
       if (newWorkspaceTools != null) #newWorkspaceTools: newWorkspaceTools,
     }),
   );
@@ -1087,6 +1102,10 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     showActiveWorkspacesOnly: data.get(
       #showActiveWorkspacesOnly,
       or: $value.showActiveWorkspacesOnly,
+    ),
+    showArchivedWorkspaces: data.get(
+      #showArchivedWorkspaces,
+      or: $value.showArchivedWorkspaces,
     ),
     newWorkspaceTools: data.get(
       #newWorkspaceTools,
