@@ -54,7 +54,7 @@ Future<void> dispatchPullRequestRestack({
       hostId: hostId,
       workspaceId: workspaceId,
       prompt: pullRequestRestackPrompt,
-      title: 'Restack',
+      title: 'Restack Changes',
       message: _agentDispatchMessage,
     ),
   );
