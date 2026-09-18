@@ -56,6 +56,8 @@ pub struct Workspace {
     #[serde(default)]
     pub is_pinned: bool,
     #[serde(default)]
+    pub is_archived: bool,
+    #[serde(default)]
     pub tag_ids: Vec<String>,
     #[serde(default)]
     pub tag_names: Vec<String>,

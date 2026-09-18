@@ -128,6 +128,7 @@ pub(crate) async fn create_remote_managed_workspace<E: RemoteHostExecutor>(
         },
         reuses_existing_branch: request.reuse_existing_branch,
         is_pinned: false,
+        is_archived: false,
         tag_ids: Vec::new(),
         tag_names: Vec::new(),
         parent_workspace_id: None,

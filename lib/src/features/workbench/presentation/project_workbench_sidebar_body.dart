@@ -12,6 +12,8 @@ class const _SidebarBody({
   required final Future<void> Function(Workspace workspace)
   onOpenWorkspaceInBrowser,
   required final Future<void> Function(Workspace workspace) onSleepWorkspace,
+  required final Future<void> Function(Workspace workspace)
+  onToggleWorkspaceArchived,
   required final Future<void> Function(Project project) onCreateWorkspace,
   required final Future<void> Function(Project project) onOpenProjectSettings,
   required final Future<void> Function(Project project, Workspace workspace)
@@ -161,6 +163,9 @@ class const _SidebarBody({
           onOpenProjectSettings: () =>
               unawaited(onOpenProjectSettings(row.project)),
           onSleep: () => onSleepWorkspace(row.workspace),
+          onToggleArchived: state.supportsArchive
+              ? () => onToggleWorkspaceArchived(row.workspace)
+              : null,
           onToggleExpanded: () =>
               controller.toggleWorkspaceExpanded(row.workspace.id),
           fileManagerLabel: fileManagerLabel,

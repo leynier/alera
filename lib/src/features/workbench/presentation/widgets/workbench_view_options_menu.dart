@@ -36,6 +36,8 @@ class const WorkbenchViewOptionsButton({super.key}) extends ConsumerWidget {
         prefs.selectedProjectIds.isNotEmpty ||
         prefs.selectedSectionIds.isNotEmpty ||
         prefs.selectedTagIds.isNotEmpty ||
+        prefs.showArchivedWorkspaces !=
+            WorkbenchViewPrefs.defaults.showArchivedWorkspaces ||
         prefs.showActiveWorkspacesOnly !=
             WorkbenchViewPrefs.defaults.showActiveWorkspacesOnly ||
         prefs.showPinnedWorkspacesBelow !=
@@ -331,6 +333,15 @@ class _WorkbenchViewOptionsPanelState
                       value: prefs.showPinnedWorkspacesBelow,
                       onChanged: controller.setShowPinnedWorkspacesBelow,
                       label: 'Repeat Pinned Workspaces',
+                    ),
+                  ),
+                  const SizedBox(height: AleraTokens.space6),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: AleraCheckbox(
+                      value: prefs.showArchivedWorkspaces,
+                      onChanged: controller.setShowArchivedWorkspaces,
+                      label: 'Show Archived Workspaces',
                     ),
                   ),
                   const SizedBox(height: AleraTokens.space16),

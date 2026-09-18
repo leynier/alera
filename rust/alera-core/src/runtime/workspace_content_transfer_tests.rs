@@ -56,6 +56,7 @@ fn workspace(root: &Path, id: &str) -> Workspace {
         source_branch: None,
         reuses_existing_branch: false,
         is_pinned: false,
+        is_archived: false,
         tag_ids: vec![],
         tag_names: vec![],
         parent_workspace_id: None,

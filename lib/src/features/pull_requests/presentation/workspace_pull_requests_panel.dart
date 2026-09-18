@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
@@ -178,6 +179,9 @@ class _VisiblePullRequestsPanelState
         (state) => state.viewPrefs.pullRequestCreateAction,
       ),
     );
+    final supportsArchive = ref.watch(
+      workbenchControllerProvider.select((state) => state.supportsArchive),
+    );
     final aiAssistSettings = ref.watch(
       settingsControllerProvider.select((settings) => settings.aiAssist),
     );
@@ -218,6 +222,9 @@ class _VisiblePullRequestsPanelState
           localWorkspaceBranches: widget.workspaceByBranch.keys.toSet(),
           stackWorkspaceCandidates: candidates,
           onOpenWorkspaceBranch: widget.onOpenWorkspaceBranch,
+          onArchiveWorkspace: supportsArchive
+              ? () => unawaited(_archiveWorkspace())
+              : null,
           onRemoveWorkspace: project == null
               ? null
               : () => unawaited(
@@ -240,6 +247,39 @@ class _VisiblePullRequestsPanelState
         );
       },
     );
+  }
+
+  Future<void> _archiveWorkspace() async {
+    final workspace = widget.workspace;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AleraConfirmDialog(
+        title: 'Archive Workspace?',
+        message:
+            'This closes terminal sessions for "${workspace.name}" and hides '
+            'it from the sidebar. Tabs, branch, and files will be preserved, '
+            'and agent sessions can resume when it is unarchived.',
+        confirmLabel: 'Archive',
+        destructive: true,
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+    try {
+      await ref
+          .read(workbenchControllerProvider.notifier)
+          .archiveWorkspace(workspace);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      AleraToast.show(
+        context,
+        message: 'Could not archive workspace: $error',
+        tone: .error,
+      );
+    }
   }
 
   Future<void> _openDiff(HostedReview review) async {

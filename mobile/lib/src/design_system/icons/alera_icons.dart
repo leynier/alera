@@ -106,5 +106,7 @@ abstract final class const AleraIcons._() {
   static const IconData gitPublish = LucideIcons.cloudUpload;
   static const IconData gitStash = LucideIcons.archive;
   static const IconData gitStashPop = LucideIcons.archiveRestore;
+  static const IconData archive = LucideIcons.archive;
+  static const IconData unarchive = LucideIcons.archiveRestore;
   static const IconData generate = LucideIcons.sparkles;
 }

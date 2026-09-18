@@ -112,6 +112,9 @@ mod workbench_shared_state_models;
 mod workbench_shared_state_store;
 #[cfg(test)]
 mod workbench_shared_state_store_tests;
+mod workspace_archive_store;
+#[cfg(test)]
+mod workspace_archive_store_tests;
 mod workspace_checkout_relocation_barrier;
 mod workspace_content_transfer;
 mod workspace_location_path;

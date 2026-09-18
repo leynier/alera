@@ -88,6 +88,7 @@ mod terminal_alias_commands;
 mod terminal_host;
 mod terminal_stdio_mode;
 mod workspace_add;
+mod workspace_archive;
 mod workspace_buffer_guard_request;
 mod workspace_context;
 mod workspace_handoff;
@@ -501,6 +502,12 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
         }
         WorkspaceAction::Unpin(IdArgs { id }) => {
             return workspace_pinning::run(runtime_dir(&runtime), json_output, id, false).await;
+        }
+        WorkspaceAction::Archive(IdArgs { id }) => {
+            return workspace_archive::run(runtime_dir(&runtime), json_output, id, true).await;
+        }
+        WorkspaceAction::Unarchive(IdArgs { id }) => {
+            return workspace_archive::run(runtime_dir(&runtime), json_output, id, false).await;
         }
         WorkspaceAction::Link(args) => {
             let payload = json!({

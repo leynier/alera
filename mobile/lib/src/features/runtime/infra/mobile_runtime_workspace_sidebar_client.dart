@@ -127,6 +127,21 @@ mixin MobileRuntimeWorkspaceSidebarClient
     });
   }
 
+  bool get supportsWorkspaceArchive =>
+      runtimeCapabilities.contains(workspaceArchiveCapability);
+
+  Future<void> archiveWorkspace(String workspaceId) async {
+    await request('workspace.archive', <String, Object?>{
+      'workspaceId': workspaceId,
+    });
+  }
+
+  Future<void> unarchiveWorkspace(String workspaceId) async {
+    await request('workspace.unarchive', <String, Object?>{
+      'workspaceId': workspaceId,
+    });
+  }
+
   Future<String?> workspaceRepositoryRemoteUrl(String workspaceId) async {
     final result = await requestMap(
       'workspace.repositoryWebUrl',

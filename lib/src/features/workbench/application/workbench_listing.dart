@@ -160,6 +160,9 @@ bool _workspaceVisible(
   Workspace workspace,
   Iterable<WorkspaceTabRecord> tabs,
 ) {
+  if (!workspaceMatchesArchivedFilter(prefs, workspace)) {
+    return false;
+  }
   if (!workspaceMatchesKindFilter(prefs, workspace)) {
     return false;
   }

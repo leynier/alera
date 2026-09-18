@@ -38,7 +38,8 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
         status TEXT NOT NULL,
         sourceBranch TEXT,
         reusesExistingBranch INTEGER NOT NULL DEFAULT 0,
-        isPinned INTEGER NOT NULL DEFAULT 0
+        isPinned INTEGER NOT NULL DEFAULT 0,
+        isArchived INTEGER NOT NULL DEFAULT 0
     );",
     "CREATE INDEX IF NOT EXISTS workspacesProjectStatusIdx ON workspaces(projectId, status, kind, createdAt);",
     "CREATE UNIQUE INDEX IF NOT EXISTS workspacesInstanceIdx ON workspaces(instanceId);",

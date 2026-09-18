@@ -185,8 +185,23 @@ void main() {
       'Open in Project Settings',
       'Copy Path',
       'Sleep',
+      'Archive Workspace',
       'Remove',
     ]);
+  });
+
+  test('workspace context menu offers unarchive for archived workspaces', () {
+    final entries = workspaceContextMenuEntries(
+      fileManagerLabel: 'Files',
+      hasClearParent: false,
+      canRemove: true,
+      isPinned: false,
+      isArchived: true,
+    );
+
+    expect(_labels(entries), contains('Unarchive Workspace'));
+    expect(_labels(entries), isNot(contains('Archive Workspace')));
+    expect(_leadingIcon(entries, 'Unarchive Workspace'), AleraIcons.unarchive);
   });
 }
 

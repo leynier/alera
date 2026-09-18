@@ -52,22 +52,39 @@ fn workspace(id: &str, project_id: &str) -> Workspace {
 }
 
 #[tokio::test]
-async fn workspace_pin_roundtrip_is_idempotent_and_preserves_recency() {
+async fn workspace_archive_roundtrip_preserves_tabs_and_layout() {
     let (_dir, store) = store().await;
     store.upsert_project(project("p")).await.unwrap();
-    let original = store.upsert_workspace(workspace("w", "p")).await.unwrap();
+    store.upsert_workspace(workspace("w", "p")).await.unwrap();
+    store
+        .upsert_workspace_tab(super::WorkspaceTabRecord {
+            id: "tab-1".to_string(),
+            workspace_id: "w".to_string(),
+            kind: "terminal".to_string(),
+            title: "tab-1".to_string(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            payload: serde_json::json!({"agentNativeSessionId": "sess-1"}),
+        })
+        .await
+        .unwrap();
+    store
+        .upsert_workbench_layout(super::WorkbenchLayoutRecord {
+            workspace_id: "w".to_string(),
+            data: serde_json::json!({"activeTabId": "tab-1"}),
+        })
+        .await
+        .unwrap();
 
-    let pinned = store.set_workspace_pinned("w", true).await.unwrap();
-    let pinned_again = store.set_workspace_pinned("w", true).await.unwrap();
-    let unpinned = store.set_workspace_pinned("w", false).await.unwrap();
+    let archived = store.set_workspace_archived("w", true).await.unwrap();
+    assert!(archived.is_archived);
+    let unarchived = store.set_workspace_archived("w", false).await.unwrap();
+    assert!(!unarchived.is_archived);
 
-    assert!(pinned.is_pinned);
-    assert!(pinned_again.is_pinned);
-    assert!(!unpinned.is_pinned);
-    assert_eq!(pinned.updated_at, original.updated_at);
-    assert_eq!(unpinned.updated_at, original.updated_at);
+    assert_eq!(store.list_workspace_tabs("w").await.unwrap().len(), 1);
+    assert!(store.find_workbench_layout("w").await.unwrap().is_some());
     assert!(store
-        .set_workspace_pinned("missing", true)
+        .set_workspace_archived("missing", true)
         .await
         .unwrap_err()
         .to_string()
@@ -75,7 +92,7 @@ async fn workspace_pin_roundtrip_is_idempotent_and_preserves_recency() {
 }
 
 #[tokio::test]
-async fn workspace_pin_column_is_added_to_legacy_runtime_databases() {
+async fn workspace_archive_column_is_added_to_legacy_runtime_databases() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join(RUNTIME_DATABASE_FILE_NAME);
     let pool = SqlitePoolOptions::new()
@@ -100,7 +117,8 @@ async fn workspace_pin_column_is_added_to_legacy_runtime_databases() {
             kind TEXT NOT NULL,
             status TEXT NOT NULL,
             sourceBranch TEXT,
-            reusesExistingBranch INTEGER NOT NULL DEFAULT 0
+            reusesExistingBranch INTEGER NOT NULL DEFAULT 0,
+            isPinned INTEGER NOT NULL DEFAULT 0
         )",
     )
     .execute(&pool)
@@ -116,6 +134,6 @@ async fn workspace_pin_column_is_added_to_legacy_runtime_databases() {
 
     assert!(columns.iter().any(|row| {
         row.try_get::<String, _>("name")
-            .is_ok_and(|name| name == "isPinned")
+            .is_ok_and(|name| name == "isArchived")
     }));
 }

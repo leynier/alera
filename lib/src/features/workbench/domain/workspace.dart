@@ -24,6 +24,7 @@ class const Workspace({
   this.instanceId,
   this.hostId = 'local',
   this.isPinned = false,
+  this.isArchived = false,
   this.tagIds = const <String>[],
   this.tagNames = const <String>[],
   this.sectionId,
@@ -44,6 +45,7 @@ class const Workspace({
   final String? instanceId;
   final String hostId;
   final bool isPinned;
+  final bool isArchived;
   final List<String> tagIds;
   final List<String> tagNames;
   final String? sectionId;

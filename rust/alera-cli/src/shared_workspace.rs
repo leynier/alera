@@ -182,6 +182,7 @@ async fn prepare_shared_workspace_with<E: crate::ssh_remote::RemoteHostExecutor>
         source_branch: None,
         reuses_existing_branch: false,
         is_pinned: false,
+        is_archived: false,
         tag_ids: vec![],
         tag_names: vec![],
         section_id: None,

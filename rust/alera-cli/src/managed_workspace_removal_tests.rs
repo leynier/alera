@@ -115,6 +115,7 @@ async fn rejects_main_workspace_during_removal_validation() {
             source_branch: None,
             reuses_existing_branch: true,
             is_pinned: false,
+            is_archived: false,
             tag_ids: Vec::new(),
             tag_names: Vec::new(),
             parent_workspace_id: None,

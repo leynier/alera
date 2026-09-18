@@ -60,6 +60,13 @@ mixin _WorkbenchControllerViewPrefs
     _updateViewPrefs(state.viewPrefs.copyWith(showPinnedWorkspacesBelow: show));
   }
 
+  void setShowArchivedWorkspaces(bool show) {
+    if (state.viewPrefs.showArchivedWorkspaces == show) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(showArchivedWorkspaces: show));
+  }
+
   void toggleProjectFilter(String projectId) {
     final next = Set<String>.from(state.viewPrefs.selectedProjectIds);
     if (!next.add(projectId)) {

@@ -144,6 +144,7 @@ enum MobilePullRequestReviewActionKind {
   merge,
   convertToDraft,
   close,
+  archiveWorkspace,
   removeWorkspace,
   unlink,
 }
@@ -158,6 +159,7 @@ final class const MobilePullRequestReviewAction({
     .merge => method!.label,
     .convertToDraft => 'Convert To Draft',
     .close => 'Close Pull Request',
+    .archiveWorkspace => 'Archive Workspace',
     .removeWorkspace => 'Remove Workspace',
     .unlink => 'Unlink Pull Request',
   };
@@ -183,10 +185,11 @@ bool _isMerged(MobilePullRequestReview review) =>
 
 /// The desktop's action set (`_PullRequestReviewActions`), in its order: ready
 /// first for a draft, then the allowed merge methods, draft conversion, close,
-/// Remove Workspace when the review is merged, and unlink, which is always
-/// available.
+/// Archive Workspace (then Remove Workspace) when the review is merged, and
+/// unlink, which is always available.
 List<MobilePullRequestReviewAction> availablePullRequestReviewActions(
   MobilePullRequestSnapshot snapshot, {
+  bool offerArchiveWorkspace = true,
   bool offerRemoveWorkspace = true,
 }) {
   final review = snapshot.review;
@@ -204,6 +207,8 @@ List<MobilePullRequestReviewAction> availablePullRequestReviewActions(
     if (open && !review.isDraft)
       const MobilePullRequestReviewAction(kind: .convertToDraft),
     if (open) const MobilePullRequestReviewAction(kind: .close),
+    if (_isMerged(review) && offerArchiveWorkspace)
+      const MobilePullRequestReviewAction(kind: .archiveWorkspace),
     if (_isMerged(review) && offerRemoveWorkspace)
       const MobilePullRequestReviewAction(kind: .removeWorkspace),
     const MobilePullRequestReviewAction(kind: .unlink),
@@ -268,6 +273,9 @@ MobilePullRequestActionConfirmation pullRequestActionConfirmation(
       message: 'This will convert the pull request to draft on GitHub.',
       confirmLabel: 'Convert To Draft',
       destructive: false,
+    ),
+    .archiveWorkspace => throw StateError(
+      'Archive Workspace uses the workspace archive dialog.',
     ),
     .removeWorkspace => throw StateError(
       'Remove Workspace uses the workspace removal dialog.',

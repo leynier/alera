@@ -34,6 +34,11 @@ pub enum WorkspaceAction {
     Pin(IdArgs),
     /// Unpin a workspace from the desktop sidebar.
     Unpin(IdArgs),
+    /// Archive a workspace: stop its sessions and hide it from the sidebar
+    /// while preserving tabs, branch, and files for later resume.
+    Archive(IdArgs),
+    /// Unarchive a workspace so it returns to the sidebar.
+    Unarchive(IdArgs),
     /// Add a parent/child relationship.
     Link(WorkspaceLinkArgs),
     /// Remove a parent/child relationship.

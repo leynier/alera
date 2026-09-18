@@ -38,6 +38,7 @@ class const WorkspaceListData({
   required final List<WorkspaceSummary> workspaces,
   required final List<ProjectSummary> projects,
   required this.supportsMutations,
+  final bool supportsArchive = false,
   final bool supportsPromptWorkspaceCreation = true,
   final bool supportsPromptImageUpload = false,
   final bool supportsPromptFileUpload = false,
@@ -94,6 +95,7 @@ class WorkspaceListController extends _$WorkspaceListController {
       workspaces: snapshot.workspaces,
       projects: snapshot.projects,
       supportsMutations: client.supportsWorkspaceMutations,
+      supportsArchive: client.supportsWorkspaceArchive,
       supportsSharedCheckoutWorkspaces:
           client is MobileSharedCheckoutClient &&
           (client as MobileSharedCheckoutClient)
@@ -355,6 +357,18 @@ class WorkspaceListController extends _$WorkspaceListController {
   Future<void> sleepWorkspace(String workspaceId) async {
     final client = await ref.read(workspaceClientProvider(hostId).future);
     await client.sleepWorkspace(workspaceId);
+    _invalidateIfMounted();
+  }
+
+  Future<void> archiveWorkspace(String workspaceId) async {
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    await client.archiveWorkspace(workspaceId);
+    _invalidateIfMounted();
+  }
+
+  Future<void> unarchiveWorkspace(String workspaceId) async {
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    await client.unarchiveWorkspace(workspaceId);
     _invalidateIfMounted();
   }
 

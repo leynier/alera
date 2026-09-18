@@ -8,6 +8,7 @@ pub(super) fn is_serialized_runtime_mutation(request_type: &str) -> bool {
             | "workspace.remove"
             | "workspace.removeForProject"
             | "workspace.sleep"
+            | "workspace.archive"
             | "tab.remove"
             | "tab.removeForWorkspace"
     )
@@ -42,6 +43,7 @@ pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
                 | "projectConfig.upsert"
                 | "workspace.rename"
                 | "workspace.setPinned"
+                | "workspace.unarchive"
                 | "workspace.upsert"
                 | "workspaceActivity.remove"
                 | "workspaceActivity.upsertAll"

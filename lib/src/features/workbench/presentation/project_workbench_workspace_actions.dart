@@ -11,6 +11,8 @@ const String _openFolderAction = 'open-folder';
 const String _copyPathAction = 'copy-path';
 const String _openInBrowserAction = 'open-in-browser';
 const String _sleepAction = 'sleep';
+const String _archiveAction = 'archive';
+const String _unarchiveAction = 'unarchive';
 const String _manageTagsAction = 'manage-tags';
 const String _togglePinAction = 'toggle-pin';
 const String _pinWorkspaceTreeAction = 'pin-workspace-tree';
@@ -44,6 +46,8 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
   required bool canRemove,
   required bool isPinned,
   bool hasDescendants = false,
+  bool isArchived = false,
+  bool supportsArchive = true,
   bool hasTreeSection = false,
   List<WorkspaceSection> sections = const <WorkspaceSection>[],
   String? currentSectionId,
@@ -170,6 +174,16 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
       leading: Icon(AleraIcons.theme, size: 16, color: AleraTokens.foreground),
       label: 'Sleep',
     ),
+    if (supportsArchive)
+      AleraDropdownEntry<String>(
+        value: isArchived ? _unarchiveAction : _archiveAction,
+        leading: Icon(
+          isArchived ? AleraIcons.unarchive : AleraIcons.archive,
+          size: 16,
+          color: AleraTokens.foreground,
+        ),
+        label: isArchived ? 'Unarchive Workspace' : 'Archive Workspace',
+      ),
     AleraDropdownEntry<String>(
       value: _removeAction,
       leading: Icon(
@@ -317,24 +331,14 @@ mixin _WorkspaceSidebarActions on ConsumerState<ProjectWorkbenchSidebar> {
   }
 
   Future<void> sleepWorkspace(Workspace workspace) async {
-    final state = ref.read(workbenchControllerProvider);
-    final tabs = state.tabsFor(workspace.id);
-    final editorRegistry = ref.read(editorSessionRegistryProvider);
-    final dirtyEditorCount = tabs
-        .where((tab) => editorRegistry.isDirty(tab.id))
-        .length;
-    final dirtyWarning = dirtyEditorCount == 0
-        ? ''
-        : dirtyEditorCount == 1
-        ? ' One editor has unsaved changes that will be discarded.'
-        : ' $dirtyEditorCount editors have unsaved changes that will be discarded.';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AleraConfirmDialog(
         title: 'Sleep Workspace?',
         message:
-            'This closes all tabs and terminal sessions for "${workspace.name}". '
-            'The workspace, branch, and files will be preserved.$dirtyWarning',
+            'This closes terminal sessions for "${workspace.name}". Tabs, '
+            'branch, and files will be preserved, and agent sessions can '
+            'resume when the workspace wakes.',
         confirmLabel: 'Sleep',
         destructive: true,
       ),
@@ -347,10 +351,10 @@ mixin _WorkspaceSidebarActions on ConsumerState<ProjectWorkbenchSidebar> {
       await ref
           .read(workbenchControllerProvider.notifier)
           .sleepWorkspace(workspace);
+      // The controller releases the live handles; keep this call so sidebar
+      // sleep still drops them when the controller is stubbed. Double close
+      // is idempotent.
       ref.read(terminalRuntimeProvider).closeWorkspace(workspace.id);
-      for (final tab in tabs) {
-        editorRegistry.forget(tab.id);
-      }
       if (!mounted) {
         return;
       }
@@ -362,6 +366,67 @@ mixin _WorkspaceSidebarActions on ConsumerState<ProjectWorkbenchSidebar> {
       AleraToast.show(
         context,
         message: 'Could not sleep workspace: $error',
+        tone: .error,
+      );
+    }
+  }
+
+  Future<void> toggleWorkspaceArchived(Workspace workspace) async {
+    if (workspace.isArchived) {
+      try {
+        await ref
+            .read(workbenchControllerProvider.notifier)
+            .unarchiveWorkspace(workspace);
+        if (!mounted) {
+          return;
+        }
+        AleraToast.show(
+          context,
+          message: 'Workspace unarchived',
+          tone: .success,
+        );
+      } catch (error) {
+        if (!mounted) {
+          return;
+        }
+        AleraToast.show(
+          context,
+          message: 'Could not unarchive workspace: $error',
+          tone: .error,
+        );
+      }
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AleraConfirmDialog(
+        title: 'Archive Workspace?',
+        message:
+            'This closes terminal sessions for "${workspace.name}" and hides '
+            'it from the sidebar. Tabs, branch, and files will be preserved, '
+            'and agent sessions can resume when it is unarchived.',
+        confirmLabel: 'Archive',
+        destructive: true,
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+    try {
+      await ref
+          .read(workbenchControllerProvider.notifier)
+          .archiveWorkspace(workspace);
+      if (!mounted) {
+        return;
+      }
+      AleraToast.show(context, message: 'Workspace archived', tone: .success);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      AleraToast.show(
+        context,
+        message: 'Could not archive workspace: $error',
         tone: .error,
       );
     }

@@ -124,6 +124,8 @@ impl RuntimeStore {
             .await?;
         self.ensure_column("workspaces", "isPinned", "INTEGER NOT NULL DEFAULT 0")
             .await?;
+        self.ensure_column("workspaces", "isArchived", "INTEGER NOT NULL DEFAULT 0")
+            .await?;
         self.ensure_column(
             "mobileAccessSettings",
             "endpointMode",
@@ -735,7 +737,7 @@ impl RuntimeStore {
     pub async fn list_workspaces(&self, project_id: &str) -> Result<Vec<Workspace>> {
         let rows = sqlx::query(
             "SELECT id, instanceId, hostId, projectId, name, branch, path, createdAt, updatedAt, \
-             kind, status, sourceBranch, reusesExistingBranch, isPinned \
+             kind, status, sourceBranch, reusesExistingBranch, isPinned, isArchived \
              FROM workspaces WHERE projectId = ? AND status = 'active' \
              ORDER BY createdAt ASC, name COLLATE NOCASE ASC",
         )
@@ -748,7 +750,7 @@ impl RuntimeStore {
     pub async fn list_all_workspaces(&self) -> Result<Vec<Workspace>> {
         let rows = sqlx::query(
             "SELECT id, instanceId, hostId, projectId, name, branch, path, createdAt, updatedAt, \
-             kind, status, sourceBranch, reusesExistingBranch, isPinned \
+             kind, status, sourceBranch, reusesExistingBranch, isPinned, isArchived \
              FROM workspaces WHERE status = 'active' \
              ORDER BY projectId ASC, createdAt ASC",
         )
@@ -760,7 +762,7 @@ impl RuntimeStore {
     pub async fn find_workspace(&self, workspace_id: &str) -> Result<Option<Workspace>> {
         let row = sqlx::query(
             "SELECT id, instanceId, hostId, projectId, name, branch, path, createdAt, updatedAt, \
-             kind, status, sourceBranch, reusesExistingBranch, isPinned FROM workspaces WHERE id = ?",
+             kind, status, sourceBranch, reusesExistingBranch, isPinned, isArchived FROM workspaces WHERE id = ?",
         )
         .bind(workspace_id)
         .fetch_optional(&self.pool)
@@ -1073,7 +1075,11 @@ impl RuntimeStore {
         Ok(())
     }
 
-    pub async fn sleep_workspace(&self, workspace_id: &str) -> Result<()> {
+    /// Removes every tab and the layout for a workspace while keeping the
+    /// workspace, branch, and files. Used by explicit tab-clear flows
+    /// (`tab.removeForWorkspace`); sleep and archive terminate sessions but
+    /// preserve tab records so agent sessions can resume on reopen.
+    pub async fn remove_workspace_tabs(&self, workspace_id: &str) -> Result<()> {
         let mut tx = self.pool.begin().await?;
         sqlx::query("DELETE FROM workspaceTabs WHERE workspaceId = ?")
             .bind(workspace_id)
@@ -1535,6 +1541,7 @@ impl RuntimeStore {
             source_branch: empty_to_none(row.try_get("sourceBranch")?),
             reuses_existing_branch: row.try_get::<i64, _>("reusesExistingBranch")? == 1,
             is_pinned: row.try_get::<i64, _>("isPinned")? == 1,
+            is_archived: row.try_get::<i64, _>("isArchived").unwrap_or(0) == 1,
             tag_ids,
             tag_names,
             parent_workspace_id,
@@ -1810,6 +1817,7 @@ mod tests {
             source_branch: None,
             reuses_existing_branch: false,
             is_pinned: false,
+            is_archived: false,
             tag_ids: Vec::new(),
             tag_names: Vec::new(),
             parent_workspace_id: None,

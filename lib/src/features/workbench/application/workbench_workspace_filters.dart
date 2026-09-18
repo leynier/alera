@@ -44,3 +44,15 @@ bool workspaceMatchesActiveFilter(
   }
   return tabs.any((tab) => tab.kind == WorkspaceTabKind.terminal);
 }
+
+/// Archived workspaces stay hidden unless the user opts in through View
+/// Options. Pinned copies follow the same rule as their regular row.
+bool workspaceMatchesArchivedFilter(
+  WorkbenchViewPrefs prefs,
+  Workspace workspace,
+) {
+  if (prefs.showArchivedWorkspaces) {
+    return true;
+  }
+  return !workspace.isArchived;
+}

@@ -115,6 +115,8 @@ class _ProjectWorkbenchSidebarState
                                 onOpenWorkspaceInBrowser:
                                     openWorkspaceInBrowser,
                                 onSleepWorkspace: sleepWorkspace,
+                                onToggleWorkspaceArchived:
+                                    toggleWorkspaceArchived,
                                 onCreateWorkspace: _createWorkspace,
                                 onOpenProjectSettings: _openProjectSettings,
                                 onDeleteWorkspace: _deleteWorkspace,

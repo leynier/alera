@@ -77,7 +77,7 @@ pub(super) async fn validate_cleanup(
     {
         bail!("Automation task identity, location or name changed");
     }
-    let untouched: i64 = sqlx::query_scalar("SELECT count(*) FROM workspaces w WHERE w.id = ? AND w.instanceId = ? AND w.projectId = ? AND w.hostId = ? AND w.path = ? AND w.name = ? AND w.kind = 'main' AND w.status = 'active' AND w.isPinned = 0 AND NOT EXISTS (SELECT 1 FROM workspaceRelations r WHERE r.parentWorkspaceId = w.id OR r.childWorkspaceId = w.id) AND NOT EXISTS (SELECT 1 FROM workspaceTagAssignments t WHERE t.workspaceId = w.id) AND NOT EXISTS (SELECT 1 FROM workspaceSectionAssignments s WHERE s.workspaceId = w.id)")
+    let untouched: i64 = sqlx::query_scalar("SELECT count(*) FROM workspaces w WHERE w.id = ? AND w.instanceId = ? AND w.projectId = ? AND w.hostId = ? AND w.path = ? AND w.name = ? AND w.kind = 'main' AND w.status = 'active' AND w.isPinned = 0 AND w.isArchived = 0 AND NOT EXISTS (SELECT 1 FROM workspaceRelations r WHERE r.parentWorkspaceId = w.id OR r.childWorkspaceId = w.id) AND NOT EXISTS (SELECT 1 FROM workspaceTagAssignments t WHERE t.workspaceId = w.id) AND NOT EXISTS (SELECT 1 FROM workspaceSectionAssignments s WHERE s.workspaceId = w.id)")
         .bind(&workspace.id).bind(&allocated.instance_id).bind(&allocated.project_id).bind(&allocated.host_id).bind(&allocated.path).bind(&allocated.name).fetch_one(&mut **tx).await?;
     if untouched != 1 {
         bail!("Automation task was reorganized or is no longer active");

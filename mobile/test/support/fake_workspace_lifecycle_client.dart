@@ -214,7 +214,17 @@ mixin FakeWorkspaceLifecycleClient {
   Future<WorkspaceSummary> renameWorkspace(String id, String name) async =>
       WorkspaceSummary(id: id, projectId: 'p1', name: name, path: '/tmp/$id');
 
-  Future<void> sleepWorkspace(String workspaceId) async {}
+  Future<void> sleepWorkspace(String workspaceId) async {
+    calls.add('sleep $workspaceId');
+  }
+
+  Future<void> archiveWorkspace(String workspaceId) async {
+    calls.add('archive $workspaceId');
+  }
+
+  Future<void> unarchiveWorkspace(String workspaceId) async {
+    calls.add('unarchive $workspaceId');
+  }
 
   Future<String?> workspaceRepositoryRemoteUrl(String workspaceId) async =>
       null;

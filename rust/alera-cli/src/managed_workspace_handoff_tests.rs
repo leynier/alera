@@ -435,6 +435,7 @@ impl Fixture {
                 source_branch: None,
                 reuses_existing_branch: false,
                 is_pinned: false,
+                is_archived: false,
                 tag_ids: Vec::new(),
                 tag_names: Vec::new(),
                 parent_workspace_id: None,

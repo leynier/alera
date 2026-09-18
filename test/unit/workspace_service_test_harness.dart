@@ -125,10 +125,24 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
     String workspaceId,
     bool isPinned,
   ) async {
-    final workspace = await findWorkspaceById(workspaceId);
-    if (workspace == null) throw StateError('Workspace not found');
+    final workspace = (await findWorkspaceById(workspaceId))!;
     return upsertWorkspace(workspace.copyWith(isPinned: isPinned));
   }
+
+  @override
+  Future<Workspace> setWorkspaceArchived(
+    String workspaceId,
+    bool isArchived,
+  ) async {
+    final workspace = (await findWorkspaceById(workspaceId))!;
+    return upsertWorkspace(workspace.copyWith(isArchived: isArchived));
+  }
+
+  @override
+  Future<void> sleepWorkspace(String workspaceId) async {}
+
+  @override
+  Future<bool> supportsArchive() async => true;
 
   @override
   Stream<List<WorkspaceTabRecord>> watchWorkspaceTabs(String workspaceId) =>

@@ -386,7 +386,7 @@ async fn sleeping_workspace_removes_its_tabs_and_layout_only() {
         .await
         .unwrap();
 
-    store.sleep_workspace("workspace-1").await.unwrap();
+    store.remove_workspace_tabs("workspace-1").await.unwrap();
 
     assert!(store
         .list_workspace_tabs("workspace-1")

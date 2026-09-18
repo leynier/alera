@@ -71,10 +71,12 @@ void main() {
   group('availablePullRequestReviewActions', () {
     List<String> labels(
       MobilePullRequestSnapshot snapshot, {
+      bool offerArchiveWorkspace = true,
       bool offerRemoveWorkspace = true,
     }) => <String>[
       for (final action in availablePullRequestReviewActions(
         snapshot,
+        offerArchiveWorkspace: offerArchiveWorkspace,
         offerRemoveWorkspace: offerRemoveWorkspace,
       ))
         action.label,
@@ -106,16 +108,21 @@ void main() {
       expect(pullRequestReviewActionEnabled(merge, snapshot.review!), isFalse);
     });
 
-    test('a merged pull request defaults to Remove Workspace', () {
+    test('a merged pull request defaults to Archive Workspace', () {
       expect(labels(_snapshot(state: 'MERGED')), <String>[
+        'Archive Workspace',
         'Remove Workspace',
         'Unlink Pull Request',
       ]);
     });
 
-    test('a merged pull request omits Remove Workspace when not offered', () {
+    test('a merged pull request omits workspace actions when not offered', () {
       expect(
-        labels(_snapshot(state: 'MERGED'), offerRemoveWorkspace: false),
+        labels(
+          _snapshot(state: 'MERGED'),
+          offerArchiveWorkspace: false,
+          offerRemoveWorkspace: false,
+        ),
         <String>['Unlink Pull Request'],
       );
     });

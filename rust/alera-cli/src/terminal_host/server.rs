@@ -221,6 +221,7 @@ mod terminal_session_requests;
 mod terminal_spawn;
 mod terminal_spawn_command;
 mod terminal_startup_commands;
+mod workspace_archive_requests;
 mod workspace_handoff_relocate;
 mod workspace_main_tabs;
 mod workspace_mutation_preparation;

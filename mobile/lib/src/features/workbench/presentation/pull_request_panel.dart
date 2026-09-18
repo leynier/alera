@@ -46,12 +46,9 @@ class const PullRequestPanel({
         ref.watch(pullRequestShipSupportedProvider(hostId)).value ?? false;
     // Default to offering removal until the list answers; hiding it after a
     // merged review would promote Unlink into the primary button for a frame.
-    final offerRemoveWorkspace =
-        ref
-            .watch(workspaceListControllerProvider(hostId))
-            .value
-            ?.supportsMutations ??
-        true;
+    final listData = ref.watch(workspaceListControllerProvider(hostId)).value;
+    final offerRemoveWorkspace = listData?.supportsMutations ?? true;
+    final offerArchiveWorkspace = listData?.supportsArchive ?? true;
     final busy = ref.watch(
       pullRequestActionControllerProvider(hostId, workspaceId),
     );
@@ -129,6 +126,7 @@ class const PullRequestPanel({
             canGenerate: canGenerate && snapshot.aiAssistEnabled,
             canShip: canShip && snapshot.aiAssistEnabled,
             offerRemoveWorkspace: offerRemoveWorkspace,
+            offerArchiveWorkspace: offerArchiveWorkspace,
           ),
         ),
       ],
@@ -149,6 +147,7 @@ class const _Body({
   required final bool canGenerate,
   required final bool canShip,
   required final bool offerRemoveWorkspace,
+  required final bool offerArchiveWorkspace,
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -264,6 +263,7 @@ class const _Body({
             PullRequestActionBar(
               actions: availablePullRequestReviewActions(
                 snapshot,
+                offerArchiveWorkspace: offerArchiveWorkspace,
                 offerRemoveWorkspace: offerRemoveWorkspace,
               ),
               isEnabled: (action) =>

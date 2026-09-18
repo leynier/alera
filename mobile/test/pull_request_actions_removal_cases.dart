@@ -1,40 +1,63 @@
 part of 'pull_request_actions_test.dart';
 
 void _registerPullRequestActionsRemovalTests() {
-  testWidgets('defaults a merged PR to Remove Workspace', (tester) async {
+  testWidgets('defaults a merged PR to Archive Workspace', (tester) async {
     final client = _client(_snapshot(state: 'MERGED'));
     addTearDown(client.dispose);
     await _openPullRequest(tester, client);
 
     expect(find.text('Create Merge Commit'), findsNothing);
     expect(find.text('Close Pull Request'), findsNothing);
-    expect(find.text('Remove Workspace'), findsOneWidget);
+    expect(find.text('Archive Workspace'), findsOneWidget);
+    expect(find.text('Remove Workspace'), findsNothing);
     expect(find.text('Unlink Pull Request'), findsNothing);
 
     await tester.tap(find.byTooltip('Pull Request Actions'));
     await tester.pumpAndSettle();
     expect(find.text('Unlink Pull Request'), findsOneWidget);
+    expect(find.text('Archive Workspace'), findsWidgets);
     expect(find.text('Remove Workspace'), findsOneWidget);
   });
 
-  testWidgets('keeps unlink as the only merged action without removal', (
+  testWidgets('archives a merged PR through the archive dialog', (
+    tester,
+  ) async {
+    final client = _client(_snapshot(state: 'MERGED'));
+    addTearDown(client.dispose);
+    await _openPullRequest(tester, client);
+
+    await tester.tap(find.text('Archive Workspace'));
+    await tester.pumpAndSettle();
+    expect(find.text('Archive Workspace?'), findsOneWidget);
+    expect(client.calls, isNot(contains('archive workspace-1')));
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Archive'));
+    await tester.pumpAndSettle();
+
+    expect(client.calls, contains('archive workspace-1'));
+  });
+
+  testWidgets('keeps unlink as the only merged action without archiving', (
     tester,
   ) async {
     final client = _client(_snapshot(state: 'MERGED'))
+      ..supportsWorkspaceArchive = false
       ..supportsWorkspaceMutations = false;
     addTearDown(client.dispose);
     await _openPullRequest(tester, client);
 
+    expect(find.text('Archive Workspace'), findsNothing);
     expect(find.text('Remove Workspace'), findsNothing);
     expect(find.text('Unlink Pull Request'), findsOneWidget);
     expect(find.byTooltip('Pull Request Actions'), findsNothing);
   });
 
-  testWidgets('omits Remove Workspace after the PR is closed', (tester) async {
+  testWidgets('omits workspace actions after the PR is closed', (tester) async {
     final client = _client(_snapshot(state: 'CLOSED'));
     addTearDown(client.dispose);
     await _openPullRequest(tester, client);
 
+    expect(find.text('Archive Workspace'), findsNothing);
     expect(find.text('Remove Workspace'), findsNothing);
     expect(find.text('Unlink Pull Request'), findsOneWidget);
     expect(find.byTooltip('Pull Request Actions'), findsNothing);
@@ -47,6 +70,9 @@ void _registerPullRequestActionsRemovalTests() {
     addTearDown(client.dispose);
     await _openPullRequest(tester, client);
 
+    await tester.tap(find.byTooltip('Pull Request Actions'));
+    await tester.pumpAndSettle();
+    // The sheet runs its entry directly, unlike the desktop menu.
     await tester.tap(find.text('Remove Workspace'));
     await tester.pumpAndSettle();
     expect(find.text('Remove Workspace?'), findsOneWidget);
@@ -87,6 +113,8 @@ void _registerPullRequestActionsRemovalTests() {
       ),
     );
 
+    await tester.tap(find.byTooltip('Pull Request Actions'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Remove Workspace'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
