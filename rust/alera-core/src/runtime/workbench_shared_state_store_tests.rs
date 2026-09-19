@@ -66,6 +66,19 @@ fn legacy_shared_view_prefs_show_all_workspaces() {
 }
 
 #[test]
+fn legacy_shared_view_prefs_hide_archived_workspaces() {
+    let mut encoded = serde_json::to_value(SharedWorkbenchViewPrefs::default()).unwrap();
+    encoded
+        .as_object_mut()
+        .unwrap()
+        .remove("showArchivedWorkspaces");
+
+    let restored: SharedWorkbenchViewPrefs = serde_json::from_value(encoded).unwrap();
+
+    assert!(!restored.show_archived_workspaces);
+}
+
+#[test]
 fn shared_view_prefs_roundtrips_selected_section_ids() {
     let prefs = SharedWorkbenchViewPrefs {
         selected_section_ids: vec!["sec-1".to_string(), "sec-2".to_string()],

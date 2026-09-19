@@ -111,6 +111,12 @@ class const _WorkspaceViewOptions({
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
+              title: const Text('Show Archived Workspaces'),
+              value: prefs.showArchivedWorkspaces,
+              onChanged: controller.setShowArchivedWorkspaces,
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
               title: const Text('Repeat Pinned Workspaces'),
               value: prefs.showPinnedWorkspacesBelow,
               onChanged: controller.setShowPinnedWorkspacesBelow,
