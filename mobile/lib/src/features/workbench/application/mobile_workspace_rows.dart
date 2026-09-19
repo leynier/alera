@@ -316,6 +316,9 @@ bool _matchesFilters(
   if (prefs.showActiveWorkspacesOnly && !hasActivity) {
     return false;
   }
+  if (!prefs.showArchivedWorkspaces && workspace.isArchived) {
+    return false;
+  }
   return true;
 }
 

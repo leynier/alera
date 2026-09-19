@@ -129,6 +129,7 @@ Map<String, Object?> _sharedJson(WorkbenchViewPrefs prefs) {
     'showPinnedWorkspacesBelow': prefs.showPinnedWorkspacesBelow,
     'workspaceKindFilter': prefs.workspaceKindFilter.name,
     'showActiveWorkspacesOnly': prefs.showActiveWorkspacesOnly,
+    'showArchivedWorkspaces': prefs.showArchivedWorkspaces,
     'gitDiffViewMode': prefs.gitDiffViewMode.name,
     'gitDiffGroupMode': prefs.gitDiffGroupMode.name,
     'searchViewAsTree': prefs.searchViewAsTree,
@@ -190,6 +191,9 @@ WorkbenchViewPrefs _mergeShared(
     showActiveWorkspacesOnly:
         shared['showActiveWorkspacesOnly'] as bool? ??
         local.showActiveWorkspacesOnly,
+    showArchivedWorkspaces:
+        shared['showArchivedWorkspaces'] as bool? ??
+        local.showArchivedWorkspaces,
     gitDiffViewMode: _enumByName(
       GitDiffViewMode.values,
       shared['gitDiffViewMode'],

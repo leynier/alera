@@ -102,6 +102,17 @@ class const MobileWorkspaceListRow({
           ),
         ),
       ],
+      if (workspace.isArchived) ...<Widget>[
+        const SizedBox(width: AleraTokens.space6),
+        const Tooltip(
+          message: 'Archived workspace',
+          child: Icon(
+            AleraIcons.archive,
+            size: _trayIconSize,
+            color: AleraTokens.foregroundMuted,
+          ),
+        ),
+      ],
       if (pullRequestSummary case final summary?) ...<Widget>[
         const SizedBox(width: AleraTokens.space6),
         MobileWorkspacePullRequestStatusIcon(

@@ -329,7 +329,7 @@ fn format_error(error: impl std::fmt::Display) -> HostError {
 /// Keys a client may not know yet. A client that predates a key sends its
 /// whole view without it, and deserializing that would reset the other
 /// client's choice to the default on every write, so the stored value is kept.
-const BACKFILLED_SHARED_PREF_KEYS: [&str; 9] = [
+const BACKFILLED_SHARED_PREF_KEYS: [&str; 10] = [
     "sectionSort",
     "collapsedSectionIds",
     "othersSectionCollapsed",
@@ -339,6 +339,7 @@ const BACKFILLED_SHARED_PREF_KEYS: [&str; 9] = [
     "searchIncludeIgnored",
     "selectedSectionIds",
     "workspaceMainTabIds",
+    "showArchivedWorkspaces",
 ];
 
 fn backfill_omitted_shared_prefs(prefs: &mut serde_json::Map<String, Value>, current: &Value) {
@@ -365,6 +366,7 @@ mod shared_prefs_backfill_tests {
             "searchIncludeIgnored": true,
             "selectedSectionIds": ["sec-1"],
             "workspaceMainTabIds": { "ws-1": ["tab-1"] },
+            "showArchivedWorkspaces": true,
         });
         let mut sent = json!({ "searchViewAsTree": false });
         let prefs = sent.as_object_mut().unwrap();
@@ -378,5 +380,6 @@ mod shared_prefs_backfill_tests {
         assert_eq!(prefs["searchViewAsTree"], false);
         assert_eq!(prefs["selectedSectionIds"], json!(["sec-1"]));
         assert_eq!(prefs["workspaceMainTabIds"], json!({ "ws-1": ["tab-1"] }));
+        assert_eq!(prefs["showArchivedWorkspaces"], true);
     }
 }

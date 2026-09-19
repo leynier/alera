@@ -68,6 +68,10 @@ class MobileViewPrefsController extends _$MobileViewPrefsController {
     return _update((prefs) => prefs.copyWith(showActiveWorkspacesOnly: show));
   }
 
+  Future<void> setShowArchivedWorkspaces(bool show) {
+    return _update((prefs) => prefs.copyWith(showArchivedWorkspaces: show));
+  }
+
   Future<void> setShowPinnedWorkspacesBelow(bool show) {
     return _update((prefs) => prefs.copyWith(showPinnedWorkspacesBelow: show));
   }

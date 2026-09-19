@@ -27,6 +27,7 @@ class const MobileViewPrefs({
   final MobileWorkspaceKindFilter workspaceKindFilter =
       MobileWorkspaceKindFilter.all,
   final bool showActiveWorkspacesOnly = false,
+  final bool showArchivedWorkspaces = false,
   final Set<String> selectedProjectIds = const <String>{},
   final Set<String> selectedSectionIds = const <String>{},
   final Set<String> selectedTagIds = const <String>{},
@@ -51,6 +52,7 @@ class const MobileViewPrefs({
     MobileWorkbenchSortBy? workspaceSort,
     MobileWorkspaceKindFilter? workspaceKindFilter,
     bool? showActiveWorkspacesOnly,
+    bool? showArchivedWorkspaces,
     Set<String>? selectedProjectIds,
     Set<String>? selectedSectionIds,
     Set<String>? selectedTagIds,
@@ -79,6 +81,8 @@ class const MobileViewPrefs({
       workspaceKindFilter: workspaceKindFilter ?? this.workspaceKindFilter,
       showActiveWorkspacesOnly:
           showActiveWorkspacesOnly ?? this.showActiveWorkspacesOnly,
+      showArchivedWorkspaces:
+          showArchivedWorkspaces ?? this.showArchivedWorkspaces,
       selectedProjectIds: selectedProjectIds ?? this.selectedProjectIds,
       selectedSectionIds: selectedSectionIds ?? this.selectedSectionIds,
       selectedTagIds: selectedTagIds ?? this.selectedTagIds,
@@ -120,6 +124,7 @@ class const MobileViewPrefs({
       ),
       workspaceKindFilter: .all,
       showActiveWorkspacesOnly: json['showActiveWorkspacesOnly'] == true,
+      showArchivedWorkspaces: json['showArchivedWorkspaces'] == true,
       selectedProjectIds: json.stringList('selectedProjectIds').toSet(),
       selectedSectionIds: json.stringList('selectedSectionIds').toSet(),
       selectedTagIds: json.stringList('selectedTagIds').toSet(),
@@ -162,6 +167,7 @@ class const MobileViewPrefs({
       'workspaceSort': workspaceSort.name,
       'workspaceKindFilter': workspaceKindFilter.name,
       'showActiveWorkspacesOnly': showActiveWorkspacesOnly,
+      'showArchivedWorkspaces': showArchivedWorkspaces,
       'selectedProjectIds': selectedProjectIds.toList(),
       'selectedSectionIds': selectedSectionIds.toList(),
       'selectedTagIds': selectedTagIds.toList(),

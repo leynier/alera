@@ -114,6 +114,33 @@ void main() {
     expect(legacy.prefs.showActiveWorkspacesOnly, isFalse);
   });
 
+  test('loads and saves the shared archived workspace filter', () async {
+    final client = _FakeRuntimeHostClient()
+      ..responses['workbenchViewPrefs.get'] = <String, Object?>{
+        'revision': 4,
+        'desktopInitialized': true,
+        'prefs': <String, Object?>{'showArchivedWorkspaces': true},
+      }
+      ..responses['workbenchViewPrefs.update'] = <String, Object?>{
+        'revision': 5,
+      };
+    final legacy = _MemoryViewPrefsRepository();
+    final repository = RuntimeWorkbenchViewPrefsRepository(
+      client: client,
+      legacyRepository: legacy,
+    );
+
+    final loaded = await repository.load();
+    expect(loaded.showArchivedWorkspaces, isTrue);
+
+    await repository.save(loaded.copyWith(showArchivedWorkspaces: false));
+    expect(
+      client.payloads['workbenchViewPrefs.update']?.single['prefs'],
+      containsPair('showArchivedWorkspaces', false),
+    );
+    expect(legacy.prefs.showArchivedWorkspaces, isFalse);
+  });
+
   test('shares the search and source control view options', () async {
     final client = _FakeRuntimeHostClient()
       ..responses['workbenchViewPrefs.get'] = <String, Object?>{

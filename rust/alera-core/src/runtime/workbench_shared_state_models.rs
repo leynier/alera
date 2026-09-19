@@ -79,6 +79,8 @@ pub struct SharedWorkbenchViewPrefs {
     #[serde(default)]
     pub show_active_workspaces_only: bool,
     #[serde(default)]
+    pub show_archived_workspaces: bool,
+    #[serde(default)]
     pub git_diff_view_mode: SharedGitDiffViewMode,
     #[serde(default)]
     pub git_diff_group_mode: SharedGitDiffGroupMode,
@@ -115,6 +117,7 @@ impl Default for SharedWorkbenchViewPrefs {
             show_pinned_workspaces_below: true,
             workspace_kind_filter: SharedWorkspaceKindFilter::All,
             show_active_workspaces_only: false,
+            show_archived_workspaces: false,
             git_diff_view_mode: SharedGitDiffViewMode::Tree,
             git_diff_group_mode: SharedGitDiffGroupMode::ByArea,
             search_view_as_tree: false,

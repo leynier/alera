@@ -241,6 +241,33 @@ void main() {
 
     expect(_workspaceIds(rows), <String>['in-sec-1']);
   });
+
+  test('Archived workspaces hide unless the view option is enabled', () {
+    final now = DateTime.utc(2026, 7, 18, 12);
+    final workspaces = <WorkspaceSummary>[
+      _workspace('active', now),
+      _workspace('archived', now, isArchived: true),
+    ];
+
+    final hidden = buildMobileWorkspaceRows(
+      workspaces: workspaces,
+      projects: const [],
+      prefs: const MobileViewPrefs(groupBy: .none),
+      now: now,
+    );
+    expect(_workspaceIds(hidden), <String>['active']);
+
+    final shown = buildMobileWorkspaceRows(
+      workspaces: workspaces,
+      projects: const [],
+      prefs: const MobileViewPrefs(
+        groupBy: .none,
+        showArchivedWorkspaces: true,
+      ),
+      now: now,
+    );
+    expect(_workspaceIds(shown), <String>['active', 'archived']);
+  });
 }
 
 WorkspaceSummary _workspace(
@@ -252,6 +279,7 @@ WorkspaceSummary _workspace(
   String kind = 'linked',
   List<String> tagIds = const <String>[],
   String? sectionId,
+  bool isArchived = false,
 }) {
   return WorkspaceSummary(
     id: id,
@@ -262,6 +290,7 @@ WorkspaceSummary _workspace(
     kind: kind,
     tagIds: tagIds,
     sectionId: sectionId,
+    isArchived: isArchived,
     updatedAt: updatedAt,
   );
 }
