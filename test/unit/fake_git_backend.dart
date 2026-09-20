@@ -95,6 +95,7 @@ class FakeGitBackend
   GitException? submoduleStatusError;
   GitException? historyError;
   GitException? commitCompareError;
+  Completer<void>? commitCompareGate;
   GitException? commitDiffError;
   GitException? stageError;
   GitException? stageAreaError;
@@ -249,6 +250,11 @@ class FakeGitBackend
     final error = commitCompareError;
     if (error != null) {
       throw error;
+    }
+    final gate = commitCompareGate;
+    if (gate != null && !gate.isCompleted) {
+      commitCompareGate = null;
+      await gate.future;
     }
     return gitCommitCompareResult;
   }

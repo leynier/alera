@@ -20,6 +20,7 @@ import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_field_
 import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
+import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/workbench/application/workspace_explorer_reveal.dart';
 import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
@@ -828,6 +829,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
   }
 
   Future<void> _openCommitDiff(GitHistoryItem item) async {
+    final oppositePanel = isModModifierPressed();
     try {
       final compare = await _commitCompareFor(item);
       if (!mounted) {
@@ -841,6 +843,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
         compareRef: compare.summary.compareRef,
         subject: item.subject,
         message: item.message,
+        oppositePanel: oppositePanel,
       );
     } catch (error) {
       if (mounted) {

@@ -96,8 +96,19 @@ mixin _WorkbenchControllerTabOpening
     required String relativePath,
     String? targetGroupId,
     String? sourceKey,
+    bool oppositePanel = false,
   }) async {
-    targetGroupId ??= _groupForOpening(workspace.id, sourceKey);
+    targetGroupId = _groupForOpening(
+      workspace.id,
+      sourceKey,
+      targetGroupId: targetGroupId,
+      oppositePanel: oppositePanel,
+    );
+    final reuseTabIds = _reuseTabIdsForOpening(
+      workspaceId: workspace.id,
+      targetGroupId: targetGroupId,
+      oppositePanel: oppositePanel,
+    );
     try {
       final sleepGeneration = _workspaceSleepGeneration[workspace.id] ?? 0;
       final previousIds = <String>{
@@ -106,6 +117,7 @@ mixin _WorkbenchControllerTabOpening
       final tab = await _workspaceTabService.openOrCreateMermanPreviewTab(
         workspaceId: workspace.id,
         relativePath: relativePath,
+        reuseTabIds: reuseTabIds,
       );
       final existedBeforeRequest = previousIds.contains(tab.id);
       if (_isStaleWorkspaceOpen(workspace.id, sleepGeneration) ||

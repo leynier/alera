@@ -90,13 +90,15 @@ class WorkspaceTabService._(
   Future<WorkspaceTabRecord> openOrCreateMermanPreviewTab({
     required String workspaceId,
     required String relativePath,
+    Set<String>? reuseTabIds,
   }) async {
     final normalizedPath = _normalizeRelativePath(relativePath);
     final existing = await _repository.listWorkspaceTabs(workspaceId);
     for (final tab in existing) {
       if (tab.kind == WorkspaceTabKind.editor &&
           tab.isMermanPreview &&
-          tab.payload[workspaceTabFilePathPayloadKey] == normalizedPath) {
+          tab.payload[workspaceTabFilePathPayloadKey] == normalizedPath &&
+          _allowsTabReuse(tab, reuseTabIds)) {
         return tab;
       }
     }

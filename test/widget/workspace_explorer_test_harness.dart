@@ -133,6 +133,7 @@ Widget _workspaceContextSidebar(Workspace workspace) {
       gitDiffRoot,
       required scope,
       bool preview = false,
+      bool oppositePanel = false,
     }) async {},
     onOpenGitCommitDiff: ({
       relativePath,
@@ -145,6 +146,7 @@ Widget _workspaceContextSidebar(Workspace workspace) {
       subject,
       message,
       bool preview = false,
+      bool oppositePanel = false,
     }) async {},
     onOpenSearchMatch: (_) {},
     onPathMoved: (_, _) async {},

@@ -122,7 +122,7 @@ Dictate into terminals, workspace prompts, Source Control, and pull request fiel
 
 ### 🗃️ File explorer, search & previews
 
-Browse workspace folders in a tree-based explorer with a git-ignored toggle and inline rename. Search and replace across the workspace with regex and include/exclude patterns. Preview Markdown, PDFs, Mermaid diagrams, and images in dedicated tabs, right next to your terminals. Files and previews opened from a tab or tool stay in its panel and split group, including Explorer in either the center or the collapsible right panel. Preview replacement stays within that group; files already open are selected in their existing location.
+Browse workspace folders in a tree-based explorer with a git-ignored toggle and inline rename. Search and replace across the workspace with regex and include/exclude patterns. Preview Markdown, PDFs, Mermaid diagrams, and images in dedicated tabs, right next to your terminals. Files and previews opened from a tab or tool stay in its panel and split group, including Explorer in either the center or the collapsible right panel. Preview replacement stays within that group; files already open are selected in their existing location. Mod+click (Ctrl on Windows and Linux, Cmd on macOS) opens a preview in the opposite panel, even when the file is already open in the origin panel.
 
 ### 🔀 Visual source control
 

@@ -21,6 +21,7 @@ import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -78,6 +79,7 @@ void main() {
                   gitDiffRoot,
                   required scope,
                   bool preview = false,
+                  bool oppositePanel = false,
                 }) async {},
                 onOpenGitCommitDiff: ({
                   relativePath,
@@ -90,6 +92,7 @@ void main() {
                   subject,
                   message,
                   bool preview = false,
+                  bool oppositePanel = false,
                 }) async {},
               ),
             ),
@@ -155,6 +158,7 @@ void main() {
                   gitDiffRoot,
                   required scope,
                   bool preview = false,
+                  bool oppositePanel = false,
                 }) async {},
                 onOpenGitCommitDiff: ({
                   relativePath,
@@ -167,6 +171,7 @@ void main() {
                   subject,
                   message,
                   bool preview = false,
+                  bool oppositePanel = false,
                 }) async {},
               ),
             ),
@@ -256,6 +261,7 @@ void main() {
             gitDiffRoot,
             required scope,
             bool preview = false,
+            bool oppositePanel = false,
           }) async {
             opened.add((
               relativePath: relativePath,
@@ -1517,6 +1523,7 @@ Future<void> _pumpPanel(
                     gitDiffRoot,
                     required scope,
                     bool preview = false,
+                    bool oppositePanel = false,
                   }) async {},
               onOpenGitCommitDiff:
                   onOpenGitCommitDiff ??
@@ -1531,6 +1538,7 @@ Future<void> _pumpPanel(
                     subject,
                     message,
                     bool preview = false,
+                    bool oppositePanel = false,
                   }) async {},
               onOpenFile: onOpenFile,
               onRevealInExplorer: onRevealInExplorer,

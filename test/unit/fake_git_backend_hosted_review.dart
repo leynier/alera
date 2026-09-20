@@ -3,6 +3,8 @@ part of 'fake_git_backend.dart';
 mixin _FakeGitBackendHostedReview {
   List<GitBackendCall> get calls;
 
+  Completer<void>? fetchHostedReviewRangeGate;
+
   Future<GitHostedReviewRange> fetchHostedReviewRange({
     required String path,
     required String remote,
@@ -25,6 +27,11 @@ mixin _FakeGitBackendHostedReview {
         'reviewRef': reviewRef,
       }),
     );
+    final gate = fetchHostedReviewRangeGate;
+    if (gate != null && !gate.isCompleted) {
+      fetchHostedReviewRangeGate = null;
+      await gate.future;
+    }
     return GitHostedReviewRange(
       baseOid: baseBranch,
       headOid: headSha,

@@ -232,6 +232,7 @@ void _registerWorkspaceExplorerContextMenuTests() {
                 gitDiffRoot,
                 required scope,
                 bool preview = false,
+                bool oppositePanel = false,
               }) async {},
               onOpenGitCommitDiff: ({
                 relativePath,
@@ -244,6 +245,7 @@ void _registerWorkspaceExplorerContextMenuTests() {
                 subject,
                 message,
                 bool preview = false,
+                bool oppositePanel = false,
               }) async {},
               onOpenSearchMatch: (_) {},
               onPathMoved: (_, _) async {},
@@ -289,6 +291,7 @@ void _registerWorkspaceExplorerContextMenuTests() {
                 gitDiffRoot,
                 required scope,
                 bool preview = false,
+                bool oppositePanel = false,
               }) async {},
               onOpenGitCommitDiff: ({
                 relativePath,
@@ -301,6 +304,7 @@ void _registerWorkspaceExplorerContextMenuTests() {
                 subject,
                 message,
                 bool preview = false,
+                bool oppositePanel = false,
               }) async {},
               onOpenSearchMatch: (_) {},
               onPathMoved: (_, _) async {},

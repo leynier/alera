@@ -1,4 +1,5 @@
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/workbench/application/terminal_composer_workspace_attachment.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_drop_target.dart';
@@ -37,6 +38,7 @@ Future<bool> openTerminalComposerWorkspaceFile(
   if (workspace == null) {
     return false;
   }
+  final oppositePanel = isModModifierPressed();
   return openTerminalComposerWorkspaceAttachment(
     workspacePath: workspace.path,
     filePath: filePath,
@@ -47,6 +49,7 @@ Future<bool> openTerminalComposerWorkspaceFile(
           workspace: workspace,
           relativePath: relativePath,
           sourceKey: sourceKey,
+          oppositePanel: oppositePanel,
         ),
   );
 }

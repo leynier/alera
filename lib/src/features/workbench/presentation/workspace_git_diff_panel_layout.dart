@@ -37,7 +37,7 @@ extension on _WorkspaceGitDiffPanelState {
                 onViewModeChanged: widget.onViewModeChanged,
                 onGroupModeChanged: widget.onGroupModeChanged,
                 onOpenAll: () => unawaited(
-                  widget.onOpenGitDiff(
+                  _openGitDiff(
                     scope: .all,
                     gitDiffRoot: widget.sourceControlScope.relativeRoot,
                   ),

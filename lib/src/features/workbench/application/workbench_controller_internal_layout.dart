@@ -177,11 +177,55 @@ mixin _WorkbenchControllerInternalLayout
         _workspaceIdsWithClearedLayout.contains(workspaceId);
   }
 
-  String? _groupForOpening(String workspaceId, String? sourceKey) {
-    if (sourceKey == null) return null;
+  String? _groupForOpening(
+    String workspaceId,
+    String? sourceKey, {
+    String? targetGroupId,
+    bool oppositePanel = false,
+  }) {
     final panel = state.workspacePanelFor(workspaceId);
-    return panel.ensuredMainLayout(workspaceId).groupIdForTab(sourceKey) ??
-        panel.ensuredLayout(workspaceId).groupIdForTab(sourceKey);
+    final originGroupId =
+        targetGroupId ??
+        (sourceKey == null
+            ? null
+            : panel.ensuredMainLayout(workspaceId).groupIdForTab(sourceKey) ??
+                  panel.ensuredLayout(workspaceId).groupIdForTab(sourceKey));
+    if (!oppositePanel) {
+      return originGroupId;
+    }
+    if (originGroupId == null) {
+      return null;
+    }
+    final originTree = panel.treeForGroup(originGroupId);
+    if (originTree == null) {
+      return null;
+    }
+    final dest = originTree.opposite == WorkspacePanelTree.main
+        ? panel.ensuredMainLayout(workspaceId)
+        : panel.ensuredLayout(workspaceId);
+    return dest.activeGroupId;
+  }
+
+  Set<String>? _reuseTabIdsForOpening({
+    required String workspaceId,
+    required String? targetGroupId,
+    required bool oppositePanel,
+  }) {
+    if (!oppositePanel) {
+      return null;
+    }
+    final panel = state.workspacePanelFor(workspaceId);
+    final targetTree = targetGroupId == null
+        ? null
+        : panel.treeForGroup(targetGroupId);
+    if (targetTree == null) {
+      return const <String>{};
+    }
+    return <String>{
+      for (final tab in state.tabsFor(workspaceId))
+        if (panel.treeForKey(WorkspacePanel.tabKey(tab.id)) == targetTree)
+          tab.id,
+    };
   }
 
   void _selectOpenedWorkspaceTab({

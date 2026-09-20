@@ -1,6 +1,6 @@
 import 'dart:math' show min;
 
-import 'package:flutter/foundation.dart';
+import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm2/xterm.dart' as xterm;
 
@@ -99,16 +99,12 @@ bool isTerminalLinkActivation({
   HardwareKeyboard? keyboard,
   TargetPlatform? platform,
 }) {
-  final resolvedKeyboard = keyboard ?? HardwareKeyboard.instance;
-  final resolvedPlatform = platform ?? defaultTargetPlatform;
-  return switch (resolvedPlatform) {
-    TargetPlatform.macOS => resolvedKeyboard.isMetaPressed,
-    TargetPlatform.android ||
-    TargetPlatform.fuchsia ||
-    TargetPlatform.iOS ||
-    TargetPlatform.linux ||
-    TargetPlatform.windows => resolvedKeyboard.isControlPressed,
-  };
+  return isModModifierPressed(
+    modifiers: keyboard == null
+        ? null
+        : KeyModifierState.fromKeyboard(keyboard),
+    platform: platform,
+  );
 }
 
 TerminalLinkRange? _resolveNativeHyperlink(

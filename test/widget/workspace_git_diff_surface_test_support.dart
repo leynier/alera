@@ -135,6 +135,7 @@ class _GitDiffSurfaceTestController extends WorkbenchController {
     String? targetGroupId,
     String? sourceKey,
     bool preview = false,
+    bool oppositePanel = false,
   }) async {
     openedRelativePaths.add(relativePath);
     final now = DateTime.utc(2026, 6, 6);
