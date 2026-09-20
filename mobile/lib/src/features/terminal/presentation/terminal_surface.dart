@@ -138,9 +138,14 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
       preserveOrphanCombiningMarks: true,
       allowITerm2ClipboardCapture: false,
       allowKittyClipboard: false,
-      // Unset callbacks let TerminalView grant remote system clipboard access.
-      onClipboardStore: (_, _) {},
+      // The agent runs on the paired machine, so a copy it makes for itself
+      // (`pbcopy`, `xclip`) lands there and never reaches this phone. OSC 52
+      // is the one path that does, which is why writes are accepted here and
+      // announced. Queries stay unanswered: an unset callback would let
+      // TerminalView hand the phone's clipboard to a remote program.
+      onClipboardStore: (_, text) => _storeRemoteClipboardText(text),
       onClipboardQuery: (_) => null,
+      clipboardDecoder: decodeTerminalOsc52Payload,
       onOutput: (data) => widget.onInput(data),
       onResize: (width, height, _, _) => _handleViewportResize(width, height),
       // This emulator is filled from restored history, and the program that
@@ -165,6 +170,45 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
     } else {
       _terminal = next;
     }
+  }
+
+  void _storeRemoteClipboardText(String text) {
+    if (!mounted || text.isEmpty) {
+      return;
+    }
+    unawaited(_copyToClipboard(text, notice: 'Agent copied to clipboard'));
+  }
+
+  /// Long-press selects a word and dragging extends it; the pill is how a
+  /// finger copies, since there is no Ctrl+C or context menu to reach for.
+  void _copySelection() {
+    final selection = _controller.selectionFor(_terminal.buffer);
+    if (selection == null) {
+      return;
+    }
+    final text = _terminal.buffer.getText(selection, true);
+    _controller.clearSelection();
+    if (text.isEmpty) {
+      return;
+    }
+    unawaited(_copyToClipboard(text, notice: 'Copied to clipboard'));
+  }
+
+  Future<void> _copyToClipboard(String text, {required String notice}) async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    try {
+      await Clipboard.setData(ClipboardData(text: text));
+    } catch (error, stackTrace) {
+      Logger('TerminalTabView')
+          .warning('terminal clipboard copy failed', error, stackTrace);
+      messenger?.showSnackBar(
+        const SnackBar(content: Text('Could not copy to clipboard')),
+      );
+      return;
+    }
+    messenger
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(notice)));
   }
 
   void _handleOutput(MobileTerminalOutputEvent event) {
@@ -281,18 +325,37 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
                           right: 0,
                           bottom: AleraTokens.spaceMd,
                           child: Center(
-                            child: ValueListenableBuilder<bool>(
-                              valueListenable: _awayFromLatest,
-                              builder: (context, away, _) => AnimatedSwitcher(
-                                duration: AleraTokens.durationMid,
-                                child: away
-                                    ? AleraFloatingPillButton(
-                                        label: 'Jump To Latest',
-                                        icon: AleraIcons.chevronDown,
-                                        onPressed: scrollToLatest,
-                                      )
-                                    : const SizedBox.shrink(),
-                              ),
+                            child: Wrap(
+                              spacing: AleraTokens.spaceSm,
+                              children: <Widget>[
+                                ListenableBuilder(
+                                  listenable: _controller,
+                                  builder: (context, _) => AnimatedSwitcher(
+                                    duration: AleraTokens.durationMid,
+                                    child: _controller.selection != null
+                                        ? AleraFloatingPillButton(
+                                            label: 'Copy',
+                                            icon: AleraIcons.copy,
+                                            onPressed: _copySelection,
+                                          )
+                                        : const SizedBox.shrink(),
+                                  ),
+                                ),
+                                ValueListenableBuilder<bool>(
+                                  valueListenable: _awayFromLatest,
+                                  builder: (context, away, _) =>
+                                      AnimatedSwitcher(
+                                        duration: AleraTokens.durationMid,
+                                        child: away
+                                            ? AleraFloatingPillButton(
+                                                label: 'Jump To Latest',
+                                                icon: AleraIcons.chevronDown,
+                                                onPressed: scrollToLatest,
+                                              )
+                                            : const SizedBox.shrink(),
+                                      ),
+                                ),
+                              ],
                             ),
                           ),
                         ),

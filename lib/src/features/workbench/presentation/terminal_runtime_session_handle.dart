@@ -228,6 +228,7 @@ class _XtermTerminalSessionHandle(
       key: _terminalViewKey,
       shortcuts: xterm.clipboardTerminalShortcuts,
       shiftOverridesMouseReporting: true,
+      dragOverridesMouseReporting: _settings.dragSelectsInTuis,
       controller: _terminalController,
       scrollController: _scrollController,
       focusNode: _focusNode,

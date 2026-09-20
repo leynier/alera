@@ -13,6 +13,7 @@ import 'package:alera_mobile/src/features/terminal/application/terminal_tab_sess
 import 'package:alera_mobile/src/features/terminal/domain/terminal_accessory_key.dart';
 import 'package:alera_mobile/src/features/terminal/domain/mobile_terminal_scrollback.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_input_mode.dart';
+import 'package:alera_mobile/src/features/terminal/domain/terminal_osc52_clipboard.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_restore_progress.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_touch_scroll.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_accessory_bar.dart';

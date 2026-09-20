@@ -83,7 +83,8 @@ class const TerminalSettings({
   this.colorOverrides = const TerminalColorOverrides(),
   required this.scrollbackLines,
   this.tuiScrollSensitivity = 1,
-  this.clipboardOnSelect = false,
+  this.dragSelectsInTuis = true,
+  this.clipboardOnSelect = true,
   this.allowOsc52Clipboard = false,
   this.showComposerByDefault = false,
   this.toolbarCorner = TerminalToolbarCorner.topRight,
@@ -109,6 +110,10 @@ class const TerminalSettings({
   final TerminalColorOverrides colorOverrides;
   final int scrollbackLines;
   final int tuiScrollSensitivity;
+
+  /// Whether a primary-button drag selects text while a TUI tracks the mouse.
+  /// Clicks and wheel input still reach the TUI; drags never do.
+  final bool dragSelectsInTuis;
   final bool clipboardOnSelect;
   final bool allowOsc52Clipboard;
 
@@ -156,7 +161,8 @@ class const TerminalSettings({
     backgroundOpacity: 1,
     scrollbackLines: 10000,
     tuiScrollSensitivity: 1,
-    clipboardOnSelect: false,
+    dragSelectsInTuis: true,
+    clipboardOnSelect: true,
     allowOsc52Clipboard: false,
     showComposerByDefault: false,
     toolbarCorner: .topRight,
