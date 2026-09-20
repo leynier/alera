@@ -40,6 +40,15 @@ List<Widget> _sectionActionTiles(
   final currentSectionId = workspace.sectionId;
   final hasSection = workspace.sectionId != null;
   final usePicker = sections.length >= _workspaceSectionSubmenuLimit;
+  if (usePicker && !hasSection && !hasDescendants) {
+    return <Widget>[
+      ListTile(
+        leading: const Icon(AleraIcons.section, size: 20),
+        title: const Text('Set Section'),
+        onTap: () => Navigator.pop(context, _WorkspaceAction.setSection),
+      ),
+    ];
+  }
   return <Widget>[
     _SectionFamilyTile(
       title: 'Section',

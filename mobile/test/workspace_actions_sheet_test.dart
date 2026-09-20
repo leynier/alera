@@ -102,6 +102,32 @@ void main() {
     expect(find.text('Change Linked Issue'), findsOneWidget);
     expect(find.text('Unlink Issue'), findsOneWidget);
   });
+
+  testWidgets('10 or more sections flatten to Set Section on a leaf', (
+    tester,
+  ) async {
+    final now = DateTime.utc(2026, 9, 20);
+    await _openSheet(
+      tester,
+      workspace: _workspace('leaf'),
+      data: _data(
+        workspaces: <WorkspaceSummary>[_workspace('leaf')],
+        sections: <WorkspaceSectionSummary>[
+          for (var i = 0; i < 10; i++)
+            WorkspaceSectionSummary(
+              id: 's$i',
+              name: 'Group $i',
+              createdAt: now,
+              updatedAt: now,
+            ),
+        ],
+      ),
+    );
+
+    expect(find.text('Set Section'), findsOneWidget);
+    expect(find.text('Section'), findsNothing);
+    expect(find.text('New Section'), findsNothing);
+  });
 }
 
 List<String> _sheetLabels(WidgetTester tester) {
@@ -173,17 +199,22 @@ MobileLinkedIssueSnapshot _linkedSnapshot(MobileLinkedIssue? linked) {
   return MobileLinkedIssueSnapshot(supported: true, byWorkspace: byWorkspace);
 }
 
-WorkspaceListData _data({required List<WorkspaceSummary> workspaces}) {
+WorkspaceListData _data({
+  required List<WorkspaceSummary> workspaces,
+  List<WorkspaceSectionSummary>? sections,
+}) {
   final now = DateTime.utc(2026, 9, 20);
   return WorkspaceListData(
-    sections: <WorkspaceSectionSummary>[
-      WorkspaceSectionSummary(
-        id: 'work',
-        name: 'Work',
-        createdAt: now,
-        updatedAt: now,
-      ),
-    ],
+    sections:
+        sections ??
+        <WorkspaceSectionSummary>[
+          WorkspaceSectionSummary(
+            id: 'work',
+            name: 'Work',
+            createdAt: now,
+            updatedAt: now,
+          ),
+        ],
     supportsSections: true,
     workspaces: workspaces,
     projects: const <ProjectSummary>[
