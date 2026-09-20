@@ -14,6 +14,49 @@ void main() {
     expect(output, <String>['\x1b[13;2u']);
   });
 
+  test(
+    'xterm does not report Kitty private-use keys under Cursor CLI mode',
+    () {
+      final output = <String>[];
+      final terminal = Terminal(
+        reflowWithHiddenCursor: false,
+        onOutput: output.add,
+      );
+
+      terminal.write('\x1b[>1u');
+      for (final key in [
+        TerminalKey.shiftLeft,
+        TerminalKey.controlLeft,
+        TerminalKey.altLeft,
+        TerminalKey.metaLeft,
+        TerminalKey.capsLock,
+        TerminalKey.numLock,
+        TerminalKey.scrollLock,
+        TerminalKey.printScreen,
+        TerminalKey.pause,
+        TerminalKey.contextMenu,
+        TerminalKey.f13,
+        TerminalKey.mediaPlay,
+        TerminalKey.audioVolumeMute,
+        TerminalKey.numpad0,
+      ]) {
+        terminal.keyInput(key);
+      }
+      terminal.keyInput(.keyH, shift: true, text: 'H');
+      terminal.keyInput(.enter, shift: true);
+      terminal.keyInput(.shiftLeft, type: TerminalKeyEventType.release);
+
+      expect(
+        output.where((sequence) {
+          final match = RegExp(r'^\x1b\[(\d+)').firstMatch(sequence);
+          return match != null && int.parse(match.group(1)!) >= 0xE000;
+        }),
+        isEmpty,
+      );
+      expect(output, contains('\x1b[13;2u'));
+    },
+  );
+
   test('xterm handles resize while scrollback and margins are active', () {
     final terminal = Terminal(
       reflowWithHiddenCursor: false,
