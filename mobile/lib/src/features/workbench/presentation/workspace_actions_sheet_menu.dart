@@ -31,7 +31,7 @@ List<Widget> _workspaceActionTiles(
     if (canRelocate)
       ListTile(
         leading: const Icon(AleraIcons.restore, size: 20),
-        title: const Text('Workspace Recovery'),
+        title: const Text('Recovery'),
         onTap: () => Navigator.of(context).pop(_WorkspaceAction.recovery),
       ),
   ];
