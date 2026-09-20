@@ -29,6 +29,7 @@ class _ProjectWorkbenchSidebarState
           activeWorkspaceId: state.activeWorkspaceId,
           collapsed: state.collapsed,
           supportsSections: state.supportsSections,
+          supportsArchive: state.supportsArchive,
           sections: state.sections,
           projects: state.projects,
           searchQuery: state.searchQuery,
@@ -40,6 +41,7 @@ class _ProjectWorkbenchSidebarState
     );
     final state = WorkbenchState(
       supportsSections: sidebar.supportsSections,
+      supportsArchive: sidebar.supportsArchive,
       sections: sidebar.sections,
       projects: sidebar.projects,
       workspacesByProject: sidebar.workspacesByProject,

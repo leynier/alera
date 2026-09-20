@@ -280,7 +280,7 @@ void _registerAleraShellWorkbenchTests() {
     );
     await _pumpShell(
       tester,
-      state: _populatedWorkbenchState(),
+      state: _populatedWorkbenchState().copyWith(supportsArchive: true),
       workspaceFolderOpener: opener,
     );
 
@@ -296,6 +296,7 @@ void _registerAleraShellWorkbenchTests() {
     expect(find.text('Open'), findsOneWidget);
     expect(find.text('Copy Path'), findsOneWidget);
     expect(find.text('Sleep'), findsOneWidget);
+    expect(find.text('Archive'), findsOneWidget);
     expect(find.text('Remove'), findsOneWidget);
 
     await tester.tap(find.text('Remove'));
