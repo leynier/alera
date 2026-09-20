@@ -57,6 +57,34 @@ void main() {
     },
   );
 
+  test(
+    'xterm sends Shift+Enter, Escape and Ctrl+V once under Kitty flag 1',
+    () {
+      final output = <String>[];
+      final terminal = Terminal(
+        reflowWithHiddenCursor: false,
+        onOutput: output.add,
+      );
+
+      // Agents that enable disambiguate mode alone (Cursor, Gemini, Copilot,
+      // OpenCode) never asked for release events, so the release must not
+      // repeat the press: that was the doubled newline and the second paste.
+      terminal.write('\x1b[>1u');
+      terminal.keyInput(.enter, shift: true);
+      terminal.keyInput(
+        .enter,
+        shift: true,
+        type: TerminalKeyEventType.release,
+      );
+      terminal.keyInput(.escape);
+      terminal.keyInput(.escape, type: TerminalKeyEventType.release);
+      terminal.keyInput(.keyV, ctrl: true);
+      terminal.keyInput(.keyV, ctrl: true, type: TerminalKeyEventType.release);
+
+      expect(output, <String>['\x1b[13;2u', '\x1b[27u', '\x1b[118;5u']);
+    },
+  );
+
   test('xterm handles resize while scrollback and margins are active', () {
     final terminal = Terminal(
       reflowWithHiddenCursor: false,
