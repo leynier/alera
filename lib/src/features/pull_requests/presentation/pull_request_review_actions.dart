@@ -321,6 +321,8 @@ class const _PullRequestActionButton({
   required final ValueChanged<_PullRequestReviewAction> onSelected,
 }) extends StatelessWidget {
   static const double _height = 34;
+  // Compensates the chevron segment so the label centers on the full width.
+  static const double _trailingWidth = 34.5;
 
   @override
   Widget build(BuildContext context) {
@@ -355,31 +357,36 @@ class const _PullRequestActionButton({
                     child: InkWell(
                       mouseCursor: primaryCursor,
                       onTap: primaryEnabled ? onPressed : null,
-                      child: Center(
-                        child: Row(
-                          mainAxisSize: .min,
-                          children: <Widget>[
-                            if (busy)
-                              SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: foreground,
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          left: actions.length > 1 ? _trailingWidth : 0,
+                        ),
+                        child: Center(
+                          child: Row(
+                            mainAxisSize: .min,
+                            children: <Widget>[
+                              if (busy)
+                                SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: foreground,
+                                  ),
+                                )
+                              else
+                                Icon(action.icon, size: 16, color: foreground),
+                              const SizedBox(width: AleraTokens.space8),
+                              Flexible(
+                                child: Text(
+                                  labelFor(action),
+                                  maxLines: 1,
+                                  overflow: .ellipsis,
+                                  style: textStyle,
                                 ),
-                              )
-                            else
-                              Icon(action.icon, size: 16, color: foreground),
-                            const SizedBox(width: AleraTokens.space8),
-                            Flexible(
-                              child: Text(
-                                labelFor(action),
-                                maxLines: 1,
-                                overflow: .ellipsis,
-                                style: textStyle,
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
