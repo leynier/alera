@@ -71,7 +71,8 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
     if (canHandOff || canHandOn)
       const AleraDropdownEntry<String>(
         value: _recoveryAction,
-        label: 'Workspace Recovery',
+        leading: Icon(AleraIcons.restore, size: 16),
+        label: 'Recovery',
       ),
   ];
   return <PopupMenuEntry<String>>[

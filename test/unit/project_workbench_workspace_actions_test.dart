@@ -154,18 +154,15 @@ void main() {
   });
 
   test('hand off and hand on are first-class workspace actions', () {
-    expect(
-      _labels(
-        workspaceContextMenuEntries(
-          fileManagerLabel: 'Files',
-          hasClearParent: false,
-          canRemove: false,
-          isPinned: false,
-          canHandOff: true,
-        ),
-      ),
-      containsAll(['Hand Off', 'Workspace Recovery']),
+    final handOff = workspaceContextMenuEntries(
+      fileManagerLabel: 'Files',
+      hasClearParent: false,
+      canRemove: false,
+      isPinned: false,
+      canHandOff: true,
     );
+    expect(_labels(handOff), containsAll(['Hand Off', 'Recovery']));
+    expect(_leadingIcon(handOff, 'Recovery'), AleraIcons.restore);
     expect(
       _labels(
         workspaceContextMenuEntries(
@@ -176,7 +173,7 @@ void main() {
           canHandOn: true,
         ),
       ),
-      containsAll(['Hand On', 'Workspace Recovery']),
+      containsAll(['Hand On', 'Recovery']),
     );
   });
 
@@ -204,6 +201,20 @@ void main() {
       'In Files',
       'In Project Settings',
     ]);
+  });
+
+  test('workspace context menu omits archive when unsupported', () {
+    final entries = workspaceContextMenuEntries(
+      fileManagerLabel: 'Files',
+      hasClearParent: false,
+      canRemove: true,
+      isPinned: false,
+      supportsArchive: false,
+    );
+
+    expect(_labels(entries), contains('Sleep'));
+    expect(_labels(entries), isNot(contains('Archive')));
+    expect(_labels(entries), contains('Remove'));
   });
 
   test('workspace context menu offers unarchive for archived workspaces', () {
