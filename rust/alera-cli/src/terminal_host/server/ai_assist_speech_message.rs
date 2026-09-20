@@ -5,10 +5,12 @@ use tokio::sync::oneshot;
 use crate::terminal_host::host_error::{HostError, HostResult};
 
 use super::ai_assist_command_execution::run_workspace_command;
-use super::ai_assist_model_defaults::default_model;
+use super::ai_assist_generation::complete_configured_opencode_go;
 use super::ai_assist_operation_registry::active_generations;
 use super::ai_assist_process_journal::AiAssistProcessOwner;
-use super::ai_assist_requests::{plan_command, SUPPORTED_AGENTS};
+use super::ai_assist_requests::{
+    is_opencode_go_agent, plan_command, resolved_agent, resolved_model, SUPPORTED_AGENTS,
+};
 use super::host_service_requests::required_non_blank;
 use super::{ServerActor, ServerCommand};
 
@@ -99,10 +101,22 @@ async fn generate_speech_message(
         .map(String::as_str)
         .unwrap_or_default();
     let prompt = speech_message_prompt(text, mode, instructions);
-    let plan = plan_command(&settings, "speechMessage", &prompt)?;
-    let label = plan.label.clone();
-    let timeout_seconds = settings.timeout_seconds;
-    let output = run_workspace_command(plan, owner, timeout_seconds, cancel_rx).await?;
+    let (output, label) = if is_opencode_go_agent(&settings, "speechMessage") {
+        complete_configured_opencode_go(
+            &settings,
+            "speechMessage",
+            &prompt,
+            &owner.operation_id,
+            cancel_rx,
+        )
+        .await?
+    } else {
+        let plan = plan_command(&settings, "speechMessage", &prompt)?;
+        let label = plan.label.clone();
+        let timeout_seconds = settings.timeout_seconds;
+        let output = run_workspace_command(plan, owner, timeout_seconds, cancel_rx).await?;
+        (output, label)
+    };
     let cleaned = output.trim();
     if cleaned.is_empty() {
         return Err(HostError::state(
@@ -116,24 +130,10 @@ fn selected_agent_and_model(
     settings: &RuntimeAiAssistSettings,
     operation: &str,
 ) -> (String, String) {
-    let prompt_settings = settings.prompt_settings_by_operation.get(operation);
-    let agent = prompt_settings
-        .and_then(|value| value.agent.as_deref())
-        .unwrap_or(&settings.agent)
-        .to_string();
-    let model = prompt_settings
-        .and_then(|value| value.model.as_deref())
-        .filter(|value| !value.trim().is_empty())
-        .or_else(|| {
-            settings
-                .selected_model_by_agent
-                .get(&agent)
-                .map(String::as_str)
-        })
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| default_model(&agent))
-        .to_string();
-    (agent, model)
+    (
+        resolved_agent(settings, operation).to_string(),
+        resolved_model(settings, operation),
+    )
 }
 
 fn speech_message_prompt(text: &str, mode: &str, instructions: &str) -> String {

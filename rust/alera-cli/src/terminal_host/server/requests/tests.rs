@@ -8,6 +8,7 @@ use crate::terminal_host::server::mobile_hello_requests::MobileHelloRequest;
 // Only the hello-capabilities test needs this one, and importing it in the
 // parent would leave it unused in every non-test build.
 use crate::terminal_host::ai_assist_capabilities::{
+    RUNTIME_HOST_AI_ASSIST_OPENCODE_GO_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_SPEECH_MESSAGE_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_WORKSPACE_IDENTITY_CAPABILITY,
 };
@@ -393,6 +394,14 @@ fn account_and_push_capabilities_are_additive_and_not_mobile_admin_verbs() {
     );
     assert!(MOBILE_HELLO_CAPABILITIES
         .contains(&RUNTIME_HOST_AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY));
+    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_AI_ASSIST_OPENCODE_GO_CAPABILITY));
+    assert_eq!(
+        RUNTIME_HOST_AI_ASSIST_OPENCODE_GO_CAPABILITY,
+        "aiAssistOpenCodeGoV1"
+    );
+    assert_eq!(MOBILE_PROTOCOL_VERSION, 1);
+    assert!(mobile_request_allowed("aiAssist.complete"));
+    assert!(mobile_request_allowed("aiAssist.opencodeGo.models"));
 }
 
 #[test]

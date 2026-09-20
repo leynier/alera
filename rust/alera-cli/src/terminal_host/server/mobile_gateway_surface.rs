@@ -8,6 +8,7 @@ use crate::terminal_host::agent_profile_capabilities::RUNTIME_HOST_AGENT_PROFILE
 use crate::terminal_host::ai_assist_capabilities::{
     RUNTIME_HOST_AI_ASSIST_AGENT_TITLE_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_COMMIT_MESSAGE_CAPABILITY,
+    RUNTIME_HOST_AI_ASSIST_OPENCODE_GO_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_PULL_REQUEST_DETAILS_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_SPEECH_MESSAGE_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_WORKSPACE_IDENTITY_CAPABILITY,
@@ -87,6 +88,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_AI_ASSIST_SPEECH_MESSAGE_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_COMMIT_MESSAGE_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_PULL_REQUEST_DETAILS_CAPABILITY,
+    RUNTIME_HOST_AI_ASSIST_OPENCODE_GO_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY,
     RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
@@ -183,6 +185,8 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "aiText.commitMessage.generate"
             | "aiText.pullRequestDetails.generate"
             | "aiText.cancel"
+            | "aiAssist.complete"
+            | "aiAssist.opencodeGo.models"
             | "mobile.promptImage.start"
             | "mobile.promptImage.chunk"
             | "mobile.promptImage.complete"

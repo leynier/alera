@@ -344,13 +344,20 @@ const List<SettingsSearchEntry> editorSearchEntries = <SettingsSearchEntry>[
 const List<SettingsSearchEntry> aiAssistSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'AI Assist',
-    description: 'Run short local agent jobs for source control, workspace identity, and speech.',
-    keywords: <String>['ai', 'assist', 'commit', 'pull request', 'branch'],
+    description: 'Run short local CLI or OpenCode Go jobs for source control, workspace identity, and speech.',
+    keywords: <String>[
+      'ai',
+      'assist',
+      'commit',
+      'pull request',
+      'branch',
+      'go',
+    ],
     groupId: 'generation',
   ),
   SettingsSearchEntry(
     title: 'AI Assist Agent',
-    description: 'Choose the CLI used for AI Assist jobs.',
+    description: 'Choose the provider used for AI Assist jobs.',
     keywords: <String>[
       'codex',
       'claude',
@@ -360,6 +367,8 @@ const List<SettingsSearchEntry> aiAssistSearchEntries = <SettingsSearchEntry>[
       'agy',
       'opencode',
       'opencode2',
+      'opencode go',
+      'go',
       'pi',
       'amp',
       'custom',

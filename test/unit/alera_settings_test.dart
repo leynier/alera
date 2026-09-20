@@ -127,7 +127,7 @@ void main() {
             .map((agent) => agent.agentType)
             .whereType<Object>()
             .length,
-        11,
+        12,
       );
     });
 

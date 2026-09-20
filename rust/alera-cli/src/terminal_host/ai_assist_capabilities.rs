@@ -11,3 +11,6 @@ pub const RUNTIME_HOST_AI_ASSIST_COMMIT_MESSAGE_CAPABILITY: &str = "aiTextCommit
 /// `aiText.pullRequestDetails.generate`.
 pub const RUNTIME_HOST_AI_ASSIST_PULL_REQUEST_DETAILS_CAPABILITY: &str =
     "aiTextPullRequestDetailsV1";
+/// Direct OpenCode Go HTTP completion and model discovery for AI Assist.
+/// Additive: do not bump `aleraTerminalHostProtocolVersion`.
+pub const RUNTIME_HOST_AI_ASSIST_OPENCODE_GO_CAPABILITY: &str = "aiAssistOpenCodeGoV1";

@@ -185,6 +185,38 @@ fn fx_passes_an_explicit_model_through_the_environment() {
 }
 
 #[test]
+fn plan_command_rejects_opencode_go() {
+    let settings = RuntimeAiAssistSettings {
+        agent: "opencode-go".to_string(),
+        ..RuntimeAiAssistSettings::default()
+    };
+
+    let error = match plan_command(&settings, "commitMessage", "hello") {
+        Ok(_) => panic!("expected OpenCode Go to reject a CLI plan"),
+        Err(error) => error,
+    };
+    assert_eq!(
+        error.wire_message(),
+        "FormatException: OpenCode Go does not use a CLI command."
+    );
+}
+
+#[test]
+fn supported_agents_include_opencode_go() {
+    assert!(SUPPORTED_AGENTS.contains(&"opencode-go"));
+}
+
+#[test]
+fn resolved_model_defaults_opencode_go_to_glm_flash() {
+    let settings = RuntimeAiAssistSettings {
+        agent: "opencode-go".to_string(),
+        ..RuntimeAiAssistSettings::default()
+    };
+    assert!(is_opencode_go_agent(&settings, "commitMessage"));
+    assert_eq!(resolved_model(&settings, "commitMessage"), "glm-5.3-flash");
+}
+
+#[test]
 fn failure_detail_extracts_a_multiline_json_message() {
     let stderr = r#"
 ERROR: {

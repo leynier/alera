@@ -13,13 +13,14 @@ use super::ai_assist_fx_plan::plan_fx_command;
 use super::ai_assist_grok_plan::plan_grok_command;
 use super::ai_assist_model_defaults::default_model;
 use super::ai_assist_open_code::open_code_run_arguments;
+use super::ai_assist_opencode_go::OPENCODE_GO_AGENT;
 use super::ai_assist_operation_registry::active_generations;
 use super::ai_assist_workspace_identity::{parse_workspace_identity, workspace_identity_prompt};
 use super::host_service_requests::required_non_blank;
 use super::{ServerActor, ServerCommand};
 
 const MAX_ARGV_PROMPT_BYTES: usize = 24_000;
-pub(super) const SUPPORTED_AGENTS: [&str; 12] = [
+pub(super) const SUPPORTED_AGENTS: [&str; 13] = [
     "codex",
     "claude",
     "copilot",
@@ -27,6 +28,7 @@ pub(super) const SUPPORTED_AGENTS: [&str; 12] = [
     "agy",
     "opencode",
     "opencode2",
+    "opencode-go",
     "pi",
     "amp",
     "grok",
@@ -174,10 +176,49 @@ async fn generate_workspace_identity(
         working_directory,
         sections,
     );
-    let plan = plan_command(&settings, "workspaceIdentity", &prompt)?;
-    let timeout_seconds = settings.timeout_seconds;
-    let result = run_command(plan, working_directory, timeout_seconds, cancel_rx).await?;
+    let (result, _) = super::ai_assist_generation::generate_ai_assist_output(
+        &settings,
+        "workspaceIdentity",
+        &prompt,
+        working_directory,
+        cancel_rx,
+    )
+    .await?;
     parse_workspace_identity(&result, sections)
+}
+
+pub(super) fn resolved_agent<'a>(
+    settings: &'a RuntimeAiAssistSettings,
+    operation: &str,
+) -> &'a str {
+    settings
+        .prompt_settings_by_operation
+        .get(operation)
+        .and_then(|value| value.agent.as_deref())
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or(settings.agent.as_str())
+}
+
+pub(super) fn resolved_model(settings: &RuntimeAiAssistSettings, operation: &str) -> String {
+    let agent = resolved_agent(settings, operation);
+    settings
+        .prompt_settings_by_operation
+        .get(operation)
+        .and_then(|value| value.model.as_deref())
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| {
+            settings
+                .selected_model_by_agent
+                .get(agent)
+                .map(String::as_str)
+                .filter(|value| !value.trim().is_empty())
+        })
+        .unwrap_or_else(|| default_model(agent))
+        .to_string()
+}
+
+pub(super) fn is_opencode_go_agent(settings: &RuntimeAiAssistSettings, operation: &str) -> bool {
+    resolved_agent(settings, operation) == OPENCODE_GO_AGENT
 }
 
 pub(super) fn plan_command(
@@ -185,14 +226,16 @@ pub(super) fn plan_command(
     operation: &str,
     prompt: &str,
 ) -> HostResult<AiAssistCommandPlan> {
-    let prompt_settings = settings.prompt_settings_by_operation.get(operation);
-    let agent = prompt_settings
-        .and_then(|value| value.agent.as_deref())
-        .unwrap_or(&settings.agent);
+    let agent = resolved_agent(settings, operation);
+    if agent == OPENCODE_GO_AGENT {
+        return Err(HostError::format("OpenCode Go does not use a CLI command."));
+    }
     if agent == "custom" {
         return plan_custom_command(&settings.custom_command, prompt);
     }
-    let selected_model = prompt_settings
+    let selected_model = settings
+        .prompt_settings_by_operation
+        .get(operation)
         .and_then(|value| value.model.as_deref())
         .filter(|value| !value.trim().is_empty())
         .or_else(|| {
