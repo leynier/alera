@@ -9,8 +9,8 @@ use tokio::sync::oneshot;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
+use super::ai_assist_generation::generate_ai_assist_output;
 use super::ai_assist_operation_registry::active_generations;
-use super::ai_assist_requests::{plan_command, run_command};
 use super::host_service_requests::required_non_blank;
 use super::mobile_source_control_snapshot::git_host_error;
 use super::mobile_workspace_file_requests::spawn_blocking_workspace;
@@ -88,9 +88,9 @@ pub(super) async fn generate_commit_message(
     let root = workspace.path.clone();
     let context = spawn_blocking_workspace("Commit context", move || commit_context(&root)).await?;
     let prompt = commit_message_prompt(&context, instructions(&settings));
-    let plan = plan_command(&settings, OPERATION, &prompt)?;
-    let label = plan.label.clone();
-    let output = run_command(plan, &workspace.path, settings.timeout_seconds, cancel_rx).await?;
+    let (output, label) =
+        generate_ai_assist_output(&settings, OPERATION, &prompt, &workspace.path, cancel_rx)
+            .await?;
     Ok(json!({
         "message": clean_generated_commit_message(&output),
         "agentLabel": label,

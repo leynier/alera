@@ -79,6 +79,11 @@ const String aleraRuntimeHostTerminalDeferredInputCapability =
 const String aleraRuntimeHostRemoteAiDictationCapability =
     'aiDictationRemoteProvidersV1';
 
+/// Feature-detect OpenCode Go AI Assist HTTP completion and model discovery.
+/// Additive: do not bump [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostAiAssistOpenCodeGoCapability =
+    'aiAssistOpenCodeGoV1';
+
 /// The host will switch this connection to length-prefixed binary frames if
 /// the client asks for it in `hello`. Negotiated per client, so an older app
 /// and the `alera` CLI keep getting newline-delimited JSON from the same host.

@@ -116,6 +116,18 @@ impl ServerActor {
                     .await?;
                 Ok(true)
             }
+            "aiAssist.complete" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_ai_assist_complete(client_id, request_id, payload)?;
+                Ok(true)
+            }
+            "aiAssist.opencodeGo.models" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_opencode_go_models(client_id, request_id)?;
+                Ok(true)
+            }
             "project.branches.list"
             | "checkout.quickOpen.start"
             | "mobile.workspaceQuickOpen.start"

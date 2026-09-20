@@ -32,6 +32,7 @@ mod managed_workspace_slug;
 mod mobile_access;
 mod native_credential_entry;
 mod netbird;
+mod opencode_auth;
 mod orchestration_command_summaries;
 mod orchestration_commands;
 mod orchestration_delegate;

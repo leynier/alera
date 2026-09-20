@@ -8,7 +8,7 @@ use crate::terminal_host::protocol::{error_response, ok_response};
 
 use super::agent_title_context::{clean_terminal, parse_title, title_prompt};
 use super::agent_title_state::{is_manual, AgentTitleState};
-use super::ai_assist_requests::{plan_command, run_command};
+use super::ai_assist_generation::generate_ai_assist_output;
 use super::{ServerActor, ServerCommand};
 
 pub(super) struct AgentTitleJob {
@@ -180,9 +180,8 @@ impl ServerActor {
                 // Bounded parsing and command preparation stay off the server actor.
                 let recent = if automatic && !initial.is_empty() { String::new() } else { clean_terminal(&recent) };
                 let prompt = title_prompt(&initial, &recent, settings.instructions_by_operation.get("agentTitle").map(String::as_str).unwrap_or_default())?;
-                let plan = plan_command(&settings, "agentTitle", &prompt)?;
                 tokio::fs::create_dir_all(&directory).await.map_err(|_| HostError::state("Could not prepare title generation."))?;
-                let output = run_command(plan, &directory.to_string_lossy(), settings.timeout_seconds, cancel_rx).await
+                let (output, _) = generate_ai_assist_output(&settings, "agentTitle", &prompt, &directory.to_string_lossy(), cancel_rx).await
                     .map_err(|_| HostError::state("AI Assist could not generate a title. Check the configured provider and try again."))?;
                 parse_title(&output)
             }.await;
