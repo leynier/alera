@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_accessory_layout_controller.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_clipboard_settings_controller.dart';
 import 'package:xterm2/xterm.dart';
 
 import 'package:alera_mobile/src/features/terminal/domain/terminal_viewport_pulse.dart';
@@ -19,6 +20,7 @@ import 'support/fake_terminal_client.dart';
 import 'support/memory_accessory_layout_repository.dart';
 
 part 'terminal_tab_view_clipboard_cases.dart';
+part 'terminal_tab_view_test_support.dart';
 
 void main() {
   _registerTerminalClipboardSecurityTests();
@@ -407,86 +409,4 @@ void main() {
 
     expect(client.calls, contains('restart tab-1'));
   });
-}
-
-Terminal _terminalOf(WidgetTester tester) {
-  return tester.widget<TerminalView>(find.byType(TerminalView)).terminal;
-}
-
-List<String> _resizeCalls(FakeTerminalClient client) {
-  return client.calls.where((call) => call.startsWith('resize ')).toList();
-}
-
-List<String> _pulsedResizeCalls(String sessionId, int cols, int rows) {
-  final pulse = terminalViewportPulseSize(cols, rows);
-  return <String>[
-    'resize $sessionId $cols $rows',
-    'resize $sessionId ${pulse.$1} ${pulse.$2}',
-    'resize $sessionId $cols $rows',
-  ];
-}
-
-/// Pumps until the restore has drained and the view is back.
-///
-/// The batcher paces itself with a timer between frames, and while the view is
-/// held back nothing else schedules one, so `pumpAndSettle` returns before the
-/// timer is due. A real frame loop keeps running regardless.
-Future<void> _drainRestore(WidgetTester tester) async {
-  for (var frame = 0; frame < 100; frame++) {
-    await tester.pump(const Duration(milliseconds: 50));
-    if (find.text('Restoring terminal').evaluate().isEmpty) {
-      await tester.pumpAndSettle();
-      return;
-    }
-  }
-  fail('the restore never drained');
-}
-
-double _restoreFraction(WidgetTester tester) {
-  return tester
-          .widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator))
-          .value ??
-      0;
-}
-
-Future<void> _pumpTab(
-  WidgetTester tester,
-  FakeTerminalClient client, {
-  bool settle = true,
-}) async {
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        terminalClientProvider('host-1').overrideWith((ref) async => client),
-        workspaceClientProvider('host-1').overrideWith((ref) async => client),
-        accessoryLayoutRepositoryProvider.overrideWithValue(
-          MemoryAccessoryLayoutRepository(),
-        ),
-      ],
-      child: const MaterialApp(
-        home: Scaffold(
-          body: TerminalTabView(
-            hostId: 'host-1',
-            workspaceId: 'workspace-1',
-            tabId: 'tab-1',
-          ),
-        ),
-      ),
-    ),
-  );
-  if (settle) {
-    await tester.pumpAndSettle();
-    return;
-  }
-  // Settling would drain the whole restore, which is the state under test.
-  for (var frame = 0; frame < 10; frame++) {
-    await tester.pump();
-    final attached =
-        find.byType(TerminalView).evaluate().isNotEmpty ||
-        find.text('Restoring terminal').evaluate().isNotEmpty;
-    if (attached) {
-      return;
-    }
-  }
-  fail('the terminal never attached');
 }

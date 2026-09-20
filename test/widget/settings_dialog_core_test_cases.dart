@@ -84,6 +84,7 @@ void _registerSettingsDialogCoreTests() {
     expect(find.text('Font Family'), findsOneWidget);
     expect(find.text('Theme Preset'), findsOneWidget);
     expect(find.text('TUI Scroll Speed'), findsOneWidget);
+    expect(find.text('Drag To Select In TUIs'), findsOneWidget);
     expect(find.text('Copy On Select'), findsOneWidget);
     expect(find.text('Allow OSC 52 Clipboard Writes'), findsOneWidget);
     expect(find.text('Scrollback Lines'), findsOneWidget);

@@ -529,12 +529,19 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     opt: true,
     def: 1,
   );
+  static bool _$dragSelectsInTuis(TerminalSettings v) => v.dragSelectsInTuis;
+  static const Field<TerminalSettings, bool> _f$dragSelectsInTuis = Field(
+    'dragSelectsInTuis',
+    _$dragSelectsInTuis,
+    opt: true,
+    def: true,
+  );
   static bool _$clipboardOnSelect(TerminalSettings v) => v.clipboardOnSelect;
   static const Field<TerminalSettings, bool> _f$clipboardOnSelect = Field(
     'clipboardOnSelect',
     _$clipboardOnSelect,
     opt: true,
-    def: false,
+    def: true,
   );
   static bool _$allowOsc52Clipboard(TerminalSettings v) =>
       v.allowOsc52Clipboard;
@@ -627,6 +634,7 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     #colorOverrides: _f$colorOverrides,
     #scrollbackLines: _f$scrollbackLines,
     #tuiScrollSensitivity: _f$tuiScrollSensitivity,
+    #dragSelectsInTuis: _f$dragSelectsInTuis,
     #clipboardOnSelect: _f$clipboardOnSelect,
     #allowOsc52Clipboard: _f$allowOsc52Clipboard,
     #showComposerByDefault: _f$showComposerByDefault,
@@ -659,6 +667,7 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
       colorOverrides: data.dec(_f$colorOverrides),
       scrollbackLines: data.dec(_f$scrollbackLines),
       tuiScrollSensitivity: data.dec(_f$tuiScrollSensitivity),
+      dragSelectsInTuis: data.dec(_f$dragSelectsInTuis),
       clipboardOnSelect: data.dec(_f$clipboardOnSelect),
       allowOsc52Clipboard: data.dec(_f$allowOsc52Clipboard),
       showComposerByDefault: data.dec(_f$showComposerByDefault),
@@ -758,6 +767,7 @@ abstract class TerminalSettingsCopyWith<$R, $In extends TerminalSettings, $Out>
     TerminalColorOverrides? colorOverrides,
     int? scrollbackLines,
     int? tuiScrollSensitivity,
+    bool? dragSelectsInTuis,
     bool? clipboardOnSelect,
     bool? allowOsc52Clipboard,
     bool? showComposerByDefault,
@@ -807,6 +817,7 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
     TerminalColorOverrides? colorOverrides,
     int? scrollbackLines,
     int? tuiScrollSensitivity,
+    bool? dragSelectsInTuis,
     bool? clipboardOnSelect,
     bool? allowOsc52Clipboard,
     bool? showComposerByDefault,
@@ -835,6 +846,7 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
       if (scrollbackLines != null) #scrollbackLines: scrollbackLines,
       if (tuiScrollSensitivity != null)
         #tuiScrollSensitivity: tuiScrollSensitivity,
+      if (dragSelectsInTuis != null) #dragSelectsInTuis: dragSelectsInTuis,
       if (clipboardOnSelect != null) #clipboardOnSelect: clipboardOnSelect,
       if (allowOsc52Clipboard != null)
         #allowOsc52Clipboard: allowOsc52Clipboard,
@@ -877,6 +889,10 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
     tuiScrollSensitivity: data.get(
       #tuiScrollSensitivity,
       or: $value.tuiScrollSensitivity,
+    ),
+    dragSelectsInTuis: data.get(
+      #dragSelectsInTuis,
+      or: $value.dragSelectsInTuis,
     ),
     clipboardOnSelect: data.get(
       #clipboardOnSelect,
