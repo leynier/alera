@@ -146,7 +146,7 @@ make cli-build
 make cli-help
 ```
 
-`make cli-build` runs `cargo build --release -p alera-cli` and stages the single binary into `.dart_tool/alera/alera` (`.dart_tool/alera/alera.exe` on Windows); `make cli-help` runs the staged binary's `--help`. The Rust crate also has its own checks via `make rust-test` (`cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`).
+`make cli-build` runs `cargo build --release -p alera-cli` and stages the single binary into `.dart_tool/alera/alera` (`.dart_tool/alera/alera.exe` on Windows); `make cli-help` runs the staged binary's `--help`. The makefile debug targets (`init-submodules`, `app-debug`, `cli-build`, `host-debug`, and the rest) go through `alera-xtask` so they do not need a matching Dart SDK. The Rust workspace also has its own checks via `make rust-test` (`cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`).
 
 The repository `makefile` exposes cross-platform debug targets around the same flow. `make help` lists available targets. For foreground host debugging, `make host-debug` accepts `ALERA_HOST_EMPTY_SHUTDOWN_SECONDS`, `ALERA_HOST_DETACHED_SHUTDOWN_SECONDS`, and `ALERA_HOST_SCROLLBACK_BYTES`, which are forwarded to the runtime host. `alera terminal-host` remains a compatibility alias, but new product behavior should be validated through `alera runtime-host` and the `project`, `workspace`, `tag`, `tab`, and `ssh-target` CLI groups.
 

@@ -325,7 +325,8 @@ Write-Step 'Enabling Flutter Windows desktop support'
 Invoke-Native $flutter.Source @('config', '--enable-windows-desktop')
 
 Write-Step 'Initializing required source submodules'
-Invoke-Native $dart.Source @('tool/development/initialize_required_submodules.dart')
+$cargo = Get-RequiredCommand 'cargo' 'Install rustup so cargo is on PATH, then reopen PowerShell.'
+Invoke-Native $cargo.Source @('run', '--quiet', '--locked', '--manifest-path', 'rust/Cargo.toml', '-p', 'alera-xtask', '--', 'init-submodules')
 
 Write-Step 'Resolving Flutter dependencies'
 Invoke-Native $flutter.Source @('pub', 'get')

@@ -72,7 +72,7 @@ Shared components live in `lib/src/design_system/` (prefixed `Alera`) with co-lo
 
 Alera runs as a Flutter desktop app plus a bundled Rust CLI named `alera`. The app owns UI state and terminal surfaces; the CLI sidecar runs `alera runtime-host`, owns runtime Projects/Workspaces/Tabs graph state plus long-lived PTY sessions, writes host control metadata, and keeps terminal checkpoints alive after the app is closed. `alera terminal-host` is kept as a compatibility alias.
 
-Use the lowercase repository `makefile` for the standard debug flows. These targets intentionally call Dart tooling instead of inline shell snippets, so the same commands work from PowerShell 7 on Windows and from normal Linux/macOS shells:
+Use the lowercase repository `makefile` for the standard debug flows. These targets call `alera-xtask` (a Rust workspace crate) instead of inline shell snippets, so the same commands work from PowerShell 7 on Windows and from normal Linux/macOS shells without a matching Dart SDK:
 
 ```bash
 make help
