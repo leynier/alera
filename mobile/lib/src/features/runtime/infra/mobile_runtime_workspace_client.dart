@@ -221,6 +221,7 @@ mixin MobileRuntimeWorkspaceClient {
   }) async {
     await request('workspace.removeManaged', <String, Object?>{
       'id': workspaceId,
+      'closeSessions': true,
       'deleteBranch': ?deleteBranch,
     }, _managedWorkspaceRemoveTimeout);
   }
