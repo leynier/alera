@@ -45,7 +45,9 @@ void _registerAleraShellSidebarActionTests() {
       buttons: kSecondaryMouseButton,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Open in Finder'));
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('In Finder'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 

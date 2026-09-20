@@ -22,13 +22,23 @@ List<Widget> _linkedIssueActionTiles(
     ];
   }
   return <Widget>[
-    tile(
-      AleraIcons.external,
-      'Open Issue in Browser',
-      _WorkspaceAction.openIssue,
+    ExpansionTile(
+      leading: const Icon(AleraIcons.issueOpen, size: 20),
+      title: const Text('Issue'),
+      children: <Widget>[
+        tile(
+          AleraIcons.external,
+          'Open Issue in Browser',
+          _WorkspaceAction.openIssue,
+        ),
+        tile(
+          AleraIcons.link,
+          'Change Linked Issue',
+          _WorkspaceAction.changeIssue,
+        ),
+        tile(AleraIcons.unlink, 'Unlink Issue', _WorkspaceAction.unlinkIssue),
+      ],
     ),
-    tile(AleraIcons.link, 'Change Linked Issue', _WorkspaceAction.changeIssue),
-    tile(AleraIcons.unlink, 'Unlink Issue', _WorkspaceAction.unlinkIssue),
   ];
 }
 

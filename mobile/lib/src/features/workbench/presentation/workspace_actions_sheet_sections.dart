@@ -39,48 +39,46 @@ List<Widget> _sectionActionTiles(
   final sections = data.sections;
   final currentSectionId = workspace.sectionId;
   final hasSection = workspace.sectionId != null;
-  if (sections.length < _workspaceSectionSubmenuLimit) {
-    return <Widget>[
-      _SectionSubmenuTile(
-        title: 'Set Section',
-        sections: sections,
-        currentSectionId: currentSectionId,
-        onAssign: (sectionId) => assign(sectionId, false),
-        onNew: () => Navigator.pop(context, _WorkspaceAction.newSection),
-      ),
-      if (hasDescendants)
-        _SectionSubmenuTile(
-          title: 'Set Section Tree',
-          sections: sections,
-          currentSectionId: currentSectionId,
-          onAssign: (sectionId) => assign(sectionId, true),
-          onNew: () => Navigator.pop(context, _WorkspaceAction.newSectionTree),
-        ),
-      ..._clearSectionTiles(
-        context,
-        hasSection: hasSection,
-        hasDescendants: hasDescendants,
-        hasTreeSection: hasTreeSection,
-      ),
-    ];
-  }
+  final usePicker = sections.length >= _workspaceSectionSubmenuLimit;
   return <Widget>[
-    ListTile(
-      leading: const Icon(AleraIcons.section, size: 20),
-      title: const Text('Set Section'),
-      onTap: () => Navigator.pop(context, _WorkspaceAction.setSection),
-    ),
-    if (hasDescendants)
-      ListTile(
-        leading: const Icon(AleraIcons.section, size: 20),
-        title: const Text('Set Section Tree'),
-        onTap: () => Navigator.pop(context, _WorkspaceAction.setSectionTree),
-      ),
-    ..._clearSectionTiles(
-      context,
-      hasSection: hasSection,
-      hasDescendants: hasDescendants,
-      hasTreeSection: hasTreeSection,
+    _SectionFamilyTile(
+      title: 'Section',
+      usePicker: usePicker,
+      pickerAction: _WorkspaceAction.setSection,
+      sections: sections,
+      currentSectionId: currentSectionId,
+      onAssign: (sectionId) => assign(sectionId, false),
+      onNew: () => Navigator.pop(context, _WorkspaceAction.newSection),
+      clearTile: hasSection
+          ? ListTile(
+              leading: const Icon(AleraIcons.sectionOff, size: 20),
+              title: const Text('Clear Section'),
+              onTap: () =>
+                  Navigator.pop(context, _WorkspaceAction.clearSection),
+            )
+          : null,
+      treeTile: hasDescendants
+          ? _SectionFamilyTile(
+              title: 'Apply to Tree',
+              usePicker: usePicker,
+              pickerAction: _WorkspaceAction.setSectionTree,
+              sections: sections,
+              currentSectionId: currentSectionId,
+              onAssign: (sectionId) => assign(sectionId, true),
+              onNew: () =>
+                  Navigator.pop(context, _WorkspaceAction.newSectionTree),
+              clearTile: hasTreeSection
+                  ? ListTile(
+                      leading: const Icon(AleraIcons.sectionOff, size: 20),
+                      title: const Text('Clear Section Tree'),
+                      onTap: () => Navigator.pop(
+                        context,
+                        _WorkspaceAction.clearSectionTree,
+                      ),
+                    )
+                  : null,
+            )
+          : null,
     ),
   ];
 }
@@ -135,34 +133,16 @@ Future<void> _runSectionAction(
   }
 }
 
-List<Widget> _clearSectionTiles(
-  BuildContext context, {
-  required bool hasSection,
-  required bool hasDescendants,
-  required bool hasTreeSection,
-}) {
-  return <Widget>[
-    if (hasSection)
-      ListTile(
-        leading: const Icon(AleraIcons.sectionOff, size: 20),
-        title: const Text('Clear Section'),
-        onTap: () => Navigator.pop(context, _WorkspaceAction.clearSection),
-      ),
-    if (hasDescendants && hasTreeSection)
-      ListTile(
-        leading: const Icon(AleraIcons.sectionOff, size: 20),
-        title: const Text('Clear Section Tree'),
-        onTap: () => Navigator.pop(context, _WorkspaceAction.clearSectionTree),
-      ),
-  ];
-}
-
-class const _SectionSubmenuTile({
+class const _SectionFamilyTile({
   required final String title,
+  required final bool usePicker,
+  required final _WorkspaceAction pickerAction,
   required final List<WorkspaceSectionSummary> sections,
   required final String? currentSectionId,
   required final Future<void> Function(String sectionId) onAssign,
   required final VoidCallback onNew,
+  final Widget? clearTile,
+  final Widget? treeTile,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -170,19 +150,33 @@ class const _SectionSubmenuTile({
       leading: const Icon(AleraIcons.section, size: 20),
       title: Text(title),
       children: <Widget>[
-        for (final section in sections)
+        if (usePicker)
           ListTile(
-            title: Text(section.name),
-            trailing: section.id == currentSectionId
-                ? const Icon(AleraIcons.check, size: 20)
-                : null,
-            onTap: () => onAssign(section.id),
+            leading: const Icon(AleraIcons.section, size: 20),
+            title: Text(
+              pickerAction == _WorkspaceAction.setSectionTree
+                  ? 'Set Section Tree'
+                  : 'Set Section',
+            ),
+            onTap: () => Navigator.pop(context, pickerAction),
+          )
+        else ...<Widget>[
+          for (final section in sections)
+            ListTile(
+              title: Text(section.name),
+              trailing: section.id == currentSectionId
+                  ? const Icon(AleraIcons.check, size: 20)
+                  : null,
+              onTap: () => onAssign(section.id),
+            ),
+          ListTile(
+            leading: const Icon(AleraIcons.add, size: 20),
+            title: const Text('New Section'),
+            onTap: onNew,
           ),
-        ListTile(
-          leading: const Icon(AleraIcons.add, size: 20),
-          title: const Text('New Section'),
-          onTap: onNew,
-        ),
+        ],
+        ?clearTile,
+        ?treeTile,
       ],
     );
   }

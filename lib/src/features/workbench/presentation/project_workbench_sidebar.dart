@@ -60,6 +60,7 @@ part 'project_workbench_collapsed_sidebar.dart';
 part 'project_workbench_sidebar_body.dart';
 part 'project_workbench_sidebar_headers.dart';
 part 'project_workbench_section_header.dart';
+part 'project_workbench_workspace_menu_entries.dart';
 part 'project_workbench_workspace_actions.dart';
 part 'project_workbench_workspace_rows.dart';
 part 'project_workbench_workspace_agent_list.dart';

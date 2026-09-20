@@ -293,9 +293,7 @@ void _registerAleraShellWorkbenchTests() {
     expect(find.text('Rename'), findsOneWidget);
     expect(find.text('Manage Tags'), findsOneWidget);
     expect(find.text('Set Parent Workspace'), findsOneWidget);
-    expect(find.text('Open in Finder'), findsOneWidget);
-    expect(find.text('Open in Project Settings'), findsOneWidget);
-    expect(find.text('Open Project Settings'), findsNothing);
+    expect(find.text('Open'), findsOneWidget);
     expect(find.text('Copy Path'), findsOneWidget);
     expect(find.text('Sleep'), findsOneWidget);
     expect(find.text('Remove'), findsOneWidget);

@@ -1,5 +1,6 @@
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
@@ -181,7 +182,8 @@ void main() {
       expect(option, findsOneWidget);
       expect(controller.state.viewPrefs.showPinnedWorkspacesBelow, isTrue);
 
-      await tester.tap(option);
+      await tester.ensureVisible(_optionSwitch('Repeat Pinned Workspaces'));
+      await tester.tap(_optionSwitch('Repeat Pinned Workspaces'));
       await tester.pumpAndSettle();
       expect(controller.state.viewPrefs.showPinnedWorkspacesBelow, isFalse);
 
@@ -203,7 +205,8 @@ void main() {
       expect(option, findsOneWidget);
       expect(controller.state.viewPrefs.showActiveWorkspacesOnly, isFalse);
 
-      await tester.tap(option);
+      await tester.ensureVisible(_optionSwitch('Active Workspaces Only'));
+      await tester.tap(_optionSwitch('Active Workspaces Only'));
       await tester.pumpAndSettle();
       expect(controller.state.viewPrefs.showActiveWorkspacesOnly, isTrue);
 
@@ -243,6 +246,8 @@ void main() {
       await mouse.addPointer(location: .zero);
       await tester.pump();
 
+      await tester.ensureVisible(find.text('Orca').last);
+      await tester.pumpAndSettle();
       await mouse.moveTo(tester.getCenter(find.text('Orca').last));
       await tester.pumpAndSettle();
       expect(decorationOf().color, AleraTokens.surface);
@@ -346,6 +351,16 @@ Finder _sectionSearchField() {
     (widget) =>
         widget is TextField &&
         widget.decoration?.hintText == 'Add section\u2026',
+  );
+}
+
+Finder _optionSwitch(String title) {
+  return find.descendant(
+    of: find.ancestor(
+      of: find.text(title),
+      matching: find.byType(AleraSettingRow),
+    ),
+    matching: find.byType(Switch),
   );
 }
 
@@ -487,6 +502,13 @@ class _ViewOptionsTestController(final WorkbenchState _seed)
   void setShowPinnedWorkspacesBelow(bool show) {
     state = state.copyWith(
       viewPrefs: state.viewPrefs.copyWith(showPinnedWorkspacesBelow: show),
+    );
+  }
+
+  @override
+  void setShowArchivedWorkspaces(bool show) {
+    state = state.copyWith(
+      viewPrefs: state.viewPrefs.copyWith(showArchivedWorkspaces: show),
     );
   }
 }

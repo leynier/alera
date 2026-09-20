@@ -1,5 +1,61 @@
 part of 'workbench_view_options_menu.dart';
 
+class const _ShowWorkspacesSettings({
+  required final bool showActiveWorkspacesOnly,
+  required final bool showPinnedWorkspacesBelow,
+  required final bool showArchivedWorkspaces,
+  required final ValueChanged<bool> onShowActiveWorkspacesOnly,
+  required final ValueChanged<bool> onShowPinnedWorkspacesBelow,
+  required final ValueChanged<bool> onShowArchivedWorkspaces,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return AleraSettingsGroup(
+      title: 'Show Workspaces',
+      description: 'Choose which workspaces appear in the sidebar.',
+      children: <Widget>[
+        AleraSettingRow(
+          title: 'Active Workspaces Only',
+          description:
+              'Hide workspaces that do not have an open terminal or Codex tab.',
+          controlWidth: 56,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Switch(
+              value: showActiveWorkspacesOnly,
+              onChanged: onShowActiveWorkspacesOnly,
+            ),
+          ),
+        ),
+        AleraSettingRow(
+          title: 'Repeat Pinned Workspaces',
+          description: 'Also show pinned workspaces in their regular project or All groups.',
+          controlWidth: 56,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Switch(
+              value: showPinnedWorkspacesBelow,
+              onChanged: onShowPinnedWorkspacesBelow,
+            ),
+          ),
+        ),
+        AleraSettingRow(
+          title: 'Show Archived Workspaces',
+          description: 'Show archived workspaces in the sidebar.',
+          controlWidth: 56,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Switch(
+              value: showArchivedWorkspaces,
+              onChanged: onShowArchivedWorkspaces,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class const _SectionsFilterSection({
   required final List<WorkspaceSection> selectedSections,
   required final List<WorkspaceSection> availableSections,

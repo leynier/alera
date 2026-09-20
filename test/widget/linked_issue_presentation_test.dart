@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
+import 'package:alera/src/design_system/menus/alera_dropdown_submenu_entry.dart';
 import 'package:alera/src/features/linked_issues/domain/issue_details.dart';
 import 'package:alera/src/features/linked_issues/domain/linked_issue.dart';
 import 'package:alera/src/features/linked_issues/presentation/issue_url_field.dart';
@@ -20,7 +21,11 @@ IssueDetails _details() => const IssueDetails(
 );
 
 List<String> _labels(List<PopupMenuEntry<String>> entries) => <String>[
-  for (final entry in entries) (entry as AleraDropdownEntry<String>).label,
+  for (final entry in entries)
+    if (entry is AleraDropdownEntry<String>)
+      entry.label
+    else if (entry is AleraDropdownSubmenuEntry<String>)
+      entry.label,
 ];
 
 void main() {
@@ -42,8 +47,13 @@ void main() {
         url: 'https://github.com/leynier/alera/issues/758',
         linkedAt: _linkedAt,
       );
+      final entries = linkedIssueMenuEntries(
+        supported: true,
+        linkedIssue: linked,
+      );
+      expect(_labels(entries), <String>['Issue']);
       expect(
-        _labels(linkedIssueMenuEntries(supported: true, linkedIssue: linked)),
+        _labels((entries.single as AleraDropdownSubmenuEntry<String>).items),
         <String>[
           'Open Issue in Browser',
           'Change Linked Issue',
