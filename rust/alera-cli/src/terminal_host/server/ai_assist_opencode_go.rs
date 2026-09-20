@@ -76,8 +76,8 @@ pub(super) async fn complete_opencode_go(
         .header(USER_AGENT, user_agent())
         .header(OPENCODE_GO_SESSION_HEADER, session_id)
         .json(&body);
-    let response = send_cancellable(request, cancel_rx).await?;
-    interpret_completion(route, response.status(), read_body(response).await?)
+    let (status, body) = send_and_read_cancellable(request, cancel_rx).await?;
+    interpret_completion(route, status, body)
 }
 
 pub(super) async fn list_opencode_go_models(
@@ -156,15 +156,24 @@ pub(super) fn request_body(route: OpenCodeGoRoute, model: &str, prompt: &str) ->
     }
 }
 
-async fn send_cancellable(
+async fn send_and_read_cancellable(
     request: reqwest::RequestBuilder,
-    mut cancel_rx: oneshot::Receiver<()>,
-) -> HostResult<reqwest::Response> {
+    cancel_rx: oneshot::Receiver<()>,
+) -> HostResult<(StatusCode, String)> {
     tokio::select! {
-        _ = &mut cancel_rx => Err(HostError::state("Generation canceled.")),
-        response = request.send() => response
-            .map_err(|error| HostError::state(format!("OpenCode Go request failed: {error}"))),
+        _ = cancel_rx => Err(HostError::state("Generation canceled.")),
+        result = send_and_read(request) => result,
     }
+}
+
+async fn send_and_read(request: reqwest::RequestBuilder) -> HostResult<(StatusCode, String)> {
+    let response = request
+        .send()
+        .await
+        .map_err(|error| HostError::state(format!("OpenCode Go request failed: {error}")))?;
+    let status = response.status();
+    let body = read_body(response).await?;
+    Ok((status, body))
 }
 
 async fn read_body(response: reqwest::Response) -> HostResult<String> {

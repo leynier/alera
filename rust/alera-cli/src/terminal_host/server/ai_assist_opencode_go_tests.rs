@@ -162,3 +162,52 @@ fn interpret_completion_accepts_a_fake_http_success() {
     .unwrap();
     assert_eq!(text, "feat: add go assist");
 }
+
+#[tokio::test]
+async fn cancel_aborts_body_read_after_headers() {
+    use std::time::Duration;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+    use tokio::sync::oneshot;
+    use tokio::time::timeout;
+
+    let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let (headers_sent_tx, headers_sent_rx) = oneshot::channel();
+    let server = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.unwrap();
+        let mut buf = vec![0_u8; 4096];
+        let _ = stream.read(&mut buf).await;
+        stream
+            .write_all(
+                b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\n",
+            )
+            .await
+            .unwrap();
+        stream.flush().await.unwrap();
+        let _ = headers_sent_tx.send(());
+        tokio::time::sleep(Duration::from_secs(30)).await;
+    });
+
+    let (cancel_tx, cancel_rx) = oneshot::channel();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .build()
+        .unwrap();
+    let request = client
+        .post(format!("http://{address}/v1/responses"))
+        .header("content-type", "application/json")
+        .body("{}");
+    let running = tokio::spawn(async move { send_and_read_cancellable(request, cancel_rx).await });
+    headers_sent_rx.await.unwrap();
+    // Headers already reached the client, so send() has finished and the body is open.
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let _ = cancel_tx.send(());
+    let error = timeout(Duration::from_secs(2), running)
+        .await
+        .expect("cancel must abort the stalled body")
+        .unwrap()
+        .unwrap_err();
+    assert_eq!(error.wire_message(), "Generation canceled.");
+    server.abort();
+}
