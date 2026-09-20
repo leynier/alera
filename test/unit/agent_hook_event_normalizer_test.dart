@@ -487,11 +487,11 @@ void main() {
       );
     });
 
-    test('ends the Cursor approval wait when the execution starts', () {
+    test('keeps Cursor shell and MCP execution as working', () {
       final shell = normalizeAgentHookEvent(
         _event(
           agentType: .cursor,
-          hookEventName: 'afterShellExecution',
+          hookEventName: 'beforeShellExecution',
           payload: const <String, Object?>{'command': 'sleep 30'},
         ),
       );
@@ -502,12 +502,49 @@ void main() {
       final mcp = normalizeAgentHookEvent(
         _event(
           agentType: .cursor,
-          hookEventName: 'afterMCPExecution',
+          hookEventName: 'beforeMCPExecution',
           payload: const <String, Object?>{'tool_name': 'Browser'},
         ),
       );
       expect(mcp?.state, AgentStatusState.working);
       expect(mcp?.toolName, 'Browser');
+
+      expect(
+        normalizeAgentHookEvent(
+          _event(
+            agentType: .cursor,
+            hookEventName: 'afterShellExecution',
+            payload: const <String, Object?>{'command': 'sleep 30'},
+          ),
+        )?.state,
+        AgentStatusState.working,
+      );
+      expect(
+        normalizeAgentHookEvent(
+          _event(
+            agentType: .cursor,
+            hookEventName: 'afterMCPExecution',
+            payload: const <String, Object?>{'tool_name': 'Browser'},
+          ),
+        )?.state,
+        AgentStatusState.working,
+      );
+    });
+
+    test('maps Cursor AskQuestion preToolUse to waiting', () {
+      expect(
+        normalizeAgentHookEvent(
+          _event(
+            agentType: .cursor,
+            hookEventName: 'preToolUse',
+            payload: const <String, Object?>{
+              'tool_name': 'AskQuestion',
+              'tool_input': <String, Object?>{'title': 'Which path?'},
+            },
+          ),
+        )?.state,
+        AgentStatusState.waiting,
+      );
     });
 
     test('extracts Cursor shell, MCP, and tool response snapshots', () {
@@ -518,7 +555,7 @@ void main() {
           payload: const <String, Object?>{'command': 'flutter test'},
         ),
       );
-      expect(shell?.state, AgentStatusState.waiting);
+      expect(shell?.state, AgentStatusState.working);
       expect(shell?.toolName, 'Shell');
       expect(shell?.toolInput, 'flutter test');
 
