@@ -10,7 +10,7 @@ use std::io;
 use std::path::Path;
 use std::process::{Output, Stdio};
 
-use alera_core::child_process::windowless_command;
+use alera_core::child_process::{console_command, windowless_command};
 
 #[derive(Debug, Clone)]
 pub struct CapturedOutput {
@@ -46,6 +46,8 @@ pub fn format_command_line(program: &str, args: &[impl AsRef<str>]) -> String {
     parts.join(" ")
 }
 
+/// Spawn a child that stays on this console so Windows makefile debug
+/// targets keep TTY detection, hot-reload keys, and Ctrl+C.
 pub fn run_inherit(
     program: &str,
     args: &[impl AsRef<OsStr>],
@@ -53,7 +55,7 @@ pub fn run_inherit(
     environment: Option<&HashMap<String, String>>,
     windows_shell: bool,
 ) -> io::Result<i32> {
-    let mut command = spawn_command(program, args, windows_shell);
+    let mut command = spawn_command(program, args, windows_shell, true);
     command.current_dir(cwd);
     if let Some(environment) = environment {
         command.envs(environment);
@@ -71,7 +73,7 @@ pub fn run_captured(
     cwd: Option<&Path>,
     windows_shell: bool,
 ) -> io::Result<CapturedOutput> {
-    let mut command = spawn_command(program, args, windows_shell);
+    let mut command = spawn_command(program, args, windows_shell, false);
     if let Some(cwd) = cwd {
         command.current_dir(cwd);
     }
@@ -86,19 +88,28 @@ fn spawn_command(
     program: &str,
     args: &[impl AsRef<OsStr>],
     windows_shell: bool,
+    inherit_console: bool,
 ) -> std::process::Command {
     #[cfg(windows)]
     if windows_shell {
-        return windows_shell_command(program, args);
+        return windows_shell_command(program, args, inherit_console);
     }
     let _ = windows_shell;
-    let mut command = windowless_command(program);
+    let mut command = if inherit_console {
+        console_command(program)
+    } else {
+        windowless_command(program)
+    };
     command.args(args.iter().map(AsRef::as_ref));
     command
 }
 
 #[cfg(windows)]
-fn windows_shell_command(program: &str, args: &[impl AsRef<OsStr>]) -> std::process::Command {
+fn windows_shell_command(
+    program: &str,
+    args: &[impl AsRef<OsStr>],
+    inherit_console: bool,
+) -> std::process::Command {
     use std::os::windows::process::CommandExt;
 
     let mut line = String::from("/d /s /c \"");
@@ -108,7 +119,11 @@ fn windows_shell_command(program: &str, args: &[impl AsRef<OsStr>]) -> std::proc
         line.push_str(&double_quoted(&arg.as_ref().to_string_lossy()));
     }
     line.push('"');
-    let mut command = windowless_command("cmd.exe");
+    let mut command = if inherit_console {
+        console_command("cmd.exe")
+    } else {
+        windowless_command("cmd.exe")
+    };
     command.raw_arg(line);
     command
 }
@@ -127,5 +142,12 @@ mod tests {
         assert_eq!(quote_for_log("git"), "git");
         assert_eq!(quote_for_log("a b"), "\"a b\"");
         assert_eq!(quote_for_log("a\tb"), "\"a\tb\"");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn run_captured_records_success() {
+        let output = super::run_captured("true", &[] as &[&str], None, false).unwrap();
+        assert_eq!(output.status, 0);
     }
 }
