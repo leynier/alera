@@ -1,5 +1,9 @@
 part of 'workspace_tab_service.dart';
 
+bool _allowsTabReuse(WorkspaceTabRecord tab, Set<String>? reuseTabIds) {
+  return reuseTabIds == null || reuseTabIds.contains(tab.id);
+}
+
 WorkspaceTabRecord? _previewTabToReplace(
   List<WorkspaceTabRecord> existing,
   String? replacePreviewTabId,
@@ -22,6 +26,7 @@ extension WorkspaceTabFileOpening on WorkspaceTabService {
     required String relativePath,
     bool preview = false,
     String? replacePreviewTabId,
+    Set<String>? reuseTabIds,
   }) {
     return _openOrCreateFileTab(
       workspaceId: workspaceId,
@@ -29,6 +34,7 @@ extension WorkspaceTabFileOpening on WorkspaceTabService {
       kind: .editor,
       preview: preview,
       replacePreviewTabId: replacePreviewTabId,
+      reuseTabIds: reuseTabIds,
     );
   }
 
@@ -37,6 +43,7 @@ extension WorkspaceTabFileOpening on WorkspaceTabService {
     required String relativePath,
     bool preview = false,
     String? replacePreviewTabId,
+    Set<String>? reuseTabIds,
   }) {
     return _openOrCreateFileTab(
       workspaceId: workspaceId,
@@ -44,6 +51,7 @@ extension WorkspaceTabFileOpening on WorkspaceTabService {
       kind: .pdf,
       preview: preview,
       replacePreviewTabId: replacePreviewTabId,
+      reuseTabIds: reuseTabIds,
     );
   }
 
@@ -52,6 +60,7 @@ extension WorkspaceTabFileOpening on WorkspaceTabService {
     required String relativePath,
     bool preview = false,
     String? replacePreviewTabId,
+    Set<String>? reuseTabIds,
   }) async {
     final normalizedPath = _normalizeRelativePath(relativePath);
     if (!isWorkspaceMarkdownFilePath(normalizedPath)) {
@@ -63,6 +72,7 @@ extension WorkspaceTabFileOpening on WorkspaceTabService {
       kind: .markdownViewer,
       preview: preview,
       replacePreviewTabId: replacePreviewTabId,
+      reuseTabIds: reuseTabIds,
     );
   }
 
@@ -87,12 +97,16 @@ extension WorkspaceTabFileOpening on WorkspaceTabService {
     required WorkspaceTabKind kind,
     bool preview = false,
     String? replacePreviewTabId,
+    Set<String>? reuseTabIds,
   }) async {
     final normalizedPath = _normalizeRelativePath(relativePath);
     final existing = await _repository.listWorkspaceTabs(workspaceId);
     for (final tab in existing) {
       if (tab.isMermanPreview ||
           tab.payload[workspaceTabFilePathPayloadKey] != normalizedPath) {
+        continue;
+      }
+      if (!_allowsTabReuse(tab, reuseTabIds)) {
         continue;
       }
       if (tab.kind == kind) {

@@ -133,6 +133,7 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
               sourceKey: singleTabId == null
                   ? null
                   : WorkspacePanel.tabKey(singleTabId),
+              oppositePanel: _oppositePanelOpenRequested(),
             );
           },
           onOpenMarkdownViewerTab:
@@ -144,6 +145,7 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
                   sourceKey: singleTabId == null
                       ? null
                       : WorkspacePanel.tabKey(singleTabId),
+                  oppositePanel: _oppositePanelOpenRequested(),
                 );
               },
           onKeepPreviewTab: (tabId) {
@@ -187,6 +189,7 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
               sourceKey: singleTabId == null
                   ? null
                   : WorkspacePanel.tabKey(singleTabId),
+              oppositePanel: _oppositePanelOpenRequested(),
             );
           },
           onOpenMermanPreview: (relativePath) async {
@@ -196,6 +199,7 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
               sourceKey: singleTabId == null
                   ? null
                   : WorkspacePanel.tabKey(singleTabId),
+              oppositePanel: _oppositePanelOpenRequested(),
             );
           },
           onMoveTab:

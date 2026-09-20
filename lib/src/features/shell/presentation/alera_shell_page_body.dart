@@ -249,6 +249,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                             gitDiffRoot,
                                             required scope,
                                             preview = false,
+                                            oppositePanel = false,
                                           }) {
                                             return controller.openGitDiffTab(
                                               workspace: workspace,
@@ -257,6 +258,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                               scope: scope,
                                               gitDiffRoot: gitDiffRoot,
                                               preview: preview,
+                                              oppositePanel: oppositePanel,
                                             );
                                           },
                                       onOpenGitCommitDiff:
@@ -271,6 +273,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                             subject,
                                             message,
                                             preview = false,
+                                            oppositePanel = false,
                                           }) {
                                             return controller
                                                 .openGitCommitDiffTab(
@@ -285,6 +288,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                                   subject: subject,
                                                   message: message,
                                                   preview: preview,
+                                                  oppositePanel: oppositePanel,
                                                 );
                                           },
                                       onOpenSearchMatch: (target) {

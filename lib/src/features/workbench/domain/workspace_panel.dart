@@ -4,7 +4,15 @@ import 'package:dart_mappable/dart_mappable.dart';
 
 part 'workspace_panel.mapper.dart';
 
-enum WorkspacePanelTree { main, right }
+enum WorkspacePanelTree {
+  main,
+  right;
+
+  WorkspacePanelTree get opposite => switch (this) {
+    main => right,
+    right => main,
+  };
+}
 
 /// Tool keys belong to desktop preferences, never to runtime tab records.
 @MappableEnum()

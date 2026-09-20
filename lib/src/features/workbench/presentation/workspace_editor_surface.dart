@@ -8,6 +8,7 @@ import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
+import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:alera/src/features/workbench/application/editor_autosave_controller.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_preview_kind.dart';
@@ -295,6 +296,7 @@ class _WorkspaceEditorSurfaceState
   }
 
   Future<void> _openDiffForFile() async {
+    final oppositePanel = isModModifierPressed();
     final filePath = widget.tab.filePath;
     if (filePath == null) {
       return;
@@ -334,6 +336,7 @@ class _WorkspaceEditorSurfaceState
               scope: .file,
               gitDiffRoot: diffTarget.gitDiffRoot,
               preview: true,
+              oppositePanel: oppositePanel,
             );
         return;
       }
@@ -351,6 +354,7 @@ class _WorkspaceEditorSurfaceState
               scope: .fileAll,
               gitDiffRoot: diffTarget.gitDiffRoot,
               preview: true,
+              oppositePanel: oppositePanel,
             );
         return;
       }
@@ -364,6 +368,7 @@ class _WorkspaceEditorSurfaceState
             scope: .file,
             gitDiffRoot: diffTarget.gitDiffRoot,
             preview: true,
+            oppositePanel: oppositePanel,
           );
     } catch (_) {
       if (mounted) {

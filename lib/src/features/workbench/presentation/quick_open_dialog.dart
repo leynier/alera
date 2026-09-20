@@ -5,6 +5,7 @@ import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
+import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
@@ -273,6 +274,7 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
             relativePath: relativePath,
             sourceKey: sourceKey,
             preview: true,
+            oppositePanel: isModModifierPressed(),
           ),
     );
   }

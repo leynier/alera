@@ -7,6 +7,7 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_errors.dart';
+import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_providers.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
 import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
@@ -459,6 +460,7 @@ class _WorkspaceGitDiffSurfaceState
           workspace: widget.workspace,
           sourceKey: 'tab:${widget.tab.id}',
           relativePath: _sourceControlScope.toWorkspaceRelativePath(file.path)!,
+          oppositePanel: isModModifierPressed(),
         );
   }
 

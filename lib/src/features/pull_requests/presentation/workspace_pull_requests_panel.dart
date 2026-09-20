@@ -25,6 +25,7 @@ import 'package:alera/src/features/pull_requests/presentation/pull_request_revie
 import 'package:alera/src/features/pull_requests/presentation/pull_request_stack_workspace_dialog.dart';
 import 'package:alera/src/features/pull_requests/presentation/workspace_pull_request_stack_candidates.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
+import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_removal_launcher.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
@@ -283,6 +284,7 @@ class _VisiblePullRequestsPanelState
   }
 
   Future<void> _openDiff(HostedReview review) async {
+    final oppositePanel = isModModifierPressed();
     final baseRef = review.baseBranch?.trim() ?? '';
     final headRef = review.headSha?.trim() ?? '';
     if (baseRef.isEmpty || headRef.isEmpty) {
@@ -348,6 +350,7 @@ class _VisiblePullRequestsPanelState
             parentOid: mergeBase,
             retentionId: objects.retentionId,
             subject: review.title,
+            oppositePanel: oppositePanel,
           );
     } catch (error) {
       if (mounted) {
