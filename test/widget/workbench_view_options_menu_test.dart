@@ -1,5 +1,6 @@
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
@@ -11,6 +12,8 @@ import 'package:alera/src/features/workbench/presentation/widgets/workbench_view
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+part 'workbench_view_options_menu_test_support.dart';
 
 void main() {
   group('WorkbenchViewOptionsButton', () {
@@ -181,7 +184,8 @@ void main() {
       expect(option, findsOneWidget);
       expect(controller.state.viewPrefs.showPinnedWorkspacesBelow, isTrue);
 
-      await tester.tap(option);
+      await tester.ensureVisible(_optionSwitch('Repeat Pinned Workspaces'));
+      await tester.tap(_optionSwitch('Repeat Pinned Workspaces'));
       await tester.pumpAndSettle();
       expect(controller.state.viewPrefs.showPinnedWorkspacesBelow, isFalse);
 
@@ -203,7 +207,8 @@ void main() {
       expect(option, findsOneWidget);
       expect(controller.state.viewPrefs.showActiveWorkspacesOnly, isFalse);
 
-      await tester.tap(option);
+      await tester.ensureVisible(_optionSwitch('Active Workspaces Only'));
+      await tester.tap(_optionSwitch('Active Workspaces Only'));
       await tester.pumpAndSettle();
       expect(controller.state.viewPrefs.showActiveWorkspacesOnly, isTrue);
 
@@ -243,6 +248,8 @@ void main() {
       await mouse.addPointer(location: .zero);
       await tester.pump();
 
+      await tester.ensureVisible(find.text('Orca').last);
+      await tester.pumpAndSettle();
       await mouse.moveTo(tester.getCenter(find.text('Orca').last));
       await tester.pumpAndSettle();
       expect(decorationOf().color, AleraTokens.surface);
@@ -316,177 +323,4 @@ void main() {
       expect(controller.state.viewPrefs.selectedSectionIds, isEmpty);
     });
   });
-}
-
-Future<void> _pumpButton(
-  WidgetTester tester,
-  _ViewOptionsTestController controller,
-) async {
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [workbenchControllerProvider.overrideWith(() => controller)],
-      child: const MaterialApp(
-        home: Scaffold(body: Center(child: WorkbenchViewOptionsButton())),
-      ),
-    ),
-  );
-  await tester.pump();
-}
-
-Finder _projectSearchField() {
-  return find.byWidgetPredicate(
-    (widget) =>
-        widget is TextField &&
-        widget.decoration?.hintText == 'Add project\u2026',
-  );
-}
-
-Finder _sectionSearchField() {
-  return find.byWidgetPredicate(
-    (widget) =>
-        widget is TextField &&
-        widget.decoration?.hintText == 'Add section\u2026',
-  );
-}
-
-Finder _viewOptionsButton() {
-  return find.byWidgetPredicate(
-    (widget) => widget is IconButton && widget.tooltip == 'View options',
-  );
-}
-
-Finder _activeDot() {
-  return find.byWidgetPredicate(
-    (widget) =>
-        widget is Container &&
-        widget.decoration is BoxDecoration &&
-        (widget.decoration! as BoxDecoration).shape == BoxShape.circle &&
-        (widget.decoration! as BoxDecoration).color == AleraTokens.accent,
-  );
-}
-
-Project _project(String id, String name) {
-  final now = DateTime.utc(2026, 5, 25, 12);
-  return Project(
-    id: id,
-    name: name,
-    repoPath: '/repo/$id',
-    createdAt: now,
-    updatedAt: now,
-  );
-}
-
-class _ViewOptionsTestController(final WorkbenchState _seed)
-    extends WorkbenchController {
-  @override
-  WorkbenchState build() => _seed;
-
-  @override
-  Future<void> bootstrap() async {}
-
-  @override
-  Future<List<WorkspaceTag>> listWorkspaceTags() async =>
-      const <WorkspaceTag>[];
-
-  @override
-  void setGroupBy(WorkbenchGroupBy groupBy) {
-    state = state.copyWith(
-      viewPrefs: state.viewPrefs.copyWith(groupBy: groupBy),
-    );
-  }
-
-  @override
-  void setProjectSort(WorkbenchSortBy sort) {
-    state = state.copyWith(
-      viewPrefs: state.viewPrefs.copyWith(projectSort: sort),
-    );
-  }
-
-  @override
-  void setWorkspaceSort(WorkbenchSortBy sort) {
-    state = state.copyWith(
-      viewPrefs: state.viewPrefs.copyWith(workspaceSort: sort),
-    );
-  }
-
-  @override
-  void addProjectFilter(String projectId) {
-    state = state.copyWith(
-      viewPrefs: state.viewPrefs.copyWith(
-        selectedProjectIds: <String>{
-          ...state.viewPrefs.selectedProjectIds,
-          projectId,
-        },
-      ),
-    );
-  }
-
-  @override
-  void removeProjectFilter(String projectId) {
-    state = state.copyWith(
-      viewPrefs: state.viewPrefs.copyWith(
-        selectedProjectIds: state.viewPrefs.selectedProjectIds
-            .where((id) => id != projectId)
-            .toSet(),
-      ),
-    );
-  }
-
-  @override
-  void clearProjectFilters() {
-    state = state.copyWith(
-      viewPrefs: state.viewPrefs.copyWith(selectedProjectIds: <String>{}),
-    );
-  }
-
-  @override
-  void addSectionFilter(String sectionId) {
-    state = state.copyWith(
-      viewPrefs: state.viewPrefs.copyWith(
-        selectedSectionIds: <String>{
-          ...state.viewPrefs.selectedSectionIds,
-          sectionId,
-        },
-      ),
-    );
-  }
-
-  @override
-  void removeSectionFilter(String sectionId) {
-    state = state.copyWith(
-      viewPrefs: state.viewPrefs.copyWith(
-        selectedSectionIds: state.viewPrefs.selectedSectionIds
-            .where((id) => id != sectionId)
-            .toSet(),
-      ),
-    );
-  }
-
-  @override
-  void clearSectionFilters() {
-    state = state.copyWith(
-      viewPrefs: state.viewPrefs.copyWith(selectedSectionIds: <String>{}),
-    );
-  }
-
-  @override
-  void setWorkspaceKindFilter(WorkspaceKindFilter filter) {
-    state = state.copyWith(
-      viewPrefs: state.viewPrefs.copyWith(workspaceKindFilter: filter),
-    );
-  }
-
-  @override
-  void setShowActiveWorkspacesOnly(bool show) {
-    state = state.copyWith(
-      viewPrefs: state.viewPrefs.copyWith(showActiveWorkspacesOnly: show),
-    );
-  }
-
-  @override
-  void setShowPinnedWorkspacesBelow(bool show) {
-    state = state.copyWith(
-      viewPrefs: state.viewPrefs.copyWith(showPinnedWorkspacesBelow: show),
-    );
-  }
 }

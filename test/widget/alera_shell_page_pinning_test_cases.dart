@@ -119,7 +119,7 @@ void _registerAleraShellPinningTests() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Set Section'), findsOneWidget);
+    expect(find.text('Section'), findsOneWidget);
   });
 
   testWidgets('workspace context menu pins the workspace tree', (tester) async {
@@ -142,6 +142,9 @@ void _registerAleraShellPinningTests() {
       tester.getCenter(regular),
       buttons: kSecondaryMouseButton,
     );
+    await tester.pumpAndSettle();
+    expect(find.text('Pin'), findsOneWidget);
+    await tester.tap(find.text('Pin'));
     await tester.pumpAndSettle();
     expect(find.text('Pin Workspace Tree'), findsOneWidget);
     await tester.tap(find.text('Pin Workspace Tree'));

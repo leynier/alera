@@ -5,11 +5,12 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/chips/alera_chip.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
-import 'package:alera/src/design_system/forms/alera_checkbox.dart';
+import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_dialog_header.dart';
+import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_selection_order.dart';
@@ -316,33 +317,16 @@ class _WorkbenchViewOptionsPanelState
                     ),
                   ],
                   const SizedBox(height: AleraTokens.space12),
-                  _SectionLabel(text: 'Show Workspaces'),
-                  const SizedBox(height: AleraTokens.space6),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: AleraCheckbox(
-                      value: prefs.showActiveWorkspacesOnly,
-                      onChanged: controller.setShowActiveWorkspacesOnly,
-                      label: 'Active Workspaces Only',
-                    ),
-                  ),
-                  const SizedBox(height: AleraTokens.space6),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: AleraCheckbox(
-                      value: prefs.showPinnedWorkspacesBelow,
-                      onChanged: controller.setShowPinnedWorkspacesBelow,
-                      label: 'Repeat Pinned Workspaces',
-                    ),
-                  ),
-                  const SizedBox(height: AleraTokens.space6),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: AleraCheckbox(
-                      value: prefs.showArchivedWorkspaces,
-                      onChanged: controller.setShowArchivedWorkspaces,
-                      label: 'Show Archived Workspaces',
-                    ),
+                  _ShowWorkspacesSettings(
+                    showActiveWorkspacesOnly: prefs.showActiveWorkspacesOnly,
+                    showPinnedWorkspacesBelow: prefs.showPinnedWorkspacesBelow,
+                    showArchivedWorkspaces: prefs.showArchivedWorkspaces,
+                    onShowActiveWorkspacesOnly:
+                        controller.setShowActiveWorkspacesOnly,
+                    onShowPinnedWorkspacesBelow:
+                        controller.setShowPinnedWorkspacesBelow,
+                    onShowArchivedWorkspaces:
+                        controller.setShowArchivedWorkspaces,
                   ),
                   const SizedBox(height: AleraTokens.space16),
                   const Divider(height: 1, color: AleraTokens.borderSubtle),

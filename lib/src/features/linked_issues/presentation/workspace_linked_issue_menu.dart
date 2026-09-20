@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
+import 'package:alera/src/design_system/menus/alera_dropdown_submenu_entry.dart';
 import 'package:alera/src/features/linked_issues/application/linked_issue_providers.dart';
 import 'package:alera/src/features/linked_issues/domain/linked_issue.dart';
 import 'package:alera/src/features/linked_issues/presentation/link_issue_dialog.dart';
@@ -29,7 +30,7 @@ bool isLinkedIssueMenuAction(String? action) =>
     _linkedIssueMenuActions.contains(action);
 
 /// Context-menu entries for a workspace's issue: nothing when the host cannot
-/// store links, `Link Issue` without one, and open, change and unlink with one.
+/// store links, `Link Issue` without one, and an Issue submenu with one.
 List<PopupMenuEntry<String>> linkedIssueMenuEntries({
   required bool supported,
   required LinkedIssue? linkedIssue,
@@ -47,20 +48,26 @@ List<PopupMenuEntry<String>> linkedIssueMenuEntries({
     ];
   }
   return const <PopupMenuEntry<String>>[
-    AleraDropdownEntry<String>(
-      value: openLinkedIssueMenuAction,
-      leading: Icon(AleraIcons.external, size: 16),
-      label: 'Open Issue in Browser',
-    ),
-    AleraDropdownEntry<String>(
-      value: changeLinkedIssueMenuAction,
-      leading: Icon(AleraIcons.link, size: 16),
-      label: 'Change Linked Issue',
-    ),
-    AleraDropdownEntry<String>(
-      value: unlinkIssueMenuAction,
-      leading: Icon(AleraIcons.unlink, size: 16),
-      label: 'Unlink Issue',
+    AleraDropdownSubmenuEntry<String>(
+      leading: Icon(AleraIcons.issueOpen, size: 16),
+      label: 'Issue',
+      items: <PopupMenuEntry<String>>[
+        AleraDropdownEntry<String>(
+          value: openLinkedIssueMenuAction,
+          leading: Icon(AleraIcons.external, size: 16),
+          label: 'Open Issue in Browser',
+        ),
+        AleraDropdownEntry<String>(
+          value: changeLinkedIssueMenuAction,
+          leading: Icon(AleraIcons.link, size: 16),
+          label: 'Change Linked Issue',
+        ),
+        AleraDropdownEntry<String>(
+          value: unlinkIssueMenuAction,
+          leading: Icon(AleraIcons.unlink, size: 16),
+          label: 'Unlink Issue',
+        ),
+      ],
     ),
   ];
 }

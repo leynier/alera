@@ -22,6 +22,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 part 'workspace_actions_sheet_archive.dart';
 part 'workspace_actions_sheet_linked_issue.dart';
+part 'workspace_actions_sheet_menu.dart';
 part 'workspace_actions_sheet_sections.dart';
 
 enum _WorkspaceAction {
@@ -89,142 +90,17 @@ Future<void> showWorkspaceActionsSheet(
             Flexible(
               child: ListView(
                 shrinkWrap: true,
-                children: <Widget>[
-                  ListTile(
-                    leading: const Icon(AleraIcons.edit, size: 20),
-                    title: const Text('Rename'),
-                    onTap: () =>
-                        Navigator.of(context).pop(_WorkspaceAction.rename),
-                  ),
-                  if (data.supportsWorkspaceRelocation &&
-                      data.projects.any(
-                        (project) =>
-                            project.id == workspace.projectId &&
-                            project.supportsLinkedWorkspaces,
-                      ))
-                    ListTile(
-                      leading: const Icon(
-                        AleraIcons.gitBranch,
-                        size: AleraTokens.space20,
-                      ),
-                      title: Text(workspace.isMain ? 'Hand Off' : 'Hand On'),
-                      onTap: () =>
-                          Navigator.of(context).pop(_WorkspaceAction.relocate),
-                    ),
-                  if (data.supportsWorkspaceRelocation &&
-                      data.projects.any(
-                        (project) =>
-                            project.id == workspace.projectId &&
-                            project.supportsLinkedWorkspaces,
-                      ))
-                    ListTile(
-                      title: const Text('Workspace Recovery'),
-                      onTap: () =>
-                          Navigator.of(context).pop(_WorkspaceAction.recovery),
-                    ),
-                  ListTile(
-                    leading: Icon(
-                      workspace.isPinned ? AleraIcons.pinOff : AleraIcons.pin,
-                      size: 20,
-                    ),
-                    title: Text(
-                      workspace.isPinned ? 'Unpin Workspace' : 'Pin Workspace',
-                    ),
-                    onTap: () => Navigator.of(context).pop(
-                      workspace.isPinned
-                          ? _WorkspaceAction.unpin
-                          : _WorkspaceAction.pin,
-                    ),
-                  ),
-                  if (hasDescendants)
-                    ListTile(
-                      leading: const Icon(AleraIcons.pin, size: 20),
-                      title: const Text('Pin Workspace Tree'),
-                      onTap: () =>
-                          Navigator.of(context).pop(_WorkspaceAction.pinTree),
-                    ),
-                  if (hasDescendants)
-                    ListTile(
-                      leading: const Icon(AleraIcons.pinOff, size: 20),
-                      title: const Text('Unpin Workspace Tree'),
-                      onTap: () =>
-                          Navigator.of(context).pop(_WorkspaceAction.unpinTree),
-                    ),
-                  ListTile(
-                    leading: const Icon(AleraIcons.tag, size: 20),
-                    title: const Text('Manage Tags'),
-                    onTap: () =>
-                        Navigator.of(context).pop(_WorkspaceAction.tags),
-                  ),
-                  ListTile(
-                    leading: const Icon(AleraIcons.link, size: 20),
-                    title: const Text('Set Parent Workspace'),
-                    onTap: () =>
-                        Navigator.of(context)
-                            .pop(_WorkspaceAction.configureParent),
-                  ),
-                  if (workspace.hasParent)
-                    ListTile(
-                      leading: const Icon(AleraIcons.close, size: 20),
-                      title: const Text('Clear Parent Workspace'),
-                      onTap: () =>
-                          Navigator.of(context)
-                              .pop(_WorkspaceAction.unlinkParent),
-                    ),
-                  ..._sectionActionTiles(
-                    context,
-                    ref: ref,
-                    hostId: hostId,
-                    workspace: workspace,
-                    data: data,
-                    hasDescendants: hasDescendants,
-                    hasTreeSection: hasTreeSection,
-                  ),
-                  ..._linkedIssueActionTiles(
-                    context,
-                    supported: issues?.supported ?? false,
-                    linked: linkedIssue != null,
-                  ),
-                  ListTile(
-                    leading: const Icon(AleraIcons.external, size: 20),
-                    title: const Text('Open in Browser'),
-                    onTap: () =>
-                        Navigator.of(context)
-                            .pop(_WorkspaceAction.openRepository),
-                  ),
-                  ListTile(
-                    leading: const Icon(AleraIcons.copy, size: 20),
-                    title: const Text('Copy Path'),
-                    onTap: () =>
-                        Navigator.of(context).pop(_WorkspaceAction.copyPath),
-                  ),
-                  ListTile(
-                    leading: const Icon(AleraIcons.theme, size: 20),
-                    title: const Text('Sleep'),
-                    onTap: () =>
-                        Navigator.of(context).pop(_WorkspaceAction.sleep),
-                  ),
-                  ..._archiveActionTiles(
-                    context,
-                    workspace: workspace,
-                    data: data,
-                  ),
-                  ListTile(
-                    leading: Icon(
-                      AleraIcons.delete,
-                      size: 20,
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                    title: Text(
-                      'Remove',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                    onTap: () =>
-                        Navigator.of(context).pop(_WorkspaceAction.delete),
-                  ),
-                ],
+                children: _workspaceActionTiles(
+                  context,
+                  ref: ref,
+                  hostId: hostId,
+                  workspace: workspace,
+                  data: data,
+                  hasDescendants: hasDescendants,
+                  hasTreeSection: hasTreeSection,
+                  linkedIssueSupported: issues?.supported ?? false,
+                  hasLinkedIssue: linkedIssue != null,
+                ),
               ),
             ),
           ],

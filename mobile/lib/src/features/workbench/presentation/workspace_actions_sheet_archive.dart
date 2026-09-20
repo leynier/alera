@@ -15,7 +15,7 @@ List<Widget> _archiveActionTiles(
         archived ? AleraIcons.unarchive : AleraIcons.archive,
         size: 20,
       ),
-      title: Text(archived ? 'Unarchive Workspace' : 'Archive Workspace'),
+      title: Text(archived ? 'Unarchive' : 'Archive'),
       onTap: () => Navigator.of(
         context,
       ).pop(archived ? _WorkspaceAction.unarchive : _WorkspaceAction.archive),

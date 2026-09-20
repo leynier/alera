@@ -106,20 +106,27 @@ class const _WorkspaceViewOptions({
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Active Workspaces Only'),
+              subtitle: const Text(
+                'Hide workspaces that do not have an open terminal or Codex tab.',
+              ),
               value: prefs.showActiveWorkspacesOnly,
               onChanged: controller.setShowActiveWorkspacesOnly,
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Show Archived Workspaces'),
-              value: prefs.showArchivedWorkspaces,
-              onChanged: controller.setShowArchivedWorkspaces,
+              title: const Text('Repeat Pinned Workspaces'),
+              subtitle: const Text(
+                'Also show pinned workspaces in their regular project or All groups.',
+              ),
+              value: prefs.showPinnedWorkspacesBelow,
+              onChanged: controller.setShowPinnedWorkspacesBelow,
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Repeat Pinned Workspaces'),
-              value: prefs.showPinnedWorkspacesBelow,
-              onChanged: controller.setShowPinnedWorkspacesBelow,
+              title: const Text('Show Archived Workspaces'),
+              subtitle: const Text('Show archived workspaces in the sidebar.'),
+              value: prefs.showArchivedWorkspaces,
+              onChanged: controller.setShowArchivedWorkspaces,
             ),
             const SizedBox(height: AleraTokens.space16),
             const Divider(height: 1),
