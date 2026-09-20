@@ -51,7 +51,6 @@ async fn fixture() -> (
         .resume_local_workspace_relocation(&journal.id, || Ok(()))
         .await
         .unwrap();
-    success(cli(&state, "runtime", &["start"]));
     (
         root,
         guard,
@@ -61,16 +60,8 @@ async fn fixture() -> (
     )
 }
 
-fn wait_until_host_stopped(state: &Path) {
-    let control = state.join("runtime-host.json");
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
-    while control.exists() {
-        assert!(
-            std::time::Instant::now() < deadline,
-            "runtime host control file still present after stop"
-        );
-        std::thread::sleep(std::time::Duration::from_millis(25));
-    }
+fn start_runtime(state: &Path) {
+    success(cli(state, "runtime", &["start"]));
 }
 
 fn control(
@@ -103,6 +94,7 @@ fn control(
 #[tokio::test]
 async fn owner_setup_run_replays_its_receipt_and_rejects_another_identity() {
     let (_root, guard, store, workspace, receipt) = fixture().await;
+    start_runtime(&guard.0);
     let completed = success(control(&guard.0, &workspace, &receipt, "run"));
     assert_eq!(completed["action"], "run");
     assert!(completed["setup"]["attemptId"].is_string());
@@ -132,16 +124,12 @@ async fn owner_setup_run_replays_its_receipt_and_rejects_another_identity() {
 async fn owner_setup_cancel_and_recover_require_a_live_owner_and_exact_attempt() {
     let (_root, guard, store, workspace, receipt) = fixture().await;
     let claimed = store.claim_relocation_setup(&receipt).await.unwrap();
-    success(cli(&guard.0, "runtime", &["stop", "--force"]));
-    // host.shutdown answers before the listener and control file go away, so
-    // cancel can still reach a dying owner unless we wait for that teardown.
-    wait_until_host_stopped(&guard.0);
     assert!(!control(&guard.0, &workspace, &claimed, "cancel")
         .status
         .success());
     assert!(!guard.0.join("runtime-host.json").exists());
     assert!(!store.setup_cancellation_requested(&claimed).await.unwrap());
-    success(cli(&guard.0, "runtime", &["start"]));
+    start_runtime(&guard.0);
     let mut wrong = claimed.clone();
     wrong.attempt_id = Some(uuid::Uuid::new_v4().to_string());
     assert!(!control(&guard.0, &workspace, &wrong, "cancel")
@@ -162,6 +150,7 @@ async fn owner_setup_cancel_and_recover_require_a_live_owner_and_exact_attempt()
 #[tokio::test]
 async fn owner_setup_recovery_cannot_clear_unknown_process_closure() {
     let (_root, guard, store, workspace, receipt) = fixture().await;
+    start_runtime(&guard.0);
     let claimed = store.claim_relocation_setup(&receipt).await.unwrap();
     let boot = if cfg!(target_os = "linux") {
         Some(
