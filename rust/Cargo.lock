@@ -148,6 +148,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "alera-xtask"
+version = "0.1.0"
+dependencies = [
+ "alera-core",
+ "anyhow",
+ "clap",
+ "libc",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "alera_mobile_native"
 version = "0.1.0"
 dependencies = [
