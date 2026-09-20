@@ -43,7 +43,11 @@ NormalizedAgentStatus? normalizeAgentHookEvent(
       event.payload,
       toolSnapshot.toolName,
     ),
-    AgentType.cursor => _normalizeCursorState(eventName, previous),
+    AgentType.cursor => _normalizeCursorState(
+      eventName,
+      toolSnapshot.toolName,
+      previous,
+    ),
     AgentType.agy => _normalizeAgyState(
       eventName,
       toolSnapshot.toolName,

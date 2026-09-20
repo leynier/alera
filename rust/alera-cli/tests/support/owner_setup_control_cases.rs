@@ -51,7 +51,6 @@ async fn fixture() -> (
         .resume_local_workspace_relocation(&journal.id, || Ok(()))
         .await
         .unwrap();
-    success(cli(&state, "runtime", &["start"]));
     (
         root,
         guard,
@@ -59,6 +58,10 @@ async fn fixture() -> (
         serde_json::to_value(moved).unwrap(),
         receipt,
     )
+}
+
+fn start_runtime(state: &Path) {
+    success(cli(state, "runtime", &["start"]));
 }
 
 fn control(
@@ -91,6 +94,7 @@ fn control(
 #[tokio::test]
 async fn owner_setup_run_replays_its_receipt_and_rejects_another_identity() {
     let (_root, guard, store, workspace, receipt) = fixture().await;
+    start_runtime(&guard.0);
     let completed = success(control(&guard.0, &workspace, &receipt, "run"));
     assert_eq!(completed["action"], "run");
     assert!(completed["setup"]["attemptId"].is_string());
@@ -120,13 +124,12 @@ async fn owner_setup_run_replays_its_receipt_and_rejects_another_identity() {
 async fn owner_setup_cancel_and_recover_require_a_live_owner_and_exact_attempt() {
     let (_root, guard, store, workspace, receipt) = fixture().await;
     let claimed = store.claim_relocation_setup(&receipt).await.unwrap();
-    success(cli(&guard.0, "runtime", &["stop", "--force"]));
     assert!(!control(&guard.0, &workspace, &claimed, "cancel")
         .status
         .success());
     assert!(!guard.0.join("runtime-host.json").exists());
     assert!(!store.setup_cancellation_requested(&claimed).await.unwrap());
-    success(cli(&guard.0, "runtime", &["start"]));
+    start_runtime(&guard.0);
     let mut wrong = claimed.clone();
     wrong.attempt_id = Some(uuid::Uuid::new_v4().to_string());
     assert!(!control(&guard.0, &workspace, &wrong, "cancel")
@@ -147,6 +150,7 @@ async fn owner_setup_cancel_and_recover_require_a_live_owner_and_exact_attempt()
 #[tokio::test]
 async fn owner_setup_recovery_cannot_clear_unknown_process_closure() {
     let (_root, guard, store, workspace, receipt) = fixture().await;
+    start_runtime(&guard.0);
     let claimed = store.claim_relocation_setup(&receipt).await.unwrap();
     let boot = if cfg!(target_os = "linux") {
         Some(

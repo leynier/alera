@@ -119,14 +119,19 @@ fn normalize_state(
         },
         "copilot" => normalize_copilot(event, name, human_input),
         "cursor" => match name {
-            "beforeSubmitPrompt" | "sessionStart" | "preToolUse" | "postToolUse"
-            | "postToolUseFailure" => Some(AgentPresenceState::Working),
+            "beforeSubmitPrompt" | "sessionStart" | "postToolUse" | "postToolUseFailure" => {
+                Some(AgentPresenceState::Working)
+            }
+            "preToolUse" if human_input => Some(AgentPresenceState::Waiting),
+            "preToolUse" => Some(AgentPresenceState::Working),
             // Cursor fires these before every execution, approval prompt or
-            // not, and never tells the hook which it was. The matching `after`
-            // event is what ends the wait, so a long command does not sit
-            // marked as needing attention for its whole run.
-            "beforeShellExecution" | "beforeMCPExecution" => Some(AgentPresenceState::Waiting),
-            "afterShellExecution" | "afterMCPExecution" => Some(AgentPresenceState::Working),
+            // not, and never tells the hook which it was. Treating them as
+            // waiting notifies on each command. AskQuestion currently skips
+            // `preToolUse`; a later CLI fix still maps to waiting.
+            "beforeShellExecution"
+            | "beforeMCPExecution"
+            | "afterShellExecution"
+            | "afterMCPExecution" => Some(AgentPresenceState::Working),
             "afterAgentResponse"
                 if previous.is_some_and(|entry| entry.state == AgentPresenceState::Done) =>
             {
