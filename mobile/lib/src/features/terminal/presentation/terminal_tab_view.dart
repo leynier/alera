@@ -7,6 +7,7 @@ import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_accessory_layout_controller.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_clipboard_settings_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_input_mode_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_tab_session.dart';
@@ -62,6 +63,8 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
     final inputMode = ref.watch(
       terminalInputModeControllerProvider(widget.tabId),
     );
+    final allowOsc52Clipboard =
+        ref.watch(terminalClipboardSettingsControllerProvider).value ?? false;
     final accessoryKeys =
         ref
             .watch(terminalAccessoryLayoutControllerProvider)
@@ -83,6 +86,7 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
         key: _surfaceKey,
         session: tabSession,
         inputMode: inputMode,
+        allowOsc52Clipboard: allowOsc52Clipboard,
         onInput: (data) => notifier.write(utf8.encode(data)),
         onViewportResize: notifier.resize,
         onReconnect: notifier.reconnect,

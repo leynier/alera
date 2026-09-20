@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_accessory_layout_controller.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_clipboard_settings_controller.dart';
 import 'package:xterm2/xterm.dart';
 
 import 'package:alera_mobile/src/features/terminal/domain/terminal_viewport_pulse.dart';
@@ -453,6 +454,7 @@ Future<void> _pumpTab(
   WidgetTester tester,
   FakeTerminalClient client, {
   bool settle = true,
+  bool allowOsc52Clipboard = false,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -461,6 +463,9 @@ Future<void> _pumpTab(
         workspaceClientProvider('host-1').overrideWith((ref) async => client),
         accessoryLayoutRepositoryProvider.overrideWithValue(
           MemoryAccessoryLayoutRepository(),
+        ),
+        terminalClipboardSettingsControllerProvider.overrideWith(
+          () => _FixedTerminalClipboardSettings(allowOsc52Clipboard),
         ),
       ],
       child: const MaterialApp(
@@ -489,4 +494,15 @@ Future<void> _pumpTab(
     }
   }
   fail('the terminal never attached');
+}
+
+/// Keeps the clipboard opt-in out of SharedPreferences for these tests.
+class _FixedTerminalClipboardSettings
+    extends TerminalClipboardSettingsController {
+  _FixedTerminalClipboardSettings(this.allowed);
+
+  final bool allowed;
+
+  @override
+  Future<bool> build() async => allowed;
 }

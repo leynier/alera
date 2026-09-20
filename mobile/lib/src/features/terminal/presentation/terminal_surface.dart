@@ -4,6 +4,7 @@ class const _TerminalSurface({
   super.key,
   required final TerminalTabSession session,
   required final TerminalInputMode inputMode,
+  required final bool allowOsc52Clipboard,
   required final ValueChanged<String> onInput,
   required final void Function(int cols, int rows) onViewportResize,
   required final Future<void> Function() onReconnect,
@@ -29,6 +30,7 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
   GlobalKey<TerminalViewState> _viewKey = GlobalKey<TerminalViewState>();
   (int, int)? _suppressedViewportSize;
   bool _ignoreViewportResize = false;
+  bool _osc52BlockedNoticeShown = false;
 
   @override
   void initState() {
@@ -140,9 +142,11 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
       allowKittyClipboard: false,
       // The agent runs on the paired machine, so a copy it makes for itself
       // (`pbcopy`, `xclip`) lands there and never reaches this phone. OSC 52
-      // is the one path that does, which is why writes are accepted here and
-      // announced. Queries stay unanswered: an unset callback would let
-      // TerminalView hand the phone's clipboard to a remote program.
+      // is the one path that does. Writes are gated by the same off-by-default
+      // policy the desktop applies, read at write time so a settings change
+      // reaches live sessions, and announced when allowed. Queries stay
+      // unanswered: an unset callback would let TerminalView hand the phone's
+      // clipboard to a remote program.
       onClipboardStore: (_, text) => _storeRemoteClipboardText(text),
       onClipboardQuery: (_) => null,
       clipboardDecoder: decodeTerminalOsc52Payload,
@@ -176,7 +180,26 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
     if (!mounted || text.isEmpty) {
       return;
     }
+    if (!widget.allowOsc52Clipboard) {
+      _notifyOsc52Blocked();
+      return;
+    }
     unawaited(_copyToClipboard(text, notice: 'Agent copied to clipboard'));
+  }
+
+  /// Once per surface, so a program that retries does not flood the screen.
+  void _notifyOsc52Blocked() {
+    if (_osc52BlockedNoticeShown) {
+      return;
+    }
+    _osc52BlockedNoticeShown = true;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Terminal clipboard write blocked. Enable OSC 52 clipboard writes in Settings.',
+        ),
+      ),
+    );
   }
 
   /// Long-press selects a word and dragging extends it; the pill is how a
