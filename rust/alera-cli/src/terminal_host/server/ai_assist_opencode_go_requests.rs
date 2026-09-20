@@ -74,11 +74,14 @@ impl ServerActor {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             let result = list_opencode_go_models(MODELS_TIMEOUT).await.map(|models| {
-                let default_model_id = models
+                let default_model_id = if models
                     .iter()
                     .any(|model| model.id == OPENCODE_GO_DEFAULT_MODEL)
-                    .then_some(OPENCODE_GO_DEFAULT_MODEL)
-                    .unwrap_or(models[0].id.as_str());
+                {
+                    OPENCODE_GO_DEFAULT_MODEL
+                } else {
+                    models[0].id.as_str()
+                };
                 json!({
                     "models": models
                         .iter()
