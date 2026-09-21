@@ -21,6 +21,9 @@ mod host_link_git_case;
 mod host_link_mirror_case;
 #[path = "terminal_host_headless_runtime/host_link_process_case.rs"]
 mod host_link_process_case;
+#[cfg(unix)]
+#[path = "terminal_host_headless_runtime/hub_federation_case.rs"]
+mod hub_federation_case;
 #[path = "terminal_host_headless_runtime/owner_terminal_case.rs"]
 mod owner_terminal_case;
 #[path = "terminal_host_headless_runtime/profile_snapshot_restart_cases.rs"]

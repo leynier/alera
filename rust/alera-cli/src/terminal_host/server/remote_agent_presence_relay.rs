@@ -89,6 +89,9 @@ impl ServerActor {
                     let _ = self.inbox.send(ServerCommand::AgentHookEvent { event });
                 }
             }
+            super::hub_reverse_requests::HUB_REQUEST_EVENT => {
+                self.start_hub_reverse_answer(host_id, payload);
+            }
             AGENT_PRESENCE_CHANGED if !self.satellite_relays_hooks(host_id) => {
                 self.start_remote_agent_presence_sync(host_id);
             }

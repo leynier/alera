@@ -77,7 +77,7 @@ async fn project_checkouts(
         .map_err(|error| HostError::state(error.to_string()))
 }
 
-async fn project_hosts(store: &RuntimeStore, project_id: &str) -> HostResult<Value> {
+pub(super) async fn project_hosts(store: &RuntimeStore, project_id: &str) -> HostResult<Value> {
     let project = find_project(store, project_id).await?;
     let checkouts = project_checkouts(store, project_id).await?;
     let workspaces = store

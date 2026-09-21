@@ -143,6 +143,7 @@ mod host_process_requests;
 mod host_service_agent_quota;
 mod host_service_requests;
 mod host_status;
+mod hub_reverse_requests;
 mod lifecycle;
 mod linked_issue_requests;
 #[cfg(test)]
@@ -331,6 +332,7 @@ struct ServerActor {
     orchestration_activity_last_recorded: HashMap<String, Instant>,
     coordinators: HashMap<String, CoordinatorHandle>,
     resources: ResourceMonitorState,
+    hub_reverse: hub_reverse_requests::HubReverseState,
     terminal_pulses: terminal_pulse::TerminalPulseManager,
     codex: Option<codex_app_server::CodexAppServer>,
     codex_starting: Option<codex_server_startup::CodexServerStartup>,
@@ -851,6 +853,9 @@ impl ServerActor {
             ServerCommand::ResourceSampleTick => self.handle_resource_sample_tick(),
             ServerCommand::ResourceSampleReady { snapshot } => {
                 self.handle_resource_sample_ready(snapshot)
+            }
+            ServerCommand::HubReverseRequestExpired { reverse_id } => {
+                self.expire_hub_reverse_request(&reverse_id)
             }
             ServerCommand::RemoteResourceSnapshot { host_id, result } => {
                 self.finish_remote_resource_sample(host_id, result)

@@ -29,6 +29,17 @@ impl ServerActor {
         {
             return Ok(true);
         }
+        match self.try_handle_hub_reverse_request(client_id, request_id, request_type, payload)? {
+            Some(super::hub_reverse_requests::ReverseOutcome::Answer(value)) => {
+                self.client_write(
+                    client_id,
+                    crate::terminal_host::protocol::ok_response(request_id, value),
+                );
+                return Ok(true);
+            }
+            Some(super::hub_reverse_requests::ReverseOutcome::Deferred) => return Ok(true),
+            None => {}
+        }
         if self
             .try_start_remote_terminal_lifecycle(client_id, request_id, request_type, payload)
             .await?

@@ -20,6 +20,7 @@ mod cli_orchestration_timeouts;
 mod cli_tests;
 mod host_tools;
 mod hosted_review_retention;
+mod hub_federation;
 mod issue_commands;
 mod issue_tracking;
 mod linked_issue_service;
@@ -332,6 +333,35 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
                 Ok(store) => store,
                 Err(error) => return print_error(error),
             };
+            if !args.all && args.project_id.is_none() {
+                eprintln!("Missing --project-id or --all.");
+                return USAGE_EXIT_CODE;
+            }
+            match crate::hub_federation::read_from_hub(
+                &runtime,
+                &store,
+                "workspace.list",
+                json!({ "projectId": args.project_id, "hostId": args.host_id }),
+            )
+            .await
+            {
+                Ok(Some(answer)) => {
+                    print_value(
+                        &json!({
+                            "kind": "workspaces",
+                            "items": answer["items"],
+                            "filters": { "hostId": args.host_id },
+                            "source": "hub",
+                            "originHostId": answer["originHostId"],
+                        }),
+                        json_output,
+                        "workspaces listed",
+                    );
+                    return 0;
+                }
+                Err(error) => return print_error(error),
+                Ok(None) => {}
+            }
             let result = if args.all {
                 store.list_all_workspaces().await
             } else if let Some(project_id) = args.project_id {

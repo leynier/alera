@@ -29,6 +29,18 @@ impl ServerActor {
         serde_json::to_value(targets).map_err(|error| HostError::format(error.to_string()))
     }
 
+    /// The hosts a phone may need to label a remote workspace: a name and an
+    /// operating system. How to reach a host (address, user, port, install
+    /// directory) stays on the hub; the phone never connects to one.
+    pub(super) async fn mobile_host_list(&mut self) -> HostResult<Value> {
+        let targets = self
+            .runtime_store
+            .list_ssh_targets()
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
+        Ok(mobile_hosts_payload(&targets))
+    }
+
     pub(super) async fn ssh_target_upsert(&mut self, payload: &Value) -> HostResult<Value> {
         let mut target: SshTarget = serde_json::from_value(payload.clone())
             .map_err(|error| HostError::format(error.to_string()))?;
@@ -387,5 +399,42 @@ mod tests {
         assert!(error
             .to_string()
             .contains("unsupported managed agent option"));
+    }
+}
+
+fn mobile_hosts_payload(targets: &[SshTarget]) -> Value {
+    Value::Array(
+        targets
+            .iter()
+            .map(|target| {
+                serde_json::json!({
+                    "id": target.id,
+                    "alias": target.alias,
+                    "platform": target.runtime_platform.as_ref().or(target.platform.as_ref()),
+                })
+            })
+            .collect(),
+    )
+}
+
+#[cfg(test)]
+mod mobile_host_tests {
+    use super::*;
+
+    #[test]
+    fn a_phone_learns_a_host_name_and_system_and_nothing_about_reaching_it() {
+        let target: SshTarget = serde_json::from_value(serde_json::json!({
+            "id": "ssh-1", "alias": "Studio Mac", "host": "10.0.0.7", "port": 2222,
+            "username": "leynier", "authKind": "agent", "platform": "linux",
+            "runtimePlatform": "macos", "installDir": "~/.alera-sidecar",
+            "createdAt": "2026-07-19T00:00:00Z", "updatedAt": "2026-07-19T00:00:00Z",
+        }))
+        .unwrap();
+        let payload = mobile_hosts_payload(&[target]);
+        assert_eq!(
+            payload,
+            serde_json::json!([{"id": "ssh-1", "alias": "Studio Mac", "platform": "macos"}]),
+            "the probed platform wins over the declared one"
+        );
     }
 }

@@ -35,6 +35,12 @@ pub const RUNTIME_HOST_REMOTE_AGENT_HOOK_RELAY_CAPABILITY: &str = "remoteAgentHo
 /// `project.hosts.*`, and `primaryHostId` plus `checkouts` on `project.list`:
 /// one project registered on several hosts. Additive.
 pub const RUNTIME_HOST_PROJECT_HOSTS_CAPABILITY: &str = "projectHostsV1";
+
+/// A paired phone can work on workspaces that live on another host: the file,
+/// search, quick open, git, pull request and AI Assist verbs it already uses
+/// are forwarded to the owning host, and `mobile.hosts.list` names those hosts
+/// without exposing how to reach them. Additive.
+pub const RUNTIME_HOST_MOBILE_REMOTE_WORKSPACES_CAPABILITY: &str = "mobileRemoteWorkspacesV1";
 pub const RUNTIME_HOST_MOBILE_CAPABILITY: &str = "mobileCompanionAccess";
 pub const RUNTIME_HOST_MOBILE_NETBIRD_CAPABILITY: &str = "mobileNetBirdGatewayV1";
 pub const RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY: &str = "workspaceSectionsV1";

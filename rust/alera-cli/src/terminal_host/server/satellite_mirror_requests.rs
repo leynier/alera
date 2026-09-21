@@ -39,6 +39,11 @@ impl ServerActor {
                     let workspace = crate::remote_workspace_owner::register(&store, registration)
                         .await
                         .map_err(|error| HostError::state(error.to_string()))?;
+                    // From here on this runtime's records are copies of a
+                    // hub's, which is what tells its CLI to ask the hub.
+                    let _ = store
+                        .set_metadata(crate::hub_federation::SATELLITE_METADATA_KEY, "1")
+                        .await;
                     serde_json::to_value(workspace)
                         .map_err(|error| HostError::state(error.to_string()))
                 });

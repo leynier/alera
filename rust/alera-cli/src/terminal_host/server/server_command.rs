@@ -309,6 +309,10 @@ pub enum ServerCommand {
     ResourceSampleReady {
         snapshot: Value,
     },
+    /// A question forwarded to the hub went unanswered for too long.
+    HubReverseRequestExpired {
+        reverse_id: String,
+    },
     /// A satellite answered the hub's resource poll.
     RemoteResourceSnapshot {
         host_id: String,

@@ -5,17 +5,37 @@ pub(super) async fn run_project_command(command: ProjectCommand) -> i32 {
     let json_output = command.output.json;
     match command.action {
         ProjectAction::List => match open_store(&runtime).await {
-            Ok(store) => match store.list_projects().await {
-                Ok(projects) => {
-                    let mut items = json!(projects);
-                    crate::project_hosts::decorate_projects(&store, &mut items).await;
-                    print_value(
-                        &json!({ "kind": "projects", "items": items, "filters": {} }),
-                        json_output,
-                        "projects listed",
-                    )
-                }
+            Ok(store) => match crate::hub_federation::read_from_hub(
+                &runtime,
+                &store,
+                "project.list",
+                json!({}),
+            )
+            .await
+            {
+                Ok(Some(answer)) => print_value(
+                    &json!({
+                        "kind": "projects",
+                        "items": answer["items"],
+                        "filters": {},
+                        "source": "hub",
+                    }),
+                    json_output,
+                    "projects listed",
+                ),
                 Err(error) => return print_error(error),
+                Ok(None) => match store.list_projects().await {
+                    Ok(projects) => {
+                        let mut items = json!(projects);
+                        crate::project_hosts::decorate_projects(&store, &mut items).await;
+                        print_value(
+                            &json!({ "kind": "projects", "items": items, "filters": {} }),
+                            json_output,
+                            "projects listed",
+                        )
+                    }
+                    Err(error) => return print_error(error),
+                },
             },
             Err(error) => return print_error(error),
         },

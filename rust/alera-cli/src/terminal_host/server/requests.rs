@@ -1003,6 +1003,10 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.ssh_target_list().await
             }
+            "mobile.hosts.list" => {
+                self.require_auth(client_id)?;
+                self.mobile_host_list().await
+            }
             "sshTarget.upsert" => {
                 self.require_auth(client_id)?;
                 self.ssh_target_upsert(payload).await
