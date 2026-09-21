@@ -129,6 +129,26 @@ pub enum ServerCommand {
         job_id: String,
         status: SshBootstrapStatus,
     },
+    /// A satellite pushed an event over its host link.
+    HostLinkEvent {
+        host_id: String,
+        event: Value,
+    },
+    /// The ssh pipe behind a host link ended.
+    HostLinkClosed {
+        host_id: String,
+        error: String,
+    },
+    /// A link started connecting, attached, failed or was dropped.
+    HostLinkStateChanged {
+        host_id: String,
+    },
+    /// A forwarded request or a link operation finished off the actor.
+    HostLinkRequestFinished {
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
+    },
     ProjectCheckoutRegistered {
         client_id: u64,
         request_id: i64,

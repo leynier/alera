@@ -12,6 +12,8 @@ pub mod diagnostics;
 pub mod frame_codec;
 pub mod history_store;
 pub mod host_error;
+pub mod host_link;
+pub(crate) mod host_link_registry;
 pub mod mobile_gateway;
 pub mod orchestration;
 pub mod protocol;

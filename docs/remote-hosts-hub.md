@@ -37,10 +37,12 @@ The desktop runtime is the **hub**. Every bootstrapped SSH target runs one **sat
 
 The hub keeps at most one **host link** per SSH target: a single `ssh` child running `alera runtime-attach --stdio` on the remote. That command connects to the satellite runtime (starting it persistent when needed), performs the `hello` locally with the satellite's token, and then pipes newline-delimited JSON between its stdio and the runtime socket. The hub therefore speaks the ordinary runtime-host protocol to the satellite without ever learning the satellite's token, and without a second protocol.
 
-- `rust/alera-cli/src/host_link/` owns the hub side: `HostLink` (one ssh child, request correlation, event fan-in, health, reconnect with backoff), `HostLinkRegistry` (one per host id, opened on demand, closed when idle), and the `ServerCommand` variants that deliver satellite events to the actor.
-- `rust/alera-cli/src/runtime_attach.rs` owns the satellite side command. It never requests binary frames, so the pipe stays line oriented.
-- `sshTarget.status` and `alera ssh-target status` report link state (`linked`, `linking`, `unlinked`) in addition to reachability.
-- Capability `remoteHostLinkV1` is advertised by hubs that can open links. The satellite advertises `remoteSatelliteV1` when it accepts the mirror and hub-forwarding verbs below; a satellite without it falls back to the legacy per-terminal path.
+- `rust/alera-cli/src/terminal_host/host_link.rs` owns the hub side of one link: the `ssh -T` child (keep-alives on, no PTY), request correlation by id, event fan-in as `ServerCommand::HostLinkEvent`, and close detection as `ServerCommand::HostLinkClosed`, which fails every pending request. `host_link_registry.rs` keeps one link per host id, opens it on demand from a spawned task (the actor never awaits the ssh handshake), dedupes concurrent connects behind a per-host lock, and publishes `HostLinkStateChanged`. The launcher that produces the process is injectable, so tests stand a local script in for `ssh`.
+- `rust/alera-cli/src/runtime_attach.rs` owns the satellite side command. It never requests binary frames, so the pipe stays line oriented. Its first stdout line is the `hostLink.attached` event (runtime dir, platform, arch, host version, capabilities); the hub refuses any other first frame. Exit code 0 means the hub closed the pipe, 1 means the satellite runtime went away.
+- The remote command goes through the sidecar's `bin/alera` wrapper so `ALERA_RUNTIME_DIR` points at the sidecar data profile. POSIX uses `sh -lc` with tilde expansion of the stored install dir. Windows deliberately runs `"<installDir>\bin\alera.cmd" runtime-attach --stdio` under the sshd default shell (`cmd.exe`) and never through PowerShell: when PowerShell's own stdin is redirected it gives a native command an empty pipe unless the command sits on the right of `|`, so frames written by the hub would never reach `alera.exe`. A Windows target whose sshd `DefaultShell` is PowerShell cannot carry a link; the attach fails with the ssh stderr tail in the error.
+- Verbs (local clients only, all deferred except status): `hostLink.status` (`{links: [{hostId, state, attachment?, error?}]}` with `state` in `disconnected | connecting | attached | failed`), `hostLink.connect {hostId}`, `hostLink.disconnect {hostId}`, and `hostLink.request {hostId, type, payload, timeoutMs?}`, which forwards one verb to the satellite and returns its answer with the error shape preserved (`FormatException:` prefix and `errorCode` / `errorDetails` survive the hop). Events: `hostLinkChanged` (the state payload plus `hostId`) and `hostLinkEvent` (`{hostId, event, payload}` for anything the satellite pushes). Both names are in `runtimeHostEventNames`.
+- `alera ssh-target link [--id <host>] [--connect | --disconnect]` drives the same verbs from the CLI. Settings > Remote Hosts shows a Host Link group for bootstrapped targets with the state, the satellite version and platform, and Connect / Disconnect.
+- Capability `remoteHostLinkV1` is advertised by hubs that can open links. `remoteSatelliteV1` says the runtime accepts `runtime-attach`; the mirror and hub-forwarding verbs of later phases are gated by their own capabilities once they land. Neither bumps `aleraTerminalHostProtocolVersion`.
 
 ### Mirroring
 
@@ -100,8 +102,8 @@ Every verb that needs the checkout's filesystem or tools is answered by the host
 
 | # | Task | Status |
 | --- | --- | --- |
-| 0 | Plan document, `AleraHostOsIcon`, sidebar icon and alias tooltip, graph chip icon | In progress |
-| 1 | `alera runtime-attach --stdio` and hub `HostLink` / `HostLinkRegistry` with health in `sshTarget.status`; capabilities `remoteHostLinkV1` and `remoteSatelliteV1` | Pending |
+| 0 | Plan document, `AleraHostOsIcon`, sidebar icon and alias tooltip, graph chip icon | Completed |
+| 1 | `alera runtime-attach --stdio` and hub `HostLink` / `HostLinkRegistry`; `hostLink.*` verbs, `hostLinkChanged`; capabilities `remoteHostLinkV1` and `remoteSatelliteV1`; CLI `ssh-target link`; Settings Host Link group | Completed |
 | 2 | Satellite mirror verbs and terminal proxy over the link; legacy fallback kept | Pending |
 | 3 | Files write verbs, search, quick open over the link; desktop routing | Pending |
 | 4 | `git.*` verbs and `RuntimeGitBackend`; Source Control on remote workspaces | Pending |
@@ -134,3 +136,5 @@ Updated as work lands. Only rows marked Completed describe implemented behavior.
 | --- | --- | --- |
 | Analysis | Mapped the existing remote implementation and its gaps | Completed |
 | Decisions | Hub topology, persistent link, auto-clone registration, remote-only projects, remote-only icon, hub-forwarded CLI | Completed |
+| Phase 0 | `AleraHostOsIcon` (Apple, Windows, Linux) in the sidebar workspace row, host picker and Remote Hosts list; alias tooltip | Completed |
+| Phase 1 | Host link: `runtime-attach --stdio`, `HostLink` / `HostLinkRegistry`, `hostLink.*` verbs and events, capabilities, CLI and Settings surface. Verified with unit tests (both remote shells, framing, error shapes, registry states), a fake-satellite link round trip, and a binary conformance test that attaches to a real local runtime host | Completed |

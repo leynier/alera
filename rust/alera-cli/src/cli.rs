@@ -43,6 +43,9 @@ pub enum Command {
     #[command(name = "automation-host", hide = true)]
     AutomationHost(AutomationHostArgs),
     RuntimeProxy,
+    /// Attach a hub host link to this machine's runtime over stdio (run by the hub over ssh).
+    #[command(name = "runtime-attach", hide = true)]
+    RuntimeAttach(crate::runtime_attach::RuntimeAttachArgs),
     /// Run the persistent terminal host sidecar.
     #[command(name = TERMINAL_HOST_COMMAND)]
     TerminalHost(TerminalHostArgs),
@@ -399,6 +402,21 @@ pub enum SshTargetAction {
     Bootstrap(SshTargetBootstrapArgs),
     /// Cancel an in-progress sidecar bootstrap job.
     BootstrapCancel(IdArgs),
+    /// Show, open, or close the hub's persistent link to a bootstrapped host.
+    Link(SshTargetLinkArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct SshTargetLinkArgs {
+    /// Host id. Omit to list every link the runtime knows.
+    #[arg(long)]
+    pub id: Option<String>,
+    /// Open the link (starts the satellite runtime when needed).
+    #[arg(long, conflicts_with = "disconnect")]
+    pub connect: bool,
+    /// Close the link.
+    #[arg(long, conflicts_with = "connect")]
+    pub disconnect: bool,
 }
 
 #[derive(Debug, Args)]

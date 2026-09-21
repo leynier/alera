@@ -5,7 +5,9 @@ import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
+import 'package:alera/src/features/remote_hosts/domain/host_link.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
+import 'package:alera/src/features/settings/presentation/panes/remote_host_link_group.dart';
 import 'package:flutter/material.dart';
 
 class const RemoteHostEditor({
@@ -33,6 +35,13 @@ class const RemoteHostEditor({
   final String? error,
   final SshTargetBootstrapPlan? plan,
   final SshTargetBootstrapProgress? progress,
+
+  /// Null hides the group: no selection, or a runtime without host links.
+  final HostLinkState? link,
+  final bool showLink = false,
+  final bool linkBusy = false,
+  final VoidCallback? onConnectLink,
+  final VoidCallback? onDisconnectLink,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -210,6 +219,15 @@ class const RemoteHostEditor({
               ),
             ],
           ),
+          if (showLink) ...<Widget>[
+            const SizedBox(height: AleraTokens.space16),
+            RemoteHostLinkGroup(
+              state: link,
+              busy: linkBusy,
+              onConnect: onConnectLink,
+              onDisconnect: onDisconnectLink,
+            ),
+          ],
           if (plan != null) ...<Widget>[
             const SizedBox(height: AleraTokens.space16),
             _RemoteHostPlanPanel(plan: plan!),

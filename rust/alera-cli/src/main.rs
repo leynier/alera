@@ -72,6 +72,7 @@ mod remote_workspace_files;
 mod remote_workspace_owner;
 mod remote_workspace_relocation;
 mod runtime_archive;
+mod runtime_attach;
 mod runtime_clear;
 mod runtime_commands;
 mod runtime_host_client;
@@ -127,7 +128,8 @@ use uuid::Uuid;
 use crate::cli::{
     CascadePreviewArgs, Cli, Command, IdArgs, ProjectAction, ProjectCommand, ProjectKindArg,
     RuntimeDirArgs, SshAuthKindArg, SshTargetAction, SshTargetAddArgs, SshTargetBootstrapArgs,
-    SshTargetBootstrapPlanArgs, SshTargetCommand, SshTargetStatusArgs, TabAction, TabCommand,
+    SshTargetBootstrapPlanArgs, SshTargetCommand, SshTargetLinkArgs, SshTargetStatusArgs,
+    TabAction, TabCommand,
     WorkspaceAction, WorkspaceCommand,
 };
 use crate::cli::{MobileAction, MobileCommand, MobileDevicesAction, MobilePairingAction};
@@ -180,6 +182,10 @@ async fn run(cli: Cli) -> i32 {
         Command::RuntimeHost(args) => runtime_host_command::run(args).await,
         Command::AutomationHost(args) => runtime_host_command::run_automation_host(args).await,
         Command::RuntimeProxy => agent_quota::run_runtime_proxy().await,
+        Command::RuntimeAttach(args) => match runtime_attach::run(args).await {
+            Ok(code) => code,
+            Err(error) => print_error(error),
+        },
         Command::Version(command) => run_version_command(command).await,
         Command::TerminalHost(args) => runtime_host_command::run(args).await,
         Command::Runtime(command) => runtime_commands::run_runtime_command(command).await,
@@ -749,6 +755,28 @@ async fn run_ssh_target_command(command: SshTargetCommand) -> i32 {
                     json_output,
                     "ssh target removed",
                 ),
+                Err(error) => return print_error(error),
+            }
+        }
+        SshTargetAction::Link(SshTargetLinkArgs {
+            id,
+            connect,
+            disconnect,
+        }) => {
+            let mut client = match runtime_host_required(&runtime).await {
+                Ok(client) => client,
+                Err(error) => return print_error(error),
+            };
+            let (verb, payload, message) = match (id, connect, disconnect) {
+                (Some(id), true, _) => ("hostLink.connect", json!({ "hostId": id }), "host link attached"),
+                (Some(id), _, true) => ("hostLink.disconnect", json!({ "hostId": id }), "host link closed"),
+                (None, true, _) | (None, _, true) => {
+                    return print_error("--id is required with --connect or --disconnect")
+                }
+                (_, false, false) => ("hostLink.status", json!({}), "host links listed"),
+            };
+            match client.request_value(verb, &payload).await {
+                Ok(value) => print_value(&value, json_output, message),
                 Err(error) => return print_error(error),
             }
         }

@@ -51,6 +51,11 @@ bool requiresSharedCheckoutSupport(String operation) => switch (operation) {
 /// attach. Additive: do not bump [aleraTerminalHostProtocolVersion].
 const String aleraRuntimeHostRemoteSshWorkspacesCapability =
     'remoteSshWorkspacesV1';
+
+/// The hub keeps one persistent ssh link per bootstrapped host and answers
+/// `hostLink.status` / `connect` / `disconnect` / `request`, broadcasting
+/// `hostLinkChanged`. Additive: do not bump [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostRemoteHostLinkCapability = 'remoteHostLinkV1';
 const String aleraRuntimeHostOrchestrationCapability = 'orchestration';
 const String aleraRuntimeHostAccountCapability = 'aleraAccountV1';
 const String aleraRuntimeHostConfigurationSyncCapability =

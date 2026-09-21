@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_master_detail.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
+import 'package:alera/src/features/remote_hosts/domain/host_link.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/settings/presentation/panes/remote_host_editor.dart';
 import 'package:alera/src/features/settings/presentation/panes/remote_host_field_normalizers.dart';
@@ -38,6 +39,7 @@ class _RemoteHostSettingsPaneState
   bool _saving = false;
   bool _planning = false;
   bool _bootstrapping = false;
+  bool _linkBusy = false;
   String? _seededEditorSignature;
   String? _seededStatusSignature;
 
@@ -68,6 +70,9 @@ class _RemoteHostSettingsPaneState
     });
 
     final targetsAsync = ref.watch(sshTargetsProvider);
+    final linkStates = hostLinkStatesById(
+      ref.watch(hostLinksProvider).value ?? const <HostLinkState>[],
+    );
     return targetsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => RemoteHostError(message: error.toString()),
@@ -137,10 +142,53 @@ class _RemoteHostSettingsPaneState
             onPlan: selectedTarget == null ? null : _loadPlan,
             onBootstrap: selectedTarget == null ? null : _startBootstrap,
             onCancel: selectedTarget == null ? null : _cancelBootstrap,
+            showLink:
+                selectedTarget != null &&
+                selectedTarget.bootstrapStatus == SshBootstrapStatus.installed,
+            link: selectedTarget == null ? null : linkStates[selectedTarget.id],
+            linkBusy: _linkBusy,
+            onConnectLink: selectedTarget == null
+                ? null
+                : () => _connectLink(selectedTarget),
+            onDisconnectLink: selectedTarget == null
+                ? null
+                : () => _disconnectLink(selectedTarget),
           ),
         );
       },
     );
+  }
+
+  Future<void> _connectLink(SshTarget target) async {
+    await _runLinkOperation(
+      () => ref.read(sshTargetRepositoryProvider).connectHostLink(target.id),
+    );
+  }
+
+  Future<void> _disconnectLink(SshTarget target) async {
+    await _runLinkOperation(
+      () => ref.read(sshTargetRepositoryProvider).disconnectHostLink(target.id),
+    );
+  }
+
+  Future<void> _runLinkOperation(
+    Future<HostLinkState> Function() operation,
+  ) async {
+    setState(() {
+      _linkBusy = true;
+      _error = null;
+    });
+    try {
+      await operation();
+    } on Object catch (error) {
+      if (mounted) {
+        setState(() => _error = error.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _linkBusy = false);
+      }
+    }
   }
 
   SshTarget? _selectedTarget(List<SshTarget> targets) {

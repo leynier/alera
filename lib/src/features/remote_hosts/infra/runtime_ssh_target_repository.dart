@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera/src/features/remote_hosts/domain/host_link.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_change_coalescer.dart';
@@ -102,6 +103,61 @@ class RuntimeSshTargetRepository(
       <String, Object?>{'id': targetId},
     );
     return SshTarget.fromJson(_mapFromPayload(payload));
+  }
+
+  Future<bool> supportsHostLinks() async {
+    final client = _client;
+    return client is RuntimeHostCapabilityClient &&
+        await (client as RuntimeHostCapabilityClient).supportsRuntimeCapability(
+          aleraRuntimeHostRemoteHostLinkCapability,
+        );
+  }
+
+  /// Link states for every host the hub has tried. Empty on a host without
+  /// [aleraRuntimeHostRemoteHostLinkCapability].
+  Future<List<HostLinkState>> hostLinks() async {
+    await beforeAccess?.call();
+    if (!await supportsHostLinks()) {
+      return const <HostLinkState>[];
+    }
+    final payload = await _client.runtimeRequest('hostLink.status');
+    final links = _mapFromPayload(payload)['links'];
+    if (links is! List) {
+      return const <HostLinkState>[];
+    }
+    return <HostLinkState>[
+      for (final item in links)
+        if (item is Map)
+          HostLinkState.fromJson(Map<String, Object?>.from(item)),
+    ];
+  }
+
+  Stream<List<HostLinkState>> watchHostLinks() {
+    return runtimeSnapshotStream(
+      client: _client,
+      eventNames: const <String>{'hostLinkChanged'},
+      readSnapshot: hostLinks,
+      coalesceKey: 'hostLinks',
+      coalescer: _coalescer,
+    );
+  }
+
+  Future<HostLinkState> connectHostLink(String hostId) async {
+    await beforeAccess?.call();
+    final payload = await _client.runtimeRequest(
+      'hostLink.connect',
+      <String, Object?>{'hostId': hostId},
+    );
+    return HostLinkState.fromJson(_mapFromPayload(payload));
+  }
+
+  Future<HostLinkState> disconnectHostLink(String hostId) async {
+    await beforeAccess?.call();
+    final payload = await _client.runtimeRequest(
+      'hostLink.disconnect',
+      <String, Object?>{'hostId': hostId},
+    );
+    return HostLinkState.fromJson(_mapFromPayload(payload));
   }
 
   Map<String, Object?> _bootstrapRequestPayload(

@@ -11,6 +11,14 @@ pub const RUNTIME_HOST_SHARED_CHECKOUT_CAPABILITY: &str = "sharedCheckoutWorkspa
 /// `workspace.createManaged` and would create a local worktree instead, so
 /// callers must feature-check this rather than the protocol version.
 pub const RUNTIME_HOST_REMOTE_SSH_WORKSPACES_CAPABILITY: &str = "remoteSshWorkspacesV1";
+/// The hub keeps one persistent ssh link per bootstrapped host
+/// (`alera runtime-attach --stdio` on the satellite) and answers
+/// `hostLink.status` / `connect` / `disconnect` / `request`, broadcasting
+/// `hostLinkChanged` and `hostLinkEvent`. Additive: clients feature-check it.
+pub const RUNTIME_HOST_REMOTE_HOST_LINK_CAPABILITY: &str = "remoteHostLinkV1";
+/// This runtime can be the satellite end of a host link: it accepts
+/// `runtime-attach --stdio` and serves the hub as a local client. Additive.
+pub const RUNTIME_HOST_REMOTE_SATELLITE_CAPABILITY: &str = "remoteSatelliteV1";
 pub const RUNTIME_HOST_MOBILE_CAPABILITY: &str = "mobileCompanionAccess";
 pub const RUNTIME_HOST_MOBILE_NETBIRD_CAPABILITY: &str = "mobileNetBirdGatewayV1";
 pub const RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY: &str = "workspaceSectionsV1";

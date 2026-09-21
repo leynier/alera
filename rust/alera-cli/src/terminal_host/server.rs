@@ -132,6 +132,7 @@ mod declared_catalog_requests;
 mod deferred_requests;
 mod deferred_workspace_lifecycle;
 mod deferred_workspace_setup;
+mod host_link_requests;
 mod host_service_agent_quota;
 mod host_service_requests;
 mod host_status;
@@ -297,6 +298,7 @@ struct ServerActor {
     automations_active: bool,
     sessions: HashMap<String, Session>,
     ssh_bootstrap_jobs: HashMap<String, SshBootstrapJobState>,
+    host_links: crate::terminal_host::host_link_registry::HostLinkRegistry,
     project_clone_jobs: HashMap<String, tokio::sync::oneshot::Sender<()>>,
     agent_title_jobs: HashMap<String, agent_title_generation::AgentTitleJob>,
     managed_workspace_jobs: usize,
@@ -613,6 +615,20 @@ impl ServerActor {
                 job_id,
                 status,
             } => self.handle_ssh_bootstrap_finished(target_id, job_id, status),
+            ServerCommand::HostLinkEvent { host_id, event } => {
+                self.handle_host_link_event(host_id, event)
+            }
+            ServerCommand::HostLinkClosed { host_id, error } => {
+                self.handle_host_link_closed(host_id, error)
+            }
+            ServerCommand::HostLinkStateChanged { host_id } => {
+                self.handle_host_link_state_changed(host_id)
+            }
+            ServerCommand::HostLinkRequestFinished {
+                client_id,
+                request_id,
+                result,
+            } => self.finish_host_link_request(client_id, request_id, result),
             ServerCommand::ProjectCheckoutRegistered {
                 client_id,
                 request_id,
@@ -1220,6 +1236,10 @@ mod tests {
                     handle: tokio::spawn(async {}),
                 },
             )]),
+            host_links: crate::terminal_host::host_link_registry::HostLinkRegistry::new(
+                runtime_store.clone(),
+                inbox.clone(),
+            ),
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
@@ -1300,6 +1320,10 @@ mod tests {
             pull_request_watches: Default::default(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
+            host_links: crate::terminal_host::host_link_registry::HostLinkRegistry::new(
+                runtime_store.clone(),
+                inbox.clone(),
+            ),
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
@@ -1398,6 +1422,10 @@ mod tests {
             pull_request_watches: Default::default(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
+            host_links: crate::terminal_host::host_link_registry::HostLinkRegistry::new(
+                runtime_store.clone(),
+                inbox.clone(),
+            ),
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
@@ -1491,6 +1519,10 @@ mod tests {
             pull_request_watches: Default::default(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
+            host_links: crate::terminal_host::host_link_registry::HostLinkRegistry::new(
+                runtime_store.clone(),
+                inbox.clone(),
+            ),
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
@@ -1606,6 +1638,10 @@ mod tests {
             pull_request_watches: Default::default(),
             sessions: HashMap::from([("term-1".to_string(), session)]),
             ssh_bootstrap_jobs: HashMap::new(),
+            host_links: crate::terminal_host::host_link_registry::HostLinkRegistry::new(
+                runtime_store.clone(),
+                inbox.clone(),
+            ),
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
@@ -1694,6 +1730,10 @@ mod tests {
             pull_request_watches: Default::default(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
+            host_links: crate::terminal_host::host_link_registry::HostLinkRegistry::new(
+                runtime_store.clone(),
+                inbox.clone(),
+            ),
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,

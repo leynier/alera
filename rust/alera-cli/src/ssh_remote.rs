@@ -221,7 +221,7 @@ fn configured_windows(target: &SshTarget) -> bool {
         == Some("windows")
 }
 
-fn terminal_platform_windows(target: &SshTarget) -> Result<bool> {
+pub(crate) fn terminal_platform_windows(target: &SshTarget) -> Result<bool> {
     // Bootstrap validates and persists this platform. Terminal launch runs on
     // the server actor, so probing SSH here would stall unrelated sessions.
     let platform = target
