@@ -269,19 +269,21 @@ CursorModelVariant _closest(
   return ranked.first;
 }
 
+/// `xhigh` and `extra-high` share a rank. They are the same level with two
+/// spellings. An absent effort sorts before `none`.
+const Map<String, int> _effortRanks = <String, int>{
+  'none': 0,
+  'minimal': 1,
+  'low': 2,
+  'medium': 3,
+  'high': 4,
+  'xhigh': 5,
+  'extra-high': 5,
+  'max': 6,
+};
+
 int _effortRank(String? effort) {
-  return switch (effort) {
-    null => -1,
-    'none' => 0,
-    'minimal' => 1,
-    'low' => 2,
-    'medium' => 3,
-    'high' => 4,
-    // Same level, two spellings.
-    'xhigh' || 'extra-high' => 5,
-    'max' => 6,
-    _ => 50,
-  };
+  return _effortRanks[effort] ?? -1;
 }
 
 int _effortDistance(String? previous, String? candidate) {
@@ -310,7 +312,8 @@ String _familyLabel(List<CursorModelVariant> variants) {
       bestIndex = variant.catalogIndex;
     }
   }
-  return best ?? _titleFromFamilyId(variants.first.family);
+  // Every family is built from at least one slug, so the loop assigns best.
+  return best!;
 }
 
 String _labelForVariant(CursorModelVariant variant) {

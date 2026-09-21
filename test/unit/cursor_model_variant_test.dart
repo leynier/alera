@@ -252,8 +252,78 @@ void main() {
     test('titles a slug-shaped label from the family id', () {
       final catalog = CursorModelCatalog.fromOptions(const <ManagedAgentOption>[
         ManagedAgentOption('claude-fable-5-1-high', 'claude-fable-5-1-high'),
+        ManagedAgentOption('grok-4.7-high', 'grok-4.7-high'),
       ]);
       expect(catalog.familyById('claude-fable-5-1')!.label, 'Claude Fable 5.1');
+      expect(catalog.familyById('grok-4.7')!.label, 'Grok 4.7');
+    });
+
+    test('strips a fast-only label and qualifies colliding family labels', () {
+      final catalog = CursorModelCatalog.fromOptions(const <ManagedAgentOption>[
+        ManagedAgentOption('zoom-fast', 'Fast'),
+        ManagedAgentOption('alpha-high', 'Same High'),
+        ManagedAgentOption('beta-high', 'Same High'),
+      ]);
+      expect(catalog.familyById('zoom')!.label, 'Zoom');
+      expect(catalog.familyById('alpha')!.label, 'Same (alpha)');
+      expect(catalog.familyById('beta')!.label, 'Same (beta)');
+    });
+
+    test('uses a thinking-only slug when the family has no base variant', () {
+      final catalog = CursorModelCatalog.fromOptions(const <ManagedAgentOption>[
+        ManagedAgentOption('grok-4.7-xhigh', 'Grok 4.7 Extra High'),
+        ManagedAgentOption(
+          'claude-4.5-sonnet-thinking',
+          'Claude 4.5 Sonnet Thinking',
+        ),
+      ]);
+      expect(
+        catalog.slugForFamily(
+          'claude-4.5-sonnet',
+          previous: catalog.variantForModel('grok-4.7-xhigh'),
+        ),
+        'claude-4.5-sonnet-thinking',
+      );
+    });
+
+    test('prefers the same effort spelling when two ranks are equal', () {
+      const orders = <List<ManagedAgentOption>>[
+        <ManagedAgentOption>[
+          ManagedAgentOption('gpt-5.5-extra-high', 'GPT 5.5 Extra High'),
+          ManagedAgentOption('gpt-5.5-xhigh', 'GPT 5.5 Xhigh'),
+          ManagedAgentOption('grok-4.7-xhigh-fast', 'Grok 4.7 Extra High Fast'),
+        ],
+        <ManagedAgentOption>[
+          ManagedAgentOption('gpt-5.5-xhigh', 'GPT 5.5 Xhigh'),
+          ManagedAgentOption('gpt-5.5-extra-high', 'GPT 5.5 Extra High'),
+          ManagedAgentOption('grok-4.7-xhigh-fast', 'Grok 4.7 Extra High Fast'),
+        ],
+      ];
+      for (final models in orders) {
+        final catalog = CursorModelCatalog.fromOptions(models);
+        expect(
+          catalog.slugForFamily(
+            'gpt-5.5',
+            previous: catalog.variantForModel('grok-4.7-xhigh-fast'),
+          ),
+          'gpt-5.5-xhigh',
+        );
+      }
+    });
+
+    test('breaks equal effort ranks by catalog order', () {
+      final catalog = CursorModelCatalog.fromOptions(const <ManagedAgentOption>[
+        ManagedAgentOption('gpt-5.5-extra-high', 'GPT 5.5 Extra High'),
+        ManagedAgentOption('gpt-5.5-xhigh', 'GPT 5.5 Xhigh'),
+        ManagedAgentOption('claude-fable-5-1-high', 'Claude Fable 5.1 High'),
+      ]);
+      expect(
+        catalog.slugForFamily(
+          'gpt-5.5',
+          previous: catalog.variantForModel('claude-fable-5-1-high'),
+        ),
+        'gpt-5.5-extra-high',
+      );
     });
   });
 }
