@@ -153,7 +153,39 @@ pub(crate) async fn register_remote_project<E: RemoteHostExecutor>(
     let registered = store
         .register_project_checkout(&project.id, &host_id, &checkout.path)
         .await?;
-    Ok(serde_json::json!({ "project": project, "checkout": registered }))
+    // A local registration starts with a workspace on the project folder, and
+    // so does this one: without it a folder project, which has no worktrees,
+    // would have nothing the user could open. The project stands even if the
+    // workspace cannot be created; it can be added from New Workspace later.
+    let initial_workspace = match crate::shared_workspace::create_shared_workspace_with(
+        store,
+        crate::shared_workspace::SharedWorkspaceCreateRequest {
+            project_id: project.id.clone(),
+            id: None,
+            name: Some(project.name.clone()),
+            host_id: Some(host_id.clone()),
+            parent_workspace_id: None,
+        },
+        executor,
+    )
+    .await
+    {
+        Ok(created) => serde_json::to_value(created.workspace).ok(),
+        Err(error) => {
+            tracing::warn!(
+                project_id = project.id,
+                "remote project registered without an initial workspace: {error}"
+            );
+            None
+        }
+    };
+    let mut listed = serde_json::json!([project]);
+    crate::project_hosts::decorate_projects(store, &mut listed).await;
+    Ok(serde_json::json!({
+        "project": listed[0],
+        "checkout": registered,
+        "initialWorkspace": initial_workspace,
+    }))
 }
 
 /// `git@github.com:owner/repo.git` and `https://host/owner/repo/` both name

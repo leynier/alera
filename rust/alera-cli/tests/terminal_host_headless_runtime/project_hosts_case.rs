@@ -142,6 +142,11 @@ fn a_project_is_listed_added_to_and_removed_from_hosts() {
         "named after the repository, under the host's home: {remote_path}"
     );
     assert_eq!(remote_only["payload"]["checkout"]["hostId"], "ssh-2");
+    assert_eq!(remote_project["primaryHostId"], "ssh-2", "{remote_only}");
+    let initial = &remote_only["payload"]["initialWorkspace"];
+    assert_eq!(initial["hostId"], "ssh-2", "{remote_only}");
+    assert_eq!(initial["path"], remote_path, "{remote_only}");
+    assert_eq!(initial["name"], "Server Only", "{remote_only}");
     let listed = request("project.list", json!({}));
     let entry = listed["payload"]
         .as_array()
