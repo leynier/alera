@@ -188,6 +188,17 @@ impl ServerActor {
                 )?;
                 Ok(true)
             }
+            verb if super::workspace_git_requests::is_workspace_git_verb(verb) => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_mobile_workspace_file_request(
+                    client_id,
+                    request_id,
+                    request_type,
+                    payload,
+                )?;
+                Ok(true)
+            }
             "mobile.promptFile.start"
             | "mobile.promptFile.chunk"
             | "mobile.promptFile.complete"

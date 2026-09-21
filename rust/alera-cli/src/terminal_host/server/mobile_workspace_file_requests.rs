@@ -167,6 +167,14 @@ async fn handle_mobile_workspace_file_request(
             )
             .await
         }
+        verb if super::workspace_git_requests::is_workspace_git_verb(verb) => {
+            super::workspace_git_requests::handle_workspace_git_request(
+                &runtime_store,
+                verb,
+                payload,
+            )
+            .await
+        }
         "mobile.workspaceSearch.run"
         | "mobile.workspaceSearch.replace"
         | "mobile.workspaceSearch.cancel" => {
@@ -205,6 +213,7 @@ async fn handle_mobile_workspace_file_request(
 fn is_workspace_file_write(request_type: &str) -> bool {
     request_type == "mobile.workspaceSearch.replace"
         || super::workspace_file_mutation_requests::is_workspace_file_mutation(request_type)
+        || super::workspace_git_requests::is_workspace_git_write(request_type)
 }
 
 fn cleanup_orphaned_workspace_file_result(request_type: &str, result: &HostResult<Value>) {

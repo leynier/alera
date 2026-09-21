@@ -64,6 +64,7 @@ pub(crate) async fn mirror_workspace(
 /// workspaces so one satellite implementation serves both.
 pub(crate) fn is_host_scoped_workspace_verb(request_type: &str) -> bool {
     request_type.starts_with("workspace.files.")
+        || request_type.starts_with("git.")
         || request_type.starts_with("mobile.git.")
         || matches!(
             request_type,
@@ -148,7 +149,7 @@ pub(crate) async fn forward_workspace_scoped_request(
         .request_with_timeout(
             request_type,
             payload.clone(),
-            crate::terminal_host::host_link::DEFAULT_REQUEST_TIMEOUT,
+            forwarded_request_timeout(request_type),
         )
         .await?;
     if request_type == "mobile.workspaceQuickOpen.start" {
@@ -157,6 +158,22 @@ pub(crate) async fn forward_workspace_scoped_request(
         }
     }
     Ok(Some(value))
+}
+
+/// Network git verbs wait on the remote's credential helper and transfer, so
+/// they get the same budget mobile gives its own fetch, pull and push.
+fn forwarded_request_timeout(request_type: &str) -> std::time::Duration {
+    match request_type {
+        "git.fetch"
+        | "git.pull"
+        | "git.push"
+        | "git.fetchHostedReviewRange"
+        | "mobile.git.fetch"
+        | "mobile.git.pull"
+        | "mobile.git.push"
+        | "mobile.git.sync" => std::time::Duration::from_secs(5 * 60),
+        _ => crate::terminal_host::host_link::DEFAULT_REQUEST_TIMEOUT,
+    }
 }
 
 /// Quick Open sessions are stopped best-effort: the caller gets its answer at

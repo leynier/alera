@@ -56,6 +56,12 @@ const String aleraRuntimeHostRemoteSshWorkspacesCapability =
 /// `hostLink.status` / `connect` / `disconnect` / `request`, broadcasting
 /// `hostLinkChanged`. Additive: do not bump [aleraTerminalHostProtocolVersion].
 const String aleraRuntimeHostRemoteHostLinkCapability = 'remoteHostLinkV1';
+
+/// The runtime answers the desktop `git.*` verbs for a workspace on another
+/// host by forwarding them over that host's link, so Source Control, diffs,
+/// history and the explorer badges work on a remote checkout. Additive: do
+/// not bump [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostRemoteGitCapability = 'remoteGitV1';
 const String aleraRuntimeHostOrchestrationCapability = 'orchestration';
 const String aleraRuntimeHostAccountCapability = 'aleraAccountV1';
 const String aleraRuntimeHostConfigurationSyncCapability =

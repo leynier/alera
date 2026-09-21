@@ -2,14 +2,14 @@ use super::*;
 use alera_core::runtime::{Project, SshTarget, Workspace};
 use std::os::unix::fs::{symlink, PermissionsExt};
 
-struct HubAndSatellite {
+pub(super) struct HubAndSatellite {
     _directory: tempfile::TempDir,
-    remote: std::path::PathBuf,
-    satellite: std::path::PathBuf,
+    pub(super) remote: std::path::PathBuf,
+    pub(super) satellite: std::path::PathBuf,
     _satellite_guard: HostGuard,
-    satellite_port: u16,
+    pub(super) satellite_port: u16,
     _hub_guard: HostGuard,
-    hub_port: u16,
+    pub(super) hub_port: u16,
 }
 
 /// A hub runtime and a satellite runtime in one process. `ssh` is a script
@@ -17,7 +17,14 @@ struct HubAndSatellite {
 /// points at the satellite profile at `<installDir>/data`, exactly as the
 /// bootstrap installs it, so the hub's real launcher and `runtime-attach` are
 /// exercised. The hub holds one remote workspace `task` on host `ssh`.
-fn hub_and_satellite() -> HubAndSatellite {
+pub(super) fn hub_and_satellite() -> HubAndSatellite {
+    hub_and_satellite_with_kind("folder")
+}
+
+/// `kind` is the hub project's kind. A `gitRepository` project gets a repository with a
+/// configured identity at both checkouts, so the satellite's mirror validation
+/// and the `git.*` verbs see what a real clone would give them.
+pub(super) fn hub_and_satellite_with_kind(kind: &str) -> HubAndSatellite {
     let directory = tempfile::tempdir().unwrap();
     let hub = directory.path().join("hub-runtime");
     let local = directory.path().join("local-project");
@@ -38,6 +45,14 @@ fn hub_and_satellite() -> HubAndSatellite {
     }
     std::fs::write(remote.join("src/main.rs"), "fn main() {}\n").unwrap();
     std::fs::write(remote.join("readme.md"), "# Remote\n").unwrap();
+    if kind == "gitRepository" {
+        for checkout in [&local, &remote] {
+            let repo = git2::Repository::init(checkout).unwrap();
+            let mut config = repo.config().unwrap();
+            config.set_str("user.name", "Alera Test").unwrap();
+            config.set_str("user.email", "alera@example.com").unwrap();
+        }
+    }
     symlink(env!("CARGO_BIN_EXE_alera"), install.join("current/alera")).unwrap();
     let executable = |path: &std::path::Path, script: String| {
         std::fs::write(path, script).unwrap();
@@ -58,7 +73,7 @@ fn hub_and_satellite() -> HubAndSatellite {
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
         let store = RuntimeStore::open(&hub).await.unwrap();
-        let project: Project = serde_json::from_value(json!({"id":"project-1","name":"Project","repoPath":local,"kind":"folder",
+        let project: Project = serde_json::from_value(json!({"id":"project-1","name":"Project","repoPath":local,"kind":kind,
             "createdAt":"2026-07-19T00:00:00Z","updatedAt":"2026-07-19T00:00:00Z"})).unwrap();
         store.upsert_project(project).await.unwrap();
         store

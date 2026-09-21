@@ -15,6 +15,8 @@ use serde_json::{json, Value};
 
 #[path = "terminal_host_headless_runtime/home_owner_retirement_case.rs"]
 mod home_owner_retirement_case;
+#[path = "terminal_host_headless_runtime/host_link_git_case.rs"]
+mod host_link_git_case;
 #[path = "terminal_host_headless_runtime/host_link_mirror_case.rs"]
 mod host_link_mirror_case;
 #[path = "terminal_host_headless_runtime/owner_terminal_case.rs"]

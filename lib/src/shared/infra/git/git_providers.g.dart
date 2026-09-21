@@ -8,13 +8,35 @@ part of 'git_providers.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
+/// The one [GitBackend] the app reads. Paths inside a remote workspace go to
+/// that host's runtime backend, everything else to the local bridge, so a
+/// caller never has to know where a checkout lives.
+///
+/// The workbench state is read lazily on each call rather than watched: this
+/// provider is a build-time dependency of the services the controller itself
+/// uses, and watching it here would close that loop.
 
 @ProviderFor(gitBackend)
 final gitBackendProvider = GitBackendProvider._();
 
+/// The one [GitBackend] the app reads. Paths inside a remote workspace go to
+/// that host's runtime backend, everything else to the local bridge, so a
+/// caller never has to know where a checkout lives.
+///
+/// The workbench state is read lazily on each call rather than watched: this
+/// provider is a build-time dependency of the services the controller itself
+/// uses, and watching it here would close that loop.
+
 final class GitBackendProvider
     extends $FunctionalProvider<GitBackend, GitBackend, GitBackend>
     with $Provider<GitBackend> {
+  /// The one [GitBackend] the app reads. Paths inside a remote workspace go to
+  /// that host's runtime backend, everything else to the local bridge, so a
+  /// caller never has to know where a checkout lives.
+  ///
+  /// The workbench state is read lazily on each call rather than watched: this
+  /// provider is a build-time dependency of the services the controller itself
+  /// uses, and watching it here would close that loop.
   GitBackendProvider._()
     : super(
         from: null,
@@ -48,4 +70,4 @@ final class GitBackendProvider
   }
 }
 
-String _$gitBackendHash() => r'9b3bfc8a8c8e46df46ef1475f6011d63a37ad482';
+String _$gitBackendHash() => r'ded008f699a1e07454cd7af82c1434025e568232';

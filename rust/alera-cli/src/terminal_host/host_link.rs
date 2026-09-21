@@ -210,7 +210,7 @@ impl HostLink {
         let stdout = child.stdout.take().expect("piped stdout");
         let stderr = child.stderr.take().expect("piped stderr");
         let stderr_tail = Arc::new(Mutex::new(String::new()));
-        tokio::spawn(collect_stderr(stderr, stderr_tail.clone()));
+        let stderr_collector = tokio::spawn(collect_stderr(stderr, stderr_tail.clone()));
 
         let mut lines = BufReader::new(stdout).lines();
         let first = match tokio::time::timeout(ATTACH_TIMEOUT, lines.next_line()).await {
@@ -221,11 +221,19 @@ impl HostLink {
                     &host_id,
                     "ssh closed before attaching",
                     &stderr_tail,
-                ));
+                    stderr_collector,
+                )
+                .await);
             }
             Ok(Err(error)) => {
                 let _ = child.start_kill();
-                return Err(attach_failure(&host_id, &error.to_string(), &stderr_tail));
+                return Err(attach_failure(
+                    &host_id,
+                    &error.to_string(),
+                    &stderr_tail,
+                    stderr_collector,
+                )
+                .await);
             }
             Err(_) => {
                 let _ = child.start_kill();
@@ -233,7 +241,9 @@ impl HostLink {
                     &host_id,
                     &format!("no attachment within {}s", ATTACH_TIMEOUT.as_secs()),
                     &stderr_tail,
-                ));
+                    stderr_collector,
+                )
+                .await);
             }
         };
         let attachment = match parse_attached(&first) {
@@ -244,7 +254,9 @@ impl HostLink {
                     &host_id,
                     &format!("unexpected first frame: {}", truncate(&first, 200)),
                     &stderr_tail,
-                ));
+                    stderr_collector,
+                )
+                .await);
             }
         };
 
@@ -276,7 +288,18 @@ fn link_closed(host_id: &str) -> HostError {
     HostError::state(format!("The link to host {host_id} is closed."))
 }
 
-fn attach_failure(host_id: &str, reason: &str, stderr_tail: &Mutex<String>) -> HostError {
+/// How long a failed attach waits for ssh's stderr to drain. The child has
+/// exited or been killed by now, so EOF is imminent; the wait exists because
+/// stdout can close before the collector has read the line that says why.
+const STDERR_DRAIN_TIMEOUT: Duration = Duration::from_secs(2);
+
+async fn attach_failure(
+    host_id: &str,
+    reason: &str,
+    stderr_tail: &Mutex<String>,
+    stderr_collector: tokio::task::JoinHandle<()>,
+) -> HostError {
+    let _ = tokio::time::timeout(STDERR_DRAIN_TIMEOUT, stderr_collector).await;
     let tail = stderr_tail
         .lock()
         .map(|s| s.trim().to_string())
