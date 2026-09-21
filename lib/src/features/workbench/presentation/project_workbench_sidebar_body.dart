@@ -4,6 +4,7 @@ class const _SidebarBody({
   required final WorkbenchState state,
   required final WorkbenchController controller,
   required final List<WorkbenchSidebarRow> rows,
+  required final Map<String, SshTarget> sshTargets,
   required final Future<void> Function(Project project, Workspace workspace)
   onOpenWorkspace,
   required final Future<void> Function(Workspace workspace)
@@ -139,6 +140,7 @@ class const _SidebarBody({
         child: _WorkspaceRow(
           project: row.project,
           workspace: row.workspace,
+          hostTarget: sshTargets[row.workspace.hostId.trim()],
           agentRuns: secondaryRuns,
           agentRunGroups: groupWorkspaceAgentRuns(secondaryRuns),
           status: primaryRun?.status,
