@@ -92,7 +92,7 @@ async fn prepare_shared_workspace_with<E: crate::ssh_remote::RemoteHostExecutor>
         crate::project_checkout_inspection::inspect(project.repo_path.clone(), project.kind).await?
     } else {
         let checkout = store.find_project_checkout(&project.id, &host_id).await?
-            .ok_or_else(|| anyhow!("Register a project checkout on the SSH host before creating a shared workspace"))?;
+            .ok_or_else(|| anyhow!("This project is not on that host yet. Add it first with `alera project hosts add --project-id {} --host-id {host_id}`, which clones it there, then create the workspace", project.id))?;
         let inspection = crate::remote_project_checkout::inspect_remote(
             store,
             &host_id,
