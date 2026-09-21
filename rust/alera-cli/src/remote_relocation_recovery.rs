@@ -4,7 +4,6 @@ use alera_core::runtime::{
 };
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 use crate::ssh_remote::{
     probe_or_unreachable, require_bootstrapped_ssh_target, RemoteHostExecutor,
@@ -71,10 +70,8 @@ async fn inspect_owner<E: RemoteHostExecutor>(
         crate::ssh_bootstrap::shell_quote
     };
     let arguments = format!("project inspect-owner-recovery --workspace-id {} --instance-id {} --project-id {} --limit {}", quote(&workspace.id), quote(&workspace.instance_id), quote(&workspace.project_id), limit.clamp(1, 100));
-    let profile = hex::encode(Sha256::digest(workspace.project_id.as_bytes()));
-    let script = crate::remote_owner_terminal_launch::owner_command_script(
-        windows, install, &profile, &arguments,
-    );
+    let script =
+        crate::remote_owner_terminal_launch::owner_command_script(windows, install, &arguments);
     let output = tokio::time::timeout(
         std::time::Duration::from_secs(30),
         executor.run(&target, windows, &script),

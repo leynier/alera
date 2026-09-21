@@ -129,8 +129,7 @@ use crate::cli::{
     CascadePreviewArgs, Cli, Command, IdArgs, ProjectAction, ProjectCommand, ProjectKindArg,
     RuntimeDirArgs, SshAuthKindArg, SshTargetAction, SshTargetAddArgs, SshTargetBootstrapArgs,
     SshTargetBootstrapPlanArgs, SshTargetCommand, SshTargetLinkArgs, SshTargetStatusArgs,
-    TabAction, TabCommand,
-    WorkspaceAction, WorkspaceCommand,
+    TabAction, TabCommand, WorkspaceAction, WorkspaceCommand,
 };
 use crate::cli::{MobileAction, MobileCommand, MobileDevicesAction, MobilePairingAction};
 use crate::cli::{TerminalAction, TerminalCommand};
@@ -768,8 +767,16 @@ async fn run_ssh_target_command(command: SshTargetCommand) -> i32 {
                 Err(error) => return print_error(error),
             };
             let (verb, payload, message) = match (id, connect, disconnect) {
-                (Some(id), true, _) => ("hostLink.connect", json!({ "hostId": id }), "host link attached"),
-                (Some(id), _, true) => ("hostLink.disconnect", json!({ "hostId": id }), "host link closed"),
+                (Some(id), true, _) => (
+                    "hostLink.connect",
+                    json!({ "hostId": id }),
+                    "host link attached",
+                ),
+                (Some(id), _, true) => (
+                    "hostLink.disconnect",
+                    json!({ "hostId": id }),
+                    "host link closed",
+                ),
                 (None, true, _) | (None, _, true) => {
                     return print_error("--id is required with --connect or --disconnect")
                 }

@@ -171,7 +171,7 @@ done
 
     fn fake_launcher(script: &'static str) -> Arc<HostLinkLauncher> {
         Arc::new(move |_target: &SshTarget| {
-            let mut command = tokio::process::Command::new("sh");
+            let mut command = alera_core::child_process::windowless_async_command("sh");
             command.arg("-c").arg(script);
             Ok(command)
         })

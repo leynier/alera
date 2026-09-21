@@ -2,8 +2,9 @@
 //!
 //! Connecting a link awaits an ssh handshake, so every verb that may connect
 //! runs in a spawned task and answers through
-//! [`ServerCommand::HostLinkRequestFinished`]; only `hostLink.status` is
-//! answered inline.
+//! [`super::ServerCommand::HostLinkRequestFinished`]; only `hostLink.status` is
+//! answered inline. `hostLink.mirrorWorkspace` registers a remote workspace on
+//! its satellite (see [`super::host_link_routing`]).
 
 use serde_json::{json, Value};
 
@@ -11,7 +12,7 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{error_response, event, ok_response};
 
 use super::requests::require_string_key;
-use super::{ServerActor, ServerCommand};
+use super::ServerActor;
 
 pub(crate) const HOST_LINK_CHANGED_EVENT: &str = "hostLinkChanged";
 pub(crate) const HOST_LINK_EVENT: &str = "hostLinkEvent";
@@ -39,7 +40,7 @@ impl ServerActor {
             "hostLink.connect" => {
                 let host_id = require_remote_host_id(payload)?;
                 let links = self.host_links.clone();
-                self.spawn_host_link_task(client_id, request_id, async move {
+                self.spawn_deferred_request(client_id, request_id, async move {
                     links.link(&host_id).await?;
                     Ok(link_state_payload(&links, &host_id))
                 });
@@ -48,9 +49,21 @@ impl ServerActor {
             "hostLink.disconnect" => {
                 let host_id = require_remote_host_id(payload)?;
                 let links = self.host_links.clone();
-                self.spawn_host_link_task(client_id, request_id, async move {
+                self.spawn_deferred_request(client_id, request_id, async move {
                     links.disconnect(&host_id).await;
                     Ok(link_state_payload(&links, &host_id))
+                });
+                Ok(true)
+            }
+            "hostLink.mirrorWorkspace" => {
+                let workspace_id = require_string_key(payload, "workspaceId")?;
+                let store = self.runtime_store.clone();
+                let links = self.host_links.clone();
+                self.spawn_deferred_request(client_id, request_id, async move {
+                    let (_, workspace) =
+                        super::host_link_routing::mirror_workspace(&store, &links, &workspace_id)
+                            .await?;
+                    Ok(workspace)
                 });
                 Ok(true)
             }
@@ -70,7 +83,7 @@ impl ServerActor {
                     .map(std::time::Duration::from_millis)
                     .unwrap_or(crate::terminal_host::host_link::DEFAULT_REQUEST_TIMEOUT);
                 let links = self.host_links.clone();
-                self.spawn_host_link_task(client_id, request_id, async move {
+                self.spawn_deferred_request(client_id, request_id, async move {
                     let link = links.link(&host_id).await?;
                     link.request_with_timeout(&forwarded_type, forwarded_payload, deadline)
                         .await
@@ -81,21 +94,6 @@ impl ServerActor {
                 "Unknown terminal host request: {request_type}"
             ))),
         }
-    }
-
-    fn spawn_host_link_task<F>(&self, client_id: u64, request_id: i64, task: F)
-    where
-        F: std::future::Future<Output = HostResult<Value>> + Send + 'static,
-    {
-        let inbox = self.inbox.clone();
-        tokio::spawn(async move {
-            let result = task.await;
-            let _ = inbox.send(ServerCommand::HostLinkRequestFinished {
-                client_id,
-                request_id,
-                result,
-            });
-        });
     }
 
     pub(super) fn finish_host_link_request(

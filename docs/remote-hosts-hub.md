@@ -46,11 +46,13 @@ The hub keeps at most one **host link** per SSH target: a single `ssh` child run
 
 ### Mirroring
 
-Before the hub asks a satellite to do anything for a workspace, it upserts the project and workspace through `hub.mirror.workspace` (payload: project, workspace, optional `repositoryPath`), which reuses the validation in `remote_workspace_owner::register` and stores the record with `hostId = local` on the satellite. Mirrored records are tagged in satellite metadata as hub-owned so satellite-side CLI fallbacks never treat them as authoritative. Removing or archiving a workspace on the hub sends `hub.mirror.retire`.
+Before the hub asks a satellite to do anything for a workspace, it registers the project and workspace there through `hub.mirror.workspace`. The payload is the `{project, workspace, repositoryPath?}` document the legacy `alera project owner-terminal --metadata-base64` command carried, built by `remote_owner_terminal_launch::satellite_registration` (project path = the checkout registered for that host, `repositoryPath` = the verified origin of a linked worktree), and the satellite runs it through the same `remote_workspace_owner::register` validation: it adopts the hub's project, workspace and instance ids, points the project at its local checkout, stores the workspace with `hostId = local`, and refuses to replace a record whose identity differs. The verb is idempotent and local-client-only on the satellite.
+
+On the hub, `server/host_link_routing.rs` is the entry point for every host-scoped verb: `remote_workspace` resolves a workspace and rejects local ones, and `mirror_workspace` opens or reuses the link, mirrors, and returns the link plus the satellite's copy of the record (whose `path` is canonical on that host). `hostLink.mirrorWorkspace {workspaceId}` exposes it directly so the CLI and tests can exercise the round trip. Retiring a remote workspace keeps going through the existing owner retirement flow (`workspace.removeShared` / `removeManaged` on the satellite with process-closure evidence); a `hub.mirror.retire` shortcut is not needed.
 
 ### Terminal proxy
 
-A `createOrAttach` for a remote workspace is forwarded to the satellite over the link instead of spawning `ssh -tt`. The satellite owns the PTY, injects the agent hook identity, samples resources, and runs Terminal Pulse. The hub keeps a `RemoteSession` entry keyed by the same `terminalSessionId`, relays `output`, `exit`, `error`, and resync events to its own clients through the existing per-client delivery queues, and forwards `write`, `resize`, `setOutputPaused`, `terminate`, and `terminal.read`. Backpressure is applied twice, once per hop, using the existing mechanisms. When a link drops, remote sessions stay alive on the satellite and are re-attached by id when the link returns.
+Remote terminals keep one `ssh -tt` channel per PTY, running `alera project owner-terminal` on the satellite. Multiplexing PTY bytes over the single link would frame every output chunk twice (satellite queue, then hub queue) for no gain, since OpenSSH already opens one channel per session; the link carries requests and events, the per-terminal channel carries the stream. What changed is where that terminal lives: `owner_command_script` now targets the satellite profile at `<installDir>/data` for every owner command (terminal, precheck, relocation, retirement), so the session is created in the same runtime the link attaches to and every satellite-side feature (agent hooks, resource sampling, Terminal Pulse, git and files in later phases) sees the same workspace and session records. The `owner-terminal` command starts the satellite runtime when none is running, and `runtime-attach` connects to it, so the two paths converge on one runtime per host.
 
 ### Host-scoped work
 
@@ -95,7 +97,7 @@ Every verb that needs the checkout's filesystem or tools is answered by the host
 
 ### Compatibility
 
-- Legacy owner-profile terminals keep working until their satellite is re-bootstrapped; the hub picks the link path only when the satellite advertises `remoteSatelliteV1`.
+- Per-project `owners/<sha256(projectId)>` profiles are no longer written. A workspace created before the switch has its sessions and retirement receipt in that profile, so `alera project owner-retire` looks the workspace up in the satellite profile first and falls back to the legacy profile next to it that knows the workspace and instance (`remote_owner_retirement::owning_state_dir`); a legacy runtime that stays idle shuts itself down through the normal empty-host delay. Opening a terminal on such a workspace mirrors it into the satellite and continues there.
 - Older hubs ignore the new fields; older satellites reject unknown verbs with the existing `unknown terminal host request` error, which the desktop maps to an "update the sidecar" message.
 
 ## Tasks
@@ -104,7 +106,7 @@ Every verb that needs the checkout's filesystem or tools is answered by the host
 | --- | --- | --- |
 | 0 | Plan document, `AleraHostOsIcon`, sidebar icon and alias tooltip, graph chip icon | Completed |
 | 1 | `alera runtime-attach --stdio` and hub `HostLink` / `HostLinkRegistry`; `hostLink.*` verbs, `hostLinkChanged`; capabilities `remoteHostLinkV1` and `remoteSatelliteV1`; CLI `ssh-target link`; Settings Host Link group | Completed |
-| 2 | Satellite mirror verbs and terminal proxy over the link; legacy fallback kept | Pending |
+| 2 | `hub.mirror.workspace` on the satellite, `host_link_routing` and `hostLink.mirrorWorkspace` on the hub, owner commands retargeted to the satellite profile, legacy owner-profile fallback for retirement | Completed |
 | 3 | Files write verbs, search, quick open over the link; desktop routing | Pending |
 | 4 | `git.*` verbs and `RuntimeGitBackend`; Source Control on remote workspaces | Pending |
 | 5 | `host.process.run`, `RemoteProcessRunner`, Pull Request and Open in Browser on remote; AI Assist and Watch and Fix routed by host | Pending |
@@ -116,8 +118,8 @@ Every verb that needs the checkout's filesystem or tools is answered by the host
 
 ## Tests
 
-- Rust unit tests for every remote command builder on both shells, the link framing and reconnect logic, the mirror validation, the forwarding decision (`WorkspaceHost`), and the satellite request forwarding policy.
-- Rust integration tests that run two runtime hosts in one process connected through an in-process pipe standing in for `ssh`, covering terminal proxy, files, git, and process verbs.
+- Rust unit tests for every remote command builder on both shells, the link framing and reconnect logic, the mirror validation, the forwarding decision (`host_link_routing::remote_workspace`), and the satellite request forwarding policy.
+- Rust integration tests that run two runtime hosts (hub and satellite) with an `ssh` script that executes the remote command locally, so the hub's real launcher, the sidecar `bin/alera` wrapper and `runtime-attach` are all exercised (`tests/terminal_host_headless_runtime/host_link_mirror_case.rs`); later phases add files, git, and process verbs to that harness.
 - Dart unit tests for `RuntimeGitBackend`, `RemoteProcessRunner`, `gitBackendForWorkspace`, host icon resolution, and the project checkout model; widget tests for the sidebar icon and tooltip, the Hosts dialog, and the New Workspace picker.
 - Real-machine acceptance from the Linux hub against the macOS and Windows targets: create workspace, terminal, agent launch with status, edit and save a file, stage and commit, open the pull request panel, search, and `alera workspace list` from inside the remote terminal.
 
@@ -138,3 +140,4 @@ Updated as work lands. Only rows marked Completed describe implemented behavior.
 | Decisions | Hub topology, persistent link, auto-clone registration, remote-only projects, remote-only icon, hub-forwarded CLI | Completed |
 | Phase 0 | `AleraHostOsIcon` (Apple, Windows, Linux) in the sidebar workspace row, host picker and Remote Hosts list; alias tooltip | Completed |
 | Phase 1 | Host link: `runtime-attach --stdio`, `HostLink` / `HostLinkRegistry`, `hostLink.*` verbs and events, capabilities, CLI and Settings surface. Verified with unit tests (both remote shells, framing, error shapes, registry states), a fake-satellite link round trip, and a binary conformance test that attaches to a real local runtime host | Completed |
+| Phase 2 | Satellite mirror (`hub.mirror.workspace`), hub routing (`host_link_routing`, `hostLink.mirrorWorkspace`), all owner commands on the satellite profile `<installDir>/data`, retirement fallback to legacy `owners/` profiles. Verified with a two-runtime headless test that mirrors over a real link (idempotent, satellite record visible, unknown workspace rejected, link reported attached with the satellite's runtime dir), the owner terminal and home retirement headless cases on the shared profile, and a unit test for the legacy fallback | Completed |

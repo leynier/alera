@@ -133,6 +133,7 @@ mod deferred_requests;
 mod deferred_workspace_lifecycle;
 mod deferred_workspace_setup;
 mod host_link_requests;
+mod host_link_routing;
 mod host_service_agent_quota;
 mod host_service_requests;
 mod host_status;
@@ -202,6 +203,7 @@ mod runtime_change_broadcasts;
 mod runtime_mutation_barrier;
 mod runtime_mutation_queue;
 mod runtime_mutations;
+mod satellite_mirror_requests;
 mod server_command;
 #[path = "server_runner.rs"]
 mod server_runner;
