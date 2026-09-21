@@ -51,7 +51,14 @@ abstract interface class ForgeProvider {
 
   /// Reports whether the provider's CLI is installed and authenticated for the
   /// host in [identity]. Never throws.
-  Future<ForgeAuthStatus> checkAuth({required GitRemoteIdentity identity});
+  ///
+  /// [repoPath] is the checkout the answer is for. The CLI and its credentials
+  /// belong to the host that owns that checkout, so the probe runs there; with
+  /// no path it runs on this machine.
+  Future<ForgeAuthStatus> checkAuth({
+    required GitRemoteIdentity identity,
+    String? repoPath,
+  });
 
   /// The open review whose source branch is [branch], or null when the branch
   /// has no open review. [repoPath] is the local checkout used as the CLI

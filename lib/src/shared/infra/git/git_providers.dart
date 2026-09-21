@@ -21,17 +21,11 @@ part 'git_providers.g.dart';
 @Riverpod(keepAlive: true)
 GitBackend gitBackend(Ref ref) {
   final remoteBackends = <String, RuntimeGitBackend>{};
-  WorkbenchState? indexedState;
-  var index = const RemoteCheckoutIndex.empty();
+  final remoteWorkspaceIdFor = ref.read(remoteWorkspacePathResolverProvider);
   return HostRoutedGitBackend(
     local: const RustGitBackend(),
     remoteFor: (path) {
-      final state = ref.read(workbenchControllerProvider);
-      if (!identical(state, indexedState)) {
-        indexedState = state;
-        index = remoteCheckoutIndexFor(state);
-      }
-      final workspaceId = index.remoteWorkspaceIdFor(path);
+      final workspaceId = remoteWorkspaceIdFor(path);
       if (workspaceId == null) {
         return null;
       }
@@ -45,6 +39,28 @@ GitBackend gitBackend(Ref ref) {
       );
     },
   );
+}
+
+/// The id of the remote workspace whose checkout contains a path, or null when
+/// the path is local. Git and workspace-scoped processes route through the
+/// same answer, so a checkout can never be local to one and remote to the
+/// other.
+typedef RemoteWorkspacePathResolver = String? Function(String path);
+
+/// Reads the workbench state lazily, for the reason given on [gitBackend], and
+/// rebuilds the index only when that state object changes.
+@Riverpod(keepAlive: true)
+RemoteWorkspacePathResolver remoteWorkspacePathResolver(Ref ref) {
+  WorkbenchState? indexedState;
+  var index = const RemoteCheckoutIndex.empty();
+  return (path) {
+    final state = ref.read(workbenchControllerProvider);
+    if (!identical(state, indexedState)) {
+      indexedState = state;
+      index = remoteCheckoutIndexFor(state);
+    }
+    return index.remoteWorkspaceIdFor(path);
+  };
 }
 
 /// Remote checkouts come from remote workspaces; local roots are every local

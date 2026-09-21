@@ -262,7 +262,7 @@ fn git_path(workspace: &Workspace, payload: &Value) -> HostResult<String> {
     )))
 }
 
-fn path_is_within(root: &str, candidate: &str) -> bool {
+pub(super) fn path_is_within(root: &str, candidate: &str) -> bool {
     let root_components = normalized_components(root);
     let candidate_components = normalized_components(candidate);
     candidate_components.len() >= root_components.len()

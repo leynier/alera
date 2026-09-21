@@ -22,6 +22,10 @@ pub const RUNTIME_HOST_REMOTE_SATELLITE_CAPABILITY: &str = "remoteSatelliteV1";
 /// `git.*`: the desktop `GitBackend` surface served for a workspace on this
 /// host and forwarded by the hub over the host link. Additive.
 pub const RUNTIME_HOST_REMOTE_GIT_CAPABILITY: &str = "remoteGitV1";
+
+/// `host.process.run` for a workspace on another host, forwarded over its
+/// link. Local clients only.
+pub const RUNTIME_HOST_REMOTE_PROCESS_CAPABILITY: &str = "remoteProcessV1";
 pub const RUNTIME_HOST_MOBILE_CAPABILITY: &str = "mobileCompanionAccess";
 pub const RUNTIME_HOST_MOBILE_NETBIRD_CAPABILITY: &str = "mobileNetBirdGatewayV1";
 pub const RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY: &str = "workspaceSectionsV1";

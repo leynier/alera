@@ -16,6 +16,13 @@ impl ServerActor {
         payload: &Value,
     ) -> HostResult<bool> {
         self.require_shared_checkout_support(client_id, request_type)?;
+        self.refuse_hub_only_payload_fields(client_id, payload)?;
+        if self
+            .try_start_remote_ai_assist(client_id, request_id, request_type, payload)
+            .await?
+        {
+            return Ok(true);
+        }
         if self
             .try_start_remote_terminal_lifecycle(client_id, request_id, request_type, payload)
             .await?
@@ -188,7 +195,9 @@ impl ServerActor {
                 )?;
                 Ok(true)
             }
-            verb if super::workspace_git_requests::is_workspace_git_verb(verb) => {
+            verb if super::workspace_git_requests::is_workspace_git_verb(verb)
+                || verb == super::host_process_requests::HOST_PROCESS_RUN =>
+            {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 self.start_mobile_workspace_file_request(

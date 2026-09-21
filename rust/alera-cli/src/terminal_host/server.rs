@@ -119,6 +119,8 @@ mod owner_terminal_lifecycle;
 mod owner_terminal_natural_exit;
 mod project_checkout_file_requests;
 mod project_checkout_requests;
+mod remote_ai_assist_requests;
+mod remote_pull_request_routing;
 mod remote_recovery_requests;
 #[cfg(test)]
 mod remote_relocation_terminal_restore_tests;
@@ -134,6 +136,7 @@ mod deferred_workspace_lifecycle;
 mod deferred_workspace_setup;
 mod host_link_requests;
 mod host_link_routing;
+mod host_process_requests;
 mod host_service_agent_quota;
 mod host_service_requests;
 mod host_status;

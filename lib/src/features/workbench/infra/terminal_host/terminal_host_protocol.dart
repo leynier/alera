@@ -62,6 +62,12 @@ const String aleraRuntimeHostRemoteHostLinkCapability = 'remoteHostLinkV1';
 /// history and the explorer badges work on a remote checkout. Additive: do
 /// not bump [aleraTerminalHostProtocolVersion].
 const String aleraRuntimeHostRemoteGitCapability = 'remoteGitV1';
+
+/// The runtime runs a tool for a workspace on the host that owns its checkout
+/// (`host.process.run`), which is how the forge CLIs reach a remote checkout.
+/// Local clients only. Additive: do not bump
+/// [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostRemoteProcessCapability = 'remoteProcessV1';
 const String aleraRuntimeHostOrchestrationCapability = 'orchestration';
 const String aleraRuntimeHostAccountCapability = 'aleraAccountV1';
 const String aleraRuntimeHostConfigurationSyncCapability =

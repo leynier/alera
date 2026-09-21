@@ -64,8 +64,10 @@ pub(crate) async fn mirror_workspace(
 /// workspaces so one satellite implementation serves both.
 pub(crate) fn is_host_scoped_workspace_verb(request_type: &str) -> bool {
     request_type.starts_with("workspace.files.")
+        || request_type == super::host_process_requests::HOST_PROCESS_RUN
         || request_type.starts_with("git.")
         || request_type.starts_with("mobile.git.")
+        || super::remote_pull_request_routing::is_forwarded_pull_request_verb(request_type)
         || matches!(
             request_type,
             "mobile.workspaceFile.read"
@@ -145,13 +147,30 @@ pub(crate) async fn forward_workspace_scoped_request(
         }
         Err(error) => return Err(error),
     };
+    let pull_request =
+        super::remote_pull_request_routing::is_forwarded_pull_request_verb(request_type);
+    let forwarded = if pull_request {
+        super::remote_pull_request_routing::hub_pull_request_payload(store, workspace_id, payload)
+            .await?
+    } else {
+        payload.clone()
+    };
     let value = link
         .request_with_timeout(
             request_type,
-            payload.clone(),
+            forwarded,
             forwarded_request_timeout(request_type),
         )
         .await?;
+    if pull_request {
+        super::remote_pull_request_routing::adopt_satellite_linked_review(
+            store,
+            workspace_id,
+            request_type,
+            &value,
+        )
+        .await;
+    }
     if request_type == "mobile.workspaceQuickOpen.start" {
         if let Some(session_id) = value.get("sessionId").and_then(Value::as_str) {
             links.note_remote_session(session_id, &workspace.host_id);
@@ -163,6 +182,11 @@ pub(crate) async fn forward_workspace_scoped_request(
 /// Network git verbs wait on the remote's credential helper and transfer, so
 /// they get the same budget mobile gives its own fetch, pull and push.
 fn forwarded_request_timeout(request_type: &str) -> std::time::Duration {
+    if request_type == super::host_process_requests::HOST_PROCESS_RUN {
+        // The satellite enforces its own budget per request; the link waits
+        // long enough to hear about it rather than racing it.
+        return super::host_process_requests::MAX_TIMEOUT + std::time::Duration::from_secs(30);
+    }
     match request_type {
         "git.fetch"
         | "git.pull"
@@ -171,7 +195,9 @@ fn forwarded_request_timeout(request_type: &str) -> std::time::Duration {
         | "mobile.git.fetch"
         | "mobile.git.pull"
         | "mobile.git.push"
-        | "mobile.git.sync" => std::time::Duration::from_secs(5 * 60),
+        | "mobile.git.sync"
+        | "mobile.pullRequest.create"
+        | "mobile.pullRequest.ship" => std::time::Duration::from_secs(5 * 60),
         _ => crate::terminal_host::host_link::DEFAULT_REQUEST_TIMEOUT,
     }
 }

@@ -175,6 +175,9 @@ async fn handle_mobile_workspace_file_request(
             )
             .await
         }
+        super::host_process_requests::HOST_PROCESS_RUN => {
+            super::host_process_requests::handle_host_process_run(&runtime_store, payload).await
+        }
         "mobile.workspaceSearch.run"
         | "mobile.workspaceSearch.replace"
         | "mobile.workspaceSearch.cancel" => {
