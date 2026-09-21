@@ -34,7 +34,7 @@ final class WorkspacePullRequestSummariesControllerProvider
   }) : super(
          retry: null,
          name: r'workspacePullRequestSummariesControllerProvider',
-         isAutoDispose: true,
+         isAutoDispose: false,
          dependencies: null,
          $allTransitiveDependencies: null,
        );
@@ -68,7 +68,7 @@ final class WorkspacePullRequestSummariesControllerProvider
 }
 
 String _$workspacePullRequestSummariesControllerHash() =>
-    r'475e8314446cb97608de5e5e9687dd87c4ffac51';
+    r'33ea000bb88e7605e9013a70946e4da3e3bdef88';
 
 /// Every workspace row indicator on one host. Refreshed when the runtime
 /// reports topology or link changes; a transient failure keeps the last
@@ -89,7 +89,7 @@ final class WorkspacePullRequestSummariesControllerFamily extends $Family
         name: r'workspacePullRequestSummariesControllerProvider',
         dependencies: null,
         $allTransitiveDependencies: null,
-        isAutoDispose: true,
+        isAutoDispose: false,
       );
 
   /// Every workspace row indicator on one host. Refreshed when the runtime

@@ -1,25 +1,17 @@
-//! Compact per-workspace pull-request summaries for the mobile workspace
-//! list, `mobile.pullRequest.summaries`.
+//! Compact per-workspace pull-request summaries for the mobile workspace list.
 //!
-//! One GraphQL batch per repository, the same query the desktop forge layer
-//! runs (`github_review_batch.dart`): branch lookups are open-only, linked
-//! numbers are fetched by number, and the check rollup rides along so the
-//! whole list costs one `gh` invocation per project. Check counting mirrors
-//! `WorkspacePullRequestSummary.fromChecks` so a phone row and a desktop row
-//! describe the same review identically.
-//!
-//! The response carries `eligibleWorkspaceIds` (every workspace considered)
-//! and `evaluatedWorkspaceIds` (the groups whose batch completed) so the
-//! phone merges like the desktop monitor: a failed `gh` batch leaves the
-//! previous icons in place instead of reading as "these workspaces have no
-//! PR", while an evaluated workspace with no review clears its stale icon. A
-//! repository without a GitHub remote is a quiet empty group, never a warned
-//! failure, because mobile pull requests are GitHub-only by design.
+//! One GraphQL batch per repository (`github_review_batch.dart` shape): open
+//! branch lookups, linked numbers, and the check rollup. Project batches run
+//! concurrently so a slow `gh` in one repo cannot starve the rest of the list
+//! past the phone's two-minute timeout. A failed batch stays out of
+//! `evaluatedWorkspaceIds` so the phone keeps last-known icons. Non-GitHub
+//! remotes are a quiet empty group.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use alera_core::git as core_git;
 use alera_core::runtime::{ProjectKind, RuntimeStore, Workspace, WorkspaceStatus};
+use futures_util::future::join_all;
 use serde_json::{json, Value};
 use tracing::warn;
 
@@ -45,39 +37,45 @@ pub(super) async fn load_mobile_pull_request_summaries(
         .map(|project| project.id.clone())
         .collect::<Vec<_>>();
 
-    let mut by_project = BTreeMap::<&str, Vec<&Workspace>>::new();
-    for workspace in &workspaces {
+    let mut by_project = BTreeMap::<String, Vec<Workspace>>::new();
+    for workspace in workspaces {
         if workspace.status != WorkspaceStatus::Active {
             continue;
         }
         if !git_project_ids.contains(&workspace.project_id) {
             continue;
         }
-        let branch = workspace.branch.as_deref().unwrap_or("").trim();
-        if branch.is_empty() || branch == "HEAD" {
-            continue;
-        }
         by_project
-            .entry(workspace.project_id.as_str())
+            .entry(workspace.project_id.clone())
             .or_default()
             .push(workspace);
     }
 
+    let store = runtime_store.clone();
+    let jobs = by_project.into_iter().filter_map(|(project_id, group)| {
+        let repo_path = projects
+            .iter()
+            .find(|project| project.id == project_id)
+            .map(|project| project.repo_path.clone())?;
+        Some((project_id, repo_path, group))
+    });
+    let results = join_all(jobs.map(|(project_id, repo_path, group)| {
+        let store = store.clone();
+        async move {
+            let result = pull_request_summaries_for_project(&store, &repo_path, &group).await;
+            (project_id, group, result)
+        }
+    }))
+    .await;
+
     let mut summaries = Vec::<Value>::new();
     let mut eligible = BTreeSet::<String>::new();
     let mut evaluated = BTreeSet::<String>::new();
-    for (project_id, group) in by_project {
+    for (project_id, group, result) in results {
         for workspace in &group {
             eligible.insert(workspace.id.clone());
         }
-        let Some(repo_path) = projects
-            .iter()
-            .find(|project| project.id == project_id)
-            .map(|project| project.repo_path.clone())
-        else {
-            continue;
-        };
-        match pull_request_summaries_for_project(runtime_store, &repo_path, &group).await {
+        match result {
             Ok(mut project_summaries) => {
                 summaries.append(&mut project_summaries);
                 for workspace in &group {
@@ -85,14 +83,7 @@ pub(super) async fn load_mobile_pull_request_summaries(
                 }
             }
             Err(error) => {
-                // A failed batch must not read as "these workspaces have no
-                // PR": the group stays out of `evaluatedWorkspaceIds` so the
-                // phone keeps its last-known icons and retries on the next
-                // refresh, like the desktop monitor preserving `previous`.
-                warn!(
-                    "could not load mobile pull request summaries for {}: {error}",
-                    project_id
-                );
+                warn!("could not load mobile pull request summaries for {project_id}: {error}");
             }
         }
     }
@@ -115,10 +106,32 @@ fn summaries_envelope(
     })
 }
 
+async fn workspace_lookup_branch(workspace: &Workspace) -> Option<String> {
+    if let Some(branch) = resolved_workspace_branch(workspace.branch.as_deref(), None) {
+        return Some(branch);
+    }
+    let path = workspace.path.clone();
+    let live = tokio::task::spawn_blocking(move || core_git::current_branch(&path).ok())
+        .await
+        .ok()
+        .flatten();
+    resolved_workspace_branch(None, live.as_deref())
+}
+
+fn resolved_workspace_branch(stored: Option<&str>, live: Option<&str>) -> Option<String> {
+    for candidate in [stored, live] {
+        let branch = candidate.unwrap_or("").trim();
+        if !branch.is_empty() && branch != "HEAD" {
+            return Some(branch.to_string());
+        }
+    }
+    None
+}
+
 async fn pull_request_summaries_for_project(
     runtime_store: &RuntimeStore,
     repo_path: &str,
-    group: &[&Workspace],
+    group: &[Workspace],
 ) -> HostResult<Vec<Value>> {
     let remote_url = {
         let repo_path = repo_path.to_string();
@@ -130,15 +143,13 @@ async fn pull_request_summaries_for_project(
     };
     let identity = remote_url.as_deref().and_then(parse_github_identity);
     let Some(identity) = identity else {
-        // Mobile pull requests are GitHub-only, so a non-GitHub remote is a
-        // quiet empty group: these rows genuinely have nothing to show, and
-        // warning here would spam every refresh.
         return Ok(Vec::new());
     };
 
     let mut linked_numbers = BTreeMap::<&str, Option<i64>>::new();
     let mut dismissed_numbers = BTreeMap::<&str, Option<i64>>::new();
-    let mut branches = Vec::<&str>::new();
+    let mut head_branches = BTreeMap::<&str, String>::new();
+    let mut branches = Vec::<String>::new();
     let mut review_numbers = Vec::<i64>::new();
     for workspace in group {
         let linked = runtime_store
@@ -149,25 +160,33 @@ async fn pull_request_summaries_for_project(
             .as_ref()
             .filter(|review| !review.dismissed)
             .and_then(|review| review.number);
-        if let Some(number) = number {
-            review_numbers.push(number);
-        } else {
-            branches.push(workspace.branch.as_deref().unwrap_or(""));
-        }
         let dismissed = linked
             .filter(|review| review.dismissed)
             .and_then(|review| review.number);
+        let branch = workspace_lookup_branch(workspace).await;
+        if let Some(number) = number {
+            review_numbers.push(number);
+        } else if let Some(branch) = branch.as_ref() {
+            branches.push(branch.clone());
+        } else {
+            continue;
+        }
         linked_numbers.insert(workspace.id.as_str(), number);
         dismissed_numbers.insert(workspace.id.as_str(), dismissed);
+        head_branches.insert(workspace.id.as_str(), branch.unwrap_or_default());
     }
 
-    let batch = graphql_review_batch(repo_path, &identity, &branches, &review_numbers).await?;
+    let branch_refs = branches.iter().map(String::as_str).collect::<Vec<_>>();
+    let batch = graphql_review_batch(repo_path, &identity, &branch_refs, &review_numbers).await?;
     let mut summaries = Vec::<Value>::new();
     for workspace in group {
+        let Some(head_branch) = head_branches.get(workspace.id.as_str()) else {
+            continue;
+        };
         let snapshot = summary_snapshot(
             linked_numbers[workspace.id.as_str()],
             dismissed_numbers[workspace.id.as_str()],
-            workspace.branch.as_deref().unwrap_or(""),
+            head_branch,
             &batch,
         );
         let Some(snapshot) = snapshot else {

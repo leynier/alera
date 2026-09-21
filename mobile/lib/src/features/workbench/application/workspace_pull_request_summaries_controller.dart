@@ -8,7 +8,7 @@ part 'workspace_pull_request_summaries_controller.g.dart';
 /// Every workspace row indicator on one host. Refreshed when the runtime
 /// reports topology or link changes; a transient failure keeps the last
 /// snapshot so the rows do not blink empty between polls.
-@riverpod
+@Riverpod(keepAlive: true)
 class WorkspacePullRequestSummariesController
     extends _$WorkspacePullRequestSummariesController {
   static const Set<String> _refreshEvents = <String>{
