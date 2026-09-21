@@ -195,6 +195,19 @@ impl HostLinkRegistry {
         }
     }
 
+    /// Hosts with a live link right now. Callers that only want to use a link
+    /// that already exists (periodic polls) start here instead of `link`, which
+    /// would open one.
+    pub(crate) fn attached_host_ids(&self) -> Vec<String> {
+        self.hosts
+            .lock()
+            .expect("host link registry poisoned")
+            .iter()
+            .filter(|(_, slot)| Self::live_link(slot).is_some())
+            .map(|(host_id, _)| host_id.clone())
+            .collect()
+    }
+
     /// `hostLink.status` payload: every host the registry has seen.
     pub(crate) fn snapshot(&self) -> Value {
         let ids: Vec<String> = self

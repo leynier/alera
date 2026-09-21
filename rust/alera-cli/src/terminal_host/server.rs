@@ -119,11 +119,13 @@ mod owner_terminal_lifecycle;
 mod owner_terminal_natural_exit;
 mod project_checkout_file_requests;
 mod project_checkout_requests;
+mod remote_agent_presence_relay;
 mod remote_ai_assist_requests;
 mod remote_pull_request_routing;
 mod remote_recovery_requests;
 #[cfg(test)]
 mod remote_relocation_terminal_restore_tests;
+mod remote_resource_relay;
 mod remote_setup_requests;
 mod remote_terminal_lifecycle;
 pub(crate) mod shared_checkout_compatibility;
@@ -625,6 +627,10 @@ impl ServerActor {
             ServerCommand::HostLinkEvent { host_id, event } => {
                 self.handle_host_link_event(host_id, event)
             }
+            ServerCommand::RemoteAgentPresenceListed { host_id, result } => {
+                self.finish_remote_agent_presence_sync(host_id, result)
+                    .await
+            }
             ServerCommand::HostLinkClosed { host_id, error } => {
                 self.handle_host_link_closed(host_id, error)
             }
@@ -844,6 +850,9 @@ impl ServerActor {
             ServerCommand::ResourceSampleTick => self.handle_resource_sample_tick(),
             ServerCommand::ResourceSampleReady { snapshot } => {
                 self.handle_resource_sample_ready(snapshot)
+            }
+            ServerCommand::RemoteResourceSnapshot { host_id, result } => {
+                self.finish_remote_resource_sample(host_id, result)
             }
             ServerCommand::PullRequestWatchTick => self.poll_pull_request_watches().await,
             ServerCommand::PullRequestWatchSnapshot {

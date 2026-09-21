@@ -113,6 +113,10 @@ impl ServerActor {
 
     pub(super) fn handle_host_link_state_changed(&mut self, host_id: String) {
         let payload = link_state_payload(&self.host_links, &host_id);
+        // Whatever changed while the link was down is read once it is back.
+        if payload.get("state").and_then(Value::as_str) == Some("attached") {
+            self.start_remote_agent_presence_sync(&host_id);
+        }
         self.broadcast_authenticated_local(event(HOST_LINK_CHANGED_EVENT, payload));
     }
 
@@ -130,6 +134,7 @@ impl ServerActor {
             return;
         };
         let payload = frame.get("payload").cloned().unwrap_or(Value::Null);
+        self.relay_host_link_event(&host_id, name, &payload);
         self.broadcast_authenticated_local(event(
             HOST_LINK_EVENT,
             json!({ "hostId": host_id, "event": name, "payload": payload }),

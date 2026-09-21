@@ -26,6 +26,11 @@ pub const RUNTIME_HOST_REMOTE_GIT_CAPABILITY: &str = "remoteGitV1";
 /// `host.process.run` for a workspace on another host, forwarded over its
 /// link. Local clients only.
 pub const RUNTIME_HOST_REMOTE_PROCESS_CAPABILITY: &str = "remoteProcessV1";
+
+/// The runtime re-publishes each agent hook it receives as the local-only
+/// `agentHookEvent`, so a hub can run its own status, title and resume
+/// pipeline for the terminals it proxies to this host. Additive.
+pub const RUNTIME_HOST_REMOTE_AGENT_HOOK_RELAY_CAPABILITY: &str = "remoteAgentHookRelayV1";
 pub const RUNTIME_HOST_MOBILE_CAPABILITY: &str = "mobileCompanionAccess";
 pub const RUNTIME_HOST_MOBILE_NETBIRD_CAPABILITY: &str = "mobileNetBirdGatewayV1";
 pub const RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY: &str = "workspaceSectionsV1";

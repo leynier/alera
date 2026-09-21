@@ -62,6 +62,20 @@ fn hub_runs_processes_and_pull_request_reads_on_the_satellite() {
         "{outside}"
     );
 
+    // The satellite says what it can do when it attaches; the hub reads these
+    // to decide between relayed hooks and the presence list.
+    let status = request("hostLink.status", json!({}));
+    assert_eq!(status["ok"], true, "{status}");
+    let capabilities = status["payload"]["links"][0]["attachment"]["runtimeCapabilities"]
+        .as_array()
+        .unwrap_or_else(|| panic!("{status}"));
+    for capability in ["remoteProcessV1", "remoteAgentHookRelayV1"] {
+        assert!(
+            capabilities.iter().any(|value| value == capability),
+            "{capability} missing from {status}"
+        );
+    }
+
     // The hub owns the linked review; the satellite answers with the record
     // the hub sent rather than one of its own.
     let now = chrono::Utc::now();

@@ -134,6 +134,11 @@ pub enum ServerCommand {
         host_id: String,
         event: Value,
     },
+    /// A satellite answered the hub's read of its agent presence list.
+    RemoteAgentPresenceListed {
+        host_id: String,
+        result: HostResult<Value>,
+    },
     /// The ssh pipe behind a host link ended.
     HostLinkClosed {
         host_id: String,
@@ -303,6 +308,11 @@ pub enum ServerCommand {
     /// A finished sweep coming back from its blocking thread.
     ResourceSampleReady {
         snapshot: Value,
+    },
+    /// A satellite answered the hub's resource poll.
+    RemoteResourceSnapshot {
+        host_id: String,
+        result: HostResult<Value>,
     },
     /// Wakes the durable automation scheduler to evaluate due occurrences.
     PullRequestWatchTick,
