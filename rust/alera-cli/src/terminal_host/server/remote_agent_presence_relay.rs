@@ -78,6 +78,47 @@ impl ServerActor {
         });
     }
 
+    /// Which agents report status is a hub setting, but it is the satellite
+    /// that installs an agent's hooks and gives a terminal the hook endpoint,
+    /// and it only does so for the agents its own settings enable. A satellite
+    /// starts with every agent off, so without this a remote agent never
+    /// reports at all. Sent when a link attaches and whenever the hub's
+    /// setting changes.
+    pub(super) fn push_agent_hook_settings_to_satellite(&self, host_id: &str) {
+        let store = self.runtime_store.clone();
+        let links = self.host_links.clone();
+        let host_id = host_id.to_string();
+        tokio::spawn(async move {
+            let Ok(settings) = store.agent_status_hook_settings().await else {
+                return;
+            };
+            let Ok(link) = links.link(&host_id).await else {
+                return;
+            };
+            if let Err(error) = link
+                .request_with_timeout(
+                    "runtimeSettings.update",
+                    json!({ "agentStatusHooks": settings }),
+                    crate::terminal_host::host_link::DEFAULT_REQUEST_TIMEOUT,
+                )
+                .await
+            {
+                tracing::warn!(
+                    target: "host_link",
+                    host_id,
+                    "could not send agent status settings to the remote host: {}",
+                    error.wire_message()
+                );
+            }
+        });
+    }
+
+    pub(super) fn push_agent_hook_settings_to_satellites(&self) {
+        for host_id in self.host_links.attached_host_ids() {
+            self.push_agent_hook_settings_to_satellite(&host_id);
+        }
+    }
+
     pub(super) fn relay_host_link_event(&self, host_id: &str, event_name: &str, payload: &Value) {
         match event_name {
             AGENT_HOOK_EVENT => {

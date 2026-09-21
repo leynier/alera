@@ -115,6 +115,7 @@ impl ServerActor {
         let payload = link_state_payload(&self.host_links, &host_id);
         // Whatever changed while the link was down is read once it is back.
         if payload.get("state").and_then(Value::as_str) == Some("attached") {
+            self.push_agent_hook_settings_to_satellite(&host_id);
             self.start_remote_agent_presence_sync(&host_id);
         }
         self.broadcast_authenticated_local(event(HOST_LINK_CHANGED_EVENT, payload));

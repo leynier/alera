@@ -76,6 +76,33 @@ fn hub_runs_processes_and_pull_request_reads_on_the_satellite() {
         );
     }
 
+    // Which agents report status is a hub setting, but the satellite is what
+    // wires hooks into a terminal, and it starts with every agent off.
+    let configured = request(
+        "runtimeSettings.update",
+        json!({"agentStatusHooks": {"claude": true, "codex": true}}),
+    );
+    assert_eq!(configured["ok"], true, "{configured}");
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+    loop {
+        let settings = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            RuntimeStore::open(&fixture.satellite)
+                .await
+                .unwrap()
+                .agent_status_hook_settings()
+                .await
+                .unwrap()
+        });
+        if settings.claude && settings.codex && !settings.cursor {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the satellite never received the hub's agent status settings: {settings:?}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
+
     // The hub owns the linked review; the satellite answers with the record
     // the hub sent rather than one of its own.
     let now = chrono::Utc::now();
