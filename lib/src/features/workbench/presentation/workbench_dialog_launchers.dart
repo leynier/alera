@@ -13,6 +13,7 @@ import 'package:alera/src/features/linked_issues/domain/issue_details.dart';
 import 'package:alera/src/features/projects/application/project_hosts_providers.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_host_enrollment.dart';
+import 'package:alera/src/features/projects/presentation/add_remote_project_dialog.dart';
 import 'package:alera/src/features/projects/presentation/project_host_enrollment_controller.dart';
 import 'package:alera/src/features/projects/presentation/project_hosts_dialog.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
@@ -21,7 +22,9 @@ import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog.dart';
 import 'package:alera/src/features/workbench/application/background_setup_jobs.dart';
+import 'package:alera/src/features/workbench/application/prompt_workspace_branch_checks.dart';
 import 'package:alera/src/features/workbench/domain/background_setup_job.dart';
+import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/presentation/create_workspace_dialog.dart';
@@ -37,6 +40,7 @@ import 'package:uuid/uuid.dart';
 
 part 'workbench_dialog_launchers_create_workspace.dart';
 part 'workbench_dialog_launchers_project_hosts.dart';
+part 'workbench_dialog_launchers_remote_project.dart';
 
 /// Shared dialog flows for project/workspace creation and settings.
 ///
@@ -95,7 +99,8 @@ Future<String?> showRenameDialog(
   );
 }
 
-/// Opens the add-project dialog and runs the chosen local-folder or clone flow.
+/// Opens the add-project dialog and runs the chosen local-folder, clone, or
+/// remote-project flow.
 Future<void> showAddProjectFlow(
   BuildContext context,
   WidgetRef ref, {
@@ -109,12 +114,15 @@ Future<void> showAddProjectFlow(
   try {
     result = await showDialog<AddProjectResult>(
       context: context,
-      builder: (_) => AddProjectDialog(
-        startOnClone: retryClone != null,
-        initialGitUrl: retryClone?.gitUrl,
-        initialDestinationPath: retryClone?.destinationPath,
-        initialName: retryClone?.name,
-        initialError: retryError,
+      builder: (_) => Consumer(
+        builder: (context, ref, _) => AddProjectDialog(
+          startOnClone: retryClone != null,
+          initialGitUrl: retryClone?.gitUrl,
+          initialDestinationPath: retryClone?.destinationPath,
+          initialName: retryClone?.name,
+          initialError: retryError,
+          remoteProjectAvailable: _remoteProjectAvailable(ref),
+        ),
       ),
     );
     if (result is CloneProjectResult) {
@@ -128,6 +136,9 @@ Future<void> showAddProjectFlow(
           jobId: retryJobId,
         ),
       );
+    }
+    if (result is AddRemoteProjectResult && context.mounted) {
+      await showAddRemoteProjectFlow(context, ref);
     }
   } finally {
     jobs.endForm();

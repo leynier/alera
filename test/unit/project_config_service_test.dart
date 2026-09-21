@@ -48,6 +48,36 @@ void main() {
       expect(effective.config.worktree.setup, <String>['ui']);
     });
 
+    test(
+      'a remote-only project never reads a repo file on this device',
+      () async {
+        fileStore.config = const ProjectConfig(
+          worktree: WorktreeSetupConfig(setup: <String>['local-lookalike']),
+        );
+        final remoteOnly = project.copyWith(primaryHostId: 'ssh-box');
+
+        expect(await service.loadRepoFile(remoteOnly), isNull);
+        final effective = await service.resolve(remoteOnly);
+        expect(effective.origin, ProjectConfigOrigin.none);
+        expect(effective.hasError, isFalse);
+
+        // A broken file at the same local path is not this project's either.
+        fileStore.error = ProjectConfigException('Invalid alera.toml');
+        expect((await service.resolve(remoteOnly)).hasError, isFalse);
+
+        await service.saveUiOverride(
+          projectId: remoteOnly.id,
+          config: const ProjectConfig(
+            worktree: WorktreeSetupConfig(setup: <String>['ui']),
+          ),
+        );
+        expect(
+          (await service.resolve(remoteOnly)).origin,
+          ProjectConfigOrigin.uiOverride,
+        );
+      },
+    );
+
     test('falls back to repo file after removing UI override', () async {
       fileStore.config = const ProjectConfig(
         worktree: WorktreeSetupConfig(setup: <String>['repo']),

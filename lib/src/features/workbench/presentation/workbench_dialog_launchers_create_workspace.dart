@@ -181,11 +181,7 @@ Future<void> _showCreateWorkspaceDialogs(
       },
       loadBranches: controller.listSourceBranches,
       loadHostBranchCatalog: controller.loadHostBranchCatalog,
-      checkBranchExists: (project, branchName) {
-        return ref
-            .read(gitBackendProvider)
-            .branchExists(project.repoPath, branchName);
-      },
+      checkBranchExists: _projectBranchCheck(ref, controller),
       workspaceBranches: (project) {
         return ref
             .read(workbenchControllerProvider)
@@ -317,10 +313,7 @@ Widget _buildManualWorkspaceForm(
           .where((branch) => branch.isNotEmpty)
           .toSet();
     },
-    checkBranchExists: (project, branchName) async {
-      final gitBackend = ref.read(gitBackendProvider);
-      return gitBackend.branchExists(project.repoPath, branchName);
-    },
+    checkBranchExists: _projectBranchCheck(ref, controller),
     onCreateWorkspace:
         ({
           required project,
@@ -368,6 +361,21 @@ Future<String?> Function(Project project) _loadPreferredSourceBranch(
       return null;
     }
   };
+}
+
+/// Whether a branch exists in the project's own repository. The dialogs only
+/// fall back to this without a host branch catalog, and a project that lives
+/// only on a server is asked there rather than at a local path it lacks.
+Future<bool> Function(Project project, String branchName) _projectBranchCheck(
+  WidgetRef ref,
+  WorkbenchController controller,
+) {
+  return PromptWorkspaceBranchChecks(
+    hostId: null,
+    git: ref.read(gitBackendProvider),
+    loadHostCatalog: controller.loadHostBranchCatalog,
+    workspaces: () => const <Workspace>[],
+  ).branchExists;
 }
 
 Future<List<SshTarget>> _loadSshTargets(WidgetRef ref) async {

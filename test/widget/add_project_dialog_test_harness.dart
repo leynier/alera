@@ -3,6 +3,7 @@ part of 'add_project_dialog_test.dart';
 Future<void> _pumpDialogLauncher(
   WidgetTester tester, {
   required ValueChanged<AddProjectResult?> onResult,
+  bool remoteProjectAvailable = false,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -15,7 +16,9 @@ Future<void> _pumpDialogLauncher(
                   onResult(
                     await showDialog<AddProjectResult>(
                       context: context,
-                      builder: (_) => const AddProjectDialog(),
+                      builder: (_) => AddProjectDialog(
+                        remoteProjectAvailable: remoteProjectAvailable,
+                      ),
                     ),
                   );
                 },

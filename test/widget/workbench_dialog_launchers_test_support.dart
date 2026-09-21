@@ -14,8 +14,11 @@ import 'package:alera/src/features/workbench/presentation/background_setup_job_h
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/projects/application/project_config_service.dart';
+import 'package:alera/src/features/projects/application/project_hosts_providers.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/infra/runtime_project_hosts_client.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
+import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/remote_hosts/infra/runtime_ssh_target_repository.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
@@ -34,6 +37,9 @@ Future<void> pumpFlowHarness(
   WidgetTester tester, {
   required DialogLaunchersTestController controller,
   required Future<void> Function(BuildContext context, WidgetRef ref) onPressed,
+  bool projectHostsSupported = false,
+  List<SshTarget> sshTargets = const <SshTarget>[],
+  RuntimeProjectHostsClient? projectHostsClient,
 }) async {
   final configRepository = FakeProjectConfigRepository();
   addTearDown(configRepository.dispose);
@@ -60,6 +66,12 @@ Future<void> pumpFlowHarness(
         settingsControllerProvider.overrideWith(
           () => DialogLaunchersSettingsController(.defaults),
         ),
+        projectHostsSupportedProvider.overrideWith(
+          (ref) async => projectHostsSupported,
+        ),
+        sshTargetsProvider.overrideWith((ref) => Stream.value(sshTargets)),
+        if (projectHostsClient != null)
+          projectHostsClientProvider.overrideWithValue(projectHostsClient),
       ],
       child: MaterialApp(
         navigatorKey: aleraNavigatorKey,

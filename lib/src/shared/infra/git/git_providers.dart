@@ -65,11 +65,14 @@ RemoteWorkspacePathResolver remoteWorkspacePathResolver(Ref ref) {
 
 /// Remote checkouts come from remote workspaces; local roots are every local
 /// workspace path plus every project checkout, which is where worktree and
-/// branch operations on the main repository land.
+/// branch operations on the main repository land. A project that lives only on
+/// a host has no folder here: listing its `repoPath` as local would send the
+/// git calls of a workspace opened on that very folder to the local bridge.
 RemoteCheckoutIndex remoteCheckoutIndexFor(WorkbenchState state) {
   final remote = <RemoteCheckoutEntry>[];
   final local = <String>[
-    for (final project in state.projects) project.repoPath,
+    for (final project in state.projects)
+      if (!project.isRemoteOnly) project.repoPath,
   ];
   for (final workspaces in state.workspacesByProject.values) {
     for (final workspace in workspaces) {

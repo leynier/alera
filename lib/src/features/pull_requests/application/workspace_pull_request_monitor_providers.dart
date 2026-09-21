@@ -77,7 +77,11 @@ workspacePullRequestMonitorConfiguration(Ref ref) {
       (preferences.showStatusInSidebar ||
           preferences.failureNotificationsEnabled)) {
     for (final project in topology.projects) {
-      if (project.kind != ProjectKind.gitRepository) {
+      // The monitor reads the repository identity from the project folder. A
+      // project that lives only on a host has none here, so its workspaces
+      // stay unevaluated instead of failing on every poll, as in the runtime's
+      // pull request summaries.
+      if (project.kind != ProjectKind.gitRepository || project.isRemoteOnly) {
         continue;
       }
       final providerOverride = ref

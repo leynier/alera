@@ -53,4 +53,44 @@ void main() {
     expect(checks.workspaceBranches(project), {'remote-task'});
     expect(git.calls, isEmpty);
   });
+
+  test('a remote-only project without a host asks its own host', () async {
+    final now = DateTime.utc(2026);
+    final local = Project(
+      id: 'local',
+      name: 'Local',
+      repoPath: '/repo/local',
+      createdAt: now,
+      updatedAt: now,
+    );
+    final remoteOnly = local.copyWith(
+      id: 'remote',
+      repoPath: '/srv/only-there',
+      primaryHostId: 'ssh',
+    );
+    final git = FakeGitBackend()..sourceBranches = ['only-local'];
+    final hosts = <String?>[];
+    final checks = PromptWorkspaceBranchChecks(
+      hostId: null,
+      git: git,
+      workspaces: () => const <Workspace>[],
+      loadHostCatalog: (requested, host) async {
+        hosts.add(host);
+        return ProjectBranchCatalog(
+          projectId: requested.id,
+          hostId: host ?? 'local',
+          branches: const ['only-remote'],
+          localBranches: const {'only-remote'},
+        );
+      },
+    );
+
+    expect(await checks.branchExists(remoteOnly, 'only-remote'), isTrue);
+    expect(await checks.branchExists(remoteOnly, 'only-local'), isFalse);
+    expect(hosts, <String?>['ssh', 'ssh']);
+    expect(git.calls, isEmpty);
+
+    expect(await checks.branchExists(local, 'only-local'), isTrue);
+    expect(git.calls.single.method, 'branchExists');
+  });
 }

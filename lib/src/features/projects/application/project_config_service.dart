@@ -64,7 +64,12 @@ class ProjectConfigService._(
     return _repository.watchAll();
   }
 
-  Future<ProjectConfig?> loadRepoFile(Project project) {
+  /// Null for a project that lives only on a host: `alera.toml` is on that
+  /// host, and whatever sits at the same path on this device is unrelated.
+  Future<ProjectConfig?> loadRepoFile(Project project) async {
+    if (project.isRemoteOnly) {
+      return null;
+    }
     return _fileStore.load(project);
   }
 
@@ -91,7 +96,7 @@ class ProjectConfigService._(
     }
 
     try {
-      final repoConfig = await _fileStore.load(project);
+      final repoConfig = await loadRepoFile(project);
       if (repoConfig != null) {
         return EffectiveProjectConfig(config: repoConfig, origin: .repoFile);
       }

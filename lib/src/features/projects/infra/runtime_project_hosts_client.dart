@@ -1,7 +1,7 @@
 import 'package:alera/src/features/projects/domain/project.dart';
 
-/// Adding a project to a host can clone a repository, so the request outlives
-/// an ordinary runtime call.
+/// Adding a project to a host, or creating one there, can clone a repository,
+/// so the request outlives an ordinary runtime call.
 const Duration projectHostAddTimeout = Duration(minutes: 30);
 
 /// One host a project is on, as `project.hosts.list` reports it.
@@ -15,7 +15,8 @@ class const ProjectHost({
 /// The runtime's `project.hosts.*` verbs: one project registered on several
 /// hosts. `add` without a path asks the host to clone the project's Git remote
 /// into its own default projects folder; `remove` forgets the checkout and
-/// never deletes files.
+/// never deletes files. `project.registerRemote` creates a project that lives
+/// only on a host.
 class RuntimeProjectHostsClient(
   final Future<Object?> Function(
     String type,
@@ -63,6 +64,57 @@ class RuntimeProjectHostsClient(
         'projectId': projectId,
         'hostId': hostId,
       }, null),
+    );
+  }
+
+  /// Creates a project whose only folder is on [hostId]: the existing [path]
+  /// there, or a clone of [cloneUrl] into that host's projects folder. No
+  /// workspace is created, and the runtime announces `projectsChanged`.
+  Future<Project> registerRemote({
+    required String hostId,
+    String? path,
+    String? cloneUrl,
+    String? name,
+    ProjectKind? kind,
+  }) async {
+    final value = await request('project.registerRemote', {
+      'hostId': hostId,
+      if (path != null && path.trim().isNotEmpty) 'path': path.trim(),
+      if (cloneUrl != null && cloneUrl.trim().isNotEmpty)
+        'cloneUrl': cloneUrl.trim(),
+      if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+      'kind': ?kind?.name,
+    }, projectHostAddTimeout);
+    const outdated = 'Update the runtime to add remote projects.';
+    if (value is! Map || value['project'] is! Map) {
+      throw StateError(outdated);
+    }
+    final Project project;
+    try {
+      project = Project.fromJson(
+        Map<String, Object?>.from(value['project']! as Map),
+      );
+    } catch (_) {
+      throw StateError(outdated);
+    }
+    // The answer carries the stored project, which does not say where it
+    // lives; the checkout next to it does.
+    final checkout = value['checkout'];
+    if (project.isRemoteOnly ||
+        checkout is! Map ||
+        checkout['hostId'] is! String ||
+        checkout['path'] is! String) {
+      return project;
+    }
+    final registered = ProjectCheckout(
+      hostId: checkout['hostId']! as String,
+      path: checkout['path']! as String,
+    );
+    return project.copyWith(
+      primaryHostId: registered.hostId,
+      checkouts: List<ProjectCheckout>.unmodifiable(<ProjectCheckout>[
+        registered,
+      ]),
     );
   }
 

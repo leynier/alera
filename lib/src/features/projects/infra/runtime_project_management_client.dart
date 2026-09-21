@@ -109,7 +109,11 @@ class RuntimeProjectManagementClient(final RuntimeHostClient _client) {
   }
 }
 
+/// A payload without `primaryHostId` or `checkouts` comes from a runtime that
+/// only knows local projects, or from a verb that answers the stored row.
 Project projectFromRuntimeJson(Map<String, Object?> json) {
+  final primaryHostId = json['primaryHostId'];
+  final checkouts = json['checkouts'];
   return Project(
     id: json['id'] as String,
     name: json['name'] as String,
@@ -120,6 +124,20 @@ Project projectFromRuntimeJson(Map<String, Object?> json) {
       (kind) => kind.name == json['kind'],
       orElse: () => ProjectKind.gitRepository,
     ),
+    primaryHostId: primaryHostId is String && primaryHostId.trim().isNotEmpty
+        ? primaryHostId
+        : 'local',
+    checkouts: List<ProjectCheckout>.unmodifiable(<ProjectCheckout>[
+      if (checkouts is List)
+        for (final checkout in checkouts)
+          if (checkout is Map &&
+              checkout['hostId'] is String &&
+              checkout['path'] is String)
+            ProjectCheckout(
+              hostId: checkout['hostId']! as String,
+              path: checkout['path']! as String,
+            ),
+    ]),
   );
 }
 

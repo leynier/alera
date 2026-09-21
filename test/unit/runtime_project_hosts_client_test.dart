@@ -1,5 +1,6 @@
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/infra/runtime_project_hosts_client.dart';
+import 'package:alera/src/features/projects/infra/runtime_project_management_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -83,6 +84,114 @@ void main() {
       client().add(projectId: 'project-1', hostId: 'ssh-a'),
       throwsStateError,
     );
+  });
+
+  Map<String, Object?> storedProject({String kind = 'gitRepository'}) {
+    return <String, Object?>{
+      'id': 'project-9',
+      'name': 'Api',
+      'repoPath': '/srv/api',
+      'createdAt': '2026-09-21T10:00:00.123456789Z',
+      'updatedAt': '2026-09-21T10:00:00.123456789Z',
+      'kind': kind,
+    };
+  }
+
+  test('registerRemote registers an existing folder on a host', () async {
+    response = <String, Object?>{
+      'project': storedProject(kind: 'folder'),
+      'checkout': <String, Object?>{'hostId': 'ssh-a', 'path': '/srv/api'},
+    };
+
+    final project = await client().registerRemote(
+      hostId: 'ssh-a',
+      path: ' /srv/api ',
+      cloneUrl: ' ',
+      name: ' Api ',
+      kind: ProjectKind.folder,
+    );
+
+    expect(calls.single.$1, 'project.registerRemote');
+    expect(calls.single.$2, <String, Object?>{
+      'hostId': 'ssh-a',
+      'path': '/srv/api',
+      'name': 'Api',
+      'kind': 'folder',
+    });
+    expect(calls.single.$3, projectHostAddTimeout);
+    expect(project.id, 'project-9');
+    expect(project.kind, ProjectKind.folder);
+    // The stored project does not say where it lives; the checkout does.
+    expect(project.isRemoteOnly, isTrue);
+    expect(project.primaryHostId, 'ssh-a');
+    expect(project.isOnHost('ssh-a'), isTrue);
+    expect(project.isOnHost(null), isFalse);
+  });
+
+  test('registerRemote asks the host to clone when there is no path', () async {
+    response = <String, Object?>{
+      'project': <String, Object?>{
+        ...storedProject(),
+        'primaryHostId': 'ssh-a',
+      },
+    };
+
+    final project = await client().registerRemote(
+      hostId: 'ssh-a',
+      cloneUrl: ' git@github.com:o/api.git ',
+    );
+
+    expect(calls.single.$2, <String, Object?>{
+      'hostId': 'ssh-a',
+      'cloneUrl': 'git@github.com:o/api.git',
+    });
+    expect(project.primaryHostId, 'ssh-a');
+    expect(project.checkouts, isEmpty);
+  });
+
+  test('registerRemote reports a malformed answer as an old runtime', () async {
+    for (final malformed in <Object?>[
+      null,
+      <String, Object?>{},
+      <String, Object?>{'project': 'nope'},
+      <String, Object?>{
+        'project': <String, Object?>{'id': 'project-9'},
+      },
+    ]) {
+      response = malformed;
+      await expectLater(
+        client().registerRemote(hostId: 'ssh-a', path: '/srv/api'),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            'Update the runtime to add remote projects.',
+          ),
+        ),
+      );
+    }
+  });
+
+  test('a listed project keeps the hosts the runtime reports', () {
+    final remoteOnly = projectFromRuntimeJson(<String, Object?>{
+      ...storedProject(),
+      'primaryHostId': 'ssh-a',
+      'checkouts': <Object?>[
+        <String, Object?>{'hostId': 'ssh-a', 'path': '/srv/api'},
+        <String, Object?>{'hostId': 'broken'},
+        'nope',
+      ],
+    });
+    expect(remoteOnly.isRemoteOnly, isTrue);
+    expect(remoteOnly.checkouts.single.path, '/srv/api');
+    expect(remoteOnly.isOnHost('ssh-a'), isTrue);
+
+    final legacy = projectFromRuntimeJson(<String, Object?>{
+      ...storedProject(),
+      'primaryHostId': ' ',
+    });
+    expect(legacy.isRemoteOnly, isFalse);
+    expect(legacy.checkouts, isEmpty);
   });
 
   test('a project knows which hosts it is on', () {

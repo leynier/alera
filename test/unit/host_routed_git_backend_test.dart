@@ -1,3 +1,7 @@
+import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/workbench/application/workbench_state.dart';
+import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/git/host_routed_git_backend.dart';
 import 'package:alera/src/shared/infra/git/remote_checkout_index.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -60,6 +64,62 @@ void main() {
         const RemoteCheckoutIndex.empty().remoteWorkspaceIdFor('/srv/repo'),
         isNull,
       );
+    });
+  });
+
+  group('remoteCheckoutIndexFor', () {
+    Project project(String id, String repoPath, {String host = 'local'}) {
+      return Project(
+        id: id,
+        name: id,
+        repoPath: repoPath,
+        createdAt: .utc(2026, 9, 21),
+        updatedAt: .utc(2026, 9, 21),
+        primaryHostId: host,
+      );
+    }
+
+    Workspace workspace(String id, String projectId, String path, String host) {
+      return Workspace(
+        id: id,
+        projectId: projectId,
+        name: id,
+        path: path,
+        hostId: host,
+        createdAt: .utc(2026, 9, 21),
+        updatedAt: .utc(2026, 9, 21),
+        kind: .main,
+        status: .active,
+      );
+    }
+
+    test('a remote-only project folder is not a local checkout', () {
+      final remoteOnly = project('remote', '/srv/api', host: 'ssh-box');
+      final shared = project('shared', '/home/me/shared');
+      final index = remoteCheckoutIndexFor(
+        WorkbenchState(
+          projects: <Project>[remoteOnly, shared],
+          workspacesByProject: <String, List<Workspace>>{
+            remoteOnly.id: <Workspace>[
+              workspace('ws-remote-main', remoteOnly.id, '/srv/api', 'ssh-box'),
+            ],
+            shared.id: <Workspace>[
+              workspace(
+                'ws-shared-remote',
+                shared.id,
+                '/home/me/shared',
+                'ssh-box',
+              ),
+            ],
+          },
+        ),
+      );
+
+      // The workspace opened on the project's own folder reaches its host.
+      expect(index.remoteWorkspaceIdFor('/srv/api'), 'ws-remote-main');
+      expect(index.remoteWorkspaceIdFor('/srv/api/lib'), 'ws-remote-main');
+      // A project that is also here keeps winning the tie.
+      expect(index.remoteWorkspaceIdFor('/home/me/shared'), isNull);
     });
   });
 
