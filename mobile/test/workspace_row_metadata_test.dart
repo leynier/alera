@@ -21,13 +21,13 @@ void main() {
     expect(find.byTooltip('Linked worktree'), findsNothing);
   });
 
-  testWidgets('linked workspace shows the sideways branch glyph', (
-    tester,
-  ) async {
+  testWidgets('linked workspace shows the rotated split glyph', (tester) async {
     await tester.pumpWidget(_rowApp(kind: 'linked'));
 
     expect(find.byType(AleraLinkedWorktreeIcon), findsOneWidget);
-    expect(find.byIcon(AleraIcons.gitBranch), findsOneWidget);
+    expect(find.byIcon(AleraIcons.split), findsOneWidget);
+    expect(find.byIcon(AleraIcons.gitBranch), findsNothing);
+    expect(AleraLinkedWorktreeIcon.quarterTurns, 1);
     expect(
       tester
           .widget<RotatedBox>(
@@ -37,7 +37,7 @@ void main() {
             ),
           )
           .quarterTurns,
-      AleraLinkedWorktreeIcon.quarterTurns,
+      1,
     );
     expect(find.byTooltip('Linked worktree'), findsOneWidget);
     expect(find.byIcon(AleraIcons.workspaceMain), findsNothing);

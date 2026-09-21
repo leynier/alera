@@ -102,6 +102,9 @@ abstract final class const AleraIcons._() {
   /// Parent/child workspace lineage (matches Orca's workflow glyph).
   static const IconData workspaceChildren = LucideIcons.workflow;
 
+  /// Split used as the linked-worktree marker after a 90-degree clockwise rotation.
+  static const IconData split = LucideIcons.split;
+
   // Git / version control
   static const IconData gitBranch = LucideIcons.gitBranch;
   static const IconData gitGraph = LucideIcons.gitGraph;

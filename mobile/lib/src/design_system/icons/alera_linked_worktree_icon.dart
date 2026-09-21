@@ -6,16 +6,16 @@ import 'package:flutter/material.dart';
 // `lib/src/design_system/icons/alera_linked_worktree_icon.dart` because
 // `alera_mobile` does not depend on the root package. Keep both in sync.
 
-/// Linked (secondary) worktree marker: [AleraIcons.gitBranch] on its side so
-/// it stays a branch glyph without matching the upright branch icon used for
-/// the workspace's current git branch on the same row.
+/// Linked (secondary) worktree marker: [AleraIcons.split] rotated 90 degrees
+/// clockwise so it does not collide with the upright current-branch
+/// [AleraIcons.gitBranch] on the same row.
 class const AleraLinkedWorktreeIcon({
   super.key,
   this.size = AleraTokens.iconSm,
   this.color = AleraTokens.foregroundMuted,
 }) extends StatelessWidget {
-  /// Clockwise quarter turns applied to [AleraIcons.gitBranch].
-  static const int quarterTurns = 3;
+  /// Clockwise quarter turns applied to [AleraIcons.split].
+  static const int quarterTurns = 1;
 
   final double size;
   final Color color;
@@ -24,7 +24,7 @@ class const AleraLinkedWorktreeIcon({
   Widget build(BuildContext context) {
     return RotatedBox(
       quarterTurns: quarterTurns,
-      child: Icon(AleraIcons.gitBranch, size: size, color: color),
+      child: Icon(AleraIcons.split, size: size, color: color),
     );
   }
 }
