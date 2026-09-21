@@ -612,6 +612,106 @@ final class WorkspaceSearchServiceProvider
 String _$workspaceSearchServiceHash() =>
     r'd4b42d3d093dad896f72742e1ba91f7a5e556d67';
 
+/// Search for a workspace whose checkout lives on another host: the runtime
+/// forwards the request over that host's link.
+
+@ProviderFor(remoteWorkspaceSearchService)
+final remoteWorkspaceSearchServiceProvider =
+    RemoteWorkspaceSearchServiceFamily._();
+
+/// Search for a workspace whose checkout lives on another host: the runtime
+/// forwards the request over that host's link.
+
+final class RemoteWorkspaceSearchServiceProvider
+    extends
+        $FunctionalProvider<
+          WorkspaceSearchService,
+          WorkspaceSearchService,
+          WorkspaceSearchService
+        >
+    with $Provider<WorkspaceSearchService> {
+  /// Search for a workspace whose checkout lives on another host: the runtime
+  /// forwards the request over that host's link.
+  RemoteWorkspaceSearchServiceProvider._({
+    required RemoteWorkspaceSearchServiceFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'remoteWorkspaceSearchServiceProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$remoteWorkspaceSearchServiceHash();
+
+  @override
+  String toString() {
+    return r'remoteWorkspaceSearchServiceProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $ProviderElement<WorkspaceSearchService> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  WorkspaceSearchService create(Ref ref) {
+    final argument = this.argument as String;
+    return remoteWorkspaceSearchService(ref, argument);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(WorkspaceSearchService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<WorkspaceSearchService>(value),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is RemoteWorkspaceSearchServiceProvider &&
+        other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$remoteWorkspaceSearchServiceHash() =>
+    r'1e44278abe2adeb4810446a244a9ace16c5511e5';
+
+/// Search for a workspace whose checkout lives on another host: the runtime
+/// forwards the request over that host's link.
+
+final class RemoteWorkspaceSearchServiceFamily extends $Family
+    with $FunctionalFamilyOverride<WorkspaceSearchService, String> {
+  RemoteWorkspaceSearchServiceFamily._()
+    : super(
+        retry: null,
+        name: r'remoteWorkspaceSearchServiceProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Search for a workspace whose checkout lives on another host: the runtime
+  /// forwards the request over that host's link.
+
+  RemoteWorkspaceSearchServiceProvider call(String workspaceId) =>
+      RemoteWorkspaceSearchServiceProvider._(argument: workspaceId, from: this);
+
+  @override
+  String toString() => r'remoteWorkspaceSearchServiceProvider';
+}
+
 @ProviderFor(managedWorkspaceRuntime)
 final managedWorkspaceRuntimeProvider = ManagedWorkspaceRuntimeProvider._();
 

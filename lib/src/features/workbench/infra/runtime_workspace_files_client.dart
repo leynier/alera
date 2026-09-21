@@ -8,6 +8,11 @@ import 'package:alera/src/rust/api/workspace_files.dart' as native;
 const int remoteWorkspaceFileReadChunkBytes = 256 * 1024;
 const int remoteWorkspaceFileReadMaxBytes = 2 * 1024 * 1024;
 
+/// The wire code the runtime uses for a typed workspace file error; its
+/// `kind` detail names a `WorkspaceFileErrorKind` so the desktop can rethrow
+/// the same exception the native bridge throws for a local checkout.
+const String runtimeWorkspaceFileErrorCode = 'workspaceFile';
+
 abstract interface class RuntimeWorkspaceFiles {
   Future<List<native.WorkspaceFileEntry>> listChildren({
     required String workspaceId,
@@ -18,11 +23,76 @@ abstract interface class RuntimeWorkspaceFiles {
   Future<native.WorkspaceEditorTextFile> readEditorTextFile({
     required String workspaceId,
     required String relativePath,
+    required int tabSize,
   });
 
   Future<native.WorkspaceTextFile> readTextFile({
     required String workspaceId,
     required String relativePath,
+  });
+
+  Future<native.WorkspaceEditorTextFile> writeEditorTextFile({
+    required String workspaceId,
+    required String relativePath,
+    required String currentDisplayContent,
+    required String? originalRawContent,
+    required String? originalDisplayContent,
+    required String? expectedContentToken,
+    required bool overwriteIfChanged,
+    required int tabSize,
+  });
+
+  Future<native.WorkspaceTextFile> writeTextFile({
+    required String workspaceId,
+    required String relativePath,
+    required String content,
+    required String? expectedContentToken,
+    required bool overwriteIfChanged,
+  });
+
+  Future<native.WorkspaceFileEntry> createEntry({
+    required String workspaceId,
+    required String parentRelativePath,
+    required String name,
+    required bool directory,
+  });
+
+  Future<native.WorkspaceFileEntry> renameEntry({
+    required String workspaceId,
+    required String relativePath,
+    required String newName,
+  });
+
+  Future<native.WorkspaceFileEntry> copyEntry({
+    required String workspaceId,
+    required String relativePath,
+    required String targetParentRelativePath,
+  });
+
+  Future<native.WorkspaceFileEntry> moveEntry({
+    required String workspaceId,
+    required String relativePath,
+    required String targetParentRelativePath,
+  });
+
+  Future<void> deleteEntry({
+    required String workspaceId,
+    required String relativePath,
+    required bool useTrash,
+  });
+
+  Future<native.WorkspaceQuickOpenSession> startQuickOpenSession({
+    required String workspaceId,
+  });
+
+  Future<List<native.WorkspaceQuickOpenMatch>> searchQuickOpenSession({
+    required native.WorkspaceQuickOpenSession session,
+    required String query,
+    required int limit,
+  });
+
+  Future<void> stopQuickOpenSession({
+    required native.WorkspaceQuickOpenSession session,
   });
 }
 
@@ -58,6 +128,7 @@ class RuntimeWorkspaceFilesClient implements RuntimeWorkspaceFiles {
   Future<native.WorkspaceEditorTextFile> readEditorTextFile({
     required String workspaceId,
     required String relativePath,
+    required int tabSize,
   }) async {
     final file = await readTextFile(
       workspaceId: workspaceId,
@@ -65,11 +136,225 @@ class RuntimeWorkspaceFilesClient implements RuntimeWorkspaceFiles {
     );
     return native.WorkspaceEditorTextFile(
       rawContent: file.content,
-      displayContent: file.content,
+      displayContent: expandWorkspaceEditorTabs(file.content, tabSize),
       contentToken: file.contentToken,
       modifiedMillis: file.modifiedMillis,
       size: file.size,
     );
+  }
+
+  @override
+  Future<native.WorkspaceEditorTextFile> writeEditorTextFile({
+    required String workspaceId,
+    required String relativePath,
+    required String currentDisplayContent,
+    required String? originalRawContent,
+    required String? originalDisplayContent,
+    required String? expectedContentToken,
+    required bool overwriteIfChanged,
+    required int tabSize,
+  }) async {
+    final payload = await _mutate('workspace.files.write', <String, Object?>{
+      'workspaceId': workspaceId,
+      'relativePath': relativePath,
+      'currentDisplayContent': currentDisplayContent,
+      'originalRawContent': originalRawContent,
+      'originalDisplayContent': originalDisplayContent,
+      'expectedContentToken': expectedContentToken,
+      'overwriteIfChanged': overwriteIfChanged,
+      'tabSize': tabSize,
+    });
+    return native.WorkspaceEditorTextFile(
+      rawContent: _requiredString(payload, 'rawContent'),
+      displayContent: _requiredString(payload, 'displayContent'),
+      contentToken: _requiredString(payload, 'contentToken'),
+      modifiedMillis: _int(payload['modifiedMillis']),
+      size: BigInt.from(_int(payload['size'])),
+    );
+  }
+
+  @override
+  Future<native.WorkspaceTextFile> writeTextFile({
+    required String workspaceId,
+    required String relativePath,
+    required String content,
+    required String? expectedContentToken,
+    required bool overwriteIfChanged,
+  }) async {
+    final payload = await _mutate('workspace.files.write', <String, Object?>{
+      'workspaceId': workspaceId,
+      'relativePath': relativePath,
+      'contentBase64': base64Encode(utf8.encode(content)),
+      'expectedContentToken': expectedContentToken,
+      'overwriteIfChanged': overwriteIfChanged,
+    });
+    return native.WorkspaceTextFile(
+      content: content,
+      contentToken: _requiredString(payload, 'contentToken'),
+      modifiedMillis: _int(payload['modifiedMillis']),
+      size: BigInt.from(_int(payload['size'])),
+    );
+  }
+
+  @override
+  Future<native.WorkspaceFileEntry> createEntry({
+    required String workspaceId,
+    required String parentRelativePath,
+    required String name,
+    required bool directory,
+  }) async {
+    return _entryFromJson(
+      await _mutate('workspace.files.create', <String, Object?>{
+        'workspaceId': workspaceId,
+        'parentRelativePath': parentRelativePath,
+        'name': name,
+        'kind': directory ? 'directory' : 'file',
+      }),
+    );
+  }
+
+  @override
+  Future<native.WorkspaceFileEntry> renameEntry({
+    required String workspaceId,
+    required String relativePath,
+    required String newName,
+  }) async {
+    return _entryFromJson(
+      await _mutate('workspace.files.rename', <String, Object?>{
+        'workspaceId': workspaceId,
+        'relativePath': relativePath,
+        'newName': newName,
+      }),
+    );
+  }
+
+  @override
+  Future<native.WorkspaceFileEntry> copyEntry({
+    required String workspaceId,
+    required String relativePath,
+    required String targetParentRelativePath,
+  }) async {
+    return _entryFromJson(
+      await _mutate('workspace.files.copy', <String, Object?>{
+        'workspaceId': workspaceId,
+        'relativePath': relativePath,
+        'targetParentRelativePath': targetParentRelativePath,
+      }),
+    );
+  }
+
+  @override
+  Future<native.WorkspaceFileEntry> moveEntry({
+    required String workspaceId,
+    required String relativePath,
+    required String targetParentRelativePath,
+  }) async {
+    return _entryFromJson(
+      await _mutate('workspace.files.move', <String, Object?>{
+        'workspaceId': workspaceId,
+        'relativePath': relativePath,
+        'targetParentRelativePath': targetParentRelativePath,
+      }),
+    );
+  }
+
+  @override
+  Future<void> deleteEntry({
+    required String workspaceId,
+    required String relativePath,
+    required bool useTrash,
+  }) async {
+    await _mutate('workspace.files.delete', <String, Object?>{
+      'workspaceId': workspaceId,
+      'relativePath': relativePath,
+      'useTrash': useTrash,
+    });
+  }
+
+  @override
+  Future<native.WorkspaceQuickOpenSession> startQuickOpenSession({
+    required String workspaceId,
+  }) async {
+    final payload = await _mutate(
+      'mobile.workspaceQuickOpen.start',
+      <String, Object?>{'workspaceId': workspaceId},
+    );
+    return native.WorkspaceQuickOpenSession(
+      id: _requiredString(payload, 'sessionId'),
+      indexedFileCount: _int(payload['indexedFileCount']),
+    );
+  }
+
+  @override
+  Future<List<native.WorkspaceQuickOpenMatch>> searchQuickOpenSession({
+    required native.WorkspaceQuickOpenSession session,
+    required String query,
+    required int limit,
+  }) async {
+    final payload = await _mutate(
+      'mobile.workspaceQuickOpen.search',
+      <String, Object?>{
+        'sessionId': session.id,
+        'indexedFileCount': session.indexedFileCount,
+        'query': query,
+        'limit': limit,
+      },
+    );
+    final items = payload['items'];
+    if (items is! List) {
+      return const <native.WorkspaceQuickOpenMatch>[];
+    }
+    return <native.WorkspaceQuickOpenMatch>[
+      for (final item in items)
+        if (item is Map)
+          native.WorkspaceQuickOpenMatch(
+            relativePath: _requiredString(
+              Map<String, Object?>.from(item),
+              'relativePath',
+            ),
+            score: _int(item['score']),
+          ),
+    ];
+  }
+
+  @override
+  Future<void> stopQuickOpenSession({
+    required native.WorkspaceQuickOpenSession session,
+  }) async {
+    await _ensureReady();
+    try {
+      await _client.runtimeRequest(
+        'mobile.workspaceQuickOpen.stop',
+        <String, Object?>{'sessionId': session.id},
+      );
+    } catch (_) {
+      // Best effort: the satellite drops the index when the link closes.
+    }
+  }
+
+  /// Runs a workspace-scoped verb and maps a typed `workspaceFile` conflict
+  /// back into the bridge's [native.WorkspaceFileError] so Explorer and the
+  /// editor react (conflict prompt, protected path) exactly as they do for a
+  /// local checkout.
+  Future<Map<String, Object?>> _mutate(
+    String verb,
+    Map<String, Object?> payload,
+  ) async {
+    await _ensureReady();
+    await _ensureCapability();
+    try {
+      return _asMap(await _client.runtimeRequest(verb, payload));
+    } on TerminalHostConflictException catch (error) {
+      final mapped = workspaceFileErrorFromConflict(error);
+      if (mapped != null) {
+        throw mapped;
+      }
+      throw WorkspaceException(userFacingExceptionMessage(error));
+    } on WorkspaceException {
+      rethrow;
+    } catch (error) {
+      throw WorkspaceException(userFacingExceptionMessage(error));
+    }
   }
 
   @override
@@ -80,15 +365,17 @@ class RuntimeWorkspaceFilesClient implements RuntimeWorkspaceFiles {
     await _ensureReady();
     await _ensureCapability();
     try {
-      final bytes = await _readAllBytes(
+      final read = await _readAllBytes(
         workspaceId: workspaceId,
         relativePath: relativePath,
       );
       return native.WorkspaceTextFile(
-        content: utf8.decode(bytes),
-        contentToken: relativePath,
-        modifiedMillis: 0,
-        size: BigInt.from(bytes.length),
+        content: utf8.decode(read.bytes),
+        // Older satellites omit the token; the path keeps the buffer keyed
+        // and the write then skips the conflict check instead of failing it.
+        contentToken: read.contentToken ?? relativePath,
+        modifiedMillis: read.modifiedMillis,
+        size: BigInt.from(read.bytes.length),
       );
     } on WorkspaceException {
       rethrow;
@@ -102,11 +389,13 @@ class RuntimeWorkspaceFilesClient implements RuntimeWorkspaceFiles {
     }
   }
 
-  Future<List<int>> _readAllBytes({
+  Future<_RemoteRead> _readAllBytes({
     required String workspaceId,
     required String relativePath,
   }) async {
     final collected = <int>[];
+    String? contentToken;
+    var modifiedMillis = 0;
     var offset = 0;
     while (true) {
       final payload = _asMap(
@@ -125,13 +414,16 @@ class RuntimeWorkspaceFilesClient implements RuntimeWorkspaceFiles {
       }
       final chunk = base64Decode(_requiredString(payload, 'dataBase64'));
       collected.addAll(chunk);
+      contentToken ??= _optionalString(payload['contentToken']);
+      modifiedMillis = _int(payload['modifiedMillis']);
       if (collected.length > remoteWorkspaceFileReadMaxBytes) {
         throw WorkspaceException(
           'The remote file is larger than 2 MB and cannot be opened in the editor.',
         );
       }
+      final read = _RemoteRead(collected, contentToken, modifiedMillis);
       if (chunk.isEmpty) {
-        return collected;
+        return read;
       }
       final nextOffset = (payload['nextOffset'] as num?)?.toInt();
       // A missing or non-advancing nextOffset would retry the same offset
@@ -143,7 +435,7 @@ class RuntimeWorkspaceFilesClient implements RuntimeWorkspaceFiles {
       }
       final totalBytes = (payload['totalBytes'] as num?)?.toInt() ?? nextOffset;
       if (nextOffset >= totalBytes) {
-        return collected;
+        return read;
       }
       offset = nextOffset;
     }
@@ -162,6 +454,62 @@ class RuntimeWorkspaceFilesClient implements RuntimeWorkspaceFiles {
     }
   }
 }
+
+class const _RemoteRead(
+  final List<int> bytes,
+  final String? contentToken,
+  final int modifiedMillis,
+);
+
+/// Rebuilds the bridge's file error from the runtime's typed conflict, or
+/// returns null when the conflict is about something else.
+native.WorkspaceFileError? workspaceFileErrorFromConflict(
+  TerminalHostConflictException error,
+) {
+  if (error.code != runtimeWorkspaceFileErrorCode) {
+    return null;
+  }
+  final kind = switch (error.details['kind']) {
+    'invalidPath' => native.WorkspaceFileErrorKind.invalidPath,
+    'outsideWorkspace' => native.WorkspaceFileErrorKind.outsideWorkspace,
+    'notFound' => native.WorkspaceFileErrorKind.notFound,
+    'alreadyExists' => native.WorkspaceFileErrorKind.alreadyExists,
+    'protectedPath' => native.WorkspaceFileErrorKind.protectedPath,
+    'unsupported' => native.WorkspaceFileErrorKind.unsupported,
+    'conflict' => native.WorkspaceFileErrorKind.conflict,
+    _ => native.WorkspaceFileErrorKind.io,
+  };
+  return native.WorkspaceFileError(
+    kind: kind,
+    context: _optionalString(error.details['context']) ?? error.message,
+  );
+}
+
+/// Mirrors the bridge's tab expansion for a buffer the desktop did not read
+/// through the bridge. Columns reset on every line break; tab size is
+/// clamped to 1..8 like the native codec.
+String expandWorkspaceEditorTabs(String text, int tabSize) {
+  final width = tabSize.clamp(1, 8);
+  final buffer = StringBuffer();
+  var column = 0;
+  for (final rune in text.runes) {
+    if (rune == 0x09) {
+      final spaces = width - (column % width);
+      buffer.write(' ' * spaces);
+      column += spaces;
+      continue;
+    }
+    buffer.writeCharCode(rune);
+    if (rune == 0x0A || rune == 0x0D) {
+      column = 0;
+    } else {
+      column += 1;
+    }
+  }
+  return buffer.toString();
+}
+
+int _int(Object? value) => value is num ? value.toInt() : 0;
 
 List<native.WorkspaceFileEntry> _entriesFromPayload(Map<String, Object?> json) {
   final entries = json['entries'];
@@ -182,9 +530,9 @@ native.WorkspaceFileEntry _entryFromJson(Map<String, Object?> json) {
     relativePath: relativePath,
     name: name,
     kind: kind,
-    size: BigInt.from((json['size'] as num?)?.toInt() ?? 0),
-    modifiedMillis: 0,
-    contentToken: relativePath,
+    size: BigInt.from(_int(json['size'])),
+    modifiedMillis: _int(json['modifiedMillis']),
+    contentToken: _optionalString(json['contentToken']) ?? relativePath,
     isIgnored: json['isIgnored'] == true,
     isHidden: json['isHidden'] == true,
     isSymlink: kind == native.WorkspaceFileKind.symlink,

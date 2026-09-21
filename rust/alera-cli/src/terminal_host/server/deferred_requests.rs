@@ -171,7 +171,13 @@ impl ServerActor {
             | "mobile.pullRequest.create"
             | "mobile.pullRequest.ship"
             | "workspace.files.list"
-            | "workspace.files.read" => {
+            | "workspace.files.read"
+            | "workspace.files.write"
+            | "workspace.files.create"
+            | "workspace.files.rename"
+            | "workspace.files.copy"
+            | "workspace.files.move"
+            | "workspace.files.delete" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 self.start_mobile_workspace_file_request(

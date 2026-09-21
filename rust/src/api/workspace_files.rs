@@ -13,7 +13,6 @@ use crate::frb_generated::StreamSink;
 use editor_text::{editor_text_file_from_raw, encode_workspace_editor_text_for_save};
 
 const MAX_TEXT_FILE_BYTES: u64 = 10 * 1024 * 1024;
-const COPY_SUFFIX: &str = " copy";
 const PROTECTED_NAMES: [&str; 3] = [".git", ".hg", ".svn"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -281,8 +280,17 @@ fn shared_workspace_file_error(
         alera_core::workspace_files::WorkspaceFileErrorKind::NotFound => {
             WorkspaceFileErrorKind::NotFound
         }
+        alera_core::workspace_files::WorkspaceFileErrorKind::AlreadyExists => {
+            WorkspaceFileErrorKind::AlreadyExists
+        }
+        alera_core::workspace_files::WorkspaceFileErrorKind::ProtectedPath => {
+            WorkspaceFileErrorKind::ProtectedPath
+        }
         alera_core::workspace_files::WorkspaceFileErrorKind::Unsupported => {
             WorkspaceFileErrorKind::Unsupported
+        }
+        alera_core::workspace_files::WorkspaceFileErrorKind::Conflict => {
+            WorkspaceFileErrorKind::Conflict
         }
         alera_core::workspace_files::WorkspaceFileErrorKind::Io => WorkspaceFileErrorKind::Io,
     };
@@ -395,33 +403,15 @@ pub fn write_workspace_text_file(
     expected_content_token: Option<String>,
     overwrite_if_changed: bool,
 ) -> Result<WorkspaceTextFile, WorkspaceFileError> {
-    let root = workspace_root(&workspace_path)?;
-    reject_protected(&relative_path)?;
-    let path = resolve_existing(&root, &relative_path)?;
-    let canonical_relative_path = relative_string(&root, &path)?;
-    reject_protected(&canonical_relative_path)?;
-    let metadata =
-        fs::metadata(&path).map_err(|error| WorkspaceFileError::from_io(error, &relative_path))?;
-    if !metadata.is_file() {
-        return Err(WorkspaceFileError::new(
-            WorkspaceFileErrorKind::Unsupported,
-            relative_path,
-        ));
-    }
-    if !overwrite_if_changed {
-        if let Some(expected) = expected_content_token {
-            let current = content_token(&metadata);
-            if expected != current {
-                return Err(WorkspaceFileError::new(
-                    WorkspaceFileErrorKind::Conflict,
-                    relative_path,
-                ));
-            }
-        }
-    }
-    fs::write(&path, content.as_bytes())
-        .map_err(|error| WorkspaceFileError::from_io(error, &relative_path))?;
-    read_workspace_text_file(workspace_path, canonical_relative_path)
+    let written = alera_core::workspace_files::write_workspace_file(
+        &workspace_path,
+        &relative_path,
+        content.as_bytes(),
+        expected_content_token.as_deref(),
+        overwrite_if_changed,
+    )
+    .map_err(shared_workspace_file_error)?;
+    read_workspace_text_file(workspace_path, written.relative_path)
 }
 
 // FRB exposes this as named arguments on the Dart side, so keep the boundary flat.
@@ -456,19 +446,14 @@ pub fn create_workspace_file(
     parent_relative_path: String,
     name: String,
 ) -> Result<WorkspaceFileEntry, WorkspaceFileError> {
-    let root = workspace_root(&workspace_path)?;
-    let parent = resolve_existing(&root, &parent_relative_path)?;
-    let relative_path = join_relative(&parent_relative_path, &sanitize_name(&name)?)?;
-    reject_protected(&relative_path)?;
-    let path = resolve_new_child(&root, &parent, &name)?;
-    fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&path)
-        .map_err(|error| WorkspaceFileError::from_io(error, &relative_path))?;
-    entry_for_path(&root, &path, false)?.ok_or_else(|| {
-        WorkspaceFileError::new(WorkspaceFileErrorKind::NotFound, relative_path.clone())
-    })
+    mutated_entry(
+        &workspace_path,
+        alera_core::workspace_files::create_workspace_file(
+            &workspace_path,
+            &parent_relative_path,
+            &name,
+        ),
+    )
 }
 
 pub fn create_workspace_directory(
@@ -476,15 +461,14 @@ pub fn create_workspace_directory(
     parent_relative_path: String,
     name: String,
 ) -> Result<WorkspaceFileEntry, WorkspaceFileError> {
-    let root = workspace_root(&workspace_path)?;
-    let parent = resolve_existing(&root, &parent_relative_path)?;
-    let relative_path = join_relative(&parent_relative_path, &sanitize_name(&name)?)?;
-    reject_protected(&relative_path)?;
-    let path = resolve_new_child(&root, &parent, &name)?;
-    fs::create_dir(&path).map_err(|error| WorkspaceFileError::from_io(error, &relative_path))?;
-    entry_for_path(&root, &path, false)?.ok_or_else(|| {
-        WorkspaceFileError::new(WorkspaceFileErrorKind::NotFound, relative_path.clone())
-    })
+    mutated_entry(
+        &workspace_path,
+        alera_core::workspace_files::create_workspace_directory(
+            &workspace_path,
+            &parent_relative_path,
+            &name,
+        ),
+    )
 }
 
 pub fn rename_workspace_entry(
@@ -492,26 +476,14 @@ pub fn rename_workspace_entry(
     relative_path: String,
     new_name: String,
 ) -> Result<WorkspaceFileEntry, WorkspaceFileError> {
-    let root = workspace_root(&workspace_path)?;
-    reject_protected(&relative_path)?;
-    let path = resolve_existing(&root, &relative_path)?;
-    let parent = path.parent().ok_or_else(|| {
-        WorkspaceFileError::new(WorkspaceFileErrorKind::InvalidPath, relative_path.clone())
-    })?;
-    let new_name = sanitize_name(&new_name)?;
-    let destination = parent.join(&new_name);
-    if destination.exists() {
-        return Err(WorkspaceFileError::new(
-            WorkspaceFileErrorKind::AlreadyExists,
-            new_name,
-        ));
-    }
-    ensure_inside_existing_parent(&root, &destination)?;
-    fs::rename(&path, &destination)
-        .map_err(|error| WorkspaceFileError::from_io(error, &relative_path))?;
-    entry_for_path(&root, &destination, false)?.ok_or_else(|| {
-        WorkspaceFileError::new(WorkspaceFileErrorKind::NotFound, relative_path.clone())
-    })
+    mutated_entry(
+        &workspace_path,
+        alera_core::workspace_files::rename_workspace_entry(
+            &workspace_path,
+            &relative_path,
+            &new_name,
+        ),
+    )
 }
 
 pub fn copy_workspace_entry(
@@ -519,27 +491,14 @@ pub fn copy_workspace_entry(
     relative_path: String,
     target_parent_relative_path: String,
 ) -> Result<WorkspaceFileEntry, WorkspaceFileError> {
-    let root = workspace_root(&workspace_path)?;
-    reject_protected(&relative_path)?;
-    let source = resolve_existing_no_follow(&root, &relative_path)?;
-    let source_metadata = fs::symlink_metadata(&source)
-        .map_err(|error| WorkspaceFileError::from_io(error, &relative_path))?;
-    if source_metadata.file_type().is_symlink() {
-        return Err(WorkspaceFileError::new(
-            WorkspaceFileErrorKind::Unsupported,
-            relative_path,
-        ));
-    }
-    let target_parent = resolve_existing(&root, &target_parent_relative_path)?;
-    let name = source.file_name().ok_or_else(|| {
-        WorkspaceFileError::new(WorkspaceFileErrorKind::InvalidPath, relative_path.clone())
-    })?;
-    let destination = unique_copy_destination(&target_parent.join(name));
-    ensure_not_descendant(&source, &destination)?;
-    copy_recursively(&source, &destination)?;
-    entry_for_path(&root, &destination, false)?.ok_or_else(|| {
-        WorkspaceFileError::new(WorkspaceFileErrorKind::NotFound, relative_path.clone())
-    })
+    mutated_entry(
+        &workspace_path,
+        alera_core::workspace_files::copy_workspace_entry(
+            &workspace_path,
+            &relative_path,
+            &target_parent_relative_path,
+        ),
+    )
 }
 
 pub fn move_workspace_entry(
@@ -547,34 +506,14 @@ pub fn move_workspace_entry(
     relative_path: String,
     target_parent_relative_path: String,
 ) -> Result<WorkspaceFileEntry, WorkspaceFileError> {
-    let root = workspace_root(&workspace_path)?;
-    reject_protected(&relative_path)?;
-    let source = resolve_existing_no_follow(&root, &relative_path)?;
-    let source_metadata = fs::symlink_metadata(&source)
-        .map_err(|error| WorkspaceFileError::from_io(error, &relative_path))?;
-    if source_metadata.file_type().is_symlink() {
-        return Err(WorkspaceFileError::new(
-            WorkspaceFileErrorKind::Unsupported,
-            relative_path,
-        ));
-    }
-    let target_parent = resolve_existing(&root, &target_parent_relative_path)?;
-    let name = source.file_name().ok_or_else(|| {
-        WorkspaceFileError::new(WorkspaceFileErrorKind::InvalidPath, relative_path.clone())
-    })?;
-    let destination = target_parent.join(name);
-    if destination.exists() {
-        return Err(WorkspaceFileError::new(
-            WorkspaceFileErrorKind::AlreadyExists,
-            destination.to_string_lossy(),
-        ));
-    }
-    ensure_not_descendant(&source, &destination)?;
-    fs::rename(&source, &destination)
-        .map_err(|error| WorkspaceFileError::from_io(error, &relative_path))?;
-    entry_for_path(&root, &destination, false)?.ok_or_else(|| {
-        WorkspaceFileError::new(WorkspaceFileErrorKind::NotFound, relative_path.clone())
-    })
+    mutated_entry(
+        &workspace_path,
+        alera_core::workspace_files::move_workspace_entry(
+            &workspace_path,
+            &relative_path,
+            &target_parent_relative_path,
+        ),
+    )
 }
 
 pub fn delete_workspace_entry(
@@ -582,20 +521,24 @@ pub fn delete_workspace_entry(
     relative_path: String,
     use_trash: bool,
 ) -> Result<(), WorkspaceFileError> {
-    let root = workspace_root(&workspace_path)?;
-    reject_protected(&relative_path)?;
-    let path = resolve_existing_no_follow(&root, &relative_path)?;
-    if use_trash && trash::delete(&path).is_ok() {
-        return Ok(());
-    }
-    let metadata = fs::symlink_metadata(&path)
-        .map_err(|error| WorkspaceFileError::from_io(error, &relative_path))?;
-    if metadata.is_dir() && !metadata.file_type().is_symlink() {
-        fs::remove_dir_all(&path)
-            .map_err(|error| WorkspaceFileError::from_io(error, &relative_path))
-    } else {
-        fs::remove_file(&path).map_err(|error| WorkspaceFileError::from_io(error, &relative_path))
-    }
+    alera_core::workspace_files::delete_workspace_entry(&workspace_path, &relative_path, use_trash)
+        .map_err(shared_workspace_file_error)
+}
+
+/// The shared engine reports the entry it left behind; the desktop entry adds
+/// the explorer fields (token, ignore hints) the core listing does not carry.
+fn mutated_entry(
+    workspace_path: &str,
+    result: Result<
+        alera_core::workspace_files::WorkspaceExplorerEntry,
+        alera_core::workspace_files::WorkspaceFileError,
+    >,
+) -> Result<WorkspaceFileEntry, WorkspaceFileError> {
+    let entry = result.map_err(shared_workspace_file_error)?;
+    let root = workspace_root(workspace_path)?;
+    entry_for_path(&root, &root.join(&entry.relative_path), false)?.ok_or_else(|| {
+        WorkspaceFileError::new(WorkspaceFileErrorKind::NotFound, entry.relative_path)
+    })
 }
 
 fn workspace_root(workspace_path: &str) -> Result<PathBuf, WorkspaceFileError> {
@@ -614,59 +557,6 @@ fn resolve_existing(root: &Path, relative_path: &str) -> Result<PathBuf, Workspa
         ));
     }
     Ok(canonical)
-}
-
-fn resolve_existing_no_follow(
-    root: &Path,
-    relative_path: &str,
-) -> Result<PathBuf, WorkspaceFileError> {
-    let path = root.join(relative_components(relative_path)?);
-    let parent = path.parent().ok_or_else(|| {
-        WorkspaceFileError::new(WorkspaceFileErrorKind::InvalidPath, relative_path)
-    })?;
-    let canonical_parent = fs::canonicalize(parent)
-        .map_err(|error| WorkspaceFileError::from_io(error, relative_path))?;
-    if !canonical_parent.starts_with(root) {
-        return Err(WorkspaceFileError::new(
-            WorkspaceFileErrorKind::OutsideWorkspace,
-            relative_path,
-        ));
-    }
-    fs::symlink_metadata(&path)
-        .map_err(|error| WorkspaceFileError::from_io(error, relative_path))?;
-    Ok(path)
-}
-
-fn resolve_new_child(
-    root: &Path,
-    parent: &Path,
-    name: &str,
-) -> Result<PathBuf, WorkspaceFileError> {
-    let name = sanitize_name(name)?;
-    let destination = parent.join(name);
-    ensure_inside_existing_parent(root, &destination)?;
-    Ok(destination)
-}
-
-fn ensure_inside_existing_parent(
-    root: &Path,
-    destination: &Path,
-) -> Result<(), WorkspaceFileError> {
-    let parent = destination.parent().ok_or_else(|| {
-        WorkspaceFileError::new(
-            WorkspaceFileErrorKind::InvalidPath,
-            destination.to_string_lossy(),
-        )
-    })?;
-    let canonical_parent = fs::canonicalize(parent)
-        .map_err(|error| WorkspaceFileError::from_io(error, parent.to_string_lossy()))?;
-    if !canonical_parent.starts_with(root) {
-        return Err(WorkspaceFileError::new(
-            WorkspaceFileErrorKind::OutsideWorkspace,
-            destination.to_string_lossy(),
-        ));
-    }
-    Ok(())
 }
 
 fn relative_components(relative_path: &str) -> Result<PathBuf, WorkspaceFileError> {
@@ -694,32 +584,6 @@ fn relative_components(relative_path: &str) -> Result<PathBuf, WorkspaceFileErro
         }
     }
     Ok(out)
-}
-
-fn sanitize_name(name: &str) -> Result<String, WorkspaceFileError> {
-    let trimmed = name.trim();
-    if trimmed.is_empty()
-        || trimmed.contains('/')
-        || trimmed.contains('\\')
-        || trimmed == "."
-        || trimmed == ".."
-    {
-        return Err(WorkspaceFileError::new(
-            WorkspaceFileErrorKind::InvalidPath,
-            name,
-        ));
-    }
-    Ok(trimmed.to_string())
-}
-
-fn reject_protected(relative_path: &str) -> Result<(), WorkspaceFileError> {
-    if is_protected_relative_path(relative_path) {
-        return Err(WorkspaceFileError::new(
-            WorkspaceFileErrorKind::ProtectedPath,
-            relative_path,
-        ));
-    }
-    Ok(())
 }
 
 fn is_protected_relative_path(relative_path: &str) -> bool {
@@ -809,15 +673,6 @@ fn relative_string(root: &Path, path: &Path) -> Result<String, WorkspaceFileErro
         .join("/"))
 }
 
-fn join_relative(parent: &str, name: &str) -> Result<String, WorkspaceFileError> {
-    let parent = parent.trim_matches('/');
-    if parent.is_empty() {
-        Ok(name.to_string())
-    } else {
-        Ok(format!("{parent}/{name}"))
-    }
-}
-
 fn modified_millis(metadata: &fs::Metadata) -> i64 {
     metadata
         .modified()
@@ -828,82 +683,7 @@ fn modified_millis(metadata: &fs::Metadata) -> i64 {
 }
 
 fn content_token(metadata: &fs::Metadata) -> String {
-    format!("{}:{}", metadata.len(), modified_millis(metadata))
-}
-
-fn unique_copy_destination(initial: &Path) -> PathBuf {
-    if !initial.exists() {
-        return initial.to_path_buf();
-    }
-    let parent = initial.parent().unwrap_or_else(|| Path::new(""));
-    let stem = initial
-        .file_stem()
-        .map(|stem| stem.to_string_lossy().to_string())
-        .unwrap_or_else(|| "item".to_string());
-    let extension = initial
-        .extension()
-        .map(|extension| format!(".{}", extension.to_string_lossy()))
-        .unwrap_or_default();
-    let mut index = 1;
-    loop {
-        let suffix = if index == 1 {
-            COPY_SUFFIX.to_string()
-        } else {
-            format!("{COPY_SUFFIX} {index}")
-        };
-        let candidate = parent.join(format!("{stem}{suffix}{extension}"));
-        if !candidate.exists() {
-            return candidate;
-        }
-        index += 1;
-    }
-}
-
-fn ensure_not_descendant(source: &Path, destination: &Path) -> Result<(), WorkspaceFileError> {
-    let canonical_source = fs::canonicalize(source)
-        .map_err(|error| WorkspaceFileError::from_io(error, source.to_string_lossy()))?;
-    let canonical_parent = destination
-        .parent()
-        .and_then(|parent| fs::canonicalize(parent).ok())
-        .unwrap_or_else(|| destination.to_path_buf());
-    if canonical_parent.starts_with(&canonical_source) {
-        return Err(WorkspaceFileError::new(
-            WorkspaceFileErrorKind::InvalidPath,
-            destination.to_string_lossy(),
-        ));
-    }
-    Ok(())
-}
-
-fn copy_recursively(source: &Path, destination: &Path) -> Result<(), WorkspaceFileError> {
-    let metadata = fs::symlink_metadata(source)
-        .map_err(|error| WorkspaceFileError::from_io(error, source.to_string_lossy()))?;
-    if metadata.file_type().is_symlink() {
-        return Err(WorkspaceFileError::new(
-            WorkspaceFileErrorKind::Unsupported,
-            source.to_string_lossy(),
-        ));
-    }
-    if metadata.is_dir() {
-        fs::create_dir(destination)
-            .map_err(|error| WorkspaceFileError::from_io(error, destination.to_string_lossy()))?;
-        for result in fs::read_dir(source)
-            .map_err(|error| WorkspaceFileError::from_io(error, source.to_string_lossy()))?
-        {
-            let entry = result
-                .map_err(|error| WorkspaceFileError::from_io(error, source.to_string_lossy()))?;
-            copy_recursively(&entry.path(), &destination.join(entry.file_name()))?;
-        }
-    } else if metadata.is_file() {
-        fs::copy(source, destination)
-            .map_err(|error| WorkspaceFileError::from_io(error, source.to_string_lossy()))?;
-    } else {
-        return Err(WorkspaceFileError::new(
-            WorkspaceFileErrorKind::Unsupported,
-            source.to_string_lossy(),
-        ));
-    }
-    Ok(())
+    alera_core::workspace_files::content_token(metadata)
 }
 
 #[cfg(test)]

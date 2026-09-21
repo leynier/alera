@@ -60,8 +60,8 @@ Every verb that needs the checkout's filesystem or tools is answered by the host
 
 | Area | Verbs on the satellite | Desktop seam |
 | --- | --- | --- |
-| Files | `workspace.files.list/read/write/create/rename/delete/stat` | `WorkspaceFileService` already routes reads; writes stop refusing remote workspaces. |
-| Search and Quick Open | `workspace.search.*`, `workspace.quickOpen.*` (same `alera_core::workspace_search` and file catalog mobile already uses) | `WorkspaceSearchController` and quick open choose the runtime path when the workspace is remote. |
+| Files | `workspace.files.list/read/write/create/rename/copy/move/delete`; the mutation rules (containment, protected paths, `contentToken` conflicts, trash) live in `alera_core::workspace_files::mutations` so the FRB desktop path and the satellite share one implementation | `WorkspaceFileService` routes both reads and writes by `workspace.isRemote` (`writeWorkspaceEditorTextFile`, `createWorkspaceEntry`, `renameWorkspaceEntry`, ...). The explorer, the editor save path and Save All call the workspace-aware methods; `EditorDocumentSession.workspace` keeps the owner so a background save from another surface routes the same way. A typed `workspaceFileError` conflict comes back as the native `WorkspaceFileError`, so the overwrite prompt works unchanged. |
+| Search and Quick Open | `mobile.workspaceSearch.run/replace/cancel` and `mobile.workspaceQuickOpen.*`, the verbs the phone already reads, forwarded by `host_link_routing::forward_workspace_scoped_request`; quick open sessions are remembered per host in `HostLinkRegistry` so search and stop follow the session | `remoteWorkspaceSearchServiceProvider(workspaceId)` returns `RuntimeWorkspaceSearchClient`, which implements `WorkspaceSearchService` and rebuilds the native result types from the wire shape; `WorkspaceSearchController` picks it when the workspace is remote. Quick open goes through `WorkspaceFileService.startWorkspaceQuickOpenSession` and friends. The explorer's file watcher and git decorations stay local-only until phase 4. |
 | Git | `git.*` covering the `GitBackend` interface, implemented with `alera_core::source_control` and `git_in_dir` | `RuntimeGitBackend` implements `GitBackend` over the runtime client; `gitBackendForWorkspace` picks it for remote workspaces. Services keep depending on `GitBackend`. |
 | Processes | `host.process.run` (executable, arguments, cwd, stdin, environment names) | `RemoteProcessRunner` implements `ProcessRunner`; Pull Request forge providers, Open in Browser, and other CLI-backed features take a per-workspace runner. Never on the mobile allowlist. |
 | AI Assist | `aiText.*` forwarded when the request names a remote workspace | none, the hub decides. |
@@ -107,7 +107,7 @@ Every verb that needs the checkout's filesystem or tools is answered by the host
 | 0 | Plan document, `AleraHostOsIcon`, sidebar icon and alias tooltip, graph chip icon | Completed |
 | 1 | `alera runtime-attach --stdio` and hub `HostLink` / `HostLinkRegistry`; `hostLink.*` verbs, `hostLinkChanged`; capabilities `remoteHostLinkV1` and `remoteSatelliteV1`; CLI `ssh-target link`; Settings Host Link group | Completed |
 | 2 | `hub.mirror.workspace` on the satellite, `host_link_routing` and `hostLink.mirrorWorkspace` on the hub, owner commands retargeted to the satellite profile, legacy owner-profile fallback for retirement | Completed |
-| 3 | Files write verbs, search, quick open over the link; desktop routing | Pending |
+| 3 | Files write verbs, search, quick open over the link; desktop routing | Completed |
 | 4 | `git.*` verbs and `RuntimeGitBackend`; Source Control on remote workspaces | Pending |
 | 5 | `host.process.run`, `RemoteProcessRunner`, Pull Request and Open in Browser on remote; AI Assist and Watch and Fix routed by host | Pending |
 | 6 | Agent status, titles, and resource relay | Pending |

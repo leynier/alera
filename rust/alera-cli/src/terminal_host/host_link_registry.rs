@@ -29,6 +29,9 @@ pub(crate) struct HostLinkRegistry {
     inbox: UnboundedSender<ServerCommand>,
     launcher: Arc<HostLinkLauncher>,
     hosts: Arc<Mutex<HashMap<String, Arc<HostSlot>>>>,
+    /// Satellite-issued session ids (Quick Open) mapped to the host that owns
+    /// them, so follow-up requests that carry only the session id still route.
+    remote_sessions: Arc<Mutex<HashMap<String, String>>>,
 }
 
 impl HostLinkRegistry {
@@ -46,7 +49,30 @@ impl HostLinkRegistry {
             inbox,
             launcher,
             hosts: Arc::new(Mutex::new(HashMap::new())),
+            remote_sessions: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    pub(crate) fn note_remote_session(&self, session_id: &str, host_id: &str) {
+        self.remote_sessions
+            .lock()
+            .expect("host link sessions poisoned")
+            .insert(session_id.to_string(), host_id.to_string());
+    }
+
+    pub(crate) fn remote_session_host(&self, session_id: &str) -> Option<String> {
+        self.remote_sessions
+            .lock()
+            .expect("host link sessions poisoned")
+            .get(session_id)
+            .cloned()
+    }
+
+    pub(crate) fn forget_remote_session(&self, session_id: &str) -> Option<String> {
+        self.remote_sessions
+            .lock()
+            .expect("host link sessions poisoned")
+            .remove(session_id)
     }
 
     fn slot(&self, host_id: &str) -> Arc<HostSlot> {

@@ -81,16 +81,28 @@ class EditorSessionRegistry extends ChangeNotifier {
     _beginGuardedSave(tabId);
     final contentBeingSaved = document.currentText ?? '';
     try {
-      final saved = await workspaceFiles.writeEditorTextFile(
-        workspacePath: workspacePath,
-        relativePath: relativePath,
-        currentDisplayContent: contentBeingSaved,
-        originalRawContent: document.loadedRawText,
-        originalDisplayContent: document.loadedText,
-        expectedContentToken: document.contentToken,
-        overwriteIfChanged: false,
-        tabSize: document.tabSize,
-      );
+      final workspace = document.workspace;
+      final saved = workspace != null && workspace.isRemote
+          ? await workspaceFiles.writeWorkspaceEditorTextFile(
+              workspace: workspace,
+              relativePath: relativePath,
+              currentDisplayContent: contentBeingSaved,
+              originalRawContent: document.loadedRawText,
+              originalDisplayContent: document.loadedText,
+              expectedContentToken: document.contentToken,
+              overwriteIfChanged: false,
+              tabSize: document.tabSize,
+            )
+          : await workspaceFiles.writeEditorTextFile(
+              workspacePath: workspacePath,
+              relativePath: relativePath,
+              currentDisplayContent: contentBeingSaved,
+              originalRawContent: document.loadedRawText,
+              originalDisplayContent: document.loadedText,
+              expectedContentToken: document.contentToken,
+              overwriteIfChanged: false,
+              tabSize: document.tabSize,
+            );
       document.acceptSaved(
         saved,
         preserveCurrentText: document.currentText == contentBeingSaved
@@ -402,6 +414,9 @@ class EditorDocumentSession({
   final VoidCallback? _onChanged,
   final bool Function()? _canEdit,
 }) {
+  /// Set when the file belongs to a remote workspace, so a save from a
+  /// background path (Save All, close) routes to that host as well.
+  Workspace? workspace;
   String? workspacePath;
   String? relativePath;
   String? loadedRawText;
@@ -421,7 +436,9 @@ class EditorDocumentSession({
   void attachFile({
     required String workspacePath,
     required String relativePath,
+    Workspace? workspace,
   }) {
+    this.workspace = workspace;
     if (this.workspacePath == workspacePath &&
         this.relativePath == relativePath) {
       return;

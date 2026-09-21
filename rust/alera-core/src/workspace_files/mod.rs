@@ -7,15 +7,23 @@ use cap_std::{ambient_authority, fs::Dir};
 use same_file::Handle;
 
 mod containment;
+mod editor_text;
 mod listing;
 mod mime;
+mod mutations;
 mod prompts;
 mod quick_open;
 
 use mime::{mime_type_for_path, path_has_binary_preview_mime};
 
 pub use containment::{contained_workspace_relative_path, ContainedWorkspacePath};
+pub use editor_text::{encode_workspace_editor_text_for_save, expand_workspace_editor_tabs};
 pub use listing::{list_workspace_children, WorkspaceExplorerEntry, WorkspaceExplorerEntryKind};
+pub use mutations::{
+    copy_workspace_entry, create_workspace_directory, create_workspace_file,
+    delete_workspace_entry, move_workspace_entry, rename_workspace_entry, write_workspace_file,
+    WrittenWorkspaceFile,
+};
 pub use prompts::{list_codex_saved_prompts, CodexSavedPrompt, CodexSavedPromptScope};
 pub use quick_open::{
     collect_workspace_quick_open_paths, import_workspace_quick_open_paths,
@@ -31,8 +39,27 @@ pub enum WorkspaceFileErrorKind {
     InvalidPath,
     OutsideWorkspace,
     NotFound,
+    AlreadyExists,
+    ProtectedPath,
     Unsupported,
+    Conflict,
     Io,
+}
+
+impl WorkspaceFileErrorKind {
+    /// Wire name shared with the runtime host protocol and its Dart client.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::InvalidPath => "invalidPath",
+            Self::OutsideWorkspace => "outsideWorkspace",
+            Self::NotFound => "notFound",
+            Self::AlreadyExists => "alreadyExists",
+            Self::ProtectedPath => "protectedPath",
+            Self::Unsupported => "unsupported",
+            Self::Conflict => "conflict",
+            Self::Io => "io",
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -58,10 +85,10 @@ impl WorkspaceFileError {
     }
 
     pub(super) fn from_io(error: std::io::Error, context: impl Into<String>) -> Self {
-        let kind = if error.kind() == std::io::ErrorKind::NotFound {
-            WorkspaceFileErrorKind::NotFound
-        } else {
-            WorkspaceFileErrorKind::Io
+        let kind = match error.kind() {
+            std::io::ErrorKind::NotFound => WorkspaceFileErrorKind::NotFound,
+            std::io::ErrorKind::AlreadyExists => WorkspaceFileErrorKind::AlreadyExists,
+            _ => WorkspaceFileErrorKind::Io,
         };
         Self::new(kind, format!("{}: {error}", context.into()))
     }
@@ -75,6 +102,10 @@ pub struct WorkspaceFileRange {
     pub total_bytes: u64,
     pub mime_type: String,
     pub is_text: bool,
+    /// Same `"<size>:<modifiedMillis>"` token the desktop editor compares on
+    /// save, so a remote write can detect a file changed underneath it.
+    pub content_token: String,
+    pub modified_millis: i64,
 }
 
 pub struct WorkspaceFileRoot {
@@ -176,6 +207,8 @@ pub fn read_workspace_file_range_from_root(
         total_bytes: metadata.len(),
         mime_type,
         is_text,
+        content_token: content_token(&metadata),
+        modified_millis: modified_millis(&metadata),
     })
 }
 
@@ -282,6 +315,21 @@ fn range_is_probably_utf8(bytes: &[u8], allow_incomplete_suffix: bool) -> bool {
         Ok(_) => true,
         Err(error) => allow_incomplete_suffix && error.error_len().is_none(),
     }
+}
+
+pub fn modified_millis(metadata: &fs::Metadata) -> i64 {
+    metadata
+        .modified()
+        .ok()
+        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|duration| duration.as_millis().min(i64::MAX as u128) as i64)
+        .unwrap_or(0)
+}
+
+/// Buffer identity for optimistic writes: size and mtime, cheap to compute
+/// and identical on every platform and on both sides of a host link.
+pub fn content_token(metadata: &fs::Metadata) -> String {
+    format!("{}:{}", metadata.len(), modified_millis(metadata))
 }
 
 pub(super) fn workspace_root(value: &str) -> Result<PathBuf, WorkspaceFileError> {

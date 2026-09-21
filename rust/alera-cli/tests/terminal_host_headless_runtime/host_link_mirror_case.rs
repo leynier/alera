@@ -2,12 +2,22 @@ use super::*;
 use alera_core::runtime::{Project, SshTarget, Workspace};
 use std::os::unix::fs::{symlink, PermissionsExt};
 
-/// A hub runtime mirrors one of its remote workspaces onto a satellite runtime
-/// over the host link. `ssh` is a script that runs the remote command locally,
-/// and the sidecar `bin/alera` wrapper points at the satellite profile at
-/// `<installDir>/data`, exactly as the bootstrap installs it.
-#[test]
-fn hub_mirrors_a_remote_workspace_onto_its_satellite_over_the_link() {
+struct HubAndSatellite {
+    _directory: tempfile::TempDir,
+    remote: std::path::PathBuf,
+    satellite: std::path::PathBuf,
+    _satellite_guard: HostGuard,
+    satellite_port: u16,
+    _hub_guard: HostGuard,
+    hub_port: u16,
+}
+
+/// A hub runtime and a satellite runtime in one process. `ssh` is a script
+/// that runs the remote command locally, and the sidecar `bin/alera` wrapper
+/// points at the satellite profile at `<installDir>/data`, exactly as the
+/// bootstrap installs it, so the hub's real launcher and `runtime-attach` are
+/// exercised. The hub holds one remote workspace `task` on host `ssh`.
+fn hub_and_satellite() -> HubAndSatellite {
     let directory = tempfile::tempdir().unwrap();
     let hub = directory.path().join("hub-runtime");
     let local = directory.path().join("local-project");
@@ -18,7 +28,7 @@ fn hub_mirrors_a_remote_workspace_onto_its_satellite_over_the_link() {
     for path in [
         &hub,
         &local,
-        &remote,
+        &remote.join("src"),
         &commands,
         &satellite,
         &install.join("bin"),
@@ -26,6 +36,8 @@ fn hub_mirrors_a_remote_workspace_onto_its_satellite_over_the_link() {
     ] {
         std::fs::create_dir_all(path).unwrap();
     }
+    std::fs::write(remote.join("src/main.rs"), "fn main() {}\n").unwrap();
+    std::fs::write(remote.join("readme.md"), "# Remote\n").unwrap();
     symlink(env!("CARGO_BIN_EXE_alera"), install.join("current/alera")).unwrap();
     let executable = |path: &std::path::Path, script: String| {
         std::fs::write(path, script).unwrap();
@@ -61,13 +73,29 @@ fn hub_mirrors_a_remote_workspace_onto_its_satellite_over_the_link() {
             "createdAt":"2026-07-19T00:00:00Z","updatedAt":"2026-07-19T00:00:00Z","installDir":install,"bootstrapStatus":"installed","runtimePlatform":"linux"})).unwrap();
         store.upsert_ssh_target(target).await.unwrap();
     });
-    let (_satellite_guard, satellite_port) = spawn_host(&satellite, "satellite-token");
+    let (satellite_guard, satellite_port) = spawn_host(&satellite, "satellite-token");
     let path = std::env::join_paths(std::iter::once(commands).chain(std::env::split_paths(
         &std::env::var_os("PATH").unwrap_or_default(),
     )))
     .unwrap();
-    let (_hub_guard, hub_port) = spawn_host_with_path(&hub, "hub-token", Some(path));
-    let (mut writer, mut reader) = connect(hub_port, "hub-token");
+    let (hub_guard, hub_port) = spawn_host_with_path(&hub, "hub-token", Some(path));
+    HubAndSatellite {
+        _directory: directory,
+        remote,
+        satellite,
+        _satellite_guard: satellite_guard,
+        satellite_port,
+        _hub_guard: hub_guard,
+        hub_port,
+    }
+}
+
+#[test]
+fn hub_mirrors_a_remote_workspace_onto_its_satellite_over_the_link() {
+    let fixture = hub_and_satellite();
+    let remote = &fixture.remote;
+    let satellite = &fixture.satellite;
+    let (mut writer, mut reader) = connect(fixture.hub_port, "hub-token");
 
     for id in [1, 2] {
         send(
@@ -81,7 +109,7 @@ fn hub_mirrors_a_remote_workspace_onto_its_satellite_over_the_link() {
         assert_eq!(mirrored["payload"]["hostId"], "local");
         assert_eq!(
             mirrored["payload"]["path"],
-            std::fs::canonicalize(&remote).unwrap().to_str().unwrap()
+            std::fs::canonicalize(remote).unwrap().to_str().unwrap()
         );
     }
     send(
@@ -99,7 +127,8 @@ fn hub_mirrors_a_remote_workspace_onto_its_satellite_over_the_link() {
         "{status}"
     );
 
-    let (mut satellite_writer, mut satellite_reader) = connect(satellite_port, "satellite-token");
+    let (mut satellite_writer, mut satellite_reader) =
+        connect(fixture.satellite_port, "satellite-token");
     send(
         &mut satellite_writer,
         json!({"id":1,"type":"workspace.find","payload":{"id":"task"}}),
@@ -115,7 +144,7 @@ fn hub_mirrors_a_remote_workspace_onto_its_satellite_over_the_link() {
     assert_eq!(projects["payload"][0]["id"], "project-1", "{projects}");
     assert_eq!(
         projects["payload"][0]["repoPath"],
-        std::fs::canonicalize(&remote).unwrap().to_str().unwrap()
+        std::fs::canonicalize(remote).unwrap().to_str().unwrap()
     );
 
     send(
@@ -130,5 +159,151 @@ fn hub_mirrors_a_remote_workspace_onto_its_satellite_over_the_link() {
             .unwrap()
             .contains("Unknown workspace"),
         "{missing}"
+    );
+}
+
+/// Host-scoped verbs sent to the hub for a remote workspace are answered by
+/// the satellite: the hub mirrors the workspace, forwards the request over the
+/// link, and hands the answer back unchanged.
+#[test]
+fn hub_forwards_file_and_search_verbs_for_a_remote_workspace_to_its_satellite() {
+    let fixture = hub_and_satellite();
+    let remote = &fixture.remote;
+    let (mut writer, mut reader) = connect(fixture.hub_port, "hub-token");
+    let mut next_id = 0;
+    let mut request = |verb: &str, payload: Value| {
+        next_id += 1;
+        send(
+            &mut writer,
+            json!({"id": next_id, "type": verb, "payload": payload}),
+        );
+        read_response(&mut reader, next_id)
+    };
+
+    let listed = request(
+        "workspace.files.list",
+        json!({"workspaceId": "task", "relativePath": "", "hideIgnored": true}),
+    );
+    assert_eq!(listed["ok"], true, "{listed}");
+    let names: Vec<&str> = listed["payload"]["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|entry| entry["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names, ["src", "readme.md"], "{listed}");
+
+    let read = request(
+        "workspace.files.read",
+        json!({"workspaceId": "task", "relativePath": "src/main.rs", "offset": 0, "length": 65536}),
+    );
+    assert_eq!(read["ok"], true, "{read}");
+    assert_eq!(read["payload"]["isText"], true);
+    assert_eq!(
+        STANDARD
+            .decode(read["payload"]["dataBase64"].as_str().unwrap())
+            .unwrap(),
+        b"fn main() {}\n"
+    );
+    let token = read["payload"]["contentToken"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert!(token.contains(':'), "{read}");
+
+    let stale = request(
+        "workspace.files.write",
+        json!({"workspaceId": "task", "relativePath": "src/main.rs",
+            "contentBase64": STANDARD.encode("fn main() { changed(); }\n"), "expectedContentToken": "0:0"}),
+    );
+    assert_eq!(stale["ok"], false, "{stale}");
+    assert_eq!(stale["errorCode"], "workspaceFile", "{stale}");
+    assert_eq!(stale["errorDetails"]["kind"], "conflict", "{stale}");
+    let written = request(
+        "workspace.files.write",
+        json!({"workspaceId": "task", "relativePath": "src/main.rs",
+            "contentBase64": STANDARD.encode("fn main() { changed(); }\n"), "expectedContentToken": token}),
+    );
+    assert_eq!(written["ok"], true, "{written}");
+    assert_eq!(
+        std::fs::read_to_string(remote.join("src/main.rs")).unwrap(),
+        "fn main() { changed(); }\n"
+    );
+
+    let created = request(
+        "workspace.files.create",
+        json!({"workspaceId": "task", "parentRelativePath": "src", "name": "lib.rs"}),
+    );
+    assert_eq!(created["ok"], true, "{created}");
+    assert_eq!(created["payload"]["relativePath"], "src/lib.rs");
+    assert!(remote.join("src/lib.rs").is_file());
+    let renamed = request(
+        "workspace.files.rename",
+        json!({"workspaceId": "task", "relativePath": "src/lib.rs", "newName": "util.rs"}),
+    );
+    assert_eq!(
+        renamed["payload"]["relativePath"], "src/util.rs",
+        "{renamed}"
+    );
+    let deleted = request(
+        "workspace.files.delete",
+        json!({"workspaceId": "task", "relativePath": "src/util.rs", "useTrash": false}),
+    );
+    assert_eq!(deleted["ok"], true, "{deleted}");
+    assert!(!remote.join("src/util.rs").exists());
+    let escape = request(
+        "workspace.files.delete",
+        json!({"workspaceId": "task", "relativePath": "../remote-project", "useTrash": false}),
+    );
+    assert_eq!(escape["ok"], false);
+    assert_eq!(escape["errorCode"], "workspaceFile", "{escape}");
+    assert!(remote.exists());
+
+    let started = request(
+        "mobile.workspaceQuickOpen.start",
+        json!({"workspaceId": "task"}),
+    );
+    assert_eq!(started["ok"], true, "{started}");
+    let session_id = started["payload"]["sessionId"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert_eq!(started["payload"]["indexedFileCount"], 2, "{started}");
+    let matched = request(
+        "mobile.workspaceQuickOpen.search",
+        json!({"sessionId": session_id, "indexedFileCount": 2, "query": "main", "limit": 10}),
+    );
+    assert_eq!(matched["ok"], true, "{matched}");
+    assert_eq!(
+        matched["payload"]["items"][0]["relativePath"],
+        "src/main.rs"
+    );
+    let stopped = request(
+        "mobile.workspaceQuickOpen.stop",
+        json!({"sessionId": session_id}),
+    );
+    assert_eq!(stopped["ok"], true, "{stopped}");
+
+    let searched = request(
+        "mobile.workspaceSearch.run",
+        json!({"workspaceId": "task", "query": "changed", "requestId": "s1"}),
+    );
+    assert_eq!(searched["ok"], true, "{searched}");
+    assert_eq!(searched["payload"]["totalMatches"], 1, "{searched}");
+    assert_eq!(
+        searched["payload"]["files"][0]["relativePath"],
+        "src/main.rs"
+    );
+    let replaced = request(
+        "mobile.workspaceSearch.replace",
+        json!({"workspaceId": "task", "query": "changed", "replacement": "replaced",
+            "matchIds": [], "expectedFiles": [{"relativePath": "src/main.rs",
+            "contentToken": searched["payload"]["files"][0]["contentToken"]}]}),
+    );
+    assert_eq!(replaced["ok"], true, "{replaced}");
+    assert_eq!(replaced["payload"]["filesChanged"], 1, "{replaced}");
+    assert_eq!(
+        std::fs::read_to_string(remote.join("src/main.rs")).unwrap(),
+        "fn main() { replaced(); }\n"
     );
 }

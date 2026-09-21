@@ -24,24 +24,38 @@ impl ServerActor {
         request_type: &str,
         payload: &Value,
     ) -> HostResult<()> {
-        if request_type == "mobile.workspaceSearch.replace" {
+        if is_workspace_file_write(request_type) {
             self.begin_workspace_file_write();
         }
         let runtime_store = self.runtime_store.clone();
         let runtime_dir = self.runtime_dir.clone();
+        let host_links = self.host_links.clone();
         let request_type = request_type.to_string();
         let payload = payload.clone();
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             let operation = request_type.clone();
-            let result = handle_mobile_workspace_file_request(
-                runtime_store,
-                runtime_dir,
-                client_id,
+            let result = match super::host_link_routing::forward_workspace_scoped_request(
+                &runtime_store,
+                &host_links,
                 &request_type,
                 &payload,
             )
-            .await;
+            .await
+            {
+                Ok(Some(forwarded)) => Ok(forwarded),
+                Ok(None) => {
+                    handle_mobile_workspace_file_request(
+                        runtime_store,
+                        runtime_dir,
+                        client_id,
+                        &request_type,
+                        &payload,
+                    )
+                    .await
+                }
+                Err(error) => Err(error),
+            };
             let _ = inbox.send(ServerCommand::MobileWorkspaceFileFinished {
                 client_id,
                 request_id,
@@ -59,9 +73,11 @@ impl ServerActor {
         request_type: &str,
         result: HostResult<Value>,
     ) {
-        if request_type == "mobile.workspaceSearch.replace" {
+        if is_workspace_file_write(request_type) {
             if let Ok(value) = &result {
-                if value["filesChanged"].as_u64().unwrap_or(0) > 0 {
+                if request_type == "mobile.workspaceSearch.replace"
+                    && value["filesChanged"].as_u64().unwrap_or(0) > 0
+                {
                     self.broadcast_authenticated(event(
                         "workspaceFilesChanged",
                         json!({
@@ -90,6 +106,9 @@ impl ServerActor {
 
     pub(super) fn stop_mobile_workspace_quick_open(&self, payload: &Value) -> HostResult<Value> {
         let session_id = require_string_key(payload, "sessionId")?;
+        if super::host_link_routing::stop_remote_quick_open_session(&self.host_links, &session_id) {
+            return Ok(json!({}));
+        }
         stop_workspace_quick_open_session(WorkspaceQuickOpenSession {
             id: session_id,
             indexed_file_count: 0,
@@ -140,6 +159,14 @@ async fn handle_mobile_workspace_file_request(
             super::mobile_explorer_requests::list_mobile_workspace_explorer(&runtime_store, payload)
                 .await
         }
+        verb if super::workspace_file_mutation_requests::is_workspace_file_mutation(verb) => {
+            super::workspace_file_mutation_requests::handle_workspace_file_mutation(
+                &runtime_store,
+                verb,
+                payload,
+            )
+            .await
+        }
         "mobile.workspaceSearch.run"
         | "mobile.workspaceSearch.replace"
         | "mobile.workspaceSearch.cancel" => {
@@ -171,6 +198,13 @@ async fn handle_mobile_workspace_file_request(
             "Unsupported mobile workspace file operation.",
         )),
     }
+}
+
+/// Writes hold the runtime's mutation queue so an idle shutdown or a
+/// competing runtime mutation cannot interleave with a file on disk.
+fn is_workspace_file_write(request_type: &str) -> bool {
+    request_type == "mobile.workspaceSearch.replace"
+        || super::workspace_file_mutation_requests::is_workspace_file_mutation(request_type)
 }
 
 fn cleanup_orphaned_workspace_file_result(request_type: &str, result: &HostResult<Value>) {
