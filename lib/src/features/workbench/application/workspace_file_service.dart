@@ -11,6 +11,7 @@ import 'package:alera/src/shared/infra/git/git_explorer_status.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
+part 'editor_document_session.dart';
 part 'editor_session_registry.dart';
 part 'editor_buffer_guards.dart';
 

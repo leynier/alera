@@ -159,17 +159,13 @@ class _RemoteHostSettingsPaneState
     );
   }
 
-  Future<void> _connectLink(SshTarget target) async {
-    await _runLinkOperation(
-      () => ref.read(sshTargetRepositoryProvider).connectHostLink(target.id),
-    );
-  }
+  Future<void> _connectLink(SshTarget target) => _runLinkOperation(
+    () => ref.read(sshTargetRepositoryProvider).connectHostLink(target.id),
+  );
 
-  Future<void> _disconnectLink(SshTarget target) async {
-    await _runLinkOperation(
-      () => ref.read(sshTargetRepositoryProvider).disconnectHostLink(target.id),
-    );
-  }
+  Future<void> _disconnectLink(SshTarget target) => _runLinkOperation(
+    () => ref.read(sshTargetRepositoryProvider).disconnectHostLink(target.id),
+  );
 
   Future<void> _runLinkOperation(
     Future<HostLinkState> Function() operation,
@@ -193,15 +189,7 @@ class _RemoteHostSettingsPaneState
 
   SshTarget? _selectedTarget(List<SshTarget> targets) {
     final selectedId = _selectedTargetId;
-    if (selectedId == null) {
-      return null;
-    }
-    for (final target in targets) {
-      if (target.id == selectedId) {
-        return target;
-      }
-    }
-    return null;
+    return targets.where((target) => target.id == selectedId).firstOrNull;
   }
 
   void _seedFromTarget(SshTarget target) {
@@ -343,14 +331,9 @@ class _RemoteHostSettingsPaneState
   }
 
   int? _validatedPort() {
-    final value = _portController.text.trim();
-    if (value.isEmpty) {
-      return 22;
-    }
-    final port = int.tryParse(value);
-    if (port == null || port < 1 || port > 65535) {
+    final port = parseRemoteHostPort(_portController.text);
+    if (port == null) {
       setState(() => _error = 'Port must be between 1 and 65535');
-      return null;
     }
     return port;
   }
