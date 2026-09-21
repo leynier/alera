@@ -91,6 +91,7 @@ mod tailscale;
 mod terminal_alias_commands;
 mod terminal_host;
 mod terminal_stdio_mode;
+mod windows_path_form;
 mod workspace_add;
 mod workspace_archive;
 mod workspace_buffer_guard_request;

@@ -99,3 +99,37 @@ pub(crate) async fn workspace_host_id(
         .unwrap_or_default();
     primary_host_id(&project.repo_path, &checkouts)
 }
+
+/// The last segment of a project path, whichever machine the path is from. A
+/// project that lives only on a Windows host has a `C:\...` path that a POSIX
+/// hub must still split, and `std::path` splits by the rules of the machine it
+/// runs on, which turned the whole path into the folder name.
+pub(crate) fn folder_name(path: &str) -> Option<&str> {
+    path.trim_end_matches(['/', '\\'])
+        .rsplit(['/', '\\'])
+        .next()
+        .map(str::trim)
+        .filter(|segment| !segment.is_empty() && !segment.ends_with(':'))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::folder_name;
+
+    #[test]
+    fn a_folder_name_is_read_the_same_from_any_platform() {
+        assert_eq!(folder_name("/home/me/code/alera/"), Some("alera"));
+        assert_eq!(
+            folder_name(r"C:\Users\me\alera-projects\Hello-World"),
+            Some("Hello-World")
+        );
+        assert_eq!(
+            folder_name(r"\\?\C:\Users\me\alera-projects\Hello-World\"),
+            Some("Hello-World")
+        );
+        assert_eq!(folder_name("C:/mixed\\style"), Some("style"));
+        assert_eq!(folder_name("/"), None);
+        assert_eq!(folder_name(r"C:\"), None);
+        assert_eq!(folder_name(""), None);
+    }
+}

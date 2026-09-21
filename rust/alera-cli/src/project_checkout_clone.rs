@@ -57,7 +57,7 @@ pub(crate) async fn clone_checkout(
         if !requested.is_absolute() { bail!("An absolute clone destination is required"); }
         let parent = requested.parent().ok_or_else(|| anyhow!("A clone destination parent is required"))?;
         let name = requested.file_name().ok_or_else(|| anyhow!("A new clone directory name is required"))?;
-        let destination = std::fs::canonicalize(parent).context("The clone parent directory is unavailable")?.join(name);
+        let destination = crate::windows_path_form::canonicalize(parent).context("The clone parent directory is unavailable")?.join(name);
         // Exclusive creation rejects existing directories, including empty ones and symlinks.
         std::fs::create_dir(&destination).context("The clone destination must be a new directory; no existing files were changed")?;
         alera_core::git_cli::git_in_dir_with_environment(&destination, &["clone", "--", &args.url, "."], &environment)

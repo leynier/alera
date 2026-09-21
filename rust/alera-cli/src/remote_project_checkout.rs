@@ -374,9 +374,9 @@ pub(crate) async fn ensure_linked_origin<E: RemoteHostExecutor>(
         origin.starts_with('/')
     };
     if inspection.version != 1
-        || inspection.path != checkout.path
+        || !crate::windows_path_form::same_path(&inspection.path, &checkout.path)
         || !absolute
-        || origin == &inspection.path
+        || crate::windows_path_form::same_path(origin, &inspection.path)
         || inspection.branch.is_empty()
     {
         bail!("The native linked inspection does not match the retained checkout");

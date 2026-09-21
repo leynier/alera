@@ -102,7 +102,7 @@ async fn prepare_shared_workspace_with<E: crate::ssh_remote::RemoteHostExecutor>
             executor,
         )
         .await?;
-        if inspection.path != checkout.path {
+        if !crate::windows_path_form::same_path(&inspection.path, &checkout.path) {
             bail!("The registered SSH checkout now resolves to a different directory; no task was created");
         }
         if require_remote_automation_declaration {
@@ -134,7 +134,7 @@ async fn prepare_shared_workspace_with<E: crate::ssh_remote::RemoteHostExecutor>
     if let Some(existing) = store.find_workspace(&id).await? {
         if existing.project_id != project.id
             || existing.host_id != host_id
-            || existing.path != path
+            || !crate::windows_path_form::same_path(&existing.path, &path)
             || existing.kind != WorkspaceKind::Main
             || request
                 .name
