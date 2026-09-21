@@ -70,6 +70,9 @@ pub struct WorkspaceListArgs {
     pub project_id: Option<String>,
     #[arg(long)]
     pub all: bool,
+    /// Only workspaces on this host: an SSH target id, or `local`.
+    #[arg(long = "host-id")]
+    pub host_id: Option<String>,
 }
 
 #[derive(Debug, Args)]

@@ -45,6 +45,7 @@ mod project_checkout_inspection;
 mod project_checkout_worktree;
 mod project_config_toml;
 mod project_file_catalog;
+mod project_hosts;
 mod project_management;
 #[cfg(windows)]
 mod pty_job_bootstrap;
@@ -339,12 +340,25 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
                 eprintln!("Missing --project-id or --all.");
                 return USAGE_EXIT_CODE;
             };
+            let host_id = args
+                .host_id
+                .as_deref()
+                .map(|host_id| crate::ssh_remote::normalized_host_id(Some(host_id)));
             match result {
-                Ok(workspaces) => print_value(
-                    &json!({ "kind": "workspaces", "items": workspaces, "filters": {} }),
-                    json_output,
-                    "workspaces listed",
-                ),
+                Ok(mut workspaces) => {
+                    if let Some(host_id) = &host_id {
+                        workspaces.retain(|workspace| &workspace.host_id == host_id);
+                    }
+                    print_value(
+                        &json!({
+                            "kind": "workspaces",
+                            "items": workspaces,
+                            "filters": { "hostId": host_id },
+                        }),
+                        json_output,
+                        "workspaces listed",
+                    )
+                }
                 Err(error) => return print_error(error),
             }
         }

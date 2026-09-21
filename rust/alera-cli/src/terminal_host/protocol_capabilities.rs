@@ -31,6 +31,10 @@ pub const RUNTIME_HOST_REMOTE_PROCESS_CAPABILITY: &str = "remoteProcessV1";
 /// `agentHookEvent`, so a hub can run its own status, title and resume
 /// pipeline for the terminals it proxies to this host. Additive.
 pub const RUNTIME_HOST_REMOTE_AGENT_HOOK_RELAY_CAPABILITY: &str = "remoteAgentHookRelayV1";
+
+/// `project.hosts.*`, and `primaryHostId` plus `checkouts` on `project.list`:
+/// one project registered on several hosts. Additive.
+pub const RUNTIME_HOST_PROJECT_HOSTS_CAPABILITY: &str = "projectHostsV1";
 pub const RUNTIME_HOST_MOBILE_CAPABILITY: &str = "mobileCompanionAccess";
 pub const RUNTIME_HOST_MOBILE_NETBIRD_CAPABILITY: &str = "mobileNetBirdGatewayV1";
 pub const RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY: &str = "workspaceSectionsV1";

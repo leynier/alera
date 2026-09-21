@@ -92,6 +92,16 @@ alera project --json register-checkout --project-id <project-id> --host-id <targ
 
 The destination's parent must exist. The sidecar reserves a new destination and rejects existing directories, including empty ones and symlinks. Git uses that host's environment and credential helper with terminal prompting disabled. The runtime performs registration and cloning outside its actor loop so terminal requests can continue. If cloning fails or the response is lost, inspect the destination first: a completed clone can be registered by repeating `register-checkout` without `--clone-url`. A partial destination is retained for inspection; another clone must use a new path. The CLI waits up to 30 minutes for the response; expiration does not confirm that remote work stopped.
 
+To add a project to a host without choosing a destination, let the host pick one:
+
+```bash
+alera project --json hosts add --project-id <project-id> --host-id <target-id>
+alera project --json hosts list --project-id <project-id>
+alera project --json hosts remove --project-id <project-id> --host-id <target-id>
+```
+
+`hosts add` clones the Git remote of the local project folder (or `--clone-url <repository-url>`) into `alera-projects/<project-folder-name>` under the remote user's home, creating `alera-projects` when needed and taking the first free `<name>-N`. With `--path` it registers an existing checkout instead, like `register-checkout`. `hosts remove` forgets the checkout and never deletes files; it is refused while workspaces remain on that host. See `docs/remote-hosts-hub.md` for the model.
+
 Cancel an active runtime-host bootstrap job:
 
 ```bash

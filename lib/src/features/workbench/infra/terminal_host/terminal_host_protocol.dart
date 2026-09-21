@@ -68,6 +68,11 @@ const String aleraRuntimeHostRemoteGitCapability = 'remoteGitV1';
 /// Local clients only. Additive: do not bump
 /// [aleraTerminalHostProtocolVersion].
 const String aleraRuntimeHostRemoteProcessCapability = 'remoteProcessV1';
+
+/// The runtime serves `project.hosts.*` and reports `primaryHostId` and
+/// `checkouts` on every project, so one project can live on several hosts.
+/// Additive: do not bump [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostProjectHostsCapability = 'projectHostsV1';
 const String aleraRuntimeHostOrchestrationCapability = 'orchestration';
 const String aleraRuntimeHostAccountCapability = 'aleraAccountV1';
 const String aleraRuntimeHostConfigurationSyncCapability =

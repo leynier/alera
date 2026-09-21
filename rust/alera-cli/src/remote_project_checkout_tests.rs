@@ -51,6 +51,7 @@ async fn fixture() -> (tempfile::TempDir, tempfile::TempDir, RuntimeStore, Strin
 fn request(project_id: &str, path: &str) -> RegisterProjectCheckoutRequest {
     RegisterProjectCheckoutRequest {
         clone_url: None,
+        clone_name: None,
         project_id: project_id.into(),
         host_id: "ssh".into(),
         path: path.into(),

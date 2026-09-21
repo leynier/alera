@@ -25,6 +25,9 @@ mod host_link_process_case;
 mod owner_terminal_case;
 #[path = "terminal_host_headless_runtime/profile_snapshot_restart_cases.rs"]
 mod profile_snapshot_restart_cases;
+#[cfg(unix)]
+#[path = "terminal_host_headless_runtime/project_hosts_case.rs"]
+mod project_hosts_case;
 #[path = "terminal_host_headless_runtime/startup_command_cases.rs"]
 mod startup_command_cases;
 #[path = "terminal_host_headless_runtime/startup_reconciliation_case.rs"]

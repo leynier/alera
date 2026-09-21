@@ -37,6 +37,8 @@ pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
                 | "terminal.pulse.configure"
                 | "project.register"
                 | "project.checkout.register"
+                | "project.hosts.add"
+                | "project.hosts.remove"
                 | "project.rename"
                 | "project.upsert"
                 | "projectConfig.remove"

@@ -6,15 +6,57 @@ pub(super) async fn run_project_command(command: ProjectCommand) -> i32 {
     match command.action {
         ProjectAction::List => match open_store(&runtime).await {
             Ok(store) => match store.list_projects().await {
-                Ok(projects) => print_value(
-                    &json!({ "kind": "projects", "items": projects, "filters": {} }),
-                    json_output,
-                    "projects listed",
-                ),
+                Ok(projects) => {
+                    let mut items = json!(projects);
+                    crate::project_hosts::decorate_projects(&store, &mut items).await;
+                    print_value(
+                        &json!({ "kind": "projects", "items": items, "filters": {} }),
+                        json_output,
+                        "projects listed",
+                    )
+                }
                 Err(error) => return print_error(error),
             },
             Err(error) => return print_error(error),
         },
+        ProjectAction::Hosts(command) => {
+            use crate::cli::ProjectHostsAction;
+            let (request_type, payload, message, deadline_ms) = match command.action {
+                ProjectHostsAction::List(args) => (
+                    "project.hosts.list",
+                    json!({ "projectId": args.project_id }),
+                    "project hosts listed",
+                    30_000,
+                ),
+                // A clone can take as long as the repository is large.
+                ProjectHostsAction::Add(args) => (
+                    "project.hosts.add",
+                    json!({
+                        "projectId": args.project_id, "hostId": args.host_id,
+                        "path": args.path, "cloneUrl": args.clone_url,
+                    }),
+                    "project added to host",
+                    1_800_000,
+                ),
+                ProjectHostsAction::Remove(args) => (
+                    "project.hosts.remove",
+                    json!({ "projectId": args.project_id, "hostId": args.host_id }),
+                    "project removed from host",
+                    30_000,
+                ),
+            };
+            let mut client = match runtime_host_required(&runtime).await {
+                Ok(client) => client,
+                Err(error) => return print_error(error),
+            };
+            match client
+                .request_value_with_deadline(request_type, &payload, deadline_ms)
+                .await
+            {
+                Ok(value) => print_value(&value, json_output, message),
+                Err(error) => return print_error(error),
+            }
+        }
         ProjectAction::OwnerTerminal(args) => {
             return match remote_owner_terminal::run(args).await {
                 Ok(code) => code,

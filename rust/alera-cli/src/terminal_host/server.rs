@@ -119,6 +119,7 @@ mod owner_terminal_lifecycle;
 mod owner_terminal_natural_exit;
 mod project_checkout_file_requests;
 mod project_checkout_requests;
+mod project_host_requests;
 mod remote_agent_presence_relay;
 mod remote_ai_assist_requests;
 mod remote_pull_request_routing;

@@ -13,8 +13,14 @@ use crate::ssh_remote::{
 pub(crate) struct RegisterProjectCheckoutRequest {
     pub project_id: String,
     pub host_id: String,
+    /// Empty together with `clone_name` when the host picks the destination.
+    #[serde(default)]
     pub path: String,
     pub clone_url: Option<String>,
+    /// Directory name for a clone into the host's default projects folder,
+    /// used instead of `path`. Only the host knows its home directory.
+    #[serde(default)]
+    pub clone_name: Option<String>,
 }
 
 pub(crate) async fn register<E: RemoteHostExecutor>(
@@ -48,6 +54,7 @@ pub(crate) async fn register<E: RemoteHostExecutor>(
         &request.path,
         project.kind,
         request.clone_url.as_deref(),
+        request.clone_name.as_deref(),
         executor,
     )
     .await?;
@@ -63,7 +70,7 @@ pub(crate) async fn inspect_remote<E: RemoteHostExecutor>(
     kind: ProjectKind,
     executor: &E,
 ) -> Result<CheckoutInspection> {
-    inspect_remote_with_clone(store, host_id, path, kind, None, executor).await
+    inspect_remote_with_clone(store, host_id, path, kind, None, None, executor).await
 }
 
 async fn inspect_remote_with_clone<E: RemoteHostExecutor>(
@@ -72,9 +79,11 @@ async fn inspect_remote_with_clone<E: RemoteHostExecutor>(
     path: &str,
     kind: ProjectKind,
     clone_url: Option<&str>,
+    clone_name: Option<&str>,
     executor: &E,
 ) -> Result<CheckoutInspection> {
-    if path.trim().is_empty() {
+    let clone_name = clone_name.map(str::trim).filter(|name| !name.is_empty());
+    if path.trim().is_empty() && (clone_url.is_none() || clone_name.is_none()) {
         bail!("A checkout path is required");
     }
     let target = require_bootstrapped_ssh_target(store, host_id).await?;
@@ -87,7 +96,12 @@ async fn inspect_remote_with_clone<E: RemoteHostExecutor>(
         })?;
     let windows = probe_or_unreachable(executor, &target).await?;
     let script = match clone_url {
-        Some(url) if !url.trim().is_empty() => clone_script(windows, install_dir, path, url),
+        Some(url) if !url.trim().is_empty() => match clone_name {
+            Some(name) if path.trim().is_empty() => {
+                clone_by_name_script(windows, install_dir, name, url)
+            }
+            _ => clone_script(windows, install_dir, path, url),
+        },
         Some(_) => bail!("A clone source is required"),
         None => inspection_script(windows, install_dir, path, kind),
     };
@@ -151,6 +165,23 @@ fn clone_script(windows: bool, install_dir: &str, path: &str, url: &str) -> Stri
         &format!(
             "project clone-checkout-folder --path {} --url {}",
             quote(path),
+            quote(url)
+        ),
+    )
+}
+
+fn clone_by_name_script(windows: bool, install_dir: &str, name: &str, url: &str) -> String {
+    let quote = if windows {
+        powershell_string
+    } else {
+        shell_quote
+    };
+    checkout_command_script(
+        windows,
+        install_dir,
+        &format!(
+            "project clone-checkout-folder --name {} --url {}",
+            quote(name),
             quote(url)
         ),
     )

@@ -13,7 +13,8 @@ async fn clone_rejects_existing_empty_and_populated_directories() {
         }
         let error = clone_checkout(CloneCheckoutArgs {
             url: "/unused-source".into(),
-            path: destination.to_str().unwrap().into(),
+            path: Some(destination.to_str().unwrap().into()),
+            name: None,
         })
         .await
         .unwrap_err();
@@ -45,7 +46,8 @@ async fn clones_an_isolated_repository_and_keeps_failed_destination() {
     let destination = dir.path().join("cloned");
     let result = clone_checkout(CloneCheckoutArgs {
         url: source.to_str().unwrap().into(),
-        path: destination.to_str().unwrap().into(),
+        path: Some(destination.to_str().unwrap().into()),
+        name: None,
     })
     .await
     .unwrap();
@@ -65,7 +67,8 @@ async fn clones_an_isolated_repository_and_keeps_failed_destination() {
     let failed = dir.path().join("failed");
     let error = clone_checkout(CloneCheckoutArgs {
         url: dir.path().join("missing-source").to_str().unwrap().into(),
-        path: failed.to_str().unwrap().into(),
+        path: Some(failed.to_str().unwrap().into()),
+        name: None,
     })
     .await
     .unwrap_err();
@@ -84,7 +87,8 @@ async fn clone_rejects_symlink_destination_without_touching_its_target() {
     std::os::unix::fs::symlink(&target, &link).unwrap();
     assert!(clone_checkout(CloneCheckoutArgs {
         url: "/unused-source".into(),
-        path: link.to_str().unwrap().into()
+        path: Some(link.to_str().unwrap().into()),
+        name: None,
     })
     .await
     .is_err());
@@ -93,4 +97,26 @@ async fn clone_rejects_symlink_destination_without_touching_its_target() {
         "original"
     );
     assert!(std::fs::symlink_metadata(&link).unwrap().is_symlink());
+}
+
+#[test]
+fn a_default_clone_takes_the_first_free_name_and_rejects_paths() {
+    let projects = tempfile::tempdir().unwrap();
+    assert_eq!(
+        first_free_destination(projects.path(), "alera"),
+        projects.path().join("alera")
+    );
+    std::fs::create_dir(projects.path().join("alera")).unwrap();
+    std::fs::write(
+        projects.path().join("alera-2"),
+        "a file also occupies the name",
+    )
+    .unwrap();
+    assert_eq!(
+        first_free_destination(projects.path(), "alera"),
+        projects.path().join("alera-3")
+    );
+    for name in ["", " ", ".", "..", "a/b", "a\\b", "c:repo"] {
+        assert!(default_clone_destination(name).is_err(), "{name:?}");
+    }
 }

@@ -44,6 +44,7 @@ pub(crate) fn requires_shared_checkout_support(request_type: &str) -> bool {
                 | "workspace.removeForProject"
                 | "project.register"
                 | "project.checkout.register"
+                | "project.hosts.add"
                 | "project.clone.start"
         )
 }

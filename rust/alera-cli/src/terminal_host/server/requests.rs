@@ -520,7 +520,9 @@ impl ServerActor {
             }
             "project.list" => {
                 self.require_auth(client_id)?;
-                json_result(self.runtime_store.list_projects().await)
+                let mut projects = json_result(self.runtime_store.list_projects().await)?;
+                crate::project_hosts::decorate_projects(&self.runtime_store, &mut projects).await;
+                Ok(projects)
             }
             "hostDirectory.roots" => {
                 self.require_auth(client_id)?;

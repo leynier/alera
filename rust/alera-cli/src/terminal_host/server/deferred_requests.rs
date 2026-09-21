@@ -24,6 +24,12 @@ impl ServerActor {
             return Ok(true);
         }
         if self
+            .try_start_project_hosts_request(client_id, request_id, request_type, payload)
+            .await?
+        {
+            return Ok(true);
+        }
+        if self
             .try_start_remote_terminal_lifecycle(client_id, request_id, request_type, payload)
             .await?
         {
