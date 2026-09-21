@@ -24,6 +24,9 @@ class const _SidebarBody({
   onHandOnWorkspace,
   required final Future<void> Function(Project project) onRenameProject,
   required final Future<void> Function(Project project) onRemoveProject,
+
+  /// Null when the runtime cannot put a project on more hosts.
+  required final Future<void> Function(Project project)? onManageProjectHosts,
   required final Future<void> Function(Workspace workspace) onRenameWorkspace,
   required final Future<void> Function(Workspace workspace, bool isPinned)
   onSetWorkspacePinned,
@@ -106,6 +109,10 @@ class const _SidebarBody({
               unawaited(onOpenProjectSettings(row.project)),
           onRenameProject: () => onRenameProject(row.project),
           onRemoveProject: () => onRemoveProject(row.project),
+          onManageHosts:
+              onManageProjectHosts == null || !row.project.isGitRepository
+              ? null
+              : () => unawaited(onManageProjectHosts!(row.project)),
         ),
       );
     }

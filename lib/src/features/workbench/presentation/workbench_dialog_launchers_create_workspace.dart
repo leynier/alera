@@ -62,6 +62,9 @@ Future<void> _runCreateWorkspaceFlow(
     beforeAccess: ref.read(runtimeStateMigrationProvider).ensureMigrated,
   );
   final sshTargets = await _loadSshTargets(ref);
+  final hostEnrollment = ProjectHostEnrollmentController(
+    _supportsProjectHosts(ref) ? projectHostAdder(ref) : null,
+  );
   // Read from the snapshot the sidebar already keeps rather than asking the
   // host again, so opening the form never waits on a runtime connection, and
   // never starts a watch of its own when nothing else is watching.
@@ -70,24 +73,30 @@ Future<void> _runCreateWorkspaceFlow(
       ref.exists(linkedIssueSnapshotProvider) &&
       ref.read(linkedIssuesSupportedProvider);
   if (!context.mounted) {
+    hostEnrollment.dispose();
     return;
   }
-  await _showCreateWorkspaceDialogs(
-    context,
-    ref,
-    controller: controller,
-    projects: projects,
-    parentCandidates: parentCandidates,
-    sshTargets: sshTargets,
-    resolvedInitialProject: resolvedInitialProject,
-    profiles: profiles,
-    runtime: runtime,
-    fetchIssue: linkedIssuesSupported ? issueRepository.fetch : null,
-    retryManual: retryManual,
-    retryPrompt: retryPrompt,
-    retryError: retryError,
-    remainingRetryJobId: remainingRetryJobId,
-  );
+  try {
+    await _showCreateWorkspaceDialogs(
+      context,
+      ref,
+      controller: controller,
+      projects: projects,
+      parentCandidates: parentCandidates,
+      sshTargets: sshTargets,
+      hostEnrollment: hostEnrollment,
+      resolvedInitialProject: resolvedInitialProject,
+      profiles: profiles,
+      runtime: runtime,
+      fetchIssue: linkedIssuesSupported ? issueRepository.fetch : null,
+      retryManual: retryManual,
+      retryPrompt: retryPrompt,
+      retryError: retryError,
+      remainingRetryJobId: remainingRetryJobId,
+    );
+  } finally {
+    hostEnrollment.dispose();
+  }
 }
 
 Future<void> _showCreateWorkspaceDialogs(
@@ -97,6 +106,7 @@ Future<void> _showCreateWorkspaceDialogs(
   required List<Project> projects,
   required List<WorkspaceParentCandidate> parentCandidates,
   required List<SshTarget> sshTargets,
+  required ProjectHostEnrollmentController hostEnrollment,
   required Project? resolvedInitialProject,
   required List<AgentProfile> profiles,
   required PromptWorkspaceRuntimeClient runtime,
@@ -116,6 +126,7 @@ Future<void> _showCreateWorkspaceDialogs(
       projects: projects,
       agentProfiles: profiles,
       sshTargets: sshTargets,
+      hostEnrollment: hostEnrollment,
       defaultAgentProfileId:
           retryPrompt?.profileId ??
           ref.read(settingsControllerProvider).agents.defaultAgentProfileId,
@@ -138,6 +149,7 @@ Future<void> _showCreateWorkspaceDialogs(
         projects: projects,
         parentCandidates: parentCandidates,
         sshTargets: sshTargets,
+        hostEnrollment: hostEnrollment,
         resolvedInitialProject: resolvedInitialProject,
         retryManual: retryManual,
         retryError: retryError,
@@ -250,6 +262,7 @@ Widget _buildManualWorkspaceForm(
   required List<Project> projects,
   required List<WorkspaceParentCandidate> parentCandidates,
   required List<SshTarget> sshTargets,
+  required ProjectHostEnrollmentController hostEnrollment,
   required Project? resolvedInitialProject,
   required Future<void>? Function(ManualWorkspaceCreateRequest request)
   enqueueCreate,
@@ -275,6 +288,7 @@ Widget _buildManualWorkspaceForm(
     enqueueCreate: enqueueCreate,
     parentCandidates: parentCandidates,
     sshTargets: sshTargets,
+    hostEnrollment: hostEnrollment,
     loadBranches: controller.listSourceBranches,
     loadHostBranchCatalog: controller.loadHostBranchCatalog,
     getProjectActiveBranch: (project) {

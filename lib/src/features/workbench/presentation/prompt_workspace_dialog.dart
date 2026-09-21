@@ -14,7 +14,10 @@ import 'package:alera/src/features/linked_issues/presentation/issue_url_field.da
 import 'package:alera/src/features/projects/domain/preferred_source_branch.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_branch_catalog.dart';
+import 'package:alera/src/features/projects/domain/project_host_enrollment.dart';
 import 'package:alera/src/features/projects/domain/project_selection_order.dart';
+import 'package:alera/src/features/projects/presentation/project_host_enrollment_controller.dart';
+import 'package:alera/src/features/projects/presentation/project_host_enrollment_notice.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/background_setup_job.dart';
@@ -29,7 +32,9 @@ import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_field_
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
+part 'prompt_workspace_dialog_branch_loading.dart';
 part 'prompt_workspace_dialog_form.dart';
+part 'prompt_workspace_dialog_host_enrollment.dart';
 part 'prompt_workspace_dialog_agent_launch.dart';
 part 'prompt_workspace_dialog_linked_issue.dart';
 part 'prompt_workspace_dialog_clipboard.dart';
@@ -87,6 +92,10 @@ class const PromptWorkspaceDialog({
   final String? defaultAgentProfileId,
   final List<SshTarget> sshTargets = const <SshTarget>[],
   final bool supportsRemoteSshWorkspaces = true,
+
+  /// Owned by the caller and shared with [manualForm]. Null means the runtime
+  /// cannot put a project on more hosts.
+  final ProjectHostEnrollmentController? hostEnrollment,
   final Future<void> Function({
     required WorkspaceCreationResult creation,
     required String agentTabId,
@@ -127,6 +136,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   String? _selectedParentWorkspaceId;
   String? _selectedHostId;
   int _branchLoadGeneration = 0;
+  bool _branchesAwaitHostEnrollment = false;
   bool _loadingBranches = false;
   bool _working = false;
   String? _phase;
@@ -138,6 +148,9 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   bool _createAnother = false;
   bool _autoAssignSection = true;
   bool _useProjectCheckout = false;
+  late final ProjectHostEnrollmentController _hostEnrollment =
+      (widget.hostEnrollment ?? ProjectHostEnrollmentController(null))
+        ..addListener(_onHostEnrollmentChanged);
 
   bool get _autoAssignSectionEffective =>
       widget.hasWorkspaceSections && _autoAssignSection;
@@ -151,7 +164,10 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
     _mode = widget.initialMode;
     _project = _initialProject();
     _selectedParentWorkspaceId = widget.initialParentWorkspaceId;
-    _selectedHostId = widget.initialHostId;
+    _selectedHostId = initialWorkspaceHostId(
+      project: _project,
+      requested: widget.initialHostId,
+    );
     _profile = _defaultAgentProfile();
     _error = widget.initialError;
     _issueUrlController.text = widget.initialIssueUrl ?? '';
@@ -170,6 +186,8 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
     _promptController.dispose();
     _promptFocusNode.dispose();
     _issueUrlController.dispose();
+    _hostEnrollment.removeListener(_onHostEnrollmentChanged);
+    if (widget.hostEnrollment == null) _hostEnrollment.dispose();
     super.dispose();
   }
 
@@ -199,51 +217,6 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
     return _orderedProjects.firstOrNull;
   }
 
-  Future<void> _loadBranches(Project project) async {
-    final hostId = _selectedHostId;
-    final generation = ++_branchLoadGeneration;
-    setState(() {
-      _loadingBranches = true;
-      if (_error != widget.initialError) {
-        _error = null;
-      }
-      _branches = const <String>[];
-      _sourceBranch = null;
-    });
-    try {
-      final catalog = await widget.loadHostBranchCatalog?.call(project, hostId);
-      final branches = catalog?.branches ?? await widget.loadBranches(project);
-      final projectPreferred = await _preferredSourceFor(project);
-      if (!mounted ||
-          _project?.id != project.id ||
-          _selectedHostId != hostId ||
-          generation != _branchLoadGeneration) {
-        return;
-      }
-      setState(() {
-        _branches = branches;
-        final preferred = project.id == widget.initialProject?.id
-            ? widget.initialSourceBranch
-            : null;
-        _sourceBranch = (preferred != null && branches.contains(preferred)
-            ? preferred
-            : pickDefaultSourceBranch(branches, preferred: projectPreferred));
-        _loadingBranches = false;
-      });
-    } catch (error) {
-      if (mounted &&
-          _project?.id == project.id &&
-          _selectedHostId == hostId &&
-          generation == _branchLoadGeneration) {
-        setState(() {
-          _loadingBranches = false;
-          _sourceBranch = null;
-          _error = error.toString();
-        });
-      }
-    }
-  }
-
   String _parentWorkspaceLabel(Workspace workspace) {
     Project? project;
     for (final candidate in _orderedProjects) {
@@ -262,6 +235,12 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
       _project = project;
       _selectedParentWorkspaceId = null;
       _sourceBranch = null;
+      if (project.isRemoteOnly && !project.isOnHost(_selectedHostId)) {
+        _selectedHostId = initialWorkspaceHostId(
+          project: project,
+          requested: null,
+        );
+      }
       if (!project.isGitRepository && widget.enqueuePrompt != null) {
         _useProjectCheckout = true;
       }

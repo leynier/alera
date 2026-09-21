@@ -72,6 +72,21 @@ String sshTargetPickerLabel(SshTarget target) {
   return target.alias;
 }
 
+/// The name the UI shows for [hostId]: the target's alias, the raw id when the
+/// target is no longer registered, and "This Device" for the local host.
+String workspaceHostLabel(List<SshTarget> targets, String? hostId) {
+  final remoteId = normalizedRemoteHostId(hostId);
+  if (remoteId == null) {
+    return 'This Device';
+  }
+  for (final target in targets) {
+    if (target.id == remoteId) {
+      return target.alias;
+    }
+  }
+  return remoteId;
+}
+
 String userFacingExceptionMessage(Object error) {
   final mapped = remoteWorkspaceErrorMessage(error);
   if (mapped != null) {

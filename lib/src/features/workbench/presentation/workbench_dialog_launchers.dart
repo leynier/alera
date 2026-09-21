@@ -10,7 +10,11 @@ import 'package:alera/src/features/automations/presentation/automations_dialog.d
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/linked_issues/application/linked_issue_providers.dart';
 import 'package:alera/src/features/linked_issues/domain/issue_details.dart';
+import 'package:alera/src/features/projects/application/project_hosts_providers.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/domain/project_host_enrollment.dart';
+import 'package:alera/src/features/projects/presentation/project_host_enrollment_controller.dart';
+import 'package:alera/src/features/projects/presentation/project_hosts_dialog.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 
@@ -32,6 +36,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 part 'workbench_dialog_launchers_create_workspace.dart';
+part 'workbench_dialog_launchers_project_hosts.dart';
 
 /// Shared dialog flows for project/workspace creation and settings.
 ///
