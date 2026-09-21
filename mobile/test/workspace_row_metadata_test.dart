@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/app/theme/alera_theme.dart';
+import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_linked_worktree_icon.dart';
 import 'package:alera_mobile/src/features/pull_requests/domain/mobile_pull_request_watch.dart';
@@ -103,10 +104,66 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets(
+    'long workspace names keep the pull request icon on a phone-width row',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        _rowApp(
+          name: 'Linked Worktree Split Icon',
+          summary: MobileWorkspacePullRequestSummary(
+            workspaceId: 'workspace-1',
+            number: 12,
+            title: 'Add fork indicators',
+            state: MobileWorkspacePullRequestState.open,
+            mergeable: MobileWorkspacePullRequestMergeable.mergeable,
+            checksRollup: MobileWorkspacePullRequestChecksRollup.pending,
+            pendingCheckCount: 2,
+          ),
+          watch: const MobilePullRequestWatch(
+            workspaceId: 'workspace-1',
+            reviewNumber: 12,
+            mode: 'fix',
+          ),
+          width: 390,
+        ),
+      );
+
+      final pr = tester.getRect(
+        find.byKey(const Key('workspace-tray-pull-request')),
+      );
+      expect(pr.left, lessThan(390 - AleraTokens.minTapTarget));
+      expect(pr.right, lessThanOrEqualTo(390));
+      expect(find.byIcon(AleraIcons.gitPullRequest), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'an active watch still shows a pull request glyph before summaries load',
+    (tester) async {
+      await tester.pumpWidget(
+        _rowApp(
+          watch: const MobilePullRequestWatch(
+            workspaceId: 'workspace-1',
+            reviewNumber: 12,
+            mode: 'fix',
+          ),
+        ),
+      );
+
+      expect(find.byType(MobileWorkspacePullRequestStatusIcon), findsOneWidget);
+      expect(find.byIcon(AleraIcons.gitPullRequest), findsOneWidget);
+      expect(find.byKey(const Key('workspace-tray-pr-watch')), findsOneWidget);
+    },
+  );
 }
 
 Widget _rowApp({
   String kind = 'linked',
+  String name = 'Workspace',
   MobileWorkspacePullRequestSummary? summary,
   MobilePullRequestWatch? watch,
   double? width,
@@ -122,7 +179,7 @@ Widget _rowApp({
               workspace: WorkspaceSummary(
                 id: 'workspace-1',
                 projectId: 'project-1',
-                name: 'Workspace',
+                name: name,
                 path: '/repo',
                 kind: kind,
               ),

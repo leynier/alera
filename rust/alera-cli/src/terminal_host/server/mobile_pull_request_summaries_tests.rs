@@ -140,6 +140,23 @@ fn closed_branch_match_never_autodetects_but_linked_number_does() {
 }
 
 #[test]
+fn stored_branch_wins_over_live_head() {
+    assert_eq!(
+        resolved_workspace_branch(Some("feat/x"), Some("main")).as_deref(),
+        Some("feat/x")
+    );
+    assert_eq!(
+        resolved_workspace_branch(Some("HEAD"), Some("feat/x")).as_deref(),
+        Some("feat/x")
+    );
+    assert_eq!(resolved_workspace_branch(Some(""), Some("HEAD")), None);
+    assert_eq!(
+        resolved_workspace_branch(None, Some("feat/x")).as_deref(),
+        Some("feat/x")
+    );
+}
+
+#[test]
 fn envelope_reports_evaluated_and_eligible_workspace_ids() {
     let envelope = summaries_envelope(
         vec![json!({"workspaceId": "ws-1"})],

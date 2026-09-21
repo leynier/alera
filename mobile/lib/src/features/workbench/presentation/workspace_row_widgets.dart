@@ -61,6 +61,9 @@ class const MobileWorkspaceListRow({
     );
     final listedAgents = split.listed;
     final hasListedAgents = listedAgents.isNotEmpty;
+    final pullRequestSummary =
+        this.pullRequestSummary ??
+        _pullRequestSummaryFallback(workspace.id, pullRequestWatch);
     final metadataIcons = <Widget>[
       if (showProjectIcon &&
           (projectName?.trim().isNotEmpty ?? false)) ...<Widget>[
@@ -231,27 +234,30 @@ class const MobileWorkspaceListRow({
                               const SizedBox(width: AleraTokens.space6),
                             ],
                             Expanded(
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: Row(
-                                  mainAxisSize: .min,
-                                  children: <Widget>[
-                                    Flexible(
-                                      child: Text(
-                                        workspace.name,
-                                        maxLines: 1,
-                                        softWrap: false,
-                                        overflow: .ellipsis,
-                                        style: theme.textTheme.bodyMedium
-                                            ?.copyWith(
-                                              color: AleraTokens.foreground,
-                                              fontWeight: .w600,
-                                            ),
-                                      ),
+                              child: Row(
+                                children: <Widget>[
+                                  Flexible(
+                                    child: Row(
+                                      mainAxisSize: .min,
+                                      children: <Widget>[
+                                        Flexible(
+                                          child: Text(
+                                            workspace.name,
+                                            maxLines: 1,
+                                            softWrap: false,
+                                            overflow: .ellipsis,
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                                  color: AleraTokens.foreground,
+                                                  fontWeight: .w600,
+                                                ),
+                                          ),
+                                        ),
+                                        ...metadataIcons,
+                                      ],
                                     ),
-                                    ...metadataIcons,
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -303,4 +309,17 @@ class const MobileWorkspaceListRow({
       ),
     );
   }
+}
+
+MobileWorkspacePullRequestSummary? _pullRequestSummaryFallback(
+  String workspaceId,
+  MobilePullRequestWatch? watch,
+) {
+  if (watch == null || watch.reviewNumber <= 0) {
+    return null;
+  }
+  return MobileWorkspacePullRequestSummary(
+    workspaceId: workspaceId,
+    number: watch.reviewNumber,
+  );
 }
