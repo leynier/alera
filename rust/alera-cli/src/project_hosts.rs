@@ -100,6 +100,19 @@ pub(crate) async fn workspace_host_id(
     primary_host_id(&project.repo_path, &checkouts)
 }
 
+/// Whether `project.repo_path` is a folder on this machine. A project that
+/// lives only on another host has a path from that machine, and reading it
+/// here would pick up whatever unrelated file happens to sit at the same path.
+pub(crate) async fn project_folder_is_local(
+    store: &RuntimeStore,
+    project: &alera_core::runtime::Project,
+) -> bool {
+    let checkouts = project_checkouts(store, &project.id)
+        .await
+        .unwrap_or_default();
+    primary_host_id(&project.repo_path, &checkouts) == LOCAL_HOST_ID
+}
+
 /// The last segment of a project path, whichever machine the path is from. A
 /// project that lives only on a Windows host has a `C:\...` path that a POSIX
 /// hub must still split, and `std::path` splits by the rules of the machine it
