@@ -45,6 +45,7 @@ pub(crate) fn requires_shared_checkout_support(request_type: &str) -> bool {
                 | "project.register"
                 | "project.checkout.register"
                 | "project.hosts.add"
+                | "project.registerRemote"
                 | "project.clone.start"
         )
 }

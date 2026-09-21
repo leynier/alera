@@ -63,6 +63,9 @@ pub enum ProjectAction {
     Hosts(ProjectHostsCommand),
     /// Register a local project path.
     Add(ProjectAddArgs),
+    /// Register a project that lives only on an SSH host, from an existing
+    /// folder there or by cloning a repository into its default projects folder.
+    AddRemote(ProjectAddRemoteArgs),
     /// Remove a project and runtime-owned child records.
     Remove(ProjectRemoveArgs),
 }
@@ -156,6 +159,22 @@ pub struct ProjectAddArgs {
     pub name: String,
     #[arg(long = "repo-path")]
     pub repo_path: String,
+    #[arg(long, value_enum, default_value_t = ProjectKindArg::GitRepository)]
+    pub kind: ProjectKindArg,
+}
+
+#[derive(Debug, Args)]
+pub struct ProjectAddRemoteArgs {
+    #[arg(long)]
+    pub host_id: String,
+    /// An existing folder on the host.
+    #[arg(long)]
+    pub path: Option<String>,
+    /// Clone this repository on the host instead of using an existing folder.
+    #[arg(long)]
+    pub clone_url: Option<String>,
+    #[arg(long)]
+    pub name: Option<String>,
     #[arg(long, value_enum, default_value_t = ProjectKindArg::GitRepository)]
     pub kind: ProjectKindArg,
 }

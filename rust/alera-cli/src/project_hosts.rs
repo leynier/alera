@@ -81,3 +81,21 @@ pub(crate) fn host_rows(
     }
     rows
 }
+
+/// The host a new workspace goes to when the caller names none: the host of
+/// the project's own folder. For an ordinary project that is this device, as
+/// it always was; for a project that lives only on a server it is that server,
+/// where "this device" would point at a folder that does not exist.
+pub(crate) async fn workspace_host_id(
+    store: &RuntimeStore,
+    project: &alera_core::runtime::Project,
+    requested: Option<&str>,
+) -> String {
+    if requested.is_some_and(|host_id| !host_id.trim().is_empty()) {
+        return crate::ssh_remote::normalized_host_id(requested);
+    }
+    let checkouts = project_checkouts(store, &project.id)
+        .await
+        .unwrap_or_default();
+    primary_host_id(&project.repo_path, &checkouts)
+}

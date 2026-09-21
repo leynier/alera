@@ -63,6 +63,126 @@ pub(crate) async fn register<E: RemoteHostExecutor>(
         .await
 }
 
+/// A project whose only folder is on another host: nothing is checked out on
+/// this device, `repoPath` is the path on that host, and the project checkout
+/// row is what says so. With `clone_url` and no `path` the host clones into
+/// its default projects folder first.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct RegisterRemoteProjectRequest {
+    pub host_id: String,
+    #[serde(default)]
+    pub path: String,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub kind: Option<ProjectKind>,
+    #[serde(default)]
+    pub clone_url: Option<String>,
+}
+
+pub(crate) async fn register_remote_project<E: RemoteHostExecutor>(
+    store: &RuntimeStore,
+    request: RegisterRemoteProjectRequest,
+    executor: &E,
+) -> Result<serde_json::Value> {
+    let host_id = crate::ssh_remote::normalized_host_id(Some(&request.host_id));
+    if host_id == alera_core::runtime::LOCAL_HOST_ID {
+        bail!("Use project registration for a folder on this device");
+    }
+    let kind = request.kind.unwrap_or(ProjectKind::GitRepository);
+    let clone_url = request
+        .clone_url
+        .as_deref()
+        .map(str::trim)
+        .filter(|url| !url.is_empty());
+    if clone_url.is_some() && kind != ProjectKind::GitRepository {
+        bail!("Only Git projects can be cloned");
+    }
+    let clone_name = clone_url.map(clone_name_from_url);
+    let checkout = inspect_remote_with_clone(
+        store,
+        &host_id,
+        &request.path,
+        kind,
+        clone_url,
+        clone_name.as_deref(),
+        executor,
+    )
+    .await?;
+    for project in store.list_projects().await? {
+        if project.repo_path == checkout.path
+            && store
+                .find_project_checkout(&project.id, &host_id)
+                .await?
+                .is_some()
+        {
+            bail!(
+                "This folder is already the project \"{}\" on that host",
+                project.name
+            );
+        }
+    }
+    let name = request
+        .name
+        .as_deref()
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| {
+            checkout
+                .path
+                .trim_end_matches(['/', '\\'])
+                .rsplit(['/', '\\'])
+                .next()
+                .filter(|segment| !segment.is_empty())
+                .unwrap_or("Project")
+                .to_string()
+        });
+    let now = chrono::Utc::now();
+    let project = store
+        .upsert_project(alera_core::runtime::Project {
+            id: uuid::Uuid::new_v4().to_string(),
+            name,
+            repo_path: checkout.path.clone(),
+            created_at: now,
+            updated_at: now,
+            kind,
+        })
+        .await?;
+    let registered = store
+        .register_project_checkout(&project.id, &host_id, &checkout.path)
+        .await?;
+    Ok(serde_json::json!({ "project": project, "checkout": registered }))
+}
+
+/// `git@github.com:owner/repo.git` and `https://host/owner/repo/` both name
+/// the directory `repo`.
+fn clone_name_from_url(url: &str) -> String {
+    let last = url
+        .trim_end_matches('/')
+        .rsplit(['/', ':'])
+        .next()
+        .unwrap_or_default();
+    let name = last.strip_suffix(".git").unwrap_or(last);
+    let cleaned: String = name
+        .chars()
+        .map(|character| {
+            if character.is_alphanumeric() || matches!(character, '-' | '_' | '.') {
+                character
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    let cleaned = cleaned.trim_matches(['-', '.']).to_string();
+    if cleaned.is_empty() {
+        "project".to_string()
+    } else {
+        cleaned
+    }
+}
+
 pub(crate) async fn inspect_remote<E: RemoteHostExecutor>(
     store: &RuntimeStore,
     host_id: &str,

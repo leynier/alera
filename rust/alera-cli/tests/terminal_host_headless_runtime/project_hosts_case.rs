@@ -129,6 +129,57 @@ fn a_project_is_listed_added_to_and_removed_from_hosts() {
         "{again}"
     );
 
+    // A project that exists only on a host: cloned there, nothing here.
+    let remote_only = request(
+        "project.registerRemote",
+        json!({"hostId": "ssh-2", "cloneUrl": source, "name": "Server Only"}),
+    );
+    assert_eq!(remote_only["ok"], true, "{remote_only}");
+    let remote_project = &remote_only["payload"]["project"];
+    let remote_path = remote_project["repoPath"].as_str().unwrap();
+    assert!(
+        remote_path.ends_with("alera-projects/source-repository"),
+        "named after the repository, under the host's home: {remote_path}"
+    );
+    assert_eq!(remote_only["payload"]["checkout"]["hostId"], "ssh-2");
+    let listed = request("project.list", json!({}));
+    let entry = listed["payload"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|project| project["id"] == remote_project["id"])
+        .unwrap_or_else(|| panic!("{listed}"));
+    assert_eq!(entry["name"], "Server Only");
+    assert_eq!(entry["primaryHostId"], "ssh-2", "{entry}");
+    assert_eq!(entry["checkouts"].as_array().unwrap().len(), 1, "{entry}");
+    // No host named: the workspace goes where the project lives.
+    let shared = request(
+        "workspace.createShared",
+        json!({"projectId": remote_project["id"], "name": "On The Server"}),
+    );
+    assert_eq!(shared["ok"], true, "{shared}");
+    assert_eq!(
+        shared["payload"]["workspace"]["hostId"], "ssh-2",
+        "{shared}"
+    );
+    assert_eq!(
+        shared["payload"]["workspace"]["path"], remote_path,
+        "{shared}"
+    );
+
+    let twice = request(
+        "project.registerRemote",
+        json!({"hostId": "ssh-2", "path": remote_path}),
+    );
+    assert_eq!(twice["ok"], false, "{twice}");
+    assert!(
+        twice["error"]
+            .as_str()
+            .unwrap()
+            .contains("already the project"),
+        "{twice}"
+    );
+
     let removed = request(
         "project.hosts.remove",
         json!({"projectId": "project-1", "hostId": "ssh-2"}),

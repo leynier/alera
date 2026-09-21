@@ -416,3 +416,17 @@ async fn branch_catalog_uses_registered_owner_and_rejects_mismatched_or_old_resp
 
 #[path = "project_file_catalog_tests.rs"]
 mod file_catalog_tests;
+
+#[test]
+fn a_clone_is_named_after_the_repository_in_its_url() {
+    for (url, name) in [
+        ("git@github.com:leynier/alera.git", "alera"),
+        ("https://github.com/leynier/alera/", "alera"),
+        ("https://dev.azure.com/org/project/_git/My Repo", "My-Repo"),
+        ("/srv/git/tools.git", "tools"),
+        ("", "project"),
+        ("https://host/..", "project"),
+    ] {
+        assert_eq!(clone_name_from_url(url), name, "{url}");
+    }
+}

@@ -28,6 +28,15 @@ impl ServerActor {
         request_type: &str,
         payload: &Value,
     ) -> HostResult<bool> {
+        if request_type == "project.registerRemote" {
+            self.require_auth(client_id)?;
+            self.require_request_allowed(client_id, request_type)?;
+            let request = serde_json::from_value(payload.clone()).map_err(|error| {
+                HostError::format(format!("Invalid remote project payload: {error}"))
+            })?;
+            self.start_remote_project_registration(client_id, request_id, request);
+            return Ok(true);
+        }
         if !matches!(
             request_type,
             "project.hosts.list" | "project.hosts.add" | "project.hosts.remove"

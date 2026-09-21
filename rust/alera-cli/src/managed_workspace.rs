@@ -17,9 +17,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::remote_managed_workspace::create_remote_managed_workspace;
-use crate::ssh_remote::{
-    is_remote_host_id, normalized_host_id, LiveSshRemoteHost, RemoteHostExecutor,
-};
+use crate::ssh_remote::{is_remote_host_id, LiveSshRemoteHost, RemoteHostExecutor};
 use crate::worktree_setup::{prepare_deferred_worktree_setup, run_worktree_setup};
 
 #[path = "managed_workspace_removal_preflight.rs"]
@@ -149,7 +147,8 @@ pub(crate) async fn create_managed_workspace_with<E: RemoteHostExecutor>(
     if !core_git::is_valid_branch_name(&branch)? {
         bail!("Invalid branch name \"{branch}\"");
     }
-    let host_id = normalized_host_id(request.host_id.as_deref());
+    let host_id =
+        crate::project_hosts::workspace_host_id(store, &project, request.host_id.as_deref()).await;
     if is_remote_host_id(Some(&host_id)) {
         return create_remote_managed_workspace(store, request, &project, &host_id, executor).await;
     }

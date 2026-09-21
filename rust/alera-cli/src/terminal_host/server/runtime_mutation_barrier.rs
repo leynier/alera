@@ -38,6 +38,7 @@ pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
                 | "project.register"
                 | "project.checkout.register"
                 | "project.hosts.add"
+                | "project.registerRemote"
                 | "project.hosts.remove"
                 | "project.rename"
                 | "project.upsert"

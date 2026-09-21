@@ -184,6 +184,30 @@ pub(super) async fn run_project_command(command: ProjectCommand) -> i32 {
                 Err(error) => return print_error(error),
             }
         }
+        ProjectAction::AddRemote(args) => {
+            let kind = match args.kind {
+                ProjectKindArg::GitRepository => ProjectKind::GitRepository,
+                ProjectKindArg::Folder => ProjectKind::Folder,
+            };
+            let mut client = match runtime_host_required(&runtime).await {
+                Ok(client) => client,
+                Err(error) => return print_error(error),
+            };
+            match client
+                .request_value_with_deadline(
+                    "project.registerRemote",
+                    &json!({
+                        "hostId": args.host_id, "path": args.path.unwrap_or_default(),
+                        "cloneUrl": args.clone_url, "name": args.name, "kind": kind,
+                    }),
+                    1_800_000,
+                )
+                .await
+            {
+                Ok(value) => print_value(&value, json_output, "remote project registered"),
+                Err(error) => return print_error(error),
+            }
+        }
         ProjectAction::Add(args) => {
             let kind = match args.kind {
                 ProjectKindArg::GitRepository => ProjectKind::GitRepository,

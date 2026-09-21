@@ -79,7 +79,8 @@ async fn prepare_shared_workspace_with<E: crate::ssh_remote::RemoteHostExecutor>
         .find_project(&request.project_id)
         .await?
         .ok_or_else(|| anyhow!("Project not found: {}", request.project_id))?;
-    let host_id = crate::ssh_remote::normalized_host_id(request.host_id.as_deref());
+    let host_id =
+        crate::project_hosts::workspace_host_id(store, &project, request.host_id.as_deref()).await;
     if let Some(parent_id) = request.parent_workspace_id.as_deref() {
         if store.find_workspace(parent_id).await?.is_none() {
             bail!("Parent workspace not found: {parent_id}");
