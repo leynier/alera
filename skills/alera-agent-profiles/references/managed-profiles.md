@@ -88,7 +88,7 @@ Effort support is model-specific. A Gemini profile may accept `--effort high` wh
 
 ### Cursor
 
-Cursor model ids can encode effort. Discover them with the installed CLI instead of composing slugs.
+`cursor-agent` has no `--fast`, `--thinking`, or `--effort` flag. Fast, thinking, and effort are slug variants from `cursor-agent --list-models`. The managed editor groups those published slugs into a model family plus Effort, Thinking, and Fast controls, then stores an existing slug in `model`. Saving still launches `cursor-agent --model <exact-slug>`. Bracket forms such as `grok-4.7[effort=xhigh,fast=true]` are not accepted by the CLI and fail with `Cannot use this model`. Do not invent a slug the installed list does not contain. An id that is missing from that list, or that does not parse, stays a raw Exact Model ID and the variant controls stay hidden. Managed keys stay `model`, `mode`, `permissionMode`, `sandbox`, and `trustWorkspace`.
 
 Cursor status uses Alera-managed entries in `~/.cursor/hooks.json`. If the terminal answers but `agentType` is absent, confirm that file contains the Alera-marked commands and that `GROK_CURSOR_HOOKS_ENABLED=false` is set so a Grok turn cannot steal the identity. Report a missing hook file as a status integration failure, not as a missing tab or failed model launch.
 
