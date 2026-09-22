@@ -87,6 +87,23 @@ pub fn run_captured(
     Ok(CapturedOutput::from_output(command.output()?))
 }
 
+/// Like `run_inherit`, but captures stdout so a caller can read cargo's JSON
+/// messages while progress and diagnostics still reach the console on stderr.
+pub fn run_with_captured_stdout(
+    program: &str,
+    args: &[impl AsRef<OsStr>],
+    cwd: &Path,
+    windows_shell: bool,
+) -> io::Result<CapturedOutput> {
+    let mut command = spawn_command(program, args, windows_shell, true);
+    command
+        .current_dir(cwd)
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit());
+    Ok(CapturedOutput::from_output(command.output()?))
+}
+
 fn spawn_command(
     program: &str,
     args: &[impl AsRef<OsStr>],
@@ -173,6 +190,21 @@ mod tests {
     fn run_captured_records_success() {
         let output = super::run_captured("true", &[] as &[&str], None, false).unwrap();
         assert_eq!(output.status, 0);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn run_with_captured_stdout_keeps_stderr_inherited() {
+        let output = super::run_with_captured_stdout(
+            "sh",
+            &["-c", "printf out; printf err >&2"],
+            Path::new("."),
+            false,
+        )
+        .unwrap();
+        assert_eq!(output.status, 0);
+        assert_eq!(output.stdout, "out");
+        assert!(output.stderr.is_empty());
     }
 
     #[test]

@@ -1,4 +1,5 @@
 mod cli;
+mod cli_binary;
 mod debug;
 mod debug_processes;
 mod flavor;
