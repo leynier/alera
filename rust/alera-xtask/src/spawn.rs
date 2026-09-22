@@ -1,8 +1,11 @@
 //! Process spawn helpers for developer tooling.
 //!
 //! Windows makefile flows used Dart `runInShell: true` so `.cmd` / `.bat`
-//! shims such as `flutter.bat` resolve. The quoting here matches
-//! `rust/src/api/process_shell.rs`.
+//! shims such as `flutter.bat` resolve. Argument quoting matches
+//! `rust/src/api/process_shell.rs`, but a plain program name stays bare,
+//! because `cmd.exe` resolves `%~dp0` of a quoted batch file found through
+//! PATH against the working directory, which makes `flutter.bat` compute
+//! `FLUTTER_ROOT` from the repository.
 
 use std::collections::HashMap;
 use std::ffi::OsStr;
@@ -104,6 +107,39 @@ fn spawn_command(
     command
 }
 
+#[cfg(any(windows, test))]
+fn windows_shell_line(program: &str, args: &[impl AsRef<OsStr>]) -> String {
+    let mut line = String::from("/d /s /c \"");
+    line.push_str(&cmd_program_token(program));
+    for arg in args {
+        line.push(' ');
+        line.push_str(&double_quoted(&arg.as_ref().to_string_lossy()));
+    }
+    line.push('"');
+    line
+}
+
+/// A quoted batch file found through PATH gets the working directory as its
+/// `%~dp0`, so plain names stay bare; paths and anything `cmd.exe` would
+/// split or expand keep their quotes.
+#[cfg(any(windows, test))]
+fn cmd_program_token(program: &str) -> String {
+    let plain = !program.is_empty()
+        && program.chars().all(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '.' | '_' | '-' | '+')
+        });
+    if plain {
+        program.to_string()
+    } else {
+        double_quoted(program)
+    }
+}
+
+#[cfg(any(windows, test))]
+fn double_quoted(value: &str) -> String {
+    format!("\"{}\"", value.replace('"', "\\\""))
+}
+
 #[cfg(windows)]
 fn windows_shell_command(
     program: &str,
@@ -112,30 +148,18 @@ fn windows_shell_command(
 ) -> std::process::Command {
     use std::os::windows::process::CommandExt;
 
-    let mut line = String::from("/d /s /c \"");
-    line.push_str(&double_quoted(program));
-    for arg in args {
-        line.push(' ');
-        line.push_str(&double_quoted(&arg.as_ref().to_string_lossy()));
-    }
-    line.push('"');
     let mut command = if inherit_console {
         console_command("cmd.exe")
     } else {
         windowless_command("cmd.exe")
     };
-    command.raw_arg(line);
+    command.raw_arg(windows_shell_line(program, args));
     command
-}
-
-#[cfg(windows)]
-fn double_quoted(value: &str) -> String {
-    format!("\"{}\"", value.replace('"', "\\\""))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::quote_for_log;
+    use super::*;
 
     #[test]
     fn quote_for_log_wraps_whitespace() {
@@ -149,5 +173,102 @@ mod tests {
     fn run_captured_records_success() {
         let output = super::run_captured("true", &[] as &[&str], None, false).unwrap();
         assert_eq!(output.status, 0);
+    }
+
+    #[test]
+    fn windows_shell_line_leaves_plain_program_bare() {
+        assert_eq!(
+            windows_shell_line("flutter", &["run", "-d", "windows"]),
+            r#"/d /s /c "flutter "run" "-d" "windows"""#
+        );
+        assert_eq!(
+            windows_shell_line("flutter.bat", &["run"]),
+            r#"/d /s /c "flutter.bat "run"""#
+        );
+        assert_eq!(
+            windows_shell_line("cargo", &["build", "--locked"]),
+            r#"/d /s /c "cargo "build" "--locked"""#
+        );
+    }
+
+    #[test]
+    fn windows_shell_line_quotes_program_paths() {
+        assert_eq!(
+            windows_shell_line(r"C:\flutter\bin\flutter.bat", &["run"]),
+            r#"/d /s /c ""C:\flutter\bin\flutter.bat" "run"""#
+        );
+        assert_eq!(
+            windows_shell_line(r"C:\Program Files\Rust\cargo.exe", &[] as &[&str]),
+            r#"/d /s /c ""C:\Program Files\Rust\cargo.exe"""#
+        );
+        assert_eq!(
+            windows_shell_line(r"tool\flutter.bat", &["run"]),
+            r#"/d /s /c ""tool\flutter.bat" "run"""#
+        );
+    }
+
+    #[test]
+    fn windows_shell_line_quotes_unsafe_program_names() {
+        assert_eq!(
+            windows_shell_line("my tool", &[] as &[&str]),
+            r#"/d /s /c ""my tool"""#
+        );
+        assert_eq!(
+            windows_shell_line("a&b", &[] as &[&str]),
+            r#"/d /s /c ""a&b"""#
+        );
+        assert_eq!(
+            windows_shell_line("x%PATH%", &[] as &[&str]),
+            r#"/d /s /c ""x%PATH%"""#
+        );
+        assert_eq!(windows_shell_line("", &[] as &[&str]), r#"/d /s /c """""#);
+    }
+
+    #[test]
+    fn windows_shell_line_keeps_argument_quoting() {
+        assert_eq!(
+            windows_shell_line("flutter", &[r#"--dart-define=A="b""#]),
+            r#"/d /s /c "flutter "--dart-define=A=\"b\""""#
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_shell_resolves_batch_directory_through_path() {
+        let bin = tempfile::tempdir().unwrap();
+        let cwd = tempfile::tempdir().unwrap();
+        let script = bin.path().join("xtask850probe.bat");
+        std::fs::write(&script, "@echo off\r\necho %~dp0\r\n").unwrap();
+        let inherited = std::env::var("PATH").unwrap_or_default();
+        let path = format!("{};{inherited}", bin.path().display());
+        let output = super::spawn_command("xtask850probe", &["run"], true, false)
+            .env("PATH", path)
+            .current_dir(cwd.path())
+            .stdout(std::process::Stdio::piped())
+            .output()
+            .unwrap();
+        let printed = normalize_cmd_dir(&String::from_utf8_lossy(&output.stdout));
+        let canonical = bin.path().canonicalize().unwrap();
+        let expected = normalize_cmd_dir(&canonical.to_string_lossy());
+        let marker = canonical
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        let cwd_text = normalize_cmd_dir(&cwd.path().to_string_lossy());
+        let resolved = printed.eq_ignore_ascii_case(&expected)
+            || printed
+                .to_ascii_lowercase()
+                .ends_with(&marker.to_ascii_lowercase());
+        assert!(
+            output.status.success() && resolved && !printed.eq_ignore_ascii_case(&cwd_text),
+            "{printed} expected {expected} cwd {cwd_text} {output:?}"
+        );
+    }
+
+    #[cfg(windows)]
+    fn normalize_cmd_dir(value: &str) -> String {
+        let trimmed = value.trim().trim_end_matches(['\\', '/']);
+        trimmed.strip_prefix(r"\\?\").unwrap_or(trimmed).to_string()
     }
 }
