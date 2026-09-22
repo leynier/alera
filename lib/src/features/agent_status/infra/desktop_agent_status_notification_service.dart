@@ -8,9 +8,16 @@ import 'package:alera/src/features/agent_status/application/agent_status_notific
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 const String aleraWindowsNotificationAppName = kAleraAppName;
-const String aleraWindowsNotificationAppUserModelId = 'Leynier.Alera';
-const String aleraWindowsNotificationGuid =
-    '6f03d61e-b22a-42fc-9e44-a02319d77f55';
+
+// Windows stores toast registration per AUMID and serves activation through
+// the GUID's COM class, so each flavor needs its own pair. Release values must
+// not change: existing installs are registered under them.
+const String aleraWindowsNotificationAppUserModelId = kIsAleraReleaseFlavor
+    ? 'Leynier.Alera'
+    : 'Leynier.Alera.Dev';
+const String aleraWindowsNotificationGuid = kIsAleraReleaseFlavor
+    ? '6f03d61e-b22a-42fc-9e44-a02319d77f55'
+    : 'd9d71450-17c3-41bd-b6ab-2e3fac3f417c';
 const String _openAleraActionLabel = 'Open $kAleraAppName';
 
 class DesktopAgentStatusNotificationService({
