@@ -38,6 +38,11 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 target_compile_definitions(${BINARY_NAME} PRIVATE ALERA_APP_NAME=L"${ALERA_APP_NAME}")
 target_compile_definitions(${BINARY_NAME} PRIVATE ALERA_APP_ID=L"${ALERA_APP_ID}")
 
+# Narrow strings for Runner.rc VERSIONINFO. ProductName picks the
+# %APPDATA%\dev.leynier\<ProductName> data directory, so it must follow the flavor.
+target_compile_definitions(${BINARY_NAME} PRIVATE ALERA_RC_PRODUCT_NAME="${ALERA_APP_NAME}")
+target_compile_definitions(${BINARY_NAME} PRIVATE ALERA_RC_ORIGINAL_FILENAME="${BINARY_NAME}.exe")
+
 # Add dependency libraries and include directories. Add any application-specific
 # dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
