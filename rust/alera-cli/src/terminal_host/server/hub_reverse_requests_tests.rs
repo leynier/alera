@@ -28,11 +28,23 @@ async fn satellite() -> (
     (root, actor, hub_frames, cli_frames)
 }
 
+async fn mark_as_satellite(actor: &ServerActor) {
+    actor
+        .runtime_store
+        .set_metadata(crate::hub_federation::SATELLITE_METADATA_KEY, "1")
+        .await
+        .unwrap();
+}
+
 fn handled(outcome: HostResult<Option<ReverseOutcome>>) -> Value {
     match outcome.unwrap().expect("a reverse channel verb") {
         ReverseOutcome::Answer(value) => value,
         ReverseOutcome::Deferred => json!("deferred"),
     }
+}
+
+fn register_hub(actor: &mut ServerActor) {
+    handled(actor.try_handle_hub_reverse_request(HUB, 1, "hub.link.register", &json!({})));
 }
 
 #[tokio::test]
@@ -46,7 +58,7 @@ async fn a_forwarded_question_travels_to_the_hub_and_its_answer_comes_back() {
         "{unlinked}"
     );
 
-    handled(actor.try_handle_hub_reverse_request(HUB, 1, "hub.link.register", &json!({})));
+    register_hub(&mut actor);
     let status =
         handled(actor.try_handle_hub_reverse_request(CLI, 2, "hub.link.status", &json!({})));
     assert_eq!(status["linked"], true);
@@ -95,7 +107,7 @@ async fn a_forwarded_question_travels_to_the_hub_and_its_answer_comes_back() {
 #[tokio::test]
 async fn a_lost_hub_fails_the_questions_it_had_not_answered() {
     let (_root, mut actor, _hub_frames, mut cli_frames) = satellite().await;
-    handled(actor.try_handle_hub_reverse_request(HUB, 1, "hub.link.register", &json!({})));
+    register_hub(&mut actor);
     handled(actor.try_handle_hub_reverse_request(
         CLI,
         9,
@@ -133,46 +145,187 @@ async fn the_reverse_channel_is_closed_to_phones_and_ignores_other_verbs() {
 }
 
 #[tokio::test]
-async fn the_hub_answers_reads_and_refuses_everything_else() {
-    let directory = tempfile::tempdir().unwrap();
-    let store = RuntimeStore::open(directory.path()).await.unwrap();
-    let now = chrono::Utc::now();
-    let project: alera_core::runtime::Project = serde_json::from_value(json!({
-        "id": "p1", "name": "Alera", "repoPath": "/home/me/alera", "kind": "gitRepository",
-        "createdAt": now, "updatedAt": now,
-    }))
-    .unwrap();
-    store.upsert_project(project).await.unwrap();
-
-    let projects = answer_reverse_request(&store, "ssh-a", "project.list", &json!({}))
-        .await
-        .unwrap();
-    assert_eq!(projects["originHostId"], "ssh-a");
-    assert_eq!(projects["items"][0]["id"], "p1");
-    assert_eq!(projects["items"][0]["primaryHostId"], "local");
-
-    let workspaces = answer_reverse_request(
-        &store,
-        "ssh-a",
-        "workspace.list",
-        &json!({"hostId": "origin"}),
-    )
-    .await
-    .unwrap();
-    assert_eq!(workspaces["items"], json!([]));
-
+async fn the_satellite_refuses_to_forward_what_the_hub_would_not_answer() {
+    let (_root, mut actor, mut hub_frames, _cli_frames) = satellite().await;
+    register_hub(&mut actor);
     for refused in [
-        "workspace.remove",
         "host.process.run",
         "terminal.create",
         "sshTarget.list",
+        "hostLink.status",
+        "project.register",
     ] {
-        let error = answer_reverse_request(&store, "ssh-a", refused, &json!({}))
-            .await
+        let error = actor
+            .try_handle_hub_reverse_request(
+                CLI,
+                4,
+                "hub.forward",
+                &json!({"type": refused, "payload": {}}),
+            )
             .unwrap_err();
         assert!(
-            error.to_string().contains("cannot ask"),
+            error.to_string().contains("cannot ask") && error.to_string().contains("desktop"),
             "{refused}: {error}"
         );
     }
+    assert!(
+        hub_frames.try_recv().is_err(),
+        "nothing reached the hub for a refused verb"
+    );
+}
+
+#[tokio::test]
+async fn transparent_forwarding_needs_a_satellite_a_local_stranger_and_an_admitted_verb() {
+    let (_root, mut actor, mut hub_frames, _cli_frames) = satellite().await;
+    let payload = json!({"projectId": "p1", "name": "From the terminal"});
+
+    assert!(
+        !actor
+            .try_forward_to_hub(CLI, 10, "workspace.createShared", &payload)
+            .await
+            .unwrap(),
+        "an ordinary runtime handles the verb itself"
+    );
+
+    // Mirroring is what makes this runtime a satellite, and it arrives over a
+    // registered hub link, so the cached "no" from above must not survive it.
+    register_hub(&mut actor);
+    mark_as_satellite(&actor).await;
+    assert!(!actor
+        .try_forward_to_hub(HUB, 11, "hub.mirror.workspace", &json!({}))
+        .await
+        .unwrap());
+
+    assert!(actor
+        .try_forward_to_hub(CLI, 12, "workspace.createShared", &payload)
+        .await
+        .unwrap());
+    let asked = hub_frames.try_recv().unwrap().as_json().unwrap();
+    assert_eq!(asked["event"], HUB_REQUEST_EVENT, "{asked}");
+    assert_eq!(asked["payload"]["type"], "workspace.createShared");
+    assert_eq!(asked["payload"]["payload"], payload, "sent as it came");
+
+    assert!(
+        !actor
+            .try_forward_to_hub(HUB, 13, "workspace.createShared", &payload)
+            .await
+            .unwrap(),
+        "the hub's own requests are handled here"
+    );
+    assert!(
+        !actor
+            .try_forward_to_hub(PHONE, 14, "workspace.createShared", &payload)
+            .await
+            .unwrap(),
+        "a phone never reaches the hub through a satellite"
+    );
+    for local_verb in [
+        "sshTarget.list",
+        "workspace.files.list",
+        "git.status",
+        "status.get",
+        "workspace.runSetup",
+        "terminal.ownerLifecycle",
+    ] {
+        assert!(
+            !actor
+                .try_forward_to_hub(CLI, 15, local_verb, &json!({}))
+                .await
+                .unwrap(),
+            "{local_verb} stays on the satellite"
+        );
+    }
+    assert!(
+        !actor
+            .try_forward_to_hub(
+                CLI,
+                16,
+                "workspace.removeShared",
+                &json!({"id": "task", "expectedInstanceId": "task-instance", "closeSessions": true}),
+            )
+            .await
+            .unwrap(),
+        "the owner's retirement of this host's copy runs here"
+    );
+    assert!(
+        hub_frames.try_recv().is_err(),
+        "only the one admitted question reached the hub"
+    );
+    assert!(actor
+        .try_forward_to_hub(
+            CLI,
+            17,
+            "workspace.bufferGuard.release",
+            &json!({"guardId": "acquired-on-the-hub"}),
+        )
+        .await
+        .unwrap());
+    let released = hub_frames.try_recv().unwrap().as_json().unwrap();
+    assert_eq!(released["payload"]["type"], "workspace.bufferGuard.release");
+}
+
+#[tokio::test]
+async fn a_satellite_without_a_hub_refuses_instead_of_acting_on_its_copies() {
+    let (_root, mut actor, _hub_frames, _cli_frames) = satellite().await;
+    mark_as_satellite(&actor).await;
+    let error = actor
+        .try_forward_to_hub(
+            CLI,
+            20,
+            "workspace.createShared",
+            &json!({"projectId": "p1"}),
+        )
+        .await
+        .unwrap_err();
+    assert!(
+        error.to_string().contains("No Alera desktop is linked"),
+        "{error}"
+    );
+}
+
+#[tokio::test]
+async fn a_hub_reply_keeps_the_error_shape_of_a_normal_response() {
+    let (_root, mut actor, mut hub_frames, mut cli_frames) = satellite().await;
+    register_hub(&mut actor);
+    mark_as_satellite(&actor).await;
+
+    async fn ask(
+        actor: &mut ServerActor,
+        hub_frames: &mut tokio::sync::mpsc::UnboundedReceiver<super::super::ClientFrame>,
+        request_id: i64,
+    ) -> String {
+        assert!(actor
+            .try_forward_to_hub(CLI, request_id, "workspace.find", &json!({"id": "w1"}))
+            .await
+            .unwrap());
+        let asked = hub_frames.try_recv().unwrap().as_json().unwrap();
+        asked["payload"]["requestId"].as_str().unwrap().to_string()
+    }
+
+    let reverse_id = ask(&mut actor, &mut hub_frames, 30).await;
+    handled(actor.try_handle_hub_reverse_request(
+        HUB,
+        1,
+        "hub.respond",
+        &json!({"requestId": reverse_id, "ok": false, "error": "FormatException: Workspace id is required."}),
+    ));
+    let format = cli_frames.try_recv().unwrap().as_json().unwrap();
+    assert_eq!(format["id"], 30);
+    assert_eq!(
+        format["error"],
+        "FormatException: Workspace id is required."
+    );
+
+    let reverse_id = ask(&mut actor, &mut hub_frames, 31).await;
+    handled(actor.try_handle_hub_reverse_request(
+        HUB,
+        2,
+        "hub.respond",
+        &json!({"requestId": reverse_id, "ok": false, "error": "stale",
+            "errorCode": "gitError", "errorDetails": {"kind": "conflict"}}),
+    ));
+    let conflict = cli_frames.try_recv().unwrap().as_json().unwrap();
+    assert_eq!(conflict["id"], 31);
+    assert_eq!(conflict["errorCode"], "gitError", "{conflict}");
+    assert_eq!(conflict["errorDetails"]["kind"], "conflict", "{conflict}");
 }

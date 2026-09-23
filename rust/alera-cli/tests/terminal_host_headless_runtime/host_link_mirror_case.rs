@@ -142,23 +142,20 @@ fn hub_mirrors_a_remote_workspace_onto_its_satellite_over_the_link() {
         "{status}"
     );
 
-    let (mut satellite_writer, mut satellite_reader) =
-        connect(fixture.satellite_port, "satellite-token");
-    send(
-        &mut satellite_writer,
-        json!({"id":1,"type":"workspace.find","payload":{"id":"task"}}),
-    );
-    let found = read_response(&mut satellite_reader, 1);
-    assert_eq!(found["payload"]["projectId"], "project-1", "{found}");
-    assert_eq!(found["payload"]["hostId"], "local");
-    send(
-        &mut satellite_writer,
-        json!({"id":2,"type":"project.list","payload":{}}),
-    );
-    let projects = read_response(&mut satellite_reader, 2);
-    assert_eq!(projects["payload"][0]["id"], "project-1", "{projects}");
+    // Read the satellite's store directly: a raw client of a satellite is
+    // indistinguishable from the CLI, and its listings now come from the hub.
+    let (found, projects) = tokio::runtime::Runtime::new().unwrap().block_on(async {
+        let store = RuntimeStore::open_read_only(satellite).await.unwrap();
+        (
+            store.find_workspace("task").await.unwrap().unwrap(),
+            store.list_projects().await.unwrap(),
+        )
+    });
+    assert_eq!(found.project_id, "project-1");
+    assert_eq!(found.host_id, "local");
+    assert_eq!(projects[0].id, "project-1");
     assert_eq!(
-        projects["payload"][0]["repoPath"],
+        projects[0].repo_path,
         std::fs::canonicalize(remote).unwrap().to_str().unwrap()
     );
 

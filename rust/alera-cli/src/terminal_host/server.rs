@@ -143,7 +143,9 @@ mod host_process_requests;
 mod host_service_agent_quota;
 mod host_service_requests;
 mod host_status;
+mod hub_reverse_policy;
 mod hub_reverse_requests;
+mod hub_self_client;
 mod lifecycle;
 mod linked_issue_requests;
 #[cfg(test)]

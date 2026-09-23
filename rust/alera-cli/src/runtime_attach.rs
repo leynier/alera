@@ -30,11 +30,12 @@ pub(crate) async fn run(args: RuntimeAttachArgs) -> Result<i32> {
     let mut client =
         crate::runtime_host_client::RuntimeHostRpcClient::connect_or_start_persistent(&runtime_dir)
             .await?;
-    let status = client.request_value("status.get", &json!({})).await?;
-    // Marks this connection as the hub's, so the runtime knows where to send
-    // questions its own clients forward to the hub. A runtime that predates
-    // the reverse channel rejects the verb, which only means it has none.
+    // Marks this connection as the hub's before anything else is asked, so the
+    // runtime knows which requests come from the hub and are handled locally
+    // rather than forwarded back to it. A runtime that predates the reverse
+    // channel rejects the verb, which only means it has none.
     let _ = client.request_value("hub.link.register", &json!({})).await;
+    let status = client.request_value("status.get", &json!({})).await?;
     let (reader, writer, _) = client.into_terminal_transport();
     let mut stdout = tokio::io::stdout();
     write_line(&mut stdout, &attached_event(&runtime_dir, &status)).await?;

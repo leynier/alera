@@ -17,6 +17,26 @@ impl ServerActor {
     ) -> HostResult<bool> {
         self.require_shared_checkout_support(client_id, request_type)?;
         self.refuse_hub_only_payload_fields(client_id, payload)?;
+        // The reverse channel runs before every local handler: on a satellite,
+        // a hub-owned verb such as `project.hosts.add` must reach the hub
+        // instead of the handler below that would act on this runtime's copies.
+        match self.try_handle_hub_reverse_request(client_id, request_id, request_type, payload)? {
+            Some(super::hub_reverse_requests::ReverseOutcome::Answer(value)) => {
+                self.client_write(
+                    client_id,
+                    crate::terminal_host::protocol::ok_response(request_id, value),
+                );
+                return Ok(true);
+            }
+            Some(super::hub_reverse_requests::ReverseOutcome::Deferred) => return Ok(true),
+            None => {}
+        }
+        if self
+            .try_forward_to_hub(client_id, request_id, request_type, payload)
+            .await?
+        {
+            return Ok(true);
+        }
         if self
             .try_start_remote_ai_assist(client_id, request_id, request_type, payload)
             .await?
@@ -28,17 +48,6 @@ impl ServerActor {
             .await?
         {
             return Ok(true);
-        }
-        match self.try_handle_hub_reverse_request(client_id, request_id, request_type, payload)? {
-            Some(super::hub_reverse_requests::ReverseOutcome::Answer(value)) => {
-                self.client_write(
-                    client_id,
-                    crate::terminal_host::protocol::ok_response(request_id, value),
-                );
-                return Ok(true);
-            }
-            Some(super::hub_reverse_requests::ReverseOutcome::Deferred) => return Ok(true),
-            None => {}
         }
         if self
             .try_start_remote_terminal_lifecycle(client_id, request_id, request_type, payload)
