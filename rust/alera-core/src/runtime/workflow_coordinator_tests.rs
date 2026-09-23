@@ -2,6 +2,81 @@ use super::workflow_plan_tests::{fixture, valid_profile};
 use super::*;
 
 #[tokio::test]
+async fn workflow_proposal_cancellation_retry_is_explicit_and_sequence_fenced() {
+    let (dir, store, mut request) = fixture(false).await;
+    request.proposal.tasks.clear();
+    let draft = store
+        .create_workflow_proposal(request, valid_profile)
+        .await
+        .unwrap();
+    store.reserve_workflow_coordinator(&draft).await.unwrap();
+    let first = store.cancel_workflow_proposal(&draft.id).await.unwrap();
+    assert!(store
+        .retry_workflow_proposal_cancellation(&draft.id, 0)
+        .await
+        .is_err());
+    store
+        .settle_workflow_proposal_cancellation(&first, Some("identity changed"))
+        .await
+        .unwrap();
+    let reopened = RuntimeStore::open(dir.path()).await.unwrap();
+    assert!(reopened
+        .pending_workflow_proposal_cancellations()
+        .await
+        .unwrap()
+        .is_empty());
+    assert_eq!(
+        reopened
+            .cancel_workflow_proposal(&draft.id)
+            .await
+            .unwrap()
+            .status,
+        "attention"
+    );
+    let retry = reopened
+        .retry_workflow_proposal_cancellation(&draft.id, 0)
+        .await
+        .unwrap();
+    assert_eq!(retry.sequence, 1);
+    assert_eq!(retry.status, "pending");
+    assert!(retry.error.is_none());
+    assert!(reopened
+        .settle_workflow_proposal_cancellation(&first, None)
+        .await
+        .is_err());
+    reopened
+        .settle_workflow_proposal_cancellation(&retry, Some("still changed"))
+        .await
+        .unwrap();
+    let replay = reopened
+        .retry_workflow_proposal_cancellation(&draft.id, 0)
+        .await
+        .unwrap();
+    assert_eq!(replay.status, "attention");
+    assert_eq!(replay.sequence, 1);
+    let final_attempt = reopened
+        .retry_workflow_proposal_cancellation(&draft.id, 1)
+        .await
+        .unwrap();
+    reopened
+        .settle_workflow_proposal_cancellation(&final_attempt, None)
+        .await
+        .unwrap();
+    assert_eq!(
+        reopened
+            .retry_workflow_proposal_cancellation(&draft.id, 1)
+            .await
+            .unwrap()
+            .status,
+        "settled"
+    );
+    assert!(reopened
+        .retry_workflow_proposal_cancellation(&draft.id, 3)
+        .await
+        .is_err());
+}
+
+#[tokio::test]
 async fn workflow_proposal_cancel_and_submit_have_one_atomic_winner() {
     let (_dir, store, mut request) = fixture(false).await;
     let tasks = std::mem::take(&mut request.proposal.tasks);

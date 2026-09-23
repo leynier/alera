@@ -58,6 +58,13 @@ struct ProposalQuery {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ProposalCancellationRetry {
+    id: String,
+    expected_sequence: i64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ProposalCreation {
     request: PrepareWorkflowPlan,
     expected_source: alera_core::runtime::WorkflowSourceWorkspace,
@@ -90,6 +97,7 @@ enum PlanRequest {
     Proposal(ProposalQuery),
     ProposalStatus(ProposalQuery),
     CancelProposal(ProposalQuery),
+    RetryProposalCancellation(ProposalCancellationRetry),
     SubmitProposal(String),
     Prepare(String),
     Get(PlanQuery),
@@ -132,6 +140,9 @@ impl ServerActor {
             "workflows.proposal" => PlanRequest::Proposal(parse(payload)?),
             "workflows.proposalStatus" => PlanRequest::ProposalStatus(parse(payload)?),
             "workflows.cancelProposal" => PlanRequest::CancelProposal(parse(payload)?),
+            "workflows.retryProposalCancellation" => {
+                PlanRequest::RetryProposalCancellation(parse(payload)?)
+            }
             "workflows.submitProposal" => {
                 PlanRequest::SubmitProposal(document(payload, WORKFLOW_PLAN_MAX_BYTES)?)
             }
@@ -191,6 +202,7 @@ impl ServerActor {
                         })).await.map_err(state)?.map_err(state)
                     }
                     PlanRequest::CancelProposal(query) => serde_json::to_value(store.cancel_workflow_proposal(&query.id).await.map_err(state)?).map_err(state),
+                    PlanRequest::RetryProposalCancellation(query) => serde_json::to_value(store.retry_workflow_proposal_cancellation(&query.id, query.expected_sequence).await.map_err(state)?).map_err(state),
                     PlanRequest::Execution(query) => {
                         let runtime=tokio::runtime::Handle::current();
                         blocking::spawn(permit.clone(), move || runtime.block_on(async {
