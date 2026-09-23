@@ -3,6 +3,19 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 
 const agentTitleCapability = 'aiTextAgentTitleV1';
 
+String agentTitleActionLabel(Map<String, Object?> payload) {
+  if (isAgentTitleGenerating(payload)) {
+    return 'Generating title...';
+  }
+  if (payload['agentTitleSource'] == 'generated') {
+    return 'Regenerate Title';
+  }
+  return 'Generate Title';
+}
+
+bool isAgentTitleGenerating(Map<String, Object?> payload) =>
+    payload['agentTitleStatus'] == 'generating';
+
 class const AgentTitleService(final RuntimeHostClient client) {
   Future<bool> isAvailable() async {
     final status = await client.runtimeRequest('status.get');

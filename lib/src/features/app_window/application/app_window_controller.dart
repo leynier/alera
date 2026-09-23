@@ -161,6 +161,7 @@ class AppWindowLifecycleCoordinator._({
   bool _closed = false;
   bool _quitting = false;
   Future<void>? _hideFuture;
+  void Function()? _onHiddenOnClose;
 
   /// Optional gate invoked before the window is destroyed. Return `false` to
   /// cancel the close (for example when the user declines force-stopping the
@@ -173,6 +174,11 @@ class AppWindowLifecycleCoordinator._({
   /// destroying the process. Quit still goes through [requestQuit].
   void bindHideOnClose(bool Function()? hideOnClose) {
     _hideOnClose = hideOnClose;
+  }
+
+  /// Called after a window close was turned into a successful hide.
+  void bindHiddenOnClose(void Function()? onHiddenOnClose) {
+    _onHiddenOnClose = onHiddenOnClose;
   }
 
   /// True while a committed quit is in progress, so hide-on-close cannot
@@ -257,6 +263,9 @@ class AppWindowLifecycleCoordinator._({
       }
       try {
         await _window.hide();
+        if (!_quitting && !_closing) {
+          _onHiddenOnClose?.call();
+        }
       } catch (error, stackTrace) {
         _logWarningIfActive('failed to hide app window', error, stackTrace);
       }

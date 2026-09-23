@@ -39,6 +39,14 @@ impl ShutdownGuard {
         Ok(Self { jobs, processes })
     }
 
+    pub(super) fn capture_command_job(job: OwnedHandle) -> HostResult<Self> {
+        let processes = capture_processes(&job)?;
+        Ok(Self {
+            jobs: vec![job],
+            processes,
+        })
+    }
+
     pub(super) async fn wait(&mut self) -> HostResult<()> {
         // A retained handle keeps KILL_ON_JOB_CLOSE from firing. Terminate
         // explicitly, then keep ownership until every member has actually left.

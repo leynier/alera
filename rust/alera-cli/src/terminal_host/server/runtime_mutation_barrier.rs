@@ -2,23 +2,31 @@ pub(super) fn is_serialized_runtime_mutation(request_type: &str) -> bool {
     matches!(
         request_type,
         "workspace.removeManaged"
+            | "workspace.removeShared"
+            | "workspace.handOn"
             | "project.remove"
             | "workspace.remove"
             | "workspace.removeForProject"
             | "workspace.sleep"
+            | "workspace.archive"
             | "tab.remove"
             | "tab.removeForWorkspace"
     )
 }
 
 pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
-    if request_type.starts_with("emulator.") || is_serialized_runtime_mutation(request_type) {
+    if is_serialized_runtime_mutation(request_type) {
         return false;
     }
-    mutates_codex_runtime_state(request_type)
+    request_type.starts_with("agentProfile.launch")
+        || mutates_codex_runtime_state(request_type)
         || matches!(
             request_type,
-            "workspace.createManaged"
+            "workspace.bufferGuard.acquire"
+                | "mobile.workspaceSearch.replace"
+                | "workspace.createManaged"
+                | "workspace.createShared"
+                | "workspace.handOff"
                 | "workspace.runSetup"
                 | "createOrAttach"
                 | "write"
@@ -28,12 +36,14 @@ pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
                 | "terminal.restart"
                 | "terminal.pulse.configure"
                 | "project.register"
+                | "project.checkout.register"
                 | "project.rename"
                 | "project.upsert"
                 | "projectConfig.remove"
                 | "projectConfig.upsert"
                 | "workspace.rename"
                 | "workspace.setPinned"
+                | "workspace.unarchive"
                 | "workspace.upsert"
                 | "workspaceActivity.remove"
                 | "workspaceActivity.upsertAll"
@@ -54,26 +64,21 @@ pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
                 | "layout.upsert"
                 | "linkedReview.remove"
                 | "linkedReview.upsert"
+                | "mobile.pullRequest.link"
+                | "mobile.pullRequest.unlink"
+                | "mobile.pullRequest.create"
+                | "mobile.pullRequest.ship"
+                | "linkedIssue.link"
+                | "linkedIssue.refresh"
+                | "linkedIssue.remove"
+                | "pullRequestWatch.start"
+                | "pullRequestWatch.stop"
                 | "workbenchViewPrefs.update"
-                | "browser.settings.set"
-                | "browser.profiles.upsert"
-                | "browser.profiles.remove"
-                | "browser.history.clear"
-                | "browser.closedTabs.remove"
-                | "browser.permissions.set"
-                | "browser.permissions.remove"
-                | "browser.certificates.trust"
-                | "browser.certificates.remove"
-                | "browser.tabs.open"
-                | "browser.tabs.close"
-                | "browser.tabs.reopen"
-                | "browser.closedTabs.reopen"
-                | "browser.driver.sync"
-                | "browser.driver.pageChanged"
                 | "automation.upsert"
                 | "automation.approve"
                 | "automation.resume"
                 | "automation.restore"
+                | "automation.ownerPrecheck.start"
                 | "automation.runNow"
                 | "automation.import"
         )
@@ -115,6 +120,7 @@ mod tests {
     #[test]
     fn blocks_runtime_store_writers_and_session_spawners_but_not_reads() {
         for writer in [
+            "mobile.workspaceSearch.replace",
             "tab.upsert",
             "createOrAttach",
             "terminal.pulse.configure",
@@ -122,26 +128,12 @@ mod tests {
             "codex.thread.resume",
             "codex.response",
             "orchestration.agentSpawn",
-            "browser.settings.set",
-            "browser.profiles.upsert",
-            "browser.profiles.remove",
-            "browser.history.clear",
-            "browser.closedTabs.remove",
-            "browser.permissions.set",
-            "browser.permissions.remove",
-            "browser.certificates.trust",
-            "browser.certificates.remove",
-            "browser.tabs.open",
-            "browser.tabs.close",
-            "browser.tabs.reopen",
-            "browser.closedTabs.reopen",
-            "browser.driver.sync",
-            "browser.driver.pageChanged",
             "automation.upsert",
             "automation.approve",
             "automation.resume",
             "automation.restore",
             "automation.runNow",
+            "automation.ownerPrecheck.start",
             "automation.import",
         ] {
             assert!(
@@ -152,13 +144,9 @@ mod tests {
         for read_or_serialized_mutation in [
             "tab.list",
             "terminal.read",
-            "emulator.list",
+            "automation.ownerPrecheck.status",
+            "automation.ownerPrecheck.cancel",
             "tab.remove",
-            "browser.settings.get",
-            "browser.profiles.list",
-            "browser.certificates.list",
-            "browser.tabs.list",
-            "browser.driver.register",
             "codex.thread.list",
             "codex.thread.history",
             "codex.thread.snapshot",

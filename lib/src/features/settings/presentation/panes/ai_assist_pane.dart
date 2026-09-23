@@ -74,7 +74,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
     );
     final thinkingLevels = model.thinkingLevels;
     final discovery = _discovery[agent] ?? const _AiAssistModelDiscoveryState();
-    final canDiscoverModels = spec?.modelsCommand != null;
+    final canDiscoverModels = spec?.canDiscoverModels ?? false;
     return Column(
       crossAxisAlignment: .stretch,
       children: <Widget>[
@@ -82,7 +82,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
           key: widget.groupKeys['generation'],
           child: AleraSettingsGroup(
             title: 'Generation',
-            description: 'Local agent CLIs run short background jobs from source control and workspace context.',
+            description: 'Local agent CLIs or the OpenCode Go API run short background jobs from source control and workspace context.',
             children: <Widget>[
               SettingsSwitchRow(
                 title: 'Enable AI Assist',
@@ -305,7 +305,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
           value: effectivePromptModel,
           discovering: discovery.loading,
           discoveryError: discovery.error,
-          onRefreshModels: spec?.modelsCommand == null
+          onRefreshModels: spec == null || !spec.canDiscoverModels
               ? null
               : () => unawaited(_discoverModels(agent)),
           onChanged: (model) => widget.onChanged(
@@ -396,7 +396,8 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
 
   void _autoDiscoverAgent(AiAssistAgent agent) {
     final spec = aiAssistAgentSpecs[agent];
-    if (spec?.modelsCommand == null ||
+    if (spec == null ||
+        !spec.canDiscoverModels ||
         _autoDiscovered.contains(agent) ||
         (_discovery[agent]?.loading ?? false)) {
       return;
@@ -407,7 +408,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
 
   Future<void> _discoverModels(AiAssistAgent agent) async {
     final spec = aiAssistAgentSpecs[agent];
-    if (spec?.modelsCommand == null) {
+    if (spec == null || !spec.canDiscoverModels) {
       return;
     }
     setState(() {

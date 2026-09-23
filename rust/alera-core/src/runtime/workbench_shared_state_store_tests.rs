@@ -1,8 +1,11 @@
+use std::collections::BTreeMap;
+
 use chrono::{Duration, Utc};
 
 use super::{
-    RuntimeAgentQuotaSettings, RuntimeStore, SharedWorkbenchPrefsWriter, SharedWorkbenchSortBy,
-    SharedWorkbenchViewPrefs, WorkbenchLayoutRecord, WorkspaceTabRecord,
+    RuntimeAgentQuotaSettings, RuntimeStore, SharedGitDiffGroupMode, SharedGitDiffViewMode,
+    SharedWorkbenchPrefsWriter, SharedWorkbenchSortBy, SharedWorkbenchViewPrefs,
+    WorkbenchLayoutRecord, WorkspaceTabRecord,
 };
 
 #[tokio::test]
@@ -60,6 +63,116 @@ fn legacy_shared_view_prefs_show_all_workspaces() {
     let restored: SharedWorkbenchViewPrefs = serde_json::from_value(encoded).unwrap();
 
     assert!(!restored.show_active_workspaces_only);
+}
+
+#[test]
+fn legacy_shared_view_prefs_hide_archived_workspaces() {
+    let mut encoded = serde_json::to_value(SharedWorkbenchViewPrefs::default()).unwrap();
+    encoded
+        .as_object_mut()
+        .unwrap()
+        .remove("showArchivedWorkspaces");
+
+    let restored: SharedWorkbenchViewPrefs = serde_json::from_value(encoded).unwrap();
+
+    assert!(!restored.show_archived_workspaces);
+}
+
+#[test]
+fn shared_view_prefs_roundtrips_selected_section_ids() {
+    let prefs = SharedWorkbenchViewPrefs {
+        selected_section_ids: vec!["sec-1".to_string(), "sec-2".to_string()],
+        ..SharedWorkbenchViewPrefs::default()
+    };
+    let encoded = serde_json::to_value(&prefs).unwrap();
+    assert_eq!(
+        encoded["selectedSectionIds"],
+        serde_json::json!(["sec-1", "sec-2"])
+    );
+    let restored: SharedWorkbenchViewPrefs = serde_json::from_value(encoded).unwrap();
+    assert_eq!(
+        restored.selected_section_ids,
+        vec!["sec-1".to_string(), "sec-2".to_string()]
+    );
+}
+
+#[test]
+fn legacy_shared_view_prefs_default_selected_section_ids() {
+    let mut encoded = serde_json::to_value(SharedWorkbenchViewPrefs::default()).unwrap();
+    encoded
+        .as_object_mut()
+        .unwrap()
+        .remove("selectedSectionIds");
+
+    let restored: SharedWorkbenchViewPrefs = serde_json::from_value(encoded).unwrap();
+    assert!(restored.selected_section_ids.is_empty());
+}
+
+#[test]
+fn legacy_shared_view_prefs_default_the_panel_view_options() {
+    let mut encoded = serde_json::to_value(SharedWorkbenchViewPrefs::default()).unwrap();
+    let object = encoded.as_object_mut().unwrap();
+    for key in [
+        "gitDiffViewMode",
+        "gitDiffGroupMode",
+        "searchViewAsTree",
+        "searchIncludeIgnored",
+    ] {
+        object.remove(key);
+    }
+
+    let restored: SharedWorkbenchViewPrefs = serde_json::from_value(encoded).unwrap();
+
+    assert_eq!(restored.git_diff_view_mode, SharedGitDiffViewMode::Tree);
+    assert_eq!(restored.git_diff_group_mode, SharedGitDiffGroupMode::ByArea);
+    assert!(!restored.search_view_as_tree);
+    assert!(!restored.search_include_ignored);
+}
+
+#[test]
+fn panel_view_options_use_the_desktop_enum_names() {
+    let encoded = serde_json::to_value(SharedWorkbenchViewPrefs {
+        git_diff_view_mode: SharedGitDiffViewMode::Flat,
+        git_diff_group_mode: SharedGitDiffGroupMode::Unified,
+        ..SharedWorkbenchViewPrefs::default()
+    })
+    .unwrap();
+
+    assert_eq!(encoded["gitDiffViewMode"], "flat");
+    assert_eq!(encoded["gitDiffGroupMode"], "unified");
+    assert_eq!(
+        serde_json::to_value(SharedGitDiffGroupMode::ByArea).unwrap(),
+        "byArea"
+    );
+}
+
+#[test]
+fn shared_view_prefs_roundtrip_workspace_main_tab_ids() {
+    let prefs = SharedWorkbenchViewPrefs {
+        workspace_main_tab_ids: BTreeMap::from([(
+            "ws-1".to_string(),
+            vec!["tab-1".to_string(), "tab-2".to_string()],
+        )]),
+        ..SharedWorkbenchViewPrefs::default()
+    };
+    let encoded = serde_json::to_value(&prefs).unwrap();
+    assert_eq!(
+        encoded["workspaceMainTabIds"],
+        serde_json::json!({ "ws-1": ["tab-1", "tab-2"] })
+    );
+    let restored: SharedWorkbenchViewPrefs = serde_json::from_value(encoded).unwrap();
+    assert_eq!(
+        restored.workspace_main_tab_ids["ws-1"],
+        vec!["tab-1".to_string(), "tab-2".to_string()]
+    );
+
+    let mut omitted = serde_json::to_value(SharedWorkbenchViewPrefs::default()).unwrap();
+    omitted
+        .as_object_mut()
+        .unwrap()
+        .remove("workspaceMainTabIds");
+    let legacy: SharedWorkbenchViewPrefs = serde_json::from_value(omitted).unwrap();
+    assert!(legacy.workspace_main_tab_ids.is_empty());
 }
 
 #[tokio::test]
@@ -184,6 +297,47 @@ async fn tab_rename_preserves_payload_and_marks_manual_title() {
 }
 
 #[tokio::test]
+async fn workspace_tab_titles_map_ids_to_titles() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = RuntimeStore::open(dir.path()).await.unwrap();
+    let now = Utc::now();
+    store
+        .upsert_workspace_tab(WorkspaceTabRecord {
+            id: "tab-1".to_string(),
+            workspace_id: "workspace-1".to_string(),
+            kind: "terminal".to_string(),
+            title: "Map Monetization".to_string(),
+            created_at: now,
+            updated_at: now,
+            payload: serde_json::json!({}),
+        })
+        .await
+        .unwrap();
+    store
+        .upsert_workspace_tab(WorkspaceTabRecord {
+            id: "tab-2".to_string(),
+            workspace_id: "workspace-1".to_string(),
+            kind: "terminal".to_string(),
+            title: "  Ready To Continue  ".to_string(),
+            created_at: now,
+            updated_at: now,
+            payload: serde_json::json!({}),
+        })
+        .await
+        .unwrap();
+
+    let titles = store.workspace_tab_titles().await.unwrap();
+    assert_eq!(
+        titles.get("tab-1").map(String::as_str),
+        Some("Map Monetization")
+    );
+    assert_eq!(
+        titles.get("tab-2").map(String::as_str),
+        Some("  Ready To Continue  ")
+    );
+}
+
+#[tokio::test]
 async fn workspace_tab_removal_is_idempotent() {
     let dir = tempfile::tempdir().unwrap();
     let store = RuntimeStore::open(dir.path()).await.unwrap();
@@ -205,120 +359,6 @@ async fn workspace_tab_removal_is_idempotent() {
     store.remove_workspace_tab("tab-1").await.unwrap();
 
     assert!(store.find_workspace_tab("tab-1").await.unwrap().is_none());
-}
-
-#[tokio::test]
-async fn generic_browser_tab_upsert_sanitizes_or_removes_unsafe_urls() {
-    let dir = tempfile::tempdir().unwrap();
-    let store = RuntimeStore::open(dir.path()).await.unwrap();
-    let now = Utc::now();
-    let mut tab = WorkspaceTabRecord {
-        id: "browser-1".to_string(),
-        workspace_id: "workspace-1".to_string(),
-        kind: "browser".to_string(),
-        title: "Browser".to_string(),
-        created_at: now,
-        updated_at: now,
-        payload: serde_json::json!({
-            "browserProfileId": "default",
-            "browserUrl": "https://example.com/docs",
-            "browserRuntimeTitle": format!(" \u{0}Docs\n{} ", "🚀".repeat(300)),
-            "zoom": 1.25,
-        }),
-    };
-
-    tab = store.upsert_workspace_tab(tab).await.unwrap();
-    assert_eq!(tab.payload["browserUrl"], "https://example.com/docs");
-    assert_eq!(
-        tab.payload["browserRuntimeTitle"].as_str().unwrap().len(),
-        super::BROWSER_TITLE_MAX_BYTES
-    );
-    assert!(!tab.payload["browserRuntimeTitle"]
-        .as_str()
-        .unwrap()
-        .chars()
-        .any(char::is_control));
-    assert_eq!(tab.payload["zoom"], 1.25);
-    let persisted = store
-        .find_workspace_tab("browser-1")
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(persisted.payload, tab.payload);
-
-    tab.payload["browserUrl"] =
-        serde_json::json!("https://user:password@example.com/oauth/callback?code=secret#token");
-    tab.payload["browserRuntimeTitle"] = serde_json::json!("Private Account");
-    tab.title = "Private Account".to_string();
-    tab = store.upsert_workspace_tab(tab).await.unwrap();
-    assert_eq!(tab.payload["browserUrl"], "https://example.com/");
-    assert!(tab.payload.get("browserRuntimeTitle").is_none());
-    assert_eq!(tab.title, "Browser");
-
-    tab.payload["browserUrl"] = serde_json::json!("file:///Users/me/private.txt");
-    tab = store.upsert_workspace_tab(tab).await.unwrap();
-    assert!(tab.payload.get("browserUrl").is_none());
-    assert!(store
-        .find_workspace_tab("browser-1")
-        .await
-        .unwrap()
-        .unwrap()
-        .payload
-        .get("browserUrl")
-        .is_none());
-
-    tab.payload = serde_json::json!(["https://example.com/?token=secret"]);
-    tab = store.upsert_workspace_tab(tab).await.unwrap();
-    assert_eq!(tab.payload, serde_json::json!({}));
-}
-
-#[tokio::test]
-async fn new_sensitive_browser_tabs_cannot_seed_a_page_controlled_title() {
-    let dir = tempfile::tempdir().unwrap();
-    let store = RuntimeStore::open(dir.path()).await.unwrap();
-    let now = Utc::now();
-
-    let saved = store
-        .upsert_workspace_tab(WorkspaceTabRecord {
-            id: "sensitive-browser".to_string(),
-            workspace_id: "workspace-1".to_string(),
-            kind: "browser".to_string(),
-            title: "Private Account".to_string(),
-            created_at: now,
-            updated_at: now,
-            payload: serde_json::json!({
-                "browserProfileId": "default",
-                "browserUrl": "https://example.com/?auth=secret",
-                "browserRuntimeTitle": "Private Account",
-            }),
-        })
-        .await
-        .unwrap();
-
-    assert_eq!(saved.title, "New Tab");
-    assert_eq!(saved.payload["browserUrl"], "https://example.com/");
-    assert!(saved.payload.get("browserRuntimeTitle").is_none());
-}
-
-#[tokio::test]
-async fn browser_payload_normalization_does_not_change_other_tab_kinds() {
-    let dir = tempfile::tempdir().unwrap();
-    let store = RuntimeStore::open(dir.path()).await.unwrap();
-    let now = Utc::now();
-    let saved = store
-        .upsert_workspace_tab(WorkspaceTabRecord {
-            id: "editor-1".to_string(),
-            workspace_id: "workspace-1".to_string(),
-            kind: "editor".to_string(),
-            title: "Editor".to_string(),
-            created_at: now,
-            updated_at: now,
-            payload: serde_json::json!({"browserUrl": "file:///Users/me/private.txt"}),
-        })
-        .await
-        .unwrap();
-
-    assert_eq!(saved.payload["browserUrl"], "file:///Users/me/private.txt");
 }
 
 #[tokio::test]
@@ -359,7 +399,7 @@ async fn sleeping_workspace_removes_its_tabs_and_layout_only() {
         .await
         .unwrap();
 
-    store.sleep_workspace("workspace-1").await.unwrap();
+    store.remove_workspace_tabs("workspace-1").await.unwrap();
 
     assert!(store
         .list_workspace_tabs("workspace-1")

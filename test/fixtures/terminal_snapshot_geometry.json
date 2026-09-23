@@ -1,0 +1,8 @@
+{
+  "cols": 10,
+  "rows": 4,
+  "viewportCols": 6,
+  "viewportRows": 4,
+  "snapshot": "abcdefghijklmno\r\n\u001b[1;8HXY\u001b[2;3HZ",
+  "replay": "\u001b[8;4;10tabcdefghijklmno\r\n\u001b[1;8HXY\u001b[2;3HZ\u001b[8;4;6t"
+}

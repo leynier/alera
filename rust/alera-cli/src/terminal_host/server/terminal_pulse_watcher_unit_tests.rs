@@ -32,7 +32,8 @@ fn dropping_a_watcher_does_not_wait_for_its_worker() {
 fn relevant_bursts_coalesce_without_an_event_queue_overflow() {
     let dir = tempfile::tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
-    let watcher = RecommendedWatcher::new(
+    let watcher = SharedPulseWatcher::new(
+        dir.path(),
         |_event: notify::Result<Event>| {},
         Config::default().with_follow_symlinks(false),
     )

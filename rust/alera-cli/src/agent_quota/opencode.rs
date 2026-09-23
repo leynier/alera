@@ -1,5 +1,10 @@
-const OPENCODE_GO_PROVIDER: &str = "opencode-go";
-const OPENCODE_ZEN_PROVIDER: &str = "opencode";
+use crate::opencode_auth::{
+    opencode_auth_key, opencode_data_dirs, OPENCODE_GO_PROVIDER, OPENCODE_ZEN_PROVIDER,
+};
+
+#[cfg(test)]
+use crate::opencode_auth::{opencode_data_dir_candidates, parse_opencode_auth_key};
+
 const OPENCODE_GO_USAGE_URL: &str = "https://opencode.ai/zen/go/v1/usage";
 const OPENCODE_GO_LIMITS: [(i64, &str); 3] = [
     (5 * 60, "5 Hour"),
@@ -187,87 +192,6 @@ async fn opencode_database_path() -> Option<PathBuf> {
                 .first()
                 .map(|data_dir| data_dir.join("opencode.db"))
         })
-}
-
-async fn opencode_data_dirs() -> Vec<PathBuf> {
-    let explicit = shell_environment_value("OPENCODE_DATA_DIR").await;
-    let xdg_data_home = shell_environment_value("XDG_DATA_HOME").await;
-    let home = home_dir();
-    let platform_data = if cfg!(any(target_os = "windows", target_os = "macos")) {
-        dirs::data_local_dir()
-    } else {
-        None
-    };
-    opencode_data_dir_candidates(
-        explicit.as_deref(),
-        xdg_data_home.as_deref(),
-        home.as_deref(),
-        platform_data.as_deref(),
-    )
-}
-
-fn opencode_data_dir_candidates(
-    explicit: Option<&str>,
-    xdg_data_home: Option<&str>,
-    home: Option<&std::path::Path>,
-    platform_data: Option<&std::path::Path>,
-) -> Vec<PathBuf> {
-    let mut paths = Vec::new();
-    if let Some(value) = explicit {
-        let path = PathBuf::from(value.trim());
-        if !path.as_os_str().is_empty() {
-            paths.push(path);
-        }
-        return paths;
-    }
-    if let Some(value) = xdg_data_home {
-        let path = PathBuf::from(value.trim());
-        if !path.as_os_str().is_empty() {
-            paths.push(path.join("opencode"));
-        }
-    }
-    if let Some(home) = home {
-        paths.push(home.join(".local/share/opencode"));
-    }
-    if let Some(platform_data) = platform_data {
-        paths.push(platform_data.join("opencode"));
-    }
-    let mut unique = Vec::with_capacity(paths.len());
-    for path in paths {
-        if !unique.iter().any(|candidate| candidate == &path) {
-            unique.push(path);
-        }
-    }
-    unique
-}
-
-async fn opencode_auth_key(provider: &str) -> Option<String> {
-    for data_dir in opencode_data_dirs().await {
-        let path = data_dir.join("auth.json");
-        let Ok(raw) = tokio::fs::read_to_string(path).await else {
-            continue;
-        };
-        let Ok(value) = serde_json::from_str(&raw) else {
-            continue;
-        };
-        if let Some(key) = parse_opencode_auth_key(&value, provider) {
-            return Some(key);
-        }
-    }
-    None
-}
-
-fn parse_opencode_auth_key(value: &Value, provider: &str) -> Option<String> {
-    let entry = value.get(provider)?;
-    if entry.get("type").and_then(Value::as_str) != Some("api") {
-        return None;
-    }
-    entry
-        .get("key")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|key| !key.is_empty())
-        .map(ToOwned::to_owned)
 }
 
 async fn read_opencode_usage(path: &PathBuf) -> Result<Vec<OpenCodeUsageEntry>> {

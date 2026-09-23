@@ -57,6 +57,14 @@ impl ServerActor {
         else {
             return;
         };
+        if automation.target.project_checkout().is_some() {
+            if automation.cleanup_policy
+                == Some(alera_core::runtime::AutomationCleanupPolicy::OnSuccess)
+            {
+                self.start_automation_shared_cleanup(run).await;
+            }
+            return;
+        }
         let mut taken_over = run.taken_over;
         if run.owned_tab {
             taken_over |= !self
@@ -141,15 +149,9 @@ impl ServerActor {
                     .sessions
                     .values()
                     .any(|session| session.workspace_id == *workspace_id && session.running());
-                let has_live_browser = self.browser.has_pages_for_workspace(workspace_id);
-                if has_live_session
-                    || has_live_browser
-                    || self.emulator_requests.has_runtime_mutations()
-                {
+                if has_live_session || self.mutation_queue.has_runtime_mutations() {
                     let reason = if has_live_session {
                         "managed workspace still has a live terminal session or process"
-                    } else if has_live_browser {
-                        "managed workspace still has a live browser session"
                     } else {
                         "another runtime mutation is in progress"
                     };
@@ -426,7 +428,7 @@ pub(super) fn requested_target_identity(payload: &Value) -> HostResult<Automatio
     Ok(identity)
 }
 
-fn is_durable_lifecycle_fallback(result: &HostResult<()>) -> bool {
+pub(super) fn is_durable_lifecycle_fallback(result: &HostResult<()>) -> bool {
     result.as_ref().err().is_some_and(|error| {
         matches!(
             error.wire_message().as_str(),

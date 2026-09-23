@@ -2,6 +2,7 @@ part of 'workspace_git_diff_panel.dart';
 
 enum _GitChangeContextAction {
   openFile,
+  comment,
   revealInExplorer,
   stage,
   unstage,
@@ -12,11 +13,13 @@ Future<void> _showGitChangeContextMenu(
   BuildContext context,
   Offset position, {
   required bool canOpenFile,
+  required bool canComment,
   required bool canStage,
   required bool canUnstage,
   required bool canDiscard,
   required bool busy,
   required VoidCallback? onOpenFile,
+  required VoidCallback? onComment,
   required VoidCallback onRevealInExplorer,
   required VoidCallback onStage,
   required VoidCallback onUnstage,
@@ -31,6 +34,12 @@ Future<void> _showGitChangeContextMenu(
           value: .openFile,
           label: 'Open File',
           leading: Icon(AleraIcons.file, size: 16),
+        ),
+      if (canComment)
+        const AleraDropdownEntry<_GitChangeContextAction>(
+          value: .comment,
+          label: 'Comment on Diff',
+          leading: Icon(AleraIcons.comment, size: 16),
         ),
       const AleraDropdownEntry<_GitChangeContextAction>(
         value: .revealInExplorer,
@@ -68,6 +77,8 @@ Future<void> _showGitChangeContextMenu(
   switch (selected) {
     case _GitChangeContextAction.openFile:
       onOpenFile?.call();
+    case _GitChangeContextAction.comment:
+      onComment?.call();
     case _GitChangeContextAction.revealInExplorer:
       onRevealInExplorer();
     case _GitChangeContextAction.stage:

@@ -1,3 +1,5 @@
+import 'package:alera/src/features/workbench/application/background_operations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
@@ -192,8 +194,8 @@ class _WorkspaceTagsDialogState extends State<_WorkspaceTagsDialog> {
               mainAxisAlignment: .end,
               children: <Widget>[
                 TextButton(
-                  onPressed: _busy ? null : () => Navigator.pop(context),
-                  child: const Text('Cancel'),
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(_busy ? 'Run In Background' : 'Cancel'),
                 ),
                 const SizedBox(width: AleraTokens.space8),
                 FilledButton(
@@ -216,6 +218,7 @@ class _WorkspaceTagsDialogState extends State<_WorkspaceTagsDialog> {
   }
 
   Future<void> _createTag() async {
+    if (_busy) return;
     final name = _tagController.text.trim();
     if (name.isEmpty) {
       setState(() => _error = 'Tag name is required');
@@ -229,29 +232,35 @@ class _WorkspaceTagsDialogState extends State<_WorkspaceTagsDialog> {
       _creating = true;
       _error = null;
     });
-    try {
-      final tag = await widget.onCreateTag(name);
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _tags = _sortedTags(<WorkspaceTag>[..._tags, tag]);
-        _selectedTagIds.add(tag.id);
-        _tagController.clear();
-        _creating = false;
-      });
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _creating = false;
-        _error = _userFacingMessage(error);
-      });
-    }
+    ProviderScope.containerOf(context, listen: false)
+        .read(backgroundOperationsProvider.notifier)
+        .submit(
+          title: 'Create tag',
+          action: () async {
+            try {
+              final tag = await widget.onCreateTag(name);
+              if (!mounted) return null;
+              setState(() {
+                _tags = _sortedTags(<WorkspaceTag>[..._tags, tag]);
+                _selectedTagIds.add(tag.id);
+                _tagController.clear();
+                _creating = false;
+              });
+              return null;
+            } catch (error) {
+              if (!mounted) return _userFacingMessage(error);
+              setState(() {
+                _creating = false;
+                _error = _userFacingMessage(error);
+              });
+              return _userFacingMessage(error);
+            }
+          },
+        );
   }
 
   Future<void> _deleteTag(WorkspaceTag tag) async {
+    if (_busy) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AleraConfirmDialog(
@@ -270,28 +279,33 @@ class _WorkspaceTagsDialogState extends State<_WorkspaceTagsDialog> {
       _deletingTagId = tag.id;
       _error = null;
     });
-    try {
-      await widget.onDeleteTag(tag.id);
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _tags = _sortedTags(<WorkspaceTag>[
-          for (final candidate in _tags)
-            if (candidate.id != tag.id) candidate,
-        ]);
-        _selectedTagIds.remove(tag.id);
-        _deletingTagId = null;
-      });
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _deletingTagId = null;
-        _error = _userFacingMessage(error);
-      });
-    }
+    ProviderScope.containerOf(context, listen: false)
+        .read(backgroundOperationsProvider.notifier)
+        .submit(
+          title: 'Delete tag',
+          action: () async {
+            try {
+              await widget.onDeleteTag(tag.id);
+              if (!mounted) return null;
+              setState(() {
+                _tags = _sortedTags(<WorkspaceTag>[
+                  for (final candidate in _tags)
+                    if (candidate.id != tag.id) candidate,
+                ]);
+                _selectedTagIds.remove(tag.id);
+                _deletingTagId = null;
+              });
+              return null;
+            } catch (error) {
+              if (!mounted) return _userFacingMessage(error);
+              setState(() {
+                _deletingTagId = null;
+                _error = _userFacingMessage(error);
+              });
+              return _userFacingMessage(error);
+            }
+          },
+        );
   }
 }
 

@@ -151,7 +151,6 @@ void main() {
         AgentQuotaProviderId.codex,
       ]);
       expect(local.claudeDefaultEnabled, isFalse);
-      expect(local.claudeDefaultShowInUsage, isTrue);
       expect(local.selectedClaudeProfile, 'leynierdev');
       expect(local.unpinnedQuotaKeys, <String>['codex', 'claude:leynierdev']);
     },
@@ -369,7 +368,8 @@ final class _RecordingRuntimeHostClient
 
   @override
   Future<bool> supportsRuntimeCapability(String capability) async =>
-      configurationSupported && capability == 'configurationSyncV1';
+      configurationSupported &&
+      capability == aleraRuntimeHostConfigurationSyncCapability;
 
   @override
   Stream<RuntimeHostEvent> get runtimeEvents => const Stream.empty();

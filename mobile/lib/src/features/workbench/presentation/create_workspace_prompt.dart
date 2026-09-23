@@ -12,75 +12,24 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
     final workspaceFilesSourceId = _workspaceFilesSourceId(
       promptState.projectId,
     );
+    final localUploads = _checkoutHostId == null || _checkoutHostId == 'local';
     final hasAttachmentSources =
-        widget.supportsPromptImageUpload ||
-        widget.supportsPromptFileUpload ||
+        (localUploads &&
+            (widget.supportsPromptImageUpload ||
+                widget.supportsPromptFileUpload)) ||
         workspaceFilesSourceId != null;
     const promptDictationTarget = 'prompt-workspace';
     final promptEnabled =
-        !promptState.loading && created == null && !_uploadingAttachment;
+        !promptState.loading &&
+        created == null &&
+        !_uploadingAttachment &&
+        !_creating;
     final dictationEnabled =
         ref.watch(mobileAiDictationSettingsControllerProvider).value?.enabled ==
         true;
     return ListView(
       padding: AleraTokens.pagePadding,
       children: <Widget>[
-        if (dictationEnabled)
-          MobileAiDictationReviewBar(
-            hostId: widget.hostId,
-            targetKey: promptDictationTarget,
-          ),
-        Stack(
-          children: <Widget>[
-            TextField(
-              controller: _prompt,
-              enabled: promptEnabled,
-              minLines: 4,
-              maxLines: 8,
-              decoration: InputDecoration(
-                labelText: 'Initial Prompt',
-                hintText: 'Describe what the agent should build',
-                alignLabelWithHint: true,
-                contentPadding: dictationEnabled
-                    ? const EdgeInsets.fromLTRB(
-                        AleraTokens.spaceMd,
-                        AleraTokens.spaceMd,
-                        AleraTokens.minTapTarget,
-                        AleraTokens.minTapTarget,
-                      )
-                    : null,
-              ),
-            ),
-            if (dictationEnabled)
-              Positioned(
-                right: AleraTokens.space4,
-                bottom: AleraTokens.space4,
-                child: MobileAiDictationControl(
-                  key: const ValueKey<String>(
-                    'prompt-workspace-dictation-control',
-                  ),
-                  hostId: widget.hostId,
-                  targetKey: promptDictationTarget,
-                  controller: _prompt,
-                  enabled: promptEnabled,
-                ),
-              ),
-          ],
-        ),
-        if (hasAttachmentSources) ...<Widget>[
-          const SizedBox(height: AleraTokens.spaceMd),
-          OutlinedButton.icon(
-            onPressed:
-                promptState.loading || created != null || _uploadingAttachment
-                ? null
-                : () => unawaited(
-                    _showPromptAttachmentPicker(workspaceFilesSourceId),
-                  ),
-            icon: const Icon(Icons.attach_file),
-            label: const Text('Add Attachment'),
-          ),
-        ],
-        const SizedBox(height: AleraTokens.spaceLg),
         AleraDropdownField<String>(
           value: promptState.projectId,
           labelText: 'Project',
@@ -98,22 +47,29 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
           onChanged: (value) => _selectPromptProject(value, controller),
         ),
         const SizedBox(height: AleraTokens.spaceLg),
-        AleraDropdownField<String>(
-          key: ValueKey<String?>(
-            'prompt-source-${promptState.projectId}-${promptState.sourceBranch}',
-          ),
-          value: promptState.sourceBranch,
-          labelText: 'Source Branch',
-          hintText: promptState.loading ? 'Loading branches' : 'Select Branch',
-          entries: <AleraDropdownFieldEntry<String>>[
-            for (final branch in promptState.branches)
-              AleraDropdownFieldEntry<String>(value: branch, label: branch),
-          ],
-          enabled: !promptState.loading && created == null,
-          filterable: true,
-          filterHintText: 'Search Branches',
-          onChanged: controller.selectSourceBranch,
+        _locationSelector(
+          projectId: promptState.projectId,
+          enabled: promptEnabled,
         ),
+        if (!_useProjectCheckout)
+          AleraDropdownField<String>(
+            key: ValueKey<String?>(
+              'prompt-source-${promptState.projectId}-${promptState.sourceBranch}',
+            ),
+            value: promptState.sourceBranch,
+            labelText: 'Source Branch',
+            hintText: promptState.loading
+                ? 'Loading branches'
+                : 'Select Branch',
+            entries: <AleraDropdownFieldEntry<String>>[
+              for (final branch in promptState.branches)
+                AleraDropdownFieldEntry<String>(value: branch, label: branch),
+            ],
+            enabled: !promptState.loading && created == null,
+            filterable: true,
+            filterHintText: 'Search Branches',
+            onChanged: controller.selectSourceBranch,
+          ),
         const SizedBox(height: AleraTokens.spaceLg),
         AleraDropdownField<String?>(
           key: ValueKey<String?>(
@@ -160,10 +116,83 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
           filterHintText: 'Search Agent Profiles',
           onChanged: controller.selectProfile,
         ),
-        if (promptState.error != null) ...<Widget>[
+        const SizedBox(height: AleraTokens.spaceLg),
+        ..._linkedIssueField(forPrompt: true, enabled: promptEnabled),
+        if (dictationEnabled)
+          MobileAiDictationReviewBar(
+            hostId: widget.hostId,
+            targetKey: promptDictationTarget,
+          ),
+        Stack(
+          children: <Widget>[
+            CallbackShortcuts(
+              bindings: <ShortcutActivator, VoidCallback>{
+                const SingleActivator(
+                  .enter,
+                  control: true,
+                  includeRepeats: false,
+                ): () =>
+                    _submitPromptFromKeyboard(controller, promptState),
+                const SingleActivator(
+                  .enter,
+                  meta: true,
+                  includeRepeats: false,
+                ): () =>
+                    _submitPromptFromKeyboard(controller, promptState),
+              },
+              child: TextField(
+                controller: _prompt,
+                enabled: promptEnabled,
+                minLines: 4,
+                maxLines: 8,
+                decoration: InputDecoration(
+                  labelText: 'Initial Prompt',
+                  hintText: 'Describe what the agent should build',
+                  alignLabelWithHint: true,
+                  contentPadding: dictationEnabled
+                      ? const EdgeInsets.fromLTRB(
+                          AleraTokens.spaceMd,
+                          AleraTokens.spaceMd,
+                          AleraTokens.minTapTarget,
+                          AleraTokens.minTapTarget,
+                        )
+                      : null,
+                ),
+              ),
+            ),
+            if (dictationEnabled)
+              Positioned(
+                right: AleraTokens.space4,
+                bottom: AleraTokens.space4,
+                child: MobileAiDictationControl(
+                  key: const ValueKey<String>(
+                    'prompt-workspace-dictation-control',
+                  ),
+                  hostId: widget.hostId,
+                  targetKey: promptDictationTarget,
+                  controller: _prompt,
+                  enabled: promptEnabled,
+                ),
+              ),
+          ],
+        ),
+        if (hasAttachmentSources) ...<Widget>[
+          const SizedBox(height: AleraTokens.spaceMd),
+          OutlinedButton.icon(
+            onPressed:
+                promptState.loading || created != null || _uploadingAttachment
+                ? null
+                : () => unawaited(
+                    _showPromptAttachmentPicker(workspaceFilesSourceId),
+                  ),
+            icon: const Icon(Icons.attach_file),
+            label: const Text('Add Attachment'),
+          ),
+        ],
+        if ((promptState.error ?? _retryError) case final error?) ...<Widget>[
           const SizedBox(height: AleraTokens.spaceMd),
           Text(
-            promptState.error!,
+            error,
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         ],
@@ -175,6 +204,20 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
           ),
         ],
         const SizedBox(height: AleraTokens.spaceMd),
+        if (widget.sections.isNotEmpty)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: .leading,
+            value: _autoAssignSection,
+            onChanged:
+                promptState.loading || created != null || _uploadingAttachment
+                ? null
+                : (value) {
+                    _update(() => _autoAssignSection = value ?? false);
+                  },
+            title: const Text('Auto Assign Section'),
+            subtitle: const Text('Pick the section that fits the prompt'),
+          ),
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           controlAffinity: .leading,
@@ -240,13 +283,9 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
           )
         else
           FilledButton.icon(
-            onPressed:
-                promptState.projectId == null ||
-                    promptState.sourceBranch == null ||
-                    promptState.profileId == null ||
-                    _uploadingAttachment
-                ? null
-                : () => _createFromPrompt(controller),
+            onPressed: _canSubmitPrompt(promptState)
+                ? () => _createFromPrompt(controller)
+                : null,
             icon: const Icon(Icons.smart_toy_outlined),
             label: const Text('Create And Start Agent'),
           ),
@@ -254,7 +293,35 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
     );
   }
 
+  bool _canSubmitPrompt(PromptWorkspaceState promptState) {
+    return !promptState.loading &&
+        promptState.creation == null &&
+        _checkoutReady(promptState.projectId) &&
+        promptState.projectId != null &&
+        (_useProjectCheckout || promptState.sourceBranch != null) &&
+        promptState.profileId != null &&
+        !_uploadingAttachment &&
+        !_creating;
+  }
+
+  void _submitPromptFromKeyboard(
+    PromptWorkspaceController controller,
+    PromptWorkspaceState promptState,
+  ) {
+    if (!_canSubmitPrompt(promptState)) {
+      return;
+    }
+    unawaited(_createFromPrompt(controller));
+  }
+
   Future<void> _createFromPrompt(PromptWorkspaceController controller) async {
+    if (_creating) {
+      return;
+    }
+    _update(() {
+      _creating = true;
+      _retryError = null;
+    });
     final selectedProjectId = ref
         .read(promptWorkspaceControllerProvider(widget.hostId))
         .projectId;
@@ -262,29 +329,74 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
       for (final workspace in widget.workspaces)
         if (workspace.status == 'active' &&
             workspace.projectId == selectedProjectId &&
+            workspace.hostId == (_checkoutHostId ?? 'local') &&
             workspace.branch != null &&
             workspace.branch!.trim().isNotEmpty)
           workspace.branch!.trim(),
     };
-    await controller.create(
-      prompt: _prompt.text,
-      workspaceBranches: workspaceBranches,
-      parentWorkspaceId: _promptParentWorkspaceId,
+    final promptState = ref.read(
+      promptWorkspaceControllerProvider(widget.hostId),
     );
-    if (!mounted) {
+    final projectId = promptState.projectId;
+    final sourceBranch = promptState.sourceBranch ?? '';
+    final profileId = promptState.profileId;
+    if (projectId == null ||
+        (!_useProjectCheckout && sourceBranch.isEmpty) ||
+        profileId == null) {
+      if (mounted) {
+        _update(() => _creating = false);
+      }
       return;
     }
-    final state = ref.read(promptWorkspaceControllerProvider(widget.hostId));
-    final creation = state.creation;
-    final tabId = state.agentTabId;
-    if (creation != null && tabId != null) {
+    _retryJobId ??= 'job-${DateTime.now().microsecondsSinceEpoch}';
+    final jobId = _retryJobId;
+    final future = ref
+        .read(backgroundSetupJobsProvider.notifier)
+        .enqueuePromptWorkspace(
+          PromptWorkspaceCreateRequest(
+            hostId: widget.hostId,
+            checkoutHostId: _checkoutHostId,
+            prompt: _prompt.text,
+            localAttachmentPaths: ref.read(
+              promptLocalAttachmentsProvider(
+                widget.hostId,
+                widget.initialLocalAttachmentPaths,
+              ),
+            ),
+            projectId: projectId,
+            sourceBranch: sourceBranch,
+            profileId: profileId,
+            workspaceBranches: workspaceBranches,
+            useProjectCheckout: _useProjectCheckout,
+            parentWorkspaceId: _promptParentWorkspaceId,
+            issueUrl: _linkedIssueUrl(),
+            autoAssignSection: widget.sections.isNotEmpty && _autoAssignSection,
+          ),
+          jobId: jobId,
+        );
+    try {
       if (_createAnother) {
-        _showCreationMessage(creation);
+        await future;
+        if (!mounted) {
+          return;
+        }
         _prompt.clear();
+        _issueUrl.clear();
         _promptAttachmentError = null;
+        _retryError = null;
+        _retryJobId = null;
         controller.resetForAnother();
-      } else {
-        _openWorkspace(creation, tabId: tabId);
+      } else if (mounted) {
+        future.ignore();
+        Navigator.of(context).pop(true);
+      }
+    } on Object catch (error) {
+      if (mounted) {
+        _update(() => _retryError = error.toString());
+      }
+    } finally {
+      if (mounted) {
+        _update(() => _creating = false);
       }
     }
   }

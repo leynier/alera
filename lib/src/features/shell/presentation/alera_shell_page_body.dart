@@ -5,6 +5,14 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
   final WorkbenchTabCompletionAcknowledgements _completionAcknowledgements =
       WorkbenchTabCompletionAcknowledgements();
 
+  void _returnFromRunBoard() {
+    ref.read(runBoardNavigationProvider.notifier).close();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || ref.read(runBoardNavigationProvider).visible) return;
+      KeyboardCommandDispatcher(ref: ref, context: context).focusActivePane();
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -17,18 +25,15 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
   Widget build(BuildContext context) {
     ref.watch(terminalHostWarmupCoordinatorProvider);
     ref.watch(runtimeAgentStatusSyncProvider);
-    ref.watch(agentCanvasRuntimeSyncProvider);
     ref.watch(agentStatusNotificationCoordinatorProvider);
+    ref.watch(workspacePullRequestMonitorControllerProvider.notifier);
+    ref.watch(workspacePullRequestFailureNotificationCoordinatorProvider);
     ref.watch(agentAwakeCoordinatorProvider);
     ref.watch(keepAliveCoordinatorProvider);
     ref.watch(terminalRuntimeExitCoordinatorProvider);
     ref.watch(workspaceActivityCoordinatorProvider);
     ref.watch(terminalRuntimeActiveWorkspaceCoordinatorProvider);
     ref.watch(workspaceActivityPersistenceCoordinatorProvider);
-    ref.watch(browserEventDispatcherProvider);
-    final browserTabsAvailable =
-        ref.watch(browserAvailabilityProvider).asData?.value.meetsStableGate ==
-        true;
     final shell = ref.watch(
       workbenchControllerProvider.select((state) {
         final workspace = state.activeWorkspace;
@@ -66,6 +71,15 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
 
     final project = shell.activeProject;
     final workspace = shell.activeWorkspace;
+    final panel = workspace == null
+        ? const WorkspacePanel()
+        : ref.read(workbenchControllerProvider).workspacePanelFor(workspace.id);
+    final toolTab = switch (WorkspaceTool.forKey(panel.activeKey)) {
+      WorkspaceTool.search => WorkbenchContextPanelTab.search,
+      WorkspaceTool.sourceControl => WorkbenchContextPanelTab.gitDiff,
+      WorkspaceTool.pullRequest => WorkbenchContextPanelTab.pullRequests,
+      _ => WorkbenchContextPanelTab.explorer,
+    };
     final controller = ref.read(workbenchControllerProvider.notifier);
     final canSelectSourceControlRoot = project?.isFolder == true;
     final sourceControlScope = WorkspaceSourceControlScope.resolve(
@@ -73,7 +87,6 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
       workspace: workspace,
       prefs: shell.viewPrefs,
     );
-    final terminalRuntime = ref.read(terminalRuntimeProvider);
     final showRunBoard = ref.watch(
       runBoardNavigationProvider.select((location) => location.visible),
     );
@@ -83,19 +96,12 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
         body: KeyboardShortcutsScope(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final showContextSidebar =
-                  workspace != null &&
-                  _canShowContextSidebar(
-                    shellWidth: constraints.maxWidth,
-                    collapsed: shell.collapsed,
-                    prefs: shell.viewPrefs,
-                  );
               return Column(
                 children: <Widget>[
                   Expanded(
                     child: Stack(
                       fit: StackFit.expand,
-                      children: [
+                      children: <Widget>[
                         Visibility(
                           visible: !showRunBoard,
                           maintainState: true,
@@ -104,224 +110,294 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                             children: <Widget>[
                               const ProjectWorkbenchSidebar(),
                               Expanded(
-                                child: _buildContent(
-                                  bootstrapped: shell.bootstrapped,
-                                  hasProjects: shell.hasProjects,
-                                  project: project,
-                                  workspace: workspace,
-                                  sourceControlScope: sourceControlScope,
-                                  tabs: shell.tabs,
-                                  layout: shell.layout,
-                                  browserTabsAvailable: browserTabsAvailable,
-                                ),
-                              ),
-                              if (workspace != null && showContextSidebar)
-                                WorkspaceContextSidebar(
-                                  workspace: workspace,
-                                  prefs: shell.viewPrefs,
-                                  sourceControlScope: sourceControlScope,
-                                  focusedSourceControlRoot:
-                                      canSelectSourceControlRoot
-                                      ? shell
-                                            .viewPrefs
-                                            .sourceControlRootByWorkspaceId[workspace
-                                            .id]
-                                      : null,
-                                  onToggleVisible:
-                                      controller.toggleRightSidebarVisible,
-                                  onResize: controller.setRightSidebarWidth,
-                                  onSetContextPanelTab:
-                                      controller.setContextPanelTab,
-                                  onSetExplorerMode: controller.setExplorerMode,
-                                  onSetGitDiffViewMode:
-                                      controller.setGitDiffViewMode,
-                                  onSetGitDiffGroupMode:
-                                      controller.setGitDiffGroupMode,
-                                  onFocusSourceControlFolder:
-                                      canSelectSourceControlRoot
-                                      ? (relativePath) {
-                                          return controller
-                                              .focusSourceControlFolder(
+                                child: LayoutBuilder(
+                                  builder: (context, workbenchConstraints) {
+                                    final maximumPanelWidth =
+                                        workspacePanelMaximumWidth(
+                                          workbenchConstraints.maxWidth,
+                                        );
+                                    final showContextSidebar =
+                                        workspace != null &&
+                                        maximumPanelWidth >=
+                                            (shell.viewPrefs.rightSidebarVisible
+                                                ? AleraTokens.sidebarMinWidth
+                                                : AleraTokens
+                                                      .sidebarCollapsedWidth);
+                                    final toolFor = workspace == null
+                                        ? null
+                                        : _workspaceToolFactory(
+                                            workspace: workspace,
+                                            prefs: shell.viewPrefs,
+                                            sourceControlScope:
+                                                sourceControlScope,
+                                            canSelectSourceControlRoot:
+                                                canSelectSourceControlRoot,
+                                          );
+                                    return Row(
+                                      crossAxisAlignment: .stretch,
+                                      children: <Widget>[
+                                        Expanded(
+                                          child: workspace != null
+                                              ? _buildWorkspaceCenter(
+                                                  workspace: workspace,
+                                                  project: project,
+                                                  panel: panel,
+                                                  sourceControlScope:
+                                                      sourceControlScope,
+                                                  tabs: shell.tabs,
+                                                  bootstrapped:
+                                                      shell.bootstrapped,
+                                                  hasProjects:
+                                                      shell.hasProjects,
+                                                  layout: shell.layout,
+                                                  toolFor:
+                                                      toolFor ??
+                                                      ((_) =>
+                                                          const SizedBox.shrink()),
+                                                )
+                                              : _buildContent(
+                                                  bootstrapped:
+                                                      shell.bootstrapped,
+                                                  hasProjects:
+                                                      shell.hasProjects,
+                                                  project: project,
+                                                  workspace: workspace,
+                                                  sourceControlScope:
+                                                      sourceControlScope,
+                                                  tabs: shell.tabs,
+                                                  layout: shell.layout,
+                                                  singleSurface: true,
+                                                  singleTabId:
+                                                      panel.primaryTabId,
+                                                ),
+                                        ),
+                                        if (workspace != null &&
+                                            showContextSidebar)
+                                          WorkspaceContextSidebar(
+                                            workspace: workspace,
+                                            prefs: shell.viewPrefs.copyWith(
+                                              activeContextPanelTab: toolTab,
+                                              rightSidebarWidth: shell.viewPrefs
+                                                  .rightSidebarWidthFor(
+                                                    workspace.id,
+                                                    fallback: shell
+                                                        .viewPrefs
+                                                        .rightSidebarWidth,
+                                                  ),
+                                            ),
+                                            maximumWidth: maximumPanelWidth,
+                                            panelBuilder: (_) {
+                                              return _buildWorkspacePanelView(
+                                                workspace: workspace,
+                                                project: project,
+                                                panel: panel,
+                                                sourceControlScope:
+                                                    sourceControlScope,
+                                                tabs: shell.tabs,
+                                                bootstrapped:
+                                                    shell.bootstrapped,
+                                                hasProjects: shell.hasProjects,
+                                                layout: shell.layout,
+                                                toolFor:
+                                                    toolFor ??
+                                                    ((_) =>
+                                                        const SizedBox.shrink()),
+                                              );
+                                            },
+                                            sourceControlScope:
+                                                sourceControlScope,
+                                            focusedSourceControlRoot:
+                                                canSelectSourceControlRoot
+                                                ? shell
+                                                      .viewPrefs
+                                                      .sourceControlRootByWorkspaceId[workspace
+                                                      .id]
+                                                : null,
+                                            onToggleVisible: controller
+                                                .toggleRightSidebarVisible,
+                                            onResize:
+                                                controller.setRightSidebarWidth,
+                                            onSetContextPanelTab:
+                                                controller.setContextPanelTab,
+                                            onSetExplorerMode:
+                                                controller.setExplorerMode,
+                                            onSetGitDiffViewMode:
+                                                controller.setGitDiffViewMode,
+                                            onSetGitDiffGroupMode:
+                                                controller.setGitDiffGroupMode,
+                                            onSetSearchViewAsTree:
+                                                controller.setSearchViewAsTree,
+                                            onSetSearchIncludeIgnored:
+                                                controller
+                                                    .setSearchIncludeIgnored,
+                                            onFocusSourceControlFolder:
+                                                canSelectSourceControlRoot
+                                                ? (relativePath) {
+                                                    return controller
+                                                        .focusSourceControlFolder(
+                                                          workspace: workspace,
+                                                          relativePath:
+                                                              relativePath,
+                                                        );
+                                                  }
+                                                : null,
+                                            onClearSourceControlRoot:
+                                                canSelectSourceControlRoot
+                                                ? () {
+                                                    controller
+                                                        .clearFocusedSourceControlFolder(
+                                                          workspace: workspace,
+                                                        );
+                                                  }
+                                                : null,
+                                            onOpenFile: (relativePath) {
+                                              unawaited(
+                                                controller.openFileTab(
+                                                  workspace: workspace,
+                                                  relativePath: relativePath,
+                                                  preview: true,
+                                                ),
+                                              );
+                                            },
+                                            onOpenFilePermanently:
+                                                (relativePath) {
+                                                  unawaited(
+                                                    controller.openFileTab(
+                                                      workspace: workspace,
+                                                      relativePath:
+                                                          relativePath,
+                                                    ),
+                                                  );
+                                                },
+                                            onRevealInExplorer: (relativePath) {
+                                              controller.revealInExplorer(
                                                 workspace: workspace,
                                                 relativePath: relativePath,
                                               );
-                                        }
-                                      : null,
-                                  onClearSourceControlRoot:
-                                      canSelectSourceControlRoot
-                                      ? () {
-                                          controller
-                                              .clearFocusedSourceControlFolder(
-                                                workspace: workspace,
-                                              );
-                                        }
-                                      : null,
-                                  onOpenFile: (relativePath) {
-                                    unawaited(
-                                      controller.openFileTab(
-                                        workspace: workspace,
-                                        relativePath: relativePath,
-                                        preview: true,
-                                      ),
+                                            },
+                                            onOpenGitDiff:
+                                                ({
+                                                  relativePath,
+                                                  area,
+                                                  gitDiffRoot,
+                                                  required scope,
+                                                  preview = false,
+                                                  oppositePanel = false,
+                                                }) {
+                                                  return controller
+                                                      .openGitDiffTab(
+                                                        workspace: workspace,
+                                                        relativePath:
+                                                            relativePath,
+                                                        area: area,
+                                                        scope: scope,
+                                                        gitDiffRoot:
+                                                            gitDiffRoot,
+                                                        preview: preview,
+                                                        oppositePanel:
+                                                            oppositePanel,
+                                                      );
+                                                },
+                                            onOpenGitCommitDiff:
+                                                ({
+                                                  relativePath,
+                                                  oldPath,
+                                                  required scope,
+                                                  gitDiffRoot,
+                                                  required commitOid,
+                                                  parentOid,
+                                                  required compareRef,
+                                                  subject,
+                                                  message,
+                                                  preview = false,
+                                                  oppositePanel = false,
+                                                }) {
+                                                  return controller
+                                                      .openGitCommitDiffTab(
+                                                        workspace: workspace,
+                                                        relativePath:
+                                                            relativePath,
+                                                        oldPath: oldPath,
+                                                        scope: scope,
+                                                        gitDiffRoot:
+                                                            gitDiffRoot,
+                                                        commitOid: commitOid,
+                                                        parentOid: parentOid,
+                                                        compareRef: compareRef,
+                                                        subject: subject,
+                                                        message: message,
+                                                        preview: preview,
+                                                        oppositePanel:
+                                                            oppositePanel,
+                                                      );
+                                                },
+                                            onOpenSearchMatch: (target) {
+                                              unawaited(() async {
+                                                final tab = await controller
+                                                    .openEditorTab(
+                                                      workspace: workspace,
+                                                      relativePath:
+                                                          target.relativePath,
+                                                      preview: true,
+                                                    );
+                                                ref
+                                                    .read(
+                                                      editorSessionRegistryProvider,
+                                                    )
+                                                    .reveal(
+                                                      tab.id,
+                                                      WorkspaceEditorRevealTarget(
+                                                        line: target.line,
+                                                        column: target.column,
+                                                        matchLength:
+                                                            target.matchLength,
+                                                      ),
+                                                    );
+                                              }());
+                                            },
+                                            onPathMoved: (oldRelativePath, newRelativePath) async {
+                                              await controller
+                                                  .syncFileTabsAfterPathMove(
+                                                    workspace: workspace,
+                                                    oldRelativePath:
+                                                        oldRelativePath,
+                                                    newRelativePath:
+                                                        newRelativePath,
+                                                  );
+                                              ref
+                                                  .read(
+                                                    editorSessionRegistryProvider,
+                                                  )
+                                                  .updateDocumentPathsAfterMove(
+                                                    workspacePath:
+                                                        workspace.path,
+                                                    oldRelativePath:
+                                                        oldRelativePath,
+                                                    newRelativePath:
+                                                        newRelativePath,
+                                                  );
+                                              controller
+                                                  .syncSourceControlRootAfterPathMove(
+                                                    workspace: workspace,
+                                                    oldRelativePath:
+                                                        oldRelativePath,
+                                                    newRelativePath:
+                                                        newRelativePath,
+                                                  );
+                                            },
+                                          ),
+                                      ],
                                     );
                                   },
-                                  onOpenFilePermanently: (relativePath) {
-                                    unawaited(
-                                      controller.openFileTab(
-                                        workspace: workspace,
-                                        relativePath: relativePath,
-                                      ),
-                                    );
-                                  },
-                                  onRevealInExplorer: (relativePath) {
-                                    controller.revealInExplorer(
-                                      workspace: workspace,
-                                      relativePath: relativePath,
-                                    );
-                                  },
-                                  onOpenGitDiff:
-                                      ({
-                                        relativePath,
-                                        area,
-                                        gitDiffRoot,
-                                        required scope,
-                                        preview = false,
-                                      }) {
-                                        return controller.openGitDiffTab(
-                                          workspace: workspace,
-                                          relativePath: relativePath,
-                                          area: area,
-                                          scope: scope,
-                                          gitDiffRoot: gitDiffRoot,
-                                          preview: preview,
-                                        );
-                                      },
-                                  onOpenGitCommitDiff:
-                                      ({
-                                        relativePath,
-                                        oldPath,
-                                        required scope,
-                                        gitDiffRoot,
-                                        required commitOid,
-                                        parentOid,
-                                        required compareRef,
-                                        subject,
-                                        message,
-                                        preview = false,
-                                      }) {
-                                        return controller.openGitCommitDiffTab(
-                                          workspace: workspace,
-                                          relativePath: relativePath,
-                                          oldPath: oldPath,
-                                          scope: scope,
-                                          gitDiffRoot: gitDiffRoot,
-                                          commitOid: commitOid,
-                                          parentOid: parentOid,
-                                          compareRef: compareRef,
-                                          subject: subject,
-                                          message: message,
-                                          preview: preview,
-                                        );
-                                      },
-                                  onOpenSearchMatch: (target) {
-                                    unawaited(() async {
-                                      final tab = await controller
-                                          .openEditorTab(
-                                            workspace: workspace,
-                                            relativePath: target.relativePath,
-                                            preview: true,
-                                          );
-                                      ref
-                                          .read(editorSessionRegistryProvider)
-                                          .reveal(
-                                            tab.id,
-                                            WorkspaceEditorRevealTarget(
-                                              line: target.line,
-                                              column: target.column,
-                                              matchLength: target.matchLength,
-                                            ),
-                                          );
-                                    }());
-                                  },
-                                  onPathMoved:
-                                      (oldRelativePath, newRelativePath) async {
-                                        await controller
-                                            .syncFileTabsAfterPathMove(
-                                              workspace: workspace,
-                                              oldRelativePath: oldRelativePath,
-                                              newRelativePath: newRelativePath,
-                                            );
-                                        ref
-                                            .read(editorSessionRegistryProvider)
-                                            .updateDocumentPathsAfterMove(
-                                              workspacePath: workspace.path,
-                                              oldRelativePath: oldRelativePath,
-                                              newRelativePath: newRelativePath,
-                                            );
-                                        controller
-                                            .syncSourceControlRootAfterPathMove(
-                                              workspace: workspace,
-                                              oldRelativePath: oldRelativePath,
-                                              newRelativePath: newRelativePath,
-                                            );
-                                      },
-                                  onFocusTerminal: (terminalSessionId) {
-                                    final tab = _workspaceTabByTerminalSession(
-                                      shell.tabs,
-                                      terminalSessionId,
-                                    );
-                                    if (tab == null) {
-                                      AleraToast.show(
-                                        context,
-                                        message: 'The Agent Canvas terminal is no longer open.',
-                                        tone: .error,
-                                      );
-                                      return;
-                                    }
-                                    controller.setActiveTab(
-                                      workspaceId: workspace.id,
-                                      tabId: tab.id,
-                                    );
-                                    terminalRuntime
-                                        .sessionFor(
-                                          workspace: workspace,
-                                          tab: tab,
-                                        )
-                                        .requestFocus();
-                                  },
-                                  onOpenPullRequest: () {
-                                    controller.setContextPanelTab(
-                                      .pullRequests,
-                                    );
-                                  },
-                                  onOpenArtifact: (artifactId) {
-                                    AleraToast.show(
-                                      context,
-                                      message:
-                                          'Artifact $artifactId is registered for this Agent Canvas.',
-                                    );
-                                  },
-                                  onSourceControlAction:
-                                      sourceControlScope == null
-                                      ? null
-                                      : (kind, action) async {
-                                          await _runAgentCanvasSourceControlAction(
-                                            ref: ref,
-                                            workspace: workspace,
-                                            sourceControlScope:
-                                                sourceControlScope,
-                                            kind: kind,
-                                            action: action,
-                                            terminalRuntime: terminalRuntime,
-                                            controller: controller,
-                                            tabs: shell.tabs,
-                                          );
-                                        },
                                 ),
+                              ),
                             ],
                           ),
                         ),
-                        if (showRunBoard) const RunBoardPage(),
+                        if (showRunBoard)
+                          RunBoardPage(
+                            onReturnToWorkspace: _returnFromRunBoard,
+                          ),
                       ],
                     ),
                   ),
@@ -343,7 +419,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
         ),
       ),
     );
-    return BrowserNativeCallbackScope(child: content);
+    return Stack(children: <Widget>[content, const BackgroundSetupJobHost()]);
   }
 
   Future<bool> _confirmCloseDirtyTabs(
@@ -355,108 +431,23 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
       for (final tab in tabs)
         if (tabIds.contains(tab.id) && registry.isDirty(tab.id)) tab.title,
     ];
-    if (dirty.isEmpty) {
-      return true;
-    }
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AleraConfirmDialog(
-        title: dirty.length == 1
-            ? 'Close Unsaved Editor?'
-            : 'Close Unsaved Editors?',
-        message: dirty.length == 1
-            ? '${dirty.first} has unsaved changes.'
-            : '${dirty.length} editor tabs have unsaved changes.',
-        confirmLabel: 'Close',
-        destructive: true,
-      ),
-    );
-    return confirmed == true;
-  }
-
-  void _showError(String message) {
-    AleraToast.show(context, message: message, tone: .error);
-  }
-}
-
-WorkspaceTabRecord? _workspaceTabById(
-  List<WorkspaceTabRecord> tabs,
-  String tabId,
-) {
-  for (final tab in tabs) {
-    if (tab.id == tabId) {
-      return tab;
-    }
-  }
-  return null;
-}
-
-WorkspaceTabRecord? _workspaceTabByTerminalSession(
-  List<WorkspaceTabRecord> tabs,
-  String terminalSessionId,
-) {
-  for (final tab in tabs) {
-    if (tab.kind == WorkspaceTabKind.terminal &&
-        tab.terminalSessionId == terminalSessionId) {
-      return tab;
-    }
-  }
-  return null;
-}
-
-Future<void> _runAgentCanvasSourceControlAction({
-  required WidgetRef ref,
-  required Workspace workspace,
-  required WorkspaceSourceControlScope sourceControlScope,
-  required String kind,
-  required Map<String, Object?> action,
-  required TerminalRuntime terminalRuntime,
-  required WorkbenchController controller,
-  required List<WorkspaceTabRecord> tabs,
-}) async {
-  final sourceController = ref.read(
-    workspaceSourceControlControllerProvider(sourceControlScope.path).notifier,
-  );
-  final rawPath = action['relativePath'];
-  final sourceRelativePath = rawPath is String
-      ? sourceControlScope.toSourceRelativePath(rawPath)
-      : null;
-  if (rawPath is String && sourceRelativePath == null) {
-    throw StateError(
-      'The action path is outside the active source control root.',
-    );
-  }
-  switch (kind) {
-    case 'stage':
-      await sourceController.stage(sourceRelativePath);
-    case 'unstage':
-      await sourceController.unstage(sourceRelativePath);
-    case 'discard':
-      await sourceController.discard(sourceRelativePath);
-    case 'commit':
-      final message = action['message'];
-      if (message is! String || message.trim().isEmpty) {
-        throw StateError('A commit message is required.');
-      }
-      await sourceController.commit(message);
-    case 'pull':
-      await sourceController.pull();
-    case 'push':
-      await sourceController.push();
-    case 'terminateTerminal':
-      final terminalSessionId = action['terminalSessionId'];
-      if (terminalSessionId is! String) {
-        throw StateError('The terminal session id is required.');
-      }
-      final tab = _workspaceTabByTerminalSession(tabs, terminalSessionId);
-      if (tab == null) {
-        throw StateError('The Agent Canvas terminal is no longer open.');
-      }
-      // The controller disposes the terminal handle alongside the tab record.
-      await controller.closeWorkspaceTab(workspace: workspace, tabId: tab.id);
-    default:
-      throw StateError(
-        'This Agent Canvas action has no registered controller.',
+    if (!mounted) return false;
+    if (dirty.isNotEmpty) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AleraConfirmDialog(
+          title: dirty.length == 1
+              ? 'Close Unsaved Editor?'
+              : 'Close Unsaved Editors?',
+          message: dirty.length == 1
+              ? '${dirty.first} has unsaved changes.'
+              : '${dirty.length} editor tabs have unsaved changes.',
+          confirmLabel: 'Close',
+          destructive: true,
+        ),
       );
+      if (confirmed != true) return false;
+    }
+    return true;
   }
 }

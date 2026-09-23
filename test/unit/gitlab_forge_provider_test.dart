@@ -163,6 +163,20 @@ ${_reviewJson.trim()}
   });
 
   group('GitLabForgeProvider comments', () {
+    test('preserves resolution identity for general discussions', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[
+        _ok(
+          '{"id":"general","notes":[{"id":3,"body":"Fix this","resolvable":true,"resolved":false}]}',
+        ),
+      ]);
+      final comments = await GitLabForgeProvider(
+        runner,
+      ).getReviewComments(identity: _identity, repoPath: '/repo', number: 42);
+      expect(comments.single.threadId, 'general');
+      expect(comments.single.resolved, isFalse);
+      expect(comments.single.path, isNull);
+    });
+
     test('maps conversation and resolved inline discussion notes', () async {
       final runner = FakeRecordingProcessRunner(<Object>[
         _ok('''
@@ -182,7 +196,9 @@ ${_reviewJson.trim()}
       expect(comments.first.path, 'lib/a.dart');
       expect(comments.first.line, 17);
       expect(comments.first.resolved, isTrue);
+      expect(comments.first.threadId, 'd1');
       expect(comments.last.kind, ReviewCommentKind.conversation);
+      expect(comments.last.threadId, isNull);
       expect(runner.calls.single.arguments, contains('--paginate'));
     });
 

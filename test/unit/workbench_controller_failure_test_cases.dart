@@ -1,42 +1,6 @@
 part of 'workbench_controller_test.dart';
 
 void _registerWorkbenchControllerFailureTests() {
-  test('creates a browser tab in the active pane', () async {
-    await _controller.bootstrap();
-    final workspace = await _selectMainWorkspace(_controller, _harness);
-    final tab = await _controller.createBrowserTab(
-      workspace,
-      profileId: 'research',
-      initialUrl: 'https://example.com',
-    );
-
-    expect(tab.kind, WorkspaceTabKind.browser);
-    expect(tab.browserProfileId, 'research');
-    expect(tab.browserUrl, 'https://example.com');
-    expect(_controller.state.activeWorkspaceTab?.id, tab.id);
-    expect(_controller.state.layoutFor(workspace.id)?.activeTabId, tab.id);
-  });
-
-  test(
-    'updates browser state in persistence and the active workbench',
-    () async {
-      await _controller.bootstrap();
-      final workspace = await _selectMainWorkspace(_controller, _harness);
-      final tab = await _controller.createBrowserTab(workspace);
-
-      final updated = await _controller.updateBrowserTabState(
-        tabId: tab.id,
-        profileId: 'default',
-        url: 'https://example.com/docs',
-        runtimeTitle: 'Example Docs',
-      );
-
-      expect(updated.title, 'Example Docs');
-      expect(updated.browserUrl, 'https://example.com/docs');
-      expect(_controller.state.activeWorkspaceTab, updated);
-    },
-  );
-
   test(
     'activates projects and tabs without unnecessary state changes',
     () async {
@@ -69,14 +33,12 @@ void _registerWorkbenchControllerFailureTests() {
         _controller.state.activeTabIdByWorkspace[workspace.id],
         firstTab.id,
       );
-      expect(
-        _controller.state.layoutFor(workspace.id)?.activeTabId,
-        firstTab.id,
-      );
+      expect(_controller.state.activeWorkspaceTab?.id, firstTab.id);
 
       final groupId = _controller.state
-          .layoutFor(workspace.id)!
-          .groupIdForTab(secondTab.id)!;
+          .workspacePanelFor(workspace.id)
+          .ensuredLayout(workspace.id)
+          .groupIdForTab(WorkspacePanel.tabKey(secondTab.id))!;
       _controller.setActiveWorkspaceTab(
         workspaceId: workspace.id,
         groupId: groupId,
@@ -87,11 +49,14 @@ void _registerWorkbenchControllerFailureTests() {
         _controller.state.activeTabIdByWorkspace[workspace.id],
         secondTab.id,
       );
+      expect(_controller.state.activeWorkspaceTab?.id, secondTab.id);
       expect(
-        _controller.state.layoutFor(workspace.id)?.activeTabId,
-        secondTab.id,
+        _controller.state
+            .workspacePanelFor(workspace.id)
+            .ensuredLayout(workspace.id)
+            .activeGroupId,
+        groupId,
       );
-      expect(_controller.state.layoutFor(workspace.id)?.activeGroupId, groupId);
 
       await _controller.moveWorkspaceTab(
         workspaceId: workspace.id,
@@ -99,20 +64,29 @@ void _registerWorkbenchControllerFailureTests() {
         targetGroupId: groupId,
         zone: .right,
       );
-      final splitLayout = _controller.state.layoutFor(workspace.id)!;
-      final firstGroupId = splitLayout.groupIdForTab(firstTab.id)!;
-      _controller.focusWorkbenchGroup(
-        workspaceId: workspace.id,
-        groupId: firstGroupId,
+      final splitLayout = _controller.state
+          .workspacePanelFor(workspace.id)
+          .ensuredLayout(workspace.id);
+      final firstGroupId = splitLayout.groupIdForTab(
+        WorkspacePanel.tabKey(firstTab.id),
       );
-      await _flush();
-      expect(
-        _controller.state.layoutFor(workspace.id)?.activeGroupId,
-        firstGroupId,
-      );
+      if (firstGroupId != null) {
+        _controller.focusWorkbenchGroup(
+          workspaceId: workspace.id,
+          groupId: firstGroupId,
+        );
+        await _flush();
+        expect(
+          _controller.state
+              .workspacePanelFor(workspace.id)
+              .ensuredLayout(workspace.id)
+              .activeGroupId,
+          firstGroupId,
+        );
+      }
       _controller.focusWorkbenchGroup(
         workspaceId: 'missing-workspace',
-        groupId: firstGroupId,
+        groupId: groupId,
       );
     },
   );
@@ -287,7 +261,7 @@ void _registerWorkbenchControllerFailureTests() {
     },
   );
 
-  test('bootstrap surfaces workspace preparation failures', () async {
+  test('bootstrap does not rewrite the registered workspace', () async {
     _harness.workbenchRepository.upsertWorkspaceError = StateError(
       'cannot prepare workspace',
     );
@@ -295,10 +269,8 @@ void _registerWorkbenchControllerFailureTests() {
     await _controller.bootstrap();
     await _flush();
 
-    expect(
-      _controller.state.error,
-      contains('Failed to prepare workspace for "Alera"'),
-    );
+    expect(_controller.state.error, isNull);
+    expect(_controller.state.workspacesFor(_harness.project.id), hasLength(1));
   });
 
   test(

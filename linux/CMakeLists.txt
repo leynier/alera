@@ -59,8 +59,6 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 # System-level dependencies.
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK REQUIRED IMPORTED_TARGET gtk+-3.0)
-pkg_check_modules(mpv REQUIRED IMPORTED_TARGET mpv)
-pkg_check_modules(epoxy REQUIRED IMPORTED_TARGET epoxy)
 
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
@@ -97,42 +95,9 @@ add_custom_target(alera_cli_sidecar ALL
   VERBATIM
 )
 
-set(ALERA_PROJECT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
-set(ALERA_NATIVE_HELPER_OUTPUT
-  "${ALERA_PROJECT_DIR}/.dart_tool/alera_native_helpers/prepared/linux")
-set(ALERA_DART_EXECUTABLE
-  "$ENV{FLUTTER_ROOT}/bin/cache/dart-sdk/bin/dart")
-if(NOT EXISTS "${ALERA_DART_EXECUTABLE}")
-  unset(ALERA_DART_EXECUTABLE)
-  unset(ALERA_DART_EXECUTABLE CACHE)
-  find_program(ALERA_DART_EXECUTABLE NAMES dart)
-endif()
-if(NOT ALERA_DART_EXECUTABLE OR NOT EXISTS "${ALERA_DART_EXECUTABLE}")
-  message(FATAL_ERROR "dart executable is required to prepare emulator helpers")
-endif()
-add_custom_target(alera_native_helpers ALL
-  COMMAND "${ALERA_DART_EXECUTABLE}"
-    "${ALERA_PROJECT_DIR}/tool/native_helpers/prepare_native_helpers.dart"
-    --platform linux
-    --output "${ALERA_NATIVE_HELPER_OUTPUT}"
-  BYPRODUCTS
-    "${ALERA_NATIVE_HELPER_OUTPUT}/manifest.json"
-    "${ALERA_NATIVE_HELPER_OUTPUT}/android/scrcpy/4.0/scrcpy-server"
-  DEPENDS
-    "${ALERA_PROJECT_DIR}/tool/native_helpers/native_helper_assets.json"
-    "${ALERA_PROJECT_DIR}/tool/native_helpers/native_helper_manifest.dart"
-    "${ALERA_PROJECT_DIR}/tool/native_helpers/native_helper_materializer.dart"
-    "${ALERA_PROJECT_DIR}/tool/native_helpers/prepare_native_helpers.dart"
-    "${ALERA_PROJECT_DIR}/third_party/native_helpers/NOTICE.md"
-  WORKING_DIRECTORY "${ALERA_PROJECT_DIR}"
-  COMMENT "Preparing verified emulator helpers"
-  VERBATIM
-)
-
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
 add_dependencies(${BINARY_NAME} alera_cli_sidecar)
-add_dependencies(${BINARY_NAME} alera_native_helpers)
 
 # Only the install-generated bundle's copy of the executable will launch
 # correctly, since the resources must in the right relative locations. To avoid
@@ -146,12 +111,6 @@ set_target_properties(${BINARY_NAME}
 
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.
-# media_kit defaults to replacing the process allocator with a downloaded
-# static mimalloc object. A video surface does not justify changing Alera's
-# process-wide allocator, and the helper supply chain must not rely on the
-# plugin's MD5-only mimalloc download.
-set(MIMALLOC_USE_STATIC_LIBS OFF CACHE BOOL
-  "Do not replace Alera's process allocator for media playback" FORCE)
 include(flutter/generated_plugins.cmake)
 
 # jni 1.0.2 passes the typed JNIEnv pointer to the JNI API's required void**
@@ -182,10 +141,6 @@ install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
 
 install(PROGRAMS "${ALERA_CLI_OUTPUT}"
   DESTINATION "${CMAKE_INSTALL_PREFIX}/resources/alera"
-  COMPONENT Runtime)
-
-install(DIRECTORY "${ALERA_NATIVE_HELPER_OUTPUT}/"
-  DESTINATION "${CMAKE_INSTALL_PREFIX}/resources/alera/emulator"
   COMPONENT Runtime)
 
 install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"

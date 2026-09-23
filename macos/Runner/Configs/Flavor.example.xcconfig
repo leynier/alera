@@ -1,5 +1,5 @@
 // Reference copy of the dev-flavor overrides written by
-// `tool/debug/alera_debug.dart` to `Flavor.xcconfig` (git-ignored) before
+// `alera-xtask` to `Flavor.xcconfig` (git-ignored) before
 // invoking `flutter run`. Absent this file, AppInfo.xcconfig falls back to the
 // release defaults.
 

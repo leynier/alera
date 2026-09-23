@@ -260,7 +260,7 @@ impl ServerActor {
     /// process messages -> re-assert gate blocks -> warn stale dispatches ->
     /// dispatch ready tasks -> check convergence.
     pub(super) async fn handle_coordinator_tick(&mut self, run_id: String) {
-        if self.emulator_requests.has_runtime_mutations() {
+        if self.mutation_queue.has_runtime_mutations() {
             return;
         }
         let Some(handle) = self.coordinators.get(&run_id) else {

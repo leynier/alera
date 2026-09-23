@@ -69,7 +69,8 @@ void _handleTerminalSelectionChanged(_XtermTerminalSessionHandle handle) {
     if (currentSelection == null) {
       return;
     }
-    final text = handle._terminal.buffer.getText(currentSelection);
+    // Match explicit copy: drop row padding before hard line breaks.
+    final text = handle._terminal.buffer.getText(currentSelection, true);
     if (text.isEmpty) {
       return;
     }

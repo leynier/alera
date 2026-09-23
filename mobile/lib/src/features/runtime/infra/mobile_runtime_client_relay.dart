@@ -29,12 +29,13 @@ mixin MobileRuntimeClientRelay {
     registerLogSecret(relayClientId);
     final payload = await requestMap('mobile.hello', <String, Object?>{
       'protocolVersion': aleraMobileProtocolVersion,
+      'sharedCheckoutWorkspacesV1': true,
       'deviceId': relayClientId,
       'deviceToken': '',
       'relayClientId': relayClientId,
       'cloudDeviceId': ?cloudDeviceId,
       'binaryFrames': true,
-      'supportedTabKinds': const <String>['codex'],
+      'supportedTabKinds': const <String>[],
     });
     _applyRelayCapabilities(payload);
     return payload;

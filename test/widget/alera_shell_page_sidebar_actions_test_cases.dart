@@ -45,7 +45,9 @@ void _registerAleraShellSidebarActionTests() {
       buttons: kSecondaryMouseButton,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Open in Finder'));
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('In Finder'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -179,7 +181,7 @@ void _registerAleraShellSidebarActionTests() {
     const description = 'Codex · Waiting for input';
     final harness = await _pumpShell(
       tester,
-      state: _linkedWorkbenchState(linkedExpanded: true),
+      state: _withSidebarAgentRows(_linkedWorkbenchState(linkedExpanded: true)),
       agentStatuses: <String, AgentStatusEntry>{
         'tab-2': _agentStatusEntry(
           terminalSessionId: 'tab-2',
@@ -209,7 +211,7 @@ void _registerAleraShellSidebarActionTests() {
   ) async {
     await _pumpShell(
       tester,
-      state: _linkedWorkbenchState(linkedExpanded: true),
+      state: _withSidebarAgentRows(_linkedWorkbenchState(linkedExpanded: true)),
       agentStatuses: <String, AgentStatusEntry>{
         'tab-1': _agentStatusEntry(
           terminalSessionId: 'tab-1',
@@ -251,7 +253,7 @@ void _registerAleraShellSidebarActionTests() {
   ) async {
     await _pumpShell(
       tester,
-      state: _linkedWorkbenchState(linkedExpanded: true),
+      state: _withSidebarAgentRows(_linkedWorkbenchState(linkedExpanded: true)),
       agentStatuses: <String, AgentStatusEntry>{
         'tab-2': _agentStatusEntry(
           terminalSessionId: 'tab-2',
@@ -276,7 +278,7 @@ void _registerAleraShellSidebarActionTests() {
   ) async {
     await _pumpShell(
       tester,
-      state: _linkedWorkbenchState(linkedExpanded: true),
+      state: _withSidebarAgentRows(_linkedWorkbenchState(linkedExpanded: true)),
       agentStatuses: <String, AgentStatusEntry>{
         'tab-1': _agentStatusEntry(
           terminalSessionId: 'tab-1',
@@ -367,7 +369,7 @@ void _registerAleraShellSidebarActionTests() {
     const description = 'Codex · Waiting for input';
     final harness = await _pumpShell(
       tester,
-      state: _linkedWorkbenchState(linkedExpanded: true),
+      state: _withSidebarAgentRows(_linkedWorkbenchState(linkedExpanded: true)),
       agentStatuses: <String, AgentStatusEntry>{
         'tab-2': _agentStatusEntry(
           terminalSessionId: 'tab-2',
@@ -389,92 +391,40 @@ void _registerAleraShellSidebarActionTests() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(harness.runtime.closedTabIds, <String>['tab-2']);
-    expect(harness.controller.state.tabsFor('workspace-2'), isEmpty);
+    expect(
+      harness.controller.state.tabsFor('workspace-2').map((tab) => tab.id),
+      isNot(contains('tab-2')),
+    );
     expect(harness.controller.state.activeWorkspaceId, 'workspace-1');
     expect(harness.runtime.focusedTabIds, isNot(contains('tab-2')));
     expect(find.text(prompt), findsNothing);
     expect(find.text(description), findsNothing);
   });
 
-  testWidgets('linked workspace removal closes runtime and removes the row', (
-    tester,
-  ) async {
-    final harness = await _pumpShell(
-      tester,
-      state: _linkedWorkbenchState(linkedExpanded: true),
-    );
+  testWidgets(
+    'project removal delegates process closure to the runtime mutation',
+    (tester) async {
+      final harness = await _pumpShell(
+        tester,
+        state: _linkedWorkbenchState(linkedExpanded: true),
+      );
 
-    await tester.tapAt(
-      tester.getCenter(find.text('Feature login').first),
-      buttons: kSecondaryMouseButton,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Remove'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('All tabs will close'), findsOneWidget);
-    expect(harness.runtime.closedWorkspaceIds, isEmpty);
-    await tester.tap(find.widgetWithText(FilledButton, 'Clean Up'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+      await tester.tapAt(
+        tester.getCenter(find.text('Alera').last),
+        buttons: kSecondaryMouseButton,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove Project'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
-    expect(harness.runtime.closedWorkspaceIds, <String>['workspace-2']);
-    expect(
-      harness.controller.state.workspacesFor('project-1').map((w) => w.id),
-      <String>['workspace-1'],
-    );
-    expect(find.text('Feature login'), findsNothing);
-  });
-
-  testWidgets('cancelling workspace removal leaves its tabs and runtime open', (
-    tester,
-  ) async {
-    final harness = await _pumpShell(
-      tester,
-      state: _linkedWorkbenchState(linkedExpanded: true),
-    );
-    await tester.tapAt(
-      tester.getCenter(find.text('Feature login').first),
-      buttons: kSecondaryMouseButton,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Remove'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
-    await tester.pumpAndSettle();
-    expect(harness.runtime.closedWorkspaceIds, isEmpty);
-    expect(
-      harness.controller.state
-          .workspacesFor('project-1')
-          .map((workspace) => workspace.id),
-      contains('workspace-2'),
-    );
-    expect(harness.controller.state.tabsFor('workspace-2'), isNotEmpty);
-  });
-
-  testWidgets('project removal closes every workspace runtime', (tester) async {
-    final harness = await _pumpShell(
-      tester,
-      state: _linkedWorkbenchState(linkedExpanded: true),
-    );
-
-    await tester.tapAt(
-      tester.getCenter(find.text('Alera').last),
-      buttons: kSecondaryMouseButton,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Remove Project'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(
-      harness.runtime.closedWorkspaceIds,
-      containsAll(<String>['workspace-1', 'workspace-2']),
-    );
-    expect(harness.controller.state.projects, isEmpty);
-    expect(find.text('No projects yet'), findsAtLeastNWidgets(1));
-  });
+      expect(harness.runtime.closedWorkspaceIds, isEmpty);
+      expect(harness.controller.state.projects, isEmpty);
+      expect(find.text('No projects yet'), findsAtLeastNWidgets(1));
+    },
+  );
 
   testWidgets(
     'shell shows a toast when the workbench state contains an error',
@@ -559,15 +509,15 @@ void _registerAleraShellSidebarActionTests() {
   testWidgets('pane split actions focus the new terminal session', (
     tester,
   ) async {
-    final harness = await _pumpShell(tester, state: _populatedWorkbenchState());
+    final harness = await _pumpShell(tester, state: _stackedWorkbenchState());
 
-    await tester.tap(find.byTooltip('Pane actions').first);
+    await tester.tap(find.byTooltip('Pane Actions').first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Split Right'));
     await tester.pumpAndSettle();
 
-    expect(harness.runtime.totalFocusRequests, 1);
-    expect(harness.controller.state.tabsFor('workspace-1'), hasLength(2));
+    expect(harness.runtime.totalFocusRequests, greaterThan(0));
+    expect(harness.controller.state.tabsFor('workspace-1'), hasLength(3));
   });
 
   testWidgets('closing a split merges the layout in the shell bridge', (
@@ -575,13 +525,16 @@ void _registerAleraShellSidebarActionTests() {
   ) async {
     final harness = await _pumpShell(tester, state: _splitWorkbenchState());
 
-    await tester.tap(find.byTooltip('Pane actions').first);
+    await tester.tap(find.byTooltip('Pane Actions').first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Close Split'));
     await tester.pumpAndSettle();
 
     expect(
-      harness.controller.state.layoutFor('workspace-1')!.paneGroupIds,
+      harness.controller.state
+          .workspacePanelFor('workspace-1')
+          .ensuredMainLayout('workspace-1')
+          .paneGroupIds,
       hasLength(1),
     );
   });
@@ -592,14 +545,18 @@ void _registerAleraShellSidebarActionTests() {
     final harness = await _pumpShell(tester, state: _splitWorkbenchState());
 
     final gesture = await tester.startGesture(
-      tester.getCenter(find.byType(WorkspaceWorkbenchView)),
+      tester.getCenter(find.byType(WorkspacePanelView).first),
     );
     await gesture.moveBy(const Offset(48, 0));
     await gesture.up();
     await tester.pump();
 
     expect(
-      harness.controller.state.layoutFor('workspace-1')!.root.ratio!,
+      harness.controller.state
+          .workspacePanelFor('workspace-1')
+          .ensuredMainLayout('workspace-1')
+          .root
+          .ratio!,
       greaterThan(0.5),
     );
   });

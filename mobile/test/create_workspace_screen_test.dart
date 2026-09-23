@@ -1,18 +1,29 @@
+import 'dart:async';
+
+import 'package:alera_mobile/src/app/app_navigation.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
 import 'package:alera_mobile/src/features/ai_dictation/domain/mobile_ai_dictation_settings.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/create_workspace_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/fake_ai_dictation_settings.dart';
 import 'support/fake_terminal_client.dart';
 
+part 'create_workspace_shortcut_test_cases.dart';
+part 'create_workspace_section_assignment_test_cases.dart';
+
 void main() {
+  _registerCreateWorkspaceShortcutTests();
+  _registerCreateWorkspaceSectionAssignmentTests();
   testWidgets('Create Another keeps the mobile form open and resets it', (
     tester,
   ) async {
@@ -27,8 +38,10 @@ void main() {
           workspaceClientProvider('host-1').overrideWith((ref) async => client),
           terminalClientProvider('host-1').overrideWith((ref) async => client),
         ],
-        child: const MaterialApp(
-          home: CreateWorkspaceScreen(
+        child: MaterialApp(
+          navigatorKey: aleraNavigatorKey,
+          home: const CreateWorkspaceScreen(
+            supportsSharedCheckoutWorkspaces: true,
             hostId: 'host-1',
             projects: <ProjectSummary>[
               ProjectSummary(
@@ -46,10 +59,14 @@ void main() {
 
     await tester.tap(find.text('Manual'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('New Worktree'));
+    await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextField, 'Branch Name'),
       'feature/one',
     );
+    await tester.drag(find.byType(ListView), const Offset(0, -240));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Create Another'));
     await tester.pump();
     expect(
@@ -99,8 +116,10 @@ void main() {
           workspaceClientProvider('host-1').overrideWith((ref) async => client),
           terminalClientProvider('host-1').overrideWith((ref) async => client),
         ],
-        child: const MaterialApp(
-          home: CreateWorkspaceScreen(
+        child: MaterialApp(
+          navigatorKey: aleraNavigatorKey,
+          home: const CreateWorkspaceScreen(
+            supportsSharedCheckoutWorkspaces: true,
             hostId: 'host-1',
             projects: <ProjectSummary>[
               ProjectSummary(
@@ -120,7 +139,14 @@ void main() {
       find.widgetWithText(TextField, 'Initial Prompt'),
       'Build offline support',
     );
-    await tester.ensureVisible(find.text('Create Another'));
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Create Another'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Create Another'));
     final scrollState = tester.state<ScrollableState>(
       find.byType(Scrollable).first,
@@ -162,6 +188,62 @@ void main() {
     );
   });
 
+  testWidgets('From Prompt closes the form without opening the new workspace', (
+    tester,
+  ) async {
+    final client = FakeTerminalClient()
+      ..projectBranches = const <String>['main'];
+    addTearDown(client.dispose);
+    tester.view.physicalSize = const Size(800, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          workspaceClientProvider('host-1').overrideWith((ref) async => client),
+          terminalClientProvider('host-1').overrideWith((ref) async => client),
+        ],
+        child: MaterialApp(
+          navigatorKey: aleraNavigatorKey,
+          home: const CreateWorkspaceScreen(
+            supportsSharedCheckoutWorkspaces: true,
+            hostId: 'host-1',
+            projects: <ProjectSummary>[
+              ProjectSummary(
+                id: 'project-1',
+                name: 'Alera',
+                repoPath: '/repo/alera',
+              ),
+            ],
+            workspaces: [],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Initial Prompt'),
+      'Build offline support',
+    );
+    await tester.tap(find.text('Create And Start Agent'));
+    for (var attempt = 0; attempt < 100; attempt += 1) {
+      if (client.calls.any((call) => call.startsWith('launchAgentProfile'))) {
+        break;
+      }
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CreateWorkspaceScreen), findsNothing);
+    expect(find.byType(WorkspaceTabsScreen), findsNothing);
+    expect(
+      client.calls,
+      contains('launchAgentProfile created profile-1 Build offline support'),
+    );
+  });
+
   testWidgets('Prompt exposes a configurable cross-project Parent', (
     tester,
   ) async {
@@ -177,6 +259,7 @@ void main() {
         ],
         child: MaterialApp(
           home: CreateWorkspaceScreen(
+            supportsSharedCheckoutWorkspaces: true,
             hostId: 'host-1',
             projects: const <ProjectSummary>[
               ProjectSummary(
@@ -214,8 +297,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Alera / Main - main'), findsOneWidget);
-    await tester.tap(find.text('Alera / Main - main'));
+    expect(find.text('No Parent'), findsOneWidget);
+    await tester.tap(find.text('No Parent'));
     await tester.pumpAndSettle();
     expect(find.text('Notes / Shared - feature/shared'), findsOneWidget);
     await tester.tap(find.text('Notes / Shared - feature/shared'));
@@ -224,7 +307,7 @@ void main() {
 
     await tester.tap(find.text('Alera'));
     await tester.pumpAndSettle();
-    expect(find.text('Notes'), findsNothing);
+    expect(find.text('Notes'), findsOneWidget);
   });
 
   testWidgets('From Prompt shows AI Dictation when it is enabled', (
@@ -245,8 +328,10 @@ void main() {
             ),
           ),
         ],
-        child: const MaterialApp(
-          home: CreateWorkspaceScreen(
+        child: MaterialApp(
+          navigatorKey: aleraNavigatorKey,
+          home: const CreateWorkspaceScreen(
+            supportsSharedCheckoutWorkspaces: true,
             hostId: 'host-1',
             projects: <ProjectSummary>[
               ProjectSummary(
@@ -262,6 +347,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.widgetWithText(TextField, 'Initial Prompt'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     final promptField = tester.getRect(
       find.widgetWithText(TextField, 'Initial Prompt'),
     );
@@ -296,8 +387,10 @@ void main() {
             () => FakeMobileAiDictationSettingsController(),
           ),
         ],
-        child: const MaterialApp(
-          home: CreateWorkspaceScreen(
+        child: MaterialApp(
+          navigatorKey: aleraNavigatorKey,
+          home: const CreateWorkspaceScreen(
+            supportsSharedCheckoutWorkspaces: true,
             hostId: 'host-1',
             projects: <ProjectSummary>[
               ProjectSummary(

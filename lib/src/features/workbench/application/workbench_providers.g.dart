@@ -210,6 +210,63 @@ final class WorkbenchSidebarRowsProvider
 String _$workbenchSidebarRowsHash() =>
     r'0b482653907b020b8dfc01c1a3a1f2550bcee5b2';
 
+/// Focus handles for the mounted workbench surfaces, so keyboard shortcuts can
+/// move focus between panes without a pointer.
+
+@ProviderFor(workbenchPaneFocusRegistry)
+final workbenchPaneFocusRegistryProvider =
+    WorkbenchPaneFocusRegistryProvider._();
+
+/// Focus handles for the mounted workbench surfaces, so keyboard shortcuts can
+/// move focus between panes without a pointer.
+
+final class WorkbenchPaneFocusRegistryProvider
+    extends
+        $FunctionalProvider<
+          WorkbenchPaneFocusRegistry,
+          WorkbenchPaneFocusRegistry,
+          WorkbenchPaneFocusRegistry
+        >
+    with $Provider<WorkbenchPaneFocusRegistry> {
+  /// Focus handles for the mounted workbench surfaces, so keyboard shortcuts can
+  /// move focus between panes without a pointer.
+  WorkbenchPaneFocusRegistryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'workbenchPaneFocusRegistryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$workbenchPaneFocusRegistryHash();
+
+  @$internal
+  @override
+  $ProviderElement<WorkbenchPaneFocusRegistry> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  WorkbenchPaneFocusRegistry create(Ref ref) {
+    return workbenchPaneFocusRegistry(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(WorkbenchPaneFocusRegistry value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<WorkbenchPaneFocusRegistry>(value),
+    );
+  }
+}
+
+String _$workbenchPaneFocusRegistryHash() =>
+    r'ea8c56f066826f6024f8195c6cb0d97054ed30d0';
+
 /// Rechecks the terminal memory budget when the active workspace changes.
 
 @ProviderFor(terminalRuntimeActiveWorkspaceCoordinator)
@@ -258,6 +315,57 @@ final class TerminalRuntimeActiveWorkspaceCoordinatorProvider
 
 String _$terminalRuntimeActiveWorkspaceCoordinatorHash() =>
     r'e01d17c5ce70a9aaa04ee477b661703888484b84';
+
+@ProviderFor(workspaceExplorerSessionStore)
+final workspaceExplorerSessionStoreProvider =
+    WorkspaceExplorerSessionStoreProvider._();
+
+final class WorkspaceExplorerSessionStoreProvider
+    extends
+        $FunctionalProvider<
+          WorkspaceExplorerSessionStore,
+          WorkspaceExplorerSessionStore,
+          WorkspaceExplorerSessionStore
+        >
+    with $Provider<WorkspaceExplorerSessionStore> {
+  WorkspaceExplorerSessionStoreProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'workspaceExplorerSessionStoreProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$workspaceExplorerSessionStoreHash();
+
+  @$internal
+  @override
+  $ProviderElement<WorkspaceExplorerSessionStore> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  WorkspaceExplorerSessionStore create(Ref ref) {
+    return workspaceExplorerSessionStore(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(WorkspaceExplorerSessionStore value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<WorkspaceExplorerSessionStore>(
+        value,
+      ),
+    );
+  }
+}
+
+String _$workspaceExplorerSessionStoreHash() =>
+    r'4c69fb84153edb3a18be749ab4cfa3f94858a22a';
 
 @ProviderFor(workspaceActivityRepository)
 final workspaceActivityRepositoryProvider =
@@ -408,55 +516,6 @@ final class WorkspaceTabServiceProvider
 String _$workspaceTabServiceHash() =>
     r'fb00e54f6d99f27461ff806e7a51443a68e10bb6';
 
-@ProviderFor(workspaceBrowserTabService)
-final workspaceBrowserTabServiceProvider =
-    WorkspaceBrowserTabServiceProvider._();
-
-final class WorkspaceBrowserTabServiceProvider
-    extends
-        $FunctionalProvider<
-          WorkspaceBrowserTabService,
-          WorkspaceBrowserTabService,
-          WorkspaceBrowserTabService
-        >
-    with $Provider<WorkspaceBrowserTabService> {
-  WorkspaceBrowserTabServiceProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'workspaceBrowserTabServiceProvider',
-        isAutoDispose: false,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$workspaceBrowserTabServiceHash();
-
-  @$internal
-  @override
-  $ProviderElement<WorkspaceBrowserTabService> $createElement(
-    $ProviderPointer pointer,
-  ) => $ProviderElement(pointer);
-
-  @override
-  WorkspaceBrowserTabService create(Ref ref) {
-    return workspaceBrowserTabService(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(WorkspaceBrowserTabService value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<WorkspaceBrowserTabService>(value),
-    );
-  }
-}
-
-String _$workspaceBrowserTabServiceHash() =>
-    r'e0fe2e55a8cb5fb60c7e8c0364f4e45b1b550030';
-
 @ProviderFor(workspaceFileService)
 final workspaceFileServiceProvider = WorkspaceFileServiceProvider._();
 
@@ -503,7 +562,7 @@ final class WorkspaceFileServiceProvider
 }
 
 String _$workspaceFileServiceHash() =>
-    r'caafbfd4f0d5e1241b84321d4ae06da175f89d9a';
+    r'409096931c5bc2be19e3f1e0ff0310ec02f5488a';
 
 @ProviderFor(workspaceSearchService)
 final workspaceSearchServiceProvider = WorkspaceSearchServiceProvider._();
@@ -704,11 +763,11 @@ final editorSessionRegistryProvider = EditorSessionRegistryProvider._();
 final class EditorSessionRegistryProvider
     extends
         $FunctionalProvider<
-          EditorSessionRegistry,
-          EditorSessionRegistry,
-          EditorSessionRegistry
+          Raw<EditorSessionRegistry>,
+          Raw<EditorSessionRegistry>,
+          Raw<EditorSessionRegistry>
         >
-    with $Provider<EditorSessionRegistry> {
+    with $Provider<Raw<EditorSessionRegistry>> {
   EditorSessionRegistryProvider._()
     : super(
         from: null,
@@ -725,26 +784,26 @@ final class EditorSessionRegistryProvider
 
   @$internal
   @override
-  $ProviderElement<EditorSessionRegistry> $createElement(
+  $ProviderElement<Raw<EditorSessionRegistry>> $createElement(
     $ProviderPointer pointer,
   ) => $ProviderElement(pointer);
 
   @override
-  EditorSessionRegistry create(Ref ref) {
+  Raw<EditorSessionRegistry> create(Ref ref) {
     return editorSessionRegistry(ref);
   }
 
   /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(EditorSessionRegistry value) {
+  Override overrideWithValue(Raw<EditorSessionRegistry> value) {
     return $ProviderOverride(
       origin: this,
-      providerOverride: $SyncValueProvider<EditorSessionRegistry>(value),
+      providerOverride: $SyncValueProvider<Raw<EditorSessionRegistry>>(value),
     );
   }
 }
 
 String _$editorSessionRegistryHash() =>
-    r'3f997ee69df5530b86852aa45d68479905292df0';
+    r'51daed62e8c55e0ffc0957e504f95c665552a3bd';
 
 @ProviderFor(workspaceService)
 final workspaceServiceProvider = WorkspaceServiceProvider._();

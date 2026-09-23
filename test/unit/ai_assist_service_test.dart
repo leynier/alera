@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:alera/src/features/ai_assist/application/ai_assist_agent_runner.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_diff_only_execution.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_host_completer.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_prompt.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_registry.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
@@ -23,6 +24,7 @@ part 'ai_assist_agy_test_cases.dart';
 part 'ai_assist_reading_diff_test_cases.dart';
 part 'ai_assist_reading_diff_lifecycle_test_cases.dart';
 part 'ai_assist_prompt_override_test_cases.dart';
+part 'ai_assist_opencode_go_test_cases.dart';
 part 'ai_assist_test_harness.dart';
 
 void main() {
@@ -33,6 +35,7 @@ void main() {
     _registerAiAssistReadingDiffTests();
     _registerAiAssistReadingDiffLifecycleTests();
     _registerAiAssistPromptOverrideTests();
+    _registerOpenCodeGoAiAssistTests();
 
     test('builds commit prompts with staged context and instructions', () {
       final prompt = buildCommitMessagePrompt(

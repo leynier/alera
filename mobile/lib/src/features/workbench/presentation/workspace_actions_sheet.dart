@@ -2,29 +2,55 @@ import 'package:alera_mobile/src/features/workbench/presentation/section_picker_
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/chips/alera_chip.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/features/linked_issues/application/linked_issues_controller.dart';
+import 'package:alera_mobile/src/features/linked_issues/presentation/mobile_link_issue_dialog.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
-import 'package:alera_mobile/src/features/workbench/presentation/delete_workspace_dialog.dart';
+import 'package:alera_mobile/src/features/workbench/application/workspace_listing_tree.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/parent_picker_sheet.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/archive_workspace_dialog.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/sleep_workspace_dialog.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_relocation_dialog.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_relocation_recovery_launcher.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_removal_launcher.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_tags_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+part 'workspace_actions_sheet_archive.dart';
+part 'workspace_actions_sheet_linked_issue.dart';
+part 'workspace_actions_sheet_menu.dart';
+part 'workspace_actions_sheet_sections.dart';
+
 enum _WorkspaceAction {
+  relocate,
+  recovery,
   rename,
   pin,
   unpin,
+  pinTree,
+  unpinTree,
   tags,
   configureParent,
   unlinkParent,
   setSection,
+  setSectionTree,
+  newSection,
+  newSectionTree,
   clearSection,
+  clearSectionTree,
+  openIssue,
+  linkIssue,
+  changeIssue,
+  unlinkIssue,
   openRepository,
   copyPath,
   sleep,
+  archive,
+  unarchive,
   delete,
 }
 
@@ -40,6 +66,14 @@ Future<void> showWorkspaceActionsSheet(
   if (!data.supportsMutations) {
     return;
   }
+  final issues = ref.read(linkedIssuesControllerProvider(hostId)).value;
+  final linkedIssue = issues?.byWorkspace[workspace.id];
+  final descendantIds = workspaceDescendantIds(data.workspaces, workspace.id);
+  final hasDescendants = descendantIds.isNotEmpty;
+  final treeIds = <String>{workspace.id, ...descendantIds};
+  final hasTreeSection = data.workspaces.any(
+    (item) => treeIds.contains(item.id) && item.sectionId != null,
+  );
   final action = await showModalBottomSheet<_WorkspaceAction>(
     context: context,
     isScrollControlled: true,
@@ -56,96 +90,17 @@ Future<void> showWorkspaceActionsSheet(
             Flexible(
               child: ListView(
                 shrinkWrap: true,
-                children: <Widget>[
-                  ListTile(
-                    leading: const Icon(AleraIcons.edit, size: 20),
-                    title: const Text('Rename'),
-                    onTap: () =>
-                        Navigator.of(context).pop(_WorkspaceAction.rename),
-                  ),
-                  ListTile(
-                    leading: Icon(
-                      workspace.isPinned ? AleraIcons.pinOff : AleraIcons.pin,
-                      size: 20,
-                    ),
-                    title: Text(
-                      workspace.isPinned ? 'Unpin Workspace' : 'Pin Workspace',
-                    ),
-                    onTap: () => Navigator.of(context).pop(
-                      workspace.isPinned
-                          ? _WorkspaceAction.unpin
-                          : _WorkspaceAction.pin,
-                    ),
-                  ),
-                  ListTile(
-                    leading: const Icon(AleraIcons.tag, size: 20),
-                    title: const Text('Manage Tags'),
-                    onTap: () =>
-                        Navigator.of(context).pop(_WorkspaceAction.tags),
-                  ),
-                  ListTile(
-                    leading: const Icon(AleraIcons.link, size: 20),
-                    title: const Text('Set Parent Workspace'),
-                    onTap: () =>
-                        Navigator.of(context)
-                            .pop(_WorkspaceAction.configureParent),
-                  ),
-                  if (workspace.hasParent)
-                    ListTile(
-                      leading: const Icon(AleraIcons.close, size: 20),
-                      title: const Text('Clear Parent Workspace'),
-                      onTap: () =>
-                          Navigator.of(context)
-                              .pop(_WorkspaceAction.unlinkParent),
-                    ),
-                  if (data.supportsSections)
-                    ListTile(
-                      title: const Text('Set Section'),
-                      onTap: () =>
-                          Navigator.pop(context, _WorkspaceAction.setSection),
-                    ),
-                  if (data.supportsSections && workspace.sectionId != null)
-                    ListTile(
-                      title: const Text('Clear Section'),
-                      onTap: () =>
-                          Navigator.pop(context, _WorkspaceAction.clearSection),
-                    ),
-                  ListTile(
-                    leading: const Icon(AleraIcons.external, size: 20),
-                    title: const Text('Open in Browser'),
-                    onTap: () =>
-                        Navigator.of(context)
-                            .pop(_WorkspaceAction.openRepository),
-                  ),
-                  ListTile(
-                    leading: const Icon(AleraIcons.copy, size: 20),
-                    title: const Text('Copy Path'),
-                    onTap: () =>
-                        Navigator.of(context).pop(_WorkspaceAction.copyPath),
-                  ),
-                  ListTile(
-                    leading: const Icon(AleraIcons.theme, size: 20),
-                    title: const Text('Sleep'),
-                    onTap: () =>
-                        Navigator.of(context).pop(_WorkspaceAction.sleep),
-                  ),
-                  if (!workspace.isMain)
-                    ListTile(
-                      leading: Icon(
-                        AleraIcons.delete,
-                        size: 20,
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                      title: Text(
-                        'Remove',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
-                      onTap: () =>
-                          Navigator.of(context).pop(_WorkspaceAction.delete),
-                    ),
-                ],
+                children: _workspaceActionTiles(
+                  context,
+                  ref: ref,
+                  hostId: hostId,
+                  workspace: workspace,
+                  data: data,
+                  hasDescendants: hasDescendants,
+                  hasTreeSection: hasTreeSection,
+                  linkedIssueSupported: issues?.supported ?? false,
+                  hasLinkedIssue: linkedIssue != null,
+                ),
               ),
             ),
           ],
@@ -159,6 +114,18 @@ Future<void> showWorkspaceActionsSheet(
   final controller = ref.read(workspaceListControllerProvider(hostId).notifier);
   try {
     switch (action) {
+      case _WorkspaceAction.recovery:
+        await showWorkspaceRecoveryFlow(
+          context,
+          hostId: hostId,
+          workspace: workspace,
+        );
+      case _WorkspaceAction.relocate:
+        await showWorkspaceRelocationDialog(
+          context,
+          hostId: hostId,
+          workspace: workspace,
+        );
       case _WorkspaceAction.rename:
         final name = await _promptForWorkspaceName(context, workspace.name);
         if (name != null) await controller.renameWorkspace(workspace.id, name);
@@ -166,6 +133,10 @@ Future<void> showWorkspaceActionsSheet(
         await controller.setPinned(workspace.id, true);
       case _WorkspaceAction.unpin:
         await controller.setPinned(workspace.id, false);
+      case _WorkspaceAction.pinTree:
+        await controller.setTreePinned(workspace.id, true);
+      case _WorkspaceAction.unpinTree:
+        await controller.setTreePinned(workspace.id, false);
       case _WorkspaceAction.configureParent:
         final parentId = await showParentPickerSheet(
           context,
@@ -181,14 +152,20 @@ Future<void> showWorkspaceActionsSheet(
         }
       case _WorkspaceAction.unlinkParent:
         await controller.unlinkParent(workspace);
-      case _WorkspaceAction.setSection:
-        await showSectionPickerSheet(
+      case _WorkspaceAction.setSection ||
+          _WorkspaceAction.setSectionTree ||
+          _WorkspaceAction.newSection ||
+          _WorkspaceAction.newSectionTree ||
+          _WorkspaceAction.clearSection ||
+          _WorkspaceAction.clearSectionTree:
+        await _runSectionAction(
           context,
+          controller,
           hostId: hostId,
           workspace: workspace,
+          data: data,
+          action: action,
         );
-      case _WorkspaceAction.clearSection:
-        await controller.setSection(workspace.id, null);
       case _WorkspaceAction.tags:
         await showWorkspaceTagsSheet(
           context,
@@ -196,6 +173,18 @@ Future<void> showWorkspaceActionsSheet(
           hostId: hostId,
           workspace: workspace,
           data: data,
+        );
+      case _WorkspaceAction.openIssue ||
+          _WorkspaceAction.linkIssue ||
+          _WorkspaceAction.changeIssue ||
+          _WorkspaceAction.unlinkIssue:
+        await _runLinkedIssueAction(
+          context,
+          ref,
+          hostId: hostId,
+          workspace: workspace,
+          url: linkedIssue?.url,
+          action: action,
         );
       case _WorkspaceAction.openRepository:
         final remote = await controller.repositoryRemoteUrl(workspace.id);
@@ -218,8 +207,15 @@ Future<void> showWorkspaceActionsSheet(
         if (confirmed) {
           await controller.sleepWorkspace(workspace.id);
         }
+      case _WorkspaceAction.archive || _WorkspaceAction.unarchive:
+        await _runArchiveAction(
+          context,
+          controller,
+          workspace: workspace,
+          action: action,
+        );
       case _WorkspaceAction.delete:
-        await _confirmAndDelete(context, controller, workspace, data);
+        await confirmAndDeleteWorkspace(context, controller, workspace, data);
     }
   } on Object catch (error) {
     if (context.mounted) {
@@ -322,40 +318,6 @@ List<String> _workspaceTagLabels(WorkspaceSummary workspace) {
       .map((tag) => tag.trim())
       .where((tag) => tag.isNotEmpty)
       .toList(growable: false);
-}
-
-Future<void> _confirmAndDelete(
-  BuildContext context,
-  WorkspaceListController controller,
-  WorkspaceSummary workspace,
-  WorkspaceListData data,
-) async {
-  var cascadeCount = 1;
-  try {
-    cascadeCount = (await controller.cascadePreview(workspace.id)).length;
-  } on Object {
-    // The preview is advisory; deletion still confirms explicitly.
-  }
-  if (!context.mounted) {
-    return;
-  }
-  final decision = data.confirmWorkspaceRemoval
-      ? await showDeleteWorkspaceDialog(
-          context,
-          workspace: workspace,
-          cascadeCount: cascadeCount,
-        )
-      : DeleteWorkspaceDecision(deleteBranch: !workspace.reusesExistingBranch);
-  if (decision == null || !context.mounted) {
-    return;
-  }
-  final messenger = ScaffoldMessenger.of(context);
-  messenger.showSnackBar(SnackBar(content: Text('Removing ${workspace.name}')));
-  await controller.deleteWorkspace(
-    workspace.id,
-    deleteBranch: decision.deleteBranch,
-  );
-  messenger.showSnackBar(SnackBar(content: Text('Removed ${workspace.name}')));
 }
 
 Future<String?> _promptForWorkspaceName(

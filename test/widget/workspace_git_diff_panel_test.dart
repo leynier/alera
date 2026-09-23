@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
@@ -20,6 +21,7 @@ import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -28,10 +30,12 @@ import '../unit/fake_source_control_watcher.dart';
 
 part 'workspace_git_diff_panel_preview_test_cases.dart';
 part 'workspace_git_diff_panel_context_menu_test_cases.dart';
+part 'workspace_git_diff_panel_branch_test_cases.dart';
 
 void main() {
   _registerWorkspaceGitDiffPanelPreviewTests();
   _registerWorkspaceGitDiffPanelContextMenuTests();
+  _registerWorkspaceGitDiffPanelBranchTests();
   testWidgets('git diff panel hides zero-valued line counts', (tester) async {
     final backend = FakeGitBackend()
       ..gitStatusResult = const GitStatusResult(
@@ -75,6 +79,7 @@ void main() {
                   gitDiffRoot,
                   required scope,
                   bool preview = false,
+                  bool oppositePanel = false,
                 }) async {},
                 onOpenGitCommitDiff: ({
                   relativePath,
@@ -87,6 +92,7 @@ void main() {
                   subject,
                   message,
                   bool preview = false,
+                  bool oppositePanel = false,
                 }) async {},
               ),
             ),
@@ -152,6 +158,7 @@ void main() {
                   gitDiffRoot,
                   required scope,
                   bool preview = false,
+                  bool oppositePanel = false,
                 }) async {},
                 onOpenGitCommitDiff: ({
                   relativePath,
@@ -164,6 +171,7 @@ void main() {
                   subject,
                   message,
                   bool preview = false,
+                  bool oppositePanel = false,
                 }) async {},
               ),
             ),
@@ -253,6 +261,7 @@ void main() {
             gitDiffRoot,
             required scope,
             bool preview = false,
+            bool oppositePanel = false,
           }) async {
             opened.add((
               relativePath: relativePath,
@@ -1424,6 +1433,38 @@ void main() {
       },
     );
   });
+
+  testWidgets('flat file rows use leftover width before ellipsizing paths', (
+    tester,
+  ) async {
+    const path = 'lib/src/features/projects/application/projects_service.dart';
+    final backend = FakeGitBackend()
+      ..gitRepositoryStateResult = const GitRepositoryState(
+        branch: 'main',
+        upstream: 'origin/main',
+      )
+      ..gitStatusResult = const GitStatusResult(
+        entries: <GitChangeEntry>[
+          GitChangeEntry(
+            path: path,
+            area: .unstaged,
+            status: .modified,
+            added: 2,
+            removed: 0,
+          ),
+        ],
+      );
+
+    await _pumpPanel(tester, backend: backend, width: 720);
+    await tester.pumpAndSettle();
+
+    final pathFinder = find.text(path);
+    expect(pathFinder, findsOneWidget);
+    final pathRect = tester.getRect(pathFinder);
+    final statusRect = tester.getRect(find.text('M'));
+    expect(pathRect.width, greaterThan(360));
+    expect(statusRect.left - pathRect.right, lessThan(32));
+  });
 }
 
 Future<void> _pumpPanel(
@@ -1441,8 +1482,12 @@ Future<void> _pumpPanel(
   ValueChanged<String>? onOpenFile,
   ValueChanged<String>? onRevealInExplorer,
   VoidCallback? onClearSourceControlRoot,
+  WorkspaceSourceControlController Function()? sourceControlController,
+  double width = 420,
 }) {
   final resolvedWorkspace = workspace ?? _workspace();
+  final resolvedScope =
+      sourceControlScope ?? _sourceControlScope(resolvedWorkspace);
   return tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -1454,16 +1499,18 @@ Future<void> _pumpPanel(
           () => _PanelSettingsController(settings),
         ),
         if (service != null) aiAssistServiceProvider.overrideWithValue(service),
+        if (sourceControlController != null)
+          workspaceSourceControlControllerProvider(resolvedScope.path)
+              .overrideWith(sourceControlController),
       ],
       child: MaterialApp(
         home: Scaffold(
           body: SizedBox(
-            width: 420,
+            width: width,
             height: 520,
             child: WorkspaceGitDiffPanel(
               workspace: resolvedWorkspace,
-              sourceControlScope:
-                  sourceControlScope ?? _sourceControlScope(resolvedWorkspace),
+              sourceControlScope: resolvedScope,
               viewMode: viewMode,
               onViewModeChanged: (_) {},
               groupMode: groupMode,
@@ -1476,6 +1523,7 @@ Future<void> _pumpPanel(
                     gitDiffRoot,
                     required scope,
                     bool preview = false,
+                    bool oppositePanel = false,
                   }) async {},
               onOpenGitCommitDiff:
                   onOpenGitCommitDiff ??
@@ -1490,6 +1538,7 @@ Future<void> _pumpPanel(
                     subject,
                     message,
                     bool preview = false,
+                    bool oppositePanel = false,
                   }) async {},
               onOpenFile: onOpenFile,
               onRevealInExplorer: onRevealInExplorer,

@@ -7,9 +7,13 @@ use notify::{Event, EventKind};
 
 use super::*;
 
+pub(super) fn tempdir() -> std::io::Result<tempfile::TempDir> {
+    tempfile::tempdir_in(dunce::canonicalize(std::env::temp_dir())?)
+}
+
 #[test]
 fn tracked_and_untracked_events_are_relevant_but_ignored_files_are_not() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     fs::write(dir.path().join("tracked.txt"), "one").unwrap();
     let mut index = repository.index().unwrap();
@@ -34,7 +38,7 @@ fn tracked_and_untracked_events_are_relevant_but_ignored_files_are_not() {
 
 #[test]
 fn tracked_files_remain_relevant_inside_an_ignored_directory() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     fs::write(dir.path().join(".gitignore"), "generated/\n").unwrap();
     let generated = dir.path().join("generated");
@@ -49,12 +53,12 @@ fn tracked_files_remain_relevant_inside_an_ignored_directory() {
     assert!(event_is_relevant(&repository, dir.path(), &event).unwrap());
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "macos")))]
 #[test]
 fn non_utf8_tracked_descendants_keep_ignored_directory_removals_relevant() {
     use std::os::unix::ffi::OsStringExt;
 
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     fs::write(dir.path().join(".gitignore"), "generated/\n").unwrap();
     let generated = dir.path().join("generated");
@@ -76,11 +80,13 @@ fn non_utf8_tracked_descendants_keep_ignored_directory_removals_relevant() {
 #[cfg(unix)]
 #[test]
 fn native_unix_directory_names_keep_populated_create_events_relevant() {
+    #[cfg(not(target_os = "macos"))]
     use std::os::unix::ffi::OsStringExt;
 
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     let names = [
+        #[cfg(not(target_os = "macos"))]
         std::ffi::OsString::from_vec(vec![b'd', 0xff]),
         std::ffi::OsString::from("literal\\slash"),
     ];
@@ -97,7 +103,7 @@ fn native_unix_directory_names_keep_populated_create_events_relevant() {
 
 #[test]
 fn empty_directories_are_not_git_relevant() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     let empty = dir.path().join("empty");
     fs::create_dir(&empty).unwrap();
@@ -112,7 +118,7 @@ fn empty_directories_are_not_git_relevant() {
 
 #[test]
 fn files_inside_new_directories_remain_git_relevant() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     let nested = dir.path().join("new-directory");
     fs::create_dir(&nested).unwrap();
@@ -129,7 +135,7 @@ fn files_inside_new_directories_remain_git_relevant() {
 
 #[test]
 fn removed_untracked_directories_are_relevant_unless_ignored() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     fs::write(dir.path().join(".gitignore"), "ignored-directory/\n").unwrap();
 
@@ -143,7 +149,7 @@ fn removed_untracked_directories_are_relevant_unless_ignored() {
 
 #[test]
 fn git_subdirectory_workspace_uses_paths_relative_to_the_repository() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     let workspace = dir.path().join("nested");
     fs::create_dir_all(&workspace).unwrap();
@@ -175,7 +181,7 @@ fn git_subdirectory_workspace_uses_paths_relative_to_the_repository() {
 
 #[test]
 fn deleted_untracked_events_remain_relevant_unless_git_ignores_the_path() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     fs::write(dir.path().join(".gitignore"), "ignored.txt\n").unwrap();
     let deleted = dir.path().join("deleted.txt");
@@ -194,7 +200,7 @@ fn deleted_untracked_events_remain_relevant_unless_git_ignores_the_path() {
 
 #[test]
 fn deleted_file_is_not_hidden_by_a_directory_only_ignore_rule() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     fs::write(dir.path().join(".gitignore"), "artifact/\n").unwrap();
     let deleted = dir.path().join("artifact");
@@ -212,7 +218,7 @@ fn deleted_file_is_not_hidden_by_a_directory_only_ignore_rule() {
 
 #[test]
 fn deleted_directory_respects_a_directory_only_ignore_rule() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     fs::write(dir.path().join(".gitignore"), "artifact/\n").unwrap();
 
@@ -223,7 +229,7 @@ fn deleted_directory_respects_a_directory_only_ignore_rule() {
 
 #[test]
 fn ambiguous_removal_preserves_cached_file_and_directory_identity() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     fs::write(dir.path().join(".gitignore"), "artifact/\n").unwrap();
 
@@ -259,7 +265,7 @@ fn ambiguous_removal_preserves_cached_file_and_directory_identity() {
 
 #[test]
 fn rename_from_preserves_cached_file_and_directory_identity() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     fs::write(dir.path().join(".gitignore"), "artifact/\n").unwrap();
     let artifact = dir.path().join("artifact");
@@ -297,7 +303,7 @@ fn rename_from_preserves_cached_file_and_directory_identity() {
 
 #[test]
 fn ignored_churn_stays_irrelevant_without_a_workspace_status_scan() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     fs::write(dir.path().join(".gitignore"), "generated/\n").unwrap();
     let generated = dir.path().join("generated");
@@ -441,7 +447,7 @@ fn configuration_rejects_empty_input_and_out_of_range_delays() {
 
 #[test]
 fn watcher_start_is_reserved_once_and_rejects_previous_generations() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempdir().unwrap();
     Repository::init(dir.path()).unwrap();
     let (inbox, _commands) = tokio::sync::mpsc::unbounded_channel();
     let mut manager = TerminalPulseManager::default();

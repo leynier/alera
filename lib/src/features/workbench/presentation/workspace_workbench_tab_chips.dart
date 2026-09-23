@@ -82,6 +82,7 @@ class const _DraggableWorkspaceTabChip({
 }
 
 class const _WorkspaceTabChip({
+  final bool canSplit = true,
   required final WorkspaceTabRecord tab,
   required final TerminalSessionHandle? terminalSession,
   required final AgentStatusEntry? status,
@@ -256,25 +257,6 @@ class const _WorkspaceTabLeadingIcon({
         size: 12,
         color: color,
       ),
-      WorkspaceTabKind.codex => ExcludeSemantics(
-        child: AgentIdentityIcon(
-          key: ValueKey<String>('workspace-tab-codex-icon-${tab.id}'),
-          agentType: .codex,
-          size: 12,
-          color: color,
-          showTooltip: false,
-        ),
-      ),
-      WorkspaceTabKind.browser => Icon(
-        AleraIcons.public,
-        size: 12,
-        color: color,
-      ),
-      WorkspaceTabKind.mobileEmulator => Icon(
-        AleraIcons.mobileDevice,
-        size: 12,
-        color: color,
-      ),
     };
   }
 }
@@ -285,9 +267,7 @@ double _tabTitleMaxWidth(WorkspaceTabKind kind) {
     WorkspaceTabKind.markdownViewer ||
     WorkspaceTabKind.pdf ||
     WorkspaceTabKind.gitDiff => 180,
-    WorkspaceTabKind.terminal || WorkspaceTabKind.browser => 92,
-    WorkspaceTabKind.codex => 132,
-    WorkspaceTabKind.mobileEmulator => 132,
+    WorkspaceTabKind.terminal => 92,
   };
 }
 

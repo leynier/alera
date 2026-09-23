@@ -1,3 +1,4 @@
+import 'package:alera/src/features/pull_requests/domain/review_comment_load.dart';
 import 'package:alera/src/features/pull_requests/application/base_branch_resolver.dart';
 import 'package:alera/src/features/pull_requests/application/forge_exception.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
@@ -13,6 +14,7 @@ import 'package:alera/src/features/pull_requests/domain/hosted_review_stack.dart
 import 'package:alera/src/features/pull_requests/domain/linked_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
+import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
@@ -119,6 +121,18 @@ class const WorkspacePullRequestLoader(
           }
         }
       }
+      var mergeMethods = const <ReviewMergeMethod>[];
+      String? mergeMethodsError;
+      try {
+        mergeMethods = await forge.allowedMergeMethods(
+          identity: identity,
+          repoPath: scope.repoPath,
+          baseBranch:
+              stack?.baseBranch ?? review?.baseBranch ?? baseInfo.suggested,
+        );
+      } on ForgeException catch (error) {
+        mergeMethodsError = error.message;
+      }
       return WorkspacePullRequestState(
         identity: identity,
         authStatus: authStatus,
@@ -127,14 +141,16 @@ class const WorkspacePullRequestLoader(
         stack: stack,
         stackSupported: stackProvider != null,
         stackErrorMessage: stackErrorMessage,
+        mergeMethodsErrorMessage: mergeMethodsError,
         checks: checks,
         comments: comments,
+        commentsComplete: reviewCommentsComplete(comments),
         linkedManually: linkedManually,
         dismissed: dismissed,
         currentBranch: branch,
         baseBranches: baseInfo.branches,
         suggestedBaseBranch: baseInfo.suggested,
-        mergeMethods: forge.supportedMergeMethods,
+        mergeMethods: mergeMethods,
         canCloseReview: forge.supportsReviewClosure,
         canChangeDraftStatus: forge.supportsReviewDraftConversion,
         canComment: forge.supportsReviewComments,

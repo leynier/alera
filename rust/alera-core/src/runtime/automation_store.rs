@@ -16,6 +16,27 @@ fn decode_definition(row: SqliteRow) -> Result<AutomationDefinition> {
 }
 
 fn validate_definition(definition: &AutomationDefinition) -> Result<()> {
+    if let super::AutomationTarget::ProjectCheckout {
+        project_id,
+        host_id,
+        name_template,
+        agent_profile_id,
+    } = &definition.target
+    {
+        if [project_id, host_id, name_template, agent_profile_id]
+            .iter()
+            .any(|value| value.trim().is_empty())
+        {
+            bail!("Project checkout automations require a project, host, task name template and agent profile");
+        }
+        if definition
+            .project_id
+            .as_deref()
+            .is_some_and(|id| id != project_id)
+        {
+            bail!("Automation project does not match its project checkout target");
+        }
+    }
     if definition.id.trim().is_empty() {
         bail!(RuntimeStoreError::Message(
             "automation id is required".to_string()
@@ -102,6 +123,23 @@ impl RuntimeStore {
                 .await?
                 .try_get("count")?;
         Ok(count > 0)
+    }
+
+    pub async fn has_pending_automation_work(&self) -> Result<bool> {
+        if self.next_automation_shared_cleanup_at().await?.is_some() {
+            return Ok(true);
+        }
+        if self.has_active_automations().await? {
+            return Ok(true);
+        }
+        if !self.list_active_automation_runs().await?.is_empty() {
+            return Ok(true);
+        }
+        Ok(self
+            .list_automations(false)
+            .await?
+            .iter()
+            .any(|definition| definition.circuit_opened))
     }
 
     pub async fn list_automations(
@@ -279,45 +317,6 @@ impl RuntimeStore {
             Some(id),
             None,
             state.as_str(),
-            actor,
-            Some(definition.revision),
-            serde_json::json!({ "reason": reason }),
-        )
-        .await?;
-        Ok(definition)
-    }
-
-    pub async fn set_automation_circuit_opened(
-        &self,
-        id: &str,
-        opened: bool,
-        actor: AutomationActor,
-        reason: Option<&str>,
-    ) -> Result<AutomationDefinition> {
-        let mut definition = self
-            .find_automation(id)
-            .await?
-            .ok_or_else(|| anyhow!("automation not found: {id}"))?;
-        if definition.circuit_opened == opened {
-            return Ok(definition);
-        }
-        definition.circuit_opened = opened;
-        definition.updated_at = Utc::now();
-        definition.modified_by = actor.clone();
-        sqlx::query("UPDATE automations SET dataJson = ?, updatedAt = ? WHERE id = ?")
-            .bind(serde_json::to_string(&definition)?)
-            .bind(format_timestamp(definition.updated_at))
-            .bind(id)
-            .execute(self.pool())
-            .await?;
-        self.insert_automation_audit_event(
-            Some(id),
-            None,
-            if opened {
-                "circuitOpened"
-            } else {
-                "circuitReset"
-            },
             actor,
             Some(definition.revision),
             serde_json::json!({ "reason": reason }),

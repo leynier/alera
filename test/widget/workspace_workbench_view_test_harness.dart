@@ -8,8 +8,8 @@ Future<void> _pumpWorkbenchView(
   required WorkbenchLayout? layout,
   required _FakeTerminalRuntime terminalRuntime,
   required List<String?> createdTabs,
-  List<String?>? createdBrowserTabs,
-  List<String?>? createdCodexTabs,
+  List<AgentProfile> newTabMenuProfiles = const <AgentProfile>[],
+  List<(String, String?)>? launchedProfiles,
   required List<_SelectedTabAction> selectedTabs,
   required List<String> closedTabs,
   required List<List<String>> closedTabGroups,
@@ -23,21 +23,15 @@ Future<void> _pumpWorkbenchView(
   Size size = const Size(420, 280),
   Map<String, AgentStatusEntry> agentStatuses =
       const <String, AgentStatusEntry>{},
-  FakeBrowserEngine? providedBrowserEngine,
   bool agentTitlesAvailable = false,
+  bool singleSurface = false,
+  String? singleTabId,
 }) async {
-  final browserEngine = providedBrowserEngine ?? FakeBrowserEngine();
-  final browserRegistry = BrowserSessionRegistry(engine: browserEngine);
-  addTearDown(browserEngine.dispose);
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         agentTitleAvailableProvider.overrideWith(
           (ref) async => agentTitlesAvailable,
-        ),
-        browserSessionRegistryProvider.overrideWithValue(browserRegistry),
-        browserProfileServiceProvider.overrideWithValue(
-          const _WorkbenchBrowserProfileService(),
         ),
       ],
       child: MaterialApp(
@@ -51,6 +45,8 @@ Future<void> _pumpWorkbenchView(
                 workspace: _workspace(),
                 tabs: tabs,
                 layout: layout,
+                singleSurface: singleSurface,
+                singleTabId: singleTabId,
                 terminalRuntime: terminalRuntime,
                 agentStatuses: agentStatuses,
                 completionAcknowledgements:
@@ -58,15 +54,11 @@ Future<void> _pumpWorkbenchView(
                 onCreateTab: ({String? targetGroupId}) async {
                   createdTabs.add(targetGroupId);
                 },
-                onCreateBrowserTab: createdBrowserTabs == null
+                newTabMenuProfiles: newTabMenuProfiles,
+                onLaunchAgentProfile: launchedProfiles == null
                     ? null
-                    : ({String? targetGroupId}) async {
-                        createdBrowserTabs.add(targetGroupId);
-                      },
-                onCreateCodexTab: createdCodexTabs == null
-                    ? null
-                    : ({String? targetGroupId}) async {
-                        createdCodexTabs.add(targetGroupId);
+                    : ({required profileId, targetGroupId}) async {
+                        launchedProfiles.add((profileId, targetGroupId));
                       },
                 onOpenEditorTab:
                     ({required relativePath, targetGroupId}) async {
@@ -213,37 +205,6 @@ AgentStatusEntry _agentStatus(
   );
 }
 
-final class const _WorkbenchBrowserProfileService()
-    implements BrowserProfileService {
-  static final BrowserProfile _profile = BrowserProfile(
-    id: defaultBrowserProfileId,
-    label: 'Default',
-    kind: .defaultProfile,
-    createdAt: .fromMillisecondsSinceEpoch(0, isUtc: true),
-  );
-
-  @override
-  Future<List<BrowserProfile>> list() async => <BrowserProfile>[_profile];
-
-  @override
-  Future<bool> remove(String profileId) async => false;
-
-  @override
-  Future<void> validateRemoval(String profileId) async {}
-
-  @override
-  Future<BrowserProfile> upsert({
-    String? id,
-    required String name,
-    bool persistent = true,
-    BrowserProfileSource? source,
-  }) async => _profile;
-
-  @override
-  Stream<List<BrowserProfile>> watchAll() =>
-      Stream<List<BrowserProfile>>.value(<BrowserProfile>[_profile]);
-}
-
 WorkbenchLayout _splitLayout({
   required String firstTabId,
   required String secondTabId,
@@ -365,6 +326,10 @@ class _FakeTerminalSessionHandle({
   int requestFocusCalls = 0;
   int _visibilityLeaseCount = 0;
 
+  /// Stands in for the xterm view's node so tests can observe where focus
+  /// lands when panes switch tabs.
+  final FocusNode focusNode = FocusNode();
+
   @override
   TerminalVisibilityLease acquireVisibility() {
     _visibilityLeaseCount += 1;
@@ -388,7 +353,14 @@ class _FakeTerminalSessionHandle({
     bool autofocus = false,
     FocusOnKeyEventCallback? onKeyEvent,
   }) {
-    return SizedBox.expand(key: ValueKey<String>('terminal-$tabId'));
+    // Keyed per tab like the real TerminalView, so switching tabs mounts a
+    // fresh Focus whose autofocus is honored instead of reusing the old one.
+    return Focus(
+      key: ValueKey<String>('terminal-focus-$tabId'),
+      focusNode: focusNode,
+      autofocus: autofocus,
+      child: SizedBox.expand(key: ValueKey<String>('terminal-$tabId')),
+    );
   }
 
   @override

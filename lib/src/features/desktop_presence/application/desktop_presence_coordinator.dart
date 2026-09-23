@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/features/app_window/application/app_window_controller.dart';
+import 'package:alera/src/features/desktop_presence/application/desktop_presence.dart';
 import 'package:alera/src/features/desktop_presence/infra/desktop_presence_channel.dart';
 import 'package:logging/logging.dart';
 
@@ -18,10 +19,37 @@ class DesktopPresenceCoordinator({
   bool _started = false;
   bool _trayInstalled = false;
   bool _removingTray = false;
+  bool _hideNoticeRequested = false;
   Future<void> _applyQueue = Future<void>.value();
 
   /// Hide-on-close follows a tray that is installed and not being removed.
   bool get trayInstalled => _trayInstalled && !_removingTray;
+
+  /// Tells the user once per install that a window close hid Alera to the
+  /// tray; Windows 11 tucks new tray icons into the overflow flyout.
+  Future<void> announceHiddenToTray({
+    required bool alreadyShown,
+    required Future<void> Function() markShown,
+  }) async {
+    if (alreadyShown || _hideNoticeRequested || !trayInstalled) {
+      return;
+    }
+    _hideNoticeRequested = true;
+    try {
+      final shown = await backend.showTrayNotice(
+        title: trayHideNoticeTitle,
+        message: trayHideNoticeMessage,
+      );
+      if (shown) {
+        await markShown();
+      } else {
+        _hideNoticeRequested = false;
+      }
+    } catch (error, stackTrace) {
+      _hideNoticeRequested = false;
+      _logger.warning('failed to show tray notice', error, stackTrace);
+    }
+  }
 
   void start() {
     if (_started) {

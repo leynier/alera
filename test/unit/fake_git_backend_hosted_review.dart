@@ -3,6 +3,8 @@ part of 'fake_git_backend.dart';
 mixin _FakeGitBackendHostedReview {
   List<GitBackendCall> get calls;
 
+  Completer<void>? fetchHostedReviewRangeGate;
+
   Future<GitHostedReviewRange> fetchHostedReviewRange({
     required String path,
     required String remote,
@@ -25,6 +27,11 @@ mixin _FakeGitBackendHostedReview {
         'reviewRef': reviewRef,
       }),
     );
+    final gate = fetchHostedReviewRangeGate;
+    if (gate != null && !gate.isCompleted) {
+      fetchHostedReviewRangeGate = null;
+      await gate.future;
+    }
     return GitHostedReviewRange(
       baseOid: baseBranch,
       headOid: headSha,
@@ -44,6 +51,9 @@ mixin _FakeGitBackendHostedReview {
     );
   }
 
+  Object? persistHostedReviewRangeError;
+  Completer<void>? persistHostedReviewRangeGate;
+
   Future<void> persistHostedReviewRange({
     required String path,
     required String retentionId,
@@ -54,5 +64,13 @@ mixin _FakeGitBackendHostedReview {
         'retentionId': retentionId,
       }),
     );
+    final gate = persistHostedReviewRangeGate;
+    if (gate != null && !gate.isCompleted) {
+      persistHostedReviewRangeGate = null;
+      await gate.future;
+    }
+    if (persistHostedReviewRangeError case final Object error) {
+      throw error;
+    }
   }
 }
