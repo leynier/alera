@@ -6,9 +6,10 @@ use anyhow::{Context, Result};
 
 use crate::app_support_dir::default_app_support_dir;
 use crate::cli::DebugArgs;
+use crate::cli_binary::{self, cli_executable_name};
 use crate::debug_processes::{is_alera_process, is_cli_bundle_terminal_host, list_processes};
 use crate::flavor::{self, DEV_FLAVOR};
-use crate::spawn::{format_command_line, run_inherit};
+use crate::spawn::{format_command_line, run_inherit, run_with_captured_stdout};
 
 pub struct DebugContext {
     args: DebugArgs,
@@ -175,66 +176,24 @@ impl DebugContext {
     }
 
     fn build_cli(&self, output_dir: Option<&str>, release: bool) -> Result<i32> {
-        let mut args = vec![
-            "build".to_string(),
-            "--locked".to_string(),
-            "-p".to_string(),
-            "alera-cli".to_string(),
-        ];
-        if release {
-            args.push("--release".to_string());
+        let args = cli_binary::cargo_build_arguments(release);
+        println!("{}", format_command_line(&self.args.cargo, &args));
+        let cargo = run_with_captured_stdout(&self.args.cargo, &args, &self.rust_dir(), true)?;
+        if cargo.status != 0 {
+            return Ok(cargo.status);
         }
-        let cargo_exit = self.run_logged(&self.args.cargo, &args, Some(&self.rust_dir()), true)?;
-        if cargo_exit != 0 {
-            return Ok(cargo_exit);
-        }
-        self.stage_cli_binary(
-            output_dir.unwrap_or(&self.args.bundle_dir),
-            if release { "release" } else { "debug" },
-        )
-    }
-
-    fn stage_cli_binary(&self, output_dir: &str, profile: &str) -> Result<i32> {
-        let source = self
-            .rust_dir()
-            .join("target")
-            .join(profile)
-            .join(cli_executable_name());
+        let Some(source) = cli_binary::built_cli_executable(&cargo.stdout) else {
+            eprintln!("Cargo did not report where it built the Alera CLI binary.");
+            return Ok(1);
+        };
         if !source.exists() {
             eprintln!("Built Alera CLI binary not found at {}.", source.display());
             return Ok(1);
         }
-        let destination_dir = PathBuf::from(self.absolute_build_output_path(output_dir));
-        fs::create_dir_all(&destination_dir)?;
-        let destination = destination_dir.join(cli_executable_name());
-        let staged = destination.with_extension(format!(
-            "stage-{}-{}",
-            std::process::id(),
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map(|duration| duration.as_micros())
-                .unwrap_or(0)
-        ));
-        let stage_result = (|| -> Result<()> {
-            fs::copy(&source, &staged)?;
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                let mut permissions = fs::metadata(&staged)?.permissions();
-                permissions.set_mode(0o755);
-                fs::set_permissions(&staged, permissions)?;
-            }
-            #[cfg(windows)]
-            if destination.exists() {
-                fs::remove_file(&destination)?;
-            }
-            fs::rename(&staged, &destination)?;
-            Ok(())
-        })();
-        if staged.exists() {
-            let _ = fs::remove_file(&staged);
-        }
-        stage_result?;
+        let destination_dir = PathBuf::from(
+            self.absolute_build_output_path(output_dir.unwrap_or(&self.args.bundle_dir)),
+        );
+        cli_binary::stage_cli_binary(&source, &destination_dir)?;
         Ok(0)
     }
 
@@ -390,14 +349,6 @@ impl DebugContext {
 struct RuntimePaths {
     runtime_dir: PathBuf,
     control_file: PathBuf,
-}
-
-fn cli_executable_name() -> &'static str {
-    if cfg!(windows) {
-        "alera.exe"
-    } else {
-        "alera"
-    }
 }
 
 fn terminate_pid(pid: i64) -> bool {
