@@ -68,12 +68,20 @@ class MobileViewPrefsController extends _$MobileViewPrefsController {
     return _update((prefs) => prefs.copyWith(showActiveWorkspacesOnly: show));
   }
 
+  Future<void> setShowArchivedWorkspaces(bool show) {
+    return _update((prefs) => prefs.copyWith(showArchivedWorkspaces: show));
+  }
+
   Future<void> setShowPinnedWorkspacesBelow(bool show) {
     return _update((prefs) => prefs.copyWith(showPinnedWorkspacesBelow: show));
   }
 
   Future<void> setProjectFilter(Set<String> ids) {
     return _update((prefs) => prefs.copyWith(selectedProjectIds: ids));
+  }
+
+  Future<void> setSectionFilter(Set<String> ids) {
+    return _update((prefs) => prefs.copyWith(selectedSectionIds: ids));
   }
 
   Future<void> setTagFilter(Set<String> ids) {
@@ -98,6 +106,18 @@ class MobileViewPrefsController extends _$MobileViewPrefsController {
       ),
     );
   }
+
+  Future<void> setGitDiffViewMode(MobileGitDiffViewMode value) =>
+      _update((prefs) => prefs.copyWith(gitDiffViewMode: value));
+
+  Future<void> setGitDiffGroupMode(MobileGitDiffGroupMode value) =>
+      _update((prefs) => prefs.copyWith(gitDiffGroupMode: value));
+
+  Future<void> setSearchViewAsTree(bool value) =>
+      _update((prefs) => prefs.copyWith(searchViewAsTree: value));
+
+  Future<void> setSearchIncludeIgnored(bool value) =>
+      _update((prefs) => prefs.copyWith(searchIncludeIgnored: value));
 
   Future<void> _update(
     MobileViewPrefs Function(MobileViewPrefs) transform,

@@ -14,19 +14,19 @@ PERF_SCENARIO ?= idle
 PERF_DURATION_SECONDS ?= 30
 PERF_APP_PID ?=
 PERF_APP_PID_ARG = $(if $(PERF_APP_PID),--app-pid "$(PERF_APP_PID)",)
-ALERA_DEBUG_TOOL = tool/debug/alera_debug.dart
+ALERA_XTASK = $(CARGO) run --quiet --locked --manifest-path rust/Cargo.toml -p alera-xtask --
 
 .PHONY: help init-submodules init-reference-submodules update-submodules frb-generate rust-test cli-build cli-help runtime-dev-build host-debug app-debug app-profile app-debug-bundled-cli app-debug-runtime-dev debug-processes host-stop perf-linux perf-macos-resources
 
 # List available make targets.
 help:
-	$(DART) $(ALERA_DEBUG_TOOL) help
+	$(ALERA_XTASK) help
 
 # Initialize only the source submodules required to resolve and build Alera.
-# The Dart initializer also repairs an existing nested clone that does not yet
+# The initializer also repairs an existing nested clone that does not yet
 # contain the pinned Ghostty commit, without overwriting local submodule work.
 init-submodules:
-	$(DART) tool/development/initialize_required_submodules.dart
+	$(ALERA_XTASK) init-submodules
 
 # Initialize the optional reference projects used for contributor research.
 init-reference-submodules:
@@ -57,54 +57,55 @@ update-submodules:
 frb-generate:
 	flutter_rust_bridge_codegen generate
 
-# Format, lint, and test the Rust workspace (alera_native + alera-cli). The
-# `--workspace` flags are required because `rust/` has a root package, so a bare
-# clippy/test would only cover `alera_native` and skip the `alera-cli` member.
+# Format, lint, and test the Rust workspace (alera_native, alera-cli,
+# alera-core, alera-mobile-native, alera-xtask). The `--workspace` flags are
+# required because `rust/` has a root package, so a bare clippy/test would only
+# cover `alera_native` and skip the other members.
 rust-test:
 	cd rust && "$(CARGO)" fmt --check && "$(CARGO)" clippy --workspace --all-targets -- -D warnings && "$(CARGO)" test --workspace
 
 # Build the Rust alera CLI sidecar (cargo) used by desktop app launches.
 cli-build:
-	$(DART) $(ALERA_DEBUG_TOOL) cli-build --cargo "$(CARGO)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
+	$(ALERA_XTASK) cli-build --cargo "$(CARGO)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
 
 # Smoke-test the locally built Rust CLI sidecar.
 cli-help:
-	$(DART) $(ALERA_DEBUG_TOOL) cli-help --cargo "$(CARGO)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
+	$(ALERA_XTASK) cli-help --cargo "$(CARGO)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
 
 # Compile the Rust runtime host with the Cargo dev profile into an isolated
 # bundle used only by development app launches.
 runtime-dev-build:
-	$(DART) $(ALERA_DEBUG_TOOL) runtime-dev-build --cargo "$(CARGO)" --bundle-dir "$(ALERA_RUNTIME_DEV_BUNDLE_DIR)"
+	$(ALERA_XTASK) runtime-dev-build --cargo "$(CARGO)" --bundle-dir "$(ALERA_RUNTIME_DEV_BUNDLE_DIR)"
 
 # Run the runtime host in the foreground for direct stdout/stderr debugging.
 host-debug:
-	$(DART) $(ALERA_DEBUG_TOOL) host-debug --app-id "$(ALERA_APP_ID)" --debug-token "$(ALERA_CLI_DEBUG_TOKEN)" --host-empty-shutdown-seconds "$(ALERA_HOST_EMPTY_SHUTDOWN_SECONDS)" --host-detached-shutdown-seconds "$(ALERA_HOST_DETACHED_SHUTDOWN_SECONDS)" --host-scrollback-bytes "$(ALERA_HOST_SCROLLBACK_BYTES)"
+	$(ALERA_XTASK) host-debug --app-id "$(ALERA_APP_ID)" --debug-token "$(ALERA_CLI_DEBUG_TOKEN)" --host-empty-shutdown-seconds "$(ALERA_HOST_EMPTY_SHUTDOWN_SECONDS)" --host-detached-shutdown-seconds "$(ALERA_HOST_DETACHED_SHUTDOWN_SECONDS)" --host-scrollback-bytes "$(ALERA_HOST_SCROLLBACK_BYTES)"
 
 # Run the Flutter app with the normal development fallback for the CLI.
 app-debug:
-	$(DART) $(ALERA_DEBUG_TOOL) app-debug --flutter "$(FLUTTER)" $(APP_DEVICE_ARG) --alera-flavor "$(ALERA_FLAVOR)"
+	$(ALERA_XTASK) app-debug --flutter "$(FLUTTER)" $(APP_DEVICE_ARG) --alera-flavor "$(ALERA_FLAVOR)"
 
 # Run a profile-mode desktop app with performance timeline marks enabled.
 app-profile:
-	$(DART) $(ALERA_DEBUG_TOOL) app-profile --flutter "$(FLUTTER)" $(APP_DEVICE_ARG) --alera-flavor "$(ALERA_FLAVOR)"
+	$(ALERA_XTASK) app-profile --flutter "$(FLUTTER)" $(APP_DEVICE_ARG) --alera-flavor "$(ALERA_FLAVOR)"
 
 # Run the Flutter app against the locally compiled CLI bundle.
 app-debug-bundled-cli:
-	$(DART) $(ALERA_DEBUG_TOOL) app-debug-bundled-cli --flutter "$(FLUTTER)" $(APP_DEVICE_ARG) --alera-flavor "$(ALERA_FLAVOR)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
+	$(ALERA_XTASK) app-debug-bundled-cli --flutter "$(FLUTTER)" $(APP_DEVICE_ARG) --alera-flavor "$(ALERA_FLAVOR)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
 
 # Run Alera Dev against a freshly compiled dev-profile runtime host. Its app
 # id, runtime directory, control file, process, and persisted state are all
 # separate from the release app.
 app-debug-runtime-dev:
-	$(DART) $(ALERA_DEBUG_TOOL) app-debug-runtime-dev --flutter "$(FLUTTER)" $(APP_DEVICE_ARG) --alera-flavor dev --cargo "$(CARGO)" --bundle-dir "$(ALERA_RUNTIME_DEV_BUNDLE_DIR)"
+	$(ALERA_XTASK) app-debug-runtime-dev --flutter "$(FLUTTER)" $(APP_DEVICE_ARG) --alera-flavor dev --cargo "$(CARGO)" --bundle-dir "$(ALERA_RUNTIME_DEV_BUNDLE_DIR)"
 
 # Inspect running Alera app and runtime-host processes.
 debug-processes:
-	$(DART) $(ALERA_DEBUG_TOOL) debug-processes --app-id "$(ALERA_APP_ID)"
+	$(ALERA_XTASK) debug-processes --app-id "$(ALERA_APP_ID)"
 
 # Stop the current debug terminal host for this app id.
 host-stop:
-	$(DART) $(ALERA_DEBUG_TOOL) host-stop --app-id "$(ALERA_APP_ID)"
+	$(ALERA_XTASK) host-stop --app-id "$(ALERA_APP_ID)"
 
 # Capture startup and first-frame timings from a real Linux profile build.
 perf-linux:

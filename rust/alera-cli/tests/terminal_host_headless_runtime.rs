@@ -13,6 +13,10 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
 use serde_json::{json, Value};
 
+#[path = "terminal_host_headless_runtime/home_owner_retirement_case.rs"]
+mod home_owner_retirement_case;
+#[path = "terminal_host_headless_runtime/owner_terminal_case.rs"]
+mod owner_terminal_case;
 #[path = "terminal_host_headless_runtime/profile_snapshot_restart_cases.rs"]
 mod profile_snapshot_restart_cases;
 #[path = "terminal_host_headless_runtime/startup_command_cases.rs"]
@@ -63,7 +67,7 @@ fn connect(port: u16, token: &str) -> (TcpStream, BufReader<TcpStream>) {
     let mut reader = BufReader::new(stream);
     send(
         &mut writer,
-        json!({"id": 0, "type": "hello", "payload": {"protocolVersion": PROTOCOL_VERSION, "token": token}}),
+        json!({"id": 0, "type": "hello", "payload": {"protocolVersion": PROTOCOL_VERSION, "token": token, "sharedCheckoutWorkspacesV1": true}}),
     );
     let hello = read_message(&mut reader);
     assert_eq!(hello["ok"], json!(true), "handshake rejected: {hello}");
@@ -71,6 +75,14 @@ fn connect(port: u16, token: &str) -> (TcpStream, BufReader<TcpStream>) {
 }
 
 fn spawn_host(runtime_dir: &std::path::Path, token: &str) -> (HostGuard, u16) {
+    spawn_host_with_path(runtime_dir, token, None)
+}
+
+fn spawn_host_with_path(
+    runtime_dir: &std::path::Path,
+    token: &str,
+    path: Option<std::ffi::OsString>,
+) -> (HostGuard, u16) {
     let control_path = runtime_dir.join("runtime-host.json");
     let test_home = runtime_dir.join("test-home");
     std::fs::create_dir_all(&test_home).unwrap();
@@ -90,6 +102,7 @@ fn spawn_host(runtime_dir: &std::path::Path, token: &str) -> (HostGuard, u16) {
         ])
         .env("HOME", test_home)
         .env("SHELL", "/bin/sh")
+        .envs(path.map(|path| ("PATH", path)))
         .env_remove("CLAUDE_CONFIG_DIR")
         .env_remove("CODEX_HOME")
         .env_remove("COPILOT_HOME")
@@ -372,14 +385,14 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
     let token = "agent-hook-token";
     let (_guard, port) = spawn_host(dir.path(), token);
     let test_home = dir.path().join("test-home");
-    let claude_settings = dir
-        .path()
-        .join("agent-runtime-homes/claude/home/settings.json");
+    let claude_settings = test_home.join(".claude/settings.json");
     let grok_hooks = test_home.join(".grok/hooks/alera-status.json");
+    let cursor_hooks = test_home.join(".cursor/hooks.json");
     for integration in [
-        dir.path().join("agent-runtime-homes/codex/home/hooks.json"),
+        test_home.join(".codex/hooks.json"),
         claude_settings.clone(),
         test_home.join(".copilot/hooks/alera.json"),
+        cursor_hooks.clone(),
         test_home.join(".gemini/config/hooks.json"),
         grok_hooks.clone(),
         test_home.join(".config/opencode/plugins/alera-agent-status.js"),
@@ -389,9 +402,11 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
     ] {
         wait_for_path(&integration);
     }
-    for hooks in [&claude_settings, &grok_hooks] {
+    for hooks in [&claude_settings, &grok_hooks, &cursor_hooks] {
         assert_no_null_matchers(hooks);
     }
+    assert!(!dir.path().join("agent-runtime-homes").exists());
+    assert!(!dir.path().join("agent-runtime-overlays").exists());
     let (mut writer, mut reader) = connect(port, token);
     send(
         &mut writer,
@@ -402,14 +417,6 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
         }}),
     );
     assert_eq!(read_response(&mut reader, 1)["ok"], json!(true));
-
-    // Cursor is delivered as a per-session plugin the launch mints, never as an
-    // entry in the user's own hooks.json.
-    wait_for_path(
-        &dir.path()
-            .join("agent-runtime-overlays/cursor/hook-session/plugin/hooks/hooks.json"),
-    );
-    assert!(!test_home.join(".cursor/hooks.json").exists());
 
     for (index, (agent, event_name, done_event)) in [
         ("codex", "UserPromptSubmit", "Stop"),

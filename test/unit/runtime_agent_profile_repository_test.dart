@@ -38,6 +38,7 @@ void main() {
       expect(profile.createdAt, DateTime.utc(2026, 7));
       expect(profile.revision, 7);
       expect(profile.toJson()['quotaGroup'], 'codex-personal');
+      expect(profile.toJson()['showInNewTabMenu'], isFalse);
       expect(
         profile.toJson()['customPrompt'],
         'Prefer Small, Reviewable Changes',
@@ -63,6 +64,21 @@ void main() {
       expect(profile.launchMode, AgentProfileLaunchMode.managed);
       expect(profile.managedConfig['model'], 'gpt-5.6-sol');
       expect(profile.toJson()['managedConfig'], profile.managedConfig);
+    });
+
+    test('parses the new tab menu opt-in from a host payload', () {
+      final profile = AgentProfile.fromJson(<String, Object?>{
+        'id': 'prof_1',
+        'name': 'Codex Sol',
+        'agentType': 'codex',
+        'command': 'codex',
+        'showInNewTabMenu': true,
+        'createdAt': '2026-07-01T00:00:00.000Z',
+        'updatedAt': '2026-07-01T00:00:00.000Z',
+      });
+
+      expect(profile.showInNewTabMenu, isTrue);
+      expect(profile.toJson()['showInNewTabMenu'], isTrue);
     });
 
     test('treats a blank quota group and description as absent', () {
@@ -196,6 +212,7 @@ void main() {
       expect(payload['name'], 'Codex Sol');
       expect(payload['launchMode'], 'command');
       expect(payload['quotaGroup'], isNull);
+      expect(payload['showInNewTabMenu'], isFalse);
       expect(payload['customPrompt'], 'Prefer Small, Reviewable Changes');
     });
 
@@ -232,6 +249,7 @@ void main() {
         description: 'Backend implementation',
         customPrompt: 'Prefer Small, Reviewable Changes',
         quotaGroup: 'codex-personal',
+        showInNewTabMenu: true,
         createdAt: .utc(2026, 7),
         updatedAt: .utc(2026, 7),
       );
@@ -245,6 +263,7 @@ void main() {
       expect(payload['command'], 'codex --model sol');
       expect(payload['description'], 'Backend implementation');
       expect(payload['quotaGroup'], 'codex-personal');
+      expect(payload['showInNewTabMenu'], isTrue);
       expect(payload['customPrompt'], 'Prefer Small, Reviewable Changes');
     });
 

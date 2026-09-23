@@ -152,8 +152,18 @@ class _AleraComposerState extends State<AleraComposer> {
             ?widget.attachmentBar,
             CallbackShortcuts(
               bindings: <ShortcutActivator, VoidCallback>{
-                const SingleActivator(.enter): _send,
+                const SingleActivator(.enter, includeRepeats: false): _send,
                 const SingleActivator(.enter, shift: true): _insertLineBreak,
+                const SingleActivator(
+                  .enter,
+                  control: true,
+                  includeRepeats: false,
+                ): _send,
+                const SingleActivator(
+                  .enter,
+                  meta: true,
+                  includeRepeats: false,
+                ): _send,
                 const SingleActivator(.escape): widget.onClose,
               },
               child: _buildTextField(context),

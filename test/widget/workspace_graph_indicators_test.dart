@@ -1,4 +1,5 @@
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/icons/alera_linked_worktree_icon.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_graph_indicators.dart';
 import 'package:flutter/material.dart';
@@ -40,31 +41,53 @@ void main() {
   }
 
   group('WorkspaceRoleBadge', () {
-    testWidgets('shows home icon for the main workspace', (tester) async {
+    testWidgets('shows the project-folder location for a shared workspace', (
+      tester,
+    ) async {
       await pump(tester, WorkspaceRoleBadge(workspace: workspace(kind: .main)));
       expect(find.byIcon(AleraIcons.workspaceMain), findsOneWidget);
-      expect(find.byTooltip('Default workspace'), findsOneWidget);
+      expect(find.byTooltip('Project folder'), findsOneWidget);
       expect(find.text('default'), findsNothing);
       expect(find.text('Primary'), findsNothing);
       expect(find.text('Child'), findsNothing);
     });
 
-    testWidgets('renders nothing when the workspace has a parent', (
+    testWidgets('shows linked-worktree location independently of parentage', (
       tester,
     ) async {
       await pump(
         tester,
         WorkspaceRoleBadge(workspace: workspace(parentWorkspaceId: 'parent')),
       );
-      expect(find.byIcon(AleraIcons.workspaceMain), findsNothing);
+      expect(find.byType(AleraLinkedWorktreeIcon), findsOneWidget);
+      expect(find.byIcon(AleraIcons.split), findsOneWidget);
+      expect(find.byIcon(AleraIcons.gitBranch), findsNothing);
+      expect(AleraLinkedWorktreeIcon.quarterTurns, 1);
+      expect(find.byTooltip('Linked worktree'), findsOneWidget);
       expect(find.text('default'), findsNothing);
       expect(find.text('Child'), findsNothing);
       expect(find.text('Primary'), findsNothing);
     });
 
-    testWidgets('renders nothing for a plain linked workspace', (tester) async {
+    testWidgets('shows linked-worktree location for an unparented task', (
+      tester,
+    ) async {
       await pump(tester, WorkspaceRoleBadge(workspace: workspace()));
-      expect(find.byIcon(AleraIcons.workspaceMain), findsNothing);
+      expect(find.byType(AleraLinkedWorktreeIcon), findsOneWidget);
+      expect(find.byIcon(AleraIcons.split), findsOneWidget);
+      expect(
+        tester
+            .widget<RotatedBox>(
+              find.descendant(
+                of: find.byType(AleraLinkedWorktreeIcon),
+                matching: find.byType(RotatedBox),
+              ),
+            )
+            .quarterTurns,
+        1,
+      );
+      expect(AleraLinkedWorktreeIcon.quarterTurns, 1);
+      expect(find.byTooltip('Linked worktree'), findsOneWidget);
       expect(find.text('default'), findsNothing);
       expect(find.text('Primary'), findsNothing);
       expect(find.text('Child'), findsNothing);
@@ -74,9 +97,9 @@ void main() {
       expect(WorkspaceRoleBadge.hasRole(workspace(kind: .main)), isTrue);
       expect(
         WorkspaceRoleBadge.hasRole(workspace(parentWorkspaceId: 'p')),
-        isFalse,
+        isTrue,
       );
-      expect(WorkspaceRoleBadge.hasRole(workspace()), isFalse);
+      expect(WorkspaceRoleBadge.hasRole(workspace()), isTrue);
     });
   });
 
@@ -99,6 +122,12 @@ void main() {
       await pump(tester, WorkspaceGraphChips(workspace: ws));
 
       expect(find.text('remote-mac'), findsOneWidget);
+      expect(
+        find.byTooltip(
+          'Remote workspace on remote-mac. Terminals attach over SSH.',
+        ),
+        findsOneWidget,
+      );
       expect(find.text('2 Children'), findsOneWidget);
       expect(find.text('#alpha'), findsOneWidget);
       expect(find.text('#beta'), findsOneWidget);

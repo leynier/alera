@@ -40,19 +40,31 @@ Future<TerminalHostAttachment> _restartTerminal(
       'The running terminal host does not support terminal restart.',
     );
   }
+  final key = '$workspaceId:$tabId:$sessionId';
+  final operationId = client._pendingTerminalRestarts.putIfAbsent(
+    key,
+    () => const Uuid().v4(),
+  );
   final payload = await client._terminalRequestMap(
     'terminal.restart',
-    _terminalAttachmentRequest(
-      sessionId: sessionId,
-      workspaceId: workspaceId,
-      tabId: tabId,
-      workingDirectory: workingDirectory,
-      launch: launch,
-      cols: cols,
-      rows: rows,
-    ),
+    <String, Object?>{
+      'operationId': operationId,
+      ..._terminalAttachmentRequest(
+        sessionId: sessionId,
+        workspaceId: workspaceId,
+        tabId: tabId,
+        workingDirectory: workingDirectory,
+        launch: launch,
+        cols: cols,
+        rows: rows,
+      ),
+    },
   );
-  return TerminalHostAttachment.fromJson(payload);
+  final attachment = TerminalHostAttachment.fromJson(payload);
+  if (client._pendingTerminalRestarts[key] == operationId) {
+    client._pendingTerminalRestarts.remove(key);
+  }
+  return attachment;
 }
 
 Map<String, Object?> _terminalAttachmentRequest({

@@ -1,5 +1,9 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/features/runtime/domain/workspace_relocation_client.dart';
+
+import 'package:alera_mobile/src/features/runtime/domain/workspace_removal_dependency.dart';
+
 import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
@@ -9,6 +13,7 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snaps
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/deferred_workspace_setup_launcher.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera_mobile/src/features/workbench/application/workspace_listing_tree.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:logging/logging.dart';
 
@@ -24,6 +29,7 @@ const Set<String> _refreshEvents = <String>{
   'workspaceActivityChanged',
   'runtimeSettingsChanged',
   'agentPresenceChanged',
+  'workbenchViewPrefsChanged',
 };
 
 class const WorkspaceListData({
@@ -32,16 +38,21 @@ class const WorkspaceListData({
   required final List<WorkspaceSummary> workspaces,
   required final List<ProjectSummary> projects,
   required this.supportsMutations,
+  final bool supportsArchive = false,
   final bool supportsPromptWorkspaceCreation = true,
   final bool supportsPromptImageUpload = false,
   final bool supportsPromptFileUpload = false,
   final bool supportsWorkspaceFiles = false,
+  final bool supportsWorkspaceRelocation = false,
+  final bool supportsSharedCheckoutWorkspaces = false,
   required final List<WorkspaceTagSummary> tags,
   required final Map<String, DateTime> activity,
   required final bool confirmWorkspaceRemoval,
   required final List<AgentPresenceSummary> agentPresence,
   final String? defaultAgentProfileId,
   final Map<String, int> terminalTabCountByWorkspaceId = const <String, int>{},
+  final Map<String, List<String>> workspaceMainTabIds =
+      const <String, List<String>>{},
 }) {
   /// False against runtimes that predate the mobile mutation allowlist; the
   /// UI hides mutating actions in that case.
@@ -84,6 +95,14 @@ class WorkspaceListController extends _$WorkspaceListController {
       workspaces: snapshot.workspaces,
       projects: snapshot.projects,
       supportsMutations: client.supportsWorkspaceMutations,
+      supportsArchive: client.supportsWorkspaceArchive,
+      supportsSharedCheckoutWorkspaces:
+          client is MobileSharedCheckoutClient &&
+          (client as MobileSharedCheckoutClient)
+              .supportsSharedCheckoutWorkspaces,
+      supportsWorkspaceRelocation:
+          client is WorkspaceRelocationClient &&
+          (client as WorkspaceRelocationClient).supportsWorkspaceRelocation,
       supportsPromptWorkspaceCreation: client.supportsPromptWorkspaceCreation,
       supportsPromptImageUpload: client.supportsPromptImageUpload,
       // Sibling interface of MobileWorkspaceClient rather than a subtype: the
@@ -100,6 +119,7 @@ class WorkspaceListController extends _$WorkspaceListController {
       agentPresence: snapshot.agentPresence,
       defaultAgentProfileId: snapshot.defaultAgentProfileId,
       terminalTabCountByWorkspaceId: snapshot.terminalTabCountByWorkspaceId,
+      workspaceMainTabIds: snapshot.workspaceMainTabIds,
     );
   }
 
@@ -114,6 +134,48 @@ class WorkspaceListController extends _$WorkspaceListController {
     } catch (error, stack) {
       Logger('WorkspaceListController')
           .warning('Could not set workspace section', error, stack);
+      rethrow;
+    }
+  }
+
+  /// Assigns or clears a section on [workspaceId] and every descendant.
+  Future<void> saveTreeSection(
+    String workspaceId, {
+    String? sectionId,
+    String? newName,
+  }) async {
+    final data = state.value;
+    if (data == null) {
+      return;
+    }
+    final targetIds = <String>[
+      workspaceId,
+      ...workspaceDescendantIds(data.workspaces, workspaceId),
+    ];
+    try {
+      final client = await ref.read(workspaceClientProvider(hostId).future);
+      final sections = client as MobileWorkspaceSectionClient;
+      var assignedId = sectionId;
+      if (newName != null) {
+        assignedId = (await sections.createWorkspaceSection(
+          newName,
+          workspaceId,
+        )).id;
+      }
+      for (final id in targetIds) {
+        if (newName != null && id == workspaceId) {
+          continue;
+        }
+        final workspace = data.workspaceById(id);
+        if (workspace == null || workspace.sectionId == assignedId) {
+          continue;
+        }
+        await sections.setWorkspaceSection(id, assignedId);
+      }
+      _invalidateIfMounted();
+    } catch (error, stack) {
+      Logger('WorkspaceListController')
+          .warning('Could not set workspace tree section', error, stack);
       rethrow;
     }
   }
@@ -135,6 +197,28 @@ class WorkspaceListController extends _$WorkspaceListController {
   Future<void> setPinned(String workspaceId, bool isPinned) async {
     final client = await ref.read(workspaceClientProvider(hostId).future);
     await client.setWorkspacePinned(workspaceId, isPinned);
+    _invalidateIfMounted();
+  }
+
+  /// Pins or unpins [workspaceId] and every descendant of [workspaceId].
+  /// Reloads once after the last mutation.
+  Future<void> setTreePinned(String workspaceId, bool isPinned) async {
+    final data = state.value;
+    if (data == null) {
+      return;
+    }
+    final targetIds = <String>[
+      workspaceId,
+      ...workspaceDescendantIds(data.workspaces, workspaceId),
+    ];
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    for (final id in targetIds) {
+      final workspace = data.workspaceById(id);
+      if (workspace == null || workspace.isPinned == isPinned) {
+        continue;
+      }
+      await client.setWorkspacePinned(id, isPinned);
+    }
     _invalidateIfMounted();
   }
 
@@ -165,22 +249,34 @@ class WorkspaceListController extends _$WorkspaceListController {
 
   Future<WorkspaceCreationResult> createWorkspace({
     required String projectId,
+    String? checkoutHostId,
     required String branch,
     String? sourceBranch,
     bool reuseExistingBranch = false,
+    bool useProjectCheckout = false,
     String? name,
     String? parentWorkspaceId,
+    String? issueUrl,
   }) async {
     final keepAlive = ref.keepAlive();
     try {
       final client = await ref.read(workspaceClientProvider(hostId).future);
-      final creation = await client.createManagedWorkspace(
-        projectId: projectId,
-        branch: branch,
-        sourceBranch: sourceBranch,
-        reuseExistingBranch: reuseExistingBranch,
-        name: name,
-      );
+      final creation = useProjectCheckout
+          ? await requireSharedCheckoutClient(client).createSharedWorkspace(
+              projectId: projectId,
+              name: name,
+              issueUrl: issueUrl,
+              checkoutHostId: checkoutHostId,
+            )
+          : await client.createManagedWorkspace(
+              projectId: projectId,
+              checkoutHostId: checkoutHostId,
+              branch: branch,
+              sourceBranch: sourceBranch,
+              reuseExistingBranch: reuseExistingBranch,
+              name: name,
+              issueUrl: issueUrl,
+            );
       var result = creation;
       if (creation.hasDeferredSetup) {
         final terminalClient = await ref.read(
@@ -206,12 +302,44 @@ class WorkspaceListController extends _$WorkspaceListController {
     }
   }
 
+  Future<List<WorkspaceRemovalDependency>> removalDependencies(
+    String workspaceId,
+  ) async {
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    return requireSharedCheckoutClient(client).removalDependencies(workspaceId);
+  }
+
+  Future<void> pauseRemovalDependencies(
+    String workspaceId,
+    List<WorkspaceRemovalDependency> approved,
+  ) async {
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    await requireSharedCheckoutClient(client)
+        .pauseRemovalDependencies(workspaceId, approved);
+  }
+
   Future<void> deleteWorkspace(String workspaceId, {bool? deleteBranch}) async {
     final client = await ref.read(workspaceClientProvider(hostId).future);
-    await client.removeManagedWorkspace(
-      workspaceId,
-      deleteBranch: deleteBranch,
-    );
+    final workspace = (await client.listWorkspaces())
+        .where((workspace) => workspace.id == workspaceId)
+        .firstOrNull;
+    if (workspace == null) {
+      throw StateError('Workspace no longer exists. Refresh the list.');
+    }
+    if (workspace.isMain) {
+      if (deleteBranch == true) {
+        throw StateError(
+          'Removing a shared workspace cannot delete its branch.',
+        );
+      }
+      await requireSharedCheckoutClient(client)
+          .removeSharedWorkspace(workspaceId);
+    } else {
+      await client.removeManagedWorkspace(
+        workspaceId,
+        deleteBranch: deleteBranch,
+      );
+    }
     _invalidateIfMounted();
   }
 
@@ -229,6 +357,18 @@ class WorkspaceListController extends _$WorkspaceListController {
   Future<void> sleepWorkspace(String workspaceId) async {
     final client = await ref.read(workspaceClientProvider(hostId).future);
     await client.sleepWorkspace(workspaceId);
+    _invalidateIfMounted();
+  }
+
+  Future<void> archiveWorkspace(String workspaceId) async {
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    await client.archiveWorkspace(workspaceId);
+    _invalidateIfMounted();
+  }
+
+  Future<void> unarchiveWorkspace(String workspaceId) async {
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    await client.unarchiveWorkspace(workspaceId);
     _invalidateIfMounted();
   }
 

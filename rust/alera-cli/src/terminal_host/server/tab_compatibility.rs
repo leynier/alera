@@ -2,12 +2,13 @@
 
 use alera_core::runtime::WorkspaceTabRecord;
 
-use crate::terminal_host::protocol::{CODEX_TAB_KIND, MOBILE_EMULATOR_TAB_KIND};
-
 use super::terminal_pulse::TERMINAL_PULSE_PAYLOAD_KEY;
 use super::{ClientKind, ServerActor};
 
-const HOST_OWNED_TAB_PAYLOAD_KEYS: [&str; 8] = [
+const HANDOFF_SOURCE_WORKSPACE_IDS_KEY: &str = "handoffSourceWorkspaceIds";
+
+const HOST_OWNED_TAB_PAYLOAD_KEYS: [&str; 12] = [
+    HANDOFF_SOURCE_WORKSPACE_IDS_KEY,
     "agentProfileLaunchV1",
     "initialPrompt",
     "pendingAgentPrompt",
@@ -16,6 +17,9 @@ const HOST_OWNED_TAB_PAYLOAD_KEYS: [&str; 8] = [
     "agentTitleRevision",
     "agentTitleStatus",
     "agentTitleSource",
+    crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_ID_KEY,
+    crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_AGENT_KEY,
+    crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_CCS_PROFILE_KEY,
 ];
 
 /// Removes host-owned bootstrap text from a tab before it crosses the runtime
@@ -39,6 +43,17 @@ pub(super) fn preserve_host_owned_tab_payload(
     stored: &WorkspaceTabRecord,
     incoming: &mut WorkspaceTabRecord,
 ) {
+    // Only a host transfer can establish an old workspace identity. A stale
+    // projected record must neither erase that history nor invent one.
+    if stored
+        .payload
+        .get(HANDOFF_SOURCE_WORKSPACE_IDS_KEY)
+        .is_none()
+    {
+        if let Some(payload) = incoming.payload.as_object_mut() {
+            payload.remove(HANDOFF_SOURCE_WORKSPACE_IDS_KEY);
+        }
+    }
     let manual_rename = incoming.payload["manualTitle"] == true
         && (incoming.title != stored.title
             || (incoming.payload["agentTitleSource"] == "manual"
@@ -81,14 +96,7 @@ impl ServerActor {
         mut tab: WorkspaceTabRecord,
     ) -> Option<WorkspaceTabRecord> {
         let client = self.clients.get(&client_id);
-        let supports_mobile_emulator = client.is_some_and(|client| {
-            client.kind == ClientKind::Mobile || client.supports_mobile_emulator_tab_kind
-        });
-        if tab.kind == MOBILE_EMULATOR_TAB_KIND && !supports_mobile_emulator {
-            return None;
-        }
-        let supports_codex = client.is_some_and(|client| client.supports_codex_tab_kind);
-        if tab.kind == CODEX_TAB_KIND && !supports_codex {
+        if tab.kind == "mobileEmulator" || tab.kind == "browser" || tab.kind == "codex" {
             return None;
         }
         if client.is_some_and(|client| client.kind == ClientKind::Mobile) {
@@ -115,3 +123,7 @@ impl ServerActor {
             .collect()
     }
 }
+
+#[cfg(test)]
+#[path = "tab_compatibility_handoff_tests.rs"]
+mod handoff_tests;

@@ -4,13 +4,20 @@ class const _PullRequestBody({
   required final String repoPath,
   required final WorkspacePullRequestState state,
   required final PullRequestCreateAction createAction,
+  required final AiAssistSettings aiAssistSettings,
   required final WorkspacePullRequestController controller,
   required final Set<String> localWorkspaceBranches,
   required final List<ReviewStackWorkspaceCandidate> stackWorkspaceCandidates,
   required final Future<void> Function(String branch)? onOpenWorkspaceBranch,
+  final VoidCallback? onArchiveWorkspace,
+  final VoidCallback? onRemoveWorkspace,
   required final Future<void> Function(String url) onOpenUrl,
   required final ValueChanged<HostedReview>? onOpenDiff,
   required final ValueChanged<PullRequestCreateAction> onCreateActionChanged,
+  final PullRequestAgentWatchMode? agentWatchMode,
+  final PullRequestAgentWatchScope agentWatchScope =
+      PullRequestAgentWatchScope.defaults,
+  required final WidgetRef ref,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -24,6 +31,8 @@ class const _PullRequestBody({
         ),
         if (state.errorMessage != null)
           _ErrorBanner(message: state.errorMessage!),
+        if (state.mergeMethodsErrorMessage != null)
+          _ErrorBanner(message: state.mergeMethodsErrorMessage!),
         Expanded(child: _content(context)),
       ],
     );
@@ -75,6 +84,8 @@ class const _PullRequestBody({
         onOpenDiff: onOpenDiff == null ? null : () => onOpenDiff!(review),
         onOpenWorkspaceBranch: onOpenWorkspaceBranch,
         onUnlink: controller.unlink,
+        onArchiveWorkspace: onArchiveWorkspace,
+        onRemoveWorkspace: onRemoveWorkspace,
         onLinkStack: controller.linkReviewStack,
         onCreateStackFromWorkspaces: controller.createReviewStackFromWorkspaces,
         onMerge: controller.mergeReview,
@@ -84,6 +95,71 @@ class const _PullRequestBody({
         onToggleTask: controller.toggleReviewCommentTask,
         onUpdate: controller.updateReview,
         onLoadCheckDetails: controller.loadCheckDetails,
+        agentWatchMode: agentWatchMode,
+        agentWatchScope: agentWatchScope,
+        onAgentWatchScopeChanged: (watchScope) => unawaited(
+          ref
+              .read(settingsControllerProvider.notifier)
+              .setPullRequestAgentWatchScope(watchScope),
+        ),
+        onFixFailedChecks: review.isOpen
+            ? () => unawaited(
+                dispatchPullRequestFailedChecks(
+                  context: context,
+                  ref: ref,
+                  workspaceId: controller.scope.workspaceId,
+                  review: review,
+                ),
+              )
+            : null,
+        onRestack: review.isOpen
+            ? () => unawaited(
+                dispatchPullRequestRestack(
+                  context: context,
+                  ref: ref,
+                  workspaceId: controller.scope.workspaceId,
+                ),
+              )
+            : null,
+        onWatchAndFix: review.isOpen
+            ? (watchScope) => unawaited(
+                startPullRequestAgentWatch(
+                  context: context,
+                  ref: ref,
+                  scope: controller.scope,
+                  review: review,
+                  mode: .fix,
+                  watchScope: watchScope,
+                  snapshot: PullRequestAgentWatchSnapshot(
+                    review: review,
+                    checksRollup: state.checksRollup,
+                    comments: state.comments,
+                  ),
+                ),
+              )
+            : null,
+        onWatchFixAndMerge: review.isOpen
+            ? (watchScope) => unawaited(
+                startPullRequestAgentWatch(
+                  context: context,
+                  ref: ref,
+                  scope: controller.scope,
+                  review: review,
+                  mode: .fixAndMerge,
+                  watchScope: watchScope,
+                  snapshot: PullRequestAgentWatchSnapshot(
+                    review: review,
+                    checksRollup: state.checksRollup,
+                    comments: state.comments,
+                  ),
+                ),
+              )
+            : null,
+        onStopAgentWatch: agentWatchMode == null
+            ? null
+            : () => ref
+                  .read(pullRequestAgentWatchControllerProvider.notifier)
+                  .stop(controller.scope.workspaceId),
       );
     }
     final canCreate = state.supportsCreation && state.currentBranch != null;
@@ -104,6 +180,7 @@ class const _PullRequestBody({
       createAction: createAction,
       canCreateStack: canCreateStack,
       creatingStack: state.action == PullRequestAction.createStack,
+      shipping: state.action == PullRequestAction.ship,
       onCreate: (draft) {
         final identity = state.identity;
         final head = state.currentBranch;
@@ -121,8 +198,28 @@ class const _PullRequestBody({
           ),
         );
       },
+      onShip:
+          ({
+            required String baseBranch,
+            required bool draft,
+            required PullRequestShipScope scope,
+          }) async {
+            await controller.ship(
+              baseBranch: baseBranch,
+              draft: draft,
+              settings: aiAssistSettings,
+              scope: scope,
+            );
+          },
       onCreateStack: (draft) =>
           _openWorkspaceStackDialog(context, currentDraft: draft),
+      onRestack: () => unawaited(
+        dispatchPullRequestRestack(
+          context: context,
+          ref: ref,
+          workspaceId: controller.scope.workspaceId,
+        ),
+      ),
       onLink: controller.link,
       onCreateActionChanged: onCreateActionChanged,
     );

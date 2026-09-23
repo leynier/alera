@@ -58,5 +58,28 @@ void main() {
       );
       expect(restored.isEmpty, isFalse);
     });
+
+    test('round-trips New Workspace source branch through JSON', () {
+      const config = ProjectConfig(
+        newWorkspace: NewWorkspaceConfig(sourceBranch: 'develop'),
+      );
+
+      final restored = ProjectConfig.fromJson(config.toMap());
+
+      expect(restored.newWorkspace.sourceBranch, 'develop');
+      expect(restored.newWorkspace.preferredSourceBranch, 'develop');
+      expect(restored.isEmpty, isFalse);
+    });
+
+    test('defaults New Workspace source branch when omitted', () {
+      final config = ProjectConfig.fromJson(<String, Object?>{
+        'newWorkspace': <String, Object?>{
+          'promptAppend': 'Keep the APIs stable.',
+        },
+      });
+
+      expect(config.newWorkspace.sourceBranch, isEmpty);
+      expect(config.newWorkspace.preferredSourceBranch, isNull);
+    });
   });
 }

@@ -76,36 +76,33 @@ void main() {
       expect(countVisibleWorkspaces(state), 3);
     });
 
-    test('defaultOnly keeps only main worktrees', () {
+    test('legacy defaultOnly does not hide linked tasks', () {
       final state = _state(
         WorkbenchViewPrefs.defaults.copyWith(workspaceKindFilter: .defaultOnly),
       );
       final rows = buildSidebarRows(state);
       expect(
         workspaceOrderOfRows(rows),
-        containsAll(<String>['w-alera-main', 'w-orca-main']),
+        containsAll(<String>['w-alera-main', 'w-alera-feature', 'w-orca-main']),
       );
-      expect(workspaceOrderOfRows(rows), isNot(contains('w-alera-feature')));
-      expect(countVisibleWorkspaces(state), 2);
+      expect(countVisibleWorkspaces(state), 3);
     });
 
-    test(
-      'nonDefaultOnly keeps only linked worktrees and hides empty projects',
-      () {
-        final state = _state(
-          WorkbenchViewPrefs.defaults.copyWith(
-            workspaceKindFilter: .nonDefaultOnly,
-          ),
-        );
-        final rows = buildSidebarRows(state);
-        expect(workspaceOrderOfRows(rows), <String>['w-alera-feature']);
-        expect(countVisibleWorkspaces(state), 1);
-        // orca has no linked workspaces, so its header disappears while the
-        // filter is active.
-        final headers = rows.whereType<WorkbenchProjectHeaderRow>().toList();
-        expect(headers.any((row) => row.project.id == 'p-orca'), isFalse);
-      },
-    );
+    test('legacy nonDefaultOnly keeps all tasks and project headers', () {
+      final state = _state(
+        WorkbenchViewPrefs.defaults.copyWith(
+          workspaceKindFilter: .nonDefaultOnly,
+        ),
+      );
+      final rows = buildSidebarRows(state);
+      expect(
+        workspaceOrderOfRows(rows),
+        containsAll(<String>['w-alera-main', 'w-alera-feature', 'w-orca-main']),
+      );
+      expect(countVisibleWorkspaces(state), 3);
+      final headers = rows.whereType<WorkbenchProjectHeaderRow>().toList();
+      expect(headers.any((row) => row.project.id == 'p-orca'), isTrue);
+    });
 
     test('combines with the tag filter and search query', () {
       final tagged = _state(
@@ -114,9 +111,7 @@ void main() {
           selectedTagIds: <String>{'t1'},
         ),
       );
-      // The only tagged workspace is linked, so both filters together match
-      // nothing.
-      expect(countVisibleWorkspaces(tagged), 0);
+      expect(countVisibleWorkspaces(tagged), 1);
 
       final searched = _state(
         WorkbenchViewPrefs.defaults.copyWith(
@@ -124,20 +119,22 @@ void main() {
         ),
         searchQuery: 'develop',
       );
-      // The search matches a default workspace, but the kind filter still
-      // excludes it.
-      expect(countVisibleWorkspaces(searched), 0);
+      expect(countVisibleWorkspaces(searched), 1);
     });
 
-    test('collapse targets honor the kind filter', () {
+    test('collapse targets include all tasks despite a retired filter', () {
       final state = _state(
         WorkbenchViewPrefs.defaults.copyWith(
           workspaceKindFilter: .nonDefaultOnly,
         ),
       );
       final targets = visibleSidebarCollapseTargets(state);
-      expect(targets.workspaceIds, <String>{'w-alera-feature'});
-      expect(targets.projectIds, <String>{'p-alera'});
+      expect(targets.workspaceIds, <String>{
+        'w-alera-main',
+        'w-alera-feature',
+        'w-orca-main',
+      });
+      expect(targets.projectIds, <String>{'p-alera', 'p-orca'});
     });
   });
 }

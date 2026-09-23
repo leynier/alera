@@ -18,6 +18,7 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
   final List<_CopyRuleDraft> _copyRules = <_CopyRuleDraft>[];
   final TextEditingController _commandsController = TextEditingController();
   final TextEditingController _promptAppendController = TextEditingController();
+  final TextEditingController _sourceBranchController = TextEditingController();
   String? _provider;
   String _origin = 'none';
   String? _loadError;
@@ -37,6 +38,7 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
     }
     _commandsController.dispose();
     _promptAppendController.dispose();
+    _sourceBranchController.dispose();
     super.dispose();
   }
 
@@ -55,6 +57,7 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
         ..addAll(effective.config.copyRules.map(_CopyRuleDraft.fromRule));
       _commandsController.text = effective.config.setupCommands.join('\n');
       _promptAppendController.text = effective.config.promptAppend;
+      _sourceBranchController.text = effective.config.sourceBranch;
       setState(() {
         _provider = effective.config.gitHostingProvider;
         _origin = effective.origin;
@@ -139,6 +142,7 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
           .where((value) => value.isNotEmpty)
           .toList(growable: false),
       promptAppend: _promptAppendController.text.trim(),
+      sourceBranch: _sourceBranchController.text.trim(),
       gitHostingProvider: _provider,
     );
   }
@@ -205,6 +209,18 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
                       DropdownMenuItem(value: 'gitlab', child: Text('GitLab')),
                     ],
                     onChanged: (value) => setState(() => _provider = value),
+                  ),
+                  const SizedBox(height: AleraTokens.spaceXl),
+                  Text(
+                    'Default Source Branch',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: AleraTokens.spaceSm),
+                  TextField(
+                    controller: _sourceBranchController,
+                    decoration: const InputDecoration(
+                      hintText: 'Pre-selected in Source Branch pickers',
+                    ),
                   ),
                   const SizedBox(height: AleraTokens.spaceXl),
                   Text(

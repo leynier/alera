@@ -9,21 +9,30 @@ part of 'resource_manager_providers.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// Whether the resource panel is on screen. Drives the polling cadence.
+///
+/// This flag stays alive with [resourceSnapshot], which watches it for the
+/// whole session.
 
 @ProviderFor(ResourcePanelOpen)
 final resourcePanelOpenProvider = ResourcePanelOpenProvider._();
 
 /// Whether the resource panel is on screen. Drives the polling cadence.
+///
+/// This flag stays alive with [resourceSnapshot], which watches it for the
+/// whole session.
 final class ResourcePanelOpenProvider
     extends $NotifierProvider<ResourcePanelOpen, bool> {
   /// Whether the resource panel is on screen. Drives the polling cadence.
+  ///
+  /// This flag stays alive with [resourceSnapshot], which watches it for the
+  /// whole session.
   ResourcePanelOpenProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
         name: r'resourcePanelOpenProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -44,9 +53,12 @@ final class ResourcePanelOpenProvider
   }
 }
 
-String _$resourcePanelOpenHash() => r'bc22c6b74fdcbfc79dc5befcc04b43a1f8109d94';
+String _$resourcePanelOpenHash() => r'f30ec7accfc62aa30442ad9446e5ba0086132b66';
 
 /// Whether the resource panel is on screen. Drives the polling cadence.
+///
+/// This flag stays alive with [resourceSnapshot], which watches it for the
+/// whole session.
 
 abstract class _$ResourcePanelOpen extends $Notifier<bool> {
   bool build();

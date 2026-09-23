@@ -31,7 +31,7 @@ void main() {
     ]);
   });
 
-  test('parent choices prioritize the current project and its default', () {
+  test('parent choices prioritize the current project then task names', () {
     final choices =
         <WorkspaceParentSelectionKey>[
           _parent(
@@ -75,8 +75,8 @@ void main() {
         );
 
     expect(choices.map((choice) => choice.workspaceId), <String>[
-      'orca-main',
       'orca-alpha',
+      'orca-main',
       'orca-zulu',
       'alera-main',
       'alera-feature',

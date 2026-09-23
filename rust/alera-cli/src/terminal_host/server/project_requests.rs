@@ -26,6 +26,8 @@ use super::{ServerActor, ServerCommand};
 struct ProjectRegisterRequest {
     path: String,
     name: Option<String>,
+    id: Option<String>,
+    kind: Option<alera_core::runtime::ProjectKind>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -47,9 +49,15 @@ struct ProjectCloneStartRequest {
 impl ServerActor {
     pub(super) async fn project_register_request(&mut self, payload: &Value) -> HostResult<Value> {
         let request: ProjectRegisterRequest = parse(payload)?;
-        let result = register_project(&self.runtime_store, &request.path, request.name.as_deref())
-            .await
-            .map_err(state_error)?;
+        let result = crate::project_management::register_project_with_identity(
+            &self.runtime_store,
+            &request.path,
+            request.name.as_deref(),
+            request.id.as_deref(),
+            request.kind,
+        )
+        .await
+        .map_err(state_error)?;
         self.broadcast_project_state_changed();
         serde_json::to_value(result).map_err(state_error)
     }
@@ -258,7 +266,7 @@ impl ServerActor {
         self.schedule_shutdown_if_idle();
     }
 
-    fn broadcast_project_state_changed(&self) {
+    pub(super) fn broadcast_project_state_changed(&self) {
         self.broadcast_authenticated(event("projectsChanged", json!({})));
         self.broadcast_workspaces_changed(None);
         self.broadcast_workspace_tabs_changed(None);
@@ -402,7 +410,10 @@ async fn run_clone_job(
                     Some("Project Ready"),
                     None,
                     Some(&result.project.id),
-                    Some(&result.main_workspace.id),
+                    result
+                        .initial_workspace
+                        .as_ref()
+                        .map(|workspace| workspace.id.as_str()),
                 )
                 .await;
         }

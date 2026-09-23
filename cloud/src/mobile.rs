@@ -5,7 +5,7 @@ use axum::{
 };
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use chrono::{DateTime, TimeDelta, Utc};
-use rand::{rngs::OsRng, RngCore};
+use rand::{rand_core::UnwrapErr, rngs::SysRng, Rng};
 use sha2::{Digest, Sha256};
 use sqlx::FromRow;
 use uuid::Uuid;
@@ -399,7 +399,7 @@ fn validate_enrollment_code(value: &str) -> Result<(), ApiError> {
 
 fn random_enrollment_code() -> String {
     let mut bytes = [0_u8; 32];
-    OsRng.fill_bytes(&mut bytes);
+    UnwrapErr(SysRng).fill_bytes(&mut bytes);
     format!("ame_{}", URL_SAFE_NO_PAD.encode(bytes))
 }
 

@@ -45,7 +45,10 @@ class const _GoldenDashboardFrame({required final WorkbenchState state})
       bundle: _GoldenLogoAssetBundle(),
       child: ProviderScope(
         overrides: [
+          // Root providers, overridden only inside this golden frame.
+          // ignore: riverpod_lint/scoped_providers_should_specify_dependencies
           workbenchControllerProvider.overrideWithValue(state),
+          // ignore: riverpod_lint/scoped_providers_should_specify_dependencies
           settingsControllerProvider.overrideWithValue(.defaults),
         ],
         child: const WelcomeDashboard(),

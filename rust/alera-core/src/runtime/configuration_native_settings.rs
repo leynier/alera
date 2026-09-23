@@ -1,10 +1,9 @@
-use super::{BrowserSettings, RuntimeAiAssistPromptSettings, RuntimeAiAssistSettings};
+use super::{RuntimeAiAssistPromptSettings, RuntimeAiAssistSettings};
 use anyhow::Result;
 use serde_json::Value;
 
 pub(super) fn overlay(previous: Option<&Value>, mut current: Value, key: &str) -> Result<Value> {
     let supported = match key {
-        "browser.settings.v1" => serde_json::to_value(BrowserSettings::default())?,
         "settings.aiTextGeneration" => serde_json::to_value(RuntimeAiAssistSettings::default())?,
         _ => return Ok(current),
     };

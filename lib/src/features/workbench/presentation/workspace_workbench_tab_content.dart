@@ -41,11 +41,6 @@ class const _WorkspaceTabContent({
   Widget build(BuildContext context) {
     return switch (tab.kind) {
       WorkspaceTabKind.terminal => _buildTerminal(),
-      WorkspaceTabKind.codex => CodexChatSurface(
-        workspace: workspace,
-        tab: tab,
-        autofocus: autofocus,
-      ),
       WorkspaceTabKind.editor => _WorkspaceFileTabContent(
         workspace: workspace,
         sourceControlScope: sourceControlScope,
@@ -58,6 +53,7 @@ class const _WorkspaceTabContent({
       WorkspaceTabKind.markdownViewer => WorkspaceMarkdownViewerSurface(
         workspace: workspace,
         tab: tab,
+        autofocus: autofocus,
         onOpenEditorTab: onOpenEditorTab,
       ),
       WorkspaceTabKind.pdf => WorkspacePdfViewerSurface(
@@ -66,15 +62,6 @@ class const _WorkspaceTabContent({
         autofocus: autofocus,
       ),
       WorkspaceTabKind.gitDiff => WorkspaceGitDiffSurface(
-        workspace: workspace,
-        tab: tab,
-      ),
-      WorkspaceTabKind.browser => BrowserTabSurface(
-        tab: tab,
-        autofocus: autofocus,
-        pageObscured: _WorkbenchTabDragScope.isActiveOf(context),
-      ),
-      WorkspaceTabKind.mobileEmulator => MobileEmulatorSurface(
         workspace: workspace,
         tab: tab,
         autofocus: autofocus,

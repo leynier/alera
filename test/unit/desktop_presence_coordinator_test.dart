@@ -340,6 +340,14 @@ class _RecordingPresenceBackend implements DesktopPresenceBackend {
   Future<void> destroy() async {
     destroyCalls += 1;
   }
+
+  @override
+  Future<bool> showTrayNotice({
+    required String title,
+    required String message,
+  }) async {
+    return true;
+  }
 }
 
 class _MemoryWindowStateRepository implements AppWindowStateRepository {

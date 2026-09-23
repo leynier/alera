@@ -19,7 +19,6 @@ use crate::terminal_host::session::Session;
 use alera_core::runtime::RuntimeStore;
 
 use super::account_push_state::AccountPushState;
-use super::browser_broker::BrowserBroker;
 use super::client_delivery::LocalClientRole;
 use super::{ClientKind, ClientState, ServerActor};
 
@@ -29,9 +28,9 @@ impl ClientState {
         ClientState {
             handle,
             authenticated: true,
+            shared_checkout_workspaces: true,
+            checkout_buffer_guards: true,
             binary_frames: false,
-            supports_mobile_emulator_tab_kind: false,
-            supports_codex_tab_kind: false,
             kind: ClientKind::Local,
             local_role: if app_client {
                 LocalClientRole::App
@@ -50,9 +49,9 @@ pub(super) fn mobile_client(handle: ClientHandle, device: &str) -> ClientState {
     ClientState {
         handle,
         authenticated: true,
+        shared_checkout_workspaces: true,
+        checkout_buffer_guards: true,
         binary_frames: false,
-        supports_mobile_emulator_tab_kind: false,
-        supports_codex_tab_kind: false,
         kind: ClientKind::Mobile,
         local_role: LocalClientRole::Cli,
         mobile_device_id: Some(device.to_string()),
@@ -66,9 +65,9 @@ pub(super) fn local_client(handle: ClientHandle) -> ClientState {
     ClientState {
         handle,
         authenticated: true,
+        shared_checkout_workspaces: true,
+        checkout_buffer_guards: true,
         binary_frames: false,
-        supports_mobile_emulator_tab_kind: false,
-        supports_codex_tab_kind: false,
         kind: ClientKind::Local,
         local_role: LocalClientRole::Cli,
         mobile_device_id: None,
@@ -98,12 +97,17 @@ pub(super) async fn test_actor(
         runtime_store,
         automation_wake: Arc::new(tokio::sync::Notify::new()),
         automations_active: false,
+        pull_request_watches: Default::default(),
         sessions,
         ssh_bootstrap_jobs: HashMap::new(),
         project_clone_jobs: HashMap::new(),
         agent_title_jobs: HashMap::new(),
         managed_workspace_jobs: 0,
-        emulator_requests: Default::default(),
+        automation_checkout_jobs: Default::default(),
+        automation_precheck_jobs: Default::default(),
+        pending_terminal_lifecycle_shutdowns: Default::default(),
+        checkout_buffer_guards: HashMap::new(),
+        mutation_queue: Default::default(),
         agent_quota_cache: None,
         configuration_transfers: Default::default(),
         account_push,
@@ -118,13 +122,8 @@ pub(super) async fn test_actor(
         coordinators: HashMap::new(),
         resources: ResourceMonitorState::default(),
         terminal_pulses: Default::default(),
-        browser: BrowserBroker::default(),
-        emulators: None,
         codex: None,
-        codex_presence: HashMap::new(),
-        codex_presence_scheduled: false,
-        codex_pending_messages: HashMap::new(),
-        codex_flush_scheduled: HashSet::new(),
+        codex_starting: None,
         inbox,
         next_client_id: Arc::new(AtomicU64::new(10)),
         mobile_gateway: None,

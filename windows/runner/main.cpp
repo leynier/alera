@@ -51,6 +51,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   const int exit_code = single_instance.RunMessageLoop(window.GetHandle());
 
+  // window_manager's destroy() only posts WM_QUIT, so the HWND outlives the
+  // loop. Tear the Flutter view down through OnDestroy while COM is still
+  // initialized; destroying it as a member later dispatches messages to a
+  // controller that is being freed.
+  window.Destroy();
   ::CoUninitialize();
   return exit_code;
 }

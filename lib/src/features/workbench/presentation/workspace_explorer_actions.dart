@@ -43,6 +43,15 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
           await Clipboard.setData(ClipboardData(text: entry.relativePath));
           _showInfo('Relative path copied');
         }
+      case _ExplorerAction.comment:
+        if (entry != null && !_isDirectoryEntry(entry)) {
+          await composeWorkspaceAgentFileComment(
+            context,
+            ref,
+            workspaceId: widget.workspace.id,
+            path: entry.relativePath,
+          );
+        }
       case _ExplorerAction.duplicate:
         if (entry != null) {
           await _duplicate(entry);
@@ -80,10 +89,21 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
     }
   }
 
+  bool _rejectRemoteMutation() {
+    if (!widget.workspace.isRemote) {
+      return false;
+    }
+    _showError(StateError(remoteWorkspaceWriteUnsupportedMessage()));
+    return true;
+  }
+
   Future<void> _createEntry({
     String parentPath = '',
     required bool directory,
   }) async {
+    if (_rejectRemoteMutation()) {
+      return;
+    }
     final name = await _promptName(
       title: directory ? 'New folder' : 'New file',
       label: directory ? 'Folder name' : 'File name',
@@ -118,6 +138,9 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
   }
 
   Future<void> _rename(native.WorkspaceFileEntry entry) async {
+    if (_rejectRemoteMutation()) {
+      return;
+    }
     final name = await _promptName(
       title: 'Rename',
       label: 'Name',
@@ -149,6 +172,9 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
   }
 
   Future<void> _paste(String targetDir) async {
+    if (_rejectRemoteMutation()) {
+      return;
+    }
     final clipboard = _clipboard;
     if (clipboard == null) {
       return;
@@ -179,6 +205,9 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
   }
 
   Future<void> _duplicate(native.WorkspaceFileEntry entry) async {
+    if (_rejectRemoteMutation()) {
+      return;
+    }
     final parentPath = _parentPath(entry.relativePath);
     try {
       await _workspaceFiles.copyEntry(
@@ -235,6 +264,9 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
         }
       }
       ancestor = ancestor.isEmpty ? part : '$ancestor/$part';
+      if (!_isDirectoryEntry(_entryByPath[ancestor])) {
+        return;
+      }
     }
   }
 
@@ -260,6 +292,9 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
   }
 
   Future<void> _moveEntry(String relativePath, String targetDir) async {
+    if (_rejectRemoteMutation()) {
+      return;
+    }
     try {
       final sourceParent = _parentPath(relativePath);
       final moved = await _workspaceFiles.moveEntry(
@@ -287,6 +322,9 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
   }
 
   Future<void> _delete(native.WorkspaceFileEntry entry) async {
+    if (_rejectRemoteMutation()) {
+      return;
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AleraConfirmDialog(
@@ -441,7 +479,7 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
         _ => 'File operation failed',
       };
     }
-    return 'File operation failed';
+    return remoteWorkspaceErrorMessage(error) ?? 'File operation failed';
   }
 
   String _parentPath(String relativePath) {

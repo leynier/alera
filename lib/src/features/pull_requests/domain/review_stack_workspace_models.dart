@@ -5,6 +5,7 @@ class const ReviewStackWorkspaceCandidate({
   required final String repoPath,
   required final String branch,
   required final bool current,
+  final String? repositoryId,
   final String? sourceBranch,
   final String? parentWorkspaceId,
 });

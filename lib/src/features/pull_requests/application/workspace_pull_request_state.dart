@@ -1,3 +1,4 @@
+import 'package:alera/src/features/pull_requests/domain/review_comment_load.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
@@ -15,6 +16,7 @@ enum PullRequestAction {
   link,
   unlink,
   create,
+  ship,
   update,
   createStack,
   linkStack,
@@ -35,8 +37,10 @@ class const WorkspacePullRequestState({
   this.stack,
   this.stackSupported = false,
   this.stackErrorMessage,
+  this.mergeMethodsErrorMessage,
   final List<ReviewCheck> checks = const <ReviewCheck>[],
   final List<ReviewComment> comments = const <ReviewComment>[],
+  final bool commentsComplete = true,
   final bool linkedManually = false,
   this.dismissed = false,
   this.currentBranch,
@@ -63,6 +67,9 @@ class const WorkspacePullRequestState({
 
   /// A stack-specific load failure that does not hide the pull request itself.
   final String? stackErrorMessage;
+
+  /// A merge-method discovery failure that does not hide the pull request.
+  final String? mergeMethodsErrorMessage;
 
   /// Whether the workspace currently carries a dismissal record that applies
   /// to the active branch review or no active review exists yet.
@@ -105,8 +112,11 @@ class const WorkspacePullRequestState({
     bool? stackSupported,
     String? stackErrorMessage,
     bool clearStackError = false,
+    String? mergeMethodsErrorMessage,
+    bool clearMergeMethodsError = false,
     List<ReviewCheck>? checks,
     List<ReviewComment>? comments,
+    bool? commentsComplete,
     bool? linkedManually,
     bool? dismissed,
     String? currentBranch,
@@ -134,8 +144,15 @@ class const WorkspacePullRequestState({
       stackErrorMessage: clearStackError
           ? null
           : (stackErrorMessage ?? this.stackErrorMessage),
+      mergeMethodsErrorMessage: clearMergeMethodsError
+          ? null
+          : (mergeMethodsErrorMessage ?? this.mergeMethodsErrorMessage),
       checks: checks ?? this.checks,
       comments: comments ?? this.comments,
+      commentsComplete:
+          commentsComplete ??
+          (this.commentsComplete &&
+              (comments == null || reviewCommentsComplete(comments))),
       linkedManually: linkedManually ?? this.linkedManually,
       dismissed: dismissed ?? this.dismissed,
       currentBranch: currentBranch ?? this.currentBranch,
@@ -159,14 +176,19 @@ class const WorkspacePullRequestState({
         .map((c) => '${c.name}:${c.status.name}:${c.conclusion.name}')
         .join('|');
     final commentPart = comments
-        .map((comment) => '${comment.id}:${comment.createdAt}:${comment.body}')
+        .map(
+          (comment) =>
+              '${comment.id}:${comment.createdAt}:${comment.resolved}:'
+              '${comment.outdated}:${comment.body}',
+        )
         .join('|');
     final stackPart = stack == null
         ? ''
         : '${stack!.number}:${stack!.open}:'
               '${stack!.entries.map((entry) => '${entry.review.number}:${entry.review.state.name}:${entry.review.baseBranch}').join('|')}';
     return '${review?.number}:${review?.state.name}:${review?.title}:'
+        '${review?.mergeable.name}:'
         '${suggestedReview?.number}:${suggestedReview?.state.name}:$dismissed:'
-        '${review?.baseBranch}:$stackPart:$checkPart:$commentPart';
+        '${review?.baseBranch}:$stackPart:$checkPart:$commentsComplete:$commentPart';
   }
 }

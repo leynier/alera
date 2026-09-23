@@ -35,6 +35,7 @@ const desktopPortableFields = <String, List<String>>{
     'agentStatusNotificationsEnabled',
     'agentStatusFinishedNotificationsEnabled',
     'defaultAgentProfileId',
+    'showTabTitlesInSidebar',
   ],
   'aiTextGeneration': [
     'enabled',
@@ -61,13 +62,6 @@ const desktopPortableFields = <String, List<String>>{
     'codexRealtimeModel',
     'remoteProvider',
     'timeoutSeconds',
-  ],
-  'codexChat': [
-    'selectedModel',
-    'reasoningEffort',
-    'speedMode',
-    'permissionMode',
-    'planMode',
   ],
 };
 
@@ -103,6 +97,7 @@ const portableProfileFields = [
   'customPrompt',
   'description',
   'quotaGroup',
+  'showInNewTabMenu',
 ];
 const mobileDictationFields = [
   'enabled',

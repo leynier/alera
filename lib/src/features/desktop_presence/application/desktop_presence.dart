@@ -8,6 +8,12 @@ String linuxLauncherDesktopId({String bundleId = kAleraBundleId}) {
   return '$bundleId.desktop';
 }
 
+/// Windows balloon limits: 63 characters of title, 255 of text.
+const String trayHideNoticeTitle = '$kAleraAppName is still running';
+const String trayHideNoticeMessage =
+    'Closing the window keeps $kAleraAppName in the notification area. '
+    'Click its icon to reopen it, or right-click it and choose Quit to exit.';
+
 String pendingReviewTooltip(int count) {
   if (count <= 0) {
     return kAleraAppName;

@@ -38,6 +38,13 @@ class WorkbenchStateMapper extends ClassMapperBase<WorkbenchState> {
     opt: true,
     def: false,
   );
+  static bool _$supportsArchive(WorkbenchState v) => v.supportsArchive;
+  static const Field<WorkbenchState, bool> _f$supportsArchive = Field(
+    'supportsArchive',
+    _$supportsArchive,
+    opt: true,
+    def: false,
+  );
   static List<Project> _$projects(WorkbenchState v) => v.projects;
   static const Field<WorkbenchState, List<Project>> _f$projects = Field(
     'projects',
@@ -133,6 +140,7 @@ class WorkbenchStateMapper extends ClassMapperBase<WorkbenchState> {
   final MappableFields<WorkbenchState> fields = const {
     #sections: _f$sections,
     #supportsSections: _f$supportsSections,
+    #supportsArchive: _f$supportsArchive,
     #projects: _f$projects,
     #workspacesByProject: _f$workspacesByProject,
     #tabsByWorkspace: _f$tabsByWorkspace,
@@ -151,6 +159,7 @@ class WorkbenchStateMapper extends ClassMapperBase<WorkbenchState> {
     return WorkbenchState(
       sections: data.dec(_f$sections),
       supportsSections: data.dec(_f$supportsSections),
+      supportsArchive: data.dec(_f$supportsArchive),
       projects: data.dec(_f$projects),
       workspacesByProject: data.dec(_f$workspacesByProject),
       tabsByWorkspace: data.dec(_f$tabsByWorkspace),
@@ -263,6 +272,7 @@ abstract class WorkbenchStateCopyWith<$R, $In extends WorkbenchState, $Out>
   $R call({
     List<WorkspaceSection>? sections,
     bool? supportsSections,
+    bool? supportsArchive,
     List<Project>? projects,
     Map<String, List<Workspace>>? workspacesByProject,
     Map<String, List<WorkspaceTabRecord>>? tabsByWorkspace,
@@ -357,6 +367,7 @@ class _WorkbenchStateCopyWithImpl<$R, $Out>
   $R call({
     List<WorkspaceSection>? sections,
     bool? supportsSections,
+    bool? supportsArchive,
     List<Project>? projects,
     Map<String, List<Workspace>>? workspacesByProject,
     Map<String, List<WorkspaceTabRecord>>? tabsByWorkspace,
@@ -373,6 +384,7 @@ class _WorkbenchStateCopyWithImpl<$R, $Out>
     FieldCopyWithData({
       if (sections != null) #sections: sections,
       if (supportsSections != null) #supportsSections: supportsSections,
+      if (supportsArchive != null) #supportsArchive: supportsArchive,
       if (projects != null) #projects: projects,
       if (workspacesByProject != null)
         #workspacesByProject: workspacesByProject,
@@ -393,6 +405,7 @@ class _WorkbenchStateCopyWithImpl<$R, $Out>
   WorkbenchState $make(CopyWithData data) => WorkbenchState(
     sections: data.get(#sections, or: $value.sections),
     supportsSections: data.get(#supportsSections, or: $value.supportsSections),
+    supportsArchive: data.get(#supportsArchive, or: $value.supportsArchive),
     projects: data.get(#projects, or: $value.projects),
     workspacesByProject: data.get(
       #workspacesByProject,

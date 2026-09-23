@@ -1,6 +1,8 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 
+import 'workspace_panel.dart';
+
 part 'workbench_view_prefs.mapper.dart';
 
 @MappableEnum()
@@ -10,13 +12,7 @@ enum WorkbenchGroupBy { none, project, section }
 enum WorkbenchSortBy { name, recent, activity }
 
 @MappableEnum()
-enum WorkbenchContextPanelTab {
-  explorer,
-  search,
-  gitDiff,
-  pullRequests,
-  agentCanvas,
-}
+enum WorkbenchContextPanelTab { explorer, search, gitDiff, pullRequests }
 
 @MappableEnum()
 enum WorkspaceExplorerMode { hideIgnored, showAll }
@@ -38,8 +34,104 @@ enum PullRequestCreateAction { publish, draft }
 @MappableEnum()
 enum WorkspaceKindFilter { all, defaultOnly, nonDefaultOnly }
 
-@MappableClass()
+class WorkbenchViewPrefsDecodeHook extends MappingHook {
+  const WorkbenchViewPrefsDecodeHook();
+
+  @override
+  Object? beforeDecode(Object? value) {
+    if (value is! Map) {
+      return value;
+    }
+    final map = <String, dynamic>{
+      for (final entry in value.entries) entry.key.toString(): entry.value,
+    };
+    var changed = false;
+    if (map['activeContextPanelTab'] == 'agentCanvas') {
+      map['activeContextPanelTab'] = 'explorer';
+      changed = true;
+    }
+    if (map.containsKey('experimentalPanels') &&
+        !map.containsKey('workspacePanels')) {
+      map['workspacePanels'] = map['experimentalPanels'];
+      changed = true;
+    }
+    if (map.containsKey('experimentalNewWorkspaceTools') &&
+        !map.containsKey('newWorkspaceTools')) {
+      map['newWorkspaceTools'] = map['experimentalNewWorkspaceTools'];
+      changed = true;
+    }
+    if (map.containsKey('experimentalRightSidebarWidth')) {
+      final experimentalWidth = map['experimentalRightSidebarWidth'];
+      if (experimentalWidth is num &&
+          (map['rightSidebarWidth'] == null ||
+              map.containsKey('desktopLayout'))) {
+        map['rightSidebarWidth'] = experimentalWidth;
+        changed = true;
+      }
+    }
+    if (map.remove('desktopLayout') != null ||
+        map.remove('experimentalPanels') != null ||
+        map.remove('experimentalNewWorkspaceTools') != null ||
+        map.remove('experimentalRightSidebarWidth') != null) {
+      changed = true;
+    }
+    final rawFallback = map['rightSidebarWidth'];
+    final fallbackWidth = rawFallback is num ? rawFallback.toDouble() : 280.0;
+    final rawWidths = map['rightSidebarWidthByWorkspaceId'];
+    if (rawWidths is Map) {
+      final compact = <String, double>{};
+      for (final entry in rawWidths.entries) {
+        final stored = entry.value;
+        if (stored is! num) {
+          continue;
+        }
+        final width = stored.toDouble();
+        if ((width - fallbackWidth).abs() < 0.5) {
+          changed = true;
+          continue;
+        }
+        compact[entry.key.toString()] = width;
+      }
+      if (compact.length != rawWidths.length) {
+        changed = true;
+      }
+      map['rightSidebarWidthByWorkspaceId'] = compact;
+    }
+    final rawTools = map['newWorkspaceTools'];
+    if (rawTools is List) {
+      final known = <String>{
+        for (final tool in WorkspaceTool.values) tool.name,
+      };
+      final seen = <String>{};
+      final tools = <String>[
+        for (final item in rawTools)
+          if (item is String && known.contains(item) && seen.add(item)) item,
+      ];
+      if (tools.length != rawTools.length ||
+          !_sameStringList(tools, rawTools)) {
+        map['newWorkspaceTools'] = tools;
+        changed = true;
+      }
+    }
+    return changed ? map : value;
+  }
+
+  static bool _sameStringList(List<String> left, List<dynamic> right) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (var i = 0; i < left.length; i++) {
+      if (left[i] != right[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+}
+
+@MappableClass(hook: WorkbenchViewPrefsDecodeHook())
 class const WorkbenchViewPrefs({
+  this.workspacePanels = const <String, WorkspacePanel>{},
   this.sectionSort = WorkbenchSortBy.name,
   this.collapsedSectionIds = const <String>{},
   this.othersSectionCollapsed = false,
@@ -49,6 +141,7 @@ class const WorkbenchViewPrefs({
   required this.selectedProjectIds,
   required this.collapsedProjectIds,
   required this.expandedWorkspaceIds,
+  this.selectedSectionIds = const <String>{},
   this.selectedTagIds = const <String>{},
   this.collapsedParentWorkspaceIds = const <String>{},
   this.pinnedSectionCollapsed = false,
@@ -57,15 +150,21 @@ class const WorkbenchViewPrefs({
   this.sourceControlRootByWorkspaceId = const <String, String>{},
   this.rightSidebarVisible = true,
   this.rightSidebarWidth = 280,
+  this.rightSidebarWidthByWorkspaceId = const <String, double>{},
   this.sidebarWidth = AleraTokens.sidebarDefaultWidth,
   this.activeContextPanelTab = WorkbenchContextPanelTab.explorer,
   this.explorerMode = WorkspaceExplorerMode.hideIgnored,
   this.gitDiffViewMode = GitDiffViewMode.tree,
   this.gitDiffGroupMode = GitDiffGroupMode.byArea,
+  this.searchViewAsTree = false,
+  this.searchIncludeIgnored = false,
   this.pullRequestCreateAction = PullRequestCreateAction.publish,
   this.workspaceKindFilter = WorkspaceKindFilter.all,
   this.showActiveWorkspacesOnly = false,
+  this.showArchivedWorkspaces = false,
+  this.newWorkspaceTools = const <WorkspaceTool>[],
 }) with WorkbenchViewPrefsMappable {
+  final Map<String, WorkspacePanel> workspacePanels;
   final WorkbenchGroupBy groupBy;
   final WorkbenchSortBy sectionSort;
   final Set<String> collapsedSectionIds;
@@ -84,6 +183,12 @@ class const WorkbenchViewPrefs({
   /// default; the per-row chevron lets the user toggle membership without
   /// changing the active selection.
   final Set<String> expandedWorkspaceIds;
+
+  /// Sections the user has explicitly added to the visibility filter. Empty
+  /// means no section filtering; non-empty shows workspaces belonging to at
+  /// least one of the selected sections (OR semantics, mirroring
+  /// [selectedProjectIds] and [selectedTagIds]).
+  final Set<String> selectedSectionIds;
 
   /// Tags the user has explicitly added to the visibility filter. Empty means
   /// no tag filtering; non-empty shows workspaces carrying at least one of the
@@ -111,9 +216,23 @@ class const WorkbenchViewPrefs({
   final bool rightSidebarVisible;
   final double rightSidebarWidth;
 
+  /// Per-workspace right context-panel width. Missing ids use
+  /// [rightSidebarWidth]. Entries are pruned when the workspace is removed.
+  final Map<String, double> rightSidebarWidthByWorkspaceId;
+
   /// Width of the left sidebar (project/workbench list panel). Persisted so
   /// the user's preferred panel size survives app restarts.
   final double sidebarWidth;
+
+  double rightSidebarWidthFor(String? workspaceId, {double? fallback}) {
+    if (workspaceId != null) {
+      final stored = rightSidebarWidthByWorkspaceId[workspaceId];
+      if (stored != null) {
+        return stored;
+      }
+    }
+    return fallback ?? rightSidebarWidth;
+  }
 
   final WorkbenchContextPanelTab activeContextPanelTab;
   final WorkspaceExplorerMode explorerMode;
@@ -121,6 +240,13 @@ class const WorkbenchViewPrefs({
 
   /// Whether Source Control groups files by staged state or shows one list.
   final GitDiffGroupMode gitDiffGroupMode;
+
+  /// Whether Search lists results as a folder tree. Shared with paired phones
+  /// through the runtime view prefs, like the Source Control view modes.
+  final bool searchViewAsTree;
+
+  /// Whether Search also walks gitignored files.
+  final bool searchIncludeIgnored;
 
   /// Sticky create-PR split-button action (publish vs draft). App-wide and
   /// persisted with the rest of the workbench view prefs.
@@ -135,6 +261,15 @@ class const WorkbenchViewPrefs({
   /// workspaces.
   final bool showActiveWorkspacesOnly;
 
+  /// Whether the sidebar shows archived workspaces. Defaults to false so
+  /// archived workspaces stay out of the way until explicitly requested.
+  final bool showArchivedWorkspaces;
+
+  /// Tools opened in the right panel, in order, when a new workspace is
+  /// created. Empty keeps that panel empty until the user adds a tool.
+  /// Existing workspaces keep their own saved panel.
+  final List<WorkspaceTool> newWorkspaceTools;
+
   static const WorkbenchViewPrefs defaults = WorkbenchViewPrefs(
     groupBy: .project,
     projectSort: .name,
@@ -142,6 +277,7 @@ class const WorkbenchViewPrefs({
     selectedProjectIds: <String>{},
     collapsedProjectIds: <String>{},
     expandedWorkspaceIds: <String>{},
+    selectedSectionIds: <String>{},
     selectedTagIds: <String>{},
     collapsedParentWorkspaceIds: <String>{},
     pinnedSectionCollapsed: false,
@@ -150,16 +286,23 @@ class const WorkbenchViewPrefs({
     sourceControlRootByWorkspaceId: <String, String>{},
     rightSidebarVisible: true,
     rightSidebarWidth: 280,
+    rightSidebarWidthByWorkspaceId: <String, double>{},
     sidebarWidth: AleraTokens.sidebarDefaultWidth,
     activeContextPanelTab: .explorer,
     explorerMode: .hideIgnored,
     gitDiffViewMode: .tree,
     gitDiffGroupMode: .byArea,
+    searchViewAsTree: false,
+    searchIncludeIgnored: false,
     pullRequestCreateAction: .publish,
     workspaceKindFilter: .all,
     showActiveWorkspacesOnly: false,
+    showArchivedWorkspaces: false,
   );
 
   factory fromJson(Map<String, Object?> json) =>
-      WorkbenchViewPrefsMapper.fromMap(Map<String, dynamic>.from(json));
+      WorkbenchViewPrefsMapper.fromMap(<String, dynamic>{
+        ...json,
+        'workspaceKindFilter': 'all',
+      });
 }

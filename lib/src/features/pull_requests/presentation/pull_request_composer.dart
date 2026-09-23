@@ -5,16 +5,20 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/layout/alera_choice_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_prompt.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
 import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_field_overlay.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_ship_scope.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_field_decoration.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_link_form.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_restack_button.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
+import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,6 +31,12 @@ class const CreateReviewDraft({
   required final String baseBranch,
   required final String? body,
   required final bool draft,
+});
+
+typedef PullRequestShipCallback = Future<void> Function({
+  required String baseBranch,
+  required bool draft,
+  required PullRequestShipScope scope,
 });
 
 enum _ComposerMode { create, link }
@@ -43,10 +53,13 @@ class const PullRequestComposer({
   required final HostedReview? suggestedReview,
   required final PullRequestCreateAction createAction,
   required final ValueChanged<CreateReviewDraft> onCreate,
+  required final PullRequestShipCallback onShip,
+  final VoidCallback? onRestack,
   required final ValueChanged<String> onLink,
   required final ValueChanged<PullRequestCreateAction> onCreateActionChanged,
   final bool canCreateStack = false,
   final bool creatingStack = false,
+  final bool shipping = false,
   final Future<void> Function(CreateReviewDraft draft)? onCreateStack,
 }) extends ConsumerStatefulWidget {
   @override
@@ -158,6 +171,50 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
     if (draft != null) {
       widget.onCreate(draft);
     }
+  }
+
+  Future<void> _submitShip() async {
+    final base = _baseBranch.trim();
+    if (base.isEmpty) {
+      setState(() => _errorText = 'Base branch is required');
+      return;
+    }
+    final scope = await _resolveShipScope();
+    if (!mounted || scope == null) {
+      return;
+    }
+    setState(() => _errorText = null);
+    await widget.onShip(
+      baseBranch: base,
+      draft: widget.createAction == PullRequestCreateAction.draft,
+      scope: scope,
+    );
+  }
+
+  Future<PullRequestShipScope?> _resolveShipScope() async {
+    try {
+      final status = await ref.read(gitBackendProvider).status(widget.repoPath);
+      if (status.entries.isEmpty) {
+        return PullRequestShipScope.staged;
+      }
+    } on Object {
+      // Fall through to the confirmation dialog when status cannot be read.
+    }
+    if (!mounted) {
+      return null;
+    }
+    return showDialog<PullRequestShipScope>(
+      context: context,
+      builder: (_) => const AleraChoiceDialog<PullRequestShipScope>(
+        title: 'Ship Changes?',
+        message: 'Ship only staged changes, or stage all changes first and include them in the commit.',
+        primaryLabel: 'Ship Staged Changes',
+        primaryValue: .staged,
+        secondaryLabel: 'Ship All Changes',
+        secondaryValue: .all,
+        stackedActions: true,
+      ),
+    );
   }
 
   Future<void> _submitCreateStack() async {
@@ -332,15 +389,33 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
                   ),
                 ],
                 const SizedBox(height: AleraTokens.space16),
-                if (_mode == _ComposerMode.create)
+                if (_mode == _ComposerMode.create) ...<Widget>[
+                  if (widget.onRestack != null) ...<Widget>[
+                    PullRequestRestackButton(
+                      enabled: !widget.busy && !_generating,
+                      onPressed: widget.onRestack!,
+                    ),
+                    const SizedBox(height: AleraTokens.space8),
+                  ],
+                  _ShipPullRequestButton(
+                    shipping: widget.shipping,
+                    aiEnabled: aiEnabled,
+                    enabled:
+                        !widget.busy &&
+                        widget.canCreate &&
+                        !_generating &&
+                        aiEnabled,
+                    onPressed: () => unawaited(_submitShip()),
+                  ),
+                  const SizedBox(height: AleraTokens.space8),
                   _CreatePullRequestButton(
                     action: widget.createAction,
-                    busy: widget.busy,
+                    busy: widget.busy && !widget.shipping,
                     enabled: !widget.busy && widget.canCreate && !_generating,
                     onPressed: _submitCreate,
                     onSelected: widget.onCreateActionChanged,
-                  )
-                else
+                  ),
+                ] else
                   FilledButton.icon(
                     onPressed: widget.busy ? null : _submitLink,
                     icon: widget.busy

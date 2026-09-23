@@ -5,6 +5,7 @@ import 'package:alera_mobile/src/features/push_notifications/application/pending
 import 'package:alera_mobile/src/features/push_notifications/application/push_coordinator.dart';
 import 'package:alera_mobile/src/features/push_notifications/presentation/push_intent_router.dart';
 import 'package:alera_mobile/src/features/updater/presentation/mobile_update_prompt.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/background_setup_job_host.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -28,6 +29,16 @@ class const AleraMobileApp({super.key}) extends ConsumerWidget {
       theme: buildAleraMobileDarkTheme(),
       // Wrapping the first route rather than `builder`, which mounts above the
       // Navigator and leaves the prompt without one to push a dialog onto.
+      // Job cards sit in `builder` so they survive route changes, and hide
+      // themselves while a create/retry form is open.
+      builder: (context, child) {
+        return Stack(
+          children: <Widget>[
+            child ?? const SizedBox.shrink(),
+            const BackgroundSetupJobHost(),
+          ],
+        );
+      },
       home: const MobileUpdatePrompt(child: HostListScreen()),
     );
   }

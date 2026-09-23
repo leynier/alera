@@ -8,11 +8,20 @@ import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
+import 'package:alera/src/features/linked_issues/domain/issue_details.dart';
+import 'package:alera/src/features/linked_issues/domain/issue_workspace_identity.dart';
+import 'package:alera/src/features/linked_issues/presentation/issue_url_field.dart';
+import 'package:alera/src/features/projects/domain/preferred_source_branch.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/domain/project_branch_catalog.dart';
 import 'package:alera/src/features/projects/domain/project_selection_order.dart';
+import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
+import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
+import 'package:alera/src/features/workbench/domain/background_setup_job.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/domain/workspace_parent_selection_order.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_host_picker.dart';
 import 'package:alera/src/features/workbench/domain/terminal_image_paste.dart';
 import 'package:alera/src/features/workbench/infra/prompt_workspace_clipboard.dart';
 import 'package:alera/src/features/workbench/infra/prompt_workspace_runtime_client.dart';
@@ -22,15 +31,16 @@ import 'package:uuid/uuid.dart';
 
 part 'prompt_workspace_dialog_form.dart';
 part 'prompt_workspace_dialog_agent_launch.dart';
+part 'prompt_workspace_dialog_linked_issue.dart';
 part 'prompt_workspace_dialog_clipboard.dart';
 part 'prompt_workspace_dialog_selection_order.dart';
+part 'prompt_workspace_dialog_shell.dart';
 
 enum NewWorkspaceMode { fromPrompt, manual }
 
 class const PromptWorkspaceDialogResult({
   final WorkspaceCreationResult? creation,
   final String? agentTabId,
-  final bool openManual = false,
 });
 
 class const PromptWorkspaceDialog({
@@ -38,6 +48,8 @@ class const PromptWorkspaceDialog({
   required final List<Project> projects,
   required final List<AgentProfile> agentProfiles,
   required final Future<List<String>> Function(Project project) loadBranches,
+  final Future<ProjectBranchCatalog> Function(Project project, String? hostId)?
+  loadHostBranchCatalog,
   required final Future<bool> Function(Project project, String branchName)
   checkBranchExists,
   required final Set<String> Function(Project project) workspaceBranches,
@@ -46,6 +58,7 @@ class const PromptWorkspaceDialog({
     required String operationId,
     required String projectId,
     required String prompt,
+    required bool autoAssignSection,
   })
   generateIdentity,
   required final Future<void> Function(String operationId) cancelGeneration,
@@ -55,6 +68,8 @@ class const PromptWorkspaceDialog({
     required String newBranchName,
     required String name,
     String? parentWorkspaceId,
+    String? hostId,
+    String? issueUrl,
   })
   createWorkspace,
   required final Future<AgentProfileLaunchResult> Function({
@@ -70,11 +85,30 @@ class const PromptWorkspaceDialog({
       const NativePromptWorkspaceClipboard(),
   final Project? initialProject,
   final String? defaultAgentProfileId,
+  final List<SshTarget> sshTargets = const <SshTarget>[],
+  final bool supportsRemoteSshWorkspaces = true,
   final Future<void> Function({
     required WorkspaceCreationResult creation,
     required String agentTabId,
   })?
   onCreateAnother,
+  final Future<void>? Function(PromptWorkspaceCreateRequest request)?
+  enqueuePrompt,
+  final String? initialPrompt,
+  final Future<String?> Function(Project project)? loadPreferredSourceBranch,
+  final String? initialSourceBranch,
+  final String? initialParentWorkspaceId,
+  final String? initialHostId,
+  final bool initialUseProjectCheckout = true,
+  final String? initialIssueUrl,
+  final Future<IssueDetails> Function(String url)? fetchIssue,
+  final String? initialError,
+  final NewWorkspaceMode initialMode = .fromPrompt,
+  final Widget? manualForm,
+  final bool hasWorkspaceSections = false,
+  final bool initialAutoAssignSection = true,
+  final Future<void> Function(String workspaceId, String sectionId)?
+  assignSection,
 }) extends StatefulWidget {
   @override
   State<PromptWorkspaceDialog> createState() => _PromptWorkspaceDialogState();
@@ -83,12 +117,16 @@ class const PromptWorkspaceDialog({
 class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   final TextEditingController _promptController = TextEditingController();
   final FocusNode _promptFocusNode = FocusNode();
+  final TextEditingController _issueUrlController = TextEditingController();
+  String? _promptFromIssue;
   NewWorkspaceMode _mode = .fromPrompt;
   Project? _project;
   AgentProfile? _profile;
   List<String> _branches = const <String>[];
   String? _sourceBranch;
   String? _selectedParentWorkspaceId;
+  String? _selectedHostId;
+  int _branchLoadGeneration = 0;
   bool _loadingBranches = false;
   bool _working = false;
   String? _phase;
@@ -98,15 +136,31 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   String? _agentLaunchMutationId;
   bool? _originalAgentLaunchWasIdempotent;
   bool _createAnother = false;
+  bool _autoAssignSection = true;
+  bool _useProjectCheckout = false;
+
+  bool get _autoAssignSectionEffective =>
+      widget.hasWorkspaceSections && _autoAssignSection;
 
   @override
   void initState() {
     super.initState();
+    _autoAssignSection = widget.initialAutoAssignSection;
+    _useProjectCheckout =
+        widget.enqueuePrompt != null && widget.initialUseProjectCheckout;
+    _mode = widget.initialMode;
     _project = _initialProject();
-    _selectedParentWorkspaceId = _defaultParentWorkspaceId(_project);
+    _selectedParentWorkspaceId = widget.initialParentWorkspaceId;
+    _selectedHostId = widget.initialHostId;
     _profile = _defaultAgentProfile();
+    _error = widget.initialError;
+    _issueUrlController.text = widget.initialIssueUrl ?? '';
+    final initialPrompt = widget.initialPrompt;
+    if (initialPrompt != null && initialPrompt.isNotEmpty) {
+      _promptController.text = initialPrompt;
+    }
     final project = _project;
-    if (project != null) {
+    if (project != null && !_useProjectCheckout) {
       unawaited(_loadBranches(project));
     }
   }
@@ -115,6 +169,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   void dispose() {
     _promptController.dispose();
     _promptFocusNode.dispose();
+    _issueUrlController.dispose();
     super.dispose();
   }
 
@@ -145,47 +200,48 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   }
 
   Future<void> _loadBranches(Project project) async {
+    final hostId = _selectedHostId;
+    final generation = ++_branchLoadGeneration;
     setState(() {
       _loadingBranches = true;
-      _error = null;
+      if (_error != widget.initialError) {
+        _error = null;
+      }
       _branches = const <String>[];
       _sourceBranch = null;
     });
     try {
-      final branches = await widget.loadBranches(project);
-      if (!mounted || _project?.id != project.id) {
+      final catalog = await widget.loadHostBranchCatalog?.call(project, hostId);
+      final branches = catalog?.branches ?? await widget.loadBranches(project);
+      final projectPreferred = await _preferredSourceFor(project);
+      if (!mounted ||
+          _project?.id != project.id ||
+          _selectedHostId != hostId ||
+          generation != _branchLoadGeneration) {
         return;
       }
       setState(() {
         _branches = branches;
-        _sourceBranch = _defaultBranch(branches);
+        final preferred = project.id == widget.initialProject?.id
+            ? widget.initialSourceBranch
+            : null;
+        _sourceBranch = (preferred != null && branches.contains(preferred)
+            ? preferred
+            : pickDefaultSourceBranch(branches, preferred: projectPreferred));
         _loadingBranches = false;
       });
     } catch (error) {
-      if (mounted && _project?.id == project.id) {
+      if (mounted &&
+          _project?.id == project.id &&
+          _selectedHostId == hostId &&
+          generation == _branchLoadGeneration) {
         setState(() {
           _loadingBranches = false;
+          _sourceBranch = null;
           _error = error.toString();
         });
       }
     }
-  }
-
-  String? _defaultParentWorkspaceId(Project? project) {
-    if (project == null) {
-      return null;
-    }
-    Workspace? firstProjectWorkspace;
-    for (final workspace in _parentWorkspaces) {
-      if (workspace.projectId != project.id) {
-        continue;
-      }
-      firstProjectWorkspace ??= workspace;
-      if (workspace.isMain) {
-        return workspace.id;
-      }
-    }
-    return firstProjectWorkspace?.id;
   }
 
   String _parentWorkspaceLabel(Workspace workspace) {
@@ -204,24 +260,89 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   void _selectProject(Project project) {
     _update(() {
       _project = project;
-      _selectedParentWorkspaceId = _defaultParentWorkspaceId(project);
+      _selectedParentWorkspaceId = null;
+      _sourceBranch = null;
+      if (!project.isGitRepository && widget.enqueuePrompt != null) {
+        _useProjectCheckout = true;
+      }
     });
-    unawaited(_loadBranches(project));
+    if (!_useProjectCheckout) unawaited(_loadBranches(project));
   }
 
   Future<void> _submit() async {
+    if (!_canSubmit) {
+      return;
+    }
     final project = _project;
     final profile = _profile;
-    final sourceBranch = _sourceBranch;
+    final sourceBranch = _sourceBranch ?? '';
     final prompt = _promptController.text.trim();
     if (project == null ||
         profile == null ||
-        sourceBranch == null ||
+        (!_useProjectCheckout && sourceBranch.isEmpty) ||
         prompt.isEmpty) {
       setState(
         () =>
             _error = 'Complete the prompt, project, branch, and agent profile.',
       );
+      return;
+    }
+    final hostError = remoteWorkspaceHostSelectionError(
+      hostId: _selectedHostId,
+      targets: widget.sshTargets,
+      supportsRemoteSshWorkspaces: widget.supportsRemoteSshWorkspaces,
+    );
+    if (hostError != null) {
+      setState(() => _error = hostError);
+      return;
+    }
+    final enqueue = widget.enqueuePrompt;
+    if (enqueue != null) {
+      final done = enqueue(
+        PromptWorkspaceCreateRequest(
+          useProjectCheckout: _useProjectCheckout,
+          project: project,
+          prompt: prompt,
+          profileId: profile.id,
+          sourceBranch: sourceBranch,
+          parentWorkspaceId: _selectedParentWorkspaceId,
+          hostId: _selectedHostId,
+          issueUrl: _linkedIssueUrl(),
+          autoAssignSection: _autoAssignSectionEffective,
+        ),
+      );
+      if (done == null) {
+        return;
+      }
+      if (_createAnother) {
+        setState(() {
+          _working = true;
+          _error = null;
+        });
+        try {
+          await done;
+          if (!mounted) {
+            return;
+          }
+          _promptController.clear();
+          _issueUrlController.clear();
+          setState(() {
+            _working = false;
+            _error = null;
+            _created = null;
+          });
+        } catch (error) {
+          if (mounted) {
+            setState(() {
+              _working = false;
+              _error = userFacingExceptionMessage(error);
+            });
+          }
+        }
+      } else {
+        done.ignore();
+        Navigator.of(context).pop();
+      }
       return;
     }
     setState(() {
@@ -246,6 +367,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
             operationId: operationId,
             projectId: project.id,
             prompt: identityPrompt,
+            autoAssignSection: _autoAssignSectionEffective,
           );
         } finally {
           if (_activeOperationId == operationId) {
@@ -256,9 +378,14 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
           return;
         }
         setState(() => _phase = 'Checking generated branch');
-        final collision =
-            widget.workspaceBranches(project).contains(identity.branchName) ||
-            await widget.checkBranchExists(project, identity.branchName);
+        final catalog = await widget.loadHostBranchCatalog?.call(
+          project,
+          _selectedHostId,
+        );
+        final collision = catalog != null
+            ? catalog.localBranches.contains(identity.branchName)
+            : widget.workspaceBranches(project).contains(identity.branchName) ||
+                  await widget.checkBranchExists(project, identity.branchName);
         if (collision) {
           collisionError = StateError(
             'The generated branch "${identity.branchName}" already exists.',
@@ -273,7 +400,21 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
             newBranchName: identity.branchName,
             name: identity.workspaceName,
             parentWorkspaceId: _selectedParentWorkspaceId,
+            hostId: _selectedHostId,
+            issueUrl: _linkedIssueUrl(),
           );
+          final sectionId = _autoAssignSectionEffective
+              ? identity.sectionId
+              : null;
+          final assignSection = widget.assignSection;
+          if (sectionId != null && assignSection != null) {
+            try {
+              await assignSection(creation.workspace.id, sectionId);
+            } catch (_) {
+              // Section assignment is best-effort: the workspace itself was
+              // already created, so a failure must not fail the flow.
+            }
+          }
           break;
         } catch (error) {
           if (attempt == 0 && _looksLikeCollision(error)) {
@@ -318,7 +459,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
         setState(() {
           _working = false;
           _phase = null;
-          _error = error.toString();
+          _error = userFacingExceptionMessage(error);
         });
       }
     }
@@ -330,128 +471,13 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
         message.contains('workspace for branch');
   }
 
-  Future<void> _cancelGeneration() async {
-    final operationId = _activeOperationId;
-    if (operationId != null) {
-      await widget.cancelGeneration(operationId);
-    }
-  }
-
-  Future<void> _finishCreation(
-    WorkspaceCreationResult creation,
-    String agentTabId,
-  ) async {
-    if (!_createAnother) {
-      Navigator.of(context).pop(
-        PromptWorkspaceDialogResult(creation: creation, agentTabId: agentTabId),
-      );
-      return;
-    }
-    await widget.onCreateAnother?.call(
-      creation: creation,
-      agentTabId: agentTabId,
-    );
-    if (!mounted) {
-      return;
-    }
-    _promptController.clear();
-    _agentLaunchMutationId = null;
-    _originalAgentLaunchWasIdempotent = null;
-    setState(() {
-      _working = false;
-      _phase = null;
-      _error = null;
-      _created = null;
-    });
+  void _selectMode(NewWorkspaceMode mode) {
+    setState(() => _mode = mode);
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return AleraDialog(
-      maxWidth: 620,
-      maxHeight: 720,
-      child: Padding(
-        padding: const EdgeInsets.all(AleraTokens.space20),
-        child: Column(
-          mainAxisSize: .min,
-          crossAxisAlignment: .start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                const Icon(AleraIcons.gitFork, color: AleraTokens.accent),
-                const SizedBox(width: AleraTokens.space8),
-                Expanded(
-                  child: Text(
-                    'New Workspace',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: .bold,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: _working
-                      ? null
-                      : () => Navigator.of(context).pop(),
-                  icon: const Icon(AleraIcons.close),
-                  tooltip: 'Close',
-                ),
-              ],
-            ),
-            const SizedBox(height: AleraTokens.space16),
-            AleraSegmentedButton<NewWorkspaceMode>(
-              dense: true,
-              segments: const <ButtonSegment<NewWorkspaceMode>>[
-                ButtonSegment<NewWorkspaceMode>(
-                  value: .fromPrompt,
-                  label: Text('From Prompt'),
-                  icon: Icon(AleraIcons.agent, size: 16),
-                ),
-                ButtonSegment<NewWorkspaceMode>(
-                  value: .manual,
-                  label: Text('Manual'),
-                  icon: Icon(AleraIcons.gitBranch, size: 16),
-                ),
-              ],
-              selected: _mode,
-              onSelectionChanged: _working
-                  ? (_) {}
-                  : (mode) => setState(() => _mode = mode),
-            ),
-            const SizedBox(height: AleraTokens.space20),
-            if (_mode == NewWorkspaceMode.manual)
-              _buildManualMode(theme)
-            else
-              _buildPromptMode(theme),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildManualMode(ThemeData theme) {
-    return Column(
-      mainAxisSize: .min,
-      crossAxisAlignment: .start,
-      children: <Widget>[
-        Text(
-          'Choose every workspace setting yourself, including the branch name and optional parent workspace.',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: AleraTokens.foregroundMuted,
-          ),
-        ),
-        const SizedBox(height: AleraTokens.space24),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton(
-            onPressed: () =>
-                Navigator.of(context)
-                    .pop(const PromptWorkspaceDialogResult(openManual: true)),
-            child: const Text('Continue Manually'),
-          ),
-        ),
-      ],
-    );
+    return _buildShell(Theme.of(context));
   }
 }
 

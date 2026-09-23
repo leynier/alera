@@ -1,6 +1,14 @@
 part of 'prompt_workspace_dialog.dart';
 
 extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
+  bool get _canSubmit {
+    return !_working &&
+        _created == null &&
+        _orderedProjects.isNotEmpty &&
+        widget.agentProfiles.isNotEmpty &&
+        (_useProjectCheckout || !_loadingBranches);
+  }
+
   Widget _buildPromptMode(ThemeData theme) {
     final created = _created;
     return Flexible(
@@ -9,30 +17,6 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
           mainAxisSize: .min,
           crossAxisAlignment: .start,
           children: <Widget>[
-            AiDictationFieldOverlay(
-              controller: _promptController,
-              focusNode: _promptFocusNode,
-              initialPrompt:
-                  'The user is describing a software task for Alera.',
-              controlKey: const ValueKey<String>(
-                'prompt-workspace-dictation-control',
-              ),
-              enabled: !_working && created == null,
-              child: AleraTextField(
-                controller: _promptController,
-                focusNode: _promptFocusNode,
-                labelText: 'Initial Prompt',
-                hintText:
-                    'Describe what the agent should build or paste an image',
-                minLines: 4,
-                maxLines: 8,
-                autofocus: true,
-                enabled: !_working && created == null,
-                onPaste: _pastePromptClipboard,
-                suffix: const SizedBox(width: AleraTokens.space32),
-              ),
-            ),
-            const SizedBox(height: AleraTokens.space16),
             AleraDropdownField<Project>(
               labelText: 'Project',
               value: _project,
@@ -48,18 +32,52 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
               onChanged: _selectProject,
             ),
             const SizedBox(height: AleraTokens.space12),
-            AleraDropdownField<String>(
-              labelText: 'Source Branch',
-              hintText: _loadingBranches ? 'Loading branches' : 'Select Branch',
-              value: _sourceBranch,
-              entries: <AleraDropdownFieldEntry<String>>[
-                for (final branch in _branches)
-                  AleraDropdownFieldEntry<String>(value: branch, label: branch),
-              ],
-              enabled: !_working && !_loadingBranches && created == null,
-              filterable: true,
-              onChanged: (branch) => _update(() => _sourceBranch = branch),
-            ),
+            if (widget.enqueuePrompt != null) ...[
+              AleraSegmentedButton<bool>(
+                segments: <ButtonSegment<bool>>[
+                  ButtonSegment(
+                    value: true,
+                    label: const Text('Project Folder'),
+                    enabled: !_working && created == null,
+                  ),
+                  ButtonSegment(
+                    value: false,
+                    label: const Text('New Worktree'),
+                    enabled:
+                        !_working &&
+                        created == null &&
+                        _project?.isGitRepository == true,
+                  ),
+                ],
+                selected: _useProjectCheckout,
+                onSelectionChanged: (value) {
+                  _update(() => _useProjectCheckout = value);
+                  final project = _project;
+                  if (!value && project != null) {
+                    unawaited(_loadBranches(project));
+                  }
+                },
+              ),
+              const SizedBox(height: AleraTokens.space12),
+            ],
+            if (!_useProjectCheckout)
+              AleraDropdownField<String>(
+                labelText: 'Source Branch',
+                hintText: _loadingBranches
+                    ? 'Loading branches'
+                    : 'Select Branch',
+                value: _sourceBranch,
+                entries: <AleraDropdownFieldEntry<String>>[
+                  for (final branch in _branches)
+                    AleraDropdownFieldEntry<String>(
+                      value: branch,
+                      label: branch,
+                    ),
+                ],
+                enabled: !_working && !_loadingBranches && created == null,
+                filterable: true,
+                onChanged: (branch) => _update(() => _sourceBranch = branch),
+              ),
             const SizedBox(height: AleraTokens.space12),
             AleraDropdownField<String?>(
               labelText: 'Parent Workspace',
@@ -82,6 +100,23 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
                   _update(() => _selectedParentWorkspaceId = workspaceId),
             ),
             const SizedBox(height: AleraTokens.space12),
+            WorkspaceHostPicker(
+              hostId: _selectedHostId,
+              sshTargets: widget.sshTargets,
+              supportsRemoteSshWorkspaces: widget.supportsRemoteSshWorkspaces,
+              enabled: !_working && created == null,
+              onChanged: (hostId) {
+                _update(() {
+                  _selectedHostId = hostId;
+                  _sourceBranch = null;
+                });
+                final project = _project;
+                if (!_useProjectCheckout && project != null) {
+                  unawaited(_loadBranches(project));
+                }
+              },
+            ),
+            const SizedBox(height: AleraTokens.space12),
             AleraDropdownField<AgentProfile>(
               labelText: 'Agent Profile',
               hintText: widget.agentProfiles.isEmpty
@@ -99,6 +134,31 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
               filterable: true,
               onChanged: (profile) => _update(() => _profile = profile),
             ),
+            const SizedBox(height: AleraTokens.space12),
+            ..._linkedIssueField(),
+            AiDictationFieldOverlay(
+              controller: _promptController,
+              focusNode: _promptFocusNode,
+              initialPrompt:
+                  'The user is describing a software task for Alera.',
+              controlKey: const ValueKey<String>(
+                'prompt-workspace-dictation-control',
+              ),
+              enabled: !_working && created == null,
+              child: AleraTextField(
+                controller: _promptController,
+                focusNode: _promptFocusNode,
+                labelText: 'Initial Prompt',
+                hintText:
+                    'Describe what the agent should build or paste an image',
+                minLines: 4,
+                maxLines: 8,
+                enabled: !_working && created == null,
+                onPaste: _pastePromptClipboard,
+                onCommandEnter: () => unawaited(_submit()),
+                suffix: const SizedBox(width: AleraTokens.space32),
+              ),
+            ),
             if (_error != null) ...<Widget>[
               const SizedBox(height: AleraTokens.space16),
               Text(
@@ -109,13 +169,28 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
               ),
             ],
             const SizedBox(height: AleraTokens.space12),
-            AleraCheckbox(
-              value: _createAnother,
-              enabled: !_working && created == null,
-              onChanged: (value) {
-                _update(() => _createAnother = value);
-              },
-              label: 'Create Another',
+            Row(
+              children: <Widget>[
+                if (widget.hasWorkspaceSections) ...<Widget>[
+                  AleraCheckbox(
+                    value: _autoAssignSection,
+                    enabled: !_working && created == null,
+                    onChanged: (value) {
+                      _update(() => _autoAssignSection = value);
+                    },
+                    label: 'Auto Assign Section',
+                  ),
+                  const SizedBox(width: AleraTokens.space12),
+                ],
+                AleraCheckbox(
+                  value: _createAnother,
+                  enabled: !_working && created == null,
+                  onChanged: (value) {
+                    _update(() => _createAnother = value);
+                  },
+                  label: 'Create Another',
+                ),
+              ],
             ),
             const SizedBox(height: AleraTokens.space20),
             Row(
@@ -147,12 +222,7 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
                   ),
                 ] else
                   FilledButton.icon(
-                    onPressed:
-                        _orderedProjects.isEmpty ||
-                            widget.agentProfiles.isEmpty ||
-                            _loadingBranches
-                        ? null
-                        : _submit,
+                    onPressed: _canSubmit ? _submit : null,
                     icon: const Icon(AleraIcons.agent, size: 16),
                     label: const Text('Create And Start Agent'),
                   ),

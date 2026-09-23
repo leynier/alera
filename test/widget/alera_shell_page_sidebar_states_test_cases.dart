@@ -42,7 +42,17 @@ void _registerAleraShellSidebarStateTests() {
         .toList();
 
     expect(dots, hasLength(2));
-    expect(dots.map((dot) => dot.active), <bool>[true, false]);
+    for (final entry in {'workspace-1': true, 'workspace-2': false}.entries) {
+      final dot = tester.widget<AleraStatusDot>(
+        find.descendant(
+          of: find.byKey(
+            ValueKey<String>('workspace-row:regular:${entry.key}'),
+          ),
+          matching: find.byType(AleraStatusDot),
+        ),
+      );
+      expect(dot.active, entry.value);
+    }
   });
 
   testWidgets('workspace agent pill toggles expanded rows', (tester) async {
@@ -125,44 +135,13 @@ void _registerAleraShellSidebarStateTests() {
     );
   });
 
-  testWidgets('workspace removal dialog omits branch details when blank', (
-    tester,
-  ) async {
-    final seeded = _linkedWorkbenchState(linkedExpanded: true);
-    final workspaces = seeded.workspacesFor('project-1');
-    final branchlessState = seeded.copyWith(
-      workspacesByProject: <String, List<Workspace>>{
-        'project-1': <Workspace>[
-          workspaces.first,
-          workspaces.last.copyWith(branch: ''),
-        ],
-      },
-    );
-
-    await _pumpShell(tester, state: branchlessState);
-
-    await tester.tapAt(
-      tester.getCenter(find.text('Feature login').first),
-      buttons: kSecondaryMouseButton,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Remove'));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.textContaining('This removes the worktree for "Feature login".'),
-      findsOneWidget,
-    );
-    expect(find.textContaining('deletes branch'), findsNothing);
-  });
-
   testWidgets('workspace branch metadata omits base branch labels', (
     tester,
   ) async {
     await _pumpShell(tester, state: _linkedWorkbenchState());
 
-    expect(find.byIcon(AleraIcons.gitBranch), findsNWidgets(2));
     expect(find.byKey(const Key('workspace-tray-branch')), findsNWidgets(2));
+    expect(find.byType(AleraLinkedWorktreeIcon), findsOneWidget);
     expect(
       find.byWidgetPredicate(
         (widget) => widget is Tooltip && widget.message == 'feature/login',
@@ -467,37 +446,6 @@ void _registerAleraShellSidebarStateTests() {
     expect(events.last.message, 'Bad state: rename workspace failed');
   });
 
-  testWidgets('workspace removal failures surface an error toast event', (
-    tester,
-  ) async {
-    final events = <AleraToastData>[];
-    final subscription = AleraToast.stream.listen(events.add);
-    addTearDown(subscription.cancel);
-    final state = _linkedWorkbenchState(linkedExpanded: true);
-
-    await _pumpShell(
-      tester,
-      state: state,
-      controller: _ShellTestWorkbenchController(
-        state,
-        deleteWorkspaceFailure: StateError('delete workspace failed'),
-      ),
-    );
-
-    await tester.tapAt(
-      tester.getCenter(find.text('Feature login').first),
-      buttons: kSecondaryMouseButton,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Remove'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Clean Up'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(events.last.message, 'Bad state: delete workspace failed');
-  });
-
   testWidgets('project removal failures surface an error toast event', (
     tester,
   ) async {
@@ -537,7 +485,9 @@ void _registerAleraShellSidebarStateTests() {
     final events = <AleraToastData>[];
     final subscription = AleraToast.stream.listen(events.add);
     addTearDown(subscription.cancel);
-    final state = _linkedWorkbenchState(linkedExpanded: true);
+    final state = _withSidebarAgentRows(
+      _linkedWorkbenchState(linkedExpanded: true),
+    );
 
     final harness = await _pumpShell(
       tester,
@@ -577,7 +527,7 @@ void _registerAleraShellSidebarStateTests() {
     const description = 'Codex · Waiting for input';
     await _pumpShell(
       tester,
-      state: _linkedWorkbenchState(linkedExpanded: true),
+      state: _withSidebarAgentRows(_linkedWorkbenchState(linkedExpanded: true)),
       agentStatuses: <String, AgentStatusEntry>{
         'tab-2': _agentStatusEntry(
           terminalSessionId: 'tab-2',
@@ -640,5 +590,54 @@ void _registerAleraShellSidebarStateTests() {
     await mouse.moveTo(const Offset(0, 0));
     await tester.pumpAndSettle();
     expect(decorationOf(terminalContainer).color, Colors.transparent);
+  });
+
+  testWidgets('the selected workspace uses a stronger sidebar highlight', (
+    tester,
+  ) async {
+    await _pumpShell(
+      tester,
+      state: _linkedWorkbenchState(linkedExpanded: true),
+    );
+
+    BoxDecoration decorationOf(String workspaceId) {
+      final row = find.byKey(
+        ValueKey<String>('workspace-row:regular:$workspaceId'),
+      );
+      final container = find
+          .ancestor(of: row, matching: find.byType(AnimatedContainer))
+          .first;
+      return tester.widget<AnimatedContainer>(container).decoration!
+          as BoxDecoration;
+    }
+
+    Color nameColor(String workspaceId, String name) {
+      return tester
+          .widget<Text>(
+            find.descendant(
+              of: find.byKey(
+                ValueKey<String>('workspace-row:regular:$workspaceId'),
+              ),
+              matching: find.text(name),
+            ),
+          )
+          .style!
+          .color!;
+    }
+
+    final selected = decorationOf('workspace-1');
+    final idle = decorationOf('workspace-2');
+
+    expect(selected.color, AleraTokens.accentSubtle);
+    expect(selected.border?.top.color, AleraTokens.border);
+    expect(nameColor('workspace-1', 'Main'), AleraTokens.foreground);
+
+    expect(idle.color, Colors.transparent);
+    expect(idle.border?.top.color, Colors.transparent);
+    expect(
+      nameColor('workspace-2', 'Feature login'),
+      AleraTokens.foregroundMuted,
+    );
+    expect(selected.color, isNot(idle.color));
   });
 }

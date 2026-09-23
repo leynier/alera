@@ -66,15 +66,15 @@ Widget aleraDropdownFieldDisabledPreview() => const SizedBox(
 Widget aleraDropdownFieldFilterablePreview() => const SizedBox(
   width: 220,
   child: AleraDropdownField<String?>(
-    value: 'computer-use',
+    value: 'feature-search',
     labelText: 'Parent Workspace',
     filterable: true,
     filterHintText: 'Search Workspaces',
     entries: <AleraDropdownFieldEntry<String?>>[
       AleraDropdownFieldEntry<String?>(value: null, label: 'No Parent'),
       AleraDropdownFieldEntry<String?>(
-        value: 'computer-use',
-        label: 'alera / computer-use - computer-use',
+        value: 'feature-search',
+        label: 'alera / feature-search - feature-search',
       ),
       AleraDropdownFieldEntry<String?>(
         value: 'main',

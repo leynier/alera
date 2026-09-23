@@ -37,7 +37,13 @@ class const AleraSectionHeader({
               ),
             ),
           ),
-          ?trailing,
+          if (trailing != null)
+            Flexible(
+              child: Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: trailing,
+              ),
+            ),
         ],
       ),
     );

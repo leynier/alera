@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:uuid/uuid.dart';
+
 import 'package:alera_mobile/src/features/runtime/domain/connection_attempt.dart';
 import 'package:alera_mobile/src/features/accounts/infra/alera_cloud_api.dart';
 
@@ -21,10 +23,20 @@ import 'package:alera_mobile/src/features/runtime/domain/runtime_restart_result.
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/settings/domain/portable_host_settings.dart';
 import 'package:alera_mobile/src/features/quotas/domain/quota_snapshot.dart';
+import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_actions.dart';
+import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
+import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_pull_request_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/ai_dictation/domain/speech_capabilities.dart';
+import 'package:alera_mobile/src/features/linked_issues/domain/mobile_linked_issue.dart';
+import 'package:alera_mobile/src/features/linked_issues/infra/mobile_runtime_linked_issue_requests.dart';
+import 'package:alera_mobile/src/features/pull_requests/domain/mobile_pull_request_watch.dart';
+import 'package:alera_mobile/src/features/pull_requests/infra/mobile_runtime_pull_request_watch_requests.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_workspace_sidebar_client.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_workspace_client.dart';
+import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_relocation_client.dart';
+import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_recovery_client.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_relocation_client.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_project_client.dart';
 import 'package:alera_mobile/src/core/logging/log_redaction.dart';
 import 'package:logging/logging.dart';
@@ -41,8 +53,9 @@ part 'mobile_runtime_relay_authorization.dart';
 part 'mobile_runtime_dictation_requests.dart';
 part 'mobile_runtime_terminal_requests.dart';
 part 'mobile_terminal_output_resync.dart';
-part 'mobile_runtime_codex_requests.dart';
 part 'mobile_runtime_codex_workspace_requests.dart';
+part 'mobile_runtime_workspace_panel_requests.dart';
+part 'mobile_runtime_pull_request_requests.dart';
 
 class MobileRuntimeClient._(
   this._channel, {
@@ -51,20 +64,32 @@ class MobileRuntimeClient._(
 }) with
         MobileRuntimeWorkspaceSidebarClient,
         MobileRuntimeWorkspaceClient,
+        MobileRuntimeRelocationClient,
+        MobileRuntimeRecoveryClient,
         MobileRuntimeProjectClient,
         MobileRuntimeClientHostTools,
         MobileRuntimeClientRelay,
         MobileRuntimeDictationRequests,
         MobileRuntimeTerminalRequests,
         MobileRuntimeTerminalOutputResync,
-        MobileRuntimeCodexRequests,
-        MobileRuntimeCodexWorkspaceRequests
+        MobileRuntimeCodexWorkspaceRequests,
+        MobileRuntimeWorkspacePanelRequests,
+        MobileRuntimeLinkedIssueRequests,
+        MobileRuntimePullRequestWatchRequests,
+        MobileRuntimePullRequestRequests
     implements
         MobileTerminalClient,
         MobileWorkspaceClient,
+        WorkspaceRelocationClient,
+        MobileSharedCheckoutClient,
+        MobileCheckoutCatalogClient,
         MobileAgentTitleClient,
-        MobileCodexClient,
-        MobileCodexWorkspaceClient {
+        MobileCodexWorkspaceClient,
+        MobileWorkspacePanelsClient,
+        MobileLinkedIssueClient,
+        MobilePullRequestWatchClient,
+        MobilePullRequestActionsClient,
+        MobileWorkspacePullRequestSummariesClient {
   this {
     _subscription = _channel.stream.listen(
       _handleMessage,
@@ -188,18 +213,6 @@ class MobileRuntimeClient._(
   @override
   bool get supportsPromptImageUpload =>
       _runtimeCapabilities.contains(mobilePromptImageUploadCapability);
-  @override
-  bool get supportsCodexChat =>
-      _runtimeCapabilities.contains(codexChatTabCapability);
-  @override
-  bool get supportsCodexGoals =>
-      _runtimeCapabilities.contains(codexGoalsCapability);
-  @override
-  bool get supportsCodexSessions =>
-      _runtimeCapabilities.contains(mobileCodexSessionsCapability);
-  @override
-  bool get supportsCodexTurnPolicy =>
-      _runtimeCapabilities.contains(codexTurnPolicyCapability);
 
   bool get supportsAutomations =>
       _runtimeCapabilities.contains(automationsCapability);
@@ -213,11 +226,12 @@ class MobileRuntimeClient._(
     registerLogSecret(deviceToken);
     final payload = await requestMap('mobile.hello', <String, Object?>{
       'protocolVersion': aleraMobileProtocolVersion,
+      'sharedCheckoutWorkspacesV1': true,
       'deviceId': deviceId,
       'deviceToken': deviceToken,
       'cloudDeviceId': ?cloudDeviceId,
       'binaryFrames': true,
-      'supportedTabKinds': const <String>['codex'],
+      'supportedTabKinds': const <String>[],
     });
     _runtimeCapabilities = payload.stringList('runtimeCapabilities').toSet();
     // The response decides, not the request: an older runtime simply omits it
@@ -286,6 +300,14 @@ class MobileRuntimeClient._(
   ]) {
     if (_disposed) {
       throw StateError('Mobile runtime client is disposed.');
+    }
+    if (requiresSharedCheckoutSupport(type) &&
+        !_runtimeCapabilities.contains(sharedCheckoutWorkspacesCapability)) {
+      return Future<Object?>.error(
+        StateError(
+          'Update the Alera runtime before using $type. Existing terminal sessions remain available.',
+        ),
+      );
     }
     final closedError = _closedError;
     if (closedError != null) {

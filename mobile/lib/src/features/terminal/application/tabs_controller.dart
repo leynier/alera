@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
@@ -71,6 +72,26 @@ class TabsController extends _$TabsController {
     ]);
   }
 
+  /// Starts an agent profile in a new tab. [prompt] is the startup prompt the
+  /// host already accepts; an empty value opens the agent with no task.
+  Future<String> launchAgentProfileTab(
+    String profileId, {
+    String prompt = '',
+  }) async {
+    final workspaceClient = await ref.read(
+      workspaceClientProvider(hostId).future,
+    );
+    final launch = await workspaceClient.launchAgentProfile(
+      workspaceId: workspaceId,
+      profileId: profileId,
+      prompt: prompt,
+      clientMutationId:
+          'mobile-new-tab-${DateTime.now().microsecondsSinceEpoch}',
+    );
+    ref.invalidateSelf();
+    return launch.tabId;
+  }
+
   /// Creates a terminal tab titled after the next free "Terminal N" slot and
   /// returns its tab id.
   Future<String> createTerminalTab() async {
@@ -88,14 +109,15 @@ class TabsController extends _$TabsController {
     return session.tab.id;
   }
 
-  Future<String> createCodexTab() async {
-    final client = await ref.read(terminalClientProvider(hostId).future);
-    if (client is! MobileCodexClient) {
-      throw UnsupportedError('This mobile client cannot create Codex tabs.');
-    }
-    final tab = await (client as MobileCodexClient).createCodexTab(workspaceId);
-    ref.invalidateSelf();
-    return tab.id;
+  Future<List<AgentProfileSummary>> listNewTabMenuProfiles() async {
+    final workspaceClient = await ref.read(
+      workspaceClientProvider(hostId).future,
+    );
+    final profiles = await workspaceClient.listAgentProfiles();
+    return <AgentProfileSummary>[
+      for (final profile in profiles)
+        if (profile.showInNewTabMenu) profile,
+    ];
   }
 
   Future<bool> closeTab(WorkspaceTabSummary tab) async {
