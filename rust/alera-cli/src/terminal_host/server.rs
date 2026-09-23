@@ -122,6 +122,7 @@ mod project_checkout_requests;
 mod project_host_requests;
 mod remote_agent_presence_relay;
 mod remote_ai_assist_requests;
+mod remote_project_config;
 mod remote_pull_request_routing;
 mod remote_recovery_requests;
 #[cfg(test)]

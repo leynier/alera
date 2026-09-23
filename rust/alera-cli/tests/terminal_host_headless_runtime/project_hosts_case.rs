@@ -172,6 +172,47 @@ fn a_project_is_listed_added_to_and_removed_from_hosts() {
         "{shared}"
     );
 
+    // The project's `alera.toml` is on the host, read through the initial
+    // workspace on the project folder rather than from the hub's disk.
+    let project_id = remote_project["id"].as_str().unwrap().to_string();
+    let effective = request("projectConfig.effective", json!({"projectId": project_id}));
+    assert_eq!(effective["ok"], true, "{effective}");
+    assert_eq!(effective["payload"]["origin"], "none", "{effective}");
+    let config_file = std::path::Path::new(remote_path).join("alera.toml");
+    std::fs::write(
+        &config_file,
+        "git_hosting_provider = \"gitlab\"\n[new_workspace]\nsource_branch = \"develop\"\n",
+    )
+    .unwrap();
+    let effective = request("projectConfig.effective", json!({"projectId": project_id}));
+    assert_eq!(effective["ok"], true, "{effective}");
+    assert_eq!(effective["payload"]["origin"], "repoFile", "{effective}");
+    assert_eq!(effective["payload"]["error"], Value::Null, "{effective}");
+    assert_eq!(
+        effective["payload"]["config"]["newWorkspace"]["sourceBranch"], "develop",
+        "{effective}"
+    );
+    assert_eq!(
+        effective["payload"]["config"]["gitHostingProvider"], "gitlab",
+        "{effective}"
+    );
+    std::fs::write(&config_file, "git_hosting_provider = 7\n").unwrap();
+    let broken = request("projectConfig.effective", json!({"projectId": project_id}));
+    assert_eq!(broken["ok"], true, "{broken}");
+    assert_eq!(broken["payload"]["origin"], "repoFile", "{broken}");
+    assert!(
+        broken["payload"]["error"]
+            .as_str()
+            .is_some_and(|error| error.contains("git_hosting_provider")),
+        "{broken}"
+    );
+    assert_eq!(
+        broken["payload"]["config"]["newWorkspace"]["sourceBranch"],
+        Value::Null,
+        "a broken file answers defaults: {broken}"
+    );
+    std::fs::remove_file(&config_file).unwrap();
+
     let twice = request(
         "project.registerRemote",
         json!({"hostId": "ssh-2", "path": remote_path}),

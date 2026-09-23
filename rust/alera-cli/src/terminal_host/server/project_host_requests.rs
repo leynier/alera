@@ -20,7 +20,8 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::ok_response;
 
 impl ServerActor {
-    /// `Ok(false)` means the request is not a `project.hosts.*` verb.
+    /// `Ok(false)` means the request is not a `project.hosts.*` verb, nor the
+    /// effective config of a project whose folder is on another host.
     pub(super) async fn try_start_project_hosts_request(
         &mut self,
         client_id: u64,
@@ -28,6 +29,12 @@ impl ServerActor {
         request_type: &str,
         payload: &Value,
     ) -> HostResult<bool> {
+        if self
+            .try_start_remote_project_config_request(client_id, request_id, request_type, payload)
+            .await?
+        {
+            return Ok(true);
+        }
         if request_type == "project.registerRemote" {
             self.require_auth(client_id)?;
             self.require_request_allowed(client_id, request_type)?;

@@ -49,21 +49,28 @@ void main() {
     });
 
     test(
-      'a remote-only project never reads a repo file on this device',
+      'a remote-only project reads its repo file through the store',
       () async {
         fileStore.config = const ProjectConfig(
-          worktree: WorktreeSetupConfig(setup: <String>['local-lookalike']),
+          worktree: WorktreeSetupConfig(setup: <String>['from-the-host']),
         );
         final remoteOnly = project.copyWith(primaryHostId: 'ssh-box');
 
-        expect(await service.loadRepoFile(remoteOnly), isNull);
+        expect(
+          (await service.loadRepoFile(remoteOnly))?.worktree.setup,
+          <String>['from-the-host'],
+        );
+        expect(fileStore.loadedProjectIds, <String>[remoteOnly.id]);
         final effective = await service.resolve(remoteOnly);
-        expect(effective.origin, ProjectConfigOrigin.none);
+        expect(effective.origin, ProjectConfigOrigin.repoFile);
+        expect(effective.config.worktree.setup, <String>['from-the-host']);
         expect(effective.hasError, isFalse);
 
-        // A broken file at the same local path is not this project's either.
         fileStore.error = ProjectConfigException('Invalid alera.toml');
-        expect((await service.resolve(remoteOnly)).hasError, isFalse);
+        final broken = await service.resolve(remoteOnly);
+        expect(broken.origin, ProjectConfigOrigin.repoFile);
+        expect(broken.hasError, isTrue);
+        expect(broken.config.isEmpty, isTrue);
 
         await service.saveUiOverride(
           projectId: remoteOnly.id,
@@ -71,10 +78,9 @@ void main() {
             worktree: WorktreeSetupConfig(setup: <String>['ui']),
           ),
         );
-        expect(
-          (await service.resolve(remoteOnly)).origin,
-          ProjectConfigOrigin.uiOverride,
-        );
+        final overridden = await service.resolve(remoteOnly);
+        expect(overridden.origin, ProjectConfigOrigin.uiOverride);
+        expect(overridden.config.worktree.setup, <String>['ui']);
       },
     );
 
