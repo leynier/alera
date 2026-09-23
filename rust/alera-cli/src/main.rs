@@ -649,13 +649,28 @@ async fn run_tag_command(command: crate::cli::TagCommand) -> i32 {
     let json_output = command.output.json;
     match command.action {
         crate::cli::TagAction::List => match open_store(&runtime).await {
-            Ok(store) => match store.list_tags().await {
-                Ok(tags) => print_value(
-                    &json!({ "kind": "tags", "items": tags, "filters": {} }),
+            Ok(store) => match crate::hub_federation::read_from_hub(
+                &runtime,
+                &store,
+                "workspaceTag.list",
+                json!({}),
+            )
+            .await
+            {
+                Ok(Some(tags)) => print_value(
+                    &json!({ "kind": "tags", "items": tags, "filters": {}, "source": "hub" }),
                     json_output,
                     "tags listed",
                 ),
                 Err(error) => return print_error(error),
+                Ok(None) => match store.list_tags().await {
+                    Ok(tags) => print_value(
+                        &json!({ "kind": "tags", "items": tags, "filters": {} }),
+                        json_output,
+                        "tags listed",
+                    ),
+                    Err(error) => return print_error(error),
+                },
             },
             Err(error) => return print_error(error),
         },

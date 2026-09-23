@@ -81,6 +81,21 @@ fn the_satellite_cli_lists_hub_state_over_the_reverse_channel() {
     let here: Value = serde_json::from_slice(&here.stdout).unwrap();
     assert_eq!(here["items"].as_array().unwrap().len(), 1, "{here}");
 
+    // Tags are hub records too; a tag created on the hub is what the remote
+    // terminal lists.
+    send(
+        &mut writer,
+        json!({"id": 3, "type": "workspaceTag.upsert", "payload": {"id": "tag-hub", "name": "From The Hub", "color": "#3366ff",
+            "createdAt": "2026-07-19T00:00:00Z", "updatedAt": "2026-07-19T00:00:00Z"}}),
+    );
+    let tagged = read_response(&mut reader, 3);
+    assert_eq!(tagged["ok"], true, "{tagged}");
+    let tags = satellite_cli(&fixture.satellite, &["tag", "list"]);
+    let tags: Value = serde_json::from_slice(&tags.stdout)
+        .unwrap_or_else(|_| panic!("{}", String::from_utf8_lossy(&tags.stdout)));
+    assert_eq!(tags["source"], "hub", "{tags}");
+    assert_eq!(tags["items"][0]["name"], "From The Hub", "{tags}");
+
     let projects = satellite_cli(&fixture.satellite, &["project", "list"]);
     let projects: Value = serde_json::from_slice(&projects.stdout).unwrap();
     assert_eq!(projects["source"], "hub", "{projects}");
