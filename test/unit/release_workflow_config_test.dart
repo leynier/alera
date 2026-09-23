@@ -201,7 +201,9 @@ void main() {
         r'path: \|\s+build/\*\*/cargokit_build\s+build/\*\*/ck',
       );
 
-      expect(cachePaths.allMatches(desktopBuild), hasLength(1));
+      // The desktop build and each fresh Windows native smoke runner restore
+      // the same two Cargokit layouts independently.
+      expect(cachePaths.allMatches(desktopBuild), hasLength(2));
       expect(cachePaths.allMatches(warmCache), hasLength(2));
       expect(cachePaths.allMatches(release), hasLength(1));
       expect(desktopBuild, contains(r'-name ck'));
