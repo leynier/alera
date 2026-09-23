@@ -47,6 +47,7 @@ void main() {
       expect(general.showTrayIcon, isTrue);
       expect(general.showDockBadge, isTrue);
       expect(general.showTrayBadge, isTrue);
+      expect(general.trayHideNoticeShown, isFalse);
       expect(general.showPullRequestStatusInSidebar, isTrue);
       expect(general.pullRequestFailureNotificationsEnabled, isFalse);
       expect(

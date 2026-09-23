@@ -301,6 +301,7 @@ class const GeneralSettings({
   this.showPullRequestStatusInSidebar = true,
   this.pullRequestFailureNotificationsEnabled = false,
   this.pullRequestAgentWatchScope = PullRequestAgentWatchScope.defaults,
+  this.trayHideNoticeShown = false,
 }) with GeneralSettingsMappable {
   /// User-configured root directory where new linked workspaces are created.
   /// `null` falls back to the platform default (`~/.alera/workspaces`).
@@ -335,6 +336,9 @@ class const GeneralSettings({
 
   /// Last problems chosen for pull request Watch and Fix.
   final PullRequestAgentWatchScope pullRequestAgentWatchScope;
+
+  /// Windows: the one-time notice that closing keeps Alera in the tray was shown.
+  final bool trayHideNoticeShown;
 
   static const GeneralSettings defaults = GeneralSettings();
 

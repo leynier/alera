@@ -123,6 +123,14 @@ void Win32DesktopPresence::HandleMethodCall(
     result->Success();
     return;
   }
+  if (call.method_name() == "showTrayNotice") {
+    const std::wstring title =
+        Utf8ToWide(args ? MapString(*args, "title") : std::string());
+    const std::wstring message =
+        Utf8ToWide(args ? MapString(*args, "message") : std::string());
+    result->Success(flutter::EncodableValue(ShowTrayNotice(title, message)));
+    return;
+  }
   result->NotImplemented();
 }
 
@@ -161,6 +169,10 @@ bool Win32DesktopPresence::HandleMessage(HWND hwnd,
       } else if (command == kTrayQuitId) {
         QuitFromTray();
       }
+      return true;
+    }
+    if (event == NIN_BALLOONUSERCLICK) {
+      ShowFromTray();
       return true;
     }
     return true;
@@ -240,6 +252,20 @@ bool Win32DesktopPresence::SetTray(bool visible, const std::wstring& tooltip) {
     tray_visible_ = true;
   }
   return tray_visible_;
+}
+
+bool Win32DesktopPresence::ShowTrayNotice(const std::wstring& title,
+                                          const std::wstring& message) {
+  if (!tray_visible_ || !hwnd_ || message.empty()) {
+    return false;
+  }
+  // Copy so a later SetTray NIM_MODIFY does not send the balloon again.
+  NOTIFYICONDATA notice = nid_;
+  notice.uFlags = NIF_INFO;
+  notice.dwInfoFlags = NIIF_INFO | NIIF_RESPECT_QUIET_TIME;
+  wcsncpy_s(notice.szInfoTitle, title.c_str(), _TRUNCATE);
+  wcsncpy_s(notice.szInfo, message.c_str(), _TRUNCATE);
+  return ::Shell_NotifyIconW(NIM_MODIFY, &notice) != FALSE;
 }
 
 void Win32DesktopPresence::SetBadgeCount(int count) {

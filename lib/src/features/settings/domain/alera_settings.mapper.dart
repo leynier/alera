@@ -1482,6 +1482,13 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     opt: true,
     def: PullRequestAgentWatchScope.defaults,
   );
+  static bool _$trayHideNoticeShown(GeneralSettings v) => v.trayHideNoticeShown;
+  static const Field<GeneralSettings, bool> _f$trayHideNoticeShown = Field(
+    'trayHideNoticeShown',
+    _$trayHideNoticeShown,
+    opt: true,
+    def: false,
+  );
 
   @override
   final MappableFields<GeneralSettings> fields = const {
@@ -1497,6 +1504,7 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     #pullRequestFailureNotificationsEnabled:
         _f$pullRequestFailureNotificationsEnabled,
     #pullRequestAgentWatchScope: _f$pullRequestAgentWatchScope,
+    #trayHideNoticeShown: _f$trayHideNoticeShown,
   };
 
   static GeneralSettings _instantiate(DecodingData data) {
@@ -1516,6 +1524,7 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
         _f$pullRequestFailureNotificationsEnabled,
       ),
       pullRequestAgentWatchScope: data.dec(_f$pullRequestAgentWatchScope),
+      trayHideNoticeShown: data.dec(_f$trayHideNoticeShown),
     );
   }
 
@@ -1599,6 +1608,7 @@ abstract class GeneralSettingsCopyWith<$R, $In extends GeneralSettings, $Out>
     bool? showPullRequestStatusInSidebar,
     bool? pullRequestFailureNotificationsEnabled,
     PullRequestAgentWatchScope? pullRequestAgentWatchScope,
+    bool? trayHideNoticeShown,
   });
   GeneralSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -1634,6 +1644,7 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     bool? showPullRequestStatusInSidebar,
     bool? pullRequestFailureNotificationsEnabled,
     PullRequestAgentWatchScope? pullRequestAgentWatchScope,
+    bool? trayHideNoticeShown,
   }) => $apply(
     FieldCopyWithData({
       if (workspaceDirectory != $none) #workspaceDirectory: workspaceDirectory,
@@ -1653,6 +1664,8 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
             pullRequestFailureNotificationsEnabled,
       if (pullRequestAgentWatchScope != null)
         #pullRequestAgentWatchScope: pullRequestAgentWatchScope,
+      if (trayHideNoticeShown != null)
+        #trayHideNoticeShown: trayHideNoticeShown,
     }),
   );
   @override
@@ -1685,6 +1698,10 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     pullRequestAgentWatchScope: data.get(
       #pullRequestAgentWatchScope,
       or: $value.pullRequestAgentWatchScope,
+    ),
+    trayHideNoticeShown: data.get(
+      #trayHideNoticeShown,
+      or: $value.trayHideNoticeShown,
     ),
   );
 

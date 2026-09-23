@@ -154,4 +154,4 @@ final class DesktopPresenceSyncProvider
 }
 
 String _$desktopPresenceSyncHash() =>
-    r'6404976a76c4c09d554d3c72bd5bffd82f5af28b';
+    r'd7f368cc999fa7d4f61588df6bdab2b2d71398fc';

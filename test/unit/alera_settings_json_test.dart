@@ -17,6 +17,7 @@ void main() {
           showTrayIcon: false,
           showDockBadge: false,
           showTrayBadge: false,
+          trayHideNoticeShown: true,
         ),
         agents: AgentSettings(
           agentStatusHooks: AgentStatusHookSettings(
@@ -95,6 +96,7 @@ void main() {
       expect(restored.general.showTrayIcon, isFalse);
       expect(restored.general.showDockBadge, isFalse);
       expect(restored.general.showTrayBadge, isFalse);
+      expect(restored.general.trayHideNoticeShown, isTrue);
       expect(restored.agents.agentStatusHooks.codex, isTrue);
       expect(restored.agents.agentStatusHooks.claude, isTrue);
       expect(restored.agents.agentStatusHooks.copilot, isFalse);
@@ -146,6 +148,13 @@ void main() {
       expect(restored.keyboard.overrides[KeyboardActionId.closeTab], <String>[
         'Mod+Shift+W',
       ]);
+    });
+
+    test('omitted trayHideNoticeShown decodes to false', () {
+      final general = GeneralSettings.fromJson(<String, Object?>{
+        'confirmProjectRemoval': true,
+      });
+      expect(general.trayHideNoticeShown, isFalse);
     });
   });
 }
