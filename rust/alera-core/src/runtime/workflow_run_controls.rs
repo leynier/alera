@@ -21,6 +21,7 @@ pub struct WorkflowRunControls {
     pub can_correct: bool,
     pub can_request_changes: bool,
     pub cancellation_pending: i64,
+    pub integration_settlement_pending: i64,
     pub cancellation_error: Option<String>,
     pub integration_sha: String,
     pub source_sha: String,
@@ -73,9 +74,15 @@ impl RuntimeStore {
         let cancellation = sqlx::query("SELECT COUNT(*) AS pending,MIN(error) AS error FROM workflowCancellationTargets WHERE run_id=? AND state<>'settled'")
             .bind(run).fetch_one(&mut *tx).await?;
         let cancellation_pending = cancellation.try_get("pending")?;
-        let cancellation_error: Option<String> = cancellation.try_get("error")?;
+        let integrations = sqlx::query("SELECT COUNT(*) AS pending,MIN(error) AS error FROM workflowIntegrations WHERE run_id=? AND cancelled=0 AND state IN ('pending','prepared','attention')")
+            .bind(run).fetch_one(&mut *tx).await?;
+        let integration_settlement_pending: i64 = if status == "cancelled" {
+            integrations.try_get("pending")?
+        } else { 0 };
+        let cancellation_error: Option<String> = cancellation.try_get::<Option<String>, _>("error")?
+            .or(if status == "cancelled" { integrations.try_get("error")? } else { None });
         let can_cancel =
-            status != "completed" && (status != "cancelled" || cancellation_error.is_some());
+            status != "completed" && (status != "cancelled" || cancellation_error.is_some() || integration_settlement_pending > 0);
         let can_control = status == "approved"
             && matches!(
                 row.try_get::<String, _>("coordinator_status")?.as_str(),
@@ -143,7 +150,7 @@ impl RuntimeStore {
             ))
         })
         .collect::<Result<BTreeMap<_, _>>>()?;
-        let unsettled:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM workflowIntegrations WHERE run_id=? AND state IN ('pending','prepared','attention'))")
+        let unsettled:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM workflowIntegrations WHERE run_id=? AND cancelled=0 AND state IN ('pending','prepared','attention'))")
             .bind(run).fetch_one(&mut *tx).await?;
         let can_request_changes = can_control
             && !unsettled
@@ -215,6 +222,7 @@ impl RuntimeStore {
             can_correct,
             can_request_changes,
             cancellation_pending,
+            integration_settlement_pending,
             cancellation_error,
             integration_sha: row.try_get("integration_sha")?,
             source_sha: plan.source_sha,

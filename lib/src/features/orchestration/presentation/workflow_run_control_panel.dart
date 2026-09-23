@@ -50,7 +50,8 @@ class WorkflowRunControlPanel extends StatelessWidget {
                   : controls.status == 'cancelled'
                   ? controls.cancellationError != null
                         ? 'Attention'
-                        : controls.cancellationPending > 0
+                        : controls.cancellationPending > 0 ||
+                              controls.integrationSettlementPending > 0
                         ? 'Cancelling'
                         : 'Cancelled'
                   : running
@@ -64,7 +65,9 @@ class WorkflowRunControlPanel extends StatelessWidget {
           controls.status == 'completed'
               ? 'All results are integrated and required human gates are approved. Worktrees and branches are retained.'
               : controls.status == 'cancelled'
-              ? controls.cancellationPending > 0
+              ? controls.integrationSettlementPending > 0
+                    ? 'New tasks are blocked. Pending agent terminals: ${controls.cancellationPending}. Pending integrations: ${controls.integrationSettlementPending}. Inspect any reported changes, then retry cancellation. No new Git changes will be applied.'
+                    : controls.cancellationPending > 0
                     ? 'New tasks are blocked. ${controls.cancellationPending} agent terminals await settlement.'
                     : 'The run is cancelled and its agent terminals are stopped. Worktrees, branches and results are retained.'
               : running

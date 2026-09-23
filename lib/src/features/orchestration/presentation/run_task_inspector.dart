@@ -204,6 +204,10 @@ class _WorkflowOutcome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (description, color) = switch (workflow.state) {
+      'cancelled' => (
+        'The attempt is cancelled. Existing Git receipts and worktrees are retained; no dependent tasks will start.',
+        AleraTokens.foregroundMuted,
+      ),
       'integrated' => (
         'Recorded at ${workflow.integratedSha ?? 'the integration head'}. Human gates remain separate.',
         AleraTokens.success,

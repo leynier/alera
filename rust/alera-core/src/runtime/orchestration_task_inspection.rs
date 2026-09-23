@@ -262,7 +262,7 @@ async fn inspect_workflow_task(
             x.error AS workspace_error, w.path, w.branch,
             json_extract(x.identity, '$.baseSha') AS base_sha,
             l.id AS launch_id, l.status AS launch_status, l.error AS launch_error,
-            i.id AS integration_id, i.state AS integration_state, i.receipt,
+            i.id AS integration_id, CASE WHEN i.cancelled=1 THEN 'cancelled' ELSE i.state END AS integration_state, i.receipt,
             i.conflict_paths, i.conflicts_truncated, i.error AS integration_error,
             e.task_id AS evidence_id, t.status AS task_status, t.result IS NOT NULL AS has_result
         FROM workflowPlanTasks p JOIN orchestrationTasks t ON t.id = p.task_id
@@ -286,6 +286,8 @@ async fn inspect_workflow_task(
         "integrated"
     } else if integration_state.as_deref() == Some("integrated") {
         "attention"
+    } else if integration_state.as_deref() == Some("cancelled") {
+        "cancelled"
     } else if integration_state.as_deref() == Some("conflict") {
         "conflict"
     } else if integration_state.as_deref() == Some("attention")

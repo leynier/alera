@@ -108,6 +108,10 @@ const BOARD_SCHEMA: &[&str] = &[
          CASE
              WHEN EXISTS(SELECT 1 FROM workflowCleanup WHERE run_id=r.id AND abandoned=0 AND state='attention') THEN 'attention'
              WHEN EXISTS(SELECT 1 FROM workflowCleanup WHERE run_id=r.id AND abandoned=0 AND state='applying') THEN 'active'
+             WHEN workflow.status = 'cancelled' AND EXISTS(SELECT 1 FROM workflowIntegrations
+                 WHERE run_id=r.id AND cancelled=0 AND state='attention') THEN 'attention'
+             WHEN workflow.status = 'cancelled' AND EXISTS(SELECT 1 FROM workflowIntegrations
+                 WHERE run_id=r.id AND cancelled=0 AND state IN ('pending','prepared')) THEN 'active'
              WHEN r.status IN ('completed','stopped') THEN 'history'
              WHEN workflow.status = 'cancelled' AND EXISTS(SELECT 1 FROM workflowCancellationTargets
                  WHERE run_id=r.id AND state='attention') THEN 'attention'
@@ -130,7 +134,7 @@ const BOARD_SCHEMA: &[&str] = &[
                              AND newer.attempt > (SELECT attempt FROM workflowWorkspaces
                                  WHERE id = l.workspace_id)))
                  OR EXISTS(SELECT 1 FROM workflowIntegrations i JOIN workflowRuns wr ON wr.run_id = i.run_id
-                     WHERE i.run_id = r.id AND i.state IN ('conflict','attention')
+                     WHERE i.run_id = r.id AND i.cancelled=0 AND i.state IN ('conflict','attention')
                        AND (i.state = 'attention' OR i.revision = wr.revision)
                        AND NOT EXISTS(SELECT 1 FROM workflowTaskEvidence e WHERE e.task_id = i.task_id))
                  OR EXISTS(SELECT 1 FROM workflowIntegrations i JOIN workflowRuns wr ON wr.run_id = i.run_id

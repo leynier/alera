@@ -167,7 +167,7 @@ pub(super) async fn require_cleanup_quiescent(
         bail!("finish or cancel the workflow before cleaning its resources");
     }
     let pending: bool = sqlx::query_scalar("SELECT EXISTS(
-        SELECT 1 FROM workflowIntegrations WHERE run_id=? AND state IN ('pending','prepared','attention')
+        SELECT 1 FROM workflowIntegrations WHERE run_id=? AND cancelled=0 AND state IN ('pending','prepared','attention')
         UNION ALL SELECT 1 FROM workflowCancellationTargets WHERE run_id=? AND state<>'settled'
         UNION ALL SELECT 1 FROM orchestrationTasks WHERE run_id=? AND status IN ('dispatched','stalled'))")
         .bind(&preview.run_id).bind(&preview.run_id).bind(&preview.run_id).fetch_one(&mut **tx).await?;

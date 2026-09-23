@@ -199,6 +199,41 @@ pub fn apply_workflow_integration(
     Ok(receipt)
 }
 
+/// Cancellation never creates or applies a receipt. It may only acknowledge
+/// an intact checkout at the original or already-applied, receipted revision.
+pub fn inspect_cancelled_workflow_integration(
+    request: &WorkflowIntegrationRequest,
+) -> Result<Option<WorkflowIntegrationReceipt>, GitError> {
+    request.validate()?;
+    request.verify_resources()?;
+    for resource in [&request.source, &request.integration] {
+        let current = super::preview_workflow_cleanup(
+            &request.repo_path,
+            &resource.path,
+            &resource.base_sha,
+            &resource.id,
+        )?;
+        if current.dirty || current.locked || current.operation_in_progress {
+            return Err(invalid(
+                "cancelled integration requires intact clean idle resources",
+            ));
+        }
+    }
+    let repo = Repository::open(&request.integration.path).map_err(GitError::from_git2)?;
+    let receipt = receipt::load(&repo, request)?;
+    let head = head_oid(&repo)?.to_string();
+    if head != request.expected_sha
+        && receipt
+            .as_ref()
+            .is_none_or(|receipt| receipt.integrated_sha != head)
+    {
+        return Err(invalid(
+            "cancelled integration head changed without a matching receipt",
+        ));
+    }
+    Ok(receipt)
+}
+
 impl WorkflowIntegrationRequest {
     fn validate(&self) -> Result<(), GitError> {
         for id in [&self.id, &self.integration.id, &self.source.id] {

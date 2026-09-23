@@ -22,6 +22,8 @@ Retrying a failed task prepares a fresh attempt in a new worktree while retainin
 
 Cancel stops the run's coordinator and worker terminals and prevents further dispatch. Worktrees, branches and results remain. Setup and Git operations already in progress finish safely. Cancellation is irreversible for that run; a pending cancellation is not proof that its processes have stopped.
 
+Previously reserved integrations settle separately after cancellation. Recovery only inspects existing Git receipts and clean, unchanged owned worktrees; it never prepares or applies another result. An already-applied receipt remains in history, but cancellation creates no task evidence or dependent work. Dirty files, changed identity or an unexpected HEAD remain Attention for inspection and explicit retry. Reviewed cleanup becomes available only after outstanding operations have settled.
+
 Proposal cancellation similarly prevents coordinator launch and late plan submission. If stopping the coordinator needs Attention, inspect its retained terminal and use Retry Cancellation. The retry is tied to the observed receipt sequence. Repeating a request after response loss cannot restart a later failed attempt, and an obsolete completion cannot settle a newer attempt.
 
 Disconnecting does not authorize fallback execution. Reconnect and refresh durable receipts before acting again. Startup reconciles confirmed work and leaves uncertain setup/launch outcomes in Attention rather than duplicating commands.

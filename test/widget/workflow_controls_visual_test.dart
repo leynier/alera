@@ -23,17 +23,31 @@ void main() {
       await (FontLoader(family)..addFont(rootBundle.load(asset))).load();
     }
   });
-  for (final (compact, confirmation) in [
-    (false, false),
-    (true, false),
-    (true, true),
+  for (final (compact, confirmation, cancelled) in [
+    (false, false, false),
+    (true, false, false),
+    (true, true, false),
+    (false, false, true),
+    (true, true, true),
   ]) {
     testWidgets(
-      'execution controls visual compact=$compact confirmation=$confirmation',
+      'execution controls visual compact=$compact confirmation=$confirmation cancelled=$cancelled',
       (tester) async {
         await tester.binding.setSurfaceSize(Size(compact ? 420 : 760, 900));
         addTearDown(() => tester.binding.setSurfaceSize(null));
         final key = GlobalKey();
+        final fixture = workflowControlsFixture(
+          executionStatus: 'running',
+          gateReady: !cancelled,
+        );
+        if (cancelled) {
+          fixture.addAll({
+            'status': 'cancelled',
+            'canControl': false,
+            'integrationSettlementPending': 1,
+            'cancellationError': 'The integration worktree has uncommitted changes. Inspect and preserve your work before retrying.',
+          });
+        }
         await tester.pumpWidget(
           MaterialApp(
             debugShowCheckedModeBanner: false,
@@ -48,9 +62,7 @@ void main() {
                   body: SingleChildScrollView(
                     padding: const EdgeInsets.all(AleraTokens.space16),
                     child: WorkflowRunControlPanel(
-                      controls: WorkflowRunControls.fromJson(
-                        workflowControlsFixture(executionStatus: 'running'),
-                      ),
+                      controls: WorkflowRunControls.fromJson(fixture),
                       onControl: (_) {},
                       onReview: (_) {},
                       onRefresh: () {},
@@ -63,9 +75,18 @@ void main() {
         );
         await tester.pumpAndSettle();
         if (confirmation) {
-          await tester.tap(find.text('Cancel Workflow'));
+          await tester.ensureVisible(
+            find.text(cancelled ? 'Retry Cancellation' : 'Cancel Workflow'),
+          );
+          await tester.tap(
+            find.text(cancelled ? 'Retry Cancellation' : 'Cancel Workflow'),
+          );
           await tester.pumpAndSettle();
-          await tester.ensureVisible(find.textContaining('Cancellation stops'));
+          await tester.ensureVisible(
+            find.textContaining(
+              cancelled ? 'Retry checks' : 'Cancellation stops',
+            ),
+          );
           await tester.pumpAndSettle();
         }
         expect(tester.takeException(), isNull);
@@ -78,7 +99,7 @@ void main() {
           final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
           await Directory(directory).create(recursive: true);
           await File(
-            '$directory/controls-${compact ? 'compact' : 'desktop'}${confirmation ? '-cancel' : ''}.png',
+            '$directory/controls-${compact ? 'compact' : 'desktop'}${cancelled ? '-integration-recovery' : ''}${confirmation ? '-cancel' : ''}.png',
           ).writeAsBytes(bytes!.buffer.asUint8List());
           image.dispose();
         });

@@ -9,6 +9,15 @@ impl RuntimeStore {
             sqlx::query(*statement).execute(&mut *tx).await?;
         }
         tx.commit().await?;
+        self.ensure_column(
+            "workflowIntegrations",
+            "cancelled",
+            "INTEGER NOT NULL DEFAULT 0",
+        )
+        .await?;
+        sqlx::query("CREATE TRIGGER IF NOT EXISTS workflowCancelledIntegrationImmutable BEFORE UPDATE ON workflowIntegrations
+            WHEN OLD.cancelled=1 BEGIN SELECT RAISE(ABORT, 'cancelled integration settlement is immutable'); END")
+            .execute(self.pool()).await?;
         Ok(())
     }
 }

@@ -17,6 +17,49 @@ import 'package:flutter_test/flutter_test.dart';
 import '../support/workflow_controls_fixture.dart';
 
 void main() {
+  testWidgets('cancelled integration attention offers safe explicit retry', (
+    tester,
+  ) async {
+    String? action;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: aleraDarkTheme,
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: WorkflowRunControlPanel(
+              controls: WorkflowRunControls.fromJson(
+                workflowControlsFixture()
+                  ..['status'] = 'cancelled'
+                  ..['canControl'] = false
+                  ..['integrationSettlementPending'] = 1
+                  ..['cancellationError'] =
+                      'Retained integration worktree has changes.',
+              ),
+              onControl: (value) => action = value,
+              onReview: (_) {},
+              onRefresh: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(
+        find.textContaining('Pending integrations: 1.'),
+      findsOneWidget,
+    );
+    expect(find.text('Start Workflow'), findsNothing);
+    await tester.tap(find.text('Retry Cancellation'));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('does not apply new Git changes'),
+      findsOneWidget,
+    );
+    expect(action, isNull);
+    await tester.tap(find.text('Confirm Cancellation'));
+    expect(action, 'cancel');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('only eligible human gates open review at compact text scale', (
     tester,
   ) async {

@@ -146,6 +146,7 @@ mod workflow_gate_evidence;
 #[cfg(test)]
 mod workflow_gate_tests;
 mod workflow_integration;
+mod workflow_integration_cancellation;
 mod workflow_integration_schema;
 mod workflow_integration_snapshot;
 mod workflow_integration_store;

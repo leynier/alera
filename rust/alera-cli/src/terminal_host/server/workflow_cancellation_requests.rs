@@ -14,6 +14,7 @@ impl ServerActor {
         self.managed_workspace_jobs += 1;
         self.cancel_shutdown_timer();
         let store = self.runtime_store.clone();
+        let directory = self.runtime_dir.clone();
         let inbox = self.inbox.clone();
         // Independent from worktree setup/integration so a slow Git or setup
         // job never delays stopping the run's already-active workers.
@@ -62,6 +63,19 @@ impl ServerActor {
                         .settle_workflow_cancellation(&target, error.as_deref())
                         .await?;
                 }
+                // Stop processes first; cancelled integration inspection is
+                // read-only Git work on a bounded, off-actor blocking job.
+                let cleanup_store = store.clone();
+                let runtime = tokio::runtime::Handle::current();
+                tokio::task::spawn_blocking(move || {
+                    runtime.block_on(
+                        crate::managed_workspace::workflow::integration::reconcile_cancelled(
+                            &cleanup_store,
+                            &directory,
+                        ),
+                    )
+                })
+                .await??;
                 Ok::<bool, anyhow::Error>(progress)
             }
             .await

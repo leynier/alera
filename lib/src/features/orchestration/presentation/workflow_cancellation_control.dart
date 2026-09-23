@@ -64,7 +64,7 @@ class _WorkflowCancellationControlState
           if (_confirming) ...[
             Text(
               controls.status == 'cancelled'
-                  ? 'Retry checks the remaining terminal identities and stops only those belonging to this run. It does not resume the workflow or remove its worktrees.'
+                  ? 'Retry checks remaining terminals and integration receipts. It stops only this run’s terminals and does not apply new Git changes, resume the workflow or remove worktrees.'
                   : 'Cancellation stops this run’s coordinator and worker terminals and prevents new tasks. Worktrees, branches and results are retained. Setup or Git operations already in progress finish safely. This run cannot be resumed.',
             ),
             const SizedBox(height: AleraTokens.space8),

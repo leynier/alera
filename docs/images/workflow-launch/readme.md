@@ -5,6 +5,8 @@ These captures use Alera's dark theme and bundled fonts. They document layout, n
 - `board-linux-overview.png`: native Linux Board navigation test at 1100 x 800, using `BoardTestRepository`.
 - `controls-desktop.png`: execution controls and stage gate availability at 760 x 900.
 - `controls-compact-cancel.png`: explicit cancellation confirmation at 420 x 900 and 200% text scale; the rest of the page remains scrollable.
+- `controls-desktop-integration-recovery.png`: cancelled-run Attention with retained dirty integration work and explicit retry at 760 x 900.
+- `controls-compact-integration-recovery-cancel.png`: non-mutating integration recovery confirmation at 420 x 900 and 200% text scale, scrolled to the confirmation.
 - `cleanup-attention-desktop.png`: explicit retry and non-destructive abandonment at 760 x 900.
 - `cleanup-attention-compact-footer.png`: recovery actions at 420 x 900 and 200% text scale, scrolled to the footer.
 - `cleanup-abandoned-desktop.png`: durable abandonment receipt with remaining resources retained and no cleanup action.

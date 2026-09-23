@@ -13,7 +13,7 @@ impl RuntimeStore {
     ) -> Result<WorkflowIntegrationPage> {
         workflow_text(&query.run_id, 160)?;
         let rows = sqlx::query(
-            "SELECT sequence,id,task_id,workspace_id,state,error,
+            "SELECT sequence,id,task_id,workspace_id,CASE WHEN cancelled=1 THEN 'cancelled' ELSE state END AS state,error,
             json_extract(request,'$.expected_sha') AS expected_sha,
             json_extract(receipt,'$.integrated_sha') AS integrated_sha
             FROM workflowIntegrations WHERE run_id = ? AND sequence > ? ORDER BY sequence LIMIT 26",

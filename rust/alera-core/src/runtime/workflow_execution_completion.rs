@@ -24,7 +24,7 @@ impl RuntimeStore {
         }
         let (plan, _) =
             super::workflow_workspace_eligibility::approved_plan(&mut tx, run, revision).await?;
-        let unsettled: bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM workflowIntegrations WHERE run_id=? AND state IN ('pending','prepared','attention'))")
+        let unsettled: bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM workflowIntegrations WHERE run_id=? AND cancelled=0 AND state IN ('pending','prepared','attention'))")
             .bind(run).fetch_one(&mut *tx).await?;
         if unsettled {
             bail!("workflow integration must settle before completion");

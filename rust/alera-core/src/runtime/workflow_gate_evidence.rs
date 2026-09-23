@@ -20,7 +20,7 @@ pub(super) async fn approval_state(
 ) -> Result<ApprovalState> {
     let unsettled: bool = sqlx::query_scalar(
         "SELECT EXISTS(SELECT 1 FROM workflowIntegrations
-        WHERE run_id = ? AND state IN ('pending','prepared','attention'))",
+        WHERE run_id = ? AND cancelled=0 AND state IN ('pending','prepared','attention'))",
     )
     .bind(run_id)
     .fetch_one(&mut **tx)

@@ -15,7 +15,7 @@ pub(super) async fn inputs(
     super::workflow_execution::require_running(tx, &request.run_id, request.revision).await?;
     let unsettled: bool = sqlx::query_scalar(
         "SELECT EXISTS(SELECT 1 FROM workflowIntegrations
-        WHERE run_id = ? AND state IN ('pending','prepared','attention'))",
+        WHERE run_id = ? AND cancelled=0 AND state IN ('pending','prepared','attention'))",
     )
     .bind(&request.run_id)
     .fetch_one(&mut **tx)

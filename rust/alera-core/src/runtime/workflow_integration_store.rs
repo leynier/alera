@@ -118,7 +118,7 @@ impl RuntimeStore {
                 .fetch_one(&mut *tx)
                 .await?,
         )?;
-        if record.state == State::Integrated {
+        if matches!(record.state, State::Integrated | State::Cancelled) {
             return Ok(record);
         }
         require_current(&mut tx, &record.request).await?;
@@ -174,7 +174,7 @@ impl RuntimeStore {
         if record.receipt.as_ref() != Some(receipt) {
             bail!("integration receipt was not prepared durably");
         }
-        if record.state == State::Integrated {
+        if matches!(record.state, State::Integrated | State::Cancelled) {
             return Ok(record);
         }
         if record.state != State::Prepared {
@@ -202,16 +202,20 @@ impl RuntimeStore {
     ) -> Result<WorkflowIntegrationRecord> {
         let error = error.chars().take(1000).collect::<String>();
         sqlx::query("UPDATE workflowIntegrations SET state = 'attention', error = ?, updated_at = datetime('now')
-            WHERE id = ? AND state NOT IN ('integrated','conflict')")
+            WHERE id = ? AND state NOT IN ('integrated','conflict') AND cancelled=0")
             .bind(error).bind(id).execute(self.pool()).await?;
         self.workflow_integration(id).await
     }
 }
 
-fn decode(row: &SqliteRow) -> Result<WorkflowIntegrationRecord> {
+pub(super) fn decode(row: &SqliteRow) -> Result<WorkflowIntegrationRecord> {
     Ok(WorkflowIntegrationRecord {
         request: serde_json::from_str(&row.try_get::<String, _>("request")?)?,
-        state: serde_json::from_value(serde_json::Value::String(row.try_get("state")?))?,
+        state: if row.try_get::<bool, _>("cancelled")? {
+            State::Cancelled
+        } else {
+            serde_json::from_value(serde_json::Value::String(row.try_get("state")?))?
+        },
         receipt: row
             .try_get::<Option<String>, _>("receipt")?
             .map(|raw| serde_json::from_str(&raw))
