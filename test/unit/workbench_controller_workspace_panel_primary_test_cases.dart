@@ -186,6 +186,9 @@ void _registerWorkspacePanelPrimaryTests() {
       final restarted = ProviderContainer(
         parent: _harness.container,
         overrides: [
+          // Root provider, overridden in a child container so persisted
+          // view prefs survive a controller restart.
+          // ignore: scoped_providers_should_specify_dependencies
           workbenchControllerProvider.overrideWith(WorkbenchController.new),
         ],
       );
