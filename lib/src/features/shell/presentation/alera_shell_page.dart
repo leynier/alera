@@ -20,6 +20,7 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/app_menu/presentation/alera_app_menu_scope.dart';
 import 'package:alera/src/features/keyboard/domain/key_chord.dart';
+import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_shortcuts_scope.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_monitor_providers.dart';

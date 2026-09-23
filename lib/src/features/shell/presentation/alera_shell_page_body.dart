@@ -5,6 +5,14 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
   final WorkbenchTabCompletionAcknowledgements _completionAcknowledgements =
       WorkbenchTabCompletionAcknowledgements();
 
+  void _returnFromRunBoard() {
+    ref.read(runBoardNavigationProvider.notifier).close();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || ref.read(runBoardNavigationProvider).visible) return;
+      KeyboardCommandDispatcher(ref: ref, context: context).focusActivePane();
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -386,7 +394,10 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                             ],
                           ),
                         ),
-                        if (showRunBoard) const RunBoardPage(),
+                        if (showRunBoard)
+                          RunBoardPage(
+                            onReturnToWorkspace: _returnFromRunBoard,
+                          ),
                       ],
                     ),
                   ),

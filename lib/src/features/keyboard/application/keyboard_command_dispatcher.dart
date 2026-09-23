@@ -32,6 +32,9 @@ class const KeyboardCommandDispatcher({
   required final BuildContext context,
   final TerminalSessionHandle? terminalSession,
 }) {
+  /// Restore the active workbench pane after a global surface was dismissed.
+  void focusActivePane() => _focusActivePane();
+
   void dispatch(KeyboardActionId id) {
     if (ref.read(runBoardNavigationProvider).visible &&
         keybindingDefinitions.firstWhere((action) => action.id == id).group !=

@@ -53,6 +53,12 @@ void registerNativeRunBoardEditorLifecycleTest() {
       navigation.open();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
+      // The real desktop harness may show the one-time star prompt above the
+      // shell; dismiss it before exercising the Board's pointer action.
+      if (find.text('Support Alera').evaluate().isNotEmpty) {
+        await tester.tap(find.text('Not Now'));
+        await tester.pumpAndSettle();
+      }
       expect(find.byType(RunBoardPage), findsOneWidget);
       expect(find.byType(WorkspaceEditorSurface), findsNothing);
       expect(
@@ -66,11 +72,13 @@ void registerNativeRunBoardEditorLifecycleTest() {
       expect(editor.focusNode!.hasFocus, isFalse);
       expect(editor.controller!.selection, selection);
       expect(editor.controller!.text, 'hello edited world');
-      navigation.close();
+      await tester.tap(find.text('Return to Workspace'));
+      await tester.pump();
       await tester.pump();
       final restored = tester.widget<code_forge.CodeForge>(
         find.byType(code_forge.CodeForge),
       );
+      expect(editor.focusNode!.hasFocus, isTrue);
       expect(restored.controller, same(editor.controller));
       expect(restored.undoController, same(editor.undoController));
       expect(restored.controller!.selection, selection);

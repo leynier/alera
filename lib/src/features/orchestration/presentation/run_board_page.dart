@@ -18,7 +18,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class RunBoardPage extends ConsumerWidget {
-  const RunBoardPage({super.key});
+  const RunBoardPage({super.key, this.onReturnToWorkspace});
+  final VoidCallback? onReturnToWorkspace;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final location = ref.watch(runBoardNavigationProvider);
@@ -176,7 +177,7 @@ class RunBoardPage extends ConsumerWidget {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 TextButton.icon(
-                  onPressed: navigation.close,
+                  onPressed: onReturnToWorkspace ?? navigation.close,
                   icon: const Icon(AleraIcons.back),
                   label: const Text('Return to Workspace'),
                 ),
