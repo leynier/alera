@@ -192,6 +192,7 @@ impl RuntimeStore {
             .bind(&run_id)
             .execute(&mut *tx)
             .await?;
+            super::workflow_execution::pause_for_revision(&mut tx, &run_id, expected + 1).await?;
             expected + 1
         } else {
             sqlx::query(

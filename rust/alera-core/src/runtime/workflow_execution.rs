@@ -34,6 +34,22 @@ pub struct WorkflowExecutionState {
     pub attention: Option<String>,
 }
 
+/// Revision changes stop scheduling but retain the run-wide command sequence.
+/// Old attention stays bound to its original revision, and stale commands still
+/// fail the current-revision guard. Runs without execution remain unstarted.
+pub(super) async fn pause_for_revision(
+    tx: &mut Transaction<'_, Sqlite>,
+    run: &str,
+    revision: i64,
+) -> Result<()> {
+    sqlx::query("UPDATE workflowExecution SET revision=?,status='paused' WHERE run_id=?")
+        .bind(revision)
+        .bind(run)
+        .execute(&mut **tx)
+        .await?;
+    Ok(())
+}
+
 impl RuntimeStore {
     pub(super) async fn migrate_workflow_execution(&self) -> Result<()> {
         let mut tx = self.pool().begin().await?;

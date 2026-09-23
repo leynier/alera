@@ -6,6 +6,26 @@ import '../support/workflow_cleanup_fixture.dart';
 import '../support/workflow_controls_fixture.dart';
 
 void main() {
+  test('controls reject execution from a previous plan revision', () {
+    final source = workflowControlsFixture();
+    expect(
+      () => WorkflowRunControls.fromJson({...source, 'revision': 2}),
+      throwsFormatException,
+    );
+    final corrected = WorkflowRunControls.fromJson({
+      ...source,
+      'revision': 2,
+      'execution': {
+        ...(source['execution']! as Map),
+        'revision': 2,
+        'sequence': 2,
+        'status': 'paused',
+      },
+    });
+    expect(corrected.execution!.sequence, 2);
+    expect(corrected.execution!.revision, corrected.revision);
+  });
+
   test('recipe origins remain explicit and unknown origins are rejected', () {
     for (final (source, label) in [
       ({'origin': 'builtIn'}, 'Built-in'),
