@@ -195,7 +195,7 @@ impl ServerActor {
                 return true;
             }
         };
-        match self.target_identity(definition).await {
+        match self.target_identity(&definition.target).await {
             Ok(identity) => {
                 run.target_identity = Some(identity);
                 if let Err(error) = self.runtime_store.save_automation_run(&run).await {

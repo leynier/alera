@@ -82,7 +82,7 @@ impl ServerActor {
             .create_automation_run(&definition, &occurrence, AutomationRunTrigger::Manual)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
-        match self.target_identity(&definition).await {
+        match self.target_identity(&definition.target).await {
             Ok(identity) => run.target_identity = Some(identity),
             Err(reason) => {
                 self.block_run(&run, &reason).await;

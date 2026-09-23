@@ -80,6 +80,37 @@ async fn workflow_cleanup_claim_blocks_new_terminal_owners_after_restart() {
         .await
         .unwrap();
     actor.runtime_dir = fixture.runtime.clone();
+    use alera_core::runtime::AutomationTarget;
+    for target in [
+        AutomationTarget::ExistingTab {
+            workspace_id: workspace.id.clone(),
+            tab_id: "saved-browser".into(),
+            conversation_id: None,
+        },
+        AutomationTarget::FreshTab {
+            workspace_id: workspace.id.clone(),
+            agent_profile_id: "profile".into(),
+        },
+        AutomationTarget::ManagedWorkspace {
+            source_workspace_id: workspace.id.clone(),
+            source_branch: "main".into(),
+            name_template: "automation-workspace".into(),
+            agent_profile_id: "profile".into(),
+        },
+    ] {
+        assert!(actor
+            .target_identity(&target)
+            .await
+            .unwrap_err()
+            .contains("reserved for reviewed cleanup"));
+    }
+    assert!(actor
+        .target_identity(&AutomationTarget::FreshTab {
+            workspace_id: "owner".into(),
+            agent_profile_id: "profile".into(),
+        })
+        .await
+        .is_ok());
     let error = actor
         .start_new_terminal_session(
             "cleanup-terminal".into(),

@@ -102,7 +102,7 @@ impl ServerActor {
         }
         // Bind the durable target before a workspace or project lookup can
         // fail, so attention notifications still have a useful location.
-        let target_identity = match self.target_identity(definition).await {
+        let target_identity = match self.target_identity(&definition.target).await {
             Ok(identity) => identity,
             Err(error) => {
                 self.block_run(&run, &error).await;
