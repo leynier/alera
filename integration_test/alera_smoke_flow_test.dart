@@ -33,6 +33,12 @@ void main() {
   testWidgets('adds a local folder and opens its terminal workspace', (
     tester,
   ) async {
+    // This two-panel smoke flow needs a visible right panel on every native
+    // runner, including macOS where the initial window is only 800x600.
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     final tempRoot = await Directory.systemTemp.createTemp('alera-e2e-');
     addTearDown(() async {
       if (tempRoot.existsSync()) {
