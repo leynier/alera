@@ -159,13 +159,24 @@ async fn workflow_cancelled_integration_preserves_dirty_attention_until_explicit
         .await
         .unwrap();
     assert_eq!(settled.state, WorkflowIntegrationState::Attention);
-    let controls = fixture.store.workflow_run_controls(&input.run_id, None).await.unwrap();
+    let controls = fixture
+        .store
+        .workflow_run_controls(&input.run_id, None)
+        .await
+        .unwrap();
     assert!(controls.can_cancel);
     assert_eq!(controls.integration_settlement_pending, 1);
     assert!(controls.cancellation_error.is_some());
-    let snapshot = fixture.store.orchestration_run_snapshot(&OrchestrationRunSnapshotQuery {
-        run_id: input.run_id.clone(), after_task_id: None, revision: None, limit: None,
-    }).await.unwrap();
+    let snapshot = fixture
+        .store
+        .orchestration_run_snapshot(&OrchestrationRunSnapshotQuery {
+            run_id: input.run_id.clone(),
+            after_task_id: None,
+            revision: None,
+            limit: None,
+        })
+        .await
+        .unwrap();
     assert_eq!(snapshot.run.bucket, OrchestrationBoardBucket::Attention);
     assert_eq!(std::fs::read_to_string(&dirty).unwrap(), "retain user work");
     std::fs::remove_file(dirty).unwrap();
@@ -173,12 +184,32 @@ async fn workflow_cancelled_integration_preserves_dirty_attention_until_explicit
         .await
         .unwrap();
     assert_eq!(settled.state, WorkflowIntegrationState::Cancelled);
-    let controls = fixture.store.workflow_run_controls(&input.run_id, None).await.unwrap();
+    let controls = fixture
+        .store
+        .workflow_run_controls(&input.run_id, None)
+        .await
+        .unwrap();
     assert_eq!(controls.integration_settlement_pending, 0);
-    let snapshot = fixture.store.orchestration_run_snapshot(&OrchestrationRunSnapshotQuery {
-        run_id: input.run_id.clone(), after_task_id: None, revision: None, limit: None,
-    }).await.unwrap();
-    assert_eq!(snapshot.tasks.iter().find(|task| task.id == input.task_id).unwrap().workflow_state.as_deref(), Some("cancelled"));
+    let snapshot = fixture
+        .store
+        .orchestration_run_snapshot(&OrchestrationRunSnapshotQuery {
+            run_id: input.run_id.clone(),
+            after_task_id: None,
+            revision: None,
+            limit: None,
+        })
+        .await
+        .unwrap();
+    assert_eq!(
+        snapshot
+            .tasks
+            .iter()
+            .find(|task| task.id == input.task_id)
+            .unwrap()
+            .workflow_state
+            .as_deref(),
+        Some("cancelled")
+    );
     assert!(
         core_git::inspect_cancelled_workflow_integration(&record.request)
             .unwrap()

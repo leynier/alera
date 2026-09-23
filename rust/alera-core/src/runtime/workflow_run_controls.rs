@@ -78,11 +78,20 @@ impl RuntimeStore {
             .bind(run).fetch_one(&mut *tx).await?;
         let integration_settlement_pending: i64 = if status == "cancelled" {
             integrations.try_get("pending")?
-        } else { 0 };
-        let cancellation_error: Option<String> = cancellation.try_get::<Option<String>, _>("error")?
-            .or(if status == "cancelled" { integrations.try_get("error")? } else { None });
-        let can_cancel =
-            status != "completed" && (status != "cancelled" || cancellation_error.is_some() || integration_settlement_pending > 0);
+        } else {
+            0
+        };
+        let cancellation_error: Option<String> = cancellation
+            .try_get::<Option<String>, _>("error")?
+            .or(if status == "cancelled" {
+                integrations.try_get("error")?
+            } else {
+                None
+            });
+        let can_cancel = status != "completed"
+            && (status != "cancelled"
+                || cancellation_error.is_some()
+                || integration_settlement_pending > 0);
         let can_control = status == "approved"
             && matches!(
                 row.try_get::<String, _>("coordinator_status")?.as_str(),

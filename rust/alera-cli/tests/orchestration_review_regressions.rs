@@ -2457,7 +2457,10 @@ fn cancelling_active_worker_interrupts_before_idle_banner_delivery() {
     );
     let deadline = Instant::now() + Duration::from_secs(10);
     while !ready.exists() {
-        assert!(Instant::now() < deadline, "worker did not install its interrupt trap");
+        assert!(
+            Instant::now() < deadline,
+            "worker did not install its interrupt trap"
+        );
         std::thread::sleep(Duration::from_millis(10));
     }
     expect_ok(request(

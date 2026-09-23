@@ -43,10 +43,7 @@ void main() {
         ),
       ),
     );
-    expect(
-        find.textContaining('Pending integrations: 1.'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Pending integrations: 1.'), findsOneWidget);
     expect(find.text('Start Workflow'), findsNothing);
     await tester.tap(find.text('Retry Cancellation'));
     await tester.pumpAndSettle();
