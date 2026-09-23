@@ -1,3 +1,5 @@
+// ignore_for_file: riverpod_lint/avoid_public_notifier_properties
+
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/workbench_sidebar_toolbar.dart';

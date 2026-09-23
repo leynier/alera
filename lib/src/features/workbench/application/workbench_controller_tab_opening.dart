@@ -5,7 +5,12 @@ part of 'workbench_controller.dart';
 /// Split out of `workbench_controller_tabs.dart`, which keeps the lifecycle of
 /// tabs that already exist: closing, renaming, moving and splitting.
 mixin _WorkbenchControllerTabOpening
-    on _$WorkbenchController, _WorkbenchControllerInternals {
+    on
+        _$WorkbenchController,
+        _WorkbenchControllerInternals,
+        _WorkbenchControllerWorkspacePanel,
+        _WorkbenchControllerWorkspacePanelPanes,
+        _WorkbenchControllerInternalLayout {
   Future<WorkspaceTabRecord> createTerminalTab(
     Workspace workspace, {
     String? targetGroupId,
@@ -16,8 +21,7 @@ mixin _WorkbenchControllerTabOpening
     bool autoCloseOnSuccess = false,
   }) async {
     try {
-      final previousTabs = state.tabsFor(workspace.id);
-      final layout = _layoutForMutation(workspace.id, previousTabs);
+      final sleepGeneration = _workspaceSleepGeneration[workspace.id] ?? 0;
       final tab = await _workspaceTabService.createTerminalTab(
         workspace.id,
         title: title,
@@ -26,11 +30,30 @@ mixin _WorkbenchControllerTabOpening
         initialCommandOnce: initialCommandOnce,
         autoCloseOnSuccess: autoCloseOnSuccess,
       );
-      final tabs = <WorkspaceTabRecord>[...previousTabs, tab];
+      if (_isStaleWorkspaceOpen(workspace.id, sleepGeneration) ||
+          _isClosedTabId(tab.id)) {
+        await _discardStalePrimaryTerminal(workspace, tab);
+        throw StateError('Workspace is no longer available for a new terminal');
+      }
+      final live = state
+          .tabsFor(workspace.id)
+          .where((existing) => existing.id != tab.id)
+          .toList(growable: false);
+      final tabs = <WorkspaceTabRecord>[...live, tab];
       _setTabsForWorkspace(workspace.id, tabs);
-      final groupId = targetGroupId ?? layout.activeGroupId;
-      final nextLayout = layout.addTabToGroup(groupId: groupId, tabId: tab.id);
-      await _applyLayout(nextLayout.sanitize(tabs), persist: true);
+      addTerminalToWorkspacePanel(
+        workspaceId: workspace.id,
+        tab: tab,
+        tabs: tabs,
+        previousTabs: live,
+        targetGroupId: targetGroupId,
+      );
+      if (state.activeWorkspaceId == workspace.id) {
+        ref
+            .read(terminalRuntimeProvider)
+            .sessionFor(workspace: workspace, tab: tab)
+            .requestFocus();
+      }
       ref
           .read(workspaceActivityControllerProvider.notifier)
           .recordActivity(workspace.id, DateTime.now().toUtc());
@@ -68,186 +91,67 @@ mixin _WorkbenchControllerTabOpening
     }
   }
 
-  Future<WorkspaceTabRecord> createBrowserTab(
-    Workspace workspace, {
-    String? targetGroupId,
-    String? pageId,
-    String profileId = 'default',
-    String? initialUrl,
-  }) async {
-    try {
-      final previousTabs = state.tabsFor(workspace.id);
-      final layout = _layoutForMutation(workspace.id, previousTabs);
-      final tab = await _workspaceBrowserTabService.createTab(
-        workspace.id,
-        pageId: pageId,
-        profileId: profileId,
-        initialUrl: initialUrl,
-      );
-      final tabs = <WorkspaceTabRecord>[...previousTabs, tab];
-      _setTabsForWorkspace(workspace.id, tabs);
-      final groupId = targetGroupId ?? layout.activeGroupId;
-      final nextLayout = layout.addTabToGroup(groupId: groupId, tabId: tab.id);
-      await _applyLayout(nextLayout.sanitize(tabs), persist: true);
-      ref
-          .read(workspaceActivityControllerProvider.notifier)
-          .recordActivity(workspace.id, DateTime.now().toUtc());
-      state = state.copyWith(error: null);
-      return tab;
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
-      rethrow;
-    }
-  }
-
-  Future<WorkspaceTabRecord> createCodexTab(
-    Workspace workspace, {
-    String? targetGroupId,
-  }) async {
-    try {
-      final previousTabs = state.tabsFor(workspace.id);
-      final layout = _layoutForMutation(workspace.id, previousTabs);
-      final tab = await _workspaceTabService.createCodexTab(workspace.id);
-      final tabs = <WorkspaceTabRecord>[...previousTabs, tab];
-      _setTabsForWorkspace(workspace.id, tabs);
-      final groupId = targetGroupId ?? layout.activeGroupId;
-      await _applyLayout(
-        layout.addTabToGroup(groupId: groupId, tabId: tab.id).sanitize(tabs),
-        persist: true,
-      );
-      ref
-          .read(workspaceActivityControllerProvider.notifier)
-          .recordActivity(workspace.id, DateTime.now().toUtc());
-      state = state.copyWith(error: null);
-      return tab;
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
-      rethrow;
-    }
-  }
-
-  Future<WorkspaceTabRecord> openMobileEmulatorTab({
-    required Workspace workspace,
-    MobileEmulatorPlatform? platform,
-    String? deviceId,
-    String? targetGroupId,
-  }) async {
-    try {
-      final previousTabs = state.tabsFor(workspace.id);
-      final layout = _layoutForMutation(workspace.id, previousTabs);
-      for (final tab in previousTabs) {
-        if (tab.kind != WorkspaceTabKind.mobileEmulator) {
-          continue;
-        }
-        final visibleLayout =
-            state.layoutFor(workspace.id)?.groupIdForTab(tab.id) == null
-            ? _layoutForMutation(
-                workspace.id,
-                previousTabs
-                    .where((candidate) => candidate.id != tab.id)
-                    .toList(growable: false),
-              )
-            : layout;
-        await _showMobileEmulatorTab(
-          layout: visibleLayout,
-          tabs: previousTabs,
-          tab: tab,
-          targetGroupId: targetGroupId,
-        );
-        state = state.copyWith(error: null);
-        return tab;
-      }
-      if (platform == null || deviceId == null || deviceId.trim().isEmpty) {
-        throw StateError('Select a mobile emulator device.');
-      }
-      final attachment = await _mobileEmulatorService.attach(
-        workspaceId: workspace.id,
-        platform: platform,
-        deviceId: deviceId,
-      );
-      final tab = attachment.tab;
-      final tabs = <WorkspaceTabRecord>[...previousTabs, tab];
-      _setTabsForWorkspace(workspace.id, tabs);
-      await _showMobileEmulatorTab(
-        layout: layout,
-        tabs: tabs,
-        tab: tab,
-        targetGroupId: targetGroupId,
-      );
-      ref
-          .read(workspaceActivityControllerProvider.notifier)
-          .recordActivity(workspace.id, DateTime.now().toUtc());
-      state = state.copyWith(error: null);
-      return tab;
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
-      rethrow;
-    }
-  }
-
-  Future<void> _showMobileEmulatorTab({
-    required WorkbenchLayout layout,
-    required List<WorkspaceTabRecord> tabs,
-    required WorkspaceTabRecord tab,
-    String? targetGroupId,
-  }) async {
-    final existingGroupId = layout.groupIdForTab(tab.id);
-    if (existingGroupId != null) {
-      await _applyLayout(
-        layout.setActiveTab(groupId: existingGroupId, tabId: tab.id),
-        persist: true,
-      );
-      return;
-    }
-    final sourceGroupId =
-        targetGroupId != null && layout.groups.containsKey(targetGroupId)
-        ? targetGroupId
-        : layout.activeGroupId;
-    final group = WorkbenchPaneGroup(
-      id: _newPaneGroupId(),
-      tabIds: <String>[tab.id],
-      activeTabId: tab.id,
-    );
-    await _applyLayout(
-      layout
-          .splitWithGroup(
-            targetGroupId: sourceGroupId,
-            zone: .right,
-            newGroup: group,
-          )
-          .sanitize(tabs),
-      persist: true,
-    );
-  }
-
   Future<WorkspaceTabRecord> openMermanPreviewTab({
     required Workspace workspace,
     required String relativePath,
     String? targetGroupId,
+    String? sourceKey,
+    bool oppositePanel = false,
   }) async {
+    targetGroupId = _groupForOpening(
+      workspace.id,
+      sourceKey,
+      targetGroupId: targetGroupId,
+      oppositePanel: oppositePanel,
+    );
+    final reuseTabIds = _reuseTabIdsForOpening(
+      workspaceId: workspace.id,
+      targetGroupId: targetGroupId,
+      oppositePanel: oppositePanel,
+    );
     try {
-      final previousTabs = state.tabsFor(workspace.id);
-      final layout = _layoutForMutation(workspace.id, previousTabs);
+      final sleepGeneration = _workspaceSleepGeneration[workspace.id] ?? 0;
+      final previousIds = <String>{
+        for (final candidate in state.tabsFor(workspace.id)) candidate.id,
+      };
       final tab = await _workspaceTabService.openOrCreateMermanPreviewTab(
         workspaceId: workspace.id,
         relativePath: relativePath,
+        reuseTabIds: reuseTabIds,
       );
-      final alreadyOpen = previousTabs.any(
-        (candidate) => candidate.id == tab.id,
-      );
-      final tabs = alreadyOpen
-          ? previousTabs
-          : <WorkspaceTabRecord>[...previousTabs, tab];
+      final existedBeforeRequest = previousIds.contains(tab.id);
+      if (_isStaleWorkspaceOpen(workspace.id, sleepGeneration) ||
+          _isClosedTabId(tab.id)) {
+        await _discardStaleOpenedTab(
+          tab,
+          existedBeforeRequest: existedBeforeRequest && !_isClosedTabId(tab.id),
+        );
+        throw StateError('Workspace is no longer available for a preview tab');
+      }
+      final live = state.tabsFor(workspace.id);
+      final tabs =
+          existedBeforeRequest ||
+              live.any((candidate) => candidate.id == tab.id)
+          ? live
+                .map((candidate) => candidate.id == tab.id ? tab : candidate)
+                .toList(growable: false)
+          : <WorkspaceTabRecord>[...live, tab];
       _setTabsForWorkspace(workspace.id, tabs);
-      final groupId = targetGroupId ?? layout.activeGroupId;
-      final nextLayout = alreadyOpen
-          ? layout.setActiveTab(
-              groupId: layout.groupIdForTab(tab.id) ?? groupId,
-              tabId: tab.id,
-            )
-          : layout.addTabToGroup(groupId: groupId, tabId: tab.id);
-      await _applyLayout(nextLayout.sanitize(tabs), persist: true);
-      state = state.copyWith(error: null);
+      _selectOpenedWorkspaceTab(
+        workspaceId: workspace.id,
+        tab: tab,
+        existedBeforeRequest: existedBeforeRequest,
+        targetGroupId: targetGroupId,
+      );
+      final persisted = _layoutForMutation(workspace.id, tabs);
+      state = state.copyWith(
+        layoutByWorkspace: <String, WorkbenchLayout>{
+          ...state.layoutByWorkspace,
+          workspace.id: persisted,
+        },
+        error: null,
+      );
+      _persistLayoutInBackground(persisted);
       return tab;
     } catch (error) {
       state = state.copyWith(error: error.toString());

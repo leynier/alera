@@ -99,7 +99,9 @@ class BoardTestWorkbench extends WorkbenchController {
     required WorkspaceGitDiffScope scope,
     String? gitDiffRoot,
     String? targetGroupId,
+    String? sourceKey,
     bool preview = false,
+    bool oppositePanel = false,
   }) async {
     actions.add('diff:${workspace.id}');
     final now = DateTime.utc(2026);

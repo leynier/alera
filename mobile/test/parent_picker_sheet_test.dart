@@ -83,8 +83,8 @@ void main() {
           .map((tile) => (tile.title! as Text).data)
           .toList();
       expect(titles, <String?>[
-        'Orca Default',
         'Alpha',
+        'Orca Default',
         'Zulu',
         'Alera Default',
       ]);

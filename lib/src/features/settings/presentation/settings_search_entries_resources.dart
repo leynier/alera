@@ -6,8 +6,7 @@ import 'package:alera/src/features/settings/presentation/settings_sections.dart'
 const List<SettingsSearchEntry> projectSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'Project Worktree Setup',
-    description:
-        'Configure copy rules, setup commands, and new workspace prompts.',
+    description: 'Configure copy rules, setup commands, default source branch, and new workspace prompts.',
     keywords: <String>[
       'project',
       'repo',
@@ -19,6 +18,8 @@ const List<SettingsSearchEntry> projectSearchEntries = <SettingsSearchEntry>[
       'append',
       'agent instructions',
       'new workspace',
+      'source branch',
+      'default branch',
       'alera.toml',
     ],
   ),
@@ -27,8 +28,17 @@ const List<SettingsSearchEntry> projectSearchEntries = <SettingsSearchEntry>[
 const List<SettingsSearchEntry> remoteHostSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'Remote Hosts',
-    description: 'Manage SSH targets and remote runtime bootstrap.',
-    keywords: <String>['ssh', 'remote', 'host', 'runtime', 'bootstrap'],
+    description: 'Register SSH targets and install the runtime sidecar. Bootstrap does not place workspaces on the remote machine.',
+    keywords: <String>[
+      'ssh',
+      'remote',
+      'host',
+      'runtime',
+      'bootstrap',
+      'sidecar',
+      'worktree',
+      'workspace',
+    ],
   ),
 ];
 

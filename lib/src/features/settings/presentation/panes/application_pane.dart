@@ -6,6 +6,7 @@ import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_diagnostics_section.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_support_section.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_workspace_directory_row.dart';
+import 'package:alera/src/features/settings/presentation/panes/new_workspace_tools_settings.dart';
 import 'package:alera/src/features/automations/presentation/automation_settings_section.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:alera/src/features/updater/presentation/update_settings_section.dart';
@@ -71,6 +72,21 @@ class const ApplicationSettingsPane({
             description:
                 'Tray icon and dock or taskbar badge while Alera is running.',
             children: <Widget>[
+              Consumer(
+                builder: (context, ref, _) {
+                  final tools = ref.watch(
+                    workbenchControllerProvider.select(
+                      (state) => state.viewPrefs.newWorkspaceTools,
+                    ),
+                  );
+                  return NewWorkspaceToolsSettings(
+                    selected: tools,
+                    onChanged: (next) => ref
+                        .read(workbenchControllerProvider.notifier)
+                        .setNewWorkspaceTools(next),
+                  );
+                },
+              ),
               SettingsSwitchRow(
                 title: 'Show Tray Icon',
                 description: 'Keep Alera in the menu extra (macOS), notification area (Windows), or status bar (Ubuntu). Closing the window hides it; Quit from the tray or the app menu exits.',
@@ -88,6 +104,30 @@ class const ApplicationSettingsPane({
                 description: 'Draw how many agents are waiting for review onto the tray icon itself. Linux only; macOS and Windows show that count on the Dock or taskbar.',
                 value: general.showTrayBadge,
                 onChanged: (value) => controller.setShowTrayBadge(value),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AleraTokens.space16),
+        KeyedSubtree(
+          key: groupKeys['pullRequests'],
+          child: AleraSettingsGroup(
+            title: 'Pull Requests',
+            description: 'Compact review and CI status for workspaces backed by a hosted Git repository.',
+            children: <Widget>[
+              SettingsSwitchRow(
+                title: 'Show Pull Request Status',
+                description: 'Show draft, ready, running, failed, merged, and closed state beside each workspace. Alera batches GitHub workspaces into one refresh per repository.',
+                value: general.showPullRequestStatusInSidebar,
+                onChanged: (value) =>
+                    controller.setShowPullRequestStatusInSidebar(value),
+              ),
+              SettingsSwitchRow(
+                title: 'Notify When Checks Fail',
+                description: 'Show one native notification when a pull request enters a failed-check state. Enabling this keeps the lightweight monitor active while Alera is hidden.',
+                value: general.pullRequestFailureNotificationsEnabled,
+                onChanged: (value) =>
+                    controller.setPullRequestFailureNotificationsEnabled(value),
               ),
             ],
           ),

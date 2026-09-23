@@ -7,7 +7,7 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
       state: .notInstalled,
       configPath: p.join(_homeDirectory, '.codex', 'hooks.json'),
       managedHooksPresent: false,
-      detail: 'Codex hooks are installed only in Alera-managed runtime homes.',
+      detail: 'Codex hooks are installed by the runtime host into ~/.codex.',
     );
   }
 
@@ -17,7 +17,7 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
       state: .notInstalled,
       configPath: p.join(_homeDirectory, '.claude', 'settings.json'),
       managedHooksPresent: false,
-      detail: 'Claude Code hooks are installed only in Alera-managed runtime homes.',
+      detail: 'Claude Code hooks are installed by the runtime host into ~/.claude/settings.json.',
     );
   }
 
@@ -27,7 +27,7 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
       state: .notInstalled,
       configPath: p.join(_homeDirectory, '.cursor', 'hooks.json'),
       managedHooksPresent: false,
-      detail: 'Cursor hooks are installed as a per-session plugin, never in this file.',
+      detail: 'Cursor hooks are installed by the runtime host into ~/.cursor/hooks.json.',
     );
   }
 

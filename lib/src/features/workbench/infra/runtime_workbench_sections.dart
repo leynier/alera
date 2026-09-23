@@ -43,12 +43,19 @@ mixin _RuntimeWorkbenchSections implements WorkspaceSectionRepository {
   }
 
   @override
-  Future<void> createSection(String name, String workspaceId) async {
+  Future<WorkspaceSection> createSection(
+    String name,
+    String workspaceId,
+  ) async {
     await _ensureReady();
-    await _client.runtimeRequest('workspaceSection.create', {
-      'name': name,
-      'workspaceId': workspaceId,
-    });
+    return WorkspaceSection.fromJson(
+      _asMap(
+        await _client.runtimeRequest('workspaceSection.create', {
+          'name': name,
+          'workspaceId': workspaceId,
+        }),
+      ),
+    );
   }
 
   @override

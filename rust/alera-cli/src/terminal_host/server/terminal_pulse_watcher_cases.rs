@@ -11,7 +11,7 @@ use super::{TerminalPulseManager, WorkspacePulseWatcher};
 fn canonical_workspace_root_keeps_symlinked_events_git_relative() {
     use std::os::unix::fs::symlink;
 
-    let dir = tempfile::tempdir().unwrap();
+    let dir = super::tests::tempdir().unwrap();
     let target = dir.path().join("target");
     std::fs::create_dir(&target).unwrap();
     let repository = Repository::init(&target).unwrap();
@@ -31,12 +31,18 @@ fn path_identity_cache_keeps_distinct_native_unix_directories() {
     use std::ffi::OsString;
     use std::os::unix::ffi::OsStringExt;
 
-    let dir = tempfile::tempdir().unwrap();
+    let dir = super::tests::tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     let literal_backslash = dir.path().join("foo\\bar");
     let nested = dir.path().join("foo").join("bar");
-    let non_utf8_one = dir.path().join(OsString::from_vec(vec![b'n', 0xff]));
-    let non_utf8_two = dir.path().join(OsString::from_vec(vec![b'n', 0xfe]));
+    // APFS rejects arbitrary non-UTF8 names; keep native Unicode and backslash coverage there.
+    let suffixes = if cfg!(target_os = "macos") {
+        vec!["ñ".as_bytes().to_vec(), "ń".as_bytes().to_vec()]
+    } else {
+        vec![vec![b'n', 0xff], vec![b'n', 0xfe]]
+    };
+    let non_utf8_one = dir.path().join(OsString::from_vec(suffixes[0].clone()));
+    let non_utf8_two = dir.path().join(OsString::from_vec(suffixes[1].clone()));
     for path in [&literal_backslash, &nested, &non_utf8_one, &non_utf8_two] {
         std::fs::create_dir_all(path).unwrap();
     }
@@ -59,7 +65,7 @@ fn path_identity_cache_keeps_distinct_native_unix_directories() {
 
 #[test]
 fn pathless_rescan_fails_closed_instead_of_using_existing_dirt() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = super::tests::tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     std::fs::write(dir.path().join("new.txt"), "new").unwrap();
     let event = Event::new(EventKind::Other).set_flag(notify::event::Flag::Rescan);
@@ -69,7 +75,7 @@ fn pathless_rescan_fails_closed_instead_of_using_existing_dirt() {
 
 #[test]
 fn paired_rename_leaving_the_workspace_becomes_a_source_event() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = super::tests::tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     let root = dir.path().join("workspace");
     let source = root.join("new-directory");
@@ -105,7 +111,7 @@ fn paired_rename_leaving_the_workspace_becomes_a_source_event() {
 
 #[test]
 fn paired_rename_into_an_ignored_directory_keeps_the_source_relevant() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = super::tests::tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     std::fs::write(dir.path().join(".gitignore"), "ignored/\n").unwrap();
     let source = dir.path().join("visible");
@@ -155,7 +161,7 @@ fn workspace_root_removal_and_rename_invalidate_the_watcher() {
 
 #[test]
 fn source_events_reconcile_even_without_a_cached_directory_identity() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = super::tests::tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     let identities = PathIdentityCache::scan(dir.path(), &repository).unwrap();
     let missing = dir.path().join("uncached/removed");
@@ -178,7 +184,7 @@ fn source_events_reconcile_even_without_a_cached_directory_identity() {
 
 #[test]
 fn git_index_errors_fail_closed() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = super::tests::tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     std::fs::write(repository.path().join("index"), b"not a git index").unwrap();
     let event = Event::new(EventKind::Modify(notify::event::ModifyKind::Any))
@@ -189,7 +195,7 @@ fn git_index_errors_fail_closed() {
 
 #[test]
 fn initial_identity_scan_prunes_git_ignored_descendants() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = super::tests::tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     std::fs::write(dir.path().join(".gitignore"), "generated/\n").unwrap();
     let generated = dir.path().join("generated");
@@ -207,7 +213,7 @@ fn initial_identity_scan_prunes_git_ignored_descendants() {
 
 #[test]
 fn initial_watch_set_keeps_tracked_and_negated_paths_below_ignore_rules() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = super::tests::tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     std::fs::write(
         dir.path().join(".gitignore"),
@@ -233,7 +239,7 @@ fn initial_watch_set_keeps_tracked_and_negated_paths_below_ignore_rules() {
 
 #[test]
 fn newly_created_directories_are_added_to_the_watch_set() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = super::tests::tempdir().unwrap();
     Repository::init(dir.path()).unwrap();
     let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
     let _watcher = WorkspacePulseWatcher::start_blocking(
@@ -254,7 +260,7 @@ fn newly_created_directories_are_added_to_the_watch_set() {
 
 #[test]
 fn files_written_before_directory_reconciliation_are_reported() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = super::tests::tempdir().unwrap();
     Repository::init(dir.path()).unwrap();
     let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
     let _watcher = WorkspacePulseWatcher::start_blocking(
@@ -274,7 +280,7 @@ fn files_written_before_directory_reconciliation_are_reported() {
 
 #[test]
 fn git_index_changes_add_force_tracked_directories_to_the_watch_set() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = super::tests::tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     std::fs::write(dir.path().join(".gitignore"), "ignored/\n").unwrap();
     let ignored = dir.path().join("ignored");
@@ -303,7 +309,7 @@ fn git_index_changes_add_force_tracked_directories_to_the_watch_set() {
 
 #[test]
 fn repository_exclude_changes_add_newly_unignored_directories_to_the_watch_set() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = super::tests::tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     std::fs::write(repository.commondir().join("info/exclude"), "ignored/\n").unwrap();
     let ignored = dir.path().join("ignored");
@@ -326,7 +332,7 @@ fn repository_exclude_changes_add_newly_unignored_directories_to_the_watch_set()
 
 #[test]
 fn ancestor_ignore_changes_reconcile_subdirectory_workspaces() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = super::tests::tempdir().unwrap();
     Repository::init(dir.path()).unwrap();
     std::fs::write(dir.path().join(".gitignore"), "workspace/ignored/\n").unwrap();
     let workspace = dir.path().join("workspace");
@@ -346,7 +352,7 @@ fn ancestor_ignore_changes_reconcile_subdirectory_workspaces() {
 
 #[test]
 fn ancestor_ignore_unignores_an_existing_subdirectory_workspace_file() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = super::tests::tempdir().unwrap();
     Repository::init(dir.path()).unwrap();
     let gitignore = dir.path().join(".gitignore");
     std::fs::write(&gitignore, "workspace/visible.txt\n").unwrap();
@@ -365,7 +371,7 @@ fn ancestor_ignore_unignores_an_existing_subdirectory_workspace_file() {
 
 #[test]
 fn ambiguous_removal_below_ignored_directory_remains_relevant() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = super::tests::tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     std::fs::write(dir.path().join(".gitignore"), "generated/\n").unwrap();
     let nested = dir.path().join("generated/deep");
@@ -386,7 +392,7 @@ fn ambiguous_removal_below_ignored_directory_remains_relevant() {
 
 #[test]
 fn ambiguous_untracked_directory_removal_and_move_out_are_relevant() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = super::tests::tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();
     std::fs::write(dir.path().join(".gitignore"), "ignored/\n").unwrap();
 
@@ -439,7 +445,7 @@ fn ambiguous_untracked_directory_removal_and_move_out_are_relevant() {
 
 #[test]
 fn failed_watcher_generation_rejects_a_late_start_result() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = super::tests::tempdir().unwrap();
     Repository::init(dir.path()).unwrap();
     let (inbox, _commands) = tokio::sync::mpsc::unbounded_channel();
     let mut manager = TerminalPulseManager::default();

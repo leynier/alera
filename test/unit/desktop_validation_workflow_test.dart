@@ -76,6 +76,18 @@ void main() {
     expect(e2e, contains(r'flutter test "${suite}" -d linux'));
   });
 
+  test('native build budgets include separate integration suite rebuilds', () {
+    expect(jobs['build']['timeout-minutes'], r'${{ matrix.timeout_minutes }}');
+    final platforms =
+        (jobs['build']['strategy']['matrix']['include'] as YamlList)
+            .cast<YamlMap>();
+    expect(
+      {for (final row in platforms) row['platform']: row['timeout_minutes']},
+      {'macos': 180, 'windows': 120, 'linux': 90},
+    );
+    expect(jobs['build']['strategy']['fail-fast'], false);
+  });
+
   test('full validation cannot skip a failed prerequisite', () {
     expect(jobs['validation_ready']['needs'], [
       'revision',

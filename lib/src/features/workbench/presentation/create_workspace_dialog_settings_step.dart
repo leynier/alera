@@ -1,6 +1,7 @@
 part of 'create_workspace_dialog.dart';
 
 class const _CreateWorkspaceSettingsStep({
+  required final bool useProjectCheckout,
   required final Project? project,
   required final String sourceBranch,
   required final bool reuseExistingBranch,
@@ -15,8 +16,13 @@ class const _CreateWorkspaceSettingsStep({
   required final List<WorkspaceParentCandidate> parentCandidates,
   required final String? selectedParentWorkspaceId,
   required final ValueChanged<String?> onParentWorkspaceChanged,
+  required final List<SshTarget> sshTargets,
+  required final String? selectedHostId,
+  required final bool supportsRemoteSshWorkspaces,
+  required final ValueChanged<String?> onHostChanged,
   required final bool creating,
   required final VoidCallback onSubmit,
+  final Widget? issueField,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -24,20 +30,30 @@ class const _CreateWorkspaceSettingsStep({
       mainAxisSize: .min,
       crossAxisAlignment: .start,
       children: <Widget>[
-        _WorkspaceSelectionSummary(
-          projectName: project?.name ?? '',
-          sourceBranch: sourceBranch,
-          reuseExistingBranch: reuseExistingBranch,
-        ),
+        if (useProjectCheckout)
+          Text(
+            '${project?.name ?? ''} / Project Folder',
+            style: Theme.of(context).textTheme.bodyMedium,
+          )
+        else
+          _WorkspaceSelectionSummary(
+            projectName: project?.name ?? '',
+            sourceBranch: sourceBranch,
+            reuseExistingBranch: reuseExistingBranch,
+          ),
         const SizedBox(height: AleraTokens.space16),
-        if (reuseExistingBranch)
+        if (issueField case final issueField?) ...<Widget>[
+          issueField,
+          const SizedBox(height: AleraTokens.space12),
+        ],
+        if (!useProjectCheckout && reuseExistingBranch)
           AleraTextField(
             controller: newBranchController,
             enabled: false,
             labelText: 'Existing Branch *',
             errorText: newBranchError,
           )
-        else
+        else if (!useProjectCheckout)
           AleraTextField(
             controller: newBranchController,
             autofocus: true,
@@ -84,17 +100,31 @@ class const _CreateWorkspaceSettingsStep({
           onChanged: onParentWorkspaceChanged,
         ),
         const SizedBox(height: AleraTokens.space16),
-        _WorkspaceCreationPreview(
-          project: project,
-          sourceBranch: sourceBranch,
-          newBranchName: newBranchController.text,
-          workspaceName: nameController.text,
-          reuseExistingBranch: reuseExistingBranch,
-          parentLabel: _selectedWorkspaceParentLabel(
-            parentCandidates,
-            selectedParentWorkspaceId,
-          ),
+        WorkspaceHostPicker(
+          hostId: selectedHostId,
+          sshTargets: sshTargets,
+          supportsRemoteSshWorkspaces: supportsRemoteSshWorkspaces,
+          enabled: !creating,
+          onChanged: onHostChanged,
         ),
+        const SizedBox(height: AleraTokens.space16),
+        if (useProjectCheckout)
+          const Text(
+            'This task shares the project folder, current branch and Git index. Its tabs and agents start fresh.',
+          )
+        else
+          _WorkspaceCreationPreview(
+            project: project,
+            sourceBranch: sourceBranch,
+            newBranchName: newBranchController.text,
+            workspaceName: nameController.text,
+            reuseExistingBranch: reuseExistingBranch,
+            parentLabel: _selectedWorkspaceParentLabel(
+              parentCandidates,
+              selectedParentWorkspaceId,
+            ),
+            hostLabel: _selectedHostLabel(sshTargets, selectedHostId),
+          ),
       ],
     );
   }
@@ -247,6 +277,7 @@ class const _WorkspaceCreationPreview({
   required final String workspaceName,
   required final bool reuseExistingBranch,
   required final String? parentLabel,
+  required final String hostLabel,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -297,6 +328,12 @@ class const _WorkspaceCreationPreview({
                   useMonoStyle: false,
                 ),
               ],
+              const SizedBox(height: AleraTokens.space6),
+              _PreviewRow(
+                icon: AleraIcons.host,
+                text: 'Host: $hostLabel',
+                useMonoStyle: false,
+              ),
               const SizedBox(height: AleraTokens.space6),
               const _PreviewRow(
                 icon: AleraIcons.terminal,
@@ -364,6 +401,19 @@ String? _selectedWorkspaceParentLabel(
     }
   }
   return null;
+}
+
+String _selectedHostLabel(List<SshTarget> targets, String? hostId) {
+  final remoteId = normalizedRemoteHostId(hostId);
+  if (remoteId == null) {
+    return 'This Device';
+  }
+  for (final target in targets) {
+    if (target.id == remoteId) {
+      return target.alias;
+    }
+  }
+  return remoteId;
 }
 
 String _previewWorkspacePath(

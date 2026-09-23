@@ -141,6 +141,7 @@ void main() {
         'agents': {
           'agentStatusHooks': {'codex': true},
           'quotas': {'token': 'secret'},
+          'showTabTitlesInSidebar': true,
         },
         'aiDictation': {
           'remoteConsentVersion': 2,
@@ -154,7 +155,7 @@ void main() {
         },
       });
       expect(result['general'], {'showTrayIcon': true});
-      expect(result['agents'], isEmpty);
+      expect(result['agents'], {'showTabTitlesInSidebar': true});
       expect(result['aiDictation'], {'language': 'es'});
       expect(result['aiTextGeneration'], isEmpty);
     },

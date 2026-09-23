@@ -1,5 +1,6 @@
 import 'package:alera/src/features/workbench/application/workbench_view_prefs_repository.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:logging/logging.dart';
 
@@ -11,6 +12,13 @@ class RuntimeWorkbenchViewPrefsRepository({
   final Future<void> Function()? beforeAccess,
 }) implements WorkbenchViewPrefsRepository {
   int? _revision;
+  Future<void> _writeQueue = Future<void>.value();
+
+  Future<T> _serializedWrite<T>(Future<T> Function() action) {
+    final result = _writeQueue.then((_) => action());
+    _writeQueue = result.then<void>((_) {}, onError: (_) {});
+    return result;
+  }
 
   @override
   Stream<WorkbenchViewPrefs> get changes => client.runtimeEvents
@@ -19,20 +27,28 @@ class RuntimeWorkbenchViewPrefsRepository({
 
   @override
   Future<WorkbenchViewPrefs> load() async {
-    final local = await legacyRepository.load();
     try {
       await beforeAccess?.call();
       final record = _asMap(
         await client.runtimeRequest('workbenchViewPrefs.get'),
       );
-      _revision = (record['revision'] as num?)?.toInt() ?? 0;
+      final fetchedRevision = (record['revision'] as num?)?.toInt() ?? 0;
       if (record['desktopInitialized'] != true) {
-        await _writeShared(local);
-        return await _forRuntime(local);
+        final latestLocal = await legacyRepository.load();
+        await _serializedWrite(() => _writeShared(latestLocal));
+        return await _forRuntime(await legacyRepository.load());
       }
-      final merged = _mergeShared(local, _asMap(record['prefs']));
-      await legacyRepository.save(merged);
-      return await _forRuntime(merged);
+      final shared = _asMap(record['prefs']);
+      return await _serializedWrite(() async {
+        if (_revision != null && fetchedRevision < _revision!) {
+          return await _forRuntime(await legacyRepository.load());
+        }
+        final latestLocal = await legacyRepository.load();
+        final merged = _mergeShared(latestLocal, shared);
+        await legacyRepository.save(merged);
+        _revision = fetchedRevision;
+        return await _forRuntime(merged);
+      });
     } catch (error, stackTrace) {
       // The local prefs still render, so the only visible symptom is that a
       // change made on another device never arrives.
@@ -41,7 +57,7 @@ class RuntimeWorkbenchViewPrefsRepository({
         error,
         stackTrace,
       );
-      return _forRuntime(local);
+      return await _forRuntime(await legacyRepository.load());
     }
   }
 
@@ -62,10 +78,12 @@ class RuntimeWorkbenchViewPrefsRepository({
   }
 
   @override
-  Future<void> save(WorkbenchViewPrefs prefs) async {
-    await legacyRepository.save(prefs);
-    await beforeAccess?.call();
-    await _writeShared(prefs);
+  Future<void> save(WorkbenchViewPrefs prefs) {
+    return _serializedWrite(() async {
+      await legacyRepository.save(prefs);
+      await beforeAccess?.call();
+      await _writeShared(prefs);
+    });
   }
 
   Future<void> _writeShared(WorkbenchViewPrefs prefs) async {
@@ -78,6 +96,7 @@ class RuntimeWorkbenchViewPrefsRepository({
       shared.remove('sectionSort');
       shared.remove('collapsedSectionIds');
       shared.remove('othersSectionCollapsed');
+      shared.remove('selectedSectionIds');
       if (prefs.groupBy == WorkbenchGroupBy.section) {
         shared['groupBy'] = 'project';
       }
@@ -101,6 +120,7 @@ Map<String, Object?> _sharedJson(WorkbenchViewPrefs prefs) {
     'projectSort': prefs.projectSort.name,
     'workspaceSort': prefs.workspaceSort.name,
     'selectedProjectIds': prefs.selectedProjectIds.toList(),
+    'selectedSectionIds': prefs.selectedSectionIds.toList(),
     'selectedTagIds': prefs.selectedTagIds.toList(),
     'collapsedProjectIds': prefs.collapsedProjectIds.toList(),
     'collapsedParentWorkspaceIds': prefs.collapsedParentWorkspaceIds.toList(),
@@ -109,6 +129,12 @@ Map<String, Object?> _sharedJson(WorkbenchViewPrefs prefs) {
     'showPinnedWorkspacesBelow': prefs.showPinnedWorkspacesBelow,
     'workspaceKindFilter': prefs.workspaceKindFilter.name,
     'showActiveWorkspacesOnly': prefs.showActiveWorkspacesOnly,
+    'showArchivedWorkspaces': prefs.showArchivedWorkspaces,
+    'gitDiffViewMode': prefs.gitDiffViewMode.name,
+    'gitDiffGroupMode': prefs.gitDiffGroupMode.name,
+    'searchViewAsTree': prefs.searchViewAsTree,
+    'searchIncludeIgnored': prefs.searchIncludeIgnored,
+    'workspaceMainTabIds': sharedWorkspaceMainTabIds(prefs.workspacePanels),
   };
 }
 
@@ -144,6 +170,9 @@ WorkbenchViewPrefs _mergeShared(
       local.workspaceSort,
     ),
     selectedProjectIds: _stringSet(shared['selectedProjectIds']),
+    selectedSectionIds: shared.containsKey('selectedSectionIds')
+        ? _stringSet(shared['selectedSectionIds'])
+        : local.selectedSectionIds,
     selectedTagIds: _stringSet(shared['selectedTagIds']),
     collapsedProjectIds: _stringSet(shared['collapsedProjectIds']),
     collapsedParentWorkspaceIds: _stringSet(
@@ -162,6 +191,23 @@ WorkbenchViewPrefs _mergeShared(
     showActiveWorkspacesOnly:
         shared['showActiveWorkspacesOnly'] as bool? ??
         local.showActiveWorkspacesOnly,
+    showArchivedWorkspaces:
+        shared['showArchivedWorkspaces'] as bool? ??
+        local.showArchivedWorkspaces,
+    gitDiffViewMode: _enumByName(
+      GitDiffViewMode.values,
+      shared['gitDiffViewMode'],
+      local.gitDiffViewMode,
+    ),
+    gitDiffGroupMode: _enumByName(
+      GitDiffGroupMode.values,
+      shared['gitDiffGroupMode'],
+      local.gitDiffGroupMode,
+    ),
+    searchViewAsTree:
+        shared['searchViewAsTree'] as bool? ?? local.searchViewAsTree,
+    searchIncludeIgnored:
+        shared['searchIncludeIgnored'] as bool? ?? local.searchIncludeIgnored,
   );
 }
 

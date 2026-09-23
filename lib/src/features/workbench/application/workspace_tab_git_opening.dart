@@ -10,6 +10,7 @@ extension WorkspaceTabGitOpening on WorkspaceTabService {
     String? gitDiffRoot,
     bool preview = false,
     String? replacePreviewTabId,
+    Set<String>? reuseTabIds,
   }) async {
     final normalizedPath = relativePath == null
         ? null
@@ -30,7 +31,8 @@ extension WorkspaceTabGitOpening on WorkspaceTabService {
           tab.gitDiffScope == scope &&
           tab.filePath == normalizedPath &&
           tab.gitDiffRoot == normalizedRoot &&
-          tab.gitDiffArea == area) {
+          tab.gitDiffArea == area &&
+          _allowsTabReuse(tab, reuseTabIds)) {
         if (!preview && tab.isPreview) {
           return keepPreviewTab(tab.id);
         }
@@ -72,6 +74,7 @@ extension WorkspaceTabGitOpening on WorkspaceTabService {
     String? message,
     bool preview = false,
     String? replacePreviewTabId,
+    Set<String>? reuseTabIds,
   }) async {
     final normalizedPath = relativePath == null
         ? null
@@ -93,7 +96,8 @@ extension WorkspaceTabGitOpening on WorkspaceTabService {
           tab.filePath == normalizedPath &&
           tab.gitDiffOldPath == normalizedOldPath &&
           tab.gitDiffRoot == normalizedRoot &&
-          tab.gitDiffCommitOid == commitOid) {
+          tab.gitDiffCommitOid == commitOid &&
+          _allowsTabReuse(tab, reuseTabIds)) {
         if (!preview && tab.isPreview) {
           return keepPreviewTab(tab.id);
         }
@@ -135,6 +139,7 @@ extension WorkspaceTabGitOpening on WorkspaceTabService {
     required String parentOid,
     required String retentionId,
     String? subject,
+    Set<String>? reuseTabIds,
   }) async {
     if (pullRequestNumber <= 0) {
       throw StateError('Pull request number must be positive.');
@@ -151,7 +156,8 @@ extension WorkspaceTabGitOpening on WorkspaceTabService {
           tab.gitDiffRoot == normalizedRoot &&
           tab.gitDiffPullRequestNumber == pullRequestNumber &&
           tab.gitDiffCommitOid == commitOid &&
-          tab.gitDiffParentOid == parentOid) {
+          tab.gitDiffParentOid == parentOid &&
+          _allowsTabReuse(tab, reuseTabIds)) {
         return tab;
       }
     }

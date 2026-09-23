@@ -4,7 +4,7 @@ use axum::{
     Json,
 };
 use chrono::{DateTime, TimeDelta, Utc};
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
 use sqlx::{FromRow, PgPool, Row};
 use uuid::Uuid;

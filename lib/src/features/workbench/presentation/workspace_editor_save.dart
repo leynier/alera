@@ -69,6 +69,7 @@ extension _WorkspaceEditorSave on _WorkspaceEditorSurfaceState {
   }
 
   Future<void> _discardChanges() async {
+    if (_editorSessions.isBufferGuarded(widget.tab.id)) return;
     if (_loading || _saving || !_document.canSave) {
       return;
     }
@@ -120,8 +121,9 @@ extension _WorkspaceEditorSave on _WorkspaceEditorSurfaceState {
   Future<native.WorkspaceEditorTextFile> _write({
     required bool overwriteIfChanged,
   }) {
-    return _workspaceFiles.writeEditorTextFile(
-      workspacePath: widget.workspace.path,
+    _editorSessions.requireBufferWritable(widget.tab.id);
+    return _workspaceFiles.writeWorkspaceEditorTextFile(
+      workspace: widget.workspace,
       relativePath: widget.tab.filePath!,
       currentDisplayContent: _controller.text,
       originalRawContent: _document.loadedRawText,
@@ -146,19 +148,30 @@ extension _WorkspaceEditorSave on _WorkspaceEditorSurfaceState {
       return;
     }
     final currentText = _controller.text;
-    _document.acceptSaved(saved, tabSize: _currentEditorTabSize());
-    _document.updateCurrentText(currentText);
+    _document.acceptSaved(
+      saved,
+      tabSize: _currentEditorTabSize(),
+      preserveCurrentText: currentText,
+    );
   }
 
   bool _isReadyForAutosave() {
     return mounted &&
         !_loading &&
         !_saving &&
+        !_editorSessions.isBufferGuarded(widget.tab.id) &&
         _loadError == null &&
         _document.canSave;
   }
 
   void _handleControllerChanged() {
+    if (_editorSessions.isBufferGuarded(widget.tab.id)) {
+      final protectedText = _document.currentText;
+      if (protectedText != null && _controller.text != protectedText) {
+        _controller.text = protectedText;
+      }
+      return;
+    }
     final wasDirty = _document.isDirty;
     _document.updateCurrentText(_controller.text);
     if (!_loading && widget.tab.isPreview && !wasDirty && _document.isDirty) {
@@ -179,5 +192,14 @@ extension _WorkspaceEditorSave on _WorkspaceEditorSurfaceState {
       return;
     }
     _showToast('Autosave paused: ${_messageFor(error)}', tone: .error);
+  }
+
+  void _handleBufferGuardChanged() {
+    final guarded = _editorSessions.isBufferGuarded(widget.tab.id);
+    if (guarded == _lastBufferGuarded) return;
+    _lastBufferGuarded = guarded;
+    if (guarded) _autosave.cancelPending();
+    _autosave.notifyStateChanged();
+    _refreshStateSafely();
   }
 }

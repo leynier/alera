@@ -17,32 +17,31 @@ void main() {
       hookReconciliationService: hookReconciler,
     ).installOrUpdate(hooks: hooks, runner: .bunx);
 
-    expect(skillService.skills, AleraAgentSkill.values);
+    expect(skillService.skills, coreAleraAgentSkills);
     expect(skillService.runners, everyElement(AleraCliSkillRunner.bunx));
     expect(hookReconciler.settings, hooks);
     expect(result.succeeded, isTrue);
     expect(result.needsAttention, isFalse);
-    expect(result.summary, 'All 5 Alera skills installed / updated');
-    for (final skill in AleraAgentSkill.values) {
+    expect(result.summary, 'All 2 Alera skills installed / updated');
+    for (final skill in coreAleraAgentSkills) {
       expect(result.detail, contains(skill.name));
     }
   });
 
   test('continues installing remaining skills after one throws', () async {
-    final skillService = _RecordingSkillService(throwingSkill: .computerUse);
+    final skillService = _RecordingSkillService(throwingSkill: .orchestration);
     final result = await AleraAllSkillsSetupService(
       skillService: skillService,
       hookReconciliationService: _RecordingHookReconciler(),
     ).installOrUpdate(hooks: const AgentStatusHookSettings());
 
-    expect(skillService.skills, AleraAgentSkill.values);
+    expect(skillService.skills, coreAleraAgentSkills);
     expect(result.succeeded, isFalse);
     expect(result.needsAttention, isTrue);
-    expect(result.succeededCount, 4);
-    expect(result.summary, '4 of 5 Alera skills installed / updated');
-    expect(result.detail, contains('alera-computer-use'));
+    expect(result.succeededCount, 1);
+    expect(result.summary, '1 of 2 Alera skills installed / updated');
+    expect(result.detail, contains('alera-orchestration'));
     expect(result.detail, contains('installer unavailable'));
-    expect(result.detail, contains('alera-emulator'));
   });
 }
 

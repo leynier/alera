@@ -32,29 +32,7 @@ impl ServerActor {
             if state.is_some_and(|value| value != definition.state.as_str()) {
                 continue;
             }
-            let definition_project_id = if let Some(project_id) = &definition.project_id {
-                Some(project_id.clone())
-            } else {
-                let workspace_id = match &definition.target {
-                    alera_core::runtime::AutomationTarget::ExistingTab { workspace_id, .. }
-                    | alera_core::runtime::AutomationTarget::FreshTab { workspace_id, .. } => {
-                        Some(workspace_id)
-                    }
-                    alera_core::runtime::AutomationTarget::ManagedWorkspace {
-                        source_workspace_id,
-                        ..
-                    } => Some(source_workspace_id),
-                };
-                if let Some(workspace_id) = workspace_id {
-                    self.runtime_store
-                        .find_workspace(workspace_id)
-                        .await
-                        .map_err(|error| HostError::state(error.to_string()))?
-                        .map(|workspace| workspace.project_id)
-                } else {
-                    None
-                }
-            };
+            let definition_project_id = self.automation_definition_project(&definition).await?;
             if project_id.is_some_and(|value| definition_project_id.as_deref() != Some(value)) {
                 continue;
             }
@@ -136,25 +114,7 @@ impl ServerActor {
             alera_core::runtime::preview_occurrences(&id, &automation.schedule, Utc::now(), 6)
                 .unwrap_or_default();
         let target_profile_id = self.target_profile_id(&automation).await?;
-        let project_id = if let Some(project_id) = automation.project_id.clone() {
-            Some(project_id)
-        } else {
-            let workspace_id = match &automation.target {
-                alera_core::runtime::AutomationTarget::ExistingTab { workspace_id, .. }
-                | alera_core::runtime::AutomationTarget::FreshTab { workspace_id, .. } => {
-                    workspace_id
-                }
-                alera_core::runtime::AutomationTarget::ManagedWorkspace {
-                    source_workspace_id,
-                    ..
-                } => source_workspace_id,
-            };
-            self.runtime_store
-                .find_workspace(workspace_id)
-                .await
-                .map_err(|error| HostError::state(error.to_string()))?
-                .map(|workspace| workspace.project_id)
-        };
+        let project_id = self.automation_definition_project(&automation).await?;
         let target_profile_policy = match target_profile_id.as_deref() {
             Some(profile_id) => serde_json::to_value(
                 self.runtime_store
@@ -211,15 +171,9 @@ impl ServerActor {
             .map_err(|error| HostError::state(error.to_string()))?;
         self.automations_active = self
             .runtime_store
-            .has_active_automations()
+            .has_pending_automation_work()
             .await
-            .map_err(|error| HostError::state(error.to_string()))?
-            || !self
-                .runtime_store
-                .list_active_automation_runs()
-                .await
-                .map_err(|error| HostError::state(error.to_string()))?
-                .is_empty();
+            .map_err(|error| HostError::state(error.to_string()))?;
         self.automation_wake.notify_one();
         self.broadcast_authenticated(crate::terminal_host::protocol::event(
             "automationsChanged",
@@ -244,13 +198,9 @@ impl ServerActor {
             .await
             .map_err(|error| HostError::state(error.to_string()))?
             .ok_or_else(|| HostError::state(format!("automation not found: {id}")))?;
-        if matches!(
-            state,
-            AutomationState::Active
-                | AutomationState::Paused
-                | AutomationState::Trashed
-                | AutomationState::Draft
-        ) {
+        // Trash and restore are recoverable draft lifecycle, not execution.
+        // Keep the repository declaration and agent policy on Active/Paused.
+        if matches!(state, AutomationState::Active | AutomationState::Paused) {
             self.ensure_agent_policy(&definition, &actor, false).await?;
         }
         if state == AutomationState::Paused {
@@ -306,15 +256,9 @@ impl ServerActor {
             .map_err(|error| HostError::state(error.to_string()))?;
         self.automations_active = self
             .runtime_store
-            .has_active_automations()
+            .has_pending_automation_work()
             .await
-            .map_err(|error| HostError::state(error.to_string()))?
-            || !self
-                .runtime_store
-                .list_active_automation_runs()
-                .await
-                .map_err(|error| HostError::state(error.to_string()))?
-                .is_empty();
+            .map_err(|error| HostError::state(error.to_string()))?;
         self.automation_wake.notify_one();
         self.broadcast_authenticated(crate::terminal_host::protocol::event(
             "automationsChanged",
@@ -350,7 +294,7 @@ impl ServerActor {
             .map_err(|error| HostError::state(error.to_string()))?;
         self.automations_active = self
             .runtime_store
-            .has_active_automations()
+            .has_pending_automation_work()
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
         self.automation_wake.notify_one();

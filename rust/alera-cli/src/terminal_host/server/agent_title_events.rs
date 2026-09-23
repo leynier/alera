@@ -15,44 +15,7 @@ struct TitleActivity {
 }
 
 pub(super) fn conversation_id(payload: &Value) -> Option<&str> {
-    [
-        "conversation_id",
-        "conversationId",
-        "session_id",
-        "sessionId",
-        "sessionID",
-        "thread_id",
-        "threadId",
-    ]
-    .iter()
-    .find_map(|key| {
-        payload
-            .get(key)
-            .and_then(Value::as_str)
-            .filter(|id| !id.is_empty())
-    })
-}
-
-pub(super) fn first_codex_prompt(tab: &WorkspaceTabRecord) -> String {
-    tab.payload
-        .pointer("/codexSnapshot/timelineCells")
-        .and_then(Value::as_array)
-        .and_then(|cells| {
-            let start = cells
-                .iter()
-                .rposition(|cell| {
-                    cell.pointer("/metadata/noticeType").and_then(Value::as_str)
-                        == Some("threadBoundary")
-                })
-                .map_or(0, |index| index + 1);
-            cells[start..]
-                .iter()
-                .find(|cell| cell["kind"] == "userMessage")
-        })
-        .and_then(|cell| cell.get("markdownText"))
-        .and_then(Value::as_str)
-        .map(|text| super::agent_title_context::prefix(text, 4096).to_string())
-        .unwrap_or_default()
+    crate::terminal_host::orchestration::agent_session_resume::native_session_id(payload)
 }
 
 impl ServerActor {
@@ -91,16 +54,9 @@ impl ServerActor {
             return;
         }
         // Child-agent hooks can share the parent's PTY identity.
-        if ["parent_session_id", "parentSessionId", "parentThreadId"]
-            .iter()
-            .any(|key| {
-                event
-                    .payload
-                    .get(key)
-                    .and_then(Value::as_str)
-                    .is_some_and(|id| !id.is_empty())
-            })
-        {
+        if crate::terminal_host::orchestration::agent_session_resume::hook_identifies_parent_session(
+            &event.payload,
+        ) {
             return;
         }
         if crate::agent_status::hook_event_closes_session(event) {

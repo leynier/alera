@@ -49,4 +49,13 @@ git_hosting_provider = "github" # or "gitlab" / "azureDevops"
 
 Without it, Alera auto-detects GitHub.com, GitLab.com, and Azure DevOps from `origin`. Set it explicitly for self-hosted instances. Authentication stays where it belongs, with `gh`, `glab`, or `az`.
 
+The same file can pre-select the Source Branch picker for new worktrees:
+
+```toml
+[new_workspace]
+source_branch = "develop"
+```
+
+When that branch exists (or its `origin/` twin does), New Workspace opens on it instead of `main`. Settings → Projects can set the same default as a UI override.
+
 Combined with [worktree-native parallel agents](/blog/run-cli-agents-in-parallel-with-git-worktrees), this turns "new branch for this agent" from a checklist into a non-event. Write the ritual once, then forget it exists.

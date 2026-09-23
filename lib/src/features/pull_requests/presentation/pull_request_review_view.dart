@@ -7,6 +7,7 @@ import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
+import 'package:alera/src/design_system/menus/alera_dropdown_toggle_entry.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review_stack.dart';
@@ -14,19 +15,22 @@ import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
 import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
 import 'package:alera/src/features/pull_requests/domain/review_stack_workspace_models.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_check_list.dart';
-import 'package:alera/src/features/pull_requests/presentation/pull_request_comment_markdown.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_conversation.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_field_decoration.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_restack_button.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_stack_link_dialog.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_stack_section.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_stack_workspace_dialog.dart';
 import 'package:flutter/material.dart';
 
 part 'pull_request_review_actions.dart';
-part 'pull_request_review_comments.dart';
+part 'pull_request_review_agent_actions.dart';
 
 /// Presentational body for a linked review: header, inline title/base-branch
 /// editing, expandable checks, and review actions. Pure: data and callbacks in
@@ -55,6 +59,8 @@ class const PullRequestReviewView({
   final VoidCallback? onOpenDiff,
   final Future<void> Function(String branch)? onOpenWorkspaceBranch,
   required final Future<void> Function() onUnlink,
+  final VoidCallback? onArchiveWorkspace,
+  final VoidCallback? onRemoveWorkspace,
   final Future<void> Function(List<int> reviewNumbers) onLinkStack =
       _ignorePullRequestStackLink,
   final Future<void> Function(ReviewStackWorkspaceRequest request)
@@ -70,6 +76,15 @@ class const PullRequestReviewView({
   onUpdate,
   required final Future<ReviewCheckDetails?> Function(ReviewCheck check)
   onLoadCheckDetails,
+  final PullRequestAgentWatchMode? agentWatchMode,
+  final PullRequestAgentWatchScope agentWatchScope =
+      PullRequestAgentWatchScope.defaults,
+  final ValueChanged<PullRequestAgentWatchScope>? onAgentWatchScopeChanged,
+  final VoidCallback? onFixFailedChecks,
+  final VoidCallback? onRestack,
+  final ValueChanged<PullRequestAgentWatchScope>? onWatchAndFix,
+  final ValueChanged<PullRequestAgentWatchScope>? onWatchFixAndMerge,
+  final VoidCallback? onStopAgentWatch,
 }) extends StatefulWidget {
   @override
   State<PullRequestReviewView> createState() => _PullRequestReviewViewState();
@@ -192,13 +207,15 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
                   ),
                 ],
                 const SizedBox(height: AleraTokens.space16),
-                Text(
-                  widget.checks.isEmpty
-                      ? 'Checks'
-                      : 'Checks (${widget.checks.length})',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: AleraTokens.foregroundMuted,
-                  ),
+                _PullRequestCheckAgentHeader(
+                  checkCount: widget.checks.length,
+                  checksFailed:
+                      deriveReviewChecksRollup(widget.checks) ==
+                      ReviewChecksRollup.failure,
+                  reviewIsOpen: review.isOpen,
+                  busy: _busy,
+                  watching: widget.agentWatchMode != null,
+                  onFixFailedChecks: widget.onFixFailedChecks,
                 ),
                 const SizedBox(height: AleraTokens.space8),
                 if (widget.checks.isEmpty)
@@ -215,12 +232,13 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
                     onLoadDetails: widget.onLoadCheckDetails,
                   ),
                 const SizedBox(height: AleraTokens.space16),
-                _PullRequestCommentsSection(
+                PullRequestConversation(
                   comments: widget.comments,
                   canComment: widget.canComment && review.isOpen,
                   canEditComments: widget.canEditComments && review.isOpen,
                   savingCommentIds: widget.savingCommentIds,
-                  action: widget.action,
+                  busy: _busy,
+                  posting: widget.action == PullRequestAction.comment,
                   onAddComment: widget.onAddComment,
                   onToggleTask: widget.onToggleTask,
                   onOpenUrl: widget.onOpenUrl,
@@ -228,6 +246,13 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
               ],
             ),
           ),
+          if (widget.onRestack != null && review.isOpen) ...<Widget>[
+            const SizedBox(height: AleraTokens.space8),
+            PullRequestRestackButton(
+              enabled: !_busy,
+              onPressed: widget.onRestack!,
+            ),
+          ],
           const SizedBox(height: AleraTokens.space8),
           _PullRequestReviewActions(
             review: review,
@@ -240,6 +265,8 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
             onClose: widget.onClose,
             onDraftStatusChanged: widget.onDraftStatusChanged,
             onUnlink: widget.onUnlink,
+            onArchiveWorkspace: widget.onArchiveWorkspace,
+            onRemoveWorkspace: widget.onRemoveWorkspace,
           ),
         ],
       ),
@@ -307,6 +334,16 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
         const SizedBox(width: AleraTokens.space8),
         _StateChip(state: review.state),
         const Spacer(),
+        _PullRequestWatchAgentButton(
+          reviewIsOpen: review.isOpen,
+          busy: _busy,
+          watchMode: widget.agentWatchMode,
+          watchScope: widget.agentWatchScope,
+          onWatchScopeChanged: widget.onAgentWatchScopeChanged,
+          onWatchAndFix: widget.onWatchAndFix,
+          onWatchFixAndMerge: widget.onWatchFixAndMerge,
+          onStopAgentWatch: widget.onStopAgentWatch,
+        ),
         if (!_editing)
           AleraIconButton(
             tooltip: 'Edit Pull Request',
@@ -339,6 +376,10 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
       crossAxisAlignment: .start,
       children: <Widget>[
         Text(review.title, style: theme.textTheme.bodyMedium),
+        if (widget.agentWatchMode case final mode?) ...<Widget>[
+          const SizedBox(height: AleraTokens.space4),
+          _PullRequestWatchStatus(mode: mode),
+        ],
         if (subtitle.isNotEmpty) ...<Widget>[
           const SizedBox(height: AleraTokens.space4),
           Text(

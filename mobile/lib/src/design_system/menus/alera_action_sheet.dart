@@ -22,19 +22,23 @@ class const AleraActionSheet<T>({
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    // Scrolls once the rows outgrow the sheet: a long menu on a short phone
+    // otherwise overflows past the bottom edge and clips its last actions.
     return SafeArea(
-      child: Column(
-        mainAxisSize: .min,
-        children: <Widget>[
-          for (final entry in entries)
-            ListTile(
-              key: ValueKey<T>(entry.value),
-              minTileHeight: AleraTokens.minTapTarget,
-              leading: entry.leading,
-              title: Text(entry.label),
-              onTap: () => Navigator.of(context).pop(entry.value),
-            ),
-        ],
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: .min,
+          children: <Widget>[
+            for (final entry in entries)
+              ListTile(
+                key: ValueKey<T>(entry.value),
+                minTileHeight: AleraTokens.minTapTarget,
+                leading: entry.leading,
+                title: Text(entry.label),
+                onTap: () => Navigator.of(context).pop(entry.value),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -49,6 +53,10 @@ Future<T?> showAleraActionSheet<T>(
   return showModalBottomSheet<T>(
     context: context,
     showDragHandle: true,
+    isScrollControlled: true,
+    constraints: BoxConstraints(
+      maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+    ),
     builder: (context) => AleraActionSheet<T>(entries: entries),
   );
 }

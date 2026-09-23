@@ -10,16 +10,17 @@ class const WorkspaceTabSummary({
 }) {
   bool get isTerminal => kind == 'terminal';
 
-  bool get isCodex => kind == 'codex';
+  bool get isMarkdownViewer => kind == 'markdownViewer';
+
+  /// Workspace-relative file shown by a file-backed desktop tab (editor,
+  /// Markdown viewer); null for terminals.
+  String? get filePath => payload.optionalString('filePath');
 
   bool get hasManualTitle => payload['manualTitle'] == true;
 
   String get displayTitle {
     if (hasManualTitle) {
       return title;
-    }
-    if (isCodex) {
-      return title.trim().isEmpty || title == 'Codex' ? 'Codex Chat' : title;
     }
     final automaticTitle = runtimeTitle?.trim() ?? '';
     if (automaticTitle.isEmpty || automaticTitle == 'Terminal') {
@@ -32,6 +33,16 @@ class const WorkspaceTabSummary({
   /// tab id when the payload carries no explicit session id.
   String get terminalSessionId =>
       payload.optionalString('terminalSessionId') ?? id;
+
+  /// Provider conversation, session, or thread id captured by the runtime host.
+  String? get agentNativeSessionId =>
+      payload.optionalString('agentNativeSessionId');
+
+  String? get agentNativeSessionAgent =>
+      payload.optionalString('agentNativeSessionAgent');
+
+  String? get agentNativeCcsProfile =>
+      payload.optionalString('agentNativeCcsProfile');
 
   factory fromJson(Map<String, Object?> json) {
     return WorkspaceTabSummary(

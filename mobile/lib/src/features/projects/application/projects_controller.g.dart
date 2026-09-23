@@ -52,7 +52,7 @@ final class ProjectsControllerProvider
 }
 
 String _$projectsControllerHash() =>
-    r'e402582e6feb60743d92271f327acd5876767562';
+    r'a438c2d8d6469c2885043bac518719eb467011fa';
 
 final class ProjectsControllerFamily extends $Family
     with

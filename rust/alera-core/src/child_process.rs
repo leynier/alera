@@ -10,7 +10,9 @@
 //!
 //! The constructors here are the only supported way to build a command: a
 //! `clippy.toml` lint rejects `Command::new` everywhere else, so the flag cannot
-//! be forgotten at a new call site.
+//! be forgotten at a new call site. Console-subsystem parents such as
+//! `alera-xtask` use [`console_command`] when the child must inherit the
+//! makefile TTY.
 
 use std::ffi::OsStr;
 use std::process::Command;
@@ -19,6 +21,17 @@ use std::process::Command;
 /// `windows` crate for a single constant.
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// A [`Command`] that stays on the parent's console.
+///
+/// Use this only from a console-subsystem parent such as `alera-xtask` when the
+/// child must inherit stdin, stdout, and stderr (TTY detection, Ctrl+C, Flutter
+/// hot-reload keys). GUI and detached parents must keep using
+/// [`windowless_command`].
+#[allow(clippy::disallowed_methods)]
+pub fn console_command(program: impl AsRef<OsStr>) -> Command {
+    Command::new(program)
+}
 
 /// A [`Command`] that will not open a console window.
 #[allow(clippy::disallowed_methods)]

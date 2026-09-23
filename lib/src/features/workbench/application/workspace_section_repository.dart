@@ -14,7 +14,7 @@ abstract interface class WorkspaceSectionRepository {
   Future<bool> supportsSections();
   Stream<WorkspaceSectionSnapshot> watchSections();
   Future<List<WorkspaceSection>> listSections();
-  Future<void> createSection(String name, String workspaceId);
+  Future<WorkspaceSection> createSection(String name, String workspaceId);
   Future<void> setSection(String workspaceId, String? sectionId);
   Future<void> removeSection(String sectionId);
 }

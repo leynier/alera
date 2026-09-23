@@ -4,10 +4,8 @@ import 'package:alera/src/features/agent_status/application/agent_hook_reconcili
 import 'package:alera/src/features/agent_status/infra/managed_agent_hook_installer.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/infra/alera_cli_skill_service.dart';
-import 'package:alera/src/features/settings/presentation/panes/alera_agent_canvas_skill_control.dart';
+import 'package:alera/src/features/settings/presentation/panes/alera_agent_profiles_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_all_skills_control.dart';
-import 'package:alera/src/features/settings/presentation/panes/alera_computer_use_skill_control.dart';
-import 'package:alera/src/features/settings/presentation/panes/alera_emulator_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_orchestration_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/agents_cli_skill_control.dart';
 import 'package:alera/src/shared/infra/process/command_environment_resolver.dart';
@@ -151,25 +149,7 @@ void main() {
     expect(find.text('Selected hooks ready'), findsOneWidget);
   });
 
-  testWidgets('emulator control installs the emulator skill', (tester) async {
-    final runtime = FakeCommandTerminalRuntime(running: false);
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [terminalRuntimeProvider.overrideWithValue(runtime)],
-        child: MaterialApp(
-          theme: buildAleraDarkTheme(),
-          home: const Scaffold(body: AleraEmulatorSkillControl()),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('Install / Update'));
-    await tester.pumpAndSettle();
-
-    expect(runtime.lastTab?.initialCommand, contains('--skill alera-emulator'));
-  });
-
-  testWidgets('computer use control installs the computer use skill', (
+  testWidgets('Agent Profiles control installs the optional profile skill', (
     tester,
   ) async {
     final runtime = FakeCommandTerminalRuntime(running: false);
@@ -178,7 +158,7 @@ void main() {
         overrides: [terminalRuntimeProvider.overrideWithValue(runtime)],
         child: MaterialApp(
           theme: buildAleraDarkTheme(),
-          home: const Scaffold(body: AleraComputerUseSkillControl()),
+          home: const Scaffold(body: AleraAgentProfilesSkillControl()),
         ),
       ),
     );
@@ -188,30 +168,7 @@ void main() {
 
     expect(
       runtime.lastTab?.initialCommand,
-      contains('--skill alera-computer-use'),
-    );
-  });
-
-  testWidgets('Agent Canvas control installs the Agent Canvas skill', (
-    tester,
-  ) async {
-    final runtime = FakeCommandTerminalRuntime(running: false);
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [terminalRuntimeProvider.overrideWithValue(runtime)],
-        child: MaterialApp(
-          theme: buildAleraDarkTheme(),
-          home: const Scaffold(body: AleraAgentCanvasSkillControl()),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('Install / Update'));
-    await tester.pumpAndSettle();
-
-    expect(
-      runtime.lastTab?.initialCommand,
-      aleraCliSkillInstallCommand(runner: .auto, skill: .agentCanvas),
+      aleraCliSkillInstallCommand(runner: .auto, skill: .agentProfiles),
     );
   });
 
@@ -247,7 +204,7 @@ void main() {
     expect(find.text('Install All Alera Skills'), findsOneWidget);
     final command = runtime.lastTab?.initialCommand;
     expect(command, isNotNull);
-    for (final skill in AleraAgentSkill.values) {
+    for (final skill in coreAleraAgentSkills) {
       expect(
         command,
         contains('--skill ${skill.name} --agent codex --global --yes'),
@@ -323,7 +280,7 @@ void main() {
     await tester.pump();
 
     expect(clipboardText, isNotNull);
-    for (final skill in AleraAgentSkill.values) {
+    for (final skill in coreAleraAgentSkills) {
       expect(
         clipboardText,
         contains('--skill ${skill.name} --agent codex --global --yes'),

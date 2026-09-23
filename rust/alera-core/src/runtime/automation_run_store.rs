@@ -9,12 +9,15 @@ use super::{
     RuntimeStore,
 };
 
+#[path = "automation_shared_workspace_store.rs"]
+mod automation_shared_workspace_store;
+
 #[path = "automation_run_audit_store.rs"]
 mod automation_run_audit_store;
 #[path = "automation_run_lifecycle_store.rs"]
 mod automation_run_lifecycle_store;
 
-fn decode_run(row: SqliteRow) -> Result<AutomationRun> {
+pub(super) fn decode_run(row: SqliteRow) -> Result<AutomationRun> {
     let data: String = row.try_get("dataJson")?;
     let mut run: AutomationRun = serde_json::from_str(&data)?;
     run.status = AutomationRunStatus::from_db(&row.try_get::<String, _>("status")?);
@@ -28,7 +31,7 @@ fn decode_run(row: SqliteRow) -> Result<AutomationRun> {
     Ok(run)
 }
 
-fn run_query() -> &'static str {
+pub(super) fn run_query() -> &'static str {
     "SELECT status, runNumber, scheduledAt, dataJson, createdAt, updatedAt, finishedAt FROM automationRuns"
 }
 
@@ -289,6 +292,7 @@ impl RuntimeStore {
         if existing.status.is_final() && existing.status != run.status {
             bail!("automation run is already final: {}", run.id);
         }
+        let mut tx = self.pool().begin().await?;
         sqlx::query(
             "UPDATE automationRuns SET status = ?, dataJson = ?, updatedAt = ?, finishedAt = ? WHERE id = ?",
         )
@@ -297,11 +301,20 @@ impl RuntimeStore {
         .bind(format_timestamp(run.updated_at))
         .bind(run.finished_at.map(format_timestamp))
         .bind(&run.id)
-        .execute(self.pool())
+        .execute(&mut *tx)
         .await?;
-        self.find_automation_run(&run.id)
-            .await?
-            .ok_or_else(|| anyhow!("automation run disappeared after save"))
+        let query = format!("{} WHERE id = ?", run_query());
+        let saved = decode_run(
+            sqlx::query(sqlx::AssertSqlSafe(query))
+                .bind(&run.id)
+                .fetch_one(&mut *tx)
+                .await?,
+        )?;
+        if existing.status != AutomationRunStatus::Success {
+            super::automation_cleanup_attempt_store::enqueue_completed_run(&mut tx, &saved).await?;
+        }
+        tx.commit().await?;
+        Ok(saved)
     }
 
     pub async fn count_automation_failure_streak(&self, automation_id: &str) -> Result<i64> {
@@ -325,3 +338,7 @@ impl RuntimeStore {
 #[cfg(test)]
 #[path = "automation_run_store_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "project_automation_dependencies_tests.rs"]
+mod project_dependency_tests;

@@ -100,12 +100,100 @@ void _registerWorkspacePullRequestsPanelReadingDiffTests() {
         commitOid: 'hosted-head',
         gitDiffRoot: 'packages/app',
         parentOid: 'merge-base',
+        oppositePanel: false,
       ),
     ]);
     expect(
       git.calls.where((call) => call.method == 'releaseHostedReviewRange'),
       isEmpty,
     );
+  });
+
+  testWidgets('keeps a Mod-open after the pull request fetch finishes', (
+    tester,
+  ) async {
+    final now = DateTime.utc(2026, 8, 10);
+    final workspace = Workspace(
+      id: 'workspace-1',
+      projectId: 'project-1',
+      name: 'Feature',
+      branch: 'feature',
+      path: '/repo',
+      createdAt: now,
+      updatedAt: now,
+      kind: .linked,
+      status: .active,
+    );
+    final review = _review(385);
+    final forge = FakeForgeProvider()..branchReview = review;
+    final fetchGate = Completer<void>();
+    final git = FakeGitBackend()
+      ..remotesByName = <String, String?>{
+        'origin': 'https://github.com/leynier/alera.git',
+      }
+      ..fetchHostedReviewRangeGate = fetchGate
+      ..gitRangeContextResult = const GitRangeContext(
+        baseRef: 'main',
+        headOid: 'hosted-head',
+        mergeBase: 'merge-base',
+        commits: <GitRangeCommit>[],
+        files: <GitRangeFile>[],
+        patch: '',
+      );
+    late _PanelWorkbenchController workbench;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          effectiveHostingProviderOverrideProvider.overrideWith(
+            (ref, projectId) async => null,
+          ),
+          gitBackendProvider.overrideWithValue(git),
+          forgeProviderRegistryProvider.overrideWithValue(
+            ForgeProviderRegistry(<ForgeProvider>[forge]),
+          ),
+          linkedReviewRepositoryProvider.overrideWithValue(
+            FakeLinkedReviewRepository(),
+          ),
+          workbenchControllerProvider.overrideWith(
+            () => workbench = _PanelWorkbenchController(),
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 360,
+              height: 640,
+              child: WorkspacePullRequestsPanel(
+                workspace: workspace,
+                repoPath: workspace.path,
+                gitDiffRoot: 'packages/app',
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
+    await tester.tap(find.byTooltip('Open Pull Request Diff'));
+    await tester.pump();
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
+    expect(workbench.openedPullRequestDiffs, isEmpty);
+
+    fetchGate.complete();
+    await tester.pumpAndSettle();
+
+    expect(workbench.openedPullRequestDiffs, <Object>[
+      (
+        number: 385,
+        commitOid: 'hosted-head',
+        gitDiffRoot: 'packages/app',
+        parentOid: 'merge-base',
+        oppositePanel: true,
+      ),
+    ]);
   });
 
   testWidgets('opens an Azure fork diff from the source repository', (

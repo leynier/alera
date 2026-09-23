@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:alera/src/features/ai_assist/application/ai_assist_host_completer.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_registry.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_process_failure.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
@@ -25,12 +26,14 @@ abstract interface class AiAssistModelDiscoveryService {
 class CliAiAssistModelDiscoveryService({
   required final ProcessRunner processRunner,
   CommandEnvironmentResolver? commandEnvironmentResolver,
+  this.hostCompleter,
 }) implements AiAssistModelDiscoveryService {
   this
     : commandEnvironmentResolver =
           commandEnvironmentResolver ?? UserCommandEnvironmentResolver();
 
   final CommandEnvironmentResolver commandEnvironmentResolver;
+  final AiAssistHostCompleter? hostCompleter;
 
   @override
   Future<AiAssistModelDiscoveryResult> discover(AiAssistAgent agent) async {
@@ -43,6 +46,9 @@ class CliAiAssistModelDiscoveryService({
         defaultModelId: 'custom',
         error: '${agent.label} does not support AI Assist.',
       );
+    }
+    if (agent == AiAssistAgent.opencodeGo) {
+      return _discoverOpenCodeGo(spec);
     }
     if (spec.modelsCommand == null) {
       return _staticResult(spec);
@@ -93,6 +99,43 @@ class CliAiAssistModelDiscoveryService({
         models: spec.models,
         defaultModelId: spec.defaultModelId,
         error: '${spec.label} returned too much model data.',
+      );
+    }
+  }
+
+  Future<AiAssistModelDiscoveryResult> _discoverOpenCodeGo(
+    AiAssistAgentSpec spec,
+  ) async {
+    final completer = hostCompleter;
+    if (completer == null) {
+      return AiAssistModelDiscoveryResult(
+        success: false,
+        agent: spec.agent,
+        models: spec.models,
+        defaultModelId: spec.defaultModelId,
+        error: openCodeGoHostTooOldMessage,
+      );
+    }
+    try {
+      final models = await completer.discoverOpenCodeGoModels();
+      final defaultModelId =
+          spec.defaultModelId != null &&
+              models.any((model) => model.id == spec.defaultModelId)
+          ? spec.defaultModelId
+          : models.first.id;
+      return AiAssistModelDiscoveryResult(
+        success: true,
+        agent: spec.agent,
+        models: models,
+        defaultModelId: defaultModelId,
+      );
+    } catch (error) {
+      return AiAssistModelDiscoveryResult(
+        success: false,
+        agent: spec.agent,
+        models: spec.models,
+        defaultModelId: spec.defaultModelId,
+        error: error.toString(),
       );
     }
   }

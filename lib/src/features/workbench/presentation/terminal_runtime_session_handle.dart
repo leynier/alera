@@ -16,7 +16,10 @@ class _XtermTerminalSessionHandle(
   final void Function(TerminalRuntimeExitEvent event) _onExit,
   this._onEvictionEligibilityChanged,
 ) extends TerminalSessionHandle
-    with _TerminalSearchSessionSupport, _TerminalSessionCapabilitiesSupport {
+    with
+        _TerminalSearchSessionSupport,
+        _TerminalSessionCapabilitiesSupport,
+        _TerminalEmulatorFakeResizeSupport {
   this {
     _terminal = _createTerminal();
     _attachTerminal(_terminal);
@@ -229,6 +232,7 @@ class _XtermTerminalSessionHandle(
       key: _terminalViewKey,
       shortcuts: xterm.clipboardTerminalShortcuts,
       shiftOverridesMouseReporting: true,
+      dragOverridesMouseReporting: _settings.dragSelectsInTuis,
       controller: _terminalController,
       scrollController: _scrollController,
       focusNode: _focusNode,
@@ -309,41 +313,6 @@ class _XtermTerminalSessionHandle(
     }
     _pendingPtySize = null;
     session.resize(size.cols, size.rows, size.cellWidthPx, size.cellHeightPx);
-  }
-
-  @override
-  Future<void> refreshRendering() async {
-    if (_disposed) {
-      return;
-    }
-    final session = _ptySession;
-    if (session == null) {
-      return;
-    }
-    final viewState = _terminalViewKey.currentState;
-    if (viewState == null) {
-      return;
-    }
-    final renderTerminal = viewState.renderTerminal;
-    if (!renderTerminal.attached ||
-        !renderTerminal.hasSize ||
-        renderTerminal.size.isEmpty) {
-      return;
-    }
-    final cellSize = renderTerminal.cellSize;
-    await session.refreshViewport(
-      _terminal.viewWidth,
-      _terminal.viewHeight,
-      cellSize.width.round(),
-      cellSize.height.round(),
-    );
-    if (_disposed ||
-        !identical(_terminalViewKey.currentState, viewState) ||
-        !renderTerminal.attached) {
-      return;
-    }
-    renderTerminal.markNeedsLayout();
-    renderTerminal.markNeedsPaint();
   }
 
   Future<bool> _startPtySession() async {

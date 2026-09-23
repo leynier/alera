@@ -49,4 +49,40 @@ extension _PromptWorkspaceDialogAgentLaunch on _PromptWorkspaceDialogState {
       }
     }
   }
+
+  Future<void> _cancelGeneration() async {
+    final operationId = _activeOperationId;
+    if (operationId != null) {
+      await widget.cancelGeneration(operationId);
+    }
+  }
+
+  Future<void> _finishCreation(
+    WorkspaceCreationResult creation,
+    String agentTabId,
+  ) async {
+    if (!_createAnother) {
+      Navigator.of(context).pop(
+        PromptWorkspaceDialogResult(creation: creation, agentTabId: agentTabId),
+      );
+      return;
+    }
+    await widget.onCreateAnother?.call(
+      creation: creation,
+      agentTabId: agentTabId,
+    );
+    if (!mounted) {
+      return;
+    }
+    _promptController.clear();
+    _issueUrlController.clear();
+    _agentLaunchMutationId = null;
+    _originalAgentLaunchWasIdempotent = null;
+    _update(() {
+      _working = false;
+      _phase = null;
+      _error = null;
+      _created = null;
+    });
+  }
 }

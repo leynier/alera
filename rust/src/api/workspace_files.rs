@@ -3,10 +3,9 @@ use std::io;
 use std::path::{Component, Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
-use ignore::WalkBuilder;
-
 mod editor_text;
 mod explorer_tree;
+mod listing;
 mod source_control_watcher;
 mod watcher;
 
@@ -195,38 +194,7 @@ pub fn list_workspace_children(
     relative_path: String,
     hide_ignored: bool,
 ) -> Result<Vec<WorkspaceFileEntry>, WorkspaceFileError> {
-    let root = workspace_root(&workspace_path)?;
-    let directory = resolve_existing(&root, &relative_path)?;
-    let metadata = fs::symlink_metadata(&directory)
-        .map_err(|error| WorkspaceFileError::from_io(error, &relative_path))?;
-    if !metadata.is_dir() {
-        return Err(WorkspaceFileError::new(
-            WorkspaceFileErrorKind::Unsupported,
-            relative_path,
-        ));
-    }
-
-    let paths = if hide_ignored {
-        ignored_aware_children(&directory)?
-    } else {
-        read_dir_children(&directory)?
-    };
-
-    let mut entries = Vec::with_capacity(paths.len());
-    for path in paths {
-        if let Some(entry) = entry_for_path(&root, &path, hide_ignored)? {
-            entries.push(entry);
-        }
-    }
-    entries.sort_by(|left, right| {
-        let left_dir = matches!(left.kind, WorkspaceFileKind::Directory);
-        let right_dir = matches!(right.kind, WorkspaceFileKind::Directory);
-        right_dir
-            .cmp(&left_dir)
-            .then_with(|| left.name.to_lowercase().cmp(&right.name.to_lowercase()))
-            .then_with(|| left.name.cmp(&right.name))
-    });
-    Ok(entries)
+    listing::list_workspace_children(workspace_path, relative_path, hide_ignored)
 }
 
 pub fn start_workspace_quick_open_session(
@@ -794,8 +762,20 @@ fn entry_for_path(
     } else {
         WorkspaceFileKind::Other
     };
-    let has_children_hint = matches!(kind, WorkspaceFileKind::Directory)
-        && has_visible_child(path, hide_ignored).unwrap_or(false);
+    let has_children_hint = if matches!(kind, WorkspaceFileKind::Directory) {
+        if hide_ignored {
+            match listing::hide_ignored_directory_kind(path) {
+                listing::HideIgnoredDirectoryKind::Listable
+                | listing::HideIgnoredDirectoryKind::Unknown => true,
+                listing::HideIgnoredDirectoryKind::Empty => false,
+                listing::HideIgnoredDirectoryKind::IgnoredOnly => return Ok(None),
+            }
+        } else {
+            listing::has_unprotected_child(path).unwrap_or(false)
+        }
+    } else {
+        false
+    };
     Ok(Some(WorkspaceFileEntry {
         relative_path: relative_path.clone(),
         name: name.clone(),
@@ -810,61 +790,6 @@ fn entry_for_path(
         has_children_hint,
         git_status: None,
     }))
-}
-
-fn ignored_aware_children(directory: &Path) -> Result<Vec<PathBuf>, WorkspaceFileError> {
-    let mut paths = Vec::new();
-    let walker = WalkBuilder::new(directory)
-        .max_depth(Some(1))
-        .hidden(false)
-        .parents(true)
-        .require_git(false)
-        .build();
-    for result in walker {
-        let entry = result.map_err(|error| {
-            WorkspaceFileError::new(WorkspaceFileErrorKind::Io, error.to_string())
-        })?;
-        if entry.path() == directory {
-            continue;
-        }
-        if is_protected_child_path(entry.path()) {
-            continue;
-        }
-        paths.push(entry.path().to_path_buf());
-    }
-    Ok(paths)
-}
-
-fn read_dir_children(directory: &Path) -> Result<Vec<PathBuf>, WorkspaceFileError> {
-    let mut paths = Vec::new();
-    for result in fs::read_dir(directory)
-        .map_err(|error| WorkspaceFileError::from_io(error, directory.to_string_lossy()))?
-    {
-        let entry = result
-            .map_err(|error| WorkspaceFileError::from_io(error, directory.to_string_lossy()))?;
-        if is_protected_child_path(&entry.path()) {
-            continue;
-        }
-        paths.push(entry.path());
-    }
-    Ok(paths)
-}
-
-fn has_visible_child(directory: &Path, hide_ignored: bool) -> Result<bool, WorkspaceFileError> {
-    if hide_ignored {
-        Ok(!ignored_aware_children(directory)?.is_empty())
-    } else {
-        for result in fs::read_dir(directory)
-            .map_err(|error| WorkspaceFileError::from_io(error, directory.to_string_lossy()))?
-        {
-            let entry = result
-                .map_err(|error| WorkspaceFileError::from_io(error, directory.to_string_lossy()))?;
-            if !is_protected_child_path(&entry.path()) {
-                return Ok(true);
-            }
-        }
-        Ok(false)
-    }
 }
 
 fn relative_string(root: &Path, path: &Path) -> Result<String, WorkspaceFileError> {
@@ -1090,56 +1015,6 @@ mod tests {
             .nodes
             .iter()
             .any(|node| node.id == "path:src" || node.id == "path:src/main.dart"));
-    }
-
-    #[test]
-    fn list_workspace_children_sorts_directories_and_filters_ignored_entries() {
-        let workspace = tempfile::tempdir().expect("tempdir");
-        fs::write(workspace.path().join(".gitignore"), "ignored.txt\n").expect("write gitignore");
-        fs::create_dir(workspace.path().join("src")).expect("create src");
-        fs::write(workspace.path().join("src/main.dart"), "void main() {}\n").expect("write src");
-        fs::write(workspace.path().join("readme.md"), "# Alera\n").expect("write readme");
-        fs::write(workspace.path().join("ignored.txt"), "ignored\n").expect("write ignored");
-
-        let entries =
-            list_workspace_children(workspace_path(&workspace), String::new(), true).unwrap();
-        let names = entries
-            .iter()
-            .map(|entry| entry.name.as_str())
-            .collect::<Vec<_>>();
-
-        assert!(names.contains(&"src"));
-        assert!(names.contains(&"readme.md"));
-        assert!(!names.contains(&"ignored.txt"));
-        assert!(
-            names.iter().position(|name| *name == "src").unwrap()
-                < names.iter().position(|name| *name == "readme.md").unwrap()
-        );
-
-        let src = entries.iter().find(|entry| entry.name == "src").unwrap();
-        assert_eq!(src.kind, WorkspaceFileKind::Directory);
-        assert!(src.has_children_hint);
-    }
-
-    #[test]
-    fn list_workspace_children_always_hides_protected_git_directory() {
-        let workspace = tempfile::tempdir().expect("tempdir");
-        fs::create_dir(workspace.path().join(".git")).expect("create git dir");
-        fs::write(workspace.path().join(".git/config"), "protected").expect("write git config");
-        fs::write(workspace.path().join("readme.md"), "# Alera\n").expect("write readme");
-
-        for hide_ignored in [true, false] {
-            let entries =
-                list_workspace_children(workspace_path(&workspace), String::new(), hide_ignored)
-                    .unwrap();
-            let names = entries
-                .iter()
-                .map(|entry| entry.name.as_str())
-                .collect::<Vec<_>>();
-
-            assert!(names.contains(&"readme.md"));
-            assert!(!names.contains(&".git"));
-        }
     }
 
     #[test]

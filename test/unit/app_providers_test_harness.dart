@@ -292,6 +292,21 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
+  Future<Workspace> setWorkspaceArchived(
+    String workspaceId,
+    bool isArchived,
+  ) async {
+    final current = (await findWorkspaceById(workspaceId))!;
+    return upsertWorkspace(current.copyWith(isArchived: isArchived));
+  }
+
+  @override
+  Future<void> sleepWorkspace(String workspaceId) async {}
+
+  @override
+  Future<bool> supportsArchive() async => true;
+
+  @override
   Stream<List<WorkspaceTabRecord>> watchWorkspaceTabs(String workspaceId) {
     return const Stream<List<WorkspaceTabRecord>>.empty();
   }

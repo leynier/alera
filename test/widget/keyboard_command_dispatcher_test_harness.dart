@@ -44,15 +44,21 @@ class _DispatcherTestWorkbenchController(
 
   final Completer<WorkspaceTabRecord> _splitCompleter;
   final List<String> createdTerminalWorkspaceIds = <String>[];
-  final List<String> createdBrowserWorkspaceIds = <String>[];
+
   final List<String> closedTabIds = <String>[];
+  final List<WorkspaceTool> closedTools = <WorkspaceTool>[];
   final List<String> selectedTabIds = <String>[];
+  final List<String> selectedWorkspacePanelKeys = <String>[];
   final List<({String workspaceId, String groupId, WorkbenchDropZone zone})>
   splitRequests =
       <({String workspaceId, String groupId, WorkbenchDropZone zone})>[];
   final List<({String workspaceId, String groupId})> mergedSplits =
       <({String workspaceId, String groupId})>[];
   final List<String> navigationCalls = <String>[];
+  final List<String> focusedGroupIds = <String>[];
+  final List<String> selectedWorkspaceIds = <String>[];
+  final List<WorkbenchContextPanelTab> contextPanelTabs =
+      <WorkbenchContextPanelTab>[];
 
   @override
   WorkbenchState build() => _seed;
@@ -93,10 +99,20 @@ class _DispatcherTestWorkbenchController(
     final tab = createdTab ?? _tab(id: 'tab-new');
     final currentTabs = state.tabsFor(workspace.id);
     final layout = state.layoutFor(workspace.id);
+    final tabs = <WorkspaceTabRecord>[...currentTabs, tab];
+    final panel = state
+        .copyWith(
+          tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
+            ...state.tabsByWorkspace,
+            workspace.id: tabs,
+          },
+        )
+        .workspacePanelFor(workspace.id)
+        .select(WorkspacePanel.tabKey(tab.id), groupId: targetGroupId);
     state = state.copyWith(
       tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
         ...state.tabsByWorkspace,
-        workspace.id: <WorkspaceTabRecord>[...currentTabs, tab],
+        workspace.id: tabs,
       },
       layoutByWorkspace: <String, WorkbenchLayout>{
         ...state.layoutByWorkspace,
@@ -110,30 +126,14 @@ class _DispatcherTestWorkbenchController(
         ...state.activeTabIdByWorkspace,
         workspace.id: tab.id,
       },
+      viewPrefs: state.viewPrefs.copyWith(
+        workspacePanels: <String, WorkspacePanel>{
+          ...state.viewPrefs.workspacePanels,
+          workspace.id: panel,
+        },
+      ),
     );
     return tab;
-  }
-
-  @override
-  Future<WorkspaceTabRecord> createBrowserTab(
-    Workspace workspace, {
-    String? targetGroupId,
-    String? pageId,
-    String profileId = 'default',
-    String? initialUrl,
-  }) async {
-    createdBrowserWorkspaceIds.add(workspace.id);
-    return WorkspaceTabRecord(
-      id: 'browser-tab-new',
-      workspaceId: workspace.id,
-      kind: .browser,
-      title: 'New Tab',
-      createdAt: .utc(2026),
-      updatedAt: .utc(2026),
-      payload: <String, Object?>{
-        workspaceTabBrowserProfileIdPayloadKey: profileId,
-      },
-    );
   }
 
   @override
@@ -146,6 +146,40 @@ class _DispatcherTestWorkbenchController(
     // and the editor document for every closed tab.
     ref.read(terminalRuntimeProvider).closeTab(tabId);
     ref.read(editorSessionRegistryProvider).forget(tabId);
+  }
+
+  @override
+  void closeWorkspaceTool(String workspaceId, WorkspaceTool tool) {
+    closedTools.add(tool);
+    state = state.copyWith(
+      viewPrefs: state.viewPrefs.copyWith(
+        workspacePanels: <String, WorkspacePanel>{
+          ...state.viewPrefs.workspacePanels,
+          workspaceId: state.workspacePanelFor(workspaceId).closeTool(tool),
+        },
+      ),
+    );
+  }
+
+  @override
+  void selectWorkspacePanelKey(
+    String workspaceId,
+    String key, {
+    String? groupId,
+    bool recordSelection = true,
+  }) {
+    selectedWorkspacePanelKeys.add(key);
+    final panel = state
+        .workspacePanelFor(workspaceId)
+        .select(key, groupId: groupId);
+    state = state.copyWith(
+      viewPrefs: state.viewPrefs.copyWith(
+        workspacePanels: <String, WorkspacePanel>{
+          ...state.viewPrefs.workspacePanels,
+          workspaceId: panel,
+        },
+      ),
+    );
   }
 
   @override
@@ -177,6 +211,52 @@ class _DispatcherTestWorkbenchController(
     required String groupId,
   }) async {
     mergedSplits.add((workspaceId: workspaceId, groupId: groupId));
+  }
+
+  @override
+  void focusWorkbenchGroup({
+    required String workspaceId,
+    required String groupId,
+  }) {
+    focusedGroupIds.add(groupId);
+    final layout = state.layoutFor(workspaceId);
+    final tabId = layout?.groups[groupId]?.activeTabId;
+    if (layout == null || tabId == null) {
+      return;
+    }
+    state = state.copyWith(
+      layoutByWorkspace: <String, WorkbenchLayout>{
+        ...state.layoutByWorkspace,
+        workspaceId: layout.setActiveTab(groupId: groupId, tabId: tabId),
+      },
+    );
+  }
+
+  @override
+  Future<void> selectWorkspace({
+    required Project project,
+    required Workspace workspace,
+  }) async {
+    selectedWorkspaceIds.add(workspace.id);
+    state = state.copyWith(
+      activeProjectId: project.id,
+      activeWorkspaceId: workspace.id,
+    );
+  }
+
+  @override
+  void setRightSidebarVisible(bool visible) {
+    state = state.copyWith(
+      viewPrefs: state.viewPrefs.copyWith(rightSidebarVisible: visible),
+    );
+  }
+
+  @override
+  void setContextPanelTab(WorkbenchContextPanelTab tab) {
+    contextPanelTabs.add(tab);
+    state = state.copyWith(
+      viewPrefs: state.viewPrefs.copyWith(activeContextPanelTab: tab),
+    );
   }
 
   @override
@@ -313,19 +393,40 @@ class _FakeTerminalSessionHandle({
   TerminalVisibilityLease acquireVisibility() =>
       const NoopTerminalVisibilityLease();
 
+  /// Attached by tests that mount the view, so focus requests move the real
+  /// primary focus the way the production emulator does.
+  final FocusNode focusNode = FocusNode();
+
   @override
   Widget buildView({
     Key? key,
     bool autofocus = false,
     FocusOnKeyEventCallback? onKeyEvent,
   }) {
-    return const SizedBox.shrink();
+    return Focus(
+      key: key,
+      focusNode: focusNode,
+      autofocus: autofocus,
+      onKeyEvent: onKeyEvent,
+      child: SizedBox.expand(key: ValueKey<String>('terminal-${tab.id}')),
+    );
   }
 
   @override
   void requestFocus() {
     requestFocusCalls += 1;
     onFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (focusNode.context != null) {
+        focusNode.requestFocus();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    focusNode.dispose();
+    super.dispose();
   }
 }
 
@@ -338,17 +439,18 @@ Future<_DispatcherPumpHarness> _pumpDispatcherHarness(
   WidgetTester tester, {
   required _DispatcherTestWorkbenchController controller,
   required _FakeTerminalRuntime runtime,
+  Widget Function(BuildContext context, WidgetRef ref)? body,
 }) async {
   final container = ProviderContainer(
     overrides: [
       workbenchControllerProvider.overrideWith(() => controller),
       agentProfilesProvider.overrideWith(() => _DispatcherAgentProfiles()),
       terminalRuntimeProvider.overrideWith((ref) => runtime),
-      browserAvailabilityProvider.overrideWith(
-        (ref) => _stableBrowserCapabilities,
-      ),
       settingsControllerProvider.overrideWith(
         () => _DispatcherSettingsController(.defaults),
+      ),
+      sshTargetRepositoryProvider.overrideWithValue(
+        RuntimeSshTargetRepository(_DispatcherRuntimeHostClient()),
       ),
     ],
   );
@@ -364,7 +466,7 @@ Future<_DispatcherPumpHarness> _pumpDispatcherHarness(
           builder: (context, ref, _) {
             dispatcherRef = ref;
             dispatcherContext = context;
-            return const SizedBox.shrink();
+            return body?.call(context, ref) ?? const SizedBox.shrink();
           },
         ),
       ),
@@ -374,38 +476,25 @@ Future<_DispatcherPumpHarness> _pumpDispatcherHarness(
   return _DispatcherPumpHarness(ref: dispatcherRef, context: dispatcherContext);
 }
 
-const BrowserEngineCapabilities _stableBrowserCapabilities =
-    BrowserEngineCapabilities(
-      engine: 'test',
-      engineAvailable: true,
-      pageSurface: true,
-      isolatedProfiles: true,
-      ephemeralProfiles: true,
-      deterministicPageClose: true,
-      navigation: true,
-      navigationEvents: true,
-      javascript: true,
-      basicCookies: true,
-      fullCookies: true,
-      permissionCallbacks: true,
-      tlsCallbacks: true,
-      tlsTrustScope: 'profileSession',
-      popupCallbacks: true,
-      downloadCallbacks: true,
-      domSnapshot: true,
-      domActions: true,
-      viewportScreenshot: true,
-      fullPageScreenshot: true,
-      pdf: true,
-      flutterOverlayOcclusion: true,
-      atomicCookieImport: true,
-      manualJsonCookieImport: true,
-      nativeCookieImportSources: <String>{'test', 'manualJson'},
-      requiredNativeCookieImportSources: <String>{'test', 'manualJson'},
-    );
-
 class _DispatcherSettingsController(final AleraSettings _seed)
     extends SettingsController {
   @override
   AleraSettings build() => _seed;
+}
+
+class _DispatcherRuntimeHostClient implements RuntimeHostClient {
+  @override
+  Stream<RuntimeHostEvent> get runtimeEvents => const Stream.empty();
+
+  @override
+  Future<Object?> runtimeRequest(
+    String type, [
+    Map<String, Object?> payload = const <String, Object?>{},
+    Duration? timeout,
+  ]) async {
+    if (type == 'sshTarget.list') {
+      return const <Object?>[];
+    }
+    return <String, Object?>{};
+  }
 }

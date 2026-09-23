@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -27,6 +29,24 @@ pub enum SharedWorkspaceKindFilter {
     NonDefaultOnly,
 }
 
+/// Whether Source Control lists changed files as a folder tree or a flat list.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum SharedGitDiffViewMode {
+    #[default]
+    Tree,
+    Flat,
+}
+
+/// Whether Source Control groups files by staged state or shows one list.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum SharedGitDiffGroupMode {
+    #[default]
+    ByArea,
+    Unified,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct SharedWorkbenchViewPrefs {
@@ -44,6 +64,8 @@ pub struct SharedWorkbenchViewPrefs {
     #[serde(default)]
     pub selected_tag_ids: Vec<String>,
     #[serde(default)]
+    pub selected_section_ids: Vec<String>,
+    #[serde(default)]
     pub collapsed_project_ids: Vec<String>,
     #[serde(default)]
     pub collapsed_parent_workspace_ids: Vec<String>,
@@ -56,6 +78,20 @@ pub struct SharedWorkbenchViewPrefs {
     pub workspace_kind_filter: SharedWorkspaceKindFilter,
     #[serde(default)]
     pub show_active_workspaces_only: bool,
+    #[serde(default)]
+    pub show_archived_workspaces: bool,
+    #[serde(default)]
+    pub git_diff_view_mode: SharedGitDiffViewMode,
+    #[serde(default)]
+    pub git_diff_group_mode: SharedGitDiffGroupMode,
+    #[serde(default)]
+    pub search_view_as_tree: bool,
+    #[serde(default)]
+    pub search_include_ignored: bool,
+    /// Main-panel terminal tab ids per workspace. Desktop writes this from
+    /// `workspacePanels`; a phone omits it so the host backfill keeps it.
+    #[serde(default)]
+    pub workspace_main_tab_ids: BTreeMap<String, Vec<String>>,
 }
 
 fn default_true() -> bool {
@@ -73,6 +109,7 @@ impl Default for SharedWorkbenchViewPrefs {
             workspace_sort: SharedWorkbenchSortBy::Name,
             selected_project_ids: Vec::new(),
             selected_tag_ids: Vec::new(),
+            selected_section_ids: Vec::new(),
             collapsed_project_ids: Vec::new(),
             collapsed_parent_workspace_ids: Vec::new(),
             pinned_section_collapsed: false,
@@ -80,6 +117,12 @@ impl Default for SharedWorkbenchViewPrefs {
             show_pinned_workspaces_below: true,
             workspace_kind_filter: SharedWorkspaceKindFilter::All,
             show_active_workspaces_only: false,
+            show_archived_workspaces: false,
+            git_diff_view_mode: SharedGitDiffViewMode::Tree,
+            git_diff_group_mode: SharedGitDiffGroupMode::ByArea,
+            search_view_as_tree: false,
+            search_include_ignored: false,
+            workspace_main_tab_ids: BTreeMap::new(),
         }
     }
 }

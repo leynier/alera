@@ -6,6 +6,12 @@ enum MobileWorkbenchSortBy { name, recent, activity }
 
 enum MobileWorkspaceKindFilter { all, defaultOnly, nonDefaultOnly }
 
+/// Mirrors the desktop `GitDiffViewMode`; the names are the wire values.
+enum MobileGitDiffViewMode { tree, flat }
+
+/// Mirrors the desktop `GitDiffGroupMode`; the names are the wire values.
+enum MobileGitDiffGroupMode { byArea, unified }
+
 /// Runtime-shared sidebar state mirroring the desktop `WorkbenchViewPrefs`
 /// fields that also apply on a small screen.
 class const MobileViewPrefs({
@@ -21,10 +27,16 @@ class const MobileViewPrefs({
   final MobileWorkspaceKindFilter workspaceKindFilter =
       MobileWorkspaceKindFilter.all,
   final bool showActiveWorkspacesOnly = false,
+  final bool showArchivedWorkspaces = false,
   final Set<String> selectedProjectIds = const <String>{},
+  final Set<String> selectedSectionIds = const <String>{},
   final Set<String> selectedTagIds = const <String>{},
   final Set<String> collapsedProjectIds = const <String>{},
   final Set<String> collapsedParentWorkspaceIds = const <String>{},
+  final MobileGitDiffViewMode gitDiffViewMode = MobileGitDiffViewMode.tree,
+  final MobileGitDiffGroupMode gitDiffGroupMode = MobileGitDiffGroupMode.byArea,
+  final bool searchViewAsTree = false,
+  final bool searchIncludeIgnored = false,
   final int revision = 0,
   final bool desktopInitialized = false,
 }) {
@@ -40,10 +52,16 @@ class const MobileViewPrefs({
     MobileWorkbenchSortBy? workspaceSort,
     MobileWorkspaceKindFilter? workspaceKindFilter,
     bool? showActiveWorkspacesOnly,
+    bool? showArchivedWorkspaces,
     Set<String>? selectedProjectIds,
+    Set<String>? selectedSectionIds,
     Set<String>? selectedTagIds,
     Set<String>? collapsedProjectIds,
     Set<String>? collapsedParentWorkspaceIds,
+    MobileGitDiffViewMode? gitDiffViewMode,
+    MobileGitDiffGroupMode? gitDiffGroupMode,
+    bool? searchViewAsTree,
+    bool? searchIncludeIgnored,
     int? revision,
     bool? desktopInitialized,
   }) {
@@ -63,11 +81,18 @@ class const MobileViewPrefs({
       workspaceKindFilter: workspaceKindFilter ?? this.workspaceKindFilter,
       showActiveWorkspacesOnly:
           showActiveWorkspacesOnly ?? this.showActiveWorkspacesOnly,
+      showArchivedWorkspaces:
+          showArchivedWorkspaces ?? this.showArchivedWorkspaces,
       selectedProjectIds: selectedProjectIds ?? this.selectedProjectIds,
+      selectedSectionIds: selectedSectionIds ?? this.selectedSectionIds,
       selectedTagIds: selectedTagIds ?? this.selectedTagIds,
       collapsedProjectIds: collapsedProjectIds ?? this.collapsedProjectIds,
       collapsedParentWorkspaceIds:
           collapsedParentWorkspaceIds ?? this.collapsedParentWorkspaceIds,
+      gitDiffViewMode: gitDiffViewMode ?? this.gitDiffViewMode,
+      gitDiffGroupMode: gitDiffGroupMode ?? this.gitDiffGroupMode,
+      searchViewAsTree: searchViewAsTree ?? this.searchViewAsTree,
+      searchIncludeIgnored: searchIncludeIgnored ?? this.searchIncludeIgnored,
       revision: revision ?? this.revision,
       desktopInitialized: desktopInitialized ?? this.desktopInitialized,
     );
@@ -97,16 +122,28 @@ class const MobileViewPrefs({
       workspaceSort: MobileWorkbenchSortBy.values.byName(
         json.optionalString('workspaceSort') ?? 'name',
       ),
-      workspaceKindFilter: MobileWorkspaceKindFilter.values.byName(
-        json.optionalString('workspaceKindFilter') ?? 'all',
-      ),
+      workspaceKindFilter: .all,
       showActiveWorkspacesOnly: json['showActiveWorkspacesOnly'] == true,
+      showArchivedWorkspaces: json['showArchivedWorkspaces'] == true,
       selectedProjectIds: json.stringList('selectedProjectIds').toSet(),
+      selectedSectionIds: json.stringList('selectedSectionIds').toSet(),
       selectedTagIds: json.stringList('selectedTagIds').toSet(),
       collapsedProjectIds: json.stringList('collapsedProjectIds').toSet(),
       collapsedParentWorkspaceIds: json
           .stringList('collapsedParentWorkspaceIds')
           .toSet(),
+      gitDiffViewMode:
+          MobileGitDiffViewMode.values
+              .where((value) => value.name == json['gitDiffViewMode'])
+              .firstOrNull ??
+          MobileGitDiffViewMode.tree,
+      gitDiffGroupMode:
+          MobileGitDiffGroupMode.values
+              .where((value) => value.name == json['gitDiffGroupMode'])
+              .firstOrNull ??
+          MobileGitDiffGroupMode.byArea,
+      searchViewAsTree: json['searchViewAsTree'] == true,
+      searchIncludeIgnored: json['searchIncludeIgnored'] == true,
     );
   }
 
@@ -130,10 +167,16 @@ class const MobileViewPrefs({
       'workspaceSort': workspaceSort.name,
       'workspaceKindFilter': workspaceKindFilter.name,
       'showActiveWorkspacesOnly': showActiveWorkspacesOnly,
+      'showArchivedWorkspaces': showArchivedWorkspaces,
       'selectedProjectIds': selectedProjectIds.toList(),
+      'selectedSectionIds': selectedSectionIds.toList(),
       'selectedTagIds': selectedTagIds.toList(),
       'collapsedProjectIds': collapsedProjectIds.toList(),
       'collapsedParentWorkspaceIds': collapsedParentWorkspaceIds.toList(),
+      'gitDiffViewMode': gitDiffViewMode.name,
+      'gitDiffGroupMode': gitDiffGroupMode.name,
+      'searchViewAsTree': searchViewAsTree,
+      'searchIncludeIgnored': searchIncludeIgnored,
     };
   }
 }

@@ -1,5 +1,9 @@
+#[path = "store_legacy_orchestration.rs"]
+mod legacy_orchestration;
+
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::Path;
+use std::time::Duration;
 
 use anyhow::Result;
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
@@ -7,17 +11,15 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, S
 use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
 
-use super::browser_privacy::{
-    browser_url_allows_title_persistence, normalize_browser_title, sanitize_browser_tab_payload,
-};
 use super::runtime_schema::RUNTIME_SCHEMA;
 use super::store_error::RuntimeStoreError;
 use super::{harden_sqlite_files, open_private_runtime_file, prepare_private_runtime_directory};
 use super::{
     CascadePreview, LinkedReview, MobileAccessSettings, MobileDevice, MobileDevicePermission,
     MobilePairingOffer, Project, ProjectConfig, ProjectConfigMap, ProjectConfigRecord, ProjectKind,
-    RuntimeSettings, SshAuthKind, SshBootstrapStatus, SshTarget, WorkbenchLayoutRecord, Workspace,
-    WorkspaceKind, WorkspaceRelation, WorkspaceStatus, WorkspaceTabRecord, WorkspaceTag,
+    RuntimeSettings, SshAuthKind, SshBootstrapStatus, SshTarget, SshTargetLastStatus,
+    WorkbenchLayoutRecord, Workspace, WorkspaceKind, WorkspaceRelation, WorkspaceStatus,
+    WorkspaceTabRecord, WorkspaceTag,
 };
 
 pub const RUNTIME_DATABASE_FILE_NAME: &str = "runtime.sqlite";
@@ -40,6 +42,22 @@ pub struct SshTargetBootstrapStateUpdate<'a> {
 }
 
 impl RuntimeStore {
+    /// Inspect an existing owner without creating state or applying migrations.
+    pub async fn open_read_only(runtime_dir: &Path) -> Result<Self> {
+        let options = SqliteConnectOptions::new()
+            .filename(runtime_dir.join(RUNTIME_DATABASE_FILE_NAME))
+            .create_if_missing(false)
+            .read_only(true);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(options)
+            .await?;
+        Ok(Self {
+            pool,
+            board_notification_revision: Default::default(),
+        })
+    }
+
     pub async fn open(runtime_dir: &Path) -> Result<Self> {
         prepare_private_runtime_directory(runtime_dir)?;
         let path = runtime_dir.join(RUNTIME_DATABASE_FILE_NAME);
@@ -48,11 +66,13 @@ impl RuntimeStore {
             .filename(&path)
             .create_if_missing(true)
             .journal_mode(SqliteJournalMode::Wal)
-            .synchronous(SqliteSynchronous::Normal);
+            .synchronous(SqliteSynchronous::Normal)
+            .busy_timeout(Duration::from_secs(5));
         // SQLite gives every pooled connection its own worker thread. The
         // runtime actor serializes ordinary mutations, while a few background
         // jobs can read concurrently, so the default of ten only leaves idle
-        // threads and connection-local caches behind after a burst.
+        // threads and connection-local caches behind after a burst. A busy
+        // timeout lets those writers wait on WAL instead of returning SQLITE_BUSY.
         let pool = SqlitePoolOptions::new()
             .max_connections(RUNTIME_STORE_MAX_CONNECTIONS)
             .connect_with(options)
@@ -87,9 +107,6 @@ impl RuntimeStore {
         for statement in super::orchestration_message_store::ORCHESTRATION_SCHEMA {
             sqlx::query(*statement).execute(&self.pool).await?;
         }
-        for statement in super::agent_canvas_store::AGENT_CANVAS_SCHEMA {
-            sqlx::query(*statement).execute(&self.pool).await?;
-        }
         self.set_metadata(
             "orchestration.schemaVersion",
             super::orchestration_message_store::ORCHESTRATION_SCHEMA_VERSION,
@@ -117,6 +134,8 @@ impl RuntimeStore {
             .await?;
         self.ensure_column("workspaces", "isPinned", "INTEGER NOT NULL DEFAULT 0")
             .await?;
+        self.ensure_column("workspaces", "isArchived", "INTEGER NOT NULL DEFAULT 0")
+            .await?;
         self.ensure_column(
             "mobileAccessSettings",
             "endpointMode",
@@ -135,14 +154,6 @@ impl RuntimeStore {
             "TEXT NOT NULL DEFAULT 'ip'",
         )
         .await?;
-        self.ensure_column("browserProfiles", "sourceFamily", "TEXT")
-            .await?;
-        self.ensure_column("browserProfiles", "sourceProfileName", "TEXT")
-            .await?;
-        self.ensure_column("browserProfiles", "sourceImportedAt", "TEXT")
-            .await?;
-        self.ensure_column("browserHistory", "visitCount", "INTEGER NOT NULL DEFAULT 1")
-            .await?;
         self.ensure_column(
             "agentProfiles",
             "launchMode",
@@ -157,6 +168,7 @@ impl RuntimeStore {
             .await?;
         self.ensure_column("agentProfiles", "revision", "INTEGER NOT NULL DEFAULT 0")
             .await?;
+        self.ensure_agent_profile_new_tab_menu_column().await?;
         // Orchestration tables are created idempotently above, but CREATE TABLE
         // IF NOT EXISTS is a no-op on an existing database, so every column
         // added after the v2 rebuild must also be backfilled here.
@@ -183,130 +195,28 @@ impl RuntimeStore {
         for statement in super::runtime_schema::AGENT_PROFILE_REFERENCE_TRIGGERS {
             sqlx::query(*statement).execute(&self.pool).await?;
         }
-        self.migrate_role_contracts().await
-    }
-
-    async fn migrate_legacy_orchestration_schema(&self) -> Result<()> {
-        let current = self.get_metadata("orchestration.schemaVersion").await?;
-        match current.as_deref() {
-            Some(super::orchestration_message_store::ORCHESTRATION_SCHEMA_VERSION) => return Ok(()),
-            Some(other) => anyhow::bail!(
-                "unsupported orchestration schema version {other}; refusing destructive migration"
-            ),
-            None => {}
-        }
-        let task_columns = sqlx::query("PRAGMA table_info(orchestrationTasks)")
-            .fetch_all(&self.pool)
+        self.migrate_workspace_checkouts().await?;
+        self.migrate_workspace_retirements().await?;
+        self.migrate_terminal_lifecycle_operations().await?;
+        self.migrate_workspace_terminal_launches().await?;
+        self.migrate_workspace_process_jobs().await?;
+        self.migrate_automation_shared_workspace_allocations()
             .await?;
-        if task_columns.is_empty()
-            || task_columns.iter().any(|row| {
-                row.try_get::<String, _>("name")
-                    .is_ok_and(|name| name == "workspace_id")
-            })
-        {
-            return Ok(());
-        }
-
-        let mut tx = self.pool.begin().await?;
-        for index in [
-            "orchestrationMessagesIdIdx",
-            "orchestrationMessagesInboxIdx",
-            "orchestrationMessagesUndeliveredIdx",
-            "orchestrationMessagesThreadIdx",
-            "orchestrationTasksStatusIdx",
-            "orchestrationTasksParentIdx",
-            "orchestrationDispatchTaskIdx",
-            "orchestrationDispatchStatusIdx",
-            "orchestrationGatesTaskIdx",
-        ] {
-            sqlx::query(sqlx::AssertSqlSafe(format!("DROP INDEX IF EXISTS {index}")))
-                .execute(&mut *tx)
-                .await?;
-        }
-        for table in [
-            "orchestrationMessages",
-            "orchestrationTasks",
-            "orchestrationDispatchContexts",
-            "orchestrationDecisionGates",
-            "orchestrationCoordinatorRuns",
-        ] {
-            sqlx::query(sqlx::AssertSqlSafe(format!(
-                "ALTER TABLE {table} RENAME TO {table}LegacyV1"
-            )))
-            .execute(&mut *tx)
+        self.migrate_project_automation_dependencies().await?;
+        self.migrate_automation_cleanup_attempts().await?;
+        self.migrate_automation_precheck_processes().await?;
+        self.migrate_owner_automation_prechecks().await?;
+        self.migrate_workspace_relocations().await?;
+        self.migrate_remote_workspace_relocation_intents().await?;
+        self.migrate_remote_relocation_checkout_reservations()
             .await?;
-        }
-        for statement in super::orchestration_message_store::ORCHESTRATION_SCHEMA {
-            sqlx::query(*statement).execute(&mut *tx).await?;
-        }
-        sqlx::query(
-            "INSERT INTO orchestrationMessages \
-             (id, from_handle, to_handle, subject, body, type, priority, thread_id, payload, \
-              read, sequence, created_at, delivered_at, state) \
-             SELECT id, from_handle, to_handle, subject, body, type, priority, thread_id, payload, \
-                    read, sequence, created_at, delivered_at, \
-                    CASE WHEN read != 0 THEN 'read' \
-                         WHEN delivered_at IS NOT NULL THEN 'delivered' ELSE 'queued' END \
-             FROM orchestrationMessagesLegacyV1",
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query(
-            "INSERT INTO orchestrationTasks \
-             (id, parent_id, created_by_terminal_handle, task_title, display_name, spec, status, \
-              deps, result, created_at, completed_at, workspace_id, coordinator_handle) \
-             SELECT id, parent_id, created_by_terminal_handle, task_title, display_name, spec, status, \
-                    deps, result, created_at, completed_at, 'global', \
-                    COALESCE(created_by_terminal_handle, 'coord') \
-             FROM orchestrationTasksLegacyV1",
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query(
-            "INSERT INTO orchestrationDispatchContexts \
-             (id, task_id, assignee_handle, status, failure_count, last_failure, dispatched_at, \
-              completed_at, created_at, last_heartbeat_at, workspace_id, coordinator_handle, \
-              accepted_at, last_activity_at) \
-             SELECT d.id, d.task_id, d.assignee_handle, d.status, d.failure_count, d.last_failure, \
-                    d.dispatched_at, d.completed_at, d.created_at, d.last_heartbeat_at, \
-                    t.workspace_id, t.coordinator_handle, \
-                    CASE WHEN d.status = 'dispatched' THEN d.dispatched_at ELSE NULL END, \
-                    COALESCE(d.last_heartbeat_at, d.dispatched_at, d.created_at) \
-             FROM orchestrationDispatchContextsLegacyV1 d \
-             JOIN orchestrationTasks t ON t.id = d.task_id",
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query(
-            "INSERT INTO orchestrationDecisionGates \
-             (id, task_id, question, options, status, resolution, created_at, resolved_at) \
-             SELECT id, task_id, question, options, status, resolution, created_at, resolved_at \
-             FROM orchestrationDecisionGatesLegacyV1",
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query(
-            "INSERT INTO orchestrationCoordinatorRuns \
-             (id, spec, status, coordinator_handle, poll_interval_ms, created_at, completed_at, \
-              workspace_id, max_concurrent, last_activity_at) \
-             SELECT id, spec, status, coordinator_handle, poll_interval_ms, created_at, completed_at, \
-                    'global', 4, created_at \
-             FROM orchestrationCoordinatorRunsLegacyV1",
-        )
-        .execute(&mut *tx)
-        .await?;
-        for table in [
-            "orchestrationMessagesLegacyV1",
-            "orchestrationTasksLegacyV1",
-            "orchestrationDispatchContextsLegacyV1",
-            "orchestrationDecisionGatesLegacyV1",
-            "orchestrationCoordinatorRunsLegacyV1",
-        ] {
-            sqlx::query(sqlx::AssertSqlSafe(format!("DROP TABLE {table}")))
-                .execute(&mut *tx)
-                .await?;
-        }
-        tx.commit().await?;
+        self.migrate_checkout_relocation_reservations().await?;
+        self.migrate_setup_recovery_evidence().await?;
+        self.migrate_relocation_setup_receipts().await?;
+        self.migrate_relocation_setup_processes().await?;
+        self.migrate_relocation_setup_cancellations().await?;
+        self.migrate_setup_descendants().await?;
+        self.migrate_role_contracts().await?;
         Ok(())
     }
 
@@ -707,34 +617,40 @@ impl RuntimeStore {
         Ok(project)
     }
 
+    pub async fn register_project_identity(&self, project: Project) -> Result<Project> {
+        if project.id.trim().is_empty() || project.repo_path.trim().is_empty() {
+            anyhow::bail!("Project identity and checkout path are required");
+        }
+        sqlx::query("INSERT INTO projects (id, name, repoPath, createdAt, updatedAt, kind) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING")
+            .bind(&project.id).bind(&project.name).bind(&project.repo_path)
+            .bind(format_timestamp(project.created_at)).bind(format_timestamp(project.updated_at))
+            .bind(project.kind.as_str()).execute(&self.pool).await?;
+        let stored = self
+            .find_project(&project.id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Project disappeared during registration"))?;
+        if stored.repo_path != project.repo_path || stored.kind != project.kind {
+            anyhow::bail!("Project identity already belongs to another checkout");
+        }
+        Ok(stored)
+    }
+
     pub async fn remove_project(&self, project_id: &str) -> Result<()> {
+        let mut tx = self.pool.begin().await?;
+        super::project_automation_dependencies::require_project_automation_idle_in_transaction(
+            &mut tx, project_id,
+        )
+        .await?;
         let workspace_ids: Vec<String> =
             sqlx::query("SELECT id FROM workspaces WHERE projectId = ?")
                 .bind(project_id)
-                .fetch_all(&self.pool)
+                .fetch_all(&mut *tx)
                 .await?
                 .into_iter()
                 .map(|row| row.try_get("id"))
                 .collect::<Result<Vec<String>, _>>()?;
-        let mut tx = self.pool.begin().await?;
         for workspace_id in workspace_ids {
             sqlx::query("DELETE FROM workspaceTabs WHERE workspaceId = ?")
-                .bind(&workspace_id)
-                .execute(&mut *tx)
-                .await?;
-            sqlx::query("DELETE FROM agentCanvasRevisions WHERE canvasId IN (SELECT id FROM agentCanvases WHERE workspaceId = ?)")
-                .bind(&workspace_id)
-                .execute(&mut *tx)
-                .await?;
-            sqlx::query("DELETE FROM agentCanvasDecisions WHERE canvasId IN (SELECT id FROM agentCanvases WHERE workspaceId = ?)")
-                .bind(&workspace_id)
-                .execute(&mut *tx)
-                .await?;
-            sqlx::query("DELETE FROM agentCanvasEvents WHERE workspaceId = ?")
-                .bind(&workspace_id)
-                .execute(&mut *tx)
-                .await?;
-            sqlx::query("DELETE FROM agentCanvases WHERE workspaceId = ?")
                 .bind(&workspace_id)
                 .execute(&mut *tx)
                 .await?;
@@ -832,9 +748,9 @@ impl RuntimeStore {
     pub async fn list_workspaces(&self, project_id: &str) -> Result<Vec<Workspace>> {
         let rows = sqlx::query(
             "SELECT id, instanceId, hostId, projectId, name, branch, path, createdAt, updatedAt, \
-             kind, status, sourceBranch, reusesExistingBranch, isPinned \
+             kind, status, sourceBranch, reusesExistingBranch, isPinned, isArchived \
              FROM workspaces WHERE projectId = ? AND status = 'active' \
-             ORDER BY CASE kind WHEN 'main' THEN 0 ELSE 1 END, createdAt ASC, name COLLATE NOCASE ASC",
+             ORDER BY createdAt ASC, name COLLATE NOCASE ASC",
         )
         .bind(project_id)
         .fetch_all(&self.pool)
@@ -845,9 +761,9 @@ impl RuntimeStore {
     pub async fn list_all_workspaces(&self) -> Result<Vec<Workspace>> {
         let rows = sqlx::query(
             "SELECT id, instanceId, hostId, projectId, name, branch, path, createdAt, updatedAt, \
-             kind, status, sourceBranch, reusesExistingBranch, isPinned \
+             kind, status, sourceBranch, reusesExistingBranch, isPinned, isArchived \
              FROM workspaces WHERE status = 'active' \
-             ORDER BY projectId ASC, CASE kind WHEN 'main' THEN 0 ELSE 1 END, createdAt ASC",
+             ORDER BY projectId ASC, createdAt ASC",
         )
         .fetch_all(&self.pool)
         .await?;
@@ -857,7 +773,7 @@ impl RuntimeStore {
     pub async fn find_workspace(&self, workspace_id: &str) -> Result<Option<Workspace>> {
         let row = sqlx::query(
             "SELECT id, instanceId, hostId, projectId, name, branch, path, createdAt, updatedAt, \
-             kind, status, sourceBranch, reusesExistingBranch, isPinned FROM workspaces WHERE id = ?",
+             kind, status, sourceBranch, reusesExistingBranch, isPinned, isArchived FROM workspaces WHERE id = ?",
         )
         .bind(workspace_id)
         .fetch_optional(&self.pool)
@@ -868,41 +784,51 @@ impl RuntimeStore {
         }
     }
 
-    pub async fn upsert_workspace(&self, mut workspace: Workspace) -> Result<Workspace> {
+    pub async fn upsert_workspace(&self, workspace: Workspace) -> Result<Workspace> {
+        self.write_workspace(workspace, true, None).await
+    }
+
+    pub async fn insert_workspace(&self, workspace: Workspace) -> Result<Workspace> {
+        self.write_workspace(workspace, false, None).await
+    }
+
+    pub async fn insert_workspace_with_repository(
+        &self,
+        workspace: Workspace,
+        repository_path: &str,
+    ) -> Result<Workspace> {
+        if workspace.kind != WorkspaceKind::Linked || repository_path.trim().is_empty() {
+            anyhow::bail!("A linked workspace and its repository path are required");
+        }
+        self.write_workspace(workspace, false, Some(repository_path))
+            .await
+    }
+
+    async fn write_workspace(
+        &self,
+        mut workspace: Workspace,
+        allow_update: bool,
+        repository_path: Option<&str>,
+    ) -> Result<Workspace> {
         if workspace.instance_id.trim().is_empty() {
             workspace.instance_id = Uuid::new_v4().to_string();
         }
         if workspace.host_id.trim().is_empty() {
             workspace.host_id = LOCAL_HOST_ID.to_string();
         }
-        sqlx::query(
-            "INSERT INTO workspaces \
-             (id, instanceId, hostId, projectId, name, branch, path, createdAt, updatedAt, \
-              kind, status, sourceBranch, reusesExistingBranch, isPinned) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
-             ON CONFLICT(id) DO UPDATE SET \
-             instanceId = excluded.instanceId, hostId = excluded.hostId, projectId = excluded.projectId, \
-             name = excluded.name, branch = excluded.branch, path = excluded.path, \
-             updatedAt = excluded.updatedAt, kind = excluded.kind, status = excluded.status, \
-             sourceBranch = excluded.sourceBranch, reusesExistingBranch = excluded.reusesExistingBranch, \
-             isPinned = excluded.isPinned",
-        )
-        .bind(&workspace.id)
-        .bind(&workspace.instance_id)
-        .bind(&workspace.host_id)
-        .bind(&workspace.project_id)
-        .bind(&workspace.name)
-        .bind(&workspace.branch)
-        .bind(&workspace.path)
-        .bind(format_timestamp(workspace.created_at))
-        .bind(format_timestamp(workspace.updated_at))
-        .bind(workspace.kind.as_str())
-        .bind(workspace.status.as_str())
-        .bind(&workspace.source_branch)
-        .bind(if workspace.reuses_existing_branch { 1_i64 } else { 0_i64 })
-        .bind(if workspace.is_pinned { 1_i64 } else { 0_i64 })
-        .execute(&self.pool)
-        .await?;
+        let checkout_path = self.checkout_path_for_write(&workspace).await?;
+        let mut tx = self.pool.begin().await?;
+        super::checkout_store::bind_workspace_checkout(&mut tx, &workspace, &checkout_path).await?;
+        if let Some(repository_path) = repository_path {
+            let result = sqlx::query("UPDATE repositoryCheckouts SET repositoryPath = ? WHERE id = (SELECT checkoutId FROM workspaceCheckoutBindings WHERE workspaceId = ?) AND (repositoryPath IS NULL OR repositoryPath = ?)")
+                .bind(repository_path).bind(&workspace.id).bind(repository_path).execute(&mut *tx).await?;
+            if result.rows_affected() != 1 {
+                anyhow::bail!("The linked checkout already belongs to a different repository");
+            }
+        }
+        super::workspace_record_write::write_workspace_record(&mut tx, &workspace, allow_update)
+            .await?;
+        tx.commit().await?;
         self.find_workspace(&workspace.id).await?.ok_or_else(|| {
             anyhow::anyhow!(RuntimeStoreError::Message(format!(
                 "workspace not found after upsert: {}",
@@ -912,29 +838,43 @@ impl RuntimeStore {
     }
 
     pub async fn remove_workspace(&self, workspace_id: &str, cascade_tabs: bool) -> Result<()> {
+        self.remove_workspace_with_receipt(workspace_id, cascade_tabs, None, None, None)
+            .await
+    }
+
+    pub(super) async fn remove_workspace_with_receipt(
+        &self,
+        workspace_id: &str,
+        cascade_tabs: bool,
+        receipt: Option<&Workspace>,
+        automation_run: Option<&super::AutomationRun>,
+        remote_automation: Option<&super::RemoteAutomationCleanup>,
+    ) -> Result<()> {
         let mut tx = self.pool.begin().await?;
+        if let Some(workspace) = receipt {
+            if let Some(scope) = remote_automation {
+                super::remote_automation_cleanup::validate(&mut tx, scope, workspace).await?;
+            }
+            if let Some(run) = automation_run {
+                super::automation_shared_workspace_cleanup::validate_cleanup(
+                    &mut tx, run, workspace,
+                )
+                .await?;
+            }
+            let inserted = sqlx::query("INSERT INTO workspaceRetirements (workspaceId, instanceId, workspaceJson) SELECT id, instanceId, ? FROM workspaces WHERE id = ? AND instanceId = ? AND projectId = ? AND hostId = ? AND path = ?")
+                .bind(serde_json::to_string(workspace)?).bind(workspace_id).bind(&workspace.instance_id)
+                .bind(&workspace.project_id).bind(&workspace.host_id).bind(&workspace.path)
+                .execute(&mut *tx).await?;
+            if inserted.rows_affected() != 1 {
+                anyhow::bail!("Workspace identity or location changed before retirement");
+            }
+        }
         if cascade_tabs {
             sqlx::query("DELETE FROM workspaceTabs WHERE workspaceId = ?")
                 .bind(workspace_id)
                 .execute(&mut *tx)
                 .await?;
         }
-        sqlx::query("DELETE FROM agentCanvasRevisions WHERE canvasId IN (SELECT id FROM agentCanvases WHERE workspaceId = ?)")
-            .bind(workspace_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM agentCanvasDecisions WHERE canvasId IN (SELECT id FROM agentCanvases WHERE workspaceId = ?)")
-            .bind(workspace_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM agentCanvasEvents WHERE workspaceId = ?")
-            .bind(workspace_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM agentCanvases WHERE workspaceId = ?")
-            .bind(workspace_id)
-            .execute(&mut *tx)
-            .await?;
         sqlx::query("DELETE FROM linkedReviews WHERE workspaceId = ?")
             .bind(workspace_id)
             .execute(&mut *tx)
@@ -998,6 +938,20 @@ impl RuntimeStore {
         Ok(counts)
     }
 
+    pub async fn workspace_tab_titles(&self) -> Result<BTreeMap<String, String>> {
+        let rows = sqlx::query("SELECT id, title FROM workspaceTabs")
+            .fetch_all(&self.pool)
+            .await?;
+        let mut titles = BTreeMap::new();
+        for row in rows {
+            titles.insert(
+                row.try_get::<String, _>("id")?,
+                row.try_get::<String, _>("title")?,
+            );
+        }
+        Ok(titles)
+    }
+
     pub async fn find_workspace_tab(&self, tab_id: &str) -> Result<Option<WorkspaceTabRecord>> {
         let row = sqlx::query(
             "SELECT id, workspaceId, kind, title, createdAt, updatedAt, payloadJson \
@@ -1011,53 +965,32 @@ impl RuntimeStore {
 
     pub async fn upsert_workspace_tab(
         &self,
+        tab: WorkspaceTabRecord,
+    ) -> Result<WorkspaceTabRecord> {
+        self.write_workspace_tab(tab, true).await
+    }
+
+    pub async fn insert_workspace_tab(
+        &self,
+        tab: WorkspaceTabRecord,
+    ) -> Result<WorkspaceTabRecord> {
+        self.write_workspace_tab(tab, false).await
+    }
+
+    async fn write_workspace_tab(
+        &self,
         mut tab: WorkspaceTabRecord,
+        allow_update: bool,
     ) -> Result<WorkspaceTabRecord> {
         if tab.payload.is_null() {
             tab.payload = serde_json::json!({});
         }
-        let browser_title_policy = (tab.kind == "browser").then(|| {
-            let manual = tab
-                .payload
-                .get("manualTitle")
-                .and_then(serde_json::Value::as_bool)
-                == Some(true);
-            let page_title_may_persist = tab
-                .payload
-                .get("browserUrl")
-                .and_then(serde_json::Value::as_str)
-                .is_some_and(browser_url_allows_title_persistence);
-            (manual, page_title_may_persist)
-        });
-        let prior_browser_title = if browser_title_policy
-            .is_some_and(|(manual, page_title_may_persist)| !manual && !page_title_may_persist)
-        {
-            self.find_workspace_tab(&tab.id)
-                .await?
-                .map(|existing| existing.title)
-        } else {
-            None
-        };
-        sanitize_browser_tab_payload(&tab.kind, &mut tab.payload);
-        if let Some((manual, page_title_may_persist)) = browser_title_policy {
-            let candidate = if manual || page_title_may_persist {
-                tab.title
-            } else {
-                prior_browser_title.unwrap_or_else(|| "New Tab".to_string())
-            };
-            let normalized = normalize_browser_title(&candidate);
-            tab.title = if normalized.is_empty() {
-                "New Tab".to_string()
-            } else {
-                normalized
-            };
-        }
-        sqlx::query(
+        let result = sqlx::query(
             "INSERT INTO workspaceTabs (id, workspaceId, kind, title, createdAt, updatedAt, payloadJson) \
              VALUES (?, ?, ?, ?, ?, ?, ?) \
              ON CONFLICT(id) DO UPDATE SET \
              workspaceId = excluded.workspaceId, kind = excluded.kind, title = excluded.title, \
-             updatedAt = excluded.updatedAt, payloadJson = excluded.payloadJson",
+             updatedAt = excluded.updatedAt, payloadJson = excluded.payloadJson WHERE ?",
         )
         .bind(&tab.id)
         .bind(&tab.workspace_id)
@@ -1066,8 +999,12 @@ impl RuntimeStore {
         .bind(format_timestamp(tab.created_at))
         .bind(format_timestamp(tab.updated_at))
         .bind(serde_json::to_string(&tab.payload)?)
+        .bind(allow_update)
         .execute(&self.pool)
         .await?;
+        if result.rows_affected() == 0 {
+            anyhow::bail!("Tab identity already exists; no state was replaced");
+        }
         Ok(tab)
     }
 
@@ -1149,7 +1086,11 @@ impl RuntimeStore {
         Ok(())
     }
 
-    pub async fn sleep_workspace(&self, workspace_id: &str) -> Result<()> {
+    /// Removes every tab and the layout for a workspace while keeping the
+    /// workspace, branch, and files. Used by explicit tab-clear flows
+    /// (`tab.removeForWorkspace`); sleep and archive terminate sessions but
+    /// preserve tab records so agent sessions can resume on reopen.
+    pub async fn remove_workspace_tabs(&self, workspace_id: &str) -> Result<()> {
         let mut tx = self.pool.begin().await?;
         sqlx::query("DELETE FROM workspaceTabs WHERE workspaceId = ?")
             .bind(workspace_id)
@@ -1449,6 +1390,22 @@ impl RuntimeStore {
     }
 
     pub async fn upsert_ssh_target(&self, target: SshTarget) -> Result<SshTarget> {
+        // Pre-check instead of relying on the unique index, so a duplicate alias
+        // reports the attempted alias rather than a SQLite error.
+        if sqlx::query(
+            "SELECT id FROM sshTargets WHERE alias = ? COLLATE NOCASE AND id <> ? LIMIT 1",
+        )
+        .bind(&target.alias)
+        .bind(&target.id)
+        .fetch_optional(&self.pool)
+        .await?
+        .is_some()
+        {
+            anyhow::bail!(RuntimeStoreError::Message(format!(
+                "ssh target alias already exists: {}",
+                target.alias
+            )));
+        }
         sqlx::query(
             "INSERT INTO sshTargets \
              (id, alias, host, port, username, platform, arch, authKind, createdAt, updatedAt, lastStatus, \
@@ -1518,14 +1475,21 @@ impl RuntimeStore {
         })
     }
 
-    pub async fn mark_ssh_target_checked(&self, target_id: &str) -> Result<SshTarget> {
+    pub async fn mark_ssh_target_checked(
+        &self,
+        target_id: &str,
+        last_status: SshTargetLastStatus,
+    ) -> Result<SshTarget> {
         let now = format_timestamp(Utc::now());
-        sqlx::query("UPDATE sshTargets SET lastCheckedAt = ?, updatedAt = ? WHERE id = ?")
-            .bind(&now)
-            .bind(&now)
-            .bind(target_id)
-            .execute(&self.pool)
-            .await?;
+        sqlx::query(
+            "UPDATE sshTargets SET lastStatus = ?, lastCheckedAt = ?, updatedAt = ? WHERE id = ?",
+        )
+        .bind(last_status.as_str())
+        .bind(&now)
+        .bind(&now)
+        .bind(target_id)
+        .execute(&self.pool)
+        .await?;
         self.find_ssh_target(target_id).await?.ok_or_else(|| {
             anyhow::anyhow!(RuntimeStoreError::Message(format!(
                 "ssh target not found: {target_id}"
@@ -1534,10 +1498,15 @@ impl RuntimeStore {
     }
 
     pub async fn remove_ssh_target(&self, target_id: &str) -> Result<()> {
-        sqlx::query("DELETE FROM sshTargets WHERE id = ?")
+        let result = sqlx::query("DELETE FROM sshTargets WHERE id = ?")
             .bind(target_id)
             .execute(&self.pool)
             .await?;
+        if result.rows_affected() == 0 {
+            return Err(anyhow::anyhow!(RuntimeStoreError::Message(format!(
+                "ssh target not found: {target_id}"
+            ))));
+        }
         Ok(())
     }
 
@@ -1583,6 +1552,7 @@ impl RuntimeStore {
             source_branch: empty_to_none(row.try_get("sourceBranch")?),
             reuses_existing_branch: row.try_get::<i64, _>("reusesExistingBranch")? == 1,
             is_pinned: row.try_get::<i64, _>("isPinned")? == 1,
+            is_archived: row.try_get::<i64, _>("isArchived").unwrap_or(0) == 1,
             tag_ids,
             tag_names,
             parent_workspace_id,
@@ -1653,7 +1623,7 @@ fn project_from_row(row: sqlx::sqlite::SqliteRow) -> Result<Project> {
     })
 }
 
-fn tab_from_row(row: sqlx::sqlite::SqliteRow) -> Result<WorkspaceTabRecord> {
+pub(crate) fn tab_from_row(row: sqlx::sqlite::SqliteRow) -> Result<WorkspaceTabRecord> {
     let payload_json: String = row.try_get("payloadJson")?;
     Ok(WorkspaceTabRecord {
         id: row.try_get("id")?,
@@ -1858,6 +1828,7 @@ mod tests {
             source_branch: None,
             reuses_existing_branch: false,
             is_pinned: false,
+            is_archived: false,
             tag_ids: Vec::new(),
             tag_names: Vec::new(),
             parent_workspace_id: None,
@@ -2047,5 +2018,47 @@ mod tests {
             updated.install_dir.as_deref(),
             Some("/custom/alera/runtime")
         );
+    }
+
+    #[tokio::test]
+    async fn mark_ssh_target_checked_stamps_last_status_and_checked_at() {
+        let (_dir, store) = store().await;
+        store.upsert_ssh_target(ssh_target("remote")).await.unwrap();
+
+        let checked = store
+            .mark_ssh_target_checked("remote", SshTargetLastStatus::RuntimeReady)
+            .await
+            .unwrap();
+
+        assert_eq!(checked.last_status.as_deref(), Some("runtimeReady"));
+        assert!(checked.last_checked_at.is_some());
+        assert!(checked.updated_at >= checked.created_at);
+
+        let missing = store
+            .mark_ssh_target_checked("missing", SshTargetLastStatus::Unreachable)
+            .await
+            .unwrap_err();
+        assert!(missing
+            .to_string()
+            .contains("ssh target not found: missing"));
+    }
+
+    #[tokio::test]
+    async fn remove_ssh_target_rejects_missing_id_and_deletes_existing() {
+        let (_dir, store) = store().await;
+        store.upsert_ssh_target(ssh_target("remote")).await.unwrap();
+
+        store.remove_ssh_target("remote").await.unwrap();
+        assert!(store.find_ssh_target("remote").await.unwrap().is_none());
+
+        let missing = store.remove_ssh_target("missing").await.unwrap_err();
+        assert!(missing
+            .to_string()
+            .contains("ssh target not found: missing"));
+
+        let already_gone = store.remove_ssh_target("remote").await.unwrap_err();
+        assert!(already_gone
+            .to_string()
+            .contains("ssh target not found: remote"));
     }
 }

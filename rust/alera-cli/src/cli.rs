@@ -3,20 +3,20 @@ use crate::terminal_host::protocol::{
     DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS, DEFAULT_EMPTY_SHUTDOWN_DELAY_SECONDS,
     DEFAULT_SCROLLBACK_BYTES, TERMINAL_HOST_COMMAND,
 };
+mod agent_profile;
 mod automation;
-mod browser;
-mod canvas;
-mod computer;
-mod emulator;
+mod issue;
 mod mobile;
+mod project;
+mod text_source;
 mod workspace;
 
+pub use agent_profile::*;
 pub use automation::*;
-pub use browser::*;
-pub use canvas::*;
-pub use computer::*;
-pub use emulator::*;
+pub use issue::*;
 pub use mobile::*;
+pub use project::*;
+pub use text_source::*;
 pub use workspace::*;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
@@ -51,8 +51,11 @@ pub enum Command {
 
     /// Create, list, update, and remove runtime-owned projects.
     Project(ProjectCommand),
-    /// Create, list, tag, relate, and remove runtime-owned workspaces.
+    /// Create, list, tag, section, relate, and remove runtime-owned workspaces.
     Workspace(WorkspaceCommand),
+
+    /// Read issues from GitHub, GitLab, or Azure DevOps through their CLIs.
+    Issue(IssueCommand),
 
     /// Manage global workspace tags.
     Tag(TagCommand),
@@ -63,27 +66,19 @@ pub enum Command {
     /// Inspect and write live terminal sessions.
     Terminal(TerminalCommand),
 
-    /// Manage SSH targets known by the Home Runtime.
+    /// Manage SSH targets known by the Home Runtime. Bootstrap installs the runtime sidecar only; it does not create remote workspaces.
     #[command(name = "ssh-target")]
     SshTarget(SshTargetCommand),
 
     /// Manage mobile companion access and pairing.
     Mobile(MobileCommand),
 
-    /// Read and drive local desktop application UI.
-    Computer(ComputerCommand),
-
-    /// Inspect and automate browser tabs owned by the Alera desktop app.
-    Browser(BrowserCommand),
-
-    /// Inspect and automate Android emulators and iOS simulators.
-    Emulator(EmulatorCommand),
-
-    /// Publish and inspect Agent Canvas surfaces owned by terminal sessions.
-    Canvas(CanvasCommand),
-
     /// Manage runtime-local automations and their runs.
     Automation(AutomationCommand),
+
+    /// Create, inspect, update, remove, reorder, and launch agent profiles.
+    #[command(name = "agent-profile")]
+    AgentProfile(AgentProfileCommand),
 
     /// Inter-agent orchestration: messaging, task DAG, dispatch, gates, coordinator.
     Orchestration(OrchestrationCommand),
@@ -237,13 +232,6 @@ pub struct TerminalHostArgs {
     pub handoff_owner_start_marker: Option<u64>,
 }
 
-#[derive(Debug, Args)]
-pub struct AutomationHostArgs {
-    /// Runtime profile directory used by the automation host.
-    #[arg(long = "runtime-dir", value_name = "path")]
-    pub runtime_dir: String,
-}
-
 #[derive(Debug, Args, Clone)]
 pub struct RuntimeDirArgs {
     /// Runtime profile directory. Defaults to ALERA_RUNTIME_DIR or ~/.alera/runtime.
@@ -324,44 +312,6 @@ pub struct RuntimeAgentsChangeArgs {
 }
 
 #[derive(Debug, Args)]
-pub struct ProjectCommand {
-    #[command(flatten)]
-    pub runtime: RuntimeDirArgs,
-    #[command(flatten)]
-    pub output: OutputArgs,
-    #[command(subcommand)]
-    pub action: ProjectAction,
-}
-
-#[derive(Debug, Subcommand)]
-pub enum ProjectAction {
-    /// List all projects.
-    List,
-    /// Register a local project path.
-    Add(ProjectAddArgs),
-    /// Remove a project and runtime-owned child records.
-    Remove(IdArgs),
-}
-
-#[derive(Debug, Args)]
-pub struct ProjectAddArgs {
-    #[arg(long)]
-    pub id: Option<String>,
-    #[arg(long)]
-    pub name: String,
-    #[arg(long = "repo-path")]
-    pub repo_path: String,
-    #[arg(long, value_enum, default_value_t = ProjectKindArg::GitRepository)]
-    pub kind: ProjectKindArg,
-}
-
-#[derive(Debug, Clone, Copy, ValueEnum)]
-pub enum ProjectKindArg {
-    GitRepository,
-    Folder,
-}
-
-#[derive(Debug, Args)]
 pub struct TagCommand {
     #[command(flatten)]
     pub runtime: RuntimeDirArgs,
@@ -435,12 +385,19 @@ pub struct SshTargetCommand {
 
 #[derive(Debug, Subcommand)]
 pub enum SshTargetAction {
+    /// List saved SSH targets.
     List,
+    /// Add an SSH target record. Does not install a sidecar or create a remote workspace.
     Add(SshTargetAddArgs),
+    /// Remove a saved SSH target.
     Remove(IdArgs),
+    /// Probe SSH connectivity and, when known, the installed sidecar.
     Status(SshTargetStatusArgs),
+    /// Preview sidecar install steps. Does not create a remote worktree.
     BootstrapPlan(SshTargetBootstrapPlanArgs),
+    /// Install the runtime sidecar. Does not create a remote Git worktree.
     Bootstrap(SshTargetBootstrapArgs),
+    /// Cancel an in-progress sidecar bootstrap job.
     BootstrapCancel(IdArgs),
 }
 
@@ -466,6 +423,9 @@ pub struct SshTargetAddArgs {
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum SshAuthKindArg {
+    /// Hidden so help does not advertise it; add still parses it and rejects
+    /// with the bootstrap product error.
+    #[value(hide = true)]
     Password,
     Key,
     Agent,

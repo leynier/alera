@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/layout/alera_horizontal_scroll_view.dart';
 import 'package:alera/src/features/workbench/domain/terminal_composer_attachment.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_image_preview.dart';
 import 'package:flutter/material.dart';
@@ -30,19 +31,11 @@ class const TerminalComposerAttachmentBar({
       ),
       child: SizedBox(
         height: AleraTokens.space32,
-        child: ListView.separated(
-          scrollDirection: .horizontal,
-          itemCount: sortedAttachments.length,
-          separatorBuilder: (_, _) => const SizedBox(width: AleraTokens.space4),
-          itemBuilder: (context, index) {
-            final attachment = sortedAttachments[index];
-            return _TerminalComposerAttachmentChip(
-              attachment: attachment,
-              onRemove: () => onRemove(attachment.id),
-              onOpenFile: () => onOpenFile(attachment.path),
-              enabled: enabled,
-            );
-          },
+        child: _AttachmentStrip(
+          attachments: sortedAttachments,
+          onRemove: onRemove,
+          onOpenFile: onOpenFile,
+          enabled: enabled,
         ),
       ),
     );
@@ -50,6 +43,48 @@ class const TerminalComposerAttachmentBar({
 
   int _kindOrder(TerminalComposerAttachmentKind kind) =>
       kind == TerminalComposerAttachmentKind.image ? 0 : 1;
+}
+
+class const _AttachmentStrip({
+  required final List<TerminalComposerAttachment> attachments,
+  required final ValueChanged<String> onRemove,
+  required final ValueChanged<String> onOpenFile,
+  required final bool enabled,
+}) extends StatefulWidget {
+  @override
+  State<_AttachmentStrip> createState() => _AttachmentStripState();
+}
+
+class _AttachmentStripState extends State<_AttachmentStrip> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AleraMouseWheelHorizontalScroll(
+      controller: _controller,
+      child: ListView.separated(
+        controller: _controller,
+        scrollDirection: .horizontal,
+        itemCount: widget.attachments.length,
+        separatorBuilder: (_, _) => const SizedBox(width: AleraTokens.space4),
+        itemBuilder: (context, index) {
+          final attachment = widget.attachments[index];
+          return _TerminalComposerAttachmentChip(
+            attachment: attachment,
+            onRemove: () => widget.onRemove(attachment.id),
+            onOpenFile: () => widget.onOpenFile(attachment.path),
+            enabled: widget.enabled,
+          );
+        },
+      ),
+    );
+  }
 }
 
 class const _TerminalComposerAttachmentChip({
