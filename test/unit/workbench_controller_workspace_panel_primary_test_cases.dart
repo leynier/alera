@@ -188,7 +188,7 @@ void _registerWorkspacePanelPrimaryTests() {
         overrides: [
           // Root provider, overridden in a child container so persisted
           // view prefs survive a controller restart.
-          // ignore: scoped_providers_should_specify_dependencies
+          // ignore: riverpod_lint/scoped_providers_should_specify_dependencies
           workbenchControllerProvider.overrideWith(WorkbenchController.new),
         ],
       );

@@ -1,3 +1,5 @@
+// ignore_for_file: riverpod_lint/avoid_public_notifier_properties
+
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_dark_theme.dart';

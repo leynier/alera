@@ -105,7 +105,9 @@ Widget _withWorkspaceFiles(
 }) {
   return ProviderScope(
     overrides: [
+      // ignore: riverpod_lint/scoped_providers_should_specify_dependencies
       workspaceFileServiceProvider.overrideWithValue(service),
+      // ignore: riverpod_lint/scoped_providers_should_specify_dependencies
       gitBackendProvider.overrideWithValue(gitBackend ?? FakeGitBackend()),
       if (folderOpener != null)
         workspaceFolderOpenerProvider.overrideWithValue(folderOpener),

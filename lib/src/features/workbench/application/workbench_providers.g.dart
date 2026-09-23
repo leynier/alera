@@ -763,11 +763,11 @@ final editorSessionRegistryProvider = EditorSessionRegistryProvider._();
 final class EditorSessionRegistryProvider
     extends
         $FunctionalProvider<
-          EditorSessionRegistry,
-          EditorSessionRegistry,
-          EditorSessionRegistry
+          Raw<EditorSessionRegistry>,
+          Raw<EditorSessionRegistry>,
+          Raw<EditorSessionRegistry>
         >
-    with $Provider<EditorSessionRegistry> {
+    with $Provider<Raw<EditorSessionRegistry>> {
   EditorSessionRegistryProvider._()
     : super(
         from: null,
@@ -784,26 +784,26 @@ final class EditorSessionRegistryProvider
 
   @$internal
   @override
-  $ProviderElement<EditorSessionRegistry> $createElement(
+  $ProviderElement<Raw<EditorSessionRegistry>> $createElement(
     $ProviderPointer pointer,
   ) => $ProviderElement(pointer);
 
   @override
-  EditorSessionRegistry create(Ref ref) {
+  Raw<EditorSessionRegistry> create(Ref ref) {
     return editorSessionRegistry(ref);
   }
 
   /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(EditorSessionRegistry value) {
+  Override overrideWithValue(Raw<EditorSessionRegistry> value) {
     return $ProviderOverride(
       origin: this,
-      providerOverride: $SyncValueProvider<EditorSessionRegistry>(value),
+      providerOverride: $SyncValueProvider<Raw<EditorSessionRegistry>>(value),
     );
   }
 }
 
 String _$editorSessionRegistryHash() =>
-    r'3f997ee69df5530b86852aa45d68479905292df0';
+    r'51daed62e8c55e0ffc0957e504f95c665552a3bd';
 
 @ProviderFor(workspaceService)
 final workspaceServiceProvider = WorkspaceServiceProvider._();
