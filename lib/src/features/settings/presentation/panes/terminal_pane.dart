@@ -238,6 +238,14 @@ class const TerminalSettingsPane({
                 ),
               ),
               SettingsSwitchRow(
+                title: 'Drag To Select In TUIs',
+                description: 'Select text by dragging while a TUI captures the mouse. Clicks and scrolling still reach the TUI; drags do not.',
+                value: settings.dragSelectsInTuis,
+                onChanged: (value) => onChanged(
+                  (settings) => settings.copyWith(dragSelectsInTuis: value),
+                ),
+              ),
+              SettingsSwitchRow(
                 title: 'Copy On Select',
                 description:
                     'Copy local terminal selections to the system clipboard.',

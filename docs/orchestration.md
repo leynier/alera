@@ -22,12 +22,16 @@ Runs and tasks carry `workspaceId`, `runId`, `coordinatorHandle`, and `assigneeH
 Coordinator authority resolves from the run or task, never from whichever terminal calls dispatch. `dispatch` rejects `from == to` unless `--allow-self-dispatch` is present. Stopping runs, interrupting dispatches, recovering tasks, cancellation, and ownership transfer require the current coordinator or an audited `--force --reason` action. A task attached to a run cannot transfer independently; transfer the run so its durable tasks, active dispatches, and in-memory coordinator remain aligned.
 
 ```bash
+alera orchestration delegate --profile "Codex Sol" --spec "Review tests"
+alera orchestration delegate --profile "Codex Sol" --spec "Implement the API" --new-workspace
 alera orchestration task-create --workspace <workspace-id> --spec "Review tests"
 alera orchestration run --workspace <workspace-id> --agent codex --spec "Audit the repository"
 alera orchestration run-list --workspace <workspace-id>
 alera orchestration run-show --id <run-id>
 alera orchestration run-stop --id <run-id> [--cancel-active] --reason "Stopped by coordinator"
 ```
+
+`delegate` is the one-command form of `task-create` plus `agent-spawn --profile`. `--new-workspace` creates a child worktree first. The workspace, project, and parent default from `ALERA_WORKSPACE_ID`.
 
 `task-create`, `agent-spawn`, and `run` default `--workspace` from `ALERA_WORKSPACE_ID`. Use `alera orchestration current` to inspect the current workspace and terminal identity.
 
@@ -41,13 +45,34 @@ An agent profile is a user-declared launch configuration a run can dispatch to. 
 alera orchestration agent-profiles --json
 ```
 
-The CLI surface is read-only by design. A coordinator discovers what it may dispatch to and what each option is good for, but only the user creates or edits profiles, through Settings -> Agent Profiles. The orchestrator therefore picks from a closed list the user approved instead of inventing launch commands.
+The coordinator-facing `orchestration agent-profiles` surface is read-only by design. A coordinator discovers what it may dispatch to and what each option is good for, while the user manages the approved catalog through Settings -> Agent Profiles or the top-level administrative CLI:
+
+```bash
+alera agent-profile --json list
+alera agent-profile create --name "Codex Sol" --agent-type codex --launch-mode command --command "codex --search"
+alera agent-profile create --name "Managed Codex" --agent-type codex --launch-mode managed --managed-config-file profile.json
+alera agent-profile update --profile-name "Codex Sol" --description "Backend implementation"
+alera agent-profile removal-impact --profile-name "Codex Sol"
+alera agent-profile remove --profile-name "Codex Sol" --confirm
+```
+
+`show`, `update`, `removal-impact`, and `remove` accept either `--profile-id` or the case-insensitive unique `--profile-name`. Updates patch only the supplied fields, fetch the current revision by default, and accept `--expected-revision` when a script must pin the version it observed. Managed configuration may be supplied inline with `--managed-config`, from a file, or from standard input. Changing `--agent-type` on an existing Managed profile requires an explicit new managed configuration so adapter-specific settings are never discarded silently. A new setting that reduces agent protections requires `--confirm-reduced-protections`, and removal always performs the impact check before asking the host to delete.
+
+Reordering replaces the complete catalog order and therefore requires every stable profile id exactly once:
+
+```bash
+alera agent-profile reorder --id <second-profile-id> --id <first-profile-id>
+```
+
+The orchestrator still picks from a closed list the user approved instead of inventing launch commands.
 
 The adapter type is required because the registry is more than a command: it decides how the host detects readiness, injects the dispatch preamble, and forces submission. The host rejects a profile whose adapter is not in `AGENT_ADAPTERS`.
 
 Before creating a worker tab, the host persists `agentProfileLaunchV1`: the resolved profile identity and concrete OCC revision, adapter, launch mode, effective Command line or Managed executable and argv, local target/platform, and initial-delivery policy. Recovery launches from that immutable snapshot and does not resolve the mutable profile again, so later profile edits cannot change an existing worker. New profiles start at revision `0`, updates advance that revision, and every launch captures the exact revision it resolved. Command lines remain opaque interactive-shell input; the host never splits or reparses them. The snapshot excludes environment and provider session state. Tabs without a snapshot continue through the legacy readers.
 
-For delivery policies that replay on PTY restart, the tab separately retains the initial bootstrap until the tab is deleted. `pendingAgentPrompt` is a consumable per-PTY copy: the first matching ready event spends it, while a newly minted PTY rearms it from the retained bootstrap. Attaching again to the same PTY does not rearm it. Both bootstrap fields are removed from tab protocol projections and are used only for initial terminal delivery; they are not provider-resume data.
+When a supported agent hook reports a native conversation, session, or thread identifier, the host stores it on that tab as `agentNativeSessionId` plus the adapter that produced it. This includes a plain terminal where the user typed the agent. Client tab updates cannot replace those fields. The next remint uses that id with the adapter's resume shape (`codex resume <id>`, `claude --resume <id>`, and the equivalent flag or subcommand for the other spawnable agents) and does not replay the original prompt. A tab without an Agent Profile snapshot or `initialCommand` synthesizes the adapter default command plus those resume tokens. Missing, empty, parent-session, or unusable ids leave the existing launch unchanged. Desktop and mobile both see the stored id on the projected tab; Mobile-specific resume UI is not part of this path. A Claude session launched through CCS also stores `agentNativeCcsProfile` from `CLAUDE_CONFIG_DIR` (`.../instances/<profile>`), so resume is `ccs <profile> --resume <id> ...` even when the user started Claude through a shell alias. Default Claude is not a CCS instance.
+
+For delivery policies that replay on PTY restart, the tab separately retains the initial bootstrap until the tab is deleted. `pendingAgentPrompt` is a consumable per-PTY copy: the first matching ready event spends it, while a newly minted PTY rearms it from the retained bootstrap. Attaching again to the same PTY does not rearm it. Both bootstrap fields are removed from tab protocol projections and are used only for initial terminal delivery; they are not provider-resume data. A stored native session id is provider-resume data and skips that bootstrap when the remint can resume.
 
 Managed mode exposes the supported model, effort, persona, permission, sandbox, and trust controls for the selected adapter. Missing options deliberately defer to that agent's own configuration. The host validates the structured configuration and quotes the resulting executable and arguments for the actual platform shell only when the terminal is spawned. Command mode remains available for advanced or unsupported CLI options; its value must be the interactive form the adapter expects because a one-shot mode cannot satisfy the accept/heartbeat/complete worker contract. Existing profiles are migrated as Command profiles without changing their behavior.
 
@@ -55,7 +80,7 @@ A managed Codex profile carries a second effort setting, `planModeEffort`, which
 
 A managed Claude profile can also pass `--allow-dangerously-skip-permissions` through `allowSkipPermissions`. That flag only makes bypass reachable inside the session; `permissionMode: bypassPermissions` is what starts there, and the two are independent on purpose. It still counts as a reduced-protection marker, so turning it on asks for confirmation before the profile is saved.
 
-A managed Claude profile may also carry an optional `ccsProfile`. When it is set, the launch replaces the executable with `ccs` and passes the profile as its first positional argument, followed by the same Claude flags, because that is the switcher's own contract (`ccs <profile> [claude-args...]`). The value must be a single name that does not start with a dash: it is positional, so a dash-prefixed value would be read as an option of the switcher itself. Only the Claude adapter accepts the key; the host rejects it anywhere else. `ccs` points `CLAUDE_CONFIG_DIR` at the account instance directory, whose `settings.json` is a symlink chain to `~/.claude/settings.json`. That user file is where Alera installs the agent-status hooks, because it is the only settings source such a session reads; see [`architecture.md`](architecture.md) for why the instance directory cannot hold them and how Grok is kept from running them.
+A managed Claude profile may also carry an optional `ccsProfile`. When it is set, the launch replaces the executable with `ccs` and passes the profile as its first positional argument, followed by the same Claude flags, because that is the switcher's own contract (`ccs <profile> [claude-args...]`). The value must be a single name that does not start with a dash: it is positional, so a dash-prefixed value would be read as an option of the switcher itself. Only the Claude adapter accepts the key; the host rejects it anywhere else. Native session resume keeps that profile in front of `--resume`, so a remint is `ccs <profile> --resume <id> [claude-args...]` rather than handing `--resume` to the switcher. `ccs` points `CLAUDE_CONFIG_DIR` at the account instance directory, whose `settings.json` is a symlink chain to `~/.claude/settings.json`. That user file is where Alera installs the agent-status hooks, because it is the only settings source such a session reads; see [`architecture.md`](architecture.md) for why the instance directory cannot hold them and how Grok is kept from running them.
 
 Command mode also has to say where the dispatched prompt goes, because the user writes the whole launch line there. That follows the adapter's `startup_prompt`, which names the shape that agent's own CLI accepts for starting interactively with a prompt already submitted: a positional argument after the option terminator for Codex, Claude, Cursor and Grok Build; a bare positional for `pi`, which rejects the terminator and gets a leading space instead when the prompt opens with a dash; a single `--interactive=`, `--prompt-interactive=` or `--prompt=` token for Copilot, Antigravity and OpenCode; standard input for Amp; and a terminal paste after the first semantic ready event for fx. The editor states which one applies and previews the resulting line wherever the prompt reaches the command line.
 
@@ -108,6 +133,8 @@ alera orchestration terminal-wait --terminal <handle> --for dispatch-accepted --
 ```
 
 The built-in registry supports `codex`, `claude`, `copilot`, `cursor`, `agy`, `opencode`, `opencode2`, `pi`, `amp`, `grok`, and `fx`, with matching default commands except Cursor, which launches `cursor-agent`. `agent-spawn --command` overrides the default without changing the agent type.
+
+`alera agent-profile launch --profile <name> --prompt "..."` launches that catalog entry in an existing workspace without creating an orchestration task. `alera workspace start --profile <name> --prompt "..."` creates a managed worktree and then launches it, which is the CLI form of New Workspace from Prompt.
 
 `agent-spawn --profile <name>` resolves the adapter and the command from the catalog instead. It replaces `--agent`, which becomes optional, and conflicts with `--agent` and `--command` so there is never a second source of truth for how a worker is launched. An unknown profile is refused by name. The dispatch records `agent_profile` and `agent_quota_group`, so `task-show` reports how each attempt was launched and fallback selection can read the attempt history.
 

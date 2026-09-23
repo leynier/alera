@@ -2,7 +2,9 @@
 //!
 //! The current-host direction runs with the normal workspace tests. The
 //! previous-host direction is ignored unless `tool/ci/host_compatibility.sh`
-//! supplies the binary built from the pinned release tag.
+//! supplies the published v0.49.0 runtime binary (SHA-256 pinned). That
+//! artifact reports crate version 0.1.0; the product version lives in the
+//! tarball manifest and the git tag check.
 
 #![cfg(unix)]
 
@@ -19,7 +21,11 @@ use serde_json::{json, Value};
 const PROTOCOL_VERSION: i64 = 4;
 const PROFILE_CAPABILITY: &str = "orchestrationAgentProfilesV1";
 const PROFILE_ORDERING_CAPABILITY: &str = "agentProfileOrderingV1";
-const V049_COMMIT: &str = "e60c96ec7522052e9af81ab15ae5d6da2443dac4";
+const V049_TAG_COMMIT: &str = "e60c96ec7522052e9af81ab15ae5d6da2443dac4";
+/// Stamps baked into `alera-runtime-0.49.0-linux-x64.tar.gz` (crate version,
+/// not the product tag). The shell script pins the tarball SHA-256.
+const V049_PUBLISHED_HOST_VERSION: &str = "0.1.0";
+const V049_PUBLISHED_HOST_COMMIT: &str = "17a183f51debfc29114c0e682bc917ed4cdc58ae";
 
 struct HostGuard {
     child: Child,
@@ -60,7 +66,7 @@ fn read_response(reader: &mut BufReader<TcpStream>, id: i64) -> Value {
 
 fn spawn_host(
     binary: &str,
-    expected_version: Option<&str>,
+    expected_identity: Option<(&str, &str)>,
 ) -> (HostGuard, TcpStream, BufReader<TcpStream>) {
     let runtime = tempfile::tempdir().unwrap();
     let control_path = runtime.path().join("runtime-host.json");
@@ -114,7 +120,7 @@ fn spawn_host(
     let hello = read_response(&mut reader, 0);
     assert_eq!(hello["ok"], json!(true), "handshake rejected: {hello}");
 
-    if let Some(version) = expected_version {
+    if let Some((version, commit)) = expected_identity {
         send(
             &mut writer,
             json!({"id": 1, "type": "status.get", "payload": {}}),
@@ -122,13 +128,13 @@ fn spawn_host(
         let status = read_response(&mut reader, 1);
         assert_eq!(status["ok"], json!(true), "status failed: {status}");
         assert_eq!(status["payload"]["runtimeHostVersion"], json!(version));
-        assert_eq!(status["payload"]["runtimeHostCommit"], json!(V049_COMMIT));
+        assert_eq!(status["payload"]["runtimeHostCommit"], json!(commit));
     }
     (guard, writer, reader)
 }
 
-fn assert_v049_baseline(binary: &str, expected_version: Option<&str>) -> Vec<Value> {
-    let (_guard, mut writer, mut reader) = spawn_host(binary, expected_version);
+fn assert_v049_baseline(binary: &str, expected_identity: Option<(&str, &str)>) -> Vec<Value> {
+    let (_guard, mut writer, mut reader) = spawn_host(binary, expected_identity);
     send(
         &mut writer,
         json!({"id": 2, "type": "status.get", "payload": {}}),
@@ -209,12 +215,18 @@ fn current_host_accepts_v049_baseline_contract() {
 fn v049_host_accepts_current_baseline_client() {
     let binary = std::env::var("ALERA_PREVIOUS_HOST_BINARY")
         .expect("ALERA_PREVIOUS_HOST_BINARY must name the pinned host");
-    let version = std::env::var("ALERA_PREVIOUS_HOST_VERSION")
+    let product_version = std::env::var("ALERA_PREVIOUS_HOST_VERSION")
         .expect("ALERA_PREVIOUS_HOST_VERSION must identify the pinned host");
-    let capabilities = assert_v049_baseline(&binary, Some(&version));
+    assert_eq!(
+        product_version, "0.49.0",
+        "host_compatibility.sh pins tag v0.49.0 at {V049_TAG_COMMIT}; \
+         the published binary stamps crate {V049_PUBLISHED_HOST_VERSION}"
+    );
+    let identity = Some((V049_PUBLISHED_HOST_VERSION, V049_PUBLISHED_HOST_COMMIT));
+    let capabilities = assert_v049_baseline(&binary, identity);
     assert!(!capabilities.contains(&json!(PROFILE_ORDERING_CAPABILITY)));
 
-    let (_guard, mut writer, mut reader) = spawn_host(&binary, Some(&version));
+    let (_guard, mut writer, mut reader) = spawn_host(&binary, identity);
     send(
         &mut writer,
         json!({"id": 6, "type": "agentProfile.reorder", "payload": {"ids": []}}),

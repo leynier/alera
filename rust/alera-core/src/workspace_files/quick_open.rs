@@ -63,7 +63,7 @@ fn start_workspace_quick_open_session_with_symlinks(
     include_internal_symlinks: bool,
 ) -> Result<WorkspaceQuickOpenSession, WorkspaceFileError> {
     let root = workspace_root(&workspace_path)?;
-    let mut files = with_quick_open_build_gate(|| {
+    let files = with_quick_open_build_gate(|| {
         collect_quick_open_files(
             &root,
             MAX_QUICK_OPEN_INDEXED_FILES,
@@ -71,6 +71,12 @@ fn start_workspace_quick_open_session_with_symlinks(
             include_internal_symlinks,
         )
     })?;
+    register_quick_open_files(files)
+}
+
+fn register_quick_open_files(
+    mut files: Vec<QuickOpenFile>,
+) -> Result<WorkspaceQuickOpenSession, WorkspaceFileError> {
     sort_quick_open_files(&mut files);
     let indexed_file_count = u32::try_from(files.len()).unwrap_or(u32::MAX);
     let id = Uuid::new_v4().to_string();
@@ -92,6 +98,47 @@ fn start_workspace_quick_open_session_with_symlinks(
     Ok(WorkspaceQuickOpenSession {
         id,
         indexed_file_count,
+    })
+}
+
+/// Collect on the owning host; the receiving host never opens these paths.
+pub fn collect_workspace_quick_open_paths(
+    workspace_path: String,
+) -> Result<Vec<String>, WorkspaceFileError> {
+    let root = workspace_root(&workspace_path)?;
+    with_quick_open_build_gate(|| {
+        collect_quick_open_files(
+            &root,
+            MAX_QUICK_OPEN_INDEXED_FILES,
+            MAX_QUICK_OPEN_INDEXED_PATH_BYTES,
+            false,
+        )
+        .map(|files| files.into_iter().map(|file| file.relative_path).collect())
+    })
+}
+
+pub fn import_workspace_quick_open_paths(
+    paths: Vec<String>,
+) -> Result<WorkspaceQuickOpenSession, WorkspaceFileError> {
+    let bytes = paths
+        .iter()
+        .try_fold(0usize, |total, path| total.checked_add(path.len()));
+    if paths.len() > MAX_QUICK_OPEN_INDEXED_FILES
+        || bytes.is_none_or(|bytes| bytes > MAX_QUICK_OPEN_INDEXED_PATH_BYTES)
+        || paths.iter().any(|path| {
+            path.contains('\0')
+                || path
+                    .split('/')
+                    .any(|part| part.is_empty() || part == "." || part == "..")
+        })
+    {
+        return Err(WorkspaceFileError::new(
+            WorkspaceFileErrorKind::InvalidPath,
+            "Invalid remote quick open file catalog",
+        ));
+    }
+    with_quick_open_build_gate(|| {
+        register_quick_open_files(paths.into_iter().map(QuickOpenFile::new).collect())
     })
 }
 

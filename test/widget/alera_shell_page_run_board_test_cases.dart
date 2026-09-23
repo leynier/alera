@@ -60,9 +60,10 @@ void registerNativeRunBoardEditorLifecycleTest() {
         same(editorState),
       );
       expect(editor.focusNode!.canRequestFocus, isFalse);
-      await tester.tap(find.byType(TextField).first);
+      await tester.showKeyboard(find.byType(TextField).first);
       await tester.enterText(find.byType(TextField).first, 'search');
       await tester.pump(const Duration(milliseconds: 400));
+      expect(editor.focusNode!.hasFocus, isFalse);
       expect(editor.controller!.selection, selection);
       expect(editor.controller!.text, 'hello edited world');
       navigation.close();
@@ -101,6 +102,8 @@ void _registerAleraShellRunBoardTests() {
     );
     final session = harness.runtime._sessions['session-1']!;
     final requestsBefore = session.requestFocusCalls;
+    final visibilityLeasesBefore = session.visibilityLeases;
+    expect(visibilityLeasesBefore, greaterThan(0));
     final container = ProviderScope.containerOf(
       tester.element(find.byType(AleraShellPage)),
     );
@@ -118,8 +121,10 @@ void _registerAleraShellRunBoardTests() {
     await tester.pump();
     expect(container.read(runBoardNavigationProvider).visible, isFalse);
     expect(harness.runtime._sessions['session-1'], same(session));
-    expect(session.visibilityLeases, 1);
-    expect(session.requestFocusCalls, requestsBefore + 1);
+    expect(session.visibilityLeases, visibilityLeasesBefore);
+    // The workspace panel may remount more than one retained terminal view;
+    // explicit Open Terminal must focus the same session, not create another.
+    expect(session.requestFocusCalls, greaterThan(requestsBefore));
     expect(harness.runtime.closedTabIds, isEmpty);
     expect(tester.takeException(), isNull);
   });

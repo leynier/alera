@@ -26,6 +26,18 @@ mixin MobileRuntimeCodexWorkspaceRequests {
   bool get supportsPromptAttachmentRead =>
       runtimeCapabilities.contains(mobilePromptAttachmentReadCapability);
 
+  Future<MobileWorkspaceQuickOpenSession> startProjectCheckoutQuickOpen({
+    required String projectId,
+    String? checkoutHostId,
+  }) async {
+    return MobileWorkspaceQuickOpenSession.fromJson(
+      await requestMap('checkout.quickOpen.start', <String, Object?>{
+        'projectId': projectId,
+        'hostId': ?checkoutHostId,
+      }, _workspaceQuickOpenIndexTimeout),
+    );
+  }
+
   Future<MobileWorkspaceQuickOpenSession> startWorkspaceQuickOpen(
     String workspaceId, {
     String? cwd,
@@ -73,28 +85,6 @@ mixin MobileRuntimeCodexWorkspaceRequests {
     await request('mobile.workspaceQuickOpen.stop', <String, Object?>{
       'sessionId': session.id,
     });
-  }
-
-  Future<List<MobileCodexSavedPrompt>> listCodexSavedPrompts(
-    String workspaceId, {
-    String? cwd,
-  }) async {
-    _requireWorkspaceFiles();
-    final normalizedCwd = cwd?.trim();
-    final payload = await requestMap(
-      'mobile.codexSavedPrompts.list',
-      <String, Object?>{
-        'workspaceId': workspaceId,
-        if (normalizedCwd != null && normalizedCwd.isNotEmpty)
-          'cwd': normalizedCwd,
-      },
-    );
-    return <MobileCodexSavedPrompt>[
-      if (payload['items'] is List)
-        for (final item in payload['items']! as List)
-          if (item is Map)
-            MobileCodexSavedPrompt.fromJson(Map<String, Object?>.from(item)),
-    ];
   }
 
   Future<MobileWorkspaceFileRange> readWorkspaceFile({

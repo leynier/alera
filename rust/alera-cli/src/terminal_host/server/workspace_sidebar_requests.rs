@@ -28,7 +28,7 @@ struct SetWorkspaceTagsRequest {
 
 impl ServerActor {
     pub(super) fn agent_presence_items(&self) -> Value {
-        let mut items = self.orchestration_terminals(&json!({}))["items"]
+        let items = self.orchestration_terminals(&json!({}))["items"]
             .as_array()
             .into_iter()
             .flatten()
@@ -38,8 +38,36 @@ impl ServerActor {
             })
             .cloned()
             .collect::<Vec<_>>();
-        items.extend(self.codex_presence.values().cloned());
         Value::Array(items)
+    }
+
+    /// Additive `title` from the workspace tab. Must not bump protocol versions:
+    /// older clients ignore the field, and older hosts omit it.
+    pub(super) async fn agent_presence_items_with_titles(&self) -> HostResult<Value> {
+        let mut items = match self.agent_presence_items() {
+            Value::Array(items) => items,
+            other => return Ok(other),
+        };
+        if items.is_empty() {
+            return Ok(Value::Array(items));
+        }
+        let titles = self
+            .runtime_store
+            .workspace_tab_titles()
+            .await
+            .map_err(state_error)?;
+        for item in &mut items {
+            let Some(tab_id) = item.get("tabId").and_then(Value::as_str).map(str::to_owned) else {
+                continue;
+            };
+            let Some(title) = titles.get(&tab_id).map(|value| value.trim().to_string()) else {
+                continue;
+            };
+            if !title.is_empty() {
+                item["title"] = json!(title);
+            }
+        }
+        Ok(Value::Array(items))
     }
 
     pub(super) fn agent_presence_timestamp(&self, entry: &Value) -> chrono::DateTime<Utc> {
@@ -88,6 +116,16 @@ impl ServerActor {
             .terminal_tab_counts_by_workspace()
             .await
             .map_err(state_error)?;
+        let tabs = self
+            .runtime_store
+            .list_all_workspace_tabs()
+            .await
+            .map_err(state_error)?;
+        let workspace_main_tab_ids = super::workspace_main_tabs::resolve_workspace_main_tab_ids(
+            &view_prefs.prefs.workspace_main_tab_ids,
+            &tabs,
+        );
+        let agent_presence = self.agent_presence_items_with_titles().await?;
         Ok(json!({
             "projects": projects,
             "workspaces": workspaces,
@@ -96,8 +134,9 @@ impl ServerActor {
             "activity": activity,
             "viewPrefs": view_prefs,
             "runtimeSettings": runtime_settings,
-            "agentPresence": self.agent_presence_items(),
+            "agentPresence": agent_presence,
             "terminalTabCountByWorkspaceId": terminal_tab_count_by_workspace_id,
+            "workspaceMainTabIds": workspace_main_tab_ids,
         }))
     }
 
@@ -168,15 +207,7 @@ impl ServerActor {
             .map_err(state_error)?;
         let current_json = serde_json::to_value(current.prefs).map_err(state_error)?;
         if let Some(prefs) = compatible.get_mut("prefs").and_then(Value::as_object_mut) {
-            for key in [
-                "sectionSort",
-                "collapsedSectionIds",
-                "othersSectionCollapsed",
-            ] {
-                if !prefs.contains_key(key) {
-                    prefs.insert(key.to_string(), current_json[key].clone());
-                }
-            }
+            backfill_omitted_shared_prefs(prefs, &current_json);
         }
         let request: UpdateViewPrefsRequest =
             serde_json::from_value(compatible).map_err(format_error)?;
@@ -293,4 +324,62 @@ fn state_error(error: impl std::fmt::Display) -> HostError {
 
 fn format_error(error: impl std::fmt::Display) -> HostError {
     HostError::format(error.to_string())
+}
+
+/// Keys a client may not know yet. A client that predates a key sends its
+/// whole view without it, and deserializing that would reset the other
+/// client's choice to the default on every write, so the stored value is kept.
+const BACKFILLED_SHARED_PREF_KEYS: [&str; 10] = [
+    "sectionSort",
+    "collapsedSectionIds",
+    "othersSectionCollapsed",
+    "gitDiffViewMode",
+    "gitDiffGroupMode",
+    "searchViewAsTree",
+    "searchIncludeIgnored",
+    "selectedSectionIds",
+    "workspaceMainTabIds",
+    "showArchivedWorkspaces",
+];
+
+fn backfill_omitted_shared_prefs(prefs: &mut serde_json::Map<String, Value>, current: &Value) {
+    for key in BACKFILLED_SHARED_PREF_KEYS {
+        if !prefs.contains_key(key) {
+            prefs.insert(key.to_string(), current[key].clone());
+        }
+    }
+}
+
+#[cfg(test)]
+mod shared_prefs_backfill_tests {
+    use serde_json::json;
+
+    use super::backfill_omitted_shared_prefs;
+
+    #[test]
+    fn omitted_keys_keep_the_stored_value_and_sent_keys_win() {
+        let current = json!({
+            "sectionSort": "recent",
+            "gitDiffViewMode": "flat",
+            "gitDiffGroupMode": "unified",
+            "searchViewAsTree": true,
+            "searchIncludeIgnored": true,
+            "selectedSectionIds": ["sec-1"],
+            "workspaceMainTabIds": { "ws-1": ["tab-1"] },
+            "showArchivedWorkspaces": true,
+        });
+        let mut sent = json!({ "searchViewAsTree": false });
+        let prefs = sent.as_object_mut().unwrap();
+
+        backfill_omitted_shared_prefs(prefs, &current);
+
+        assert_eq!(prefs["gitDiffViewMode"], "flat");
+        assert_eq!(prefs["gitDiffGroupMode"], "unified");
+        assert_eq!(prefs["searchIncludeIgnored"], true);
+        assert_eq!(prefs["sectionSort"], "recent");
+        assert_eq!(prefs["searchViewAsTree"], false);
+        assert_eq!(prefs["selectedSectionIds"], json!(["sec-1"]));
+        assert_eq!(prefs["workspaceMainTabIds"], json!({ "ws-1": ["tab-1"] }));
+        assert_eq!(prefs["showArchivedWorkspaces"], true);
+    }
 }

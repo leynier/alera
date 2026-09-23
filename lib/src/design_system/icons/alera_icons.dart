@@ -14,6 +14,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 /// File-type icons in the explorer keep using `vscode_material_icon_theme`
 /// (the VSCode standard for file trees); see `AleraFileIcon`.
 abstract final class const AleraIcons._() {
+  static const IconData queuedMessage = LucideIcons.listEnd;
+  static const IconData steer = LucideIcons.cornerDownRight;
   // Actions
   static const IconData add = LucideIcons.plus;
   static const IconData remove = LucideIcons.minus;
@@ -72,6 +74,7 @@ abstract final class const AleraIcons._() {
   static const IconData folderSpecial = LucideIcons.folderGit2;
   static const IconData file = LucideIcons.fileText;
   static const IconData fileGeneric = LucideIcons.file;
+  static const IconData attach = LucideIcons.paperclip;
   static const IconData read = LucideIcons.bookOpen;
   static const IconData newFile = LucideIcons.filePlus;
   static const IconData copyFiles = LucideIcons.files;
@@ -79,10 +82,14 @@ abstract final class const AleraIcons._() {
   static const IconData link = LucideIcons.link;
   static const IconData unlink = LucideIcons.unlink;
   static const IconData unarchive = LucideIcons.archiveRestore;
+  static const IconData archive = LucideIcons.archive;
 
   // Workspace graph
   static const IconData host = LucideIcons.server;
   static const IconData tag = LucideIcons.tag;
+  // Workspace sections group workspaces; they are not filesystem folders.
+  static const IconData section = LucideIcons.layers;
+  static const IconData sectionOff = LucideIcons.layersMinus;
 
   // Mobile companion
   static const IconData mobileDevice = LucideIcons.smartphone;
@@ -95,6 +102,9 @@ abstract final class const AleraIcons._() {
   /// Parent/child workspace lineage (matches Orca's workflow glyph).
   static const IconData workspaceChildren = LucideIcons.workflow;
 
+  /// Split used as the linked-worktree marker after a 90-degree clockwise rotation.
+  static const IconData split = LucideIcons.split;
+
   // Git / version control
   static const IconData gitBranch = LucideIcons.gitBranch;
   static const IconData gitGraph = LucideIcons.gitGraph;
@@ -102,6 +112,10 @@ abstract final class const AleraIcons._() {
   static const IconData gitMerge = LucideIcons.gitMerge;
   static const IconData gitPullRequest = LucideIcons.gitPullRequest;
   static const IconData gitPullRequestClosed = LucideIcons.gitPullRequestClosed;
+  static const IconData gitPullRequestDraft = LucideIcons.gitPullRequestDraft;
+  static const IconData issueOpen = LucideIcons.circleDot;
+  static const IconData issueClosed = LucideIcons.circleCheckBig;
+  static const IconData issueUnknown = LucideIcons.circleDashed;
   static const IconData review = LucideIcons.fileSearch;
   static const IconData checks = LucideIcons.listChecks;
   static const IconData diff = LucideIcons.gitCompare;
@@ -179,6 +193,7 @@ abstract final class const AleraIcons._() {
   static const IconData keyboard = LucideIcons.keyboard;
   // Prompt composer: write/send a message into the active terminal.
   static const IconData composer = LucideIcons.messageSquarePlus;
+  static const IconData comment = LucideIcons.messageSquare;
   static const IconData ai = LucideIcons.sparkles;
   static const IconData plan = LucideIcons.lightbulb;
   static const IconData planActive = LucideIcons.lightbulb600;

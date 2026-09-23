@@ -30,7 +30,7 @@ mixin _RuntimeHostCapabilitySupport
       aleraRuntimeHostRunBoardCapability => connection.supportsRunBoard,
       aleraRuntimeHostWorkspaceSectionsCapability =>
         connection.supportsWorkspaceSections,
-      _ => false,
+      _ => connection.runtimeCapabilities.contains(capability),
     };
   }
 }

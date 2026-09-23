@@ -1,0 +1,22 @@
+[package]
+name = "alera-xtask"
+version = "0.1.0"
+edition = "2021"
+description = "Alera makefile developer tooling. Not shipped with the app or sidecar."
+publish = false
+
+[[bin]]
+name = "alera-xtask"
+path = "src/main.rs"
+
+[dependencies]
+alera-core = { path = "../alera-core", default-features = false }
+anyhow = "1.0.104"
+clap = { version = "4.6.6", features = ["derive", "env"] }
+serde_json = "1.0.151"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.189"
+
+[dev-dependencies]
+tempfile = "3.27.0"

@@ -1,7 +1,8 @@
-1040	rust/src/api/git_diff_impl.rs
+1040	rust/alera-core/src/source_control/git_diff_impl.rs
 1067	test/widget/settings_dialog_interaction_test_cases.dart
-1249	rust/alera-cli/src/managed_workspace.rs
-1145	rust/alera-cli/src/ssh_bootstrap.rs
+1251	rust/alera-cli/src/managed_workspace.rs
+501	rust/alera-cli/src/hosted_review_retention.rs
+1211	rust/alera-cli/src/ssh_bootstrap.rs
 1150	test/unit/app_providers_test.dart
 1294	rust/alera-cli/src/main.rs
 1194	lib/src/features/workbench/presentation/create_workspace_dialog.dart
@@ -9,13 +10,13 @@
 1235	test/unit/terminal_host_client_test.dart
 1410	rust/alera-cli/src/terminal_host/server/requests.rs
 1339	test/widget/workspace_explorer_test.dart
-1391	rust/src/api/git.rs
+552	rust/src/api/git.rs
 1396	rust/src/api/workspace_files.rs
-1519	rust/alera-cli/tests/terminal_host_conformance.rs
+1678	rust/alera-cli/tests/terminal_host_conformance.rs
 1724	test/widget/workspace_git_diff_panel_test.dart
 1810	rust/alera-cli/src/terminal_host/server.rs
 3017	rust/alera-cli/tests/orchestration_review_regressions.rs
-2190	rust/alera-core/src/runtime/store.rs
+2195	rust/alera-core/src/runtime/store.rs
 2055	rust/src/api/git_tests.rs
 501	lib/src/features/workbench/presentation/workspace_workbench_pane.dart
 501	lib/src/shared/infra/git/git_history_graph.dart
@@ -24,6 +25,7 @@
 510	rust/alera-cli/src/runtime_archive.rs
 540	rust/alera-cli/src/terminal_host/session.rs
 512	lib/src/features/settings/presentation/panes/projects_pane.dart
+513	rust/alera-core/src/runtime/automation_catalog_store.rs
 520	test/widget/workbench_dialog_launchers_test.dart
 521	lib/src/features/workbench/presentation/workspace_git_diff_surface.dart
 522	lib/src/features/workbench/application/workspace_service.dart
@@ -55,6 +57,7 @@
 653	test/unit/runtime_repositories_test.dart
 655	rust/alera-cli/src/mobile_access.rs
 522	rust/alera-core/src/runtime/models.rs
+513	rust/alera-core/src/runtime/automation_catalog_store.rs
 661	test/unit/agent_hook_event_normalizer_test.dart
 669	test/unit/app_providers_test_harness.dart
 675	rust/alera-core/src/git.rs
@@ -81,3 +84,4 @@
 975	lib/src/features/workbench/presentation/workspace_git_diff_panel.dart
 585	rust/alera-cli/src/cli_orchestration.rs
 625	rust/alera-core/src/runtime/orchestration_task_store.rs
+567	rust/alera-cli/src/cli_tests.rs

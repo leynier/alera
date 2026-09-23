@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{Mutex, OnceLock};
 
 use alera_core::runtime::RuntimeAiAssistSettings;
 use serde_json::{json, Value};
@@ -14,12 +13,14 @@ use super::ai_assist_fx_plan::plan_fx_command;
 use super::ai_assist_grok_plan::plan_grok_command;
 use super::ai_assist_model_defaults::default_model;
 use super::ai_assist_open_code::open_code_run_arguments;
+use super::ai_assist_opencode_go::OPENCODE_GO_AGENT;
+use super::ai_assist_operation_registry::active_generations;
 use super::ai_assist_workspace_identity::{parse_workspace_identity, workspace_identity_prompt};
 use super::host_service_requests::required_non_blank;
 use super::{ServerActor, ServerCommand};
 
 const MAX_ARGV_PROMPT_BYTES: usize = 24_000;
-pub(super) const SUPPORTED_AGENTS: [&str; 12] = [
+pub(super) const SUPPORTED_AGENTS: [&str; 13] = [
     "codex",
     "claude",
     "copilot",
@@ -27,14 +28,13 @@ pub(super) const SUPPORTED_AGENTS: [&str; 12] = [
     "agy",
     "opencode",
     "opencode2",
+    "opencode-go",
     "pi",
     "amp",
     "grok",
     "fx",
     "custom",
 ];
-
-static ACTIVE_GENERATIONS: OnceLock<Mutex<HashMap<String, oneshot::Sender<()>>>> = OnceLock::new();
 
 pub(super) struct AiAssistCommandPlan {
     pub(super) binary: String,
@@ -55,19 +55,19 @@ impl ServerActor {
         let operation_id = required_non_blank(payload, "operationId")?;
         let project_id = required_non_blank(payload, "projectId")?;
         let initial_prompt = required_non_blank(payload, "prompt")?;
+        let tab_id = payload
+            .get("tabId")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        // Additive: an older client never sends this flag and gets the
+        // original two-field identity prompt.
+        let auto_assign_section = payload
+            .get("autoAssignSection")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         let project = self.runtime_store.clone();
         let inbox = self.inbox.clone();
-        let (cancel_tx, cancel_rx) = oneshot::channel();
-        let mut active = active_generations()
-            .lock()
-            .map_err(|_| HostError::state("AI Assist state is unavailable."))?;
-        if active.contains_key(&operation_id) {
-            return Err(HostError::state(
-                "AI Assist is already running for this operation.",
-            ));
-        }
-        active.insert(operation_id.clone(), cancel_tx);
-        drop(active);
+        let (registration, cancel_rx) = active_generations().register(operation_id, None)?;
         tokio::spawn(async move {
             let result = async {
                 let project_record = project
@@ -79,18 +79,48 @@ impl ServerActor {
                     .effective_ai_assist_settings()
                     .await
                     .map_err(|error| HostError::state(error.to_string()))?;
+                // Section assignment is best-effort: a sections lookup failure
+                // must not break identity generation.
+                let sections = if auto_assign_section {
+                    project.list_workspace_sections().await.unwrap_or_else(|error| {
+                        tracing::warn!("could not list workspace sections for identity generation: {error}");
+                        Vec::new()
+                    })
+                } else {
+                    Vec::new()
+                };
+                let mut initial_prompt = initial_prompt;
+                if let Some(tab_id) = tab_id {
+                    if let Some(tab) = project
+                        .find_workspace_tab(&tab_id)
+                        .await
+                        .map_err(|error| HostError::state(error.to_string()))?
+                    {
+                        let workspace = project
+                            .find_workspace(&tab.workspace_id)
+                            .await
+                            .map_err(|error| HostError::state(error.to_string()))?;
+                        if workspace.is_some_and(|workspace| workspace.project_id == project_id) {
+                            initial_prompt =
+                                super::ai_assist_workspace_identity::handoff_identity_context(
+                                    &initial_prompt,
+                                    &tab,
+                                );
+                        }
+                    }
+                }
                 generate_workspace_identity(
                     &project_record.repo_path,
+                    &project_record.name,
                     &initial_prompt,
                     settings,
                     cancel_rx,
+                    &sections,
                 )
                 .await
             }
             .await;
-            if let Ok(mut active) = active_generations().lock() {
-                active.remove(&operation_id);
-            }
+            drop(registration);
             let _ = inbox.send(ServerCommand::AiAssistFinished {
                 client_id,
                 request_id,
@@ -102,11 +132,7 @@ impl ServerActor {
 
     pub(super) fn cancel_ai_assist(&mut self, payload: &Value) -> HostResult<Value> {
         let operation_id = required_non_blank(payload, "operationId")?;
-        let canceled = active_generations()
-            .lock()
-            .map_err(|_| HostError::state("AI Assist state is unavailable."))?
-            .remove(&operation_id)
-            .is_some_and(|sender| sender.send(()).is_ok());
+        let canceled = active_generations().cancel(&operation_id)?;
         Ok(json!({"canceled": canceled}))
     }
 
@@ -123,15 +149,13 @@ impl ServerActor {
     }
 }
 
-pub(super) fn active_generations() -> &'static Mutex<HashMap<String, oneshot::Sender<()>>> {
-    ACTIVE_GENERATIONS.get_or_init(|| Mutex::new(HashMap::new()))
-}
-
 async fn generate_workspace_identity(
     working_directory: &str,
+    project_name: &str,
     initial_prompt: &str,
     settings: RuntimeAiAssistSettings,
     cancel_rx: oneshot::Receiver<()>,
+    sections: &[alera_core::runtime::WorkspaceSection],
 ) -> HostResult<Value> {
     if !settings.enabled {
         return Err(HostError::state("AI Assist is disabled."));
@@ -148,11 +172,53 @@ async fn generate_workspace_identity(
             .get("workspaceIdentity")
             .map(String::as_str)
             .unwrap_or_default(),
+        project_name,
+        working_directory,
+        sections,
     );
-    let plan = plan_command(&settings, "workspaceIdentity", &prompt)?;
-    let timeout_seconds = settings.timeout_seconds;
-    let result = run_command(plan, working_directory, timeout_seconds, cancel_rx).await?;
-    parse_workspace_identity(&result)
+    let (result, _) = super::ai_assist_generation::generate_ai_assist_output(
+        &settings,
+        "workspaceIdentity",
+        &prompt,
+        working_directory,
+        cancel_rx,
+    )
+    .await?;
+    parse_workspace_identity(&result, sections)
+}
+
+pub(super) fn resolved_agent<'a>(
+    settings: &'a RuntimeAiAssistSettings,
+    operation: &str,
+) -> &'a str {
+    settings
+        .prompt_settings_by_operation
+        .get(operation)
+        .and_then(|value| value.agent.as_deref())
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or(settings.agent.as_str())
+}
+
+pub(super) fn resolved_model(settings: &RuntimeAiAssistSettings, operation: &str) -> String {
+    let agent = resolved_agent(settings, operation);
+    settings
+        .prompt_settings_by_operation
+        .get(operation)
+        .and_then(|value| value.model.as_deref())
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| {
+            settings
+                .selected_model_by_agent
+                .get(agent)
+                .map(String::as_str)
+                .filter(|value| !value.trim().is_empty())
+        })
+        .unwrap_or_else(|| default_model(agent))
+        .to_string()
+}
+
+pub(super) fn is_opencode_go_agent(settings: &RuntimeAiAssistSettings, operation: &str) -> bool {
+    resolved_agent(settings, operation) == OPENCODE_GO_AGENT
 }
 
 pub(super) fn plan_command(
@@ -160,14 +226,16 @@ pub(super) fn plan_command(
     operation: &str,
     prompt: &str,
 ) -> HostResult<AiAssistCommandPlan> {
-    let prompt_settings = settings.prompt_settings_by_operation.get(operation);
-    let agent = prompt_settings
-        .and_then(|value| value.agent.as_deref())
-        .unwrap_or(&settings.agent);
+    let agent = resolved_agent(settings, operation);
+    if agent == OPENCODE_GO_AGENT {
+        return Err(HostError::format("OpenCode Go does not use a CLI command."));
+    }
     if agent == "custom" {
         return plan_custom_command(&settings.custom_command, prompt);
     }
-    let selected_model = prompt_settings
+    let selected_model = settings
+        .prompt_settings_by_operation
+        .get(operation)
         .and_then(|value| value.model.as_deref())
         .filter(|value| !value.trim().is_empty())
         .or_else(|| {

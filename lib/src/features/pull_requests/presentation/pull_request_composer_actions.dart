@@ -161,6 +161,36 @@ class _AiPullRequestButtonState extends State<_AiPullRequestButton> {
   }
 }
 
+class const _ShipPullRequestButton({
+  required final bool shipping,
+  required final bool aiEnabled,
+  required final bool enabled,
+  required final VoidCallback onPressed,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: aiEnabled
+          ? 'Ship local commits or staged changes and create a pull request'
+          : 'Enable AI Assist to ship local commits or staged changes',
+      child: SizedBox(
+        height: _CreatePullRequestButton._height,
+        child: OutlinedButton.icon(
+          key: const Key('pull-request-ship-button'),
+          onPressed: enabled ? onPressed : null,
+          icon: shipping
+              ? const SizedBox.square(
+                  dimension: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(AleraIcons.send, size: 16),
+          label: Text(shipping ? 'Shipping Changes' : 'Ship Changes'),
+        ),
+      ),
+    );
+  }
+}
+
 /// Split primary action button matching Source Control (Fetch / Commit).
 ///
 /// Main segment runs the selected create action; the chevron opens a menu with
@@ -173,6 +203,8 @@ class const _CreatePullRequestButton({
   required final ValueChanged<PullRequestCreateAction> onSelected,
 }) extends StatelessWidget {
   static const double _height = 28;
+  // Compensates the chevron segment so the label centers on the full width.
+  static const double _trailingWidth = 34.5;
 
   String get _label => switch (action) {
     PullRequestCreateAction.publish => 'Create Pull Request',
@@ -207,35 +239,38 @@ class const _CreatePullRequestButton({
                           ? SystemMouseCursors.click
                           : SystemMouseCursors.basic,
                       onTap: enabled ? onPressed : null,
-                      child: Center(
-                        child: Row(
-                          mainAxisSize: .min,
-                          children: <Widget>[
-                            if (busy)
-                              const SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: _trailingWidth),
+                        child: Center(
+                          child: Row(
+                            mainAxisSize: .min,
+                            children: <Widget>[
+                              if (busy)
+                                const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AleraTokens.onAccent,
+                                  ),
+                                )
+                              else
+                                Icon(
+                                  _icon,
+                                  size: 15,
                                   color: AleraTokens.onAccent,
                                 ),
-                              )
-                            else
-                              Icon(
-                                _icon,
-                                size: 15,
-                                color: AleraTokens.onAccent,
+                              const SizedBox(width: AleraTokens.space8),
+                              Flexible(
+                                child: Text(
+                                  _label,
+                                  maxLines: 1,
+                                  overflow: .ellipsis,
+                                  style: textStyle,
+                                ),
                               ),
-                            const SizedBox(width: AleraTokens.space8),
-                            Flexible(
-                              child: Text(
-                                _label,
-                                maxLines: 1,
-                                overflow: .ellipsis,
-                                style: textStyle,
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),

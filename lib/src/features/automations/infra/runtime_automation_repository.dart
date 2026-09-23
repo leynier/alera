@@ -29,12 +29,12 @@ class RuntimeAutomationRepository(final RuntimeHostClient _client) {
         .toList(growable: false);
   }
 
-  Stream<List<AutomationRecord>> watch() async* {
-    yield await list();
+  Stream<List<AutomationRecord>> watch({bool includeTrashed = false}) async* {
+    yield await list(includeTrashed: includeTrashed);
     await for (final event in _client.runtimeEvents) {
       if (event.name == 'automationsChanged' ||
           event.name == 'automationRunChanged') {
-        yield await list();
+        yield await list(includeTrashed: includeTrashed);
       }
     }
   }
@@ -146,6 +146,14 @@ class RuntimeAutomationRepository(final RuntimeHostClient _client) {
   Future<List<JsonMap>> templates() async {
     final payload = await _client.runtimeRequest('automation.templates');
     return _list(_map(payload)['items']).map(_map).toList(growable: false);
+  }
+
+  Future<JsonMap> saveTemplate(JsonMap template) async {
+    final payload = await _client.runtimeRequest(
+      'automation.templates',
+      <String, Object?>{'template': template},
+    );
+    return _map(payload);
   }
 
   Future<List<JsonMap>> tags() async {

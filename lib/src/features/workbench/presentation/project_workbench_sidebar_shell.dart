@@ -28,6 +28,9 @@ class _ProjectWorkbenchSidebarState
           activeTabIdByWorkspace: state.activeTabIdByWorkspace,
           activeWorkspaceId: state.activeWorkspaceId,
           collapsed: state.collapsed,
+          supportsSections: state.supportsSections,
+          supportsArchive: state.supportsArchive,
+          sections: state.sections,
           projects: state.projects,
           searchQuery: state.searchQuery,
           tabsByWorkspace: state.tabsByWorkspace,
@@ -37,6 +40,9 @@ class _ProjectWorkbenchSidebarState
       ),
     );
     final state = WorkbenchState(
+      supportsSections: sidebar.supportsSections,
+      supportsArchive: sidebar.supportsArchive,
+      sections: sidebar.sections,
       projects: sidebar.projects,
       workspacesByProject: sidebar.workspacesByProject,
       tabsByWorkspace: sidebar.tabsByWorkspace,
@@ -111,13 +117,19 @@ class _ProjectWorkbenchSidebarState
                                 onOpenWorkspaceInBrowser:
                                     openWorkspaceInBrowser,
                                 onSleepWorkspace: sleepWorkspace,
+                                onToggleWorkspaceArchived:
+                                    toggleWorkspaceArchived,
                                 onCreateWorkspace: _createWorkspace,
                                 onOpenProjectSettings: _openProjectSettings,
                                 onDeleteWorkspace: _deleteWorkspace,
+                                onHandOffWorkspace: _handOffWorkspace,
+                                onHandOnWorkspace: _handOnWorkspace,
                                 onRenameProject: _renameProject,
                                 onRemoveProject: _removeProject,
                                 onRenameWorkspace: _renameWorkspace,
                                 onSetWorkspacePinned: _setWorkspacePinned,
+                                onSetWorkspaceTreePinned:
+                                    _setWorkspaceTreePinned,
                                 onManageWorkspaceTags: _manageWorkspaceTags,
                                 onSetWorkspaceParent: _setWorkspaceParent,
                                 onClearWorkspaceParent: _clearWorkspaceParent,

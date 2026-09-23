@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:alera_configuration/alera_configuration.dart';
 import 'package:alera/src/features/settings/application/settings_providers.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -10,7 +11,9 @@ part 'configuration_sync_controller.g.dart';
 @riverpod
 Future<ConfigurationSyncService> configurationSyncService(Ref ref) async {
   final client = ref.watch(runtimeHostClientProvider);
-  if (!await client.supportsRuntimeCapability('configurationSyncV1')) {
+  if (!await client.supportsRuntimeCapability(
+    aleraRuntimeHostConfigurationSyncCapability,
+  )) {
     throw StateError('Update the runtime to synchronize configuration.');
   }
   await ref.watch(settingsRepositoryProvider).load();

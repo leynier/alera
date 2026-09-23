@@ -30,6 +30,7 @@ void _registerWorkspaceGitDiffPanelPreviewTests() {
             gitDiffRoot,
             required scope,
             bool preview = false,
+            bool oppositePanel = false,
           }) async {
             opened.add((relativePath: relativePath, preview: preview));
           },
@@ -52,6 +53,69 @@ void _registerWorkspaceGitDiffPanelPreviewTests() {
     expect(opened.map((open) => open.relativePath).toSet(), <String>{
       'lib/foo.dart',
     });
+  });
+
+  testWidgets('keeps a Mod-open across the working-tree preview keep', (
+    tester,
+  ) async {
+    final keepPreviewGate = Completer<void>();
+    final backend = FakeGitBackend()
+      ..gitRepositoryStateResult = const GitRepositoryState(
+        branch: 'main',
+        upstream: 'origin/main',
+      )
+      ..gitStatusResult = const GitStatusResult(
+        entries: <GitChangeEntry>[
+          GitChangeEntry(
+            path: 'lib/foo.dart',
+            area: .unstaged,
+            status: .modified,
+          ),
+        ],
+      );
+    final opened = <({bool preview, bool oppositePanel})>[];
+
+    await _pumpPanel(
+      tester,
+      backend: backend,
+      onOpenGitDiff:
+          ({
+            area,
+            relativePath,
+            gitDiffRoot,
+            required scope,
+            bool preview = false,
+            bool oppositePanel = false,
+          }) async {
+            opened.add((preview: preview, oppositePanel: oppositePanel));
+            if (preview && opened.length == 2) {
+              await keepPreviewGate.future;
+            }
+          },
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('lib/foo.dart'));
+    await tester.pumpAndSettle();
+    expect(opened, <Object>[(preview: true, oppositePanel: false)]);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
+    await tester.tap(find.text('lib/foo.dart'));
+    await tester.pump();
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
+    expect(opened, <Object>[
+      (preview: true, oppositePanel: false),
+      (preview: true, oppositePanel: true),
+    ]);
+
+    keepPreviewGate.complete();
+    await tester.pumpAndSettle();
+
+    expect(opened, <Object>[
+      (preview: true, oppositePanel: false),
+      (preview: true, oppositePanel: true),
+      (preview: false, oppositePanel: true),
+    ]);
   });
 
   testWidgets('all changes stays a permanent diff tab', (tester) async {
@@ -81,6 +145,7 @@ void _registerWorkspaceGitDiffPanelPreviewTests() {
             gitDiffRoot,
             required scope,
             bool preview = false,
+            bool oppositePanel = false,
           }) async {
             opened.add((scope: scope, preview: preview));
           },
@@ -175,6 +240,7 @@ void _registerWorkspaceGitDiffPanelPreviewTests() {
             subject,
             message,
             bool preview = false,
+            bool oppositePanel = false,
           }) async {
             opened.add((
               relativePath: relativePath,
@@ -243,5 +309,103 @@ void _registerWorkspaceGitDiffPanelPreviewTests() {
     expect(opened.single.subject, 'Add Feature');
     expect(opened.single.message, 'Add Feature\n\nBody');
     expect(opened.single.preview, isTrue);
+  });
+
+  testWidgets('keeps a Mod-open after the commit compare finishes', (
+    tester,
+  ) async {
+    final compareGate = Completer<void>();
+    final backend = FakeGitBackend()
+      ..gitRepositoryStateResult = const GitRepositoryState(
+        branch: 'main',
+        upstream: 'origin/main',
+      )
+      ..gitHistoryResult = GitHistoryResult(
+        currentRef: const GitHistoryItemRef(
+          id: 'refs/heads/main',
+          name: 'main',
+          revision: 'abc123456789',
+        ),
+        hasIncomingChanges: false,
+        hasOutgoingChanges: false,
+        hasMore: false,
+        limit: 50,
+        items: <GitHistoryItem>[
+          GitHistoryItem(
+            id: 'abc123456789',
+            parentIds: const <String>['def987654321'],
+            subject: 'Add Feature',
+            message: 'Add Feature\n\nBody',
+            displayId: 'abc1234',
+            author: 'Leynier',
+            timestamp: .utc(2026, 7, 4, 12),
+          ),
+        ],
+      )
+      ..gitCommitCompareResult = const GitCommitCompareResult(
+        summary: GitCommitCompareSummary(
+          commitOid: 'abc123456789',
+          parentOid: 'def987654321',
+          compareRef: 'abc1234',
+          baseRef: 'def9876',
+          changedFiles: 1,
+          status: .ready,
+        ),
+        entries: <GitCommitChangeEntry>[
+          GitCommitChangeEntry(
+            path: 'lib/new.dart',
+            oldPath: 'lib/old.dart',
+            status: .renamed,
+            added: 3,
+            removed: 1,
+          ),
+        ],
+      );
+    final opened = <({bool oppositePanel, WorkspaceGitDiffScope scope})>[];
+
+    await _pumpPanel(
+      tester,
+      backend: backend,
+      onOpenGitCommitDiff:
+          ({
+            relativePath,
+            oldPath,
+            required scope,
+            gitDiffRoot,
+            required commitOid,
+            parentOid,
+            required compareRef,
+            subject,
+            message,
+            bool preview = false,
+            bool oppositePanel = false,
+          }) async {
+            opened.add((oppositePanel: oppositePanel, scope: scope));
+          },
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('COMMITS'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add Feature'));
+    await tester.pumpAndSettle();
+    expect(find.text('Open All Changes'), findsOneWidget);
+
+    backend.commitCompareGate = compareGate;
+    await tester.tap(find.byTooltip('Refresh Commits'));
+    await tester.pumpAndSettle();
+    expect(find.text('Open All Changes'), findsOneWidget);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
+    await tester.tap(find.text('Open All Changes'));
+    await tester.pump();
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
+    expect(opened, isEmpty);
+
+    compareGate.complete();
+    await tester.pumpAndSettle();
+
+    expect(opened, <Object>[
+      (oppositePanel: true, scope: WorkspaceGitDiffScope.all),
+    ]);
   });
 }

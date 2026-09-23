@@ -9,6 +9,7 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_registry.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_editor_surface.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:flutter/material.dart';
@@ -54,7 +55,7 @@ class _WorkspacePdfViewerSurfaceState
     _pdfController = PdfViewerController()..addListener(_handleViewerChanged);
     unawaited(_load());
     if (widget.autofocus) {
-      _requestFocusNextFrame();
+      _requestFocusNextFrame(onlyIfParked: false);
     }
   }
 
@@ -66,7 +67,9 @@ class _WorkspacePdfViewerSurfaceState
       unawaited(_load());
     }
     if (!oldWidget.autofocus && widget.autofocus) {
-      _requestFocusNextFrame();
+      // The pane became active while this tab was already showing; take the
+      // keyboard only if nothing else is being typed in.
+      _requestFocusNextFrame(onlyIfParked: true);
     }
   }
 
@@ -164,9 +167,9 @@ class _WorkspacePdfViewerSurfaceState
     );
   }
 
-  void _requestFocusNextFrame() {
+  void _requestFocusNextFrame({required bool onlyIfParked}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
+      if (mounted && (!onlyIfParked || workbenchFocusIsParked())) {
         _focusNode.requestFocus();
       }
     });

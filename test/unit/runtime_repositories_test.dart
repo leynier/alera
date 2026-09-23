@@ -11,6 +11,7 @@ import 'package:alera/src/features/settings/application/settings_repository.dart
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/infra/runtime_settings_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
+import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_graph_repository.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
@@ -543,9 +544,24 @@ final class _MemoryWorkbenchRepository implements WorkbenchRepository {
     String workspaceId,
     bool isPinned,
   ) async {
-    final workspace = workspaces[workspaceId]!;
-    return upsertWorkspace(workspace.copyWith(isPinned: isPinned));
+    final current = (await findWorkspaceById(workspaceId))!;
+    return upsertWorkspace(current.copyWith(isPinned: isPinned));
   }
+
+  @override
+  Future<Workspace> setWorkspaceArchived(
+    String workspaceId,
+    bool isArchived,
+  ) async {
+    final current = (await findWorkspaceById(workspaceId))!;
+    return upsertWorkspace(current.copyWith(isArchived: isArchived));
+  }
+
+  @override
+  Future<void> sleepWorkspace(String workspaceId) async {}
+
+  @override
+  Future<bool> supportsArchive() async => true;
 
   @override
   Future<void> removeWorkspace(

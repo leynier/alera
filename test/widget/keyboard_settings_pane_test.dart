@@ -238,6 +238,7 @@ void main() {
 
     await pumpPane(tester, initialSettings: initialSettings);
 
+    // Hand Off / Hand On ship with empty defaults and also render as Unassigned.
     final newTabRow = find
         .ancestor(of: find.text('New Terminal Tab'), matching: find.byType(Row))
         .first;

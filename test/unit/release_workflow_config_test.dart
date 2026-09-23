@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('release workflow configuration', () {
-    test('packages the system browser engines required by desktop tabs', () {
+    test('packages GTK and system libraries without a browser engine', () {
       final setup = File('.github/actions/setup-flutter-workspace/action.yml')
           .readAsStringSync();
       final linuxPackage = File('tool/release/package_linux.sh')
@@ -13,17 +13,9 @@ void main() {
       final xcodeProject = File('macos/Runner.xcodeproj/project.pbxproj')
           .readAsStringSync();
       final macInfo = File('macos/Runner/Info.plist').readAsStringSync();
-      final windowsBrowserCmake = File(
-        'packages/alera_browser/windows/CMakeLists.txt',
-      ).readAsStringSync();
-      final windowsBrowserValues = File(
-        'packages/alera_browser/windows/browser_value.cpp',
-      ).readAsStringSync();
-      final macBrowserCore = File(
-        'packages/alera_browser/macos/Classes/BrowserCore.swift',
-      ).readAsStringSync();
 
-      expect(setup, contains('libwebkit2gtk-4.1-dev'));
+      expect(setup, isNot(contains('libwebkit2gtk-4.1-dev')));
+      expect(setup, isNot(contains('libmpv-dev')));
       expect(setup, contains('sdk.lunarg.com/sdk/download/'));
       expect(
         setup,
@@ -36,12 +28,12 @@ void main() {
         isNot(contains('KhronosGroup.VulkanSDK')),
         reason: 'Windows CI must not install Vulkan through WinGet',
       );
-      expect(linuxPackage, contains('libwebkit2gtk-4.1-0'));
+      expect(linuxPackage, isNot(contains('libwebkit2gtk-4.1-0')));
+      expect(linuxPackage, isNot(contains('webkit2gtk4.1')));
       expect(linuxPackage, contains('libjson-glib-1.0-0'));
       expect(linuxPackage, contains('libsecret-1-0'));
       expect(linuxPackage, contains('libsqlite3-0'));
       expect(linuxPackage, contains('libssl3'));
-      expect(linuxPackage, contains('Requires: webkit2gtk4.1'));
       expect(linuxPackage, contains('Requires: json-glib'));
       expect(linuxPackage, contains('Requires: libsecret'));
       expect(linuxPackage, contains('Requires: sqlite'));
@@ -52,9 +44,6 @@ void main() {
       expect(macInfo, contains('NSCameraUsageDescription'));
       expect(macInfo, contains('NSLocationUsageDescription'));
       expect(macInfo, contains('NSMicrophoneUsageDescription'));
-      expect(windowsBrowserCmake, contains('ALERA_BROWSER_STORAGE_NAME'));
-      expect(windowsBrowserValues, contains('ALERA_BROWSER_STORAGE_NAME'));
-      expect(macBrowserCore, contains('Bundle.main.bundleIdentifier'));
     });
 
     test('enables autonomous updates everywhere a package manager does not', () {
@@ -240,8 +229,6 @@ void main() {
       final podfile = File('macos/Podfile').readAsStringSync();
       final xcodeProject = File('macos/Runner.xcodeproj/project.pbxproj')
           .readAsStringSync();
-      final helperAssets = File('tool/native_helpers/native_helper_assets.json')
-          .readAsStringSync();
       final releaseWorkflow = File('.github/workflows/release-cut.yml')
           .readAsStringSync();
       final buildWorkflow = File('.github/workflows/desktop-build.yml')
@@ -253,7 +240,6 @@ void main() {
       // The sidecar is pinned to the triple instead of inheriting the build
       // machine, so the shipped binary cannot depend on which runner ran.
       expect(xcodeProject, contains('aarch64-apple-darwin'));
-      expect(helperAssets, isNot(contains('"x86_64"')));
       for (final workflow in <String>[releaseWorkflow, buildWorkflow]) {
         expect(workflow, contains('verify_macos_arm64_only.sh'));
       }
@@ -359,35 +345,62 @@ void main() {
       'dispatches exact-head checks for automation-created pull requests',
       () {
         final pr = File('.github/workflows/pr.yml').readAsStringSync();
-        final mergify = File('.mergify.yml').readAsStringSync();
+        final release = File('.github/workflows/release-cut.yml')
+            .readAsStringSync();
 
         expect(pr, contains('workflow_dispatch:'));
         expect(pr, contains('base_sha:'));
         expect(pr, contains('head_sha:'));
         expect(pr, contains(r'git diff --check "$BASE_SHA...$HEAD_SHA"'));
-        expect(mergify, contains('queue prepared release versions'));
-        expect(mergify, contains('author = github-actions[bot]'));
-        expect(mergify, contains('head ~= ^release/version-'));
-        expect(mergify, contains('check-success = @github-actions/pr-ready'));
-        expect(mergify, contains('min: 1'));
-        expect(mergify, contains('batch_max_wait_time: 10 min'));
+        expect(File('.mergify.yml').existsSync(), isFalse);
+        expect(File('.github/workflows/merge-queue.yml').existsSync(), isFalse);
+        expect(release, isNot(contains('Mergify')));
+        expect(release, contains('Squash-merge this pull request after'));
       },
     );
+
+    test('desktop builds opt disposable native tests into clipboard access', () {
+      final workflow = File('.github/workflows/desktop-build.yml')
+          .readAsStringSync()
+          .replaceAll('\r\n', '\n');
+      final nativeFlow = workflow.substring(
+        workflow.indexOf(
+          '      - name: Verify native process boundary and workbench flow',
+        ),
+        workflow.indexOf(
+          '      - name: Verify macOS startup and desktop presence',
+        ),
+      );
+
+      expect(
+        nativeFlow,
+        contains(
+          "        env:\n          ALERA_FLAVOR: dev\n          ALERA_NATIVE_TEST_CLIPBOARD: '1'",
+        ),
+        reason:
+            'terminal_input_native_test owns the clipboard and only runs when '
+            'the disposable desktop job explicitly opts in',
+      );
+    });
 
     test('keeps main ruleset activation behind a merged dry-run preflight', () {
       final script = File('tool/github/main_ruleset.dart').readAsStringSync();
       final contributing = File('.github/CONTRIBUTING.md').readAsStringSync();
 
-      expect(script, contains("'bypass_mode': 'always'"));
+      expect(script, isNot(contains('mergify')));
+      expect(script, isNot(contains('queue-ready')));
       expect(script, contains("'context': 'pr-ready'"));
-      expect(script, contains("'context': 'queue-ready'"));
+      expect(script, contains("'bypass_actors'"));
       expect(script, contains("'required_review_thread_resolution': true"));
       expect(script, contains("'type': 'deletion'"));
       expect(script, contains("'type': 'non_fast_forward'"));
       expect(script, contains('if (!options.apply)'));
+      expect(script, contains("method: 'PUT'"));
       expect(contributing, contains('### Main Ruleset Rollout'));
       expect(contributing, contains('--dry-run-run-id <run-id>'));
-      expect(contributing, contains('Keep issue #489 open'));
+      expect(contributing, contains('squash-merge'));
+      expect(contributing, isNot(contains('Mergify')));
+      expect(contributing, isNot(contains('Keep issue #489 open')));
     });
 
     test('cleans closed pull request caches without a checkout', () {

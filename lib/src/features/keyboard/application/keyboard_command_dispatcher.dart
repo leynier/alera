@@ -5,16 +5,24 @@ import 'package:alera/src/features/orchestration/application/run_board_navigatio
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
-import 'package:alera/src/features/browser/application/browser_providers.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_command_palette_dialog.dart';
+import 'package:alera/src/features/workbench/application/workbench_listing.dart';
+import 'package:alera/src/features/workbench/application/workbench_state.dart';
+import 'package:alera/src/features/workbench/application/workspace_search_reveal.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
+import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_hand_off_launchers.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+part 'keyboard_command_dispatcher_navigation.dart';
 
 /// Maps a [KeyboardActionId] to concrete app behavior, reusing existing
 /// controller methods and dialog flows. Construct one per dispatch with the
@@ -50,29 +58,41 @@ class const KeyboardCommandDispatcher({
         unawaited(showAddProjectFlow(context, ref));
       case KeyboardActionId.toggleSidebar:
         _toggleSidebar();
+      case KeyboardActionId.toggleContextPanel:
+        _toggleContextPanel();
+      case KeyboardActionId.showExplorer:
+        _showContextPanel(.explorer);
+      case KeyboardActionId.showSourceControl:
+        _showContextPanel(.gitDiff);
       case KeyboardActionId.createWorkspace:
         final project = ref.read(workbenchControllerProvider).activeProject;
         unawaited(
           showCreateWorkspaceFlow(context, ref, initialProject: project),
         );
+      case KeyboardActionId.handOffWorkspace:
+        unawaited(_handOffActiveWorkspace());
+      case KeyboardActionId.handOnWorkspace:
+        unawaited(_handOnActiveWorkspace());
       case KeyboardActionId.navigateBack:
         unawaited(ref.read(workbenchControllerProvider.notifier).goBack());
       case KeyboardActionId.navigateForward:
         unawaited(ref.read(workbenchControllerProvider.notifier).goForward());
+      case KeyboardActionId.previousWorkspace:
+        _cycleWorkspace(-1);
+      case KeyboardActionId.nextWorkspace:
+        _cycleWorkspace(1);
       case KeyboardActionId.findInFiles:
-        _showContextPanel(.search);
+        _revealWorkspaceSearch(replace: false);
       case KeyboardActionId.findInTerminal:
         _openTerminalSearch();
       case KeyboardActionId.toggleTerminalComposer:
         _toggleTerminalComposer();
       case KeyboardActionId.replaceInFiles:
-        _showContextPanel(.search);
+        _revealWorkspaceSearch(replace: true);
       case KeyboardActionId.saveFile:
         _saveActiveEditor();
       case KeyboardActionId.newTerminalTab:
         _newTerminalTab();
-      case KeyboardActionId.newBrowserTab:
-        _newBrowserTab();
       case KeyboardActionId.closeTab:
         _closeActiveTab();
       case KeyboardActionId.nextTab:
@@ -96,13 +116,45 @@ class const KeyboardCommandDispatcher({
         _split(.down);
       case KeyboardActionId.closeSplit:
         _closeSplit();
+      case KeyboardActionId.focusNextPane:
+        _focusPane(1);
+      case KeyboardActionId.focusPreviousPane:
+        _focusPane(-1);
     }
+  }
+
+  Future<void> _handOffActiveWorkspace() async {
+    final workspace = ref.read(workbenchControllerProvider).activeWorkspace;
+    if (workspace == null || !workspace.isMain) {
+      return;
+    }
+    await showHandOffWorkspaceFlow(context, ref, workspace: workspace);
+  }
+
+  Future<void> _handOnActiveWorkspace() async {
+    final state = ref.read(workbenchControllerProvider);
+    final workspace = state.activeWorkspace;
+    final project = state.activeProject;
+    if (workspace == null || project == null || workspace.isMain) {
+      return;
+    }
+    await showHandOnWorkspaceFlow(
+      context,
+      ref,
+      project: project,
+      workspace: workspace,
+    );
   }
 
   void _toggleSidebar() {
     final controller = ref.read(workbenchControllerProvider.notifier);
     final collapsed = ref.read(workbenchControllerProvider).collapsed;
     controller.setCollapsed(!collapsed);
+    if (!collapsed) {
+      // Collapsing the sidebar that held the focus (its search field, a row
+      // menu) must not park the keyboard on the shortcut layer.
+      _focusActivePane();
+    }
   }
 
   void _newTerminalTab() {
@@ -116,22 +168,6 @@ class const KeyboardCommandDispatcher({
       final tab = await controller.createTerminalTab(workspace);
       runtime.sessionFor(workspace: workspace, tab: tab).requestFocus();
     }());
-  }
-
-  void _newBrowserTab() {
-    final availability = ref.read(browserAvailabilityProvider);
-    if (availability.asData?.value.meetsStableGate != true) {
-      return;
-    }
-    final workspace = ref.read(workbenchControllerProvider).activeWorkspace;
-    if (workspace == null) {
-      return;
-    }
-    unawaited(
-      ref
-          .read(workbenchControllerProvider.notifier)
-          .createBrowserTab(workspace),
-    );
   }
 
   void _showContextPanel(WorkbenchContextPanelTab tab) {
@@ -186,8 +222,31 @@ class const KeyboardCommandDispatcher({
   void _closeActiveTab() {
     final state = ref.read(workbenchControllerProvider);
     final workspace = state.activeWorkspace;
-    final tab = state.activeWorkspaceTab;
-    if (workspace == null || tab == null) {
+    if (workspace != null) {
+      final tool = WorkspaceTool.forKey(
+        state.workspacePanelFor(workspace.id).focusedKey,
+      );
+      if (tool != null) {
+        ref
+            .read(workbenchControllerProvider.notifier)
+            .closeWorkspaceTool(workspace.id, tool);
+        return;
+      }
+    }
+    if (workspace == null) {
+      return;
+    }
+    final focusedTabId = WorkspacePanel.tabId(
+      state.workspacePanelFor(workspace.id).focusedKey,
+    );
+    final tab = focusedTabId == null
+        ? state.activeWorkspaceTab
+        : state
+                  .tabsFor(workspace.id)
+                  .where((candidate) => candidate.id == focusedTabId)
+                  .firstOrNull ??
+              state.activeWorkspaceTab;
+    if (tab == null) {
       return;
     }
     unawaited(() async {
@@ -206,86 +265,66 @@ class const KeyboardCommandDispatcher({
           return;
         }
       }
+      if (!context.mounted) return;
       // The controller disposes the terminal handle and editor document.
       await ref
           .read(workbenchControllerProvider.notifier)
           .closeWorkspaceTab(workspace: workspace, tabId: tab.id);
-      if (tab.kind == WorkspaceTabKind.browser) {
-        await ref.read(browserSessionRegistryProvider).closePage(tab.id);
-      }
     }());
   }
 
   void _cycleTab(int delta) {
-    final state = ref.read(workbenchControllerProvider);
-    final layout = state.activeLayout;
-    final workspace = state.activeWorkspace;
-    final group = layout?.activeGroup;
-    if (layout == null || workspace == null || group == null) {
+    final keys = _focusedPaneTabKeys;
+    if (keys.length < 2) {
       return;
     }
-    final tabIds = group.tabIds;
-    if (tabIds.length < 2) {
-      return;
-    }
-    final current = group.activeTabId;
-    final currentIndex = current == null ? 0 : tabIds.indexOf(current);
-    final base = currentIndex < 0 ? 0 : currentIndex;
-    final nextIndex = (base + delta) % tabIds.length;
-    final wrapped = nextIndex < 0 ? nextIndex + tabIds.length : nextIndex;
-    ref
-        .read(workbenchControllerProvider.notifier)
-        .setActiveWorkspaceTab(
-          workspaceId: workspace.id,
-          groupId: layout.activeGroupId,
-          tabId: tabIds[wrapped],
-        );
+    final currentKey = _focusedPaneKey;
+    final index = keys.indexOf(currentKey ?? '');
+    final base = index < 0 ? 0 : index;
+    _goToTabIndex(_wrapIndex(base + delta, keys.length));
   }
 
   void _goToTabIndex(int index) {
     final state = ref.read(workbenchControllerProvider);
-    final layout = state.activeLayout;
-    final workspace = state.activeWorkspace;
-    final group = layout?.activeGroup;
-    if (layout == null || workspace == null || group == null) {
+    final workspaceId = state.activeWorkspaceId;
+    if (workspaceId == null) {
       return;
     }
-    if (index < 0 || index >= group.tabIds.length) {
-      return;
+    final keys = _focusedPaneTabKeys;
+    if (index >= 0 && index < keys.length) {
+      ref
+          .read(workbenchControllerProvider.notifier)
+          .selectWorkspacePanelKey(workspaceId, keys[index]);
     }
-    ref
-        .read(workbenchControllerProvider.notifier)
-        .setActiveWorkspaceTab(
-          workspaceId: workspace.id,
-          groupId: layout.activeGroupId,
-          tabId: group.tabIds[index],
-        );
   }
 
   void _goToLastTab() {
-    final group = ref
-        .read(workbenchControllerProvider)
-        .activeLayout
-        ?.activeGroup;
-    if (group == null || group.tabIds.isEmpty) {
+    final keys = _focusedPaneTabKeys;
+    if (keys.isEmpty) {
       return;
     }
-    _goToTabIndex(group.tabIds.length - 1);
+    _goToTabIndex(keys.length - 1);
   }
 
   void _split(WorkbenchDropZone zone) {
     final state = ref.read(workbenchControllerProvider);
     final workspace = state.activeWorkspace;
-    final layout = state.activeLayout;
-    if (workspace == null || layout == null) {
+    if (workspace == null) {
       return;
     }
     final controller = ref.read(workbenchControllerProvider.notifier);
     final runtime = ref.read(terminalRuntimeProvider);
+    final panel = state.workspacePanelFor(workspace.id);
+    final tree =
+        panel.treeForKey(panel.focusedKey ?? '') ?? WorkspacePanelTree.right;
+    final layout = tree == WorkspacePanelTree.main
+        ? panel.ensuredMainLayout(workspace.id)
+        : panel.ensuredLayout(workspace.id);
+    final groupId = layout.activeGroupId;
     unawaited(() async {
       final tab = await controller.splitWorkbenchGroupWithTerminal(
         workspace: workspace,
-        groupId: layout.activeGroupId,
+        groupId: groupId,
         zone: zone,
       );
       runtime.sessionFor(workspace: workspace, tab: tab).requestFocus();
@@ -295,8 +334,16 @@ class const KeyboardCommandDispatcher({
   void _closeSplit() {
     final state = ref.read(workbenchControllerProvider);
     final workspace = state.activeWorkspace;
-    final layout = state.activeLayout;
-    if (workspace == null || layout == null || layout.groups.length < 2) {
+    if (workspace == null) {
+      return;
+    }
+    final panel = state.workspacePanelFor(workspace.id);
+    final tree =
+        panel.treeForKey(panel.focusedKey ?? '') ?? WorkspacePanelTree.right;
+    final layout = tree == WorkspacePanelTree.main
+        ? panel.ensuredMainLayout(workspace.id)
+        : panel.ensuredLayout(workspace.id);
+    if (layout.groups.length < 2) {
       return;
     }
     unawaited(
@@ -307,5 +354,81 @@ class const KeyboardCommandDispatcher({
             groupId: layout.activeGroupId,
           ),
     );
+  }
+
+  List<String> get _workspacePanelNavigationKeys {
+    final state = ref.read(workbenchControllerProvider);
+    final id = state.activeWorkspaceId;
+    if (id == null) return const <String>[];
+    final panel = state.workspacePanelFor(id);
+    return <String>[
+      ...panel.mainKeys,
+      for (final key in panel.tabKeys)
+        if (!panel.mainKeys.contains(key)) key,
+    ];
+  }
+
+  /// Active tab of each visible pane, main column then right sidebar, so
+  /// Focus Next/Previous Pane moves between columns rather than tabs.
+  List<String> get _workspacePanelPaneKeys {
+    final state = ref.read(workbenchControllerProvider);
+    final id = state.activeWorkspaceId;
+    if (id == null) {
+      return const <String>[];
+    }
+    final panel = state.workspacePanelFor(id);
+    final seen = <String>{};
+    final keys = <String>[];
+    void addFrom(WorkbenchLayout layout) {
+      for (final groupId in layout.paneGroupIds) {
+        final key = layout.groups[groupId]?.activeTabId;
+        if (key == null || !seen.add(key)) {
+          continue;
+        }
+        keys.add(key);
+      }
+    }
+
+    addFrom(panel.ensuredMainLayout(id));
+    addFrom(panel.ensuredLayout(id));
+    return keys;
+  }
+
+  String? get _focusedPaneKey {
+    final state = ref.read(workbenchControllerProvider);
+    final workspaceId = state.activeWorkspaceId;
+    if (workspaceId == null) {
+      return null;
+    }
+    final panel = state.workspacePanelFor(workspaceId);
+    return panel.focusedKey ??
+        (state.activeWorkspaceTab == null
+            ? null
+            : WorkspacePanel.tabKey(state.activeWorkspaceTab!.id));
+  }
+
+  List<String> get _focusedPaneTabKeys {
+    final state = ref.read(workbenchControllerProvider);
+    final workspaceId = state.activeWorkspaceId;
+    if (workspaceId == null) {
+      return const <String>[];
+    }
+    final panel = state.workspacePanelFor(workspaceId);
+    final key = _focusedPaneKey;
+    if (key != null) {
+      final main = panel.ensuredMainLayout(workspaceId);
+      final mainGroupId = main.groupIdForTab(key);
+      if (mainGroupId != null) {
+        return main.groups[mainGroupId]?.tabIds ?? const <String>[];
+      }
+      final right = panel.ensuredLayout(workspaceId);
+      final rightGroupId = right.groupIdForTab(key);
+      if (rightGroupId != null) {
+        return right.groups[rightGroupId]?.tabIds ?? const <String>[];
+      }
+    }
+    return panel.ensuredMainLayout(workspaceId).activeGroup?.tabIds ??
+        panel.ensuredLayout(workspaceId).activeGroup?.tabIds ??
+        const <String>[];
   }
 }

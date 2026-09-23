@@ -7,8 +7,6 @@ pub struct RuntimeAgentQuotaSettings {
     pub enabled_providers: Vec<String>,
     #[serde(default = "default_true")]
     pub claude_default_enabled: bool,
-    #[serde(default = "default_true")]
-    pub claude_default_show_in_usage: bool,
     #[serde(default)]
     pub claude_profiles: Vec<RuntimeClaudeQuotaProfile>,
     #[serde(default)]
@@ -20,7 +18,6 @@ impl Default for RuntimeAgentQuotaSettings {
         Self {
             enabled_providers: default_quota_providers(),
             claude_default_enabled: true,
-            claude_default_show_in_usage: true,
             claude_profiles: Vec::new(),
             environment: RuntimeAgentQuotaEnvironment::default(),
         }
@@ -47,28 +44,11 @@ impl RuntimeAgentQuotaSettings {
         for profile in &mut self.claude_profiles {
             profile.alias = profile.alias.trim().to_string();
             profile.profile = profile.profile.trim().to_string();
-            profile.usage_display_name = profile
-                .usage_display_name
-                .take()
-                .map(|value| value.trim().to_string())
-                .filter(|value| !value.is_empty());
         }
         self.claude_profiles
             .retain(|profile| !profile.alias.is_empty() && !profile.profile.is_empty());
         self.environment.normalize();
         self
-    }
-
-    pub fn claude_profiles_for_usage(&self) -> Vec<RuntimeClaudeQuotaProfile> {
-        self.claude_profiles
-            .iter()
-            .filter(|profile| profile.show_in_usage)
-            .cloned()
-            .map(|mut profile| {
-                profile.alias = profile.usage_label().to_string();
-                profile
-            })
-            .collect()
     }
 }
 
@@ -77,16 +57,6 @@ impl RuntimeAgentQuotaSettings {
 pub struct RuntimeClaudeQuotaProfile {
     pub alias: String,
     pub profile: String,
-    #[serde(default = "default_true")]
-    pub show_in_usage: bool,
-    #[serde(default)]
-    pub usage_display_name: Option<String>,
-}
-
-impl RuntimeClaudeQuotaProfile {
-    pub fn usage_label(&self) -> &str {
-        self.usage_display_name.as_deref().unwrap_or(&self.alias)
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -181,47 +151,45 @@ mod tests {
     use super::*;
 
     #[test]
-    fn legacy_claude_profiles_are_visible_in_usage_by_default() {
+    fn legacy_usage_fields_are_ignored() {
         let profile: RuntimeClaudeQuotaProfile = serde_json::from_value(serde_json::json!({
             "alias": "ccdev",
-            "profile": "dev"
+            "profile": "dev",
+            "showInUsage": false,
+            "usageDisplayName": "Engineering"
         }))
         .expect("legacy profile");
 
-        assert!(profile.show_in_usage);
-        assert_eq!(profile.usage_label(), "ccdev");
+        assert_eq!(profile.alias, "ccdev");
+        assert_eq!(profile.profile, "dev");
 
-        let settings: RuntimeAgentQuotaSettings =
-            serde_json::from_value(serde_json::json!({ "claudeDefaultEnabled": false }))
-                .expect("legacy settings");
+        let settings: RuntimeAgentQuotaSettings = serde_json::from_value(serde_json::json!({
+            "claudeDefaultEnabled": false,
+            "claudeDefaultShowInUsage": false
+        }))
+        .expect("legacy settings");
         assert!(!settings.claude_default_enabled);
-        assert!(settings.claude_default_show_in_usage);
     }
 
     #[test]
-    fn usage_profiles_are_filtered_renamed_and_normalized() {
+    fn claude_profiles_are_trimmed_and_empty_ones_dropped() {
         let settings = RuntimeAgentQuotaSettings {
             claude_profiles: vec![
                 RuntimeClaudeQuotaProfile {
                     alias: " ccdev ".to_string(),
                     profile: " dev ".to_string(),
-                    show_in_usage: true,
-                    usage_display_name: Some(" Engineering ".to_string()),
                 },
                 RuntimeClaudeQuotaProfile {
-                    alias: "ccshared".to_string(),
+                    alias: " ".to_string(),
                     profile: "shared".to_string(),
-                    show_in_usage: false,
-                    usage_display_name: Some("Shared".to_string()),
                 },
             ],
             ..RuntimeAgentQuotaSettings::default()
         }
         .normalized();
 
-        let profiles = settings.claude_profiles_for_usage();
-        assert_eq!(profiles.len(), 1);
-        assert_eq!(profiles[0].profile, "dev");
-        assert_eq!(profiles[0].alias, "Engineering");
+        assert_eq!(settings.claude_profiles.len(), 1);
+        assert_eq!(settings.claude_profiles[0].alias, "ccdev");
+        assert_eq!(settings.claude_profiles[0].profile, "dev");
     }
 }

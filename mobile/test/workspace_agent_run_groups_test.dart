@@ -52,4 +52,59 @@ void main() {
   test('empty presence yields no groups', () {
     expect(groupWorkspaceAgentRuns(const <AgentPresenceSummary>[]), isEmpty);
   });
+
+  test('one agent becomes the workspace primary and is not listed', () {
+    final agent = _presence(state: 'working');
+    final split = splitWorkspaceAgentPresence(<AgentPresenceSummary>[agent]);
+
+    expect(split.primary, agent);
+    expect(split.listed, isEmpty);
+  });
+
+  test('two or more agents stay listed without a workspace primary', () {
+    final first = _presence(state: 'working', handle: '1');
+    final second = _presence(state: 'done', handle: '2');
+    final split = splitWorkspaceAgentPresence(<AgentPresenceSummary>[
+      first,
+      second,
+    ]);
+
+    expect(split.primary, isNull);
+    expect(split.listed, <AgentPresenceSummary>[first, second]);
+  });
+
+  test(
+    'a single main-panel agent stays on the row when others are secondary',
+    () {
+      final main = _presence(state: 'working', handle: '1');
+      final side = _presence(state: 'done', handle: '2');
+      final split = splitWorkspaceAgentPresence(
+        <AgentPresenceSummary>[main, side],
+        mainTabIds: <String>{'tab-1'},
+      );
+
+      expect(split.primary, main);
+      expect(split.listed, <AgentPresenceSummary>[side]);
+    },
+  );
+
+  test('two main-panel agents stay listed along with secondary runs', () {
+    final first = _presence(state: 'working', handle: '1');
+    final second = _presence(state: 'done', handle: '2');
+    final side = _presence(state: 'waiting', handle: '3');
+    final split = splitWorkspaceAgentPresence(
+      <AgentPresenceSummary>[first, second, side],
+      mainTabIds: <String>{'tab-1', 'tab-2'},
+    );
+
+    expect(split.primary, isNull);
+    expect(split.listed, <AgentPresenceSummary>[first, second, side]);
+  });
+
+  test('no agents yields an empty split', () {
+    final split = splitWorkspaceAgentPresence(const <AgentPresenceSummary>[]);
+
+    expect(split.primary, isNull);
+    expect(split.listed, isEmpty);
+  });
 }

@@ -6,7 +6,7 @@ readonly NODE_VERSION="22.17.1"
 readonly NODE_DIR="${HOME}/.local/share/node-v${NODE_VERSION}"
 readonly ZIG_VERSION="0.15.2"
 readonly ZIG_DIR="${HOME}/.local/share/zig-${ZIG_VERSION}"
-readonly RUST_TOOLCHAIN="1.96"
+readonly RUST_TOOLCHAIN="1.98.0"
 readonly PORTABLE_PTY_RUST_TOOLCHAIN="1.92.0"
 
 export DEBIAN_FRONTEND=noninteractive

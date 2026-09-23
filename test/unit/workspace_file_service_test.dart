@@ -4,6 +4,42 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('EditorSessionRegistry', () {
+    test('scopes dirty overlays to the requesting workspace tabs', () {
+      final registry = EditorSessionRegistry();
+      for (final id in ['first', 'second']) {
+        registry.documentFor(id)
+          ..attachFile(workspacePath: '/repo', relativePath: 'readme.md')
+          ..acceptLoaded(
+            _editorFile(rawContent: 'saved', displayContent: 'saved'),
+          )
+          ..updateCurrentText(id);
+      }
+      expect(
+        registry.dirtyTextForPath(
+          workspacePath: '/repo',
+          relativePath: 'readme.md',
+          ownerTabIds: {'second'},
+        ),
+        'second',
+      );
+      expect(
+        registry.dirtyTextForPath(
+          workspacePath: '/repo',
+          relativePath: 'readme.md',
+          ownerTabIds: {'first'},
+        ),
+        'first',
+      );
+      expect(
+        registry.dirtyTextForPath(
+          workspacePath: '/repo',
+          relativePath: 'readme.md',
+          ownerTabIds: {},
+        ),
+        isNull,
+      );
+      registry.dispose();
+    });
     test(
       'keeps dirty document state after the editor widget unregisters',
       () async {

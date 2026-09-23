@@ -126,11 +126,7 @@ impl ServerActor {
             request.as_str(),
             "configuration.apply" | "configuration.settings.update"
         ) {
-            for name in [
-                "runtimeSettingsChanged",
-                "agentProfilesChanged",
-                "browserSettingsChanged",
-            ] {
+            for name in ["runtimeSettingsChanged", "agentProfilesChanged"] {
                 self.broadcast_authenticated(event(name, json!({})));
             }
         }

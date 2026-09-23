@@ -44,7 +44,6 @@ void packageRuntimeSidecars({
   outputDirectory.createSync(recursive: true);
 
   for (final platform in _platformArchitectures.keys) {
-    final helperDirectory = _findPlatformHelpers(inputDirectory, platform);
     for (final architecture in _platformArchitectures[platform]!) {
       final input = Directory(
         p.join(inputDirectory.path, platform, architecture),
@@ -61,30 +60,6 @@ void packageRuntimeSidecars({
       archive.addFile(
         _archiveFile(binaryName, binary.readAsBytesSync(), mode: 0x1ed),
       );
-      final helperFiles =
-          helperDirectory
-              .listSync(recursive: true, followLinks: false)
-              .whereType<File>()
-              .toList()
-            ..sort((left, right) => left.path.compareTo(right.path));
-      if (helperFiles.isEmpty) {
-        throw StateError('Native helper bundle for $platform is empty.');
-      }
-      for (final helper in helperFiles) {
-        final relative = p
-            .relative(helper.path, from: helperDirectory.path)
-            .split(p.separator)
-            .join('/');
-        final sourceMode = helper.statSync().mode & 0x1ff;
-        final mode = sourceMode & 0x49 != 0 ? 0x1ed : 0x1a4;
-        archive.addFile(
-          _archiveFile(
-            'emulator/$relative',
-            helper.readAsBytesSync(),
-            mode: mode,
-          ),
-        );
-      }
       final manifest = const JsonEncoder.withIndent('  ')
           .convert(<String, Object>{
             'name': 'alera-runtime',
@@ -92,7 +67,6 @@ void packageRuntimeSidecars({
             'platform': platform,
             'arch': architecture,
             'entrypoint': binaryName,
-            'emulatorHelpers': 'emulator/manifest.json',
           });
       archive.addFile(
         _archiveFile(
@@ -123,31 +97,6 @@ ArchiveFile _archiveFile(String name, List<int> bytes, {required int mode}) {
     ..creationTime = 0
     ..lastModTime = 0;
   return file;
-}
-
-Directory _findPlatformHelpers(Directory input, String platform) {
-  final candidates = <Directory>[];
-  for (final architecture in _platformArchitectures[platform]!) {
-    final directory = Directory(
-      p.join(input.path, platform, architecture, 'emulator'),
-    );
-    if (directory.existsSync()) {
-      candidates.add(directory);
-    }
-  }
-  if (candidates.length != 1) {
-    throw StateError(
-      'Expected exactly one native helper bundle for $platform, found '
-      '${candidates.length}.',
-    );
-  }
-  final manifest = File(p.join(candidates.single.path, 'manifest.json'));
-  if (!manifest.existsSync() || manifest.lengthSync() == 0) {
-    throw StateError(
-      'Missing native helper manifest for $platform: ${manifest.path}',
-    );
-  }
-  return candidates.single;
 }
 
 void _validateInputLayout(Directory input) {

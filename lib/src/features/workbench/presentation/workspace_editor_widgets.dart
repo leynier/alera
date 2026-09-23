@@ -13,6 +13,7 @@ class const _EditorFileBar({
   required final String path,
   required final bool dirty,
   required final bool saving,
+  required final VoidCallback? onComment,
   required final VoidCallback? onViewDiff,
   required final VoidCallback? onSave,
   required final VoidCallback? onDiscard,
@@ -47,6 +48,13 @@ class const _EditorFileBar({
               ),
             ),
             const SizedBox(width: AleraTokens.space8),
+            AleraIconButton(
+              tooltip: 'Comment on File',
+              icon: AleraIcons.comment,
+              onPressed: onComment,
+              iconColor: color,
+            ),
+            const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
               tooltip: 'View Diff',
               icon: AleraIcons.diff,

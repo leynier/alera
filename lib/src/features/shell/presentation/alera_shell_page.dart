@@ -6,10 +6,11 @@ import 'package:alera/src/features/orchestration/presentation/run_board_attentio
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
+import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_status/application/runtime_agent_status_sync.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_quota/presentation/agent_quota_status_bar.dart';
-import 'package:alera/src/features/agent_canvas/application/agent_canvas_providers.dart';
 import 'package:alera/src/features/keep_alive/application/keep_alive_providers.dart';
 import 'package:alera/src/features/keep_alive/presentation/keep_alive_status_bar.dart';
 import 'package:alera/src/features/runtime_host/presentation/runtime_host_status_bar.dart';
@@ -18,13 +19,12 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/app_menu/presentation/alera_app_menu_scope.dart';
-import 'package:alera/src/features/browser/application/browser_providers.dart';
-import 'package:alera/src/features/browser/presentation/browser_native_callback_scope.dart';
+import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_shortcuts_scope.dart';
-import 'package:alera/src/features/mobile_emulator/presentation/mobile_emulator_device_picker.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/pull_requests/application/workspace_pull_request_monitor_providers.dart';
+import 'package:alera/src/features/pull_requests/application/workspace_pull_request_notification_providers.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
-import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_tab_attention.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
@@ -36,14 +36,21 @@ import 'package:alera/src/features/workbench/presentation/project_workbench_side
 import 'package:alera/src/features/workbench/presentation/welcome_dashboard.dart';
 import 'package:alera/src/features/workbench/application/terminal_driver_presence_controller.dart';
 import 'package:alera/src/features/workbench/presentation/mobile_driver_overlay.dart';
+import 'package:alera/src/features/workbench/presentation/agent_profile_launch_dialog.dart';
+import 'package:alera/src/features/workbench/presentation/background_setup_job_host.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_registry.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_workbench_view.dart';
-import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/settings/presentation/github_star_prompt_watch.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel_width.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_panel_view.dart';
 
 part 'alera_shell_page_body.dart';
+part 'alera_shell_page_body_tools.dart';
 part 'alera_shell_page_body_content.dart';
+part 'alera_shell_page_workspace_panel.dart';
 
 class const AleraShellPage({super.key}) extends ConsumerWidget {
   @override
@@ -101,20 +108,6 @@ class const _AleraShellPageBody() extends ConsumerStatefulWidget {
   @override
   ConsumerState<_AleraShellPageBody> createState() =>
       _AleraShellPageBodyState();
-}
-
-bool _canShowContextSidebar({
-  required double shellWidth,
-  required bool collapsed,
-  required WorkbenchViewPrefs prefs,
-}) {
-  final leftWidth = collapsed
-      ? AleraTokens.sidebarCollapsedWidth
-      : prefs.sidebarWidth;
-  final rightWidth = prefs.rightSidebarVisible
-      ? prefs.rightSidebarWidth
-      : AleraTokens.sidebarCollapsedWidth;
-  return shellWidth - leftWidth - rightWidth >= AleraTokens.emptyStateMaxWidth;
 }
 
 String buildRawLogClipboardText(List<String> logs) {

@@ -57,9 +57,20 @@ class _PullRequestCheckListState extends State<PullRequestCheckList> {
   final Map<String, _CheckDetailsState> _detailsByKey =
       <String, _CheckDetailsState>{};
   final Set<_CheckGroup> _collapsedGroups = <_CheckGroup>{};
+  bool _defaultCollapseApplied = false;
+
+  /// Above this many checks the passing ones start collapsed, so a long CI
+  /// run does not bury the conversation below the list.
+  static const int _collapseSuccessfulAbove = 5;
 
   // Checks have no stable id; name+url is the closest unique key.
   String _key(ReviewCheck check) => '${check.name}|${check.url ?? ''}';
+
+  @override
+  void initState() {
+    super.initState();
+    _applyDefaultCollapse();
+  }
 
   @override
   void didUpdateWidget(PullRequestCheckList oldWidget) {
@@ -67,6 +78,19 @@ class _PullRequestCheckListState extends State<PullRequestCheckList> {
     final alive = <String>{for (final check in widget.checks) _key(check)};
     _expandedKeys.retainAll(alive);
     _detailsByKey.removeWhere((key, _) => !alive.contains(key));
+    _applyDefaultCollapse();
+  }
+
+  // Decided once, on the first non-empty list, so a refresh never re-collapses
+  // a group the user opened.
+  void _applyDefaultCollapse() {
+    if (_defaultCollapseApplied || widget.checks.isEmpty) {
+      return;
+    }
+    _defaultCollapseApplied = true;
+    if (widget.checks.length > _collapseSuccessfulAbove) {
+      _collapsedGroups.add(_CheckGroup.successful);
+    }
   }
 
   void _toggleGroup(_CheckGroup group) {

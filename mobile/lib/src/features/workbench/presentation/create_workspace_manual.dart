@@ -1,10 +1,26 @@
 part of 'create_workspace_screen.dart';
 
 extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
+  Future<String?> _preferredSourceFor(String projectId) async {
+    try {
+      final client = await ref.read(
+        workspaceClientProvider(widget.hostId).future,
+      );
+      if (client case final MobileRuntimeProjectClient projects) {
+        final effective = await projects.effectiveProjectConfig(projectId);
+        return effective.config.preferredSourceBranch;
+      }
+      return null;
+    } on Object {
+      return null;
+    }
+  }
+
   Widget _buildForm(BuildContext context) {
     return ListView(
       padding: AleraTokens.pagePadding,
       children: <Widget>[
+        ..._linkedIssueField(forPrompt: false, enabled: !_creating),
         AleraDropdownField<String>(
           value: _projectId,
           labelText: 'Project',
@@ -16,61 +32,64 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
                 label: project.name,
               ),
           ],
-          enabled: !_creating,
           filterable: true,
           filterHintText: 'Search Projects',
           onChanged: _selectProject,
         ),
         const SizedBox(height: AleraTokens.spaceLg),
-        TextField(
-          controller: _branch,
-          enabled: !_creating,
-          onChanged: (_) => _update(() {}),
-          decoration: const InputDecoration(
-            labelText: 'Branch Name',
-            helperText: 'The worktree branch for this workspace',
+        _locationSelector(projectId: _projectId, enabled: !_creating),
+        if (!_useProjectCheckout) ...<Widget>[
+          TextField(
+            controller: _branch,
+            onChanged: (_) => _update(() {}),
+            decoration: const InputDecoration(
+              labelText: 'Branch Name',
+              helperText: 'The worktree branch for this workspace',
+            ),
           ),
-        ),
-        const SizedBox(height: AleraTokens.spaceLg),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          value: _reuseExistingBranch,
-          onChanged: _creating
-              ? null
-              : (value) {
+          const SizedBox(height: AleraTokens.spaceLg),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _reuseExistingBranch,
+            onChanged: (value) {
+              _update(() {
+                _reuseExistingBranch = value;
+              });
+            },
+            title: const Text('Reuse Existing Branch'),
+          ),
+          if (!_reuseExistingBranch) ...<Widget>[
+            const SizedBox(height: AleraTokens.spaceSm),
+            if (_loadingBranches)
+              const Center(child: CircularProgressIndicator())
+            else
+              AleraDropdownField<String>(
+                value: _sourceBranch,
+                labelText: 'Source Branch',
+                hintText: _loadingBranches
+                    ? 'Loading branches'
+                    : 'Select Branch',
+                entries: <AleraDropdownFieldEntry<String>>[
+                  for (final branch in _branches)
+                    AleraDropdownFieldEntry<String>(
+                      value: branch,
+                      label: branch,
+                    ),
+                ],
+                enabled: !_loadingBranches,
+                filterable: true,
+                filterHintText: 'Search Branches',
+                onChanged: (value) {
                   _update(() {
-                    _reuseExistingBranch = value;
+                    _sourceBranch = value;
                   });
                 },
-          title: const Text('Reuse Existing Branch'),
-        ),
-        if (!_reuseExistingBranch) ...<Widget>[
-          const SizedBox(height: AleraTokens.spaceSm),
-          if (_loadingBranches)
-            const Center(child: CircularProgressIndicator())
-          else
-            AleraDropdownField<String>(
-              value: _sourceBranch,
-              labelText: 'Source Branch',
-              hintText: _loadingBranches ? 'Loading branches' : 'Select Branch',
-              entries: <AleraDropdownFieldEntry<String>>[
-                for (final branch in _branches)
-                  AleraDropdownFieldEntry<String>(value: branch, label: branch),
-              ],
-              enabled: !_creating && !_loadingBranches,
-              filterable: true,
-              filterHintText: 'Search Branches',
-              onChanged: (value) {
-                _update(() {
-                  _sourceBranch = value;
-                });
-              },
-            ),
+              ),
+          ],
+          const SizedBox(height: AleraTokens.spaceLg),
         ],
-        const SizedBox(height: AleraTokens.spaceLg),
         TextField(
           controller: _name,
-          enabled: !_creating,
           decoration: const InputDecoration(
             labelText: 'Display Name (Optional)',
           ),
@@ -91,7 +110,6 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
                 label: _parentWorkspaceLabel(workspace),
               ),
           ],
-          enabled: !_creating,
           filterable: true,
           filterHintText: 'Search Workspaces',
           onChanged: (value) {
@@ -112,13 +130,11 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
           contentPadding: EdgeInsets.zero,
           controlAffinity: .leading,
           value: _createAnother,
-          onChanged: _creating
-              ? null
-              : (value) {
-                  _update(() {
-                    _createAnother = value ?? false;
-                  });
-                },
+          onChanged: (value) {
+            _update(() {
+              _createAnother = value ?? false;
+            });
+          },
           title: const Text('Create Another'),
           subtitle: const Text('Keep this screen open after creation'),
         ),
