@@ -249,9 +249,13 @@ async fn inspect_remote_with_clone<E: RemoteHostExecutor>(
     let windows = probe_or_unreachable(executor, &target).await?;
     let script = match clone_url {
         Some(url) if !url.trim().is_empty() => match clone_name {
-            Some(name) if path.trim().is_empty() => {
-                clone_by_name_script(windows, install_dir, name, url)
-            }
+            Some(name) if path.trim().is_empty() => clone_by_name_script(
+                windows,
+                install_dir,
+                name,
+                url,
+                target.projects_dir.as_deref(),
+            ),
             _ => clone_script(windows, install_dir, path, url),
         },
         Some(_) => bail!("A clone source is required"),
@@ -322,21 +326,31 @@ fn clone_script(windows: bool, install_dir: &str, path: &str, url: &str) -> Stri
     )
 }
 
-fn clone_by_name_script(windows: bool, install_dir: &str, name: &str, url: &str) -> String {
+fn clone_by_name_script(
+    windows: bool,
+    install_dir: &str,
+    name: &str,
+    url: &str,
+    projects_dir: Option<&str>,
+) -> String {
     let quote = if windows {
         powershell_string
     } else {
         shell_quote
     };
-    checkout_command_script(
-        windows,
-        install_dir,
-        &format!(
-            "project clone-checkout-folder --name {} --url {}",
-            quote(name),
-            quote(url)
-        ),
-    )
+    let mut arguments = format!(
+        "project clone-checkout-folder --name {} --url {}",
+        quote(name),
+        quote(url)
+    );
+    // Sent as typed: the host expands `~` and `%VAR%`, since the hub cannot.
+    if let Some(projects_dir) = projects_dir
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        arguments.push_str(&format!(" --projects-dir {}", quote(projects_dir)));
+    }
+    checkout_command_script(windows, install_dir, &arguments)
 }
 
 pub(crate) fn checkout_command_script(windows: bool, install_dir: &str, arguments: &str) -> String {

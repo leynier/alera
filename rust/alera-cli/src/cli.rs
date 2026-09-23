@@ -437,6 +437,11 @@ pub struct SshTargetAddArgs {
     pub arch: Option<String>,
     #[arg(long = "auth", value_enum, default_value_t = SshAuthKindArg::Agent)]
     pub auth_kind: SshAuthKindArg,
+    /// Folder on the host where projects are cloned when no path is given
+    /// (default: alera-projects under the remote home). `~/` and `%VAR%` are
+    /// expanded on the host.
+    #[arg(long)]
+    pub projects_dir: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]

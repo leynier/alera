@@ -17,6 +17,7 @@ class const RemoteHostEditor({
   required final TextEditingController portController,
   required final TextEditingController usernameController,
   required final TextEditingController installDirController,
+  required final TextEditingController projectsDirController,
   required final String platform,
   required final String arch,
   required final SshAuthKind authKind,
@@ -172,6 +173,28 @@ class const RemoteHostEditor({
                   hintText: 'Default per platform',
                   prefixIcon: AleraIcons.folder,
                   enabled: !bootstrapping,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(AleraTokens.space12),
+                child: Column(
+                  crossAxisAlignment: .start,
+                  children: <Widget>[
+                    AleraTextField(
+                      controller: projectsDirController,
+                      labelText: 'Projects Folder',
+                      hintText: 'alera-projects under the home folder',
+                      prefixIcon: AleraIcons.folder,
+                      enabled: !bootstrapping,
+                    ),
+                    const SizedBox(height: AleraTokens.space4),
+                    Text(
+                      projectsFolderHelpText,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AleraTokens.foregroundMuted,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Padding(
@@ -386,6 +409,9 @@ class const RemoteHostError({super.key, required final String message})
     );
   }
 }
+
+const String projectsFolderHelpText =
+    'Where projects are cloned on this host when no path is chosen. Empty means alera-projects under the home folder. ~ and %VAR% are expanded on the host.';
 
 String statusLabel(SshBootstrapStatus status) {
   return switch (status) {

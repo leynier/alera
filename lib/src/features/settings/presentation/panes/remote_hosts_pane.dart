@@ -7,6 +7,7 @@ import 'package:alera/src/features/remote_hosts/application/ssh_target_providers
 import 'package:alera/src/features/remote_hosts/domain/host_link.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/settings/presentation/panes/remote_host_editor.dart';
+import 'package:alera/src/features/settings/presentation/panes/remote_host_editor_controllers.dart';
 import 'package:alera/src/features/settings/presentation/panes/remote_host_field_normalizers.dart';
 import 'package:alera/src/features/settings/presentation/panes/remote_host_list_row.dart';
 import 'package:alera/src/features/settings/presentation/panes/remote_host_target_signatures.dart';
@@ -21,13 +22,7 @@ class const RemoteHostSettingsPane({super.key}) extends ConsumerStatefulWidget {
 
 class _RemoteHostSettingsPaneState
     extends ConsumerState<RemoteHostSettingsPane> {
-  final TextEditingController _aliasController = TextEditingController();
-  final TextEditingController _hostController = TextEditingController();
-  final TextEditingController _portController = TextEditingController(
-    text: '22',
-  );
-  final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _installDirController = TextEditingController();
+  final RemoteHostEditorControllers _fields = RemoteHostEditorControllers();
   String? _selectedTargetId;
   bool _creatingNew = false;
   String _platform = '';
@@ -45,11 +40,7 @@ class _RemoteHostSettingsPaneState
 
   @override
   void dispose() {
-    _aliasController.dispose();
-    _hostController.dispose();
-    _portController.dispose();
-    _usernameController.dispose();
-    _installDirController.dispose();
+    _fields.dispose();
     super.dispose();
   }
 
@@ -117,11 +108,12 @@ class _RemoteHostSettingsPaneState
                   ),
                 ),
           detail: RemoteHostEditor(
-            aliasController: _aliasController,
-            hostController: _hostController,
-            portController: _portController,
-            usernameController: _usernameController,
-            installDirController: _installDirController,
+            aliasController: _fields.alias,
+            hostController: _fields.host,
+            portController: _fields.port,
+            usernameController: _fields.username,
+            installDirController: _fields.installDir,
+            projectsDirController: _fields.projectsDir,
             platform: _platform,
             arch: _arch,
             authKind: _authKind,
@@ -195,11 +187,7 @@ class _RemoteHostSettingsPaneState
   void _seedFromTarget(SshTarget target) {
     final editorSignature = remoteHostEditorSignature(target);
     if (_seededEditorSignature != editorSignature) {
-      _aliasController.text = target.alias;
-      _hostController.text = target.host;
-      _portController.text = target.port.toString();
-      _usernameController.text = target.username;
-      _installDirController.text = target.installDir ?? '';
+      _fields.seed(target);
       _platform = normalizedRemoteHostPlatform(target.platform);
       _arch = normalizedRemoteHostArch(target.arch);
       _authKind = target.authKind;
@@ -244,11 +232,7 @@ class _RemoteHostSettingsPaneState
   void _clearEditor() {
     _selectedTargetId = null;
     _creatingNew = true;
-    _aliasController.clear();
-    _hostController.clear();
-    _portController.text = '22';
-    _usernameController.clear();
-    _installDirController.clear();
+    _fields.clear();
     _platform = '';
     _arch = '';
     _authKind = SshAuthKind.agent;
@@ -269,9 +253,9 @@ class _RemoteHostSettingsPaneState
   }
 
   Future<SshTarget?> _persistEditorTarget({required bool showSaving}) async {
-    final alias = _aliasController.text.trim();
-    final host = _hostController.text.trim();
-    final username = _usernameController.text.trim();
+    final alias = _fields.alias.text.trim();
+    final host = _fields.host.text.trim();
+    final username = _fields.username.text.trim();
     final port = _validatedPort();
     if (port == null) {
       return null;
@@ -301,7 +285,8 @@ class _RemoteHostSettingsPaneState
         authKind: _authKind,
         createdAt: now,
         updatedAt: now,
-        installDir: emptyToNull(_installDirController.text),
+        installDir: emptyToNull(_fields.installDir.text),
+        projectsDir: emptyToNull(_fields.projectsDir.text),
       );
       final saved = await ref.read(sshTargetRepositoryProvider).upsert(target);
       if (!mounted) {
@@ -331,7 +316,7 @@ class _RemoteHostSettingsPaneState
   }
 
   int? _validatedPort() {
-    final port = parseRemoteHostPort(_portController.text);
+    final port = parseRemoteHostPort(_fields.port.text);
     if (port == null) {
       setState(() => _error = 'Port must be between 1 and 65535');
     }
@@ -400,7 +385,7 @@ class _RemoteHostSettingsPaneState
           .read(sshTargetRepositoryProvider)
           .bootstrapPlan(
             targetId: saved.id,
-            installDir: emptyToNull(_installDirController.text),
+            installDir: emptyToNull(_fields.installDir.text),
             platform: emptyToNull(_platform),
             arch: emptyToNull(_arch),
           );
@@ -446,7 +431,7 @@ class _RemoteHostSettingsPaneState
           .read(sshTargetRepositoryProvider)
           .startBootstrap(
             targetId: saved.id,
-            installDir: emptyToNull(_installDirController.text),
+            installDir: emptyToNull(_fields.installDir.text),
             platform: emptyToNull(_platform),
             arch: emptyToNull(_arch),
           );

@@ -19,6 +19,7 @@ fn target(platform: &str, install_dir: Option<&str>) -> SshTarget {
         updated_at: now,
         last_status: None,
         install_dir: install_dir.map(str::to_string),
+        projects_dir: None,
         runtime_version: None,
         runtime_platform: Some(platform.into()),
         runtime_arch: None,

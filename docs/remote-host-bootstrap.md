@@ -100,7 +100,7 @@ alera project --json hosts list --project-id <project-id>
 alera project --json hosts remove --project-id <project-id> --host-id <target-id>
 ```
 
-`hosts add` clones the Git remote of the local project folder (or `--clone-url <repository-url>`) into `alera-projects/<project-folder-name>` under the remote user's home, creating `alera-projects` when needed and taking the first free `<name>-N`. With `--path` it registers an existing checkout instead, like `register-checkout`. `hosts remove` forgets the checkout and never deletes files; it is refused while workspaces remain on that host. See `docs/remote-hosts-hub.md` for the model.
+`hosts add` clones the Git remote of the local project folder (or `--clone-url <repository-url>`) into `<projects folder>/<project-folder-name>` on the host, where the projects folder is the target's `--projects-dir` (set with `alera ssh-target add --projects-dir` or in Settings > Remote Hosts) and defaults to `alera-projects` under the remote user's home, creating `alera-projects` when needed and taking the first free `<name>-N`. With `--path` it registers an existing checkout instead, like `register-checkout`. `hosts remove` forgets the checkout and never deletes files; it is refused while workspaces remain on that host. See `docs/remote-hosts-hub.md` for the model.
 
 Cancel an active runtime-host bootstrap job:
 

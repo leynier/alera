@@ -96,7 +96,8 @@ fn a_project_is_listed_added_to_and_removed_from_hosts() {
         json!({"id": "ssh-2", "alias": "Second", "host": "second.invalid", "port": 22,
             "username": "test", "authKind": "agent",
             "createdAt": "2026-07-19T00:00:00Z", "updatedAt": "2026-07-19T00:00:00Z",
-            "installDir": install, "bootstrapStatus": "installed", "runtimePlatform": "linux"}),
+            "installDir": install, "bootstrapStatus": "installed", "runtimePlatform": "linux",
+            "projectsDir": "~/code/alera-clones"}),
     );
     assert_eq!(target["ok"], true, "{target}");
 
@@ -111,8 +112,8 @@ fn a_project_is_listed_added_to_and_removed_from_hosts() {
         cloned,
         std::fs::canonicalize(&home)
             .unwrap()
-            .join("alera-projects/local-project"),
-        "the host names the clone after the project folder, under its own home"
+            .join("code/alera-clones/local-project"),
+        "the host names the clone after the project folder, under the folder the target configures, expanding `~` itself"
     );
     assert!(cloned.join("readme.md").is_file());
 
@@ -138,7 +139,7 @@ fn a_project_is_listed_added_to_and_removed_from_hosts() {
     let remote_project = &remote_only["payload"]["project"];
     let remote_path = remote_project["repoPath"].as_str().unwrap();
     assert!(
-        remote_path.ends_with("alera-projects/source-repository"),
+        remote_path.ends_with("code/alera-clones/source-repository"),
         "named after the repository, under the host's home: {remote_path}"
     );
     assert_eq!(remote_only["payload"]["checkout"]["hostId"], "ssh-2");

@@ -103,6 +103,7 @@ mod settings_models;
 mod settings_store;
 #[cfg(test)]
 mod settings_store_tests;
+mod ssh_target_store;
 #[cfg(test)]
 mod ssh_target_store_tests;
 mod store;
@@ -168,6 +169,7 @@ pub use project_clone_models::*;
 pub use pull_request_watch_store::{PullRequestWatch, PullRequestWatchDispatchMark};
 pub use runtime_file_security::*;
 pub use settings_models::*;
+pub use ssh_target_store::SshTargetBootstrapStateUpdate;
 pub use store::*;
 pub use store_error::*;
 pub use text_actions_validation::{validate_text_actions_settings, AI_ASSIST_AGENTS};

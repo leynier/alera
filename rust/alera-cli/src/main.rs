@@ -1110,6 +1110,10 @@ fn ssh_target_from_args(args: SshTargetAddArgs) -> SshTarget {
         updated_at: now,
         last_status: None,
         install_dir: None,
+        projects_dir: args
+            .projects_dir
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty()),
         runtime_version: None,
         runtime_platform: None,
         runtime_arch: None,
