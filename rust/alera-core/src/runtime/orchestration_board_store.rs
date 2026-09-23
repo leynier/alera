@@ -135,5 +135,7 @@ pub(super) fn summary_from_row(row: SqliteRow) -> Result<OrchestrationRunSummary
         stalled_count: row.try_get("stalled_count")?,
         blocked_count: row.try_get("blocked_count")?,
         pending_gate_count: row.try_get("pending_gate_count")?,
+        cleanup_attention: row.try_get("cleanup_attention")?,
+        cleanup_applying: row.try_get("cleanup_applying")?,
     })
 }

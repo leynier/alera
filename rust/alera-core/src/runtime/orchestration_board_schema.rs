@@ -103,6 +103,8 @@ const BOARD_SCHEMA: &[&str] = &[
          COALESCE(t.stalled_count, 0) AS stalled_count,
          COALESCE(t.blocked_count, 0) AS blocked_count,
          COALESCE(g.pending_gate_count, 0) AS pending_gate_count,
+         EXISTS(SELECT 1 FROM workflowCleanup WHERE run_id=r.id AND state='attention') AS cleanup_attention,
+         EXISTS(SELECT 1 FROM workflowCleanup WHERE run_id=r.id AND state='applying') AS cleanup_applying,
          CASE
              WHEN EXISTS(SELECT 1 FROM workflowCleanup WHERE run_id=r.id AND state='attention') THEN 'attention'
              WHEN EXISTS(SELECT 1 FROM workflowCleanup WHERE run_id=r.id AND state='applying') THEN 'active'

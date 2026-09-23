@@ -83,6 +83,8 @@ pub struct OrchestrationRunSummary {
     pub stalled_count: i64,
     pub blocked_count: i64,
     pub pending_gate_count: i64,
+    pub cleanup_attention: bool,
+    pub cleanup_applying: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]

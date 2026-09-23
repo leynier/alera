@@ -125,6 +125,14 @@ class RunBoardDetail extends StatelessWidget {
           const SizedBox(height: AleraTokens.space12),
         ],
         Text('Run Overview', style: Theme.of(context).textTheme.titleLarge),
+        if (run.cleanupAttention || run.cleanupApplying) ...[
+          const SizedBox(height: AleraTokens.space12),
+          Text(
+            run.cleanupAttention
+                ? 'Resource cleanup needs attention. Open Manage Resources to inspect its receipt and retry after resolving the obstruction.'
+                : 'Resource cleanup is in progress. Open Manage Resources to inspect its durable progress.',
+          ),
+        ],
         const SizedBox(height: AleraTokens.space12),
         Wrap(
           spacing: AleraTokens.space8,

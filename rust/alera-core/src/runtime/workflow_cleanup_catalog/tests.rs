@@ -56,6 +56,8 @@ async fn cleanup_catalog_pages_and_board_attention_survive_closed_runs() {
             .unwrap();
         assert!(board.revision > before.revision);
         assert_eq!(board.items[0].bucket, bucket);
+        assert_eq!(board.items[0].cleanup_attention, state == "attention");
+        assert_eq!(board.items[0].cleanup_applying, state == "applying");
         assert_eq!(board.counts.attention, i64::from(state == "attention"));
     }
     let foreign = WorkflowCleanupQuery {

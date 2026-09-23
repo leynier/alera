@@ -26,7 +26,7 @@ Disconnecting does not authorize fallback execution. Reconnect and refresh durab
 
 ## Reviewed resource cleanup
 
-Manage Resources lists retained resources and cleanup history inside the Board. New cleanup previews are available for completed or cancelled runs. Select only resources belonging to that run; branch removal is separately opt-in and defaults off.
+Manage Resources lists retained resources and cleanup history inside the Board. The run overview identifies cleanup in progress or cleanup needing attention, even after the run has completed. New cleanup previews are available for completed or cancelled runs. Select only resources belonging to that run; branch removal is separately opt-in and defaults off.
 
 Review the preview's paths, branches, base/head SHAs and changed files. Preparing a preview removes nothing. Confirmation requires clean, unlocked worktrees with no Git operation or active runtime owner. The runtime rechecks ownership and Git state at application time. A changed or busy resource becomes Attention without forcing processes to stop or discarding files.
 

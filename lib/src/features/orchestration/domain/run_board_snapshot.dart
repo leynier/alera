@@ -89,6 +89,8 @@ class RunSummary {
     required this.stalledCount,
     required this.blockedCount,
     required this.pendingGateCount,
+    this.cleanupAttention = false,
+    this.cleanupApplying = false,
     this.workspaceName,
     this.projectId,
     this.projectName,
@@ -115,6 +117,8 @@ class RunSummary {
     stalledCount: json['stalled_count'] as int,
     blockedCount: json['blocked_count'] as int,
     pendingGateCount: json['pending_gate_count'] as int,
+    cleanupAttention: json['cleanup_attention'] as bool? ?? false,
+    cleanupApplying: json['cleanup_applying'] as bool? ?? false,
   );
 
   final String id;
@@ -137,6 +141,8 @@ class RunSummary {
   final int stalledCount;
   final int blockedCount;
   final int pendingGateCount;
+  final bool cleanupAttention;
+  final bool cleanupApplying;
 }
 
 class RunBoardSnapshot {
