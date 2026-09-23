@@ -309,6 +309,11 @@ pub enum ServerCommand {
     ResourceSampleReady {
         snapshot: Value,
     },
+    /// The hub finished reading a remote-only project's `alera.toml`.
+    RemoteProjectConfigRead {
+        project_id: String,
+        result: HostResult<Value>,
+    },
     /// A question forwarded to the hub went unanswered for too long.
     HubReverseRequestExpired {
         reverse_id: String,

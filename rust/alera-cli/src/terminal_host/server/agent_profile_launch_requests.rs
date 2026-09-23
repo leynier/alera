@@ -108,12 +108,9 @@ impl ServerActor {
                 "Workspace is not active: {workspace_id}"
             )));
         }
-        let effective_config = crate::project_management::effective_project_config(
-            &self.runtime_store,
-            &workspace.project_id,
-        )
-        .await
-        .map_err(|error| HostError::state(error.to_string()))?;
+        let effective_config = self
+            .effective_project_config_for_launch(&workspace.project_id)
+            .await?;
         if let Some(error) = effective_config.error {
             return Err(HostError::state(format!(
                 "Could not load project configuration: {error}"

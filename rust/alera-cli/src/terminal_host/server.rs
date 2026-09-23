@@ -123,6 +123,7 @@ mod project_host_requests;
 mod remote_agent_presence_relay;
 mod remote_ai_assist_requests;
 mod remote_project_config;
+mod remote_project_config_cache;
 mod remote_pull_request_routing;
 mod remote_recovery_requests;
 #[cfg(test)]
@@ -338,6 +339,7 @@ struct ServerActor {
     coordinators: HashMap<String, CoordinatorHandle>,
     resources: ResourceMonitorState,
     hub_reverse: hub_reverse_requests::HubReverseState,
+    remote_project_configs: remote_project_config_cache::RemoteProjectConfigCache,
     terminal_pulses: terminal_pulse::TerminalPulseManager,
     codex: Option<codex_app_server::CodexAppServer>,
     codex_starting: Option<codex_server_startup::CodexServerStartup>,
@@ -858,6 +860,9 @@ impl ServerActor {
             ServerCommand::ResourceSampleTick => self.handle_resource_sample_tick(),
             ServerCommand::ResourceSampleReady { snapshot } => {
                 self.handle_resource_sample_ready(snapshot)
+            }
+            ServerCommand::RemoteProjectConfigRead { project_id, result } => {
+                self.finish_remote_project_config_read(&project_id, result)
             }
             ServerCommand::HubReverseRequestExpired { reverse_id } => {
                 self.expire_hub_reverse_request(&reverse_id)

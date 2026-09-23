@@ -74,6 +74,11 @@ impl ServerActor {
                     serde_json::to_value(payload)
                         .map_err(|error| HostError::state(error.to_string()))
                 });
+            // The desktop's read is the freshest copy the launch cache can get.
+            let _ = inbox.send(ServerCommand::RemoteProjectConfigRead {
+                project_id: project.id.clone(),
+                result: result.clone(),
+            });
             let _ = inbox.send(ServerCommand::MobileWorkspaceFileFinished {
                 client_id,
                 request_id,
