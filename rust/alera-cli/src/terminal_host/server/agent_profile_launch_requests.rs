@@ -24,7 +24,7 @@ impl ServerActor {
         client_id: Option<u64>,
         payload: &Value,
     ) -> HostResult<Value> {
-        self.launch_agent_profile_snapshot(client_id, payload, None)
+        self.launch_agent_profile_snapshot(client_id, payload, None, None)
             .await
     }
 
@@ -33,6 +33,7 @@ impl ServerActor {
         client_id: Option<u64>,
         payload: &Value,
         workflow_snapshot: Option<(alera_core::runtime::AgentProfile, String)>,
+        permit: Option<&super::workflow_launch_requests::WorkflowLaunchPermit>,
     ) -> HostResult<Value> {
         let frozen_workflow = workflow_snapshot.is_some();
         let workspace_id = required_non_blank(payload, "workspaceId")?;
@@ -212,7 +213,9 @@ impl ServerActor {
             "profileId": profile.id,
         });
         let Some(mutation_id) = client_mutation_id.as_deref() else {
-            let mut saved = self.upsert_workspace_tab_and_spawn(tab).await?;
+            let mut saved = self
+                .upsert_workspace_tab_and_spawn_with_permit(tab, permit)
+                .await?;
             self.observe_agent_title(&saved.id, adapter.agent_type, None, &title_prompt, true)
                 .await;
             redact_private_tab_payload(&mut saved);

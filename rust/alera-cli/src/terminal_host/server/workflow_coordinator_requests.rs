@@ -99,8 +99,15 @@ impl ServerActor {
         );
         let payload =
             json!({"workspaceId": receipt.workspace_id, "profileId": profile.id, "prompt": prompt});
+        let permit =
+            crate::terminal_host::server::workflow_launch_requests::WorkflowLaunchPermit::coordinator(receipt.clone());
         let result = self
-            .launch_agent_profile_snapshot(None, &payload, Some((profile, receipt.tab_id.clone())))
+            .launch_agent_profile_snapshot(
+                None,
+                &payload,
+                Some((profile, receipt.tab_id.clone())),
+                Some(&permit),
+            )
             .await;
         let error = result.err().map(|_| "Coordinator launch failed. Inspect the retained launch record before creating another proposal.");
         let receipt = self

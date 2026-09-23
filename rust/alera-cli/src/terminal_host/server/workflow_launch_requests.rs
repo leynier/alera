@@ -77,7 +77,8 @@ pub(crate) enum WorkflowLaunchCommand {
 
 /// Constructed only after the durable one-shot claim. No payload grants this.
 pub(super) struct WorkflowLaunchPermit {
-    record: WorkflowLaunchRecord,
+    record: Option<WorkflowLaunchRecord>,
+    coordinator: Option<alera_core::runtime::WorkflowCoordinatorReceipt>,
 }
 
 pub(crate) struct ValidatedWorkflowLaunch {
@@ -90,10 +91,17 @@ pub(crate) struct ValidatedWorkflowLaunch {
 }
 
 impl WorkflowLaunchPermit {
+    pub(super) fn coordinator(receipt: alera_core::runtime::WorkflowCoordinatorReceipt) -> Self {
+        Self {
+            record: None,
+            coordinator: Some(receipt),
+        }
+    }
+
     pub(super) fn allows(&self, record: &WorkflowLaunchRecord, workspace: &str, tab: &str) -> bool {
-        self.record.id == record.id
-            && self.record.terminal_handle == record.terminal_handle
-            && record.request.workspace_id == workspace
+        self.record.as_ref().is_some_and(|owned| {
+            owned.id == record.id && owned.terminal_handle == record.terminal_handle
+        }) && record.request.workspace_id == workspace
             && record.terminal_handle == tab
             && record.status == WorkflowLaunchStatus::Starting
     }
@@ -415,7 +423,8 @@ impl ServerActor {
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
         let permit = WorkflowLaunchPermit {
-            record: record.clone(),
+            record: Some(record.clone()),
+            coordinator: None,
         };
         self.ensure_spawn_on_create_terminal_with_permit(&tab, Some(&permit))
             .await?;
@@ -436,6 +445,34 @@ impl ServerActor {
         tab: &str,
         permit: Option<&WorkflowLaunchPermit>,
     ) -> HostResult<()> {
+        for terminal in [session, tab] {
+            if let Some(record) = self
+                .runtime_store
+                .workflow_coordinator_for_terminal(terminal)
+                .await
+                .map_err(|error| HostError::state(error.to_string()))?
+            {
+                if record.tab_id != session
+                    || record.tab_id != tab
+                    || record.workspace_id != workspace
+                    || !permit
+                        .and_then(|p| p.coordinator.as_ref())
+                        .is_some_and(|p| {
+                            p.proposal_id == record.proposal_id
+                                && p.tab_id == tab
+                                && p.workspace_id == workspace
+                        })
+                {
+                    return Err(HostError::state(
+                        "workflow coordinators cannot restart; inspect the retained proposal",
+                    ));
+                }
+                self.runtime_store
+                    .require_workflow_coordinator_spawnable(tab)
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?;
+            }
+        }
         let by_session = self
             .runtime_store
             .workflow_launch_for_terminal(session)

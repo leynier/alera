@@ -89,7 +89,10 @@ async fn workflow_coordinator_launch_replays_one_terminal_with_frozen_profile() 
     let tab = first["tabId"].as_str().unwrap();
     assert_eq!(first["status"], "started");
     let instance = actor.sessions[tab].instance_id();
-    let second = actor.launch_workflow_coordinator(draft).await.unwrap();
+    let second = actor
+        .launch_workflow_coordinator(draft.clone())
+        .await
+        .unwrap();
     assert_eq!(first, second);
     assert_eq!(actor.sessions.len(), 1);
     assert_eq!(actor.sessions[tab].instance_id(), instance);
@@ -102,6 +105,58 @@ async fn workflow_coordinator_launch_replays_one_terminal_with_frozen_profile() 
     let serialized = serde_json::to_string(&saved.payload).unwrap();
     assert!(serialized.contains("echo workflow-coordinator-test"));
     assert!(!serialized.contains("must-not-run-edited-profile"));
+    // A second host has no process-local winner permit, even while the durable
+    // receipt says started and no cancellation has happened yet.
+    let mut restored = test_actor(&dir, HashMap::new(), HashMap::new()).await;
+    restored.runtime_store = fixture.store.clone();
+    restored.runtime_dir = fixture.runtime.clone();
+    restored.reconcile_spawn_on_create_tabs().await;
+    assert!(restored.sessions.is_empty());
+    assert!(restored
+        .runtime_store
+        .find_workspace_tab(tab)
+        .await
+        .unwrap()
+        .is_some());
+    let mut interrupted_request = draft.request.clone();
+    interrupted_request.request_id = "interrupted-coordinator".into();
+    let interrupted = fixture
+        .store
+        .create_workflow_proposal(interrupted_request, |_| Ok(()))
+        .await
+        .unwrap();
+    let (reserved, created) = fixture
+        .store
+        .reserve_workflow_coordinator(&interrupted)
+        .await
+        .unwrap();
+    assert!(created);
+    let mut interrupted_tab = saved.clone();
+    interrupted_tab.id = reserved.tab_id.clone();
+    interrupted_tab.payload["terminalSessionId"] = json!(reserved.tab_id);
+    fixture
+        .store
+        .upsert_workspace_tab(interrupted_tab)
+        .await
+        .unwrap();
+    restored.reconcile_spawn_on_create_tabs().await;
+    assert!(
+        restored.sessions.is_empty(),
+        "reserved state is not a launch permit"
+    );
+    fixture.store.recover_workflow_coordinators().await.unwrap();
+    restored.reconcile_spawn_on_create_tabs().await;
+    assert!(restored.sessions.is_empty());
+    assert_eq!(
+        fixture
+            .store
+            .workflow_coordinator(&interrupted.id)
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        "attention"
+    );
     let cancellation = fixture
         .store
         .cancel_workflow_proposal("coordinator-proposal")
@@ -134,4 +189,33 @@ async fn workflow_coordinator_launch_replays_one_terminal_with_frozen_profile() 
         .cancel_workflow_proposal_terminal(&cancellation)
         .await
         .is_err());
+    let mut restarted = test_actor(&dir, HashMap::new(), HashMap::new()).await;
+    restarted.runtime_store = alera_core::runtime::RuntimeStore::open(&fixture.runtime)
+        .await
+        .unwrap();
+    restarted.runtime_dir = fixture.runtime.clone();
+    restarted.reconcile_spawn_on_create_tabs().await;
+    assert!(restarted.sessions.is_empty());
+    assert!(restarted
+        .runtime_store
+        .find_workspace_tab(tab)
+        .await
+        .unwrap()
+        .is_some());
+    assert!(restarted
+        .require_workflow_spawn_permit(tab, "owner", tab, None)
+        .await
+        .is_err());
+    assert!(restarted
+        .require_workflow_spawn_permit("other-session", "owner", tab, None)
+        .await
+        .is_err());
+    // Attachment may restore only an exited checkpoint, never a new process.
+    let _ = restarted
+        .attach_workflow_terminal(1, tab, "owner", tab)
+        .await;
+    assert!(restarted
+        .sessions
+        .values()
+        .all(|session| !session.running()));
 }

@@ -74,20 +74,34 @@ impl ServerActor {
             .workflow_launch_for_terminal(tab)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
-        let Some(record) = by_terminal.or(by_tab) else {
+        let identity = if let Some(record) = by_terminal.or(by_tab) {
+            Some((record.terminal_handle, record.request.workspace_id))
+        } else {
+            let by_terminal = self
+                .runtime_store
+                .workflow_coordinator_for_terminal(terminal)
+                .await
+                .map_err(|error| HostError::state(error.to_string()))?;
+            let by_tab = self
+                .runtime_store
+                .workflow_coordinator_for_terminal(tab)
+                .await
+                .map_err(|error| HostError::state(error.to_string()))?;
+            by_terminal
+                .or(by_tab)
+                .map(|record| (record.tab_id, record.workspace_id))
+        };
+        let Some((owned_terminal, owned_workspace)) = identity else {
             return Ok(None);
         };
-        if record.terminal_handle != terminal
-            || record.terminal_handle != tab
-            || record.request.workspace_id != workspace
-        {
+        if owned_terminal != terminal || owned_terminal != tab || owned_workspace != workspace {
             return Err(HostError::state(
                 "workflow terminal identity does not match its launch",
             ));
         }
         if !self.sessions.contains_key(terminal) {
             let session = Session::restore_exited(terminal.into(), workspace.into(), tab.into(), &self.store, self.config.scrollback_bytes as usize).await
-                .ok_or_else(|| HostError::state("The worker did not produce a terminal checkpoint. Inspect its launch in the Run Board."))?;
+                .ok_or_else(|| HostError::state("The workflow agent did not produce a terminal checkpoint. Inspect its launch in the Run Board."))?;
             self.sessions.insert(terminal.into(), session);
         }
         self.flush_all_output(terminal);

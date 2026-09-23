@@ -16,6 +16,8 @@ Result Ready, Integrated and Conflict are distinct states. Results are integrate
 
 Inspect a task to see its profile, dependencies, attempt, branch, base SHA, result, artifacts and validation history. Retained terminals attach to the original process or its checkpoint; opening one does not repeat a worker launch.
 
+Coordinator terminals follow the same one-shot rule: restoration and explicit terminal opening never restart their agent command, including after proposal cancellation or an interrupted launch. The initial launch requires the runtime's private winner permit; saved tab fields cannot grant it.
+
 Retrying a failed task prepares a fresh attempt in a new worktree while retaining the previous attempt. Request Changes creates a traceable corrective revision rather than silently reopening completed tasks. Resume execution explicitly after reviewing the correction.
 
 Cancel stops the run's coordinator and worker terminals and prevents further dispatch. Worktrees, branches and results remain. Setup and Git operations already in progress finish safely. Cancellation is irreversible for that run; a pending cancellation is not proof that its processes have stopped.

@@ -15,6 +15,36 @@ pub struct WorkflowCoordinatorReceipt {
 }
 
 impl RuntimeStore {
+    pub async fn workflow_coordinator_for_terminal(
+        &self,
+        terminal: &str,
+    ) -> Result<Option<WorkflowCoordinatorReceipt>> {
+        let proposal: Option<String> =
+            sqlx::query_scalar("SELECT proposal_id FROM workflowCoordinators WHERE tab_id=?")
+                .bind(terminal)
+                .fetch_optional(self.pool())
+                .await?;
+        match proposal {
+            Some(proposal) => self.workflow_coordinator(&proposal).await,
+            None => Ok(None),
+        }
+    }
+
+    /// A process-local permit is also required; reserved state alone cannot
+    /// authorize replay after a crash or an ordinary terminal request.
+    pub async fn require_workflow_coordinator_spawnable(&self, terminal: &str) -> Result<()> {
+        let allowed: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM workflowCoordinators c
+            WHERE c.tab_id=? AND c.status='reserved'
+            AND NOT EXISTS(SELECT 1 FROM workflowProposalCancellations p WHERE p.proposal_id=c.proposal_id)
+            AND NOT EXISTS(SELECT 1 FROM workflowCancellationTargets t WHERE t.proposal_id=c.proposal_id)
+            AND NOT EXISTS(SELECT 1 FROM workflowPlanRevisions p WHERE p.request_id=c.proposal_id))")
+            .bind(terminal).fetch_one(self.pool()).await?;
+        if !allowed {
+            bail!("workflow coordinator launch is no longer authorized");
+        }
+        Ok(())
+    }
+
     pub(super) async fn migrate_workflow_coordinators(&self) -> Result<()> {
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS workflowCoordinators (
