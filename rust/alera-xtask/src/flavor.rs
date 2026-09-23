@@ -2,6 +2,8 @@
 //! `lib/src/core/build_flavor.dart` so `Flavor.xcconfig` cannot drift from the
 //! Dart compile-time constants.
 
+use std::path::{Path, PathBuf};
+
 pub const RELEASE_FLAVOR: &str = "release";
 pub const DEV_FLAVOR: &str = "dev";
 pub const RELEASE_APP_NAME: &str = "Alera";
@@ -23,6 +25,20 @@ pub fn bundle_id(flavor: &str) -> &'static str {
     } else {
         DEV_BUNDLE_ID
     }
+}
+
+/// VERSIONINFO CompanyName in windows/runner/Runner.rc.
+pub const WINDOWS_COMPANY_NAME: &str = "dev.leynier";
+
+/// path_provider_windows keys app data on the exe's CompanyName\ProductName,
+/// not on the bundle id. Unknown ids (an explicit --app-id) keep the old layout.
+pub fn windows_app_support_subdir(app_id: &str) -> PathBuf {
+    let product_name = match app_id {
+        RELEASE_BUNDLE_ID => RELEASE_APP_NAME,
+        DEV_BUNDLE_ID => DEV_APP_NAME,
+        other => return PathBuf::from(other),
+    };
+    Path::new(WINDOWS_COMPANY_NAME).join(product_name)
 }
 
 pub fn flavor_xcconfig(flavor: &str) -> String {
@@ -75,5 +91,69 @@ mod tests {
         assert!(rendered.contains("ALERA_PRODUCT_NAME = Alera Dev"));
         assert!(rendered.contains("ALERA_BUNDLE_ID = dev.leynier.alera.dev"));
         assert!(rendered.contains("alera-xtask"));
+    }
+
+    fn repo_file(relative: &str) -> String {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../")
+            .join(relative);
+        fs::read_to_string(&path).unwrap_or_else(|error| {
+            panic!("read {}: {error}", path.display());
+        })
+    }
+
+    #[test]
+    fn windows_cmake_uses_flavor_identity() {
+        let source = repo_file("windows/CMakeLists.txt");
+        for expected in [
+            format!("set(ALERA_APP_NAME \"{DEV_APP_NAME}\")"),
+            format!("set(ALERA_APP_NAME \"{RELEASE_APP_NAME}\")"),
+            format!("set(ALERA_APP_ID \"{DEV_BUNDLE_ID}\")"),
+            format!("set(ALERA_APP_ID \"{RELEASE_BUNDLE_ID}\")"),
+        ] {
+            assert!(
+                source.contains(&expected),
+                "missing `{expected}` in windows/CMakeLists.txt"
+            );
+        }
+    }
+
+    #[test]
+    fn windows_version_info_follows_flavor() {
+        let rc = repo_file("windows/runner/Runner.rc");
+        let company = format!("VALUE \"CompanyName\", \"{WINDOWS_COMPANY_NAME}\" \"\\0\"");
+        assert!(
+            rc.contains(&company),
+            "missing `{company}` in windows/runner/Runner.rc"
+        );
+        assert!(
+            rc.contains("VALUE \"ProductName\", ALERA_RC_PRODUCT_NAME \"\\0\""),
+            "ProductName must come from ALERA_RC_PRODUCT_NAME"
+        );
+        assert!(
+            !rc.contains("VALUE \"ProductName\", \""),
+            "Runner.rc must not hardcode ProductName"
+        );
+        let cmake = repo_file("windows/runner/CMakeLists.txt");
+        assert!(
+            cmake.contains("ALERA_RC_PRODUCT_NAME=\"${ALERA_APP_NAME}\""),
+            "runner CMakeLists must pass ALERA_APP_NAME into VERSIONINFO"
+        );
+    }
+
+    #[test]
+    fn windows_app_support_subdir_matches_path_provider() {
+        assert_eq!(
+            windows_app_support_subdir(DEV_BUNDLE_ID),
+            PathBuf::from("dev.leynier").join("Alera Dev")
+        );
+        assert_eq!(
+            windows_app_support_subdir(RELEASE_BUNDLE_ID),
+            PathBuf::from("dev.leynier").join("Alera")
+        );
+        assert_eq!(
+            windows_app_support_subdir("custom.id"),
+            PathBuf::from("custom.id")
+        );
     }
 }
