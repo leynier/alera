@@ -72,6 +72,14 @@ IDI_APP_ICON            ICON                    "resources\\app_icon.ico"
 #define VERSION_AS_STRING "1.0.0"
 #endif
 
+// path_provider_windows keys the app data directory on CompanyName\ProductName, so ProductName must follow the flavor.
+#ifndef ALERA_RC_PRODUCT_NAME
+#error "ALERA_RC_PRODUCT_NAME must come from windows/runner/CMakeLists.txt"
+#endif
+#ifndef ALERA_RC_ORIGINAL_FILENAME
+#error "ALERA_RC_ORIGINAL_FILENAME must come from windows/runner/CMakeLists.txt"
+#endif
+
 VS_VERSION_INFO VERSIONINFO
  FILEVERSION VERSION_AS_NUMBER
  PRODUCTVERSION VERSION_AS_NUMBER
@@ -90,12 +98,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "dev.leynier" "\0"
-            VALUE "FileDescription", "Alera" "\0"
+            VALUE "FileDescription", ALERA_RC_PRODUCT_NAME "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "Alera" "\0"
+            VALUE "InternalName", ALERA_RC_PRODUCT_NAME "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 dev.leynier. All rights reserved." "\0"
-            VALUE "OriginalFilename", "Alera.exe" "\0"
-            VALUE "ProductName", "Alera" "\0"
+            VALUE "OriginalFilename", ALERA_RC_ORIGINAL_FILENAME "\0"
+            VALUE "ProductName", ALERA_RC_PRODUCT_NAME "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

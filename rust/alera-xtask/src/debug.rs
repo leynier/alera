@@ -4,6 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
 
+use crate::app_support_dir::default_app_support_dir;
 use crate::cli::DebugArgs;
 use crate::debug_processes::{is_alera_process, is_cli_bundle_terminal_host, list_processes};
 use crate::flavor::{self, DEV_FLAVOR};
@@ -329,8 +330,9 @@ impl DebugContext {
             .args
             .app_support_dir
             .clone()
+            .map(PathBuf::from)
             .unwrap_or_else(|| default_app_support_dir(&self.app_id));
-        let runtime_dir = PathBuf::from(support_dir).join("terminal_host");
+        let runtime_dir = support_dir.join("terminal_host");
         let control_file = runtime_dir.join("host.json");
         RuntimePaths {
             runtime_dir,
@@ -396,49 +398,6 @@ fn cli_executable_name() -> &'static str {
     } else {
         "alera"
     }
-}
-
-fn default_app_support_dir(app_id: &str) -> String {
-    if cfg!(target_os = "macos") {
-        return home_directory()
-            .join("Library/Application Support")
-            .join(app_id)
-            .to_string_lossy()
-            .into_owned();
-    }
-    if cfg!(windows) {
-        if let Ok(app_data) = std::env::var("APPDATA") {
-            if !app_data.is_empty() {
-                return PathBuf::from(app_data)
-                    .join(app_id)
-                    .to_string_lossy()
-                    .into_owned();
-            }
-        }
-    }
-    if let Ok(xdg) = std::env::var("XDG_DATA_HOME") {
-        if !xdg.is_empty() {
-            return PathBuf::from(xdg)
-                .join(app_id)
-                .to_string_lossy()
-                .into_owned();
-        }
-    }
-    home_directory()
-        .join(".local/share")
-        .join(app_id)
-        .to_string_lossy()
-        .into_owned()
-}
-
-fn home_directory() -> PathBuf {
-    if let Ok(home) = std::env::var("HOME") {
-        return PathBuf::from(home);
-    }
-    if let Ok(profile) = std::env::var("USERPROFILE") {
-        return PathBuf::from(profile);
-    }
-    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
 fn terminate_pid(pid: i64) -> bool {

@@ -1,3 +1,4 @@
+mod app_support_dir;
 mod cli;
 mod debug;
 mod debug_processes;

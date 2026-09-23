@@ -103,6 +103,23 @@ jobs:
             fi
           done
 
+      # path_provider_windows derives %APPDATA%\<CompanyName>\<ProductName>.
+      # Changing the release pair would move every user's data.
+      # Pin the runner paths. Get-ChildItem -Filter is case-insensitive, so
+      # Alera.exe also matches the sidecar alera.exe under resources\ and sidecar\.
+      - name: Verify Windows data directory identity
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $releasePath = 'build/windows/x64/runner/Release/Alera.exe'
+          $devPath = 'build/windows/x64/runner/Debug/alera-dev.exe'
+          if (-not (Test-Path -LiteralPath $releasePath)) { throw "Release executable not found: $releasePath" }
+          if (-not (Test-Path -LiteralPath $devPath)) { throw "Dev executable not found: $devPath" }
+          $release = Get-Item -LiteralPath $releasePath
+          $dev = Get-Item -LiteralPath $devPath
+          if ($release.VersionInfo.CompanyName -ne 'dev.leynier' -or $release.VersionInfo.ProductName -ne 'Alera') { throw "Release identity changed: $($release.VersionInfo.CompanyName)\$($release.VersionInfo.ProductName)" }
+          if ($dev.VersionInfo.CompanyName -ne 'dev.leynier' -or $dev.VersionInfo.ProductName -ne 'Alera Dev') { throw "Dev identity is $($dev.VersionInfo.CompanyName)\$($dev.VersionInfo.ProductName)" }
+
       - name: Verify macOS startup and desktop presence
         if: matrix.platform == 'macos'
         env:
