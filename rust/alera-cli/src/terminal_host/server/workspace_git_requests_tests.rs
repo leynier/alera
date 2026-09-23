@@ -53,6 +53,26 @@ fn git_path_refuses_a_sibling_that_shares_the_prefix_text() {
 }
 
 #[test]
+fn git_path_refuses_a_parent_step_that_leaves_the_workspace() {
+    for outside in [
+        "/workspace/../outside",
+        "/workspace/foo/../../outside",
+        "/workspace/./../outside",
+    ] {
+        let error = git_path(&workspace("/workspace"), &json!({ "path": outside })).unwrap_err();
+        assert!(
+            error.to_string().contains("outside workspace"),
+            "{outside}: {error}"
+        );
+    }
+    // In-tree steps are refused too: the string reaches the OS unresolved,
+    // and a caller only ever sends back paths it read from the host.
+    assert!(!path_is_within("/workspace", "/workspace/foo/../bar"));
+    assert!(!path_is_within(r"C:\repo", r"C:\repo\..\other"));
+    assert!(path_is_within("/workspace", "/workspace/./src"));
+}
+
+#[test]
 fn git_path_compares_windows_paths_without_case_or_separator_sensitivity() {
     let path = git_path(
         &workspace("C:\\Users\\dev\\repo"),
@@ -127,5 +147,64 @@ fn a_missing_repository_is_reported_with_the_not_a_repository_kind() {
     assert_eq!(
         error.wire_response(1)["errorDetails"]["kind"],
         "notARepository"
+    );
+}
+
+#[test]
+fn hosted_review_verbs_reach_the_core_and_answer_the_desktop_shape() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = git2::Repository::init(dir.path()).unwrap();
+    {
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Alera Test").unwrap();
+        config.set_str("user.email", "alera@example.com").unwrap();
+    }
+    std::fs::write(dir.path().join("readme.md"), "hello\n").unwrap();
+    let path = dir.path().to_string_lossy().into_owned();
+    run_git_verb(
+        "git.stage",
+        path.clone(),
+        &json!({ "filePath": "readme.md" }),
+    )
+    .unwrap();
+    let commit = run_git_verb("git.commit", path.clone(), &json!({ "message": "init" })).unwrap();
+    let head = commit["oid"].as_str().unwrap().to_string();
+    let branch = run_git_verb("git.currentBranch", path.clone(), &json!({})).unwrap();
+    // The repository serves as its own remote, which is all the fetch needs.
+    repo.remote("origin", &path).unwrap();
+
+    let range = run_git_verb(
+        "git.fetchHostedReviewRange",
+        path.clone(),
+        &json!({ "remote": "origin", "baseBranch": branch, "headSha": head }),
+    )
+    .unwrap();
+    assert_eq!(range["headOid"], head, "{range}");
+    assert_eq!(range["baseOid"].as_str().unwrap().len(), 40, "{range}");
+    let retention_id = range["retentionId"].as_str().unwrap().to_string();
+    assert!(!retention_id.is_empty());
+
+    run_git_verb(
+        "git.persistHostedReviewRange",
+        path.clone(),
+        &json!({ "retentionId": retention_id }),
+    )
+    .unwrap();
+    run_git_verb(
+        "git.releaseHostedReviewRange",
+        path.clone(),
+        &json!({ "retentionId": retention_id }),
+    )
+    .unwrap();
+
+    let missing_remote = run_git_verb(
+        "git.fetchHostedReviewRange",
+        path,
+        &json!({ "remote": "nowhere", "baseBranch": "main", "headSha": head }),
+    )
+    .unwrap_err();
+    assert_eq!(
+        missing_remote.wire_response(1)["errorDetails"]["kind"],
+        "remoteNotFound"
     );
 }

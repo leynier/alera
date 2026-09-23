@@ -53,6 +53,9 @@ pub(super) fn is_workspace_git_write(request_type: &str) -> bool {
             | "git.stashPop"
             | "git.createAndCheckoutBranch"
             | "git.checkoutBranch"
+            | "git.fetchHostedReviewRange"
+            | "git.persistHostedReviewRange"
+            | "git.releaseHostedReviewRange"
     )
 }
 
@@ -196,12 +199,56 @@ fn run_git_verb(request_type: &str, path: String, payload: &Value) -> HostResult
         "git.isValidBranchName" => encode(core_git::is_valid_branch_name(&require_string_key(
             payload, "name",
         )?)),
+        "git.fetchHostedReviewRange" => hosted_review_range(&path, payload),
+        "git.persistHostedReviewRange" => {
+            unit(core_git::hosted_review::persist_hosted_review_range(
+                &path,
+                &require_string_key(payload, "retentionId")?,
+            ))
+        }
+        "git.releaseHostedReviewRange" => {
+            unit(core_git::hosted_review::release_hosted_review_range(
+                &path,
+                &require_string_key(payload, "retentionId")?,
+            ))
+        }
         "git.listRemotes" => encode(sc::list_remotes(&path)),
         "git.listWorktrees" => encode(core_git::list_worktrees(&path)),
         _ => Err(HostError::state(format!(
             "Unsupported workspace git operation: {request_type}"
         ))),
     }
+}
+
+/// The reading diff's range, fetched on the host that owns the checkout. Same
+/// core call the FRB bridge makes; the answer is spelled the way
+/// `RuntimeGitBackend` reads it.
+fn hosted_review_range(path: &str, payload: &Value) -> HostResult<Value> {
+    let remote = require_string_key(payload, "remote")?;
+    let base_branch = require_string_key(payload, "baseBranch")?;
+    let head_sha = require_string_key(payload, "headSha")?;
+    let head_remote = optional_string_key(payload, "headRemote");
+    let comparison_base_sha = optional_string_key(payload, "comparisonBaseSha");
+    let merge_commit_sha = optional_string_key(payload, "mergeCommitSha");
+    let review_ref = optional_string_key(payload, "reviewRef");
+    let range = core_git::hosted_review::fetch_hosted_review_range(
+        core_git::hosted_review::HostedReviewFetch {
+            repo_path: path,
+            remote_name: &remote,
+            base_branch: &base_branch,
+            head_sha: &head_sha,
+            head_remote: head_remote.as_deref(),
+            comparison_base_sha: comparison_base_sha.as_deref(),
+            merge_commit_sha: merge_commit_sha.as_deref(),
+            review_ref: review_ref.as_deref(),
+        },
+    )
+    .map_err(git_conflict)?;
+    Ok(json!({
+        "baseOid": range.base_oid,
+        "headOid": range.head_oid,
+        "retentionId": range.retention_id,
+    }))
 }
 
 fn encode<T: Serialize>(result: Result<T, GitError>) -> HostResult<Value> {
@@ -262,9 +309,20 @@ fn git_path(workspace: &Workspace, payload: &Value) -> HostResult<String> {
     )))
 }
 
+/// Whether `candidate` names the root or a directory inside it. The workspace
+/// is the scope the caller was granted, so a candidate that steps out with
+/// `..` is refused outright rather than resolved: the string is used as a
+/// working directory by the OS, which would follow the `..` we cannot see
+/// through on the hub for a checkout on another machine. In-tree `a/../b` is
+/// refused with it; callers send the paths they read back, never composed
+/// ones.
 pub(super) fn path_is_within(root: &str, candidate: &str) -> bool {
-    let root_components = normalized_components(root);
-    let candidate_components = normalized_components(candidate);
+    let (Some(root_components), Some(candidate_components)) = (
+        normalized_components(root),
+        normalized_components(candidate),
+    ) else {
+        return false;
+    };
     candidate_components.len() >= root_components.len()
         && root_components
             .iter()
@@ -272,25 +330,25 @@ pub(super) fn path_is_within(root: &str, candidate: &str) -> bool {
             .all(|(left, right)| left == right)
 }
 
-fn normalized_components(path: &str) -> Vec<String> {
+/// `None` when the path contains `..`.
+fn normalized_components(path: &str) -> Option<Vec<String>> {
     let unified = path.replace('\\', "/");
     let windows = unified.as_bytes().get(1).is_some_and(|byte| *byte == b':');
-    Path::new(&unified)
-        .components()
-        .filter_map(|component| match component {
-            Component::Normal(value) => Some(value.to_string_lossy().into_owned()),
-            Component::Prefix(prefix) => Some(prefix.as_os_str().to_string_lossy().into_owned()),
-            Component::RootDir => None,
-            Component::CurDir | Component::ParentDir => None,
-        })
-        .map(|component| {
-            if windows {
-                component.to_ascii_lowercase()
-            } else {
-                component
-            }
-        })
-        .collect()
+    let mut components = Vec::new();
+    for component in Path::new(&unified).components() {
+        let component = match component {
+            Component::Normal(value) => value.to_string_lossy().into_owned(),
+            Component::Prefix(prefix) => prefix.as_os_str().to_string_lossy().into_owned(),
+            Component::RootDir | Component::CurDir => continue,
+            Component::ParentDir => return None,
+        };
+        components.push(if windows {
+            component.to_ascii_lowercase()
+        } else {
+            component
+        });
+    }
+    Some(components)
 }
 
 #[cfg(test)]
