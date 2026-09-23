@@ -1,3 +1,5 @@
+// ignore_for_file: riverpod_lint/avoid_public_notifier_properties
+
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';

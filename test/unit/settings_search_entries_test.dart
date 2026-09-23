@@ -21,7 +21,6 @@ void main() {
       'application': applicationSearchEntries,
       'agents': agentsSearchEntries,
       'keyboard': keyboardSearchEntries,
-      'browser': browserSearchEntries,
       'editor': editorSearchEntries,
       'aiAssist': aiAssistSearchEntries,
       'aiDictation': aiDictationSearchEntries,
@@ -31,8 +30,18 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      '9899fa14f7e0490fac5b50efff87c4d9e3bd889fbdb89013ef7ffb8b71058811',
+      'e8346719b9cc7b9971c3bf13b2c6e80cb94128608ce31e78bab1dfdf9a296784',
     );
+  });
+
+  test('new workspace tools are searchable under Desktop', () {
+    final entry = applicationSearchEntries.singleWhere(
+      (entry) => entry.title == 'New Workspace Tools',
+    );
+    expect(entry.groupId, 'desktop');
+    expect(entry.matches('source control'), isTrue);
+    expect(entry.matches('pull request'), isTrue);
+    expect(entry.matches('order'), isTrue);
   });
 
   test('built search catalogs remain immutable', () {
@@ -84,15 +93,24 @@ void main() {
         expected: <(String, String?)>[('Show Dock Badge', 'desktop')],
       ),
       (
+        entries: applicationSearchEntries,
+        query: 'pull request',
+        expected: <(String, String?)>[
+          ('New Workspace Tools', 'desktop'),
+          ('Show Pull Request Status', 'pullRequests'),
+          ('Notify When Checks Fail', 'pullRequests'),
+        ],
+      ),
+      (
         entries: agentsSearchEntries,
         query: 'xai',
         expected: <(String, String?)>[('Grok Build Hooks', 'hooks')],
       ),
       (
-        entries: browserSearchEntries,
-        query: 'self signed',
+        entries: agentsSearchEntries,
+        query: 'sidebar',
         expected: <(String, String?)>[
-          ('Trusted Local Certificates', 'certificates'),
+          ('Show Tab Titles in Sidebar', 'behavior'),
         ],
       ),
       (
@@ -107,8 +125,8 @@ void main() {
       ),
       (
         entries: quotaSearchEntries,
-        query: 'visible',
-        expected: <(String, String?)>[('Claude Default in Usage', 'claude')],
+        query: 'alias',
+        expected: <(String, String?)>[('Claude CCS Profiles', 'claude')],
       ),
     ];
 
@@ -132,23 +150,24 @@ void main() {
     expect(entry.groupId, 'cliSkill');
   });
 
-  test('computer use skill is searchable in the agents skill group', () {
+  test('Agent Profiles skill is searchable in the extra skills group', () {
     final entry = agentsSearchEntries.singleWhere(
-      (candidate) => candidate.title == 'Alera Computer Use Skill',
+      (candidate) => candidate.title == 'Agent Profiles Skill',
     );
 
-    expect(entry.matches('accessibility'), isTrue);
-    expect(entry.groupId, 'cliSkill');
+    expect(entry.matches('quota'), isTrue);
+    expect(entry.matches('managed'), isTrue);
+    expect(entry.groupId, 'extraSkills');
   });
 
-  test('Agent Canvas skill is searchable in the agents skill group', () {
+  test('sidebar tab titles are searchable in the agents behavior group', () {
     final entry = agentsSearchEntries.singleWhere(
-      (candidate) => candidate.title == 'Agent Canvas Skill',
+      (candidate) => candidate.title == 'Show Tab Titles in Sidebar',
     );
 
-    expect(entry.matches('canvas'), isTrue);
-    expect(entry.matches('decision'), isTrue);
-    expect(entry.groupId, 'cliSkill');
+    expect(entry.matches('sidebar'), isTrue);
+    expect(entry.matches('regenerate'), isTrue);
+    expect(entry.groupId, 'behavior');
   });
 
   test('Grok Build hooks are searchable in the hooks group', () {

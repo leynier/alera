@@ -1,6 +1,39 @@
 part of 'alera_shell_page.dart';
 
 extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
+  Future<void> _launchAgentProfileFromMenu({
+    required Workspace workspace,
+    required AgentProfile profile,
+    String? targetGroupId,
+  }) async {
+    final controller = ref.read(workbenchControllerProvider.notifier);
+    final terminalRuntime = ref.read(terminalRuntimeProvider);
+    await showAgentProfileLaunchDialog(
+      context,
+      profile: profile,
+      workspacePath: workspace.path,
+      onLaunch: ({required prompt}) async {
+        final tabId = await controller.launchAgentProfileTab(
+          workspace: workspace,
+          profileId: profile.id,
+          targetGroupId: targetGroupId,
+          prompt: prompt,
+        );
+        final tab = ref
+            .read(workbenchControllerProvider)
+            .tabsFor(workspace.id)
+            .where((candidate) => candidate.id == tabId)
+            .firstOrNull;
+        if (tab == null) {
+          return;
+        }
+        terminalRuntime
+            .sessionFor(workspace: workspace, tab: tab)
+            .requestFocus();
+      },
+    );
+  }
+
   Widget _buildContent({
     required bool bootstrapped,
     required bool hasProjects,
@@ -9,7 +42,8 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
     required WorkspaceSourceControlScope? sourceControlScope,
     required List<WorkspaceTabRecord> tabs,
     required WorkbenchLayout? layout,
-    required bool browserTabsAvailable,
+    bool singleSurface = false,
+    String? singleTabId,
   }) {
     if (!bootstrapped && !hasProjects) {
       return const Center(child: CircularProgressIndicator());
@@ -43,13 +77,20 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
         final driverPresence = ref.read(
           terminalDriverPresenceControllerProvider.notifier,
         );
+        final newTabMenuProfiles =
+            ref.watch(agentProfilesProvider).asData?.value ??
+            const <AgentProfile>[];
         return WorkspaceWorkbenchView(
+          key: ValueKey((workspace.id, singleSurface, singleTabId)),
+          singleSurface: singleSurface,
+          singleTabId: singleTabId,
           project: project,
           workspace: workspace,
           sourceControlScope: sourceControlScope,
           tabs: tabs,
           layout: layout,
           terminalRuntime: terminalRuntime,
+          paneFocusRegistry: ref.read(workbenchPaneFocusRegistryProvider),
           mobileDriverPresence: WorkbenchMobileDriverPresence(
             drivers: mobileDrivers,
             onReclaim: (sessionId) =>
@@ -67,39 +108,20 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
                 .sessionFor(workspace: workspace, tab: tab)
                 .requestFocus();
           },
-          onCreateBrowserTab: browserTabsAvailable
-              ? ({targetGroupId}) async {
-                  await controller.createBrowserTab(
-                    workspace,
-                    targetGroupId: targetGroupId,
-                  );
-                }
-              : null,
-          onCreateCodexTab: ({targetGroupId}) async {
-            await controller.createCodexTab(
-              workspace,
-              targetGroupId: targetGroupId,
-            );
-          },
-          onOpenMobileEmulator: ({targetGroupId}) async {
-            final existing = tabs.any(
-              (tab) => tab.kind == WorkspaceTabKind.mobileEmulator,
-            );
-            if (existing) {
-              await controller.openMobileEmulatorTab(
-                workspace: workspace,
-                targetGroupId: targetGroupId,
-              );
+          newTabMenuProfiles: <AgentProfile>[
+            for (final profile in newTabMenuProfiles)
+              if (profile.showInNewTabMenu) profile,
+          ],
+          onLaunchAgentProfile: ({required profileId, targetGroupId}) async {
+            final profile = newTabMenuProfiles
+                .where((candidate) => candidate.id == profileId)
+                .firstOrNull;
+            if (profile == null) {
               return;
             }
-            final device = await showMobileEmulatorDevicePicker(context);
-            if (device == null || !mounted) {
-              return;
-            }
-            await controller.openMobileEmulatorTab(
+            await _launchAgentProfileFromMenu(
               workspace: workspace,
-              platform: device.platform,
-              deviceId: device.id,
+              profile: profile,
               targetGroupId: targetGroupId,
             );
           },
@@ -108,6 +130,10 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
               workspace: workspace,
               relativePath: relativePath,
               targetGroupId: targetGroupId,
+              sourceKey: singleTabId == null
+                  ? null
+                  : WorkspacePanel.tabKey(singleTabId),
+              oppositePanel: _oppositePanelOpenRequested(),
             );
           },
           onOpenMarkdownViewerTab:
@@ -116,6 +142,10 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
                   workspace: workspace,
                   relativePath: relativePath,
                   targetGroupId: targetGroupId,
+                  sourceKey: singleTabId == null
+                      ? null
+                      : WorkspacePanel.tabKey(singleTabId),
+                  oppositePanel: _oppositePanelOpenRequested(),
                 );
               },
           onKeepPreviewTab: (tabId) {
@@ -132,36 +162,22 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
             if (!await _confirmCloseDirtyTabs(tabs, <String>[tabId])) {
               return;
             }
-            final closingTab = _workspaceTabById(tabs, tabId);
             // The controller disposes the terminal handle and editor document.
             await controller.closeWorkspaceTab(
               workspace: workspace,
               tabId: tabId,
             );
-            if (closingTab?.kind == WorkspaceTabKind.browser) {
-              await ref.read(browserSessionRegistryProvider).closePage(tabId);
-            }
           },
           onCloseTabs: (tabIds) async {
             if (!await _confirmCloseDirtyTabs(tabs, tabIds)) {
               return;
             }
-            final browserTabIds = <String>[
-              for (final tabId in tabIds)
-                if (_workspaceTabById(tabs, tabId)?.kind ==
-                    WorkspaceTabKind.browser)
-                  tabId,
-            ];
             // The controller disposes the terminal handles and editor
             // documents.
             await controller.closeWorkspaceTabs(
               workspace: workspace,
               tabIds: tabIds,
             );
-            await Future.wait(<Future<void>>[
-              for (final tabId in browserTabIds)
-                ref.read(browserSessionRegistryProvider).closePage(tabId),
-            ]);
           },
           onRenameTab: ({required tabId, required title}) async {
             await controller.renameWorkspaceTab(tabId: tabId, title: title);
@@ -170,12 +186,20 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
             await controller.openEditorTab(
               workspace: workspace,
               relativePath: relativePath,
+              sourceKey: singleTabId == null
+                  ? null
+                  : WorkspacePanel.tabKey(singleTabId),
+              oppositePanel: _oppositePanelOpenRequested(),
             );
           },
           onOpenMermanPreview: (relativePath) async {
             await controller.openMermanPreviewTab(
               workspace: workspace,
               relativePath: relativePath,
+              sourceKey: singleTabId == null
+                  ? null
+                  : WorkspacePanel.tabKey(singleTabId),
+              oppositePanel: _oppositePanelOpenRequested(),
             );
           },
           onMoveTab:

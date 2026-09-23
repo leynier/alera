@@ -3,8 +3,8 @@
 # bypassing rust-toolchain.toml when a different stable toolchain is installed.
 cargo:
   debug:
-    toolchain: '1.96'
+    toolchain: '1.98.0'
   profile:
-    toolchain: '1.96'
+    toolchain: '1.98.0'
   release:
-    toolchain: '1.96'
+    toolchain: '1.98.0'

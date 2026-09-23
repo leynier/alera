@@ -1,7 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
-import 'package:alera_mobile/src/features/codex_chat/application/mobile_codex_controller.dart';
+import 'package:alera_mobile/src/design_system/markdown/alera_markdown_view.dart';
+import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
+import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
@@ -10,198 +14,16 @@ import 'package:alera_mobile/src/features/terminal/presentation/terminal_tab_vie
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/agent_identity_icon.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_viewer_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/fake_ai_dictation_settings.dart';
 import 'support/fake_terminal_client.dart';
-import 'support/fake_mobile_codex_client.dart';
+import 'support/fake_workspace_files_client.dart';
 
 void main() {
-  testWidgets('Shows Codex identity in the tab strip and create action', (
-    tester,
-  ) async {
-    final terminalClient = FakeTerminalClient()
-      ..tabs = <WorkspaceTabSummary>[
-        fakeTab(id: 'codex-1', title: 'Codex Chat', kind: 'codex'),
-      ];
-    final codexClient = FakeMobileCodexClient();
-    addTearDown(terminalClient.dispose);
-    addTearDown(codexClient.dispose);
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          terminalClientProvider('host-1')
-              .overrideWith((ref) async => terminalClient),
-          workspaceClientProvider('host-1')
-              .overrideWith((ref) async => terminalClient),
-          mobileCodexClientProvider('host-1')
-              .overrideWith((ref) async => codexClient),
-        ],
-        child: const MaterialApp(
-          home: WorkspaceTabsScreen(
-            hostId: 'host-1',
-            workspace: WorkspaceSummary(
-              id: 'workspace-1',
-              projectId: 'project-1',
-              name: 'Workspace',
-              path: '/repo',
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    // Only the chip avatar carries the identity now: creating a Codex chat
-    // moved into the single New Tab menu.
-    expect(find.byType(AgentIdentityIcon), findsOneWidget);
-    expect(find.byTooltip('Codex'), findsNothing);
-
-    await tester.tap(find.byTooltip('New Tab'));
-    await tester.pumpAndSettle();
-    expect(find.text('New Terminal'), findsOneWidget);
-    expect(find.text('New Codex Chat'), findsOneWidget);
-    await tester.tapAt(.zero);
-    await tester.pumpAndSettle();
-
-    await tester.longPressAt(
-      tester.getCenter(find.byType(AgentIdentityIcon).first),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Close Tab'), findsOneWidget);
-  });
-
-  testWidgets('Completes tab closure after the tabs screen unmounts', (
-    tester,
-  ) async {
-    final close = Completer<void>();
-    final terminalClient = FakeTerminalClient()
-      ..tabs = <WorkspaceTabSummary>[
-        fakeTab(id: 'codex-1', title: 'Codex Chat', kind: 'codex'),
-      ]
-      ..removeTabCompletion = close.future;
-    final codexClient = FakeMobileCodexClient();
-    addTearDown(terminalClient.dispose);
-    addTearDown(codexClient.dispose);
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          terminalClientProvider('host-1')
-              .overrideWith((ref) async => terminalClient),
-          workspaceClientProvider('host-1')
-              .overrideWith((ref) async => terminalClient),
-          mobileCodexClientProvider('host-1')
-              .overrideWith((ref) async => codexClient),
-        ],
-        child: const MaterialApp(
-          home: WorkspaceTabsScreen(
-            hostId: 'host-1',
-            workspace: WorkspaceSummary(
-              id: 'workspace-1',
-              projectId: 'project-1',
-              name: 'Workspace',
-              path: '/repo',
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byTooltip('Close Tab'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Close'));
-    await tester.pump();
-    await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
-    close.complete();
-    await tester.pumpAndSettle();
-
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('Does Not Attach A Terminal Session For A Codex Tab', (
-    tester,
-  ) async {
-    final terminalClient = FakeTerminalClient()
-      ..tabs = <WorkspaceTabSummary>[
-        fakeTab(id: 'codex-1', title: 'Codex Chat', kind: 'codex'),
-      ];
-    final codexClient = FakeMobileCodexClient();
-    addTearDown(terminalClient.dispose);
-    addTearDown(codexClient.dispose);
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          terminalClientProvider('host-1')
-              .overrideWith((ref) async => terminalClient),
-          workspaceClientProvider('host-1')
-              .overrideWith((ref) async => terminalClient),
-          mobileCodexClientProvider('host-1')
-              .overrideWith((ref) async => codexClient),
-        ],
-        child: const MaterialApp(
-          home: WorkspaceTabsScreen(
-            hostId: 'host-1',
-            workspace: WorkspaceSummary(
-              id: 'workspace-1',
-              projectId: 'project-1',
-              name: 'Workspace',
-              path: '/repo',
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(terminalClient.attachments, isEmpty);
-  });
-
-  testWidgets('Does Not Offer Generic Rename For A Codex Tab', (tester) async {
-    final terminalClient = FakeTerminalClient()
-      ..tabs = <WorkspaceTabSummary>[
-        fakeTab(id: 'codex-1', title: 'Codex Chat', kind: 'codex'),
-      ];
-    final codexClient = FakeMobileCodexClient();
-    addTearDown(terminalClient.dispose);
-    addTearDown(codexClient.dispose);
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          terminalClientProvider('host-1')
-              .overrideWith((ref) async => terminalClient),
-          workspaceClientProvider('host-1')
-              .overrideWith((ref) async => terminalClient),
-          mobileCodexClientProvider('host-1')
-              .overrideWith((ref) async => codexClient),
-        ],
-        child: const MaterialApp(
-          home: WorkspaceTabsScreen(
-            hostId: 'host-1',
-            workspace: WorkspaceSummary(
-              id: 'workspace-1',
-              projectId: 'project-1',
-              name: 'Workspace',
-              path: '/repo',
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.longPress(find.text('Codex Chat'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Rename Tab'), findsNothing);
-    expect(find.text('Close Tab'), findsOneWidget);
-  });
-
   testWidgets('Shows automatic titles in the tab chip and tab dialogs', (
     tester,
   ) async {
@@ -322,5 +144,231 @@ void main() {
     reconnect.complete();
     await tester.pumpAndSettle();
     expect(find.byType(TerminalTabView), findsOneWidget);
+  });
+
+  group('desktop Markdown viewer tabs', () {
+    Future<FakeTerminalClient> pumpTabs(
+      WidgetTester tester, {
+      required bool filesSupported,
+    }) async {
+      final client = FakeTerminalClient()
+        ..tabs = <WorkspaceTabSummary>[
+          fakeTab(id: 'tab-1', title: 'Terminal 1'),
+          fakeTab(
+            id: 'tab-2',
+            title: 'readme.md preview',
+            kind: 'markdownViewer',
+            filePath: 'readme.md',
+          ),
+          fakeTab(id: 'tab-3', title: 'notes preview', kind: 'markdownViewer'),
+        ]
+        ..workspaceFiles = filesSupported
+            ? const <String>['readme.md']
+            : const <String>[]
+        ..workspaceFileContents = <String, FakeWorkspaceFile>{
+          'readme.md': (mimeType: 'text/markdown', bytes: utf8.encode('# Hi')),
+        };
+      addTearDown(client.dispose);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            terminalClientProvider('host-1')
+                .overrideWith((ref) async => client),
+            workspaceClientProvider('host-1')
+                .overrideWith((ref) async => client),
+          ],
+          child: const MaterialApp(
+            home: WorkspaceTabsScreen(
+              hostId: 'host-1',
+              workspace: WorkspaceSummary(
+                id: 'workspace-1',
+                projectId: 'project-1',
+                name: 'Workspace',
+                path: '/repo',
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return client;
+    }
+
+    InputChip chip(WidgetTester tester, String title) =>
+        tester.widget<InputChip>(find.widgetWithText(InputChip, title));
+
+    testWidgets('open their preview without leaving the terminal', (
+      tester,
+    ) async {
+      await pumpTabs(tester, filesSupported: true);
+
+      expect(chip(tester, 'readme.md preview').onSelected, isNotNull);
+      expect(chip(tester, 'readme.md preview').onDeleted, isNull);
+      expect(chip(tester, 'notes preview').onSelected, isNull);
+
+      await tester.tap(find.text('readme.md preview'));
+      await tester.pumpAndSettle();
+      expect(find.byType(WorkspaceFileViewerScreen), findsOneWidget);
+      expect(find.byType(AleraMarkdownView), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.byType(TerminalTabView), findsOneWidget);
+      expect(chip(tester, 'Terminal 1').selected, isTrue);
+    });
+
+    testWidgets('stay disabled when the runtime cannot read files', (
+      tester,
+    ) async {
+      await pumpTabs(tester, filesSupported: false);
+
+      expect(chip(tester, 'readme.md preview').onSelected, isNull);
+    });
+  });
+
+  testWidgets('new tab menu lists opted-in agent profiles after New Terminal', (
+    tester,
+  ) async {
+    final profilesReady = Completer<void>();
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')]
+      ..listAgentProfilesDelay = profilesReady.future
+      ..agentProfiles = const <AgentProfileSummary>[
+        AgentProfileSummary(
+          id: 'profile-hidden',
+          name: 'Hidden Codex',
+          agentType: 'codex',
+        ),
+        AgentProfileSummary(
+          id: 'profile-shown',
+          name: 'Shown Codex',
+          agentType: 'codex',
+          showInNewTabMenu: true,
+        ),
+      ];
+    addTearDown(client.dispose);
+    tester.view.physicalSize = const Size(800, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          terminalClientProvider('host-1').overrideWith((ref) async => client),
+          workspaceClientProvider('host-1').overrideWith((ref) async => client),
+          mobileAiDictationSettingsControllerProvider.overrideWith(
+            () => FakeMobileAiDictationSettingsController(),
+          ),
+        ],
+        child: const MaterialApp(
+          home: WorkspaceTabsScreen(
+            hostId: 'host-1',
+            workspace: WorkspaceSummary(
+              id: 'workspace-1',
+              projectId: 'project-1',
+              name: 'Workspace',
+              path: '/repo',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('New Tab'));
+    await tester.pump();
+    expect(find.text('New Terminal'), findsNothing);
+
+    profilesReady.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('New Terminal'), findsOneWidget);
+    expect(find.text('Shown Codex'), findsOneWidget);
+    expect(find.text('Hidden Codex'), findsNothing);
+    expect(
+      tester.getTopLeft(find.text('New Terminal')).dy,
+      lessThan(tester.getTopLeft(find.text('Shown Codex')).dy),
+    );
+    expect(
+      find.descendant(
+        of: find
+            .ancestor(of: find.text('New Terminal'), matching: find.byType(Row))
+            .first,
+        matching: find.byIcon(Icons.terminal),
+      ),
+      findsOneWidget,
+    );
+    final shownProfileIcon = find.descendant(
+      of: find
+          .ancestor(of: find.text('Shown Codex'), matching: find.byType(Row))
+          .first,
+      matching: find.byType(AgentIdentityIcon),
+    );
+    expect(shownProfileIcon, findsOneWidget);
+    expect(
+      tester.widget<AgentIdentityIcon>(shownProfileIcon).agentType,
+      'codex',
+    );
+    expect(
+      tester.widget<AgentIdentityIcon>(shownProfileIcon).size,
+      AleraTokens.space20,
+    );
+    expect(
+      tester.widget<AgentIdentityIcon>(shownProfileIcon).showTooltip,
+      isFalse,
+    );
+    expect(find.byIcon(Icons.smart_toy), findsNothing);
+
+    await tester.tapAt(const Offset(1, 1));
+    await tester.pumpAndSettle();
+
+    client
+      ..listAgentProfilesDelay = null
+      ..listAgentProfilesError = StateError('profiles unavailable');
+    await tester.tap(find.byTooltip('New Tab'));
+    await tester.pumpAndSettle();
+    expect(find.text('New Terminal'), findsOneWidget);
+    expect(find.text('Shown Codex'), findsNothing);
+    expect(find.text('Hidden Codex'), findsNothing);
+
+    await tester.tapAt(const Offset(1, 1));
+    await tester.pumpAndSettle();
+
+    client
+      ..listAgentProfilesError = null
+      ..agentProfiles = const <AgentProfileSummary>[
+        AgentProfileSummary(
+          id: 'profile-hidden',
+          name: 'Hidden Codex',
+          agentType: 'codex',
+        ),
+        AgentProfileSummary(
+          id: 'profile-shown',
+          name: 'Shown Codex',
+          agentType: 'codex',
+          showInNewTabMenu: true,
+        ),
+      ];
+    await tester.tap(find.byTooltip('New Tab'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Shown Codex'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Start Shown Codex'), findsOneWidget);
+    expect(
+      client.calls.where((call) => call.startsWith('launchAgentProfile')),
+      isEmpty,
+    );
+
+    await tester.tap(find.text('Skip'));
+    await tester.pumpAndSettle();
+
+    expect(
+      client.calls.where(
+        (call) =>
+            call.startsWith('launchAgentProfile workspace-1 profile-shown'),
+      ),
+      ['launchAgentProfile workspace-1 profile-shown '],
+    );
+    expect(find.text('profile-shown'), findsOneWidget);
   });
 }

@@ -6,9 +6,8 @@ use sha2::{Digest, Sha256};
 use sqlx::SqliteConnection;
 
 const DOCUMENT_KEY: &str = "configuration.portable.v1";
-const PROFILE_COLUMNS: &str = "id, name, agentType, command, sortOrder, launchMode, managedConfig, customPrompt, description, quotaGroup, revision, createdAt, updatedAt";
-const SHARED_SETTINGS: [(&str, &str); 5] = [
-    ("/desktop/browser", "browser.settings.v1"),
+const PROFILE_COLUMNS: &str = "id, name, agentType, command, sortOrder, launchMode, managedConfig, customPrompt, description, quotaGroup, showInNewTabMenu, revision, createdAt, updatedAt";
+const SHARED_SETTINGS: [(&str, &str); 4] = [
     (
         "/desktop/settings/general/confirmProjectRemoval",
         "settings.general.confirmProjectRemoval",
@@ -229,8 +228,6 @@ async fn snapshot_in(connection: &mut SqliteConnection) -> Result<Value> {
             set_pointer(&mut document, pointer, value);
         } else if key.ends_with("defaultAgentProfileId") {
             set_pointer(&mut document, pointer, Value::Null);
-        } else if key == "browser.settings.v1" {
-            set_pointer(&mut document, pointer, json!({"searchEngine": "google"}));
         }
     }
     let rows = sqlx::query(sqlx::AssertSqlSafe(format!(
@@ -325,7 +322,7 @@ fn state_key(account: &str) -> String {
     format!("configuration.state.{account}")
 }
 fn digest(value: &Value) -> Result<String> {
-    Ok(format!("{:x}", Sha256::digest(serde_json::to_vec(value)?)))
+    Ok(hex::encode(Sha256::digest(serde_json::to_vec(value)?)))
 }
 fn catalog(previous: &Value, items: Vec<Value>, preserve_item_fields: bool) -> Value {
     let mut by_id = serde_json::Map::new();

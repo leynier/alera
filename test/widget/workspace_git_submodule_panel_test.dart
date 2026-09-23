@@ -65,6 +65,7 @@ void main() {
                 gitDiffRoot,
                 required scope,
                 bool preview = false,
+                bool oppositePanel = false,
               }) async {
                 openedPath = relativePath;
               },
@@ -211,6 +212,7 @@ Future<void> _pumpPanel(
                     gitDiffRoot,
                     required scope,
                     bool preview = false,
+                    bool oppositePanel = false,
                   }) async {},
               onOpenGitCommitDiff: ({
                 relativePath,
@@ -223,6 +225,7 @@ Future<void> _pumpPanel(
                 subject,
                 message,
                 bool preview = false,
+                bool oppositePanel = false,
               }) async {},
             ),
           ),

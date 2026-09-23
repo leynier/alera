@@ -2,6 +2,7 @@ import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -26,7 +27,8 @@ void main() {
       expect(terminal.colorOverrides.isEmpty, isTrue);
       expect(terminal.scrollbackLines, 10000);
       expect(terminal.tuiScrollSensitivity, 1);
-      expect(terminal.clipboardOnSelect, isFalse);
+      expect(terminal.dragSelectsInTuis, isTrue);
+      expect(terminal.clipboardOnSelect, isTrue);
       expect(terminal.allowOsc52Clipboard, isFalse);
       expect(terminal.showComposerByDefault, isFalse);
       expect(terminal.toolbarCorner, TerminalToolbarCorner.topRight);
@@ -45,6 +47,16 @@ void main() {
       expect(general.showTrayIcon, isTrue);
       expect(general.showDockBadge, isTrue);
       expect(general.showTrayBadge, isTrue);
+      expect(general.trayHideNoticeShown, isFalse);
+      expect(general.showPullRequestStatusInSidebar, isTrue);
+      expect(general.pullRequestFailureNotificationsEnabled, isFalse);
+      expect(
+        general.pullRequestAgentWatchScope,
+        PullRequestAgentWatchScope.defaults,
+      );
+      expect(general.pullRequestAgentWatchScope.checks, isTrue);
+      expect(general.pullRequestAgentWatchScope.comments, isTrue);
+      expect(general.pullRequestAgentWatchScope.conflicts, isTrue);
     });
 
     test('agent defaults are conservative', () {
@@ -64,6 +76,7 @@ void main() {
       expect(agents.agentStatusHooks.anyEnabled, isFalse);
       expect(agents.agentStatusNotificationsEnabled, isFalse);
       expect(agents.keepComputerAwakeWhileAgentsWork, isFalse);
+      expect(agents.showTabTitlesInSidebar, isFalse);
       expect(agents.defaultAgentProfileId, isNull);
     });
 
@@ -115,7 +128,7 @@ void main() {
             .map((agent) => agent.agentType)
             .whereType<Object>()
             .length,
-        11,
+        12,
       );
     });
 
@@ -147,6 +160,7 @@ void main() {
         },
         'agentStatusNotificationsEnabled': true,
         'keepComputerAwakeWhileAgentsWork': true,
+        'showTabTitlesInSidebar': true,
         'defaultAgentProfileId': 'prof_1',
       });
 
@@ -156,6 +170,12 @@ void main() {
       expect(general.starClicked, isTrue);
       expect(general.showTrayIcon, isTrue);
       expect(general.showDockBadge, isTrue);
+      expect(general.showPullRequestStatusInSidebar, isTrue);
+      expect(general.pullRequestFailureNotificationsEnabled, isFalse);
+      expect(
+        general.pullRequestAgentWatchScope,
+        PullRequestAgentWatchScope.defaults,
+      );
       expect(agents.agentStatusHooks.codex, isTrue);
       expect(agents.agentStatusHooks.claude, isFalse);
       expect(agents.agentStatusHooks.copilot, isTrue);
@@ -166,6 +186,7 @@ void main() {
       expect(agents.agentStatusHooks.amp, isTrue);
       expect(agents.agentStatusNotificationsEnabled, isTrue);
       expect(agents.keepComputerAwakeWhileAgentsWork, isTrue);
+      expect(agents.showTabTitlesInSidebar, isTrue);
       expect(agents.defaultAgentProfileId, 'prof_1');
 
       final hooks = AgentStatusHookSettings.fromJson(<String, Object?>{
@@ -243,7 +264,8 @@ void main() {
         'colorOverrides': <String, Object?>{'cursor': '#abcdef'},
         'scrollbackLines': 15000,
         'tuiScrollSensitivity': 4,
-        'clipboardOnSelect': true,
+        'dragSelectsInTuis': false,
+        'clipboardOnSelect': false,
         'allowOsc52Clipboard': true,
         'showComposerByDefault': true,
         'toolbarCorner': 'bottomLeft',
@@ -262,7 +284,8 @@ void main() {
       expect(restored.colorOverrides.cursor, '#abcdef');
       expect(restored.scrollbackLines, 15000);
       expect(restored.tuiScrollSensitivity, 4);
-      expect(restored.clipboardOnSelect, isTrue);
+      expect(restored.dragSelectsInTuis, isFalse);
+      expect(restored.clipboardOnSelect, isFalse);
       expect(restored.allowOsc52Clipboard, isTrue);
       expect(restored.showComposerByDefault, isTrue);
       expect(restored.toolbarCorner, TerminalToolbarCorner.bottomLeft);

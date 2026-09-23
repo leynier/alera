@@ -17,6 +17,7 @@ void main() {
           showTrayIcon: false,
           showDockBadge: false,
           showTrayBadge: false,
+          trayHideNoticeShown: true,
         ),
         agents: AgentSettings(
           agentStatusHooks: AgentStatusHookSettings(
@@ -31,6 +32,7 @@ void main() {
           ),
           agentStatusNotificationsEnabled: true,
           keepComputerAwakeWhileAgentsWork: true,
+          showTabTitlesInSidebar: true,
           defaultAgentProfileId: 'prof_1',
         ),
         editor: EditorSettings(
@@ -47,13 +49,6 @@ void main() {
           instructionsByOperation: <AiAssistOperation, String>{
             AiAssistOperation.commitMessage: 'Use conventional commits.',
           },
-        ),
-        codexChat: CodexChatSettings(
-          selectedModel: 'gpt-current',
-          reasoningEffort: 'xhigh',
-          speedMode: 'fast',
-          permissionMode: 'never',
-          planMode: true,
         ),
         terminal: TerminalSettings(
           fontFamily: 'SF Mono',
@@ -101,6 +96,7 @@ void main() {
       expect(restored.general.showTrayIcon, isFalse);
       expect(restored.general.showDockBadge, isFalse);
       expect(restored.general.showTrayBadge, isFalse);
+      expect(restored.general.trayHideNoticeShown, isTrue);
       expect(restored.agents.agentStatusHooks.codex, isTrue);
       expect(restored.agents.agentStatusHooks.claude, isTrue);
       expect(restored.agents.agentStatusHooks.copilot, isFalse);
@@ -113,6 +109,7 @@ void main() {
       expect(restored.agents.agentStatusHooks.fx, isTrue);
       expect(restored.agents.agentStatusNotificationsEnabled, isTrue);
       expect(restored.agents.keepComputerAwakeWhileAgentsWork, isTrue);
+      expect(restored.agents.showTabTitlesInSidebar, isTrue);
       expect(restored.agents.defaultAgentProfileId, 'prof_1');
       expect(restored.editor.tabSize, 2);
       expect(restored.editor.themeName, EditorSyntaxThemeNames.nord);
@@ -124,11 +121,6 @@ void main() {
         restored.aiAssist.instructionsFor(.commitMessage),
         'Use conventional commits.',
       );
-      expect(restored.codexChat.selectedModel, 'gpt-current');
-      expect(restored.codexChat.reasoningEffort, 'xhigh');
-      expect(restored.codexChat.speedMode, 'fast');
-      expect(restored.codexChat.permissionMode, 'never');
-      expect(restored.codexChat.planMode, isTrue);
       expect(restored.terminal.fontFamily, 'SF Mono');
       expect(restored.terminal.fontSize, 15);
       expect(restored.terminal.fontWeight, 500);
@@ -156,6 +148,13 @@ void main() {
       expect(restored.keyboard.overrides[KeyboardActionId.closeTab], <String>[
         'Mod+Shift+W',
       ]);
+    });
+
+    test('omitted trayHideNoticeShown decodes to false', () {
+      final general = GeneralSettings.fromJson(<String, Object?>{
+        'confirmProjectRemoval': true,
+      });
+      expect(general.trayHideNoticeShown, isFalse);
     });
   });
 }

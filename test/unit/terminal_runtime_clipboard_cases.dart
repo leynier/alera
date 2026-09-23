@@ -209,4 +209,38 @@ void _registerXtermRuntimeClipboardTests() {
 
     expect(clipboard.writes, <String>['selected']);
   });
+
+  test('copy-on-select trims padding spaces at hard line breaks', () async {
+    final clipboard = _FakeTerminalClipboard();
+    final runtime = XtermTerminalRuntime(
+      terminalClipboard: clipboard,
+      initialSettings: TerminalSettings.defaults.copyWith(
+        clipboardOnSelect: true,
+      ),
+      ptySessionFactory: _FakeTerminalPtySessionFactory(),
+      shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+        _launch('shell', shell: '/bin/sh'),
+      ],
+    );
+    addTearDown(runtime.dispose);
+    final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+    // ConPTY and TUI renderers pad rows with literal spaces rather than
+    // leaving the cells empty.
+    final pad = ' ' * 30;
+    writeTerminalOutputForTesting(
+      session,
+      'Hi Erik,$pad\r\n$pad\r\nHope you are well.$pad\r\n$pad\r\nThanks,$pad',
+    );
+
+    selectTerminalRangeForTesting(
+      session,
+      const xterm.CellOffset(0, 0),
+      const xterm.CellOffset(7, 4),
+    );
+    await Future.pause(const Duration(milliseconds: 120));
+
+    expect(clipboard.writes, <String>[
+      'Hi Erik,\n\nHope you are well.\n\nThanks,',
+    ]);
+  });
 }

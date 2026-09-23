@@ -88,6 +88,37 @@ class RuntimeWorkbenchRepository(
   }
 
   @override
+  Future<Workspace> setWorkspaceArchived(
+    String workspaceId,
+    bool isArchived,
+  ) async {
+    await _ensureReady();
+    final payload = await _client.runtimeRequest(
+      isArchived ? 'workspace.archive' : 'workspace.unarchive',
+      <String, Object?>{'workspaceId': workspaceId},
+    );
+    return _workspaceFromJson(_asMap(payload));
+  }
+
+  @override
+  Future<void> sleepWorkspace(String workspaceId) async {
+    await _ensureReady();
+    await _client.runtimeRequest('workspace.sleep', <String, Object?>{
+      'workspaceId': workspaceId,
+    });
+  }
+
+  @override
+  Future<bool> supportsArchive() async {
+    await _ensureReady();
+    final client = _client;
+    return client is RuntimeHostCapabilityClient &&
+        await (client as RuntimeHostCapabilityClient).supportsRuntimeCapability(
+          aleraRuntimeHostWorkspaceArchiveCapability,
+        );
+  }
+
+  @override
   Future<void> removeWorkspace(
     String workspaceId, {
     bool cascadeTabs = true,
@@ -114,14 +145,20 @@ class RuntimeWorkbenchRepository(
     final payload = await _client.runtimeRequest('tab.list', <String, Object?>{
       'workspaceId': workspaceId,
     }, runtimeSnapshotRequestTimeout);
-    return _asList(payload).map(_tabFromJson).toList(growable: false);
+    return _asList(payload)
+        .map(_tabFromJson)
+        .whereType<WorkspaceTabRecord>()
+        .toList(growable: false);
   }
 
   @override
   Stream<List<WorkspaceTabRecord>> watchWorkspaceTabs(String workspaceId) {
     return runtimeSnapshotStream(
       client: _client,
-      eventNames: const <String>{'workspaceTabsChanged'},
+      eventNames: const <String>{
+        'workspaceTabsChanged',
+        'workbenchLayoutsChanged',
+      },
       readSnapshot: () => listWorkspaceTabs(workspaceId),
       coalesceKey: 'tabs:$workspaceId',
       coalescer: _coalescer,
@@ -153,7 +190,8 @@ class RuntimeWorkbenchRepository(
           ? <String, Object?>{'id': tab.id, 'title': tab.title}
           : _tabToJson(tab),
     );
-    return _tabFromJson(_asMap(payload));
+    return _tabFromJson(_asMap(payload)) ??
+        (throw StateError('Workspace tab upsert returned a retired tab kind.'));
   }
 
   @override
@@ -255,6 +293,7 @@ Workspace _workspaceFromJson(Map<String, Object?> json) {
     sourceBranch: _emptyToNull(json['sourceBranch']),
     reusesExistingBranch: json['reusesExistingBranch'] == true,
     isPinned: json['isPinned'] == true,
+    isArchived: json['isArchived'] == true,
     tagIds: _stringList(json['tagIds']),
     tagNames: _stringList(json['tagNames']),
     sectionId: _emptyToNull(json['sectionId']),
@@ -279,6 +318,7 @@ Map<String, Object?> _workspaceToJson(Workspace workspace) {
     'sourceBranch': workspace.sourceBranch,
     'reusesExistingBranch': workspace.reusesExistingBranch,
     'isPinned': workspace.isPinned,
+    'isArchived': workspace.isArchived,
     'tagIds': workspace.tagIds,
     'tagNames': workspace.tagNames,
     'parentWorkspaceId': workspace.parentWorkspaceId,
@@ -286,11 +326,15 @@ Map<String, Object?> _workspaceToJson(Workspace workspace) {
   };
 }
 
-WorkspaceTabRecord _tabFromJson(Map<String, Object?> json) {
+WorkspaceTabRecord? _tabFromJson(Map<String, Object?> json) {
+  final kind = WorkspaceTabKind.tryParse(json['kind']);
+  if (kind == null) {
+    return null;
+  }
   return WorkspaceTabRecord(
     id: json['id'] as String,
     workspaceId: json['workspaceId'] as String,
-    kind: WorkspaceTabKind.fromJson(json['kind']),
+    kind: kind,
     title: json['title'] as String,
     createdAt: DateTime.parse(json['createdAt'] as String).toUtc(),
     updatedAt: DateTime.parse(json['updatedAt'] as String).toUtc(),

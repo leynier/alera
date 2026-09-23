@@ -44,6 +44,7 @@ WorkbenchSidebarCollapseTargets visibleSidebarCollapseTargets(
   final query = state.searchQuery.trim().toLowerCase();
   final filtersHideEmptyProjects =
       query.isNotEmpty ||
+      prefs.selectedSectionIds.isNotEmpty ||
       prefs.selectedTagIds.isNotEmpty ||
       prefs.workspaceKindFilter != WorkspaceKindFilter.all ||
       prefs.showActiveWorkspacesOnly;
@@ -159,10 +160,16 @@ bool _workspaceVisible(
   Workspace workspace,
   Iterable<WorkspaceTabRecord> tabs,
 ) {
+  if (!workspaceMatchesArchivedFilter(prefs, workspace)) {
+    return false;
+  }
   if (!workspaceMatchesKindFilter(prefs, workspace)) {
     return false;
   }
   if (!workspaceMatchesTagFilter(prefs, workspace)) {
+    return false;
+  }
+  if (!workspaceMatchesSectionFilter(prefs, workspace)) {
     return false;
   }
   if (!workspaceMatchesActiveFilter(prefs, tabs)) {

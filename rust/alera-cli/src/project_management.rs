@@ -9,14 +9,14 @@ use alera_core::{
 };
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::Utc;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectRegistration {
     pub project: Project,
-    pub main_workspace: Workspace,
+    pub initial_workspace: Option<Workspace>,
     pub created: bool,
 }
 
@@ -56,14 +56,34 @@ pub async fn register_project(
     raw_path: &str,
     requested_name: Option<&str>,
 ) -> Result<ProjectRegistration> {
+    register_project_with_identity(store, raw_path, requested_name, None, None).await
+}
+
+pub async fn register_project_with_identity(
+    store: &RuntimeStore,
+    raw_path: &str,
+    requested_name: Option<&str>,
+    requested_id: Option<&str>,
+    expected_kind: Option<ProjectKind>,
+) -> Result<ProjectRegistration> {
+    if requested_id.is_some_and(|id| id.trim().is_empty()) {
+        bail!("Project ID cannot be empty");
+    }
     let path = validate_existing_directory(raw_path)?;
     let canonical = canonical_string(&path)?;
     for project in store.list_projects().await? {
         if paths_equal(&project.repo_path, &canonical) {
-            let main_workspace = ensure_main_workspace(store, &project).await?;
+            if requested_id.is_some_and(|id| id != project.id)
+                || expected_kind.is_some_and(|kind| kind != project.kind)
+            {
+                bail!("The project folder is already registered with a different identity or kind");
+            }
+            store
+                .register_project_checkout(&project.id, LOCAL_HOST_ID, &canonical)
+                .await?;
             return Ok(ProjectRegistration {
                 project,
-                main_workspace,
+                initial_workspace: None,
                 created: false,
             });
         }
@@ -75,10 +95,20 @@ pub async fn register_project(
     } else {
         ProjectKind::Folder
     };
+    if expected_kind.is_some_and(|expected| expected != kind) {
+        bail!("Project kind does not match the selected folder");
+    }
+    if let Some(id) = requested_id {
+        if store.find_project(id).await?.is_some() {
+            bail!("Project ID is already registered to another folder");
+        }
+    }
     let name = normalized_project_name(requested_name, &path)?;
     let now = Utc::now();
     let project = Project {
-        id: Uuid::new_v4().to_string(),
+        id: requested_id
+            .map(str::to_string)
+            .unwrap_or_else(|| Uuid::new_v4().to_string()),
         name: name.clone(),
         repo_path: canonical.clone(),
         created_at: now,
@@ -100,20 +130,19 @@ pub async fn register_project(
         source_branch: None,
         reuses_existing_branch: false,
         is_pinned: false,
+        is_archived: false,
         tag_ids: Vec::new(),
         tag_names: Vec::new(),
         parent_workspace_id: None,
         section_id: None,
         child_count: 0,
     };
-    store.upsert_project(project.clone()).await?;
-    if let Err(error) = store.upsert_workspace(main_workspace.clone()).await {
-        let _ = store.remove_project(&project.id).await;
-        return Err(error);
-    }
+    store
+        .insert_project_with_initial_workspace(&project, &main_workspace)
+        .await?;
     Ok(ProjectRegistration {
         project,
-        main_workspace,
+        initial_workspace: Some(main_workspace),
         created: true,
     })
 }
@@ -282,43 +311,6 @@ fn validate_existing_directory(raw_path: &str) -> Result<PathBuf> {
     Ok(path)
 }
 
-async fn ensure_main_workspace(store: &RuntimeStore, project: &Project) -> Result<Workspace> {
-    if let Some(workspace) = store
-        .list_workspaces(&project.id)
-        .await?
-        .into_iter()
-        .find(|workspace| workspace.kind == WorkspaceKind::Main)
-    {
-        return Ok(workspace);
-    }
-    let now = Utc::now();
-    store
-        .upsert_workspace(Workspace {
-            id: Uuid::new_v4().to_string(),
-            instance_id: Uuid::new_v4().to_string(),
-            host_id: LOCAL_HOST_ID.to_string(),
-            project_id: project.id.clone(),
-            name: project.name.clone(),
-            branch: (project.kind == ProjectKind::GitRepository)
-                .then(|| core_git::current_branch(&project.repo_path).ok())
-                .flatten(),
-            path: project.repo_path.clone(),
-            created_at: now,
-            updated_at: now,
-            kind: WorkspaceKind::Main,
-            status: WorkspaceStatus::Active,
-            source_branch: None,
-            reuses_existing_branch: false,
-            is_pinned: false,
-            tag_ids: Vec::new(),
-            tag_names: Vec::new(),
-            parent_workspace_id: None,
-            section_id: None,
-            child_count: 0,
-        })
-        .await
-}
-
 fn normalized_project_name(requested_name: Option<&str>, path: &Path) -> Result<String> {
     let requested = requested_name.unwrap_or_default().trim();
     if !requested.is_empty() {
@@ -370,7 +362,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn registering_a_folder_creates_one_main_workspace_and_deduplicates() {
+    async fn registering_a_folder_creates_an_initial_workspace_only_once() {
         let runtime = tempfile::tempdir().unwrap();
         let project_dir = tempfile::tempdir().unwrap();
         let store = RuntimeStore::open(runtime.path()).await.unwrap();
@@ -389,7 +381,8 @@ mod tests {
         assert!(first.created);
         assert!(!second.created);
         assert_eq!(first.project.id, second.project.id);
-        assert_eq!(first.main_workspace.id, second.main_workspace.id);
+        assert!(first.initial_workspace.is_some());
+        assert!(second.initial_workspace.is_none());
         assert_eq!(first.project.kind, ProjectKind::Folder);
         assert_eq!(store.list_projects().await.unwrap().len(), 1);
         assert_eq!(
@@ -400,6 +393,30 @@ mod tests {
                 .len(),
             1
         );
+    }
+
+    #[tokio::test]
+    async fn registering_an_existing_empty_project_does_not_recreate_a_workspace() {
+        let runtime = tempfile::tempdir().unwrap();
+        let project_dir = tempfile::tempdir().unwrap();
+        let store = RuntimeStore::open(runtime.path()).await.unwrap();
+        let first = register_project(&store, project_dir.path().to_str().unwrap(), None)
+            .await
+            .unwrap();
+        store
+            .remove_workspace(&first.initial_workspace.unwrap().id, true)
+            .await
+            .unwrap();
+        let result = register_project(&store, project_dir.path().to_str().unwrap(), None)
+            .await
+            .unwrap();
+        assert!(!result.created);
+        assert!(result.initial_workspace.is_none());
+        assert!(store
+            .list_workspaces(&first.project.id)
+            .await
+            .unwrap()
+            .is_empty());
     }
 
     #[tokio::test]

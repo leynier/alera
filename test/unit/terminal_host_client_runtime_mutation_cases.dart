@@ -30,6 +30,35 @@ void _registerTerminalHostClientRuntimeMutationTests() {
     });
   }
 
+  for (final supported in [false, true]) {
+    test('socket client detects configuration sync ($supported)', () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'alera-configuration-sync-capability-',
+      );
+      addTearDown(() => tempDir.delete(recursive: true));
+      final server = await _TerminalHostTestServer.start();
+      addTearDown(server.dispose);
+      await _writeControlFile(
+        tempDir: tempDir,
+        port: server.port,
+        token: server.token,
+        includeConfigurationSyncCapability: supported,
+      );
+      final client = SocketTerminalHostClient(
+        launcher: _NoopTerminalHostLauncher(),
+        applicationSupportDirectory: () async => tempDir,
+      );
+      addTearDown(client.dispose);
+      expect(
+        await client.supportsRuntimeCapability(
+          aleraRuntimeHostConfigurationSyncCapability,
+        ),
+        supported,
+      );
+      expect(await client.supportsRuntimeCapability('unknown'), isFalse);
+    });
+  }
+
   test(
     'status.get updates crash reports with the connected host version',
     () async {

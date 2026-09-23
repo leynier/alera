@@ -1,4 +1,6 @@
-use portable_pty::{native_pty_system, Child, ChildKiller, CommandBuilder, MasterPty, PtySize};
+#[cfg(not(windows))]
+use portable_pty::CommandBuilder;
+use portable_pty::{native_pty_system, Child, ChildKiller, MasterPty, PtySize};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::TerminalHostLaunch;

@@ -5,6 +5,7 @@ import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:alera/src/features/settings/infra/drift_settings_repository.dart';
 import 'package:alera/src/shared/infra/storage/drift_database.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -238,10 +239,16 @@ void main() {
         await controller.setAgentStatusHookEnabled(.fx, true);
         await controller.setAgentStatusNotificationsEnabled(true);
         await controller.setKeepComputerAwakeWhileAgentsWork(true);
+        await controller.setShowTabTitlesInSidebar(true);
         await controller.setKeepAliveEnabled(true);
         await controller.setShowTrayIcon(false);
         await controller.setShowDockBadge(false);
         await controller.setShowTrayBadge(false);
+        await controller.setShowPullRequestStatusInSidebar(false);
+        await controller.setPullRequestFailureNotificationsEnabled(true);
+        await controller.setPullRequestAgentWatchScope(
+          const PullRequestAgentWatchScope(comments: false),
+        );
 
         final restored = await repository.load();
         expect(
@@ -272,10 +279,17 @@ void main() {
         expect(restored.agents.agentStatusHooks.fx, isTrue);
         expect(restored.agents.agentStatusNotificationsEnabled, isTrue);
         expect(restored.agents.keepComputerAwakeWhileAgentsWork, isTrue);
+        expect(restored.agents.showTabTitlesInSidebar, isTrue);
         expect(restored.general.keepAliveEnabled, isTrue);
         expect(restored.general.showTrayIcon, isFalse);
         expect(restored.general.showDockBadge, isFalse);
         expect(restored.general.showTrayBadge, isFalse);
+        expect(restored.general.showPullRequestStatusInSidebar, isFalse);
+        expect(restored.general.pullRequestFailureNotificationsEnabled, isTrue);
+        expect(
+          restored.general.pullRequestAgentWatchScope,
+          const PullRequestAgentWatchScope(comments: false),
+        );
       },
     );
 
@@ -348,6 +362,29 @@ void main() {
         await controller.markStarClicked();
         final secondRestore = await repository.load();
         expect(secondRestore.general.starClicked, isTrue);
+      },
+    );
+
+    test(
+      'markTrayHideNoticeShown persists once and becomes a no-op afterward',
+      () async {
+        final db = AleraDatabase(executor: NativeDatabase.memory());
+        addTearDown(db.close);
+        final repository = DriftSettingsRepository(db);
+        final container = ProviderContainer(
+          overrides: [settingsRepositoryProvider.overrideWithValue(repository)],
+        );
+        addTearDown(container.dispose);
+        final controller = container.read(settingsControllerProvider.notifier);
+        await controller.load();
+
+        await controller.markTrayHideNoticeShown();
+        final firstRestore = await repository.load();
+        expect(firstRestore.general.trayHideNoticeShown, isTrue);
+
+        await controller.markTrayHideNoticeShown();
+        final secondRestore = await repository.load();
+        expect(secondRestore.general.trayHideNoticeShown, isTrue);
       },
     );
   });

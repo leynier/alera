@@ -18,6 +18,31 @@ fn returns_stdout_from_the_requested_directory() {
 }
 
 #[test]
+fn applies_owner_environment_without_persisting_git_configuration() {
+    let dir = init_repo();
+    let environment = std::collections::BTreeMap::from([
+        ("GIT_CONFIG_COUNT".into(), "1".into()),
+        (
+            "GIT_CONFIG_KEY_0".into(),
+            "alera.owner-checkout-test".into(),
+        ),
+        ("GIT_CONFIG_VALUE_0".into(), "owner-value".into()),
+    ]);
+    let value = super::git_in_dir_with_environment(
+        dir.path(),
+        &["config", "--get", "alera.owner-checkout-test"],
+        &environment,
+    )
+    .unwrap();
+    assert_eq!(value.trim(), "owner-value");
+    assert!(git_in_dir(
+        dir.path(),
+        &["config", "--local", "--get", "alera.owner-checkout-test"]
+    )
+    .is_err());
+}
+
+#[test]
 fn failure_carries_the_cli_diagnostics() {
     let dir = init_repo();
 

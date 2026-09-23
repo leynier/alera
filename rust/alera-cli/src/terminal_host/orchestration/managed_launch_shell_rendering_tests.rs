@@ -21,7 +21,7 @@ fn rendering_quotes_each_token_for_supported_shell_families() {
     );
     assert_eq!(
         render_managed_launch(&launch, "pwsh.exe"),
-        "'agy' '--model' 'Gemini 3.5 Flash (High)' 'it''s ready'"
+        "& 'agy' '--model' 'Gemini 3.5 Flash (High)' 'it''s ready'"
     );
     assert_eq!(
         render_managed_launch(&launch, "cmd.exe"),
@@ -43,7 +43,7 @@ fn codex_managed_prompt_follows_the_option_terminator_on_every_shell() {
     );
     assert_eq!(
         render_managed_launch(&launch, "pwsh.exe"),
-        "'codex' '--search' '--' '- Review why it''s pending\n- Implement memory'"
+        "& 'codex' '--search' '--' '- Review why it''s pending\n- Implement memory'"
     );
     assert_eq!(
         render_managed_launch(&launch, "cmd.exe"),
@@ -80,5 +80,35 @@ fn a_managed_amp_launch_keeps_its_prompt_off_the_command_line() {
     assert_eq!(
         render_managed_launch(&launch, "/bin/zsh"),
         "'amp' '--mode' 'high'"
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_powershell_executes_a_rendered_resume_line() {
+    let launch = ManagedAgentLaunch {
+        executable: "codex".into(),
+        arguments: vec!["resume".into(), "sess-1".into()],
+    };
+    let line = render_managed_launch(&launch, "powershell.exe");
+    let script = format!("function codex {{ $args -join '|' }}; {line}");
+    let output = alera_core::child_process::windowless_command("powershell.exe")
+        .args([
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            &script,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout).trim(),
+        "resume|sess-1"
     );
 }

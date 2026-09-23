@@ -40,7 +40,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Terminal ligatures | 2 | 2 | Planned | Font ligature support in terminal rendering |
 | Ghostty settings import | 2 | 2 | Planned | Import terminal settings from Ghostty config files |
 | Terminal stream protocol | 4 | 3 | Shipped | Mobile companion streams terminal I/O over the runtime WebSocket gateway; desktop uses the host socket protocol |
-| Tab cycling & reopen closed tab | 2 | 4 | Partial | Next/previous tab and go-to-tab 1–9 shortcuts ship; browser tabs can reopen the 10 most recent closed pages, while general workspace-tab reopen remains |
+| Tab cycling & reopen closed tab | 2 | 4 | Partial | Next/previous tab and go-to-tab 1–9 shortcuts ship; general workspace-tab reopen remains |
 
 ---
 
@@ -85,8 +85,8 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Conflict view and resolver | 4 | 4 | Planned | Conflicts are detected and block some git ops; no visual merge resolver UI yet |
 | Conflict resolution with AI | 4 | 3 | Planned | AI-assisted three-way merge conflict resolution |
 | Git history panel with graph | 4 | 4 | Shipped | Collapsible Source Control commits section with HEAD/upstream graph and commit diff tabs |
-| Diff annotations & inline comments | 4 | 3 | Planned | Comment threads on diff lines with popovers |
-| Send diff annotations to agent | 3 | 4 | Planned | Send annotated diffs directly to agents for action |
+| Diff annotations & inline comments | 4 | 3 | Partial | Desktop file and diff comments accumulate per workspace and send to an agent; hosted review threads and popover UI stay later |
+| Send diff annotations to agent | 3 | 4 | Shipped | File and diff comments send through the shared agent task dispatch picker |
 | Image diff | 3 | 2 | Shipped | Side-by-side before/after image comparison for binary diffs |
 
 ---
@@ -95,22 +95,12 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| Pull requests panel | 4 | 4 | Shipped | Create, edit, comment (markdown), toggle draft, and merge reviews per worktree on GitHub, GitLab, and Azure DevOps; GitHub native stack discovery, workspace-driven PR creation, linking, and atomic merge are included |
+| Pull requests panel | 4 | 4 | Shipped | Create, edit, comment (markdown), toggle draft, and merge reviews per worktree on GitHub, GitLab, and Azure DevOps; GitHub native stack discovery, workspace-driven PR creation, linking, and atomic merge are included; Restack sends one agent prompt to rewrite commits since the merge base without pushing; Watch and Fix sends one agent prompt for failed checks, unresolved review threads, and merge conflicts inside a remembered scope, and Watch, Fix and Merge merges once that scope is clear |
 | Checks panel (CI/CD) | 4 | 4 | Shipped | CI checks grouped by status with drill-down details on GitHub, GitLab, and Azure DevOps |
 | GitHub Projects integration | 4 | 3 | Planned | Full project board with columns, cards, filtering, inline editing |
 | Linear integration | 4 | 2 | Planned | Linear SDK, issue workspace, item drawer, team selection |
 | Alera account identity | 4 | 4 | Shipped | Optional Google and GitHub sign-in, linked verified identities, rotating Alera sessions, runtime ownership, mobile enrollment, and account deletion |
 | Multi-account support | 3 | 3 | Partial | Mobile retains multiple Alera account sessions; desktop provider-account switching and multiple simultaneous runtime identities are not implemented |
-
----
-
-## Browser
-
-| Feature | Difficulty | Utility | Status | Notes |
-|---|:---:|:---:|:---:|---|
-| Browser tab | 4 | 4 | Shipped | Persisted native browser tabs using WKWebView, WebView2, or WebKitGTK; Alera does not bundle Chromium or CEF |
-| Browser Use | 5 | 4 | Shipped | App-routed automation with snapshots, refs, click, fill, type, select, focus, hover, scroll, wait, local eval, screenshots, and PDF export |
-| Browser session profiles | 3 | 3 | Partial | Create, delete, switch, isolated storage, and atomic cookie import are shipped; profile cloning is not |
 
 ---
 
@@ -120,8 +110,9 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 |---|:---:|:---:|:---:|---|
 | Quick Open / Command Palette | 3 | 5 | Planned | Fuzzy file search (Cmd+P) and command execution (Cmd+Shift+P) |
 | Worktree navigation history | 2 | 4 | Shipped | Back/forward navigation stack between worktrees |
-| Worktree sleep/wake | 3 | 3 | Shipped | Sleep removes tabs/layout and terminates terminals while keeping branch/files; desktop and mobile |
-| Worktree comments & metadata | 2 | 3 | Partial | Rename, pins, tags, and parent/child relations ship; freeform comments and issue links do not |
+| Worktree sleep/wake | 3 | 3 | Shipped | Sleep terminates terminals while keeping tabs/layout/branch/files for resume; desktop and mobile |
+| Worktree archiving | 3 | 4 | Shipped | Archive stops sessions and hides the workspace unless Show Archived Workspaces is on, preserving tabs/layout/branch/files; merged PRs default to Archive with Remove still offered; desktop, mobile, and CLI |
+| Worktree comments & metadata | 2 | 3 | Partial | Rename, pins, tags, parent/child relations, and linked issues ship; freeform comments do not |
 | Worktree multi-selection | 2 | 3 | Planned | Select multiple worktrees for batch operations |
 | Worktree manual ordering | 2 | 3 | Planned | Sort by name/recent/activity exists; no drag-and-drop manual order with persistence |
 | Smart workspace naming | 2 | 3 | Planned | Manual name field on create; no intelligent auto-naming suggestions yet |
@@ -145,7 +136,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| Automations system | 4 | 4 | Planned | Cron-style scheduled agent workflows with templates and run history |
+| Automations system | 4 | 4 | Shipped | Cron-style scheduled agent workflows with templates, run history, desktop/mobile/CLI surfaces, and host scheduler |
 
 ---
 
@@ -184,9 +175,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| SSH | 5 | 4 | Partial | SSH targets, signed remote runtime bootstrap, Settings → Remote Hosts, `alera ssh-target`, and host-aware workspace metadata; full remote PTY/filesystem/git worktrees as local are not complete |
-| Computer Use | 5 | 3 | Partial | `alera computer` reads and drives application windows through AT-SPI, UI Automation, or AXUIElement on Linux, Windows, and macOS; synthetic input and screen capture are not offered yet |
-| Mobile emulator tabs | 5 | 4 | Shipped | Workspace tabs for Android emulators and iOS simulators with capability-gated streaming, observation, input, install/launch, and platform-specific diagnostics; availability depends on the host SDK/backend |
+| SSH | 5 | 4 | Partial | SSH targets, signed remote runtime bootstrap, Settings → Remote Hosts, `alera ssh-target`, `workspace add --host-id`, and Desktop New Workspace host picker; source-control/search against remote paths and remote worktree setup copies remain follow-ups |
 | Mobile App | 5 | 3 | Shipped | Pairing and terminal foundation plus sidebar parity, secure multi-account enrollment, FCM receipt and tap routing, settings/hooks/quotas, and managed workspace actions; richer non-terminal tab surfaces planned |
 
 ---
@@ -195,7 +184,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| Alera CLI | 4 | 4 | Shipped | Rust `alera` sidecar: `runtime`, `project`, `workspace`, `tag`, `tab`, `terminal`, `ssh-target`, `mobile`, `computer`, `browser`, `emulator`, and `orchestration`; automations remain future |
+| Alera CLI | 4 | 4 | Shipped | Rust `alera` sidecar: `runtime`, `project`, `workspace`, `tag`, `tab`, `terminal`, `ssh-target`, `mobile`, `orchestration`, and `automation` |
 
 ---
 
@@ -287,7 +276,7 @@ Features whose status or scope was checked against the current implementation:
 | Notification system | Partial |
 | Skills install controls | Partial |
 | Worktree metadata (rename/tags/pins) | Partial |
-| Tab cycling (browser reopen; general reopen pending) | Partial |
+| Tab cycling (general reopen pending) | Partial |
 | Open in file manager / browser | Partial |
 | External file watch foundation | Partial |
 | Activity projection (not full feed) | Partial |
@@ -295,11 +284,6 @@ Features whose status or scope was checked against the current implementation:
 | Agent registry (fixed set) | Partial |
 | Agent interrupt detection | Partial |
 | Managed agent profiles and trust controls | Shipped |
-| Browser tab | Shipped |
-| Browser Use | Shipped |
-| Browser session profiles | Partial |
-| Computer Use | Partial |
-| Mobile emulator tabs | Shipped |
 | Prompt-driven workspace creation | Shipped |
 | Crash reporting | Shipped |
 | Diagnostic bundles | Shipped |

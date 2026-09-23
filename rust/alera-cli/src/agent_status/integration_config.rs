@@ -4,10 +4,10 @@ use std::path::{Path, PathBuf};
 use alera_core::runtime::RuntimeAgentStatusHookSettings;
 use serde_json::{json, Map, Value};
 
-use self::cursor_overlay::prepare_cursor;
 use super::integration_hook_scripts::write_managed_script;
 use super::integration_plugins::{
     install_amp_plugin, install_opencode2_plugin, install_opencode_plugin, install_pi_plugin,
+    remove_amp_plugin, remove_opencode2_plugin, remove_opencode_plugin, remove_pi_plugin,
 };
 
 #[path = "integration_config_ccs.rs"]
@@ -16,10 +16,16 @@ mod ccs;
 mod codex;
 #[path = "integration_config_codex_trust.rs"]
 mod codex_hook_trust;
-#[path = "integration_config_cursor_overlay.rs"]
-mod cursor_overlay;
+#[path = "integration_config_cursor.rs"]
+mod cursor;
+#[path = "integration_config_json.rs"]
+mod json;
 #[path = "integration_config_user_hooks.rs"]
 mod user_hooks;
+use json::{
+    cleanup_agy, cleanup_dedicated_hooks_file, copilot_hooks_path, grok_hooks_path, install_agy,
+    install_copilot, install_grok,
+};
 
 const MANAGED_MARKER: &str = "alera-runtime-agent-hook";
 const LEGACY_MANAGED_MARKERS: [&str; 9] = [
@@ -38,87 +44,125 @@ const LEGACY_MANAGED_MARKERS: [&str; 9] = [
 ];
 
 pub fn prepare_enabled_integrations(
-    runtime_dir: &Path,
-    session_id: Option<&str>,
+    _runtime_dir: &Path,
+    _session_id: Option<&str>,
     settings: &RuntimeAgentStatusHookSettings,
     environment: &mut BTreeMap<String, String>,
 ) -> Vec<String> {
     let mut warnings = Vec::new();
-    let script = match write_managed_script() {
-        Ok(script) => script,
+    let home = match home_dir() {
+        Ok(home) => home,
         Err(error) => {
             warnings.push(error.to_string());
             return warnings;
         }
     };
-    if settings.codex {
-        match codex::prepare_codex(runtime_dir, &script) {
-            Ok(home) => {
-                environment.insert("CODEX_HOME".to_string(), path_string(&home));
-                environment.insert("ALERA_CODEX_HOME".to_string(), path_string(&home));
+    let script = if needs_managed_script(settings) {
+        match write_managed_script() {
+            Ok(script) => Some(script),
+            Err(error) => {
+                warnings.push(error.to_string());
+                return warnings;
             }
-            Err(error) => warnings.push(format!("Codex: {error}")),
         }
-    }
-    if settings.claude {
-        match prepare_claude(runtime_dir, &script, environment) {
-            Ok((home, ccs_warnings)) => {
-                environment.insert("CLAUDE_CONFIG_DIR".to_string(), path_string(&home));
-                environment.insert("ALERA_CLAUDE_CONFIG_DIR".to_string(), path_string(&home));
-                warnings.extend(
-                    ccs_warnings
-                        .into_iter()
-                        .map(|warning| format!("Claude: {warning}")),
-                );
-            }
-            Err(error) => warnings.push(format!("Claude: {error}")),
-        }
-    } else if let Err(error) = home_dir().and_then(|home| {
-        user_hooks::cleanup_claude_user_hooks(&home)?;
-        ccs::remove_ccs_claude_hooks(&home, environment)
-    }) {
-        warnings.push(format!("Claude: {error}"));
-    }
-    // The Cursor plugin is per terminal session, so it can only be built when a
-    // session is being launched. `reconcile_agent_integrations` has none.
-    if let (true, Some(session_id)) = (settings.cursor, session_id) {
-        if let Err(error) = prepare_cursor(runtime_dir, session_id, &script, environment) {
-            warnings.push(format!("Cursor: {error}"));
-        }
-    }
-    for result in [
-        settings.copilot.then(|| install_copilot(&script)),
-        settings.agy.then(|| install_agy(&script)),
-        settings.grok.then(|| install_grok(&script)),
-        settings.opencode.then(install_opencode_plugin),
-        settings.opencode2.then(install_opencode2_plugin),
-        settings.pi.then(install_pi_plugin),
-        settings.amp.then(install_amp_plugin),
-    ]
-    .into_iter()
-    .flatten()
-    {
-        if let Err(error) = result {
-            warnings.push(error.to_string());
-        }
-    }
+    } else {
+        None
+    };
+
+    let codex_home = resolved_codex_home(&home);
+    apply_scripted(
+        "Codex",
+        settings.codex,
+        script.as_deref(),
+        |script| codex::install_codex(&codex_home, script),
+        || codex::cleanup_codex(&codex_home),
+        &mut warnings,
+    );
+    apply_scripted(
+        "Claude",
+        settings.claude,
+        script.as_deref(),
+        |script| install_claude(&home, script, environment),
+        || cleanup_claude(&home, environment),
+        &mut warnings,
+    );
+    apply_scripted(
+        "Cursor",
+        settings.cursor,
+        script.as_deref(),
+        |script| cursor::install_cursor_user_hooks(&home, script),
+        || cursor::cleanup_cursor_user_hooks(&home),
+        &mut warnings,
+    );
+    apply_scripted(
+        "Copilot",
+        settings.copilot,
+        script.as_deref(),
+        install_copilot,
+        || cleanup_dedicated_hooks_file(&copilot_hooks_path()?),
+        &mut warnings,
+    );
+    apply_scripted(
+        "Antigravity",
+        settings.agy,
+        script.as_deref(),
+        install_agy,
+        || cleanup_agy(&home),
+        &mut warnings,
+    );
+    apply_scripted(
+        "Grok",
+        settings.grok,
+        script.as_deref(),
+        install_grok,
+        || cleanup_dedicated_hooks_file(&grok_hooks_path()?),
+        &mut warnings,
+    );
+    apply_plugin(
+        "OpenCode",
+        settings.opencode,
+        install_opencode_plugin,
+        remove_opencode_plugin,
+        &mut warnings,
+    );
+    apply_plugin(
+        "OpenCode 2",
+        settings.opencode2,
+        install_opencode2_plugin,
+        remove_opencode2_plugin,
+        &mut warnings,
+    );
+    apply_plugin(
+        "Pi",
+        settings.pi,
+        install_pi_plugin,
+        remove_pi_plugin,
+        &mut warnings,
+    );
+    apply_plugin(
+        "Amp",
+        settings.amp,
+        install_amp_plugin,
+        remove_amp_plugin,
+        &mut warnings,
+    );
     warnings
 }
 
 /// Host start: clear what a previous run left behind, then reconcile.
 ///
-/// The clearing has to happen here and only here. The host owns no PTY yet, so
-/// this is the one moment a per-session leftover is provably dead, and it is
-/// also the only point that runs when every hook toggle is off.
+/// The leftover overlay and runtime-home directories belong to older Alera
+/// versions. The host owns no PTY yet, so every one of those directories is
+/// from a session that no longer exists. Reconcile also runs when every hook
+/// toggle is off, which is what makes cleanup reachable.
 pub fn start_agent_integrations(
     runtime_dir: &Path,
     settings: &RuntimeAgentStatusHookSettings,
 ) -> Vec<String> {
-    let mut warnings =
-        match home_dir().and_then(|home| cursor_overlay::clear_stale_state(runtime_dir, &home)) {
-            Ok(()) => Vec::new(),
-            Err(error) => vec![format!("Cursor: {error}")],
-        };
+    let mut warnings = match clear_legacy_runtime_state(runtime_dir) {
+        Ok(()) => Vec::new(),
+        Err(error) => vec![error.to_string()],
+    };
     warnings.extend(reconcile_agent_integrations(runtime_dir, settings));
     warnings
 }
@@ -131,40 +175,103 @@ pub fn reconcile_agent_integrations(
     prepare_enabled_integrations(runtime_dir, None, settings, &mut environment)
 }
 
-fn prepare_claude(
-    runtime_dir: &Path,
+fn resolved_codex_home(home: &Path) -> PathBuf {
+    match env_path("CODEX_HOME") {
+        Some(path) if is_legacy_alera_codex_home(&path) => home.join(".codex"),
+        Some(path) => path,
+        None => home.join(".codex"),
+    }
+}
+
+fn is_legacy_alera_codex_home(path: &Path) -> bool {
+    path.components()
+        .any(|component| component.as_os_str() == "agent-runtime-homes")
+}
+
+fn needs_managed_script(settings: &RuntimeAgentStatusHookSettings) -> bool {
+    settings.codex
+        || settings.claude
+        || settings.copilot
+        || settings.cursor
+        || settings.agy
+        || settings.grok
+}
+
+fn apply_scripted(
+    name: &str,
+    enabled: bool,
+    script: Option<&Path>,
+    install: impl FnOnce(&Path) -> anyhow::Result<()>,
+    cleanup: impl FnOnce() -> anyhow::Result<()>,
+    warnings: &mut Vec<String>,
+) {
+    let result = if enabled {
+        match script {
+            Some(script) => install(script),
+            None => Err(anyhow::anyhow!("managed script was not written")),
+        }
+    } else {
+        cleanup()
+    };
+    push_warning(name, result, warnings);
+}
+
+fn apply_plugin(
+    name: &str,
+    enabled: bool,
+    install: impl FnOnce() -> anyhow::Result<()>,
+    cleanup: impl FnOnce() -> anyhow::Result<()>,
+    warnings: &mut Vec<String>,
+) {
+    let result = if enabled { install() } else { cleanup() };
+    push_warning(name, result, warnings);
+}
+
+fn push_warning(name: &str, result: anyhow::Result<()>, warnings: &mut Vec<String>) {
+    if let Err(error) = result {
+        warnings.push(format!("{name}: {error}"));
+    }
+}
+
+fn install_claude(
+    home: &Path,
     script: &Path,
     environment: &BTreeMap<String, String>,
-) -> anyhow::Result<(PathBuf, Vec<String>)> {
-    let home = home_dir()?;
-    let source = home.join(".claude");
-    let runtime_home = runtime_dir.join("agent-runtime-homes/claude/home");
-    std::fs::create_dir_all(&runtime_home)?;
-    if source.exists() {
-        for entry in std::fs::read_dir(&source)? {
-            let entry = entry?;
-            if entry.file_name() != "settings.json" {
-                link_if_present(&entry.path(), &runtime_home.join(entry.file_name()));
+) -> anyhow::Result<()> {
+    user_hooks::install_claude_user_hooks(home, script)?;
+    ccs::remove_ccs_claude_hooks(home, environment)
+}
+
+fn cleanup_claude(home: &Path, environment: &BTreeMap<String, String>) -> anyhow::Result<()> {
+    let mut errors = Vec::new();
+    if let Err(error) = user_hooks::cleanup_claude_user_hooks(home) {
+        errors.push(error.to_string());
+    }
+    if let Err(error) = ccs::remove_ccs_claude_hooks(home, environment) {
+        errors.push(error.to_string());
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!(errors.join("; ")))
+    }
+}
+
+fn clear_legacy_runtime_state(runtime_dir: &Path) -> anyhow::Result<()> {
+    let mut errors = Vec::new();
+    for relative in ["agent-runtime-homes", "agent-runtime-overlays"] {
+        let path = runtime_dir.join(relative);
+        if path.exists() {
+            if let Err(error) = std::fs::remove_dir_all(&path) {
+                errors.push(format!("{}: {error}", path.display()));
             }
         }
     }
-    let mut settings = read_json_object(&source.join("settings.json"))?.unwrap_or_default();
-    install_claude_hooks_into(&mut settings, script);
-    write_json_object(&runtime_home.join("settings.json"), &settings)?;
-    // CCS overrides CLAUDE_CONFIG_DIR to its own instance, so the overlay above
-    // never reaches those sessions. The user's settings.json is what every
-    // instance symlinks to, and the only file Claude reads from a config
-    // directory. Keep the overlay even when that write fails.
-    let mut warnings = Vec::new();
-    if let Err(error) = user_hooks::install_claude_user_hooks(&home, script) {
-        warnings.push(error.to_string());
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!(errors.join("; ")))
     }
-    // Older Alera versions wrote into the CCS instances themselves. Claude never
-    // read those files; strip them so nothing double-POSTs.
-    if let Err(error) = ccs::remove_ccs_claude_hooks(&home, environment) {
-        warnings.push(error.to_string());
-    }
-    Ok((runtime_home, warnings))
 }
 
 pub(super) const CLAUDE_HOOK_EVENTS: &[(&str, Option<&str>)] = &[
@@ -184,104 +291,6 @@ pub(super) fn install_claude_hooks_into(settings: &mut Map<String, Value>, scrip
         definitions.push(managed_hook_definition(*matcher, &command));
         hooks.insert((*event).to_string(), Value::Array(definitions));
     }
-}
-
-fn install_copilot(script: &Path) -> anyhow::Result<()> {
-    let home = env_path("COPILOT_HOME").unwrap_or(home_dir()?.join(".copilot"));
-    let path = home.join("hooks/alera.json");
-    let events = [
-        "SessionStart",
-        "SessionEnd",
-        "UserPromptSubmit",
-        "PreToolUse",
-        "PostToolUse",
-        "PostToolUseFailure",
-        "SubagentStart",
-        "SubagentStop",
-        "PreCompact",
-        "Stop",
-        "ErrorOccurred",
-        "PermissionRequest",
-        "Notification",
-    ];
-    let hooks = events
-        .into_iter()
-        .map(|event| {
-            (
-                event.to_string(),
-                json!([{ "type": "command", "bash": managed_command(script, "copilot", event), "timeoutSec": 5 }]),
-            )
-        })
-        .collect::<Map<_, _>>();
-    write_json_object(
-        &path,
-        &Map::from_iter([
-            ("version".to_string(), json!(1)),
-            ("hooks".to_string(), Value::Object(hooks)),
-        ]),
-    )
-}
-
-fn install_grok(script: &Path) -> anyhow::Result<()> {
-    let home = env_path("GROK_HOME").unwrap_or(home_dir()?.join(".grok"));
-    let path = home.join("hooks/alera-status.json");
-    let hooks = [
-        ("SessionStart", None),
-        ("UserPromptSubmit", None),
-        ("PreToolUse", Some("*")),
-        ("PostToolUse", Some("*")),
-        ("PostToolUseFailure", Some("*")),
-        ("Notification", None),
-        ("Stop", None),
-        ("StopFailure", None),
-        ("SessionEnd", None),
-    ]
-    .into_iter()
-    .map(|(event, matcher)| {
-        (
-            event.to_string(),
-            json!([managed_hook_definition(
-                matcher,
-                &managed_command(script, "grok", event)
-            )]),
-        )
-    })
-    .collect::<Map<_, _>>();
-    write_json_object(
-        &path,
-        &Map::from_iter([("hooks".to_string(), Value::Object(hooks))]),
-    )
-}
-
-fn install_agy(script: &Path) -> anyhow::Result<()> {
-    let path = home_dir()?.join(".gemini/config/hooks.json");
-    let mut config = read_json_object(&path)?.unwrap_or_default();
-    apply_agy_bundle(&mut config, script);
-    write_json_object(&path, &config)
-}
-
-// Antigravity keeps each hook set under its own top-level key and uses two
-// schemas inside it: lifecycle events take a flat `{ type, command }` handler,
-// tool events a matcher wrapping `hooks`. `PreToolUse` is deliberately absent -
-// Antigravity requires a permission `decision` from it, which an observational
-// hook cannot give without taking over the user's tool policy.
-fn apply_agy_bundle(config: &mut Map<String, Value>, script: &Path) {
-    let bundle = object_field(config, "alera-status");
-    // Installing is an explicit request to enable, so the documented `enabled`
-    // opt-out cannot survive it. Every other non-event key is left alone.
-    bundle.remove("enabled");
-    for event in ["PreInvocation", "PostInvocation", "Stop"] {
-        let mut definitions = clean_managed_definitions(bundle.remove(event));
-        definitions.push(
-            json!({ "type": "command", "command": managed_command(script, "agy", event), "timeout": 10 }),
-        );
-        bundle.insert(event.to_string(), Value::Array(definitions));
-    }
-    let mut tool_definitions = clean_managed_definitions(bundle.remove("PostToolUse"));
-    tool_definitions.push(
-        json!({ "matcher": "*", "hooks": [{ "type": "command", "command": managed_command(script, "agy", "PostToolUse"), "timeout": 10 }] }),
-    );
-    bundle.insert("PostToolUse".to_string(), Value::Array(tool_definitions));
 }
 
 // Non-tool events have nothing to match on. Their schemas expect the key to be
@@ -358,36 +367,26 @@ pub(super) fn read_json_object(path: &Path) -> anyhow::Result<Option<Map<String,
 }
 
 pub(super) fn write_json_object(path: &Path, value: &Map<String, Value>) -> anyhow::Result<()> {
+    let serialized = format!("{}\n", serde_json::to_string_pretty(value)?);
+    if path.is_file() {
+        if let Ok(existing) = std::fs::read_to_string(path) {
+            if existing == serialized {
+                return Ok(());
+            }
+        }
+    }
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(path, format!("{}\n", serde_json::to_string_pretty(value)?))?;
+    std::fs::write(path, serialized)?;
     Ok(())
-}
-
-pub(super) fn link_if_present(source: &Path, target: &Path) {
-    if !source.exists() || target.exists() {
-        return;
-    }
-    #[cfg(unix)]
-    {
-        let _ = std::os::unix::fs::symlink(source, target);
-    }
-    #[cfg(windows)]
-    {
-        if source.is_dir() {
-            let _ = std::os::windows::fs::symlink_dir(source, target);
-        } else {
-            let _ = std::os::windows::fs::symlink_file(source, target);
-        }
-    }
 }
 
 pub(super) fn home_dir() -> anyhow::Result<PathBuf> {
     dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not resolve the user home directory."))
 }
 
-fn env_path(key: &str) -> Option<PathBuf> {
+pub(super) fn env_path(key: &str) -> Option<PathBuf> {
     std::env::var_os(key)
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)

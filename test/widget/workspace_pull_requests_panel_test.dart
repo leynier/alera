@@ -1,3 +1,5 @@
+// ignore_for_file: riverpod_lint/avoid_public_notifier_properties
+
 import 'dart:async';
 
 import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
@@ -12,7 +14,9 @@ import 'package:alera/src/features/pull_requests/presentation/pull_request_compo
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
+import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -20,6 +24,7 @@ import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -27,6 +32,7 @@ import '../unit/fake_forge_provider.dart';
 import '../unit/fake_git_backend.dart';
 
 part 'workspace_pull_requests_panel_reading_diff_cases.dart';
+part 'workspace_pull_requests_panel_removal_cases.dart';
 
 HostedReview _review(int number) => HostedReview(
   provider: .github,
@@ -43,16 +49,44 @@ HostedReview _review(int number) => HostedReview(
 );
 
 class _PanelWorkbenchController extends WorkbenchController {
+  _PanelWorkbenchController([this._state = const WorkbenchState()]);
+
+  final WorkbenchState _state;
+  bool? lastDeleteBranch;
+  int deleteWorkspaceCalls = 0;
   final List<
-    ({int number, String commitOid, String? gitDiffRoot, String parentOid})
+    ({
+      int number,
+      String commitOid,
+      String? gitDiffRoot,
+      String parentOid,
+      bool oppositePanel,
+    })
   >
   openedPullRequestDiffs =
       <
-        ({int number, String commitOid, String? gitDiffRoot, String parentOid})
+        ({
+          int number,
+          String commitOid,
+          String? gitDiffRoot,
+          String parentOid,
+          bool oppositePanel,
+        })
       >[];
 
   @override
-  WorkbenchState build() => const WorkbenchState();
+  WorkbenchState build() => _state;
+
+  @override
+  Future<void> deleteWorkspace({
+    required Project project,
+    required Workspace workspace,
+    bool deleteBranch = true,
+    String? activeWorkspaceId,
+  }) async {
+    deleteWorkspaceCalls++;
+    lastDeleteBranch = deleteBranch;
+  }
 
   @override
   Future<WorkspaceTabRecord> openGitPullRequestDiffTab({
@@ -64,12 +98,15 @@ class _PanelWorkbenchController extends WorkbenchController {
     required String retentionId,
     String? subject,
     String? targetGroupId,
+    String? sourceKey,
+    bool oppositePanel = false,
   }) async {
     openedPullRequestDiffs.add((
       number: pullRequestNumber,
       commitOid: commitOid,
       gitDiffRoot: gitDiffRoot,
       parentOid: parentOid,
+      oppositePanel: oppositePanel,
     ));
     final now = DateTime.utc(2026, 8, 10);
     return WorkspaceTabRecord(
@@ -90,6 +127,7 @@ class _PanelWorkbenchController extends WorkbenchController {
 
 void main() {
   _registerWorkspacePullRequestsPanelReadingDiffTests();
+  _registerWorkspacePullRequestsPanelRemovalTests();
 
   testWidgets('places borderless dictation controls in pull request fields', (
     tester,
@@ -115,6 +153,11 @@ void main() {
                 suggestedReview: null,
                 createAction: .publish,
                 onCreate: (_) {},
+                onShip: ({
+                  required baseBranch,
+                  required draft,
+                  required scope,
+                }) async {},
                 onLink: (_) {},
                 onCreateActionChanged: (_) {},
               ),
@@ -125,6 +168,10 @@ void main() {
     );
     await tester.pump();
 
+    expect(
+      find.byKey(const ValueKey<String>('pull-request-ship-button')),
+      findsOneWidget,
+    );
     final titleField = tester.getRect(
       find.byKey(const ValueKey<String>('pull-request-title-field')),
     );

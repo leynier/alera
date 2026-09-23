@@ -1,5 +1,6 @@
 import 'package:alera/src/features/settings/presentation/settings_sections.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entry_catalog.dart';
+import 'package:alera/src/features/settings/presentation/settings_search_entries_pull_requests.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries_reading_diff.dart';
 
 final List<SettingsSearchEntry>
@@ -21,6 +22,21 @@ applicationSearchEntries = buildSettingsSearchEntryCatalog(const {
     ),
   },
   'desktop': {
+    'New Workspace Tools': SettingsSearchEntryDetails(
+      description:
+          'Choose which tools open, and in what order, for new workspaces.',
+      keywords: <String>[
+        'tools',
+        'tabs',
+        'order',
+        'explorer',
+        'search',
+        'source control',
+        'pull request',
+        'workspace',
+        'panel',
+      ],
+    ),
     'Show Tray Icon': SettingsSearchEntryDetails(
       description: 'Keep Alera in the menu extra, notification area, or Ubuntu status bar.',
       keywords: <String>[
@@ -61,6 +77,7 @@ applicationSearchEntries = buildSettingsSearchEntryCatalog(const {
       ],
     ),
   },
+  ...pullRequestApplicationSearchGroups,
   'runtime': {
     'Keep Computer Awake': SettingsSearchEntryDetails(
       description:
@@ -141,31 +158,12 @@ final List<SettingsSearchEntry>
 agentsSearchEntries = buildSettingsSearchEntryCatalog(const {
   'cliSkill': {
     'All Alera Skills': SettingsSearchEntryDetails(
-      description: 'Install or update every Alera agent skill.',
-      keywords: <String>[
-        'all',
-        'install',
-        'update',
-        'skills',
-        'computer use',
-        'emulator',
-        'orchestration',
-      ],
+      description: 'Install or update every core Alera agent skill.',
+      keywords: <String>['all', 'install', 'update', 'skills', 'orchestration'],
     ),
     'Alera CLI Skill': SettingsSearchEntryDetails(
       description: 'Install agent instructions for the Alera CLI.',
       keywords: <String>['codex', 'skill', 'cli', 'agent', 'workspace'],
-    ),
-    'Agent Canvas Skill': SettingsSearchEntryDetails(
-      description: 'Install agent instructions for publishing structured updates in Agent Canvas.',
-      keywords: <String>[
-        'agent canvas',
-        'canvas',
-        'skill',
-        'agent',
-        'publish',
-        'decision',
-      ],
     ),
     'Alera Orchestration Skill': SettingsSearchEntryDetails(
       description: 'Install agent instructions for Alera orchestration.',
@@ -178,34 +176,40 @@ agentsSearchEntries = buildSettingsSearchEntryCatalog(const {
         'dispatch',
       ],
     ),
-    'Alera Computer Use Skill': SettingsSearchEntryDetails(
-      description: 'Install agent instructions for desktop computer use.',
+  },
+  'extraSkills': {
+    'Agent Profiles Skill': SettingsSearchEntryDetails(
+      description:
+          'Install specialized instructions for Agent Profile catalogs.',
       keywords: <String>[
-        'computer use',
-        'desktop',
-        'accessibility',
+        'agent profile',
+        'managed',
+        'model',
+        'quota',
+        'routing',
+        'smoke test',
         'skill',
-        'agent',
-        'click',
-        'window',
       ],
     ),
   },
   'hooks': {
     'Codex Hooks': SettingsSearchEntryDetails(
-      description: 'Use Alera-managed Codex runtime hooks.',
+      description:
+          'Install Alera-managed Codex hooks in the user Codex config.',
       keywords: <String>['codex', 'agent', 'status', 'hooks'],
     ),
     'Claude Code Hooks': SettingsSearchEntryDetails(
-      description: 'Use an Alera-managed Claude Code config with status hooks.',
+      description:
+          'Install Alera-managed Claude Code hooks in the user settings file.',
       keywords: <String>['claude', 'agent', 'status', 'hooks'],
     ),
     'GitHub Copilot Hooks': SettingsSearchEntryDetails(
-      description: 'Use an Alera-managed GitHub Copilot home overlay.',
+      description: 'Install Alera-managed GitHub Copilot hooks in a dedicated global file.',
       keywords: <String>['copilot', 'github', 'agent', 'status', 'hooks'],
     ),
     'Cursor Hooks': SettingsSearchEntryDetails(
-      description: 'Use an Alera-managed Cursor agent plugin wrapper.',
+      description:
+          'Install Alera-managed Cursor hooks in the user Cursor config.',
       keywords: <String>['cursor', 'agent', 'status', 'hooks', 'cli'],
     ),
     'Antigravity Hooks': SettingsSearchEntryDetails(
@@ -233,7 +237,8 @@ agentsSearchEntries = buildSettingsSearchEntryCatalog(const {
       keywords: <String>['pi', 'agent', 'status', 'hooks', 'extension'],
     ),
     'Amp Hooks': SettingsSearchEntryDetails(
-      description: 'Use an Alera-managed Amp config overlay.',
+      description:
+          'Install the Alera Amp status plugin in the user Amp config.',
       keywords: <String>['amp', 'agent', 'status', 'hooks', 'plugin'],
     ),
     'Grok Build Hooks': SettingsSearchEntryDetails(
@@ -242,6 +247,17 @@ agentsSearchEntries = buildSettingsSearchEntryCatalog(const {
     ),
   },
   'behavior': {
+    'Show Tab Titles in Sidebar': SettingsSearchEntryDetails(
+      description: 'Use each agent tab title under a workspace instead of the latest activity.',
+      keywords: <String>[
+        'tab',
+        'title',
+        'sidebar',
+        'workspace',
+        'agent',
+        'regenerate',
+      ],
+    ),
     'Agent Status Notifications': SettingsSearchEntryDetails(
       description: 'Show native notifications when agents need attention.',
       keywords: <String>[
@@ -302,45 +318,6 @@ const List<SettingsSearchEntry> keyboardSearchEntries = <SettingsSearchEntry>[
   ),
 ];
 
-final List<SettingsSearchEntry>
-browserSearchEntries = buildSettingsSearchEntryCatalog(const {
-  'general': {
-    'System Browser Engine': SettingsSearchEntryDetails(
-      description: 'Check the stable browser capability gate.',
-      keywords: <String>['browser', 'webview', 'webkit', 'webview2', 'engine'],
-    ),
-    'Browser Search Engine': SettingsSearchEntryDetails(
-      description: 'Choose the default address bar search provider.',
-      keywords: <String>['google', 'duckduckgo', 'bing', 'kagi', 'search'],
-    ),
-  },
-  'profiles': {
-    'Browser Profiles': SettingsSearchEntryDetails(
-      description: 'Manage isolated cookies, storage and permissions.',
-      keywords: <String>['browser', 'profile', 'cookies', 'storage', 'import'],
-    ),
-  },
-  'certificates': {
-    'Trusted Local Certificates': SettingsSearchEntryDetails(
-      description: 'Review or remove certificate trust for browser profiles.',
-      keywords: <String>[
-        'browser',
-        'certificate',
-        'tls',
-        'https',
-        'localhost',
-        'self signed',
-      ],
-    ),
-  },
-  'data': {
-    'Browser History': SettingsSearchEntryDetails(
-      description: 'Clear history and reopen recently closed tabs.',
-      keywords: <String>['browser', 'history', 'closed', 'tabs'],
-    ),
-  },
-});
-
 const List<SettingsSearchEntry> editorSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'Theme Preset',
@@ -367,13 +344,20 @@ const List<SettingsSearchEntry> editorSearchEntries = <SettingsSearchEntry>[
 const List<SettingsSearchEntry> aiAssistSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'AI Assist',
-    description: 'Run short local agent jobs for source control, workspace identity, and speech.',
-    keywords: <String>['ai', 'assist', 'commit', 'pull request', 'branch'],
+    description: 'Run short local CLI or OpenCode Go jobs for source control, workspace identity, and speech.',
+    keywords: <String>[
+      'ai',
+      'assist',
+      'commit',
+      'pull request',
+      'branch',
+      'go',
+    ],
     groupId: 'generation',
   ),
   SettingsSearchEntry(
     title: 'AI Assist Agent',
-    description: 'Choose the CLI used for AI Assist jobs.',
+    description: 'Choose the provider used for AI Assist jobs.',
     keywords: <String>[
       'codex',
       'claude',
@@ -383,6 +367,8 @@ const List<SettingsSearchEntry> aiAssistSearchEntries = <SettingsSearchEntry>[
       'agy',
       'opencode',
       'opencode2',
+      'opencode go',
+      'go',
       'pi',
       'amp',
       'custom',

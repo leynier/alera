@@ -2,6 +2,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/layout/alera_horizontal_scroll_view.dart';
 import 'package:alera/src/design_system/surfaces/alera_hover_card.dart';
 import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:alera/src/features/agent_quota/presentation/agent_quota_provider_icon.dart';
@@ -28,7 +29,6 @@ class const AgentQuotaStatusBarContent({
   final bool loading = false,
   final String? error,
   final Widget? trailing,
-  final VoidCallback? onOpenUsage,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -52,7 +52,6 @@ class const AgentQuotaStatusBarContent({
               error: error,
               onRefresh: onRefresh,
               onTogglePinned: onTogglePinned,
-              onOpenUsage: onOpenUsage,
               trailing: trailing,
             );
           }
@@ -88,13 +87,11 @@ class const AgentQuotaStatusBarContent({
                 actions: actions,
                 error: error,
                 onTogglePinned: onTogglePinned,
-                onOpenUsage: onOpenUsage,
                 profileLabelFor: _claudeProfileLabel,
               ),
               const VerticalDivider(width: 1, color: AleraTokens.borderSubtle),
               Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: .horizontal,
+                child: AleraHorizontalScrollView(
                   child: Row(
                     children: <Widget>[
                       for (final snapshot in pinned)

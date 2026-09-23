@@ -24,7 +24,8 @@ pub struct IdentityKeyPair {
 
 impl IdentityKeyPair {
     pub fn generate() -> Self {
-        let secret = StaticSecret::random_from_rng(rand_core::OsRng);
+        let secret =
+            StaticSecret::random_from_rng(&mut rand::rand_core::UnwrapErr(rand::rngs::SysRng));
         Self::from_private(secret.to_bytes())
     }
 
@@ -158,9 +159,6 @@ impl RelaySession {
         ikm.extend_from_slice(dh_static_ephemeral.as_bytes());
         ikm.extend_from_slice(dh_ephemeral_ephemeral.as_bytes());
         let hkdf = Hkdf::<Sha256>::new(Some(b"alera-relay-v1"), &ikm);
-        let mut send_key = [0_u8; KEY_BYTES];
-        let mut receive_key = [0_u8; KEY_BYTES];
-        let mut confirmation_key = [0_u8; KEY_BYTES];
         let send_label = if initiator {
             b"client-to-runtime"
         } else {
@@ -171,14 +169,9 @@ impl RelaySession {
         } else {
             b"client-to-runtime"
         };
-        expand_key(&hkdf, send_label, &transcript_hash, &mut send_key)?;
-        expand_key(&hkdf, receive_label, &transcript_hash, &mut receive_key)?;
-        expand_key(
-            &hkdf,
-            b"handshake-confirmation",
-            &transcript_hash,
-            &mut confirmation_key,
-        )?;
+        let send_key = expand_key(&hkdf, send_label, &transcript_hash)?;
+        let receive_key = expand_key(&hkdf, receive_label, &transcript_hash)?;
+        let confirmation_key = expand_key(&hkdf, b"handshake-confirmation", &transcript_hash)?;
         Ok(Self {
             send_key,
             receive_key,
@@ -208,7 +201,7 @@ impl RelaySession {
     }
 
     pub fn verify_peer_confirmation(&self, confirmation: &[u8]) -> Result<(), RelayCryptoError> {
-        let mut mac = <HmacSha256 as Mac>::new_from_slice(&self.confirmation_key)
+        let mut mac = <HmacSha256 as hmac::KeyInit>::new_from_slice(&self.confirmation_key)
             .expect("HMAC accepts every key length");
         update_confirmation_mac(
             &mut mac,
@@ -227,7 +220,7 @@ impl RelaySession {
             .map_err(|_| RelayCryptoError::InvalidEnvelope)?;
         let ciphertext = cipher
             .encrypt(
-                Nonce::from_slice(&nonce),
+                &Nonce::from(nonce),
                 Payload {
                     msg: plaintext,
                     aad: &aad,
@@ -268,7 +261,7 @@ impl RelaySession {
             .map_err(|_| RelayCryptoError::InvalidEnvelope)?;
         let plaintext = cipher
             .decrypt(
-                Nonce::from_slice(&expected_nonce),
+                &Nonce::from(expected_nonce),
                 Payload {
                     msg: &envelope[ENVELOPE_HEADER_BYTES..],
                     aad: &aad,
@@ -284,14 +277,18 @@ fn expand_key(
     hkdf: &Hkdf<Sha256>,
     label: &[u8],
     transcript_hash: &[u8],
-    output: &mut [u8; KEY_BYTES],
-) -> Result<(), RelayCryptoError> {
-    let mut info = Vec::with_capacity(label.len() + transcript_hash.len() + 1);
+) -> Result<[u8; KEY_BYTES], RelayCryptoError> {
+    let mut info =
+        Vec::with_capacity(b"alera-relay-key:".len() + label.len() + transcript_hash.len());
     info.extend_from_slice(b"alera-relay-key:");
     info.extend_from_slice(label);
     info.extend_from_slice(transcript_hash);
-    hkdf.expand(&info, output)
-        .map_err(|_| RelayCryptoError::InvalidTranscript)
+    // `[0; N]` is a CodeQL hard-coded key source; this buffer is only HKDF-Expand output.
+    // codeql[rust/hard-coded-cryptographic-value]
+    let mut output = <[u8; KEY_BYTES]>::default();
+    hkdf.expand(&info, &mut output)
+        .map_err(|_| RelayCryptoError::InvalidTranscript)?;
+    Ok(output)
 }
 
 fn confirmation_for_key(
@@ -299,7 +296,8 @@ fn confirmation_for_key(
     transcript_hash: &[u8; KEY_BYTES],
     role: &[u8],
 ) -> [u8; KEY_BYTES] {
-    let mut mac = <HmacSha256 as Mac>::new_from_slice(key).expect("HMAC accepts every key length");
+    let mut mac =
+        <HmacSha256 as hmac::KeyInit>::new_from_slice(key).expect("HMAC accepts every key length");
     update_confirmation_mac(&mut mac, transcript_hash, role);
     mac.finalize().into_bytes().into()
 }
@@ -367,8 +365,12 @@ mod tests {
     }
 
     fn handshake_nonce() -> [u8; 16] {
-        let high = u128::from(rand_core::RngCore::next_u64(&mut rand_core::OsRng));
-        let low = u128::from(rand_core::RngCore::next_u64(&mut rand_core::OsRng));
+        let high = u128::from(rand::Rng::next_u64(&mut rand::rand_core::UnwrapErr(
+            rand::rngs::SysRng,
+        )));
+        let low = u128::from(rand::Rng::next_u64(&mut rand::rand_core::UnwrapErr(
+            rand::rngs::SysRng,
+        )));
         ((high << 64) | low).to_be_bytes()
     }
 

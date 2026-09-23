@@ -13,6 +13,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'support/fake_terminal_client.dart';
 
+part 'create_workspace_prompt_attachment_test_support.dart';
+
 void main() {
   testWidgets('hides Add Attachment when the host offers no source', (
     tester,
@@ -239,9 +241,7 @@ void main() {
   testWidgets('workspace files insert a relative path from a sibling', (
     tester,
   ) async {
-    // The workspace being created has no worktree yet, so Quick Open runs
-    // against a sibling of the same project and answers with a relative path
-    // that stays valid in the new one.
+    // Quick Open uses the project checkout even when no task exists.
     final client = FakeTerminalClient()
       ..workspaceFiles = const <String>['lib/src/main.dart'];
     addTearDown(client.dispose);
@@ -250,10 +250,7 @@ void main() {
       tester,
       client: client,
       supportsWorkspaceFiles: true,
-      workspaces: <WorkspaceSummary>[
-        _workspace(id: 'workspace-main', isMain: true),
-        _workspace(id: 'workspace-feature'),
-      ],
+      workspaces: const <WorkspaceSummary>[],
     );
     final prompt = tester
         .widget<TextField>(find.widgetWithText(TextField, 'Initial Prompt'))
@@ -266,38 +263,39 @@ void main() {
     await tester.tap(find.text('lib/src/main.dart'));
     await tester.pumpAndSettle();
 
-    expect(client.calls, contains('startWorkspaceQuickOpen workspace-main'));
+    expect(client.calls, contains('startProjectCheckoutQuickOpen project-1'));
     expect(prompt.text, 'Change\nlib/src/main.dart');
     expect(client.stoppedQuickOpenSessions, hasLength(1));
   });
 
-  testWidgets('workspace files follow the chosen parent workspace', (
-    tester,
-  ) async {
-    final client = FakeTerminalClient()
-      ..workspaceFiles = const <String>['lib/src/main.dart'];
-    addTearDown(client.dispose);
+  testWidgets(
+    'workspace files stay on the selected checkout when Parent changes',
+    (tester) async {
+      final client = FakeTerminalClient()
+        ..workspaceFiles = const <String>['lib/src/main.dart'];
+      addTearDown(client.dispose);
 
-    await _pumpCreateScreen(
-      tester,
-      client: client,
-      supportsWorkspaceFiles: true,
-      workspaces: <WorkspaceSummary>[
-        _workspace(id: 'workspace-main', isMain: true),
-        _workspace(id: 'workspace-feature'),
-      ],
-    );
+      await _pumpCreateScreen(
+        tester,
+        client: client,
+        supportsWorkspaceFiles: true,
+        workspaces: <WorkspaceSummary>[
+          _workspace(id: 'workspace-main', isMain: true),
+          _workspace(id: 'workspace-feature'),
+        ],
+      );
 
-    await tester.tap(find.text('Alera / workspace-main'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Alera / workspace-feature').last);
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('No Parent'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Alera / workspace-feature').last);
+      await tester.pumpAndSettle();
 
-    await _openAttachmentSource(tester, 'Workspace File');
-    await tester.pumpAndSettle();
+      await _openAttachmentSource(tester, 'Workspace File');
+      await tester.pumpAndSettle();
 
-    expect(client.calls, contains('startWorkspaceQuickOpen workspace-feature'));
-  });
+      expect(client.calls, contains('startProjectCheckoutQuickOpen project-1'));
+    },
+  );
 
   testWidgets('a parent from another project does not index its files', (
     tester,
@@ -319,7 +317,7 @@ void main() {
       ],
     );
 
-    await tester.tap(find.text('Alera / workspace-main'));
+    await tester.tap(find.text('No Parent'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('project-2 / other-project-workspace').last);
     await tester.pumpAndSettle();
@@ -327,11 +325,54 @@ void main() {
     await _openAttachmentSource(tester, 'Workspace File');
     await tester.pumpAndSettle();
 
-    expect(client.calls, contains('startWorkspaceQuickOpen workspace-main'));
+    expect(client.calls, contains('startProjectCheckoutQuickOpen project-1'));
     expect(
       client.calls.any((call) => call.contains('other-project-workspace')),
       isFalse,
     );
+  });
+
+  testWidgets('legacy hosts retain sibling workspace file attachments', (
+    tester,
+  ) async {
+    final client = FakeTerminalClient()
+      ..supportsSharedCheckoutWorkspaces = false
+      ..workspaceFiles = ['lib/legacy.dart'];
+    addTearDown(client.dispose);
+    await _pumpCreateScreen(
+      tester,
+      client: client,
+      supportsWorkspaceFiles: true,
+      supportsSharedCheckoutWorkspaces: false,
+      workspaces: const [
+        WorkspaceSummary(
+          id: 'foreign',
+          projectId: 'other',
+          name: 'Other',
+          path: '/other',
+          kind: 'main',
+        ),
+        WorkspaceSummary(
+          id: 'legacy-main',
+          projectId: 'project-1',
+          name: 'Project',
+          path: '/repo/alera',
+          kind: 'main',
+        ),
+      ],
+    );
+    await _openAttachmentSource(tester, 'Workspace File');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('lib/legacy.dart'));
+    await tester.pumpAndSettle();
+    expect(client.calls, contains('startWorkspaceQuickOpen legacy-main'));
+    expect(
+      client.calls.any(
+        (call) => call.startsWith('startProjectCheckoutQuickOpen'),
+      ),
+      isFalse,
+    );
+    expect(client.stoppedQuickOpenSessions, hasLength(1));
   });
 
   testWidgets('offers only the sources the host supports', (tester) async {
@@ -344,112 +385,10 @@ void main() {
       supportsPromptFileUpload: true,
     );
 
-    await tester.tap(find.text('Add Attachment'));
-    await tester.pumpAndSettle();
+    await _showAttachmentSheet(tester);
 
     expect(find.text('Files'), findsOneWidget);
     expect(find.text('Photo Library'), findsNothing);
     expect(find.text('Workspace File'), findsNothing);
   });
-}
-
-PromptImageFile _image(String name) {
-  return PromptImageFile(
-    name: name,
-    sizeBytes: 8,
-    openRead: () => Stream<List<int>>.value(List<int>.filled(8, 1)),
-  );
-}
-
-Future<void> _pumpCreateScreen(
-  WidgetTester tester, {
-  required FakeTerminalClient client,
-  PromptImagePicker? picker,
-  PromptFilePicker? filePicker,
-  bool supportsPromptImageUpload = false,
-  bool supportsPromptFileUpload = false,
-  bool supportsWorkspaceFiles = false,
-  List<WorkspaceSummary> workspaces = const <WorkspaceSummary>[],
-}) async {
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        workspaceClientProvider('host-1').overrideWith((ref) async => client),
-        if (picker != null) promptImagePickerProvider.overrideWithValue(picker),
-        if (filePicker != null)
-          promptFilePickerProvider.overrideWithValue(filePicker),
-      ],
-      child: MaterialApp(
-        home: CreateWorkspaceScreen(
-          hostId: 'host-1',
-          projects: const <ProjectSummary>[
-            ProjectSummary(
-              id: 'project-1',
-              name: 'Alera',
-              repoPath: '/repo/alera',
-            ),
-          ],
-          workspaces: workspaces,
-          supportsPromptImageUpload: supportsPromptImageUpload,
-          supportsPromptFileUpload: supportsPromptFileUpload,
-          supportsWorkspaceFiles: supportsWorkspaceFiles,
-        ),
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
-
-/// Opens the attachment sheet and taps one source.
-Future<void> _openAttachmentSource(WidgetTester tester, String source) async {
-  await tester.tap(find.text('Add Attachment'));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text(source));
-  await tester.pump();
-}
-
-WorkspaceSummary _workspace({
-  required String id,
-  String projectId = 'project-1',
-  bool isMain = false,
-}) => WorkspaceSummary(
-  id: id,
-  projectId: projectId,
-  name: id,
-  path: '/repo/$id',
-  kind: isMain ? 'main' : 'linked',
-);
-
-class _FakePromptFilePicker(final PromptFile? file)
-    implements PromptFilePicker {
-  var pickCount = 0;
-
-  @override
-  Future<PromptFile?> pickFile() async {
-    pickCount += 1;
-    return file;
-  }
-}
-
-Future<void> _waitFor(WidgetTester tester, bool Function() condition) async {
-  for (var attempt = 0; attempt < 100; attempt += 1) {
-    if (condition()) {
-      await tester.pump();
-      return;
-    }
-    await tester.pump(const Duration(milliseconds: 20));
-  }
-  fail('condition did not become true');
-}
-
-class _FakePromptImagePicker(final List<PromptImageFile> images)
-    implements PromptImagePicker {
-  final Completer<void> release = Completer<void>();
-  Future<List<PromptImageFile>> Function()? result;
-
-  @override
-  Future<List<PromptImageFile>> pickImages() async {
-    final callback = result;
-    return callback == null ? images : callback();
-  }
 }

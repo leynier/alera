@@ -111,6 +111,7 @@ void main() {
     expect(state.stack?.number, 700);
     expect(state.stack?.positionForReview(42), 2);
     expect(forge.stackLoadCalls, 1);
+    expect(forge.lastMergeMethodsBaseBranch, 'main');
   });
 
   test(

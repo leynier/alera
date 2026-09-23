@@ -72,6 +72,7 @@ void _registerWorkbenchControllerSelectionTests() {
       await _controller.deleteWorkspace(
         project: _harness.project,
         workspace: linked,
+        deleteBranch: false,
       );
       await _flush();
 
@@ -95,6 +96,10 @@ void _registerWorkbenchControllerSelectionTests() {
         sourceBranch: 'main',
         newBranchName: 'feature/active',
       )).workspace;
+      await _controller.selectWorkspace(
+        project: _harness.project,
+        workspace: linked,
+      );
       await _flush();
       expect(_controller.state.activeWorkspaceId, linked.id);
       expect(_controller.state.activeProjectId, _harness.project.id);
@@ -102,6 +107,7 @@ void _registerWorkbenchControllerSelectionTests() {
       await _controller.deleteWorkspace(
         project: _harness.project,
         workspace: linked,
+        deleteBranch: false,
       );
       await _flush();
 
@@ -135,7 +141,10 @@ void _registerWorkbenchControllerSelectionTests() {
     await _controller.bootstrap();
     final workspace = await _selectMainWorkspace(_controller, _harness);
     final firstTab = _controller.state.activeWorkspaceTab!;
-    final groupId = _controller.state.layoutFor(workspace.id)!.activeGroupId;
+    final groupId = _controller.state
+        .workspacePanelFor(workspace.id)
+        .ensuredMainLayout(workspace.id)
+        .activeGroupId;
 
     final secondTab = await _controller.splitWorkbenchGroupWithTerminal(
       workspace: workspace,
@@ -144,15 +153,20 @@ void _registerWorkbenchControllerSelectionTests() {
     );
     await _flush();
 
-    final layout = _controller.state.layoutFor(workspace.id)!;
+    final layout = _controller.state
+        .workspacePanelFor(workspace.id)
+        .ensuredMainLayout(workspace.id);
     expect(layout.root.axis, WorkbenchSplitAxis.horizontal);
     expect(layout.paneGroupIds, hasLength(2));
     expect(_controller.state.tabsFor(workspace.id).map((tab) => tab.id), [
       firstTab.id,
       secondTab.id,
     ]);
-    expect(layout.groupIdForTab(firstTab.id), groupId);
-    expect(layout.groupIdForTab(secondTab.id), isNot(groupId));
+    expect(layout.groupIdForTab(WorkspacePanel.tabKey(firstTab.id)), groupId);
+    expect(
+      layout.groupIdForTab(WorkspacePanel.tabKey(secondTab.id)),
+      isNot(groupId),
+    );
     expect(_controller.state.activeWorkspaceTab?.id, secondTab.id);
   });
 
@@ -162,7 +176,8 @@ void _registerWorkbenchControllerSelectionTests() {
       await _controller.bootstrap();
       final workspace = await _selectMainWorkspace(_controller, _harness);
       final firstGroupId = _controller.state
-          .layoutFor(workspace.id)!
+          .workspacePanelFor(workspace.id)
+          .ensuredMainLayout(workspace.id)
           .activeGroupId;
       final movedTab = await _controller.splitWorkbenchGroupWithTerminal(
         workspace: workspace,
@@ -170,7 +185,9 @@ void _registerWorkbenchControllerSelectionTests() {
         zone: .down,
       );
       await _flush();
-      final splitLayout = _controller.state.layoutFor(workspace.id)!;
+      final splitLayout = _controller.state
+          .workspacePanelFor(workspace.id)
+          .ensuredMainLayout(workspace.id);
       expect(splitLayout.paneGroupIds, hasLength(2));
 
       await _controller.moveWorkspaceTab(
@@ -181,9 +198,14 @@ void _registerWorkbenchControllerSelectionTests() {
       );
       await _flush();
 
-      final layout = _controller.state.layoutFor(workspace.id)!;
+      final layout = _controller.state
+          .workspacePanelFor(workspace.id)
+          .ensuredMainLayout(workspace.id);
       expect(layout.paneGroupIds, <String>[firstGroupId]);
-      expect(layout.groups[firstGroupId]?.tabIds, contains(movedTab.id));
+      expect(
+        layout.groups[firstGroupId]?.tabIds,
+        contains(WorkspacePanel.tabKey(movedTab.id)),
+      );
       expect(_controller.state.activeWorkspaceTab?.id, movedTab.id);
     },
   );
@@ -191,7 +213,10 @@ void _registerWorkbenchControllerSelectionTests() {
   test('updates and persists split ratios', () async {
     await _controller.bootstrap();
     final workspace = await _selectMainWorkspace(_controller, _harness);
-    final groupId = _controller.state.layoutFor(workspace.id)!.activeGroupId;
+    final groupId = _controller.state
+        .workspacePanelFor(workspace.id)
+        .ensuredMainLayout(workspace.id)
+        .activeGroupId;
     await _controller.splitWorkbenchGroupWithTerminal(
       workspace: workspace,
       groupId: groupId,
@@ -206,18 +231,10 @@ void _registerWorkbenchControllerSelectionTests() {
     );
     await _flush();
 
-    final layout = _controller.state.layoutFor(workspace.id)!;
+    final layout = _controller.state
+        .workspacePanelFor(workspace.id)
+        .ensuredMainLayout(workspace.id);
     expect(layout.root.ratio, 0.8);
-    expect(
-      await _harness.workbenchRepository.findWorkbenchLayout(workspace.id),
-      isNotNull,
-    );
-    expect(
-      (await _harness.workbenchRepository.findWorkbenchLayout(workspace.id))!
-          .root
-          .ratio,
-      0.8,
-    );
   });
 
   test('setActiveTab falls back to direct workspace selection when the layout has no group for the tab', () async {

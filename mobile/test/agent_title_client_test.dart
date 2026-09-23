@@ -15,7 +15,7 @@ void main() {
         const WorkspaceTabSummary(
           id: 'tab',
           workspaceId: 'workspace',
-          kind: 'codex',
+          kind: 'terminal',
           title: 'Title',
           payload: {
             'agentTitleConversationId': 'conversation',
@@ -33,18 +33,43 @@ void main() {
     },
   );
 
-  test('generated titles override OSC and Codex generic labels', () {
-    for (final kind in ['terminal', 'codex']) {
-      final tab = WorkspaceTabSummary(
-        id: 'tab',
-        workspaceId: 'workspace',
-        kind: kind,
-        title: 'Fix Login With Google',
-        runtimeTitle: 'bash',
-        payload: const {'manualTitle': true, 'agentTitleSource': 'generated'},
-      );
-      expect(tab.displayTitle, 'Fix Login With Google');
-    }
+  test('generated titles override OSC generic labels', () {
+    final tab = WorkspaceTabSummary(
+      id: 'tab',
+      workspaceId: 'workspace',
+      kind: 'terminal',
+      title: 'Fix Login With Google',
+      runtimeTitle: 'bash',
+      payload: const {'manualTitle': true, 'agentTitleSource': 'generated'},
+    );
+    expect(tab.displayTitle, 'Fix Login With Google');
+  });
+
+  test('native session id is optional tab payload metadata', () {
+    const missing = WorkspaceTabSummary(
+      id: 'tab',
+      workspaceId: 'workspace',
+      kind: 'terminal',
+      title: 'Codex',
+      payload: {},
+    );
+    const stored = WorkspaceTabSummary(
+      id: 'tab',
+      workspaceId: 'workspace',
+      kind: 'terminal',
+      title: 'Codex',
+      payload: {
+        'agentNativeSessionId': 'sess-1',
+        'agentNativeSessionAgent': 'codex',
+        'agentNativeCcsProfile': 'leynier41',
+      },
+    );
+    expect(missing.agentNativeSessionId, isNull);
+    expect(missing.agentNativeSessionAgent, isNull);
+    expect(missing.agentNativeCcsProfile, isNull);
+    expect(stored.agentNativeSessionId, 'sess-1');
+    expect(stored.agentNativeSessionAgent, 'codex');
+    expect(stored.agentNativeCcsProfile, 'leynier41');
   });
 }
 

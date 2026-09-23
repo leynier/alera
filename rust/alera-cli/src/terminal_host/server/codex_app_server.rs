@@ -21,13 +21,14 @@ use tokio::sync::{mpsc::UnboundedSender, oneshot, Mutex};
 use crate::login_shell_environment::apply_login_shell_path;
 use crate::terminal_host::host_error::{HostError, HostResult};
 
-use super::codex_app_server_history::ThreadHistoryCache;
 use super::codex_app_server_session_state::CodexAppServerSessionState;
 use super::ServerCommand;
 
 const CODEX_REQUEST_TIMEOUT: Duration = Duration::from_secs(90);
 const CODEX_OVERLOAD_RETRIES: usize = 3;
 type PendingRequests = Arc<Mutex<HashMap<i64, oneshot::Sender<HostResult<Value>>>>>;
+#[cfg(test)]
+type TestResponder = Arc<dyn Fn(&str, Value) -> HostResult<Value> + Send + Sync>;
 
 fn same_codex_app_server_instance(current: &Arc<()>, expected: &Arc<()>) -> bool {
     Arc::ptr_eq(current, expected)
@@ -35,16 +36,33 @@ fn same_codex_app_server_instance(current: &Arc<()>, expected: &Arc<()>) -> bool
 
 #[derive(Clone)]
 pub(super) struct CodexAppServer {
-    stdin: Arc<Mutex<ChildStdin>>,
+    stdin: Option<Arc<Mutex<ChildStdin>>>,
+    #[cfg(test)]
+    responder: Option<TestResponder>,
     pending: PendingRequests,
-    _child: Arc<Mutex<Child>>,
+    _child: Option<Arc<Mutex<Child>>>,
     next_id: Arc<AtomicI64>,
-    pub(super) thread_history: Arc<Mutex<ThreadHistoryCache>>,
     pub(super) session_state: Arc<CodexAppServerSessionState>,
     instance: Arc<()>,
 }
 
 impl CodexAppServer {
+    #[cfg(test)]
+    #[allow(dead_code)]
+    pub(super) fn mock(
+        responder: impl Fn(&str, Value) -> HostResult<Value> + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            stdin: None,
+            _child: None,
+            responder: Some(Arc::new(responder)),
+            pending: Arc::new(Mutex::new(HashMap::new())),
+            next_id: Arc::new(AtomicI64::new(1)),
+            session_state: Arc::new(CodexAppServerSessionState::default()),
+            instance: Arc::new(()),
+        }
+    }
+
     pub(super) async fn start(
         inbox: UnboundedSender<ServerCommand>,
         cwd: Option<&str>,
@@ -77,11 +95,12 @@ impl CodexAppServer {
             .take()
             .ok_or_else(|| HostError::state("Codex app-server did not expose an error stream."))?;
         let server = Self {
-            stdin: Arc::new(Mutex::new(stdin)),
+            stdin: Some(Arc::new(Mutex::new(stdin))),
+            #[cfg(test)]
+            responder: None,
             pending: Arc::new(Mutex::new(HashMap::new())),
-            _child: Arc::new(Mutex::new(child)),
+            _child: Some(Arc::new(Mutex::new(child))),
             next_id: Arc::new(AtomicI64::new(1)),
-            thread_history: Arc::new(Mutex::new(ThreadHistoryCache::default())),
             session_state: Arc::new(CodexAppServerSessionState::default()),
             instance: Arc::new(()),
         };
@@ -98,6 +117,10 @@ impl CodexAppServer {
     }
 
     pub(super) async fn request(&self, method: &str, params: Value) -> HostResult<Value> {
+        #[cfg(test)]
+        if let Some(responder) = &self.responder {
+            return responder(method, params);
+        }
         for attempt in 0..=CODEX_OVERLOAD_RETRIES {
             match self.request_once(method, params.clone()).await {
                 Err(error) if attempt < CODEX_OVERLOAD_RETRIES && is_codex_overloaded(&error) => {
@@ -154,6 +177,7 @@ impl CodexAppServer {
         .await
     }
 
+    #[allow(dead_code)]
     pub(super) async fn respond(
         &self,
         id: Value,
@@ -171,7 +195,12 @@ impl CodexAppServer {
     }
 
     async fn write_message(&self, message: Value) -> HostResult<()> {
-        let mut stdin = self.stdin.lock().await;
+        let mut stdin = self
+            .stdin
+            .as_ref()
+            .ok_or_else(|| HostError::state("Codex input is unavailable."))?
+            .lock()
+            .await;
         let line = serde_json::to_vec(&message)
             .map_err(|error| HostError::state(format!("Codex request encoding failed: {error}")))?;
         stdin

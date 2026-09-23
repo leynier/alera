@@ -16,11 +16,16 @@ mixin MobileRuntimeWorkspaceSidebarClient
       WorkspaceSectionSummary.fromJson(asJsonMap(item)),
   ];
   @override
-  Future<void> createWorkspaceSection(String name, String workspaceId) async {
-    await request('workspaceSection.create', {
-      'name': name,
-      'workspaceId': workspaceId,
-    });
+  Future<WorkspaceSectionSummary> createWorkspaceSection(
+    String name,
+    String workspaceId,
+  ) async {
+    return WorkspaceSectionSummary.fromJson(
+      await requestMap('workspaceSection.create', {
+        'name': name,
+        'workspaceId': workspaceId,
+      }),
+    );
   }
 
   @override
@@ -76,6 +81,7 @@ mixin MobileRuntimeWorkspaceSidebarClient
       shared.remove('sectionSort');
       shared.remove('collapsedSectionIds');
       shared.remove('othersSectionCollapsed');
+      shared.remove('selectedSectionIds');
       if (prefs.groupBy == MobileWorkspaceGroupBy.section) {
         shared['groupBy'] = 'project';
       }
@@ -117,6 +123,21 @@ mixin MobileRuntimeWorkspaceSidebarClient
 
   Future<void> sleepWorkspace(String workspaceId) async {
     await request('workspace.sleep', <String, Object?>{
+      'workspaceId': workspaceId,
+    });
+  }
+
+  bool get supportsWorkspaceArchive =>
+      runtimeCapabilities.contains(workspaceArchiveCapability);
+
+  Future<void> archiveWorkspace(String workspaceId) async {
+    await request('workspace.archive', <String, Object?>{
+      'workspaceId': workspaceId,
+    });
+  }
+
+  Future<void> unarchiveWorkspace(String workspaceId) async {
+    await request('workspace.unarchive', <String, Object?>{
       'workspaceId': workspaceId,
     });
   }

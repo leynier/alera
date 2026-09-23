@@ -19,6 +19,7 @@ extension MobileRuntimeClientLifecycle on MobileRuntimeClient {
       return;
     }
     _disposed = true;
+    _pendingTerminalRestarts.clear();
     _stopRelayRenewal();
     _relayFragmentTimer?.cancel();
     _relayFragments.clear();

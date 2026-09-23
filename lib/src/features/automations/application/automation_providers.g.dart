@@ -155,7 +155,7 @@ final class AutomationCatalogProvider
   }
 }
 
-String _$automationCatalogHash() => r'624ddda329b97326c9e67880f83701fce0620c49';
+String _$automationCatalogHash() => r'1e18ccc8a62c269585a18484ae5d1051b78faebb';
 
 final class AutomationCatalogFamily extends $Family
     with $FunctionalFamilyOverride<Stream<List<AutomationRecord>>, bool> {
