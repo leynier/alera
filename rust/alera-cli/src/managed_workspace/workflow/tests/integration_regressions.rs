@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) async fn completed(
+pub(crate) async fn completed(
     fixture: &Fixture,
     logical: &str,
     content: &str,

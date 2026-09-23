@@ -60,6 +60,11 @@ pub(super) async fn cancel(tx: &mut Transaction<'_, Sqlite>, run: &str) -> Resul
     // Only a new, sequence-checked Cancel command retries an identity failure.
     sqlx::query("UPDATE workflowCancellationTargets SET state='pending',error=NULL WHERE run_id=? AND state='attention'")
         .bind(run).execute(&mut **tx).await?;
+    // Attention is never selected by automatic recovery. A new, sequence-checked
+    // cancellation grants one more inspection of the existing immutable receipt.
+    sqlx::query("UPDATE workflowIntegrations SET state=CASE WHEN receipt IS NULL THEN 'pending' ELSE 'prepared' END,error=NULL
+        WHERE run_id=? AND cancelled=0 AND state='attention'")
+        .bind(run).execute(&mut **tx).await?;
     sqlx::query("UPDATE orchestrationTasks SET status='cancelled',cancelled_at=datetime('now'),completed_at=datetime('now')
         WHERE run_id=? AND status NOT IN ('completed','failed','cancelled')")
         .bind(run).execute(&mut **tx).await?;

@@ -17,6 +17,7 @@ mod review_regressions;
 mod snapshot_regressions;
 mod stale_registration_regressions;
 use fixture::Fixture;
+pub(crate) use integration_regressions::completed;
 
 #[tokio::test]
 async fn workflow_worktrees_freeze_source_isolate_attempts_and_replay_requests() {

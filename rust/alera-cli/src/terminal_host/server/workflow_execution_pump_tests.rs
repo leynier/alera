@@ -7,6 +7,9 @@ use alera_core::runtime::{
     WorkflowWorkspaceQuery,
 };
 
+#[path = "workflow_execution_pump_tests/cancelled_integrations.rs"]
+mod cancelled_integrations;
+
 #[tokio::test]
 async fn cancellation_stops_only_matching_workers_while_execution_is_busy() {
     use crate::managed_workspace::workflow::launch::{self, PreparedLaunch};

@@ -109,8 +109,7 @@ async fn reconcile_internal(
     let mut after = 0_i64;
     loop {
         let rows = sqlx::query("SELECT sequence, id FROM workflowIntegrations
-            WHERE sequence > ? AND sequence <= ? AND cancelled=0 AND (state IN ('pending','prepared')
-                OR (state='attention' AND EXISTS(SELECT 1 FROM workflowRuns r WHERE r.run_id=workflowIntegrations.run_id AND r.status='cancelled')))
+            WHERE sequence > ? AND sequence <= ? AND cancelled=0 AND state IN ('pending','prepared')
             AND (?=0 OR EXISTS(SELECT 1 FROM workflowRuns r WHERE r.run_id=workflowIntegrations.run_id AND r.status='cancelled'))
             ORDER BY sequence LIMIT 25")
             .bind(after).bind(upper).bind(cancelled_only).fetch_all(store.pool()).await?;
@@ -125,10 +124,7 @@ async fn reconcile_internal(
                 continue;
             };
             let record = store.workflow_integration(&id).await?;
-            if matches!(
-                record.state,
-                State::Pending | State::Prepared | State::Attention
-            ) {
+            if matches!(record.state, State::Pending | State::Prepared) {
                 resume(store, record).await?;
             }
         }
