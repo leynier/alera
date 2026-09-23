@@ -100,8 +100,9 @@ impl ServerActor {
     }
 }
 
-/// Every `mobile.pullRequest.*` verb: the snapshot read, the summaries read,
-/// and the writes.
+/// Every `mobile.pullRequest.*` verb with a workspace: the snapshot read and
+/// the writes. `summaries` spans projects and hosts and is dispatched to
+/// `mobile_pull_request_summaries` by the caller.
 pub(super) async fn handle_mobile_pull_request(
     store: &RuntimeStore,
     request_type: &str,
@@ -113,10 +114,6 @@ pub(super) async fn handle_mobile_pull_request(
     }
     if request_type == "mobile.pullRequest.snapshot" {
         return snapshot_mobile_pull_request(store, payload).await;
-    }
-    if request_type == "mobile.pullRequest.summaries" {
-        return super::mobile_pull_request_summaries::load_mobile_pull_request_summaries(store)
-            .await;
     }
     run_mobile_pull_request_action(store, request_type, payload).await
 }

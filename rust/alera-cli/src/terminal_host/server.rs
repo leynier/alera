@@ -159,6 +159,7 @@ mod mobile_gateway_surface;
 mod mobile_hello_requests;
 mod mobile_pull_request_actions;
 mod mobile_pull_request_busy;
+mod mobile_pull_request_check_counts;
 mod mobile_pull_request_comments;
 mod mobile_pull_request_failures;
 mod mobile_pull_request_identity;
@@ -168,6 +169,7 @@ mod mobile_pull_request_requests;
 mod mobile_pull_request_ship;
 mod mobile_pull_request_snapshot_extras;
 mod mobile_pull_request_summaries;
+mod mobile_pull_request_summaries_remote;
 #[cfg(test)]
 mod mobile_relay_presence_tests;
 mod mobile_source_control_requests;

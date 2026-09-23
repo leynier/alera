@@ -11,33 +11,76 @@ import 'package:flutter_test/flutter_test.dart';
 final DateTime _now = DateTime.utc(2026, 9, 21);
 
 void main() {
-  test('a project that lives only on a host is not monitored', () {
+  test('a project that lives only on a host is monitored through its remote '
+      'workspace', () {
     final local = _project('local', '/repo/local');
     final remoteOnly = _project(
       'remote',
       '/srv/only-there',
     ).copyWith(primaryHostId: 'ssh-box');
-    final container = ProviderContainer(
-      overrides: [
-        settingsControllerProvider.overrideWith(_Settings.new),
-        workbenchControllerProvider.overrideWith(
-          () => _Workbench(
-            WorkbenchState(
-              bootstrapped: true,
-              projects: <Project>[local, remoteOnly],
-              workspacesByProject: <String, List<Workspace>>{
-                local.id: <Workspace>[_workspace('local-task', local.id)],
-                remoteOnly.id: <Workspace>[
-                  _workspace('remote-task', remoteOnly.id, hostId: 'ssh-box'),
-                ],
-              },
+    final container = _container(
+      WorkbenchState(
+        bootstrapped: true,
+        projects: <Project>[local, remoteOnly],
+        workspacesByProject: <String, List<Workspace>>{
+          local.id: <Workspace>[_workspace('local-task', local.id)],
+          remoteOnly.id: <Workspace>[
+            _workspace('remote-task', remoteOnly.id, hostId: 'ssh-box'),
+            _workspace(
+              'remote-main',
+              remoteOnly.id,
+              hostId: 'ssh-box',
+              path: '/srv/only-there',
             ),
-          ),
-        ),
-        effectiveHostingProviderOverrideProvider.overrideWith(
-          (ref, projectId) async => null,
-        ),
-      ],
+          ],
+        },
+      ),
+    );
+    addTearDown(container.dispose);
+
+    final configuration = container.read(
+      workspacePullRequestMonitorConfigurationProvider,
+    );
+
+    final byWorkspace = <String, String>{
+      for (final target in configuration.targets)
+        target.workspaceId: target.repoPath,
+    };
+    expect(byWorkspace, <String, String>{
+      'local-task': '/repo/local',
+      // The path is inside a remote workspace, so the git backend and the
+      // forge CLI route it to the host instead of reading `repoPath` here.
+      'remote-task': '/srv/only-there',
+      'remote-main': '/srv/only-there',
+    });
+  });
+
+  test('a remote-only project without a workspace on its folder uses any '
+      'remote workspace, and none without one', () {
+    final worktreesOnly = _project(
+      'worktrees',
+      '/srv/worktrees',
+    ).copyWith(primaryHostId: 'ssh-box');
+    final unopened = _project(
+      'unopened',
+      '/srv/unopened',
+    ).copyWith(primaryHostId: 'ssh-box');
+    final container = _container(
+      WorkbenchState(
+        bootstrapped: true,
+        projects: <Project>[worktreesOnly, unopened],
+        workspacesByProject: <String, List<Workspace>>{
+          worktreesOnly.id: <Workspace>[
+            _workspace('feature-a', worktreesOnly.id, hostId: 'ssh-box'),
+            _workspace('feature-b', worktreesOnly.id, hostId: 'ssh-box'),
+          ],
+          unopened.id: <Workspace>[
+            // A local workspace record on a remote-only project is not a
+            // route to the host, so it cannot stand in for the folder.
+            _workspace('stray-local', unopened.id),
+          ],
+        },
+      ),
     );
     addTearDown(container.dispose);
 
@@ -46,10 +89,26 @@ void main() {
     );
 
     expect(configuration.targets.map((target) => target.workspaceId), <String>[
-      'local-task',
+      'feature-a',
+      'feature-b',
     ]);
-    expect(configuration.targets.single.repoPath, '/repo/local');
+    expect(
+      configuration.targets.map((target) => target.repoPath).toSet(),
+      <String>{'/workspaces/feature-a'},
+    );
   });
+}
+
+ProviderContainer _container(WorkbenchState state) {
+  return ProviderContainer(
+    overrides: [
+      settingsControllerProvider.overrideWith(_Settings.new),
+      workbenchControllerProvider.overrideWith(() => _Workbench(state)),
+      effectiveHostingProviderOverrideProvider.overrideWith(
+        (ref, projectId) async => null,
+      ),
+    ],
+  );
 }
 
 class _Settings extends SettingsController {
@@ -75,12 +134,17 @@ Project _project(String id, String repoPath) {
   );
 }
 
-Workspace _workspace(String id, String projectId, {String hostId = 'local'}) {
+Workspace _workspace(
+  String id,
+  String projectId, {
+  String hostId = 'local',
+  String? path,
+}) {
   return Workspace(
     id: id,
     projectId: projectId,
     name: id,
-    path: '/workspaces/$id',
+    path: path ?? '/workspaces/$id',
     branch: 'feature/$id',
     hostId: hostId,
     createdAt: _now,

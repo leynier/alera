@@ -48,6 +48,7 @@ impl ServerActor {
                     handle_mobile_workspace_file_request(
                         runtime_store,
                         runtime_dir,
+                        &host_links,
                         client_id,
                         &request_type,
                         &payload,
@@ -120,6 +121,7 @@ impl ServerActor {
 async fn handle_mobile_workspace_file_request(
     runtime_store: RuntimeStore,
     runtime_dir: PathBuf,
+    host_links: &crate::terminal_host::host_link_registry::HostLinkRegistry,
     client_id: u64,
     request_type: &str,
     payload: &Value,
@@ -194,6 +196,13 @@ async fn handle_mobile_workspace_file_request(
                 &runtime_store,
                 request,
                 payload,
+            )
+            .await
+        }
+        "mobile.pullRequest.summaries" => {
+            super::mobile_pull_request_summaries::load_mobile_pull_request_summaries(
+                &runtime_store,
+                host_links,
             )
             .await
         }

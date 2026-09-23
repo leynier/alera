@@ -8,6 +8,7 @@ import 'package:alera/src/features/pull_requests/application/workspace_pull_requ
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_summary.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -77,19 +78,20 @@ workspacePullRequestMonitorConfiguration(Ref ref) {
       (preferences.showStatusInSidebar ||
           preferences.failureNotificationsEnabled)) {
     for (final project in topology.projects) {
-      // The monitor reads the repository identity from the project folder. A
-      // project that lives only on a host has none here, so its workspaces
-      // stay unevaluated instead of failing on every poll, as in the runtime's
-      // pull request summaries.
-      if (project.kind != ProjectKind.gitRepository || project.isRemoteOnly) {
+      if (project.kind != ProjectKind.gitRepository) {
+        continue;
+      }
+      final workspaces =
+          topology.workspacesByProject[project.id] ?? const <Workspace>[];
+      final repoPath = monitorRepositoryPathFor(project, workspaces);
+      if (repoPath == null) {
         continue;
       }
       final providerOverride = ref
           .watch(effectiveHostingProviderOverrideProvider(project.id))
           .asData
           ?.value;
-      for (final workspace
-          in topology.workspacesByProject[project.id] ?? const []) {
+      for (final workspace in workspaces) {
         final branch = workspace.branch?.trim() ?? '';
         if (!workspace.isActive || branch.isEmpty || branch == 'HEAD') {
           continue;
@@ -100,7 +102,7 @@ workspacePullRequestMonitorConfiguration(Ref ref) {
             projectName: project.name,
             workspaceId: workspace.id,
             workspaceName: workspace.name,
-            repoPath: project.repoPath,
+            repoPath: repoPath,
             branch: branch,
             providerOverride: providerOverride,
           ),
@@ -119,6 +121,29 @@ workspacePullRequestMonitorConfiguration(Ref ref) {
     showStatusInSidebar: preferences.showStatusInSidebar,
     failureNotificationsEnabled: preferences.failureNotificationsEnabled,
   );
+}
+
+/// The path the monitor reads the repository identity from and runs the forge
+/// CLI in. For a project with a folder here that is `repoPath`. A project that
+/// lives only on a host has no folder on this device, so the path must be one
+/// inside a remote workspace of that project: `gitBackendProvider` and
+/// `workspaceProcessRunnerProvider` route such a path to the host, which is
+/// where the checkout and the `gh` credentials are. The workspace on the
+/// project folder itself is preferred so the group key matches the repository;
+/// any other remote workspace of the project is the same repository. With no
+/// remote workspace there is nothing to route through, so the project is not
+/// monitored.
+String? monitorRepositoryPathFor(Project project, List<Workspace> workspaces) {
+  if (!project.isRemoteOnly) {
+    return project.repoPath;
+  }
+  final remote = workspaces.where((workspace) => workspace.isRemote);
+  for (final workspace in remote) {
+    if (workspace.path == project.repoPath) {
+      return workspace.path;
+    }
+  }
+  return remote.firstOrNull?.path;
 }
 
 /// One timer and one refresh pipeline for every workspace. Provider calls are

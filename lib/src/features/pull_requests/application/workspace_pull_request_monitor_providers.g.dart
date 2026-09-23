@@ -110,7 +110,7 @@ final class WorkspacePullRequestMonitorConfigurationProvider
 }
 
 String _$workspacePullRequestMonitorConfigurationHash() =>
-    r'6e9af53a9c56d9904cbd01249e166522db4fbc56';
+    r'01e110103e4deb80fe6f846d7b1e91276bc3533b';
 
 /// One timer and one refresh pipeline for every workspace. Provider calls are
 /// grouped by repository in [WorkspacePullRequestMonitorLoader], and the timer
