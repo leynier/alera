@@ -613,14 +613,18 @@ String _$workspaceSearchServiceHash() =>
     r'd4b42d3d093dad896f72742e1ba91f7a5e556d67';
 
 /// Search for a workspace whose checkout lives on another host: the runtime
-/// forwards the request over that host's link.
+/// forwards the request over that host's link. Kept alive because the search
+/// controller that reads it is, and released when the workspace is retired so
+/// it does not outlive the deleted workspace for the rest of the session.
 
 @ProviderFor(remoteWorkspaceSearchService)
 final remoteWorkspaceSearchServiceProvider =
     RemoteWorkspaceSearchServiceFamily._();
 
 /// Search for a workspace whose checkout lives on another host: the runtime
-/// forwards the request over that host's link.
+/// forwards the request over that host's link. Kept alive because the search
+/// controller that reads it is, and released when the workspace is retired so
+/// it does not outlive the deleted workspace for the rest of the session.
 
 final class RemoteWorkspaceSearchServiceProvider
     extends
@@ -631,14 +635,16 @@ final class RemoteWorkspaceSearchServiceProvider
         >
     with $Provider<WorkspaceSearchService> {
   /// Search for a workspace whose checkout lives on another host: the runtime
-  /// forwards the request over that host's link.
+  /// forwards the request over that host's link. Kept alive because the search
+  /// controller that reads it is, and released when the workspace is retired so
+  /// it does not outlive the deleted workspace for the rest of the session.
   RemoteWorkspaceSearchServiceProvider._({
     required RemoteWorkspaceSearchServiceFamily super.from,
     required String super.argument,
   }) : super(
          retry: null,
          name: r'remoteWorkspaceSearchServiceProvider',
-         isAutoDispose: true,
+         isAutoDispose: false,
          dependencies: null,
          $allTransitiveDependencies: null,
        );
@@ -686,10 +692,12 @@ final class RemoteWorkspaceSearchServiceProvider
 }
 
 String _$remoteWorkspaceSearchServiceHash() =>
-    r'1e44278abe2adeb4810446a244a9ace16c5511e5';
+    r'cfaa4cb4cdc8ee4f24b12eceacf845b081fd2f9d';
 
 /// Search for a workspace whose checkout lives on another host: the runtime
-/// forwards the request over that host's link.
+/// forwards the request over that host's link. Kept alive because the search
+/// controller that reads it is, and released when the workspace is retired so
+/// it does not outlive the deleted workspace for the rest of the session.
 
 final class RemoteWorkspaceSearchServiceFamily extends $Family
     with $FunctionalFamilyOverride<WorkspaceSearchService, String> {
@@ -699,11 +707,13 @@ final class RemoteWorkspaceSearchServiceFamily extends $Family
         name: r'remoteWorkspaceSearchServiceProvider',
         dependencies: null,
         $allTransitiveDependencies: null,
-        isAutoDispose: true,
+        isAutoDispose: false,
       );
 
   /// Search for a workspace whose checkout lives on another host: the runtime
-  /// forwards the request over that host's link.
+  /// forwards the request over that host's link. Kept alive because the search
+  /// controller that reads it is, and released when the workspace is retired so
+  /// it does not outlive the deleted workspace for the rest of the session.
 
   RemoteWorkspaceSearchServiceProvider call(String workspaceId) =>
       RemoteWorkspaceSearchServiceProvider._(argument: workspaceId, from: this);
