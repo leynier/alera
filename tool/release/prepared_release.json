@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "sourceSha": "d66a84b30a01c37e3df7bc17b4efb1cf8a86a4a5",
+  "sourceSha": "79685c9c194181be9c5d2c9b921d38e1ff085e40",
   "channel": "stable",
   "desktop": {
     "shouldRelease": true,
-    "artifactVersion": "0.95.1",
-    "releaseVersion": "0.95.1",
-    "buildNumber": 426,
-    "tag": "v0.95.1",
-    "previousTag": "v0.95.0"
+    "artifactVersion": "0.95.2",
+    "releaseVersion": "0.95.2",
+    "buildNumber": 432,
+    "tag": "v0.95.2",
+    "previousTag": "v0.95.1"
   },
   "mobile": {
     "shouldRelease": false,
