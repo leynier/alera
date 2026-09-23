@@ -133,12 +133,13 @@ void main() {
     await tester.ensureVisible(workspaceRow);
     await tester.pumpAndSettle();
     await tester.tap(workspaceRow);
-    await _pumpUntilFound(tester, find.byTooltip('New Tab'));
     await _pumpUntilFound(tester, find.text('E2E terminal: Terminal 1'));
 
-    await tester.tap(find.byTooltip('New Tab').first);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('New Terminal'));
+    // The main panel intentionally hides tab chrome with only one tab.
+    // Use the visible empty-panel action to create a second terminal.
+    final newTerminal = find.text('Terminal');
+    await _pumpUntilFound(tester, newTerminal);
+    await tester.tap(newTerminal);
     await _pumpUntilFound(tester, find.text('E2E terminal: Terminal 2'));
 
     expect(
@@ -186,7 +187,14 @@ Future<void> _pumpUntilFound(
       .whereType<String>()
       .take(40)
       .join(' | ');
-  fail('Expected to find $finder. Visible text: $visibleText');
+  final tooltips = tester
+      .widgetList<IconButton>(find.byType(IconButton))
+      .map((widget) => widget.tooltip)
+      .whereType<String>()
+      .join(' | ');
+  fail(
+    'Expected to find $finder. Visible text: $visibleText. Buttons: $tooltips',
+  );
 }
 
 class _E2eTerminalRuntime implements TerminalRuntime {
