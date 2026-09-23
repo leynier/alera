@@ -1417,7 +1417,8 @@ fn remints_session_from_disk_after_restart_with_prior_scrollback() {
             }
         }),
     );
-    let restored = read_message(&mut reader);
+    // Startup runtime notifications may precede this request's response.
+    let restored = read_response(&mut reader, 1);
     assert_eq!(restored["id"], json!(1));
     assert_eq!(restored["ok"], json!(true), "restore failed: {restored}");
     let snapshot = STANDARD
