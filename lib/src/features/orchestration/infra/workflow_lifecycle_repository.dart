@@ -28,7 +28,9 @@ class WorkflowLifecycleRepository {
     final capabilities = client;
     if (capabilities is! RuntimeHostCapabilityClient ||
         !await (capabilities as RuntimeHostCapabilityClient)
-            .supportsRuntimeCapability('workflowRunLifecycleV1')) {
+            .supportsRuntimeCapability(
+              aleraRuntimeHostWorkflowLifecycleCapability,
+            )) {
       throw const WorkflowLifecycleUpdateRequired();
     }
   }

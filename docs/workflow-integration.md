@@ -39,4 +39,4 @@ SQLite records the integrated evidence and new integration SHA only after native
 
 Startup performs bounded recovery, not a hidden polling loop. Stable request IDs also support reconnect recovery. Launch lists and integration summaries are paginated; detailed receipts load separately. The additive `workflowLocalIntegrationV1` capability covers these local-authenticated APIs; strict protocol versions remain unchanged and old hosts require an update. They are not mobile APIs.
 
-No operation publishes task PRs, merges remote branches or removes retained resources. Worktrees provide Git isolation, not an operating-system sandbox. Final human gates, reviewed cleanup and the desktop launch surface are separate lifecycle actions.
+No integration operation publishes task PRs, merges remote branches or removes retained resources. Worktrees provide Git isolation, not an operating-system sandbox. Final human gates, reviewed cleanup and the desktop launch surface are separate [Run Board lifecycle actions](workflow-lifecycle.md).

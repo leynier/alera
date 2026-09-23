@@ -16,6 +16,8 @@ const String aleraRuntimeHostOrchestrationCapability = 'orchestration';
 const String aleraRuntimeHostRunBoardCapability = 'orchestrationRunBoardV1';
 const String aleraRuntimeHostWorkflowPlansCapability =
     'workflowReviewedPlansV1';
+const String aleraRuntimeHostWorkflowLifecycleCapability =
+    'workflowRunLifecycleV1';
 const String aleraRuntimeHostAgentCanvasCapability = 'agentCanvasV1';
 const String aleraRuntimeHostAccountCapability = 'aleraAccountV1';
 const String aleraRuntimeHostMobileCloudEnrollmentCapability =

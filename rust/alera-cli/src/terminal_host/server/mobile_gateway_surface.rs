@@ -265,6 +265,25 @@ mod mobile_codex_file_surface_tests {
     use super::*;
 
     #[test]
+    fn workflow_lifecycle_remains_desktop_only() {
+        assert!(!MOBILE_HELLO_CAPABILITIES
+            .contains(&crate::terminal_host::protocol::RUNTIME_HOST_WORKFLOW_LIFECYCLE_CAPABILITY));
+        for verb in [
+            "workflows.createProposal",
+            "workflows.startCoordinator",
+            "workflows.cancelProposal",
+            "workflows.retryProposalCancellation",
+            "workflows.controlExecution",
+            "workflows.decide",
+            "workflows.previewCleanup",
+            "workflows.applyCleanup",
+            "workflows.retryCleanup",
+        ] {
+            assert!(!mobile_request_allowed(verb), "{verb}");
+        }
+    }
+
+    #[test]
     fn advertises_and_allows_mobile_codex_file_surfaces() {
         assert!(MOBILE_HELLO_CAPABILITIES
             .contains(&RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY));
