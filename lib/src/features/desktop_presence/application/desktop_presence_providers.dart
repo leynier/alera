@@ -72,6 +72,9 @@ void desktopPresenceSync(Ref ref) {
           }
         : null,
   );
+  // The callback closes over this provider's ref. Clear it on dispose so a
+  // later hide does not call into a disposed container.
+  ref.onDispose(() => lifecycle.bindHiddenOnClose(null));
 
   void push() {
     final settings = ref.read(settingsControllerProvider).general;

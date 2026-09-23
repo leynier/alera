@@ -260,8 +260,10 @@ bool Win32DesktopPresence::ShowTrayNotice(const std::wstring& title,
     return false;
   }
   // Copy so a later SetTray NIM_MODIFY does not send the balloon again.
+  // NOTIFYICON_VERSION_4 suppresses the standard tip unless NIF_SHOWTIP stays
+  // set, so a balloon modify that omits it drops the pending-review tooltip.
   NOTIFYICONDATA notice = nid_;
-  notice.uFlags = NIF_INFO;
+  notice.uFlags = NIF_INFO | NIF_SHOWTIP;
   notice.dwInfoFlags = NIIF_INFO | NIIF_RESPECT_QUIET_TIME;
   wcsncpy_s(notice.szInfoTitle, title.c_str(), _TRUNCATE);
   wcsncpy_s(notice.szInfo, message.c_str(), _TRUNCATE);
