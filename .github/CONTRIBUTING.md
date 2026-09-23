@@ -197,6 +197,8 @@ The workflow checks out its immutable triggering commit for every native desktop
 
 Without the optional inputs, existing callers continue building their triggering commit without repeating the merge queue's golden and E2E jobs. This manual validation does not enqueue, merge, sign, or publish anything.
 
+Native build jobs allow 180 minutes on macOS, 120 on Windows, and 90 on Linux. These budgets include separate native integration-suite rebuilds as well as the release build; macOS previously exhausted 90 minutes after passing its typography and editor suites. All test steps remain required, and a platform failure does not cancel the other platforms.
+
 ## Release Process
 
 Version bumps, release tags, update manifests, and published assets are maintainer-managed through the **Cut Release** GitHub Actions workflow. The workflow detects desktop and mobile changes independently and derives their SemVer bumps from Conventional Commit metadata. Do not include release version changes in normal contributions unless a maintainer asks for them.
