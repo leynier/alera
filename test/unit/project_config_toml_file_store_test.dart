@@ -157,5 +157,26 @@ setup = ["dart pub get"]
 
       expect(config?.worktree.setup, <String>['dart pub get']);
     });
+
+    test('never reads a remote-only project from this device', () async {
+      final tempDir = Directory.systemTemp.createTempSync('alera-config-test-');
+      addTearDown(() => tempDir.deleteSync(recursive: true));
+      await File(p.join(tempDir.path, aleraProjectConfigFileName))
+          .writeAsString('this is = not = toml');
+      final store = const TomlProjectConfigFileStore();
+
+      final config = await store.load(
+        Project(
+          id: 'project-1',
+          name: 'Project',
+          repoPath: tempDir.path,
+          primaryHostId: 'ssh-box',
+          createdAt: .utc(2026),
+          updatedAt: .utc(2026),
+        ),
+      );
+
+      expect(config, isNull, reason: 'the file at that path is not its own');
+    });
   });
 }

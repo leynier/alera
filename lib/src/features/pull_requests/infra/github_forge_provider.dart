@@ -120,6 +120,7 @@ class const GitHubForgeProvider(@override final ProcessRunner _processRunner)
   @override
   Future<ForgeAuthStatus> checkAuth({
     required GitRemoteIdentity identity,
+    String? repoPath,
   }) async {
     _ensureSupportedHost(identity);
     try {
@@ -128,7 +129,7 @@ class const GitHubForgeProvider(@override final ProcessRunner _processRunner)
         'status',
         '--hostname',
         identity.host,
-      ]);
+      ], workingDirectory: repoPath);
       if (result.exitCode == 0) {
         return ForgeAuthStatus.authenticated;
       }

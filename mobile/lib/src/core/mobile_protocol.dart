@@ -50,3 +50,8 @@ const String linkedIssuesCapability = 'linkedIssuesV1';
 
 /// Watch and Fix sessions (`pullRequestWatch.list` / `find`). Additive.
 const String pullRequestWatchCapability = 'pullRequestWatchV1';
+
+/// Workspaces on another host: `mobile.hosts.list` names them, and the hub
+/// forwards the file, search, quick open, git, pull request and AI Assist
+/// verbs to the owning host. Additive.
+const String mobileRemoteWorkspacesCapability = 'mobileRemoteWorkspacesV1';

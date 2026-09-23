@@ -15,12 +15,16 @@ use super::mobile_pull_request_requests::run_gh;
 pub(super) async fn decorate_snapshot(
     store: &RuntimeStore,
     workspace: &Workspace,
+    payload: &Value,
     snapshot: &mut Value,
 ) {
-    let ai_assist_enabled = store
-        .effective_ai_assist_settings()
-        .await
-        .is_ok_and(|settings| settings.enabled);
+    let hub_settings = super::remote_ai_assist_requests::hub_ai_assist_settings(payload)
+        .ok()
+        .flatten();
+    let ai_assist_enabled =
+        super::remote_ai_assist_requests::effective_ai_assist_settings(store, hub_settings)
+            .await
+            .is_ok_and(|settings| settings.enabled);
     let preferred = snapshot["review"]["baseRefName"]
         .as_str()
         .map(ToOwned::to_owned);

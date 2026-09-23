@@ -132,6 +132,9 @@ impl ServerActor {
 
     pub(super) fn cancel_ai_assist(&mut self, payload: &Value) -> HostResult<Value> {
         let operation_id = required_non_blank(payload, "operationId")?;
+        if self.cancel_remote_ai_assist(&operation_id) {
+            return Ok(json!({"canceled": true}));
+        }
         let canceled = active_generations().cancel(&operation_id)?;
         Ok(json!({"canceled": canceled}))
     }

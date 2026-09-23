@@ -12,6 +12,7 @@ impl ServerActor {
         }
         self.cancel_shutdown_timer();
         self.codex = None;
+        self.host_links.disconnect_all().await;
         self.stop_remote_relay().await;
         if let Some(handle) = self.mobile_gateway.take() {
             handle.abort();

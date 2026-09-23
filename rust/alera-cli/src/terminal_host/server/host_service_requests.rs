@@ -89,6 +89,7 @@ impl ServerActor {
             for warning in warnings {
                 tracing::warn!("alera agent integration warning: {warning}");
             }
+            self.push_agent_hook_settings_to_satellites();
             self.broadcast_agent_presence_changed();
         }
         if let Some(value) = payload.get("agentQuotas") {

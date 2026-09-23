@@ -100,19 +100,20 @@ impl ServerActor {
     }
 }
 
-/// Every `mobile.pullRequest.*` verb: the snapshot read, the summaries read,
-/// and the writes.
+/// Every `mobile.pullRequest.*` verb with a workspace: the snapshot read and
+/// the writes. `summaries` spans projects and hosts and is dispatched to
+/// `mobile_pull_request_summaries` by the caller.
 pub(super) async fn handle_mobile_pull_request(
     store: &RuntimeStore,
     request_type: &str,
     payload: &Value,
 ) -> HostResult<Value> {
+    if let Some(workspace_id) = payload.get("workspaceId").and_then(Value::as_str) {
+        super::remote_pull_request_routing::adopt_hub_linked_review(store, workspace_id, payload)
+            .await?;
+    }
     if request_type == "mobile.pullRequest.snapshot" {
         return snapshot_mobile_pull_request(store, payload).await;
-    }
-    if request_type == "mobile.pullRequest.summaries" {
-        return super::mobile_pull_request_summaries::load_mobile_pull_request_summaries(store)
-            .await;
     }
     run_mobile_pull_request_action(store, request_type, payload).await
 }
@@ -161,7 +162,10 @@ async fn run_mobile_pull_request_action(
             )
             .await?;
         }
-        Action::Ship(request) => ship_pull_request(store, &workspace, &identity, request).await?,
+        Action::Ship(request) => {
+            let hub_settings = super::remote_ai_assist_requests::hub_ai_assist_settings(payload)?;
+            ship_pull_request(store, &workspace, &identity, request, hub_settings).await?
+        }
         _ => {
             run_checked(&workspace.path, &gh_args(&action, &identity, "")).await?;
         }

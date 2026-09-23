@@ -302,6 +302,8 @@ const Set<String> runtimeHostEventNames = <String>{
   'pullRequestWatchChanged',
   'sshTargetsChanged',
   'sshTargetBootstrapProgress',
+  'hostLinkChanged',
+  'hostLinkEvent',
   'mobileSettingsChanged',
   'mobilePairingsChanged',
   'mobileDevicesChanged',

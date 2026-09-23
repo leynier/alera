@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/icons/alera_host_os_icon.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
+import 'package:alera/src/features/remote_hosts/domain/ssh_target_host_os.dart';
 import 'package:flutter/material.dart';
 
 const double _kSidebarIconSize = 16;
@@ -22,8 +23,8 @@ class const RemoteHostListRow({
           padding: const EdgeInsets.all(AleraTokens.space12),
           child: Row(
             children: <Widget>[
-              Icon(
-                AleraIcons.host,
+              AleraHostOsIcon(
+                os: sshTargetHostOs(target),
                 size: _kSidebarIconSize,
                 color: selected
                     ? AleraTokens.foreground

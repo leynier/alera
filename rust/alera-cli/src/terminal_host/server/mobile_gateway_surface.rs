@@ -59,6 +59,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     crate::terminal_host::protocol::RUNTIME_HOST_SAFE_HANDOFF_CAPABILITY,
     crate::terminal_host::protocol::RUNTIME_HOST_SHARED_CHECKOUT_CAPABILITY,
     crate::terminal_host::protocol::RUNTIME_HOST_REMOTE_SSH_WORKSPACES_CAPABILITY,
+    crate::terminal_host::protocol::RUNTIME_HOST_MOBILE_REMOTE_WORKSPACES_CAPABILITY,
     RUNTIME_HOST_MOBILE_CAPABILITY,
     RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
     RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
@@ -128,6 +129,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "mobile.status.get"
             | "mobile.relayAuthorization.renew"
             | "project.list"
+            | "mobile.hosts.list"
             | "hostDirectory.roots"
             | "hostDirectory.list"
             | "project.register"
@@ -398,6 +400,19 @@ mod mobile_codex_file_surface_tests {
             &crate::terminal_host::protocol::RUNTIME_HOST_MOBILE_PULL_REQUEST_SHIP_CAPABILITY
         ));
         assert!(mobile_request_allowed("mobile.pullRequest.ship"));
+    }
+
+    #[test]
+    fn advertises_remote_workspaces_and_names_hosts_without_exposing_them() {
+        assert!(MOBILE_HELLO_CAPABILITIES.contains(
+            &crate::terminal_host::protocol::RUNTIME_HOST_MOBILE_REMOTE_WORKSPACES_CAPABILITY
+        ));
+        assert!(mobile_request_allowed("mobile.hosts.list"));
+        // The full target record says how to reach a host, and running a tool
+        // on one is a desktop power.
+        for request in ["sshTarget.list", "host.process.run", "project.hosts.add"] {
+            assert!(!mobile_request_allowed(request), "{request}");
+        }
     }
 
     #[test]

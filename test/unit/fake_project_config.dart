@@ -54,9 +54,11 @@ class FakeProjectConfigRepository implements ProjectConfigRepository {
 class FakeProjectConfigFileStore({var ProjectConfig? config})
     implements ProjectConfigFileStore {
   Object? error;
+  final List<String> loadedProjectIds = <String>[];
 
   @override
   Future<ProjectConfig?> load(Project project) async {
+    loadedProjectIds.add(project.id);
     final error = this.error;
     if (error != null) {
       throw error;

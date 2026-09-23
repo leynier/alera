@@ -55,6 +55,10 @@ class _ProjectWorkbenchSidebarState
     );
     final controller = ref.read(workbenchControllerProvider.notifier);
     final workspaceFolderOpener = ref.read(workspaceFolderOpenerProvider);
+    // Watched while collapsed too: New Workspace reads this snapshot instead
+    // of asking the runtime again when it opens.
+    final supportsProjectHosts =
+        ref.watch(projectHostsSupportedProvider).value ?? false;
     if (state.collapsed) {
       return _CollapsedSidebar(
         state: state,
@@ -107,10 +111,15 @@ class _ProjectWorkbenchSidebarState
                               final rows = ref.watch(
                                 workbenchSidebarRowsProvider,
                               );
+                              final sshTargets = sshTargetsById(
+                                ref.watch(sshTargetsProvider).value ??
+                                    const <SshTarget>[],
+                              );
                               return _SidebarBody(
                                 state: state,
                                 controller: controller,
                                 rows: rows,
+                                sshTargets: sshTargets,
                                 onOpenWorkspace: _openWorkspace,
                                 onOpenWorkspaceFolder: openWorkspaceFolder,
                                 onCopyWorkspacePath: copyWorkspacePath,
@@ -126,6 +135,9 @@ class _ProjectWorkbenchSidebarState
                                 onHandOnWorkspace: _handOnWorkspace,
                                 onRenameProject: _renameProject,
                                 onRemoveProject: _removeProject,
+                                onManageProjectHosts: supportsProjectHosts
+                                    ? _manageProjectHosts
+                                    : null,
                                 onRenameWorkspace: _renameWorkspace,
                                 onSetWorkspacePinned: _setWorkspacePinned,
                                 onSetWorkspaceTreePinned:

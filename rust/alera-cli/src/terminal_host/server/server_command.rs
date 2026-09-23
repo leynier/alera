@@ -129,6 +129,31 @@ pub enum ServerCommand {
         job_id: String,
         status: SshBootstrapStatus,
     },
+    /// A satellite pushed an event over its host link.
+    HostLinkEvent {
+        host_id: String,
+        event: Value,
+    },
+    /// A satellite answered the hub's read of its agent presence list.
+    RemoteAgentPresenceListed {
+        host_id: String,
+        result: HostResult<Value>,
+    },
+    /// The ssh pipe behind a host link ended.
+    HostLinkClosed {
+        host_id: String,
+        error: String,
+    },
+    /// A link started connecting, attached, failed or was dropped.
+    HostLinkStateChanged {
+        host_id: String,
+    },
+    /// A forwarded request or a link operation finished off the actor.
+    HostLinkRequestFinished {
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
+    },
     ProjectCheckoutRegistered {
         client_id: u64,
         request_id: i64,
@@ -283,6 +308,20 @@ pub enum ServerCommand {
     /// A finished sweep coming back from its blocking thread.
     ResourceSampleReady {
         snapshot: Value,
+    },
+    /// The hub finished reading a remote-only project's `alera.toml`.
+    RemoteProjectConfigRead {
+        project_id: String,
+        result: HostResult<Value>,
+    },
+    /// A question forwarded to the hub went unanswered for too long.
+    HubReverseRequestExpired {
+        reverse_id: String,
+    },
+    /// A satellite answered the hub's resource poll.
+    RemoteResourceSnapshot {
+        host_id: String,
+        result: HostResult<Value>,
     },
     /// Wakes the durable automation scheduler to evaluate due occurrences.
     PullRequestWatchTick,
