@@ -22,6 +22,67 @@ import 'package:flutter_test/flutter_test.dart';
 import '../support/run_board_widget_harness.dart';
 
 void main() {
+  testWidgets('Attention retry preserves sequence after a lost response', (
+    tester,
+  ) async {
+    final client = _Client();
+    addTearDown(client.events.close);
+    var fail = true;
+    client.read = () async {
+      if (client.calls.last == 'workflows.retryProposalCancellation') {
+        if (fail) throw StateError('Response lost');
+        return {'proposalId': 'proposal', 'status': 'settled', 'sequence': 5};
+      }
+      return {
+        'id': 'proposal',
+        'cancellation': {
+          'status': fail ? 'attention' : 'settled',
+          'sequence': fail ? 4 : 5,
+        },
+      };
+    };
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          workflowLifecycleRepositoryProvider.overrideWithValue(
+            WorkflowLifecycleRepository(client, client),
+          ),
+        ],
+        child: MaterialApp(
+          theme: aleraDarkTheme,
+          home: Scaffold(
+            body: WorkflowProposalPage(
+              id: 'proposal',
+              onBack: () {},
+              onOpenRun: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Cancellation Needs Attention'), findsOneWidget);
+    await tester.tap(find.text('Retry Cancellation'));
+    await tester.pumpAndSettle();
+    fail = false;
+    await tester.tap(find.text('Retry Cancellation'));
+    await tester.pumpAndSettle();
+    expect(find.text('Proposal Cancelled'), findsOneWidget);
+    expect(find.text('Retry Cancellation'), findsNothing);
+    expect(find.text('Start Coordinator'), findsNothing);
+    expect(
+      [
+        for (var i = 0; i < client.calls.length; i++)
+          if (client.calls[i] == 'workflows.retryProposalCancellation')
+            client.payloads[i],
+      ],
+      [
+        {'id': 'proposal', 'expectedSequence': 4},
+        {'id': 'proposal', 'expectedSequence': 4},
+      ],
+    );
+  });
+
   testWidgets(
     'proposal cancellation confirms and retries without restarting a coordinator',
     (tester) async {

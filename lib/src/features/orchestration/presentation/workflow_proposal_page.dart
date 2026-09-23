@@ -35,6 +35,7 @@ class _WorkflowProposalPageState extends ConsumerState<WorkflowProposalPage> {
   bool _confirmCancel = false;
   bool _cancelRequested = false;
   int _generation = 0;
+  int? _retrySequence;
 
   @override
   void initState() {
@@ -117,6 +118,34 @@ class _WorkflowProposalPageState extends ConsumerState<WorkflowProposalPage> {
     }
   }
 
+  Future<void> _retryCancellation() async {
+    if (_busy) return;
+    final cancellation = _status?['cancellation'] as Map?;
+    final sequence = _retrySequence ?? cancellation?['sequence'];
+    if (sequence is! int || sequence < 0) return;
+    setState(() {
+      _busy = true;
+      _retrySequence = sequence;
+      _error = null;
+    });
+    try {
+      final receipt = await _repository.retryProposalCancellation(
+        widget.id,
+        sequence,
+      );
+      if (!mounted) return;
+      setState(() {
+        _status = {...?_status, 'cancellation': receipt};
+        _retrySequence = null;
+      });
+      await _refresh();
+    } on Object catch (error) {
+      if (mounted) setState(() => _error = error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   void dispose() {
     unawaited(_watch?.cancel());
@@ -163,7 +192,7 @@ class _WorkflowProposalPageState extends ConsumerState<WorkflowProposalPage> {
               : cancelState == 'pending'
               ? 'Cancellation is saved. The runtime is stopping the coordinator; its process has not yet been confirmed stopped.'
               : cancelState == 'attention'
-              ? 'The runtime could not confirm that the coordinator stopped. Inspect the retained terminal. The cancelled proposal cannot submit a plan.'
+              ? 'The runtime could not confirm that the coordinator stopped. Inspect the retained terminal, then retry cancellation. The cancelled proposal cannot submit a plan.'
               : run != null
               ? 'The coordinator submitted a plan. Open the run to review its revision before starting any workers.'
               : state == 'started'
@@ -189,6 +218,13 @@ class _WorkflowProposalPageState extends ConsumerState<WorkflowProposalPage> {
           spacing: AleraTokens.space8,
           runSpacing: AleraTokens.space8,
           children: [
+            if (_retrySequence != null ||
+                (cancelState == 'attention' &&
+                    cancellation?['sequence'] is int))
+              OutlinedButton(
+                onPressed: _busy ? null : _retryCancellation,
+                child: const Text('Retry Cancellation'),
+              ),
             if (run != null)
               FilledButton(
                 onPressed: () => widget.onOpenRun(run),
