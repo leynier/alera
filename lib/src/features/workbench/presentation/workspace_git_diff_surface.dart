@@ -10,6 +10,7 @@ import 'package:alera/src/features/ai_assist/application/ai_assist_errors.dart';
 import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_providers.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
+import 'package:alera/src/features/reading_diff/application/reading_diff_service.dart';
 import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
 import 'package:alera/src/features/reading_diff/presentation/reading_diff_confirmation_dialog.dart';
 import 'package:alera/src/features/reading_diff/presentation/reading_diff_failure_view.dart';
@@ -61,12 +62,22 @@ class _WorkspaceGitDiffSurfaceState
   String? _readingDiffAgentLabel;
   String? _readingDiffModel;
   ReadingDiffRequest? _activeReadingDiffRequest;
+  ReadingDiffService? _readingDiffService;
   Completer<void>? _readingDiffCompletion;
   bool _readingDiffCancelRequested = false;
   int _readingDiffGeneration = 0;
   int _diffLoadGeneration = 0;
 
   void _updateDiffState(VoidCallback update) => setState(update);
+
+  // Captured while the element is alive. dispose runs after Ref is gone.
+  ReadingDiffService _cachedReadingDiffService() {
+    final cached = _readingDiffService;
+    if (cached != null) return cached;
+    final service = ref.read(readingDiffServiceProvider);
+    _readingDiffService = service;
+    return service;
+  }
 
   @override
   void initState() {
@@ -123,7 +134,7 @@ class _WorkspaceGitDiffSurfaceState
   void dispose() {
     final activeRequest = _activeReadingDiffRequest;
     if (activeRequest != null) {
-      ref.read(readingDiffServiceProvider).cancel(activeRequest);
+      _readingDiffService?.cancel(activeRequest);
     }
     _focusNode.dispose();
     super.dispose();
@@ -353,7 +364,7 @@ class _WorkspaceGitDiffSurfaceState
       _readingDiffModel = null;
     });
     try {
-      final service = ref.read(readingDiffServiceProvider);
+      final service = _cachedReadingDiffService();
       final preparation = await service.prepare(request);
       if (!mounted ||
           generation != _readingDiffGeneration ||
@@ -445,7 +456,7 @@ class _WorkspaceGitDiffSurfaceState
     final activeRequest = _activeReadingDiffRequest;
     if (activeRequest != null && !_readingDiffCancelRequested) {
       _readingDiffCancelRequested = true;
-      ref.read(readingDiffServiceProvider).cancel(activeRequest);
+      _cachedReadingDiffService().cancel(activeRequest);
     }
   }
 

@@ -201,6 +201,8 @@ WorktreeSetupRunner worktreeSetupRunner(Ref ref) {
 }
 
 @Riverpod(keepAlive: true)
+// Callers listen to this ChangeNotifier instance, not to provider updates.
+// ignore: unsupported_provider_value
 EditorSessionRegistry editorSessionRegistry(Ref ref) {
   final registry = EditorSessionRegistry();
   ref.onDispose(registry.dispose);

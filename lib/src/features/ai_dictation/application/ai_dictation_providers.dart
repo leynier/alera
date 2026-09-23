@@ -38,6 +38,8 @@ Future<bool> remoteAiDictationSupported(Ref ref) async {
 }
 
 @Riverpod(keepAlive: true)
+// Callers listen to this ChangeNotifier instance, not to provider updates.
+// ignore: unsupported_provider_value
 AiDictationService aiDictationService(Ref ref) {
   final service = AiDictationService(
     settings: () => ref.read(settingsControllerProvider).aiDictation,
