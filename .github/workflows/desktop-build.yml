@@ -203,6 +203,13 @@ jobs:
             else
               flutter test "integration_test/${suite}.dart" -d "$PLATFORM" --reporter expanded
             fi
+            # Windows may retain the just-tested app after flutter test exits.
+            # A live executable makes the next CMake INSTALL step fail while
+            # replacing the debug binary; this hosted runner owns these apps.
+            if [[ "$PLATFORM" == "windows" ]]; then
+              pwsh -NoProfile -Command 'Get-Process -Name "alera","alera-dev" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue'
+              sleep 2
+            fi
           done
 
       # path_provider_windows derives %APPDATA%\<CompanyName>\<ProductName>.
