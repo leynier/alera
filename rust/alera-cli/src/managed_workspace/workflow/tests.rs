@@ -9,6 +9,7 @@ use super::*;
 mod durable_receipt_regressions;
 pub(crate) mod fixture;
 mod integration_regressions;
+mod lifecycle;
 mod receipt_and_report_regressions;
 mod regressions;
 mod review_regressions;

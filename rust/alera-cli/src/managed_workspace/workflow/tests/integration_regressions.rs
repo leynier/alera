@@ -1,6 +1,6 @@
 use super::*;
 
-async fn completed(
+pub(super) async fn completed(
     fixture: &Fixture,
     logical: &str,
     content: &str,
@@ -49,6 +49,23 @@ async fn completed(
     .unwrap();
     let mut index = repo.index().unwrap();
     index.add_path(Path::new("shared.txt")).unwrap();
+    let contract = &fixture
+        .plan
+        .plan
+        .tasks
+        .iter()
+        .find(|t| t.task.id == logical)
+        .unwrap()
+        .contract
+        .contract;
+    let mut artifacts = vec!["shared.txt".to_owned()];
+    for artifact in &contract.required_artifacts {
+        let path = Path::new(&workspace.identity.workspace.path).join(artifact);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, format!("Reviewed evidence for {logical}\n")).unwrap();
+        index.add_path(Path::new(artifact)).unwrap();
+        artifacts.push(artifact.clone());
+    }
     index.write().unwrap();
     let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
     let signature = repo.signature().unwrap();
@@ -65,17 +82,8 @@ async fn completed(
         .unwrap()
         .to_string();
     let dispatch = launch.dispatch_id;
-    let contract = &fixture
-        .plan
-        .plan
-        .tasks
-        .iter()
-        .find(|t| t.task.id == logical)
-        .unwrap()
-        .contract
-        .contract;
-    let result = json!({"completionKind":"success","summary":"Completed","artifacts":["shared.txt"],
-        "filesModified":["shared.txt"], "validation":contract.checklist.iter()
+    let result = json!({"completionKind":"success","summary":"Completed","artifacts":artifacts,
+        "filesModified":artifacts, "validation":contract.checklist.iter()
             .map(|c| json!({"id":c.id,"passed":true,"evidence":"focused checks passed"})).collect::<Vec<_>>()});
     fixture
         .store

@@ -16,6 +16,10 @@ impl Fixture {
     }
 
     pub async fn with_command(setup: &str, command: &str) -> Self {
+        Self::with_recipe(setup, command, false).await
+    }
+
+    pub async fn with_recipe(setup: &str, command: &str, feature: bool) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let runtime = dir.path().join("runtime");
         let source = dir.path().join("source");
@@ -90,7 +94,7 @@ impl Fixture {
             )
             .await
             .unwrap();
-        let recipe = &builtin_workflow_recipes()[0];
+        let recipe = &builtin_workflow_recipes()[usize::from(feature)];
         let mut tasks = recipe
             .stages
             .iter()
@@ -105,12 +109,14 @@ impl Fixture {
                 corrects_task_id: None,
             })
             .collect::<Vec<_>>();
-        let mut second = tasks[0].clone();
-        second.id = "other".into();
-        tasks.insert(1, second);
-        let mut spare = tasks[0].clone();
-        spare.id = "spare".into();
-        tasks.insert(2, spare);
+        if !feature {
+            let mut second = tasks[0].clone();
+            second.id = "other".into();
+            tasks.insert(1, second);
+            let mut spare = tasks[0].clone();
+            spare.id = "spare".into();
+            tasks.insert(2, spare);
+        }
         let plan = store
             .prepare_workflow_plan(
                 PrepareWorkflowPlan {
@@ -139,8 +145,23 @@ impl Fixture {
             )
             .await
             .unwrap();
-        let challenge = store
-            .workflow_approval_challenge(&plan.run_id, 1, "plan", "desktop")
+        let fixture = Self {
+            _dir: dir,
+            runtime,
+            source,
+            store,
+            plan,
+        };
+        if !feature {
+            fixture.approve("plan").await;
+        }
+        fixture
+    }
+
+    pub async fn approve(&self, target: &str) {
+        let challenge = self
+            .store
+            .workflow_approval_challenge(&self.plan.run_id, 1, target, "desktop")
             .await
             .unwrap();
         let statement = WorkflowApprovalStatement {
@@ -148,8 +169,8 @@ impl Fixture {
             decision: WorkflowDecision::Approve,
             reason: "Reviewed".into(),
         };
-        let key = DesktopWorkflowCredential::load_or_create(&runtime).unwrap();
-        store
+        let key = DesktopWorkflowCredential::load_or_create(&self.runtime).unwrap();
+        self.store
             .decide_workflow(
                 key.verify(statement.clone(), &key.sign(&statement).unwrap())
                     .unwrap(),
@@ -157,13 +178,6 @@ impl Fixture {
             )
             .await
             .unwrap();
-        Self {
-            _dir: dir,
-            runtime,
-            source,
-            store,
-            plan,
-        }
     }
 
     pub async fn task_id(&self, logical: &str) -> String {
