@@ -12,7 +12,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/workflow_visual_capture.dart';
+
 void main() {
+  setUpAll(loadWorkflowVisualFonts);
   Future<void> mount(
     WidgetTester tester,
     _Client client, {
@@ -33,6 +36,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: aleraDarkTheme,
+          builder: workflowVisualBoundary,
           home: Scaffold(
             body: MediaQuery(
               data: MediaQueryData(
@@ -59,6 +63,7 @@ void main() {
       await mount(tester, client);
       expect(client.documents, isEmpty);
       expect(find.text('Frozen Agent (Revision 7)'), findsOneWidget);
+      await captureWorkflowVisual(tester, 'correction-desktop');
       await tester.enterText(
         find.byType(TextField),
         'Preserve completed work and add coverage.',
@@ -112,6 +117,7 @@ void main() {
     (tester) async {
       final client = _Client();
       await mount(tester, client, compact: true);
+      await captureWorkflowVisual(tester, 'correction-compact');
       await tester.scrollUntilVisible(
         find.byType(TextField),
         250,

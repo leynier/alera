@@ -4,6 +4,8 @@ import 'package:alera/src/features/orchestration/presentation/workflow_review_pa
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/workflow_visual_capture.dart';
+
 WorkflowReviewSnapshot _review({
   String scope = 'plan',
   List<Map<String, Object?>> evidence = const [],
@@ -21,13 +23,16 @@ WorkflowReviewSnapshot _review({
     'digest': 'digest',
     'objective': 'Add reviewed workflow execution',
     'recipe': {
-      'source': {'origin': 'builtIn', 'id': 'quick-fix'},
+      'source': {
+        'origin': 'builtIn',
+        'id': scope == 'stage:foundation' ? 'feature-delivery' : 'quick-fix',
+      },
       'recipe': {
-        'name': 'Quick Fix',
+        'name': scope == 'stage:foundation' ? 'Feature Delivery' : 'Quick Fix',
         'stages': [
           {
-            'id': 'fix',
-            'name': 'Fix',
+            'id': scope == 'stage:foundation' ? 'foundation' : 'fix',
+            'name': scope == 'stage:foundation' ? 'Foundation' : 'Fix',
             'purpose': 'Make the scoped correction.',
             'dependsOn': [],
           },
@@ -45,7 +50,7 @@ WorkflowReviewSnapshot _review({
           'title': 'Update the workflow',
           'spec': 'Preserve existing behavior.',
           'roleId': 'implementer',
-          'stageId': 'fix',
+          'stageId': scope == 'stage:foundation' ? 'foundation' : 'fix',
           'dependsOn': [],
         },
         'contract': {
@@ -67,6 +72,56 @@ WorkflowReviewSnapshot _review({
 });
 
 void main() {
+  setUpAll(loadWorkflowVisualFonts);
+  testWidgets(
+    'foundation gate requires explicit approval of integrated evidence',
+    (tester) async {
+      final decisions = <WorkflowHumanDecision>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: aleraDarkTheme,
+          builder: workflowVisualBoundary,
+          home: Scaffold(
+            body: WorkflowReviewPanel(
+              review: _review(
+                scope: 'stage:foundation',
+                evidence: [
+                  {
+                    'taskId': 'task',
+                    'logicalId': 'foundation',
+                    'status': 'completed',
+                    'resultPreview': 'Foundation tests passed. Architecture and interfaces reviewed.',
+                    'resultTruncated': false,
+                    'artifactDigest': 'bound-artifacts',
+                    'integrationState': 'integrated',
+                    'integrationSha': 'a' * 40,
+                    'conflictPaths': <String>[],
+                    'conflictsTruncated': false,
+                  },
+                ],
+              ),
+              onDecision: (decision, _) => decisions.add(decision),
+              onBack: () {},
+              onRefresh: () {},
+              onInspectTask: (_) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(decisions, isEmpty);
+      await captureWorkflowVisual(tester, 'foundation-gate-desktop');
+      await tester.scrollUntilVisible(
+        find.text('Approve Gate'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await captureWorkflowVisual(tester, 'foundation-gate-evidence');
+      await tester.tap(find.text('Approve Gate'));
+      expect(decisions, [WorkflowHumanDecision.approve]);
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets(
     'corrective plan shows referenced results and explicit inspection',
     (tester) async {
@@ -114,6 +169,9 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Inspect Task Evidence'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Inspect Task Evidence'));
       expect(inspected, 'prior-task');
       expect(tester.takeException(), isNull);
@@ -165,6 +223,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: aleraDarkTheme,
+        builder: workflowVisualBoundary,
         home: Scaffold(
           body: WorkflowReviewPanel(
             review: _review(),
@@ -179,6 +238,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(decisions, isEmpty);
     expect(find.text('Quick Fix (Built-in)'), findsOneWidget);
+    await captureWorkflowVisual(tester, 'plan-review-desktop');
     expect(
       tester
           .widget<OutlinedButton>(

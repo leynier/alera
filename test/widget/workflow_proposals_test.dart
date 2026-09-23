@@ -20,8 +20,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/run_board_widget_harness.dart';
+import '../support/workflow_visual_capture.dart';
 
 void main() {
+  setUpAll(loadWorkflowVisualFonts);
   testWidgets('Attention retry preserves sequence after a lost response', (
     tester,
   ) async {
@@ -50,6 +52,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: aleraDarkTheme,
+          builder: workflowVisualBoundary,
           home: Scaffold(
             body: WorkflowProposalPage(
               id: 'proposal',
@@ -62,6 +65,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Cancellation Needs Attention'), findsOneWidget);
+    await captureWorkflowVisual(tester, 'proposal-cancellation-attention');
     await tester.tap(find.text('Retry Cancellation'));
     await tester.pumpAndSettle();
     fail = false;
@@ -186,6 +190,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: aleraDarkTheme,
+          builder: workflowVisualBoundary,
           home: Scaffold(
             body: WorkflowNewRunPage(onCreated: (_) {}, onBack: () {}),
           ),
@@ -220,6 +225,23 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     await tester.enterText(field, 'Preserve this workflow objective.');
+    tester
+        .widget<AleraDropdownField<String>>(
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is AleraDropdownField<String> &&
+                widget.labelText == 'Coordinator Profile',
+          ),
+        )
+        .onChanged('profile');
+    await tester.pumpAndSettle();
+    await captureWorkflowVisual(tester, 'new-run-form-desktop');
+    await tester.scrollUntilVisible(
+      find.text('New Workflow Run'),
+      -250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await captureWorkflowVisual(tester, 'new-run-desktop');
     await tester.tap(find.text('Saved Proposals'));
     await tester.pumpAndSettle();
     expect(find.text('There are no saved proposals yet.'), findsOneWidget);
@@ -335,7 +357,16 @@ Map<String, Object?> _entry(String id) => {
 
 class _Profiles extends AgentProfiles {
   @override
-  Future<List<AgentProfile>> build() async => [];
+  Future<List<AgentProfile>> build() async => [
+    AgentProfile(
+      id: 'profile',
+      name: 'Selected Agent',
+      agentType: 'codex',
+      command: 'codex',
+      createdAt: DateTime.utc(2026),
+      updatedAt: DateTime.utc(2026),
+    ),
+  ];
 }
 
 class _Client
