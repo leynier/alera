@@ -26,8 +26,11 @@ Widget _surface({
 }) {
   return ProviderScope(
     overrides: [
+      // ignore: riverpod_lint/scoped_providers_should_specify_dependencies
       workbenchControllerProvider.overrideWith(_PreviewWorkbenchController.new),
+      // ignore: riverpod_lint/scoped_providers_should_specify_dependencies
       editorSessionRegistryProvider.overrideWithValue(registry),
+      // ignore: riverpod_lint/scoped_providers_should_specify_dependencies
       workspaceFileServiceProvider.overrideWithValue(workspaceFiles),
       if (externalUriLauncher != null)
         externalUriLauncherProvider.overrideWithValue(externalUriLauncher),
