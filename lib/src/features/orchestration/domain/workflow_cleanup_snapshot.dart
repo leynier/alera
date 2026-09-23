@@ -1,4 +1,4 @@
-enum WorkflowCleanupState { preview, applying, attention, retired }
+enum WorkflowCleanupState { preview, applying, attention, retired, abandoned }
 
 class WorkflowCleanupIdentity {
   WorkflowCleanupIdentity.fromJson(Map json)

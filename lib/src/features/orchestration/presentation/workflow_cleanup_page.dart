@@ -131,6 +131,8 @@ class _WorkflowCleanupPageState extends ConsumerState<WorkflowCleanupPage> {
         onBack: () => _session.open(null),
         onRefresh: _session.refresh,
         onApply: _session.apply,
+        onAbandon: _session.abandon,
+        abandonPending: _session.abandonPending,
         onOpenWorkspace: _openWorkspace,
       );
     }

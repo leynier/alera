@@ -11,7 +11,7 @@ impl ServerActor {
         workspace_id: &str,
     ) -> HostResult<()> {
         self.runtime_store
-            .require_claimed_cleanup_resource(cleanup_id, digest, workspace_id)
+            .require_retained_cleanup_resource(cleanup_id, digest, workspace_id)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
         if self

@@ -14,7 +14,7 @@ import 'alera_golden_harness.dart';
 void main() {
   runAleraGoldenTests(() {
     for (final compact in [false, true]) {
-      for (final state in ['selection', 'preview', 'attention']) {
+      for (final state in ['selection', 'preview', 'attention', 'abandoned']) {
         goldenTest(
           'Cleanup $state ${compact ? "compact" : "desktop"}',
           fileName:
@@ -57,6 +57,7 @@ void main() {
                         onBack: () {},
                         onRefresh: () {},
                         onApply: (_) {},
+                        onAbandon: () {},
                         onOpenWorkspace: (_) {},
                       ),
               ),

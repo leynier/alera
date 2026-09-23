@@ -30,7 +30,7 @@ void main() {
     }
   });
   for (final compact in [false, true]) {
-    for (final state in ['selection', 'preview', 'attention']) {
+    for (final state in ['selection', 'preview', 'attention', 'abandoned']) {
       testWidgets('cleanup visual $state compact=$compact', (tester) async {
         await tester.binding.setSurfaceSize(Size(compact ? 420 : 760, 900));
         addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -77,6 +77,7 @@ void main() {
                           onBack: () {},
                           onRefresh: () {},
                           onApply: (_) {},
+                          onAbandon: () {},
                           onOpenWorkspace: (_) {},
                         ),
                 ),
@@ -93,9 +94,13 @@ void main() {
             key,
             '$directory/cleanup-$state-${compact ? 'compact' : 'desktop'}.png',
           );
-          if (compact && state == 'preview') {
+          if (compact && (state == 'preview' || state == 'attention')) {
             await tester.scrollUntilVisible(
-              find.text('Clean Selected Resources'),
+              find.text(
+                state == 'preview'
+                    ? 'Clean Selected Resources'
+                    : 'Abandon Cleanup',
+              ),
               300,
               scrollable: find.byType(Scrollable).first,
             );
@@ -103,7 +108,7 @@ void main() {
             await _capture(
               tester,
               key,
-              '$directory/cleanup-preview-compact-footer.png',
+              '$directory/cleanup-$state-compact-footer.png',
             );
           }
         }

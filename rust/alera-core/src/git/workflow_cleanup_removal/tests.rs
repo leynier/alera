@@ -1,6 +1,50 @@
 use super::*;
 use crate::git::ensure_workflow_worktree;
 
+#[test]
+fn cleanup_abandonment_accepts_intact_changed_work_but_rejects_removal_receipts() {
+    let (_dir, path, request) = fixture();
+    let checkout = open_repo(&request.path).unwrap();
+    let parent = checkout.head().unwrap().peel_to_commit().unwrap();
+    let signature = git2::Signature::now("Test", "test@example.invalid").unwrap();
+    checkout
+        .commit(
+            Some("HEAD"),
+            &signature,
+            &signature,
+            "later commit",
+            &parent.tree().unwrap(),
+            &[&parent],
+        )
+        .unwrap();
+    std::fs::write(Path::new(&request.path).join("dirty"), "retain this file").unwrap();
+    assert!(remove_workflow_cleanup_resource(&path, &request).is_err());
+    verify_workflow_cleanup_abandonment(&path, &request).unwrap();
+    let repo = open_repo(&path).unwrap();
+    let receipt = format!(
+        "refs/alera/workflow-cleanup/{}/{}",
+        request.cleanup_id, request.resource_id
+    );
+    // Even a malformed or unfinished receipt must never be discarded.
+    repo.reference(&receipt, parent.id(), false, "test receipt")
+        .unwrap();
+    assert!(verify_workflow_cleanup_abandonment(&path, &request).is_err());
+    assert_eq!(
+        std::fs::read_to_string(Path::new(&request.path).join("dirty")).unwrap(),
+        "retain this file"
+    );
+}
+
+#[test]
+fn cleanup_abandonment_rejects_missing_checkout_and_finished_receipt() {
+    let (_dir, path, request) = fixture();
+    let mut missing = request.clone();
+    missing.path.push_str("-missing");
+    assert!(verify_workflow_cleanup_abandonment(&path, &missing).is_err());
+    remove_workflow_cleanup_resource(&path, &request).unwrap();
+    assert!(verify_workflow_cleanup_abandonment(&path, &request).is_err());
+}
+
 fn fixture() -> (tempfile::TempDir, String, WorkflowCleanupRemoval) {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("repo");

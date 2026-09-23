@@ -15,6 +15,8 @@ class WorkflowCleanupReviewPanel extends StatefulWidget {
     required this.onOpenWorkspace,
     this.busy = false,
     this.error,
+    this.onAbandon,
+    this.abandonPending = false,
   });
   final WorkflowCleanupStatus status;
   final DateTime now;
@@ -24,6 +26,8 @@ class WorkflowCleanupReviewPanel extends StatefulWidget {
   final ValueChanged<String> onOpenWorkspace;
   final bool busy;
   final Object? error;
+  final VoidCallback? onAbandon;
+  final bool abandonPending;
   @override
   State<WorkflowCleanupReviewPanel> createState() =>
       _WorkflowCleanupReviewPanelState();
@@ -47,10 +51,13 @@ class _WorkflowCleanupReviewPanelState
     final preview = status.preview;
     final fresh = status.state == WorkflowCleanupState.preview;
     final completed = status.state == WorkflowCleanupState.retired;
+    final abandoned = status.state == WorkflowCleanupState.abandoned;
     final retry = status.state == WorkflowCleanupState.attention;
     final expired = !widget.now.isBefore(preview.expiresAt);
     final canApply =
         !widget.busy &&
+        !widget.abandonPending &&
+        !abandoned &&
         !completed &&
         (!fresh || (_confirmed && preview.canConfirm(widget.now)));
     final heading = switch (status.state) {
@@ -58,6 +65,7 @@ class _WorkflowCleanupReviewPanelState
       WorkflowCleanupState.applying => 'Cleanup In Progress',
       WorkflowCleanupState.attention => 'Cleanup Needs Attention',
       WorkflowCleanupState.retired => 'Cleanup Complete',
+      WorkflowCleanupState.abandoned => 'Cleanup Abandoned',
     };
     return FocusTraversalGroup(
       child: ListView.builder(
@@ -75,7 +83,9 @@ class _WorkflowCleanupReviewPanelState
                 Text(heading, style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: AleraTokens.space12),
                 Text(
-                  completed
+                  abandoned
+                      ? 'Remaining workspaces and branches are preserved. Already retired resources stay retired. Return to resources for a new preview of the current Git state.'
+                      : completed
                       ? 'The selected workspaces were retired. Run history and result evidence remain available.'
                       : 'Cleanup removes the selected worktrees and their tabs. Only branches explicitly marked below will be deleted. Run history and result evidence are retained.',
                 ),
@@ -88,10 +98,11 @@ class _WorkflowCleanupReviewPanelState
                       label:
                           '${status.retiredWorkspaceIds.length}/${preview.items.length} Retired',
                     ),
-                    AleraBadge(
-                      label:
-                          '${preview.items.where((item) => item.removeBranch).length} Branches To Delete',
-                    ),
+                    if (!abandoned)
+                      AleraBadge(
+                        label:
+                            '${preview.items.where((item) => item.removeBranch).length} Branches To Delete',
+                      ),
                   ],
                 ),
                 const SizedBox(height: AleraTokens.space12),
@@ -153,6 +164,12 @@ class _WorkflowCleanupReviewPanelState
                       ),
                     ),
                   const SizedBox(height: AleraTokens.space8),
+                  if (retry && widget.onAbandon != null) ...[
+                    const Text(
+                      'If this preview is obsolete, abandon cleanup to release intact remaining resources. No files are deleted. Existing Git removal receipts must be reconciled first.',
+                    ),
+                    const SizedBox(height: AleraTokens.space8),
+                  ],
                   Wrap(
                     spacing: AleraTokens.space8,
                     runSpacing: AleraTokens.space8,
@@ -161,7 +178,16 @@ class _WorkflowCleanupReviewPanelState
                         onPressed: widget.busy ? null : widget.onRefresh,
                         child: const Text('Refresh Status'),
                       ),
-                      if (!completed)
+                      if (retry && widget.onAbandon != null)
+                        OutlinedButton(
+                          onPressed: widget.busy ? null : widget.onAbandon,
+                          child: Text(
+                            widget.abandonPending
+                                ? 'Retry Abandonment'
+                                : 'Abandon Cleanup',
+                          ),
+                        ),
+                      if (!completed && !abandoned)
                         FilledButton(
                           onPressed: canApply
                               ? () => widget.onApply(retry)
@@ -172,7 +198,9 @@ class _WorkflowCleanupReviewPanelState
                           ),
                           child: Text(
                             widget.busy
-                                ? 'Cleaning...'
+                                ? (widget.abandonPending
+                                      ? 'Abandoning...'
+                                      : 'Cleaning...')
                                 : fresh
                                 ? 'Clean Selected Resources'
                                 : retry
@@ -211,6 +239,8 @@ class _WorkflowCleanupReviewPanelState
                 Text(
                   retired
                       ? 'Retired'
+                      : abandoned
+                      ? 'Retained'
                       : item.removeBranch
                       ? 'Delete Branch'
                       : 'Keep Branch',

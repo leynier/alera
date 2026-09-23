@@ -238,6 +238,7 @@ String _cleanupLabel(WorkflowCleanupState state) => switch (state) {
   WorkflowCleanupState.applying => 'Applying',
   WorkflowCleanupState.attention => 'Attention',
   WorkflowCleanupState.retired => 'Retired',
+  WorkflowCleanupState.abandoned => 'Abandoned',
 };
 
 class _CleanupToggle extends StatelessWidget {

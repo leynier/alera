@@ -97,3 +97,51 @@ pub(super) async fn reconcile(
         cursor = page.last().expect("full cleanup page").0.clone();
     }
 }
+
+/// Explicitly releases only intact, unretired claims. The caller owns the same
+/// bounded queue as removal; prepared owns all resource locks until settlement.
+pub(super) async fn abandon(
+    store: &RuntimeStore,
+    directory: &std::path::Path,
+    events: &UnboundedSender<ServerCommand>,
+    id: &str,
+    digest: &str,
+) -> anyhow::Result<serde_json::Value> {
+    let prepared = crate::managed_workspace::workflow::cleanup::prepare_abandonment(
+        store, directory, id, digest,
+    )
+    .await?;
+    if let Some(prepared) = prepared {
+        for item in &prepared.claim.preview.items {
+            if prepared
+                .claim
+                .retired_workspace_ids
+                .contains(&item.identity.workspace.id)
+            {
+                continue;
+            }
+            let (reply, done) = tokio::sync::oneshot::channel();
+            events
+                .send(ServerCommand::WorkflowLaunch(
+                    WorkflowLaunchCommand::InspectCleanupOwners {
+                        cleanup_id: id.into(),
+                        digest: digest.into(),
+                        workspace_id: item.identity.workspace.id.clone(),
+                        reply,
+                    },
+                ))
+                .map_err(|_| anyhow::anyhow!("runtime closed before cleanup inspection"))?;
+            done.await
+                .map_err(|_| anyhow::anyhow!("runtime closed during cleanup inspection"))?
+                .map_err(|error| anyhow::anyhow!(error.wire_message()))?;
+            crate::managed_workspace::workflow::cleanup::verify_abandonment_resource(
+                store, &prepared, item,
+            )
+            .await?;
+        }
+        store.abandon_workflow_cleanup(id, digest).await?;
+    }
+    Ok(serde_json::to_value(
+        store.workflow_cleanup_status(id).await?,
+    )?)
+}

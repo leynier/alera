@@ -2,6 +2,8 @@ use super::*;
 use crate::terminal_host::protocol::TerminalHostLaunch;
 use alera_core::runtime::{ControlWorkflowExecution, WorkflowCleanupItem, WorkflowExecutionAction};
 
+mod abandonment;
+
 #[tokio::test]
 async fn workflow_cleanup_claim_blocks_new_terminal_owners_after_restart() {
     let _serial = crate::terminal_host::server::workflow_cleanup_execution::CLEANUP_TEST_LOCK
@@ -302,10 +304,16 @@ async fn workflow_cleanup_rpc_rejects_untrusted_and_expanded_selections() {
         .clients
         .insert(1, mobile_client(client.clone(), "device"));
     assert!(actor
+        .start_workflow_cleanup_abandonment(1, 1, &payload)
+        .is_err());
+    assert!(actor
         .start_workflow_cleanup_request(1, 1, &payload)
         .is_err());
     actor.clients.insert(1, local_client(client));
     actor.clients.get_mut(&1).unwrap().authenticated = false;
+    assert!(actor
+        .start_workflow_cleanup_abandonment(1, 1, &payload)
+        .is_err());
     assert!(actor
         .start_workflow_cleanup_request(1, 1, &payload)
         .is_err());
@@ -316,6 +324,9 @@ async fn workflow_cleanup_rpc_rejects_untrusted_and_expanded_selections() {
         json!({"id":payload["id"],"digest":{},"path":"/foreign"}),
         json!({"id":payload["id"],"digest":payload["digest"],"removeBranch":true}),
     ] {
+        assert!(actor
+            .start_workflow_cleanup_abandonment(1, 1, &invalid)
+            .is_err());
         assert!(actor
             .start_workflow_cleanup_request(1, 1, &invalid)
             .is_err());

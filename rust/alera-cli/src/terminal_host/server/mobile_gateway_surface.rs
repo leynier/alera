@@ -278,6 +278,7 @@ mod mobile_codex_file_surface_tests {
             "workflows.previewCleanup",
             "workflows.applyCleanup",
             "workflows.retryCleanup",
+            "workflows.abandonCleanup",
         ] {
             assert!(!mobile_request_allowed(verb), "{verb}");
         }

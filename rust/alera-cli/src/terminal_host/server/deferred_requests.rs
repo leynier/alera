@@ -27,6 +27,10 @@ impl ServerActor {
                 self.start_workflow_cleanup_retry(client_id, request_id, payload)?;
                 Ok(true)
             }
+            "workflows.abandonCleanup" => {
+                self.start_workflow_cleanup_abandonment(client_id, request_id, payload)?;
+                Ok(true)
+            }
             "workflows.applyCleanup" => {
                 self.start_workflow_cleanup_request(client_id, request_id, payload)?;
                 Ok(true)

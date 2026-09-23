@@ -26,6 +26,46 @@ struct Receipt {
     request: WorkflowCleanupRemoval,
 }
 
+/// Read-only guard for releasing an intact resource. A started removal must
+/// settle through its original receipt before any claim can be abandoned.
+pub fn verify_workflow_cleanup_abandonment(
+    repo_path: &str,
+    request: &WorkflowCleanupRemoval,
+) -> Result<(), GitError> {
+    uuid::Uuid::parse_str(&request.cleanup_id).map_err(|_| invalid("invalid cleanup id"))?;
+    uuid::Uuid::parse_str(&request.resource_id).map_err(|_| invalid("invalid resource id"))?;
+    let repo = open_repo(repo_path)?;
+    let receipt = format!(
+        "refs/alera/workflow-cleanup/{}/{}",
+        request.cleanup_id, request.resource_id
+    );
+    for name in [&receipt, &format!("{receipt}-retired")] {
+        match repo.find_reference(name) {
+            Ok(_) => {
+                return Err(invalid(
+                    "reconcile the existing Git removal receipt before abandoning cleanup",
+                ))
+            }
+            Err(error) if error.code() == ErrorCode::NotFound => {}
+            Err(error) => return Err(GitError::from_git2(error)),
+        }
+    }
+    let current = preview_workflow_cleanup(
+        repo_path,
+        &request.path,
+        &request.base_sha,
+        &request.resource_id,
+    )?;
+    if current.locked || current.operation_in_progress {
+        return Err(invalid(
+            "finish the active Git operation before abandoning cleanup",
+        ));
+    }
+    // HEAD and dirty state are intentionally not compared: abandonment grants
+    // no deletion authority and exists so these changes can be reviewed anew.
+    Ok(())
+}
+
 /// The caller must hold managed resource locks and verify process quiescence.
 /// A retained Git receipt bridges removal and runtime persistence; it never
 /// authorizes a different selection or a replacement checkout at the same path.

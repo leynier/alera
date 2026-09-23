@@ -8,6 +8,43 @@ import 'package:flutter_test/flutter_test.dart';
 import '../support/workflow_cleanup_fixture.dart';
 
 void main() {
+  testWidgets('abandonment is explicit and its receipt cannot retry cleanup', (
+    tester,
+  ) async {
+    var abandoned = 0;
+    await tester.binding.setSurfaceSize(const Size(320, 600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      _panel(
+        cleanupStatusFixture('attention'),
+        (_) => fail('Must not clean'),
+        scale: 2,
+        onAbandon: () => abandoned++,
+      ),
+    );
+    await tester.scrollUntilVisible(
+      find.text('Abandon Cleanup'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await Scrollable.ensureVisible(
+      tester.element(find.text('Abandon Cleanup')),
+      alignment: 0.5,
+    );
+    await tester.pumpAndSettle();
+    expect(abandoned, 0);
+    await tester.tap(find.text('Abandon Cleanup'));
+    expect(abandoned, 1);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(
+      _panel(cleanupStatusFixture('abandoned'), (_) => fail('Must not retry')),
+    );
+    expect(find.byType(FilledButton), findsNothing);
+    expect(find.text('Retry Cleanup'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'cleanup requires explicit selection confirmation and retains branch by default',
     (tester) async {
@@ -131,6 +168,7 @@ Widget _panel(
   Map<String, Object?> json,
   ValueChanged<bool> onApply, {
   double scale = 1,
+  VoidCallback? onAbandon,
 }) => MaterialApp(
   theme: aleraDarkTheme,
   home: MediaQuery(
@@ -142,6 +180,7 @@ Widget _panel(
         onBack: () {},
         onRefresh: () {},
         onApply: onApply,
+        onAbandon: onAbandon,
         onOpenWorkspace: (_) {},
       ),
     ),

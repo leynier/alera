@@ -109,6 +109,24 @@ class WorkflowCleanupRepository {
     }
     return status;
   }
+
+  Future<WorkflowCleanupStatus> abandon(WorkflowCleanupPreview preview) async {
+    final status = await compute(
+      _status,
+      await lifecycle.request('workflows.abandonCleanup', {
+        'id': preview.id,
+        'digest': preview.digest,
+      }),
+    );
+    status.preview.requireIdentity(preview.id, preview.runId);
+    if (status.preview.digest != preview.digest ||
+        status.state != WorkflowCleanupState.abandoned) {
+      throw const FormatException(
+        'Cleanup abandonment receipt changed the reviewed operation.',
+      );
+    }
+    return status;
+  }
 }
 
 WorkflowCleanupPage<WorkflowCleanupResource> _resources(

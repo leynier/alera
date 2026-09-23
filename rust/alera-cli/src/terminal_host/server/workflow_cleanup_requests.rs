@@ -2,6 +2,12 @@ use super::{ClientKind, ServerActor, ServerCommand};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use serde_json::Value;
 
+enum CleanupOperation {
+    Apply,
+    Retry,
+    Abandon,
+}
+
 impl ServerActor {
     pub(super) fn start_workflow_cleanup_request(
         &mut self,
@@ -9,7 +15,12 @@ impl ServerActor {
         request_id: i64,
         payload: &Value,
     ) -> HostResult<()> {
-        self.start_workflow_cleanup_operation(client_id, request_id, payload, false)
+        self.start_workflow_cleanup_operation(
+            client_id,
+            request_id,
+            payload,
+            CleanupOperation::Apply,
+        )
     }
 
     pub(super) fn start_workflow_cleanup_retry(
@@ -18,7 +29,26 @@ impl ServerActor {
         request_id: i64,
         payload: &Value,
     ) -> HostResult<()> {
-        self.start_workflow_cleanup_operation(client_id, request_id, payload, true)
+        self.start_workflow_cleanup_operation(
+            client_id,
+            request_id,
+            payload,
+            CleanupOperation::Retry,
+        )
+    }
+
+    pub(super) fn start_workflow_cleanup_abandonment(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        payload: &Value,
+    ) -> HostResult<()> {
+        self.start_workflow_cleanup_operation(
+            client_id,
+            request_id,
+            payload,
+            CleanupOperation::Abandon,
+        )
     }
 
     fn start_workflow_cleanup_operation(
@@ -26,7 +56,7 @@ impl ServerActor {
         client_id: u64,
         request_id: i64,
         payload: &Value,
-        retry: bool,
+        operation: CleanupOperation,
     ) -> HostResult<()> {
         self.require_auth(client_id)?;
         if self
@@ -64,9 +94,27 @@ impl ServerActor {
             let events = inbox.clone();
             let result = tokio::task::spawn_blocking(move || {
                 let _permit = permit;
-                runtime.block_on(super::workflow_cleanup_execution::execute(
-                    &store, &directory, &events, &id, &digest, retry,
-                ))
+                runtime.block_on(async {
+                    match operation {
+                        CleanupOperation::Abandon => {
+                            super::workflow_cleanup_execution::abandon(
+                                &store, &directory, &events, &id, &digest,
+                            )
+                            .await
+                        }
+                        operation => {
+                            super::workflow_cleanup_execution::execute(
+                                &store,
+                                &directory,
+                                &events,
+                                &id,
+                                &digest,
+                                matches!(operation, CleanupOperation::Retry),
+                            )
+                            .await
+                        }
+                    }
+                })
             })
             .await
             .map_err(|error| HostError::state(error.to_string()))

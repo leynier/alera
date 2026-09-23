@@ -60,7 +60,7 @@ impl RuntimeStore {
                 .await?;
         let rows = sqlx::query(
             "SELECT x.sequence,x.identity,x.phase,w.id IS NOT NULL AS registered,
-            r.cleanup_id,c.state AS cleanup_state,COALESCE(r.retired,0) AS retired
+            r.cleanup_id,CASE WHEN c.abandoned=1 THEN 'abandoned' ELSE c.state END AS cleanup_state,COALESCE(r.retired,0) AS retired
             FROM workflowWorkspaces x LEFT JOIN workspaces w ON w.id=x.id
             LEFT JOIN workflowCleanupResources r ON r.workspace_id=x.id
             LEFT JOIN workflowCleanup c ON c.id=r.cleanup_id
@@ -108,7 +108,7 @@ impl RuntimeStore {
             sqlx::query_scalar("SELECT revision FROM orchestrationBoardRevision WHERE id=1")
                 .fetch_one(&mut *tx)
                 .await?;
-        let rows = sqlx::query("SELECT c.rowid AS sequence,c.id,c.state,c.error,c.expires_at,
+        let rows = sqlx::query("SELECT c.rowid AS sequence,c.id,CASE WHEN c.abandoned=1 THEN 'abandoned' ELSE c.state END AS state,c.error,c.expires_at,
             json_array_length(c.document,'$.items') AS resource_count,
             (SELECT COUNT(*) FROM workflowCleanupResources r WHERE r.cleanup_id=c.id AND r.retired=1) AS retired_count
             FROM workflowCleanup c WHERE c.run_id=? AND c.rowid<? ORDER BY c.rowid DESC LIMIT 26")

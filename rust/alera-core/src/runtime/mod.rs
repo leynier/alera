@@ -104,6 +104,7 @@ mod workflow_catalog_store;
 #[cfg(test)]
 mod workflow_catalog_tests;
 mod workflow_cleanup;
+mod workflow_cleanup_abandon;
 mod workflow_cleanup_catalog;
 mod workflow_cleanup_claim;
 mod workflow_cleanup_status;

@@ -83,6 +83,12 @@ impl RuntimeStore {
             BEGIN SELECT RAISE(ABORT, 'retired workflow workspace cannot receive tabs'); END")
             .execute(&mut *tx).await?;
         tx.commit().await?;
+        // Keep legacy state constraints intact; abandonment is a terminal
+        // disposition layered over the preserved failure and preview history.
+        self.ensure_column("workflowCleanup", "abandoned", "INTEGER NOT NULL DEFAULT 0")
+            .await?;
+        sqlx::query("CREATE INDEX IF NOT EXISTS workflowCleanupRunDisposition ON workflowCleanup(run_id,abandoned,state)")
+            .execute(self.pool()).await?;
         Ok(())
     }
 

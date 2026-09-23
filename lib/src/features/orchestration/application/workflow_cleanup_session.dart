@@ -34,6 +34,8 @@ class WorkflowCleanupSession extends ChangeNotifier {
   int _generation = 0;
   (String, Map<String, bool>)? _pendingPreview;
   (WorkflowCleanupPreview, bool)? _pendingApply;
+  WorkflowCleanupPreview? _pendingAbandon;
+  bool get abandonPending => _pendingAbandon != null;
   bool get previewPending => _pendingPreview != null;
   bool get selectionLocked => busy || previewPending;
   bool get canPrepare =>
@@ -69,8 +71,17 @@ class WorkflowCleanupSession extends ChangeNotifier {
             'Cleanup confirmation changed while its response was pending.',
           );
         }
+        if (_pendingAbandon != null &&
+            next.preview.digest != _pendingAbandon!.digest) {
+          throw const FormatException(
+            'Cleanup changed while abandonment was pending.',
+          );
+        }
         status = next;
         if (next.state != WorkflowCleanupState.preview) _pendingApply = null;
+        if (next.state == WorkflowCleanupState.abandoned) {
+          _pendingAbandon = null;
+        }
       } else {
         final pages = await Future.wait<Object>([
           repository.resources(runId),
@@ -88,7 +99,11 @@ class WorkflowCleanupSession extends ChangeNotifier {
         historyCursor = historyPage.nextBeforeRow;
         _historyRevision = historyPage.revision;
       }
-      if (_pendingApply == null && _pendingPreview == null) error = null;
+      if (_pendingApply == null &&
+          _pendingPreview == null &&
+          _pendingAbandon == null) {
+        error = null;
+      }
     } on Object catch (value) {
       if (!_disposed && generation == _generation) error = value;
     } finally {
@@ -133,6 +148,7 @@ class WorkflowCleanupSession extends ChangeNotifier {
     selectedId = id;
     status = null;
     _pendingApply = null;
+    _pendingAbandon = null;
     loading = true;
     error = null;
     notifyListeners();
@@ -156,6 +172,8 @@ class WorkflowCleanupSession extends ChangeNotifier {
     if (busy ||
         _disposed ||
         status == null ||
+        abandonPending ||
+        status!.state == WorkflowCleanupState.abandoned ||
         status!.state == WorkflowCleanupState.retired) {
       return;
     }
@@ -166,6 +184,23 @@ class WorkflowCleanupSession extends ChangeNotifier {
       if (_disposed) return;
       status = result;
       _pendingApply = null;
+    });
+    if (!_disposed) await refresh();
+  }
+
+  Future<void> abandon() async {
+    if (busy || _disposed || status?.state != WorkflowCleanupState.attention) {
+      return;
+    }
+    _pendingAbandon ??= status!.preview;
+    _pendingApply = null;
+    final pending = _pendingAbandon!;
+    await _mutate(() async {
+      final result = await repository.abandon(pending);
+      if (_disposed) return;
+      status = result;
+      _pendingAbandon = null;
+      _selection.clear();
     });
     if (!_disposed) await refresh();
   }

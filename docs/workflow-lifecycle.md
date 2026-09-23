@@ -34,6 +34,8 @@ Cleanup reserves the selected identities before inspection, blocking new termina
 
 Only confirmed Applying cleanup resumes during startup. Preview and Attention never auto-apply. Use Retry Cleanup after inspecting and correcting an obstruction. Partial progress remains visible in its durable receipt. Resources are otherwise retained after success, cancellation and error; there is no automatic cleanup.
 
+If the reviewed HEAD changed, use Abandon Cleanup from Attention before preparing a new preview. Abandonment preserves remaining files and branches, keeps already retired resources retired, and records the original preview and error in history. It releases reservations only after verifying resource identities, Git state and absence of active owners. Interrupted Git removal must first reconcile through Retry Cleanup; abandonment cannot discard a removal receipt. Retrying a lost abandonment response is idempotent and never releases reservations belonging to a newer cleanup.
+
 ## Compatibility and boundaries
 
 The additive desktop capability is `workflowRunLifecycleV1`, independent of Board read support. Strict protocol versions are unchanged. An older host shows Update Required; there is no shared-workspace, ungated or legacy-approval fallback. Workflow lifecycle and approval operations are not granted to paired mobile clients.

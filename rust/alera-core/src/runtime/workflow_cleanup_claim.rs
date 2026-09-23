@@ -18,7 +18,7 @@ impl RuntimeStore {
         digest: &str,
         workspace_id: &str,
     ) -> Result<()> {
-        let claimed: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM workflowCleanup c JOIN workflowCleanupResources r ON r.cleanup_id=c.id WHERE c.id=? AND c.digest=? AND c.state='applying' AND r.workspace_id=? AND r.retired=0)")
+        let claimed: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM workflowCleanup c JOIN workflowCleanupResources r ON r.cleanup_id=c.id WHERE c.id=? AND c.digest=? AND c.state='applying' AND c.abandoned=0 AND r.workspace_id=? AND r.retired=0)")
             .bind(id).bind(digest).bind(workspace_id).fetch_one(self.pool()).await?;
         if !claimed {
             bail!("cleanup resource has no active matching claim");
@@ -52,13 +52,17 @@ impl RuntimeStore {
         sqlx::query("UPDATE orchestrationBoardRevision SET revision=revision WHERE id=1")
             .execute(&mut *tx)
             .await?;
-        let row =
-            sqlx::query("SELECT document,digest,state,expires_at FROM workflowCleanup WHERE id=?")
-                .bind(id)
-                .fetch_one(&mut *tx)
-                .await?;
+        let row = sqlx::query(
+            "SELECT document,digest,state,expires_at,abandoned FROM workflowCleanup WHERE id=?",
+        )
+        .bind(id)
+        .fetch_one(&mut *tx)
+        .await?;
         if row.try_get::<String, _>("digest")? != digest {
             bail!("cleanup confirmation does not match its preview");
+        }
+        if row.try_get::<bool, _>("abandoned")? {
+            bail!("cleanup was abandoned; review a new preview");
         }
         let preview: WorkflowCleanupPreview =
             serde_json::from_str(&row.try_get::<String, _>("document")?)?;
@@ -116,7 +120,7 @@ impl RuntimeStore {
         sqlx::query("UPDATE orchestrationBoardRevision SET revision=revision WHERE id=1")
             .execute(&mut *tx)
             .await?;
-        let row = sqlx::query("SELECT c.document,r.retired FROM workflowCleanup c JOIN workflowCleanupResources r ON r.cleanup_id=c.id WHERE c.id=? AND c.digest=? AND c.state IN ('applying','retired') AND r.workspace_id=?")
+        let row = sqlx::query("SELECT c.document,r.retired FROM workflowCleanup c JOIN workflowCleanupResources r ON r.cleanup_id=c.id WHERE c.id=? AND c.digest=? AND c.state IN ('applying','retired') AND c.abandoned=0 AND r.workspace_id=?")
             .bind(id).bind(digest).bind(workspace_id).fetch_optional(&mut *tx).await?
             .ok_or_else(|| anyhow::anyhow!("cleanup retirement does not match a claimed resource"))?;
         if row.try_get::<bool, _>("retired")? {

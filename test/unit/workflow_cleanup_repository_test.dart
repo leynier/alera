@@ -27,6 +27,24 @@ void main() {
     );
     expect(client.calls, isEmpty);
   });
+  test('abandonment binds its receipt to the original preview', () async {
+    final preview = WorkflowCleanupPreview.fromJson(cleanupPreviewFixture());
+    client.response = cleanupStatusFixture('abandoned');
+    expect(
+      (await repository.abandon(preview)).state,
+      WorkflowCleanupState.abandoned,
+    );
+    expect(client.calls.single.$1, 'workflows.abandonCleanup');
+    expect(client.calls.single.$2, {
+      'id': 'cleanup',
+      'digest': 'reviewed-digest',
+    });
+    client.response = cleanupStatusFixture('attention');
+    await expectLater(repository.abandon(preview), throwsFormatException);
+    client.response = cleanupStatusFixture('abandoned');
+    (client.response['preview']! as Map)['digest'] = 'changed';
+    await expectLater(repository.abandon(preview), throwsFormatException);
+  });
   test(
     'resource pages decode ownership and preserve the keyset cursor',
     () async {

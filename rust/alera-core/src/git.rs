@@ -17,7 +17,9 @@ mod workflow_worktree;
 #[cfg(feature = "runtime")]
 pub use workflow_cleanup::{preview_workflow_cleanup, WorkflowCleanupGitPreview};
 #[cfg(feature = "runtime")]
-pub use workflow_cleanup_removal::{remove_workflow_cleanup_resource, WorkflowCleanupRemoval};
+pub use workflow_cleanup_removal::{
+    remove_workflow_cleanup_resource, verify_workflow_cleanup_abandonment, WorkflowCleanupRemoval,
+};
 mod worktree_creation;
 pub use repository_metadata::{
     branch_exists, current_branch, is_worktree_clean, repository_remote_url,

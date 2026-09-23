@@ -11,6 +11,55 @@ import '../support/workflow_cleanup_catalog_fixture.dart';
 
 void main() {
   test(
+    'uncertain abandonment blocks apply and reconciles its receipt',
+    () async {
+      final repository = _Repository()..statusState = 'attention';
+      final session = WorkflowCleanupSession(
+        repository,
+        'run',
+        cleanupId: 'cleanup',
+      );
+      addTearDown(session.dispose);
+      await session.refresh();
+      repository.failAbandon = true;
+      await session.abandon();
+      expect(session.abandonPending, true);
+      expect(session.error, isNotNull);
+      await session.apply(true);
+      expect(repository.applications, isEmpty);
+      repository.failAbandon = false;
+      await session.abandon();
+      expect(repository.abandonments, ['cleanup', 'cleanup']);
+      expect(session.abandonPending, false);
+      expect(session.status!.state, WorkflowCleanupState.abandoned);
+      expect(session.error, isNull);
+      await session.apply(true);
+      expect(repository.applications, isEmpty);
+    },
+  );
+
+  test(
+    'refresh settles a lost abandonment response without repeating it',
+    () async {
+      final repository = _Repository()..statusState = 'attention';
+      final session = WorkflowCleanupSession(
+        repository,
+        'run',
+        cleanupId: 'cleanup',
+      );
+      addTearDown(session.dispose);
+      await session.refresh();
+      repository.failAbandon = true;
+      await session.abandon();
+      repository.statusState = 'abandoned';
+      await session.refresh();
+      expect(session.abandonPending, false);
+      expect(session.error, isNull);
+      expect(repository.abandonments, ['cleanup']);
+    },
+  );
+
+  test(
     'response-loss retry preserves preview identity and branch choices',
     () async {
       final repository = _Repository()..failPrepare = true;
@@ -127,10 +176,12 @@ void main() {
 class _Repository implements WorkflowCleanupRepository {
   bool failPrepare = false;
   bool failApply = false;
+  bool failAbandon = false;
   bool failStatus = false;
   String statusState = 'preview';
   final preparations = <(String, Map<String, bool>)>[];
   final applications = <bool>[];
+  final abandonments = <String>[];
   Completer<WorkflowCleanupPage<WorkflowCleanupResource>>? delayed;
   @override
   Future<WorkflowCleanupPage<WorkflowCleanupResource>> resources(
@@ -172,6 +223,14 @@ class _Repository implements WorkflowCleanupRepository {
     applications.add(retry);
     if (failApply) throw StateError('Response lost');
     return WorkflowCleanupStatus.fromJson(cleanupStatusFixture('retired'));
+  }
+
+  @override
+  Future<WorkflowCleanupStatus> abandon(WorkflowCleanupPreview preview) async {
+    abandonments.add(preview.id);
+    if (failAbandon) throw StateError('Response lost');
+    statusState = 'abandoned';
+    return WorkflowCleanupStatus.fromJson(cleanupStatusFixture(statusState));
   }
 
   @override

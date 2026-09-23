@@ -1,5 +1,7 @@
 use super::*;
-use alera_core::runtime::{WorkflowCleanupClaim, WorkflowCleanupItem};
+use alera_core::runtime::{
+    WorkflowCleanupClaim, WorkflowCleanupItem, WorkflowCleanupPreview, WorkflowCleanupState,
+};
 
 pub(crate) struct PreparedCleanup {
     pub claim: WorkflowCleanupClaim,
@@ -37,6 +39,22 @@ async fn prepare_internal(
     if preview.digest != digest {
         bail!("cleanup confirmation does not match its preview");
     }
+    let locks = lock_resources(store, runtime_dir, &preview).await?;
+    if retry {
+        store.resume_workflow_cleanup(id, digest).await?;
+    }
+    let claim = store.claim_workflow_cleanup(id, digest).await?;
+    Ok(PreparedCleanup {
+        claim,
+        _locks: locks,
+    })
+}
+
+async fn lock_resources(
+    store: &RuntimeStore,
+    runtime_dir: &Path,
+    preview: &WorkflowCleanupPreview,
+) -> Result<Vec<File>> {
     let integration = store
         .workflow_integration_workspace(&preview.run_id)
         .await?;
@@ -56,14 +74,74 @@ async fn prepare_internal(
             })?);
         }
     }
-    if retry {
-        store.resume_workflow_cleanup(id, digest).await?;
+    Ok(locks)
+}
+
+pub(crate) async fn prepare_abandonment(
+    store: &RuntimeStore,
+    runtime_dir: &Path,
+    id: &str,
+    digest: &str,
+) -> Result<Option<PreparedCleanup>> {
+    let preview = store.workflow_cleanup_preview(id).await?;
+    if preview.digest != digest {
+        bail!("cleanup confirmation does not match its preview");
     }
-    let claim = store.claim_workflow_cleanup(id, digest).await?;
-    Ok(PreparedCleanup {
-        claim,
+    let locks = lock_resources(store, runtime_dir, &preview).await?;
+    let status = store.workflow_cleanup_status(id).await?;
+    if status.state == WorkflowCleanupState::Abandoned {
+        return Ok(None);
+    }
+    if status.state != WorkflowCleanupState::Attention {
+        bail!("only a cleanup needing attention can be abandoned");
+    }
+    Ok(Some(PreparedCleanup {
+        claim: WorkflowCleanupClaim {
+            preview,
+            retired_workspace_ids: status.retired_workspace_ids,
+        },
         _locks: locks,
-    })
+    }))
+}
+
+pub(crate) async fn verify_abandonment_resource(
+    store: &RuntimeStore,
+    prepared: &PreparedCleanup,
+    item: &WorkflowCleanupItem,
+) -> Result<()> {
+    let preview = &prepared.claim.preview;
+    let workspace = &item.identity.workspace;
+    store
+        .require_retained_cleanup_resource(&preview.id, &preview.digest, &workspace.id)
+        .await?;
+    let actual = store
+        .find_workspace(&workspace.id)
+        .await?
+        .ok_or_else(|| anyhow!("workflow workspace registration is missing"))?;
+    if actual.instance_id != workspace.instance_id
+        || actual.host_id != LOCAL_HOST_ID
+        || actual.project_id != workspace.project_id
+        || actual.path != workspace.path
+        || actual.branch != workspace.branch
+        || actual.kind != WorkspaceKind::Linked
+    {
+        bail!("cleanup workspace registration changed");
+    }
+    if workspace_has_active_automation_owner(store, &workspace.id).await? {
+        bail!("workspace is owned by an active automation; stop it before abandoning cleanup");
+    }
+    core_git::verify_workflow_cleanup_abandonment(
+        &item.identity.repo_path,
+        &core_git::WorkflowCleanupRemoval {
+            cleanup_id: preview.id.clone(),
+            resource_id: workspace.id.clone(),
+            path: workspace.path.clone(),
+            base_sha: item.identity.base_sha.clone(),
+            expected_head: item.git.head_sha.clone(),
+            remove_branch: item.remove_branch,
+        },
+    )?;
+    Ok(())
 }
 
 pub(crate) async fn retire(
