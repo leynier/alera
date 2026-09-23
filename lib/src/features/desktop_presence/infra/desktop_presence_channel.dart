@@ -8,6 +8,7 @@ abstract final class DesktopPresenceMethod {
   static const String setTray = 'setTray';
   static const String setBadgeCount = 'setBadgeCount';
   static const String destroy = 'destroy';
+  static const String showTrayNotice = 'showTrayNotice';
 }
 
 abstract final class DesktopPresenceEvent {
@@ -52,6 +53,8 @@ abstract interface class DesktopPresenceBackend {
   Future<void> apply(DesktopPresenceSnapshot snapshot);
 
   Future<void> destroy();
+
+  Future<bool> showTrayNotice({required String title, required String message});
 }
 
 class MethodChannelDesktopPresenceBackend({MethodChannel? channel})
@@ -106,5 +109,17 @@ class MethodChannelDesktopPresenceBackend({MethodChannel? channel})
   @override
   Future<void> destroy() {
     return _channel.invokeMethod<void>(DesktopPresenceMethod.destroy);
+  }
+
+  @override
+  Future<bool> showTrayNotice({
+    required String title,
+    required String message,
+  }) async {
+    final result = await _channel.invokeMethod<Object?>(
+      DesktopPresenceMethod.showTrayNotice,
+      <String, Object?>{'title': title, 'message': message},
+    );
+    return result == true;
   }
 }
