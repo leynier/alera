@@ -1,5 +1,7 @@
 part of 'alera_shell_page_test.dart';
 
+// ignore_for_file: riverpod_lint/avoid_public_notifier_properties
+
 class _ShellTestAgentStatusController(
   final Map<String, AgentStatusEntry> _entries,
 ) extends AgentStatusController {

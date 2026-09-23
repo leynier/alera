@@ -1,3 +1,5 @@
+// ignore_for_file: riverpod_lint/avoid_public_notifier_properties
+
 // Shared harness for the workbench dialog launcher widget suites.
 import 'dart:async';
 

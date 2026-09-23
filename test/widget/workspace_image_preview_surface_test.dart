@@ -214,7 +214,10 @@ Widget _previewHarness({
   required WorkspaceTabRecord tab,
 }) {
   return ProviderScope(
-    overrides: [workspaceFileServiceProvider.overrideWithValue(service)],
+    overrides: [
+      // ignore: riverpod_lint/scoped_providers_should_specify_dependencies
+      workspaceFileServiceProvider.overrideWithValue(service),
+    ],
     child: MaterialApp(
       home: WorkspaceImagePreviewSurface(
         workspace: _workspace(),
