@@ -19,6 +19,9 @@ use super::{ClientKind, ServerActor, ServerCommand};
 #[path = "workflow_coordinator_requests.rs"]
 mod coordinator;
 
+#[path = "workflow_plan_blocking.rs"]
+mod blocking;
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Document {
@@ -159,38 +162,38 @@ impl ServerActor {
         let client = client.handle.clone();
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
-            let _permit = permit;
+            let permit = Arc::new(permit);
             let result = tokio::time::timeout(Duration::from_secs(25), async {
                 match request {
                     PlanRequest::CleanupResources(query) => {
                         let runtime = tokio::runtime::Handle::current();
-                        tokio::task::spawn_blocking(move || runtime.block_on(async {
+                        blocking::spawn(permit.clone(), move || runtime.block_on(async {
                             serde_json::to_value(store.workflow_cleanup_resources(&query).await?).map_err(anyhow::Error::from)
                         })).await.map_err(state)?.map_err(state)
                     }
                     PlanRequest::Cleanups(query) => {
                         let runtime = tokio::runtime::Handle::current();
-                        tokio::task::spawn_blocking(move || runtime.block_on(async {
+                        blocking::spawn(permit.clone(), move || runtime.block_on(async {
                             serde_json::to_value(store.workflow_cleanups(&query).await?).map_err(anyhow::Error::from)
                         })).await.map_err(state)?.map_err(state)
                     }
                     PlanRequest::PreviewCleanup(document) => {
                         let runtime = tokio::runtime::Handle::current();
-                        tokio::task::spawn_blocking(move || runtime.block_on(async {
+                        blocking::spawn(permit.clone(), move || runtime.block_on(async {
                             let selection = serde_json::from_str(&document)?;
                             serde_json::to_value(crate::managed_workspace::workflow::cleanup_preview::preview(&store, selection).await?).map_err(anyhow::Error::from)
                         })).await.map_err(state)?.map_err(state)
                     }
                     PlanRequest::CleanupStatus(query) => {
                         let runtime = tokio::runtime::Handle::current();
-                        tokio::task::spawn_blocking(move || runtime.block_on(async {
+                        blocking::spawn(permit.clone(), move || runtime.block_on(async {
                             serde_json::to_value(store.workflow_cleanup_status(&query.id).await?).map_err(anyhow::Error::from)
                         })).await.map_err(state)?.map_err(state)
                     }
                     PlanRequest::CancelProposal(query) => serde_json::to_value(store.cancel_workflow_proposal(&query.id).await.map_err(state)?).map_err(state),
                     PlanRequest::Execution(query) => {
                         let runtime=tokio::runtime::Handle::current();
-                        tokio::task::spawn_blocking(move || runtime.block_on(async {
+                        blocking::spawn(permit.clone(), move || runtime.block_on(async {
                             serde_json::to_value(store.workflow_run_controls(&query.run_id,query.revision).await?).map_err(anyhow::Error::from)
                         })).await.map_err(state)?.map_err(state)
                     }
@@ -201,7 +204,7 @@ impl ServerActor {
                     }
                     PlanRequest::CreateCorrection(document) => {
                         let runtime=tokio::runtime::Handle::current();
-                        tokio::task::spawn_blocking(move || runtime.block_on(async {
+                        blocking::spawn(permit.clone(), move || runtime.block_on(async {
                             let request=serde_json::from_str(&document).map_err(|_|HostError::format("invalid workflow correction document"))?;
                             serde_json::to_value(store.create_workflow_correction(request,validate_profile).await.map_err(state)?).map_err(state)
                         })).await.map_err(state)?
@@ -297,7 +300,7 @@ impl ServerActor {
                         if input.proof.len() != 32 {
                             return Err(HostError::state("desktop workflow authorization failed"));
                         }
-                        let verified = tokio::task::spawn_blocking(move || {
+                        let verified = blocking::spawn(permit.clone(), move || {
                             DesktopWorkflowCredential::load_or_create(&runtime_dir)?
                                 .verify(input.statement, &input.proof)
                         })
