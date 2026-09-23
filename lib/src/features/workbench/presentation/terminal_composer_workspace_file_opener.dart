@@ -1,4 +1,5 @@
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/workbench/application/terminal_composer_workspace_attachment.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_drop_target.dart';
@@ -14,8 +15,12 @@ TerminalComposerDropTarget buildTerminalComposerForWorkspace(
     session: session,
     child: TerminalComposer(
       session: session,
-      onOpenWorkspaceFile: (filePath) =>
-          openTerminalComposerWorkspaceFile(ref, session.workspaceId, filePath),
+      onOpenWorkspaceFile: (filePath) => openTerminalComposerWorkspaceFile(
+        ref,
+        session.workspaceId,
+        filePath,
+        sourceKey: 'tab:${session.tabId}',
+      ),
     ),
   );
 }
@@ -23,8 +28,9 @@ TerminalComposerDropTarget buildTerminalComposerForWorkspace(
 Future<bool> openTerminalComposerWorkspaceFile(
   WidgetRef ref,
   String workspaceId,
-  String filePath,
-) async {
+  String filePath, {
+  String? sourceKey,
+}) async {
   final workspace = findWorkspaceById(
     ref.read(workbenchControllerProvider),
     workspaceId,
@@ -32,12 +38,18 @@ Future<bool> openTerminalComposerWorkspaceFile(
   if (workspace == null) {
     return false;
   }
+  final oppositePanel = isModModifierPressed();
   return openTerminalComposerWorkspaceAttachment(
     workspacePath: workspace.path,
     filePath: filePath,
     workspaceFiles: ref.read(workspaceFileServiceProvider),
     openFile: (relativePath) => ref
         .read(workbenchControllerProvider.notifier)
-        .openFileTab(workspace: workspace, relativePath: relativePath),
+        .openFileTab(
+          workspace: workspace,
+          relativePath: relativePath,
+          sourceKey: sourceKey,
+          oppositePanel: oppositePanel,
+        ),
   );
 }

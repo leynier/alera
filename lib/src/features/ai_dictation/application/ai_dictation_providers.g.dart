@@ -195,11 +195,11 @@ final aiDictationServiceProvider = AiDictationServiceProvider._();
 final class AiDictationServiceProvider
     extends
         $FunctionalProvider<
-          AiDictationService,
-          AiDictationService,
-          AiDictationService
+          Raw<AiDictationService>,
+          Raw<AiDictationService>,
+          Raw<AiDictationService>
         >
-    with $Provider<AiDictationService> {
+    with $Provider<Raw<AiDictationService>> {
   AiDictationServiceProvider._()
     : super(
         from: null,
@@ -216,23 +216,23 @@ final class AiDictationServiceProvider
 
   @$internal
   @override
-  $ProviderElement<AiDictationService> $createElement(
+  $ProviderElement<Raw<AiDictationService>> $createElement(
     $ProviderPointer pointer,
   ) => $ProviderElement(pointer);
 
   @override
-  AiDictationService create(Ref ref) {
+  Raw<AiDictationService> create(Ref ref) {
     return aiDictationService(ref);
   }
 
   /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(AiDictationService value) {
+  Override overrideWithValue(Raw<AiDictationService> value) {
     return $ProviderOverride(
       origin: this,
-      providerOverride: $SyncValueProvider<AiDictationService>(value),
+      providerOverride: $SyncValueProvider<Raw<AiDictationService>>(value),
     );
   }
 }
 
 String _$aiDictationServiceHash() =>
-    r'3abfd1d8a3459a4073705ce028daeb82f6941da2';
+    r'3b59fe235c4c08bb14b81ae5d6abbef2666b9aba';

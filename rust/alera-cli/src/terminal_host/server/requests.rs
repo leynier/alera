@@ -1,9 +1,6 @@
-use alera_core::{
-    git as core_git,
-    runtime::{
-        LinkedReview, Project, ProjectConfig, WorkbenchLayoutRecord, Workspace, WorkspaceTabRecord,
-        WorkspaceTag,
-    },
+use alera_core::runtime::{
+    LinkedReview, Project, ProjectConfig, WorkbenchLayoutRecord, Workspace, WorkspaceTabRecord,
+    WorkspaceTag,
 };
 use chrono::{DateTime, Utc};
 use serde_json::{json, Map, Value};
@@ -61,8 +58,13 @@ impl ServerActor {
                 restart_after_response = request_type == "host.restart";
                 shutdown_after_response = request_type == "host.shutdown";
                 if let Some(id) = request_id {
-                    if self.emulator_requests.has_runtime_mutations()
-                        && conflicts_with_runtime_mutation(&request_type)
+                    if (self.mutation_queue.has_runtime_mutations()
+                        && conflicts_with_runtime_mutation(&request_type))
+                        || (self.managed_workspace_jobs > 0
+                            && (conflicts_with_runtime_mutation(&request_type)
+                                || super::runtime_mutation_barrier::is_serialized_runtime_mutation(
+                                    &request_type,
+                                )))
                     {
                         self.client_write(
                             client_id,
@@ -73,23 +75,6 @@ impl ServerActor {
                                 ),
                             ),
                         );
-                        return;
-                    }
-                    if request_type.starts_with("browser.") {
-                        match self
-                            .handle_browser_request(client_id, id, &request_type, &payload)
-                            .await
-                        {
-                            // Routed calls are parked until the app driver
-                            // completes, times out, or disconnects.
-                            Ok(None) => return,
-                            Ok(Some(value)) => {
-                                self.client_write(client_id, ok_response(id, value));
-                            }
-                            Err(error) => {
-                                self.client_write(client_id, error_response(id, &error));
-                            }
-                        }
                         return;
                     }
                     match self
@@ -156,12 +141,18 @@ impl ServerActor {
         }
     }
 
-    async fn handle_request(
+    pub(super) async fn handle_request(
         &mut self,
         client_id: u64,
         request_type: &str,
         payload: &Value,
     ) -> HostResult<Value> {
+        self.require_shared_checkout_support(client_id, request_type)?;
+        if request_type.starts_with("workspace.bufferGuard.") {
+            return self
+                .checkout_buffer_guard_request(client_id, request_type, payload)
+                .await;
+        }
         match request_type {
             "hello" => self.handle_hello(client_id, payload),
             "mobile.relayAuthorization.renew" => Err(HostError::state(
@@ -195,10 +186,7 @@ impl ServerActor {
                 self.handle_configuration_request(client_id, request, payload)
                     .await
             }
-            request_type if request_type.starts_with("codex.") => {
-                self.handle_codex_request(client_id, request_type, payload)
-                    .await
-            }
+
             "mobile.workspaceQuickOpen.stop" => self.stop_mobile_workspace_quick_open(payload),
             "configure" => {
                 self.require_auth(client_id)?;
@@ -231,13 +219,7 @@ impl ServerActor {
                 let active_jobs = self.ssh_bootstrap_jobs.len()
                     + usize::from(self.managed_workspace_jobs > 0)
                     + self.coordinators.len()
-                    + self.emulator_requests.outstanding()
-                    + self.emulators.as_ref().map_or(0, |emulators| {
-                        emulators
-                            .try_lock()
-                            .map_or(1, |manager| manager.active_count())
-                    })
-                    + self.browser.active_jobs();
+                    + self.mutation_queue.outstanding();
                 let active_agents = self.agent_presence_items().as_array().map_or(0, Vec::len);
                 if !force {
                     if let Some(message) = host_shutdown_busy_message(
@@ -271,13 +253,7 @@ impl ServerActor {
                 let active_jobs = self.ssh_bootstrap_jobs.len()
                     + usize::from(self.managed_workspace_jobs > 0)
                     + self.coordinators.len()
-                    + self.emulator_requests.outstanding()
-                    + self.emulators.as_ref().map_or(0, |emulators| {
-                        emulators
-                            .try_lock()
-                            .map_or(1, |manager| manager.active_count())
-                    })
-                    + self.browser.active_jobs();
+                    + self.mutation_queue.outstanding();
                 let active_agents = self.agent_presence_items().as_array().map_or(0, Vec::len);
                 if !force {
                     if let Some(message) = host_shutdown_busy_message(
@@ -451,7 +427,6 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.handle_resource_snapshot(payload)
             }
-            ty if ty.starts_with("agentCanvas.") => self.canvas(client_id, ty, payload).await,
             _ if request_type.starts_with("automation.") => {
                 self.handle_automation_request(client_id, request_type, payload)
                     .await
@@ -464,16 +439,6 @@ impl ServerActor {
                     "pathEntryCount": path_count,
                     "variableCount": variable_count,
                 }))
-            }
-            _ if request_type.starts_with("computer.") => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                match self.handle_computer_request(request_type, payload).await? {
-                    Some(value) => Ok(value),
-                    None => Err(HostError::state(format!(
-                        "Unknown computer-use request: {request_type}"
-                    ))),
-                }
             }
             "runtimeMetadata.get" => {
                 self.require_auth(client_id)?;
@@ -521,6 +486,17 @@ impl ServerActor {
                 }
                 self.apply_mobile_runtime_settings(payload).await
             }
+            "linkedIssue.list" | "linkedIssue.find" | "linkedIssue.remove" => {
+                self.linked_issue_request(client_id, request_type, payload)
+                    .await
+            }
+            "pullRequestWatch.list"
+            | "pullRequestWatch.find"
+            | "pullRequestWatch.start"
+            | "pullRequestWatch.stop" => {
+                self.pull_request_watch_request(client_id, request_type, payload)
+                    .await
+            }
             "workspaceSection.list"
             | "workspaceSection.create"
             | "workspaceSection.setForWorkspace"
@@ -540,7 +516,7 @@ impl ServerActor {
             "workspaceActivity.remove" => self.remove_workspace_activity(client_id, payload).await,
             "agentPresence.list" => {
                 self.require_auth(client_id)?;
-                Ok(self.agent_presence_items())
+                self.agent_presence_items_with_titles().await
             }
             "project.list" => {
                 self.require_auth(client_id)?;
@@ -578,33 +554,7 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.project_clone_cancel_request(payload).await
             }
-            "project.branches.list" => {
-                self.require_auth(client_id)?;
-                let project_id = require_string_key(payload, "projectId")?;
-                let project = self
-                    .runtime_store
-                    .find_project(&project_id)
-                    .await
-                    .map_err(|error| HostError::state(error.to_string()))?
-                    .ok_or_else(|| HostError::state(format!("Project not found: {project_id}")))?;
-                let branches = core_git::list_branches(&project.repo_path)
-                    .map_err(|error| HostError::state(error.to_string()))?;
-                let local_branches = branches
-                    .iter()
-                    .filter_map(|branch| {
-                        match core_git::branch_exists(&project.repo_path, branch) {
-                            Ok(true) => Some(Ok(branch.clone())),
-                            Ok(false) => None,
-                            Err(error) => Some(Err(HostError::state(error.to_string()))),
-                        }
-                    })
-                    .collect::<HostResult<Vec<String>>>()?;
-                Ok(json!({
-                    "projectId": project.id,
-                    "branches": branches,
-                    "localBranches": local_branches,
-                }))
-            }
+
             "project.upsert" => {
                 self.require_auth(client_id)?;
                 let project: Project = parse_payload(payload)?;
@@ -647,6 +597,65 @@ impl ServerActor {
                 self.broadcast_authenticated(event("projectConfigsChanged", json!({})));
                 Ok(json!({}))
             }
+            "checkout.list" => {
+                self.require_auth(client_id)?;
+                let project_id = require_string_key(payload, "projectId")?;
+                super::project_checkout_requests::list_checkout_catalog(
+                    &self.runtime_store,
+                    &project_id,
+                )
+                .await
+            }
+            "project.removalDependencies" => {
+                self.require_auth(client_id)?;
+                let id = require_string_key(payload, "id")?;
+                json_result(
+                    self.runtime_store
+                        .project_automation_dependencies(&id)
+                        .await,
+                )
+            }
+            "workspace.removalDependencies" => {
+                self.require_auth(client_id)?;
+                let id = require_string_key(payload, "id")?;
+                json_result(
+                    crate::workspace_removal_dependencies::workspace_removal_dependencies(
+                        &self.runtime_store,
+                        &id,
+                    )
+                    .await,
+                )
+            }
+            "workspace.checkout" => {
+                self.require_auth(client_id)?;
+                let id = require_string_key(payload, "id")?;
+                json_result(self.runtime_store.find_workspace_checkout(&id).await)
+            }
+            "workspace.relocationRecovery" => {
+                self.require_auth(client_id)?;
+                let id = require_string_key(payload, "id")?;
+                let limit = payload
+                    .get("limit")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(20)
+                    .clamp(1, 100) as u32;
+                json_result(
+                    crate::workspace_relocation_recovery::inspect(&self.runtime_store, &id, limit)
+                        .await,
+                )
+            }
+            "workspace.cancelRelocationSetup" => {
+                self.require_auth(client_id)?;
+                self.require_shared_checkout_support(client_id, request_type)?;
+                let id = require_string_key(payload, "id")?;
+                let relocation_id = require_string_key(payload, "relocationId")?;
+                let attempt_id = require_string_key(payload, "attemptId")?;
+                self.runtime_store
+                    .request_relocation_setup_cancellation(&id, &relocation_id, &attempt_id)
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?;
+                Ok(json!({"cancellationRequested": true, "processesClosed": false}))
+            }
             "workspace.list" => {
                 self.require_auth(client_id)?;
                 let project_id = require_string_key(payload, "projectId")?;
@@ -661,6 +670,16 @@ impl ServerActor {
                 let id = require_string_key(payload, "id")?;
                 json_result(self.runtime_store.find_workspace(&id).await)
             }
+            "workspace.retirementReceipt" => {
+                self.require_auth(client_id)?;
+                let id = require_string_key(payload, "id")?;
+                let instance_id = require_string_key(payload, "instanceId")?;
+                json_result(
+                    self.runtime_store
+                        .workspace_retirement_receipt(&id, &instance_id)
+                        .await,
+                )
+            }
             "workspace.upsert" => {
                 self.require_auth(client_id)?;
                 let workspace: Workspace = parse_payload(payload)?;
@@ -670,6 +689,7 @@ impl ServerActor {
                 Ok(value)
             }
             "workspace.setPinned" => self.handle_workspace_pinning(client_id, payload).await,
+            "workspace.unarchive" => self.handle_workspace_unarchive(client_id, payload).await,
             "workspace.rename" => self.rename_workspace_request(client_id, payload).await,
             "workspace.repositoryWebUrl" => {
                 self.workspace_repository_web_url(client_id, payload).await
@@ -710,17 +730,26 @@ impl ServerActor {
                     .await
                     .map_err(|error| HostError::state(error.to_string()))?
                 {
+                    if stored.workspace_id != tab.workspace_id {
+                        return Err(HostError::state(
+                            "This tab moved to another workspace. Refresh it before saving changes.",
+                        ));
+                    }
                     super::tab_compatibility::preserve_host_owned_tab_payload(&stored, &mut tab);
                     if tab.payload["agentTitleRevision"] != stored.payload["agentTitleRevision"] {
                         self.cancel_agent_title_job(&tab.id);
                     }
                 } else if let Some(payload) = tab.payload.as_object_mut() {
                     for key in [
+                        "handoffSourceWorkspaceIds",
                         "agentTitleStateV1",
                         "agentTitleConversationId",
                         "agentTitleRevision",
                         "agentTitleSource",
                         "agentTitleStatus",
+                        crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_ID_KEY,
+                        crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_AGENT_KEY,
+                        crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_CCS_PROFILE_KEY,
                     ] {
                         payload.remove(key);
                     }

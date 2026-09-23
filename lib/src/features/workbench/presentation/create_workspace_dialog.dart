@@ -11,16 +11,27 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
+import 'package:alera/src/features/linked_issues/domain/issue_details.dart';
+import 'package:alera/src/features/linked_issues/domain/issue_workspace_identity.dart';
+import 'package:alera/src/features/linked_issues/presentation/issue_url_field.dart';
+import 'package:alera/src/features/projects/domain/preferred_source_branch.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/domain/project_branch_catalog.dart';
 import 'package:alera/src/features/projects/domain/project_selection_order.dart';
+import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
+import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/background_setup_job.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/domain/workspace_parent_selection_order.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_host_picker.dart';
 import 'package:flutter/material.dart';
 
 part 'create_workspace_dialog_pickers.dart';
+part 'create_workspace_dialog_branch_loading.dart';
 part 'create_workspace_dialog_frame.dart';
 part 'create_workspace_dialog_interactions.dart';
+part 'create_workspace_dialog_linked_issue.dart';
 part 'create_workspace_dialog_selection_order.dart';
 part 'create_workspace_dialog_selection_step.dart';
 part 'create_workspace_dialog_settings_step.dart';
@@ -30,6 +41,8 @@ class const CreateWorkspaceDialog({
   super.key,
   required final List<Project> projects,
   required final Future<List<String>> Function(Project project) loadBranches,
+  final Future<ProjectBranchCatalog> Function(Project project, String? hostId)?
+  loadHostBranchCatalog,
   required final Future<WorkspaceCreationResult> Function({
     required Project project,
     required String sourceBranch,
@@ -37,6 +50,8 @@ class const CreateWorkspaceDialog({
     required bool reuseExistingBranch,
     String? name,
     String? parentWorkspaceId,
+    String? hostId,
+    String? issueUrl,
   })
   onCreateWorkspace,
   required final Future<bool> Function(Project project, String branchName)
@@ -49,6 +64,25 @@ class const CreateWorkspaceDialog({
   final Project? initialProject,
   final VoidCallback? onAddProject,
   final ValueChanged<WorkspaceCreationResult>? onWorkspaceCreated,
+  final Future<void>? Function(ManualWorkspaceCreateRequest request)?
+  enqueueCreate,
+  final bool initialUseProjectCheckout = true,
+  final List<SshTarget> sshTargets = const <SshTarget>[],
+  final bool supportsRemoteSshWorkspaces = true,
+  final Future<String?> Function(Project project)? loadPreferredSourceBranch,
+  final String? initialSourceBranch,
+  final String? initialNewBranchName,
+  final String? initialName,
+  final String? initialParentWorkspaceId,
+  final String? initialHostId,
+  final String? initialIssueUrl,
+
+  /// Resolves an issue URL; null hides the issue field (host without
+  /// linked issue support).
+  final Future<IssueDetails> Function(String url)? fetchIssue,
+  final bool initialReuseExistingBranch = false,
+  final String? initialCreationError,
+  final bool embedded = false,
 }) extends StatefulWidget {
   @override
   State<CreateWorkspaceDialog> createState() => _CreateWorkspaceDialogState();
@@ -66,6 +100,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   final TextEditingController _sourceBranchController = TextEditingController();
   final TextEditingController _newBranchController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _issueUrlController = TextEditingController();
 
   Project? _selectedProject;
   List<String> _branches = const <String>[];
@@ -74,15 +109,22 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   bool _loadingLocalBranches = false;
   String? _selectedSourceBranch;
   bool _nameTouched = false;
+  bool _nameFromIssue = false;
+  String? _branchFromIssue;
   bool _loadingBranches = false;
   String? _branchesError;
   String _projectQuery = '';
   String _branchQuery = '';
   String? _sourceBranchError;
+  String? _projectPreferredSource;
+  final Map<String, String?> _preferredSourceByProject = <String, String?>{};
   String? _newBranchError;
   String? _selectedParentWorkspaceId;
+  String? _selectedHostId;
+  int _branchLoadGeneration = 0;
   bool _reuseExistingBranch = false;
   bool _createAnother = false;
+  bool _useProjectCheckout = false;
 
   // New state fields for 2-step flow and inline creation
   int _currentStep = 1; // 1: Selection, 2: Config/Preview
@@ -97,10 +139,35 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   @override
   void initState() {
     super.initState();
+    _useProjectCheckout =
+        widget.enqueueCreate != null && widget.initialUseProjectCheckout;
     _selectedProject = _pickInitialProject();
+    _selectedParentWorkspaceId = widget.initialParentWorkspaceId;
+    _selectedHostId = widget.initialHostId;
+    _reuseExistingBranch = widget.initialReuseExistingBranch;
+    _creationError = widget.initialCreationError;
+    _issueUrlController.text = widget.initialIssueUrl ?? '';
+    final initialName = widget.initialName?.trim();
+    if (initialName != null && initialName.isNotEmpty) {
+      _nameController.text = initialName;
+      _nameTouched = true;
+    }
+    final initialBranch = widget.initialNewBranchName?.trim();
+    if (initialBranch != null && initialBranch.isNotEmpty) {
+      _newBranchController.text = initialBranch;
+    }
+    final initialSource = widget.initialSourceBranch?.trim();
+    if (initialSource != null && initialSource.isNotEmpty) {
+      _selectedSourceBranch = initialSource;
+      _sourceBranchController.text = initialSource;
+    }
+    if (widget.initialCreationError != null ||
+        (widget.initialNewBranchName?.trim().isNotEmpty ?? false)) {
+      _currentStep = 2;
+    }
     final project = _selectedProject;
     if (project != null) {
-      _loadBranches(project);
+      if (!_useProjectCheckout) _loadBranches(project);
     }
   }
 
@@ -111,6 +178,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
     _sourceBranchController.dispose();
     _newBranchController.dispose();
     _nameController.dispose();
+    _issueUrlController.dispose();
     _validationDebounce?.cancel();
     super.dispose();
   }
@@ -127,38 +195,44 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
     return _orderedProjects.firstOrNull;
   }
 
-  String? _pickDefaultSourceBranch(List<String> branches) {
-    for (final preferred in const <String>[
-      'main',
-      'origin/main',
-      'master',
-      'origin/master',
-    ]) {
-      if (branches.contains(preferred)) {
-        return preferred;
-      }
-    }
-    if (branches.isEmpty) {
-      return null;
-    }
-    return branches.first;
+  String? _pickDefaultSourceBranch(
+    List<String> branches, {
+    bool useProjectPreference = true,
+  }) {
+    return pickDefaultSourceBranch(
+      branches,
+      preferred: useProjectPreference ? _projectPreferredSource : null,
+    );
   }
 
   Future<List<String>> _filterLocalBranches(
     Project project,
     List<String> branches,
   ) async {
-    final workspaceBranches = widget
-        .getProjectWorkspaceBranches(project)
-        .map((branch) => branch.trim())
-        .where((branch) => branch.isNotEmpty)
-        .toSet();
+    final hostId = _selectedHostId;
+    final catalog = await widget.loadHostBranchCatalog?.call(project, hostId);
+    final workspaceBranches =
+        (catalog == null
+                ? widget.getProjectWorkspaceBranches(project)
+                : widget.parentCandidates
+                      .map((candidate) => candidate.workspace)
+                      .where(
+                        (workspace) =>
+                            workspace.projectId == project.id &&
+                            workspace.hostId == (hostId ?? 'local'),
+                      )
+                      .map((workspace) => workspace.branch ?? ''))
+            .map((branch) => branch.trim())
+            .where((branch) => branch.isNotEmpty)
+            .toSet();
     final results = await Future.wait(
       branches.map((branch) async {
         try {
           return (
             branch: branch,
-            isLocal: await widget.checkBranchExists(project, branch),
+            isLocal:
+                catalog?.localBranches.contains(branch) ??
+                await widget.checkBranchExists(project, branch),
           );
         } catch (_) {
           return (branch: branch, isLocal: false);
@@ -183,93 +257,10 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
     if (currentBranch.isNotEmpty && availableBranches.contains(currentBranch)) {
       return currentBranch;
     }
-    return _pickDefaultSourceBranch(availableBranches);
-  }
-
-  Future<void> _loadBranches(Project project) async {
-    setState(() {
-      _loadingBranches = true;
-      _branchesError = null;
-      _branches = const <String>[];
-      _localBranches = const <String>[];
-      _localBranchesLoaded = false;
-      _loadingLocalBranches = false;
-      _selectedSourceBranch = null;
-      _sourceBranchController.clear();
-      _branchSearchController.clear();
-      _branchQuery = '';
-    });
-    try {
-      final branches = await widget.loadBranches(project);
-      if (!mounted || _selectedProject?.id != project.id) {
-        return;
-      }
-      final defaultBranch = _pickDefaultSourceBranch(
-        _reuseExistingBranch ? const <String>[] : branches,
-      );
-      setState(() {
-        _branches = branches;
-        _selectedSourceBranch = defaultBranch;
-        if (defaultBranch != null) {
-          _sourceBranchController.text = defaultBranch;
-          if (_reuseExistingBranch) {
-            _newBranchController.text = defaultBranch;
-            if (!_nameTouched) {
-              _nameController.text = defaultBranch;
-            }
-          }
-        }
-        _loadingBranches = false;
-      });
-      if (_reuseExistingBranch) {
-        unawaited(_loadLocalBranches(project));
-      }
-    } catch (error) {
-      if (!mounted || _selectedProject?.id != project.id) {
-        return;
-      }
-      setState(() {
-        _branchesError = error.toString();
-        _loadingBranches = false;
-      });
-    }
-  }
-
-  Future<void> _loadLocalBranches(Project project) async {
-    if (_localBranchesLoaded || _loadingLocalBranches || _loadingBranches) {
-      return;
-    }
-    setState(() {
-      _loadingLocalBranches = true;
-    });
-    final localBranches = await _filterLocalBranches(project, _branches);
-    if (!mounted || _selectedProject?.id != project.id) {
-      return;
-    }
-    final selectedBranch = _reuseExistingBranch
-        ? _pickDefaultSourceBranch(localBranches)
-        : _selectedSourceBranch;
-    setState(() {
-      _localBranches = localBranches;
-      _localBranchesLoaded = true;
-      _loadingLocalBranches = false;
-      if (_reuseExistingBranch) {
-        _selectedSourceBranch = selectedBranch;
-        if (selectedBranch == null) {
-          _sourceBranchController.clear();
-          _newBranchController.clear();
-          if (!_nameTouched) {
-            _nameController.clear();
-          }
-        } else {
-          _sourceBranchController.text = selectedBranch;
-          _newBranchController.text = selectedBranch;
-          if (!_nameTouched) {
-            _nameController.text = selectedBranch;
-          }
-        }
-      }
-    });
+    return _pickDefaultSourceBranch(
+      availableBranches,
+      useProjectPreference: !reuseExistingBranch,
+    );
   }
 
   void _selectProject(Project project) {
@@ -279,8 +270,11 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
     setState(() {
       _selectedProject = project;
       _sourceBranchError = null;
+      if (!project.isGitRepository && widget.enqueueCreate != null) {
+        _useProjectCheckout = true;
+      }
     });
-    _loadBranches(project);
+    if (!_useProjectCheckout) _loadBranches(project);
   }
 
   void _selectSourceBranch(String branch) {
@@ -356,10 +350,21 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
       final project = _selectedProject;
       if (project == null) return;
 
+      final hostId = _selectedHostId;
       setState(() => _isValidatingBranch = true);
       try {
-        final exists = await widget.checkBranchExists(project, trimmed);
-        if (!mounted || _newBranchController.text.trim() != trimmed) return;
+        final catalog = await widget.loadHostBranchCatalog?.call(
+          project,
+          hostId,
+        );
+        final exists =
+            catalog?.localBranches.contains(trimmed) ??
+            await widget.checkBranchExists(project, trimmed);
+        if (!mounted ||
+            _selectedHostId != hostId ||
+            _newBranchController.text.trim() != trimmed) {
+          return;
+        }
         setState(() {
           if (_reuseExistingBranch && !exists) {
             _branchValidationError = 'Branch "$trimmed" does not exist';
@@ -399,6 +404,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
     final selectedProject = _selectedProject;
     if (widget.projects.isEmpty) {
       return _EmptyProjectsDialog(
+        embedded: widget.embedded,
         onAddProject: widget.onAddProject,
         onCancel: () => Navigator.of(context).pop(),
       );
@@ -408,6 +414,10 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
     final sourceBranch = _selectedSourceBranch ?? _sourceBranchController.text;
     final step = isSelectionStep
         ? _CreateWorkspaceSelectionStep(
+            useProjectCheckout: _useProjectCheckout,
+            onLocationChanged: widget.enqueueCreate == null
+                ? null
+                : _setProjectCheckout,
             projects: _orderedProjects,
             selectedProject: selectedProject,
             projectQuery: _projectQuery,
@@ -433,6 +443,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
             onManualSourceBranchChanged: _onManualSourceBranchChanged,
           )
         : _CreateWorkspaceSettingsStep(
+            useProjectCheckout: _useProjectCheckout,
             project: selectedProject,
             sourceBranch: sourceBranch,
             reuseExistingBranch: _reuseExistingBranch,
@@ -447,11 +458,17 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
             parentCandidates: _parentCandidates,
             selectedParentWorkspaceId: _selectedParentWorkspaceId,
             onParentWorkspaceChanged: _setParentWorkspace,
+            sshTargets: widget.sshTargets,
+            selectedHostId: _selectedHostId,
+            supportsRemoteSshWorkspaces: widget.supportsRemoteSshWorkspaces,
+            onHostChanged: _setHost,
             creating: _creating,
             onSubmit: _submit,
+            issueField: _linkedIssueField(),
           );
 
     return _CreateWorkspaceDialogFrame(
+      embedded: widget.embedded,
       isSelectionStep: isSelectionStep,
       creating: _creating,
       creationError: _creationError,
@@ -460,7 +477,8 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
       onCreateAnotherChanged: _setCreateAnother,
       onCancel: () => Navigator.of(context).pop(),
       onBack: _showSelectionStep,
-      onContinue: selectedProject == null || _loadingBranches
+      onContinue:
+          selectedProject == null || (!_useProjectCheckout && _loadingBranches)
           ? null
           : _continueToSettings,
       onCreate:

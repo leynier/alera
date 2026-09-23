@@ -5,21 +5,42 @@ import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_section.dart';
+import 'package:alera/src/features/workbench/presentation/background_submission.dart';
 import 'package:flutter/material.dart';
 
 Future<void> showWorkspaceSectionDialog(
   BuildContext context,
   WorkbenchController controller,
-  Workspace workspace,
-) => showDialog<void>(
+  Workspace workspace, {
+  bool applyToTree = false,
+  bool createMode = false,
+}) => showDialog<void>(
   context: context,
-  builder: (_) => _SectionDialog(controller: controller, workspace: workspace),
+  builder: (_) => _SectionDialog(
+    controller: controller,
+    workspace: workspace,
+    applyToTree: applyToTree,
+    createMode: createMode,
+  ),
 );
 
 class _SectionDialog extends StatefulWidget {
-  const _SectionDialog({required this.controller, required this.workspace});
+  const _SectionDialog({
+    required this.controller,
+    required this.workspace,
+    required this.applyToTree,
+    required this.createMode,
+    this.initialName,
+    this.initialSectionId,
+    this.restoreSelection = false,
+  });
   final WorkbenchController controller;
   final Workspace workspace;
+  final bool applyToTree;
+  final bool createMode;
+  final String? initialName;
+  final String? initialSectionId;
+  final bool restoreSelection;
   @override
   State<_SectionDialog> createState() => _SectionDialogState();
 }
@@ -36,7 +57,11 @@ class _SectionDialogState extends State<_SectionDialog> {
   @override
   void initState() {
     super.initState();
-    _selected = widget.workspace.sectionId;
+    _selected = widget.restoreSelection
+        ? widget.initialSectionId
+        : widget.workspace.sectionId;
+    _name.text = widget.initialName ?? '';
+    _create = widget.createMode;
     _load();
   }
 
@@ -72,24 +97,42 @@ class _SectionDialogState extends State<_SectionDialog> {
       setState(() => _error = 'Enter a unique section name other than Others.');
       return;
     }
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    try {
-      await widget.controller.saveWorkspaceSection(
-        widget.workspace.id,
-        sectionId: _selected,
-        newName: _create ? name : null,
-      );
-      if (mounted) Navigator.pop(context);
-    } catch (error) {
-      if (!mounted) return;
-      setState(() => _error = '$error');
-      await _load();
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
+    if (_saving) return;
+    _saving = true;
+    final form = widget;
+    final selected = _selected;
+    final create = _create;
+    _saving = submitInBackground(
+      context,
+      title: 'Save section',
+      successMessage: () => 'Section saved.',
+      operationKey: 'section/${form.workspace.id}',
+      action: () async {
+        if (form.applyToTree) {
+          await form.controller.saveWorkspaceSectionTree(
+            form.workspace.id,
+            sectionId: selected,
+            newName: create ? name : null,
+          );
+        } else {
+          await form.controller.saveWorkspaceSection(
+            form.workspace.id,
+            sectionId: selected,
+            newName: create ? name : null,
+          );
+        }
+        return null;
+      },
+      restoreForm: (_) => _SectionDialog(
+        controller: form.controller,
+        workspace: form.workspace,
+        applyToTree: form.applyToTree,
+        createMode: create,
+        initialName: name,
+        initialSectionId: selected,
+        restoreSelection: true,
+      ),
+    );
   }
 
   @override
@@ -100,7 +143,7 @@ class _SectionDialogState extends State<_SectionDialog> {
 
   @override
   Widget build(BuildContext context) => PopScope(
-    canPop: !_saving,
+    canPop: true,
     child: AleraDialog(
       maxWidth: AleraTokens.dialogWidth,
       child: SingleChildScrollView(
@@ -111,7 +154,7 @@ class _SectionDialogState extends State<_SectionDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Set Section',
+                widget.applyToTree ? 'Set Section Tree' : 'Set Section',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: AleraTokens.space16),

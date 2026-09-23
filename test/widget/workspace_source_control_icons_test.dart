@@ -129,6 +129,7 @@ Future<void> _pumpPanel(WidgetTester tester, FakeGitBackend backend) {
                 gitDiffRoot,
                 required scope,
                 bool preview = false,
+                bool oppositePanel = false,
               }) async {},
               onOpenGitCommitDiff: ({
                 relativePath,
@@ -141,6 +142,7 @@ Future<void> _pumpPanel(WidgetTester tester, FakeGitBackend backend) {
                 subject,
                 message,
                 bool preview = false,
+                bool oppositePanel = false,
               }) async {},
             ),
           ),

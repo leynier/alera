@@ -29,7 +29,7 @@ Provider order is configurable in **Settings → Quotas → Providers**. Claude 
 
 Alera stores environment variable *names* for API-based plans, never values. Local desktop and mobile requests go through the runtime-host quota service. For the local host, missing variables can be resolved from your login shell and held in memory without being persisted into quota responses. Restart Alera after changing those shell exports.
 
-SSH workspaces query through `alera runtime-proxy` on the remote host, so credentials stay on the machine where the agent runs.
+If a workspace record names an SSH host, quota lookups go through `alera runtime-proxy` on that host's installed sidecar so credentials stay there. This does not mean Alera can create or open a managed remote worktree yet.
 
 ### Claude CCS profiles
 

@@ -129,14 +129,6 @@ class const _ClaudeProfilesControl({
                         color: AleraTokens.foregroundMuted,
                       ),
                     ),
-                    Text(
-                      profile.showInUsage
-                          ? 'Usage: ${profile.usageLabel}'
-                          : 'Not shown in Usage',
-                      overflow: .ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall
-                          ?.copyWith(color: AleraTokens.foregroundFaint),
-                    ),
                   ],
                 ),
               ),
@@ -250,8 +242,6 @@ class const _ClaudeProfileDialog({
 class _ClaudeProfileDialogState extends State<_ClaudeProfileDialog> {
   late final TextEditingController _aliasController;
   late final TextEditingController _profileController;
-  late final TextEditingController _usageDisplayNameController;
-  late bool _showInUsage;
   String? _error;
 
   @override
@@ -259,24 +249,18 @@ class _ClaudeProfileDialogState extends State<_ClaudeProfileDialog> {
     super.initState();
     _aliasController = TextEditingController(text: widget.initial?.alias);
     _profileController = TextEditingController(text: widget.initial?.profile);
-    _usageDisplayNameController = TextEditingController(
-      text: widget.initial?.usageDisplayName ?? widget.initial?.alias,
-    );
-    _showInUsage = widget.initial?.showInUsage ?? true;
   }
 
   @override
   void dispose() {
     _aliasController.dispose();
     _profileController.dispose();
-    _usageDisplayNameController.dispose();
     super.dispose();
   }
 
   void _save() {
     final alias = _aliasController.text.trim();
     final profile = _profileController.text.trim();
-    final usageDisplayName = _usageDisplayNameController.text.trim();
     final duplicate = widget.profiles.any(
       (candidate) =>
           candidate != widget.initial &&
@@ -290,14 +274,8 @@ class _ClaudeProfileDialogState extends State<_ClaudeProfileDialog> {
       setState(() => _error = 'Alias and profile must be unique.');
       return;
     }
-    Navigator.of(context).pop(
-      ClaudeQuotaProfileSettings(
-        alias: alias,
-        profile: profile,
-        showInUsage: _showInUsage,
-        usageDisplayName: usageDisplayName.isEmpty ? null : usageDisplayName,
-      ),
-    );
+    Navigator.of(context)
+        .pop(ClaudeQuotaProfileSettings(alias: alias, profile: profile));
   }
 
   @override
@@ -326,19 +304,6 @@ class _ClaudeProfileDialogState extends State<_ClaudeProfileDialog> {
               controller: _profileController,
               labelText: 'CCS Profile',
               hintText: 'work',
-            ),
-            const SizedBox(height: AleraTokens.space12),
-            AleraCheckbox(
-              value: _showInUsage,
-              onChanged: (value) => setState(() => _showInUsage = value),
-              label: 'Show in Usage',
-            ),
-            const SizedBox(height: AleraTokens.space8),
-            AleraTextField(
-              controller: _usageDisplayNameController,
-              labelText: 'Usage Name',
-              hintText: 'Work',
-              enabled: _showInUsage,
               onSubmitted: (_) => _save(),
             ),
             if (_error case final error?) ...<Widget>[

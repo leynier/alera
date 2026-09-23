@@ -18,9 +18,10 @@ pub(crate) fn copy_rule(
     project: &Project,
     workspace: &Workspace,
     rule: &WorktreeCopyRule,
+    protect_local_data: bool,
 ) -> WorktreeSetupStepReport {
     let label = format!("{} -> {}", rule.from, rule.destination());
-    match copy_rule_inner(project, workspace, rule) {
+    match copy_rule_inner(project, workspace, rule, protect_local_data) {
         Ok(()) => WorktreeSetupStepReport {
             kind: WorktreeSetupStepKind::Copy,
             label,
@@ -46,6 +47,7 @@ fn copy_rule_inner(
     project: &Project,
     workspace: &Workspace,
     rule: &WorktreeCopyRule,
+    protect_local_data: bool,
 ) -> Result<()> {
     let project_root = std::fs::canonicalize(&project.repo_path)?;
     let workspace_root = std::fs::canonicalize(&workspace.path)?;
@@ -56,6 +58,9 @@ fn copy_rule_inner(
     let source_canonical = std::fs::canonicalize(&source_path)?;
     if !is_within_or_equal(&project_root, &source_canonical) {
         bail!("Source escapes the project root");
+    }
+    if protect_local_data {
+        alera_core::git::validate_relocated_setup_copy(&workspace.path, rule.destination())?;
     }
     prepare_target(&target_path, &workspace_root, rule.overwrite)?;
     if source_metadata.is_dir() {

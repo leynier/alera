@@ -27,6 +27,7 @@ fn profile(id: &str, name: &str) -> AgentProfile {
         custom_prompt: String::new(),
         description: String::new(),
         quota_group: None,
+        show_in_new_tab_menu: false,
         revision: 0,
         created_at: now,
         updated_at: now,
@@ -71,6 +72,7 @@ pub(super) fn automation(profile_id: &str) -> AutomationDefinition {
         precheck: None,
         notify_on_success: false,
         circuit_opened: false,
+        circuit_opened_at: None,
         state: AutomationState::Draft,
         revision: 0,
         approved_revision: None,
@@ -261,7 +263,7 @@ async fn database_guards_reject_references_committed_after_profile_removal() {
     assert_eq!(
         serde_json::to_value(&definition)
             .unwrap()
-            .pointer("/target/freshTab/agent_profile_id"),
+            .pointer("/target/freshTab/agentProfileId"),
         Some(&json!("prof_a"))
     );
     let automation_error = store

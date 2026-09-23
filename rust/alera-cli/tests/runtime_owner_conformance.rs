@@ -318,3 +318,67 @@ fn stale_owner_is_recovered_after_the_process_exits() {
     assert_eq!(owner["pid"], replacement_pid);
     assert!(replacement.child_mut().try_wait().unwrap().is_none());
 }
+
+#[test]
+fn runtime_status_preserves_legacy_state_until_the_owner_restarts() {
+    let dir = tempfile::tempdir().unwrap();
+    let runtime_dir = dir.path().join("runtime");
+    let control_path = runtime_dir.join("runtime-host.json");
+    std::fs::create_dir_all(&runtime_dir).unwrap();
+    let mut owner = HostGuard::new(spawn_host(&runtime_dir, &control_path, "owner-token"));
+    let owner_pid = owner.child_mut().id();
+    read_control_for_pid(&control_path, owner_pid);
+
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let store = runtime.block_on(async {
+        let store = alera_core::runtime::RuntimeStore::open(&runtime_dir)
+            .await
+            .unwrap();
+        // Model a compatible older owner with an outstanding persisted chat.
+        for statement in [
+            "CREATE TABLE codexChatState (threadId TEXT PRIMARY KEY, tabId TEXT NOT NULL, revision INTEGER NOT NULL, stateJson TEXT NOT NULL)",
+            "CREATE TRIGGER codexChatStateDeleteTab AFTER DELETE ON workspaceTabs BEGIN DELETE FROM codexChatState WHERE tabId = OLD.id; END",
+            "INSERT INTO codexChatState VALUES ('thread-1', 'tab-1', 1, '{\"messages\":[{\"status\":\"queued\"}]}')",
+        ] {
+            sqlx::query(statement).execute(store.pool()).await.unwrap();
+        }
+        store
+    });
+
+    let output = windowless_command(env!("CARGO_BIN_EXE_alera"))
+        .args([
+            "runtime",
+            "--runtime-dir",
+            runtime_dir.to_str().unwrap(),
+            "--json",
+            "status",
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let status: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(status["running"], true);
+    assert!(owner.child_mut().try_wait().unwrap().is_none());
+    runtime.block_on(async {
+        let state: String = sqlx::query_scalar("SELECT stateJson FROM codexChatState")
+            .fetch_one(store.pool())
+            .await
+            .unwrap();
+        assert_eq!(state, r#"{"messages":[{"status":"queued"}]}"#);
+    });
+
+    owner.stop();
+    let mut replacement =
+        HostGuard::new(spawn_host(&runtime_dir, &control_path, "replacement-token"));
+    read_control_for_pid(&control_path, replacement.child_mut().id());
+    runtime.block_on(async {
+        let legacy_objects: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM sqlite_master WHERE name IN ('codexChatState', 'codexChatStateDeleteTab')",
+        )
+        .fetch_one(store.pool())
+        .await
+        .unwrap();
+        assert_eq!(legacy_objects, 0);
+        store.pool().close().await;
+    });
+}

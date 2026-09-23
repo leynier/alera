@@ -8,15 +8,21 @@ import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
+import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:alera/src/features/workbench/application/editor_autosave_controller.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_preview_kind.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
+import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_registry.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
+import 'package:alera/src/features/workspace_agent_comments/domain/workspace_agent_comment_location.dart';
+import 'package:alera/src/features/workspace_agent_comments/presentation/workspace_agent_comment_bar.dart';
+import 'package:alera/src/features/workspace_agent_comments/presentation/workspace_agent_comment_composer.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:code_forge/code_forge.dart' as code_forge;
 import 'package:flutter/gestures.dart';
@@ -64,6 +70,7 @@ class _WorkspaceEditorSurfaceState
   Object? _loadError;
   bool _loading = true;
   bool _saving = false;
+  bool _lastBufferGuarded = false;
   bool _stateRefreshQueued = false;
   Offset? _lastSecondaryTapGlobalPosition;
   int _loadRequestId = 0;
@@ -84,6 +91,7 @@ class _WorkspaceEditorSurfaceState
     _editorSessions = ref.read(editorSessionRegistryProvider);
     _sessionHandle = EditorSessionHandle(
       isDirty: _isDirty,
+      isSaving: () => _saving,
       save: _save,
       discard: _discardChanges,
       reveal: _revealOrDefer,
@@ -91,6 +99,7 @@ class _WorkspaceEditorSurfaceState
     );
     _controller.addListener(_handleControllerChanged);
     _document = _editorSessions.documentFor(widget.tab.id);
+    _editorSessions.addListener(_handleBufferGuardChanged);
     final editorSettings = ref.read(settingsControllerProvider).editor;
     _autosave = EditorAutosaveController(
       enabled: editorSettings.autosaveEnabled,
@@ -122,17 +131,30 @@ class _WorkspaceEditorSurfaceState
       _editorSessions.unregister(oldWidget.tab.id, _sessionHandle);
       _document = _editorSessions.documentFor(widget.tab.id);
       if (oldWidget.tab.id == widget.tab.id &&
-          oldWidget.tab.filePath != widget.tab.filePath) {
+          oldWidget.tab.filePath != widget.tab.filePath &&
+          !(_document.workspacePath == widget.workspace.path &&
+              _document.relativePath == widget.tab.filePath)) {
         _document.clearSnapshot();
       }
       _registerSession(widget.tab.id);
       _restoreDocumentOrLoad();
+    }
+    if (!oldWidget.autofocus && widget.autofocus) {
+      // The pane became active without a pointer; take the keyboard only
+      // while the focus is parked on a scope, never from a field in use.
+      final node = _focusNode;
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted && node == _focusNode && workbenchFocusIsParked()) {
+          node.requestFocus();
+        }
+      });
     }
   }
 
   @override
   void dispose() {
     _autosave.dispose();
+    _editorSessions.removeListener(_handleBufferGuardChanged);
     _editorSessions.unregister(widget.tab.id, _sessionHandle);
     _focusNode.suppressThirdPartyListeners();
     _focusNode.unfocus();
@@ -146,6 +168,7 @@ class _WorkspaceEditorSurfaceState
 
   @override
   Widget build(BuildContext context) {
+    final guarded = _editorSessions.isBufferGuarded(widget.tab.id);
     final filePath = widget.tab.filePath;
     if (filePath == null) {
       return const _EditorMessage(message: 'This editor tab has no file.');
@@ -228,17 +251,34 @@ class _WorkspaceEditorSurfaceState
             ),
             dirty: _document.isDirty,
             saving: _saving,
+            onComment: !_loading && _loadError == null
+                ? () => unawaited(_openEditorComment(context))
+                : null,
             onViewDiff: !_loading ? () => unawaited(_openDiffForFile()) : null,
-            onSave: _document.isDirty && !_loading && !_saving
+            onSave: _document.isDirty && !_loading && !_saving && !guarded
                 ? () => unawaited(_save())
                 : null,
-            onDiscard: _document.isDirty && !_loading && !_saving
+            onDiscard: _document.isDirty && !_loading && !_saving && !guarded
                 ? () => unawaited(_discardChanges())
                 : null,
             onOpenPreview: _openPreviewActionFor(filePath),
           ),
           const Divider(height: 1, color: AleraTokens.borderSubtle),
-          Expanded(child: content),
+          WorkspaceAgentCommentDraftScope(workspaceId: widget.workspace.id),
+          if (guarded)
+            Padding(
+              padding: const EdgeInsets.all(AleraTokens.space8),
+              child: Text(
+                'Editing is paused while Alera verifies a workspace operation.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          Expanded(
+            child: ExcludeFocus(
+              excluding: guarded,
+              child: AbsorbPointer(absorbing: guarded, child: content),
+            ),
+          ),
         ],
       ),
     );
@@ -256,6 +296,7 @@ class _WorkspaceEditorSurfaceState
   }
 
   Future<void> _openDiffForFile() async {
+    final oppositePanel = isModModifierPressed();
     final filePath = widget.tab.filePath;
     if (filePath == null) {
       return;
@@ -289,11 +330,13 @@ class _WorkspaceEditorSurfaceState
             .read(workbenchControllerProvider.notifier)
             .openGitDiffTab(
               workspace: widget.workspace,
+              sourceKey: 'tab:${widget.tab.id}',
               relativePath: filePath,
               area: entries.single.area,
               scope: .file,
               gitDiffRoot: diffTarget.gitDiffRoot,
               preview: true,
+              oppositePanel: oppositePanel,
             );
         return;
       }
@@ -306,10 +349,12 @@ class _WorkspaceEditorSurfaceState
             .read(workbenchControllerProvider.notifier)
             .openGitDiffTab(
               workspace: widget.workspace,
+              sourceKey: 'tab:${widget.tab.id}',
               relativePath: filePath,
               scope: .fileAll,
               gitDiffRoot: diffTarget.gitDiffRoot,
               preview: true,
+              oppositePanel: oppositePanel,
             );
         return;
       }
@@ -317,11 +362,13 @@ class _WorkspaceEditorSurfaceState
           .read(workbenchControllerProvider.notifier)
           .openGitDiffTab(
             workspace: widget.workspace,
+            sourceKey: 'tab:${widget.tab.id}',
             relativePath: filePath,
             area: choice.area,
             scope: .file,
             gitDiffRoot: diffTarget.gitDiffRoot,
             preview: true,
+            oppositePanel: oppositePanel,
           );
     } catch (_) {
       if (mounted) {
@@ -432,7 +479,7 @@ class _WorkspaceEditorSurfaceState
         _ => 'File operation failed',
       };
     }
-    return 'File operation failed';
+    return remoteWorkspaceErrorMessage(error) ?? 'File operation failed';
   }
 
   code_forge.ScrollbarDecoration _scrollbarDecoration() {

@@ -7,8 +7,10 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_errors.dart';
+import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_providers.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
+import 'package:alera/src/features/reading_diff/application/reading_diff_service.dart';
 import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
 import 'package:alera/src/features/reading_diff/presentation/reading_diff_confirmation_dialog.dart';
 import 'package:alera/src/features/reading_diff/presentation/reading_diff_failure_view.dart';
@@ -18,7 +20,10 @@ import 'package:alera/src/features/workbench/application/workspace_file_preview_
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_registry.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_git_diff_image_row.dart';
+import 'package:alera/src/features/workspace_agent_comments/presentation/workspace_agent_comment_bar.dart';
+import 'package:alera/src/features/workspace_agent_comments/presentation/workspace_agent_comment_composer.dart';
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
@@ -33,6 +38,7 @@ class const WorkspaceGitDiffSurface({
   super.key,
   required final Workspace workspace,
   required final WorkspaceTabRecord tab,
+  final bool autofocus = false,
 }) extends ConsumerStatefulWidget {
   @override
   ConsumerState<WorkspaceGitDiffSurface> createState() =>
@@ -41,6 +47,10 @@ class const WorkspaceGitDiffSurface({
 
 class _WorkspaceGitDiffSurfaceState
     extends ConsumerState<WorkspaceGitDiffSurface> {
+  // The diff is read-only text with nothing focusable inside, so the surface
+  // owns a node like the image and PDF viewers do: clicking it makes its pane
+  // the active group, and Ctrl+W / Ctrl+Tab keep reaching the shortcut layer.
+  final FocusNode _focusNode = FocusNode(debugLabel: 'WorkspaceGitDiffSurface');
   Future<GitDiffResult>? _future;
   GitDiffResult? _loadedResult;
   ReadingDiffResult? _readingDiffResult;
@@ -52,6 +62,7 @@ class _WorkspaceGitDiffSurfaceState
   String? _readingDiffAgentLabel;
   String? _readingDiffModel;
   ReadingDiffRequest? _activeReadingDiffRequest;
+  ReadingDiffService? _readingDiffService;
   Completer<void>? _readingDiffCompletion;
   bool _readingDiffCancelRequested = false;
   int _readingDiffGeneration = 0;
@@ -59,10 +70,22 @@ class _WorkspaceGitDiffSurfaceState
 
   void _updateDiffState(VoidCallback update) => setState(update);
 
+  // Captured while the element is alive. dispose runs after Ref is gone.
+  ReadingDiffService _cachedReadingDiffService() {
+    final cached = _readingDiffService;
+    if (cached != null) return cached;
+    final service = ref.read(readingDiffServiceProvider);
+    _readingDiffService = service;
+    return service;
+  }
+
   @override
   void initState() {
     super.initState();
     _load();
+    if (widget.autofocus) {
+      _requestFocusNextFrame(onlyIfParked: false);
+    }
   }
 
   @override
@@ -73,6 +96,19 @@ class _WorkspaceGitDiffSurfaceState
         _diffSelectionChanged(oldWidget.tab, widget.tab)) {
       _load();
     }
+    if (!oldWidget.autofocus && widget.autofocus) {
+      // The pane became active while this tab was already showing; take the
+      // keyboard only if nothing else is being typed in.
+      _requestFocusNextFrame(onlyIfParked: true);
+    }
+  }
+
+  void _requestFocusNextFrame({required bool onlyIfParked}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && (!onlyIfParked || workbenchFocusIsParked())) {
+        _focusNode.requestFocus();
+      }
+    });
   }
 
   bool _diffSelectionChanged(
@@ -98,8 +134,9 @@ class _WorkspaceGitDiffSurfaceState
   void dispose() {
     final activeRequest = _activeReadingDiffRequest;
     if (activeRequest != null) {
-      ref.read(readingDiffServiceProvider).cancel(activeRequest);
+      _readingDiffService?.cancel(activeRequest);
     }
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -111,7 +148,7 @@ class _WorkspaceGitDiffSurfaceState
         (settings) => settings.aiAssist.enabled,
       ),
     );
-    return DecoratedBox(
+    final surface = DecoratedBox(
       decoration: const BoxDecoration(color: AleraTokens.bg),
       child: Column(
         crossAxisAlignment: .stretch,
@@ -120,6 +157,9 @@ class _WorkspaceGitDiffSurfaceState
             title: widget.tab.title,
             filePath: filePath,
             onRefresh: _load,
+            onComment: _commentableDiffFile == null
+                ? null
+                : () => unawaited(_commentOnFile(_commentableDiffFile!)),
             onOpenFile: _canOpenFile ? () => unawaited(_openFile()) : null,
             aiAssistEnabled: aiAssistEnabled,
             readingDiffReady: _readingDiffResult != null,
@@ -139,6 +179,7 @@ class _WorkspaceGitDiffSurfaceState
                   }),
           ),
           const Divider(height: 1, color: AleraTokens.borderSubtle),
+          WorkspaceAgentCommentDraftScope(workspaceId: widget.workspace.id),
           if (_readingDiffProgress case final progress?) ...<Widget>[
             ReadingDiffGenerationProgressView(
               progress: progress,
@@ -194,12 +235,25 @@ class _WorkspaceGitDiffSurfaceState
                         parentOid: isCommitDiff
                             ? widget.tab.gitDiffParentOid
                             : null,
+                        onCommentLine: (file, lineIndex) => unawaited(
+                          composeWorkspaceAgentDiffLineComment(
+                            context,
+                            ref,
+                            workspaceId: widget.workspace.id,
+                            file: file,
+                            lineIndex: lineIndex,
+                          ),
+                        ),
                       );
                     },
                   ),
           ),
         ],
       ),
+    );
+    return Listener(
+      onPointerDown: (_) => _focusNode.requestFocus(),
+      child: Focus(focusNode: _focusNode, child: surface),
     );
   }
 
@@ -208,6 +262,36 @@ class _WorkspaceGitDiffSurfaceState
       return false;
     }
     return _openableDiffFile != null;
+  }
+
+  GitDiffFile? get _commentableDiffFile {
+    final result = _loadedResult;
+    if (result == null || result.files.isEmpty) {
+      return null;
+    }
+    if (result.files.length == 1) {
+      return result.files.single;
+    }
+    final filePath = widget.tab.filePath;
+    if (filePath == null) {
+      return null;
+    }
+    for (final file in result.files) {
+      if (file.path == filePath) {
+        return file;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _commentOnFile(GitDiffFile file) {
+    return composeWorkspaceAgentDiffComment(
+      context,
+      ref,
+      workspaceId: widget.workspace.id,
+      path: file.path,
+      areaLabel: file.area.label,
+    );
   }
 
   GitDiffFile? get _openableDiffFile {
@@ -280,7 +364,7 @@ class _WorkspaceGitDiffSurfaceState
       _readingDiffModel = null;
     });
     try {
-      final service = ref.read(readingDiffServiceProvider);
+      final service = _cachedReadingDiffService();
       final preparation = await service.prepare(request);
       if (!mounted ||
           generation != _readingDiffGeneration ||
@@ -372,7 +456,7 @@ class _WorkspaceGitDiffSurfaceState
     final activeRequest = _activeReadingDiffRequest;
     if (activeRequest != null && !_readingDiffCancelRequested) {
       _readingDiffCancelRequested = true;
-      ref.read(readingDiffServiceProvider).cancel(activeRequest);
+      _cachedReadingDiffService().cancel(activeRequest);
     }
   }
 
@@ -385,7 +469,9 @@ class _WorkspaceGitDiffSurfaceState
         .read(workbenchControllerProvider.notifier)
         .openEditorTab(
           workspace: widget.workspace,
+          sourceKey: 'tab:${widget.tab.id}',
           relativePath: _sourceControlScope.toWorkspaceRelativePath(file.path)!,
+          oppositePanel: isModModifierPressed(),
         );
   }
 

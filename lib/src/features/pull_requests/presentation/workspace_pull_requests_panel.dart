@@ -1,21 +1,33 @@
+import 'dart:async';
+
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
+import 'package:alera/src/features/pull_requests/application/pull_request_agent_watch_providers.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_controller.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_agent_dispatch.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_ship_scope.dart';
 import 'package:alera/src/features/pull_requests/domain/review_stack_workspace_models.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_composer.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_review_view.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_stack_workspace_dialog.dart';
 import 'package:alera/src/features/pull_requests/presentation/workspace_pull_request_stack_candidates.dart';
+import 'package:alera/src/features/settings/application/settings_controller.dart';
+import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_removal_launcher.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -94,6 +106,7 @@ class const WorkspacePullRequestsPanel({
         return _VisiblePullRequestsPanel(
           key: ValueKey<WorkspacePullRequestScope>(scope),
           workspace: workspace,
+          project: localContext.project,
           scope: scope,
           repoPath: repoPath,
           gitDiffRoot: gitDiffRoot,
@@ -125,6 +138,7 @@ class const _VisiblePullRequestsPanel({
   super.key,
   required final WorkspacePullRequestScope scope,
   required final Workspace workspace,
+  final Project? project,
   required final String repoPath,
   final String? gitDiffRoot,
   required final Map<String, Workspace> workspaceByBranch,
@@ -166,6 +180,30 @@ class _VisiblePullRequestsPanelState
         (state) => state.viewPrefs.pullRequestCreateAction,
       ),
     );
+    final supportsArchive = ref.watch(
+      workbenchControllerProvider.select((state) => state.supportsArchive),
+    );
+    final aiAssistSettings = ref.watch(
+      settingsControllerProvider.select((settings) => settings.aiAssist),
+    );
+    final agentWatchScope = ref.watch(
+      settingsControllerProvider.select(
+        (settings) => settings.general.pullRequestAgentWatchScope,
+      ),
+    );
+    final agentWatchMode = ref.watch(
+      pullRequestAgentWatchControllerProvider.select(
+        (sessions) => sessions[widget.scope.workspaceId]?.mode,
+      ),
+    );
+    ref.listen(workspacePullRequestControllerProvider(widget.scope), (
+      previous,
+      next,
+    ) {
+      ref
+          .read(pullRequestAgentWatchControllerProvider.notifier)
+          .onPanelState(widget.scope.workspaceId, next.asData?.value);
+    });
     return async.when(
       loading: WorkspacePullRequestsPanel._loading,
       error: (error, _) =>
@@ -175,26 +213,78 @@ class _VisiblePullRequestsPanelState
           candidates: widget.stackWorkspaceCandidates,
           branch: state.currentBranch,
         );
+        final project = widget.project;
         return _PullRequestBody(
           repoPath: widget.repoPath,
           state: state,
           createAction: createAction,
+          aiAssistSettings: aiAssistSettings,
           controller: _controller,
           localWorkspaceBranches: widget.workspaceByBranch.keys.toSet(),
           stackWorkspaceCandidates: candidates,
           onOpenWorkspaceBranch: widget.onOpenWorkspaceBranch,
+          onArchiveWorkspace: supportsArchive
+              ? () => unawaited(_archiveWorkspace())
+              : null,
+          onRemoveWorkspace: project == null
+              ? null
+              : () => unawaited(
+                  showWorkspaceRemovalFlow(
+                    context: context,
+                    ref: ref,
+                    project: project,
+                    workspace: widget.workspace,
+                  ),
+                ),
           onOpenUrl: (url) =>
               ref.read(externalUriLauncherProvider).open(Uri.parse(url)),
           onOpenDiff: _openingDiff ? null : _openDiff,
           onCreateActionChanged: (action) => ref
               .read(workbenchControllerProvider.notifier)
               .setPullRequestCreateAction(action),
+          agentWatchMode: agentWatchMode,
+          agentWatchScope: agentWatchScope,
+          ref: ref,
         );
       },
     );
   }
 
+  Future<void> _archiveWorkspace() async {
+    final workspace = widget.workspace;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AleraConfirmDialog(
+        title: 'Archive Workspace?',
+        message:
+            'This closes terminal sessions for "${workspace.name}" and hides '
+            'it from the sidebar. Tabs, branch, and files will be preserved, '
+            'and agent sessions can resume when it is unarchived.',
+        confirmLabel: 'Archive',
+        destructive: true,
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+    try {
+      await ref
+          .read(workbenchControllerProvider.notifier)
+          .archiveWorkspace(workspace);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      AleraToast.show(
+        context,
+        message: 'Could not archive workspace: $error',
+        tone: .error,
+      );
+    }
+  }
+
   Future<void> _openDiff(HostedReview review) async {
+    final oppositePanel = isModModifierPressed();
     final baseRef = review.baseBranch?.trim() ?? '';
     final headRef = review.headSha?.trim() ?? '';
     if (baseRef.isEmpty || headRef.isEmpty) {
@@ -252,6 +342,7 @@ class _VisiblePullRequestsPanelState
       await ref
           .read(workbenchControllerProvider.notifier)
           .openGitPullRequestDiffTab(
+            sourceKey: 'tool:pullRequest',
             workspace: widget.workspace,
             gitDiffRoot: widget.gitDiffRoot,
             pullRequestNumber: review.number,
@@ -259,6 +350,7 @@ class _VisiblePullRequestsPanelState
             parentOid: mergeBase,
             retentionId: objects.retentionId,
             subject: review.title,
+            oppositePanel: oppositePanel,
           );
     } catch (error) {
       if (mounted) {

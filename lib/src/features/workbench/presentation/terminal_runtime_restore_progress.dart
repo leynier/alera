@@ -35,7 +35,8 @@ extension _TerminalRestoreProgressTracking on _XtermTerminalSessionHandle {
   /// Any path that empties the backlog without going through [_advanceRestore]
   /// has to call this, or the overlay covers the terminal for good: nothing
   /// else clears it short of another snapshot or disposal.
-  /// Restore and PTY generations cancel the pulse after replacement or exit.
+  /// Restore and PTY generations cancel the emulator fake-resize after
+  /// replacement or exit.
   void _finishRestore() {
     if (_restoreTotalChars <= 0) {
       return;

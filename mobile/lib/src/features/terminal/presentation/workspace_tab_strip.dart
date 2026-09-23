@@ -5,10 +5,13 @@ class const _TabStrip({
   required final String? selectedTabId,
   required final bool creating,
   required final Map<String, AgentPresenceSummary> presenceByTabId,
+  required final bool canOpenMarkdownTabs,
   required final ValueChanged<WorkspaceTabSummary> onSelect,
   required final ValueChanged<WorkspaceTabSummary> onClose,
   required final ValueChanged<WorkspaceTabSummary> onActions,
   required final ValueChanged<_NewTabAction> onNewTab,
+  required final Future<List<AgentProfileSummary>> Function()
+  loadNewTabProfiles,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -30,6 +33,10 @@ class const _TabStrip({
                     tab: tab,
                     selected: tab.id == selectedTabId,
                     presence: presenceByTabId[tab.id],
+                    opensPreview:
+                        canOpenMarkdownTabs &&
+                        tab.isMarkdownViewer &&
+                        tab.filePath != null,
                     onSelect: onSelect,
                     onClose: onClose,
                     onActions: onActions,
@@ -45,7 +52,11 @@ class const _TabStrip({
           // overflow menu directly above it.
           Padding(
             padding: const EdgeInsets.only(left: AleraTokens.spaceSm),
-            child: _NewTabButton(creating: creating, onSelected: onNewTab),
+            child: _NewTabButton(
+              creating: creating,
+              onSelected: onNewTab,
+              loadProfiles: loadNewTabProfiles,
+            ),
           ),
         ],
       ),
@@ -59,49 +70,103 @@ class const _TabStrip({
 class const _NewTabButton({
   required final bool creating,
   required final ValueChanged<_NewTabAction> onSelected,
-}) extends StatelessWidget {
+  required final Future<List<AgentProfileSummary>> Function() loadProfiles,
+}) extends StatefulWidget {
   @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<_NewTabAction>(
-      tooltip: 'New Tab',
-      enabled: !creating,
-      position: .under,
-      onSelected: onSelected,
-      itemBuilder: (context) => <PopupMenuEntry<_NewTabAction>>[
+  State<_NewTabButton> createState() => _NewTabButtonState();
+}
+
+class _NewTabButtonState extends State<_NewTabButton> {
+  bool _openingMenu = false;
+
+  Future<void> _openMenu() async {
+    if (widget.creating || _openingMenu) {
+      return;
+    }
+    _openingMenu = true;
+    List<AgentProfileSummary> profiles = const <AgentProfileSummary>[];
+    try {
+      profiles = await widget.loadProfiles();
+    } on Object {
+      profiles = const <AgentProfileSummary>[];
+    }
+    if (!mounted || widget.creating) {
+      _openingMenu = false;
+      return;
+    }
+    final button = context.findRenderObject()! as RenderBox;
+    final overlay =
+        Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
+    final topLeft = button.localToGlobal(
+      button.size.bottomLeft(.zero),
+      ancestor: overlay,
+    );
+    final bottomRight = button.localToGlobal(
+      button.size.bottomRight(.zero),
+      ancestor: overlay,
+    );
+    final selected = await showMenu<_NewTabAction>(
+      context: context,
+      position: .fromRect(
+        .fromPoints(topLeft, bottomRight),
+        Offset.zero & overlay.size,
+      ),
+      items: <PopupMenuEntry<_NewTabAction>>[
         const PopupMenuItem<_NewTabAction>(
-          value: .terminal,
+          value: _NewTerminalTabAction(),
           height: AleraTokens.minTapTarget,
           child: _NewTabMenuRow(
             leading: Icon(Icons.terminal, size: AleraTokens.space20),
             label: 'New Terminal',
           ),
         ),
-        const PopupMenuItem<_NewTabAction>(
-          value: .codex,
-          height: AleraTokens.minTapTarget,
-          child: _NewTabMenuRow(
-            leading: AgentIdentityIcon(
-              agentType: 'codex',
-              size: AleraTokens.space20,
-              color: AleraTokens.foreground,
-              showTooltip: false,
+        for (final profile in profiles)
+          PopupMenuItem<_NewTabAction>(
+            value: _NewAgentProfileTabAction(profile),
+            height: AleraTokens.minTapTarget,
+            child: _NewTabMenuRow(
+              leading: AgentIdentityIcon(
+                agentType: profile.agentType,
+                size: AleraTokens.space20,
+                showTooltip: false,
+              ),
+              label: profile.name,
             ),
-            label: 'New Codex Chat',
           ),
-        ),
       ],
-      child: SizedBox.square(
-        dimension: AleraTokens.minTapTarget,
-        child: creating
-            ? const Center(
-                child: SizedBox.square(
-                  dimension: AleraTokens.spaceLg,
-                  child: CircularProgressIndicator(
-                    strokeWidth: AleraTokens.strokeSm,
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _openingMenu = false;
+    });
+    if (selected != null) {
+      widget.onSelected(selected);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'New Tab',
+      child: InkWell(
+        onTap: widget.creating || _openingMenu
+            ? null
+            : () => unawaited(_openMenu()),
+        child: SizedBox.square(
+          dimension: AleraTokens.minTapTarget,
+          child: widget.creating
+              ? const Center(
+                  child: SizedBox.square(
+                    dimension: AleraTokens.spaceLg,
+                    child: CircularProgressIndicator(
+                      strokeWidth: AleraTokens.strokeSm,
+                    ),
                   ),
-                ),
-              )
-            : const Icon(Icons.add),
+                )
+              : const Icon(Icons.add),
+        ),
       ),
     );
   }
@@ -130,10 +195,11 @@ class const _TabChip({
   required final ValueChanged<WorkspaceTabSummary> onSelect,
   required final ValueChanged<WorkspaceTabSummary> onClose,
   required final ValueChanged<WorkspaceTabSummary> onActions,
+  final bool opensPreview = false,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final interactive = tab.isTerminal || tab.isCodex;
+    final interactive = tab.isTerminal || opensPreview;
     final status = presence;
     return GestureDetector(
       onLongPress: () => onActions(tab),
@@ -141,16 +207,7 @@ class const _TabChip({
         // The fill already says which tab is active; a checkmark on top of it
         // spends width that the title needs on a phone.
         showCheckmark: false,
-        avatar: status != null
-            ? AgentRunStateIndicator(status: status)
-            : tab.isCodex
-            ? const AgentIdentityIcon(
-                agentType: 'codex',
-                size: AleraTokens.space16,
-                color: AleraTokens.foreground,
-                showTooltip: false,
-              )
-            : null,
+        avatar: status != null ? AgentRunStateIndicator(status: status) : null,
         label: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: _tabTitleMaxWidth(tab.kind)),
           child: Row(
@@ -179,12 +236,13 @@ class const _TabChip({
           ),
         ),
         selected: selected,
-        // Non-terminal tabs remain disabled content surfaces, while
-        // their metadata actions stay available through long press.
+        // Terminals select in place and Markdown viewers open their preview;
+        // other tabs remain disabled content surfaces, while their metadata
+        // actions stay available through long press.
         onSelected: interactive ? (_) => onSelect(tab) : null,
         // Only the open tab offers Close: on an unselected chip the target sits
         // next to the one that selects it, and the two are a thumb-width apart.
-        onDeleted: interactive && selected ? () => onClose(tab) : null,
+        onDeleted: tab.isTerminal && selected ? () => onClose(tab) : null,
         deleteButtonTooltipMessage: 'Close Tab',
       ),
     );
@@ -209,38 +267,19 @@ class const _EmptyTabs({
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: AleraTokens.contentPadding,
-        child: Column(
-          mainAxisSize: .min,
-          children: <Widget>[
-            Icon(
-              Icons.terminal,
-              size: AleraTokens.emptyIcon,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: AleraTokens.spaceLg),
-            Text(
-              targetUnavailable ? 'Terminal unavailable' : 'No tabs yet',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            if (targetUnavailable) ...<Widget>[
-              const SizedBox(height: AleraTokens.space8),
-              Text(
-                'Choose another terminal above.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-            const SizedBox(height: AleraTokens.spaceMd),
-            FilledButton.icon(
+    return AleraEmptyState(
+      icon: AleraIcons.terminal,
+      title: targetUnavailable ? 'Terminal unavailable' : 'No terminals',
+      message: targetUnavailable
+          ? 'Choose another terminal above.'
+          : 'Open a terminal to start working in this workspace.',
+      action: targetUnavailable
+          ? null
+          : FilledButton.icon(
               onPressed: creating ? null : onNewTab,
-              icon: const Icon(Icons.add),
-              label: const Text('New Tab'),
+              icon: const Icon(AleraIcons.add),
+              label: const Text('New Terminal'),
             ),
-          ],
-        ),
-      ),
     );
   }
 }

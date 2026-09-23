@@ -11,6 +11,7 @@ class const _GitDiffTree({
   required final ValueChanged<GitChangeEntry> onToggleSubmodule,
   required final OpenGitDiffTabCallback onOpenGitDiff,
   final ValueChanged<String>? onOpenFile,
+  required final ValueChanged<GitChangeEntry> onComment,
   required final ValueChanged<String> onRevealInExplorer,
   required final ValueChanged<GitChangeEntry> onStage,
   required final ValueChanged<GitChangeEntry> onUnstage,
@@ -107,6 +108,7 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
           onOpenFile: widget.onOpenFile == null
               ? null
               : () => widget.onOpenFile!(entry.path),
+          onComment: () => widget.onComment(entry),
           onRevealInExplorer: () => widget.onRevealInExplorer(entry.path),
           onStage: widget.onStage,
           onUnstage: widget.onUnstage,
@@ -133,6 +135,7 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
             busy: widget.busy,
             onOpenGitDiff: widget.onOpenGitDiff,
             onOpenFile: widget.onOpenFile,
+            onComment: widget.onComment,
             onRevealInExplorer: widget.onRevealInExplorer,
           ),
       ];
@@ -259,20 +262,24 @@ class const _GitDiffDirectoryRow({
               ),
             ),
           ),
-          Text(
-            '${row.fileCount}',
-            style: Theme.of(context).textTheme.labelSmall
-                ?.copyWith(color: AleraTokens.foregroundFaint),
-          ),
-          const SizedBox(width: AleraTokens.space6),
-          _AreaActions(
-            busy: busy,
-            onStage: onStage,
-            onUnstage: onUnstage,
-            onDiscard: onDiscard,
-            canStage: canStage,
-            canUnstage: canUnstage,
-            canDiscard: canDiscard,
+          WorkbenchScrollableActions(
+            children: <Widget>[
+              Text(
+                '${row.fileCount}',
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: AleraTokens.foregroundFaint),
+              ),
+              const SizedBox(width: AleraTokens.space6),
+              _AreaActions(
+                busy: busy,
+                onStage: onStage,
+                onUnstage: onUnstage,
+                onDiscard: onDiscard,
+                canStage: canStage,
+                canUnstage: canUnstage,
+                canDiscard: canDiscard,
+              ),
+            ],
           ),
         ],
       ),
@@ -284,11 +291,13 @@ class const _GitDiffDirectoryRow({
       context,
       position,
       canOpenFile: onOpenFile != null,
+      canComment: false,
       canStage: canStage,
       canUnstage: canUnstage,
       canDiscard: canDiscard,
       busy: busy,
       onOpenFile: onOpenFile,
+      onComment: null,
       onRevealInExplorer: onRevealInExplorer,
       onStage: onStage,
       onUnstage: onUnstage,
@@ -304,6 +313,7 @@ class const _GitDiffFileRow({
   required final VoidCallback onTap,
   required final bool busy,
   final VoidCallback? onOpenFile,
+  required final VoidCallback onComment,
   required final VoidCallback onRevealInExplorer,
   required final ValueChanged<GitChangeEntry> onStage,
   required final ValueChanged<GitChangeEntry> onUnstage,
@@ -376,20 +386,24 @@ class const _GitDiffFileRow({
             ),
           if (entry.isSubmoduleWorktreeOnly)
             const SizedBox(width: AleraTokens.space4),
-          _GitStatusLabel(
-            status: entry.status,
-            area: entry.area,
-            showAreaMarker: showAreaMarker,
-          ),
-          const SizedBox(width: AleraTokens.space6),
-          _LineStats(added: entry.added, removed: entry.removed),
-          const SizedBox(width: AleraTokens.space4),
-          _GitFileActions(
-            entry: entry,
-            busy: busy,
-            onStage: onStage,
-            onUnstage: onUnstage,
-            onDiscard: onDiscard,
+          WorkbenchScrollableActions(
+            children: <Widget>[
+              _GitStatusLabel(
+                status: entry.status,
+                area: entry.area,
+                showAreaMarker: showAreaMarker,
+              ),
+              const SizedBox(width: AleraTokens.space6),
+              _LineStats(added: entry.added, removed: entry.removed),
+              const SizedBox(width: AleraTokens.space4),
+              _GitFileActions(
+                entry: entry,
+                busy: busy,
+                onStage: onStage,
+                onUnstage: onUnstage,
+                onDiscard: onDiscard,
+              ),
+            ],
           ),
         ],
       ),
@@ -402,11 +416,13 @@ class const _GitDiffFileRow({
       position,
       canOpenFile:
           onOpenFile != null && entry.status != GitChangeStatus.deleted,
+      canComment: true,
       canStage: entry.canStageFromParent,
       canUnstage: entry.canUnstageFromParent,
       canDiscard: entry.canDiscardFromParent,
       busy: busy,
       onOpenFile: onOpenFile,
+      onComment: onComment,
       onRevealInExplorer: onRevealInExplorer,
       onStage: () => onStage(entry),
       onUnstage: () => onUnstage(entry),

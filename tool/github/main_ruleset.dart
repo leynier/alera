@@ -1,20 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 
-Map<String, Object> desiredMainRuleset({
-  required int mergifyAppId,
-  required int githubActionsAppId,
-}) => {
+Map<String, Object> desiredMainRuleset({required int githubActionsAppId}) => {
   'name': 'protect main',
   'target': 'branch',
   'enforcement': 'active',
-  'bypass_actors': [
-    {
-      'actor_id': mergifyAppId,
-      'actor_type': 'Integration',
-      'bypass_mode': 'always',
-    },
-  ],
+  'bypass_actors': <Object>[],
   'conditions': {
     'ref_name': {
       'include': ['~DEFAULT_BRANCH'],
@@ -41,7 +32,6 @@ Map<String, Object> desiredMainRuleset({
         'do_not_enforce_on_create': false,
         'required_status_checks': [
           {'context': 'pr-ready', 'integration_id': githubActionsAppId},
-          {'context': 'queue-ready', 'integration_id': githubActionsAppId},
         ],
         'strict_required_status_checks_policy': false,
       },
@@ -63,15 +53,11 @@ Future<void> main(List<String> arguments) async {
   await _verifyWriterOnMain(repository);
   await _verifyDryRun(repository, options.dryRunRunId);
 
-  final mergifyAppId = _appId(await _ghApi('apps/mergify'), 'mergify');
   final githubActionsAppId = _appId(
     await _ghApi('apps/github-actions'),
     'github-actions',
   );
-  final desired = desiredMainRuleset(
-    mergifyAppId: mergifyAppId,
-    githubActionsAppId: githubActionsAppId,
-  );
+  final desired = desiredMainRuleset(githubActionsAppId: githubActionsAppId);
   final existing = _jsonList(
     jsonDecode(await _ghApi('repos/$repository/rulesets')),
     'rulesets',
@@ -80,7 +66,7 @@ Future<void> main(List<String> arguments) async {
   if (existing.isNotEmpty) {
     if (existing.length != 1 || existing.single['name'] != desired['name']) {
       throw StateError(
-        'Repository rulesets changed since issue #489 was inspected. '
+        'Unexpected repository rulesets. '
         'Review the live rulesets before applying anything.',
       );
     }
@@ -89,14 +75,38 @@ Future<void> main(List<String> arguments) async {
       jsonDecode(await _ghApi('repos/$repository/rulesets/$id')),
       'ruleset',
     );
-    if (!_sameManagedRuleset(current, desired)) {
+    if (_sameManagedRuleset(current, desired)) {
+      stdout.writeln('The active protect main ruleset already matches.');
+      await _verifyEffectiveRules(repository);
+      return;
+    }
+    if (!options.apply) {
+      stdout.writeln(
+        'The active protect main ruleset differs from the desired payload.',
+      );
+      stdout.writeln(const JsonEncoder.withIndent('  ').convert(desired));
+      stdout.writeln(
+        'Re-run with --apply only after reviewing this payload and the dry-run.',
+      );
+      return;
+    }
+    final updated = _jsonObject(
+      jsonDecode(
+        await _ghApi(
+          'repos/$repository/rulesets/$id',
+          method: 'PUT',
+          body: desired,
+        ),
+      ),
+      'updated ruleset',
+    );
+    if (!_sameManagedRuleset(updated, desired)) {
       throw StateError(
-        'The existing protect main ruleset differs from the desired payload. '
-        'This script will not overwrite it.',
+        'GitHub updated the ruleset to a payload that does not match.',
       );
     }
-    stdout.writeln('The active protect main ruleset already matches.');
     await _verifyEffectiveRules(repository);
+    stdout.writeln('Updated protect main.');
     return;
   }
 

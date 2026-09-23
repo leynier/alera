@@ -17,6 +17,40 @@ pub struct ManagedAgentLaunch {
     pub arguments: Vec<String>,
 }
 
+impl ManagedAgentLaunch {
+    /// Index where Claude resume tokens belong in `arguments`.
+    ///
+    /// `ccs` takes the profile as its first positional argument and forwards
+    /// everything after it to Claude. Resume tokens are Claude args, so they
+    /// must sit after that profile name rather than ahead of it.
+    pub fn resume_insert_index(&self) -> usize {
+        usize::from(
+            self.executable == CCS_EXECUTABLE
+                && self
+                    .arguments
+                    .first()
+                    .is_some_and(|argument| !argument.starts_with('-')),
+        )
+    }
+
+    /// Launch used when a tab has a stored native session but no Agent Profile
+    /// snapshot or `initialCommand`. `ccs_profile` is the CCS instance name
+    /// captured from Claude's `CLAUDE_CONFIG_DIR`.
+    pub fn for_native_resume(agent_type: &str, ccs_profile: Option<&str>) -> Option<Self> {
+        let adapter = adapter_for(agent_type)?;
+        match (agent_type, ccs_profile) {
+            ("claude", Some(profile)) => Some(Self {
+                executable: CCS_EXECUTABLE.to_string(),
+                arguments: vec![profile.to_string()],
+            }),
+            _ => Some(Self {
+                executable: adapter.default_command.to_string(),
+                arguments: Vec::new(),
+            }),
+        }
+    }
+}
+
 /// The profile switcher Claude Code profiles may launch through. It takes the
 /// profile as its first positional argument and forwards everything after it to
 /// `claude` unchanged, which is why only the executable and that one argument

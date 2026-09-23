@@ -83,6 +83,17 @@ void main() {
     expect(exit.shouldOpenTerminal, isFalse);
     expect(exit.eventKind, PushEventKind.terminalExit);
     expect(groupedAttention.eventKind, PushEventKind.attention);
+
+    final automation = PushNavigationIntent.fromData(<String, Object?>{
+      'runtimeId': 'runtime-1',
+      'kind': 'automation',
+      'automationId': 'automation-1',
+      'runId': 'run-1',
+    });
+    expect(automation.eventKind, PushEventKind.automation);
+    expect(automation.shouldOpenTerminal, isFalse);
+    expect(automation.automationId, 'automation-1');
+    expect(automation.runId, 'run-1');
   });
 
   test('Push Intent Rejects Payload Without Runtime', () {

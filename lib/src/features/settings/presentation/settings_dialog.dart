@@ -14,7 +14,6 @@ import 'package:alera/src/features/settings/presentation/panes/agent_quota_setti
 import 'package:alera/src/features/settings/presentation/panes/ai_assist_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/ai_dictation_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_pane.dart';
-import 'package:alera/src/features/settings/presentation/panes/browser_settings_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/editor_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/mobile_devices_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/projects_pane.dart';
@@ -156,6 +155,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsGroupSpec(id: 'storage', title: 'Storage'),
       SettingsGroupSpec(id: 'safety', title: 'Safety'),
       SettingsGroupSpec(id: 'desktop', title: 'Desktop'),
+      SettingsGroupSpec(id: 'pullRequests', title: 'Pull Requests'),
       SettingsGroupSpec(id: 'runtime', title: 'Runtime'),
       SettingsGroupSpec(id: 'diagnostics', title: 'Diagnostics'),
       SettingsGroupSpec(id: 'updates', title: 'Updates'),
@@ -168,6 +168,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     ];
     const agentsGroups = <SettingsGroupSpec>[
       SettingsGroupSpec(id: 'cliSkill', title: 'CLI And Skills'),
+      SettingsGroupSpec(id: 'extraSkills', title: 'Extra Skills'),
       SettingsGroupSpec(id: 'hooks', title: 'Status Hooks'),
       SettingsGroupSpec(id: 'behavior', title: 'Behavior'),
     ];
@@ -202,12 +203,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsGroupSpec(id: 'appearance', title: 'Appearance'),
       SettingsGroupSpec(id: 'interaction', title: 'Interaction'),
       SettingsGroupSpec(id: 'advanced', title: 'Advanced'),
-    ];
-    const browserGroups = <SettingsGroupSpec>[
-      SettingsGroupSpec(id: 'general', title: 'General'),
-      SettingsGroupSpec(id: 'profiles', title: 'Profiles'),
-      SettingsGroupSpec(id: 'certificates', title: 'Trusted Certificates'),
-      SettingsGroupSpec(id: 'data', title: 'Browsing Data'),
     ];
     const mobileDeviceGroups = <SettingsGroupSpec>[
       SettingsGroupSpec(id: 'gateway', title: 'Mobile Gateway'),
@@ -353,16 +348,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         ),
       ),
       SettingsSectionData(
-        id: 'browser',
-        title: 'Browser',
-        description: 'System engine, profiles and browsing data.',
-        icon: AleraIcons.public,
-        entries: browserSearchEntries,
-        groups: browserGroups,
-        builder: (_) =>
-            BrowserSettingsPane(groupKeys: _paneKeys('browser', browserGroups)),
-      ),
-      SettingsSectionData(
         id: 'keyboard',
         title: 'Keyboard',
         description: 'Shortcuts and key bindings.',
@@ -396,7 +381,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsSectionData(
         id: 'remoteHosts',
         title: 'Remote Hosts',
-        description: 'SSH runtime targets.',
+        description: 'Install the Alera runtime sidecar on SSH hosts. This does not create remote workspaces.',
         icon: AleraIcons.host,
         entries: remoteHostSearchEntries,
         navGroup: .resources,

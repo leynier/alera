@@ -130,9 +130,12 @@ void main() {
     );
 
     await controller.selectProject('project-1');
-    await controller.create(
-      prompt: 'Add offline support',
-      workspaceBranches: const <String>{},
+    await expectLater(
+      controller.create(
+        prompt: 'Add offline support',
+        workspaceBranches: const <String>{},
+      ),
+      throwsA(isA<Object>()),
     );
     expect(
       container.read(promptWorkspaceControllerProvider('host-1')).error,
@@ -172,9 +175,12 @@ void main() {
       );
 
       await controller.selectProject('project-1');
-      await controller.create(
-        prompt: 'Add offline support',
-        workspaceBranches: const <String>{},
+      await expectLater(
+        controller.create(
+          prompt: 'Add offline support',
+          workspaceBranches: const <String>{},
+        ),
+        throwsA(isA<Object>()),
       );
       client.supportsIdempotentAgentProfileLaunch = false;
       await controller.retryAgent('Add offline support');
@@ -207,9 +213,12 @@ void main() {
     );
 
     await controller.selectProject('project-1');
-    await controller.create(
-      prompt: 'Add offline support',
-      workspaceBranches: const <String>{},
+    await expectLater(
+      controller.create(
+        prompt: 'Add offline support',
+        workspaceBranches: const <String>{},
+      ),
+      throwsA(isA<Object>()),
     );
     client.supportsIdempotentAgentProfileLaunch = true;
     await controller.retryAgent('Add offline support');

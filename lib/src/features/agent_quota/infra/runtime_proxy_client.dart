@@ -157,11 +157,12 @@ class RuntimeProxyClient({
   }
 
   String _remoteCommand(SshTarget target) {
+    // Keep in sync with rust/alera-cli/src/ssh_bootstrap.rs default_install_dir.
     final installDir =
         target.installDir ??
         (target.runtimePlatform == 'windows'
             ? r'%LOCALAPPDATA%\Alera\runtime'
-            : '~/.alera/runtime');
+            : '~/.alera/sidecar');
     if (target.runtimePlatform == 'windows' || target.platform == 'windows') {
       final localAppDataSuffix = installDir
           .substring(
@@ -173,9 +174,12 @@ class RuntimeProxyClient({
       final installExpression = installDir.startsWith(r'%LOCALAPPDATA%\')
           ? "\$env:LOCALAPPDATA + '$localAppDataSuffix'"
           : "'${installDir.replaceAll("'", "''")}'";
-      return 'powershell -NoProfile -Command '
-          '"& (Join-Path ($installExpression) '
-          '\'current\\alera.exe\') runtime-proxy"';
+      // Windows bootstrap writes current.txt; it never creates a current\ directory.
+      final script =
+          "\$ErrorActionPreference = 'Stop'; "
+          "\$current = Get-Content -Raw -Path (Join-Path ($installExpression) 'current.txt'); "
+          "& (Join-Path \$current 'alera.exe') runtime-proxy";
+      return "powershell -NoProfile -Command \"$script\"";
     }
     final executablePath = installDir.startsWith('~/')
         ? '\$HOME/${installDir.substring(2)}/current/alera'

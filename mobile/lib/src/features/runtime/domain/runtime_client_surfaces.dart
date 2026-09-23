@@ -1,4 +1,6 @@
+import 'package:alera_mobile/src/features/runtime/domain/project_checkout_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_removal_dependency.dart';
 
 import 'dart:async';
 import 'dart:typed_data';
@@ -20,6 +22,10 @@ const String mobileWorkspaceSidebarParityCapability =
     'mobileWorkspaceSidebarParityV1';
 const String mobileProjectManagementCapability = 'mobileProjectManagementV1';
 const String mobileTabRenameCapability = 'mobileTabRenameV1';
+
+/// The runtime archives workspaces (`workspace.archive` / `workspace.unarchive`):
+/// sessions stop while tabs, branch, and files are preserved. Additive.
+const String workspaceArchiveCapability = 'workspaceArchiveV1';
 
 /// The runtime can send terminal output as a binary WebSocket message instead
 /// of base64 inside JSON. Feature-detected, never version-gated: the runtime
@@ -55,10 +61,6 @@ abstract interface class MobileAgentTitleClient {
 const String agentProfilePromptLaunchCapability = 'agentProfilePromptLaunchV1';
 const String agentProfileLaunchIdempotencyCapability =
     'agentProfileLaunchIdempotencyV1';
-const String codexChatTabCapability = 'codexChatTabV1';
-const String codexGoalsCapability = 'codexGoalsV1';
-const String mobileCodexSessionsCapability = 'mobileCodexSessionsV1';
-const String codexTurnPolicyCapability = 'codexTurnPolicyV2';
 const String mobileCodexWorkspaceFilesCapability =
     'mobileCodexWorkspaceFilesV1';
 const String mobilePromptFileUploadCapability = 'mobilePromptFileUploadV1';
@@ -147,22 +149,6 @@ abstract interface class MobileTerminalClient {
   Future<void> terminateSession(String sessionId);
 }
 
-/// Additive mobile surface for the host-owned Codex app-server. Keeping this
-/// separate from the terminal fake interface lets older mobile test clients
-/// and older hosts continue to exercise terminal parity unchanged.
-abstract interface class MobileCodexClient {
-  bool get supportsCodexChat;
-  bool get supportsCodexGoals;
-  bool get supportsCodexSessions;
-  bool get supportsCodexTurnPolicy;
-  Stream<MobileRuntimeEvent> get events;
-  Future<WorkspaceTabSummary> createCodexTab(String workspaceId);
-  Future<Map<String, Object?>> codexRequest(
-    String type, [
-    Map<String, Object?> payload,
-  ]);
-}
-
 abstract interface class MobileCodexWorkspaceClient {
   bool get supportsCodexWorkspaceFiles;
   bool get supportsPromptFileUpload;
@@ -177,10 +163,6 @@ abstract interface class MobileCodexWorkspaceClient {
     int limit = 20,
   });
   Future<void> stopWorkspaceQuickOpen(MobileWorkspaceQuickOpenSession session);
-  Future<List<MobileCodexSavedPrompt>> listCodexSavedPrompts(
-    String workspaceId, {
-    String? cwd,
-  });
   Future<MobileWorkspaceFileRange> readWorkspaceFile({
     required String workspaceId,
     required String relativePath,
@@ -202,9 +184,41 @@ abstract interface class MobileCodexWorkspaceClient {
 
 /// Workspace listing and mutation surface consumed by the workbench
 /// controllers; kept as an interface so tests can fake the runtime.
+abstract interface class MobileSharedCheckoutClient {
+  bool get supportsSharedCheckoutWorkspaces;
+  Future<List<WorkspaceRemovalDependency>> removalDependencies(
+    String workspaceId,
+  );
+  Future<void> pauseRemovalDependencies(
+    String workspaceId,
+    List<WorkspaceRemovalDependency> approved,
+  );
+  Future<MobileWorkspaceQuickOpenSession> startProjectCheckoutQuickOpen({
+    required String projectId,
+    String? checkoutHostId,
+  });
+  Future<WorkspaceCreationResult> createSharedWorkspace({
+    required String projectId,
+    String? name,
+    String? checkoutHostId,
+    String? issueUrl,
+  });
+  Future<void> removeSharedWorkspace(String workspaceId);
+}
+
+MobileSharedCheckoutClient requireSharedCheckoutClient(
+  MobileWorkspaceClient client,
+) {
+  if (client is MobileSharedCheckoutClient) {
+    return client as MobileSharedCheckoutClient;
+  }
+  throw UnsupportedError('Update Alera to use shared project folders.');
+}
+
 abstract interface class MobileWorkspaceClient {
   Stream<MobileRuntimeEvent> get events;
   bool get supportsWorkspaceMutations;
+  bool get supportsWorkspaceArchive;
   bool get supportsWorkspaceSidebarParity;
   bool get supportsTabRename;
   bool get supportsPromptWorkspaceCreation;
@@ -215,12 +229,16 @@ abstract interface class MobileWorkspaceClient {
   Future<MobileViewPrefs> updateWorkbenchViewPrefs(MobileViewPrefs prefs);
   Future<List<AgentPresenceSummary>> listAgentPresence();
   Future<List<ProjectSummary>> listProjects();
-  Future<ProjectBranches> listBranches(String projectId);
+  Future<ProjectBranches> listBranches(
+    String projectId, {
+    String? checkoutHostId,
+  });
   Future<List<AgentProfileSummary>> listAgentProfiles();
   Future<GeneratedWorkspaceIdentity> generateWorkspaceIdentity({
     required String operationId,
     required String projectId,
     required String prompt,
+    bool autoAssignSection = false,
   });
   Future<void> cancelWorkspaceIdentity(String operationId);
   Future<PromptImageUploadResult> uploadPromptImage({
@@ -231,7 +249,7 @@ abstract interface class MobileWorkspaceClient {
   Future<AgentProfileLaunchResult> launchAgentProfile({
     required String workspaceId,
     required String profileId,
-    required String prompt,
+    String prompt = '',
     required String clientMutationId,
   });
   Future<List<WorkspaceSummary>> listWorkspaces();
@@ -246,11 +264,13 @@ abstract interface class MobileWorkspaceClient {
   });
   Future<WorkspaceCreationResult> createManagedWorkspace({
     required String projectId,
+    String? checkoutHostId,
     required String branch,
     String? sourceBranch,
     bool reuseExistingBranch = false,
     String? name,
     String? parentWorkspaceId,
+    String? issueUrl,
   });
   Future<void> removeManagedWorkspace(String workspaceId, {bool? deleteBranch});
   Future<List<String>> cascadePreview(String workspaceId);
@@ -258,6 +278,8 @@ abstract interface class MobileWorkspaceClient {
   Future<WorkspaceTabSummary> renameTab(String tabId, String title);
   Future<WorkspaceSummary> renameWorkspace(String workspaceId, String name);
   Future<void> sleepWorkspace(String workspaceId);
+  Future<void> archiveWorkspace(String workspaceId);
+  Future<void> unarchiveWorkspace(String workspaceId);
   Future<String?> workspaceRepositoryRemoteUrl(String workspaceId);
   Future<WorkspaceTagSummary> createWorkspaceTag(String name, {String? color});
   Future<void> removeWorkspaceTag(String tagId);
@@ -270,7 +292,14 @@ abstract interface class MobileWorkspaceClient {
 abstract interface class MobileWorkspaceSectionClient {
   bool get supportsWorkspaceSections;
   Future<List<WorkspaceSectionSummary>> listWorkspaceSections();
-  Future<void> createWorkspaceSection(String name, String workspaceId);
+  Future<WorkspaceSectionSummary> createWorkspaceSection(
+    String name,
+    String workspaceId,
+  );
   Future<void> setWorkspaceSection(String workspaceId, String? sectionId);
   Future<void> removeWorkspaceSection(String sectionId);
+}
+
+abstract interface class MobileCheckoutCatalogClient {
+  Future<List<ProjectCheckoutSummary>> listProjectCheckouts(String projectId);
 }

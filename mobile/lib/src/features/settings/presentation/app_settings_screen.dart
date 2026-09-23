@@ -5,6 +5,7 @@ import 'package:alera_mobile/src/features/accounts/presentation/accounts_screen.
 import 'package:alera_mobile/src/features/diagnostics/presentation/diagnostics_screen.dart';
 import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_settings_screen.dart';
 import 'package:alera_mobile/src/features/quotas/presentation/quota_hosts_settings_screen.dart';
+import 'package:alera_mobile/src/features/terminal/presentation/terminal_clipboard_setting_tile.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_keys_settings_screen.dart';
 import 'package:flutter/material.dart';
 
@@ -62,6 +63,8 @@ class const AppSettingsScreen({super.key}) extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: AleraTokens.spaceSm),
+            const TerminalClipboardSettingTile(),
             const SizedBox(height: AleraTokens.spaceXl),
             Text('AI', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: AleraTokens.spaceSm),

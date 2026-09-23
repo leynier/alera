@@ -6,7 +6,11 @@ int resolveWorkbenchTabStripGapIndex({
   required double localDx,
   required double chipWidth,
 }) {
-  return localDx < chipWidth / 2 ? chipIndex : chipIndex + 1;
+  return drop_zones.resolveWorkbenchTabStripGapIndex(
+    chipIndex: chipIndex,
+    localDx: localDx,
+    chipWidth: chipWidth,
+  );
 }
 
 @visibleForTesting
@@ -17,18 +21,13 @@ int? resolveWorkbenchTabStripDropIndex({
   required String draggedTabId,
   required int gapIndex,
 }) {
-  final clamped = gapIndex.clamp(0, tabIds.length);
-  if (sourceGroupId != targetGroupId) {
-    return clamped;
-  }
-  final sourceIndex = tabIds.indexOf(draggedTabId);
-  if (sourceIndex < 0) {
-    return clamped;
-  }
-  // The domain removes the dragged tab before inserting, so gaps to the
-  // right of the source position shift left by one.
-  final adjusted = clamped > sourceIndex ? clamped - 1 : clamped;
-  return adjusted == sourceIndex ? null : adjusted;
+  return drop_zones.resolveWorkbenchTabStripDropIndex(
+    tabIds: tabIds,
+    sourceGroupId: sourceGroupId,
+    targetGroupId: targetGroupId,
+    draggedTabId: draggedTabId,
+    gapIndex: gapIndex,
+  );
 }
 
 typedef _TabStripGapDragCallback = void Function(

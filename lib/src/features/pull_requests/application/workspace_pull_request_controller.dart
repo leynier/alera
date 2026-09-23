@@ -1,5 +1,9 @@
 import 'dart:async';
 
+import 'package:alera/src/features/ai_assist/application/ai_assist_prompt.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/pull_requests/application/forge_exception.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider_registry.dart';
@@ -9,6 +13,7 @@ import 'package:alera/src/features/pull_requests/application/pull_request_provid
 import 'package:alera/src/features/pull_requests/application/review_reference_parser.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_loader.dart';
+import 'package:alera/src/features/pull_requests/application/workspace_pull_request_refresh_signal.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_result.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
@@ -16,6 +21,7 @@ import 'package:alera/src/shared/git_hosting/application/hosting_provider_resolv
 import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review_stack.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_ship_scope.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
 import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
@@ -27,13 +33,17 @@ import 'package:alera/src/features/pull_requests/domain/update_review_result.dar
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
 import 'package:alera/src/features/workbench/application/retired_workspace_invalidation.dart';
 import 'package:alera/src/shared/infra/git/git_backend.dart';
+import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'workspace_pull_request_controller.g.dart';
+part 'workspace_pull_request_polling.dart';
+part 'workspace_pull_request_watchers.dart';
 part 'workspace_pull_request_review_actions.dart';
 part 'workspace_pull_request_review_editing.dart';
+part 'workspace_pull_request_ship_actions.dart';
 part 'workspace_pull_request_stack_actions.dart';
 part 'workspace_pull_request_stack_validation.dart';
 
@@ -42,7 +52,10 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
     with
         _WorkspacePullRequestReviewActions,
         _WorkspacePullRequestReviewEditing,
-        _WorkspacePullRequestStackActions {
+        _WorkspacePullRequestShipActions,
+        _WorkspacePullRequestStackActions,
+        _WorkspacePullRequestPolling,
+        _WorkspacePullRequestWatchers {
   static const Duration _minPollInterval = Duration(seconds: 30);
   static const Duration _maxPollInterval = Duration(seconds: 120);
 
@@ -154,7 +167,9 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
       return;
     }
     _visible = false;
-    _pollTimer?.cancel();
+    if (!_shouldPoll) {
+      _pollTimer?.cancel();
+    }
   }
 
   /// Links the workspace to the review named by [reference] (`#123` or a URL).
@@ -214,6 +229,12 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
         );
       },
     );
+  }
+
+  void _refreshWorkspacePullRequestMonitor() {
+    ref
+        .read(workspacePullRequestRefreshSignalProvider.notifier)
+        .requestRefresh();
   }
 
   /// Clears the in-flight action; a non-null [failureMessage] surfaces it.
@@ -276,7 +297,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
   }
 
   /// Runs an action that mutates persisted state, then reloads.
-  Future<void> _run({
+  Future<bool> _run({
     required WorkspacePullRequestScope scope,
     required PullRequestAction action,
     required Future<void> Function() body,
@@ -285,13 +306,16 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
     _pollTimer?.cancel();
     final current = state.value ?? const WorkspacePullRequestState();
     state = AsyncData(current.copyWith(action: action, clearError: true));
+    var succeeded = false;
     try {
       await body();
       final reloaded = await _loader.load(scope);
       if (!_disposed) {
         state = AsyncData(_applyPendingCommentBodies(reloaded));
         _resetPollInterval();
+        _refreshWorkspacePullRequestMonitor();
       }
+      succeeded = true;
     } on _ActionError catch (error) {
       await _recordActionFailure(
         scope: scope,
@@ -322,6 +346,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
       );
     }
     _schedulePoll(scope);
+    return succeeded;
   }
 
   Future<void> _recordActionFailure({
@@ -357,112 +382,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
       );
     }
   }
-
-  Future<void> _refresh({required _RefreshOrigin origin}) {
-    if (_disposed || !_visible) {
-      return Future<void>.value();
-    }
-    final current = state.value;
-    if (current == null ||
-        (current.isBusy && current.action != PullRequestAction.refresh)) {
-      return Future<void>.value();
-    }
-    final inFlight = _refreshInFlight;
-    if (inFlight != null) {
-      return inFlight;
-    }
-
-    final operation = _performRefresh(current: current, origin: origin);
-    _refreshInFlight = operation;
-    return operation.whenComplete(() {
-      if (identical(_refreshInFlight, operation)) {
-        _refreshInFlight = null;
-      }
-    });
-  }
-
-  Future<void> _performRefresh({
-    required WorkspacePullRequestState current,
-    required _RefreshOrigin origin,
-  }) async {
-    _pollTimer?.cancel();
-    if (origin != _RefreshOrigin.poll) {
-      _resetPollInterval();
-    }
-    state = AsyncData(current.copyWith(action: .refresh, clearError: true));
-
-    try {
-      final reloaded = await _loader.load(scope);
-      if (_disposed) {
-        return;
-      }
-      final failed = reloaded.errorMessage != null;
-      final visibleReload = _applyPendingCommentBodies(reloaded);
-      state = AsyncData(
-        failed
-            ? current.copyWith(
-                clearAction: true,
-                errorMessage: reloaded.errorMessage,
-              )
-            : visibleReload,
-      );
-      if (origin == _RefreshOrigin.poll) {
-        _advancePollInterval(
-          changed:
-              !failed && visibleReload.pollSignature != current.pollSignature,
-        );
-      }
-    } catch (error) {
-      if (!_disposed) {
-        state = AsyncData(
-          current.copyWith(clearAction: true, errorMessage: error.toString()),
-        );
-        if (origin == _RefreshOrigin.poll) {
-          _advancePollInterval(changed: false);
-        }
-      }
-    } finally {
-      _schedulePoll(scope);
-    }
-  }
-
-  void _resetPollInterval() => _pollInterval = _minPollInterval;
-
-  void _advancePollInterval({required bool changed}) {
-    if (changed) {
-      _resetPollInterval();
-      return;
-    }
-    final doubled = _pollInterval * 2;
-    _pollInterval = doubled > _maxPollInterval ? _maxPollInterval : doubled;
-  }
-
-  void _schedulePoll(
-    WorkspacePullRequestScope scope, {
-    WorkspacePullRequestState? snapshot,
-  }) {
-    _pollTimer?.cancel();
-    final current = snapshot ?? state.value;
-    if (_disposed || !_visible || current == null || current.isBusy) {
-      return;
-    }
-    // Missing identity or auth can heal outside the app (the user signs in,
-    // adds a remote); keep polling slowly instead of never retrying.
-    final degraded =
-        current.identity == null ||
-        current.authStatus != ForgeAuthStatus.authenticated;
-    _pollTimer = Timer(degraded ? _maxPollInterval : _pollInterval, () {
-      unawaited(_pollTick(scope));
-    });
-  }
-
-  Future<void> _pollTick(WorkspacePullRequestScope scope) async {
-    _pollTimer = null;
-    await _refresh(origin: .poll);
-  }
 }
-
-enum _RefreshOrigin { manual, poll, resume }
 
 class const _ActionError(final String message) implements Exception;
 

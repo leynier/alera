@@ -1,124 +1,6 @@
 part of 'workspace_service_test.dart';
 
 void _registerWorkspaceServiceCoreTests() {
-  test('workspace root throws when no home directory is available', () {
-    expect(
-      () => WorkspaceRoot(environment: const <String, String>{}).resolve(),
-      throwsA(isA<WorkspaceException>()),
-    );
-  });
-
-  test(
-    'ensureMainWorkspace stores the main checkout as an active workspace',
-    () async {
-      gitBackend.headBranch = 'main';
-
-      final workspace = await service.ensureMainWorkspace(project);
-
-      expect(workspace.projectId, project.id);
-      expect(workspace.name, project.name);
-      expect(workspace.branch, 'main');
-      expect(workspace.path, project.repoPath);
-      expect(workspace.kind, WorkspaceKind.main);
-      expect(workspace.status, WorkspaceStatus.active);
-      expect(repository.workspaces.single, workspace);
-    },
-  );
-
-  test('ensureMainWorkspace stores a folder project without Git', () async {
-    final folderProject = project.copyWith(kind: .folder);
-
-    final workspace = await service.ensureMainWorkspace(folderProject);
-
-    expect(workspace.projectId, folderProject.id);
-    expect(workspace.name, folderProject.name);
-    expect(workspace.branch, isNull);
-    expect(workspace.path, folderProject.repoPath);
-    expect(workspace.kind, WorkspaceKind.main);
-    expect(workspace.status, WorkspaceStatus.active);
-    expect(gitBackend.calls, isEmpty);
-  });
-
-  test('ensureMainWorkspace preserves a custom main workspace name', () async {
-    final existing = Workspace(
-      id: 'workspace-1',
-      projectId: project.id,
-      name: 'Production checkout',
-      branch: 'old-main',
-      path: '/old/path',
-      createdAt: .utc(2026, 5, 19),
-      updatedAt: .utc(2026, 5, 19),
-      kind: .main,
-      status: .active,
-    );
-    await repository.upsertWorkspace(existing);
-    gitBackend.headBranch = 'main';
-
-    final workspace = await service.ensureMainWorkspace(project);
-
-    expect(workspace.name, 'Production checkout');
-    expect(workspace.branch, 'main');
-    expect(workspace.path, project.repoPath);
-  });
-
-  test(
-    'ensureMainWorkspace falls back to HEAD when git cannot resolve a branch',
-    () async {
-      gitBackend.headBranchFails = true;
-
-      final workspace = await service.ensureMainWorkspace(project);
-
-      expect(workspace.branch, 'HEAD');
-    },
-  );
-
-  test('renames a workspace with a trimmed non-empty name', () async {
-    final workspace = Workspace(
-      id: 'workspace-1',
-      projectId: project.id,
-      name: 'Old name',
-      branch: 'main',
-      path: project.repoPath,
-      createdAt: .utc(2026, 5, 19),
-      updatedAt: .utc(2026, 5, 19),
-      kind: .main,
-      status: .active,
-    );
-    await repository.upsertWorkspace(workspace);
-
-    final renamed = await service.renameWorkspace(
-      workspaceId: workspace.id,
-      name: '  New name  ',
-    );
-
-    expect(renamed.name, 'New name');
-    expect(renamed.updatedAt, DateTime.utc(2026, 5, 20, 12));
-    expect(repository.workspaces.single.name, 'New name');
-  });
-
-  test('rejects a blank workspace name when renaming', () async {
-    await expectLater(
-      service.renameWorkspace(workspaceId: 'workspace-1', name: '   '),
-      throwsA(isA<WorkspaceException>()),
-    );
-  });
-
-  test('rejects renaming a workspace that does not exist', () async {
-    await expectLater(
-      service.renameWorkspace(workspaceId: 'missing-workspace', name: 'Main'),
-      throwsA(isA<WorkspaceException>()),
-    );
-  });
-
-  test('listSourceBranches skips folder projects', () async {
-    final branches = await service.listSourceBranches(
-      project.copyWith(kind: .folder),
-    );
-
-    expect(branches, isEmpty);
-    expect(gitBackend.calls, isEmpty);
-  });
-
   test('createLinkedWorkspace creates a new worktree from the requested source branch', () async {
     gitBackend.sourceBranches = <String>['main', 'origin/main'];
 
@@ -416,7 +298,9 @@ void _registerWorkspaceServiceCoreTests() {
     () async {
       gitBackend.headBranch = 'main';
       gitBackend.sourceBranches = <String>['main'];
-      final mainWorkspace = await service.ensureMainWorkspace(project);
+      final mainWorkspace = (await service.createSharedWorkspace(
+        project: project,
+      )).workspace;
       final linkedWorkspace = (await service.createLinkedWorkspace(
         project: project,
         sourceBranch: 'main',
@@ -449,7 +333,9 @@ void _registerWorkspaceServiceCoreTests() {
     () async {
       gitBackend.headBranch = 'main';
       gitBackend.sourceBranches = <String>['main'];
-      final mainWorkspace = await service.ensureMainWorkspace(project);
+      final mainWorkspace = (await service.createSharedWorkspace(
+        project: project,
+      )).workspace;
       final linkedWorkspace = (await service.createLinkedWorkspace(
         project: project,
         sourceBranch: 'main',
@@ -471,7 +357,7 @@ void _registerWorkspaceServiceCoreTests() {
     () async {
       gitBackend.headBranch = 'main';
       gitBackend.sourceBranches = <String>['main'];
-      await service.ensureMainWorkspace(project);
+      (await service.createSharedWorkspace(project: project)).workspace;
       final linkedWorkspace = (await service.createLinkedWorkspace(
         project: project,
         sourceBranch: 'main',
@@ -496,7 +382,7 @@ void _registerWorkspaceServiceCoreTests() {
   test('reconcile skips pruning when the live list does not include the main workspace', () async {
     gitBackend.headBranch = 'main';
     gitBackend.sourceBranches = <String>['main'];
-    await service.ensureMainWorkspace(project);
+    (await service.createSharedWorkspace(project: project)).workspace;
     final linkedWorkspace = (await service.createLinkedWorkspace(
       project: project,
       sourceBranch: 'main',
@@ -515,7 +401,7 @@ void _registerWorkspaceServiceCoreTests() {
   });
 
   test(
-    'reconcile keeps only the primary workspace for folder projects',
+    'reconcile preserves existing records when a project is a folder',
     () async {
       final folderProject = project.copyWith(kind: .folder);
       final linkedWorkspace = Workspace(
@@ -534,13 +420,13 @@ void _registerWorkspaceServiceCoreTests() {
       final workspaces = await service.reconcile(folderProject);
 
       expect(workspaces, hasLength(1));
-      expect(workspaces.single.isMain, isTrue);
-      expect(workspaces.single.branch, isNull);
+      expect(workspaces.single.id, linkedWorkspace.id);
+      expect(workspaces.single.branch, linkedWorkspace.branch);
       expect(
         repository.workspaces.any(
           (workspace) => workspace.id == linkedWorkspace.id,
         ),
-        isFalse,
+        isTrue,
       );
       expect(gitBackend.calls, isEmpty);
     },

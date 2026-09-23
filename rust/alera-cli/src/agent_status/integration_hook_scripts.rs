@@ -45,6 +45,12 @@ fi
 if [ "$ALERA_AGENT_TYPE" = "claude" ] && { [ -z "$CLAUDECODE" ] || [ -n "$GROK_HOOK_EVENT" ]; }; then
   exit 0
 fi
+# Cursor commands live in ~/.cursor/hooks.json, which Grok also scans. The
+# Alera terminal already sets GROK_CURSOR_HOOKS_ENABLED=false; this guard is
+# the same identity split as Claude if that flag is ignored.
+if [ "$ALERA_AGENT_TYPE" = "cursor" ] && [ -n "$GROK_HOOK_EVENT" ]; then
+  exit 0
+fi
 if [ -z "$ALERA_AGENT_HOOK_ENDPOINT" ] && [ -n "$ALERA_RUNTIME_DIR" ]; then
   ALERA_AGENT_HOOK_ENDPOINT="$ALERA_RUNTIME_DIR/agent-hooks/endpoint.env"
 fi
@@ -67,6 +73,7 @@ printf '%s' "$payload" | curl -sS -X POST "http://127.0.0.1:${ALERA_AGENT_HOOK_P
   --data-urlencode "tabId=${ALERA_TAB_ID}" \
   --data-urlencode "hookEventName=${ALERA_AGENT_HOOK_EVENT}" \
   --data-urlencode "version=${ALERA_AGENT_HOOK_VERSION}" \
+  --data-urlencode "claudeConfigDir=${CLAUDE_CONFIG_DIR}" \
   --data-urlencode "payload@-" >/dev/null 2>&1 || true
 exit 0
 "#;
@@ -89,6 +96,9 @@ if /I "%ALERA_AGENT_TYPE%"=="claude" (
   if "%CLAUDECODE%"=="" exit /b 0
   if not "%GROK_HOOK_EVENT%"=="" exit /b 0
 )
+if /I "%ALERA_AGENT_TYPE%"=="cursor" (
+  if not "%GROK_HOOK_EVENT%"=="" exit /b 0
+)
 if not defined ALERA_AGENT_HOOK_ENDPOINT if defined ALERA_RUNTIME_DIR set "ALERA_AGENT_HOOK_ENDPOINT=%ALERA_RUNTIME_DIR%\agent-hooks\endpoint.cmd"
 if defined ALERA_AGENT_HOOK_ENDPOINT if exist "%ALERA_AGENT_HOOK_ENDPOINT%" call "%ALERA_AGENT_HOOK_ENDPOINT%" 2>nul
 if "%ALERA_AGENT_HOOK_PORT%"=="" exit /b 0
@@ -96,7 +106,7 @@ if "%ALERA_AGENT_HOOK_TOKEN%"=="" exit /b 0
 if "%ALERA_TERMINAL_SESSION_ID%"=="" exit /b 0
 if "%ALERA_WORKSPACE_ID%"=="" exit /b 0
 if "%ALERA_TAB_ID%"=="" exit /b 0
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$inputData=[Console]::In.ReadToEnd(); if ([string]::IsNullOrWhiteSpace($inputData)) { $inputData='{}' }; try { $body=@{ terminalSessionId=$env:ALERA_TERMINAL_SESSION_ID; workspaceId=$env:ALERA_WORKSPACE_ID; tabId=$env:ALERA_TAB_ID; hookEventName=$env:ALERA_AGENT_HOOK_EVENT; version=$env:ALERA_AGENT_HOOK_VERSION; payload=($inputData | ConvertFrom-Json) } | ConvertTo-Json -Depth 100 -Compress; Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 -Method Post -Uri ('http://127.0.0.1:' + $env:ALERA_AGENT_HOOK_PORT + '/hook/' + $env:ALERA_AGENT_TYPE) -ContentType 'application/json' -Headers @{ 'X-Alera-Agent-Hook-Token'=$env:ALERA_AGENT_HOOK_TOKEN } -Body $body | Out-Null } catch {}"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$inputData=[Console]::In.ReadToEnd(); if ([string]::IsNullOrWhiteSpace($inputData)) { $inputData='{}' }; try { $body=@{ terminalSessionId=$env:ALERA_TERMINAL_SESSION_ID; workspaceId=$env:ALERA_WORKSPACE_ID; tabId=$env:ALERA_TAB_ID; hookEventName=$env:ALERA_AGENT_HOOK_EVENT; version=$env:ALERA_AGENT_HOOK_VERSION; claudeConfigDir=$env:CLAUDE_CONFIG_DIR; payload=($inputData | ConvertFrom-Json) } | ConvertTo-Json -Depth 100 -Compress; Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 -Method Post -Uri ('http://127.0.0.1:' + $env:ALERA_AGENT_HOOK_PORT + '/hook/' + $env:ALERA_AGENT_TYPE) -ContentType 'application/json' -Headers @{ 'X-Alera-Agent-Hook-Token'=$env:ALERA_AGENT_HOOK_TOKEN } -Body $body | Out-Null } catch {}"
 exit /b 0
 "#;
 
@@ -143,9 +153,25 @@ mod tests {
     }
 
     #[test]
+    fn managed_script_skips_cursor_hooks_during_a_grok_turn() {
+        assert!(POSIX_HOOK_SCRIPT.contains(r#"[ "$ALERA_AGENT_TYPE" = "cursor" ]"#));
+        let cursor_guard = POSIX_HOOK_SCRIPT
+            .find(r#"[ "$ALERA_AGENT_TYPE" = "cursor" ]"#)
+            .expect("cursor guard");
+        let post = POSIX_HOOK_SCRIPT.find("curl").expect("post");
+        assert!(cursor_guard < post);
+    }
+
+    #[test]
     fn managed_script_keeps_hook_payloads_off_the_command_line() {
         assert!(POSIX_HOOK_SCRIPT.contains(r#"--data-urlencode "payload@-""#));
         assert!(!POSIX_HOOK_SCRIPT.contains(r#"payload=${payload}"#));
+    }
+
+    #[test]
+    fn managed_script_forwards_claude_config_dir_for_ccs_resume() {
+        assert!(POSIX_HOOK_SCRIPT
+            .contains(r#"--data-urlencode "claudeConfigDir=${CLAUDE_CONFIG_DIR}""#));
     }
 
     #[cfg(windows)]

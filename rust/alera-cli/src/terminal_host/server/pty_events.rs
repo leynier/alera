@@ -1,13 +1,19 @@
 use super::terminal_startup_commands::auto_closes_on_success;
+#[cfg(test)]
+#[path = "remote_terminal_exit_tests.rs"]
+mod remote_terminal_exit_tests;
 use super::*;
 use crate::terminal_host::session::PtyEvent;
 
 impl ServerActor {
     pub(super) async fn handle_pty_event(&mut self, session_id: String, pty_event: PtyEvent) {
         match pty_event {
+            #[cfg(unix)]
+            PtyEvent::BeforeReap => self.capture_owner_natural_exit(&session_id).await,
             PtyEvent::Output(data) => self.handle_pty_output(session_id, data).await,
             #[cfg(windows)]
             PtyEvent::ChildExited => {
+                self.capture_owner_natural_exit(&session_id).await;
                 if let Some(session) = self.sessions.get_mut(&session_id) {
                     session.close_pty_after_child_exit();
                 }
@@ -209,6 +215,15 @@ impl ServerActor {
                     self.broadcast_terminal_error(&session_id, message);
                 }
             }
+            PtyWriteCompletion::BestEffort => {
+                if let Some(message) = error {
+                    tracing::warn!(
+                        session_id,
+                        error = message,
+                        "ignored a failed best-effort terminal write"
+                    );
+                }
+            }
             PtyWriteCompletion::StartupPaste {
                 session_instance_id,
             } => {
@@ -237,7 +252,10 @@ impl ServerActor {
             .await;
         let keep_failed_spawn =
             keep_failed_spawn && self.make_failed_owned_spawn_inert(&session_id).await;
-        let keep_terminal = keep_failed_setup || keep_failed_spawn;
+        let keep_terminal = keep_failed_setup
+            || keep_failed_spawn
+            || self.is_remote_terminal(&session_id).await
+            || self.is_ssh_owner_terminal(&session_id).await;
         self.flush_all_output(&session_id);
         let broadcast = self.sessions.get_mut(&session_id).and_then(|session| {
             let payload = session.handle_exit(exit_code)?;
@@ -280,6 +298,22 @@ impl ServerActor {
                 tracing::error!("failed to inspect setup terminal {tab_id} after exit: {error}");
                 true
             }
+        }
+    }
+
+    async fn is_remote_terminal(&self, session_id: &str) -> bool {
+        let Some(session) = self.sessions.get(session_id) else {
+            return false;
+        };
+        match self
+            .runtime_store
+            .find_workspace(&session.workspace_id)
+            .await
+        {
+            Ok(Some(workspace)) => workspace.host_id != alera_core::runtime::LOCAL_HOST_ID,
+            Ok(None) => false,
+            // A local SSH exit does not verify the owner runtime's process closure.
+            Err(_) => true,
         }
     }
 
@@ -330,27 +364,6 @@ impl ServerActor {
         session_id: &str,
         reason: &str,
     ) {
-        match self
-            .runtime_store
-            .orphan_agent_canvas_for_session(session_id)
-            .await
-        {
-            Ok(canvases) => {
-                for canvas in canvases {
-                    self.broadcast_agent_canvas_changed(
-                        &canvas.workspace_id,
-                        &canvas.id,
-                        canvas.revision,
-                        "orphaned",
-                    );
-                }
-            }
-            Err(error) => {
-                tracing::warn!(
-                    "failed to orphan Agent Canvas for closed session {session_id}: {error}"
-                );
-            }
-        }
         self.agent_presence.remove(session_id);
         self.forget_push_session(session_id);
         self.orchestration_activity_last_recorded.remove(session_id);

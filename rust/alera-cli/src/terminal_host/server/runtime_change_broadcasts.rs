@@ -26,42 +26,24 @@ impl ServerActor {
         ));
     }
 
+    pub(super) fn broadcast_linked_issues_changed(&self, workspace_id: Option<&str>) {
+        self.broadcast_authenticated(event(
+            "linkedIssuesChanged",
+            scope_payload("workspaceId", workspace_id),
+        ));
+    }
+
+    pub(super) fn broadcast_pull_request_watch_changed(&self, workspace_id: Option<&str>) {
+        self.broadcast_authenticated(event(
+            "pullRequestWatchChanged",
+            scope_payload("workspaceId", workspace_id),
+        ));
+    }
+
     pub(super) fn broadcast_workspaces_changed(&self, project_id: Option<&str>) {
         self.broadcast_authenticated(event(
             "workspacesChanged",
             scope_payload("projectId", project_id),
-        ));
-    }
-
-    pub(super) fn broadcast_mobile_emulator_changed(
-        &self,
-        tab_id: Option<&str>,
-        workspace_id: Option<&str>,
-        reason: &str,
-    ) {
-        let mut payload = scope_payload("workspaceId", workspace_id);
-        if let Some(tab_id) = tab_id.filter(|value| !value.is_empty()) {
-            payload["tabId"] = Value::String(tab_id.to_string());
-        }
-        payload["reason"] = Value::String(reason.to_string());
-        self.broadcast_authenticated(event("mobileEmulatorChanged", payload));
-    }
-
-    pub(super) fn broadcast_agent_canvas_changed(
-        &self,
-        workspace_id: &str,
-        canvas_id: &str,
-        revision: i64,
-        reason: &str,
-    ) {
-        self.broadcast_authenticated(event(
-            "agentCanvasChanged",
-            json!({
-                "workspaceId": workspace_id,
-                "canvasId": canvas_id,
-                "revision": revision,
-                "reason": reason,
-            }),
         ));
     }
 }
@@ -99,20 +81,5 @@ mod tests {
     #[test]
     fn scope_payload_treats_an_empty_id_as_a_wildcard() {
         assert_eq!(scope_payload("projectId", Some("")), json!({}));
-    }
-
-    #[test]
-    fn emulator_change_payload_can_carry_both_scopes() {
-        let mut payload = scope_payload("workspaceId", Some("workspace-1"));
-        payload["tabId"] = serde_json::Value::String("tab-1".into());
-        payload["reason"] = serde_json::Value::String("attached".into());
-        assert_eq!(
-            payload,
-            json!({
-                "workspaceId": "workspace-1",
-                "tabId": "tab-1",
-                "reason": "attached",
-            })
-        );
     }
 }

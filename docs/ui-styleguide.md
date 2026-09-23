@@ -88,6 +88,12 @@ Motion:
 
 ## Surface Model
 
+Desktop workspaces start with a chrome-less primary terminal in the center. Tabs dragged from the right panel land in the center with the same drop zones as pane splits. The tab strip appears when the center has more than one tab and hides again at one. The workspace row mixes with the center agent while only one agent runs there; two or more center agents nest as sibling rows. Right-panel agents stay extra child rows and do not change that count. Settings > Application > Desktop > New Workspace Tools picks which Explorer, Search, Source Control, and Pull Request tabs open, and in what order, for workspaces created after that. Existing workspaces keep their own panel. An empty selection keeps a new panel empty until the user adds a tool.
+
+The right panel is a splitable tab workbench for auxiliary terminals, files, previews, diffs, and Explorer, Search, Source Control, and Pull Request tools. Those tools are tabs in that tree: each exists at most once, can sit beside any other tab, and can be split or dragged like a terminal. Files opened from a tab or tool stay in that panel; Mod+click opens a preview in the other panel (center vs right). The Add Tab menu also offers Terminal and any Agent Profiles marked to appear next to New Terminal. Choosing a profile from that menu opens a prompt dialog first, with dictation, file attachments, and Skip to launch without a prompt. An empty panel offers the same tools and Terminal, plus a single Agents entry. Agents opens the existing profile picker with Agent Profiles only, then the same prompt dialog. Each workspace retains its own pane tree, order, and selection in desktop view preferences. Hiding the panel preserves its tabs and returns terminal focus to the primary.
+
+Requested panel width is stored per workspace, constrained at render time to leave the center minimum available. Pane splits stay in view prefs. Inactive terminal surfaces are unmounted and hold no visibility lease.
+
 - Surface layering should follow `bg` -> `surface` -> `surfaceVariant` -> `surfaceElevated`.
 - Container borders should use `border` or `borderSubtle` based on emphasis.
 - Card-like surfaces should use tokenized radii, typically `radiusLg` or `radiusMd`.
@@ -105,7 +111,7 @@ Motion:
 Icons come from Lucide (`lucide_icons_flutter`), the same family Orca uses and the de-facto standard for modern developer tooling. Reference icons by semantic role through `AleraIcons` (e.g. `AleraIcons.delete`, `AleraIcons.gitBranch`), never raw `Icons.*` or `LucideIcons.*` at call sites.
 
 - `AleraIcons` (`lib/src/design_system/icons/alera_icons.dart`) is the single source of truth and the only entry point to `lucide_icons_flutter`. Add a new semantic role there rather than reaching for a glyph at the call site.
-- File-type icons in the explorer keep using `vscode_material_icon_theme` (the VSCode standard for file trees) via `AleraFileIcon`; its fallbacks resolve through `AleraIcons`.
+- File-type icons in the explorer keep using `vscode_material_icon_theme` (the VSCode standard for file trees) via `AleraFileIcon`; its fallbacks resolve through `AleraIcons`. The mobile app draws the same glyphs in Explorer, Source Control, Search, Quick Open, and the file and diff viewers through its own copy of `AleraFileIcon` (`mobile/lib/src/design_system/icons/alera_file_icon.dart`), pinned to the same package version.
 
 ## Reference Paths
 
@@ -131,7 +137,7 @@ Components are **presentational**: they take data and callbacks as parameters an
 | Surfaces | `AleraPanel`, `AleraCommandLine`, `HoverContainer` |
 | Feedback | `AleraStatusDot`, `AleraStatusIndicator`, `AleraColorSwatch`, `AleraEmptyState`, `AleraToast`, `AleraQrCode` |
 | Forms | `AleraTextField`, `AleraSearchField`, `AleraNumberField`, `AleraSettingRow`, `AleraDropdownField`, `AleraCheckbox` |
-| Layout | `AleraSectionHeader`, `AleraDialog`, `AleraDialogHeader`, `AleraConfirmDialog`, `AleraSettingsGroup`, `AleraMasterDetail` |
+| Layout | `AleraSectionHeader`, `AleraDialog`, `AleraDialogHeader`, `AleraConfirmDialog`, `AleraSettingsGroup`, `AleraMasterDetail`, `AleraHorizontalScrollView` |
 | Menus | `AleraDropdownEntry`, `AleraMenuItem` |
 | Iconography | `AleraIcons`, `AleraFileIcon` |
 

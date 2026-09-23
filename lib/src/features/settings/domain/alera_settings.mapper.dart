@@ -529,12 +529,19 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     opt: true,
     def: 1,
   );
+  static bool _$dragSelectsInTuis(TerminalSettings v) => v.dragSelectsInTuis;
+  static const Field<TerminalSettings, bool> _f$dragSelectsInTuis = Field(
+    'dragSelectsInTuis',
+    _$dragSelectsInTuis,
+    opt: true,
+    def: true,
+  );
   static bool _$clipboardOnSelect(TerminalSettings v) => v.clipboardOnSelect;
   static const Field<TerminalSettings, bool> _f$clipboardOnSelect = Field(
     'clipboardOnSelect',
     _$clipboardOnSelect,
     opt: true,
-    def: false,
+    def: true,
   );
   static bool _$allowOsc52Clipboard(TerminalSettings v) =>
       v.allowOsc52Clipboard;
@@ -627,6 +634,7 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     #colorOverrides: _f$colorOverrides,
     #scrollbackLines: _f$scrollbackLines,
     #tuiScrollSensitivity: _f$tuiScrollSensitivity,
+    #dragSelectsInTuis: _f$dragSelectsInTuis,
     #clipboardOnSelect: _f$clipboardOnSelect,
     #allowOsc52Clipboard: _f$allowOsc52Clipboard,
     #showComposerByDefault: _f$showComposerByDefault,
@@ -659,6 +667,7 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
       colorOverrides: data.dec(_f$colorOverrides),
       scrollbackLines: data.dec(_f$scrollbackLines),
       tuiScrollSensitivity: data.dec(_f$tuiScrollSensitivity),
+      dragSelectsInTuis: data.dec(_f$dragSelectsInTuis),
       clipboardOnSelect: data.dec(_f$clipboardOnSelect),
       allowOsc52Clipboard: data.dec(_f$allowOsc52Clipboard),
       showComposerByDefault: data.dec(_f$showComposerByDefault),
@@ -758,6 +767,7 @@ abstract class TerminalSettingsCopyWith<$R, $In extends TerminalSettings, $Out>
     TerminalColorOverrides? colorOverrides,
     int? scrollbackLines,
     int? tuiScrollSensitivity,
+    bool? dragSelectsInTuis,
     bool? clipboardOnSelect,
     bool? allowOsc52Clipboard,
     bool? showComposerByDefault,
@@ -807,6 +817,7 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
     TerminalColorOverrides? colorOverrides,
     int? scrollbackLines,
     int? tuiScrollSensitivity,
+    bool? dragSelectsInTuis,
     bool? clipboardOnSelect,
     bool? allowOsc52Clipboard,
     bool? showComposerByDefault,
@@ -835,6 +846,7 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
       if (scrollbackLines != null) #scrollbackLines: scrollbackLines,
       if (tuiScrollSensitivity != null)
         #tuiScrollSensitivity: tuiScrollSensitivity,
+      if (dragSelectsInTuis != null) #dragSelectsInTuis: dragSelectsInTuis,
       if (clipboardOnSelect != null) #clipboardOnSelect: clipboardOnSelect,
       if (allowOsc52Clipboard != null)
         #allowOsc52Clipboard: allowOsc52Clipboard,
@@ -877,6 +889,10 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
     tuiScrollSensitivity: data.get(
       #tuiScrollSensitivity,
       or: $value.tuiScrollSensitivity,
+    ),
+    dragSelectsInTuis: data.get(
+      #dragSelectsInTuis,
+      or: $value.dragSelectsInTuis,
     ),
     clipboardOnSelect: data.get(
       #clipboardOnSelect,
@@ -1372,6 +1388,7 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
   static GeneralSettingsMapper ensureInitialized() {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = GeneralSettingsMapper._());
+      PullRequestAgentWatchScopeMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -1437,6 +1454,41 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     opt: true,
     def: true,
   );
+  static bool _$showPullRequestStatusInSidebar(GeneralSettings v) =>
+      v.showPullRequestStatusInSidebar;
+  static const Field<GeneralSettings, bool> _f$showPullRequestStatusInSidebar =
+      Field(
+        'showPullRequestStatusInSidebar',
+        _$showPullRequestStatusInSidebar,
+        opt: true,
+        def: true,
+      );
+  static bool _$pullRequestFailureNotificationsEnabled(GeneralSettings v) =>
+      v.pullRequestFailureNotificationsEnabled;
+  static const Field<GeneralSettings, bool>
+  _f$pullRequestFailureNotificationsEnabled = Field(
+    'pullRequestFailureNotificationsEnabled',
+    _$pullRequestFailureNotificationsEnabled,
+    opt: true,
+    def: false,
+  );
+  static PullRequestAgentWatchScope _$pullRequestAgentWatchScope(
+    GeneralSettings v,
+  ) => v.pullRequestAgentWatchScope;
+  static const Field<GeneralSettings, PullRequestAgentWatchScope>
+  _f$pullRequestAgentWatchScope = Field(
+    'pullRequestAgentWatchScope',
+    _$pullRequestAgentWatchScope,
+    opt: true,
+    def: PullRequestAgentWatchScope.defaults,
+  );
+  static bool _$trayHideNoticeShown(GeneralSettings v) => v.trayHideNoticeShown;
+  static const Field<GeneralSettings, bool> _f$trayHideNoticeShown = Field(
+    'trayHideNoticeShown',
+    _$trayHideNoticeShown,
+    opt: true,
+    def: false,
+  );
 
   @override
   final MappableFields<GeneralSettings> fields = const {
@@ -1448,6 +1500,11 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     #showTrayIcon: _f$showTrayIcon,
     #showDockBadge: _f$showDockBadge,
     #showTrayBadge: _f$showTrayBadge,
+    #showPullRequestStatusInSidebar: _f$showPullRequestStatusInSidebar,
+    #pullRequestFailureNotificationsEnabled:
+        _f$pullRequestFailureNotificationsEnabled,
+    #pullRequestAgentWatchScope: _f$pullRequestAgentWatchScope,
+    #trayHideNoticeShown: _f$trayHideNoticeShown,
   };
 
   static GeneralSettings _instantiate(DecodingData data) {
@@ -1460,6 +1517,14 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
       showTrayIcon: data.dec(_f$showTrayIcon),
       showDockBadge: data.dec(_f$showDockBadge),
       showTrayBadge: data.dec(_f$showTrayBadge),
+      showPullRequestStatusInSidebar: data.dec(
+        _f$showPullRequestStatusInSidebar,
+      ),
+      pullRequestFailureNotificationsEnabled: data.dec(
+        _f$pullRequestFailureNotificationsEnabled,
+      ),
+      pullRequestAgentWatchScope: data.dec(_f$pullRequestAgentWatchScope),
+      trayHideNoticeShown: data.dec(_f$trayHideNoticeShown),
     );
   }
 
@@ -1525,6 +1590,12 @@ extension GeneralSettingsValueCopy<$R, $Out>
 
 abstract class GeneralSettingsCopyWith<$R, $In extends GeneralSettings, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
+  PullRequestAgentWatchScopeCopyWith<
+    $R,
+    PullRequestAgentWatchScope,
+    PullRequestAgentWatchScope
+  >
+  get pullRequestAgentWatchScope;
   $R call({
     String? workspaceDirectory,
     bool? starClicked,
@@ -1534,6 +1605,10 @@ abstract class GeneralSettingsCopyWith<$R, $In extends GeneralSettings, $Out>
     bool? showTrayIcon,
     bool? showDockBadge,
     bool? showTrayBadge,
+    bool? showPullRequestStatusInSidebar,
+    bool? pullRequestFailureNotificationsEnabled,
+    PullRequestAgentWatchScope? pullRequestAgentWatchScope,
+    bool? trayHideNoticeShown,
   });
   GeneralSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -1549,6 +1624,14 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
   late final ClassMapperBase<GeneralSettings> $mapper =
       GeneralSettingsMapper.ensureInitialized();
   @override
+  PullRequestAgentWatchScopeCopyWith<
+    $R,
+    PullRequestAgentWatchScope,
+    PullRequestAgentWatchScope
+  >
+  get pullRequestAgentWatchScope => $value.pullRequestAgentWatchScope.copyWith
+      .$chain((v) => call(pullRequestAgentWatchScope: v));
+  @override
   $R call({
     Object? workspaceDirectory = $none,
     bool? starClicked,
@@ -1558,6 +1641,10 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     bool? showTrayIcon,
     bool? showDockBadge,
     bool? showTrayBadge,
+    bool? showPullRequestStatusInSidebar,
+    bool? pullRequestFailureNotificationsEnabled,
+    PullRequestAgentWatchScope? pullRequestAgentWatchScope,
+    bool? trayHideNoticeShown,
   }) => $apply(
     FieldCopyWithData({
       if (workspaceDirectory != $none) #workspaceDirectory: workspaceDirectory,
@@ -1570,6 +1657,15 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
       if (showTrayIcon != null) #showTrayIcon: showTrayIcon,
       if (showDockBadge != null) #showDockBadge: showDockBadge,
       if (showTrayBadge != null) #showTrayBadge: showTrayBadge,
+      if (showPullRequestStatusInSidebar != null)
+        #showPullRequestStatusInSidebar: showPullRequestStatusInSidebar,
+      if (pullRequestFailureNotificationsEnabled != null)
+        #pullRequestFailureNotificationsEnabled:
+            pullRequestFailureNotificationsEnabled,
+      if (pullRequestAgentWatchScope != null)
+        #pullRequestAgentWatchScope: pullRequestAgentWatchScope,
+      if (trayHideNoticeShown != null)
+        #trayHideNoticeShown: trayHideNoticeShown,
     }),
   );
   @override
@@ -1591,6 +1687,22 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     showTrayIcon: data.get(#showTrayIcon, or: $value.showTrayIcon),
     showDockBadge: data.get(#showDockBadge, or: $value.showDockBadge),
     showTrayBadge: data.get(#showTrayBadge, or: $value.showTrayBadge),
+    showPullRequestStatusInSidebar: data.get(
+      #showPullRequestStatusInSidebar,
+      or: $value.showPullRequestStatusInSidebar,
+    ),
+    pullRequestFailureNotificationsEnabled: data.get(
+      #pullRequestFailureNotificationsEnabled,
+      or: $value.pullRequestFailureNotificationsEnabled,
+    ),
+    pullRequestAgentWatchScope: data.get(
+      #pullRequestAgentWatchScope,
+      or: $value.pullRequestAgentWatchScope,
+    ),
+    trayHideNoticeShown: data.get(
+      #trayHideNoticeShown,
+      or: $value.trayHideNoticeShown,
+    ),
   );
 
   @override
@@ -1651,6 +1763,14 @@ class AgentSettingsMapper extends ClassMapperBase<AgentSettings> {
         opt: true,
         def: false,
       );
+  static bool _$showTabTitlesInSidebar(AgentSettings v) =>
+      v.showTabTitlesInSidebar;
+  static const Field<AgentSettings, bool> _f$showTabTitlesInSidebar = Field(
+    'showTabTitlesInSidebar',
+    _$showTabTitlesInSidebar,
+    opt: true,
+    def: false,
+  );
   static String? _$defaultAgentProfileId(AgentSettings v) =>
       v.defaultAgentProfileId;
   static const Field<AgentSettings, String> _f$defaultAgentProfileId = Field(
@@ -1673,6 +1793,7 @@ class AgentSettingsMapper extends ClassMapperBase<AgentSettings> {
     #agentStatusFinishedNotificationsEnabled:
         _f$agentStatusFinishedNotificationsEnabled,
     #keepComputerAwakeWhileAgentsWork: _f$keepComputerAwakeWhileAgentsWork,
+    #showTabTitlesInSidebar: _f$showTabTitlesInSidebar,
     #defaultAgentProfileId: _f$defaultAgentProfileId,
     #quotas: _f$quotas,
   };
@@ -1689,6 +1810,7 @@ class AgentSettingsMapper extends ClassMapperBase<AgentSettings> {
       keepComputerAwakeWhileAgentsWork: data.dec(
         _f$keepComputerAwakeWhileAgentsWork,
       ),
+      showTabTitlesInSidebar: data.dec(_f$showTabTitlesInSidebar),
       defaultAgentProfileId: data.dec(_f$defaultAgentProfileId),
       quotas: data.dec(_f$quotas),
     );
@@ -1769,6 +1891,7 @@ abstract class AgentSettingsCopyWith<$R, $In extends AgentSettings, $Out>
     bool? agentStatusNotificationsEnabled,
     bool? agentStatusFinishedNotificationsEnabled,
     bool? keepComputerAwakeWhileAgentsWork,
+    bool? showTabTitlesInSidebar,
     String? defaultAgentProfileId,
     AgentQuotaSettings? quotas,
   });
@@ -1800,6 +1923,7 @@ class _AgentSettingsCopyWithImpl<$R, $Out>
     bool? agentStatusNotificationsEnabled,
     bool? agentStatusFinishedNotificationsEnabled,
     bool? keepComputerAwakeWhileAgentsWork,
+    bool? showTabTitlesInSidebar,
     Object? defaultAgentProfileId = $none,
     AgentQuotaSettings? quotas,
   }) => $apply(
@@ -1812,6 +1936,8 @@ class _AgentSettingsCopyWithImpl<$R, $Out>
             agentStatusFinishedNotificationsEnabled,
       if (keepComputerAwakeWhileAgentsWork != null)
         #keepComputerAwakeWhileAgentsWork: keepComputerAwakeWhileAgentsWork,
+      if (showTabTitlesInSidebar != null)
+        #showTabTitlesInSidebar: showTabTitlesInSidebar,
       if (defaultAgentProfileId != $none)
         #defaultAgentProfileId: defaultAgentProfileId,
       if (quotas != null) #quotas: quotas,
@@ -1831,6 +1957,10 @@ class _AgentSettingsCopyWithImpl<$R, $Out>
     keepComputerAwakeWhileAgentsWork: data.get(
       #keepComputerAwakeWhileAgentsWork,
       or: $value.keepComputerAwakeWhileAgentsWork,
+    ),
+    showTabTitlesInSidebar: data.get(
+      #showTabTitlesInSidebar,
+      or: $value.showTabTitlesInSidebar,
     ),
     defaultAgentProfileId: data.get(
       #defaultAgentProfileId,
@@ -2039,15 +2169,6 @@ class AgentQuotaHostSettingsMapper
         opt: true,
         def: true,
       );
-  static bool _$claudeDefaultShowInUsage(AgentQuotaHostSettings v) =>
-      v.claudeDefaultShowInUsage;
-  static const Field<AgentQuotaHostSettings, bool> _f$claudeDefaultShowInUsage =
-      Field(
-        'claudeDefaultShowInUsage',
-        _$claudeDefaultShowInUsage,
-        opt: true,
-        def: true,
-      );
   static List<ClaudeQuotaProfileSettings> _$claudeProfiles(
     AgentQuotaHostSettings v,
   ) => v.claudeProfiles;
@@ -2091,7 +2212,6 @@ class AgentQuotaHostSettingsMapper
   final MappableFields<AgentQuotaHostSettings> fields = const {
     #enabledProviders: _f$enabledProviders,
     #claudeDefaultEnabled: _f$claudeDefaultEnabled,
-    #claudeDefaultShowInUsage: _f$claudeDefaultShowInUsage,
     #claudeProfiles: _f$claudeProfiles,
     #selectedClaudeProfile: _f$selectedClaudeProfile,
     #environment: _f$environment,
@@ -2102,7 +2222,6 @@ class AgentQuotaHostSettingsMapper
     return AgentQuotaHostSettings(
       enabledProviders: data.dec(_f$enabledProviders),
       claudeDefaultEnabled: data.dec(_f$claudeDefaultEnabled),
-      claudeDefaultShowInUsage: data.dec(_f$claudeDefaultShowInUsage),
       claudeProfiles: data.dec(_f$claudeProfiles),
       selectedClaudeProfile: data.dec(_f$selectedClaudeProfile),
       environment: data.dec(_f$environment),
@@ -2207,7 +2326,6 @@ abstract class AgentQuotaHostSettingsCopyWith<
   $R call({
     List<AgentQuotaProviderId>? enabledProviders,
     bool? claudeDefaultEnabled,
-    bool? claudeDefaultShowInUsage,
     List<ClaudeQuotaProfileSettings>? claudeProfiles,
     String? selectedClaudeProfile,
     AgentQuotaEnvironmentSettings? environment,
@@ -2272,7 +2390,6 @@ class _AgentQuotaHostSettingsCopyWithImpl<$R, $Out>
   $R call({
     List<AgentQuotaProviderId>? enabledProviders,
     bool? claudeDefaultEnabled,
-    bool? claudeDefaultShowInUsage,
     List<ClaudeQuotaProfileSettings>? claudeProfiles,
     String? selectedClaudeProfile,
     AgentQuotaEnvironmentSettings? environment,
@@ -2282,8 +2399,6 @@ class _AgentQuotaHostSettingsCopyWithImpl<$R, $Out>
       if (enabledProviders != null) #enabledProviders: enabledProviders,
       if (claudeDefaultEnabled != null)
         #claudeDefaultEnabled: claudeDefaultEnabled,
-      if (claudeDefaultShowInUsage != null)
-        #claudeDefaultShowInUsage: claudeDefaultShowInUsage,
       if (claudeProfiles != null) #claudeProfiles: claudeProfiles,
       if (selectedClaudeProfile != null)
         #selectedClaudeProfile: selectedClaudeProfile,
@@ -2297,10 +2412,6 @@ class _AgentQuotaHostSettingsCopyWithImpl<$R, $Out>
     claudeDefaultEnabled: data.get(
       #claudeDefaultEnabled,
       or: $value.claudeDefaultEnabled,
-    ),
-    claudeDefaultShowInUsage: data.get(
-      #claudeDefaultShowInUsage,
-      or: $value.claudeDefaultShowInUsage,
     ),
     claudeProfiles: data.get(#claudeProfiles, or: $value.claudeProfiles),
     selectedClaudeProfile: data.get(
@@ -2347,32 +2458,17 @@ class ClaudeQuotaProfileSettingsMapper
     'profile',
     _$profile,
   );
-  static bool _$showInUsage(ClaudeQuotaProfileSettings v) => v.showInUsage;
-  static const Field<ClaudeQuotaProfileSettings, bool> _f$showInUsage = Field(
-    'showInUsage',
-    _$showInUsage,
-    opt: true,
-    def: true,
-  );
-  static String? _$usageDisplayName(ClaudeQuotaProfileSettings v) =>
-      v.usageDisplayName;
-  static const Field<ClaudeQuotaProfileSettings, String> _f$usageDisplayName =
-      Field('usageDisplayName', _$usageDisplayName, opt: true);
 
   @override
   final MappableFields<ClaudeQuotaProfileSettings> fields = const {
     #alias: _f$alias,
     #profile: _f$profile,
-    #showInUsage: _f$showInUsage,
-    #usageDisplayName: _f$usageDisplayName,
   };
 
   static ClaudeQuotaProfileSettings _instantiate(DecodingData data) {
     return ClaudeQuotaProfileSettings(
       alias: data.dec(_f$alias),
       profile: data.dec(_f$profile),
-      showInUsage: data.dec(_f$showInUsage),
-      usageDisplayName: data.dec(_f$usageDisplayName),
     );
   }
 
@@ -2450,12 +2546,7 @@ abstract class ClaudeQuotaProfileSettingsCopyWith<
   $Out
 >
     implements ClassCopyWith<$R, $In, $Out> {
-  $R call({
-    String? alias,
-    String? profile,
-    bool? showInUsage,
-    String? usageDisplayName,
-  });
+  $R call({String? alias, String? profile});
   ClaudeQuotaProfileSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
   );
@@ -2475,17 +2566,10 @@ class _ClaudeQuotaProfileSettingsCopyWithImpl<$R, $Out>
   late final ClassMapperBase<ClaudeQuotaProfileSettings> $mapper =
       ClaudeQuotaProfileSettingsMapper.ensureInitialized();
   @override
-  $R call({
-    String? alias,
-    String? profile,
-    bool? showInUsage,
-    Object? usageDisplayName = $none,
-  }) => $apply(
+  $R call({String? alias, String? profile}) => $apply(
     FieldCopyWithData({
       if (alias != null) #alias: alias,
       if (profile != null) #profile: profile,
-      if (showInUsage != null) #showInUsage: showInUsage,
-      if (usageDisplayName != $none) #usageDisplayName: usageDisplayName,
     }),
   );
   @override
@@ -2493,11 +2577,6 @@ class _ClaudeQuotaProfileSettingsCopyWithImpl<$R, $Out>
       ClaudeQuotaProfileSettings(
         alias: data.get(#alias, or: $value.alias),
         profile: data.get(#profile, or: $value.profile),
-        showInUsage: data.get(#showInUsage, or: $value.showInUsage),
-        usageDisplayName: data.get(
-          #usageDisplayName,
-          or: $value.usageDisplayName,
-        ),
       );
 
   @override
@@ -2872,7 +2951,6 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
       TextActionsSettingsMapper.ensureInitialized();
       EditorSettingsMapper.ensureInitialized();
       DiagnosticsSettingsMapper.ensureInitialized();
-      CodexChatSettingsMapper.ensureInitialized();
       TerminalSettingsMapper.ensureInitialized();
       KeyboardShortcutSettingsMapper.ensureInitialized();
     }
@@ -2930,13 +3008,6 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
     opt: true,
     def: DiagnosticsSettings.defaults,
   );
-  static CodexChatSettings _$codexChat(AleraSettings v) => v.codexChat;
-  static const Field<AleraSettings, CodexChatSettings> _f$codexChat = Field(
-    'codexChat',
-    _$codexChat,
-    opt: true,
-    def: CodexChatSettings.defaults,
-  );
   static TerminalSettings _$terminal(AleraSettings v) => v.terminal;
   static const Field<AleraSettings, TerminalSettings> _f$terminal = Field(
     'terminal',
@@ -2955,7 +3026,6 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
     #textActions: _f$textActions,
     #editor: _f$editor,
     #diagnostics: _f$diagnostics,
-    #codexChat: _f$codexChat,
     #terminal: _f$terminal,
     #keyboard: _f$keyboard,
   };
@@ -2971,7 +3041,6 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
       textActions: data.dec(_f$textActions),
       editor: data.dec(_f$editor),
       diagnostics: data.dec(_f$diagnostics),
-      codexChat: data.dec(_f$codexChat),
       terminal: data.dec(_f$terminal),
       keyboard: data.dec(_f$keyboard),
     );
@@ -3049,8 +3118,6 @@ abstract class AleraSettingsCopyWith<$R, $In extends AleraSettings, $Out>
   EditorSettingsCopyWith<$R, EditorSettings, EditorSettings> get editor;
   DiagnosticsSettingsCopyWith<$R, DiagnosticsSettings, DiagnosticsSettings>
   get diagnostics;
-  CodexChatSettingsCopyWith<$R, CodexChatSettings, CodexChatSettings>
-  get codexChat;
   TerminalSettingsCopyWith<$R, TerminalSettings, TerminalSettings> get terminal;
   KeyboardShortcutSettingsCopyWith<
     $R,
@@ -3066,7 +3133,6 @@ abstract class AleraSettingsCopyWith<$R, $In extends AleraSettings, $Out>
     TextActionsSettings? textActions,
     EditorSettings? editor,
     DiagnosticsSettings? diagnostics,
-    CodexChatSettings? codexChat,
     TerminalSettings? terminal,
     KeyboardShortcutSettings? keyboard,
   });
@@ -3106,9 +3172,6 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   get diagnostics =>
       $value.diagnostics.copyWith.$chain((v) => call(diagnostics: v));
   @override
-  CodexChatSettingsCopyWith<$R, CodexChatSettings, CodexChatSettings>
-  get codexChat => $value.codexChat.copyWith.$chain((v) => call(codexChat: v));
-  @override
   TerminalSettingsCopyWith<$R, TerminalSettings, TerminalSettings>
   get terminal => $value.terminal.copyWith.$chain((v) => call(terminal: v));
   @override
@@ -3127,7 +3190,6 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
     TextActionsSettings? textActions,
     EditorSettings? editor,
     DiagnosticsSettings? diagnostics,
-    CodexChatSettings? codexChat,
     TerminalSettings? terminal,
     KeyboardShortcutSettings? keyboard,
   }) => $apply(
@@ -3139,7 +3201,6 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
       if (textActions != null) #textActions: textActions,
       if (editor != null) #editor: editor,
       if (diagnostics != null) #diagnostics: diagnostics,
-      if (codexChat != null) #codexChat: codexChat,
       if (terminal != null) #terminal: terminal,
       if (keyboard != null) #keyboard: keyboard,
     }),
@@ -3153,7 +3214,6 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
     textActions: data.get(#textActions, or: $value.textActions),
     editor: data.get(#editor, or: $value.editor),
     diagnostics: data.get(#diagnostics, or: $value.diagnostics),
-    codexChat: data.get(#codexChat, or: $value.codexChat),
     terminal: data.get(#terminal, or: $value.terminal),
     keyboard: data.get(#keyboard, or: $value.keyboard),
   );
@@ -3162,194 +3222,4 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   AleraSettingsCopyWith<$R2, AleraSettings, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
   ) => _AleraSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
-}
-
-class CodexChatSettingsMapper extends ClassMapperBase<CodexChatSettings> {
-  CodexChatSettingsMapper._();
-
-  static CodexChatSettingsMapper? _instance;
-  static CodexChatSettingsMapper ensureInitialized() {
-    if (_instance == null) {
-      MapperContainer.globals.use(_instance = CodexChatSettingsMapper._());
-    }
-    return _instance!;
-  }
-
-  @override
-  final String id = 'CodexChatSettings';
-
-  static String? _$selectedModel(CodexChatSettings v) => v.selectedModel;
-  static const Field<CodexChatSettings, String> _f$selectedModel = Field(
-    'selectedModel',
-    _$selectedModel,
-    opt: true,
-  );
-  static String _$reasoningEffort(CodexChatSettings v) => v.reasoningEffort;
-  static const Field<CodexChatSettings, String> _f$reasoningEffort = Field(
-    'reasoningEffort',
-    _$reasoningEffort,
-    opt: true,
-    def: 'medium',
-  );
-  static String _$speedMode(CodexChatSettings v) => v.speedMode;
-  static const Field<CodexChatSettings, String> _f$speedMode = Field(
-    'speedMode',
-    _$speedMode,
-    opt: true,
-    def: 'normal',
-  );
-  static String _$permissionMode(CodexChatSettings v) => v.permissionMode;
-  static const Field<CodexChatSettings, String> _f$permissionMode = Field(
-    'permissionMode',
-    _$permissionMode,
-    opt: true,
-    def: 'on-request',
-  );
-  static bool _$planMode(CodexChatSettings v) => v.planMode;
-  static const Field<CodexChatSettings, bool> _f$planMode = Field(
-    'planMode',
-    _$planMode,
-    opt: true,
-    def: false,
-  );
-
-  @override
-  final MappableFields<CodexChatSettings> fields = const {
-    #selectedModel: _f$selectedModel,
-    #reasoningEffort: _f$reasoningEffort,
-    #speedMode: _f$speedMode,
-    #permissionMode: _f$permissionMode,
-    #planMode: _f$planMode,
-  };
-
-  static CodexChatSettings _instantiate(DecodingData data) {
-    return CodexChatSettings(
-      selectedModel: data.dec(_f$selectedModel),
-      reasoningEffort: data.dec(_f$reasoningEffort),
-      speedMode: data.dec(_f$speedMode),
-      permissionMode: data.dec(_f$permissionMode),
-      planMode: data.dec(_f$planMode),
-    );
-  }
-
-  @override
-  final Function instantiate = _instantiate;
-
-  static CodexChatSettings fromMap(Map<String, dynamic> map) {
-    return ensureInitialized().decodeMap<CodexChatSettings>(map);
-  }
-
-  static CodexChatSettings fromJson(String json) {
-    return ensureInitialized().decodeJson<CodexChatSettings>(json);
-  }
-}
-
-mixin CodexChatSettingsMappable {
-  String toJson() {
-    return CodexChatSettingsMapper.ensureInitialized()
-        .encodeJson<CodexChatSettings>(this as CodexChatSettings);
-  }
-
-  Map<String, dynamic> toMap() {
-    return CodexChatSettingsMapper.ensureInitialized()
-        .encodeMap<CodexChatSettings>(this as CodexChatSettings);
-  }
-
-  CodexChatSettingsCopyWith<
-    CodexChatSettings,
-    CodexChatSettings,
-    CodexChatSettings
-  >
-  get copyWith =>
-      _CodexChatSettingsCopyWithImpl<CodexChatSettings, CodexChatSettings>(
-        this as CodexChatSettings,
-        $identity,
-        $identity,
-      );
-  @override
-  String toString() {
-    return CodexChatSettingsMapper.ensureInitialized().stringifyValue(
-      this as CodexChatSettings,
-    );
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return CodexChatSettingsMapper.ensureInitialized().equalsValue(
-      this as CodexChatSettings,
-      other,
-    );
-  }
-
-  @override
-  int get hashCode {
-    return CodexChatSettingsMapper.ensureInitialized().hashValue(
-      this as CodexChatSettings,
-    );
-  }
-}
-
-extension CodexChatSettingsValueCopy<$R, $Out>
-    on ObjectCopyWith<$R, CodexChatSettings, $Out> {
-  CodexChatSettingsCopyWith<$R, CodexChatSettings, $Out>
-  get $asCodexChatSettings => $base.as(
-    (v, t, t2) => _CodexChatSettingsCopyWithImpl<$R, $Out>(v, t, t2),
-  );
-}
-
-abstract class CodexChatSettingsCopyWith<
-  $R,
-  $In extends CodexChatSettings,
-  $Out
->
-    implements ClassCopyWith<$R, $In, $Out> {
-  $R call({
-    String? selectedModel,
-    String? reasoningEffort,
-    String? speedMode,
-    String? permissionMode,
-    bool? planMode,
-  });
-  CodexChatSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
-    Then<$Out2, $R2> t,
-  );
-}
-
-class _CodexChatSettingsCopyWithImpl<$R, $Out>
-    extends ClassCopyWithBase<$R, CodexChatSettings, $Out>
-    implements CodexChatSettingsCopyWith<$R, CodexChatSettings, $Out> {
-  _CodexChatSettingsCopyWithImpl(super.value, super.then, super.then2);
-
-  @override
-  late final ClassMapperBase<CodexChatSettings> $mapper =
-      CodexChatSettingsMapper.ensureInitialized();
-  @override
-  $R call({
-    Object? selectedModel = $none,
-    String? reasoningEffort,
-    String? speedMode,
-    String? permissionMode,
-    bool? planMode,
-  }) => $apply(
-    FieldCopyWithData({
-      if (selectedModel != $none) #selectedModel: selectedModel,
-      if (reasoningEffort != null) #reasoningEffort: reasoningEffort,
-      if (speedMode != null) #speedMode: speedMode,
-      if (permissionMode != null) #permissionMode: permissionMode,
-      if (planMode != null) #planMode: planMode,
-    }),
-  );
-  @override
-  CodexChatSettings $make(CopyWithData data) => CodexChatSettings(
-    selectedModel: data.get(#selectedModel, or: $value.selectedModel),
-    reasoningEffort: data.get(#reasoningEffort, or: $value.reasoningEffort),
-    speedMode: data.get(#speedMode, or: $value.speedMode),
-    permissionMode: data.get(#permissionMode, or: $value.permissionMode),
-    planMode: data.get(#planMode, or: $value.planMode),
-  );
-
-  @override
-  CodexChatSettingsCopyWith<$R2, CodexChatSettings, $Out2> $chain<$R2, $Out2>(
-    Then<$Out2, $R2> t,
-  ) => _CodexChatSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }

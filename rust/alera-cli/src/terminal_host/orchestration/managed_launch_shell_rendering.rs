@@ -8,11 +8,16 @@ use super::managed_agent_launch::ManagedAgentLaunch;
 
 pub fn render_managed_launch(launch: &ManagedAgentLaunch, shell: &str) -> String {
     let family = shell_family(shell);
-    std::iter::once(launch.executable.as_str())
+    let line = std::iter::once(launch.executable.as_str())
         .chain(launch.arguments.iter().map(String::as_str))
         .map(|value| quote_argument(value, family))
         .collect::<Vec<_>>()
-        .join(" ")
+        .join(" ");
+    if family == ShellFamily::PowerShell {
+        format!("& {line}")
+    } else {
+        line
+    }
 }
 
 pub fn managed_launch_preview(launch: &ManagedAgentLaunch) -> String {

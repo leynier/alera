@@ -16,6 +16,16 @@ impl ServerActor {
         definition: &AutomationDefinition,
     ) -> Result<AutomationTargetIdentity, String> {
         match &definition.target {
+            AutomationTarget::ProjectCheckout {
+                agent_profile_id, ..
+            } => Ok(AutomationTargetIdentity {
+                workspace_id: None,
+                tab_id: None,
+                session_id: None,
+                profile_id: Some(agent_profile_id.clone()),
+                conversation_id: None,
+                terminal_handle: None,
+            }),
             AutomationTarget::ExistingTab {
                 workspace_id,
                 tab_id,
@@ -135,15 +145,12 @@ impl ServerActor {
                 Some(reason.to_string()),
             )
             .await;
-        let _ = self
-            .runtime_store
-            .set_automation_state(
-                &run.automation_id,
-                AutomationState::Blocked,
-                managed_actor(),
-                Some(reason),
-            )
-            .await;
+        self.block_automation_definition_if_active(
+            &run.automation_id,
+            managed_actor(),
+            Some(reason),
+        )
+        .await;
         self.broadcast_authenticated(crate::terminal_host::protocol::event(
             "automationAttentionRequired",
             json!({ "automationId": run.automation_id, "runId": run.id, "reason": reason }),
@@ -209,24 +216,12 @@ impl ServerActor {
                     .unwrap_or_default()
                     >= definition.circuit_failure_threshold
                 {
-                    let _ = self
-                        .runtime_store
-                        .set_automation_circuit_opened(
-                            &run.automation_id,
-                            true,
-                            managed_actor(),
-                            Some("automation circuit breaker opened"),
-                        )
-                        .await;
-                    let _ = self
-                        .runtime_store
-                        .set_automation_state(
-                            &run.automation_id,
-                            AutomationState::Blocked,
-                            managed_actor(),
-                            Some("automation circuit breaker opened"),
-                        )
-                        .await;
+                    self.open_automation_circuit(
+                        &run.automation_id,
+                        managed_actor(),
+                        "automation circuit breaker opened",
+                    )
+                    .await;
                 }
             }
         }
@@ -252,6 +247,17 @@ impl ServerActor {
             Err(_) => return,
         };
         for run in runs {
+            // A precheck reserves its run before any dispatch attempt starts.
+            // Its completion owns finalization while the command is in flight.
+            if self.automation_precheck_jobs.contains(&run.id) {
+                continue;
+            }
+            if self.resume_remote_automation_precheck(&run).await {
+                continue;
+            }
+            if self.retain_unverified_precheck(&run).await {
+                continue;
+            }
             if run.cancel_requested_at.is_some() && run.started_at.is_none() {
                 let _ = self
                     .runtime_store
@@ -261,6 +267,9 @@ impl ServerActor {
                         Some("automation cancellation requested before dispatch".to_string()),
                     )
                     .await;
+                continue;
+            }
+            if self.recover_interrupted_automation_precheck(&run).await {
                 continue;
             }
             let Some(started) = run.started_at else {
@@ -287,14 +296,7 @@ impl ServerActor {
                 } else {
                     AutomationRunStatus::Timeout
                 };
-                if cancellation_expired && run.owned_tab && !run.taken_over {
-                    if let Some(tab_id) = &run.tab_id {
-                        self.terminate_sessions_for_tab(tab_id).await;
-                    }
-                    if let Some(tab_id) = &run.setup_tab_id {
-                        self.terminate_sessions_for_tab(tab_id).await;
-                    }
-                }
+                self.terminate_owned_automation_sessions(&run).await;
                 let _ = self
                     .runtime_store
                     .update_automation_run_status(
@@ -335,26 +337,62 @@ impl ServerActor {
                         .unwrap_or_default()
                         >= definition.circuit_failure_threshold
                 {
-                    let _ = self
-                        .runtime_store
-                        .set_automation_circuit_opened(
-                            &run.automation_id,
-                            true,
-                            managed_actor(),
-                            Some("automation circuit breaker opened after timeout"),
-                        )
-                        .await;
-                    let _ = self
-                        .runtime_store
-                        .set_automation_state(
-                            &run.automation_id,
-                            AutomationState::Blocked,
-                            managed_actor(),
-                            Some("automation circuit breaker opened"),
-                        )
-                        .await;
+                    self.open_automation_circuit(
+                        &run.automation_id,
+                        managed_actor(),
+                        "automation circuit breaker opened after timeout",
+                    )
+                    .await;
                 }
             }
+        }
+    }
+
+    pub(in crate::terminal_host::server) async fn open_automation_circuit(
+        &mut self,
+        automation_id: &str,
+        actor: alera_core::runtime::AutomationActor,
+        reason: &str,
+    ) {
+        if let Err(error) = self
+            .runtime_store
+            .open_automation_circuit(automation_id, actor, Some(reason))
+            .await
+        {
+            tracing::warn!(automation_id, "could not open automation circuit: {error}");
+            return;
+        }
+        self.automations_active = true;
+        self.automation_wake.notify_one();
+    }
+
+    pub(in crate::terminal_host::server) async fn block_automation_definition_if_active(
+        &mut self,
+        automation_id: &str,
+        actor: alera_core::runtime::AutomationActor,
+        reason: Option<&str>,
+    ) {
+        let Ok(Some(definition)) = self.runtime_store.find_automation(automation_id).await else {
+            return;
+        };
+        if definition.state != AutomationState::Active {
+            return;
+        }
+        let _ = self
+            .runtime_store
+            .set_automation_state(automation_id, AutomationState::Blocked, actor, reason)
+            .await;
+    }
+
+    async fn terminate_owned_automation_sessions(&mut self, run: &AutomationRun) {
+        if !run.owned_tab || run.taken_over {
+            return;
+        }
+        if let Some(tab_id) = &run.tab_id {
+            self.terminate_sessions_for_tab(tab_id).await;
+        }
+        if let Some(tab_id) = &run.setup_tab_id {
+            self.terminate_sessions_for_tab(tab_id).await;
         }
     }
 }
@@ -366,6 +404,7 @@ pub(super) fn is_non_retryable_dispatch_error(error: &HostError) -> bool {
 pub(super) fn is_non_retryable_reason(reason: &str) -> bool {
     let message = reason.to_ascii_lowercase();
     message.starts_with("automation existing tab ")
+        || message.starts_with("runtime restarted during automation precheck;")
         || message.contains("conversation continuity")
         || message.contains("conversation identity")
         || message.contains("interactive authentication")
@@ -374,6 +413,14 @@ pub(super) fn is_non_retryable_reason(reason: &str) -> bool {
         || message.contains("ssh authentication")
         || message.contains("ssh target is missing")
 }
+
+#[cfg(test)]
+#[path = "automation_run_lifecycle_tests.rs"]
+mod expire_tests;
+
+#[cfg(test)]
+#[path = "automation_circuit_tests.rs"]
+mod circuit_tests;
 
 #[cfg(test)]
 mod tests {

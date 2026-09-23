@@ -32,4 +32,4 @@ The primary workspace points at the project path itself. Use it for the default 
 
 Non-Git projects cannot create linked workspaces. They still get terminals, agents, and persistence; they just share one tree.
 
-SSH worktrees (run the same model on a remote machine) are on the roadmap. They are not part of the current workbench.
+SSH worktrees (run the same model on a remote machine) are on the roadmap. They are not part of the current workbench. **Settings → Remote Hosts** and `alera ssh-target bootstrap` install a runtime sidecar only. `alera workspace register --host-id` is metadata only and does not create a remote worktree.

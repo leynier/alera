@@ -83,10 +83,15 @@ class MobileRuntimeAutomationRepository(final MobileRuntimeClient _client) {
   }
 
   Future<void> approve(String id, int revision) async {
-    await _client.request('automation.approve', <String, Object?>{
-      'id': id,
-      'revision': revision,
-    });
+    try {
+      await _client.request('automation.approve', <String, Object?>{
+        'id': id,
+        'revision': revision,
+      });
+    } on Object catch (error, stackTrace) {
+      _logger.warning('could not approve automation $id', error, stackTrace);
+      rethrow;
+    }
   }
 
   Future<void> cancel(String runId, Map<String, Object?> targetIdentity) async {

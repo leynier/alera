@@ -32,9 +32,6 @@ int compareWorkspaceParentSelectionKeys(
     return projectIdOrder;
   }
 
-  if (left.isDefault != right.isDefault) {
-    return left.isDefault ? -1 : 1;
-  }
   final normalizedWorkspaceOrder = left.workspaceName.toLowerCase().compareTo(
     right.workspaceName.toLowerCase(),
   );

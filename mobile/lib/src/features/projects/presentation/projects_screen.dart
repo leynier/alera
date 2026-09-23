@@ -6,6 +6,7 @@ import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart'
 import 'package:alera_mobile/src/features/projects/application/projects_controller.dart';
 import 'package:alera_mobile/src/features/projects/domain/project_management_models.dart';
 import 'package:alera_mobile/src/features/projects/presentation/project_creation_dialogs.dart';
+import 'package:alera_mobile/src/features/projects/presentation/project_removal_dialog.dart';
 import 'package:alera_mobile/src/features/projects/presentation/project_setup_screen.dart';
 import 'package:alera_mobile/src/features/projects/presentation/remote_directory_picker_screen.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
@@ -139,12 +140,13 @@ class const ProjectsScreen({super.key, required final PairedHostProfile host})
           final result = await ref
               .read(projectsControllerProvider(host.id).notifier)
               .registerProject(path: path, name: name);
-          if (context.mounted) {
+          final initialWorkspace = result.initialWorkspace;
+          if (context.mounted && initialWorkspace != null) {
             await Navigator.of(context).push<void>(
               MaterialPageRoute<void>(
                 builder: (_) => WorkspaceTabsScreen(
                   hostId: host.id,
-                  workspace: result.mainWorkspace,
+                  workspace: initialWorkspace,
                 ),
               ),
             );
@@ -214,7 +216,11 @@ class const ProjectsScreen({super.key, required final PairedHostProfile host})
           } on Object {
             // Older runtimes retain the safe confirmation behavior.
           }
-          if (!confirmRemoval) {
+          final dependencies = await ref
+              .read(projectsControllerProvider(host.id).notifier)
+              .removalDependencies(project.id);
+          if (!context.mounted) return;
+          if (!confirmRemoval && dependencies.isEmpty) {
             await ref
                 .read(projectsControllerProvider(host.id).notifier)
                 .removeProject(project.id);
@@ -224,33 +230,16 @@ class const ProjectsScreen({super.key, required final PairedHostProfile host})
               .read(projectsControllerProvider(host.id).notifier)
               .previewRemoval(project.id);
           if (!context.mounted) return;
-          final confirmed = await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Remove Project'),
-              content: Text(
-                '${project.name}\n\n'
-                '${preview.workspaceCount} workspaces, '
-                '${preview.tabCount} tabs, '
-                '${preview.activeSessionCount} active sessions.\n\n'
-                'Files and worktrees on the host will not be deleted.',
-              ),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('Remove Project'),
-                ),
-              ],
-            ),
+          final confirmed = await showProjectRemovalDialog(
+            context,
+            projectName: project.name,
+            preview: preview,
+            dependencies: dependencies,
           );
           if (confirmed == true) {
             await ref
                 .read(projectsControllerProvider(host.id).notifier)
-                .removeProject(project.id);
+                .removeProject(project.id, approvedDependencies: dependencies);
           }
         } on Object catch (error) {
           if (context.mounted) _showError(context, error);

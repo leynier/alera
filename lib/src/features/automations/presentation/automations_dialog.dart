@@ -63,6 +63,7 @@ class _AutomationsDialogState extends ConsumerState<AutomationsDialog> {
             children: <Widget>[
               AutomationDialogHeader(
                 onClose: () => Navigator.of(context).pop(),
+                onTemplates: () => unawaited(_showTemplates()),
                 onImport: () => unawaited(_importCatalog()),
                 onExport: () => unawaited(_exportCatalog()),
               ),
@@ -76,7 +77,7 @@ class _AutomationsDialogState extends ConsumerState<AutomationsDialog> {
                     title: 'Automations unavailable',
                     message: error.toString(),
                     action: FilledButton(
-                      onPressed: () => ref.invalidate(automationListProvider),
+                      onPressed: _invalidateCatalog,
                       child: const Text('Retry'),
                     ),
                   ),
@@ -221,6 +222,7 @@ class _AutomationsDialogState extends ConsumerState<AutomationsDialog> {
                         unawaited(_setState('automation.restore', selected.id))
                   : null,
               onClone: () => unawaited(_clone(selected)),
+              onSaveTemplate: () => unawaited(_saveTemplate(selected)),
             ),
     );
   }

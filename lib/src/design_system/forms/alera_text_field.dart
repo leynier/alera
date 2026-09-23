@@ -1,5 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/forms/alera_clipboard_paste_action.dart';
+import 'package:alera/src/design_system/forms/alera_command_enter_shortcuts.dart';
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -29,6 +30,7 @@ class const AleraTextField({
   final VoidCallback? onEditingComplete,
   final VoidCallback? onTap,
   this.onPaste,
+  this.onCommandEnter,
   final bool autofocus = false,
   final bool dense = false,
   final double denseHeight = defaultDenseHeight,
@@ -47,6 +49,11 @@ class const AleraTextField({
   /// Return `true` when the callback consumed the clipboard. Returning
   /// `false` preserves Flutter's normal text-paste behavior.
   final Future<bool> Function()? onPaste;
+
+  /// Submits the surrounding form on Control+Enter or Cmd+Enter.
+  ///
+  /// Plain Enter still inserts a newline in multiline fields.
+  final VoidCallback? onCommandEnter;
 
   /// Dense fill color. Defaults to [AleraTokens.surface].
   final Color? fillColor;
@@ -95,7 +102,7 @@ class const AleraTextField({
           suffixIcon: suffix,
         ),
       );
-      return _withPasteAction(field);
+      return _withFieldWrappers(field);
     }
 
     final field = SizedBox(
@@ -165,7 +172,14 @@ class const AleraTextField({
         ),
       ),
     );
-    return _withPasteAction(field);
+    return _withFieldWrappers(field);
+  }
+
+  Widget _withFieldWrappers(Widget field) {
+    return AleraCommandEnterShortcuts(
+      onCommandEnter: onCommandEnter,
+      child: _withPasteAction(field),
+    );
   }
 
   Widget _withPasteAction(Widget field) {

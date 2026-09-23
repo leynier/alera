@@ -1,4 +1,18 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+
+/// Whether the platform-neutral Mod modifier is held (⌘ on macOS, Ctrl elsewhere).
+bool isModModifierPressed({
+  KeyModifierState? modifiers,
+  TargetPlatform? platform,
+}) {
+  final resolvedModifiers =
+      modifiers ?? KeyModifierState.fromKeyboard(HardwareKeyboard.instance);
+  return switch (platform ?? defaultTargetPlatform) {
+    TargetPlatform.macOS => resolvedModifiers.meta,
+    _ => resolvedModifiers.control,
+  };
+}
 
 /// Result of validating/parsing a keyboard chord string.
 sealed class const KeyChordParseResult();

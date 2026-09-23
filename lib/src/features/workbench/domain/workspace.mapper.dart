@@ -183,6 +183,13 @@ class WorkspaceMapper extends ClassMapperBase<Workspace> {
     opt: true,
     def: false,
   );
+  static bool _$isArchived(Workspace v) => v.isArchived;
+  static const Field<Workspace, bool> _f$isArchived = Field(
+    'isArchived',
+    _$isArchived,
+    opt: true,
+    def: false,
+  );
   static List<String> _$tagIds(Workspace v) => v.tagIds;
   static const Field<Workspace, List<String>> _f$tagIds = Field(
     'tagIds',
@@ -233,6 +240,7 @@ class WorkspaceMapper extends ClassMapperBase<Workspace> {
     #instanceId: _f$instanceId,
     #hostId: _f$hostId,
     #isPinned: _f$isPinned,
+    #isArchived: _f$isArchived,
     #tagIds: _f$tagIds,
     #tagNames: _f$tagNames,
     #sectionId: _f$sectionId,
@@ -256,6 +264,7 @@ class WorkspaceMapper extends ClassMapperBase<Workspace> {
       instanceId: data.dec(_f$instanceId),
       hostId: data.dec(_f$hostId),
       isPinned: data.dec(_f$isPinned),
+      isArchived: data.dec(_f$isArchived),
       tagIds: data.dec(_f$tagIds),
       tagNames: data.dec(_f$tagNames),
       sectionId: data.dec(_f$sectionId),
@@ -340,6 +349,7 @@ abstract class WorkspaceCopyWith<$R, $In extends Workspace, $Out>
     String? instanceId,
     String? hostId,
     bool? isPinned,
+    bool? isArchived,
     List<String>? tagIds,
     List<String>? tagNames,
     String? sectionId,
@@ -387,6 +397,7 @@ class _WorkspaceCopyWithImpl<$R, $Out>
     Object? instanceId = $none,
     String? hostId,
     bool? isPinned,
+    bool? isArchived,
     List<String>? tagIds,
     List<String>? tagNames,
     Object? sectionId = $none,
@@ -409,6 +420,7 @@ class _WorkspaceCopyWithImpl<$R, $Out>
       if (instanceId != $none) #instanceId: instanceId,
       if (hostId != null) #hostId: hostId,
       if (isPinned != null) #isPinned: isPinned,
+      if (isArchived != null) #isArchived: isArchived,
       if (tagIds != null) #tagIds: tagIds,
       if (tagNames != null) #tagNames: tagNames,
       if (sectionId != $none) #sectionId: sectionId,
@@ -435,6 +447,7 @@ class _WorkspaceCopyWithImpl<$R, $Out>
     instanceId: data.get(#instanceId, or: $value.instanceId),
     hostId: data.get(#hostId, or: $value.hostId),
     isPinned: data.get(#isPinned, or: $value.isPinned),
+    isArchived: data.get(#isArchived, or: $value.isArchived),
     tagIds: data.get(#tagIds, or: $value.tagIds),
     tagNames: data.get(#tagNames, or: $value.tagNames),
     sectionId: data.get(#sectionId, or: $value.sectionId),

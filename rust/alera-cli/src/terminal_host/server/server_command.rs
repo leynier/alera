@@ -7,14 +7,55 @@ use crate::terminal_host::host_error::HostResult;
 use crate::terminal_host::session::PtyEvent;
 use alera_core::runtime::SshBootstrapStatus;
 
-use super::{
-    account_requests, emulator_request_payloads, emulator_request_queue, push_delivery,
-    runtime_mutations, ClientKind,
-};
+use super::{account_requests, push_delivery, runtime_mutations, ClientKind};
 
 /// Messages processed serially by the single server actor. Every state mutation
 /// happens here, which keeps session/client transitions deterministic.
 pub enum ServerCommand {
+    OwnerAutomationPrecheckFinished {
+        operation_id: String,
+    },
+    AutomationPrecheckFinished {
+        definition: Box<alera_core::runtime::AutomationDefinition>,
+        run: Box<alera_core::runtime::AutomationRun>,
+        host_id: String,
+        path: String,
+        result: Result<bool, String>,
+    },
+    AutomationCheckoutPrepared {
+        definition: Box<alera_core::runtime::AutomationDefinition>,
+        run: Box<alera_core::runtime::AutomationRun>,
+        project: Box<alera_core::runtime::Project>,
+        result: HostResult<alera_core::runtime::Workspace>,
+    },
+    RemoteTerminalLifecycleFinished {
+        client_id: u64,
+        request_id: i64,
+        verb: String,
+        payload: Value,
+        result: HostResult<alera_core::runtime::TerminalLifecycleOperation>,
+    },
+    OwnerTerminalLifecycleFinished {
+        client_id: u64,
+        request_id: i64,
+        operation_id: String,
+        shutdown: crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown,
+        result: HostResult<Value>,
+    },
+    RemoteSetupFinished {
+        client_id: u64,
+        request_id: i64,
+        operation: &'static str,
+        result: HostResult<Value>,
+    },
+    RemoteRecoveryFinished {
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
+    },
+    BufferGuardExpired {
+        id: String,
+    },
     RelayActivity {
         generation: u64,
         at: chrono::DateTime<chrono::Utc>,
@@ -88,10 +129,18 @@ pub enum ServerCommand {
         job_id: String,
         status: SshBootstrapStatus,
     },
+    ProjectCheckoutRegistered {
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
+    },
     ManagedWorkspaceCreated {
         client_id: u64,
         request_id: i64,
         result: HostResult<Value>,
+        /// When set, this create was a hand off: chdir+notify sessions on the
+        /// source workspace after the child exists.
+        handoff_source_workspace_id: Option<String>,
     },
     WorkspaceStorageMeasured {
         client_id: u64,
@@ -121,6 +170,15 @@ pub enum ServerCommand {
         client_id: u64,
         request_id: i64,
         result: HostResult<Value>,
+    },
+    LinkedIssueRequestFinished {
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
+    },
+    /// A workspace's linked issue was stored or its cached metadata changed.
+    LinkedIssuesChanged {
+        workspace_id: String,
     },
     MobileWorkspaceFileFinished {
         client_id: u64,
@@ -160,23 +218,12 @@ pub enum ServerCommand {
         operation_id: Option<String>,
         skill: Option<String>,
     },
-    EmulatorRequestFinished {
-        client_id: u64,
-        request_id: i64,
-        completion: emulator_request_payloads::EmulatorRequestCompletion,
-    },
-    EmulatorMaintenanceFinished(emulator_request_queue::EmulatorMaintenanceCompletion),
     RuntimeMutationFinished(runtime_mutations::RuntimeMutationFinished),
     PrepareRuntimeMutation {
         request: runtime_mutations::RuntimeMutationRequest,
         completion: tokio::sync::oneshot::Sender<
             HostResult<crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown>,
         >,
-    },
-    EmulatorPointerTimeout {
-        tab_id: String,
-        client_id: u64,
-        generation: u64,
     },
     /// A parked `check --wait`/`ask` request hit its server-side deadline.
     OrchestrationWaitTimeout {
@@ -238,12 +285,25 @@ pub enum ServerCommand {
         snapshot: Value,
     },
     /// Wakes the durable automation scheduler to evaluate due occurrences.
+    PullRequestWatchTick,
+    PullRequestWatchSnapshot {
+        watch: Box<alera_core::runtime::PullRequestWatch>,
+        generation: uuid::Uuid,
+        result: HostResult<Value>,
+    },
+    PullRequestWatchMerged {
+        watch: Box<alera_core::runtime::PullRequestWatch>,
+        generation: uuid::Uuid,
+        result: HostResult<String>,
+    },
     AutomationTick,
-    BrowserRequestTimeout {
-        correlation_id: String,
+    AutomationSharedCleanupFinished {
+        attempt: Box<alera_core::runtime::AutomationCleanupAttempt>,
+        result: Result<Value, String>,
     },
     /// A notification or server request emitted by the shared Codex process.
     CodexMessage {
+        #[allow(dead_code)]
         message: Value,
     },
     CodexProcessExited {
@@ -251,16 +311,6 @@ pub enum ServerCommand {
     },
     CodexMalformed {
         reason: String,
-    },
-    CodexPresenceTick,
-    CodexFlush {
-        tab_id: String,
-    },
-    CodexAutoResolve {
-        tab_id: String,
-        thread_id: String,
-        request_id: Value,
-        server_instance: std::sync::Arc<()>,
     },
     Account(account_requests::AccountCommand),
     Push(push_delivery::PushCommand),

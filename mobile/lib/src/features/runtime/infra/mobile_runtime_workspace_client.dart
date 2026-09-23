@@ -1,4 +1,10 @@
+import 'package:alera_mobile/src/features/runtime/domain/project_checkout_summary.dart';
+
 import 'dart:async';
+
+import 'package:alera_mobile/src/features/runtime/infra/workspace_buffer_guard_request.dart';
+
+import 'package:alera_mobile/src/features/runtime/domain/workspace_removal_dependency.dart';
 
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 
@@ -20,6 +26,8 @@ const Duration _managedWorkspaceCreateTimeout = Duration(minutes: 30);
 const Duration _managedWorkspaceRemoveTimeout = Duration(minutes: 10);
 
 mixin MobileRuntimeWorkspaceClient {
+  bool get supportsSharedCheckoutWorkspaces =>
+      runtimeCapabilities.contains(sharedCheckoutWorkspacesCapability);
   Set<String> get runtimeCapabilities;
 
   Future<Object?> request(
@@ -93,30 +101,117 @@ mixin MobileRuntimeWorkspaceClient {
     });
   }
 
+  Future<List<WorkspaceRemovalDependency>> removalDependencies(
+    String workspaceId,
+  ) async {
+    if (!supportsSharedCheckoutWorkspaces) return const [];
+    final payload = await requestList(
+      'workspace.removalDependencies',
+      <String, Object?>{'id': workspaceId},
+    );
+    return payload
+        .map((item) => WorkspaceRemovalDependency.fromJson(asJsonMap(item)))
+        .toList(growable: false);
+  }
+
+  Future<void> pauseRemovalDependencies(
+    String workspaceId,
+    List<WorkspaceRemovalDependency> approved,
+  ) async {
+    final approvedIds = approved.map((dependency) => dependency.id).toSet();
+    for (final dependency in approved.where(
+      (dependency) => dependency.requiresPause,
+    )) {
+      await request('automation.pause', <String, Object?>{
+        'id': dependency.id,
+        'activeRuns': 'cancel-active',
+        'reason': 'Workspace removal requested',
+      });
+    }
+    final deadline = DateTime.now().add(const Duration(seconds: 30));
+    while (true) {
+      final pending = (await removalDependencies(workspaceId))
+          .where((dependency) => dependency.requiresPause)
+          .toList();
+      if (pending.isEmpty) return;
+      if (pending.any((dependency) => !approvedIds.contains(dependency.id))) {
+        throw StateError(
+          'Automation dependencies changed. Refresh and confirm their impact again.',
+        );
+      }
+      if (DateTime.now().isAfter(deadline)) {
+        throw StateError(
+          'Automation shutdown has not completed. The workspace was preserved; retry when its runs have stopped.',
+        );
+      }
+      await Future.pause(const Duration(milliseconds: 250));
+    }
+  }
+
+  Future<WorkspaceCreationResult> createSharedWorkspace({
+    required String projectId,
+    String? name,
+    String? checkoutHostId,
+    String? issueUrl,
+  }) async {
+    final payload = await requestMap(
+      'workspace.createShared',
+      <String, Object?>{
+        'projectId': projectId,
+        'name': ?name,
+        'hostId': ?checkoutHostId,
+        if (issueUrl?.trim().isNotEmpty == true) 'issueUrl': issueUrl!.trim(),
+      },
+      _managedWorkspaceCreateTimeout,
+    );
+    return WorkspaceCreationResult.fromJson(payload);
+  }
+
+  Future<void> removeSharedWorkspace(String workspaceId) async {
+    await requestWithWorkspaceBufferGuard(
+      request: request,
+      workspaceId: workspaceId,
+      operation: 'removeShared',
+      payload: {
+        'id': workspaceId,
+        'closeSessions': true,
+        'deleteBranch': false,
+      },
+      timeout: _managedWorkspaceRemoveTimeout,
+    );
+  }
+
   Future<WorkspaceCreationResult> createManagedWorkspace({
     required String projectId,
+    String? checkoutHostId,
     required String branch,
     String? sourceBranch,
     bool reuseExistingBranch = false,
     String? name,
     String? parentWorkspaceId,
+    String? issueUrl,
   }) async {
-    final payload = await requestMap(
-      'workspace.createManaged',
-      <String, Object?>{
-        'projectId': projectId,
-        'branch': branch,
-        'reuseExistingBranch': reuseExistingBranch,
-        if (!reuseExistingBranch && sourceBranch != null)
-          'sourceBranch': sourceBranch,
-        'name': ?name,
-        'parentWorkspaceId': ?parentWorkspaceId,
-        // Older hosts ignore this and keep running setup inline. Newer hosts
-        // return a portable command that mobile starts in a Setup terminal.
-        'deferSetup': true,
-      },
-      _managedWorkspaceCreateTimeout,
-    );
+    final linkedIssueUrl = issueUrl?.trim();
+    final payload = await requestMap('workspace.createManaged', <
+      String,
+      Object?
+    >{
+      'projectId': projectId,
+      'hostId': ?checkoutHostId,
+      'branch': branch,
+      'reuseExistingBranch': reuseExistingBranch,
+      if (!reuseExistingBranch && sourceBranch != null)
+        'sourceBranch': sourceBranch,
+      'name': ?name,
+      'parentWorkspaceId': ?parentWorkspaceId,
+      // Older hosts ignore this and keep running setup inline. Newer hosts
+      // return a portable command that mobile starts in a Setup terminal.
+      'deferSetup': true,
+      // The form only offers an issue when the host advertises linkedIssuesV1;
+      // an older host would ignore the field.
+      if (linkedIssueUrl != null && linkedIssueUrl.isNotEmpty)
+        'issueUrl': linkedIssueUrl,
+    }, _managedWorkspaceCreateTimeout);
     return WorkspaceCreationResult.fromJson(payload);
   }
 
@@ -126,6 +221,7 @@ mixin MobileRuntimeWorkspaceClient {
   }) async {
     await request('workspace.removeManaged', <String, Object?>{
       'id': workspaceId,
+      'closeSessions': true,
       'deleteBranch': ?deleteBranch,
     }, _managedWorkspaceRemoveTimeout);
   }
@@ -154,10 +250,36 @@ mixin MobileRuntimeWorkspaceClient {
     ];
   }
 
-  Future<ProjectBranches> listBranches(String projectId) async {
+  Future<List<ProjectCheckoutSummary>> listProjectCheckouts(
+    String projectId,
+  ) async {
+    if (!runtimeCapabilities.contains(sharedCheckoutWorkspacesCapability)) {
+      return const [ProjectCheckoutSummary(hostId: 'local', path: '')];
+    }
+    final values = await requestList('checkout.list', {'projectId': projectId});
+    return [
+      for (final value in values)
+        if (asJsonMap(value)['kind'] == 'project')
+          ProjectCheckoutSummary.fromJson(asJsonMap(value)),
+    ];
+  }
+
+  Future<ProjectBranches> listBranches(
+    String projectId, {
+    String? checkoutHostId,
+  }) async {
     final payload = await requestMap('project.branches.list', <String, Object?>{
       'projectId': projectId,
+      'hostId': ?checkoutHostId,
     });
+    if (checkoutHostId != null &&
+        checkoutHostId != 'local' &&
+        (payload['hostId'] != checkoutHostId ||
+            payload['projectId'] != projectId)) {
+      throw StateError(
+        'Update the paired runtime to load branches from the selected SSH host.',
+      );
+    }
     return ProjectBranches.fromJson(payload);
   }
 
@@ -178,6 +300,7 @@ mixin MobileRuntimeWorkspaceClient {
     required String operationId,
     required String projectId,
     required String prompt,
+    bool autoAssignSection = false,
   }) async {
     final payload = await requestMap(
       'aiText.workspaceIdentity.generate',
@@ -185,12 +308,16 @@ mixin MobileRuntimeWorkspaceClient {
         'operationId': operationId,
         'projectId': projectId,
         'prompt': prompt,
+        // Additive: an older host ignores the flag and simply omits
+        // sectionId from the response.
+        'autoAssignSection': autoAssignSection,
       },
       const Duration(minutes: 11),
     );
     return GeneratedWorkspaceIdentity(
       workspaceName: payload.requiredString('workspaceName'),
       branchName: payload.requiredString('branchName'),
+      sectionId: payload.optionalString('sectionId'),
     );
   }
 
@@ -303,7 +430,7 @@ mixin MobileRuntimeWorkspaceClient {
   Future<AgentProfileLaunchResult> launchAgentProfile({
     required String workspaceId,
     required String profileId,
-    required String prompt,
+    String prompt = '',
     required String clientMutationId,
   }) async {
     final requestType = supportsIdempotentAgentProfileLaunch

@@ -351,7 +351,9 @@ class _QuickOpenTestController(final WorkbenchState _seed)
     required Workspace workspace,
     required String relativePath,
     String? targetGroupId,
+    String? sourceKey,
     bool preview = false,
+    bool oppositePanel = false,
   }) async {
     openedFiles.add(relativePath);
     final now = DateTime.utc(2026);

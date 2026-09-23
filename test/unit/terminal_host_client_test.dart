@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:alera/src/features/diagnostics/infra/crash_reporting.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/runtime_buffer_guard_handler.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_frame_codec.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/logging/app_logger.dart';
@@ -17,6 +18,7 @@ part 'terminal_host_client_timeout_cases.dart';
 part 'terminal_host_client_binary_frames_cases.dart';
 part 'terminal_host_client_protocol_mismatch_cases.dart';
 part 'terminal_host_client_runtime_mutation_cases.dart';
+part 'terminal_host_client_buffer_guard_cases.dart';
 part 'terminal_host_test_server.dart';
 
 void main() {
@@ -25,6 +27,7 @@ void main() {
   _registerTerminalHostClientBinaryFrameTests();
   _registerTerminalHostClientProtocolMismatchTests();
   _registerTerminalHostClientRuntimeMutationTests();
+  _registerTerminalHostBufferGuardTests();
   test('connects through launcher and sends lifecycle requests', () async {
     final tempDir = await Directory.systemTemp.createTemp('alera-host-client-');
     addTearDown(() async {
@@ -156,10 +159,7 @@ void main() {
       'terminate',
     ]);
     expect(server.payloadFor('hello')['clientKind'], 'app');
-    expect(
-      server.payloadFor('hello')['supportedTabKinds'],
-      contains(aleraMobileEmulatorTabKind),
-    );
+    expect(server.payloadFor('hello')['supportedTabKinds'], <String>[]);
     final createPayload = server.payloadFor('createOrAttach');
     expect(createPayload['workingDirectory'], '/repo');
     expect(createPayload['cols'], 80);
@@ -169,6 +169,7 @@ void main() {
       isNot(containsPair('setupCommand', anything)),
     );
     expect(server.payloadFor('terminal.restart')['sessionId'], 'session-1');
+    expect(server.payloadFor('terminal.restart')['operationId'], isNotEmpty);
     final writePayloads = server.payloadsFor('write');
     expect(writePayloads, hasLength(2));
     expect(
@@ -360,6 +361,51 @@ void main() {
     final event = await runtimeEvent;
     expect(event.name, 'projectsChanged');
     expect(event.payload, <String, Object?>{'projectId': 'project-1'});
+  });
+
+  test('forwards Alera account auth events to runtimeEvents', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'alera-host-client-account-events-',
+    );
+    addTearDown(() async {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+    final server = await _TerminalHostTestServer.start();
+    addTearDown(server.dispose);
+    final client = SocketTerminalHostClient(
+      launcher: _FakeTerminalHostLauncher(server: server),
+      applicationSupportDirectory: () async => tempDir,
+    );
+    addTearDown(client.dispose);
+
+    await client.ensureStarted(config: .defaults);
+    final changed = client.runtimeEvents.firstWhere(
+      (event) => event.name == 'aleraAccountChanged',
+    );
+    final failed = client.runtimeEvents.firstWhere(
+      (event) => event.name == 'aleraAccountSignInFailed',
+    );
+
+    server.send(<String, Object?>{
+      'event': 'aleraAccountChanged',
+      'payload': <String, Object?>{
+        'connected': true,
+        'account': <String, Object?>{'email': 'user@example.com'},
+      },
+    });
+    server.send(<String, Object?>{
+      'event': 'aleraAccountSignInFailed',
+      'payload': <String, Object?>{'message': 'Provider rejected the request'},
+    });
+
+    final changedEvent = await changed;
+    expect(changedEvent.name, 'aleraAccountChanged');
+    expect(changedEvent.payload['connected'], isTrue);
+    final failedEvent = await failed;
+    expect(failedEvent.name, 'aleraAccountSignInFailed');
+    expect(failedEvent.payload['message'], 'Provider rejected the request');
   });
 
   test(

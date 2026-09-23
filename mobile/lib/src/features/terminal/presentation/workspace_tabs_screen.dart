@@ -1,18 +1,26 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
+import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/features/workbench/application/workspace_panels_controller.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/explorer_panel.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/pull_request_panel.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/source_control_panel.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_viewer_screen.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_text_search_panel.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
-import 'package:alera_mobile/src/features/codex_chat/presentation/mobile_codex_chat_screen.dart';
-import 'package:alera_mobile/src/features/codex_chat/application/mobile_codex_composer_draft_store.dart';
 import 'package:alera_mobile/src/features/terminal/application/agent_presence_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/tabs_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_tab_session.dart';
+import 'package:alera_mobile/src/features/terminal/presentation/agent_profile_launch_sheet.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_keys_settings_screen.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_tab_view.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
@@ -23,6 +31,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
 
 part 'workspace_tab_strip.dart';
+part 'workspace_tabs_close.dart';
+part 'workspace_tabs_panel_body.dart';
+part 'workspace_tabs_panel_menu.dart';
 
 /// Tabs of one workspace: a horizontally scrollable chip switcher with one
 /// tab visible at a time. Splits stay a desktop concept.
@@ -51,11 +62,46 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
 
   Future<void> _createTabOfKind(_NewTabAction action) async {
     switch (action) {
-      case _NewTabAction.terminal:
+      case _NewTerminalTabAction():
         await _createTab();
-      case _NewTabAction.codex:
-        await _createCodexTab();
+      case _NewAgentProfileTabAction(:final profile):
+        await _launchProfileTab(profile);
     }
+  }
+
+  Future<List<AgentProfileSummary>> _newTabMenuProfiles() {
+    return ref
+        .read(
+          tabsControllerProvider(widget.hostId, widget.workspace.id).notifier,
+        )
+        .listNewTabMenuProfiles();
+  }
+
+  Future<void> _launchProfileTab(AgentProfileSummary profile) async {
+    if (_creating || !profile.showInNewTabMenu) {
+      return;
+    }
+    await showAgentProfileLaunchSheet(
+      context,
+      profile: profile,
+      hostId: widget.hostId,
+      workspaceId: widget.workspace.id,
+      onLaunch: ({required prompt}) async {
+        final tabId = await ref
+            .read(
+              tabsControllerProvider(
+                widget.hostId,
+                widget.workspace.id,
+              ).notifier,
+            )
+            .launchAgentProfileTab(profile.id, prompt: prompt);
+        if (mounted) {
+          setState(() {
+            _selectedTabId = tabId;
+          });
+        }
+      },
+    );
   }
 
   Future<void> _createTab() async {
@@ -88,114 +134,6 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
         setState(() {
           _creating = false;
         });
-      }
-    }
-  }
-
-  Future<void> _createCodexTab() async {
-    if (_creating) return;
-    setState(() => _creating = true);
-    try {
-      final tabId = await ref
-          .read(
-            tabsControllerProvider(widget.hostId, widget.workspace.id).notifier,
-          )
-          .createCodexTab();
-      if (mounted) setState(() => _selectedTabId = tabId);
-    } on Object catch (error, stackTrace) {
-      _logger.warning('Could not create Codex tab.', error, stackTrace);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not create Codex tab: $error')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _creating = false);
-    }
-  }
-
-  Future<void> _focusBoundCodexTab(String workspaceId, String tabId) async {
-    if (workspaceId == widget.workspace.id) {
-      if (mounted) setState(() => _selectedTabId = tabId);
-      return;
-    }
-    try {
-      final client = await ref.read(
-        workspaceClientProvider(widget.hostId).future,
-      );
-      final workspaces = await client.listWorkspaces();
-      WorkspaceSummary? workspace;
-      for (final candidate in workspaces) {
-        if (candidate.id == workspaceId) {
-          workspace = candidate;
-          break;
-        }
-      }
-      if (workspace == null) {
-        throw StateError('The workspace for this Codex chat is unavailable.');
-      }
-      final targetWorkspace = workspace;
-      if (!mounted) return;
-      await Navigator.of(context).push<void>(
-        MaterialPageRoute<void>(
-          builder: (_) => WorkspaceTabsScreen(
-            hostId: widget.hostId,
-            workspace: targetWorkspace,
-            initialTabId: tabId,
-            selectFallbackTab: false,
-          ),
-        ),
-      );
-    } on Object catch (error, stackTrace) {
-      _logger.warning('Could not focus bound Codex tab.', error, stackTrace);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open the Codex chat: $error')),
-        );
-      }
-    }
-  }
-
-  Future<void> _closeTab(WorkspaceTabSummary tab) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Close Tab'),
-        content: Text(tab.displayTitle),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) {
-      return;
-    }
-    final tabsController = ref.read(
-      tabsControllerProvider(widget.hostId, widget.workspace.id).notifier,
-    );
-    final draftStore = ref.read(mobileCodexComposerDraftStoreProvider);
-    try {
-      final closed = await tabsController.closeTab(tab);
-      if (!closed) return;
-      draftStore.remove(widget.hostId, tab.id);
-      if (mounted && _selectedTabId == tab.id) {
-        setState(() {
-          _selectedTabId = null;
-        });
-      }
-    } on Object catch (error, stackTrace) {
-      _logger.warning('Could not close workspace tab.', error, stackTrace);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not close tab: $error')));
       }
     }
   }
@@ -237,7 +175,13 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
         child: Column(
           mainAxisSize: .min,
           children: <Widget>[
-            if (canGenerateTitle && (tab.isTerminal || tab.isCodex))
+            if (canRename)
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Rename Tab'),
+                onTap: () => Navigator.of(context).pop('rename'),
+              ),
+            if (canGenerateTitle && tab.isTerminal)
               ListTile(
                 leading: const Icon(Icons.auto_awesome_outlined),
                 title: Text(
@@ -250,13 +194,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
                 enabled: tab.payload['agentTitleStatus'] != 'generating',
                 onTap: () => Navigator.of(context).pop('generateTitle'),
               ),
-            if (canRename)
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: const Text('Rename Tab'),
-                onTap: () => Navigator.of(context).pop('rename'),
-              ),
-            if (tab.isTerminal || tab.isCodex)
+            if (tab.isTerminal)
               ListTile(
                 leading: const Icon(Icons.close),
                 title: const Text('Close Tab'),
@@ -291,10 +229,28 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     if (action == 'close') await _closeTab(tab);
   }
 
+  /// A desktop Markdown viewer tab opens its preview on top of the terminal
+  /// rather than replacing it, so the selected terminal stays attached.
+  void _openMarkdownTab(WorkspaceTabSummary tab) {
+    final filePath = tab.filePath;
+    if (filePath == null) {
+      return;
+    }
+    unawaited(
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => WorkspaceFileViewerScreen(
+            hostId: widget.hostId,
+            workspaceId: tab.workspaceId,
+            relativePath: filePath,
+          ),
+        ),
+      ),
+    );
+  }
+
   WorkspaceTabSummary? _selectedTab(List<WorkspaceTabSummary> tabs) {
-    final supported = tabs
-        .where((tab) => tab.isTerminal || tab.isCodex)
-        .toList();
+    final supported = tabs.where((tab) => tab.isTerminal).toList();
     if (supported.isEmpty) {
       return null;
     }
@@ -331,30 +287,40 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
       widget.hostId,
       widget.workspace.id,
     );
-    ref.listen(tabsProvider, (previous, next) {
-      final previousTabs = previous?.value;
-      final currentTabs = next.value;
-      if (previousTabs == null || currentTabs == null) return;
-      final currentTabIds = <String>{for (final tab in currentTabs) tab.id};
-      final drafts = ref.read(mobileCodexComposerDraftStoreProvider);
-      for (final tab in previousTabs) {
-        if (tab.isCodex && !currentTabIds.contains(tab.id)) {
-          drafts.remove(widget.hostId, tab.id);
-        }
-      }
-    });
     final tabs = ref.watch(tabsProvider);
     final selectedTab = tabs.value == null ? null : _selectedTab(tabs.value!);
-    final titleClient = ref.watch(workspaceClientProvider(widget.hostId)).value;
+    final workspaceClient = ref
+        .watch(workspaceClientProvider(widget.hostId))
+        .value;
     final canGenerateTitle =
-        titleClient is MobileAgentTitleClient &&
-        (titleClient as MobileAgentTitleClient).supportsAgentTitles;
+        workspaceClient is MobileAgentTitleClient &&
+        (workspaceClient as MobileAgentTitleClient).supportsAgentTitles;
+    final canOpenMarkdownTabs =
+        workspaceClient is MobileCodexWorkspaceClient &&
+        (workspaceClient as MobileCodexWorkspaceClient)
+            .supportsCodexWorkspaceFiles;
     final canRename =
         ref
             .watch(workspaceClientProvider(widget.hostId))
             .value
             ?.supportsTabRename ==
         true;
+    final panelCapabilities =
+        ref
+            .watch(workspacePanelCapabilitiesControllerProvider(widget.hostId))
+            .value ??
+        const WorkspacePanelCapabilities();
+    final destinations = panelCapabilities.destinations;
+    final selectedPanel = ref.watch(
+      selectedWorkspacePanelControllerProvider(
+        widget.hostId,
+        widget.workspace.id,
+      ),
+    );
+    final panel = destinations.contains(selectedPanel)
+        ? selectedPanel
+        : WorkspacePanelDestination.terminal;
+    final showTerminalChrome = panel == WorkspacePanelDestination.terminal;
     if (selectedTab case final WorkspaceTabSummary tab when tab.isTerminal) {
       // The desktop taking the viewport back sends this phone to the
       // workspace list; re-entering the tab simply claims again.
@@ -384,23 +350,47 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
             tooltip: 'More Actions',
             onSelected: (action) {
               switch (action) {
-                case _TabsMenuAction.quickKeys:
+                case _QuickKeysMenuAction():
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => const TerminalKeysSettingsScreen(),
                     ),
                   );
+                case _SelectPanelAction(:final destination):
+                  ref
+                      .read(
+                        selectedWorkspacePanelControllerProvider(
+                          widget.hostId,
+                          widget.workspace.id,
+                        ).notifier,
+                      )
+                      .select(destination);
               }
             },
             itemBuilder: (context) => <PopupMenuEntry<_TabsMenuAction>>[
+              if (panelCapabilities
+                  .hasAny) ...<PopupMenuEntry<_TabsMenuAction>>[
+                for (final destination in destinations)
+                  PopupMenuItem<_TabsMenuAction>(
+                    value: _SelectPanelAction(destination),
+                    height: AleraTokens.minTapTarget,
+                    child: _PanelMenuRow(
+                      icon: _panelIcon(destination),
+                      label: _panelLabel(destination),
+                      selected: destination == panel,
+                    ),
+                  ),
+                const PopupMenuDivider(),
+              ],
               const PopupMenuItem<_TabsMenuAction>(
-                value: .quickKeys,
+                value: _QuickKeysMenuAction(),
+                height: AleraTokens.minTapTarget,
                 child: Text('Terminal Quick Keys'),
               ),
             ],
           ),
         ],
-        bottom: tabs.value?.isNotEmpty == true
+        bottom: showTerminalChrome && tabs.value?.isNotEmpty == true
             ? PreferredSize(
                 preferredSize: const .fromHeight(AleraTokens.tabStripHeight),
                 child: _TabStrip(
@@ -408,7 +398,12 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
                   selectedTabId: _selectedTab(tabs.value!)?.id,
                   creating: _creating,
                   presenceByTabId: _presenceByTabId(),
+                  canOpenMarkdownTabs: canOpenMarkdownTabs,
                   onSelect: (tab) {
+                    if (tab.isMarkdownViewer) {
+                      _openMarkdownTab(tab);
+                      return;
+                    }
                     setState(() {
                       _selectedTabId = tab.id;
                     });
@@ -416,56 +411,63 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
                   onClose: _closeTab,
                   onActions: (tab) => _showTabActions(
                     tab,
-                    canRename: canRename && !tab.isCodex,
+                    canRename: canRename,
                     canGenerateTitle: canGenerateTitle,
                   ),
                   onNewTab: (action) => unawaited(_createTabOfKind(action)),
+                  loadNewTabProfiles: _newTabMenuProfiles,
                 ),
               )
             : null,
       ),
       body: SafeArea(
-        // The last known tab list wins over a reload: reconnecting to the host
-        // rebuilds this provider, and swapping the body for a spinner disposes
-        // the tab's state along with anything it is waiting on, which silently
-        // dropped an attachment whose upload was still in flight.
-        child: switch (tabs) {
-          AsyncValue(value: final tabList?) => switch (_selectedTab(tabList)) {
-            final WorkspaceTabSummary tab when tab.isCodex =>
-              MobileCodexChatScreen(
-                key: ValueKey<String>(tab.id),
-                hostId: widget.hostId,
-                tabId: tab.id,
-                workspaceId: tab.workspaceId,
-                onFocusBoundTab: (workspaceId, tabId) =>
-                    unawaited(_focusBoundCodexTab(workspaceId, tabId)),
-              ),
-            final WorkspaceTabSummary tab => TerminalTabView(
-              key: ValueKey<String>(tab.id),
-              hostId: widget.hostId,
-              workspaceId: tab.workspaceId,
-              tabId: tab.id,
-            ),
-            null => _EmptyTabs(
-              creating: _creating,
-              onNewTab: () => unawaited(_createTabOfKind(.terminal)),
-              targetUnavailable:
-                  tabList.isNotEmpty && !widget.selectFallbackTab,
-            ),
-          },
-          AsyncError(:final error) => Center(
-            child: Padding(
-              padding: AleraTokens.contentPadding,
-              child: Text(error.toString(), textAlign: .center),
-            ),
-          ),
-          _ => const Center(child: CircularProgressIndicator()),
-        },
+        child: showTerminalChrome ? _terminalBody(tabs) : _panelBody(panel),
       ),
     );
   }
+
+  void _openTab(String tabId) {
+    if (!mounted) {
+      return;
+    }
+    setState(() => _selectedTabId = tabId);
+    ref
+        .read(
+          selectedWorkspacePanelControllerProvider(
+            widget.hostId,
+            widget.workspace.id,
+          ).notifier,
+        )
+        .select(WorkspacePanelDestination.terminal);
+  }
+
+  Widget _terminalBody(AsyncValue<List<WorkspaceTabSummary>> tabs) {
+    // The last known tab list wins over a reload: reconnecting to the host
+    // rebuilds this provider, and swapping the body for a spinner disposes
+    // the tab's state along with anything it is waiting on, which silently
+    // dropped an attachment whose upload was still in flight.
+    return switch (tabs) {
+      AsyncValue(value: final tabList?) => switch (_selectedTab(tabList)) {
+        final WorkspaceTabSummary tab => TerminalTabView(
+          key: ValueKey<String>(tab.id),
+          hostId: widget.hostId,
+          workspaceId: tab.workspaceId,
+          tabId: tab.id,
+        ),
+        null => _EmptyTabs(
+          creating: _creating,
+          onNewTab: () =>
+              unawaited(_createTabOfKind(const _NewTerminalTabAction())),
+          targetUnavailable: tabList.isNotEmpty && !widget.selectFallbackTab,
+        ),
+      },
+      AsyncError(:final error) => Center(
+        child: Padding(
+          padding: AleraTokens.contentPadding,
+          child: Text(error.toString(), textAlign: .center),
+        ),
+      ),
+      _ => const Center(child: CircularProgressIndicator()),
+    };
+  }
 }
-
-enum _NewTabAction { terminal, codex }
-
-enum _TabsMenuAction { quickKeys }

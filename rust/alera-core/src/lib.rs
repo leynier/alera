@@ -4,4 +4,6 @@ pub mod git_cli;
 pub mod reading_diff;
 #[cfg(feature = "runtime")]
 pub mod runtime;
+pub mod source_control;
 pub mod workspace_files;
+pub mod workspace_search;

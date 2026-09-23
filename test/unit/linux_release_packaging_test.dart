@@ -41,8 +41,6 @@ void main() {
       isNot(contains('Linux packages are only published for stable releases')),
     );
     expect(packageScript, contains('Depends:'));
-    expect(packageScript, contains('libmpv2'));
-    expect(packageScript, contains('Requires: mpv-libs'));
     expect(packageScript, contains('libvulkan1'));
     expect(packageScript, contains('Requires: vulkan-loader'));
   });
@@ -96,11 +94,11 @@ printf 'rpm fixture\\n' >"\$topdir/RPMS/x86_64/alera-test.rpm"
     final control = await Process.run('dpkg-deb', <String>['--field', deb]);
     expect(control.exitCode, 0);
     expect(control.stdout, contains('Version: 1.2.3~rc.0-99'));
-    expect(control.stdout, contains('libmpv2'));
+    expect(control.stdout, contains('libgtk-3-0'));
     final spec = capturedSpec.readAsStringSync();
     expect(spec, contains('Version: 1.2.3'));
     expect(spec, contains('Release: 0.rc.0.99%{?dist}'));
-    expect(spec, contains('Requires: mpv-libs'));
+    expect(spec, contains('Requires: gtk3'));
     expect(
       File(p.join(output.path, 'alera-1.2.3-rc.0-linux.rpm')).lengthSync(),
       greaterThan(0),

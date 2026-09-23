@@ -76,6 +76,29 @@ class DriftWorkbenchRepository(final AleraDatabase _db)
   }
 
   @override
+  Future<Workspace> setWorkspaceArchived(
+    String workspaceId,
+    bool isArchived,
+  ) async {
+    final workspace = await findWorkspaceById(workspaceId);
+    if (workspace == null) {
+      throw StateError('Workspace not found: $workspaceId');
+    }
+    final updated = workspace.copyWith(isArchived: isArchived);
+    await upsertWorkspace(updated);
+    return updated;
+  }
+
+  @override
+  Future<void> sleepWorkspace(String workspaceId) async {
+    // The local database holds no live sessions; the controller drops the
+    // in-memory terminal handles while tab records and layout stay stored.
+  }
+
+  @override
+  Future<bool> supportsArchive() async => true;
+
+  @override
   Future<void> removeWorkspace(
     String workspaceId, {
     bool cascadeTabs = true,
@@ -127,7 +150,22 @@ class DriftWorkbenchRepository(final AleraDatabase _db)
                 (table) => OrderingTerm.asc(table.createdAt),
               ]))
             .get();
-    return rows.map(_workspaceTabFromRow).toList(growable: false);
+    final tabs = <WorkspaceTabRecord>[];
+    final retiredIds = <String>[];
+    for (final row in rows) {
+      final tab = _workspaceTabFromRow(row);
+      if (tab == null) {
+        retiredIds.add(row.id);
+      } else {
+        tabs.add(tab);
+      }
+    }
+    if (retiredIds.isNotEmpty) {
+      await (_db.delete(
+        _db.workspaceTabsTable,
+      )..where((table) => table.id.isIn(retiredIds))).go();
+    }
+    return tabs;
   }
 
   @override
@@ -138,7 +176,10 @@ class DriftWorkbenchRepository(final AleraDatabase _db)
         (table) => OrderingTerm.asc(table.createdAt),
       ]);
     return query.watch().map(
-      (rows) => rows.map(_workspaceTabFromRow).toList(growable: false),
+      (rows) => rows
+          .map(_workspaceTabFromRow)
+          .whereType<WorkspaceTabRecord>()
+          .toList(growable: false),
     );
   }
 
@@ -236,6 +277,7 @@ Workspace _workspaceFromRow(WorkspacesTableData row) {
     sourceBranch: row.sourceBranch?.isEmpty ?? true ? null : row.sourceBranch,
     reusesExistingBranch: row.reusesExistingBranch,
     isPinned: row.isPinned,
+    isArchived: row.isArchived,
     hostId: 'local',
   );
 }
@@ -254,10 +296,15 @@ WorkspacesTableCompanion _workspaceCompanion(Workspace workspace) {
     sourceBranch: Value(workspace.sourceBranch),
     reusesExistingBranch: Value(workspace.reusesExistingBranch),
     isPinned: Value(workspace.isPinned),
+    isArchived: Value(workspace.isArchived),
   );
 }
 
-WorkspaceTabRecord _workspaceTabFromRow(WorkspaceTabsTableData row) {
+WorkspaceTabRecord? _workspaceTabFromRow(WorkspaceTabsTableData row) {
+  final kind = WorkspaceTabKind.tryParse(row.kind);
+  if (kind == null) {
+    return null;
+  }
   final decoded = jsonDecode(row.payloadJson);
   final payload = decoded is Map<String, dynamic>
       ? Map<String, Object?>.from(decoded)
@@ -265,7 +312,7 @@ WorkspaceTabRecord _workspaceTabFromRow(WorkspaceTabsTableData row) {
   return WorkspaceTabRecord(
     id: row.id,
     workspaceId: row.workspaceId,
-    kind: WorkspaceTabKind.fromJson(row.kind),
+    kind: kind,
     title: row.title,
     createdAt: row.createdAt.toUtc(),
     updatedAt: row.updatedAt.toUtc(),
@@ -287,9 +334,6 @@ WorkspaceTabsTableCompanion _workspaceTabCompanion(WorkspaceTabRecord tab) {
 
 List<Workspace> _sortWorkspaces(List<Workspace> workspaces) {
   workspaces.sort((left, right) {
-    if (left.isMain != right.isMain) {
-      return left.isMain ? -1 : 1;
-    }
     final createdAt = left.createdAt.compareTo(right.createdAt);
     if (createdAt != 0) {
       return createdAt;
