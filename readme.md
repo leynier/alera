@@ -349,6 +349,8 @@ Alera builds in two flavors selected by `ALERA_FLAVOR`:
 | `dev`     | `dev.leynier.alera.dev`    | Alera Dev    | Default for local builds. Auto-update disabled.  |
 | `release` | `dev.leynier.alera`        | Alera        | Used by CI and public release artifacts.         |
 
+User data lives in `~/Library/Application Support/<bundle id>` on macOS, `$XDG_DATA_HOME/<bundle id>` (default `~/.local/share`) on Linux, and `%APPDATA%\dev.leynier\<display name>` on Windows.
+
 See [`lib/src/core/build_flavor.dart`](lib/src/core/build_flavor.dart) for the canonical strings.
 
 ---
