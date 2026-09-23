@@ -342,14 +342,20 @@ async fn managed_workspace_cleanup_holds_barrier_until_terminal_shutdown_and_del
     fixture.actor.handle(prepare).await;
     assert!(!fixture.actor.sessions.contains_key("terminal"));
     assert!(fixture.actor.emulator_requests.has_runtime_mutations());
-    let completion = tokio::time::timeout(Duration::from_secs(5), fixture.commands.recv())
-        .await
-        .unwrap()
-        .unwrap();
-    assert!(matches!(
-        completion,
-        ServerCommand::RuntimeMutationFinished(_)
-    ));
-    fixture.actor.handle(completion).await;
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+    loop {
+        assert!(fixture.actor.emulator_requests.has_runtime_mutations());
+        let command = tokio::time::timeout_at(deadline, fixture.commands.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        let finished = matches!(command, ServerCommand::RuntimeMutationFinished(_));
+        // Board/execution notifications may interleave with removal. The
+        // barrier must survive every one, not depend on inbox adjacency.
+        fixture.actor.handle(command).await;
+        if finished {
+            break;
+        }
+    }
     assert!(!fixture.actor.emulator_requests.has_runtime_mutations());
 }
