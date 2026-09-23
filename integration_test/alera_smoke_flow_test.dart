@@ -104,7 +104,9 @@ void main() {
 
     await _pumpUntilFound(tester, find.text('No projects yet'));
 
-    await tester.tap(find.text('Add Project').last);
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Add Your First Project'),
+    );
     await _pumpUntilFound(tester, find.byType(AddProjectDialog));
 
     final projectPathField = find.descendant(
