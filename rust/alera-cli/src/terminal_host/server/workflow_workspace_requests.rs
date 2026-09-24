@@ -19,9 +19,9 @@ enum Request {
 
 impl ServerActor {
     pub(super) fn has_blocking_managed_workspace_jobs(&self) -> bool {
-        // Startup reconciliation is protected by per-resource locks and
-        // retained ownership receipts. It keeps the host alive, but must not
-        // reject unrelated terminal or orchestration requests.
+        // Workflow requests and startup reconciliation use per-resource locks
+        // and retained ownership receipts. They keep the host alive, but must
+        // not reject unrelated terminal or orchestration requests.
         self.managed_workspace_jobs > usize::from(self.workflow_workspace_recovery_running)
     }
 
@@ -101,7 +101,7 @@ impl ServerActor {
             .clone()
             .try_acquire_owned()
             .map_err(|_| HostError::state("workflow workspaces are busy; retry shortly"))?;
-        self.managed_workspace_jobs += 1;
+        self.workflow_workspace_jobs += 1;
         self.cancel_shutdown_timer();
         let store = self.runtime_store.clone();
         let runtime_dir = self.runtime_dir.clone();
@@ -151,7 +151,7 @@ impl ServerActor {
         result: HostResult<Value>,
         mutated: bool,
     ) {
-        self.managed_workspace_jobs = self.managed_workspace_jobs.saturating_sub(1);
+        self.workflow_workspace_jobs = self.workflow_workspace_jobs.saturating_sub(1);
         match result {
             Ok(value) => self.client_write(client_id, ok_response(request_id, value)),
             Err(error) => self.client_write(client_id, error_response(request_id, &error)),

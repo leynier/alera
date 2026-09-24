@@ -76,6 +76,7 @@ pub async fn run_terminal_host_server(
         project_clone_jobs: HashMap::new(),
         agent_title_jobs: HashMap::new(),
         managed_workspace_jobs: 0,
+        workflow_workspace_jobs: 0,
         workflow_workspace_recovery_running: false,
         automation_checkout_jobs: Default::default(),
         automation_precheck_jobs: Default::default(),

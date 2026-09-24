@@ -219,6 +219,7 @@ impl ServerActor {
                     .count();
                 let active_jobs = self.ssh_bootstrap_jobs.len()
                     + usize::from(self.managed_workspace_jobs > 0)
+                    + usize::from(self.workflow_workspace_jobs > 0)
                     + self.coordinators.len()
                     + self.mutation_queue.outstanding();
                 let active_agents = self.agent_presence_items().as_array().map_or(0, Vec::len);
@@ -253,6 +254,7 @@ impl ServerActor {
                     .count();
                 let active_jobs = self.ssh_bootstrap_jobs.len()
                     + usize::from(self.managed_workspace_jobs > 0)
+                    + usize::from(self.workflow_workspace_jobs > 0)
                     + self.coordinators.len()
                     + self.mutation_queue.outstanding();
                 let active_agents = self.agent_presence_items().as_array().map_or(0, Vec::len);
