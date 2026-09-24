@@ -203,18 +203,48 @@ async fn workflow_coordinator_completion_and_source_identity_are_bound() {
     assert!(status.run_id.is_none());
     assert_eq!(status.coordinator.unwrap().tab_id, receipt.tab_id);
     store.recover_workflow_coordinators().await.unwrap();
-    assert_eq!(
-        store
-            .workflow_coordinator(&draft.id)
-            .await
-            .unwrap()
-            .unwrap()
-            .status,
-        "started"
-    );
+    let recovered = store
+        .workflow_coordinator(&draft.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(recovered.status, "attention");
+    assert!(recovered.error.unwrap().contains("did not survive"));
+    assert!(store
+        .require_workflow_coordinator_spawnable(&receipt.tab_id)
+        .await
+        .is_err());
     sqlx::query("UPDATE workspaces SET instanceId = 'replacement' WHERE id = 'workspace'")
         .execute(store.pool())
         .await
         .unwrap();
     assert!(store.reserve_workflow_coordinator(&draft).await.is_err());
+}
+
+#[tokio::test]
+async fn submitted_coordinator_stays_started_after_restart() {
+    let (_dir, store, mut request) = fixture(false).await;
+    let tasks = std::mem::take(&mut request.proposal.tasks);
+    let draft = store
+        .create_workflow_proposal(request, valid_profile)
+        .await
+        .unwrap();
+    let (receipt, _) = store.reserve_workflow_coordinator(&draft).await.unwrap();
+    store
+        .settle_workflow_coordinator(&draft.id, &receipt.tab_id, None)
+        .await
+        .unwrap();
+    store
+        .submit_workflow_proposal(&draft.id, tasks)
+        .await
+        .unwrap();
+
+    store.recover_workflow_coordinators().await.unwrap();
+    let recovered = store
+        .workflow_coordinator(&draft.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(recovered.status, "started");
+    assert!(recovered.error.is_none());
 }

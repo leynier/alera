@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/features/orchestration/domain/workflow_review_snapshot.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class WorkflowReviewPanel extends StatefulWidget {
@@ -283,6 +286,15 @@ class _WorkflowReviewPanelState extends State<WorkflowReviewPanel> {
           contract['instructions']! as String,
           key: const PageStorageKey('contract-instructions'),
         ),
+        const SizedBox(height: AleraTokens.space8),
+        Text('Frozen Inputs', style: Theme.of(context).textTheme.labelMedium),
+        _FrozenContractInputs(
+          key: ValueKey(
+            'frozen-inputs:${widget.review.runId}:${widget.review.revision}:${task['id']}',
+          ),
+          inputs: (frozen['contract']! as Map)['inputs'],
+        ),
+        const SizedBox(height: AleraTokens.space8),
         for (final artifact in contract['requiredArtifacts']! as List)
           Text('Required artifact: $artifact'),
         for (final item in (contract['checklist']! as List).cast<Map>())
@@ -290,6 +302,86 @@ class _WorkflowReviewPanelState extends State<WorkflowReviewPanel> {
       ],
     );
   }
+}
+
+class _FrozenContractInputs extends StatefulWidget {
+  const _FrozenContractInputs({super.key, required this.inputs});
+
+  final Object? inputs;
+
+  @override
+  State<_FrozenContractInputs> createState() => _FrozenContractInputsState();
+}
+
+class _FrozenContractInputsState extends State<_FrozenContractInputs> {
+  late Future<String> _formatted;
+
+  @override
+  void initState() {
+    super.initState();
+    _format();
+  }
+
+  @override
+  void didUpdateWidget(_FrozenContractInputs oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.inputs, widget.inputs)) {
+      _format();
+    }
+  }
+
+  void _format() {
+    _formatted = _inputsAreSmall(widget.inputs)
+        ? SynchronousFuture(_formatContractInputs(widget.inputs))
+        : compute(_formatContractInputs, widget.inputs);
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<String>(
+    future: _formatted,
+    builder: (context, snapshot) {
+      if (snapshot.hasError) {
+        return const Text(
+          'Frozen inputs could not be displayed. Refresh the review before approving.',
+        );
+      }
+      if (!snapshot.hasData) return const LinearProgressIndicator();
+      return SelectableText(
+        snapshot.data!,
+        key: const PageStorageKey('contract-inputs'),
+        style: AleraTokens.monoCompactStyle,
+      );
+    },
+  );
+}
+
+String _formatContractInputs(Object? inputs) =>
+    const JsonEncoder.withIndent('  ').convert(inputs);
+
+bool _inputsAreSmall(Object? inputs) {
+  var remaining = 2048;
+  final pending = <Object?>[inputs];
+  while (pending.isNotEmpty) {
+    final value = pending.removeLast();
+    if (value is String) {
+      remaining -= value.length + 2;
+    } else if (value is Map) {
+      remaining -= value.length * 2;
+      if (remaining < 0) return false;
+      for (final entry in value.entries) {
+        pending.add(entry.key);
+        pending.add(entry.value);
+      }
+    } else if (value is List) {
+      remaining -= value.length;
+      if (remaining < 0) return false;
+      pending.addAll(value);
+    } else {
+      remaining -= 32;
+    }
+    if (remaining < 0) return false;
+  }
+  return true;
 }
 
 String _originLabel(Map source) => switch (source['origin']) {

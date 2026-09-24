@@ -54,6 +54,12 @@ WorkflowReviewSnapshot _review({
           'dependsOn': [],
         },
         'contract': {
+          'inputs': {
+            'objective': 'Only selected files',
+            'scope': {
+              'paths': ['lib/workflow.dart'],
+            },
+          },
           'contract': {
             'name': 'Implementation',
             'revision': 1,
@@ -257,6 +263,14 @@ void main() {
     await tester.ensureVisible(find.text('Update the workflow'));
     await tester.tap(find.text('Update the workflow'));
     await tester.pumpAndSettle();
+    expect(find.text('Frozen Inputs'), findsOneWidget);
+    expect(
+      find.textContaining('"objective": "Only selected files"'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('"lib/workflow.dart"'), findsOneWidget);
+    await tester.ensureVisible(find.text('Frozen Inputs'));
+    await captureWorkflowVisual(tester, 'plan-review-frozen-inputs');
     expect(find.text('Required artifact: test-report'), findsOneWidget);
     expect(find.text('Check: Tests pass.'), findsOneWidget);
   });

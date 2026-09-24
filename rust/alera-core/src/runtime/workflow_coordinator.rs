@@ -173,7 +173,12 @@ impl RuntimeStore {
     }
 
     pub async fn recover_workflow_coordinators(&self) -> Result<()> {
-        sqlx::query("UPDATE workflowCoordinators SET status = 'attention',error = 'Coordinator launch was interrupted. Inspect its terminal before preparing another proposal.' WHERE status = 'reserved'")
+        sqlx::query("UPDATE workflowCoordinators SET status = 'attention',
+            error = CASE WHEN status = 'started'
+                THEN 'Coordinator process did not survive the host restart. Inspect its retained terminal before preparing another proposal.'
+                ELSE 'Coordinator launch was interrupted. Inspect its terminal before preparing another proposal.' END
+            WHERE status IN ('reserved','started')
+            AND NOT EXISTS (SELECT 1 FROM workflowPlanRevisions p WHERE p.request_id = workflowCoordinators.proposal_id)")
             .execute(self.pool()).await?;
         Ok(())
     }
