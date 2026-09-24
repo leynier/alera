@@ -15,6 +15,8 @@ mod receipt;
 #[cfg(test)]
 mod tests;
 
+pub const MAX_WORKFLOW_ARTIFACTS: usize = 128;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WorkflowGitResource {
@@ -68,6 +70,9 @@ pub fn validate_workflow_artifacts(
     source_sha: &str,
     paths: &[String],
 ) -> Result<(), GitError> {
+    if paths.len() > MAX_WORKFLOW_ARTIFACTS {
+        return Err(invalid("workflow result has too many artifacts"));
+    }
     let repo = Repository::open(worktree_path).map_err(GitError::from_git2)?;
     let tree = repo
         .find_commit(oid(source_sha)?)
@@ -241,7 +246,7 @@ impl WorkflowIntegrationRequest {
                 .result_digest
                 .bytes()
                 .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
-            || self.artifacts.len() > 128
+            || self.artifacts.len() > MAX_WORKFLOW_ARTIFACTS
         {
             return Err(invalid("invalid integration revision, digest or resource"));
         }

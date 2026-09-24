@@ -10,6 +10,40 @@ pub(super) mod fixture;
 use fixture::Fixture;
 
 #[tokio::test]
+async fn artifact_overflow_cannot_create_a_durable_integration_reservation() {
+    let fixture = Fixture::new().await;
+    let raw: String = sqlx::query_scalar("SELECT result FROM orchestrationTasks WHERE id = ?")
+        .bind(&fixture.input.task_id)
+        .fetch_one(fixture.store.pool())
+        .await
+        .unwrap();
+    let mut result: serde_json::Value = serde_json::from_str(&raw).unwrap();
+    result["artifacts"] = json!((0..=crate::git::MAX_WORKFLOW_ARTIFACTS)
+        .map(|index| format!("artifact-{index}.txt"))
+        .collect::<Vec<_>>());
+    sqlx::query("UPDATE orchestrationTasks SET result = ? WHERE id = ?")
+        .bind(result.to_string())
+        .bind(&fixture.input.task_id)
+        .execute(fixture.store.pool())
+        .await
+        .unwrap();
+    assert!(fixture
+        .store
+        .reserve_workflow_integration(&fixture.input)
+        .await
+        .unwrap_err()
+        .to_string()
+        .contains("too many artifacts"));
+    let reservations: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM workflowIntegrations WHERE task_id = ?")
+            .bind(&fixture.input.task_id)
+            .fetch_one(fixture.store.pool())
+            .await
+            .unwrap();
+    assert_eq!(reservations, 0);
+}
+
+#[tokio::test]
 async fn workflow_completion_retains_one_exact_result_sha_across_retries_and_restart() {
     let fixture = Fixture::new().await;
     let completed = fixture

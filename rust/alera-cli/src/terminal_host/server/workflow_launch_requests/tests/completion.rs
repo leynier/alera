@@ -7,6 +7,8 @@ use crate::terminal_host::server::ServerCommand;
 
 use super::*;
 
+mod artifact_limits;
+
 async fn accepted_workflow() -> (Fixture, WorkflowLaunchRecord, String) {
     let fixture = Fixture::new("").await;
     let (_, prepared) = prepared(&fixture).await;
