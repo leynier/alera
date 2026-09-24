@@ -217,7 +217,7 @@ mod tests {
     use windows::Win32::System::Threading::{OpenProcess, PROCESS_SYNCHRONIZE};
 
     #[test]
-    fn pty_job_bootstrap_uses_the_test_harness_entrypoint() {
+    fn workflow_pty_job_bootstrap_uses_the_test_harness_entrypoint() {
         let job = WindowsProcessJob::create().unwrap();
         let launch = TerminalHostLaunch {
             label: "shell".into(),

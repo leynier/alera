@@ -13,6 +13,7 @@ use crate::terminal_host::server::actor_test_harness::{local_client, test_actor}
 
 mod completion;
 mod final_preflight;
+mod pty_diagnostics;
 mod recovery;
 mod reset;
 mod spawn_failure;
@@ -140,31 +141,13 @@ async fn workflow_launch_claim_restore_and_restart_never_duplicate_a_worker() {
         .unwrap();
     let marker =
         std::path::Path::new(&workspace.identity.workspace.path).join("workflow-launch-marker");
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(30);
-    let mut startup = false;
-    let mut executed = false;
-    while tokio::time::Instant::now() < deadline {
-        if let Ok(Some(event)) =
-            tokio::time::timeout(std::time::Duration::from_millis(50), events.recv()).await
-        {
-            startup |= matches!(
-                event,
-                crate::terminal_host::server::ServerCommand::TerminalStartupInput { .. }
-            );
-            actor.handle(event).await;
-        }
-        executed = std::fs::read_to_string(&marker)
-            .is_ok_and(|content| content.contains("workflow-launch-test"));
-        if startup && executed {
-            break;
-        }
-    }
-    assert!(
-        startup && executed,
-        "the harmless command must execute, not just create a PTY (startup={startup}, marker_exists={}, terminal_bytes={})",
-        marker.exists(),
-        actor.sessions[&record.terminal_handle].buffer.to_bytes().len()
-    );
+    pty_diagnostics::assert_startup_command_executes(
+        &mut actor,
+        &mut events,
+        &record.terminal_handle,
+        &marker,
+    )
+    .await;
     let dispatch = fixture
         .store
         .accept_orchestration_dispatch(
