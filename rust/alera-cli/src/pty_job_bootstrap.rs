@@ -125,6 +125,13 @@ pub(crate) fn wait_for_release() -> Result<(), String> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn pty_job_test_harness_bootstrap() {
+        if std::env::var("ALERA_PTY_JOB_TEST_BOOTSTRAP").as_deref() == Ok("1") {
+            std::process::exit(run());
+        }
+    }
+
     /// Helper process for the Job Object integration test. A normal test run
     /// returns without spawning anything; the parent test opts in explicitly.
     #[test]

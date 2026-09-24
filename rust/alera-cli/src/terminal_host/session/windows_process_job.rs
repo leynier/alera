@@ -15,8 +15,10 @@ use windows::Win32::System::Threading::{
     CreateEventW, SetEvent, TerminateProcess, WaitForSingleObject,
 };
 
+#[cfg(not(test))]
+use crate::pty_job_bootstrap::BOOTSTRAP_ARGUMENT;
 use crate::pty_job_bootstrap::{
-    BOOTSTRAP_ARGUMENT, BOOTSTRAP_EVENT_ENV, BOOTSTRAP_PARENT_PID_ENV, BOOTSTRAP_REQUEST_ENV,
+    BOOTSTRAP_EVENT_ENV, BOOTSTRAP_PARENT_PID_ENV, BOOTSTRAP_REQUEST_ENV,
 };
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::TerminalHostLaunch;
@@ -91,11 +93,24 @@ impl WindowsProcessJob {
         }))
         .map_err(|error| HostError::state(format!("failed to encode PTY launch: {error}")))?;
         let mut command = CommandBuilder::new(executable);
+        // The Rust test harness replaces main(), so route test PTYs through a
+        // dedicated test that executes the same bootstrap implementation.
+        #[cfg(test)]
+        {
+            command.args(&[
+                "--exact",
+                "pty_job_bootstrap::tests::pty_job_test_harness_bootstrap",
+                "--nocapture",
+            ]);
+        }
+        #[cfg(not(test))]
         command.arg(BOOTSTRAP_ARGUMENT);
         command.env_clear();
         for (key, value) in &launch.environment {
             command.env(key, value);
         }
+        #[cfg(test)]
+        command.env("ALERA_PTY_JOB_TEST_BOOTSTRAP", "1");
         command.env(BOOTSTRAP_EVENT_ENV, &self.release_event_name);
         command.env(BOOTSTRAP_PARENT_PID_ENV, std::process::id().to_string());
         command.env(BOOTSTRAP_REQUEST_ENV, request);
@@ -200,6 +215,27 @@ mod tests {
 
     use windows::Win32::System::JobObjects::{QueryInformationJobObject, JOB_OBJECT_LIMIT};
     use windows::Win32::System::Threading::{OpenProcess, PROCESS_SYNCHRONIZE};
+
+    #[test]
+    fn pty_job_bootstrap_uses_the_test_harness_entrypoint() {
+        let job = WindowsProcessJob::create().unwrap();
+        let launch = TerminalHostLaunch {
+            label: "shell".into(),
+            shell: "cmd.exe".into(),
+            arguments: vec!["/k".into()],
+            environment: Default::default(),
+        };
+        let command = job.bootstrap_command(&launch).unwrap();
+        assert_eq!(command.get_argv()[1].as_os_str(), OsStr::new("--exact"));
+        assert_eq!(
+            command.get_argv()[2].as_os_str(),
+            OsStr::new("pty_job_bootstrap::tests::pty_job_test_harness_bootstrap")
+        );
+        assert_eq!(
+            command.get_env("ALERA_PTY_JOB_TEST_BOOTSTRAP"),
+            Some(OsStr::new("1"))
+        );
+    }
 
     #[test]
     fn job_is_configured_to_kill_processes_when_closed() {
