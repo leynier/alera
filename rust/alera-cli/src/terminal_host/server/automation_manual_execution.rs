@@ -55,7 +55,7 @@ impl ServerActor {
                 "automation must be active and approved, or run as an audited human draft test",
             ));
         }
-        self.ensure_agent_policy(&definition, &actor, true).await?;
+        self.ensure_dispatch_policy(&definition, &actor).await?;
         let precheck = payload
             .get("precheck")
             .and_then(Value::as_bool)

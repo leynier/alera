@@ -8,9 +8,8 @@
 
 use std::collections::HashSet;
 use std::path::Path;
-use std::process::Stdio;
 
-use alera_core::child_process::windowless_async_command;
+use alera_core::git as core_git;
 use alera_core::runtime::{
     Project, ProjectConfig, RuntimeStore, Workspace, WorktreeCopyRule, WorktreeSetupReport,
     WorktreeSetupStepKind, WorktreeSetupStepReport,
@@ -22,9 +21,14 @@ use crate::worktree_copy::copy_rule;
 use crate::worktree_include::{
     expand_worktree_include, has_worktree_include, WORKTREE_INCLUDE_FILE,
 };
-use tokio::io::AsyncReadExt;
 
-const SETUP_OUTPUT_TAIL_BYTES: usize = 16 * 1024;
+use crate::worktree_setup_process::run_setup_command;
+#[cfg(test)]
+#[path = "worktree_setup_owner_tests.rs"]
+mod owner_tests;
+#[cfg(test)]
+#[path = "worktree_setup_source_branch_tests.rs"]
+mod source_branch_tests;
 
 /// Resolves the project config and writes the script the "Setup" terminal will
 /// run, instead of running the copies and commands here.
@@ -37,6 +41,9 @@ pub(crate) async fn prepare_deferred_worktree_setup(
     workspace: &Workspace,
     script_directory: Option<&Path>,
 ) -> (WorktreeSetupReport, Option<String>) {
+    if let Err(error) = validate_setup_owner(workspace) {
+        return (config_error_report(&error.to_string()), None);
+    }
     let config = match effective_project_config(store, project).await {
         Ok(config) => config,
         Err(error) => return (config_error_report(&error.to_string()), None),
@@ -47,7 +54,10 @@ pub(crate) async fn prepare_deferred_worktree_setup(
     let Some(script_directory) = script_directory else {
         // Only the runtime host knows where to put the script, so anything
         // else falls back to running the setup rather than dropping it.
-        return (run_setup_config(project, workspace, &config).await, None);
+        return (
+            run_setup_config(store, project, workspace, &config, true, None).await,
+            None,
+        );
     };
     let executable = match std::env::current_exe() {
         Ok(executable) => executable,
@@ -105,6 +115,7 @@ pub(crate) async fn run_workspace_setup(
         .find_workspace(workspace_id)
         .await?
         .ok_or_else(|| anyhow!("Workspace not found: {workspace_id}"))?;
+    validate_setup_owner(&workspace)?;
     let project = store
         .find_project(&workspace.project_id)
         .await?
@@ -115,7 +126,7 @@ pub(crate) async fn run_workspace_setup(
         Ok(config) => config,
         Err(error) => return Ok(config_error_report(&error.to_string())),
     };
-    let mut steps = apply_copy_actions(&project, &workspace, &config, false);
+    let mut steps = apply_copy_actions(store, &project, &workspace, &config, false, true).await;
     if copies_only {
         return Ok(WorktreeSetupReport { steps });
     }
@@ -125,7 +136,7 @@ pub(crate) async fn run_workspace_setup(
         crate::login_shell_environment::setup_command_environment().await
     };
     for command in &config.worktree.setup {
-        steps.push(run_setup_command(&workspace.path, command, &command_environment).await);
+        steps.push(run_setup_command(&workspace.path, command, &command_environment, None).await);
     }
     Ok(WorktreeSetupReport { steps })
 }
@@ -135,11 +146,14 @@ pub(crate) async fn run_worktree_setup(
     project: &Project,
     workspace: &Workspace,
 ) -> WorktreeSetupReport {
+    if let Err(error) = validate_setup_owner(workspace) {
+        return config_error_report(&error.to_string());
+    }
     match effective_project_config(store, project).await {
         Ok(config) if !setup_has_copy_or_command_actions(project, &config) => {
             WorktreeSetupReport::empty()
         }
-        Ok(config) => run_setup_config(project, workspace, &config).await,
+        Ok(config) => run_setup_config(store, project, workspace, &config, true, None).await,
         Err(error) => config_error_report(&error.to_string()),
     }
 }
@@ -148,18 +162,70 @@ fn has_copy_actions(project: &Project, config: &ProjectConfig) -> bool {
     !config.worktree.copy.is_empty() || has_worktree_include(Path::new(&project.repo_path))
 }
 
+fn validate_setup_owner(workspace: &Workspace) -> Result<()> {
+    if workspace.kind != alera_core::runtime::WorkspaceKind::Linked {
+        anyhow::bail!(
+            "Worktree setup only applies to linked worktrees, not shared project folders"
+        );
+    }
+    if workspace.host_id != alera_core::runtime::LOCAL_HOST_ID {
+        anyhow::bail!(
+            "Worktree setup must execute on the owning SSH runtime; no local setup was started"
+        );
+    }
+    Ok(())
+}
+
 fn setup_has_copy_or_command_actions(project: &Project, config: &ProjectConfig) -> bool {
     has_copy_actions(project, config) || !config.worktree.setup.is_empty()
 }
 
-fn apply_copy_actions(
+async fn apply_copy_actions(
+    store: &RuntimeStore,
     project: &Project,
     workspace: &Workspace,
     config: &ProjectConfig,
     stop_on_failure: bool,
+    resolve_includes: bool,
+) -> Vec<WorktreeSetupStepReport> {
+    let protect_local_data = match store.workspace_location_was_relocated(workspace).await {
+        Ok(value) => value,
+        Err(error) => return config_error_report(&error.to_string()).steps,
+    };
+    let project = project.clone();
+    let workspace = workspace.clone();
+    let config = config.clone();
+    match tokio::task::spawn_blocking(move || {
+        apply_copy_actions_inner(
+            &project,
+            &workspace,
+            &config,
+            stop_on_failure,
+            protect_local_data,
+            resolve_includes,
+        )
+    })
+    .await
+    {
+        Ok(steps) => steps,
+        Err(error) => config_error_report(&error.to_string()).steps,
+    }
+}
+
+fn apply_copy_actions_inner(
+    project: &Project,
+    workspace: &Workspace,
+    config: &ProjectConfig,
+    stop_on_failure: bool,
+    protect_local_data: bool,
+    resolve_includes: bool,
 ) -> Vec<WorktreeSetupStepReport> {
     let mut steps = Vec::new();
-    let include_rules = match expand_worktree_include(Path::new(&project.repo_path)) {
+    let include_rules = match if resolve_includes {
+        expand_worktree_include(Path::new(&project.repo_path))
+    } else {
+        Ok(Vec::new())
+    } {
         Ok(rules) => rules,
         Err(error) => {
             steps.push(WorktreeSetupStepReport {
@@ -188,6 +254,7 @@ fn apply_copy_actions(
         workspace,
         &config.worktree.copy,
         stop_on_failure,
+        protect_local_data,
         &mut steps,
     ) {
         return steps;
@@ -196,7 +263,14 @@ fn apply_copy_actions(
         .into_iter()
         .filter(|rule| !explicit_from.contains(rule.from.as_str()))
         .collect();
-    append_copy_rules(project, workspace, &extra, stop_on_failure, &mut steps);
+    append_copy_rules(
+        project,
+        workspace,
+        &extra,
+        stop_on_failure,
+        protect_local_data,
+        &mut steps,
+    );
     steps
 }
 
@@ -205,10 +279,11 @@ fn append_copy_rules(
     workspace: &Workspace,
     rules: &[WorktreeCopyRule],
     stop_on_failure: bool,
+    protect_local_data: bool,
     steps: &mut Vec<WorktreeSetupStepReport>,
 ) -> bool {
     for rule in rules {
-        let report = copy_rule(project, workspace, rule);
+        let report = copy_rule(project, workspace, rule, protect_local_data);
         let succeeded = report.succeeded;
         steps.push(report);
         if stop_on_failure && !succeeded {
@@ -218,7 +293,48 @@ fn append_copy_rules(
     false
 }
 
-async fn effective_project_config(
+pub(crate) fn preferred_source_branch_candidates(preferred: &str) -> Vec<String> {
+    let trimmed = preferred.trim();
+    if trimmed.is_empty() {
+        return Vec::new();
+    }
+    if let Some(local) = trimmed.strip_prefix("origin/") {
+        if local.is_empty() {
+            return vec![trimmed.to_string()];
+        }
+        return vec![trimmed.to_string(), local.to_string()];
+    }
+    vec![trimmed.to_string(), format!("origin/{trimmed}")]
+}
+
+pub(crate) fn resolve_configured_source_branch(
+    branches: &[String],
+    preferred: &str,
+) -> Option<String> {
+    preferred_source_branch_candidates(preferred)
+        .into_iter()
+        .find(|candidate| branches.iter().any(|branch| branch == candidate))
+}
+
+pub(crate) async fn preferred_source_branch(
+    store: &RuntimeStore,
+    project: &Project,
+) -> Option<String> {
+    let config = effective_project_config(store, project).await.ok()?;
+    let preferred = config.new_workspace.source_branch.trim();
+    if preferred.is_empty() {
+        return None;
+    }
+    match core_git::list_branches(&project.repo_path) {
+        Ok(branches) => Some(
+            resolve_configured_source_branch(&branches, preferred)
+                .unwrap_or_else(|| preferred.to_string()),
+        ),
+        Err(_) => Some(preferred.to_string()),
+    }
+}
+
+pub(crate) async fn effective_project_config(
     store: &RuntimeStore,
     project: &Project,
 ) -> Result<ProjectConfig> {
@@ -234,13 +350,29 @@ async fn effective_project_config(
     parse_project_config_toml(&contents)
 }
 
-async fn run_setup_config(
+pub(crate) async fn run_setup_config(
+    store: &RuntimeStore,
     project: &Project,
     workspace: &Workspace,
     config: &ProjectConfig,
+    resolve_includes: bool,
+    receipt: Option<&alera_core::runtime::RelocationSetupReceipt>,
 ) -> WorktreeSetupReport {
-    let mut steps = apply_copy_actions(project, workspace, config, true);
+    if let Err(error) = validate_setup_owner(workspace) {
+        return config_error_report(&error.to_string());
+    }
+    if let Some(report) = cancellation_report(store, receipt).await {
+        return WorktreeSetupReport {
+            steps: vec![report],
+        };
+    }
+    let mut steps =
+        apply_copy_actions(store, project, workspace, config, true, resolve_includes).await;
     if steps.iter().any(|step| !step.succeeded) {
+        return WorktreeSetupReport { steps };
+    }
+    if let Some(report) = cancellation_report(store, receipt).await {
+        steps.push(report);
         return WorktreeSetupReport { steps };
     }
     let command_environment = if config.worktree.setup.is_empty() {
@@ -248,10 +380,26 @@ async fn run_setup_config(
     } else {
         crate::login_shell_environment::setup_command_environment().await
     };
-    for command in &config.worktree.setup {
-        let report = run_setup_command(&workspace.path, command, &command_environment).await;
+    for (index, command) in config.worktree.setup.iter().enumerate() {
+        if let Some(report) = cancellation_report(store, receipt).await {
+            steps.push(report);
+            return WorktreeSetupReport { steps };
+        }
+        let journal = receipt.map(
+            |receipt| crate::relocation_setup_process::SetupProcessJournal {
+                store,
+                receipt,
+                command_index: index as u32,
+            },
+        );
+        let report =
+            run_setup_command(&workspace.path, command, &command_environment, journal).await;
         let succeeded = report.succeeded;
         steps.push(report);
+        if let Some(report) = cancellation_report(store, receipt).await {
+            steps.push(report);
+            return WorktreeSetupReport { steps };
+        }
         if !succeeded {
             return WorktreeSetupReport { steps };
         }
@@ -259,159 +407,25 @@ async fn run_setup_config(
     WorktreeSetupReport { steps }
 }
 
-async fn run_setup_command(
-    workspace_path: &str,
-    command: &str,
-    environment: &[(String, String)],
-) -> WorktreeSetupStepReport {
-    let (executable, args) = shell_invocation(command);
-    let mut child = match windowless_async_command(executable)
-        .args(args)
-        .current_dir(workspace_path)
-        .envs(environment.iter().map(|(key, value)| (key, value)))
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-    {
-        Ok(child) => child,
-        Err(error) => {
-            return WorktreeSetupStepReport {
-                kind: WorktreeSetupStepKind::Command,
-                label: command.to_string(),
-                succeeded: false,
-                message: Some(error.to_string()),
-                exit_code: None,
-                stdout_tail: None,
-                stderr_tail: None,
-            };
+async fn cancellation_report(
+    store: &RuntimeStore,
+    receipt: Option<&alera_core::runtime::RelocationSetupReceipt>,
+) -> Option<WorktreeSetupStepReport> {
+    let receipt = receipt?;
+    let message = match store.setup_cancellation_requested(receipt).await {
+        Ok(false) => return None,
+        Ok(true) => {
+            "Cancellation was requested; no further setup commands will be started".to_owned()
         }
+        Err(error) => format!("Could not verify setup cancellation: {error}"),
     };
-    let stdout_tail = child
-        .stdout
-        .take()
-        .map(|stdout| tokio::spawn(read_bounded_tail(stdout)));
-    let stderr_tail = child
-        .stderr
-        .take()
-        .map(|stderr| tokio::spawn(read_bounded_tail(stderr)));
-    match child.wait().await {
-        Ok(status) => {
-            let code = status.code().unwrap_or(-1) as i64;
-            WorktreeSetupStepReport {
-                kind: WorktreeSetupStepKind::Command,
-                label: command.to_string(),
-                succeeded: status.success(),
-                message: if status.success() {
-                    None
-                } else {
-                    Some(format!("Command exited with code {code}"))
-                },
-                exit_code: Some(code),
-                stdout_tail: await_tail(stdout_tail).await,
-                stderr_tail: await_tail(stderr_tail).await,
-            }
-        }
-        Err(error) => WorktreeSetupStepReport {
-            kind: WorktreeSetupStepKind::Command,
-            label: command.to_string(),
-            succeeded: false,
-            message: Some(error.to_string()),
-            exit_code: None,
-            stdout_tail: None,
-            stderr_tail: None,
-        },
-    }
-}
-
-async fn await_tail(handle: Option<tokio::task::JoinHandle<Option<String>>>) -> Option<String> {
-    match handle {
-        Some(handle) => handle.await.ok().flatten(),
-        None => None,
-    }
-}
-
-async fn read_bounded_tail<R>(mut reader: R) -> Option<String>
-where
-    R: tokio::io::AsyncRead + Unpin + Send + 'static,
-{
-    let mut tail = BoundedOutputTail::default();
-    let mut buffer = [0_u8; 8192];
-    loop {
-        match reader.read(&mut buffer).await {
-            Ok(0) => break,
-            Ok(count) => tail.push(&buffer[..count]),
-            Err(_) => break,
-        }
-    }
-    tail.value()
-}
-
-#[derive(Default)]
-struct BoundedOutputTail {
-    bytes: Vec<u8>,
-}
-
-impl BoundedOutputTail {
-    fn push(&mut self, chunk: &[u8]) {
-        self.bytes.extend_from_slice(chunk);
-        if self.bytes.len() > SETUP_OUTPUT_TAIL_BYTES {
-            let excess = self.bytes.len() - SETUP_OUTPUT_TAIL_BYTES;
-            self.bytes.drain(0..excess);
-        }
-    }
-
-    fn value(self) -> Option<String> {
-        text_tail(&self.bytes)
-    }
-}
-
-fn shell_invocation(command: &str) -> (&'static str, Vec<String>) {
-    if cfg!(windows) {
-        (
-            "cmd.exe",
-            vec![
-                "/d".to_string(),
-                "/s".to_string(),
-                "/c".to_string(),
-                command.to_string(),
-            ],
-        )
-    } else {
-        ("/bin/sh", vec!["-c".to_string(), command.to_string()])
-    }
-}
-
-fn text_tail(bytes: &[u8]) -> Option<String> {
-    let text = String::from_utf8_lossy(bytes).trim().to_string();
-    if text.is_empty() {
-        return None;
-    }
-    const MAX_CHARS: usize = 4000;
-    if text.chars().count() <= MAX_CHARS {
-        return Some(text);
-    }
-    let mut chars = text.chars().rev().take(MAX_CHARS).collect::<Vec<_>>();
-    chars.reverse();
-    Some(chars.into_iter().collect())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::text_tail;
-
-    #[test]
-    fn text_tail_keeps_unicode_boundaries() {
-        let input = format!("{}{}", "a".repeat(4001), "ñ");
-        let tail = text_tail(input.as_bytes()).unwrap();
-
-        assert!(tail.starts_with('a'));
-        assert!(tail.ends_with('ñ'));
-        assert_eq!(tail.chars().count(), 4000);
-    }
-
-    #[test]
-    fn text_tail_trims_empty_output() {
-        assert_eq!(text_tail(b" \n\t "), None);
-    }
+    Some(WorktreeSetupStepReport {
+        kind: WorktreeSetupStepKind::Config,
+        label: "Setup Cancellation".into(),
+        succeeded: false,
+        message: Some(message),
+        exit_code: None,
+        stdout_tail: None,
+        stderr_tail: None,
+    })
 }

@@ -128,17 +128,14 @@ pub(super) fn export_at(
         .map(|dir| read_optional(dir, name))
         .transpose()?
         .flatten();
-    let digest = format!(
-        "{:x}",
-        Sha256::digest(serde_json::to_vec(&(
-            &request.workspace_id,
-            instance_id,
-            workspace,
-            name,
-            &before,
-            &after,
-        ))?)
-    );
+    let digest = hex::encode(Sha256::digest(serde_json::to_vec(&(
+        &request.workspace_id,
+        instance_id,
+        workspace,
+        name,
+        &before,
+        &after,
+    ))?));
     let mut retained_path = None;
     if apply {
         if request.expected_digest.as_deref() != Some(&digest) {

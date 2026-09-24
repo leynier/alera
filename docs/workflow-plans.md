@@ -32,6 +32,8 @@ This authenticates possession of the desktop credential, not physical human pres
 
 Foundation and Product gates are always human decisions. A stage scope is `stage:<recipe-stage-id>`; the plan scope is `plan`. Stage gates require completed results and recorded integration and artifact evidence for that stage and its ancestors. Changed evidence or integration SHA invalidates an outstanding challenge.
 
+When local integration reaches a terminal, proven pre-apply refusal or merge conflict, the desktop may request an `integration:<integration-id>` challenge. That scope permits Request Changes only and binds the immutable result, refusal evidence, plan revision and integration SHA. Uncertain Git outcomes remain in Attention and cannot enter this path. The correction retains the original result and requires a new reviewed plan revision; it never silently reopens completed work.
+
 Reject keeps dispatch blocked. Request Changes creates a traceable revision with the review reason and requires a new coordinator proposal before approval. Pending work is cancelled; completed evidence is not silently reopened. Corrections reference tasks from the same run and retain the original source commit. Active attempts must be stopped before a correction can be prepared.
 
 Legacy policy-resolution and task mutation routes cannot bypass workflow membership, immutable definitions or the dispatch barrier. Creation, approval and retry receipts survive runtime reconnects and restarts. Orchestration reset removes run state while preserving the recipe and profile catalogs.

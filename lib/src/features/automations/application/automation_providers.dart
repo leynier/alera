@@ -16,13 +16,8 @@ Stream<List<AutomationRecord>> automationList(Ref ref) {
 }
 
 @riverpod
-Stream<List<AutomationRecord>> automationCatalog(
-  Ref ref,
-  bool includeTrashed,
-) async* {
-  final repository = ref.watch(automationRepositoryProvider);
-  yield await repository.list(includeTrashed: includeTrashed);
-  await for (final event in repository.watch()) {
-    yield event;
-  }
+Stream<List<AutomationRecord>> automationCatalog(Ref ref, bool includeTrashed) {
+  return ref
+      .watch(automationRepositoryProvider)
+      .watch(includeTrashed: includeTrashed);
 }

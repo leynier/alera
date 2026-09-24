@@ -7,7 +7,7 @@ use super::workflow_workspace_store::decode;
 use super::{
     FrozenWorkflowTask, IntegrateWorkflowResult, WorkflowWorkspacePhase, WorkflowWorkspaceRecord,
 };
-use crate::git::{WorkflowGitResource, WorkflowIntegrationRequest};
+use crate::git::{WorkflowGitResource, WorkflowIntegrationRequest, MAX_WORKFLOW_ARTIFACTS};
 
 pub(super) async fn capture(
     tx: &mut Transaction<'_, Sqlite>,
@@ -93,6 +93,9 @@ pub(super) async fn capture(
                 .ok_or_else(|| anyhow!("invalid result artifact"))
         })
         .collect::<Result<Vec<_>>>()?;
+    if artifacts.len() > MAX_WORKFLOW_ARTIFACTS {
+        bail!("workflow result has too many artifacts");
+    }
     Ok(WorkflowIntegrationRequest {
         id,
         repo_path: source.identity.repo_path.clone(),

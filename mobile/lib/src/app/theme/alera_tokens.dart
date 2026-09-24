@@ -12,6 +12,7 @@ abstract final class AleraTokens {
   static const double space24 = 24.0;
   static const double space32 = 32.0;
   static const double space48 = 48.0;
+  static const double progressBarHeight = space2;
 
   /// Mobile aliases kept for existing call sites.
   static const double spaceXs = space4;
@@ -24,6 +25,12 @@ abstract final class AleraTokens {
   /// Minimum comfortable finger tap target (Material / HIG ~48dp).
   static const double minTapTarget = space48;
   static const double iconSm = space12;
+
+  static const double dialogWideWidth = 560.0;
+  static const double dialogMaxHeight = 520.0;
+
+  /// File-type glyphs in phone rows: larger than the desktop sidebar's 16.
+  static const double iconMd = space20;
 
   static const double emptyStateMaxWidth = 520.0;
   static const double conversationMaxWidth = 760.0;
@@ -52,6 +59,9 @@ abstract final class AleraTokens {
   static const Color foregroundFaint = Color(0xFF606060);
   static const Color success = Color(0xFF22C55E);
   static const Color info = Color(0xFF60A5FA);
+  // Matches the desktop `done` token so merged pull requests read the same
+  // on both surfaces.
+  static const Color done = Color(0xFFA78BFA);
   static const Color error = Color(0xFFF87171);
   static const Color onError = Color(0xFF2C0D0D);
   static const Color warning = Color(0xFFF59E0B);
@@ -62,24 +72,12 @@ abstract final class AleraTokens {
   static const Duration durationMid = Duration(milliseconds: 180);
   static const Duration durationSlow = Duration(milliseconds: 280);
   static const Duration durationSpin = Duration(milliseconds: 1200);
-  static const Duration codexShimmerCadence = Duration(milliseconds: 80);
-  static const Duration codexShimmerCycle = Duration(milliseconds: 1600);
-  static const Duration codexElapsedTimeRefreshInterval = Duration(seconds: 1);
-  static const double codexPlanPreviewHeight = 248;
-  static const double codexPlanPreviewFadeHeight = space48 * 2;
-  static const double codexChatFooterMaxHeight =
-      codexPlanPreviewHeight + minTapTarget * 4;
-  static const double codexComposerRadius = radiusXl;
-  static const double codexComposerSingleRowMinWidth = 520;
-  static const double codexCatalogRowHeight = minTapTarget + space24;
-  static const int codexCatalogVisibleRowCount = 2;
-  static const double codexInlineEditorMaxHeight = minTapTarget * 3.5;
-  static const int codexRasterPreviewCacheDimension = 2048;
-  static const double codexPickerHeightFactor = 0.72;
+
+  static const double monoFontSize = 12;
 
   static const TextStyle monoStyle = TextStyle(
     fontFamily: 'JetBrains Mono',
-    fontSize: 12,
+    fontSize: monoFontSize,
     fontWeight: .w400,
     color: foregroundMuted,
   );

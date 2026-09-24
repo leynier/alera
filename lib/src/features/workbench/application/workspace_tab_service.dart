@@ -87,37 +87,18 @@ class WorkspaceTabService._(
     return tab;
   }
 
-  Future<WorkspaceTabRecord> createCodexTab(String workspaceId) async {
-    final existing = await _repository.listWorkspaceTabs(workspaceId);
-    final now = _now();
-    final tab = WorkspaceTabRecord(
-      id: _uuid.v4(),
-      workspaceId: workspaceId,
-      kind: .codex,
-      title: 'Codex Chat',
-      createdAt: now,
-      updatedAt: now,
-      payload: const <String, Object?>{},
-    );
-    // The next ordinal is deliberately not used because Codex Chat has one
-    // stable product label regardless of its conversation metadata.
-    if (existing.any((candidate) => candidate.id == tab.id)) {
-      throw StateError('Could not allocate a unique Codex tab id.');
-    }
-    await _repository.upsertWorkspaceTab(tab);
-    return tab;
-  }
-
   Future<WorkspaceTabRecord> openOrCreateMermanPreviewTab({
     required String workspaceId,
     required String relativePath,
+    Set<String>? reuseTabIds,
   }) async {
     final normalizedPath = _normalizeRelativePath(relativePath);
     final existing = await _repository.listWorkspaceTabs(workspaceId);
     for (final tab in existing) {
       if (tab.kind == WorkspaceTabKind.editor &&
           tab.isMermanPreview &&
-          tab.payload[workspaceTabFilePathPayloadKey] == normalizedPath) {
+          tab.payload[workspaceTabFilePathPayloadKey] == normalizedPath &&
+          _allowsTabReuse(tab, reuseTabIds)) {
         return tab;
       }
     }

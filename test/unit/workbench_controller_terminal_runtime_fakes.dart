@@ -37,7 +37,7 @@ class _FakeTerminalRuntime implements TerminalRuntime {
         workspaceId: workspace.id,
         displayTitle: tab.title,
       ),
-    );
+    )..workspaceId = workspace.id;
   }
 
   final List<String> closedTabIds = <String>[];
@@ -94,7 +94,7 @@ class _FakeTerminalSessionHandle({
   final String tabId;
 
   @override
-  final String workspaceId;
+  String workspaceId;
 
   @override
   final String displayTitle;
@@ -152,6 +152,10 @@ class _FakeTerminalSessionHandle({
     return SizedBox(key: key);
   }
 
+  int requestFocusCalls = 0;
+
   @override
-  void requestFocus() {}
+  void requestFocus() {
+    requestFocusCalls += 1;
+  }
 }

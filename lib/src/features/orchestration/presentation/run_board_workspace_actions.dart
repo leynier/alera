@@ -18,6 +18,9 @@ VoidCallback? runBoardWorkspaceAction(
   RunBoardWorkspaceAction action, {
   String? terminalHandle,
   bool listen = true,
+  bool committedResult = false,
+  String? resultBaseSha,
+  String? resultCompletionSha,
 }) {
   final state = listen
       ? ref.watch(workbenchControllerProvider)
@@ -43,7 +46,10 @@ VoidCallback? runBoardWorkspaceAction(
   if (workspace == null ||
       project == null ||
       (action == RunBoardWorkspaceAction.terminal && tab == null) ||
-      (action == RunBoardWorkspaceAction.diff && project.isFolder)) {
+      (action == RunBoardWorkspaceAction.diff && project.isFolder) ||
+      (action == RunBoardWorkspaceAction.diff &&
+          committedResult &&
+          (resultBaseSha == null || resultCompletionSha == null))) {
     return null;
   }
   return () => unawaited(() async {
@@ -60,10 +66,24 @@ VoidCallback? runBoardWorkspaceAction(
             tabId: tab!.id,
           );
         case RunBoardWorkspaceAction.diff:
-          await controller.openGitDiffTab(
-            workspace: workspace,
-            scope: WorkspaceGitDiffScope.all,
-          );
+          if (committedResult) {
+            final completionSha = resultCompletionSha!;
+            await controller.openGitCommitDiffTab(
+              workspace: workspace,
+              scope: WorkspaceGitDiffScope.all,
+              commitOid: completionSha,
+              parentOid: resultBaseSha!,
+              compareRef: completionSha.length > 8
+                  ? completionSha.substring(0, 8)
+                  : completionSha,
+              subject: 'Workflow result',
+            );
+          } else {
+            await controller.openGitDiffTab(
+              workspace: workspace,
+              scope: WorkspaceGitDiffScope.all,
+            );
+          }
       }
       if (context.mounted) {
         ref.read(runBoardNavigationProvider.notifier).close();

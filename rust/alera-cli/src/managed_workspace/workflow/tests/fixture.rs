@@ -86,6 +86,7 @@ impl Fixture {
                     custom_prompt: String::new(),
                     description: String::new(),
                     quota_group: None,
+                    show_in_new_tab_menu: false,
                     revision: 0,
                     created_at: now,
                     updated_at: now,

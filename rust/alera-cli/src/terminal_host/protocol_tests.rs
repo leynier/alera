@@ -96,6 +96,15 @@ fn diagnostics_logging_stayed_additive() {
 }
 
 #[test]
+fn remote_ssh_workspaces_stayed_additive() {
+    assert_eq!(PROTOCOL_VERSION, 4);
+    assert_eq!(
+        RUNTIME_HOST_REMOTE_SSH_WORKSPACES_CAPABILITY,
+        "remoteSshWorkspacesV1"
+    );
+}
+
+#[test]
 fn bytes_round_trip() {
     let encoded = encode_bytes(b"hello");
     let decoded = decode_bytes(Some(&Value::String(encoded))).unwrap();

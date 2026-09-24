@@ -84,6 +84,7 @@ void _registerSettingsDialogCoreTests() {
     expect(find.text('Font Family'), findsOneWidget);
     expect(find.text('Theme Preset'), findsOneWidget);
     expect(find.text('TUI Scroll Speed'), findsOneWidget);
+    expect(find.text('Drag To Select In TUIs'), findsOneWidget);
     expect(find.text('Copy On Select'), findsOneWidget);
     expect(find.text('Allow OSC 52 Clipboard Writes'), findsOneWidget);
     expect(find.text('Scrollback Lines'), findsOneWidget);
@@ -156,6 +157,16 @@ void _registerSettingsDialogCoreTests() {
     await tester.pump();
     await tester.tap(find.byType(AleraCheckbox).first);
     await tester.pump();
+    await tester.ensureVisible(find.text('Default Source Branch'));
+    await tester.pump();
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('source-branch-field')),
+        matching: find.byType(TextField),
+      ),
+      'develop',
+    );
+    await tester.pump();
     await tester.ensureVisible(find.text('Add Setup Command'));
     await tester.pump();
     await tester.tap(find.text('Add Setup Command'));
@@ -178,6 +189,7 @@ void _registerSettingsDialogCoreTests() {
     expect(saved.worktree.copy.single.to, '.env.local');
     expect(saved.worktree.copy.single.overwrite, isTrue);
     expect(saved.worktree.setup, <String>['pnpm install']);
+    expect(saved.newWorkspace.sourceBranch, 'develop');
   });
 
   testWidgets('clears dirty project setup edits when using repo file', (
@@ -532,6 +544,9 @@ void _registerSettingsDialogCoreTests() {
     await tester.tap(find.text('Agents').first);
     await tester.pump();
 
+    expect(find.text('Extra Skills'), findsWidgets);
+    expect(find.text('Agent Profiles Skill'), findsOneWidget);
+
     await tester.ensureVisible(find.text('Agent Status Notifications'));
     await tester.pump();
 
@@ -550,6 +565,7 @@ void _registerSettingsDialogCoreTests() {
     ]) {
       expect(find.text(label), findsOneWidget);
     }
+    expect(find.text('Show Tab Titles in Sidebar'), findsOneWidget);
     expect(find.text('Agent Status Notifications'), findsOneWidget);
     expect(
       find.text('Keep Computer Awake While Agents Are Working'),
@@ -577,19 +593,23 @@ void _registerSettingsDialogCoreTests() {
       await tester.tap(find.byType(Switch).at(entry.switchIndex));
       await tester.pump(const Duration(milliseconds: 50));
     }
-    await tester.ensureVisible(find.text('Agent Status Notifications'));
+    await tester.ensureVisible(find.text('Show Tab Titles in Sidebar'));
     await tester.pump();
     await tester.tap(find.byType(Switch).at(11));
     await tester.pump(const Duration(milliseconds: 50));
-    await tester.ensureVisible(find.text('Agent Finished Notifications'));
+    await tester.ensureVisible(find.text('Agent Status Notifications'));
     await tester.pump();
     await tester.tap(find.byType(Switch).at(12));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.ensureVisible(find.text('Agent Finished Notifications'));
+    await tester.pump();
+    await tester.tap(find.byType(Switch).at(13));
     await tester.pump(const Duration(milliseconds: 50));
     await tester.ensureVisible(
       find.text('Keep Computer Awake While Agents Are Working'),
     );
     await tester.pump();
-    await tester.tap(find.byType(Switch).at(13));
+    await tester.tap(find.byType(Switch).at(14));
     await tester.pump(const Duration(milliseconds: 50));
 
     final hooks = container
@@ -611,6 +631,7 @@ void _registerSettingsDialogCoreTests() {
     ], everyElement(isTrue));
     final behavior = container.read(settingsControllerProvider).agents;
     expect(<bool>[
+      behavior.showTabTitlesInSidebar,
       behavior.agentStatusNotificationsEnabled,
       behavior.agentStatusFinishedNotificationsEnabled,
       behavior.keepComputerAwakeWhileAgentsWork,

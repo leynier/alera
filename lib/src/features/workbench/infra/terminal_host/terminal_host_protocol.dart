@@ -9,9 +9,48 @@ const String aleraTerminalHostCommand = 'terminal-host';
 const String aleraRuntimeHostCapability = 'runtimeStore';
 const String aleraRuntimeHostWorkspaceSectionsCapability =
     'workspaceSectionsV1';
+
+/// Feature-detect `linkedIssue.*`, `issue.fetch` and `issueUrl` on
+/// `workspace.createManaged`. Additive: do not bump
+/// [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostLinkedIssuesCapability = 'linkedIssuesV1';
+
+/// Feature-detect `pullRequestWatch.*`. Additive: do not bump
+/// [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostPullRequestWatchCapability = 'pullRequestWatchV1';
+
+/// Feature-detect `workspace.archive` / `workspace.unarchive`. Additive: do
+/// not bump [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostWorkspaceArchiveCapability = 'workspaceArchiveV1';
 const String aleraRuntimeHostBootstrapCapability = 'sshTargetBootstrap';
 const String aleraRuntimeHostManagedWorkspaceCapability =
     'managedWorkspaceLifecycle';
+const String aleraRuntimeHostSafeHandoffCapability = 'safeWorkspaceHandoffV1';
+const String aleraRuntimeHostSharedCheckoutCapability =
+    'sharedCheckoutWorkspacesV1';
+
+bool requiresSharedCheckoutSupport(String operation) => switch (operation) {
+  'workspace.upsert' ||
+  'checkout.quickOpen.start' ||
+  'workspace.createShared' ||
+  'workspace.removeShared' ||
+  'workspace.handOff' ||
+  'workspace.handOn' ||
+  'workspace.runSetup' ||
+  'workspace.prepareRelocationSetup' ||
+  'workspace.recoverRelocationSetup' ||
+  'workspace.cancelRelocationSetup' ||
+  'workspace.remove' ||
+  'workspace.removeForProject' ||
+  'project.register' ||
+  'project.clone.start' => true,
+  _ => operation.startsWith('workspace.bufferGuard.'),
+};
+
+/// Feature-detect remote `workspace.createManaged` hostId plus SSH PTY/file
+/// attach. Additive: do not bump [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostRemoteSshWorkspacesCapability =
+    'remoteSshWorkspacesV1';
 const String aleraRuntimeHostOrchestrationCapability = 'orchestration';
 const String aleraRuntimeHostRunBoardCapability = 'orchestrationRunBoardV1';
 const String aleraRuntimeHostWorkflowPlansCapability =
@@ -20,6 +59,8 @@ const String aleraRuntimeHostWorkflowLifecycleCapability =
     'workflowRunLifecycleV1';
 const String aleraRuntimeHostAgentCanvasCapability = 'agentCanvasV1';
 const String aleraRuntimeHostAccountCapability = 'aleraAccountV1';
+const String aleraRuntimeHostConfigurationSyncCapability =
+    'configurationSyncV1';
 const String aleraRuntimeHostMobileCloudEnrollmentCapability =
     'mobileCloudEnrollmentV1';
 const String aleraRuntimeHostCloudPushCapability = 'cloudPushNotificationsV1';
@@ -41,17 +82,13 @@ const String aleraRuntimeHostTerminalRestartCapability = 'terminalRestartV1';
 const String aleraRuntimeHostTerminalPulseCapability = 'terminalPulseV1';
 const String aleraRuntimeHostTerminalDeferredInputCapability =
     'terminalDeferredInputV1';
-const String aleraRuntimeHostBrowserCertificateTrustCapability =
-    'browserCertificateTrustV1';
-const String aleraRuntimeHostMobileEmulatorCapability = 'mobileEmulatorV1';
-const String aleraMobileEmulatorTabKind = 'mobileEmulator';
-const String aleraRuntimeHostCodexChatCapability = 'codexChatTabV1';
-const String aleraRuntimeHostCodexGoalsCapability = 'codexGoalsV1';
 const String aleraRuntimeHostRemoteAiDictationCapability =
     'aiDictationRemoteProvidersV1';
-const String aleraRuntimeHostCodexSessionsCapability = 'codexSessionsV1';
-const String aleraRuntimeHostCodexTurnPolicyCapability = 'codexTurnPolicyV2';
-const String aleraCodexTabKind = 'codex';
+
+/// Feature-detect OpenCode Go AI Assist HTTP completion and model discovery.
+/// Additive: do not bump [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostAiAssistOpenCodeGoCapability =
+    'aiAssistOpenCodeGoV1';
 
 /// The host will switch this connection to length-prefixed binary frames if
 /// the client asks for it in `hello`. Negotiated per client, so an older app

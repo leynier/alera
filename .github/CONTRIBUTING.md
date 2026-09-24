@@ -13,7 +13,7 @@ Thanks for contributing to Alera.
 
 All platforms require Flutter 3.47.2 or newer with Dart 3.13.2 or newer, Git, Rustup, and Zig 0.16.0. CI is pinned to Flutter 3.47.2. Run `make init-submodules` to initialize only the two source dependencies required by the Flutter package; the optional repositories under `reference_projects/` are not part of the build.
 
-All seven owned packages use Dart language version 3.13 through their Dart 3.13.2 SDK lower bounds. Run `flutter pub get` before formatting so the formatter reads the resolved package language version. Follow the [Dart modernization conventions](../docs/dart-3.13-modernization.md) when using primary constructors and typed collection APIs.
+Owned packages use Dart language version 3.13 through their Dart 3.13.2 SDK lower bounds. Run `flutter pub get` before formatting so the formatter reads the resolved package language version. Follow the [Dart modernization conventions](../docs/dart-3.13-modernization.md) when using primary constructors and typed collection APIs.
 
 ### Windows
 
@@ -25,6 +25,20 @@ flutter run -d windows
 ```
 
 Use `pwsh -File tool/development/setup_windows.ps1 -CheckOnly` for a read-only prerequisite check. The first native preflight can spend several minutes compiling Ghostty without output. GNU Make is optional for initial setup; install it if you want to use the convenience targets documented below.
+
+### Direct Cargo builds on Windows
+
+`flutter run -d windows` and `flutter build windows` configure the native Rust build themselves (`rust_builder/cargokit/cmake/cargokit.cmake` and `windows/CMakeLists.txt`). Cargo commands you run directly, such as `cargo build` or `cargo test` under `rust/`, `make rust-test`, and `make cli-build`, do not. On x64 Windows they compile ggml-vulkan through `whisper-rs-sys`, and with the Visual Studio generator that the setup script pins for Flutter, or with the default `rust\target` directory, the build fails with MSBuild `FTK1011` or `cl.exe` `C1083` path-length errors. Run them from **Developer PowerShell for VS 2022**, which puts `cl.exe` and Visual Studio's bundled Ninja on `PATH`, after setting these for that shell only:
+
+```powershell
+$env:CMAKE_GENERATOR = 'Ninja'
+$env:CMAKE_GENERATOR_x86_64_pc_windows_msvc = 'Ninja'
+$env:_CL_ = '/Z7 /FS'
+$env:GGML_CCACHE = 'OFF'
+$env:CARGO_TARGET_DIR = "$env:SystemDrive\c\t"
+```
+
+`CMAKE_GENERATOR` must be Ninja, not only the target-specific form, because ggml's nested vulkan-shaders-gen CMake build reads only the generic variable. `cl.exe` ignores `CFLAGS` and reads `_CL_`. `GGML_CCACHE=OFF` stops ggml from wrapping `cl.exe` with sccache, which drops object files under Ninja. Keep the target directory a few characters long, like `C:\c\t`: ggml's nested TryCompile objects sit more than 200 characters below it and `cl.exe` fails once the full path passes `MAX_PATH`. It is separate from the `C:\c\n` and `C:\c\cli` directories that the Flutter build uses, so a running `flutter run` does not block it. Do not persist these variables at user scope; the Flutter build keeps the Visual Studio generator.
 
 ### Linux
 
@@ -39,18 +53,16 @@ sudo apt-get install -y \
   pkg-config \
   libgtk-3-dev \
   libayatana-appindicator3-dev \
-  libwebkit2gtk-4.1-dev \
   libjson-glib-dev \
   libsecret-1-dev \
   libsqlite3-dev \
   libssl-dev \
   libepoxy-dev \
-  libmpv-dev \
   libvulkan-dev \
   glslc
 ```
 
-These packages provide the compiler toolchain and the native browser, video, storage, security, and Vulkan compute libraries used by the desktop app. Cargo builds outside Flutter should set `VULKAN_SDK=/usr`.
+These packages provide the compiler toolchain and the GTK, storage, security, and Vulkan compute libraries used by the desktop app. Cargo builds outside Flutter should set `VULKAN_SDK=/usr`.
 
 ### Common setup
 
@@ -74,7 +86,7 @@ Shared components live in `lib/src/design_system/` (prefixed `Alera`) with co-lo
 
 Alera runs as a Flutter desktop app plus a bundled Rust CLI named `alera`. The app owns UI state and terminal surfaces; the CLI sidecar runs `alera runtime-host`, owns runtime Projects/Workspaces/Tabs graph state plus long-lived PTY sessions, writes host control metadata, and keeps terminal checkpoints alive after the app is closed. `alera terminal-host` is kept as a compatibility alias.
 
-Use the lowercase repository `makefile` for the standard debug flows. These targets intentionally call Dart tooling instead of inline shell snippets, so the same commands work from PowerShell 7 on Windows and from normal Linux/macOS shells:
+Use the lowercase repository `makefile` for the standard debug flows. These targets call `alera-xtask` (a Rust workspace crate) instead of inline shell snippets, so the same commands work from PowerShell 7 on Windows and from normal Linux/macOS shells without a matching Dart SDK:
 
 ```bash
 make help
@@ -171,9 +183,7 @@ Each pull request should:
 
 If there is no visual change, say that explicitly in the PR description.
 
-### Merge Queue
-
-Mergify validates pull requests in batches of one to four. A single ready pull request starts speculative checks immediately. When more than one pull request is eligible, the queue may wait up to 10 minutes to fill a larger batch. Unrelated or unready changes must not be used to bypass the required checks.
+Squash-merge pull requests after `pr-ready` passes. `main` does not use a merge queue.
 
 ### Validate A Stack Before Merge
 
@@ -187,19 +197,21 @@ The workflow checks out its immutable triggering commit for every native desktop
 
 Without the optional inputs, existing callers continue building their triggering commit without repeating the merge queue's golden and E2E jobs. This manual validation does not enqueue, merge, sign, or publish anything.
 
+Native build jobs allow 180 minutes on macOS, 120 on Windows, and 90 on Linux. These budgets include separate native integration-suite rebuilds as well as the release build; macOS previously exhausted 90 minutes after passing its typography and editor suites. All test steps remain required, and a platform failure does not cancel the other platforms.
+
 ## Release Process
 
 Version bumps, release tags, update manifests, and published assets are maintainer-managed through the **Cut Release** GitHub Actions workflow. The workflow detects desktop and mobile changes independently and derives their SemVer bumps from Conventional Commit metadata. Do not include release version changes in normal contributions unless a maintainer asks for them.
 
-A non-dry cut must start at the current `main` commit. Its first run creates or reuses an immutable `release/version-*` pull request containing the version files and `tool/release/prepared_release.json`, then explicitly dispatches the required pull request checks. Mergify queues that bot-owned pull request after its checks pass. The merge event starts a separate Cut Release run, revalidates the plan against the merge parent, and builds, tags, and publishes only from the exact merged commit. A dry run only writes the plan summary and never creates a branch, pull request, tag, or release.
+A non-dry cut must start at the current `main` commit. Its first run creates or reuses an immutable `release/version-*` pull request containing the version files and `tool/release/prepared_release.json`, then explicitly dispatches the required pull request checks. After `pr-ready` passes, squash-merge that bot-owned pull request. The merge event starts a separate Cut Release run, revalidates the plan against the merge parent, and builds, tags, and publishes only from the exact merged commit. A dry run only writes the plan summary and never creates a branch, pull request, tag, or release.
 
 ### Main Ruleset Rollout
 
-Do not activate the `main` ruleset until the release-writer pull request has merged and its writer path is present on `main`.
+The `protect main` ruleset requires `pr-ready`, allows only squash merges, requires resolved review threads, and blocks deletion and force-pushes. It has no merge-queue bypass. Do not activate it until the release-writer pull request has merged and its writer path is present on `main`.
 
 1. Run **Cut Release** on `main` with `dry_run=true`, preserve its successful run ID, and confirm the run title contains `dry_run=true`.
 2. Run `dart tool/github/main_ruleset.dart --repository leynier/alera --dry-run-run-id <run-id>` and review the exact payload. This preflight verifies the merged writer, successful dry run, live GitHub App IDs, and current ruleset state without changing the repository.
-3. Run the same command with `--apply`. The script creates the ruleset only when no repository ruleset exists, refuses to overwrite drift, and verifies the effective rules on `main`.
+3. Run the same command with `--apply`. The script creates the ruleset when none exists, updates `protect main` when it differs, refuses to touch unexpected extra rulesets, and verifies the effective rules on `main`.
 4. Prove an ordinary direct push is rejected with a controlled empty-tree commit. The command below does not change the checkout or files. If GitHub unexpectedly accepts it, leave the harmless empty commit in history, fix the ruleset through the API or settings, and do not force-push it away.
 
 ```bash
@@ -211,4 +223,4 @@ if git push origin "$probe_sha:refs/heads/main"; then
 fi
 ```
 
-5. Queue an existing eligible pull request that does not touch backend or native surfaces. Verify `pr-ready` passes on its head, Mergify creates the queue candidate, `queue-ready` passes, and Mergify merges it. Keep issue #489 open until both this queued-merge proof and the rejected direct-push proof are recorded.
+5. Squash-merge an eligible pull request after `pr-ready` passes on its head.

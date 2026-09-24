@@ -2,12 +2,14 @@ use chrono::Utc;
 use tempfile::TempDir;
 
 use super::*;
+#[path = "automation_precheck_process_store_tests.rs"]
+mod precheck_process;
 use crate::runtime::{
     AutomationActorKind, AutomationOverlapPolicy, AutomationSchedule, AutomationSetupPolicy,
     AutomationState, AutomationTarget, AutomationTargetIdentity,
 };
 
-async fn seed_profile(store: &RuntimeStore) {
+pub(super) async fn seed_profile(store: &RuntimeStore) {
     sqlx::query(
         "INSERT INTO agentProfiles (id, name, agentType, command, createdAt, updatedAt) \
          VALUES ('profile', 'Profile', 'codex', 'codex', datetime('now'), datetime('now'))",
@@ -17,7 +19,7 @@ async fn seed_profile(store: &RuntimeStore) {
     .unwrap();
 }
 
-fn definition() -> AutomationDefinition {
+pub(super) fn definition() -> AutomationDefinition {
     let now = Utc::now();
     AutomationDefinition {
         id: "automation-runs".into(),
@@ -50,6 +52,7 @@ fn definition() -> AutomationDefinition {
         precheck: None,
         notify_on_success: false,
         circuit_opened: false,
+        circuit_opened_at: None,
         state: super::super::AutomationState::Draft,
         revision: 1,
         approved_revision: None,

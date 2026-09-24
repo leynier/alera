@@ -372,25 +372,6 @@ async fn hook_identity_is_independent_of_activity_and_late_closure_is_ignored() 
     assert_eq!(actor.agent_title_jobs.len(), 1);
 }
 
-#[test]
-fn codex_context_starts_after_the_current_thread_boundary() {
-    let mut tab = tab();
-    tab.payload["codexSnapshot"] = json!({"timelineCells": [
-        {"kind": "userMessage", "markdownText": "Old task"},
-        {"kind": "systemNotice", "metadata": {"noticeType": "threadBoundary"}},
-        {"kind": "userMessage", "markdownText": "New task"},
-        {"kind": "agentMessage", "markdownText": "Current answer"}
-    ]});
-    assert_eq!(
-        super::agent_title_events::first_codex_prompt(&tab),
-        "New task"
-    );
-    assert_eq!(
-        super::agent_title_context::codex_context(&tab.payload["codexSnapshot"]),
-        "New task\nCurrent answer"
-    );
-}
-
 #[tokio::test]
 async fn empty_terminal_fallback_fails_once_and_retains_the_title() {
     let dir = tempfile::tempdir().unwrap();

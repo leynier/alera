@@ -65,6 +65,52 @@ ReviewCheck mapGitHubCheck(Map<String, Object?> json) {
   );
 }
 
+/// Maps one GraphQL `StatusCheckRollupContext` union entry. GitHub returns
+/// modern Actions runs as `CheckRun` and legacy commit statuses as
+/// `StatusContext`, so both forms must participate in the sidebar rollup.
+ReviewCheck mapGitHubStatusRollupCheck(Map<String, Object?> json) {
+  final type = json['__typename'] as String?;
+  if (type == 'StatusContext') {
+    final state = (json['state'] as String? ?? 'PENDING').toUpperCase();
+    final pending = state == 'EXPECTED' || state == 'PENDING';
+    return ReviewCheck(
+      name: json['context'] as String? ?? 'status',
+      status: pending
+          ? ReviewCheckStatus.inProgress
+          : ReviewCheckStatus.completed,
+      conclusion: switch (state) {
+        'SUCCESS' => ReviewCheckConclusion.success,
+        'ERROR' || 'FAILURE' => ReviewCheckConclusion.failure,
+        _ => ReviewCheckConclusion.pending,
+      },
+      url: _nonEmpty(json['targetUrl'] as String?),
+    );
+  }
+
+  final statusValue = (json['status'] as String? ?? 'QUEUED').toUpperCase();
+  final completed = statusValue == 'COMPLETED';
+  final conclusionValue = (json['conclusion'] as String? ?? '').toUpperCase();
+  return ReviewCheck(
+    name: json['name'] as String? ?? 'check',
+    status: completed
+        ? ReviewCheckStatus.completed
+        : statusValue == 'QUEUED'
+        ? ReviewCheckStatus.queued
+        : ReviewCheckStatus.inProgress,
+    conclusion: switch (conclusionValue) {
+      'SUCCESS' => ReviewCheckConclusion.success,
+      'FAILURE' || 'STARTUP_FAILURE' => ReviewCheckConclusion.failure,
+      'CANCELLED' || 'STALE' => ReviewCheckConclusion.cancelled,
+      'TIMED_OUT' => ReviewCheckConclusion.timedOut,
+      'ACTION_REQUIRED' => ReviewCheckConclusion.actionRequired,
+      'NEUTRAL' => ReviewCheckConclusion.neutral,
+      'SKIPPED' => ReviewCheckConclusion.skipped,
+      _ => ReviewCheckConclusion.pending,
+    },
+    url: _nonEmpty(json['detailsUrl'] as String?),
+  );
+}
+
 ReviewCheckDetails mapGitHubCheckDetails(Map<String, Object?> json) {
   return ReviewCheckDetails(
     description: _nonEmpty(json['description'] as String?),

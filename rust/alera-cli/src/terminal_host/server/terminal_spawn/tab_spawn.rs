@@ -14,6 +14,18 @@ impl ServerActor {
         mut tab: WorkspaceTabRecord,
         permit: Option<&WorkflowLaunchPermit>,
     ) -> HostResult<WorkspaceTabRecord> {
+        if spawns_on_create(&tab)
+            && self
+                .runtime_store
+                .pending_workspace_checkout_relocation(&tab.workspace_id)
+                .await
+                .map_err(|error| HostError::state(error.to_string()))?
+                .is_some()
+        {
+            return Err(HostError::state(
+                "Recover the checkout relocation before starting this terminal",
+            ));
+        }
         self.initialize_agent_title_if_new(&mut tab).await?;
         let saved = self
             .runtime_store

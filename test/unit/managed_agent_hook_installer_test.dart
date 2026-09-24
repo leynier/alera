@@ -66,7 +66,7 @@ void main() {
       final status = service.status(.codex);
 
       expect(status.state, ManagedAgentHookInstallState.notInstalled);
-      expect(status.detail, contains('runtime homes'));
+      expect(status.detail, contains('~/.codex'));
     });
 
     test('does not install Claude hooks into the user config', () {
@@ -187,7 +187,7 @@ void main() {
         expect(result.state, ManagedAgentHookInstallState.notInstalled);
         expect(result.managedHooksPresent, isFalse);
         expect(result.configPath, configPath);
-        expect(result.detail, contains('per-session plugin'));
+        expect(result.detail, contains('~/.cursor/hooks.json'));
       }
       expect(File(configPath).existsSync(), isFalse);
     });

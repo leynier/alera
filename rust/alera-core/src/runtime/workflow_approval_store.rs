@@ -124,6 +124,11 @@ impl RuntimeStore {
         {
             bail!("workflow approval is stale; review the current plan and evidence");
         }
+        if challenge.scope.starts_with("integration:")
+            && statement.decision != WorkflowDecision::RequestChanges
+        {
+            bail!("integration correction only permits Request Changes");
+        }
         let decision_id = uuid::Uuid::new_v4().to_string();
         sqlx::query(
             "INSERT INTO workflowDecisions(id, run_id, revision, scope, decision, reason,

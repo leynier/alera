@@ -26,7 +26,7 @@ final class WorkflowCatalogRepositoryProvider
         argument: null,
         retry: null,
         name: r'workflowCatalogRepositoryProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -55,7 +55,7 @@ final class WorkflowCatalogRepositoryProvider
 }
 
 String _$workflowCatalogRepositoryHash() =>
-    r'af6e954269e1df7eb9777988af7cd6acddd4e8c4';
+    r'fbf4c0c5ae367de42b2b02e655dce199fce93227';
 
 @ProviderFor(WorkflowCatalogDraft)
 final workflowCatalogDraftProvider = WorkflowCatalogDraftProvider._();

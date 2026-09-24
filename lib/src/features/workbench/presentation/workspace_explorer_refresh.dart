@@ -18,11 +18,56 @@ extension _WorkspaceExplorerRefresh on _WorkspaceExplorerState {
     if (!mounted) {
       return;
     }
-    await _reloadRoot();
+    await _reloadRoot(restoreSession: true);
     if (!mounted) {
       return;
     }
     await _revealPendingPath();
+  }
+
+  Future<void> _restoreSession() async {
+    final session = _sessionStore.peek(widget.workspace.id);
+    if (session == null) {
+      _sessionReady = true;
+      return;
+    }
+    final paths =
+        session.expandedRelativePaths
+            .where((relativePath) => relativePath.isNotEmpty)
+            .toList(growable: false)
+          ..sort(_compareDirectoryDepth);
+    for (final relativePath in paths) {
+      if (!mounted) {
+        return;
+      }
+      try {
+        await _ensureAncestorsLoaded(relativePath);
+        if (!mounted) {
+          return;
+        }
+        if (_isDirectoryEntry(_entryByPath[relativePath]) &&
+            !_childrenByDirectory.containsKey(relativePath)) {
+          await _loadDirectory(relativePath);
+        }
+      } catch (_) {
+        continue;
+      }
+    }
+    if (!mounted) {
+      return;
+    }
+    _rebuildTree();
+    _controller.expansions.performBatch(() {
+      _controller.expansions.setExpanded(_WorkspaceExplorerState._rootId, true);
+      for (final relativePath in paths) {
+        final nodeId = _nodeIdForRelativePath(relativePath);
+        if (nodeId != null) {
+          _controller.expansions.setExpanded(nodeId, true);
+        }
+      }
+    });
+    _restoreScroll(session.scrollOffset);
+    _sessionReady = true;
   }
 
   Future<void> _restartExplorer() async {
@@ -99,6 +144,9 @@ extension _WorkspaceExplorerRefresh on _WorkspaceExplorerState {
   }
 
   Future<void> _startNativeWatcher() async {
+    if (widget.workspace.isRemote) {
+      return;
+    }
     try {
       final handle = await _workspaceFiles.startExplorerWatcher(
         workspacePath: widget.workspace.path,

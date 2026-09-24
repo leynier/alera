@@ -84,7 +84,7 @@ impl ServerActor {
         let permit = super::workflow_cleanup_execution::cleanup_queue()
             .try_acquire_owned()
             .map_err(|_| HostError::state("cleanup is busy; retry shortly"))?;
-        self.managed_workspace_jobs += 1;
+        self.workflow_workspace_jobs += 1;
         self.cancel_shutdown_timer();
         let store = self.runtime_store.clone();
         let directory = self.runtime_dir.clone();

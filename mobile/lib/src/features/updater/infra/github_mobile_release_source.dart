@@ -58,8 +58,8 @@ class GitHubMobileReleaseSource({http.Client? client, Uri? releasesUrl}) {
   }
 }
 
-/// Picks the newest stable mobile release that actually carries a universal
-/// APK. Exposed for tests, which drive it with recorded payloads.
+/// Picks the newest stable mobile release that actually carries the default
+/// arm64 APK. Exposed for tests, which drive it with recorded payloads.
 MobileRelease? latestMobileRelease(List<dynamic> releases) {
   MobileRelease? best;
   for (final entry in releases) {

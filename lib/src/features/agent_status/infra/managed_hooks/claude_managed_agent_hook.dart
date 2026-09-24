@@ -1,6 +1,6 @@
 // coverage:ignore-file
-// Claude user-config descriptors are intentionally inactive: Claude hooks are
-// installed only in Alera-managed runtime homes.
+// Claude user-config descriptors are intentionally inactive: the runtime host
+// writes ~/.claude/settings.json.
 part of '../managed_agent_hook_installer.dart';
 
 extension _ClaudeManagedAgentHook on ManagedAgentHookInstallService {

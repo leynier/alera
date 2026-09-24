@@ -1,12 +1,6 @@
-use std::process::Stdio;
-
-use alera_core::child_process::windowless_async_command;
 use alera_core::runtime::{
-    redact_known_patterns, AutomationDefinition, AutomationPrecheck, AutomationRun, RuntimeStore,
-    LOCAL_HOST_ID,
+    redact_known_patterns, AutomationDefinition, AutomationRun, RuntimeStore, LOCAL_HOST_ID,
 };
-use tokio::io::AsyncReadExt;
-use tokio::time::timeout;
 
 use super::AUTOMATION_PRECHECK_OUTPUT_BYTES;
 
@@ -53,75 +47,22 @@ pub(crate) fn render_workspace_name(
 pub(crate) async fn run_precheck_command(
     runtime_store: &RuntimeStore,
     host_id: &str,
-    precheck: &alera_core::runtime::AutomationPrecheck,
+    definition: &AutomationDefinition,
+    run: &AutomationRun,
     cwd: &str,
 ) -> Result<bool, String> {
     if host_id != LOCAL_HOST_ID {
-        let target = runtime_store
-            .find_ssh_target(host_id)
-            .await
-            .map_err(|error| error.to_string())?
-            .ok_or_else(|| format!("SSH target is missing: {host_id}"))?;
-        let platform = target
-            .runtime_platform
-            .as_deref()
-            .or(target.platform.as_deref())
-            .unwrap_or("linux");
         return crate::automation_ssh_precheck::run_remote_precheck(
-            &target, platform, precheck, cwd,
+            runtime_store,
+            definition,
+            run,
+            host_id,
+            cwd,
+            &crate::ssh_remote::LiveSshRemoteHost,
         )
         .await;
     }
-    run_local_precheck(precheck, cwd).await
-}
-
-async fn run_local_precheck(precheck: &AutomationPrecheck, cwd: &str) -> Result<bool, String> {
-    let (program, args) = if cfg!(windows) {
-        (
-            "cmd.exe",
-            vec!["/d".to_string(), "/c".to_string(), precheck.command.clone()],
-        )
-    } else {
-        ("/bin/sh", vec!["-c".to_string(), precheck.command.clone()])
-    };
-    let mut child = windowless_async_command(program)
-        .args(args)
-        .current_dir(cwd)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|error| error.to_string())?;
-    let mut stdout_pipe = child.stdout.take();
-    let mut stderr_pipe = child.stderr.take();
-    let status = match timeout(
-        std::time::Duration::from_secs(precheck.timeout_seconds as u64),
-        child.wait(),
-    )
-    .await
-    {
-        Ok(Ok(status)) => status,
-        Ok(Err(error)) => return Err(error.to_string()),
-        Err(_) => {
-            let _ = child.kill().await;
-            let _ = child.wait().await;
-            return Err("automation precheck timed out".to_string());
-        }
-    };
-    let mut stdout = Vec::new();
-    let mut stderr = Vec::new();
-    if let Some(pipe) = stdout_pipe.as_mut() {
-        let _ = pipe.read_to_end(&mut stdout).await;
-    }
-    if let Some(pipe) = stderr_pipe.as_mut() {
-        let _ = pipe.read_to_end(&mut stderr).await;
-    }
-    let stdout = bounded_text(&stdout);
-    let stderr = bounded_text(&stderr);
-    if !status.success() {
-        tracing::info!("automation precheck failed: stdout={stdout:?} stderr={stderr:?}");
-    }
-    Ok(status.success())
+    super::automation_local_precheck::run_local_precheck(runtime_store, definition, run, cwd).await
 }
 
 pub(crate) fn bounded_text(bytes: &[u8]) -> String {

@@ -21,12 +21,10 @@ impl ServerActor {
         {
             return Err(HostError::state("Workspace has a live terminal or process. Stop it explicitly before retrying cleanup."));
         }
-        if self.browser.has_pages_for_workspace(workspace_id) {
-            return Err(HostError::state(
-                "Workspace has a live browser page. Close it explicitly before retrying cleanup.",
-            ));
-        }
-        if self.emulator_requests.has_runtime_mutations() || self.managed_workspace_jobs > 1 {
+        if self.mutation_queue.has_runtime_mutations()
+            || self.has_blocking_managed_workspace_jobs()
+            || self.workflow_workspace_jobs > 1
+        {
             return Err(HostError::state(
                 "Runtime workspace jobs are still active. Retry cleanup after they settle.",
             ));

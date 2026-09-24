@@ -133,7 +133,7 @@ void main() {
     expect(_workspaceIds(rows), <String>['codex', 'terminal']);
   });
 
-  test('Composes project, tag, kind, and normalized search filters', () {
+  test('Composes project, tag, and search filters without hiding shared tasks through retired kind preferences', () {
     final now = DateTime.utc(2026, 7, 18, 12);
     final rows = buildMobileWorkspaceRows(
       workspaces: <WorkspaceSummary>[
@@ -146,7 +146,7 @@ void main() {
         ),
         _workspace('wrong-tag', now, projectId: 'p1'),
         _workspace(
-          'wrong-kind',
+          'shared',
           now,
           projectId: 'p1',
           kind: 'main',
@@ -167,7 +167,7 @@ void main() {
       now: now,
     );
 
-    expect(_workspaceIds(rows), <String>['kept']);
+    expect(_workspaceIds(rows), <String>['kept', 'shared']);
   });
 
   test('Inactive projects sort alphabetically after active projects', () {
@@ -222,6 +222,52 @@ void main() {
       'inactive-root',
     ]);
   });
+
+  test('Filters by selected sections when non-empty', () {
+    final now = DateTime.utc(2026, 7, 18, 12);
+    final rows = buildMobileWorkspaceRows(
+      workspaces: <WorkspaceSummary>[
+        _workspace('in-sec-1', now, sectionId: 'sec-1'),
+        _workspace('in-sec-2', now, sectionId: 'sec-2'),
+        _workspace('no-section', now, sectionId: null),
+      ],
+      projects: <ProjectSummary>[_project('project', 'Project', now)],
+      prefs: const MobileViewPrefs(
+        groupBy: .none,
+        selectedSectionIds: <String>{'sec-1'},
+      ),
+      now: now,
+    );
+
+    expect(_workspaceIds(rows), <String>['in-sec-1']);
+  });
+
+  test('Archived workspaces hide unless the view option is enabled', () {
+    final now = DateTime.utc(2026, 7, 18, 12);
+    final workspaces = <WorkspaceSummary>[
+      _workspace('active', now),
+      _workspace('archived', now, isArchived: true),
+    ];
+
+    final hidden = buildMobileWorkspaceRows(
+      workspaces: workspaces,
+      projects: const [],
+      prefs: const MobileViewPrefs(groupBy: .none),
+      now: now,
+    );
+    expect(_workspaceIds(hidden), <String>['active']);
+
+    final shown = buildMobileWorkspaceRows(
+      workspaces: workspaces,
+      projects: const [],
+      prefs: const MobileViewPrefs(
+        groupBy: .none,
+        showArchivedWorkspaces: true,
+      ),
+      now: now,
+    );
+    expect(_workspaceIds(shown), <String>['active', 'archived']);
+  });
 }
 
 WorkspaceSummary _workspace(
@@ -232,6 +278,8 @@ WorkspaceSummary _workspace(
   String? parentWorkspaceId,
   String kind = 'linked',
   List<String> tagIds = const <String>[],
+  String? sectionId,
+  bool isArchived = false,
 }) {
   return WorkspaceSummary(
     id: id,
@@ -241,6 +289,8 @@ WorkspaceSummary _workspace(
     parentWorkspaceId: parentWorkspaceId,
     kind: kind,
     tagIds: tagIds,
+    sectionId: sectionId,
+    isArchived: isArchived,
     updatedAt: updatedAt,
   );
 }

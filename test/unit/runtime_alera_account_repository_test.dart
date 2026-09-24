@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:alera/src/features/account/domain/alera_account_status.dart';
 import 'package:alera/src/features/account/infra/runtime_alera_account_repository.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_change_coalescer.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -104,6 +106,76 @@ void main() {
     });
   });
 
+  test('account auth events are forwarded by the runtime client', () {
+    expect(
+      runtimeHostEventNames,
+      containsAll(<String>{
+        'aleraAccountChanged',
+        'aleraAccountSignInFailed',
+        'runtimeSettingsChanged',
+      }),
+    );
+  });
+
+  test('watchStatus rebuilds after aleraAccountChanged', () async {
+    final client = _FakeRuntimeHostClient(<String, Object?>{
+      'account.status': _signedOutStatus(),
+      'runtimeSettings.get': const <String, Object?>{},
+    });
+    final repository = RuntimeAleraAccountRepository(
+      client,
+      coalescer: RuntimeChangeCoalescer(
+        debounce: const Duration(milliseconds: 5),
+        maxDelay: const Duration(milliseconds: 20),
+      ),
+    );
+    final received = <AleraAccountStatus>[];
+    final subscription = repository.watchStatus().listen(received.add);
+    addTearDown(subscription.cancel);
+
+    await Future.pause(const Duration(milliseconds: 40));
+    expect(received, hasLength(1));
+    expect(received.single.connected, isFalse);
+    expect(received.single.account, isNull);
+
+    client.responses['account.status'] = _signedInStatus('google');
+    client.addEvent(
+      const RuntimeHostEvent('aleraAccountChanged', <String, Object?>{
+        'connected': true,
+      }),
+    );
+    await Future.pause(const Duration(milliseconds: 40));
+
+    expect(received, hasLength(2));
+    expect(received.last.connected, isTrue);
+    expect(received.last.account?.email, 'user@example.com');
+    expect(received.last.account?.providers, <AleraIdentityProvider>{
+      AleraIdentityProvider.google,
+    });
+
+    client.responses['account.status'] = _signedInStatus('github');
+    client.addEvent(
+      const RuntimeHostEvent('projectsChanged', <String, Object?>{}),
+    );
+    await Future.pause(const Duration(milliseconds: 40));
+    expect(
+      received,
+      hasLength(2),
+      reason: 'unrelated events must not refetch account status',
+    );
+
+    client.addEvent(
+      const RuntimeHostEvent('aleraAccountChanged', <String, Object?>{
+        'connected': true,
+      }),
+    );
+    await Future.pause(const Duration(milliseconds: 40));
+    expect(received, hasLength(3));
+    expect(received.last.account?.providers, <AleraIdentityProvider>{
+      AleraIdentityProvider.github,
+    });
+  });
+
   test('surfaces sign-in failure events', () async {
     final client = _FakeRuntimeHostClient(const <String, Object?>{});
     final repository = RuntimeAleraAccountRepository(client);
@@ -128,6 +200,22 @@ void main() {
     await expectLater(repository.status(), throwsFormatException);
   });
 }
+
+Map<String, Object?> _signedOutStatus() => <String, Object?>{
+  'connected': false,
+  'signInPending': false,
+};
+
+Map<String, Object?> _signedInStatus(String provider) => <String, Object?>{
+  'connected': true,
+  'signInPending': false,
+  'account': <String, Object?>{
+    'accountId': 'account',
+    'email': 'user@example.com',
+    'providers': <String>[provider],
+    'runtimeId': 'runtime',
+  },
+};
 
 final class const _RuntimeCall(
   final String type,

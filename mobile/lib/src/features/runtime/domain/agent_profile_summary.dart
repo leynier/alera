@@ -4,19 +4,24 @@ class const AgentProfileSummary({
   required final String id,
   required final String name,
   required final String agentType,
+  this.showInNewTabMenu = false,
 }) {
   factory fromJson(Map<String, Object?> json) {
     return AgentProfileSummary(
       id: json.requiredString('id'),
       name: json.requiredString('name'),
       agentType: json.requiredString('agentType'),
+      showInNewTabMenu: json['showInNewTabMenu'] == true,
     );
   }
+
+  final bool showInNewTabMenu;
 }
 
 class const GeneratedWorkspaceIdentity({
   required final String workspaceName,
   required final String branchName,
+  final String? sectionId,
 });
 
 class const AgentProfileLaunchResult({

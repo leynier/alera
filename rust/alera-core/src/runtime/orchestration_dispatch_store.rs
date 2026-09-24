@@ -21,6 +21,22 @@ const DISPATCH_COLUMNS: &str = "id, task_id, assignee_handle, status, failure_co
 const GATE_COLUMNS: &str =
     "id, task_id, question, options, status, resolution, created_at, resolved_at";
 
+async fn clear_resolved_workflow_launch_attention(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    dispatch_id: &str,
+) -> Result<()> {
+    // A successful immutable completion resolves a worker's earlier escalation.
+    // Keep the launch receipt while leaving integration Attention independent.
+    sqlx::query(
+        "UPDATE workflowLaunches SET status = 'started', error = NULL, updated_at = datetime('now')
+        WHERE dispatch_id = ? AND status = 'attention'",
+    )
+    .bind(dispatch_id)
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
+}
+
 fn dispatch_from_row(row: SqliteRow) -> Result<OrchestrationDispatchContext> {
     let status_raw: String = row.try_get("status")?;
     Ok(OrchestrationDispatchContext {
@@ -506,6 +522,10 @@ impl RuntimeStore {
             if ctx.completion_sha.as_deref() != completion_sha {
                 bail!("dispatch completion rejected: committed result SHA changed");
             }
+            if workflow_dispatch {
+                clear_resolved_workflow_launch_attention(&mut tx, dispatch_id).await?;
+                tx.commit().await?;
+            }
             return Ok(ctx);
         }
         if ctx.status != OrchestrationDispatchStatus::Dispatched
@@ -536,6 +556,9 @@ impl RuntimeStore {
         .bind(&ctx.task_id)
         .execute(&mut *tx)
         .await?;
+        if workflow_dispatch {
+            clear_resolved_workflow_launch_attention(&mut tx, dispatch_id).await?;
+        }
         refresh_pending_dependents_after_task_status(&mut tx, &ctx.task_id).await?;
         sqlx::query(
             "UPDATE orchestrationMessages SET state = 'obsolete', obsolete_at = datetime('now') \

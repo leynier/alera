@@ -112,11 +112,16 @@ fn parse_hook_event(agent: &str, content_type: &str, body: &[u8]) -> Option<Agen
         serde_json::from_str(&text).ok()?
     };
     let record = decoded.as_object()?;
-    let payload = match record.get("payload")? {
+    let mut payload = match record.get("payload")? {
         Value::Object(_) => record.get("payload")?.clone(),
         Value::String(raw) => serde_json::from_str(raw).ok()?,
         _ => return None,
     };
+    if let Some(dir) = optional_string(record.get("claudeConfigDir")) {
+        if let Some(object) = payload.as_object_mut() {
+            object.insert("claudeConfigDir".to_string(), Value::String(dir));
+        }
+    }
     let payload_record = payload.as_object()?;
     let event_name = optional_string(record.get("hookEventName"))
         .or_else(|| optional_string(record.get("hook_event_name")))

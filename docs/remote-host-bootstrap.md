@@ -1,17 +1,23 @@
 # Remote Host Bootstrap
 
-Alera can register SSH targets in the Home Runtime and install the standalone `alera` runtime sidecar on those hosts. This is the first remote-host path for mobile and agent-driven workflows: Projects, Workspaces, Tabs, SSH target state, and mobile access state remain runtime-owned, while a remote machine can receive a verified runtime binary over SSH.
+Alera can register SSH targets in the Home Runtime and install the standalone `alera` runtime sidecar on those hosts. Bootstrap is sidecar only: it installs and validates the runtime sidecar and does not itself create a Git worktree.
+
+Create tasks on a registered SSH project folder with `alera workspace add --host-id <id>`. Use `--worktree` for an exclusive Git worktree created by the remote sidecar from that host's registered repository. Creation uses branches and remote-tracking references already present there; it does not upload a local Git bundle or fetch changes automatically. New workspaces record their repository of origin. Legacy remote worktrees retain their existing bare repository origin when a project folder is registered. Terminals spawn `ssh` into the workspace folder. `workspace.files.list` and `workspace.files.read` read that host's tree even when an identical path exists on the Home Runtime machine.
+
+`alera workspace register --host-id` remains metadata only. It stamps a host id on a workspace record and does not create a remote Git worktree.
 
 ## Supported Targets
 
-Bootstrap supports `x64` and `arm64` macOS, Linux, and Windows hosts reachable through the local OpenSSH tools. Authentication is intentionally limited to SSH agent or key configuration in `~/.ssh/config`; password bootstrap is rejected. Platform and architecture can be saved on the target or overridden per bootstrap, otherwise Alera probes the remote host.
+Bootstrap supports `x64` and `arm64` macOS, Linux, and Windows hosts reachable through the local OpenSSH tools. Authentication is intentionally limited to SSH agent or key configuration in `~/.ssh/config`. Password authentication is rejected at add, upsert, `bootstrap-plan`, and bootstrap with `password SSH targets are not supported for bootstrap; configure SSH agent or key authentication.` Settings keeps Password listed but disabled for new targets. Platform and architecture can be saved on the target or overridden per bootstrap, otherwise Alera probes the remote host.
 
 Default install directories are:
 
-- macOS/Linux: `~/.alera/runtime`
+- macOS/Linux: `~/.alera/sidecar`
 - Windows: `%LOCALAPPDATA%\Alera\runtime`
 
-The install directory can be overridden from Settings or the CLI.
+The POSIX default is the sidecar layout (`current/`, `bin/`, `versions/`, `data/`). It is separate from the CLI runtime profile (`ALERA_RUNTIME_DIR` or `~/.alera/runtime`). The install directory can be overridden from Settings or the CLI.
+
+Quote `~/...` in the shell so the local Home Runtime does not expand it before Alera sees the path. Absolute install directories are checked against the detected remote platform: a Linux `/home/...` path is rewritten to `/Users/...` on macOS (where `/home` is autofs), and POSIX home paths are rejected on Windows. Bootstrap errors keep the real path for debugging and redact credentials only.
 
 ## Artifact Trust
 
@@ -27,13 +33,28 @@ List targets:
 alera ssh-target --json list
 ```
 
-Add a target:
+Add a target. Duplicate aliases, including different casing, fail with `ssh target alias already exists: <alias>` using the attempted alias:
 
 ```bash
 alera ssh-target --json add --alias build-mac --host mac.example.test --username leynier --auth agent
 ```
 
-Preview a bootstrap:
+`--auth password` is rejected with the same product error as bootstrap and does not persist the target.
+
+Remove a saved target. Unknown ids fail with `ssh target not found`, matching `status` and `bootstrap-plan`:
+
+```bash
+alera ssh-target --json remove --id <target-id>
+```
+
+Probe live SSH connectivity and, when an install directory is known, the remote runtime sidecar. The command persists `lastStatus` (`reachable`, `unreachable`, or `runtimeReady`) and updates `lastCheckedAt` on every call. Unknown ids still fail with `ssh target not found`:
+
+```bash
+alera ssh-target --json status
+alera ssh-target --json status --id <target-id>
+```
+
+Preview a bootstrap. Password targets fail with the same product error as bootstrap:
 
 ```bash
 alera ssh-target --json bootstrap-plan --id <target-id>
@@ -45,6 +66,32 @@ Start a bootstrap:
 alera ssh-target --json bootstrap --id <target-id>
 ```
 
+Create a managed Git worktree after bootstrap succeeds and the project folder has been registered on that host:
+
+```bash
+alera workspace add --worktree --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --host-id <target-id>
+```
+
+The command fails if the target is missing, not bootstrapped, or unreachable.
+
+Register an existing main project folder on a bootstrapped SSH host, then create independent tasks on it:
+
+```bash
+alera project --json register-checkout --project-id <project-id> --host-id <target-id> --path <remote-absolute-path>
+alera workspace add --project-id <project-id> --host-id <target-id> --name "First Task"
+alera workspace add --project-id <project-id> --host-id <target-id> --name "Second Task"
+```
+
+Registration requires a remote sidecar supporting checkout inspection. It resolves the path on that host, checks directory access and the project's storage type, and preserves one project folder per project and host. Git projects require the main working directory of a non-bare repository. Registering a folder creates no task; adding a task starts with fresh state and does not run worktree setup, copy local files or change branches. Tasks use the remote checkout's current branch and files. Unavailable hosts and changed canonical paths fail without deleting existing records.
+
+For a Git project without a checkout on that SSH host, clone directly on the host before registration:
+
+```bash
+alera project --json register-checkout --project-id <project-id> --host-id <target-id> --path <new-remote-absolute-path> --clone-url <repository-url>
+```
+
+The destination's parent must exist. The sidecar reserves a new destination and rejects existing directories, including empty ones and symlinks. Git uses that host's environment and credential helper with terminal prompting disabled. The runtime performs registration and cloning outside its actor loop so terminal requests can continue. If cloning fails or the response is lost, inspect the destination first: a completed clone can be registered by repeating `register-checkout` without `--clone-url`. A partial destination is retained for inspection; another clone must use a new path. The CLI waits up to 30 minutes for the response; expiration does not confirm that remote work stopped.
+
 Cancel an active runtime-host bootstrap job:
 
 ```bash
@@ -52,6 +99,8 @@ alera ssh-target --json bootstrap-cancel --id <target-id>
 ```
 
 When the runtime host is running, `bootstrap` starts a host job and returns immediately with a job id. Without a runtime host, the CLI performs the bootstrap in the foreground and prints progress to stderr.
+
+`alera ssh-target` has no connect or disconnect verbs. Bootstrap still does not place a Git worktree; use `alera workspace add --worktree --host-id <target-id>` or select a linked worktree in New Workspace for that.
 
 ## Mobile Access
 
@@ -72,13 +121,15 @@ The generated pairing payload can be pasted or scanned in the Flutter app under 
 
 ## Settings
 
-Settings includes a **Remote Hosts** section for adding SSH targets, choosing optional platform/architecture/install directory overrides, previewing the bootstrap plan, starting bootstrap, and cancelling an active job. Bootstrap progress is delivered through runtime-host events and the persisted target status records the install directory, runtime version, platform, architecture, timestamps, and last redacted error.
+Settings includes a **Remote Hosts** section for adding SSH targets, choosing optional platform/architecture/install directory overrides, previewing the bootstrap plan, starting bootstrap, and cancelling an active job. The pane states that bootstrap installs the sidecar only and does not create remote workspaces. Bootstrap progress is delivered through runtime-host events and the persisted target status records the install directory, runtime version, platform, architecture, timestamps, and last redacted error. A successful bootstrap also stamps `lastStatus` as `runtimeReady`. `alera ssh-target status` then refreshes that live check independently of bootstrap.
 
 Settings also includes a **Mobile Devices** section covering the full mobile companion lifecycle: gateway enable/bind host/port, pairing QR generation, active offer management, and paired device rename/revocation/deletion, all backed by the local runtime host.
 
 ## Non-Goals For This Version
 
 Bootstrap installs and validates the runtime sidecar only. It does not install launchd, systemd, or Windows services; it does not persist identity-file paths; and it does not repair missing remote prerequisites beyond returning actionable failures.
+
+Managed remote workspaces are created with `alera workspace add --host-id` or Desktop New Workspace after the sidecar is installed. Those flows fail with an actionable error when the host is missing, not bootstrapped, or unreachable. The local runtime host rewrites terminal launches for those workspaces to SSH and serves `workspace.files.list` / `workspace.files.read` over the same path. The Desktop explorer uses those verbs for a workspace whose `hostId` is not local.
 
 The installed sidecar can run autonomously without the desktop app:
 

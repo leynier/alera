@@ -5,6 +5,7 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_master_detail.dart';
 import 'package:alera/src/features/orchestration/application/workflow_catalog_providers.dart';
 import 'package:alera/src/features/orchestration/infra/workflow_catalog_repository.dart';
+import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

@@ -5,4 +5,9 @@ void main() {
   test('workflow attention status uses a title-case label', () {
     expect(runBoardStatusLabel('attention'), 'Attention');
   });
+
+  test('terminal integration refusal is distinct from a merge conflict', () {
+    expect(runBoardStatusLabel('refused'), 'Needs Correction');
+    expect(runBoardStatusLabel('conflict'), 'Conflict');
+  });
 }

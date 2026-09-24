@@ -30,22 +30,12 @@ async fn workflow_schema_does_not_reference_the_board_before_its_migration() {
 
     store.migrate_workflow_plans().await.unwrap();
     let statements = [
-        "EXPLAIN DELETE FROM orchestrationCoordinatorRuns",
-        "EXPLAIN UPDATE orchestrationTasks SET result = NULL",
-        "EXPLAIN DELETE FROM workflowTaskEvidence",
+        "DELETE FROM orchestrationCoordinatorRuns WHERE 0",
+        "UPDATE orchestrationTasks SET result = NULL WHERE 0",
+        "DELETE FROM workflowTaskEvidence WHERE 0",
     ];
     for statement in statements {
-        // SQLite's EXPLAIN display can retain freed schema pointers after DDL.
-        // Compile it afresh, but keep the real mutation cached across migration.
-        sqlx::query(statement)
-            .persistent(false)
-            .fetch_all(store.pool())
-            .await
-            .unwrap();
-        sqlx::query(statement.strip_prefix("EXPLAIN ").unwrap())
-            .execute(store.pool())
-            .await
-            .unwrap();
+        sqlx::query(statement).execute(store.pool()).await.unwrap();
     }
 
     store.migrate_orchestration_board().await.unwrap();
@@ -56,11 +46,6 @@ async fn workflow_schema_does_not_reference_the_board_before_its_migration() {
     for connection in &mut connections {
         for statement in statements {
             sqlx::query(statement)
-                .persistent(false)
-                .fetch_all(&mut **connection)
-                .await
-                .unwrap();
-            sqlx::query(statement.strip_prefix("EXPLAIN ").unwrap())
                 .execute(&mut **connection)
                 .await
                 .unwrap();

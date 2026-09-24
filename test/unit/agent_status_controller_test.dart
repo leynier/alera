@@ -290,7 +290,7 @@ void main() {
       );
     });
 
-    test('normalizes Cursor tool, waiting, done, and response states', () {
+    test('normalizes Cursor tool, done, and response states', () {
       final controller = container.read(agentStatusControllerProvider.notifier);
 
       controller.applyHookEvent(

@@ -139,7 +139,7 @@ fn read_response(reader: &mut BufReader<TcpStream>, id: i64) -> Value {
 fn handshake(writer: &mut TcpStream, reader: &mut BufReader<TcpStream>, token: &str) {
     send(
         writer,
-        json!({"id": 0, "type": "hello", "payload": {"protocolVersion": PROTOCOL_VERSION, "token": token}}),
+        json!({"id": 0, "type": "hello", "payload": {"protocolVersion": PROTOCOL_VERSION, "token": token, "sharedCheckoutWorkspacesV1": true}}),
     );
     let hello = read_response(reader, 0);
     assert_eq!(hello["ok"], json!(true), "handshake rejected: {hello}");
@@ -148,7 +148,7 @@ fn handshake(writer: &mut TcpStream, reader: &mut BufReader<TcpStream>, token: &
 fn handshake_app(writer: &mut TcpStream, reader: &mut BufReader<TcpStream>, token: &str) {
     send(
         writer,
-        json!({"id": 0, "type": "hello", "payload": {"protocolVersion": PROTOCOL_VERSION, "token": token, "clientKind": "app"}}),
+        json!({"id": 0, "type": "hello", "payload": {"protocolVersion": PROTOCOL_VERSION, "token": token, "sharedCheckoutWorkspacesV1": true, "clientKind": "app"}}),
     );
     let hello = read_response(reader, 0);
     assert_eq!(hello["ok"], json!(true), "handshake rejected: {hello}");

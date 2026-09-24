@@ -13,15 +13,14 @@ pub(super) async fn remove_workspace_in_transaction(
             .await?;
     }
     for statement in [
-        "DELETE FROM agentCanvasRevisions WHERE canvasId IN (SELECT id FROM agentCanvases WHERE workspaceId = ?)",
-        "DELETE FROM agentCanvasDecisions WHERE canvasId IN (SELECT id FROM agentCanvases WHERE workspaceId = ?)",
-        "DELETE FROM agentCanvasEvents WHERE workspaceId = ?",
-        "DELETE FROM agentCanvases WHERE workspaceId = ?",
         "DELETE FROM linkedReviews WHERE workspaceId = ?",
         "DELETE FROM workbenchLayouts WHERE workspaceId = ?",
         "DELETE FROM workspaceTagAssignments WHERE workspaceId = ?",
     ] {
-        sqlx::query(statement).bind(workspace_id).execute(&mut **tx).await?;
+        sqlx::query(statement)
+            .bind(workspace_id)
+            .execute(&mut **tx)
+            .await?;
     }
     sqlx::query(
         "DELETE FROM workspaceRelations WHERE parentWorkspaceId = ? OR childWorkspaceId = ?",

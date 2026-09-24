@@ -1,40 +1,44 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/chips/alera_chip.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/icons/alera_linked_worktree_icon.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:flutter/material.dart';
 
-/// Compact main-worktree marker shown next to a workspace name.
+/// Physical location marker, independent of task priority or parentage.
 class const WorkspaceRoleBadge({super.key, required final Workspace workspace})
     extends StatelessWidget {
   /// Whether [workspace] has a role to show. Callers use this to gate the
   /// adjacent spacer so the predicate lives in one place instead of being
   /// duplicated at every call site.
-  static bool hasRole(Workspace workspace) => workspace.isMain;
+  static bool hasRole(Workspace workspace) => true;
 
   @override
   Widget build(BuildContext context) {
-    if (!workspace.isMain) {
-      return const SizedBox.shrink();
-    }
-    return const Tooltip(
-      message: 'Default workspace',
-      child: Icon(
-        AleraIcons.workspaceMain,
-        size: 12,
-        color: AleraTokens.foregroundMuted,
-      ),
+    return Tooltip(
+      message: workspace.isMain ? 'Project folder' : 'Linked worktree',
+      child: workspace.isMain
+          ? const Icon(
+              AleraIcons.workspaceMain,
+              size: 12,
+              color: AleraTokens.foregroundMuted,
+            )
+          : const AleraLinkedWorktreeIcon(),
     );
   }
 }
 
 /// Wrap of low-emphasis chips describing a workspace's place in the graph:
-/// the host it runs on (when not local), how many children it has, and its
-/// tags. Renders nothing for a plain local workspace with no relationships or
-/// tags, so the common case adds no visual weight.
+/// host metadata when `hostId` is not local, how many children it has, and
+/// its tags. Renders nothing for a plain local workspace with no
+/// relationships or tags, so the common case adds no visual weight.
 class const WorkspaceGraphChips({super.key, required final Workspace workspace})
     extends StatelessWidget {
   static const int _maxVisibleTags = 3;
+
+  static String hostMetadataTooltip(String hostId) {
+    return 'Remote workspace on $hostId. Terminals attach over SSH.';
+  }
 
   /// Whether [workspace] has any graph metadata to render. Lets callers gate
   /// surrounding spacing without duplicating the chip logic.
@@ -59,7 +63,7 @@ class const WorkspaceGraphChips({super.key, required final Workspace workspace})
         AleraChip(
           leading: AleraIcons.host,
           label: hostId,
-          tooltip: 'Host: $hostId',
+          tooltip: hostMetadataTooltip(hostId),
         ),
       );
     }

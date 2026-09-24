@@ -28,6 +28,9 @@ pub(super) fn spawn_reader(
                     }
                 }
             }
+            if child.process_id().is_some_and(wait_for_unreaped_exit) {
+                on_event(PtyEvent::BeforeReap);
+            }
             let code = loop {
                 // A workspace shutdown retains the unreaped shell as its OS
                 // session anchor, so its PID cannot be recycled mid-cleanup.
@@ -258,5 +261,43 @@ mod tests {
             ));
         }
         assert_eq!(*recorded.lock().unwrap(), b"normal");
+    }
+}
+
+#[cfg(unix)]
+fn wait_for_unreaped_exit(pid: u32) -> bool {
+    loop {
+        let mut status: libc::siginfo_t = unsafe { std::mem::zeroed() };
+        let result = unsafe {
+            libc::waitid(
+                libc::P_PID,
+                pid,
+                &mut status,
+                libc::WEXITED | libc::WNOHANG | libc::WNOWAIT,
+            )
+        };
+        if result != 0 {
+            if std::io::Error::last_os_error().kind() == std::io::ErrorKind::Interrupted {
+                continue;
+            }
+            return false;
+        }
+        if unsafe { status.si_pid() } == pid as libc::pid_t {
+            return true;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+}
+
+#[cfg(all(test, unix))]
+mod natural_exit_tests {
+    #[test]
+    fn exit_detection_preserves_the_waitable_child() {
+        let mut child = alera_core::child_process::windowless_command("sh")
+            .args(["-c", "exit 0"])
+            .spawn()
+            .unwrap();
+        assert!(super::wait_for_unreaped_exit(child.id()));
+        assert!(child.try_wait().unwrap().unwrap().success());
     }
 }

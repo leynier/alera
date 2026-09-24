@@ -1,4 +1,5 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
+use std::path::Path;
 use std::time::Duration;
 
 use alera_core::runtime::{Project, ProjectKind, Workspace, WorkspaceKind, WorkspaceTabRecord};
@@ -11,7 +12,6 @@ use crate::terminal_host::client::{ClientFrame, ClientHandle};
 use crate::terminal_host::session::Session;
 
 use super::actor_test_harness::{local_client, test_actor};
-use super::browser_broker::{BrowserCall, BrowserDriver, BrowserPage};
 use super::{ServerActor, ServerCommand};
 
 #[path = "managed_workspace_shutdown_retry_tests.rs"]
@@ -77,11 +77,7 @@ impl Fixture {
         let workspace = create_managed_workspace(&actor.runtime_store, serde_json::from_value::<ManagedWorkspaceCreateRequest>(json!({
             "id": "workspace", "projectId": "project", "branch": "feature/remove", "sourceBranch": "main", "skipSetup": true,
         })).unwrap()).await.unwrap().workspace;
-        for (id, kind) in [
-            ("tab-terminal", "terminal"),
-            ("browser", "browser"),
-            ("editor", "editor"),
-        ] {
+        for (id, kind) in [("tab-terminal", "terminal"), ("editor", "editor")] {
             actor
                 .runtime_store
                 .upsert_workspace_tab(WorkspaceTabRecord {
@@ -102,50 +98,6 @@ impl Fixture {
         let mut other = Session::driver_test_stub("other", 80, 24);
         other.workspace_id = "another-workspace".into();
         actor.sessions.insert("other".into(), other);
-        actor.browser.register_driver(BrowserDriver {
-            owner_client_id: 1,
-            app_instance_id: "app".into(),
-            driver_instance_id: "driver".into(),
-            engine: "test".into(),
-            platform: "test".into(),
-            capabilities: BTreeSet::new(),
-        });
-        for (tab_id, workspace_id) in [
-            ("browser", "workspace"),
-            ("other-browser", "another-workspace"),
-        ] {
-            let (page, _) = actor
-                .browser
-                .sync_page(
-                    1,
-                    BrowserPage {
-                        tab_id: tab_id.into(),
-                        workspace_id: workspace_id.into(),
-                        profile_id: "default".into(),
-                        generation: 0,
-                        document_generation: 1,
-                        url: None,
-                        title: None,
-                        capabilities: BTreeSet::new(),
-                        owner_client_id: 1,
-                    },
-                )
-                .unwrap();
-            actor
-                .browser
-                .enqueue(BrowserCall {
-                    correlation_id: tab_id.into(),
-                    requester_client_id: 1,
-                    requester_request_id: 99,
-                    owner_client_id: 1,
-                    request_type: "browser.snapshot".into(),
-                    tab_id: tab_id.into(),
-                    generation: page.generation,
-                    params: json!({}),
-                    deadline_at_ms: i64::MAX,
-                })
-                .unwrap();
-        }
         Self {
             _root: root,
             actor,
@@ -157,7 +109,14 @@ impl Fixture {
         }
     }
 
-    async fn request(&mut self, request_type: &str, payload: Value) -> Value {
+    async fn request(&mut self, request_type: &str, mut payload: Value) -> Value {
+        if request_type == "workspace.removeManaged" {
+            payload
+                .as_object_mut()
+                .unwrap()
+                .entry("deleteBranch")
+                .or_insert(json!(false));
+        }
         self.actor
             .handle_line(
                 1,
@@ -205,40 +164,33 @@ async fn managed_workspace_git_failure_retires_stopped_tabs_and_notifies_clients
         .request(
             "workspace.removeManaged",
             json!({
-                "id": "workspace", "closeSessions": true,
+                "id": "workspace", "closeSessions": true, "deleteBranch": true,
             }),
         )
         .await;
-    assert_eq!(response["ok"], false, "{response}");
+    assert_eq!(response["ok"], true, "{response}");
     assert!(fixture
         .actor
         .runtime_store
         .find_workspace("workspace")
         .await
         .unwrap()
-        .is_some());
-    let tabs = fixture
-        .actor
-        .runtime_store
-        .list_workspace_tabs("workspace")
-        .await
-        .unwrap();
-    assert_eq!(
-        tabs.iter().map(|tab| tab.id.as_str()).collect::<Vec<_>>(),
-        ["editor"]
-    );
+        .is_none());
     assert!(!fixture.actor.sessions.contains_key("terminal"));
-    assert!(!fixture.actor.browser.has_pages_for_workspace("workspace"));
     assert!(fixture.actor.sessions["other"].running());
-    assert!(fixture
-        .actor
-        .browser
-        .has_pages_for_workspace("another-workspace"));
     assert!(fixture
         .events
         .iter()
         .any(|value| value["event"] == "workspaceTabsChanged"));
-    assert!(!fixture.actor.emulator_requests.has_runtime_mutations());
+    assert!(!fixture.actor.mutation_queue.has_runtime_mutations());
+    assert!(
+        alera_core::git::branch_exists(
+            &fixture._root.path().join("repo").to_string_lossy(),
+            "feature/remove",
+        )
+        .unwrap(),
+        "branch delete lock should keep the branch"
+    );
 }
 
 #[tokio::test]
@@ -253,7 +205,6 @@ async fn managed_workspace_measurement_allows_confirmed_session_cleanup_without_
     assert_eq!(response["ok"], true, "{response}");
     assert_eq!(response["payload"]["safeToClean"], true, "{response}");
     assert!(fixture.actor.sessions["terminal"].running());
-    assert!(fixture.actor.browser.has_pages_for_workspace("workspace"));
 }
 
 #[tokio::test]
@@ -283,14 +234,7 @@ async fn managed_workspace_removal_closes_only_owned_sessions_before_deleting_re
         .is_empty());
     assert!(!fixture.actor.sessions.contains_key("terminal"));
     assert!(fixture.actor.sessions["other"].running());
-    assert!(!fixture.actor.browser.has_pages_for_workspace("workspace"));
-    assert!(fixture
-        .actor
-        .browser
-        .has_pages_for_workspace("another-workspace"));
-    assert!(fixture.actor.browser.call("browser").is_none());
-    assert!(fixture.actor.browser.call("other-browser").is_some());
-    assert!(!fixture.actor.emulator_requests.has_runtime_mutations());
+    assert!(!fixture.actor.mutation_queue.has_runtime_mutations());
 }
 
 #[tokio::test]
@@ -302,13 +246,18 @@ async fn managed_workspace_legacy_removal_keeps_live_sessions() {
     assert_eq!(response["ok"], false);
     assert!(std::path::Path::new(&fixture.workspace.path).exists());
     assert!(fixture.actor.sessions["terminal"].running());
-    assert!(fixture.actor.browser.has_pages_for_workspace("workspace"));
 }
 
 #[tokio::test]
 async fn managed_workspace_cleanup_rejects_main_before_stopping_sessions() {
     let mut fixture = Fixture::new().await;
     fixture.workspace.kind = WorkspaceKind::Main;
+    fixture.workspace.path = fixture
+        ._root
+        .path()
+        .join("repo")
+        .to_string_lossy()
+        .into_owned();
     fixture
         .actor
         .runtime_store
@@ -323,14 +272,127 @@ async fn managed_workspace_cleanup_rejects_main_before_stopping_sessions() {
         .await;
     assert_eq!(response["ok"], false);
     assert!(fixture.actor.sessions["terminal"].running());
-    assert!(fixture.actor.browser.has_pages_for_workspace("workspace"));
+}
+
+#[tokio::test]
+async fn shared_workspace_removal_preserves_checkout_sibling_and_other_processes() {
+    let mut fixture = Fixture::new().await;
+    fixture.workspace.kind = WorkspaceKind::Main;
+    fixture.workspace.path = fixture
+        ._root
+        .path()
+        .join("repo")
+        .to_string_lossy()
+        .into_owned();
+    fixture
+        .actor
+        .runtime_store
+        .upsert_workspace(fixture.workspace.clone())
+        .await
+        .unwrap();
+    let mut sibling = fixture.workspace.clone();
+    sibling.id = "another-workspace".into();
+    sibling.instance_id = "another-instance".into();
+    fixture
+        .actor
+        .runtime_store
+        .upsert_workspace(sibling)
+        .await
+        .unwrap();
+    let sentinel = Path::new(&fixture.workspace.path).join("unsaved-to-git.txt");
+    std::fs::write(&sentinel, "keep shared changes").unwrap();
+    let unprepared = fixture
+        .request(
+            "workspace.removeShared",
+            json!({"id": "workspace", "closeSessions": true, "deleteBranch": false}),
+        )
+        .await;
+    assert_eq!(unprepared["ok"], false);
+    assert!(unprepared["error"]
+        .as_str()
+        .unwrap()
+        .contains("bufferGuardId"));
+    assert!(fixture.actor.sessions["terminal"].running());
+    assert!(sentinel.exists());
+    let guard = fixture
+        .actor
+        .checkout_buffer_guard_request(
+            1,
+            "workspace.bufferGuard.acquire",
+            &json!({"id": "workspace", "operation": "removeShared"}),
+        )
+        .await
+        .unwrap();
+    let response = fixture
+        .request(
+            "workspace.removeShared",
+            json!({
+                "id": "workspace", "closeSessions": true, "deleteBranch": false,
+                "bufferGuardId": guard["guardId"],
+            }),
+        )
+        .await;
+    assert_eq!(response["ok"], true, "{response}");
+    assert_eq!(
+        std::fs::read_to_string(sentinel).unwrap(),
+        "keep shared changes"
+    );
+    assert!(Path::new(&fixture.workspace.path).join(".git").exists());
+    assert!(fixture
+        .actor
+        .runtime_store
+        .find_workspace("workspace")
+        .await
+        .unwrap()
+        .is_none());
+    assert!(fixture
+        .actor
+        .runtime_store
+        .find_workspace("another-workspace")
+        .await
+        .unwrap()
+        .is_some());
+    assert!(fixture
+        .actor
+        .runtime_store
+        .list_workspace_tabs("workspace")
+        .await
+        .unwrap()
+        .is_empty());
+    assert!(!fixture.actor.sessions.contains_key("terminal"));
+    assert!(fixture.actor.sessions["other"].running());
+}
+
+#[tokio::test]
+async fn unknown_branch_choice_keeps_live_sessions_and_records() {
+    let mut fixture = Fixture::new().await;
+    let response = fixture
+        .request(
+            "workspace.removeManaged",
+            json!({"id":"workspace","closeSessions":true,"deleteBranch":null}),
+        )
+        .await;
+    assert_eq!(response["ok"], false);
+    assert!(response["error"]
+        .as_str()
+        .unwrap()
+        .contains("requires a choice"));
+    assert!(fixture.actor.sessions["terminal"].running());
+    assert!(Path::new(&fixture.workspace.path).exists());
+    assert!(fixture
+        .actor
+        .runtime_store
+        .find_workspace("workspace")
+        .await
+        .unwrap()
+        .is_some());
 }
 
 #[tokio::test]
 async fn managed_workspace_cleanup_holds_barrier_until_terminal_shutdown_and_deletion_finish() {
     let mut fixture = Fixture::new().await;
-    fixture.actor.handle_line(1, json!({"id": 1, "type": "workspace.removeManaged", "payload": {"id": "workspace", "closeSessions": true}}).to_string()).await;
-    assert!(fixture.actor.emulator_requests.has_runtime_mutations());
+    fixture.actor.handle_line(1, json!({"id": 1, "type": "workspace.removeManaged", "payload": {"id": "workspace", "closeSessions": true, "deleteBranch": false}}).to_string()).await;
+    assert!(fixture.actor.mutation_queue.has_runtime_mutations());
     let prepare = tokio::time::timeout(Duration::from_secs(5), fixture.commands.recv())
         .await
         .unwrap()
@@ -341,10 +403,10 @@ async fn managed_workspace_cleanup_holds_barrier_until_terminal_shutdown_and_del
     ));
     fixture.actor.handle(prepare).await;
     assert!(!fixture.actor.sessions.contains_key("terminal"));
-    assert!(fixture.actor.emulator_requests.has_runtime_mutations());
+    assert!(fixture.actor.mutation_queue.has_runtime_mutations());
     let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
     loop {
-        assert!(fixture.actor.emulator_requests.has_runtime_mutations());
+        assert!(fixture.actor.mutation_queue.has_runtime_mutations());
         let command = tokio::time::timeout_at(deadline, fixture.commands.recv())
             .await
             .unwrap()
@@ -357,5 +419,5 @@ async fn managed_workspace_cleanup_holds_barrier_until_terminal_shutdown_and_del
             break;
         }
     }
-    assert!(!fixture.actor.emulator_requests.has_runtime_mutations());
+    assert!(!fixture.actor.mutation_queue.has_runtime_mutations());
 }

@@ -28,7 +28,7 @@ void _registerWorkbenchControllerWorkspaceGraphTests() {
         parentWorkspaceId: parent.id,
         childWorkspaceId: result.workspace.id,
       ));
-      expect(_controller.state.activeWorkspaceId, result.workspace.id);
+      expect(_controller.state.activeWorkspaceId, isNot(result.workspace.id));
     },
   );
 
@@ -47,7 +47,7 @@ void _registerWorkbenchControllerWorkspaceGraphTests() {
 
       expect(result.hasParentLinkError, isTrue);
       expect(_harness.workspaceGraphRepository.linkedWorkspaces, isEmpty);
-      expect(_controller.state.activeWorkspaceId, result.workspace.id);
+      expect(_controller.state.activeWorkspaceId, isNot(result.workspace.id));
       expect(_controller.state.error, isNull);
     },
   );

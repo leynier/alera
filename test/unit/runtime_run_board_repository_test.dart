@@ -118,6 +118,7 @@ void main() {
         'worktree': '/project/attempt',
         'branch': 'alera/workflows/attempt',
         'base_sha': 'base',
+        'completion_sha': 'completed-commit',
         'integrated_sha': null,
         'conflict_paths': ['lib/feature.dart'],
         'conflicts_truncated': false,
@@ -150,6 +151,7 @@ void main() {
     });
     expect(task.workflow!.state, 'conflict');
     expect(task.workflow!.executionWorkspaceId, 'attempt');
+    expect(task.workflow!.completionSha, 'completed-commit');
     expect(task.workflow!.conflictPaths, ['lib/feature.dart']);
     expect(() => task.history.clear(), throwsUnsupportedError);
     expect(() => task.dependencies.clear(), throwsUnsupportedError);

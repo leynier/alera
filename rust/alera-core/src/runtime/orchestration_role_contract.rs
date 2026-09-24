@@ -161,10 +161,7 @@ impl RoleContractSnapshot {
         bounded_json(&self.inputs, INSTANCE_MAX_BYTES)?;
         let mut content = serde_json::json!([self.version, self.contract, self.inputs]);
         content.sort_all_objects();
-        Ok(format!(
-            "{:x}",
-            Sha256::digest(serde_json::to_vec(&content)?)
-        ))
+        Ok(hex::encode(Sha256::digest(serde_json::to_vec(&content)?)))
     }
 
     pub fn worker_instructions(&self) -> Result<String> {

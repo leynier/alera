@@ -4,7 +4,87 @@ mixin _WorkbenchControllerNavigation
     on
         _$WorkbenchController,
         _WorkbenchControllerInternals,
-        _WorkbenchControllerProjects {
+        _WorkbenchControllerProjects,
+        _WorkbenchControllerProjectSelection,
+        _WorkbenchControllerWorkspacePanel,
+        _WorkbenchControllerWorkspacePanelPanes,
+        _WorkbenchControllerInternalLayout {
+  Future<String> launchAgentProfileTab({
+    required Workspace workspace,
+    required String profileId,
+    String? targetGroupId,
+    String prompt = '',
+  }) async {
+    final sleepGeneration = _workspaceSleepGeneration[workspace.id] ?? 0;
+    try {
+      final launch = await _promptWorkspaceRuntimeClient.launchAgent(
+        workspaceId: workspace.id,
+        profileId: profileId,
+        prompt: prompt,
+        clientMutationId: _uuid.v4(),
+        requireIdempotency: false,
+      );
+      await openPersistedWorkspaceTab(
+        workspaceId: workspace.id,
+        tabId: launch.tabId,
+        targetGroupId: targetGroupId,
+        sleepGeneration: sleepGeneration,
+      );
+      state = state.copyWith(error: null);
+      return launch.tabId;
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+      rethrow;
+    }
+  }
+
+  Future<void> openPersistedWorkspaceTab({
+    required String workspaceId,
+    required String tabId,
+    String? targetGroupId,
+    int? sleepGeneration,
+    bool activate = true,
+  }) async {
+    final generation =
+        sleepGeneration ?? (_workspaceSleepGeneration[workspaceId] ?? 0);
+    final existedBeforeRequest = state
+        .tabsFor(workspaceId)
+        .any((candidate) => candidate.id == tabId);
+    final tab = await _repository.findWorkspaceTabById(tabId);
+    if (_disposed) return;
+    if (tab == null || tab.workspaceId != workspaceId) {
+      throw StateError(
+        'The created tab is no longer available in this workspace.',
+      );
+    }
+    if (_isStaleWorkspaceOpen(workspaceId, generation) ||
+        _isClosedTabId(tab.id)) {
+      if (!existedBeforeRequest || _isClosedTabId(tab.id)) {
+        await _discardStaleOpenedTab(tab);
+      }
+      throw StateError('Workspace is no longer available for a persisted tab');
+    }
+    final currentTabs = state.tabsFor(workspaceId);
+    final tabs = <WorkspaceTabRecord>[
+      for (final current in currentTabs) current.id == tabId ? tab : current,
+      if (!currentTabs.any((current) => current.id == tabId)) tab,
+    ];
+    _setTabsForWorkspace(workspaceId, tabs);
+    addTerminalToWorkspacePanel(
+      workspaceId: workspaceId,
+      tab: tab,
+      tabs: tabs,
+      previousTabs: currentTabs,
+      targetGroupId: targetGroupId,
+      focus: activate,
+    );
+    if (activate &&
+        !_disposed &&
+        !_isStaleWorkspaceOpen(workspaceId, generation)) {
+      await selectWorkspaceTab(workspaceId: workspaceId, tabId: tabId);
+    }
+  }
+
   Future<void> selectWorkspaceTab({
     required String workspaceId,
     required String tabId,
@@ -17,8 +97,17 @@ mixin _WorkbenchControllerNavigation
         ? null
         : _projectById(state.projects, workspace.projectId);
     if (workspace == null || project == null) return;
+    final sleepGeneration = _workspaceSleepGeneration[workspaceId] ?? 0;
+    final selectionRevisionBeforeActivation =
+        _panelSelectionRevisionByWorkspace[workspaceId] ?? 0;
     if (state.activeWorkspaceId != workspaceId) {
       await selectWorkspace(project: project, workspace: workspace);
+    }
+    if (_isStaleWorkspaceOpen(workspaceId, sleepGeneration) ||
+        (_panelSelectionRevisionByWorkspace[workspaceId] ?? 0) >
+            selectionRevisionBeforeActivation ||
+        state.tabsFor(workspaceId).every((tab) => tab.id != tabId)) {
+      return;
     }
     final groupId = state.layoutFor(workspaceId)?.groupIdForTab(tabId);
     _setActiveTabInternal(

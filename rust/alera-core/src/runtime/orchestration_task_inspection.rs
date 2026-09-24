@@ -62,6 +62,7 @@ pub struct TaskWorkflowInspection {
     pub worktree: Option<String>,
     pub branch: Option<String>,
     pub base_sha: Option<String>,
+    pub completion_sha: Option<String>,
     pub integrated_sha: Option<String>,
     pub conflict_paths: Vec<String>,
     pub conflicts_truncated: bool,
@@ -262,6 +263,7 @@ async fn inspect_workflow_task(
             x.error AS workspace_error, w.path, w.branch,
             json_extract(x.identity, '$.baseSha') AS base_sha,
             l.id AS launch_id, l.status AS launch_status, l.error AS launch_error,
+            d.completion_sha,
             i.id AS integration_id, CASE WHEN i.cancelled=1 THEN 'cancelled' ELSE i.state END AS integration_state, i.receipt,
             i.conflict_paths, i.conflicts_truncated, i.error AS integration_error,
             e.task_id AS evidence_id, t.status AS task_status, t.result IS NOT NULL AS has_result
@@ -271,6 +273,7 @@ async fn inspect_workflow_task(
         JOIN workflowWorkspaces x ON x.sequence = (SELECT MAX(sequence) FROM workflowWorkspaces WHERE task_id = p.task_id)
         LEFT JOIN workspaces w ON w.id = x.id
         LEFT JOIN workflowLaunches l ON l.workspace_id = x.id
+        LEFT JOIN orchestrationDispatchContexts d ON d.id = l.dispatch_id
         LEFT JOIN workflowIntegrations i ON i.sequence = (SELECT MAX(sequence) FROM workflowIntegrations WHERE task_id = p.task_id)
         LEFT JOIN workflowTaskEvidence e ON e.task_id = p.task_id
         WHERE p.run_id = ? AND p.task_id = ?")
@@ -289,7 +292,14 @@ async fn inspect_workflow_task(
     } else if integration_state.as_deref() == Some("cancelled") {
         "cancelled"
     } else if integration_state.as_deref() == Some("conflict") {
-        "conflict"
+        if row
+            .try_get::<Option<String>, _>("integration_error")?
+            .is_some()
+        {
+            "refused"
+        } else {
+            "conflict"
+        }
     } else if integration_state.as_deref() == Some("attention")
         || launch_state.as_deref() == Some("attention")
         || task_state == "failed"
@@ -329,6 +339,7 @@ async fn inspect_workflow_task(
         worktree: row.try_get("path")?,
         branch: row.try_get("branch")?,
         base_sha: row.try_get("base_sha")?,
+        completion_sha: row.try_get("completion_sha")?,
         integrated_sha,
         conflict_paths,
         conflicts_truncated: row

@@ -7,7 +7,42 @@ use crate::git::{
 };
 
 pub(super) mod fixture;
+mod refusal_correction;
 use fixture::Fixture;
+
+#[tokio::test]
+async fn artifact_overflow_cannot_create_a_durable_integration_reservation() {
+    let fixture = Fixture::new().await;
+    let raw: String = sqlx::query_scalar("SELECT result FROM orchestrationTasks WHERE id = ?")
+        .bind(&fixture.input.task_id)
+        .fetch_one(fixture.store.pool())
+        .await
+        .unwrap();
+    let mut result: serde_json::Value = serde_json::from_str(&raw).unwrap();
+    result["artifacts"] = json!((0..=crate::git::MAX_WORKFLOW_ARTIFACTS)
+        .map(|index| format!("artifact-{index}.txt"))
+        .collect::<Vec<_>>());
+    sqlx::query("UPDATE orchestrationTasks SET result = ? WHERE id = ?")
+        .bind(result.to_string())
+        .bind(&fixture.input.task_id)
+        .execute(fixture.store.pool())
+        .await
+        .unwrap();
+    assert!(fixture
+        .store
+        .reserve_workflow_integration(&fixture.input)
+        .await
+        .unwrap_err()
+        .to_string()
+        .contains("too many artifacts"));
+    let reservations: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM workflowIntegrations WHERE task_id = ?")
+            .bind(&fixture.input.task_id)
+            .fetch_one(fixture.store.pool())
+            .await
+            .unwrap();
+    assert_eq!(reservations, 0);
+}
 
 #[tokio::test]
 async fn workflow_completion_retains_one_exact_result_sha_across_retries_and_restart() {
@@ -118,6 +153,10 @@ async fn workflow_integration_store_defers_dependencies_until_git_and_evidence_c
     let workflow = inspection.workflow.unwrap();
     assert_eq!(workflow.state, "result_ready");
     assert_eq!(workflow.execution_workspace_id, fixture.input.workspace_id);
+    assert_eq!(
+        workflow.completion_sha.as_deref(),
+        Some(fixture.source_sha.as_str())
+    );
     let record = fixture.reserve().await;
     fixture.assert_dependent_blocked().await;
     assert_eq!(record.state, WorkflowIntegrationState::Pending);
@@ -148,6 +187,10 @@ async fn workflow_integration_store_defers_dependencies_until_git_and_evidence_c
         .unwrap();
     let workflow = inspection.workflow.unwrap();
     assert_eq!(workflow.state, "integrated");
+    assert_eq!(
+        workflow.completion_sha.as_deref(),
+        Some(fixture.source_sha.as_str())
+    );
     assert_eq!(
         workflow.integrated_sha,
         Some(receipt.integrated_sha.clone())

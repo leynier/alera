@@ -3,7 +3,7 @@ use std::path::Path;
 
 use cap_fs_ext::{FollowSymlinks, OpenOptionsFollowExt, OpenOptionsSyncExt};
 use cap_std::{ambient_authority, fs::Dir, fs::OpenOptions};
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use zeroize::Zeroizing;
@@ -29,7 +29,7 @@ pub struct WorkflowApprovalChallenge {
     pub audience: String,
     pub run_id: String,
     pub revision: i64,
-    /// "plan", "correction", or "stage:<exact recipe stage id>".
+    /// "plan", "correction", "stage:<exact recipe stage id>", or "integration:<terminal receipt id>".
     pub scope: String,
     pub plan_digest: String,
     pub evidence_digest: String,

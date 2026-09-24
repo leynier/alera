@@ -38,7 +38,8 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
         status TEXT NOT NULL,
         sourceBranch TEXT,
         reusesExistingBranch INTEGER NOT NULL DEFAULT 0,
-        isPinned INTEGER NOT NULL DEFAULT 0
+        isPinned INTEGER NOT NULL DEFAULT 0,
+        isArchived INTEGER NOT NULL DEFAULT 0
     );",
     "CREATE INDEX IF NOT EXISTS workspacesProjectStatusIdx ON workspaces(projectId, status, kind, createdAt);",
     "CREATE UNIQUE INDEX IF NOT EXISTS workspacesInstanceIdx ON workspaces(instanceId);",
@@ -60,6 +61,47 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
         url TEXT,
         linkedAt TEXT NOT NULL
     );",
+    "CREATE TABLE IF NOT EXISTS linkedIssues (
+        workspaceId TEXT PRIMARY KEY,
+        url TEXT NOT NULL,
+        provider TEXT,
+        repository TEXT,
+        number INTEGER,
+        title TEXT,
+        state TEXT,
+        stateLabel TEXT,
+        fetchedAt TEXT,
+        fetchError TEXT,
+        linkedAt TEXT NOT NULL
+    )",
+    // Triggers also cover workspace removal through clients that predate this table.
+    "CREATE TRIGGER IF NOT EXISTS linkedIssueWorkspaceDeleted AFTER DELETE ON workspaces BEGIN
+        DELETE FROM linkedIssues WHERE workspaceId = OLD.id;
+    END",
+    "CREATE TRIGGER IF NOT EXISTS linkedIssueWorkspaceRemoved AFTER UPDATE OF status ON workspaces
+     WHEN NEW.status = 'removed' BEGIN
+        DELETE FROM linkedIssues WHERE workspaceId = NEW.id;
+    END",
+    "CREATE TABLE IF NOT EXISTS pullRequestWatches (
+        workspaceId TEXT PRIMARY KEY,
+        reviewNumber INTEGER NOT NULL,
+        mode TEXT NOT NULL,
+        checks INTEGER NOT NULL,
+        comments INTEGER NOT NULL,
+        conflicts INTEGER NOT NULL,
+        tabId TEXT,
+        profileId TEXT,
+        label TEXT,
+        lastDispatchJson TEXT,
+        lastMergedHeadSha TEXT
+    )",
+    "CREATE TRIGGER IF NOT EXISTS pullRequestWatchWorkspaceDeleted AFTER DELETE ON workspaces BEGIN
+        DELETE FROM pullRequestWatches WHERE workspaceId = OLD.id;
+    END",
+    "CREATE TRIGGER IF NOT EXISTS pullRequestWatchWorkspaceRemoved AFTER UPDATE OF status ON workspaces
+     WHEN NEW.status = 'removed' BEGIN
+        DELETE FROM pullRequestWatches WHERE workspaceId = NEW.id;
+    END",
     "CREATE TABLE IF NOT EXISTS workbenchLayouts (
         workspaceId TEXT PRIMARY KEY,
         dataJson TEXT NOT NULL
@@ -122,6 +164,7 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
         customPrompt TEXT NOT NULL DEFAULT '',
         description TEXT NOT NULL DEFAULT '',
         quotaGroup TEXT,
+        showInNewTabMenu INTEGER NOT NULL DEFAULT 0,
         revision INTEGER NOT NULL DEFAULT 0,
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL
@@ -139,62 +182,6 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
     );",
     "CREATE INDEX IF NOT EXISTS agentProfileLaunchReceiptsRetentionIdx ON agentProfileLaunchReceipts(createdAt);",
     "CREATE INDEX IF NOT EXISTS agentProfileLaunchReceiptsScopeIdx ON agentProfileLaunchReceipts(callerScope, workspaceId, createdAt DESC);",
-    "CREATE TABLE IF NOT EXISTS browserProfiles (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        persistent INTEGER NOT NULL DEFAULT 1,
-        isDefault INTEGER NOT NULL DEFAULT 0,
-        sourceFamily TEXT,
-        sourceProfileName TEXT,
-        sourceImportedAt TEXT,
-        createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
-    );",
-    "CREATE UNIQUE INDEX IF NOT EXISTS browserProfilesNameIdx ON browserProfiles(name COLLATE NOCASE);",
-    "CREATE UNIQUE INDEX IF NOT EXISTS browserProfilesDefaultIdx ON browserProfiles(isDefault) WHERE isDefault = 1;",
-    "CREATE TABLE IF NOT EXISTS browserHistory (
-        id TEXT PRIMARY KEY,
-        profileId TEXT NOT NULL,
-        workspaceId TEXT,
-        tabId TEXT,
-        url TEXT NOT NULL,
-        title TEXT NOT NULL DEFAULT '',
-        visitCount INTEGER NOT NULL DEFAULT 1,
-        visitedAt TEXT NOT NULL
-    );",
-    "CREATE INDEX IF NOT EXISTS browserHistoryProfileVisitedIdx ON browserHistory(profileId, visitedAt DESC);",
-    "CREATE TABLE IF NOT EXISTS browserClosedTabs (
-        id TEXT PRIMARY KEY,
-        profileId TEXT NOT NULL,
-        workspaceId TEXT NOT NULL,
-        url TEXT NOT NULL,
-        title TEXT NOT NULL DEFAULT '',
-        payloadJson TEXT NOT NULL DEFAULT '{}',
-        closedAt TEXT NOT NULL
-    );",
-    "CREATE INDEX IF NOT EXISTS browserClosedTabsProfileClosedIdx ON browserClosedTabs(profileId, closedAt DESC);",
-    "CREATE TABLE IF NOT EXISTS browserPermissions (
-        profileId TEXT NOT NULL,
-        origin TEXT NOT NULL,
-        permission TEXT NOT NULL,
-        decision TEXT NOT NULL,
-        updatedAt TEXT NOT NULL,
-        PRIMARY KEY(profileId, origin, permission)
-    );",
-    "CREATE INDEX IF NOT EXISTS browserPermissionsOriginIdx ON browserPermissions(origin, permission);",
-    "CREATE TABLE IF NOT EXISTS browserTrustedCertificates (
-        profileId TEXT NOT NULL,
-        host TEXT NOT NULL,
-        fingerprintSha256 TEXT NOT NULL,
-        subject TEXT,
-        issuer TEXT,
-        validFrom TEXT,
-        validTo TEXT,
-        createdAt TEXT NOT NULL,
-        lastUsedAt TEXT NOT NULL,
-        PRIMARY KEY(profileId, host, fingerprintSha256)
-    );",
-    "CREATE INDEX IF NOT EXISTS browserTrustedCertificatesHostIdx ON browserTrustedCertificates(host, fingerprintSha256);",
     "CREATE TABLE IF NOT EXISTS mobileAccessSettings (
         id INTEGER PRIMARY KEY CHECK (id = 1),
         enabled INTEGER NOT NULL DEFAULT 0,
@@ -371,29 +358,47 @@ pub(super) const AGENT_PROFILE_REFERENCE_TRIGGERS: &[&str] = &[
          WHERE id = json_extract(NEW.payloadJson, '$.agentProfileLaunchV1.profile.id')
        )
      BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
+    "DROP TRIGGER IF EXISTS automationsAgentProfileInsertGuard;",
+    "DROP TRIGGER IF EXISTS automationsAgentProfileUpdateGuard;",
     "CREATE TRIGGER IF NOT EXISTS automationsAgentProfileInsertGuard
      BEFORE INSERT ON automations
      WHEN COALESCE(
+       json_extract(NEW.dataJson, '$.target.freshTab.agentProfileId'),
        json_extract(NEW.dataJson, '$.target.freshTab.agent_profile_id'),
-       json_extract(NEW.dataJson, '$.target.managedWorkspace.agent_profile_id')
+       json_extract(NEW.dataJson, '$.target.managedWorkspace.agentProfileId'),
+       json_extract(NEW.dataJson, '$.target.managedWorkspace.agent_profile_id'),
+       json_extract(NEW.dataJson, '$.target.projectCheckout.agentProfileId'),
+       json_extract(NEW.dataJson, '$.target.projectCheckout.agent_profile_id')
      ) IS NOT NULL
        AND NOT EXISTS (
          SELECT 1 FROM agentProfiles WHERE id = COALESCE(
+           json_extract(NEW.dataJson, '$.target.freshTab.agentProfileId'),
            json_extract(NEW.dataJson, '$.target.freshTab.agent_profile_id'),
-           json_extract(NEW.dataJson, '$.target.managedWorkspace.agent_profile_id')
+           json_extract(NEW.dataJson, '$.target.managedWorkspace.agentProfileId'),
+           json_extract(NEW.dataJson, '$.target.managedWorkspace.agent_profile_id'),
+       json_extract(NEW.dataJson, '$.target.projectCheckout.agentProfileId'),
+       json_extract(NEW.dataJson, '$.target.projectCheckout.agent_profile_id')
          )
        )
      BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
     "CREATE TRIGGER IF NOT EXISTS automationsAgentProfileUpdateGuard
      BEFORE UPDATE OF dataJson ON automations
      WHEN COALESCE(
+       json_extract(NEW.dataJson, '$.target.freshTab.agentProfileId'),
        json_extract(NEW.dataJson, '$.target.freshTab.agent_profile_id'),
-       json_extract(NEW.dataJson, '$.target.managedWorkspace.agent_profile_id')
+       json_extract(NEW.dataJson, '$.target.managedWorkspace.agentProfileId'),
+       json_extract(NEW.dataJson, '$.target.managedWorkspace.agent_profile_id'),
+       json_extract(NEW.dataJson, '$.target.projectCheckout.agentProfileId'),
+       json_extract(NEW.dataJson, '$.target.projectCheckout.agent_profile_id')
      ) IS NOT NULL
        AND NOT EXISTS (
          SELECT 1 FROM agentProfiles WHERE id = COALESCE(
+           json_extract(NEW.dataJson, '$.target.freshTab.agentProfileId'),
            json_extract(NEW.dataJson, '$.target.freshTab.agent_profile_id'),
-           json_extract(NEW.dataJson, '$.target.managedWorkspace.agent_profile_id')
+           json_extract(NEW.dataJson, '$.target.managedWorkspace.agentProfileId'),
+           json_extract(NEW.dataJson, '$.target.managedWorkspace.agent_profile_id'),
+       json_extract(NEW.dataJson, '$.target.projectCheckout.agentProfileId'),
+       json_extract(NEW.dataJson, '$.target.projectCheckout.agent_profile_id')
          )
        )
      BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",

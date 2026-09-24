@@ -69,11 +69,6 @@ sign_macho_files() {
 sign_macho_files "$app_path/Contents/Frameworks"
 sign_macho_files "$app_path/Contents/Resources/alera"
 
-# Developer ID signing changes the source-built serve-sim binary. Refresh its
-# derived SHA before the outer app signature seals the helper manifest.
-dart tool/native_helpers/refresh_signed_native_helper_bundle.dart \
-  --emulator-root "$app_path/Contents/Resources/alera/emulator"
-
 # A framework is a nested code bundle, so sign the bundle after its Mach-O and
 # before the outer app. Apple recommends using --deep for verification only.
 while IFS= read -r framework; do

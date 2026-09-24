@@ -1,3 +1,7 @@
+#[path = "automation_catalog_export.rs"]
+mod portable_export;
+use portable_export::{portable_definition, portable_template};
+
 use anyhow::{anyhow, bail, Result};
 use chrono::Utc;
 use serde_json::Value;
@@ -143,6 +147,20 @@ impl RuntimeStore {
         })
     }
 
+    pub async fn list_automation_agent_policies(&self) -> Result<Vec<AutomationAgentPolicy>> {
+        let rows = sqlx::query(
+            "SELECT dataJson FROM automationAgentPolicies ORDER BY profileId COLLATE NOCASE ASC",
+        )
+        .fetch_all(self.pool())
+        .await?;
+        rows.into_iter()
+            .map(|row| {
+                let data: String = row.try_get("dataJson")?;
+                Ok(serde_json::from_str(&data)?)
+            })
+            .collect()
+    }
+
     pub async fn set_automation_project_policy(
         &self,
         policy: AutomationProjectPolicy,
@@ -180,6 +198,20 @@ impl RuntimeStore {
                 updated_at: Utc::now(),
             },
         })
+    }
+
+    pub async fn list_automation_project_policies(&self) -> Result<Vec<AutomationProjectPolicy>> {
+        let rows = sqlx::query(
+            "SELECT dataJson FROM automationProjectPolicies ORDER BY projectId COLLATE NOCASE ASC",
+        )
+        .fetch_all(self.pool())
+        .await?;
+        rows.into_iter()
+            .map(|row| {
+                let data: String = row.try_get("dataJson")?;
+                Ok(serde_json::from_str(&data)?)
+            })
+            .collect()
     }
 
     pub async fn export_automation_catalog(&self) -> Result<AutomationExportBundle> {
@@ -291,140 +323,6 @@ impl RuntimeStore {
     }
 }
 
-fn portable_definition(
-    definition: AutomationDefinition,
-    index: usize,
-    project_keys: &BTreeMap<String, String>,
-    tag_keys: &BTreeMap<String, String>,
-) -> Value {
-    let mut value =
-        serde_json::to_value(&definition).expect("automation definition is serializable");
-    if let Some(object) = value.as_object_mut() {
-        if let Some(project_id) = object.remove("projectId") {
-            if project_id.as_str().is_some_and(|id| !id.trim().is_empty()) {
-                object.insert(
-                    "projectKey".to_string(),
-                    Value::String(
-                        project_keys
-                            .get(project_id.as_str().unwrap())
-                            .cloned()
-                            .unwrap_or_else(|| format!("project-{index}")),
-                    ),
-                );
-            }
-        }
-        let tag_ids = object
-            .remove("tagIds")
-            .unwrap_or_else(|| Value::Array(vec![]));
-        object.insert(
-            "tagKeys".to_string(),
-            Value::Array(
-                tag_ids
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .filter_map(Value::as_str)
-                    .filter_map(|tag_id| tag_keys.get(tag_id))
-                    .cloned()
-                    .map(Value::String)
-                    .collect(),
-            ),
-        );
-        if let Some(target) = object.get_mut("target").and_then(Value::as_object_mut) {
-            if let Some((kind, details)) = target.iter_mut().next() {
-                let key_prefix = format!("target-{index}");
-                if let Some(details) = details.as_object_mut() {
-                    details.remove("workspaceId");
-                    details.remove("tabId");
-                    let conversation_id = details.remove("conversationId");
-                    details.remove("agentProfileId");
-                    match kind.as_str() {
-                        "existingTab" => {
-                            details.insert(
-                                "workspaceKey".to_string(),
-                                Value::String(format!("{key_prefix}-workspace")),
-                            );
-                            details.insert(
-                                "tabKey".to_string(),
-                                Value::String(format!("{key_prefix}-tab")),
-                            );
-                            if conversation_id
-                                .as_ref()
-                                .and_then(Value::as_str)
-                                .is_some_and(|value| !value.trim().is_empty())
-                            {
-                                details.insert(
-                                    "conversationKey".to_string(),
-                                    Value::String(format!("{key_prefix}-conversation")),
-                                );
-                            }
-                        }
-                        "freshTab" => {
-                            details.insert(
-                                "workspaceKey".to_string(),
-                                Value::String(format!("{key_prefix}-workspace")),
-                            );
-                            details.insert(
-                                "profileKey".to_string(),
-                                Value::String(format!("{key_prefix}-profile")),
-                            );
-                        }
-                        "managedWorkspace" => {
-                            details.insert(
-                                "sourceWorkspaceKey".to_string(),
-                                Value::String(format!("{key_prefix}-workspace")),
-                            );
-                            details.insert(
-                                "profileKey".to_string(),
-                                Value::String(format!("{key_prefix}-profile")),
-                            );
-                        }
-                        _ => {}
-                    }
-                }
-            }
-        }
-    }
-    value
-}
-
-fn portable_template(
-    template: AutomationTemplate,
-    project_keys: &BTreeMap<String, String>,
-    tag_keys: &BTreeMap<String, String>,
-) -> Value {
-    let mut value = serde_json::to_value(template).expect("automation template is serializable");
-    if let Some(object) = value.as_object_mut() {
-        object.remove("id");
-        object.remove("createdBy");
-        if let Some(project_id) = object.remove("projectId") {
-            if let Some(project_id) = project_id.as_str().filter(|id| !id.trim().is_empty()) {
-                if let Some(project_key) = project_keys.get(project_id) {
-                    object.insert("projectKey".to_string(), Value::String(project_key.clone()));
-                }
-            }
-        }
-        let tag_ids = object
-            .remove("tagIds")
-            .unwrap_or_else(|| Value::Array(vec![]));
-        object.insert(
-            "tagKeys".to_string(),
-            Value::Array(
-                tag_ids
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .filter_map(Value::as_str)
-                    .filter_map(|tag_id| tag_keys.get(tag_id))
-                    .cloned()
-                    .map(Value::String)
-                    .collect(),
-            ),
-        );
-    }
-    value
-}
-
 fn portable_tag(tag: AutomationTag, index: usize) -> Value {
     let mut value = serde_json::to_value(tag).expect("automation tag is serializable");
     if let Some(object) = value.as_object_mut() {
@@ -461,14 +359,29 @@ fn remap_definition_target(
     definition: &mut AutomationDefinition,
     remap: &std::collections::BTreeMap<String, String>,
 ) -> Result<()> {
-    let source = match &definition.target {
-        super::AutomationTarget::ExistingTab { workspace_id, .. }
-        | super::AutomationTarget::FreshTab { workspace_id, .. } => workspace_id,
-        super::AutomationTarget::ManagedWorkspace {
-            source_workspace_id,
-            ..
-        } => source_workspace_id,
-    };
+    if let super::AutomationTarget::ProjectCheckout {
+        project_id,
+        host_id,
+        agent_profile_id,
+        ..
+    } = &mut definition.target
+    {
+        for (kind, id) in [
+            ("project", project_id),
+            ("host", host_id),
+            ("profile", agent_profile_id),
+        ] {
+            *id = remap
+                .get(id)
+                .cloned()
+                .ok_or_else(|| anyhow!("import requires a local remap for {kind}: {id}"))?;
+        }
+        return Ok(());
+    }
+    let source = definition
+        .target
+        .source_workspace_id()
+        .ok_or_else(|| anyhow!("automation target has no source workspace"))?;
     let mapped = remap
         .get(source)
         .ok_or_else(|| anyhow!("import requires a local remap for target: {source}"))?
@@ -480,6 +393,9 @@ fn remap_definition_target(
             source_workspace_id,
             ..
         } => *source_workspace_id = mapped,
+        super::AutomationTarget::ProjectCheckout { .. } => {
+            unreachable!("project checkout remapped above")
+        }
     }
     Ok(())
 }

@@ -4,6 +4,7 @@ part of 'mobile_runtime_client.dart';
 /// minting and attaching sessions, and the input/viewport RPCs.
 mixin MobileRuntimeTerminalRequests {
   Future<void>? _probeAttempt;
+  final Map<String, String> _pendingTerminalRestarts = {};
   Future<Object?> request(
     String type, [
     Map<String, Object?> payload,
@@ -89,13 +90,23 @@ mixin MobileRuntimeTerminalRequests {
     int cols = defaultTerminalCols,
     int rows = defaultTerminalRows,
   }) async {
+    final key = '$tabId:${sessionId ?? ''}';
+    final operationId = _pendingTerminalRestarts.putIfAbsent(
+      key,
+      () => const Uuid().v4(),
+    );
     final payload = await requestMap('terminal.restart', <String, Object?>{
+      'operationId': operationId,
       'tabId': tabId,
       'sessionId': ?sessionId,
       'cols': cols,
       'rows': rows,
     });
-    return MobileTerminalSession.fromJson(payload);
+    final session = MobileTerminalSession.fromJson(payload);
+    if (_pendingTerminalRestarts[key] == operationId) {
+      _pendingTerminalRestarts.remove(key);
+    }
+    return session;
   }
 
   Future<void> writeTerminal(

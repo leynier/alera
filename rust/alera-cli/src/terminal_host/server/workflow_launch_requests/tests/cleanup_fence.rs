@@ -137,33 +137,6 @@ async fn workflow_cleanup_claim_blocks_new_terminal_owners_after_restart() {
         .wire_message()
         .contains("reserved for reviewed cleanup"));
     assert!(actor.sessions.is_empty());
-    actor.handle_browser_driver_request(1, "browser.driver.register", &json!({
-        "appInstanceId":"app", "driverInstanceId":"driver", "engine":"test", "platform":"test", "capabilities":["stableGate"]
-    })).await.unwrap();
-    let error = actor
-        .handle_browser_tab_request(
-            "browser.tabs.open",
-            &json!({"workspaceId":workspace.id,"pageId":"new-browser"}),
-        )
-        .await
-        .unwrap_err();
-    assert!(error
-        .wire_message()
-        .contains("reserved for reviewed cleanup"));
-    let sync = actor
-        .handle_browser_driver_request(
-            1,
-            "browser.driver.sync",
-            &json!({
-                "appInstanceId":"app", "driverInstanceId":"driver",
-                "pages":[{"pageId":"saved-browser", "workspaceId":workspace.id}]
-            }),
-        )
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(sync["pages"][0]["accepted"], false);
-    assert!(actor.browser.pages().is_empty());
     actor
         .runtime_store
         .require_workspace_outside_cleanup("owner")
@@ -199,30 +172,6 @@ async fn workflow_cleanup_claim_blocks_new_terminal_owners_after_restart() {
         .contains("live terminal or process"));
     assert!(actor.sessions["live-cleanup"].running());
     actor.sessions.remove("live-cleanup");
-    actor
-        .browser
-        .sync_page(
-            1,
-            crate::terminal_host::server::browser_broker::BrowserPage {
-                tab_id: "saved-browser".into(),
-                workspace_id: workspace.id.clone(),
-                profile_id: "default".into(),
-                generation: 0,
-                document_generation: 0,
-                url: None,
-                title: None,
-                capabilities: Default::default(),
-                owner_client_id: 1,
-            },
-        )
-        .unwrap();
-    assert!(actor
-        .inspect_workflow_cleanup_owners(&preview.id, &preview.digest, &workspace.id)
-        .await
-        .unwrap_err()
-        .wire_message()
-        .contains("live browser page"));
-    actor.browser.remove_page_owned(1, "saved-browser").unwrap();
     actor.managed_workspace_jobs = 2;
     assert!(actor
         .inspect_workflow_cleanup_owners(&preview.id, &preview.digest, &workspace.id)
@@ -270,7 +219,7 @@ async fn workflow_cleanup_claim_blocks_new_terminal_owners_after_restart() {
         .await
         .is_ok());
     apply_and_wait(&mut actor, &preview, true).await;
-    assert_eq!(actor.managed_workspace_jobs, 0);
+    assert_eq!(actor.workflow_workspace_jobs, 0);
     assert!(actor
         .try_start_deferred_request(1, 801, "workflows.cleanupStatus", &json!({"id":preview.id}))
         .await
@@ -332,6 +281,7 @@ async fn workflow_cleanup_rpc_rejects_untrusted_and_expanded_selections() {
             .is_err());
     }
     assert_eq!(actor.managed_workspace_jobs, 0);
+    assert_eq!(actor.workflow_workspace_jobs, 0);
 }
 
 async fn apply_and_wait(
@@ -371,7 +321,7 @@ async fn cleanup_and_wait(
                 ..
             } = &command
             {
-                assert_eq!(result.is_ok(), expected_ok, "{result:?}");
+                assert_eq!(result.is_ok(), expected_ok, "{verb}: {result:?}");
                 true
             } else {
                 false

@@ -61,6 +61,7 @@ class _AgentProfilesSettingsPaneState
   final Set<AgentType> _autoDiscoveryScheduled = <AgentType>{};
   String? _error;
   bool _saving = false;
+  bool _showInNewTabMenu = false;
   String? _seededSignature;
 
   @override
@@ -200,6 +201,13 @@ class _AgentProfilesSettingsPaneState
                   onRemove: selectedProfile == null
                       ? null
                       : () => _removeProfile(selectedProfile),
+                  showInNewTabMenu: _showInNewTabMenu,
+                  onShowInNewTabMenuChanged: (value) {
+                    setState(() {
+                      _showInNewTabMenu = value;
+                      _error = null;
+                    });
+                  },
                   onTestCommand: () => unawaited(_testCommand()),
                 ),
                 if (selectedProfile != null) ...<Widget>[
@@ -242,6 +250,7 @@ class _AgentProfilesSettingsPaneState
       profile.customPrompt,
       profile.description,
       profile.quotaGroup ?? '',
+      profile.showInNewTabMenu ? '1' : '0',
     ].join('|');
     if (_seededSignature == signature) {
       return;
@@ -252,6 +261,7 @@ class _AgentProfilesSettingsPaneState
     _customPromptController.text = profile.customPrompt;
     _descriptionController.text = profile.description;
     _quotaGroupController.text = profile.quotaGroup ?? '';
+    _showInNewTabMenu = profile.showInNewTabMenu;
     _adapter = agentProfileAdapterFromKey(profile.agentType) ?? AgentType.codex;
     _launchMode = profile.launchMode;
     _managedConfig = <String, Object?>{...profile.managedConfig};
@@ -271,6 +281,7 @@ class _AgentProfilesSettingsPaneState
     _customPromptController.clear();
     _descriptionController.clear();
     _quotaGroupController.clear();
+    _showInNewTabMenu = false;
     _adapter = AgentType.codex;
     _launchMode = AgentProfileLaunchMode.managed;
     _managedConfig = <String, Object?>{};

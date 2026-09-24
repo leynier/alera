@@ -78,16 +78,13 @@ pub async fn publish(
     validate(&request)?;
     limit_requests(&state, auth.account_id, "write", 20).await?;
     let document = serde_json::to_string(&request.document).map_err(ApiError::internal)?;
-    let fingerprint = format!(
-        "{:x}",
-        Sha256::digest(
-            serde_json::to_vec(&json!({
-                "document": request.document, "expectedRevision": request.expected_revision,
-                "deviceName": request.device_name, "summary": request.summary,
-            }))
-            .map_err(ApiError::internal)?
-        )
-    );
+    let fingerprint = hex::encode(Sha256::digest(
+        serde_json::to_vec(&json!({
+            "document": request.document, "expectedRevision": request.expected_revision,
+            "deviceName": request.device_name, "summary": request.summary,
+        }))
+        .map_err(ApiError::internal)?,
+    ));
     let mut tx = state.pool.begin().await?;
     sqlx::query("INSERT INTO configuration_heads (account_id) VALUES ($1) ON CONFLICT DO NOTHING")
         .bind(auth.account_id)

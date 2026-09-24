@@ -3,21 +3,15 @@ use serde_json::Value;
 
 use crate::agent_status::prepare_launch_environment;
 use crate::terminal_host::host_error::{HostError, HostResult};
-use crate::terminal_host::orchestration::agent_profile_launch_snapshot::AgentInitialDeliveryMechanismV1;
-use crate::terminal_host::orchestration::agent_registry::adapter_for;
-use crate::terminal_host::orchestration::agent_startup_command::{
-    append_initial_prompt_argument_for, command_with_initial_prompt_for,
-};
 use crate::terminal_host::protocol::TerminalHostLaunch;
 use crate::terminal_host::session::Session;
 
 use super::pty_event_forwarder::forward_pty_event;
 use super::terminal_launch_defaults::default_terminal_launch;
+use super::terminal_spawn_command::{resolve_spawn_command, SpawnCommand};
 use super::terminal_startup_commands::{
-    agent_profile_id, auto_close_setup_command, auto_closes_on_success,
-    delivers_initial_command_once, delivers_initial_prompt_once, initial_command,
-    initial_delivery_mechanism as mechanism, initial_managed_agent_launch, initial_prompt,
-    pending_agent_type, tab_agent_type, terminal_session_id,
+    agent_profile_id, delivers_initial_command_once, delivers_initial_prompt_once,
+    pending_agent_type, terminal_session_id,
 };
 use super::workflow_launch_requests::WorkflowLaunchPermit;
 use super::ServerActor;
@@ -37,6 +31,20 @@ impl ServerActor {
             }
         };
         for workspace in workspaces {
+            match self
+                .runtime_store
+                .pending_workspace_checkout_relocation(&workspace.id)
+                .await
+            {
+                Ok(None) => {}
+                Ok(Some(_)) => continue,
+                Err(error) => {
+                    tracing::error!(
+                        "could not verify checkout relocation before terminal restoration: {error}"
+                    );
+                    continue;
+                }
+            }
             let tabs = match self.runtime_store.list_workspace_tabs(&workspace.id).await {
                 Ok(tabs) => tabs,
                 Err(error) => {
@@ -141,60 +149,24 @@ impl ServerActor {
             permit,
         )
         .await?;
-        let managed_launch = initial_managed_agent_launch(tab)?;
-        let prompt = initial_prompt(tab);
-        // The snapshot, or the adapter for a legacy tab, owns prompt shape.
-        let adapter = tab_agent_type(tab).and_then(adapter_for);
-        let delivery = mechanism(tab)?.or_else(|| adapter.map(|item| item.startup_prompt.into()));
-        let prompt_arguments = delivery.as_ref().zip(prompt.as_deref());
-        let command = if let Some(mut launch) = managed_launch {
-            if let Some((mechanism, prompt)) = prompt_arguments {
-                append_initial_prompt_argument_for(mechanism, &mut launch.arguments, prompt);
-            }
-            Some(
-                crate::terminal_host::orchestration::managed_launch_shell_rendering::render_managed_launch(
-                    &launch,
-                    &default_launch.interactive_shell,
-                ),
-            )
-        } else {
-            initial_command(tab)?.map(|command| {
-                let command = prompt_arguments
-                    .map(|(mechanism, prompt)| {
-                        command_with_initial_prompt_for(
-                            mechanism,
-                            &command,
-                            prompt,
-                            &default_launch.interactive_shell,
-                        )
-                    })
-                    .unwrap_or(command);
-                if auto_closes_on_success(tab) {
-                    auto_close_setup_command(&command, &default_launch.interactive_shell)
-                } else {
-                    command
-                }
-            })
-        };
-        let command = match (prompt_arguments, command) {
-            (Some((AgentInitialDeliveryMechanismV1::StdinScript, prompt)), Some(command)) => {
-                Some(if permit.is_some() {
-                    let directory = self.setup_script_directory().ok_or_else(|| {
-                        HostError::state("workflow prompt directory is unavailable")
-                    })?;
-                    crate::agent_prompt_stdin_script::write_agent_prompt_stdin_script(
-                        &directory,
-                        &session_id,
-                        &command,
-                        prompt,
-                    )
-                    .map_err(|error| HostError::state(error.to_string()))?
-                    .command
-                } else {
-                    self.stdin_prompt_command(&session_id, &command, prompt)
-                })
-            }
-            (_, command) => command,
+        let command = match resolve_spawn_command(tab, &default_launch.interactive_shell)? {
+            Some(SpawnCommand::Stdin { command, prompt }) => Some(if permit.is_some() {
+                let directory = self
+                    .setup_script_directory()
+                    .ok_or_else(|| HostError::state("workflow prompt directory is unavailable"))?;
+                crate::agent_prompt_stdin_script::write_agent_prompt_stdin_script(
+                    &directory,
+                    &session_id,
+                    &command,
+                    &prompt,
+                )
+                .map_err(|error| HostError::state(error.to_string()))?
+                .command
+            } else {
+                self.stdin_prompt_command(&session_id, &command, &prompt)
+            }),
+            Some(SpawnCommand::Line(command)) => Some(command),
+            None => None,
         };
         if let Some(command) = command {
             let instance_id = self
@@ -219,71 +191,6 @@ impl ServerActor {
             }
         }
         Ok(rearmed)
-    }
-
-    /// Rewrites a launch so the agent reads its prompt from stdin.
-    ///
-    /// Falls back to the bare launch if script creation fails, preserving a usable agent.
-    fn stdin_prompt_command(&self, session_id: &str, command: &str, prompt: &str) -> String {
-        let Some(directory) = self.setup_script_directory() else {
-            tracing::warn!(
-                session_id = %session_id,
-                "no runtime directory for the agent prompt script; launching without the prompt"
-            );
-            return command.to_string();
-        };
-        match crate::agent_prompt_stdin_script::write_agent_prompt_stdin_script(
-            &directory, session_id, command, prompt,
-        ) {
-            Ok(script) => script.command,
-            Err(error) => {
-                tracing::error!(
-                    session_id = %session_id,
-                    "failed to write the agent prompt script; launching without the prompt: {error}"
-                );
-                command.to_string()
-            }
-        }
-    }
-
-    async fn clear_initial_command(
-        &mut self,
-        tab: &WorkspaceTabRecord,
-    ) -> Option<WorkspaceTabRecord> {
-        let mut next = tab.clone();
-        let payload = next.payload.as_object_mut()?;
-        payload.remove("initialCommand");
-        payload.remove("initialCommandOnce");
-        match self.runtime_store.upsert_workspace_tab(next).await {
-            Ok(saved) => Some(saved),
-            Err(error) => {
-                eprintln!(
-                    "failed to clear the one-shot initial command of tab {}: {error}",
-                    tab.id
-                );
-                None
-            }
-        }
-    }
-
-    async fn clear_initial_prompt(
-        &mut self,
-        tab: &WorkspaceTabRecord,
-    ) -> Option<WorkspaceTabRecord> {
-        let mut next = tab.clone();
-        let payload = next.payload.as_object_mut()?;
-        payload.remove("initialPrompt");
-        payload.remove("initialPromptOnce");
-        match self.runtime_store.upsert_workspace_tab(next).await {
-            Ok(saved) => Some(saved),
-            Err(error) => {
-                tracing::error!(
-                    tab_id = %tab.id,
-                    "failed to clear one-shot initial agent prompt: {error}"
-                );
-                None
-            }
-        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -341,13 +248,31 @@ impl ServerActor {
         // and orchestration launches. Runtime mutations perform filesystem
         // cleanup concurrently with the actor, so no new terminal owner may
         // cross this fence while one is outstanding.
-        if self.emulator_requests.has_runtime_mutations() {
+        if self.mutation_queue.has_runtime_mutations() {
             return Err(HostError::state(
                 "A runtime mutation is in progress. Wait for it to finish and retry.",
             ));
         }
         self.disarm_terminal_pulse(&session_id);
         self.account_push.damper.reset_session(&session_id);
+        let mut working_directory = working_directory;
+        if let Some((remote_launch, remote_cwd)) =
+            crate::ssh_remote::remote_workspace_terminal_override(
+                &self.runtime_store,
+                &workspace_id,
+                crate::remote_owner_terminal_launch::TerminalIdentity {
+                    session_id: &session_id,
+                    tab_id: &tab_id,
+                    cols,
+                    rows,
+                },
+            )
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?
+        {
+            launch = remote_launch;
+            working_directory = remote_cwd;
+        }
         let mut agent_settings = self
             .runtime_store
             .agent_status_hook_settings()
@@ -417,6 +342,10 @@ impl ServerActor {
         }
         let inbox = self.inbox.clone();
         let reader_session_id = session_id.clone();
+        self.runtime_store
+            .record_workspace_tab_terminal_launch(&workspace_id, &tab_id, &session_id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
         let session = Box::pin(Session::start(
             session_id.clone(),
             workspace_id,

@@ -91,6 +91,7 @@ String runBoardStatusLabel(String status) => switch (status) {
   'result_ready' || 'resultReady' => 'Result Ready',
   'integrated' => 'Integrated',
   'conflict' => 'Conflict',
+  'refused' => 'Needs Correction',
   'completed' => 'Completed',
   'running' => 'Running',
   'dispatched' => 'Dispatched',
@@ -117,7 +118,7 @@ String runBoardStatusLabel(String status) => switch (status) {
 };
 
 Color runBoardStatusColor(String status) => switch (status) {
-  'failed' || 'conflict' => AleraTokens.error,
+  'failed' || 'conflict' || 'refused' => AleraTokens.error,
   'blocked' ||
   'stalled' ||
   'pending' ||

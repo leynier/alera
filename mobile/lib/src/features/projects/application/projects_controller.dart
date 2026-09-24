@@ -4,6 +4,7 @@ import 'package:alera_mobile/src/features/projects/domain/project_management_mod
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_selection_order.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_removal_dependency.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'projects_controller.g.dart';
@@ -69,10 +70,25 @@ class ProjectsController extends _$ProjectsController {
     return client.previewProjectRemoval(id);
   }
 
-  Future<void> removeProject(String id) async {
+  Future<List<WorkspaceRemovalDependency>> removalDependencies(
+    String id,
+  ) async {
     final client = await ref.read(
       hostConnectionControllerProvider(hostId).future,
     );
+    return client.projectRemovalDependencies(id);
+  }
+
+  Future<void> removeProject(
+    String id, {
+    List<WorkspaceRemovalDependency>? approvedDependencies,
+  }) async {
+    final client = await ref.read(
+      hostConnectionControllerProvider(hostId).future,
+    );
+    if (approvedDependencies != null) {
+      await client.pauseProjectRemovalDependencies(id, approvedDependencies);
+    }
     await client.removeProject(id);
     ref.invalidateSelf();
   }

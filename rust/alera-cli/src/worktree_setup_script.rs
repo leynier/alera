@@ -68,6 +68,43 @@ pub fn write_setup_script(
     Ok(WorktreeSetupScript { path, command })
 }
 
+pub(crate) fn write_relocation_setup_script(
+    directory: &Path,
+    executable: &Path,
+    workspace_id: &str,
+    workspace_path: &str,
+    relocation_id: &str,
+) -> Result<WorktreeSetupScript> {
+    uuid::Uuid::parse_str(relocation_id)?;
+    let command = if cfg!(windows) {
+        if workspace_id
+            .chars()
+            .any(|value| "\"%!&|<>^\r\n".contains(value))
+        {
+            anyhow::bail!("Task ID cannot be represented safely in a Windows setup launcher");
+        }
+        format!(
+            "\"{}\" workspace setup --id \"{}\" --relocation-id {relocation_id}",
+            executable.display(),
+            workspace_id
+        )
+    } else {
+        format!(
+            "{} workspace setup --id {} --relocation-id {relocation_id}",
+            posix_quote(&executable.display().to_string()),
+            posix_quote(workspace_id)
+        )
+    };
+    write_setup_script(
+        directory,
+        executable,
+        workspace_id,
+        workspace_path,
+        &[command],
+        false,
+    )
+}
+
 /// Deletes every leftover setup script in `directory`.
 ///
 /// Anything still there belongs to a previous host lifetime, so the terminal

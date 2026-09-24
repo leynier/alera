@@ -26,55 +26,66 @@ class const _SearchToolbar({
         padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
         child: Row(
           children: <Widget>[
-            Text(
-              'Search',
-              style: Theme.of(context).textTheme.titleSmall
-                  ?.copyWith(color: AleraTokens.foreground, fontWeight: .w600),
+            Expanded(
+              child: Text(
+                'Search',
+                maxLines: 1,
+                overflow: .ellipsis,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: AleraTokens.foreground,
+                  fontWeight: .w600,
+                ),
+              ),
             ),
-            const Spacer(),
-            AleraIconButton(
-              tooltip: 'Clear search results',
-              icon: AleraIcons.close,
-              onPressed: canClear ? onClear : null,
-            ),
-            const SizedBox(width: AleraTokens.space2),
-            AleraIconButton(
-              tooltip: state.includeIgnored
-                  ? 'Ignore ignored files'
-                  : 'Search ignored files',
-              icon: state.includeIgnored
-                  ? AleraIcons.visible
-                  : AleraIcons.hidden,
-              onPressed: onToggleIncludeIgnored,
-              iconColor: state.includeIgnored
-                  ? AleraTokens.foreground
-                  : AleraTokens.foregroundMuted,
-              backgroundColor: state.includeIgnored
-                  ? AleraTokens.surfaceElevated
-                  : null,
-              borderColor: state.includeIgnored ? AleraTokens.border : null,
-            ),
-            const SizedBox(width: AleraTokens.space2),
-            AleraIconButton(
-              tooltip: state.viewAsTree ? 'View as list' : 'View as tree',
-              icon: state.viewAsTree
-                  ? AleraIcons.listView
-                  : AleraIcons.gitGraph,
-              onPressed: onToggleViewAsTree,
-            ),
-            const SizedBox(width: AleraTokens.space2),
-            AleraIconButton(
-              tooltip: allResultsCollapsed ? 'Expand All' : 'Collapse All',
-              icon: allResultsCollapsed
-                  ? AleraIcons.expandAll
-                  : AleraIcons.collapseAll,
-              onPressed: hasResults ? onToggleAllResultsCollapsed : null,
-            ),
-            const SizedBox(width: AleraTokens.space2),
-            AleraIconButton(
-              tooltip: 'Refresh',
-              icon: state.loading ? AleraIcons.loading : AleraIcons.refresh,
-              onPressed: state.hasQuery && !state.loading ? onRefresh : null,
+            WorkbenchScrollableActions(
+              children: <Widget>[
+                AleraIconButton(
+                  tooltip: 'Clear search results',
+                  icon: AleraIcons.close,
+                  onPressed: canClear ? onClear : null,
+                ),
+                const SizedBox(width: AleraTokens.space2),
+                AleraIconButton(
+                  tooltip: state.includeIgnored
+                      ? 'Ignore ignored files'
+                      : 'Search ignored files',
+                  icon: state.includeIgnored
+                      ? AleraIcons.visible
+                      : AleraIcons.hidden,
+                  onPressed: onToggleIncludeIgnored,
+                  iconColor: state.includeIgnored
+                      ? AleraTokens.foreground
+                      : AleraTokens.foregroundMuted,
+                  backgroundColor: state.includeIgnored
+                      ? AleraTokens.surfaceElevated
+                      : null,
+                  borderColor: state.includeIgnored ? AleraTokens.border : null,
+                ),
+                const SizedBox(width: AleraTokens.space2),
+                AleraIconButton(
+                  tooltip: state.viewAsTree ? 'View as list' : 'View as tree',
+                  icon: state.viewAsTree
+                      ? AleraIcons.listView
+                      : AleraIcons.gitGraph,
+                  onPressed: onToggleViewAsTree,
+                ),
+                const SizedBox(width: AleraTokens.space2),
+                AleraIconButton(
+                  tooltip: allResultsCollapsed ? 'Expand All' : 'Collapse All',
+                  icon: allResultsCollapsed
+                      ? AleraIcons.expandAll
+                      : AleraIcons.collapseAll,
+                  onPressed: hasResults ? onToggleAllResultsCollapsed : null,
+                ),
+                const SizedBox(width: AleraTokens.space2),
+                AleraIconButton(
+                  tooltip: 'Refresh',
+                  icon: state.loading ? AleraIcons.loading : AleraIcons.refresh,
+                  onPressed: state.hasQuery && !state.loading
+                      ? onRefresh
+                      : null,
+                ),
+              ],
             ),
           ],
         ),

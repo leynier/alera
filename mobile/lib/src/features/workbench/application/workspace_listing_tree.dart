@@ -123,11 +123,16 @@ Set<String> workspaceDescendantIds(
     }
   }
   final out = <String>{};
+  // Seed with the root so a stale parent cycle cannot re-enter it and treat
+  // the clicked workspace as its own descendant.
+  final visited = <String>{workspaceId};
   void visit(String id) {
     for (final childId in childrenOf[id] ?? const <String>[]) {
-      if (out.add(childId)) {
-        visit(childId);
+      if (!visited.add(childId)) {
+        continue;
       }
+      out.add(childId);
+      visit(childId);
     }
   }
 

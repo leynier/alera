@@ -160,6 +160,7 @@ class TaskWorkflowInspection {
     this.worktree,
     this.branch,
     this.baseSha,
+    this.completionSha,
     this.integratedSha,
     this.conflictPaths = const [],
     this.conflictsTruncated = false,
@@ -177,6 +178,7 @@ class TaskWorkflowInspection {
         worktree: json['worktree'] as String?,
         branch: json['branch'] as String?,
         baseSha: json['base_sha'] as String?,
+        completionSha: json['completion_sha'] as String?,
         integratedSha: json['integrated_sha'] as String?,
         conflictPaths: List<String>.unmodifiable(
           (json['conflict_paths'] as List? ?? const []).cast<String>(),
@@ -194,6 +196,7 @@ class TaskWorkflowInspection {
   final String? worktree;
   final String? branch;
   final String? baseSha;
+  final String? completionSha;
   final String? integratedSha;
   final List<String> conflictPaths;
   final bool conflictsTruncated;

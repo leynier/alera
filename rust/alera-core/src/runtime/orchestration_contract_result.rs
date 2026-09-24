@@ -3,6 +3,8 @@ use std::collections::HashSet;
 use anyhow::{bail, Context, Result};
 use serde_json::Value;
 
+use crate::git::MAX_WORKFLOW_ARTIFACTS;
+
 use super::orchestration_contract_schema::{bounded_json, validate_instance, INSTANCE_MAX_BYTES};
 use super::orchestration_role_contract::artifact_path;
 use super::RoleContractSnapshot;
@@ -28,6 +30,9 @@ impl RoleContractSnapshot {
             .get("artifacts")
             .and_then(Value::as_array)
             .context("contract result requires an artifacts array")?;
+        if artifacts.len() > MAX_WORKFLOW_ARTIFACTS {
+            bail!("contract result has too many artifacts");
+        }
         let mut paths = HashSet::new();
         for artifact in artifacts {
             let path = artifact

@@ -31,6 +31,8 @@ Integration captures the exact committed result SHA, current integration SHA, re
 
 Conflicts report bounded paths without changing the integration index, worktree or branch. Inspect the retained result and prepare a reviewed correction; no agent resolves conflicts automatically and active workers are not rebased. Integration preserves every task's original base SHA.
 
+A committed submodule delta or a result artifact missing or no longer regular in the merged tree is a definitive pre-apply refusal: the integration checkout, branch and receipt ref stay untouched. The retained result appears as Needs Correction, not as an ordinary merge conflict. A desktop-authenticated `integration:<integration-id>` review challenge permits only Request Changes, creating a traceable plan revision while preserving the original completion SHA and worktrees. Dirty resources, checkout uncertainty and receipt persistence errors remain fenced in Attention until reconciled; they cannot use this correction shortcut.
+
 ## Receipts and recovery
 
 A SQLite reservation fences each integration before Git. An immutable metadata commit under `refs/alera/workflow-integrations/<id>` retains the result and squash candidate, including through Git garbage collection. Safe checkout and exact head checks distinguish an untouched tree, a prepared checkout awaiting reference advancement, and an already applied commit. Unrecognized mixed or dirty state becomes Attention without overwrite.

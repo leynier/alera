@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:alera/src/features/ai_assist/application/ai_assist_diff_only_execution.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_errors.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_host_completer.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_prompt.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_registry.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_process_failure.dart';
@@ -50,15 +51,18 @@ abstract interface class AiAssistAgentRunner implements AgentTaskRunner {}
 class CliAiAssistAgentRunner({
   required final ProcessRunner processRunner,
   CommandEnvironmentResolver? commandEnvironmentResolver,
+  this.hostCompleter,
 }) implements AiAssistAgentRunner {
   this
     : commandEnvironmentResolver =
           commandEnvironmentResolver ?? UserCommandEnvironmentResolver();
 
   final CommandEnvironmentResolver commandEnvironmentResolver;
+  final AiAssistHostCompleter? hostCompleter;
   final Map<String, StartedProcess> _running = <String, StartedProcess>{};
   final Set<String> _pending = <String>{};
   final Set<String> _canceled = <String>{};
+  final Set<String> _hostRuns = <String>{};
 
   @override
   Future<AiAssistAgentRunResult> run(AiAssistAgentRunRequest request) async {
@@ -69,12 +73,16 @@ class CliAiAssistAgentRunner({
     _canceled.remove(request.runId);
     _pending.add(request.runId);
 
+    final requestedAgent = request.agent ?? request.settings.agent;
+    if (requestedAgent == AiAssistAgent.opencodeGo) {
+      return _runOpenCodeGo(request);
+    }
+
     _AiAssistAgentCommandPlan? plan;
     Directory? isolatedDirectory;
     Future<int>? processExit;
     try {
       var environment = await commandEnvironmentResolver.environment();
-      final requestedAgent = request.agent ?? request.settings.agent;
       if (request.accessPolicy == AgentTaskAccessPolicy.diffOnly &&
           requestedAgent == AiAssistAgent.codex) {
         final missing = codexDiffOnlyEnvironmentVariableNames
@@ -168,13 +176,68 @@ class CliAiAssistAgentRunner({
     }
   }
 
+  Future<AiAssistAgentRunResult> _runOpenCodeGo(
+    AiAssistAgentRunRequest request,
+  ) async {
+    try {
+      if (request.accessPolicy == AgentTaskAccessPolicy.diffOnly) {
+        requireDiffOnlyAiAssistAgent(AiAssistAgent.opencodeGo);
+      }
+      final completer = hostCompleter;
+      if (completer == null) {
+        throw const AiAssistException(openCodeGoHostTooOldMessage);
+      }
+      if (_canceled.contains(request.runId)) {
+        throw const AiAssistCanceledException();
+      }
+      _pending.remove(request.runId);
+      _hostRuns.add(request.runId);
+      final model = modelForAgent(
+        AiAssistAgent.opencodeGo,
+        request.model ??
+            request.settings.modelFor(.opencodeGo) ??
+            defaultModelIdForAgent(.opencodeGo, request.settings),
+        extraModels: discoveredModelsForAgent(request.settings, .opencodeGo),
+      );
+      final result = await completer.complete(
+        prompt: request.prompt,
+        model: model.id,
+        sessionId: request.runId,
+        operationId: request.runId,
+        timeoutSeconds: request.settings.timeoutSeconds,
+      );
+      if (_canceled.contains(request.runId)) {
+        throw const AiAssistCanceledException();
+      }
+      final text = request.outputContract == AgentTaskOutputContract.plainText
+          ? request.cleanOutput(result.text)
+          : _cleanStructuredOutput(request.cleanOutput(result.text));
+      if (text.trim().isEmpty) {
+        throw const AiAssistException('OpenCode Go returned no text.');
+      }
+      return AiAssistAgentRunResult(text: text, agentLabel: result.agentLabel);
+    } finally {
+      _pending.remove(request.runId);
+      _hostRuns.remove(request.runId);
+      _canceled.remove(request.runId);
+    }
+  }
+
   @override
   void cancel(String runId) {
-    if (!_pending.contains(runId) && !_running.containsKey(runId)) {
+    if (!_pending.contains(runId) &&
+        !_running.containsKey(runId) &&
+        !_hostRuns.contains(runId)) {
       return;
     }
     _canceled.add(runId);
     _running[runId]?.kill();
+    if (_hostRuns.contains(runId)) {
+      final completer = hostCompleter;
+      if (completer != null) {
+        unawaited(completer.cancel(runId));
+      }
+    }
   }
 
   Future<ProcessRunOutput> _collectProcess(StartedProcess process) async {

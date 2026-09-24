@@ -12,6 +12,7 @@ class RunBoardList extends StatelessWidget {
     required this.onSelect,
     required this.filters,
     required this.footer,
+    required this.emptyMessage,
     this.message,
   });
   final RunBoardSnapshot? snapshot;
@@ -20,6 +21,7 @@ class RunBoardList extends StatelessWidget {
   final ValueChanged<String> onSelect;
   final Widget filters;
   final Widget footer;
+  final String emptyMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -44,11 +46,9 @@ class RunBoardList extends StatelessWidget {
         if (index == entries.length + 1) {
           return message ??
               (entries.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.all(AleraTokens.space16),
-                      child: Text(
-                        'No runs match this view. Try clearing filters. Runs created through orchestration will appear here.',
-                      ),
+                  ? Padding(
+                      padding: const EdgeInsets.all(AleraTokens.space16),
+                      child: Text(emptyMessage),
                     )
                   : const SizedBox.shrink());
         }

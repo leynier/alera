@@ -70,11 +70,12 @@ pub(super) async fn apply_profiles(
         .execute(&mut *connection)
         .await?;
     for profile in profiles {
-        sqlx::query("INSERT INTO agentProfiles (id, name, agentType, command, sortOrder, launchMode, managedConfig, customPrompt, description, quotaGroup, revision, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, agentType = excluded.agentType, command = excluded.command, sortOrder = excluded.sortOrder, launchMode = excluded.launchMode, managedConfig = excluded.managedConfig, customPrompt = excluded.customPrompt, description = excluded.description, quotaGroup = excluded.quotaGroup, revision = agentProfiles.revision + 1, updatedAt = excluded.updatedAt")
+        sqlx::query("INSERT INTO agentProfiles (id, name, agentType, command, sortOrder, launchMode, managedConfig, customPrompt, description, quotaGroup, showInNewTabMenu, revision, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, agentType = excluded.agentType, command = excluded.command, sortOrder = excluded.sortOrder, launchMode = excluded.launchMode, managedConfig = excluded.managedConfig, customPrompt = excluded.customPrompt, description = excluded.description, quotaGroup = excluded.quotaGroup, showInNewTabMenu = excluded.showInNewTabMenu, revision = agentProfiles.revision + 1, updatedAt = excluded.updatedAt")
             .bind(profile.id).bind(profile.name).bind(profile.agent_type).bind(profile.command)
             .bind(profile.sort_order).bind(profile.launch_mode.as_str())
             .bind(profile.managed_config.map(|v| v.to_string())).bind(profile.custom_prompt)
             .bind(profile.description).bind(profile.quota_group)
+            .bind(i64::from(profile.show_in_new_tab_menu))
             .bind(profile.created_at.to_rfc3339()).bind(profile.updated_at.to_rfc3339())
             .execute(&mut *connection).await?;
     }
