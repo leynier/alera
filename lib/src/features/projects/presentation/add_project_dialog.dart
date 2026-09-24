@@ -24,7 +24,20 @@ class const CloneProjectResult({
 
 enum _AddProjectMode { localFolder, cloneFromUrl }
 
-class const AddProjectDialog({super.key}) extends StatefulWidget {
+class const AddProjectDialog({
+  super.key,
+  this.initialGitUrl,
+  this.initialDestinationPath,
+  this.initialName,
+  this.initialError,
+  this.startOnClone = false,
+}) extends StatefulWidget {
+  final String? initialGitUrl;
+  final String? initialDestinationPath;
+  final String? initialName;
+  final String? initialError;
+  final bool startOnClone;
+
   @override
   State<AddProjectDialog> createState() => _AddProjectDialogState();
 }
@@ -40,6 +53,31 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
   bool _nameTouched = false;
   bool _cloneDestinationTouched = false;
   String? _cloneParentDirectory;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.startOnClone ||
+        (widget.initialGitUrl?.trim().isNotEmpty ?? false)) {
+      _mode = .cloneFromUrl;
+    }
+    final gitUrl = widget.initialGitUrl?.trim();
+    if (gitUrl != null && gitUrl.isNotEmpty) {
+      _cloneUrlController.text = gitUrl;
+    }
+    final destination = widget.initialDestinationPath?.trim();
+    if (destination != null && destination.isNotEmpty) {
+      _cloneDestinationController.text = destination;
+      _cloneDestinationTouched = true;
+    }
+    final name = widget.initialName?.trim();
+    if (name != null && name.isNotEmpty) {
+      _nameController.text = name;
+      _nameTouched = true;
+    }
+    _error = widget.initialError;
+  }
 
   @override
   void dispose() {
@@ -219,6 +257,15 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
               ],
             ),
             const SizedBox(height: AleraTokens.space16),
+            if (_error case final error?) ...[
+              Text(
+                error,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AleraTokens.error,
+                ),
+              ),
+              const SizedBox(height: AleraTokens.space12),
+            ],
             Flexible(
               child: SingleChildScrollView(
                 child: Column(

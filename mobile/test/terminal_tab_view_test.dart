@@ -11,12 +11,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_accessory_layout_controller.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_clipboard_settings_controller.dart';
 import 'package:xterm2/xterm.dart';
+
+import 'package:alera_mobile/src/features/terminal/domain/terminal_viewport_pulse.dart';
 
 import 'support/fake_terminal_client.dart';
 import 'support/memory_accessory_layout_repository.dart';
 
 part 'terminal_tab_view_clipboard_cases.dart';
+part 'terminal_tab_view_test_support.dart';
 
 void main() {
   _registerTerminalClipboardSecurityTests();
@@ -42,7 +46,6 @@ void main() {
       );
       focusNode.requestFocus();
       await tester.pump();
-      final callsBefore = List<String>.of(client.calls);
       final terminalRect = tester.getRect(find.byType(TerminalView));
       final refreshRect = tester.getRect(find.byTooltip('Refresh Terminal'));
       expect(
@@ -72,9 +75,21 @@ void main() {
       expect(viewAfter.focusNode, same(focusNode));
       expect(controller.selection, isNotNull);
       expect(focusNode.hasFocus, isTrue);
-      expect(client.calls, callsBefore);
       expect(client.writes, isEmpty);
       expect(client.calls, isNot(contains('restart tab-1')));
+      final refreshPulse = terminalViewportRefreshPulseSize(
+        before.viewWidth,
+        before.viewHeight,
+      );
+      expect(_resizeCalls(client), <String>[
+        ..._pulsedResizeCalls(
+          'session-tab-1',
+          before.viewWidth,
+          before.viewHeight,
+        ),
+        'resize session-tab-1 ${refreshPulse.$1} ${refreshPulse.$2}',
+        'resize session-tab-1 ${before.viewWidth} ${before.viewHeight}',
+      ]);
       expect(find.byTooltip('Refresh Terminal'), findsOneWidget);
     },
   );
@@ -184,10 +199,16 @@ void main() {
     // Parsed at any narrower width, the cursor move clamps to that width and
     // TAIL lands there instead of at the column the host wrote it at.
     expect(joined.indexOf('TAIL'), 179);
-    // The phone's own size is claimed once, and only once it is real.
+    // The phone's own size is claimed once it is real, then pulsed so a
+    // full-screen agent redraws at that geometry rather than keeping the
+    // host's.
     expect(
-      client.calls.where((call) => call.startsWith('resize ')),
-      hasLength(1),
+      _resizeCalls(client),
+      _pulsedResizeCalls(
+        'session-tab-1',
+        terminal.viewWidth,
+        terminal.viewHeight,
+      ),
     );
   });
 
@@ -276,11 +297,18 @@ void main() {
 
     expect(client.attachments.single.cols, isNull);
     expect(client.attachments.single.rows, isNull);
-    // The measured size still reaches the host, just once and only when real.
-    final resize = client.calls.firstWhere(
-      (call) => call.startsWith('resize '),
+    // The measured size still reaches the host, only when real, then a
+    // one-column pulse asks the running TUI to redraw at that size.
+    final terminal = _terminalOf(tester);
+    expect(
+      _resizeCalls(client),
+      _pulsedResizeCalls(
+        'session-tab-1',
+        terminal.viewWidth,
+        terminal.viewHeight,
+      ),
     );
-    expect(resize, isNot(endsWith(' 80 24')));
+    expect(_resizeCalls(client).first, isNot(endsWith(' 80 24')));
   });
 
   testWidgets('Paste quick action writes clipboard text without Enter', (
@@ -381,73 +409,4 @@ void main() {
 
     expect(client.calls, contains('restart tab-1'));
   });
-}
-
-Terminal _terminalOf(WidgetTester tester) {
-  return tester.widget<TerminalView>(find.byType(TerminalView)).terminal;
-}
-
-/// Pumps until the restore has drained and the view is back.
-///
-/// The batcher paces itself with a timer between frames, and while the view is
-/// held back nothing else schedules one, so `pumpAndSettle` returns before the
-/// timer is due. A real frame loop keeps running regardless.
-Future<void> _drainRestore(WidgetTester tester) async {
-  for (var frame = 0; frame < 100; frame++) {
-    await tester.pump(const Duration(milliseconds: 50));
-    if (find.text('Restoring terminal').evaluate().isEmpty) {
-      await tester.pumpAndSettle();
-      return;
-    }
-  }
-  fail('the restore never drained');
-}
-
-double _restoreFraction(WidgetTester tester) {
-  return tester
-          .widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator))
-          .value ??
-      0;
-}
-
-Future<void> _pumpTab(
-  WidgetTester tester,
-  FakeTerminalClient client, {
-  bool settle = true,
-}) async {
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        terminalClientProvider('host-1').overrideWith((ref) async => client),
-        workspaceClientProvider('host-1').overrideWith((ref) async => client),
-        accessoryLayoutRepositoryProvider.overrideWithValue(
-          MemoryAccessoryLayoutRepository(),
-        ),
-      ],
-      child: const MaterialApp(
-        home: Scaffold(
-          body: TerminalTabView(
-            hostId: 'host-1',
-            workspaceId: 'workspace-1',
-            tabId: 'tab-1',
-          ),
-        ),
-      ),
-    ),
-  );
-  if (settle) {
-    await tester.pumpAndSettle();
-    return;
-  }
-  // Settling would drain the whole restore, which is the state under test.
-  for (var frame = 0; frame < 10; frame++) {
-    await tester.pump();
-    final attached =
-        find.byType(TerminalView).evaluate().isNotEmpty ||
-        find.text('Restoring terminal').evaluate().isNotEmpty;
-    if (attached) {
-      return;
-    }
-  }
-  fail('the terminal never attached');
 }

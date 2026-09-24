@@ -6,6 +6,7 @@ import 'package:alera/src/features/settings/application/settings_providers.dart'
 import 'package:alera/src/features/settings/application/runtime_settings_changes.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
 import 'package:alera/src/features/settings/application/settings_repository.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/text_actions/domain/text_actions_settings.dart';
@@ -13,9 +14,11 @@ import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'settings_controller.g.dart';
+part 'settings_controller_pull_requests.dart';
 
 @Riverpod(keepAlive: true)
-class SettingsController extends _$SettingsController {
+class SettingsController extends _$SettingsController
+    with _SettingsControllerPullRequestSettings {
   bool _loadStarted = false;
 
   SettingsRepository get _repository => ref.read(settingsRepositoryProvider);
@@ -83,11 +86,6 @@ class SettingsController extends _$SettingsController {
   ) => _serialize(() async {
     await _save(state.copyWith(textActions: edit(state.textActions)));
   });
-
-  Future<void> updateCodexChat(CodexChatSettings settings) =>
-      _serialize(() async {
-        await _save(state.copyWith(codexChat: settings));
-      });
 
   Future<void> resetTextActions() => _serialize(() async {
     await _save(state.copyWith(textActions: .defaults));
@@ -257,6 +255,17 @@ class SettingsController extends _$SettingsController {
         );
       });
 
+  Future<void> setShowTabTitlesInSidebar(bool value) => _serialize(() async {
+    if (state.agents.showTabTitlesInSidebar == value) {
+      return;
+    }
+    await _save(
+      state.copyWith(
+        agents: state.agents.copyWith(showTabTitlesInSidebar: value),
+      ),
+    );
+  });
+
   Future<void> setDefaultAgentProfile(String? profileId) => _serialize(
     () async {
       final normalized = profileId?.trim();
@@ -366,17 +375,6 @@ class SettingsController extends _$SettingsController {
     await _saveQuotaHost(hostId, current.copyWith(claudeDefaultEnabled: value));
   });
 
-  Future<void> setClaudeDefaultShowInUsage({
-    required String hostId,
-    required bool value,
-  }) => _serialize(() async {
-    final current = state.agents.quotas.forHost(hostId);
-    await _saveQuotaHost(
-      hostId,
-      current.copyWith(claudeDefaultShowInUsage: value),
-    );
-  });
-
   Future<void> setSelectedClaudeQuotaProfile({
     required String hostId,
     required String profile,
@@ -446,6 +444,17 @@ class SettingsController extends _$SettingsController {
     }
     await _save(
       state.copyWith(general: state.general.copyWith(starClicked: true)),
+    );
+  });
+
+  Future<void> markTrayHideNoticeShown() => _serialize(() async {
+    if (state.general.trayHideNoticeShown) {
+      return;
+    }
+    await _save(
+      state.copyWith(
+        general: state.general.copyWith(trayHideNoticeShown: true),
+      ),
     );
   });
 

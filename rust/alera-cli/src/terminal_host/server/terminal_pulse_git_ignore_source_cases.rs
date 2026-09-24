@@ -210,7 +210,13 @@ fn shell_xdg_config_controls_ignore_discovery_and_reconciliation() {
     std::fs::write(&exclude, "ignored/\n").unwrap();
     std::fs::write(
         xdg.join("git/config"),
-        format!("[core]\n\texcludesFile = {}\n", exclude.display()),
+        format!(
+            "[core]\n\texcludesFile = \"{}\"\n",
+            exclude
+                .to_string_lossy()
+                .replace('\\', "\\\\")
+                .replace('"', "\\\"")
+        ),
     )
     .unwrap();
     let environment = GitConfigEnvironment::new(
@@ -252,7 +258,13 @@ fn changing_an_included_config_reconciles_its_exclude_file() {
     let included = root.path().join("included-config");
     std::fs::write(
         &included,
-        format!("[core]\n\texcludesFile = {}\n", exclude.display()),
+        format!(
+            "[core]\n\texcludesFile = \"{}\"\n",
+            exclude
+                .to_string_lossy()
+                .replace('\\', "\\\\")
+                .replace('"', "\\\"")
+        ),
     )
     .unwrap();
     repository

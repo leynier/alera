@@ -61,14 +61,27 @@ void main() {
         final watched = await repository.watchWorkspaces('project-1').first;
 
         expect(listed.map((workspace) => workspace.id), <String>[
-          mainWorkspace.id,
           linkedEarly.id,
+          mainWorkspace.id,
           linkedLate.id,
         ]);
         expect(watched, listed);
-        expect(listed.first.branch, isNull);
-        expect(listed.first.sourceBranch, isNull);
-        expect(listed[1].reusesExistingBranch, isTrue);
+        expect(
+          listed.singleWhere((task) => task.id == mainWorkspace.id).branch,
+          isNull,
+        );
+        expect(
+          listed
+              .singleWhere((task) => task.id == mainWorkspace.id)
+              .sourceBranch,
+          isNull,
+        );
+        expect(
+          listed
+              .singleWhere((task) => task.id == linkedEarly.id)
+              .reusesExistingBranch,
+          isTrue,
+        );
       },
     );
 
@@ -156,7 +169,7 @@ void main() {
         final tab = WorkspaceTabRecord(
           id: 'tab-1',
           workspaceId: workspace.id,
-          kind: .browser,
+          kind: .editor,
           title: 'Preview',
           payload: const <String, Object?>{'path': 'readme.md'},
           createdAt: now,
@@ -182,7 +195,7 @@ void main() {
         final normalized = await repository.findWorkspaceTabById('tab-invalid');
 
         expect(listed, watched);
-        expect(restored?.kind, WorkspaceTabKind.browser);
+        expect(restored?.kind, WorkspaceTabKind.editor);
         expect(restored?.payload, <String, Object?>{'path': 'readme.md'});
         expect(normalized?.payload, const <String, Object?>{});
 

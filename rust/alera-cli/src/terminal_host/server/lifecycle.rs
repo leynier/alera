@@ -59,11 +59,6 @@ impl ServerActor {
 
     fn has_running_sessions(&self) -> bool {
         self.sessions.values().any(Session::running)
-            || self.emulators.as_ref().is_some_and(|emulators| {
-                emulators
-                    .try_lock()
-                    .map_or(true, |manager| manager.active_count() > 0)
-            })
     }
 
     pub(super) fn schedule_shutdown_if_idle(&mut self) {
@@ -72,18 +67,19 @@ impl ServerActor {
             || self.has_authenticated_clients()
             || !self.ssh_bootstrap_jobs.is_empty()
             || self.managed_workspace_jobs > 0
-            || self.emulator_requests.outstanding() > 0
-            || !self
-                .emulator_requests
-                .pending_workspace_shutdowns
-                .is_empty()
+            || self.workflow_workspace_jobs > 0
+            || !self.automation_checkout_jobs.is_empty()
+            || !self.automation_precheck_jobs.is_empty()
+            || !self.pending_terminal_lifecycle_shutdowns.is_empty()
+            || self.mutation_queue.outstanding() > 0
+            || !self.mutation_queue.pending_workspace_shutdowns.is_empty()
             || self.account_push.cloud_jobs > 0
             || !self.project_clone_jobs.is_empty()
             || self.mobile_gateway.is_some()
             || self.account_push.relay_task.is_some()
             || !self.coordinators.is_empty()
-            || self.browser.active_jobs() > 0
             || self.account_push.active_subscriptions > 0
+            || self.pull_request_watches.active
             || self.automations_active
         {
             self.cancel_shutdown_timer();
@@ -144,10 +140,10 @@ impl ServerActor {
         if generation == self.shutdown_gen
             && !self.disposed
             && !self.has_authenticated_clients()
-            && self
-                .emulator_requests
-                .pending_workspace_shutdowns
-                .is_empty()
+            && self.automation_checkout_jobs.is_empty()
+            && self.automation_precheck_jobs.is_empty()
+            && self.mutation_queue.pending_workspace_shutdowns.is_empty()
+            && self.pending_terminal_lifecycle_shutdowns.is_empty()
         {
             self.dispose().await;
         }

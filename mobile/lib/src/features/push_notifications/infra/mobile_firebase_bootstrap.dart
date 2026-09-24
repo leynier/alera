@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 abstract final class MobileFirebaseBootstrap {
   static bool ready = false;
@@ -21,6 +22,10 @@ abstract final class MobileFirebaseBootstrap {
       );
       return true;
     } on FirebaseException {
+      ready = false;
+      return false;
+    } on PlatformException {
+      // Missing native Firebase resources must not prevent offline startup.
       ready = false;
       return false;
     }
@@ -76,5 +81,7 @@ Future<void> aleraFirebaseMessagingBackgroundHandler(
     }
   } on FirebaseException {
     // A notification payload is still displayed by the operating system.
+  } on PlatformException {
+    // Native Firebase resources may be absent in builds without push setup.
   }
 }

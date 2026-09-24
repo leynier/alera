@@ -176,6 +176,10 @@ impl ServerActor {
             .unwrap_or(false);
         if let Some(client) = self.clients.get_mut(&client_id) {
             client.authenticated = true;
+            client.shared_checkout_workspaces = payload
+                .get("sharedCheckoutWorkspacesV1")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
             client.binary_frames = binary_frames;
             client.mobile_device_id = Some(device_id);
             client.mobile_device_name = Some(device_name);
@@ -183,10 +187,6 @@ impl ServerActor {
                 .cloud_device_id
                 .filter(|cloud_device_id| !cloud_device_id.trim().is_empty())
                 .or_else(|| client.relay_client_id.clone());
-            client.supports_codex_tab_kind = request
-                .supported_tab_kinds
-                .iter()
-                .any(|kind| kind == crate::terminal_host::protocol::CODEX_TAB_KIND);
         }
         self.cancel_shutdown_timer();
         if binary_frames {

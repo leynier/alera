@@ -288,7 +288,7 @@ fn artifact_digest(tree: &git2::Tree<'_>, paths: &[String]) -> Result<String, Gi
         digest.update(entry.filemode().to_be_bytes());
         digest.update(entry.id().as_bytes());
     }
-    Ok(format!("{:x}", digest.finalize()))
+    Ok(hex::encode(digest.finalize()))
 }
 
 fn oid(value: &str) -> Result<Oid, GitError> {

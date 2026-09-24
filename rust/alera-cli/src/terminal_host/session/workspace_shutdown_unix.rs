@@ -48,6 +48,34 @@ impl ShutdownGuard {
         })
     }
 
+    /// The caller must have spawned this child with setsid and must not reap it
+    /// until the guard finishes. WNOWAIT also handles a root that exits immediately.
+    pub(super) async fn capture_command(pid: u32) -> HostResult<Self> {
+        let (anchor, processes) = sweep(move || {
+            let system = process_table();
+            let anchor = match system.process(Pid::from_u32(pid)) {
+                Some(process) if process.session_id() == Some(Pid::from_u32(pid)) => ShellProcess {
+                    pid,
+                    start_time: process.start_time(),
+                },
+                _ if is_unreaped_child(pid) => ShellProcess { pid, start_time: 0 },
+                _ => {
+                    return Err(shutdown_error(
+                        "command session identity cannot be verified",
+                    ))
+                }
+            };
+            let processes = capture_owned(&system, &[anchor], vec![anchor], true)?;
+            Ok((anchor, processes))
+        })
+        .await??;
+        Ok(Self {
+            anchors: vec![anchor],
+            processes,
+            _reaper_leases: Vec::new(),
+        })
+    }
+
     pub(super) async fn wait(&mut self) -> HostResult<()> {
         if self.anchors.is_empty() && self.processes.is_empty() {
             return Ok(());
@@ -144,6 +172,23 @@ fn is_unreaped_child(pid: u32) -> bool {
             libc::WEXITED | libc::WNOHANG | libc::WNOWAIT,
         ) == 0
             && status.si_pid() == pid as libc::pid_t
+    }
+}
+
+pub(super) fn command_root_exited(pid: u32) -> HostResult<bool> {
+    // Keep the child waitable so its session ID cannot be recycled during cleanup.
+    unsafe {
+        let mut status: libc::siginfo_t = std::mem::zeroed();
+        if libc::waitid(
+            libc::P_PID,
+            pid,
+            &mut status,
+            libc::WEXITED | libc::WNOHANG | libc::WNOWAIT,
+        ) != 0
+        {
+            return Err(shutdown_error(std::io::Error::last_os_error()));
+        }
+        Ok(status.si_pid() == pid as libc::pid_t)
     }
 }
 

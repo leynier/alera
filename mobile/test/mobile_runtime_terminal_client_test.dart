@@ -133,7 +133,9 @@ void main() {
 
     expect(session.attachment.created, isTrue);
     final request = gateway.requestsOfType('terminal.restart').single;
-    expect(gateway.payloadOf(request), <String, Object?>{
+    final restartPayload = Map<String, Object?>.of(gateway.payloadOf(request));
+    expect(restartPayload.remove('operationId'), isNotEmpty);
+    expect(restartPayload, <String, Object?>{
       'tabId': 'tab-1',
       'sessionId': 'session-1',
       'cols': 100,
@@ -331,7 +333,9 @@ void main() {
     addTearDown(outputSub.cancel);
 
     await gateway.closeSockets();
-    await pumpEventQueue();
+    // The close travels over a real loopback socket, so one event-queue drain
+    // can finish before both broadcast controllers emit onDone.
+    await _waitUntil(() => eventsDone && outputDone);
 
     // Otherwise a dead socket is indistinguishable from an idle terminal.
     expect(eventsDone, isTrue);

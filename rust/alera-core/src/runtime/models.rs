@@ -56,6 +56,8 @@ pub struct Workspace {
     #[serde(default)]
     pub is_pinned: bool,
     #[serde(default)]
+    pub is_archived: bool,
+    #[serde(default)]
     pub tag_ids: Vec<String>,
     #[serde(default)]
     pub tag_names: Vec<String>,
@@ -407,6 +409,28 @@ impl SshBootstrapStatus {
     }
 }
 
+/// Live connectivity result persisted on `SshTarget.last_status`.
+///
+/// Distinct from `SshBootstrapStatus`, which records install progress rather
+/// than whether the host answers SSH or its runtime sidecar is usable.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum SshTargetLastStatus {
+    Unreachable,
+    Reachable,
+    RuntimeReady,
+}
+
+impl SshTargetLastStatus {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SshTargetLastStatus::Unreachable => "unreachable",
+            SshTargetLastStatus::Reachable => "reachable",
+            SshTargetLastStatus::RuntimeReady => "runtimeReady",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CascadePreview {
@@ -440,6 +464,7 @@ impl ProjectConfig {
         self.worktree.copy.is_empty()
             && self.worktree.setup.is_empty()
             && self.new_workspace.prompt_append.trim().is_empty()
+            && self.new_workspace.source_branch.trim().is_empty()
             && self.git_hosting_provider.is_none()
     }
 }
@@ -449,6 +474,8 @@ impl ProjectConfig {
 pub struct NewWorkspaceConfig {
     #[serde(default)]
     pub prompt_append: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub source_branch: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

@@ -52,7 +52,8 @@ class const RemoteHostEditor({
         children: <Widget>[
           AleraSettingsGroup(
             title: 'Connection',
-            description: 'SSH target used by the runtime host.',
+            description:
+                'SSH target used by the Home Runtime to install a sidecar.',
             children: <Widget>[
               _InlineFieldRow(
                 first: AleraTextField(
@@ -115,7 +116,7 @@ class const RemoteHostEditor({
           const SizedBox(height: AleraTokens.space16),
           AleraSettingsGroup(
             title: 'Runtime Bootstrap',
-            description: 'Install the Alera runtime sidecar on this host.',
+            description: 'Install the Alera runtime sidecar on this host. This does not create or attach a remote Git worktree.',
             children: <Widget>[
               _InlineFieldRow(
                 first: _RemoteHostDropdown<String>(

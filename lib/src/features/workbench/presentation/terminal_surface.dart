@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/features/agent_canvas/application/agent_canvas_providers.dart';
 import 'package:alera/src/features/keyboard/application/keybinding_resolver.dart';
 import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
 import 'package:alera/src/features/keyboard/domain/key_chord.dart';
@@ -15,6 +14,7 @@ import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart'
 import 'package:alera/src/features/workbench/presentation/terminal_search_controller.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_search_overlay.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_surface_toolbar.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_registry.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
@@ -79,6 +79,21 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
       _attachComposer(widget.session);
       _scheduleStart(widget.session);
     }
+    if (!oldWidget.autofocus && widget.autofocus) {
+      _claimFocusIfPaneIdle();
+    }
+  }
+
+  /// The pane just became the active group without a pointer (Focus Next
+  /// Pane on a pane never focused before, a merged split, a dropped tab). Give
+  /// the emulator the keyboard only while the focus is parked on a scope, so
+  /// a field the user is typing in, or the composer of this pane, keeps it.
+  void _claimFocusIfPaneIdle() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && workbenchFocusIsParked()) {
+        widget.session.requestFocus();
+      }
+    });
   }
 
   @override
@@ -171,17 +186,8 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
   @override
   Widget build(BuildContext context) {
     // Keep the surface usable in isolated previews and test harnesses that do
-    // not mount the application ProviderScope. The canvas catalog is
-    // unavailable there, while the normal app still watches it.
+    // not mount the application ProviderScope.
     final hasProviderScope = _hasProviderScope(context);
-    final hasCanvas =
-        hasProviderScope &&
-        ref
-                .watch(agentCanvasesProvider(widget.session.workspaceId))
-                .asData
-                ?.value
-                .isNotEmpty ==
-            true;
     final toolbarCorner = hasProviderScope
         ? ref.watch(
             settingsControllerProvider.select(
@@ -196,7 +202,6 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
       ]),
       builder: (context, _) => _buildSurface(
         context,
-        hasCanvas: hasCanvas,
         toolbarCorner: toolbarCorner,
         canPersistToolbarCorner: hasProviderScope,
       ),
@@ -205,7 +210,6 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
 
   Widget _buildSurface(
     BuildContext context, {
-    required bool hasCanvas,
     required TerminalToolbarCorner toolbarCorner,
     required bool canPersistToolbarCorner,
   }) {
@@ -237,7 +241,6 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
           error: error,
           operation: operation,
           searchController: searchController,
-          hasCanvas: hasCanvas,
           toolbarCorner: toolbarCorner,
           canPersistToolbarCorner: canPersistToolbarCorner,
         ),
@@ -250,7 +253,6 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
     required String? error,
     required TerminalSessionOperation? operation,
     required TerminalSearchController? searchController,
-    required bool hasCanvas,
     required TerminalToolbarCorner toolbarCorner,
     required bool canPersistToolbarCorner,
   }) {
@@ -262,7 +264,6 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
             error: error,
             operation: operation,
             searchController: searchController,
-            hasCanvas: hasCanvas,
             toolbarCorner: toolbarCorner,
             canPersistToolbarCorner: canPersistToolbarCorner,
           ),
@@ -278,13 +279,11 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
     required String? error,
     required TerminalSessionOperation? operation,
     required TerminalSearchController? searchController,
-    required bool hasCanvas,
     required TerminalToolbarCorner toolbarCorner,
     required bool canPersistToolbarCorner,
   }) {
     final toolbarButtonCount = terminalToolbarButtonCount(
       supportsPulse: widget.session.supportsTerminalPulse,
-      hasCanvas: hasCanvas,
     );
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -300,10 +299,8 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
               session: widget.session,
               viewportSize: constraints.biggest,
               corner: toolbarCorner,
-              hasCanvas: hasCanvas,
               refreshing: _refreshing,
               onRefresh: () => unawaited(_refreshTerminal()),
-              onShowAgentCanvas: _showAgentCanvas,
               onCornerChanged: canPersistToolbarCorner
                   ? _persistToolbarCorner
                   : null,
@@ -395,22 +392,6 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
             (terminal) => terminal.copyWith(toolbarCorner: corner),
           ),
     );
-  }
-
-  void _showAgentCanvas() {
-    final terminalSessionId = widget.session.terminalSessionId;
-    if (terminalSessionId != null) {
-      ref
-          .read(
-            agentCanvasSelectionProvider(widget.session.workspaceId).notifier,
-          )
-          .select(terminalSessionId);
-    }
-    final controller = ref.read(workbenchControllerProvider.notifier);
-    controller.setContextPanelTab(.agentCanvas);
-    if (!ref.read(workbenchControllerProvider).viewPrefs.rightSidebarVisible) {
-      controller.toggleRightSidebarVisible();
-    }
   }
 
   void _closeSearch() {

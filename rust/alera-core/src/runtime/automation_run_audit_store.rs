@@ -93,7 +93,7 @@ impl RuntimeStore {
     ) -> Result<()> {
         let cutoff = format_timestamp(now - Duration::days(retention_days.max(1)));
         sqlx::query(
-            "DELETE FROM automationRuns WHERE automationId = ? AND status IN ('precheckSkipped', 'misfireSkipped', 'overlapSkipped', 'queueLimitSkipped', 'success', 'failure', 'blocked', 'timeout', 'cancelled') AND (createdAt < ? OR id NOT IN (SELECT id FROM automationRuns WHERE automationId = ? AND status IN ('precheckSkipped', 'misfireSkipped', 'overlapSkipped', 'queueLimitSkipped', 'success', 'failure', 'blocked', 'timeout', 'cancelled') ORDER BY createdAt DESC LIMIT 100))",
+            "DELETE FROM automationRuns WHERE automationId = ? AND NOT EXISTS (SELECT 1 FROM automationSharedCleanupIntents c WHERE c.runId = automationRuns.id AND c.state IN ('pending','running')) AND status IN ('precheckSkipped', 'misfireSkipped', 'overlapSkipped', 'queueLimitSkipped', 'success', 'failure', 'blocked', 'timeout', 'cancelled') AND (createdAt < ? OR id NOT IN (SELECT id FROM automationRuns WHERE automationId = ? AND status IN ('precheckSkipped', 'misfireSkipped', 'overlapSkipped', 'queueLimitSkipped', 'success', 'failure', 'blocked', 'timeout', 'cancelled') ORDER BY createdAt DESC LIMIT 100))",
         )
         .bind(automation_id)
         .bind(cutoff)

@@ -28,6 +28,9 @@ mixin _WorkbenchControllerSections
                 collapsedSectionIds: snapshot.supported
                     ? state.viewPrefs.collapsedSectionIds.intersection(ids)
                     : state.viewPrefs.collapsedSectionIds,
+                selectedSectionIds: snapshot.supported
+                    ? state.viewPrefs.selectedSectionIds.intersection(ids)
+                    : state.viewPrefs.selectedSectionIds,
               ),
             );
           },
@@ -51,6 +54,45 @@ mixin _WorkbenchControllerSections
       await _sectionRepository.createSection(newName, workspaceId);
     } else {
       await _sectionRepository.setSection(workspaceId, sectionId);
+    }
+  }
+
+  /// Assigns or clears a section on [workspaceId] and every descendant.
+  /// Creating a section still assigns the root atomically, then the rest.
+  Future<void> saveWorkspaceSectionTree(
+    String workspaceId, {
+    String? sectionId,
+    String? newName,
+  }) async {
+    final workspaces = <Workspace>[
+      for (final group in state.workspacesByProject.values) ...group,
+    ];
+    final ids = <String>[
+      workspaceId,
+      ...workspaceIdsDescendedFrom(workspaces, workspaceId),
+    ];
+    var assignedId = sectionId;
+    if (newName != null) {
+      assignedId = (await _sectionRepository.createSection(
+        newName,
+        workspaceId,
+      )).id;
+    }
+    for (final id in ids) {
+      if (newName != null && id == workspaceId) {
+        continue;
+      }
+      Workspace? current;
+      for (final workspace in workspaces) {
+        if (workspace.id == id) {
+          current = workspace;
+          break;
+        }
+      }
+      if (current == null || current.sectionId == assignedId) {
+        continue;
+      }
+      await _sectionRepository.setSection(id, assignedId);
     }
   }
 

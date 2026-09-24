@@ -1,3 +1,5 @@
+import 'package:alera_mobile/src/features/workbench/application/workspace_checkout_selection.dart';
+
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
@@ -5,13 +7,21 @@ import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
 import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_control.dart';
 import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_review_bar.dart';
+import 'package:alera_mobile/src/features/linked_issues/application/linked_issues_controller.dart';
+import 'package:alera_mobile/src/features/linked_issues/domain/mobile_issue_workspace_identity.dart';
+import 'package:alera_mobile/src/features/linked_issues/domain/mobile_linked_issue.dart';
+import 'package:alera_mobile/src/features/linked_issues/presentation/mobile_issue_url_field.dart';
+import 'package:alera_mobile/src/features/projects/domain/preferred_source_branch.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_selection_order.dart';
+import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_project_client.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
+import 'package:alera_mobile/src/features/workbench/application/background_setup_jobs.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera_mobile/src/features/workbench/domain/background_setup_job.dart';
 import 'package:alera_mobile/src/features/workbench/application/prompt_workspace_controller.dart';
-import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/domain/workspace_parent_selection_order.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/workbench/application/prompt_attachment_providers.dart';
@@ -23,20 +33,41 @@ import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_s
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+part 'create_workspace_linked_issue.dart';
 part 'create_workspace_manual.dart';
 part 'create_workspace_prompt.dart';
 part 'create_workspace_prompt_attachments.dart';
+part 'create_workspace_location.dart';
 
 class const CreateWorkspaceScreen({
   super.key,
   required final String hostId,
+  final String? initialCheckoutHostId,
   required final List<ProjectSummary> projects,
   required final List<WorkspaceSummary> workspaces,
+  final List<WorkspaceSectionSummary> sections = const [],
+  final bool initialAutoAssignSection = true,
   final String? defaultAgentProfileId,
   final bool supportsPromptWorkspaceCreation = true,
   final bool supportsPromptImageUpload = false,
   final bool supportsPromptFileUpload = false,
   final bool supportsWorkspaceFiles = false,
+  final bool supportsSharedCheckoutWorkspaces = false,
+  final bool supportsLinkedIssues = false,
+  final String? initialIssueUrl,
+  final String? retryJobId,
+  final String? initialError,
+  final bool? initialFromPrompt,
+  final String? initialPrompt,
+  final Set<String> initialLocalAttachmentPaths = const {},
+  final String? initialProjectId,
+  final String? initialSourceBranch,
+  final String? initialProfileId,
+  final String? initialParentWorkspaceId,
+  final String? initialBranch,
+  final String? initialName,
+  final bool initialReuseExistingBranch = false,
+  final bool initialUseProjectCheckout = true,
 }) extends ConsumerStatefulWidget {
   @override
   ConsumerState<CreateWorkspaceScreen> createState() =>
@@ -47,6 +78,20 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
   final TextEditingController _branch = TextEditingController();
   final TextEditingController _name = TextEditingController();
   final TextEditingController _prompt = TextEditingController();
+  int _branchLoadGeneration = 0;
+  String? get _checkoutHostId => ref.read(
+    workspaceCheckoutSelectionProvider(
+      widget.hostId,
+      widget.initialCheckoutHostId,
+    ),
+  );
+
+  late final TextEditingController _issueUrl = TextEditingController(
+    text: widget.initialIssueUrl,
+  );
+  String? _branchFromIssue;
+  String? _nameFromIssue;
+  String? _promptFromIssue;
   bool _fromPrompt = true;
   String? _projectId;
   List<String> _branches = const <String>[];
@@ -54,16 +99,22 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
   String? _parentWorkspaceId;
   String? _promptParentWorkspaceId;
   bool _reuseExistingBranch = false;
+  bool _useProjectCheckout = true;
+  bool _autoAssignSection = true;
   bool _createAnother = false;
-  bool _loadingBranches = false;
   bool _creating = false;
+  bool _loadingBranches = false;
+
   bool _uploadingAttachment = false;
   String? _promptAttachmentError;
   String? _error;
+  String? _retryError;
+  String? _retryJobId;
+  BackgroundSetupJobs? _jobs;
+  var _applyRetryHydration = false;
 
-  List<ProjectSummary> get _orderedProjects => sortProjectsForSelection(
-    widget.projects.where((project) => project.supportsLinkedWorkspaces),
-  );
+  List<ProjectSummary> get _orderedProjects =>
+      sortProjectsForSelection(widget.projects);
 
   List<WorkspaceSummary> get _orderedParentWorkspaces =>
       _parentWorkspacesFor(_projectId);
@@ -96,24 +147,6 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
       );
   }
 
-  String? _defaultParentWorkspaceId(String? projectId) {
-    if (projectId == null) {
-      return null;
-    }
-    final candidates = _parentWorkspacesFor(projectId);
-    for (final workspace in candidates) {
-      if (workspace.projectId == projectId && workspace.isMain) {
-        return workspace.id;
-      }
-    }
-    for (final workspace in candidates) {
-      if (workspace.projectId == projectId) {
-        return workspace.id;
-      }
-    }
-    return null;
-  }
-
   String _parentWorkspaceLabel(WorkspaceSummary workspace) {
     String? projectName;
     for (final project in widget.projects) {
@@ -130,24 +163,64 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
   @override
   void initState() {
     super.initState();
-    _fromPrompt = widget.supportsPromptWorkspaceCreation;
-    if (_orderedProjects.length == 1) {
+    _fromPrompt =
+        widget.initialFromPrompt ?? widget.supportsPromptWorkspaceCreation;
+    _error = widget.initialError;
+    _retryError = widget.initialError;
+    _retryJobId = widget.retryJobId;
+    _applyRetryHydration = widget.initialProjectId != null;
+    _jobs = ref.read(backgroundSetupJobsProvider.notifier);
+    _autoAssignSection = widget.initialAutoAssignSection;
+    _reuseExistingBranch = widget.initialReuseExistingBranch;
+    _useProjectCheckout =
+        widget.supportsSharedCheckoutWorkspaces &&
+        widget.initialUseProjectCheckout;
+    final initialPrompt = widget.initialPrompt;
+    if (initialPrompt != null && initialPrompt.isNotEmpty) {
+      _prompt.text = initialPrompt;
+    }
+    final initialBranch = widget.initialBranch;
+    if (initialBranch != null && initialBranch.isNotEmpty) {
+      _branch.text = initialBranch;
+    }
+    final initialName = widget.initialName;
+    if (initialName != null && initialName.isNotEmpty) {
+      _name.text = initialName;
+    }
+    if (widget.initialParentWorkspaceId != null) {
+      _parentWorkspaceId = widget.initialParentWorkspaceId;
+      _promptParentWorkspaceId = widget.initialParentWorkspaceId;
+    }
+    final retryProjectId = widget.initialProjectId;
+    if (retryProjectId != null) {
+      _selectProject(retryProjectId);
+    } else if (_orderedProjects.length == 1) {
       _selectProject(_orderedProjects.single.id);
     }
-    final initialPromptProject = _orderedProjects.firstOrNull;
+    final initialPromptProject =
+        retryProjectId ?? _orderedProjects.firstOrNull?.id;
     if (widget.supportsPromptWorkspaceCreation &&
         initialPromptProject != null) {
-      _promptParentWorkspaceId = _defaultParentWorkspaceId(
-        initialPromptProject.id,
-      );
-      Future<void>.microtask(
-        () => ref
-            .read(promptWorkspaceControllerProvider(widget.hostId).notifier)
-            .selectProject(
-              initialPromptProject.id,
-              defaultAgentProfileId: widget.defaultAgentProfileId,
-            ),
-      );
+      Future<void>.microtask(() async {
+        final controller = ref.read(
+          promptWorkspaceControllerProvider(widget.hostId).notifier,
+        );
+        await controller.selectProject(
+          initialPromptProject,
+          loadBranches: !_useProjectCheckout,
+          checkoutHostId: _checkoutHostId,
+          defaultAgentProfileId:
+              widget.initialProfileId ?? widget.defaultAgentProfileId,
+        );
+        final source = widget.initialSourceBranch;
+        if (source != null) {
+          controller.selectSourceBranch(source);
+        }
+        final profileId = widget.initialProfileId;
+        if (profileId != null) {
+          controller.selectProfile(profileId);
+        }
+      });
     }
   }
 
@@ -156,54 +229,81 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
     _branch.dispose();
     _name.dispose();
     _prompt.dispose();
+    _issueUrl.dispose();
+    final jobs = _jobs;
+    if (jobs != null) {
+      scheduleMicrotask(jobs.endForm);
+    }
     super.dispose();
   }
 
   void _update(VoidCallback update) => setState(update);
 
-  void _selectPromptProject(
-    String projectId,
-    PromptWorkspaceController controller,
-  ) {
-    setState(() {
-      _promptParentWorkspaceId = _defaultParentWorkspaceId(projectId);
-    });
-    controller.selectProject(
-      projectId,
-      defaultAgentProfileId: widget.defaultAgentProfileId,
-    );
-  }
-
   Future<void> _selectProject(String projectId) async {
+    final checkoutHostId = _checkoutHostId;
+    final generation = ++_branchLoadGeneration;
+    final isRetryProject =
+        _applyRetryHydration && projectId == widget.initialProjectId;
+    final preferredSource = isRetryProject ? widget.initialSourceBranch : null;
+    final preferredParent = isRetryProject
+        ? widget.initialParentWorkspaceId
+        : null;
     setState(() {
       _projectId = projectId;
+      if (!widget.projects.any(
+        (project) =>
+            project.id == projectId && project.supportsLinkedWorkspaces,
+      )) {
+        _useProjectCheckout = true;
+      } else if (!widget.supportsSharedCheckoutWorkspaces) {
+        _useProjectCheckout = false;
+      }
       _branches = const <String>[];
       _sourceBranch = null;
       _parentWorkspaceId = null;
-      _loadingBranches = true;
+      _loadingBranches = !_useProjectCheckout;
     });
+    if (_useProjectCheckout) {
+      _parentWorkspaceId = preferredParent;
+      return;
+    }
     try {
       final client = await ref.read(
         workspaceClientProvider(widget.hostId).future,
       );
-      final branches = await client.listBranches(projectId);
-      if (!mounted || _projectId != projectId) {
+      final branches = await client.listBranches(
+        projectId,
+        checkoutHostId: checkoutHostId,
+      );
+      final projectPreferred = await _preferredSourceFor(projectId);
+      if (!mounted ||
+          _projectId != projectId ||
+          _checkoutHostId != checkoutHostId ||
+          generation != _branchLoadGeneration) {
         return;
       }
       setState(() {
         _branches = branches.branches;
-        _sourceBranch = branches.branches.isEmpty
-            ? null
-            : branches.branches.first;
+        _sourceBranch = pickDefaultSourceBranch(
+          branches.branches,
+          preferred: preferredSource ?? projectPreferred,
+        );
+        _parentWorkspaceId = isRetryProject ? preferredParent : null;
       });
     } on Object catch (error) {
-      if (mounted && _projectId == projectId) {
+      if (mounted &&
+          _projectId == projectId &&
+          _checkoutHostId == checkoutHostId &&
+          generation == _branchLoadGeneration) {
         setState(() {
           _error = 'Could not load branches: $error';
         });
       }
     } finally {
-      if (mounted && _projectId == projectId) {
+      if (mounted &&
+          _projectId == projectId &&
+          _checkoutHostId == checkoutHostId &&
+          generation == _branchLoadGeneration) {
         setState(() {
           _loadingBranches = false;
         });
@@ -212,56 +312,74 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
   }
 
   bool get _canSubmit {
-    if (_creating || _projectId == null || _branch.text.trim().isEmpty) {
+    if (!_checkoutReady(_projectId)) return false;
+    if (_useProjectCheckout) return !_creating && _projectId != null;
+    if (_creating ||
+        _loadingBranches ||
+        _projectId == null ||
+        _branch.text.trim().isEmpty) {
       return false;
     }
     return _reuseExistingBranch || _sourceBranch != null;
   }
 
   Future<void> _create() async {
+    if (_creating) {
+      return;
+    }
     setState(() {
       _creating = true;
       _error = null;
     });
-    try {
-      final name = _name.text.trim();
-      final result = await ref
-          .read(workspaceListControllerProvider(widget.hostId).notifier)
-          .createWorkspace(
+    final name = _name.text.trim();
+    _retryJobId ??= 'job-${DateTime.now().microsecondsSinceEpoch}';
+    final jobId = _retryJobId;
+    final future = ref
+        .read(backgroundSetupJobsProvider.notifier)
+        .enqueueManualWorkspace(
+          ManualWorkspaceCreateRequest(
+            hostId: widget.hostId,
+            checkoutHostId: _checkoutHostId,
             projectId: _projectId!,
             branch: _branch.text.trim(),
             sourceBranch: _reuseExistingBranch ? null : _sourceBranch,
             reuseExistingBranch: _reuseExistingBranch,
+            useProjectCheckout: _useProjectCheckout,
             name: name.isEmpty ? null : name,
             parentWorkspaceId: _parentWorkspaceId,
-          );
-      if (mounted) {
-        _showCreationMessage(result);
-        if (_createAnother) {
-          await _resetManualForm();
-        } else {
-          Navigator.of(context).pop(true);
+            issueUrl: _linkedIssueUrl(),
+          ),
+          jobId: jobId,
+        );
+    try {
+      if (_createAnother) {
+        await future;
+        if (!mounted) {
+          return;
         }
+        _retryJobId = null;
+        await _resetManualForm();
+      } else if (mounted) {
+        future.ignore();
+        Navigator.of(context).pop(true);
       }
     } on Object catch (error) {
       if (mounted) {
-        setState(() {
-          _error = error.toString();
-        });
+        setState(() => _error = error.toString());
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _creating = false;
-        });
+        setState(() => _creating = false);
       }
     }
   }
 
   Future<void> _resetManualForm() async {
     final projectId = _projectId;
+    _applyRetryHydration = false;
     _branch.clear();
     _name.clear();
+    _issueUrl.clear();
     setState(() {
       _parentWorkspaceId = null;
       _reuseExistingBranch = false;
@@ -286,10 +404,17 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(
+      promptLocalAttachmentsProvider(
+        widget.hostId,
+        widget.initialLocalAttachmentPaths,
+      ),
+    );
+
     final promptState = widget.supportsPromptWorkspaceCreation
         ? ref.watch(promptWorkspaceControllerProvider(widget.hostId))
         : const PromptWorkspaceState();
-    final modeLocked = _creating || promptState.loading || _uploadingAttachment;
+    final modeLocked = promptState.loading || _uploadingAttachment || _creating;
     final segments = widget.supportsPromptWorkspaceCreation
         ? const <ButtonSegment<bool>>[
             ButtonSegment<bool>(

@@ -10,3 +10,43 @@ const String aiDictationCapability = 'aiDictationV1';
 const String aiDictationModelsCapability = 'aiDictationModelsV2';
 const String aiDictationBackendsCapability = 'aiDictationBackendsV3';
 const String remoteAiDictationCapability = 'aiDictationRemoteProvidersV1';
+const String mobileExplorerCapability = 'mobileExplorerV1';
+const String mobileWorkspaceSearchCapability = 'mobileWorkspaceSearchV1';
+const String mobileWorkspaceReplaceCapability = 'mobileWorkspaceReplaceV1';
+const String mobileSourceControlCapability = 'mobileSourceControlV1';
+const String mobileSourceControlRootCapability = 'mobileSourceControlRootV1';
+const String mobileSourceControlWritesCapability =
+    'mobileSourceControlWritesV1';
+const String aiTextCommitMessageCapability = 'aiTextCommitMessageV1';
+const String mobilePullRequestCapability = 'mobilePullRequestV1';
+const String mobilePullRequestActionsCapability = 'mobilePullRequestActionsV1';
+const String mobilePullRequestSummariesCapability =
+    'mobilePullRequestSummariesV1';
+const String aiTextPullRequestDetailsCapability = 'aiTextPullRequestDetailsV1';
+const String mobilePullRequestShipCapability = 'mobilePullRequestShipV1';
+const String sharedCheckoutWorkspacesCapability = 'sharedCheckoutWorkspacesV1';
+
+bool requiresSharedCheckoutSupport(String operation) => switch (operation) {
+  'workspace.upsert' ||
+  'checkout.quickOpen.start' ||
+  'workspace.createShared' ||
+  'workspace.removeShared' ||
+  'workspace.handOff' ||
+  'workspace.handOn' ||
+  'workspace.runSetup' ||
+  'workspace.prepareRelocationSetup' ||
+  'workspace.recoverRelocationSetup' ||
+  'workspace.cancelRelocationSetup' ||
+  'workspace.remove' ||
+  'workspace.removeForProject' ||
+  'project.register' ||
+  'project.clone.start' => true,
+  _ => operation.startsWith('workspace.bufferGuard.'),
+};
+
+/// Linked issues (`linkedIssue.*`, `issue.fetch`, `issueUrl` on
+/// `workspace.createManaged`). Additive: never bump the protocol version.
+const String linkedIssuesCapability = 'linkedIssuesV1';
+
+/// Watch and Fix sessions (`pullRequestWatch.list` / `find`). Additive.
+const String pullRequestWatchCapability = 'pullRequestWatchV1';

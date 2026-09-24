@@ -34,7 +34,7 @@ void main() {
       );
 
       expect(command.split('; '), <String>[
-        for (final skill in AleraAgentSkill.values)
+        for (final skill in coreAleraAgentSkills)
           'bunx skills add https://github.com/leynier/alera --skill ${skill.name} --agent codex --global --yes',
       ]);
       expect(command, isNot(contains('\n')));
@@ -50,7 +50,7 @@ void main() {
       expect(command, isNot(contains('\n')));
       expect(
         RegExp(r'if \(Get-Command npx').allMatches(command),
-        hasLength(AleraAgentSkill.values.length),
+        hasLength(coreAleraAgentSkills.length),
       );
     });
 
@@ -76,25 +76,22 @@ void main() {
       );
     });
 
-    test('builds the computer use skill command', () {
+    test('builds the optional Agent Profiles skill command', () {
       expect(
-        aleraCliSkillInstallCommand(runner: .bunx, skill: .computerUse),
-        'bunx skills add https://github.com/leynier/alera --skill alera-computer-use --agent codex --global --yes',
+        aleraCliSkillInstallCommand(runner: .bunx, skill: .agentProfiles),
+        'bunx skills add https://github.com/leynier/alera --skill alera-agent-profiles --agent codex --global --yes',
       );
-    });
-
-    test('builds the emulator skill command', () {
       expect(
-        aleraCliSkillInstallCommand(runner: .npx, skill: .emulator),
-        'npx skills add https://github.com/leynier/alera --skill alera-emulator --agent codex --global --yes',
+        coreAleraAgentSkills,
+        isNot(contains(AleraAgentSkill.agentProfiles)),
       );
-    });
-
-    test('builds the Agent Canvas skill command without confirmation', () {
-      expect(
-        aleraCliSkillInstallCommand(runner: .npx, skill: .agentCanvas),
-        'npx skills add https://github.com/leynier/alera --skill alera-agent-canvas --agent codex --global --yes',
-      );
+      expect(extraAleraAgentSkills, <AleraAgentSkill>[
+        AleraAgentSkill.agentProfiles,
+      ]);
+      expect(<AleraAgentSkill>{
+        ...coreAleraAgentSkills,
+        ...extraAleraAgentSkills,
+      }, AleraAgentSkill.values.toSet());
     });
 
     test('passes hydrated environment to npx', () async {

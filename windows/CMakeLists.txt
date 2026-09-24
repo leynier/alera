@@ -116,39 +116,6 @@ add_custom_target(alera_cli_sidecar ALL
 )
 add_dependencies(${BINARY_NAME} alera_cli_sidecar)
 
-set(ALERA_PROJECT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
-set(ALERA_NATIVE_HELPER_OUTPUT
-  "${ALERA_PROJECT_DIR}/.dart_tool/alera_native_helpers/prepared/windows")
-set(ALERA_DART_EXECUTABLE
-  "$ENV{FLUTTER_ROOT}/bin/cache/dart-sdk/bin/dart.exe")
-if(NOT EXISTS "${ALERA_DART_EXECUTABLE}")
-  unset(ALERA_DART_EXECUTABLE)
-  unset(ALERA_DART_EXECUTABLE CACHE)
-  find_program(ALERA_DART_EXECUTABLE NAMES dart.exe dart)
-endif()
-if(NOT ALERA_DART_EXECUTABLE OR NOT EXISTS "${ALERA_DART_EXECUTABLE}")
-  message(FATAL_ERROR "dart executable is required to prepare emulator helpers")
-endif()
-add_custom_target(alera_native_helpers ALL
-  COMMAND "${ALERA_DART_EXECUTABLE}"
-    "${ALERA_PROJECT_DIR}/tool/native_helpers/prepare_native_helpers.dart"
-    --platform windows
-    --output "${ALERA_NATIVE_HELPER_OUTPUT}"
-  BYPRODUCTS
-    "${ALERA_NATIVE_HELPER_OUTPUT}/manifest.json"
-    "${ALERA_NATIVE_HELPER_OUTPUT}/android/scrcpy/4.0/scrcpy-server"
-  DEPENDS
-    "${ALERA_PROJECT_DIR}/tool/native_helpers/native_helper_assets.json"
-    "${ALERA_PROJECT_DIR}/tool/native_helpers/native_helper_manifest.dart"
-    "${ALERA_PROJECT_DIR}/tool/native_helpers/native_helper_materializer.dart"
-    "${ALERA_PROJECT_DIR}/tool/native_helpers/prepare_native_helpers.dart"
-    "${ALERA_PROJECT_DIR}/third_party/native_helpers/NOTICE.md"
-  WORKING_DIRECTORY "${ALERA_PROJECT_DIR}"
-  COMMENT "Preparing verified emulator helpers"
-  VERBATIM
-)
-add_dependencies(${BINARY_NAME} alera_native_helpers)
-
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.
 include(flutter/generated_plugins.cmake)
@@ -179,10 +146,6 @@ install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
 
 install(PROGRAMS "${ALERA_CLI_STAGED}"
   DESTINATION "${CMAKE_INSTALL_PREFIX}/resources/alera"
-  COMPONENT Runtime)
-
-install(DIRECTORY "${ALERA_NATIVE_HELPER_OUTPUT}/"
-  DESTINATION "${CMAKE_INSTALL_PREFIX}/resources/alera/emulator"
   COMPONENT Runtime)
 
 install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"

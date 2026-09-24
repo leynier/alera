@@ -2,6 +2,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_settings.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_shortcut_settings.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/text_actions/domain/text_actions_settings.dart';
@@ -9,7 +10,6 @@ import 'package:dart_mappable/dart_mappable.dart';
 import 'package:flutter/foundation.dart';
 
 part 'agent_quota_settings.dart';
-part 'codex_chat_settings.dart';
 part 'alera_settings.mapper.dart';
 
 @MappableEnum()
@@ -83,7 +83,8 @@ class const TerminalSettings({
   this.colorOverrides = const TerminalColorOverrides(),
   required this.scrollbackLines,
   this.tuiScrollSensitivity = 1,
-  this.clipboardOnSelect = false,
+  this.dragSelectsInTuis = true,
+  this.clipboardOnSelect = true,
   this.allowOsc52Clipboard = false,
   this.showComposerByDefault = false,
   this.toolbarCorner = TerminalToolbarCorner.topRight,
@@ -109,6 +110,10 @@ class const TerminalSettings({
   final TerminalColorOverrides colorOverrides;
   final int scrollbackLines;
   final int tuiScrollSensitivity;
+
+  /// Whether a primary-button drag selects text while a TUI tracks the mouse.
+  /// Clicks and wheel input still reach the TUI; drags never do.
+  final bool dragSelectsInTuis;
   final bool clipboardOnSelect;
   final bool allowOsc52Clipboard;
 
@@ -156,7 +161,8 @@ class const TerminalSettings({
     backgroundOpacity: 1,
     scrollbackLines: 10000,
     tuiScrollSensitivity: 1,
-    clipboardOnSelect: false,
+    dragSelectsInTuis: true,
+    clipboardOnSelect: true,
     allowOsc52Clipboard: false,
     showComposerByDefault: false,
     toolbarCorner: .topRight,
@@ -292,6 +298,10 @@ class const GeneralSettings({
   this.showTrayIcon = true,
   this.showDockBadge = true,
   this.showTrayBadge = true,
+  this.showPullRequestStatusInSidebar = true,
+  this.pullRequestFailureNotificationsEnabled = false,
+  this.pullRequestAgentWatchScope = PullRequestAgentWatchScope.defaults,
+  this.trayHideNoticeShown = false,
 }) with GeneralSettingsMappable {
   /// User-configured root directory where new linked workspaces are created.
   /// `null` falls back to the platform default (`~/.alera/workspaces`).
@@ -317,6 +327,19 @@ class const GeneralSettings({
 
   /// Pending-review count drawn onto the tray icon itself.
   final bool showTrayBadge;
+
+  /// Show compact hosted pull-request and check state beside each workspace.
+  final bool showPullRequestStatusInSidebar;
+
+  /// Keep monitoring while hidden and notify when checks enter a failed state.
+  final bool pullRequestFailureNotificationsEnabled;
+
+  /// Last problems chosen for pull request Watch and Fix.
+  final PullRequestAgentWatchScope pullRequestAgentWatchScope;
+
+  /// Windows: the one-time notice that closing keeps Alera in the tray was shown.
+  final bool trayHideNoticeShown;
+
   static const GeneralSettings defaults = GeneralSettings();
 
   factory fromJson(Map<String, Object?> json) =>
@@ -329,6 +352,7 @@ class const AgentSettings({
   this.agentStatusNotificationsEnabled = false,
   this.agentStatusFinishedNotificationsEnabled = false,
   this.keepComputerAwakeWhileAgentsWork = false,
+  this.showTabTitlesInSidebar = false,
   this.defaultAgentProfileId,
   this.quotas = AgentQuotaSettings.defaults,
 }) with AgentSettingsMappable {
@@ -347,6 +371,9 @@ class const AgentSettings({
 
   /// Keep the local computer awake while local hook-reported agents are working.
   final bool keepComputerAwakeWhileAgentsWork;
+
+  /// Use each agent tab title in the workspace sidebar instead of latest activity.
+  final bool showTabTitlesInSidebar;
 
   /// Runtime profile selected for flows that need an initial agent choice.
   final String? defaultAgentProfileId;
@@ -428,7 +455,6 @@ class const AleraSettings({
   this.textActions = TextActionsSettings.defaults,
   this.editor = EditorSettings.defaults,
   this.diagnostics = DiagnosticsSettings.defaults,
-  this.codexChat = CodexChatSettings.defaults,
   required this.terminal,
   required this.keyboard,
 }) with AleraSettingsMappable {
@@ -441,7 +467,6 @@ class const AleraSettings({
   final TextActionsSettings textActions;
   final EditorSettings editor;
   final DiagnosticsSettings diagnostics;
-  final CodexChatSettings codexChat;
   final TerminalSettings terminal;
   final KeyboardShortcutSettings keyboard;
 
@@ -452,7 +477,6 @@ class const AleraSettings({
     aiDictation: .defaults,
     editor: .defaults,
     diagnostics: .defaults,
-    codexChat: .defaults,
     terminal: .defaults,
     keyboard: .defaults,
   );

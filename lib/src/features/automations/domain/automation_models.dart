@@ -87,6 +87,7 @@ class const AutomationRecord({
     if (target.containsKey('freshTab')) {
       return 'Fresh tab';
     }
+    if (target.containsKey('projectCheckout')) return 'Project folder';
     return target['type']?.toString() ?? 'Managed workspace';
   }
 }

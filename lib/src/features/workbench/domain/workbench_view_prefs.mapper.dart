@@ -138,8 +138,6 @@ class WorkbenchContextPanelTabMapper
         return WorkbenchContextPanelTab.gitDiff;
       case r'pullRequests':
         return WorkbenchContextPanelTab.pullRequests;
-      case r'agentCanvas':
-        return WorkbenchContextPanelTab.agentCanvas;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -156,8 +154,6 @@ class WorkbenchContextPanelTabMapper
         return r'gitDiff';
       case WorkbenchContextPanelTab.pullRequests:
         return r'pullRequests';
-      case WorkbenchContextPanelTab.agentCanvas:
-        return r'agentCanvas';
     }
   }
 }
@@ -416,6 +412,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
   static WorkbenchViewPrefsMapper ensureInitialized() {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = WorkbenchViewPrefsMapper._());
+      WorkspacePanelMapper.ensureInitialized();
       WorkbenchSortByMapper.ensureInitialized();
       WorkbenchGroupByMapper.ensureInitialized();
       WorkbenchContextPanelTabMapper.ensureInitialized();
@@ -424,6 +421,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       GitDiffGroupModeMapper.ensureInitialized();
       PullRequestCreateActionMapper.ensureInitialized();
       WorkspaceKindFilterMapper.ensureInitialized();
+      WorkspaceToolMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -431,6 +429,15 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
   @override
   final String id = 'WorkbenchViewPrefs';
 
+  static Map<String, WorkspacePanel> _$workspacePanels(WorkbenchViewPrefs v) =>
+      v.workspacePanels;
+  static const Field<WorkbenchViewPrefs, Map<String, WorkspacePanel>>
+  _f$workspacePanels = Field(
+    'workspacePanels',
+    _$workspacePanels,
+    opt: true,
+    def: const <String, WorkspacePanel>{},
+  );
   static WorkbenchSortBy _$sectionSort(WorkbenchViewPrefs v) => v.sectionSort;
   static const Field<WorkbenchViewPrefs, WorkbenchSortBy> _f$sectionSort =
       Field('sectionSort', _$sectionSort, opt: true, def: WorkbenchSortBy.name);
@@ -476,6 +483,15 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       v.expandedWorkspaceIds;
   static const Field<WorkbenchViewPrefs, Set<String>> _f$expandedWorkspaceIds =
       Field('expandedWorkspaceIds', _$expandedWorkspaceIds);
+  static Set<String> _$selectedSectionIds(WorkbenchViewPrefs v) =>
+      v.selectedSectionIds;
+  static const Field<WorkbenchViewPrefs, Set<String>> _f$selectedSectionIds =
+      Field(
+        'selectedSectionIds',
+        _$selectedSectionIds,
+        opt: true,
+        def: const <String>{},
+      );
   static Set<String> _$selectedTagIds(WorkbenchViewPrefs v) => v.selectedTagIds;
   static const Field<WorkbenchViewPrefs, Set<String>> _f$selectedTagIds = Field(
     'selectedTagIds',
@@ -544,6 +560,16 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     opt: true,
     def: 280,
   );
+  static Map<String, double> _$rightSidebarWidthByWorkspaceId(
+    WorkbenchViewPrefs v,
+  ) => v.rightSidebarWidthByWorkspaceId;
+  static const Field<WorkbenchViewPrefs, Map<String, double>>
+  _f$rightSidebarWidthByWorkspaceId = Field(
+    'rightSidebarWidthByWorkspaceId',
+    _$rightSidebarWidthByWorkspaceId,
+    opt: true,
+    def: const <String, double>{},
+  );
   static double _$sidebarWidth(WorkbenchViewPrefs v) => v.sidebarWidth;
   static const Field<WorkbenchViewPrefs, double> _f$sidebarWidth = Field(
     'sidebarWidth',
@@ -588,6 +614,21 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
         opt: true,
         def: GitDiffGroupMode.byArea,
       );
+  static bool _$searchViewAsTree(WorkbenchViewPrefs v) => v.searchViewAsTree;
+  static const Field<WorkbenchViewPrefs, bool> _f$searchViewAsTree = Field(
+    'searchViewAsTree',
+    _$searchViewAsTree,
+    opt: true,
+    def: false,
+  );
+  static bool _$searchIncludeIgnored(WorkbenchViewPrefs v) =>
+      v.searchIncludeIgnored;
+  static const Field<WorkbenchViewPrefs, bool> _f$searchIncludeIgnored = Field(
+    'searchIncludeIgnored',
+    _$searchIncludeIgnored,
+    opt: true,
+    def: false,
+  );
   static PullRequestCreateAction _$pullRequestCreateAction(
     WorkbenchViewPrefs v,
   ) => v.pullRequestCreateAction;
@@ -616,9 +657,28 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
         opt: true,
         def: false,
       );
+  static bool _$showArchivedWorkspaces(WorkbenchViewPrefs v) =>
+      v.showArchivedWorkspaces;
+  static const Field<WorkbenchViewPrefs, bool> _f$showArchivedWorkspaces =
+      Field(
+        'showArchivedWorkspaces',
+        _$showArchivedWorkspaces,
+        opt: true,
+        def: false,
+      );
+  static List<WorkspaceTool> _$newWorkspaceTools(WorkbenchViewPrefs v) =>
+      v.newWorkspaceTools;
+  static const Field<WorkbenchViewPrefs, List<WorkspaceTool>>
+  _f$newWorkspaceTools = Field(
+    'newWorkspaceTools',
+    _$newWorkspaceTools,
+    opt: true,
+    def: const <WorkspaceTool>[],
+  );
 
   @override
   final MappableFields<WorkbenchViewPrefs> fields = const {
+    #workspacePanels: _f$workspacePanels,
     #sectionSort: _f$sectionSort,
     #collapsedSectionIds: _f$collapsedSectionIds,
     #othersSectionCollapsed: _f$othersSectionCollapsed,
@@ -628,6 +688,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     #selectedProjectIds: _f$selectedProjectIds,
     #collapsedProjectIds: _f$collapsedProjectIds,
     #expandedWorkspaceIds: _f$expandedWorkspaceIds,
+    #selectedSectionIds: _f$selectedSectionIds,
     #selectedTagIds: _f$selectedTagIds,
     #collapsedParentWorkspaceIds: _f$collapsedParentWorkspaceIds,
     #pinnedSectionCollapsed: _f$pinnedSectionCollapsed,
@@ -636,18 +697,26 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     #sourceControlRootByWorkspaceId: _f$sourceControlRootByWorkspaceId,
     #rightSidebarVisible: _f$rightSidebarVisible,
     #rightSidebarWidth: _f$rightSidebarWidth,
+    #rightSidebarWidthByWorkspaceId: _f$rightSidebarWidthByWorkspaceId,
     #sidebarWidth: _f$sidebarWidth,
     #activeContextPanelTab: _f$activeContextPanelTab,
     #explorerMode: _f$explorerMode,
     #gitDiffViewMode: _f$gitDiffViewMode,
     #gitDiffGroupMode: _f$gitDiffGroupMode,
+    #searchViewAsTree: _f$searchViewAsTree,
+    #searchIncludeIgnored: _f$searchIncludeIgnored,
     #pullRequestCreateAction: _f$pullRequestCreateAction,
     #workspaceKindFilter: _f$workspaceKindFilter,
     #showActiveWorkspacesOnly: _f$showActiveWorkspacesOnly,
+    #showArchivedWorkspaces: _f$showArchivedWorkspaces,
+    #newWorkspaceTools: _f$newWorkspaceTools,
   };
 
+  @override
+  final MappingHook hook = const WorkbenchViewPrefsDecodeHook();
   static WorkbenchViewPrefs _instantiate(DecodingData data) {
     return WorkbenchViewPrefs(
+      workspacePanels: data.dec(_f$workspacePanels),
       sectionSort: data.dec(_f$sectionSort),
       collapsedSectionIds: data.dec(_f$collapsedSectionIds),
       othersSectionCollapsed: data.dec(_f$othersSectionCollapsed),
@@ -657,6 +726,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       selectedProjectIds: data.dec(_f$selectedProjectIds),
       collapsedProjectIds: data.dec(_f$collapsedProjectIds),
       expandedWorkspaceIds: data.dec(_f$expandedWorkspaceIds),
+      selectedSectionIds: data.dec(_f$selectedSectionIds),
       selectedTagIds: data.dec(_f$selectedTagIds),
       collapsedParentWorkspaceIds: data.dec(_f$collapsedParentWorkspaceIds),
       pinnedSectionCollapsed: data.dec(_f$pinnedSectionCollapsed),
@@ -667,14 +737,21 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       ),
       rightSidebarVisible: data.dec(_f$rightSidebarVisible),
       rightSidebarWidth: data.dec(_f$rightSidebarWidth),
+      rightSidebarWidthByWorkspaceId: data.dec(
+        _f$rightSidebarWidthByWorkspaceId,
+      ),
       sidebarWidth: data.dec(_f$sidebarWidth),
       activeContextPanelTab: data.dec(_f$activeContextPanelTab),
       explorerMode: data.dec(_f$explorerMode),
       gitDiffViewMode: data.dec(_f$gitDiffViewMode),
       gitDiffGroupMode: data.dec(_f$gitDiffGroupMode),
+      searchViewAsTree: data.dec(_f$searchViewAsTree),
+      searchIncludeIgnored: data.dec(_f$searchIncludeIgnored),
       pullRequestCreateAction: data.dec(_f$pullRequestCreateAction),
       workspaceKindFilter: data.dec(_f$workspaceKindFilter),
       showActiveWorkspacesOnly: data.dec(_f$showActiveWorkspacesOnly),
+      showArchivedWorkspaces: data.dec(_f$showArchivedWorkspaces),
+      newWorkspaceTools: data.dec(_f$newWorkspaceTools),
     );
   }
 
@@ -749,9 +826,25 @@ abstract class WorkbenchViewPrefsCopyWith<
   $Out
 >
     implements ClassCopyWith<$R, $In, $Out> {
+  MapCopyWith<
+    $R,
+    String,
+    WorkspacePanel,
+    WorkspacePanelCopyWith<$R, WorkspacePanel, WorkspacePanel>
+  >
+  get workspacePanels;
   MapCopyWith<$R, String, String, ObjectCopyWith<$R, String, String>>
   get sourceControlRootByWorkspaceId;
+  MapCopyWith<$R, String, double, ObjectCopyWith<$R, double, double>>
+  get rightSidebarWidthByWorkspaceId;
+  ListCopyWith<
+    $R,
+    WorkspaceTool,
+    ObjectCopyWith<$R, WorkspaceTool, WorkspaceTool>
+  >
+  get newWorkspaceTools;
   $R call({
+    Map<String, WorkspacePanel>? workspacePanels,
     WorkbenchSortBy? sectionSort,
     Set<String>? collapsedSectionIds,
     bool? othersSectionCollapsed,
@@ -761,6 +854,7 @@ abstract class WorkbenchViewPrefsCopyWith<
     Set<String>? selectedProjectIds,
     Set<String>? collapsedProjectIds,
     Set<String>? expandedWorkspaceIds,
+    Set<String>? selectedSectionIds,
     Set<String>? selectedTagIds,
     Set<String>? collapsedParentWorkspaceIds,
     bool? pinnedSectionCollapsed,
@@ -769,14 +863,19 @@ abstract class WorkbenchViewPrefsCopyWith<
     Map<String, String>? sourceControlRootByWorkspaceId,
     bool? rightSidebarVisible,
     double? rightSidebarWidth,
+    Map<String, double>? rightSidebarWidthByWorkspaceId,
     double? sidebarWidth,
     WorkbenchContextPanelTab? activeContextPanelTab,
     WorkspaceExplorerMode? explorerMode,
     GitDiffViewMode? gitDiffViewMode,
     GitDiffGroupMode? gitDiffGroupMode,
+    bool? searchViewAsTree,
+    bool? searchIncludeIgnored,
     PullRequestCreateAction? pullRequestCreateAction,
     WorkspaceKindFilter? workspaceKindFilter,
     bool? showActiveWorkspacesOnly,
+    bool? showArchivedWorkspaces,
+    List<WorkspaceTool>? newWorkspaceTools,
   });
   WorkbenchViewPrefsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -792,6 +891,18 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
   late final ClassMapperBase<WorkbenchViewPrefs> $mapper =
       WorkbenchViewPrefsMapper.ensureInitialized();
   @override
+  MapCopyWith<
+    $R,
+    String,
+    WorkspacePanel,
+    WorkspacePanelCopyWith<$R, WorkspacePanel, WorkspacePanel>
+  >
+  get workspacePanels => MapCopyWith(
+    $value.workspacePanels,
+    (v, t) => v.copyWith.$chain(t),
+    (v) => call(workspacePanels: v),
+  );
+  @override
   MapCopyWith<$R, String, String, ObjectCopyWith<$R, String, String>>
   get sourceControlRootByWorkspaceId => MapCopyWith(
     $value.sourceControlRootByWorkspaceId,
@@ -799,7 +910,26 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     (v) => call(sourceControlRootByWorkspaceId: v),
   );
   @override
+  MapCopyWith<$R, String, double, ObjectCopyWith<$R, double, double>>
+  get rightSidebarWidthByWorkspaceId => MapCopyWith(
+    $value.rightSidebarWidthByWorkspaceId,
+    (v, t) => ObjectCopyWith(v, $identity, t),
+    (v) => call(rightSidebarWidthByWorkspaceId: v),
+  );
+  @override
+  ListCopyWith<
+    $R,
+    WorkspaceTool,
+    ObjectCopyWith<$R, WorkspaceTool, WorkspaceTool>
+  >
+  get newWorkspaceTools => ListCopyWith(
+    $value.newWorkspaceTools,
+    (v, t) => ObjectCopyWith(v, $identity, t),
+    (v) => call(newWorkspaceTools: v),
+  );
+  @override
   $R call({
+    Map<String, WorkspacePanel>? workspacePanels,
     WorkbenchSortBy? sectionSort,
     Set<String>? collapsedSectionIds,
     bool? othersSectionCollapsed,
@@ -809,6 +939,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     Set<String>? selectedProjectIds,
     Set<String>? collapsedProjectIds,
     Set<String>? expandedWorkspaceIds,
+    Set<String>? selectedSectionIds,
     Set<String>? selectedTagIds,
     Set<String>? collapsedParentWorkspaceIds,
     bool? pinnedSectionCollapsed,
@@ -817,16 +948,22 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     Map<String, String>? sourceControlRootByWorkspaceId,
     bool? rightSidebarVisible,
     double? rightSidebarWidth,
+    Map<String, double>? rightSidebarWidthByWorkspaceId,
     double? sidebarWidth,
     WorkbenchContextPanelTab? activeContextPanelTab,
     WorkspaceExplorerMode? explorerMode,
     GitDiffViewMode? gitDiffViewMode,
     GitDiffGroupMode? gitDiffGroupMode,
+    bool? searchViewAsTree,
+    bool? searchIncludeIgnored,
     PullRequestCreateAction? pullRequestCreateAction,
     WorkspaceKindFilter? workspaceKindFilter,
     bool? showActiveWorkspacesOnly,
+    bool? showArchivedWorkspaces,
+    List<WorkspaceTool>? newWorkspaceTools,
   }) => $apply(
     FieldCopyWithData({
+      if (workspacePanels != null) #workspacePanels: workspacePanels,
       if (sectionSort != null) #sectionSort: sectionSort,
       if (collapsedSectionIds != null)
         #collapsedSectionIds: collapsedSectionIds,
@@ -840,6 +977,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
         #collapsedProjectIds: collapsedProjectIds,
       if (expandedWorkspaceIds != null)
         #expandedWorkspaceIds: expandedWorkspaceIds,
+      if (selectedSectionIds != null) #selectedSectionIds: selectedSectionIds,
       if (selectedTagIds != null) #selectedTagIds: selectedTagIds,
       if (collapsedParentWorkspaceIds != null)
         #collapsedParentWorkspaceIds: collapsedParentWorkspaceIds,
@@ -854,22 +992,31 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
       if (rightSidebarVisible != null)
         #rightSidebarVisible: rightSidebarVisible,
       if (rightSidebarWidth != null) #rightSidebarWidth: rightSidebarWidth,
+      if (rightSidebarWidthByWorkspaceId != null)
+        #rightSidebarWidthByWorkspaceId: rightSidebarWidthByWorkspaceId,
       if (sidebarWidth != null) #sidebarWidth: sidebarWidth,
       if (activeContextPanelTab != null)
         #activeContextPanelTab: activeContextPanelTab,
       if (explorerMode != null) #explorerMode: explorerMode,
       if (gitDiffViewMode != null) #gitDiffViewMode: gitDiffViewMode,
       if (gitDiffGroupMode != null) #gitDiffGroupMode: gitDiffGroupMode,
+      if (searchViewAsTree != null) #searchViewAsTree: searchViewAsTree,
+      if (searchIncludeIgnored != null)
+        #searchIncludeIgnored: searchIncludeIgnored,
       if (pullRequestCreateAction != null)
         #pullRequestCreateAction: pullRequestCreateAction,
       if (workspaceKindFilter != null)
         #workspaceKindFilter: workspaceKindFilter,
       if (showActiveWorkspacesOnly != null)
         #showActiveWorkspacesOnly: showActiveWorkspacesOnly,
+      if (showArchivedWorkspaces != null)
+        #showArchivedWorkspaces: showArchivedWorkspaces,
+      if (newWorkspaceTools != null) #newWorkspaceTools: newWorkspaceTools,
     }),
   );
   @override
   WorkbenchViewPrefs $make(CopyWithData data) => WorkbenchViewPrefs(
+    workspacePanels: data.get(#workspacePanels, or: $value.workspacePanels),
     sectionSort: data.get(#sectionSort, or: $value.sectionSort),
     collapsedSectionIds: data.get(
       #collapsedSectionIds,
@@ -893,6 +1040,10 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     expandedWorkspaceIds: data.get(
       #expandedWorkspaceIds,
       or: $value.expandedWorkspaceIds,
+    ),
+    selectedSectionIds: data.get(
+      #selectedSectionIds,
+      or: $value.selectedSectionIds,
     ),
     selectedTagIds: data.get(#selectedTagIds, or: $value.selectedTagIds),
     collapsedParentWorkspaceIds: data.get(
@@ -923,6 +1074,10 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
       #rightSidebarWidth,
       or: $value.rightSidebarWidth,
     ),
+    rightSidebarWidthByWorkspaceId: data.get(
+      #rightSidebarWidthByWorkspaceId,
+      or: $value.rightSidebarWidthByWorkspaceId,
+    ),
     sidebarWidth: data.get(#sidebarWidth, or: $value.sidebarWidth),
     activeContextPanelTab: data.get(
       #activeContextPanelTab,
@@ -931,6 +1086,11 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     explorerMode: data.get(#explorerMode, or: $value.explorerMode),
     gitDiffViewMode: data.get(#gitDiffViewMode, or: $value.gitDiffViewMode),
     gitDiffGroupMode: data.get(#gitDiffGroupMode, or: $value.gitDiffGroupMode),
+    searchViewAsTree: data.get(#searchViewAsTree, or: $value.searchViewAsTree),
+    searchIncludeIgnored: data.get(
+      #searchIncludeIgnored,
+      or: $value.searchIncludeIgnored,
+    ),
     pullRequestCreateAction: data.get(
       #pullRequestCreateAction,
       or: $value.pullRequestCreateAction,
@@ -942,6 +1102,14 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     showActiveWorkspacesOnly: data.get(
       #showActiveWorkspacesOnly,
       or: $value.showActiveWorkspacesOnly,
+    ),
+    showArchivedWorkspaces: data.get(
+      #showArchivedWorkspaces,
+      or: $value.showArchivedWorkspaces,
+    ),
+    newWorkspaceTools: data.get(
+      #newWorkspaceTools,
+      or: $value.newWorkspaceTools,
     ),
   );
 

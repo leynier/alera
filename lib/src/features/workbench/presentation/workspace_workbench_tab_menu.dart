@@ -27,27 +27,29 @@ extension _WorkspaceTabMenu on _WorkspaceTabChip {
         Offset.zero & overlay.size,
       ),
       items: <PopupMenuEntry<_TabMenuAction>>[
-        const AleraDropdownEntry<_TabMenuAction>(
-          value: .splitUp,
-          label: 'Split Up',
-          leading: _SplitDirectionGlyph(zone: .up),
-        ),
-        const AleraDropdownEntry<_TabMenuAction>(
-          value: .splitDown,
-          label: 'Split Down',
-          leading: _SplitDirectionGlyph(zone: .down),
-        ),
-        const AleraDropdownEntry<_TabMenuAction>(
-          value: .splitLeft,
-          label: 'Split Left',
-          leading: _SplitDirectionGlyph(zone: .left),
-        ),
-        const AleraDropdownEntry<_TabMenuAction>(
-          value: .splitRight,
-          label: 'Split Right',
-          leading: _SplitDirectionGlyph(zone: .right),
-        ),
-        const PopupMenuDivider(height: AleraTokens.space8),
+        if (canSplit) ...<PopupMenuEntry<_TabMenuAction>>[
+          const AleraDropdownEntry<_TabMenuAction>(
+            value: .splitUp,
+            label: 'Split Up',
+            leading: WorkbenchSplitDirectionGlyph(zone: .up),
+          ),
+          const AleraDropdownEntry<_TabMenuAction>(
+            value: .splitDown,
+            label: 'Split Down',
+            leading: WorkbenchSplitDirectionGlyph(zone: .down),
+          ),
+          const AleraDropdownEntry<_TabMenuAction>(
+            value: .splitLeft,
+            label: 'Split Left',
+            leading: WorkbenchSplitDirectionGlyph(zone: .left),
+          ),
+          const AleraDropdownEntry<_TabMenuAction>(
+            value: .splitRight,
+            label: 'Split Right',
+            leading: WorkbenchSplitDirectionGlyph(zone: .right),
+          ),
+          const PopupMenuDivider(height: AleraTokens.space8),
+        ],
         if (tab.isPreview && _KeepPreviewTabScope.maybeOf(context) != null)
           const AleraDropdownEntry<_TabMenuAction>(
             value: .keepOpen,
@@ -83,21 +85,7 @@ extension _WorkspaceTabMenu on _WorkspaceTabChip {
           ),
           enabled: closeRight.isNotEmpty,
         ),
-        if ((tab.kind == WorkspaceTabKind.terminal ||
-                tab.kind == WorkspaceTabKind.codex) &&
-            ref.read(agentTitleAvailableProvider).value == true)
-          AleraDropdownEntry<_TabMenuAction>(
-            value: .generateTitle,
-            label: tab.payload['agentTitleStatus'] == 'generating'
-                ? 'Generating title...'
-                : tab.payload['agentTitleSource'] == 'generated'
-                ? 'Regenerate Title'
-                : 'Generate Title',
-            enabled: tab.payload['agentTitleStatus'] != 'generating',
-            leading: const Icon(AleraIcons.ai),
-          ),
-        if (tab.kind !=
-            WorkspaceTabKind.codex) ...<PopupMenuEntry<_TabMenuAction>>[
+        ...<PopupMenuEntry<_TabMenuAction>>[
           const PopupMenuDivider(height: AleraTokens.space8),
           const AleraDropdownEntry<_TabMenuAction>(
             value: .changeTitle,
@@ -105,6 +93,14 @@ extension _WorkspaceTabMenu on _WorkspaceTabChip {
             leading: Icon(AleraIcons.edit, size: 16),
           ),
         ],
+        if (tab.kind == WorkspaceTabKind.terminal &&
+            ref.read(agentTitleAvailableProvider).value == true)
+          AleraDropdownEntry<_TabMenuAction>(
+            value: .generateTitle,
+            label: agentTitleActionLabel(tab.payload),
+            enabled: !isAgentTitleGenerating(tab.payload),
+            leading: const Icon(AleraIcons.ai, size: 16),
+          ),
       ],
     );
     if (selected == null || !context.mounted) {

@@ -1,11 +1,14 @@
 part of 'azure_devops_forge_provider.dart';
 
 mixin _AzureDevOpsReviewActions {
-  List<ReviewMergeMethod> get supportedMergeMethods =>
-      const <ReviewMergeMethod>[
-        ReviewMergeMethod.mergeCommit,
-        ReviewMergeMethod.squash,
-      ];
+  Future<List<ReviewMergeMethod>> allowedMergeMethods({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    String? baseBranch,
+  }) async => const <ReviewMergeMethod>[
+    ReviewMergeMethod.mergeCommit,
+    ReviewMergeMethod.squash,
+  ];
 
   bool get supportsReviewClosure => true;
 

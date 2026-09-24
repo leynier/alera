@@ -1,19 +1,33 @@
 part of 'workbench_controller_test.dart';
 
 void _registerWorkbenchControllerLifecycleTests() {
-  test('bootstrap prepares the main workspace without selecting it', () async {
+  test('bootstrap preserves a project with no registered tasks', () async {
+    _harness.workbenchRepository._workspacesByProject.clear();
     await _controller.bootstrap();
-    await _flushUntil(
-      () => _controller.state.workspacesFor(_harness.project.id).isNotEmpty,
+    await _flush();
+    expect(_controller.state.workspacesFor(_harness.project.id), isEmpty);
+    expect(
+      await _harness.workbenchRepository.listWorkspaces(_harness.project.id),
+      isEmpty,
     );
-
-    expect(_controller.state.activeProjectId, _harness.project.id);
-    expect(_controller.state.activeWorkspace, isNull);
-    final workspaces = _controller.state.workspacesFor(_harness.project.id);
-    expect(workspaces.single.isMain, isTrue);
-    expect(_controller.state.tabsFor(workspaces.single.id), isEmpty);
-    expect(_controller.state.activeWorkspaceTab, isNull);
   });
+
+  test(
+    'bootstrap loads the registered initial task without selecting it',
+    () async {
+      await _controller.bootstrap();
+      await _flushUntil(
+        () => _controller.state.workspacesFor(_harness.project.id).isNotEmpty,
+      );
+
+      expect(_controller.state.activeProjectId, _harness.project.id);
+      expect(_controller.state.activeWorkspace, isNull);
+      final workspaces = _controller.state.workspacesFor(_harness.project.id);
+      expect(workspaces.single.isMain, isTrue);
+      expect(_controller.state.tabsFor(workspaces.single.id), isEmpty);
+      expect(_controller.state.activeWorkspaceTab, isNull);
+    },
+  );
 
   test(
     'selecting a workspace with no tabs seeds the first terminal tab',
@@ -58,7 +72,7 @@ void _registerWorkbenchControllerLifecycleTests() {
       _harness.worktreeSetupRunner.calls.single.workspace.id,
       result.workspace.id,
     );
-    expect(_controller.state.activeWorkspaceId, result.workspace.id);
+    expect(_controller.state.activeWorkspaceId, isNot(result.workspace.id));
   });
 
   test(
@@ -138,7 +152,7 @@ void _registerWorkbenchControllerLifecycleTests() {
         newBranchName: 'feature/inactive-close',
       )).workspace;
       await _flush();
-      final linkedTab = _controller.state.activeWorkspaceTab!;
+      final linkedTab = _controller.state.tabsFor(linked.id).single;
 
       await _controller.selectWorkspace(
         project: _harness.project,
@@ -181,39 +195,139 @@ void _registerWorkbenchControllerLifecycleTests() {
     expect(_controller.state.layoutFor(workspace.id)?.activeTabId, firstTab.id);
   });
 
-  test('closing a Codex tab purges its saved composer draft', () async {
-    await _controller.bootstrap();
-    final workspace = await _selectMainWorkspace(_controller, _harness);
-    final tab = await _controller.createCodexTab(workspace);
-    final drafts = _harness.container.read(codexComposerDraftStoreProvider);
-    drafts.write(
-      tab.id,
-      const CodexComposerDraft(value: TextEditingValue(text: 'Unsent draft')),
-    );
+  test(
+    'a queued tab snapshot does not restore a successfully closed tab',
+    () async {
+      await _controller.bootstrap();
+      final workspace = await _selectMainWorkspace(_controller, _harness);
+      final primary = _controller.state.activeWorkspaceTab!;
+      final extra = await _controller.openFileTab(
+        workspace: workspace,
+        relativePath: 'lib/closed.dart',
+      );
+      await _flush();
+      final staleSnapshot = List<WorkspaceTabRecord>.from(
+        _controller.state.tabsFor(workspace.id),
+      );
 
-    await _controller.closeWorkspaceTab(workspace: workspace, tabId: tab.id);
-    await _flush();
+      final listGate = Completer<void>();
+      _harness.workbenchRepository.listWorkspaceTabsGate = listGate;
+      _harness.workbenchRepository._tabsByWorkspace[workspace.id] =
+          <WorkspaceTabRecord>[primary];
+      _harness.workbenchRepository.emitTabs(workspace.id);
+      await _flushUntil(
+        () => _harness.workbenchRepository.listWorkspaceTabsGate == null,
+      );
+      _harness.workbenchRepository._tabsByWorkspace[workspace.id] =
+          staleSnapshot;
+      _harness.workbenchRepository.emitTabs(workspace.id);
+      await _flush();
 
-    expect(drafts.read(tab.id).isEmpty, isTrue);
-  });
+      await _controller.closeWorkspaceTab(
+        workspace: workspace,
+        tabId: extra.id,
+      );
+      await _flush();
+      listGate.complete();
+      await _flush();
+      await _flush();
 
-  test('watched Codex tab removal purges its saved composer draft', () async {
-    await _controller.bootstrap();
-    final workspace = await _selectMainWorkspace(_controller, _harness);
-    final tab = await _controller.createCodexTab(workspace);
-    final drafts = _harness.container.read(codexComposerDraftStoreProvider);
-    drafts.write(
-      tab.id,
-      const CodexComposerDraft(
-        value: TextEditingValue(text: 'Draft from another client'),
-      ),
-    );
+      expect(
+        _controller.state
+            .tabsFor(workspace.id)
+            .any((tab) => tab.id == extra.id),
+        isFalse,
+      );
+      expect(
+        _controller.state
+            .tabsFor(workspace.id)
+            .any((tab) => tab.id == primary.id),
+        isTrue,
+      );
+    },
+  );
 
-    await _harness.workbenchRepository.removeWorkspaceTab(tab.id);
-    await _flush();
+  test(
+    'a delayed persisted-tab lookup does not restore a successfully closed tab',
+    () async {
+      await _controller.bootstrap();
+      final workspace = await _selectMainWorkspace(_controller, _harness);
+      final extra = await _controller.createTerminalTab(workspace);
+      await _flush();
+      final releaseGate = Completer<void>();
+      _harness.workbenchRepository.findWorkspaceTabByIdReleaseGate =
+          releaseGate;
+      final delayed = _controller.openPersistedWorkspaceTab(
+        workspaceId: workspace.id,
+        tabId: extra.id,
+      );
+      await _flushUntil(
+        () =>
+            _harness.workbenchRepository.findWorkspaceTabByIdReleaseGate ==
+            null,
+      );
+      await _controller.closeWorkspaceTab(
+        workspace: workspace,
+        tabId: extra.id,
+      );
+      await _flush();
+      releaseGate.complete();
+      await expectLater(delayed, throwsStateError);
+      await _flush();
 
-    expect(drafts.read(tab.id).isEmpty, isTrue);
-  });
+      expect(
+        _controller.state
+            .tabsFor(workspace.id)
+            .any((tab) => tab.id == extra.id),
+        isFalse,
+      );
+      expect(
+        _controller.state
+            .workspacePanelFor(workspace.id)
+            .occupiedKeys
+            .contains(WorkspacePanel.tabKey(extra.id)),
+        isFalse,
+      );
+    },
+  );
+
+  test(
+    'a failed hosted-review persist closes the newly created pull-request tab',
+    () async {
+      await _controller.bootstrap();
+      final workspace = await _selectMainWorkspace(_controller, _harness);
+      _harness.gitBackend.persistHostedReviewRangeError = StateError(
+        'cannot persist retention',
+      );
+
+      await expectLater(
+        _controller.openGitPullRequestDiffTab(
+          workspace: workspace,
+          pullRequestNumber: 11,
+          commitOid: 'head-11',
+          parentOid: 'base-11',
+          retentionId: 'retention-failed',
+        ),
+        throwsStateError,
+      );
+      await _flush();
+
+      expect(
+        _controller.state
+            .tabsFor(workspace.id)
+            .where((tab) => tab.kind == WorkspaceTabKind.gitDiff),
+        isEmpty,
+      );
+      expect(
+        _harness.gitBackend.calls.where(
+          (call) =>
+              call.method == 'releaseHostedReviewRange' &&
+              call.args['retentionId'] == 'retention-failed',
+        ),
+        isNotEmpty,
+      );
+    },
+  );
 
   test('hosted review refs follow their persisted pull request tab', () async {
     await _controller.bootstrap();

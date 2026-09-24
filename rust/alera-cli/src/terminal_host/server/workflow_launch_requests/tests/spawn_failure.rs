@@ -48,13 +48,12 @@ async fn workflow_launch_spawn_failure_broadcasts_the_retained_tab() {
     let (_dir, mut actor, mut responses) = actor_with_client(&fixture).await;
     let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
     actor.inbox = inbox;
-    actor.start_runtime_mutation_after_codex_cleanup(
+    actor.start_runtime_mutation(
         1,
         99,
         RuntimeMutationRequest::RemoveTab {
             tab_id: "unrelated".into(),
         },
-        None,
     );
 
     actor

@@ -18,6 +18,31 @@ class const E2eGitBackend() implements GitBackend {
   Future<String> currentBranch(String path) async => 'HEAD';
 
   @override
+  Future<String> defaultBranch(String path) async => 'main';
+
+  @override
+  Future<void> createAndCheckoutBranch({
+    required String path,
+    required String branch,
+    String? expectedHead,
+    String? expectedOid,
+  }) async {}
+
+  @override
+  Future<void> resetBranchToRef({
+    required String path,
+    required String branch,
+    required String targetRef,
+    String? expectedOid,
+  }) async {}
+
+  @override
+  Future<void> checkoutBranch({
+    required String path,
+    required String branch,
+  }) async {}
+
+  @override
   Future<bool> branchExists(String repoPath, String branch) async => false;
 
   @override

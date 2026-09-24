@@ -105,20 +105,6 @@ void main() {
       },
     );
 
-    test('createCodexTab uses the Codex Chat title', () async {
-      final repository = _FakeWorkbenchRepository();
-      final service = WorkspaceTabService(
-        repository: repository,
-        now: () => DateTime.utc(2026, 5, 21),
-      );
-
-      final tab = await service.createCodexTab('workspace-1');
-
-      expect(tab.kind, WorkspaceTabKind.codex);
-      expect(tab.title, 'Codex Chat');
-      expect(repository.tabs.single.title, 'Codex Chat');
-    });
-
     test(
       'openOrCreateEditorTab creates an editor tab for a normalized path',
       () async {
@@ -157,6 +143,27 @@ void main() {
       expect(second.id, first.id);
       expect(repository.tabs, hasLength(1));
     });
+
+    test(
+      'openOrCreateEditorTab creates another tab when reuse is excluded',
+      () async {
+        final repository = _FakeWorkbenchRepository();
+        final service = WorkspaceTabService(repository: repository);
+
+        final first = await service.openOrCreateEditorTab(
+          workspaceId: 'workspace-1',
+          relativePath: 'lib/main.dart',
+        );
+        final second = await service.openOrCreateEditorTab(
+          workspaceId: 'workspace-1',
+          relativePath: 'lib/main.dart',
+          reuseTabIds: const <String>{},
+        );
+
+        expect(second.id, isNot(first.id));
+        expect(repository.tabs, hasLength(2));
+      },
+    );
 
     test('openOrCreateEditorTab ignores merman preview tabs', () async {
       final repository = _FakeWorkbenchRepository()
@@ -1056,6 +1063,18 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
     String workspaceId,
     bool isPinned,
   ) async => throw StateError('Workspace not found');
+
+  @override
+  Future<Workspace> setWorkspaceArchived(
+    String workspaceId,
+    bool isArchived,
+  ) async => throw StateError('Workspace not found');
+
+  @override
+  Future<void> sleepWorkspace(String workspaceId) async {}
+
+  @override
+  Future<bool> supportsArchive() async => true;
 
   @override
   Stream<List<WorkspaceTabRecord>> watchWorkspaceTabs(String workspaceId) =>

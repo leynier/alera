@@ -1,4 +1,6 @@
-use alera_core::runtime::{AgentProfile, AgentProfileLaunchMode};
+use alera_core::runtime::{
+    AgentProfile, AgentProfileLaunchMode, AutomationOccurrence, AutomationRunTrigger,
+};
 
 use super::*;
 
@@ -20,6 +22,7 @@ async fn rejects_workspace_owned_by_an_active_automation_run() {
                 custom_prompt: String::new(),
                 description: String::new(),
                 quota_group: None,
+                show_in_new_tab_menu: false,
                 revision: 0,
                 created_at: now,
                 updated_at: now,
@@ -50,6 +53,16 @@ async fn rejects_workspace_owned_by_an_active_automation_run() {
         .await
         .unwrap();
 
+    let dependencies = crate::workspace_removal_dependencies::workspace_removal_dependencies(
+        &fixture.store,
+        &fixture.workspace_id,
+    )
+    .await
+    .unwrap();
+    assert_eq!(dependencies.len(), 1);
+    assert_eq!(dependencies[0].id, definition.id);
+    assert_eq!(dependencies[0].active_runs, 1);
+    assert!(dependencies[0].requires_pause);
     let error = fixture.remove_managed_workspace().await.unwrap_err();
 
     assert!(error.to_string().contains("active automation"));

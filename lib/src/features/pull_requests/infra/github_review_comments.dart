@@ -10,6 +10,7 @@ query($owner: String!, $repo: String!, $pr: Int!, $threadsAfter: String) {
         nodes {
           id
           isResolved
+          isOutdated
           line
           originalLine
           comments(first: 100) {
@@ -99,7 +100,10 @@ query($thread: ID!, $commentsAfter: String) {
             source: .reviewSummary,
           ),
     ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-    return comments;
+    return ReviewCommentLoad(
+      comments,
+      complete: reviewCommentsComplete(threads),
+    );
   }
 
   Future<void> addReviewComment({
@@ -197,6 +201,7 @@ query($thread: ID!, $commentsAfter: String) {
     required int number,
   }) async {
     final comments = <ReviewComment>[];
+    var complete = true;
     String? threadsAfter;
     do {
       try {
@@ -222,9 +227,14 @@ query($thread: ID!, $commentsAfter: String) {
             ? pullRequest['reviewThreads']
             : null;
         if (reviewThreads is! Map<String, Object?>) {
+          complete = false;
           break;
         }
+        if (reviewThreads['pageInfo'] is! Map<String, Object?>) {
+          complete = false;
+        }
         final nodes = reviewThreads['nodes'];
+        if (nodes is! List) complete = false;
         if (nodes is List) {
           for (final thread in nodes.whereType<Map<String, Object?>>()) {
             comments.addAll(_mapReviewThread(thread));
@@ -237,20 +247,21 @@ query($thread: ID!, $commentsAfter: String) {
                 ),
               );
             } on ForgeException {
-              // Keep this thread's first page and continue with other threads.
+              complete = false;
             }
           }
         }
         final next = _nextCursor(reviewThreads);
-        if (next == threadsAfter) {
+        if (next != null && next == threadsAfter) {
+          complete = false;
           break;
         }
         threadsAfter = next;
       } on ForgeException {
-        return comments;
+        return ReviewCommentLoad(comments, complete: false);
       }
     } while (threadsAfter != null);
-    return comments;
+    return ReviewCommentLoad(comments, complete: complete);
   }
 
   Future<List<ReviewComment>> _fetchRemainingThreadComments({
@@ -276,7 +287,7 @@ query($thread: ID!, $commentsAfter: String) {
       final node = data is Map<String, Object?> ? data['node'] : null;
       final page = node is Map<String, Object?> ? node['comments'] : null;
       if (page is! Map<String, Object?>) {
-        break;
+        throw const ForgeRequestFailed('Incomplete review thread response.');
       }
       final nodes = page['nodes'];
       if (nodes is List) {
@@ -284,7 +295,9 @@ query($thread: ID!, $commentsAfter: String) {
       }
       final next = _nextCursor(page);
       if (next == commentsAfter) {
-        break;
+        throw const ForgeRequestFailed(
+          'Review thread pagination did not advance.',
+        );
       }
       commentsAfter = next;
     }
@@ -320,7 +333,11 @@ query($thread: ID!, $commentsAfter: String) {
     if (pageInfo is! Map<String, Object?> || pageInfo['hasNextPage'] != true) {
       return null;
     }
-    return pageInfo['endCursor'] as String?;
+    final cursor = pageInfo['endCursor'] as String?;
+    if (cursor == null || cursor.isEmpty) {
+      throw const ForgeRequestFailed('Review pagination is incomplete.');
+    }
+    return cursor;
   }
 
   Iterable<ReviewComment> _mapReviewThread(Map<String, Object?> thread) sync* {
@@ -358,6 +375,8 @@ query($thread: ID!, $commentsAfter: String) {
         path: node['path'] as String?,
         line: line,
         resolved: thread['isResolved'] == true,
+        outdated: thread['isOutdated'] == true,
+        threadId: threadId,
         locator: databaseId == null
             ? null
             : ReviewCommentLocator(

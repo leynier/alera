@@ -1,5 +1,6 @@
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -23,6 +24,9 @@ void main() {
     expect(AiAssistAgent.agy.agentType, AgentType.agy);
     expect(AiAssistAgent.opencode.agentType, AgentType.opencode);
     expect(AiAssistAgent.opencode2.agentType, AgentType.opencode2);
+    expect(AiAssistAgent.opencodeGo.key, 'opencode-go');
+    expect(AiAssistAgent.opencodeGo.label, 'OpenCode Go');
+    expect(AiAssistAgent.opencodeGo.agentType, AgentType.opencode);
     expect(AiAssistAgent.pi.agentType, AgentType.pi);
     expect(AiAssistAgent.amp.agentType, AgentType.amp);
     expect(AiAssistAgent.grok.agentType, AgentType.grok);
@@ -38,6 +42,7 @@ void main() {
         'Antigravity',
         'OpenCode',
         'OpenCode 2',
+        'OpenCode Go',
         'Pi',
         'Amp',
         'Grok Build',
@@ -66,6 +71,26 @@ void main() {
     );
 
     expect(AiAssistSettings.fromJson(settings.toMap()), settings);
+  });
+
+  test('round-trips the OpenCode Go agent key', () {
+    const settings = AiAssistSettings(
+      agent: .opencodeGo,
+      selectedModelByAgent: <AiAssistAgent, String>{
+        AiAssistAgent.opencodeGo: 'glm-5.3-flash',
+      },
+    );
+
+    final encoded = settings.toMap();
+    expect(encoded['agent'], 'opencode-go');
+    final restored = AiAssistSettings.fromJson(encoded);
+    expect(restored.agent, AiAssistAgent.opencodeGo);
+    expect(restored.agent.key, 'opencode-go');
+    expect(restored.modelFor(.opencodeGo), 'glm-5.3-flash');
+    expect(
+      AiAssistAgent.values.map((agent) => agent.label).toSet().length,
+      AiAssistAgent.values.length,
+    );
   });
 
   test('resolves prompt agent and model overrides independently', () {
@@ -117,5 +142,13 @@ void main() {
     expect(inherited.inheritsModel, isTrue);
     expect(overridden.inheritsAgent, isFalse);
     expect(overridden.inheritsModel, isFalse);
+  });
+
+  test('OpenCode Go host capability is additive', () {
+    expect(aleraTerminalHostProtocolVersion, 4);
+    expect(
+      aleraRuntimeHostAiAssistOpenCodeGoCapability,
+      'aiAssistOpenCodeGoV1',
+    );
   });
 }

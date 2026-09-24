@@ -95,7 +95,6 @@ class _WorkbenchSidebarRowBuilder(
         baseIndent: 0,
         showProjectChip: true,
         isPinnedCopy: true,
-        collapsedParentIds: const <String>{},
       );
     }
     return workspaceCount;
@@ -123,7 +122,6 @@ class _WorkbenchSidebarRowBuilder(
       baseIndent: 0,
       showProjectChip: true,
       isPinnedCopy: true,
-      collapsedParentIds: const <String>{},
     );
     return pinned.length;
   }
@@ -172,6 +170,7 @@ class _WorkbenchSidebarRowBuilder(
   ) {
     final filtersHideEmptyProjects =
         query.isNotEmpty ||
+        prefs.selectedSectionIds.isNotEmpty ||
         prefs.selectedTagIds.isNotEmpty ||
         prefs.workspaceKindFilter != WorkspaceKindFilter.all ||
         prefs.showActiveWorkspacesOnly ||
@@ -327,12 +326,7 @@ class _WorkbenchSidebarRowBuilder(
       return _activityByWorkspaceId[workspace.id];
     }
     final tabs = state.tabsFor(workspace.id);
-    final activity =
-        tabs.any(
-          (tab) =>
-              tab.kind == WorkspaceTabKind.terminal ||
-              tab.kind == WorkspaceTabKind.codex,
-        )
+    final activity = tabs.any((tab) => tab.kind == WorkspaceTabKind.terminal)
         ? agentActivityRank(
             attention: _attentionOf(workspace),
             fallback:

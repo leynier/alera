@@ -248,6 +248,11 @@ class AndroidEnvironment {
       rustFlags = '$rustFlags\x1f';
     }
     rustFlags = '$rustFlags-L\x1f$workaroundDir';
+    // NDK r28 aligns clang-built C/C++ to 16 KB. Cargo's linker wrapper does
+    // not, so this cdylib fails to install on Android 15 16 KB page-size
+    // phones. 16384 is a multiple of 4096, so 4 KB devices keep working.
+    rustFlags =
+        '$rustFlags\x1f-C\x1flink-arg=-Wl,-z,max-page-size=16384\x1f-C\x1flink-arg=-Wl,-z,common-page-size=16384';
     return rustFlags;
   }
 }

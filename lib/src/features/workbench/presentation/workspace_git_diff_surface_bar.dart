@@ -4,6 +4,7 @@ class const _GitDiffBar({
   required final String title,
   required final String? filePath,
   required final VoidCallback onRefresh,
+  required final VoidCallback? onComment,
   required final VoidCallback? onOpenFile,
   required final bool aiAssistEnabled,
   required final bool readingDiffReady,
@@ -69,6 +70,12 @@ class const _GitDiffBar({
               ],
               const SizedBox(width: AleraTokens.space2),
             ],
+            AleraIconButton(
+              tooltip: 'Comment on Diff',
+              icon: AleraIcons.comment,
+              onPressed: onComment,
+            ),
+            const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
               tooltip: onOpenFile == null
                   ? 'File is not available in working tree'

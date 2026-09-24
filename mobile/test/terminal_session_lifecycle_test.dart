@@ -303,8 +303,13 @@ void main() {
       expect(client.attachments, hasLength(2));
       expect(client.attachments.last, (tabId: 'tab-1', cols: 48, rows: 22));
       expect(
-        client.calls.where((call) => call == 'resize session-tab-1 48 22'),
-        hasLength(2),
+        client.calls.where((call) => call.startsWith('resize ')).toList(),
+        <String>[
+          'resize session-tab-1 48 22',
+          'resize session-tab-1 48 22',
+          'resize session-tab-1 47 22',
+          'resize session-tab-1 48 22',
+        ],
       );
     },
   );

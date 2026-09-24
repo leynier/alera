@@ -68,6 +68,13 @@ void main() {
       expect(base.hashCode == changed.hashCode, isFalse);
     });
 
+    test('tray hide notice fits the Windows balloon limits', () {
+      expect(trayHideNoticeTitle.length, lessThanOrEqualTo(63));
+      expect(trayHideNoticeMessage.length, lessThanOrEqualTo(255));
+      expect(trayHideNoticeTitle.contains('\u2014'), isFalse);
+      expect(trayHideNoticeMessage.contains('\u2014'), isFalse);
+    });
+
     test('uses the flavor desktop id for Unity launcher entries', () {
       expect(
         linuxLauncherDesktopId(bundleId: kAleraReleaseBundleId),

@@ -10,16 +10,10 @@ List<Workspace> _sortSidebarWorkspaces(
   switch (sortBy) {
     case WorkbenchSortBy.name:
       sorted.sort((a, b) {
-        if (a.isMain != b.isMain) {
-          return a.isMain ? -1 : 1;
-        }
         return a.name.toLowerCase().compareTo(b.name.toLowerCase());
       });
     case WorkbenchSortBy.recent:
       sorted.sort((a, b) {
-        if (pinMainOnRecent && a.isMain != b.isMain) {
-          return a.isMain ? -1 : 1;
-        }
         return b.updatedAt.compareTo(a.updatedAt);
       });
     case WorkbenchSortBy.activity:

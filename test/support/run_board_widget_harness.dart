@@ -57,9 +57,21 @@ WorkbenchState boardWorkbenchState() {
   return WorkbenchState(
     projects: projects,
     workspacesByProject: {
-      for (final workspace in workspaces) workspace.projectId: [workspace],
+      for (final project in projects)
+        project.id: workspaces
+            .where((workspace) => workspace.projectId == project.id)
+            .toList(),
     },
     tabsByWorkspace: {
+      'ws-1': [
+        WorkspaceTabRecord(
+          id: 'main-session-1',
+          workspaceId: 'ws-1',
+          title: 'Main Terminal',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      ],
       'workflow-attempt-2': [
         WorkspaceTabRecord(
           id: 'session-1',
@@ -110,7 +122,9 @@ class BoardTestWorkbench extends WorkbenchController {
     required WorkspaceGitDiffScope scope,
     String? gitDiffRoot,
     String? targetGroupId,
+    String? sourceKey,
     bool preview = false,
+    bool oppositePanel = false,
   }) async {
     actions.add('diff:${workspace.id}');
     final now = DateTime.utc(2026);

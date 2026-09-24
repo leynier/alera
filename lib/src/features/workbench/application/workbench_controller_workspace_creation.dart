@@ -1,6 +1,6 @@
 part of 'workbench_controller.dart';
 
-/// Creates workspaces and initializes their first tabs.
+/// Creates workspaces and initializes their first tabs without selecting them.
 ///
 /// Kept separate from project lifecycle actions because the From Prompt flow
 /// deliberately persists its agent terminal before the Setup terminal.
@@ -8,23 +8,32 @@ mixin _WorkbenchControllerWorkspaceCreation
     on
         _$WorkbenchController,
         _WorkbenchControllerInternals,
+        _WorkbenchControllerWorkspaceReconciliation,
         _WorkbenchControllerTabOpening,
-        _WorkbenchControllerProjects {
+        _WorkbenchControllerProjects,
+        _WorkbenchControllerProjectSelection,
+        _WorkbenchControllerInternalLayout {
   Future<WorkspaceCreationResult> createWorkspace({
+    bool useProjectCheckout = false,
     required Project project,
     required String sourceBranch,
     required String newBranchName,
     bool reuseExistingBranch = false,
     String? name,
     String? parentWorkspaceId,
+    String? hostId,
+    String? issueUrl,
   }) {
     return _createWorkspace(
+      useProjectCheckout: useProjectCheckout,
       project: project,
       sourceBranch: sourceBranch,
       newBranchName: newBranchName,
       reuseExistingBranch: reuseExistingBranch,
       name: name,
       parentWorkspaceId: parentWorkspaceId,
+      hostId: hostId,
+      issueUrl: issueUrl,
       initializeTabs: true,
     );
   }
@@ -34,24 +43,31 @@ mixin _WorkbenchControllerWorkspaceCreation
   /// its terminal first, then [completePromptWorkspaceCreation] synchronizes
   /// that tab and appends Setup.
   Future<WorkspaceCreationResult> createWorkspaceForPrompt({
+    bool useProjectCheckout = false,
     required Project project,
     required String sourceBranch,
     required String newBranchName,
     required String name,
     String? parentWorkspaceId,
+    String? hostId,
+    String? issueUrl,
   }) {
     return _createWorkspace(
+      useProjectCheckout: useProjectCheckout,
       project: project,
       sourceBranch: sourceBranch,
       newBranchName: newBranchName,
       reuseExistingBranch: false,
       name: name,
       parentWorkspaceId: parentWorkspaceId,
+      hostId: hostId,
+      issueUrl: issueUrl,
       initializeTabs: false,
     );
   }
 
   Future<WorkspaceCreationResult> _createWorkspace({
+    required bool useProjectCheckout,
     required Project project,
     required String sourceBranch,
     required String newBranchName,
@@ -59,19 +75,33 @@ mixin _WorkbenchControllerWorkspaceCreation
     required bool initializeTabs,
     String? name,
     String? parentWorkspaceId,
+    String? hostId,
+    String? issueUrl,
   }) async {
     try {
-      final result = await _workspaceService.createLinkedWorkspace(
-        project: project,
-        sourceBranch: sourceBranch,
-        newBranchName: newBranchName,
-        reuseExistingBranch: reuseExistingBranch,
-        name: name,
-      );
+      final result = useProjectCheckout
+          ? await _workspaceService.createSharedWorkspace(
+              project: project,
+              name: name,
+              hostId: hostId,
+              issueUrl: issueUrl,
+            )
+          : await _workspaceService.createLinkedWorkspace(
+              project: project,
+              sourceBranch: sourceBranch,
+              newBranchName: newBranchName,
+              reuseExistingBranch: reuseExistingBranch,
+              name: name,
+              hostId: hostId,
+              issueUrl: issueUrl,
+            );
       _reconcileCreatedWorkspace(project, result.workspace);
       if (initializeTabs) {
-        await selectWorkspace(project: project, workspace: result.workspace);
-        await _openDeferredSetupTab(result);
+        await _initializeCreatedWorkspace(
+          workspace: result.workspace,
+          ensureInitialTerminal: true,
+          deferredSetup: result,
+        );
       }
       final parentId = parentWorkspaceId?.trim();
       if (parentId != null && parentId.isNotEmpty) {
@@ -100,54 +130,71 @@ mixin _WorkbenchControllerWorkspaceCreation
     }
   }
 
-  /// Activates a workspace created from a prompt after the host has persisted
-  /// the agent tab, then appends Setup and restores focus to the agent.
+  /// Finishes a From Prompt workspace after the host has persisted the agent
+  /// tab: seeds the panel, appends Setup, and records the agent as that
+  /// workspace's active tab without changing the visible workspace.
   Future<void> completePromptWorkspaceCreation({
     required WorkspaceCreationResult creation,
     String? agentTabId,
+    bool openDeferredSetup = true,
   }) async {
     final workspace = creation.workspace;
-    final project = state.projects
-        .where((candidate) => candidate.id == workspace.projectId)
-        .firstOrNull;
-    if (project == null) {
+    if (state.projects.every(
+      (candidate) => candidate.id != workspace.projectId,
+    )) {
       throw StateError('Workspace project not found: ${workspace.projectId}');
     }
     final setupCommand = creation.deferredSetupCommand?.trim();
     final expectsPromptTab =
         agentTabId?.trim().isNotEmpty == true ||
         (setupCommand != null && setupCommand.isNotEmpty);
-    await _selectWorkspace(
-      project: project,
+    await _initializeCreatedWorkspace(
       workspace: workspace,
       ensureInitialTerminal: !expectsPromptTab,
+      deferredSetup: openDeferredSetup ? creation : null,
+      preferredTabId: agentTabId,
     );
-    await _openDeferredSetupTab(creation);
-    final resolvedAgentTabId = agentTabId?.trim();
-    if (resolvedAgentTabId != null && resolvedAgentTabId.isNotEmpty) {
+  }
+
+  Future<void> _initializeCreatedWorkspace({
+    required Workspace workspace,
+    required bool ensureInitialTerminal,
+    WorkspaceCreationResult? deferredSetup,
+    String? preferredTabId,
+  }) async {
+    if (_disposed) {
+      return;
+    }
+    if (ensureInitialTerminal) {
+      await _ensurePrimaryTerminal(workspace, requireActive: false);
+    }
+    if (_disposed) {
+      return;
+    }
+    final tabs = await _workspaceTabService.listTabs(workspace.id);
+    if (_disposed) {
+      return;
+    }
+    _setTabsForWorkspace(workspace.id, tabs);
+    final layout = await _ensureWorkbenchLayout(workspace.id, tabs);
+    if (_disposed) {
+      return;
+    }
+    await _applyLayout(layout, persist: false);
+    _seedNewWorkspacePanel(workspace.id);
+    if (deferredSetup != null) {
+      await _openDeferredSetupTab(deferredSetup);
+    }
+    final resolvedTabId = preferredTabId?.trim();
+    if (resolvedTabId != null && resolvedTabId.isNotEmpty) {
       final groupId = state
           .layoutFor(workspace.id)
-          ?.groupIdForTab(resolvedAgentTabId);
+          ?.groupIdForTab(resolvedTabId);
       _setActiveTabInternal(
         workspaceId: workspace.id,
-        tabId: resolvedAgentTabId,
+        tabId: resolvedTabId,
         groupId: groupId,
       );
     }
-  }
-
-  void _reconcileCreatedWorkspace(Project project, Workspace workspace) {
-    final workspaces = List<Workspace>.from(state.workspacesFor(project.id));
-    final index = workspaces.indexWhere((entry) => entry.id == workspace.id);
-    if (index == -1) {
-      workspaces.add(workspace);
-    } else {
-      workspaces[index] = workspace;
-    }
-    state = state.copyWith(
-      workspacesByProject: Map<String, List<Workspace>>.from(
-        state.workspacesByProject,
-      )..[project.id] = workspaces,
-    );
   }
 }

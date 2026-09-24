@@ -12,6 +12,8 @@ import 'package:alera/src/features/pull_requests/presentation/pull_request_revie
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+part 'pull_request_review_view_removal_cases.dart';
+
 const _review = HostedReview(
   provider: .github,
   number: 42,
@@ -26,6 +28,8 @@ const _review = HostedReview(
 class _Callbacks {
   int unlinkCalls = 0;
   int closeCalls = 0;
+  int archiveWorkspaceCalls = 0;
+  int removeWorkspaceCalls = 0;
   bool? draftStatus;
   final List<String> commentBodies = <String>[];
   bool addCommentResult = true;
@@ -48,6 +52,8 @@ Widget _wrap(
   bool canCloseReview = true,
   bool canChangeDraftStatus = true,
   bool canComment = true,
+  bool offerArchiveWorkspace = true,
+  bool offerRemoveWorkspace = true,
 }) {
   return MaterialApp(
     home: Scaffold(
@@ -65,6 +71,16 @@ Widget _wrap(
         onUnlink: () async {
           callbacks.unlinkCalls++;
         },
+        onArchiveWorkspace: offerArchiveWorkspace
+            ? () {
+                callbacks.archiveWorkspaceCalls++;
+              }
+            : null,
+        onRemoveWorkspace: offerRemoveWorkspace
+            ? () {
+                callbacks.removeWorkspaceCalls++;
+              }
+            : null,
         onMerge: (method) async => callbacks.mergeMethod = method,
         onClose: () async => callbacks.closeCalls++,
         onDraftStatusChanged: (draft) async {
@@ -85,6 +101,8 @@ Widget _wrap(
 }
 
 void main() {
+  _registerPullRequestReviewViewRemovalTests();
+
   testWidgets('offers every available review action in one menu', (
     tester,
   ) async {
@@ -104,9 +122,11 @@ void main() {
     expect(find.text('Convert To Draft'), findsOneWidget);
     expect(find.text('Close Pull Request'), findsOneWidget);
     expect(find.text('Unlink Pull Request'), findsOneWidget);
+    expect(find.text('Remove Workspace'), findsNothing);
     expect(callbacks.mergeMethod, isNull);
     expect(callbacks.closeCalls, 0);
     expect(callbacks.unlinkCalls, 0);
+    expect(callbacks.removeWorkspaceCalls, 0);
   });
 
   testWidgets('confirms the primary merge method before invoking it', (
@@ -122,6 +142,30 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Create Merge Commit'));
     await tester.pumpAndSettle();
     expect(callbacks.mergeMethod, ReviewMergeMethod.mergeCommit);
+  });
+
+  testWidgets('defaults to squash when merge commits are not allowed', (
+    tester,
+  ) async {
+    final callbacks = _Callbacks();
+    await tester.pumpWidget(
+      _wrap(
+        callbacks,
+        mergeMethods: const <ReviewMergeMethod>[
+          ReviewMergeMethod.squash,
+          ReviewMergeMethod.rebase,
+        ],
+      ),
+    );
+
+    expect(find.text('Squash and Merge'), findsOneWidget);
+    expect(find.text('Create Merge Commit'), findsNothing);
+
+    await tester.tap(find.text('Squash and Merge'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Squash and Merge'));
+    await tester.pumpAndSettle();
+    expect(callbacks.mergeMethod, ReviewMergeMethod.squash);
   });
 
   testWidgets('selecting a merge method only changes the primary action', (
@@ -262,24 +306,6 @@ void main() {
     expect(callbacks.unlinkCalls, 0);
   });
 
-  testWidgets('shows a single unlink action after the PR is merged', (
-    tester,
-  ) async {
-    final callbacks = _Callbacks();
-    await tester.pumpWidget(
-      _wrap(callbacks, review: _review.copyWith(state: .merged)),
-    );
-
-    expect(find.text('Create Merge Commit'), findsNothing);
-    expect(find.text('Close Pull Request'), findsNothing);
-    expect(find.text('Unlink Pull Request'), findsOneWidget);
-    expect(find.byTooltip('Pull Request Actions'), findsNothing);
-
-    await tester.tap(find.text('Unlink Pull Request'));
-    await tester.pumpAndSettle();
-    expect(find.text('Unlink Pull Request #42?'), findsOneWidget);
-  });
-
   testWidgets('edit mode sends only the changed fields on save', (
     tester,
   ) async {
@@ -366,17 +392,27 @@ void main() {
             path: 'lib/src/example.dart',
             line: 42,
             resolved: true,
+            threadId: 'T1',
           ),
         ],
       ),
     );
 
     expect(find.text('Comments (2)'), findsOneWidget);
-    expect(find.byType(PullRequestCommentMarkdown), findsNWidgets(2));
     expect(find.text('General feedback'), findsOneWidget);
-    expect(find.text('Please cover this branch'), findsOneWidget);
     expect(find.text('lib/src/example.dart:42'), findsOneWidget);
     expect(find.text('Resolved'), findsOneWidget);
+    // Resolved threads start collapsed to their header.
+    expect(find.byType(PullRequestCommentMarkdown), findsOneWidget);
+    expect(find.text('Please cover this branch'), findsNothing);
+    expect(find.text('1 comment'), findsOneWidget);
+
+    await tester.tap(find.text('lib/src/example.dart:42'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PullRequestCommentMarkdown), findsNWidgets(2));
+    expect(find.text('Please cover this branch'), findsOneWidget);
+    expect(find.text('1 comment'), findsNothing);
   });
 
   testWidgets('posts a comment and closes the composer on success', (
@@ -385,10 +421,12 @@ void main() {
     final callbacks = _Callbacks();
     await tester.pumpWidget(_wrap(callbacks));
 
-    await tester.tap(find.byTooltip('Start Conversation'));
+    expect(find.text('Post Comment'), findsNothing);
+    await tester.tap(find.text('Start the conversation'));
     await tester.pumpAndSettle();
     expect(find.text('Post Comment'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'Ready to merge');
+    await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Post Comment'));
     await tester.pumpAndSettle();
 
@@ -402,12 +440,14 @@ void main() {
     final callbacks = _Callbacks()..addCommentResult = false;
     await tester.pumpWidget(_wrap(callbacks));
 
-    await tester.tap(find.byTooltip('Start Conversation'));
+    await tester.tap(find.text('Start the conversation'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Keep this draft');
+    await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Post Comment'));
     await tester.pumpAndSettle();
 
+    expect(callbacks.commentBodies, <String>['Keep this draft']);
     expect(find.text('Post Comment'), findsOneWidget);
     expect(
       tester.widget<TextField>(find.byType(TextField)).controller?.text,
@@ -421,7 +461,7 @@ void main() {
       _wrap(callbacks, review: _review.copyWith(state: .merged)),
     );
 
-    expect(find.byTooltip('Start Conversation'), findsNothing);
+    expect(find.text('Start the conversation'), findsNothing);
     expect(find.text('No comments yet'), findsOneWidget);
   });
 }
