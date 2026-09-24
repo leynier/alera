@@ -13,7 +13,7 @@ async fn drain(
     for _ in 0..100 {
         let command = match commands.try_recv() {
             Ok(command) => command,
-            Err(_) if actor.managed_workspace_jobs == 0 => return,
+            Err(_) if actor.workflow_workspace_jobs == 0 => return,
             Err(_) => tokio::time::timeout_at(deadline, commands.recv())
                 .await
                 .unwrap()
@@ -160,6 +160,7 @@ async fn cancelled_integration_attention_waits_for_explicit_retry_without_actor_
         drain(&mut actor, &mut commands).await;
         assert_eq!(revision(&fixture.store).await, settled_revision);
         assert_eq!(actor.managed_workspace_jobs, 0);
+        assert_eq!(actor.workflow_workspace_jobs, 0);
         actor.dispose().await;
     }
 }

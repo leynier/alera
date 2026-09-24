@@ -8,6 +8,46 @@ use crate::terminal_host::client::ClientHandle;
 use crate::terminal_host::server::actor_test_harness::{local_client, mobile_client, test_actor};
 
 #[tokio::test]
+async fn workflow_coordinator_lookup_uses_nonblocking_job_accounting() {
+    let dir = tempfile::tempdir().unwrap();
+    let (handle, mut responses) = ClientHandle::test_channels();
+    let mut actor = test_actor(
+        &dir,
+        HashMap::from([(1, local_client(handle))]),
+        HashMap::new(),
+    )
+    .await;
+    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    actor.inbox = inbox;
+    actor
+        .start_workflow_coordinator_request(1, 1, &json!({"id":"missing"}))
+        .unwrap();
+    assert_eq!(actor.workflow_workspace_jobs, 1);
+    assert_eq!(actor.managed_workspace_jobs, 0);
+    assert!(!actor.has_blocking_managed_workspace_jobs());
+    actor
+        .handle_line(
+            1,
+            json!({"id":2,"type":"write","payload":{"sessionId":"missing","data":"x"}}).to_string(),
+        )
+        .await;
+    let response = responses.recv().await.unwrap().as_json().unwrap();
+    assert_eq!(response["id"], 2);
+    assert_ne!(
+        response["error"],
+        "A runtime mutation is in progress. Wait for it to finish and retry."
+    );
+    let command = tokio::time::timeout(std::time::Duration::from_secs(5), commands.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    actor.handle(command).await;
+    assert_eq!(actor.workflow_workspace_jobs, 0);
+    assert_eq!(actor.managed_workspace_jobs, 0);
+    assert!(!actor.has_blocking_managed_workspace_jobs());
+}
+
+#[tokio::test]
 async fn workflow_coordinator_launch_rejects_untrusted_connections_and_payloads() {
     let dir = tempfile::tempdir().unwrap();
     let (handle, _responses) = ClientHandle::test_channels();

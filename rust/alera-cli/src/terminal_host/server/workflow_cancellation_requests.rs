@@ -11,7 +11,7 @@ impl ServerActor {
             return;
         }
         self.workflow_execution.cancelling = true;
-        self.managed_workspace_jobs += 1;
+        self.workflow_workspace_jobs += 1;
         self.cancel_shutdown_timer();
         let store = self.runtime_store.clone();
         let directory = self.runtime_dir.clone();
@@ -88,7 +88,7 @@ impl ServerActor {
 
     pub(super) async fn finish_workflow_cancellation(&mut self, result: HostResult<bool>) {
         self.workflow_execution.cancelling = false;
-        self.managed_workspace_jobs = self.managed_workspace_jobs.saturating_sub(1);
+        self.workflow_workspace_jobs = self.workflow_workspace_jobs.saturating_sub(1);
         let dirty = std::mem::take(&mut self.workflow_execution.cancellation_dirty);
         match result {
             Ok(progress) => {

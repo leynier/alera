@@ -36,12 +36,12 @@ impl ServerActor {
             .filter(|id| !id.is_empty() && id.len() <= 160)
             .ok_or_else(|| HostError::format("proposal id is required"))?
             .to_owned();
-        if self.managed_workspace_jobs >= 32 {
+        if self.workflow_workspace_jobs >= 32 {
             return Err(HostError::state(
                 "workflow operations are busy; retry shortly",
             ));
         }
-        self.managed_workspace_jobs += 1;
+        self.workflow_workspace_jobs += 1;
         self.cancel_shutdown_timer();
         let store = self.runtime_store.clone();
         let inbox = self.inbox.clone();

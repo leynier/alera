@@ -71,7 +71,11 @@ async fn cancellation_stops_only_matching_workers_while_execution_is_busy() {
         .unwrap()
         .workspace_id = "foreign-workspace".into();
     actor.wake_workflow_execution();
+    assert_eq!(actor.workflow_workspace_jobs, 1);
+    assert_eq!(actor.managed_workspace_jobs, 0);
+    assert!(!actor.has_blocking_managed_workspace_jobs());
     drain_cancellation(&mut actor, &mut commands).await;
+    assert_eq!(actor.workflow_workspace_jobs, 0);
     assert!(actor.sessions[&record.terminal_handle].running());
     let controls = fixture
         .store
@@ -97,6 +101,7 @@ async fn cancellation_stops_only_matching_workers_while_execution_is_busy() {
         .unwrap();
     actor.wake_workflow_execution();
     drain_cancellation(&mut actor, &mut commands).await;
+    assert_eq!(actor.workflow_workspace_jobs, 0);
     assert!(!actor.sessions.contains_key(&record.terminal_handle));
     assert_eq!(std::fs::read_to_string(&file).unwrap(), "uncommitted work");
     assert!(fixture
@@ -122,6 +127,7 @@ async fn cancellation_stops_only_matching_workers_while_execution_is_busy() {
     );
     actor.workflow_execution.busy = false;
     assert_eq!(actor.managed_workspace_jobs, 0);
+    assert_eq!(actor.workflow_workspace_jobs, 0);
     actor.dispose().await;
 }
 
@@ -166,6 +172,9 @@ async fn execution_pump_launches_once_without_a_board_or_desktop_client() {
     actor.workflow_execution.ready = true;
     actor.wake_workflow_execution();
     actor.wake_workflow_execution();
+    assert!(actor.workflow_workspace_jobs > 0);
+    assert_eq!(actor.managed_workspace_jobs, 0);
+    assert!(!actor.has_blocking_managed_workspace_jobs());
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(30);
     loop {
         let command = tokio::time::timeout_at(deadline, commands.recv())
@@ -205,6 +214,7 @@ async fn execution_pump_launches_once_without_a_board_or_desktop_client() {
         .all(|item| item.identity.attempt == i64::from(item.identity.task_id.is_some())));
     assert!(actor.clients.is_empty());
     assert_eq!(actor.managed_workspace_jobs, 0);
+    assert_eq!(actor.workflow_workspace_jobs, 0);
     actor.dispose().await;
 }
 
@@ -222,7 +232,7 @@ async fn waiting_execution_does_not_reschedule_itself() {
         .await
         .unwrap();
     actor.wake_workflow_execution();
-    while actor.managed_workspace_jobs > 0 {
+    while actor.workflow_workspace_jobs > 0 {
         let command = tokio::time::timeout(std::time::Duration::from_secs(5), commands.recv())
             .await
             .unwrap()
@@ -232,6 +242,7 @@ async fn waiting_execution_does_not_reschedule_itself() {
     assert!(!actor.workflow_execution.busy);
     assert!(!actor.workflow_execution.dirty);
     assert_eq!(actor.managed_workspace_jobs, 0);
+    assert_eq!(actor.workflow_workspace_jobs, 0);
     assert!(commands.try_recv().is_err());
     actor.dispose().await;
 }

@@ -39,7 +39,7 @@ impl ServerActor {
             return;
         }
         self.workflow_execution.busy = true;
-        self.managed_workspace_jobs += 1;
+        self.workflow_workspace_jobs += 1;
         self.cancel_shutdown_timer();
         let store = self.runtime_store.clone();
         let directory = self.runtime_dir.clone();
@@ -77,7 +77,7 @@ impl ServerActor {
         &mut self,
         pass: ExecutionPass,
     ) {
-        self.managed_workspace_jobs = self.managed_workspace_jobs.saturating_sub(1);
+        self.workflow_workspace_jobs = self.workflow_workspace_jobs.saturating_sub(1);
         self.workflow_execution.busy = false;
         self.workflow_execution.cursor = pass.cursor;
         if let Some(error) = pass.error {
