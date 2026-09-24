@@ -80,6 +80,16 @@ impl ServerActor {
             _ => None,
         };
         if let Some((workspace_id, buffer_guard, operation)) = relocation {
+            if self
+                .runtime_store
+                .workflow_workspace_owned(workspace_id)
+                .await
+                .map_err(|error| HostError::state(error.to_string()))?
+            {
+                return Err(HostError::state(
+                    "Workflow-owned workspaces cannot be relocated",
+                ));
+            }
             self.start_checkout_buffer_guard(buffer_guard).await?;
             let mut source = self
                 .runtime_store

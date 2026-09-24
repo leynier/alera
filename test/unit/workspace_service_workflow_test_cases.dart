@@ -28,7 +28,7 @@ void _registerWorkspaceServiceWorkflowTests() {
         await repository.upsertWorkspace(ordinary);
         await repository.upsertWorkspace(missing);
         gitBackend.liveBranchByPath = <String, String>{
-          project.repoPath: 'main',
+          project.repoPath: 'feature/main-changed',
           task.path: ?changedBranch,
           ordinary.path: 'feature/changed',
         };
@@ -62,8 +62,8 @@ void _registerWorkspaceServiceWorkflowTests() {
           <WorkspaceTabRecord>[tab],
         );
         expect(
-          (await repository.findWorkspaceById(mainWorkspace.id))?.id,
-          mainWorkspace.id,
+          (await repository.findWorkspaceById(mainWorkspace.id))?.branch,
+          'feature/main-changed',
         );
       },
     );

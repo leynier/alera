@@ -380,7 +380,7 @@ class WorkspaceService._(
     for (final workspace in workspaces) {
       // Workflow identity and missing resources are reconciled by the host.
       // Generic refresh must not rewrite or prune a retained task attempt.
-      if (workspace.isMain || workspace.isRemote || workspace.workflowOwned) {
+      if (workspace.isRemote || workspace.workflowOwned) {
         continue;
       }
       final live = liveWorktrees?[_canonicalPath(workspace.path)];

@@ -1,6 +1,43 @@
 use super::*;
 
 #[tokio::test]
+async fn prepare_hand_on_rejects_workflow_owned_worktree_before_relocation() {
+    let mut fixture = Fixture::new().await;
+    sqlx::query(
+        "INSERT INTO workflowWorkspaces
+         (id, run_id, revision, task_id, attempt, path, identity, phase)
+         VALUES (?, 'run', 1, NULL, 0, ?, '{}', 'ready')",
+    )
+    .bind(&fixture.child.id)
+    .bind(&fixture.child.path)
+    .execute(fixture.actor.runtime_store.pool())
+    .await
+    .unwrap();
+    let source = fixture.child.clone();
+
+    let error = match fixture.prepare_hand_on(true).await {
+        Ok(_) => panic!("workflow-owned worktree should not relocate"),
+        Err(error) => error,
+    };
+    assert!(error.to_string().contains("Workflow-owned"));
+    assert_eq!(
+        fixture
+            .actor
+            .runtime_store
+            .find_workspace(&source.id)
+            .await
+            .unwrap(),
+        Some(source.clone())
+    );
+    assert!(Path::new(&source.path).exists());
+    let journal_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM workspaceRelocations")
+        .fetch_one(fixture.actor.runtime_store.pool())
+        .await
+        .unwrap();
+    assert_eq!(journal_count, 0);
+}
+
+#[tokio::test]
 async fn runtime_relocation_ids_replay_both_directions_without_losing_later_changes() {
     let mut fixture = Fixture::new().await;
     let destination = fixture._root.path().join("workspaces/request-retry");
