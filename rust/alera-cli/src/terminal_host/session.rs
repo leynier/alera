@@ -19,6 +19,8 @@ use crate::terminal_host::resources::seal_shell_process;
 mod checkpoint_restore;
 #[cfg(test)]
 mod driver_test_stub;
+#[cfg(test)]
+pub use driver_test_stub::TestQueuedWrite;
 mod input_queue;
 mod instance_state;
 mod io_threads;
@@ -32,7 +34,7 @@ mod termination;
 mod tests;
 mod title_tracker;
 #[cfg(windows)]
-mod windows_process_job;
+pub(crate) mod windows_process_job;
 pub(crate) mod workspace_shutdown;
 
 #[cfg(test)]
@@ -54,6 +56,8 @@ fn resumed_output_stream_bytes(previous: u64, scrollback_len: usize) -> u64 {
 /// A message produced by a session's PTY reader thread.
 #[derive(Debug)]
 pub enum PtyEvent {
+    #[cfg(unix)]
+    BeforeReap,
     Output(Vec<u8>),
     #[cfg(windows)]
     ChildExited,
@@ -93,6 +97,8 @@ pub enum PtyWriteCompletion {
         session_instance_id: u64,
         active: Arc<AtomicBool>,
     },
+    /// Host-originated write that must not fail the caller (hand off/on cwd).
+    BestEffort,
 }
 
 /// Raw PTY bytes, not an encoded payload.

@@ -19,6 +19,47 @@ use super::runtime_change_broadcasts::string_scope;
 use super::{ServerActor, ServerCommand};
 
 impl ServerActor {
+    pub(super) fn start_shared_workspace_create(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        request: crate::shared_workspace::SharedWorkspaceCreateRequest,
+        issue_url: Option<String>,
+    ) {
+        self.managed_workspace_jobs += 1;
+        self.cancel_shutdown_timer();
+        let store = self.runtime_store.clone();
+        let inbox = self.inbox.clone();
+        tokio::spawn(async move {
+            let created = crate::shared_workspace::create_shared_workspace(&store, request).await;
+            let linked_workspace_id = created
+                .as_ref()
+                .ok()
+                .filter(|_| issue_url.is_some())
+                .map(|creation| creation.workspace.id.clone());
+            let linked_issue = super::linked_issue_requests::persist_created_workspace_issue(
+                &store,
+                &inbox,
+                linked_workspace_id.as_deref(),
+                issue_url.as_deref(),
+            )
+            .await;
+            let result = json_result(created);
+            let _ = inbox.send(ServerCommand::ManagedWorkspaceCreated {
+                client_id,
+                request_id,
+                result,
+                handoff_source_workspace_id: None,
+            });
+            if let Some(record) = linked_issue {
+                super::linked_issue_requests::refresh_created_workspace_issue(
+                    &store, &inbox, record,
+                )
+                .await;
+            }
+        });
+    }
+
     pub(super) fn start_workspace_storage_measurement(
         &mut self,
         client_id: u64,
@@ -38,9 +79,6 @@ impl ServerActor {
                 .any(|session| session.workspace_id == workspace_id && session.running())
         {
             blockers.push("Workspace has a live terminal session or process".to_string());
-        }
-        if !close_sessions && self.browser.has_pages_for_workspace(&workspace_id) {
-            blockers.push("Workspace has a live browser session".to_string());
         }
         self.managed_workspace_jobs += 1;
         self.cancel_shutdown_timer();
@@ -112,18 +150,39 @@ impl ServerActor {
         client_id: u64,
         request_id: i64,
         request: ManagedWorkspaceCreateRequest,
+        issue_url: Option<String>,
     ) {
         self.managed_workspace_jobs += 1;
         self.cancel_shutdown_timer();
         let store = self.runtime_store.clone();
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
-            let result = json_result(create_managed_workspace(&store, request).await);
+            let created = create_managed_workspace(&store, request).await;
+            let linked_workspace_id = created
+                .as_ref()
+                .ok()
+                .filter(|_| issue_url.is_some())
+                .map(|creation| creation.workspace.id.clone());
+            let linked_issue = super::linked_issue_requests::persist_created_workspace_issue(
+                &store,
+                &inbox,
+                linked_workspace_id.as_deref(),
+                issue_url.as_deref(),
+            )
+            .await;
+            let result = json_result(created);
             let _ = inbox.send(ServerCommand::ManagedWorkspaceCreated {
                 client_id,
                 request_id,
                 result,
+                handoff_source_workspace_id: None,
             });
+            if let Some(record) = linked_issue {
+                super::linked_issue_requests::refresh_created_workspace_issue(
+                    &store, &inbox, record,
+                )
+                .await;
+            }
         });
     }
 
@@ -148,18 +207,81 @@ impl ServerActor {
         client_id: u64,
         request_id: i64,
         result: HostResult<Value>,
+        handoff_source_workspace_id: Option<String>,
     ) {
         self.managed_workspace_jobs = self.managed_workspace_jobs.saturating_sub(1);
         match result {
             Ok(payload) => {
-                let project_id = string_scope(&payload, "projectId");
+                if let Some(source_workspace_id) = handoff_source_workspace_id {
+                    self.relocate_sessions_after_hand_off(&source_workspace_id, &payload)
+                        .await;
+                }
+                let project_id = string_scope(&payload, "projectId").or_else(|| {
+                    payload
+                        .get("workspace")
+                        .and_then(|workspace| string_scope(workspace, "projectId"))
+                });
                 self.client_write(client_id, ok_response(request_id, payload));
                 self.broadcast_workspaces_changed(project_id.as_deref());
             }
             Err(error) => {
+                self.reconcile_transferred_session_owners().await;
+                self.broadcast_workspaces_changed(None);
+                self.broadcast_workspace_tabs_changed(None);
                 self.client_write(client_id, error_response(request_id, &error));
             }
         }
+        self.broadcast_authenticated(crate::terminal_host::protocol::event(
+            "workbenchLayoutsChanged",
+            serde_json::json!({}),
+        ));
+        self.broadcast_authenticated(crate::terminal_host::protocol::event(
+            "workspaceActivityChanged",
+            serde_json::json!({}),
+        ));
         self.schedule_shutdown_if_idle();
+    }
+
+    pub(super) async fn relocate_sessions_after_hand_off(
+        &mut self,
+        source_workspace_id: &str,
+        payload: &Value,
+    ) {
+        // The worktree transfer already moved the linked issue and watch rows,
+        // so the watchers have to rebuild even when no session can be relocated
+        // below. The scope stays a wildcard: both workspaces change, and naming
+        // one would leave the other showing a stale glyph.
+        self.broadcast_linked_issues_changed(None);
+        self.broadcast_pull_request_watch_changed(None);
+        let Some(dest_path) = payload
+            .get("workspace")
+            .and_then(|workspace| workspace.get("path"))
+            .and_then(Value::as_str)
+        else {
+            return;
+        };
+        let Some(source) = self
+            .runtime_store
+            .find_workspace(source_workspace_id)
+            .await
+            .ok()
+            .flatten()
+        else {
+            return;
+        };
+        self.relocate_sessions_after_handoff(
+            super::workspace_handoff_relocate::WorkspaceHandoffDirection::HandOff,
+            source_workspace_id,
+            payload["workspace"]["id"]
+                .as_str()
+                .unwrap_or(source_workspace_id),
+            &source.path,
+            dest_path,
+        );
+        if let Some(destination_id) = payload["workspace"]["id"].as_str() {
+            self.checkpoint_transferred_workspace(destination_id).await;
+        }
+        self.broadcast_workspace_tabs_changed(Some(source_workspace_id));
+        self.broadcast_workspace_tabs_changed(payload["workspace"]["id"].as_str());
     }
 }

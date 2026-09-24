@@ -7,6 +7,7 @@ extension on _WorkspaceGitDiffPanelState {
     String? gitDiffRoot,
     required WorkspaceGitDiffScope scope,
     bool preview = false,
+    bool oppositePanel = false,
   }) {
     assert(
       gitDiffRoot == null ||
@@ -21,6 +22,7 @@ extension on _WorkspaceGitDiffPanelState {
       gitDiffRoot: widget.sourceControlScope.relativeRoot,
       scope: scope,
       preview: preview,
+      oppositePanel: oppositePanel || isModModifierPressed(),
     );
   }
 
@@ -28,6 +30,7 @@ extension on _WorkspaceGitDiffPanelState {
     GitHistoryItem item,
     GitCommitChangeEntry entry,
   ) async {
+    final oppositePanel = isModModifierPressed();
     try {
       final compare = await _commitCompareFor(item);
       if (!mounted) {
@@ -48,6 +51,7 @@ extension on _WorkspaceGitDiffPanelState {
         subject: item.subject,
         message: item.message,
         keepKey: 'commit:${item.id}:${entry.path}',
+        oppositePanel: oppositePanel,
       );
     } catch (error) {
       if (mounted) {
@@ -82,6 +86,7 @@ final class _GitDiffPreviewOpening {
     required String? gitDiffRoot,
     required WorkspaceGitDiffScope scope,
     required bool preview,
+    required bool oppositePanel,
   }) {
     Future<void> open({required bool preview}) {
       return onOpen(
@@ -90,6 +95,7 @@ final class _GitDiffPreviewOpening {
         gitDiffRoot: gitDiffRoot,
         scope: scope,
         preview: preview,
+        oppositePanel: oppositePanel,
       );
     }
 
@@ -116,6 +122,7 @@ final class _GitDiffPreviewOpening {
     required String? subject,
     required String? message,
     required String keepKey,
+    required bool oppositePanel,
   }) async {
     Future<void> open({required bool preview}) {
       return onOpen(
@@ -129,6 +136,7 @@ final class _GitDiffPreviewOpening {
         subject: subject,
         message: message,
         preview: preview,
+        oppositePanel: oppositePanel,
       );
     }
 

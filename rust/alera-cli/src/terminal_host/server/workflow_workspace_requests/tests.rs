@@ -63,6 +63,23 @@ async fn workflow_worktrees_read_completion_does_not_broadcast_workspace_changes
     assert!(rx.try_recv().is_err());
 }
 
+#[tokio::test]
+async fn workflow_recovery_keeps_host_alive_without_blocking_unrelated_requests() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
+    actor.managed_workspace_jobs = 1;
+    actor.workflow_workspace_recovery_running = true;
+    assert!(!actor.has_blocking_managed_workspace_jobs());
+
+    actor.managed_workspace_jobs += 1;
+    assert!(actor.has_blocking_managed_workspace_jobs());
+
+    actor.managed_workspace_jobs -= 1;
+    actor.handle_workflow_workspace_recovery_finished().await;
+    assert!(!actor.workflow_workspace_recovery_running);
+    assert_eq!(actor.managed_workspace_jobs, 0);
+}
+
 #[test]
 fn workflow_worktrees_capability_is_additive_and_cli_cannot_select_paths() {
     use crate::terminal_host::{control_file, protocol};

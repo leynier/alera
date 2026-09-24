@@ -7,24 +7,57 @@ extension _WorkspaceEditorTextActions on _WorkspaceEditorSurfaceState {
     }
   }
 
-  List<code_forge.CustomContextMenu>? _editorTextActionMenuItems(
+  List<code_forge.CustomContextMenu> _editorTextActionMenuItems(
     BuildContext context,
   ) {
+    final items = <code_forge.CustomContextMenu>[
+      code_forge.CustomContextMenu(
+        label: 'Comment',
+        description: '',
+        onPress: () => unawaited(_openEditorComment(context)),
+      ),
+    ];
     final scope = AleraTextActionsScope.maybeOf(context);
-    if (scope?.enabled != true ||
-        !workspaceEditorHasTextActionSelection(
+    if (scope?.enabled == true &&
+        workspaceEditorHasTextActionSelection(
           text: _controller.text,
           selection: _controller.selection,
         )) {
-      return null;
+      items.add(
+        code_forge.CustomContextMenu(
+          label: 'Text Actions',
+          description: '',
+          onPress: () => _openEditorTextActions(context, scope!),
+        ),
+      );
     }
-    return <code_forge.CustomContextMenu>[
-      code_forge.CustomContextMenu(
-        label: 'Text Actions',
-        description: '',
-        onPress: () => _openEditorTextActions(context, scope!),
+    return items;
+  }
+
+  Future<void> _openEditorComment(BuildContext context) {
+    final filePath = widget.tab.filePath;
+    if (filePath == null) {
+      return Future<void>.value();
+    }
+    final text = _controller.text;
+    final selection = _controller.selection;
+    return composeWorkspaceAgentFileComment(
+      context,
+      ref,
+      workspaceId: widget.workspace.id,
+      path: workspaceEditorDisplayPath(
+        workspace: widget.workspace,
+        filePath: filePath,
       ),
-    ];
+      lineRange: workspaceAgentCommentLineRangeForSelection(
+        text: text,
+        selection: selection,
+      ),
+      snippet: workspaceAgentCommentSnippetForSelection(
+        text: text,
+        selection: selection,
+      ),
+    );
   }
 
   void _openEditorTextActions(

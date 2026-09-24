@@ -8,9 +8,16 @@ import 'package:alera/src/features/agent_status/application/agent_status_notific
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 const String aleraWindowsNotificationAppName = kAleraAppName;
-const String aleraWindowsNotificationAppUserModelId = 'Leynier.Alera';
-const String aleraWindowsNotificationGuid =
-    '6f03d61e-b22a-42fc-9e44-a02319d77f55';
+
+// Windows stores toast registration per AUMID and serves activation through
+// the GUID's COM class, so each flavor needs its own pair. Release values must
+// not change: existing installs are registered under them.
+const String aleraWindowsNotificationAppUserModelId = kIsAleraReleaseFlavor
+    ? 'Leynier.Alera'
+    : 'Leynier.Alera.Dev';
+const String aleraWindowsNotificationGuid = kIsAleraReleaseFlavor
+    ? '6f03d61e-b22a-42fc-9e44-a02319d77f55'
+    : 'd9d71450-17c3-41bd-b6ab-2e3fac3f417c';
 const String _openAleraActionLabel = 'Open $kAleraAppName';
 
 class DesktopAgentStatusNotificationService({
@@ -19,6 +26,8 @@ class DesktopAgentStatusNotificationService({
   this : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
 
   final FlutterLocalNotificationsPlugin _plugin;
+  final List<AgentStatusNotificationSelectionHandler> _selectionHandlers =
+      <AgentStatusNotificationSelectionHandler>[];
   Future<void>? _initializing;
   bool _initialized = false;
 
@@ -26,15 +35,16 @@ class DesktopAgentStatusNotificationService({
   Future<void> initialize({
     required AgentStatusNotificationSelectionHandler onSelected,
   }) {
+    if (!_selectionHandlers.contains(onSelected)) {
+      _selectionHandlers.add(onSelected);
+    }
     if (_initialized) {
       return Future<void>.value();
     }
-    return _initializing ??= _initialize(onSelected);
+    return _initializing ??= _initialize();
   }
 
-  Future<void> _initialize(
-    AgentStatusNotificationSelectionHandler onSelected,
-  ) async {
+  Future<void> _initialize() async {
     await _plugin.initialize(
       settings: const InitializationSettings(
         macOS: DarwinInitializationSettings(
@@ -56,7 +66,12 @@ class DesktopAgentStatusNotificationService({
         if (payload == null || payload.isEmpty) {
           return;
         }
-        onSelected(payload);
+        for (final handler
+            in List<AgentStatusNotificationSelectionHandler>.from(
+              _selectionHandlers,
+            )) {
+          handler(payload);
+        }
       },
     );
     _initialized = true;

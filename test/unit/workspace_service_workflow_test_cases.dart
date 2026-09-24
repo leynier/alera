@@ -6,7 +6,9 @@ void _registerWorkspaceServiceWorkflowTests() {
       'reconcile preserves workflow identity with live branch $changedBranch',
       () async {
         gitBackend.headBranch = 'main';
-        final mainWorkspace = await service.ensureMainWorkspace(project);
+        final mainWorkspace = (await service.createSharedWorkspace(
+          project: project,
+        )).workspace;
         Workspace linked(String id, {bool owned = false}) => Workspace(
           id: id,
           projectId: project.id,
@@ -60,7 +62,7 @@ void _registerWorkspaceServiceWorkflowTests() {
           <WorkspaceTabRecord>[tab],
         );
         expect(
-          (await service.ensureMainWorkspace(project)).id,
+          (await repository.findWorkspaceById(mainWorkspace.id))?.id,
           mainWorkspace.id,
         );
       },
@@ -68,7 +70,9 @@ void _registerWorkspaceServiceWorkflowTests() {
   }
 
   test('folder reconciliation preserves retained workflow metadata', () async {
-    final mainWorkspace = await service.ensureMainWorkspace(project);
+    final mainWorkspace = (await service.createSharedWorkspace(
+      project: project,
+    )).workspace;
     final task = mainWorkspace.copyWith(
       id: 'retained-task',
       kind: .linked,

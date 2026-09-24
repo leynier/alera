@@ -19,46 +19,56 @@ class const _ExplorerToolbar({
         padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
         child: Row(
           children: <Widget>[
-            Text(title, style: Theme.of(context).textTheme.titleSmall),
-            const Spacer(),
-            AleraIconButton(
-              tooltip: 'New file',
-              icon: AleraIcons.newFile,
-              onPressed: onNewFile,
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: .ellipsis,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
             ),
-            const SizedBox(width: AleraTokens.space2),
-            AleraIconButton(
-              tooltip: 'New folder',
-              icon: AleraIcons.newFolder,
-              onPressed: onNewFolder,
-            ),
-            const SizedBox(width: AleraTokens.space2),
-            AleraIconButton(
-              tooltip: 'Save all files',
-              icon: AleraIcons.save,
-              onPressed: onSaveAll,
-            ),
-            const SizedBox(width: AleraTokens.space2),
-            AleraIconButton(
-              tooltip: mode == WorkspaceExplorerMode.hideIgnored
-                  ? 'Show ignored files'
-                  : 'Hide ignored files',
-              icon: mode == WorkspaceExplorerMode.hideIgnored
-                  ? AleraIcons.hidden
-                  : AleraIcons.visible,
-              onPressed: onToggleMode,
-            ),
-            const SizedBox(width: AleraTokens.space2),
-            AleraIconButton(
-              tooltip: 'Collapse All',
-              icon: AleraIcons.collapseAll,
-              onPressed: onCollapseAll,
-            ),
-            const SizedBox(width: AleraTokens.space2),
-            AleraIconButton(
-              tooltip: 'Refresh',
-              icon: loading ? AleraIcons.loading : AleraIcons.refresh,
-              onPressed: loading ? null : onRefresh,
+            WorkbenchScrollableActions(
+              children: <Widget>[
+                AleraIconButton(
+                  tooltip: 'New file',
+                  icon: AleraIcons.newFile,
+                  onPressed: onNewFile,
+                ),
+                const SizedBox(width: AleraTokens.space2),
+                AleraIconButton(
+                  tooltip: 'New folder',
+                  icon: AleraIcons.newFolder,
+                  onPressed: onNewFolder,
+                ),
+                const SizedBox(width: AleraTokens.space2),
+                AleraIconButton(
+                  tooltip: 'Save all files',
+                  icon: AleraIcons.save,
+                  onPressed: onSaveAll,
+                ),
+                const SizedBox(width: AleraTokens.space2),
+                AleraIconButton(
+                  tooltip: mode == WorkspaceExplorerMode.hideIgnored
+                      ? 'Show ignored files'
+                      : 'Hide ignored files',
+                  icon: mode == WorkspaceExplorerMode.hideIgnored
+                      ? AleraIcons.hidden
+                      : AleraIcons.visible,
+                  onPressed: onToggleMode,
+                ),
+                const SizedBox(width: AleraTokens.space2),
+                AleraIconButton(
+                  tooltip: 'Collapse All',
+                  icon: AleraIcons.collapseAll,
+                  onPressed: onCollapseAll,
+                ),
+                const SizedBox(width: AleraTokens.space2),
+                AleraIconButton(
+                  tooltip: 'Refresh',
+                  icon: loading ? AleraIcons.loading : AleraIcons.refresh,
+                  onPressed: loading ? null : onRefresh,
+                ),
+              ],
             ),
           ],
         ),
@@ -284,6 +294,12 @@ class const _ExplorerMenuDelegate({
             label: 'Copy relative path',
             leading: Icon(AleraIcons.copy, size: 16),
           ),
+          if (node.type != tree.NodeType.folder)
+            const AleraDropdownEntry<_ExplorerAction>(
+              value: .comment,
+              label: 'Comment on File',
+              leading: Icon(AleraIcons.comment, size: 16),
+            ),
           const AleraDropdownEntry<_ExplorerAction>(
             value: .duplicate,
             label: 'Duplicate',
@@ -425,10 +441,31 @@ enum _ExplorerAction {
   paste,
   copyPath,
   copyRelativePath,
+  comment,
   duplicate,
   reveal,
   delete,
   refresh,
   focusSourceControlRoot,
   clearSourceControlRoot,
+}
+
+class const _AleraFlattenStrategy() extends tree.FlattenStrategy {
+  static const tree.DefaultFlattenStrategy _delegate =
+      tree.DefaultFlattenStrategy();
+
+  @override
+  List<tree.VisibleNode> flatten({
+    required tree.TreeData data,
+    required Set<String> expandedIds,
+    String? filterQuery,
+  }) {
+    return _delegate
+        .flatten(data: data, expandedIds: expandedIds, filterQuery: filterQuery)
+        .where(
+          (node) =>
+              !node.id.startsWith(_WorkspaceExplorerState._placeholderPrefix),
+        )
+        .toList(growable: false);
+  }
 }

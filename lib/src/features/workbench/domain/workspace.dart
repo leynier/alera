@@ -24,6 +24,7 @@ class const Workspace({
   this.instanceId,
   this.hostId = 'local',
   this.isPinned = false,
+  this.isArchived = false,
   this.tagIds = const <String>[],
   this.tagNames = const <String>[],
   this.sectionId,
@@ -45,6 +46,7 @@ class const Workspace({
   final String? instanceId;
   final String hostId;
   final bool isPinned;
+  final bool isArchived;
   final List<String> tagIds;
   final List<String> tagNames;
   final String? sectionId;
@@ -59,6 +61,11 @@ class const Workspace({
   bool get isActive => status == WorkspaceStatus.active;
 
   bool get hasParentWorkspace => parentWorkspaceId?.trim().isNotEmpty ?? false;
+
+  bool get isRemote {
+    final value = hostId.trim();
+    return value.isNotEmpty && value != 'local';
+  }
 
   factory fromJson(Map<String, Object?> json) =>
       WorkspaceMapper.fromMap(Map<String, dynamic>.from(json));

@@ -7,7 +7,9 @@ import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_scrollable_actions.dart';
 import 'package:alera/src/features/workbench/application/workspace_search_controller.dart';
+import 'package:alera/src/features/workbench/application/workspace_search_reveal.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/rust/api/workspace_search.dart' as native;
 import 'package:flutter/material.dart';
@@ -31,6 +33,10 @@ class const WorkspaceSearchPanel({
   super.key,
   required final Workspace workspace,
   required final ValueChanged<WorkspaceSearchMatchTarget> onOpenMatch,
+  final bool? viewAsTree,
+  final bool? includeIgnored,
+  final ValueChanged<bool>? onSetViewAsTree,
+  final ValueChanged<bool>? onSetIncludeIgnored,
 }) extends ConsumerStatefulWidget {
   @override
   ConsumerState<WorkspaceSearchPanel> createState() =>
@@ -42,6 +48,12 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
   late final TextEditingController _replacementController;
   late final TextEditingController _includeController;
   late final TextEditingController _excludeController;
+  final FocusNode _queryFocusNode = FocusNode(
+    debugLabel: 'WorkspaceSearchQuery',
+  );
+  final FocusNode _replacementFocusNode = FocusNode(
+    debugLabel: 'WorkspaceSearchReplacement',
+  );
   bool _replaceVisible = false;
   bool _detailsVisible = false;
   String? _initializedOptionalSectionsWorkspaceId;
@@ -60,6 +72,62 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
     _replacementController = TextEditingController();
     _includeController = TextEditingController();
     _excludeController = TextEditingController();
+    _scheduleViewPrefsSync();
+    // A shortcut that opened this panel set the request before it mounted, so
+    // the listener registered in build would never see it.
+    final pending = ref.read(workspaceSearchRevealProvider);
+    if (pending != null) {
+      _replaceVisible = _replaceVisible || pending.replace;
+      _handleReveal(pending);
+    }
+  }
+
+  /// Focuses the query, or shows the replace row and focuses the replacement,
+  /// for Find in Files and Replace in Files while the panel is already open.
+  void _handleReveal(WorkspaceSearchRevealRequest request) {
+    if (request.replace && !_replaceVisible) {
+      setState(() => _replaceVisible = true);
+    }
+    final target = request.replace ? _replacementFocusNode : _queryFocusNode;
+    // Deferred: this may run from initState, where providers cannot be
+    // modified, and the replacement field mounts on the coming frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      ref.read(workspaceSearchRevealProvider.notifier).consume(request);
+      target.requestFocus();
+    });
+  }
+
+  @override
+  void didUpdateWidget(WorkspaceSearchPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.viewAsTree != widget.viewAsTree ||
+        oldWidget.includeIgnored != widget.includeIgnored ||
+        oldWidget.workspace.id != widget.workspace.id) {
+      _scheduleViewPrefsSync();
+    }
+  }
+
+  /// The persisted view prefs are the source of truth, but the per-workspace
+  /// controller still owns the search request. Providers cannot change while
+  /// the tree builds, so the sync runs after the frame.
+  void _scheduleViewPrefsSync() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final controller = ref.read(
+        workspaceSearchControllerProvider(widget.workspace.id).notifier,
+      );
+      if (widget.viewAsTree case final viewAsTree?) {
+        controller.setViewAsTree(viewAsTree);
+      }
+      if (widget.includeIgnored case final includeIgnored?) {
+        controller.setIncludeIgnored(widget.workspace.path, includeIgnored);
+      }
+    });
   }
 
   @override
@@ -68,11 +136,18 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
     _replacementController.dispose();
     _includeController.dispose();
     _excludeController.dispose();
+    _queryFocusNode.dispose();
+    _replacementFocusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(workspaceSearchRevealProvider, (previous, request) {
+      if (request != null) {
+        _handleReveal(request);
+      }
+    });
     final provider = workspaceSearchControllerProvider(widget.workspace.id);
     final state = ref.watch(provider);
     _syncController(_queryController, state.query);
@@ -86,84 +161,108 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
         collapsibleNodeKeys.isNotEmpty &&
         collapsibleNodeKeys.every(state.collapsedResultNodeKeys.contains);
     final rows = _rowsFor(state);
-    return Column(
-      crossAxisAlignment: .stretch,
-      children: <Widget>[
-        _SearchToolbar(
-          state: state,
-          allResultsCollapsed: allResultsCollapsed,
-          onRefresh: () =>
-              unawaited(controller.searchNow(widget.workspace.path)),
-          onClear: controller.clearSearchResults,
-          onToggleIncludeIgnored: () =>
-              controller.toggleIncludeIgnored(widget.workspace.path),
-          onToggleViewAsTree: controller.toggleViewAsTree,
-          onToggleAllResultsCollapsed: controller.toggleAllResultsCollapsed,
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AleraTokens.space4,
-            AleraTokens.space8,
-            AleraTokens.space8,
-            AleraTokens.space8,
-          ),
+    return CustomScrollView(
+      slivers: <Widget>[
+        SliverToBoxAdapter(
           child: Column(
+            mainAxisSize: .min,
             crossAxisAlignment: .stretch,
             children: <Widget>[
-              _WorkspaceSearchInputs(
-                queryController: _queryController,
-                replacementController: _replacementController,
-                includeController: _includeController,
-                excludeController: _excludeController,
+              _SearchToolbar(
                 state: state,
-                replaceVisible: _replaceVisible,
-                detailsVisible: _detailsVisible,
-                canReplaceAll: _canReplaceAll(state),
-                onToggleReplace: _toggleReplacement,
-                onToggleDetails: _toggleDetails,
-                onQueryChanged: (value) =>
-                    controller.setQuery(widget.workspace.path, value),
-                onQuerySubmitted: (_) =>
+                allResultsCollapsed: allResultsCollapsed,
+                onRefresh: () =>
                     unawaited(controller.searchNow(widget.workspace.path)),
-                onReplacementChanged: (value) =>
-                    controller.setReplacement(widget.workspace.path, value),
-                onIncludeChanged: (value) =>
-                    controller.setIncludePattern(widget.workspace.path, value),
-                onExcludeChanged: (value) =>
-                    controller.setExcludePattern(widget.workspace.path, value),
-                onToggleCaseSensitive: () =>
-                    controller.toggleCaseSensitive(widget.workspace.path),
-                onToggleWholeWord: () =>
-                    controller.toggleWholeWord(widget.workspace.path),
-                onToggleUseRegex: () =>
-                    controller.toggleUseRegex(widget.workspace.path),
-                onTogglePreserveCase: () =>
-                    controller.togglePreserveCase(widget.workspace.path),
-                onReplaceAll: () => unawaited(_replace(const <String>[])),
+                onClear: controller.clearSearchResults,
+                onToggleIncludeIgnored: () {
+                  controller.toggleIncludeIgnored(widget.workspace.path);
+                  widget.onSetIncludeIgnored?.call(
+                    ref.read(provider).includeIgnored,
+                  );
+                },
+                onToggleViewAsTree: () {
+                  controller.toggleViewAsTree();
+                  widget.onSetViewAsTree?.call(ref.read(provider).viewAsTree);
+                },
+                onToggleAllResultsCollapsed:
+                    controller.toggleAllResultsCollapsed,
               ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AleraTokens.space4,
+                  AleraTokens.space8,
+                  AleraTokens.space8,
+                  AleraTokens.space8,
+                ),
+                child: Column(
+                  crossAxisAlignment: .stretch,
+                  children: <Widget>[
+                    _WorkspaceSearchInputs(
+                      queryController: _queryController,
+                      queryFocusNode: _queryFocusNode,
+                      replacementController: _replacementController,
+                      replacementFocusNode: _replacementFocusNode,
+                      includeController: _includeController,
+                      excludeController: _excludeController,
+                      state: state,
+                      replaceVisible: _replaceVisible,
+                      detailsVisible: _detailsVisible,
+                      canReplaceAll: _canReplaceAll(state),
+                      onToggleReplace: _toggleReplacement,
+                      onToggleDetails: _toggleDetails,
+                      onQueryChanged: (value) =>
+                          controller.setQuery(widget.workspace.path, value),
+                      onQuerySubmitted: (_) => unawaited(
+                        controller.searchNow(widget.workspace.path),
+                      ),
+                      onReplacementChanged: (value) => controller
+                          .setReplacement(widget.workspace.path, value),
+                      onIncludeChanged: (value) => controller.setIncludePattern(
+                        widget.workspace.path,
+                        value,
+                      ),
+                      onExcludeChanged: (value) => controller.setExcludePattern(
+                        widget.workspace.path,
+                        value,
+                      ),
+                      onToggleCaseSensitive: () =>
+                          controller.toggleCaseSensitive(widget.workspace.path),
+                      onToggleWholeWord: () =>
+                          controller.toggleWholeWord(widget.workspace.path),
+                      onToggleUseRegex: () =>
+                          controller.toggleUseRegex(widget.workspace.path),
+                      onTogglePreserveCase: () =>
+                          controller.togglePreserveCase(widget.workspace.path),
+                      onReplaceAll: () => unawaited(_replace(const <String>[])),
+                    ),
+                  ],
+                ),
+              ),
+              _SearchSummary(state: state),
+              if (state.error case final error?)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AleraTokens.space8,
+                    0,
+                    AleraTokens.space8,
+                    AleraTokens.space8,
+                  ),
+                  child: Text(
+                    error,
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: AleraTokens.error),
+                  ),
+                ),
+              const Divider(height: 1, color: AleraTokens.borderSubtle),
             ],
           ),
         ),
-        _SearchSummary(state: state),
-        if (state.error case final error?)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AleraTokens.space8,
-              0,
-              AleraTokens.space8,
-              AleraTokens.space8,
-            ),
-            child: Text(
-              error,
-              style: Theme.of(context).textTheme.bodySmall
-                  ?.copyWith(color: AleraTokens.error),
-            ),
-          ),
-        const Divider(height: 1, color: AleraTokens.borderSubtle),
-        Expanded(
+        SliverFillRemaining(
+          hasScrollBody: true,
           child: rows.items.isEmpty
               ? _SearchEmptyState(state: state)
               : ListView.builder(
+                  primary: false,
                   itemCount: rows.items.length,
                   itemBuilder: (context, index) {
                     final item = rows.items[index];

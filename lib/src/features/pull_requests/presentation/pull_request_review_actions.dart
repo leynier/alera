@@ -11,6 +11,8 @@ class const _PullRequestReviewActions({
   required final Future<void> Function() onClose,
   required final Future<void> Function(bool draft) onDraftStatusChanged,
   required final Future<void> Function() onUnlink,
+  final VoidCallback? onArchiveWorkspace,
+  final VoidCallback? onRemoveWorkspace,
 }) extends StatefulWidget {
   @override
   State<_PullRequestReviewActions> createState() =>
@@ -32,6 +34,12 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
         _PullRequestReviewAction.convertToDraft,
       if (review.isOpen && widget.canCloseReview)
         _PullRequestReviewAction.close,
+      if (review.state == HostedReviewState.merged &&
+          widget.onArchiveWorkspace != null)
+        _PullRequestReviewAction.archiveWorkspace,
+      if (review.state == HostedReviewState.merged &&
+          widget.onRemoveWorkspace != null)
+        _PullRequestReviewAction.removeWorkspace,
       _PullRequestReviewAction.unlink,
     ];
     return actions;
@@ -71,6 +79,10 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
           _PullRequestReviewAction.convertToDraft =>
             review.state == HostedReviewState.open &&
                 widget.canChangeDraftStatus,
+          _PullRequestReviewAction.archiveWorkspace =>
+            widget.onArchiveWorkspace != null,
+          _PullRequestReviewAction.removeWorkspace =>
+            widget.onRemoveWorkspace != null,
           _PullRequestReviewAction.unlink => true,
         };
     final showProgress = switch (action) {
@@ -85,6 +97,8 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
       _PullRequestReviewAction.markReady ||
       _PullRequestReviewAction.convertToDraft =>
         widget.action == PullRequestAction.draftStatus,
+      _PullRequestReviewAction.archiveWorkspace => false,
+      _PullRequestReviewAction.removeWorkspace => false,
       _PullRequestReviewAction.unlink =>
         widget.action == PullRequestAction.unlink,
     };
@@ -122,6 +136,12 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
         return;
       case _PullRequestReviewAction.unlink:
         await _confirmUnlink();
+        return;
+      case _PullRequestReviewAction.archiveWorkspace:
+        widget.onArchiveWorkspace?.call();
+        return;
+      case _PullRequestReviewAction.removeWorkspace:
+        widget.onRemoveWorkspace?.call();
         return;
       case _PullRequestReviewAction.markReady:
         await _confirmDraftStatus(draft: false);
@@ -230,6 +250,8 @@ enum _PullRequestReviewAction {
   markReady,
   convertToDraft,
   close,
+  archiveWorkspace,
+  removeWorkspace,
   unlink;
 
   factory fromMergeMethod(ReviewMergeMethod method) {
@@ -251,6 +273,8 @@ enum _PullRequestReviewAction {
     _PullRequestReviewAction.markReady ||
     _PullRequestReviewAction.convertToDraft ||
     _PullRequestReviewAction.close ||
+    _PullRequestReviewAction.archiveWorkspace ||
+    _PullRequestReviewAction.removeWorkspace ||
     _PullRequestReviewAction.unlink => null,
   };
 
@@ -263,6 +287,8 @@ enum _PullRequestReviewAction {
     _PullRequestReviewAction.markReady => 'Mark Ready For Review',
     _PullRequestReviewAction.convertToDraft => 'Convert To Draft',
     _PullRequestReviewAction.close => 'Close Pull Request',
+    _PullRequestReviewAction.archiveWorkspace => 'Archive Workspace',
+    _PullRequestReviewAction.removeWorkspace => 'Remove Workspace',
     _PullRequestReviewAction.unlink => 'Unlink Pull Request',
   };
 
@@ -274,10 +300,14 @@ enum _PullRequestReviewAction {
     _PullRequestReviewAction.markReady => AleraIcons.success,
     _PullRequestReviewAction.convertToDraft => AleraIcons.edit,
     _PullRequestReviewAction.close => AleraIcons.gitPullRequestClosed,
+    _PullRequestReviewAction.archiveWorkspace => AleraIcons.archive,
+    _PullRequestReviewAction.removeWorkspace => AleraIcons.delete,
     _PullRequestReviewAction.unlink => AleraIcons.unlink,
   };
 
-  bool get destructive => this == _PullRequestReviewAction.close;
+  bool get destructive =>
+      this == _PullRequestReviewAction.close ||
+      this == _PullRequestReviewAction.removeWorkspace;
 }
 
 class const _PullRequestActionButton({
@@ -291,6 +321,8 @@ class const _PullRequestActionButton({
   required final ValueChanged<_PullRequestReviewAction> onSelected,
 }) extends StatelessWidget {
   static const double _height = 34;
+  // Compensates the chevron segment so the label centers on the full width.
+  static const double _trailingWidth = 34.5;
 
   @override
   Widget build(BuildContext context) {
@@ -325,31 +357,36 @@ class const _PullRequestActionButton({
                     child: InkWell(
                       mouseCursor: primaryCursor,
                       onTap: primaryEnabled ? onPressed : null,
-                      child: Center(
-                        child: Row(
-                          mainAxisSize: .min,
-                          children: <Widget>[
-                            if (busy)
-                              SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: foreground,
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          left: actions.length > 1 ? _trailingWidth : 0,
+                        ),
+                        child: Center(
+                          child: Row(
+                            mainAxisSize: .min,
+                            children: <Widget>[
+                              if (busy)
+                                SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: foreground,
+                                  ),
+                                )
+                              else
+                                Icon(action.icon, size: 16, color: foreground),
+                              const SizedBox(width: AleraTokens.space8),
+                              Flexible(
+                                child: Text(
+                                  labelFor(action),
+                                  maxLines: 1,
+                                  overflow: .ellipsis,
+                                  style: textStyle,
                                 ),
-                              )
-                            else
-                              Icon(action.icon, size: 16, color: foreground),
-                            const SizedBox(width: AleraTokens.space8),
-                            Flexible(
-                              child: Text(
-                                labelFor(action),
-                                maxLines: 1,
-                                overflow: .ellipsis,
-                                style: textStyle,
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),

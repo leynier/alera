@@ -202,19 +202,12 @@ void _appendPinnedSection(
   if (prefs.pinnedSectionCollapsed) {
     return;
   }
-  for (final workspace in pinned) {
-    rows.add(
-      MobileWorkspaceEntryRow(
-        entry: WorkspaceTreeEntry(
-          workspace: workspace,
-          depth: 0,
-          visibleChildCount: 0,
-          childrenCollapsed: false,
-        ),
-        isPinnedCopy: true,
-      ),
-    );
-  }
+  _appendWorkspaceTreeRows(
+    rows,
+    pinned,
+    prefs.collapsedParentWorkspaceIds,
+    isPinnedCopy: true,
+  );
 }
 
 void _appendProjectSections({
@@ -290,13 +283,14 @@ void _appendFlatSection({
 void _appendWorkspaceTreeRows(
   List<MobileWorkspaceRow> rows,
   List<WorkspaceSummary> workspaces,
-  Set<String> collapsedParentWorkspaceIds,
-) {
+  Set<String> collapsedParentWorkspaceIds, {
+  bool isPinnedCopy = false,
+}) {
   for (final entry in buildWorkspaceTree(
     entries: workspaces,
     collapsedParentIds: collapsedParentWorkspaceIds,
   )) {
-    rows.add(MobileWorkspaceEntryRow(entry: entry));
+    rows.add(MobileWorkspaceEntryRow(entry: entry, isPinnedCopy: isPinnedCopy));
   }
 }
 
@@ -314,14 +308,18 @@ bool _matchesFilters(
       !workspace.tagIds.any(prefs.selectedTagIds.contains)) {
     return false;
   }
+  if (prefs.selectedSectionIds.isNotEmpty &&
+      (workspace.sectionId == null ||
+          !prefs.selectedSectionIds.contains(workspace.sectionId))) {
+    return false;
+  }
   if (prefs.showActiveWorkspacesOnly && !hasActivity) {
     return false;
   }
-  return switch (prefs.workspaceKindFilter) {
-    MobileWorkspaceKindFilter.all => true,
-    MobileWorkspaceKindFilter.defaultOnly => workspace.isMain,
-    MobileWorkspaceKindFilter.nonDefaultOnly => !workspace.isMain,
-  };
+  if (!prefs.showArchivedWorkspaces && workspace.isArchived) {
+    return false;
+  }
+  return true;
 }
 
 bool _matchesSearch(
@@ -347,15 +345,6 @@ int _compareWorkspaces(
   MobileViewPrefs prefs,
   Map<String, MobileAgentActivityRank?> activityByWorkspaceId,
 ) {
-  if (prefs.workspaceSort == MobileWorkbenchSortBy.name &&
-      left.isMain != right.isMain) {
-    return left.isMain ? -1 : 1;
-  }
-  if (prefs.workspaceSort == MobileWorkbenchSortBy.recent &&
-      prefs.groupBy != MobileWorkspaceGroupBy.none &&
-      left.isMain != right.isMain) {
-    return left.isMain ? -1 : 1;
-  }
   final order = switch (prefs.workspaceSort) {
     MobileWorkbenchSortBy.name => left.name.toLowerCase().compareTo(
       right.name.toLowerCase(),

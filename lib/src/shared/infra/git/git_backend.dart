@@ -23,6 +23,37 @@ abstract interface class GitBackend {
   /// The current branch short name, or `HEAD` when detached.
   Future<String> currentBranch(String path);
 
+  Future<String> defaultBranch(String path);
+
+  /// Creates [branch] at the current HEAD and makes it the active branch for
+  /// this checkout without changing the index or working tree. When
+  /// [expectedHead] or [expectedOid] is set, HEAD must still match that branch
+  /// and commit.
+  Future<void> createAndCheckoutBranch({
+    required String path,
+    required String branch,
+    String? expectedHead,
+    String? expectedOid,
+  });
+
+  /// Moves [branch] to the commit named by [targetRef] without checking it out
+  /// or changing the index or working tree. [branch] must not be HEAD. When
+  /// [expectedOid] is set, [branch] must still point at that commit.
+  Future<void> resetBranchToRef({
+    required String path,
+    required String branch,
+    required String targetRef,
+    String? expectedOid,
+  });
+
+  /// Checks out [branch] in the worktree at [path].
+  ///
+  /// Local branches switch in place. A remote-tracking name such as
+  /// `origin/feature` creates a local `feature` branch that tracks it when that
+  /// local name does not already exist. Local changes that would be overwritten
+  /// are rejected.
+  Future<void> checkoutBranch({required String path, required String branch});
+
   /// Whether a local branch named [branch] exists in [repoPath].
   Future<bool> branchExists(String repoPath, String branch);
 

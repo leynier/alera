@@ -12,6 +12,7 @@ import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
+import 'package:alera/src/features/workbench/domain/workspace_hand_on_result.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -19,9 +20,12 @@ import 'package:path/path.dart' as p;
 import 'fake_git_backend.dart';
 
 part 'workspace_service_core_test_cases.dart';
+part 'workspace_service_shared_checkout_test_cases.dart';
 part 'workspace_service_removal_test_cases.dart';
+part 'workspace_service_handoff_test_cases.dart';
 part 'workspace_service_test_harness.dart';
 part 'workspace_service_workflow_test_cases.dart';
+part 'workspace_service_remote_host_test_cases.dart';
 
 late Directory tempDir;
 late _FakeWorkbenchRepository repository;
@@ -60,8 +64,11 @@ void main() {
       }
     });
 
+    _registerWorkspaceServiceSharedCheckoutTests();
     _registerWorkspaceServiceCoreTests();
     _registerWorkspaceServiceRemovalTests();
     _registerWorkspaceServiceWorkflowTests();
+    _registerWorkspaceServiceHandoffTests();
+    _registerWorkspaceServiceRemoteHostTests();
   });
 }

@@ -387,6 +387,11 @@ void main() {
           requests.add(message);
           final type = message['type'];
           final payload = switch (type) {
+            'mobile.hello' => <String, Object?>{
+              'runtimeCapabilities': <String>[
+                sharedCheckoutWorkspacesCapability,
+              ],
+            },
             'project.register' => <String, Object?>{
               'project': <String, Object?>{
                 'id': 'project-1',
@@ -394,7 +399,7 @@ void main() {
                 'repoPath': '/srv/alera',
                 'kind': 'gitRepository',
               },
-              'mainWorkspace': <String, Object?>{
+              'initialWorkspace': <String, Object?>{
                 'id': 'workspace-1',
                 'instanceId': 'instance-1',
                 'hostId': 'local',
@@ -432,6 +437,7 @@ void main() {
       );
       addTearDown(client.dispose);
 
+      await client.authenticate(deviceId: 'test', deviceToken: 'test');
       final registration = await client.registerProject(
         path: '/srv/alera',
         name: 'Alera',
@@ -442,13 +448,18 @@ void main() {
         directoryName: 'alera',
       );
 
-      expect(registration.mainWorkspace.id, 'workspace-1');
+      expect(registration.initialWorkspace?.id, 'workspace-1');
       expect(registration.created, isTrue);
       expect(job.id, 'job-1');
-      expect(requests.map((request) => request['type']), <Object?>[
-        'project.register',
-        'project.clone.start',
-      ]);
+      expect(
+        requests
+            .map((request) => request['type'])
+            .where(
+              (type) =>
+                  type == 'project.register' || type == 'project.clone.start',
+            ),
+        <Object?>['project.register', 'project.clone.start'],
+      );
       expect(
         (requests.last['payload']! as Map<String, Object?>)['parentPath'],
         '/srv',

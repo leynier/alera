@@ -22,6 +22,7 @@ setup = [
 ]
 
 [new_workspace]
+source_branch = "develop"
 prompt_append = """
 Follow the project's contributor instructions.
 Run the focused tests before finishing.
@@ -62,9 +63,17 @@ Use setup commands when the workspace needs to install dependencies, generate fi
 
 Like the worktree settings, this value can be stored in `alera.toml` or edited under **Settings > Projects**. A UI override replaces the complete repository `alera.toml` config for that project, including this value. It does not disable `.worktreeinclude`.
 
+## Default Source Branch
+
+`new_workspace.source_branch` is the branch pre-selected in Source Branch pickers (New Workspace, including From Prompt) when that branch exists in the project. If the exact name is missing, Alera also tries the local or `origin/` twin. Pickers then keep the previous fallback (`main`, then `master`, then the first listed branch). `alera workspace add --worktree` uses the same twin resolution when `--source-branch` is omitted, but does not fall back to `main`/`master`; a missing name still fails. The value is a branch name, not a required Git ref at save time.
+
+Desktop and mobile Settings > Projects can set the same field as a UI override. `alera workspace add --worktree` uses it when `--source-branch` is omitted. `alera workspace start` still infers from the current workspace first.
+
 ## Where the setup runs
 
-The desktop and mobile apps do not hold the New Workspace UI open while the setup runs. They ask the runtime host to *prepare* the setup instead (`deferSetup`), so creation completes as soon as the Git worktree exists. Each app starts the returned command once in a terminal named **Setup** and detaches from it so the setup continues in the runtime host. On desktop, the workspace opens with its usual `Terminal 1` plus the **Setup** terminal where the work happens in view.
+The desktop and mobile apps close New Workspace as soon as Create is valid. Git worktree creation and the From Prompt pipeline run behind a job card so the rest of the app stays usable. Retry on a failed card reopens the same form with the submitted fields.
+
+They also do not hold that UI open while later setup commands run. They ask the runtime host to *prepare* the setup instead (`deferSetup`), so the job finishes as soon as the Git worktree exists. Each app starts the returned command once in a terminal named **Setup** and detaches from it so the setup continues in the runtime host. On desktop, the workspace opens with its usual `Terminal 1` plus the **Setup** terminal where the work happens in view.
 
 The Setup terminal runs a script the host generates. That script exists because the terminal hosts whatever interactive shell the user configured, and chaining with `&&` is not portable: PowerShell 5.1 rejects it at parse time and nushell removed it. Writing one command per line up front does not work either, since the later lines would be delivered to the standard input of the process the earlier line started. So the terminal runs a single portable line (`/bin/sh "<script>"`, or `cmd /d /c "<script>"` on Windows) and the script does the sequencing.
 
@@ -80,6 +89,19 @@ Inside the Setup terminal:
 The command is delivered once. After it is on its way the host drops it from the tab record, so restarting the terminal, the app, or the host leaves a clean shell rather than reinstalling dependencies.
 
 `alera workspace add` keeps running the setup inline and reporting it, because the CLI has no terminal tab to show it in. `alera workspace setup --id <workspace>` applies a project's setup to an existing workspace, with `--copies-only` for just the copy actions. An older runtime host that does not understand `deferSetup` ignores it and runs the setup inline, which is the behavior described in the rest of this page.
+
+## Automation declaration
+
+Scheduled and manual automation execution require an explicit repository opt-in in `alera.toml`. Draft create, edit, trash, restore, and approve do not. Desktop, Mobile, and `alera automation` share this gate.
+
+```toml
+[automation]
+declared = true
+```
+
+Alera also accepts the top-level form `automation_declared = true`. `[automation] enabled = true` is an alias of `declared`. The host reads the workspace checkout first, then the project repository root. Settings shows this as a read-only switch; it cannot be granted from the UI. Agent profile execution opt-in (`mayExecute`) is a separate policy.
+
+The shipped automation surface is `alera automation` plus the desktop Automations dialog and the mobile Host Details Automations card. Existing-tab targets require workspace and tab ids. Conversation id is optional when saving; existing-tab execution still requires a conversation ID whose continuity can be verified. Circuit breakers open after a failure streak and auto-reset after `circuitOpenSeconds`.
 
 ## Git hosting provider
 

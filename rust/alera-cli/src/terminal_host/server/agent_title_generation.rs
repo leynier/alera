@@ -6,9 +6,9 @@ use uuid::Uuid;
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{error_response, ok_response};
 
-use super::agent_title_context::{clean_terminal, codex_context, parse_title, title_prompt};
+use super::agent_title_context::{clean_terminal, parse_title, title_prompt};
 use super::agent_title_state::{is_manual, AgentTitleState};
-use super::ai_assist_requests::{plan_command, run_command};
+use super::ai_assist_generation::generate_ai_assist_output;
 use super::{ServerActor, ServerCommand};
 
 pub(super) struct AgentTitleJob {
@@ -57,10 +57,7 @@ impl ServerActor {
         if self.agent_title_jobs.contains_key(&tab_id) {
             return Err(HostError::state("Title generation is already running."));
         }
-        let mut state = AgentTitleState::read(&tab).unwrap_or_else(|| AgentTitleState::new(false));
-        if state.initial_prompt.is_empty() && tab.kind == "codex" {
-            state.initial_prompt = super::agent_title_events::first_codex_prompt(&tab);
-        }
+        let state = AgentTitleState::read(&tab).unwrap_or_else(|| AgentTitleState::new(false));
         state.write(&mut tab);
         self.queue_agent_title(tab, state, Some((client, request)))
             .await
@@ -157,19 +154,16 @@ impl ServerActor {
         }
         let state = AgentTitleState::read(&tab)
             .ok_or_else(|| HostError::state("Conversation state is unavailable."))?;
-        let recent = if tab.kind == "codex" {
-            codex_context(&super::codex_state::snapshot(&tab))
-        } else {
-            let session_id = super::requests::terminal_session_id_from_tab(&tab)
-                .unwrap_or_else(|| tab.id.clone());
-            self.sessions
-                .get(&session_id)
-                .map(|session| {
-                    let bytes = session.recent_output_since(state.cursor, 64 * 1024);
-                    String::from_utf8_lossy(&bytes).to_string()
-                })
-                .unwrap_or_default()
-        };
+        let session_id =
+            super::requests::terminal_session_id_from_tab(&tab).unwrap_or_else(|| tab.id.clone());
+        let recent = self
+            .sessions
+            .get(&session_id)
+            .map(|session| {
+                let bytes = session.recent_output_since(state.cursor, 64 * 1024);
+                String::from_utf8_lossy(&bytes).to_string()
+            })
+            .unwrap_or_default();
         let automatic = job.automatic;
         let initial = state.initial_prompt;
         let inbox = self.inbox.clone();
@@ -186,9 +180,8 @@ impl ServerActor {
                 // Bounded parsing and command preparation stay off the server actor.
                 let recent = if automatic && !initial.is_empty() { String::new() } else { clean_terminal(&recent) };
                 let prompt = title_prompt(&initial, &recent, settings.instructions_by_operation.get("agentTitle").map(String::as_str).unwrap_or_default())?;
-                let plan = plan_command(&settings, "agentTitle", &prompt)?;
                 tokio::fs::create_dir_all(&directory).await.map_err(|_| HostError::state("Could not prepare title generation."))?;
-                let output = run_command(plan, &directory.to_string_lossy(), settings.timeout_seconds, cancel_rx).await
+                let (output, _) = generate_ai_assist_output(&settings, "agentTitle", &prompt, &directory.to_string_lossy(), cancel_rx).await
                     .map_err(|_| HostError::state("AI Assist could not generate a title. Check the configured provider and try again."))?;
                 parse_title(&output)
             }.await;
@@ -261,24 +254,6 @@ impl ServerActor {
                 return Err(error);
             }
         };
-        if tab.kind == "codex" {
-            if let Some(thread_id) = super::codex_state::tab_thread_id(&tab) {
-                if let Err(error) = self
-                    .codex_server_request(
-                        "thread/name/set",
-                        json!({"threadId": thread_id, "name": title}),
-                    )
-                    .await
-                {
-                    tab.payload["agentTitleStatus"] = json!("failed");
-                    let workspace_id = tab.workspace_id.clone();
-                    let _ = self.runtime_store.upsert_workspace_tab(tab).await;
-                    self.broadcast_workspace_tabs_changed(Some(&workspace_id));
-                    return Err(error);
-                }
-            }
-            super::codex_thread_identity::apply_manual_thread_title(&mut tab, &title);
-        }
         tab.title = title.clone();
         // Older clients already honor manualTitle over OSC titles.
         tab.payload["manualTitle"] = json!(true);

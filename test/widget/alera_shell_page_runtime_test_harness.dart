@@ -12,8 +12,43 @@ class const _ShellPumpHarness({
   required final _ShellTestAgentStatusController agentStatus,
 });
 
-class const _FakeManagedWorkspaceRuntime()
-    implements ManagedWorkspaceRuntime, WorkspaceStorageRuntime {
+class _ShellRuntimeHostClient implements RuntimeHostClient {
+  @override
+  Stream<RuntimeHostEvent> get runtimeEvents => const Stream.empty();
+
+  @override
+  Future<Object?> runtimeRequest(
+    String type, [
+    Map<String, Object?> payload = const <String, Object?>{},
+    Duration? timeout,
+  ]) async {
+    if (type == 'sshTarget.list') {
+      return const <Object?>[];
+    }
+    return <String, Object?>{};
+  }
+}
+
+class const _FakeManagedWorkspaceRuntime({
+  final List<WorkspaceRemovalDependency> dependencies = const [],
+  final VoidCallback? onPause,
+}) implements
+    ManagedWorkspaceRuntime,
+    WorkspaceStorageRuntime,
+    ProjectRemovalDependencyRuntime {
+  @override
+  Future<List<WorkspaceRemovalDependency>> projectRemovalDependencies(
+    String projectId,
+  ) async => dependencies;
+
+  @override
+  Future<void> pauseProjectRemovalDependencies(
+    String projectId,
+    List<WorkspaceRemovalDependency> approved,
+  ) async {
+    onPause?.call();
+  }
+
   @override
   Future<WorkspaceCreationResult> createLinkedWorkspace({
     required Project project,
@@ -21,6 +56,8 @@ class const _FakeManagedWorkspaceRuntime()
     required String newBranchName,
     required bool reuseExistingBranch,
     String? name,
+    String? hostId,
+    String? issueUrl,
   }) => throw UnsupportedError('Workspace creation is not used by shell tests');
 
   @override
@@ -29,6 +66,24 @@ class const _FakeManagedWorkspaceRuntime()
     bool? deleteBranch,
     String? activeWorkspaceId,
   }) async {}
+
+  @override
+  Future<WorkspaceCreationResult> handOffWorkspace({
+    String? relocationId,
+    required Workspace workspace,
+    required String branch,
+    required bool reuseExistingBranch,
+    bool moveChanges = true,
+    String? replacementBranch,
+    String? name,
+  }) => throw UnsupportedError('Hand off is not used by shell tests');
+
+  @override
+  Future<WorkspaceHandOnResult> handOnWorkspace({
+    String? relocationId,
+    required Workspace workspace,
+    String? activeWorkspaceId,
+  }) => throw UnsupportedError('Hand on is not used by shell tests');
 
   @override
   Future<WorkspaceStorageImpact> storageImpact({
@@ -85,6 +140,10 @@ class _FakeTerminalRuntime implements TerminalRuntime {
     0,
     (sum, session) => sum + session.requestFocusCalls,
   );
+
+  /// Whether the fake emulator of [tabId] currently holds the primary focus.
+  bool terminalHasFocus(String tabId) =>
+      _sessions[tabId]?.focusNode.hasFocus ?? false;
 
   /// Tab ids that received at least one `requestFocus()` call.
   Iterable<String> get focusedTabIds => _sessions.entries
@@ -187,15 +246,26 @@ class _FakeTerminalSessionHandle({
     return _ShellVisibilityLease(() => visibilityLeases--);
   }
 
+  /// A real node, so the terminal-focused shortcut hook and the pane focus
+  /// registry see the same focus tree they do with the production emulator.
+  final FocusNode focusNode = FocusNode();
+
   @override
   Widget buildView({
     Key? key,
     bool autofocus = false,
     FocusOnKeyEventCallback? onKeyEvent,
   }) {
-    return Center(
-      key: ValueKey<String>('fake-terminal-${tab.id}'),
-      child: Text('Terminal ${tab.title}'),
+    return Focus(
+      key: key,
+      focusNode: focusNode,
+      autofocus: autofocus,
+      skipTraversal: true,
+      onKeyEvent: onKeyEvent,
+      child: Center(
+        key: ValueKey<String>('fake-terminal-${tab.id}'),
+        child: Text('Terminal ${tab.title}'),
+      ),
     );
   }
 
@@ -204,6 +274,18 @@ class _FakeTerminalSessionHandle({
   @override
   void requestFocus() {
     requestFocusCalls += 1;
+    // Match production: the new tab is often not mounted until the next frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (focusNode.context != null) {
+        focusNode.requestFocus();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    focusNode.dispose();
+    super.dispose();
   }
 }
 

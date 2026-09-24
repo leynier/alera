@@ -3,22 +3,28 @@ import 'dart:async';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
-import 'package:alera/src/features/browser/application/browser_providers.dart';
-import 'package:alera/src/features/browser/domain/browser_engine_models.dart';
 import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_command_palette_dialog.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
+import 'package:alera/src/features/remote_hosts/infra/runtime_ssh_target_repository.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
+import 'package:alera/src/features/workbench/application/workspace_search_reveal.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
+import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+part 'keyboard_command_dispatcher_navigation_test_cases.dart';
 part 'keyboard_command_dispatcher_test_harness.dart';
 
 class _DispatcherAgentProfiles extends AgentProfiles {
@@ -27,6 +33,8 @@ class _DispatcherAgentProfiles extends AgentProfiles {
 }
 
 void main() {
+  _registerKeyboardCommandDispatcherNavigationTests();
+
   testWidgets('split command stays safe after the dispatcher host unmounts', (
     tester,
   ) async {
@@ -148,8 +156,6 @@ void main() {
 
     dispatcher.dispatch(.newTerminalTab);
     await tester.pump();
-    dispatcher.dispatch(.newBrowserTab);
-    await tester.pump();
 
     dispatcher.dispatch(.nextTab);
     dispatcher.dispatch(.previousTab);
@@ -161,16 +167,106 @@ void main() {
     await tester.pump();
 
     expect(controller.createdTerminalWorkspaceIds, <String>[workspace.id]);
-    expect(controller.createdBrowserWorkspaceIds, <String>[workspace.id]);
     expect(runtime.everFocusedTabIds, contains(newTab.id));
-    expect(controller.selectedTabIds, <String>[
-      firstTab.id,
-      newTab.id,
-      secondTab.id,
-      newTab.id,
+    expect(controller.selectedWorkspacePanelKeys, <String>[
+      'tab:${secondTab.id}',
+      'tab:${newTab.id}',
+      'tab:${thirdTab.id}',
+      'tab:${newTab.id}',
     ]);
     expect(runtime.closedTabIds, <String>[newTab.id]);
     expect(controller.closedTabIds, <String>[newTab.id]);
+  });
+
+  testWidgets('closeTab closes a focused main-pane tool before the terminal', (
+    tester,
+  ) async {
+    final workspace = _workspace();
+    final terminal = _tab(id: 'tab-1');
+    final panel = WorkspacePanel(
+      primaryTabId: terminal.id,
+      tabKeys: const <String>['tool:search'],
+      focusedKey: WorkspaceTool.search.key,
+    );
+    final controller = _DispatcherTestWorkbenchController(
+      WorkbenchState(
+        workspacesByProject: <String, List<Workspace>>{
+          workspace.projectId: <Workspace>[workspace],
+        },
+        tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
+          workspace.id: <WorkspaceTabRecord>[terminal],
+        },
+        activeWorkspaceId: workspace.id,
+        activeTabIdByWorkspace: <String, String>{workspace.id: terminal.id},
+        viewPrefs: WorkbenchViewPrefs.defaults.copyWith(
+          workspacePanels: <String, WorkspacePanel>{workspace.id: panel},
+        ),
+      ),
+    );
+    final harness = await _pumpDispatcherHarness(
+      tester,
+      controller: controller,
+      runtime: _FakeTerminalRuntime(),
+    );
+    final dispatcher = KeyboardCommandDispatcher(
+      ref: harness.ref,
+      context: harness.context,
+    );
+
+    dispatcher.dispatch(.closeTab);
+    await tester.pump();
+
+    expect(controller.closedTools, <WorkspaceTool>[WorkspaceTool.search]);
+    expect(controller.closedTabIds, isEmpty);
+  });
+
+  testWidgets('previousTab wraps from the first tab in the focused pane', (
+    tester,
+  ) async {
+    final workspace = _workspace();
+    final firstTab = _tab(id: 'tab-1');
+    final secondTab = _tab(id: 'tab-2');
+    final thirdTab = _tab(id: 'tab-3');
+    final layout =
+        WorkbenchLayout.single(
+          workspaceId: workspace.id,
+          tabIds: <String>[
+            WorkspacePanel.tabKey(firstTab.id),
+            WorkspacePanel.tabKey(secondTab.id),
+            WorkspacePanel.tabKey(thirdTab.id),
+          ],
+        ).setActiveTab(
+          groupId: WorkbenchLayout.defaultGroupId(workspace.id),
+          tabId: WorkspacePanel.tabKey(firstTab.id),
+        );
+    final panel = const WorkspacePanel()
+        .applyMainLayout(layout)
+        .select(WorkspacePanel.tabKey(firstTab.id));
+    final controller = _DispatcherTestWorkbenchController(
+      WorkbenchState(
+        workspacesByProject: <String, List<Workspace>>{
+          workspace.projectId: <Workspace>[workspace],
+        },
+        tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
+          workspace.id: <WorkspaceTabRecord>[firstTab, secondTab, thirdTab],
+        },
+        activeWorkspaceId: workspace.id,
+        viewPrefs: WorkbenchViewPrefs.defaults.copyWith(
+          workspacePanels: <String, WorkspacePanel>{workspace.id: panel},
+        ),
+      ),
+    );
+    final harness = await _pumpDispatcherHarness(
+      tester,
+      controller: controller,
+      runtime: _FakeTerminalRuntime(),
+    );
+    final dispatcher = KeyboardCommandDispatcher(
+      ref: harness.ref,
+      context: harness.context,
+    );
+    dispatcher.dispatch(.previousTab);
+    expect(controller.selectedWorkspacePanelKeys, <String>['tab:tab-3']);
   });
 
   testWidgets('worktree navigation commands use the controller history', (
@@ -231,17 +327,20 @@ void main() {
 
     expect(singleController.mergedSplits, isEmpty);
 
+    final mainGroupId =
+        '${workspace.id}/${WorkspacePanel.mainLayoutGroupSuffix}';
     final splitLayout =
         WorkbenchLayout.single(
           workspaceId: workspace.id,
-          tabIds: <String>[firstTab.id],
+          tabIds: <String>[WorkspacePanel.tabKey(firstTab.id)],
+          groupId: mainGroupId,
         ).splitWithGroup(
-          targetGroupId: WorkbenchLayout.defaultGroupId(workspace.id),
+          targetGroupId: mainGroupId,
           zone: .right,
           newGroup: WorkbenchPaneGroup(
             id: 'group-2',
-            tabIds: <String>[secondTab.id],
-            activeTabId: secondTab.id,
+            tabIds: <String>[WorkspacePanel.tabKey(secondTab.id)],
+            activeTabId: WorkspacePanel.tabKey(secondTab.id),
           ),
         );
     final splitController = _DispatcherTestWorkbenchController(
@@ -254,6 +353,15 @@ void main() {
         },
         layoutByWorkspace: <String, WorkbenchLayout>{workspace.id: splitLayout},
         activeWorkspaceId: workspace.id,
+        viewPrefs: WorkbenchViewPrefs.defaults.copyWith(
+          workspacePanels: <String, WorkspacePanel>{
+            workspace.id: WorkspacePanel(
+              mainLayout: splitLayout,
+              tabKeys: const <String>[],
+              focusedKey: WorkspacePanel.tabKey(secondTab.id),
+            ),
+          },
+        ),
       ),
     );
     final splitHarness = await _pumpDispatcherHarness(
@@ -297,6 +405,11 @@ void main() {
           ),
         },
         activeWorkspaceId: workspace.id,
+        viewPrefs: WorkbenchViewPrefs.defaults.copyWith(
+          workspacePanels: <String, WorkspacePanel>{
+            workspace.id: WorkspacePanel(primaryTabId: firstTab.id),
+          },
+        ),
       ),
     );
     final runtime = _FakeTerminalRuntime();
@@ -320,7 +433,7 @@ void main() {
       <({String workspaceId, String groupId, WorkbenchDropZone zone})>[
         (
           workspaceId: workspace.id,
-          groupId: WorkbenchLayout.defaultGroupId(workspace.id),
+          groupId: '${workspace.id}/${WorkspacePanel.mainLayoutGroupSuffix}',
           zone: WorkbenchDropZone.down,
         ),
       ],

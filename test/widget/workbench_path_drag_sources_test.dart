@@ -187,6 +187,7 @@ Future<void> _pumpSourceControl(
                 gitDiffRoot,
                 required scope,
                 bool preview = false,
+                bool oppositePanel = false,
               }) async {},
               onOpenGitCommitDiff: ({
                 relativePath,
@@ -199,6 +200,7 @@ Future<void> _pumpSourceControl(
                 subject,
                 message,
                 bool preview = false,
+                bool oppositePanel = false,
               }) async {},
             ),
           ),

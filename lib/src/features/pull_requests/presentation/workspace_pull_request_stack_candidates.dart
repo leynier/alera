@@ -8,9 +8,7 @@ List<ReviewStackWorkspaceCandidate> buildReviewStackWorkspaceCandidates({
 }) {
   return <ReviewStackWorkspaceCandidate>[
     for (final workspace in workspaces)
-      if (workspace.isActive &&
-          !workspace.isMain &&
-          workspace.branch?.trim().isNotEmpty == true)
+      if (workspace.isActive && workspace.branch?.trim().isNotEmpty == true)
         ReviewStackWorkspaceCandidate(
           workspaceId: workspace.id,
           name: workspace.name,
@@ -19,6 +17,7 @@ List<ReviewStackWorkspaceCandidate> buildReviewStackWorkspaceCandidates({
               : workspace.path,
           branch: workspace.branch!.trim(),
           current: workspace.id == currentWorkspaceId,
+          repositoryId: '${workspace.hostId}:${workspace.projectId}',
           sourceBranch: workspace.sourceBranch,
           parentWorkspaceId: workspace.parentWorkspaceId,
         ),
@@ -31,20 +30,42 @@ List<ReviewStackWorkspaceCandidate> applyLiveReviewStackWorkspaceBranch({
 }) {
   final liveBranch = branch?.trim();
   if (liveBranch == null || liveBranch.isEmpty) {
-    return candidates;
+    return _uniqueRepositoryBranches(candidates);
   }
-  return <ReviewStackWorkspaceCandidate>[
+  final currentCandidate = candidates
+      .where((candidate) => candidate.current)
+      .firstOrNull;
+  return _uniqueRepositoryBranches(<ReviewStackWorkspaceCandidate>[
     for (final candidate in candidates)
-      candidate.current
+      candidate.current ||
+              (candidate.repoPath == currentCandidate?.repoPath &&
+                  candidate.repositoryId == currentCandidate?.repositoryId)
           ? ReviewStackWorkspaceCandidate(
               workspaceId: candidate.workspaceId,
               name: candidate.name,
               repoPath: candidate.repoPath,
               branch: liveBranch,
-              current: true,
+              current: candidate.current,
+              repositoryId: candidate.repositoryId,
               sourceBranch: candidate.sourceBranch,
               parentWorkspaceId: candidate.parentWorkspaceId,
             )
           : candidate,
-  ];
+  ]);
+}
+
+List<ReviewStackWorkspaceCandidate> _uniqueRepositoryBranches(
+  List<ReviewStackWorkspaceCandidate> candidates,
+) {
+  final byBranch = <(String, String), ReviewStackWorkspaceCandidate>{};
+  for (final candidate in candidates) {
+    final key = (
+      candidate.repositoryId ?? candidate.repoPath,
+      candidate.branch,
+    );
+    if (!byBranch.containsKey(key) || candidate.current) {
+      byBranch[key] = candidate;
+    }
+  }
+  return byBranch.values.toList(growable: false);
 }

@@ -224,4 +224,37 @@ void main() {
       expect(chord.format(isMacOS: false), 'Ctrl+Audio Volume Up');
     });
   });
+
+  group('isModModifierPressed', () {
+    test('uses meta on macOS and control elsewhere', () {
+      expect(
+        isModModifierPressed(
+          modifiers: const KeyModifierState(meta: true),
+          platform: TargetPlatform.macOS,
+        ),
+        isTrue,
+      );
+      expect(
+        isModModifierPressed(
+          modifiers: const KeyModifierState(control: true),
+          platform: TargetPlatform.macOS,
+        ),
+        isFalse,
+      );
+      expect(
+        isModModifierPressed(
+          modifiers: const KeyModifierState(control: true),
+          platform: TargetPlatform.linux,
+        ),
+        isTrue,
+      );
+      expect(
+        isModModifierPressed(
+          modifiers: const KeyModifierState(meta: true),
+          platform: TargetPlatform.windows,
+        ),
+        isFalse,
+      );
+    });
+  });
 }

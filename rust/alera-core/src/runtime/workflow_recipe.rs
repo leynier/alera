@@ -88,7 +88,7 @@ impl WorkflowRecipeV1 {
     pub fn content_digest(&self) -> Result<String> {
         let mut value = serde_json::to_value(self)?;
         value.sort_all_objects();
-        Ok(format!("{:x}", Sha256::digest(serde_json::to_vec(&value)?)))
+        Ok(hex::encode(Sha256::digest(serde_json::to_vec(&value)?)))
     }
 
     /// JSON is a YAML subset and provides deterministic, portable export
@@ -129,7 +129,7 @@ impl WorkflowRecipeSnapshot {
     fn content_digest(&self) -> Result<String> {
         let mut value = serde_json::json!([self.version, self.source, self.recipe]);
         value.sort_all_objects();
-        Ok(format!("{:x}", Sha256::digest(serde_json::to_vec(&value)?)))
+        Ok(hex::encode(Sha256::digest(serde_json::to_vec(&value)?)))
     }
 }
 

@@ -4,6 +4,10 @@
 
 use clap::Args;
 
+use crate::cli::{AgentProfileSelectorArgs, SpecSourceArgs};
+use crate::cli_orchestration_timeouts::parse_agent_spawn_timeout_ms;
+use crate::terminal_host::protocol::ORCHESTRATION_ACCEPTANCE_TIMEOUT_MS;
+
 #[derive(Debug, Args)]
 pub struct OrchestrationRunPolicyProposeArgs {
     /// Run the plan applies to.
@@ -81,4 +85,60 @@ pub struct OrchestrationRunStopArgs {
     /// Bypass coordinator ownership for an audited administrative stop.
     #[arg(long)]
     pub force: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct OrchestrationDelegateArgs {
+    #[command(flatten)]
+    pub selector: AgentProfileSelectorArgs,
+    #[command(flatten)]
+    pub spec: SpecSourceArgs,
+    /// Short title for listings. Defaults to the first line of the spec.
+    #[arg(long = "task-title", value_name = "text")]
+    pub task_title: Option<String>,
+    /// Existing workspace that owns the task. Defaults to ALERA_WORKSPACE_ID.
+    #[arg(
+        long = "workspace",
+        value_name = "workspace_id",
+        conflicts_with = "new_workspace"
+    )]
+    pub workspace: Option<String>,
+    /// Create a child worktree, then delegate into it.
+    #[arg(long = "new-workspace")]
+    pub new_workspace: bool,
+    #[arg(long)]
+    pub id: Option<String>,
+    #[arg(long = "project-id")]
+    pub project_id: Option<String>,
+    #[arg(long)]
+    pub branch: Option<String>,
+    #[arg(long = "source-branch")]
+    pub source_branch: Option<String>,
+    #[arg(long)]
+    pub name: Option<String>,
+    #[arg(long = "workspace-root", conflicts_with = "path")]
+    pub workspace_root: Option<String>,
+    #[arg(long, conflicts_with = "workspace_root")]
+    pub path: Option<String>,
+    /// Workspace used to infer project, source branch, and parent when --new-workspace is set.
+    #[arg(long = "from-workspace", value_name = "workspace_id")]
+    pub from_workspace: Option<String>,
+    #[arg(long = "parent-workspace-id", conflicts_with = "no_parent")]
+    pub parent_workspace_id: Option<String>,
+    /// Do not link the new workspace to the current workspace.
+    #[arg(long = "no-parent")]
+    pub no_parent: bool,
+    /// Coordinator terminal. Defaults to ALERA_TERMINAL_HANDLE.
+    #[arg(long = "from", value_name = "handle")]
+    pub from: Option<String>,
+    /// Preserve a newly-created worker terminal when startup fails.
+    #[arg(long = "keep-on-failure")]
+    pub keep_on_failure: bool,
+    /// Maximum time to wait for dispatch acceptance.
+    #[arg(
+        long = "timeout-ms",
+        default_value_t = ORCHESTRATION_ACCEPTANCE_TIMEOUT_MS,
+        value_parser = parse_agent_spawn_timeout_ms
+    )]
+    pub timeout_ms: u64,
 }

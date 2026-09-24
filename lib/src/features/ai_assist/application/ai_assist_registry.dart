@@ -5,6 +5,7 @@ import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 part 'grok_ai_assist.dart';
 part 'fx_ai_assist.dart';
 part 'opencode_ai_assist.dart';
+part 'opencode_go_ai_assist.dart';
 part 'claude_ai_assist.dart';
 part 'ai_assist_model_labels.dart';
 part 'ai_assist_output_capabilities.dart';
@@ -64,6 +65,7 @@ class const AiAssistAgentSpec({
     required int timeoutSeconds,
   })
   buildArgs,
+  final bool supportsRemoteDiscovery = false,
   final bool modelCanInherit = false,
   final AiNativeStructuredOutput nativeStructuredOutput =
       AiNativeStructuredOutput.none,
@@ -75,6 +77,9 @@ class const AiAssistAgentSpec({
   final int maxPromptBytes = 1024 * 1024,
 }) {
   String get label => agent.label;
+
+  bool get canDiscoverModels =>
+      supportsRemoteDiscovery || modelsCommand != null;
 }
 
 const List<AiThinkingLevel> basicThinkingLevels = <AiThinkingLevel>[
@@ -264,6 +269,7 @@ aiAssistAgentSpecs = <AiAssistAgent, AiAssistAgentSpec>{
     agent: .opencode2,
     binary: 'opencode2',
   ),
+  AiAssistAgent.opencodeGo: openCodeGoAiAssistSpec,
   AiAssistAgent.pi: AiAssistAgentSpec(
     agent: .pi,
     binary: 'pi',

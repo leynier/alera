@@ -109,7 +109,7 @@ impl WorkflowPlanSnapshot {
 pub(super) fn workflow_digest(value: &impl Serialize) -> Result<String> {
     let mut value = serde_json::to_value(value)?;
     value.sort_all_objects();
-    Ok(format!("{:x}", Sha256::digest(serde_json::to_vec(&value)?)))
+    Ok(hex::encode(Sha256::digest(serde_json::to_vec(&value)?)))
 }
 
 pub(super) fn workflow_text(value: &str, max: usize) -> Result<()> {

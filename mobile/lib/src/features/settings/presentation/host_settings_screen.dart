@@ -202,7 +202,7 @@ Future<void> _restartRuntime(
     context: context,
     builder: (_) => const AleraConfirmDialog(
       title: 'Restart Runtime?',
-      message: 'Restarting disconnects every client. Active terminals, agents, emulators, and background jobs must stop first.',
+      message: 'Restarting disconnects every client. Active terminals, agents, and background jobs must stop first.',
       confirmLabel: 'Restart Runtime',
     ),
   );

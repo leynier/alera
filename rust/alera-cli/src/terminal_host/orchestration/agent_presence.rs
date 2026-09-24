@@ -136,6 +136,10 @@ impl AgentPresenceRegistry {
             .get(handle)
             .map(|entry| entry.agent_type.as_str())
     }
+
+    pub fn has(&self, handle: &str) -> bool {
+        self.entries.contains_key(handle)
+    }
 }
 
 #[cfg(test)]

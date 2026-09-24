@@ -26,10 +26,9 @@ pub async fn run_terminal_host_server(
     };
     let store = TerminalHostHistoryStore::open(&runtime_dir).await?;
     let runtime_store = RuntimeStore::open(&runtime_dir).await?;
+    runtime_store.retire_removed_features().await?;
     crate::hosted_review_retention::reconcile(&runtime_store).await;
-    runtime_store.cleanup_agent_canvases().await?;
-    runtime_store.expire_agent_canvas_decisions().await?;
-    runtime_store.ensure_default_browser_profile().await?;
+
     crate::automation_autostart::reconcile_runtime_autostart(&runtime_store, &runtime_dir).await;
     let account_push =
         account_push_state::AccountPushState::new(runtime_dir.clone(), runtime_store.clone())
@@ -40,6 +39,7 @@ pub async fn run_terminal_host_server(
 
     let (inbox, mut rx) = mpsc::unbounded_channel::<ServerCommand>();
     let shutdown_signal = spawn_termination_listener(inbox.clone());
+    let watch_ticker = pull_request_watch_runtime::spawn(inbox.clone());
     let automation_wake = Arc::new(Notify::new());
     let automation_ticker = automation_scheduler::spawn(
         runtime_store.clone(),
@@ -61,13 +61,6 @@ pub async fn run_terminal_host_server(
         let _ = crate::login_shell_environment::login_shell_path_segments().await;
     });
 
-    let emulators = match EmulatorManager::new(&runtime_dir).await {
-        Ok(manager) => Some(Arc::new(Mutex::new(manager))),
-        Err(error) => {
-            tracing::warn!("alera emulator manager unavailable: {}", error.message);
-            None
-        }
-    };
     let mut actor = ServerActor {
         runtime_dir,
         control_file_path,
@@ -77,12 +70,18 @@ pub async fn run_terminal_host_server(
         runtime_store,
         automation_wake,
         automations_active: false,
+        pull_request_watches: Default::default(),
         sessions: HashMap::new(),
         ssh_bootstrap_jobs: HashMap::new(),
         project_clone_jobs: HashMap::new(),
         agent_title_jobs: HashMap::new(),
         managed_workspace_jobs: 0,
-        emulator_requests: Default::default(),
+        workflow_workspace_recovery_running: false,
+        automation_checkout_jobs: Default::default(),
+        automation_precheck_jobs: Default::default(),
+        pending_terminal_lifecycle_shutdowns: Default::default(),
+        checkout_buffer_guards: HashMap::new(),
+        mutation_queue: Default::default(),
         agent_quota_cache: None,
         configuration_transfers: Default::default(),
         account_push,
@@ -97,20 +96,14 @@ pub async fn run_terminal_host_server(
         coordinators: HashMap::new(),
         resources: ResourceMonitorState::default(),
         terminal_pulses: Default::default(),
-        browser: BrowserBroker::default(),
-        emulators,
         codex: None,
-        codex_presence: HashMap::new(),
-        codex_presence_scheduled: false,
-        codex_pending_messages: HashMap::new(),
-        codex_flush_scheduled: HashSet::new(),
+        codex_starting: None,
         inbox,
         next_client_id,
         mobile_gateway: None,
         shutdown_gen: 0,
         disposed: false,
     };
-    actor.reconcile_codex_presence().await;
     let hook_settings = actor.runtime_store.agent_status_hook_settings().await?;
     let hook_runtime_dir = actor.runtime_dir.clone();
     let hook_warnings = tokio::task::spawn_blocking(move || {
@@ -141,12 +134,7 @@ pub async fn run_terminal_host_server(
         crate::worktree_setup_script::remove_stale_setup_scripts(&directory);
         crate::agent_prompt_stdin_script::remove_stale_agent_prompt_scripts(&directory);
     }
-    actor.automations_active = actor.runtime_store.has_active_automations().await?
-        || !actor
-            .runtime_store
-            .list_active_automation_runs()
-            .await?
-            .is_empty();
+    actor.automations_active = actor.runtime_store.has_pending_automation_work().await?;
     actor.schedule_shutdown_if_idle();
 
     // Lives with the loop rather than the actor: it describes the machine the
@@ -161,7 +149,6 @@ pub async fn run_terminal_host_server(
                 "alera terminal host resumed after {}s of system sleep",
                 slept.as_secs()
             );
-            actor.queue_emulator_park_all();
         }
         if matches!(&command, ServerCommand::RequestedRestart) {
             exit = TerminalHostExit::Restart(actor.config);
@@ -171,6 +158,8 @@ pub async fn run_terminal_host_server(
             break;
         }
     }
+    watch_ticker.abort();
+    let _ = watch_ticker.await;
     automation_ticker.abort();
     let _ = automation_ticker.await;
     if let Some(shutdown_signal) = shutdown_signal {

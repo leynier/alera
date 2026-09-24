@@ -82,9 +82,9 @@ pub fn prepare_launch_environment(
     );
     environment.insert("ALERA_AGENT_HOOK_VERSION".to_string(), "1".to_string());
     let _ = prepare_enabled_integrations(runtime_dir, Some(session_id), settings, environment);
-    // Runs after the integrations because they are what mints the wrapper
-    // directory; the strip above only removes values inherited from a parent
-    // Alera terminal.
+    // Older hosts prepended a Cursor wrapper directory. Keep the PATH splice
+    // so a nested terminal that still carries ALERA_AGENT_WRAPPER_PATH from
+    // that era can refresh it; current installs do not set the variable.
     prepend_managed_wrapper_path(environment);
     Ok(())
 }

@@ -16,8 +16,16 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::remote_managed_workspace::create_remote_managed_workspace;
+use crate::ssh_remote::{
+    is_remote_host_id, normalized_host_id, LiveSshRemoteHost, RemoteHostExecutor,
+};
 use crate::worktree_setup::{prepare_deferred_worktree_setup, run_worktree_setup};
 pub(crate) mod workflow;
+
+#[path = "managed_workspace_removal_preflight.rs"]
+mod removal_preflight;
+use removal_preflight::managed_workspace_removal;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -38,6 +46,10 @@ pub struct ManagedWorkspaceCreateRequest {
     pub path: Option<String>,
     #[serde(default)]
     pub parent_workspace_id: Option<String>,
+    /// SSH target id for a remote Git worktree. Omitted or `local` creates
+    /// the worktree on this machine. Additive: older hosts ignore the field.
+    #[serde(default)]
+    pub host_id: Option<String>,
     /// Asks the host to prepare the worktree setup instead of running it, so
     /// the caller can show it in a terminal. Defaults to running it inline,
     /// which is what the `alera` CLI and the mobile gateway still want.
@@ -86,6 +98,14 @@ pub async fn create_managed_workspace(
     store: &RuntimeStore,
     request: ManagedWorkspaceCreateRequest,
 ) -> Result<WorkspaceCreationResult> {
+    create_managed_workspace_with(store, request, &LiveSshRemoteHost).await
+}
+
+pub(crate) async fn create_managed_workspace_with<E: RemoteHostExecutor>(
+    store: &RuntimeStore,
+    mut request: ManagedWorkspaceCreateRequest,
+    executor: &E,
+) -> Result<WorkspaceCreationResult> {
     let project = store
         .find_project(&request.project_id)
         .await?
@@ -113,18 +133,26 @@ pub async fn create_managed_workspace(
     }
 
     let branch = require_trimmed(&request.branch, "New Branch Name Is Required")?;
-    let source_branch = request
+    let mut source_branch = request
         .source_branch
         .as_deref()
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(ToString::to_string);
     if !request.reuse_existing_branch && source_branch.is_none() {
+        source_branch = crate::worktree_setup::preferred_source_branch(store, &project).await;
+        request.source_branch.clone_from(&source_branch);
+    }
+    if !request.reuse_existing_branch && source_branch.is_none() {
         bail!("Source Branch Is Required");
     }
 
     if !core_git::is_valid_branch_name(&branch)? {
         bail!("Invalid branch name \"{branch}\"");
+    }
+    let host_id = normalized_host_id(request.host_id.as_deref());
+    if is_remote_host_id(Some(&host_id)) {
+        return create_remote_managed_workspace(store, request, &project, &host_id, executor).await;
     }
     if request.reuse_existing_branch {
         ensure_target_branch_exists(&project, &branch)?;
@@ -135,10 +163,11 @@ pub async fn create_managed_workspace(
     }
 
     let workspaces = store.list_workspaces(&project.id).await?;
-    if workspaces
-        .iter()
-        .any(|workspace| workspace.branch.as_deref() == Some(branch.as_str()))
-    {
+    if workspaces.iter().any(|workspace| {
+        workspace.host_id == host_id
+            && workspace.status == WorkspaceStatus::Active
+            && workspace.branch.as_deref() == Some(branch.as_str())
+    }) {
         bail!("A workspace for branch \"{branch}\" already exists");
     }
 
@@ -150,10 +179,9 @@ pub async fn create_managed_workspace(
         .unwrap_or(&branch)
         .to_string();
     let workspace_path = resolve_workspace_path(store, &project, &display_name, &request).await?;
-    if workspaces
-        .iter()
-        .any(|workspace| path_equals(&workspace.path, &workspace_path))
-    {
+    if workspaces.iter().any(|workspace| {
+        workspace.host_id == host_id && path_equals(&workspace.path, &workspace_path)
+    }) {
         bail!("A workspace already exists at \"{workspace_path}\"");
     }
 
@@ -197,6 +225,7 @@ pub async fn create_managed_workspace(
         },
         reuses_existing_branch: request.reuse_existing_branch,
         is_pinned: false,
+        is_archived: false,
         tag_ids: Vec::new(),
         tag_names: Vec::new(),
         parent_workspace_id: None,
@@ -246,6 +275,30 @@ pub async fn remove_managed_workspace(
     store: &RuntimeStore,
     request: ManagedWorkspaceRemoveRequest,
 ) -> Result<Workspace> {
+    remove_managed_workspace_with(store, request, &LiveSshRemoteHost).await
+}
+
+pub(crate) async fn remove_managed_workspace_with<E: RemoteHostExecutor>(
+    store: &RuntimeStore,
+    request: ManagedWorkspaceRemoveRequest,
+    executor: &E,
+) -> Result<Workspace> {
+    store.require_workspace_process_closure(&request.id).await?;
+    let workspace = store
+        .find_workspace(&request.id)
+        .await?
+        .ok_or_else(|| anyhow!("Workspace not found: {}", request.id))?;
+    if workspace.kind == WorkspaceKind::Main {
+        bail!("The main workspace cannot be removed");
+    }
+    if let Some(removed) =
+        crate::remote_managed_workspace_remove::try_remove_remote_managed_workspace(
+            store, &request, &workspace, executor,
+        )
+        .await?
+    {
+        return Ok(removed);
+    }
     let removal = managed_workspace_removal(store, &request).await?;
     let workspace = removal.workspace;
     let project = removal.project;
@@ -258,15 +311,13 @@ pub async fn remove_managed_workspace(
         Err(error) => return Err(error).context("git worktree remove failed"),
     }
     if let Some(branch) = branch_to_delete {
-        match core_git::delete_branch(&project.repo_path, &branch, true) {
+        match core_git::delete_branch(&project.repo_path, &branch, false) {
             Ok(()) => {}
             Err(error) if error.kind == GitErrorKind::BranchNotFound => {}
-            Err(error) => {
-                return Err(error).with_context(|| format!("git branch -D {branch} failed"));
-            }
+            Err(_) => {}
         }
     }
-    store.remove_workspace(&workspace.id, true).await?;
+    store.retire_verified_linked_workspace(&workspace).await?;
     Ok(workspace)
 }
 
@@ -290,6 +341,7 @@ pub async fn workspace_has_active_automation_owner(
                     source_workspace_id,
                     ..
                 } => source_workspace_id == workspace_id,
+                AutomationTarget::ProjectCheckout { .. } => false,
             }
     }) {
         return Ok(true);
@@ -312,6 +364,49 @@ pub async fn validate_managed_workspace_removal(
     store: &RuntimeStore,
     request: &ManagedWorkspaceRemoveRequest,
 ) -> Result<()> {
+    store.require_workspace_process_closure(&request.id).await?;
+    store.validate_workspace_setup_idle(&request.id).await?;
+    let workspace = store
+        .find_workspace(&request.id)
+        .await?
+        .ok_or_else(|| anyhow!("Workspace not found"))?;
+    if is_remote_host_id(Some(&workspace.host_id))
+        && (crate::remote_managed_workspace_remove::has_registered_remote_checkout(
+            store, &workspace,
+        )
+        .await?
+            || filesystem_entry_is_missing(&workspace.path)?)
+    {
+        if workspace.kind == WorkspaceKind::Main {
+            bail!("The main workspace cannot be removed");
+        }
+        if workspace_has_active_automation_owner(store, &workspace.id).await? {
+            bail!("Workspace is owned by an active automation");
+        }
+        let delete = request
+            .delete_branch
+            .ok_or_else(|| anyhow!("Choose --keep-branch or --delete-branch before cleanup"))?;
+        let branch = if delete && !workspace.reuses_existing_branch {
+            workspace
+                .branch
+                .as_deref()
+                .filter(|branch| !branch.is_empty())
+        } else {
+            None
+        };
+        let project = store
+            .find_project(&workspace.project_id)
+            .await?
+            .ok_or_else(|| anyhow!("Project not found"))?;
+        return crate::remote_managed_workspace::validate_remote_workspace_removal(
+            store,
+            &workspace,
+            &project,
+            branch,
+            &LiveSshRemoteHost,
+        )
+        .await;
+    }
     managed_workspace_removal(store, request).await.map(drop)
 }
 
@@ -440,68 +535,6 @@ fn measure_tree_without_following_links(root: &Path) -> Result<(u64, u64)> {
     Ok((bytes, entries))
 }
 
-async fn managed_workspace_removal(
-    store: &RuntimeStore,
-    request: &ManagedWorkspaceRemoveRequest,
-) -> Result<ManagedWorkspaceRemoval> {
-    if store.workflow_workspace_owned(&request.id).await? {
-        bail!("Workflow resources require reviewed cleanup from the Run Board");
-    }
-    let workspace = store
-        .find_workspace(&request.id)
-        .await?
-        .ok_or_else(|| anyhow!("Workspace not found: {}", request.id))?;
-    if workspace.kind == WorkspaceKind::Main {
-        bail!("The main workspace cannot be removed");
-    }
-    if workspace.host_id != LOCAL_HOST_ID {
-        bail!("Workspace is not owned by the local host");
-    }
-    let project = store
-        .find_project(&workspace.project_id)
-        .await?
-        .ok_or_else(|| anyhow!("Project not found: {}", workspace.project_id))?;
-    let should_delete_branch = request
-        .delete_branch
-        .unwrap_or(!workspace.reuses_existing_branch);
-    workflow::ownership::ensure_unowned(store, &workspace, &project).await?;
-    let branch_to_delete = if should_delete_branch {
-        Some(
-            workspace
-                .branch
-                .as_deref()
-                .filter(|branch| !branch.is_empty())
-                .ok_or_else(|| anyhow!("Workspace Branch Is Required"))?
-                .to_string(),
-        )
-    } else {
-        None
-    };
-    validate_workspace_storage_ownership(store, &workspace, &project).await?;
-    if workspace_has_active_automation_owner(store, &workspace.id).await? {
-        bail!("Workspace is owned by an active automation");
-    }
-    if !filesystem_entry_is_missing(&workspace.path)? {
-        let registered = core_git::list_worktrees(&project.repo_path)?
-            .into_iter()
-            .find(|entry| path_equals(&entry.path, &workspace.path))
-            .ok_or_else(|| anyhow!("Workspace path is not a registered Git worktree"))?;
-        if let Some(expected_branch) = workspace.branch.as_deref() {
-            if registered.branch != expected_branch {
-                bail!(
-                    "Workspace branch does not match registered worktree: expected {expected_branch}, found {}",
-                    registered.branch
-                );
-            }
-        }
-    }
-    Ok(ManagedWorkspaceRemoval {
-        workspace,
-        project,
-        branch_to_delete,
-    })
-}
-
 async fn validate_workspace_storage_ownership(
     store: &RuntimeStore,
     workspace: &Workspace,
@@ -516,7 +549,8 @@ async fn validate_workspace_storage_ownership(
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(default_workspace_root);
     if path_equals(&workspace.path, &project.repo_path)
-        || !is_host_owned_workspace_path(Path::new(&root), Path::new(&workspace.path))?
+        || (!is_host_owned_workspace_path(Path::new(&root), Path::new(&workspace.path))?
+            && !crate::relocation_owned_worktree::verify(store, workspace, project).await?)
     {
         bail!("Workspace path is outside Alera-managed storage");
     }
@@ -529,14 +563,16 @@ async fn validate_workspace_storage_ownership(
         bail!("Workspace path is registered as a project source repository");
     }
     if store.list_all_workspaces().await?.iter().any(|candidate| {
-        candidate.id != workspace.id && path_equals(&candidate.path, &workspace.path)
+        candidate.id != workspace.id
+            && candidate.host_id == workspace.host_id
+            && path_equals(&candidate.path, &workspace.path)
     }) {
         bail!("Workspace path has another runtime owner");
     }
     Ok(())
 }
 
-fn filesystem_entry_is_missing(path: &str) -> Result<bool> {
+pub(crate) fn filesystem_entry_is_missing(path: &str) -> Result<bool> {
     match std::fs::symlink_metadata(path) {
         Ok(_) => Ok(false),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(true),
@@ -576,7 +612,7 @@ fn ensure_target_branch_exists(project: &Project, branch: &str) -> Result<()> {
     Ok(())
 }
 
-async fn resolve_workspace_path(
+pub(crate) async fn resolve_workspace_path(
     store: &RuntimeStore,
     project: &Project,
     display_name: &str,
@@ -606,13 +642,13 @@ async fn resolve_workspace_path(
             .filter(|value| !value.trim().is_empty())
             .unwrap_or_else(default_workspace_root),
     };
-    let project_slug = slugify(
+    let project_slug = crate::managed_workspace_slug::slugify(
         Path::new(&project.repo_path)
             .file_name()
             .and_then(|value| value.to_str())
             .unwrap_or(&project.name),
     )?;
-    let workspace_slug = slugify(display_name)?;
+    let workspace_slug = crate::managed_workspace_slug::slugify(display_name)?;
     Ok(PathBuf::from(root)
         .join(format!("{project_slug}-{}", project.id))
         .join(workspace_slug)
@@ -635,37 +671,6 @@ fn default_workspace_root() -> String {
         .join("workspaces")
         .to_string_lossy()
         .to_string()
-}
-
-fn slugify(input: &str) -> Result<String> {
-    let mut output = String::new();
-    let mut last_dash = false;
-    for ch in input.trim().to_lowercase().chars() {
-        let next = if ch.is_ascii_alphanumeric() {
-            last_dash = false;
-            Some(ch)
-        } else if ch.is_whitespace() || ch == '_' || ch == '/' || ch == '-' {
-            if last_dash {
-                None
-            } else {
-                last_dash = true;
-                Some('-')
-            }
-        } else if last_dash {
-            None
-        } else {
-            last_dash = true;
-            Some('-')
-        };
-        if let Some(next) = next {
-            output.push(next);
-        }
-    }
-    let trimmed = output.trim_matches('-').to_string();
-    if trimmed.is_empty() {
-        bail!("Workspace name must contain a letter or digit");
-    }
-    Ok(trimmed)
 }
 
 fn path_equals(left: &str, right: &str) -> bool {
@@ -692,6 +697,10 @@ fn canonical_path(path: &str) -> String {
 }
 
 #[cfg(test)]
+#[path = "managed_workspace_source_branch_tests.rs"]
+mod managed_workspace_source_branch_tests;
+
+#[cfg(test)]
 mod tests {
     use std::path::Path;
     use std::process::Command as StdCommand;
@@ -702,13 +711,19 @@ mod tests {
     };
     use chrono::Utc;
 
-    use super::{create_managed_workspace, slugify, ManagedWorkspaceCreateRequest};
+    use super::{create_managed_workspace, ManagedWorkspaceCreateRequest};
 
     #[test]
     fn slugify_matches_workspace_path_segments() {
-        assert_eq!(slugify("Feature/Coverage").unwrap(), "feature-coverage");
-        assert_eq!(slugify("  Fix UI  State  ").unwrap(), "fix-ui-state");
-        assert!(slugify("///").is_err());
+        assert_eq!(
+            crate::managed_workspace_slug::slugify("Feature/Coverage").unwrap(),
+            "feature-coverage"
+        );
+        assert_eq!(
+            crate::managed_workspace_slug::slugify("  Fix UI  State  ").unwrap(),
+            "fix-ui-state"
+        );
+        assert!(crate::managed_workspace_slug::slugify("///").is_err());
     }
 
     #[tokio::test]
@@ -749,6 +764,7 @@ mod tests {
                 source_branch: None,
                 reuses_existing_branch: false,
                 is_pinned: false,
+                is_archived: false,
                 tag_ids: Vec::new(),
                 tag_names: Vec::new(),
                 parent_workspace_id: None,
@@ -771,6 +787,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: false,
                 skip_setup: false,
                 setup_script_directory: None,
@@ -821,6 +838,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: Some("missing-parent".to_string()),
+                host_id: None,
                 defer_setup: false,
                 skip_setup: false,
                 setup_script_directory: None,
@@ -874,6 +892,7 @@ mod tests {
                 source_branch: None,
                 reuses_existing_branch: false,
                 is_pinned: false,
+                is_archived: false,
                 tag_ids: Vec::new(),
                 tag_names: Vec::new(),
                 parent_workspace_id: None,
@@ -896,6 +915,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: Some("parent".to_string()),
+                host_id: None,
                 defer_setup: false,
                 skip_setup: false,
                 setup_script_directory: None,
@@ -938,6 +958,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: true,
                 skip_setup: false,
                 setup_script_directory: Some(scripts.clone()),
@@ -957,13 +978,14 @@ mod tests {
             "workspace-deferred",
             cfg!(windows),
         );
-        assert!(script.exists(), "{}", script.display());
-        assert!(command.contains(&script.display().to_string()), "{command}");
+        // Avoid formatting paths into assert messages (CodeQL cleartext-logging FP).
+        assert!(script.exists());
+        assert!(command.contains(&script.display().to_string()));
         let contents = std::fs::read_to_string(&script).unwrap();
-        assert!(contents.contains("pnpm install"), "{contents}");
-        assert!(contents.contains("pnpm build"), "{contents}");
-        assert!(contents.contains("--copies-only"), "{contents}");
-        assert!(!contents.contains("&&"), "{contents}");
+        assert!(contents.contains("pnpm install"));
+        assert!(contents.contains("pnpm build"));
+        assert!(contents.contains("--copies-only"));
+        assert!(!contents.contains("&&"));
     }
 
     #[tokio::test]
@@ -988,6 +1010,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: true,
                 skip_setup: false,
                 setup_script_directory: Some(scripts.clone()),
@@ -1023,6 +1046,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: true,
                 skip_setup: false,
                 setup_script_directory: Some(dir.path().join("scripts")),
@@ -1063,6 +1087,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: true,
                 skip_setup: false,
                 setup_script_directory: Some(dir.path().join("scripts")),
@@ -1112,6 +1137,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: true,
                 skip_setup: false,
                 setup_script_directory: Some(dir.path().join("scripts")),
@@ -1157,6 +1183,7 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                host_id: None,
                 defer_setup: true,
                 skip_setup: false,
                 setup_script_directory: Some(scripts.clone()),
@@ -1171,10 +1198,11 @@ mod tests {
             "workspace-include-only",
             cfg!(windows),
         );
-        assert!(script.exists(), "{}", script.display());
-        assert!(command.contains(&script.display().to_string()), "{command}");
+        // Avoid formatting paths into assert messages (CodeQL cleartext-logging FP).
+        assert!(script.exists());
+        assert!(command.contains(&script.display().to_string()));
         let contents = std::fs::read_to_string(&script).unwrap();
-        assert!(contents.contains("--copies-only"), "{contents}");
+        assert!(contents.contains("--copies-only"));
     }
 
     async fn seed_project(root: &Path, repo: &Path) -> RuntimeStore {

@@ -4,6 +4,8 @@ import 'package:alera_mobile/src/features/runtime/domain/mobile_codex_workspace.
 import 'package:alera_mobile/src/features/runtime/domain/prompt_image_upload.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
+typedef FakeWorkspaceFile = ({String mimeType, List<int> bytes});
+
 /// Every attachment source a prompt can draw from: the two uploads and the
 /// workspace-files surface. The runtime client implements them alongside the
 /// workspace one, so the fakes do too, because New Workspace and the terminal
@@ -59,6 +61,17 @@ mixin FakeWorkspaceFilesClient implements MobileCodexWorkspaceClient {
   @override
   bool get supportsPromptAttachmentRead => false;
 
+  Future<MobileWorkspaceQuickOpenSession> startProjectCheckoutQuickOpen({
+    required String projectId,
+    String? checkoutHostId,
+  }) async {
+    calls.add('startProjectCheckoutQuickOpen $projectId');
+    return MobileWorkspaceQuickOpenSession(
+      id: 'project-quick-open-$projectId',
+      indexedFileCount: workspaceFiles.length,
+    );
+  }
+
   @override
   Future<MobileWorkspaceQuickOpenSession> startWorkspaceQuickOpen(
     String workspaceId, {
@@ -89,11 +102,10 @@ mixin FakeWorkspaceFilesClient implements MobileCodexWorkspaceClient {
     MobileWorkspaceQuickOpenSession session,
   ) async => stoppedQuickOpenSessions.add(session);
 
-  @override
-  Future<List<MobileCodexSavedPrompt>> listCodexSavedPrompts(
-    String workspaceId, {
-    String? cwd,
-  }) async => const <MobileCodexSavedPrompt>[];
+  /// Files [readWorkspaceFile] serves, keyed by workspace-relative path and
+  /// sliced by offset and length like the runtime does.
+  Map<String, FakeWorkspaceFile> workspaceFileContents =
+      <String, FakeWorkspaceFile>{};
 
   @override
   Future<MobileWorkspaceFileRange> readWorkspaceFile({
@@ -102,7 +114,23 @@ mixin FakeWorkspaceFilesClient implements MobileCodexWorkspaceClient {
     String? cwd,
     int offset = 0,
     int length = maxMobileWorkspaceFileRangeBytes,
-  }) async => throw UnimplementedError();
+  }) async {
+    calls.add('readWorkspaceFile $workspaceId $relativePath $offset');
+    final file = workspaceFileContents[relativePath];
+    if (file == null) {
+      throw StateError('File not found: $relativePath');
+    }
+    final end = (offset + length).clamp(offset, file.bytes.length);
+    return MobileWorkspaceFileRange(
+      relativePath: relativePath,
+      offset: offset,
+      nextOffset: end,
+      totalBytes: file.bytes.length,
+      mimeType: file.mimeType,
+      isText: file.mimeType.startsWith('text/'),
+      bytes: file.bytes.sublist(offset, end),
+    );
+  }
 
   @override
   Future<MobileWorkspaceFileRange> readPromptAttachment({

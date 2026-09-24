@@ -38,7 +38,9 @@ Future<bool> remoteAiDictationSupported(Ref ref) async {
 }
 
 @Riverpod(keepAlive: true)
-AiDictationService aiDictationService(Ref ref) {
+// Callers listen to this ChangeNotifier. Raw keeps the same type and tells
+// riverpod_lint not to treat it as provider state.
+Raw<AiDictationService> aiDictationService(Ref ref) {
   final service = AiDictationService(
     settings: () => ref.read(settingsControllerProvider).aiDictation,
     targets: ref.read(aiDictationTargetRegistryProvider),

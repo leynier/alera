@@ -17,6 +17,7 @@ on:
       - .github/actions/setup-rust-sccache/**
       - .github/actions/init-required-submodules/**
       - .github/workflows/mobile-build.yml
+      - .github/gradle/**
       - tool/release/verify_android_native_dependencies.sh
   workflow_dispatch:
 
@@ -65,12 +66,21 @@ jobs:
           echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
           echo "$JAVA_HOME_17_X64/bin" >> "$GITHUB_PATH"
 
+      - name: Resolve Android Gradle plugins from Maven Central
+        if: matrix.platform == 'android'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.gradle/init.d"
+          cp .github/gradle/gradle_plugin_repos.init.gradle \
+            "$HOME/.gradle/init.d/gradle_plugin_repos.init.gradle"
+
       # No distribution credentials are available here. Android uses its
       # existing debug-key fallback; Apple builds explicitly disable signing.
       - name: Build Android release APK
         if: matrix.platform == 'android'
         working-directory: mobile
-        run: flutter build apk --release
+        run: flutter build apk --release --target-platform android-arm64 -Pdisable-abi-filtering=true -PaleraAbiFilters=arm64-v8a
 
       - name: Verify Android native dependencies
         if: matrix.platform == 'android'

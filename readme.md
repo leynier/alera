@@ -118,11 +118,11 @@ Per-terminal configuration: font, size, theme, behaviour. Built on top of the sa
 
 ### 🎙️ AI dictation
 
-Dictate into terminals, Codex Chat, workspace prompts, Source Control, and pull request fields. Desktop can transcribe locally with checksum-verified Whisper models, through the experimental realtime API included with a Codex subscription, or through an OpenAI-compatible audio transcription API with a custom model and base URL. API tokens use the system credential store with a private mode-`0600` file fallback when the Linux keyring is unavailable, and Settings includes an integrated recording test. Mobile can use on-device Whisper, offline system recognition, call an OpenAI-compatible API directly with a token stored securely on the phone, or send reviewed audio to the paired runtime for Whisper, Codex subscription, or OpenAI-compatible transcription. Recordings can be reviewed before transcription, and completed transcripts can optionally be cleaned up or summarized through the selected AI Assist subscription.
+Dictate into terminals, workspace prompts, Source Control, and pull request fields. Desktop can transcribe locally with checksum-verified Whisper models, through the experimental realtime API included with a Codex subscription, or through an OpenAI-compatible audio transcription API with a custom model and base URL. API tokens use the system credential store with a private mode-`0600` file fallback when the Linux keyring is unavailable, and Settings includes an integrated recording test. Mobile can use on-device Whisper, offline system recognition, call an OpenAI-compatible API directly with a token stored securely on the phone, or send reviewed audio to the paired runtime for Whisper, Codex subscription, or OpenAI-compatible transcription. Recordings can be reviewed before transcription, and completed transcripts can optionally be cleaned up or summarized through the selected AI Assist subscription.
 
 ### 🗃️ File explorer, search & previews
 
-Browse workspace folders in a tree-based explorer with a git-ignored toggle and inline rename. Search and replace across the workspace with regex and include/exclude patterns. Preview Markdown, PDFs, Mermaid diagrams, and images in dedicated tabs, right next to your terminals.
+Browse workspace folders in a tree-based explorer with a git-ignored toggle and inline rename. Search and replace across the workspace with regex and include/exclude patterns. Preview Markdown, PDFs, Mermaid diagrams, and images in dedicated tabs, right next to your terminals. Files and previews opened from a tab or tool stay in its panel and split group, including Explorer in either the center or the collapsible right panel. Preview replacement stays within that group; files already open are selected in their existing location. Mod+click (Ctrl on Windows and Linux, Cmd on macOS) opens a preview in the opposite panel, even when the file is already open in the origin panel.
 
 ### 🔀 Visual source control
 
@@ -131,6 +131,8 @@ Review structured diffs side-by-side or unified, with per-file and aggregated vi
 ### ✅ Pull requests & checks
 
 Work with pull requests and merge requests per worktree on GitHub, GitHub Enterprise Server, GitLab, and Azure DevOps without leaving Alera: create, edit, comment (with Markdown), toggle draft status, and merge. GitHub repositories can also discover native pull request stacks, build a stack directly from ordered workspaces while reusing or creating their pull requests, extend a stack from existing pull requests, and merge atomically through the current layer. CI checks are grouped by status with drill-down into check details. Review titles and descriptions can be AI-generated from the branch changes, and the workspace menu opens the repository in your browser in one click. Self-hosted GitHub and GitLab instances are selected explicitly in project settings; Alera uses the hostname from the repository remote with the official `gh` or `glab` CLI.
+
+Link the issue a workspace was created for, from New Workspace, the workspace menu, or `alera workspace issue link`. GitHub issues, GitLab issues, and Azure DevOps work items are read through `gh`, `glab`, and `az boards`: the sidebar shows the issue state, New Workspace fills the branch, name, and starting prompt from it, and agents read the requirements with `alera workspace issue show`. Links to any other tracker are kept and open in the browser.
 
 ### 🖥️ Truly native, truly cross-platform
 
@@ -160,8 +162,7 @@ Alera is shipping fast. A non-exhaustive list of what's on the roadmap:
 - **Mobile live transport expansion**: add file review and non-terminal tab surfaces to the mobile app
 - **Code editing with LSP support**: full editing with language-server autocomplete and diagnostics
 - **Git conflict resolution**: resolve merge conflicts visually with AI-assisted three-way merge
-- **Embedded browser & browser use**: give agents a real browser to drive
-- **More forge & tracker integrations**: Additional git forges, Linear, and issue-tracker linking per worktree
+- **More forge & tracker integrations**: Additional git forges, plus reading Linear and Jira issues linked to a worktree
 - **Automations, MCP management, skills, and more**
 
 See the full [roadmap](roadmap.md) for the complete picture, including difficulty/utility scoring per feature.
@@ -172,7 +173,7 @@ See the full [roadmap](roadmap.md) for the complete picture, including difficult
 
 ### Linux
 
-Alera installs from a signed package repository so the system `libmpv` dependency closure resolves through your package manager. The same command installs and updates:
+Alera installs from a signed package repository so GTK and related system libraries resolve through your package manager. The same command installs and updates:
 
 ```bash
 curl -fsSL https://alera.build/install.sh | sh
@@ -180,11 +181,11 @@ curl -fsSL https://alera.build/install.sh | sh
 
 The script detects apt or dnf, verifies the repository signing key against a fingerprint pinned inside the script, configures the repository, and installs the package. Pass `--dry-run` to see what it would do, or `--repo-only` to configure the repository without installing.
 
-Requires x86_64 and Ubuntu 24.04 or newer, Debian 13 or newer, or Fedora. On RHEL, Rocky, and AlmaLinux enable [RPM Fusion](https://rpmfusion.org/) first, which is where `mpv-libs` comes from. openSUSE is not supported yet: the published RPM declares Fedora dependency names that openSUSE provides under different names.
+Requires x86_64 and Ubuntu 24.04 or newer, Debian 13 or newer, or Fedora. openSUSE is not supported yet: the published RPM declares Fedora dependency names that openSUSE provides under different names.
 
 To add the repository by hand instead, see the manual setup on the [download page](https://alera.build/download). The signing key is published at `https://updates.alera.build/linux/alera-archive-keyring.asc` with fingerprint `5DE97E7CFE234A1C5869EC54708DA940734CF23A`.
 
-On a distribution with no package of ours, download `alera-<version>-linux-x64.tar.gz` from [GitHub Releases](https://github.com/leynier/alera/releases) and extract it somewhere you own, such as `~/.local/share/alera`. Install `libmpv`, `webkit2gtk-4.1`, `gtk3`, and the Vulkan loader through your own package manager first, since a tarball declares no dependencies. Alera updates a tarball installation in place; a repository installation keeps updating through apt or dnf, which is what resolves those dependencies.
+On a distribution with no package of ours, download `alera-<version>-linux-x64.tar.gz` from [GitHub Releases](https://github.com/leynier/alera/releases) and extract it somewhere you own, such as `~/.local/share/alera`. Install `gtk3` and the Vulkan loader through your own package manager first, since a tarball declares no dependencies. Alera updates a tarball installation in place; a repository installation keeps updating through apt or dnf, which is what resolves those dependencies.
 
 ### macOS
 
@@ -347,6 +348,8 @@ Alera builds in two flavors selected by `ALERA_FLAVOR`:
 |-----------|----------------------------|--------------|--------------------------------------------------|
 | `dev`     | `dev.leynier.alera.dev`    | Alera Dev    | Default for local builds. Auto-update disabled.  |
 | `release` | `dev.leynier.alera`        | Alera        | Used by CI and public release artifacts.         |
+
+User data lives in `~/Library/Application Support/<bundle id>` on macOS, `$XDG_DATA_HOME/<bundle id>` (default `~/.local/share`) on Linux, and `%APPDATA%\dev.leynier\<display name>` on Windows.
 
 See [`lib/src/core/build_flavor.dart`](lib/src/core/build_flavor.dart) for the canonical strings.
 

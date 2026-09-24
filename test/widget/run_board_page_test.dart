@@ -151,7 +151,7 @@ void main() {
     );
     f.repository.events.add(null);
     await tester.pumpAndSettle();
-    expect(find.textContaining('No runs match this view.'), findsOneWidget);
+    expect(find.textContaining('No runs yet.'), findsOneWidget);
   });
 
   testWidgets('explicit terminal and diff actions preserve board selection', (
@@ -207,6 +207,10 @@ void main() {
       final f = await mount(tester, error: const RunBoardUpdateRequired());
       expect(find.text('Update Required'), findsOneWidget);
       expect(find.text('Clear Filters'), findsOneWidget);
+      expect(
+        find.textContaining('Update the runtime host, then reconnect.'),
+        findsWidgets,
+      );
       f.repository.error = StateError('connection closed');
       f.repository.events.add(null);
       await tester.pumpAndSettle();

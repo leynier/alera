@@ -3,7 +3,8 @@ use std::process::Stdio;
 
 use alera_core::child_process::windowless_async_command;
 use alera_core::runtime::{
-    RuntimeStore, SshAuthKind, SshBootstrapStatus, SshTarget, SshTargetBootstrapStateUpdate,
+    redact_known_patterns, RuntimeStore, SshAuthKind, SshBootstrapStatus, SshTarget,
+    SshTargetBootstrapStateUpdate, SshTargetLastStatus,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use base64::prelude::*;
@@ -15,6 +16,10 @@ use crate::runtime_archive::{
     resolve_runtime_artifact, ResolvedRuntimeArtifact, RuntimeArchiveChannel,
     RuntimeArtifactRequest, RuntimeArtifactTrust,
 };
+
+#[path = "ssh_bootstrap_install_dir.rs"]
+mod ssh_bootstrap_install_dir;
+use ssh_bootstrap_install_dir::{local_home_dir, prepare_remote_install_dir};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -80,9 +85,35 @@ pub(crate) struct SshTargetBootstrapProgress {
     pub error: Option<String>,
 }
 
+pub(crate) const SSH_PASSWORD_BOOTSTRAP_UNSUPPORTED: &str =
+    "password SSH targets are not supported for bootstrap; configure SSH agent or key authentication.";
+
+pub(crate) fn reject_password_ssh_bootstrap_auth(auth_kind: SshAuthKind) -> Result<()> {
+    if matches!(auth_kind, SshAuthKind::Password) {
+        bail!("{SSH_PASSWORD_BOOTSTRAP_UNSUPPORTED}");
+    }
+    Ok(())
+}
+
+/// Rejects creating a password target or converting agent/key auth to
+/// password. An existing password target may be re-saved so Settings can
+/// still edit alias or host without forcing a conversion on every save.
+pub(crate) fn reject_new_password_ssh_target(
+    auth_kind: SshAuthKind,
+    existing_auth_kind: Option<SshAuthKind>,
+) -> Result<()> {
+    if !matches!(auth_kind, SshAuthKind::Password) {
+        return Ok(());
+    }
+    if matches!(existing_auth_kind, Some(SshAuthKind::Password)) {
+        return Ok(());
+    }
+    bail!("{SSH_PASSWORD_BOOTSTRAP_UNSUPPORTED}");
+}
+
 #[derive(Debug)]
-struct RemoteCommandOutput {
-    stdout: String,
+pub(crate) struct RemoteCommandOutput {
+    pub(crate) stdout: String,
 }
 
 pub(crate) fn new_bootstrap_job_id() -> String {
@@ -94,6 +125,7 @@ pub(crate) async fn build_ssh_bootstrap_plan(
     request: &SshTargetBootstrapRequest,
 ) -> Result<SshTargetBootstrapPlan> {
     let target = find_target(store, &request.target_id).await?;
+    reject_password_ssh_bootstrap_auth(target.auth_kind)?;
     let channel = parse_channel(request.channel.as_deref())?;
     let platform = request
         .platform
@@ -109,11 +141,15 @@ pub(crate) async fn build_ssh_bootstrap_plan(
         .or(target.runtime_arch.as_deref())
         .map(normalize_arch)
         .unwrap_or_else(|| "auto".to_string());
-    let install_dir = request
-        .install_dir
-        .clone()
-        .or(target.install_dir.clone())
-        .unwrap_or_else(|| default_install_dir(&platform));
+    let install_dir = prepare_remote_install_dir(
+        &platform,
+        request
+            .install_dir
+            .as_deref()
+            .or(target.install_dir.as_deref())
+            .unwrap_or(""),
+        local_home_dir().as_deref(),
+    )?;
     let local_override = request.artifact_path.is_some();
     Ok(SshTargetBootstrapPlan {
         target_id: target.id,
@@ -163,9 +199,7 @@ where
 {
     let target = find_target(&store, &request.target_id).await?;
     let result = async {
-        if matches!(target.auth_kind, SshAuthKind::Password) {
-            bail!("password SSH targets are not supported for bootstrap; configure SSH agent or key authentication.");
-        }
+        reject_password_ssh_bootstrap_auth(target.auth_kind)?;
         mark_ssh_bootstrap_installing(&store, &target.id).await?;
         emit(progress(
             &job_id,
@@ -189,7 +223,7 @@ where
     match result {
         Ok(target) => Ok(target),
         Err(error) => {
-            let redacted = redact_error(&error.to_string(), &target);
+            let redacted = redact_error(&error.to_string());
             let _ = store
                 .update_ssh_target_bootstrap_state(
                     &target.id,
@@ -271,11 +305,15 @@ where
     if !matches!(arch.as_str(), "x64" | "arm64") {
         bail!("unsupported remote architecture: {arch}");
     }
-    let install_dir_input = request
-        .install_dir
-        .clone()
-        .or(target.install_dir.clone())
-        .unwrap_or_else(|| default_install_dir(&platform));
+    let install_dir_input = prepare_remote_install_dir(
+        &platform,
+        request
+            .install_dir
+            .as_deref()
+            .or(target.install_dir.as_deref())
+            .unwrap_or(""),
+        local_home_dir().as_deref(),
+    )?;
     let install_dir = resolve_remote_install_dir(&target, &platform, &install_dir_input).await?;
 
     let installing = store
@@ -362,7 +400,9 @@ where
             },
         )
         .await?;
-    let installed = store.mark_ssh_target_checked(&installed.id).await?;
+    let installed = store
+        .mark_ssh_target_checked(&installed.id, SshTargetLastStatus::RuntimeReady)
+        .await?;
     emit(progress(
         &job_id,
         &target.id,
@@ -511,20 +551,7 @@ Write-Output $install
             .map(windows_sftp_path)
             .ok_or_else(|| anyhow!("remote Windows install directory probe returned no path."));
     }
-    let script = format!(
-        r#"
-set -eu
-install_dir={install_dir}
-case "$install_dir" in
-  "~") install_dir="$HOME" ;;
-  "~/"*) install_dir="$HOME/${{install_dir#~/}}" ;;
-esac
-mkdir -p "$install_dir"
-command -v tar >/dev/null 2>&1 || {{ echo "tar is required on the remote host." >&2; exit 11; }}
-printf '%s\n' "$install_dir"
-"#,
-        install_dir = shell_quote(install_dir),
-    );
+    let script = posix_resolve_install_dir_script(install_dir);
     let output = run_remote_command(target, platform, &script).await?;
     output
         .stdout
@@ -609,7 +636,7 @@ async fn install_runtime_artifact(
     Ok(())
 }
 
-async fn validate_remote_runtime(
+pub(crate) async fn validate_remote_runtime(
     target: &SshTarget,
     platform: &str,
     install_dir: &str,
@@ -755,25 +782,37 @@ set "ALERA_RUNTIME_DIR=%~dp0..\data"
     )
 }
 
-async fn run_remote_command(
+pub(crate) async fn ssh_target_answers_posix(target: &SshTarget) -> bool {
+    run_remote_command(target, "posix", "printf ready")
+        .await
+        .is_ok()
+}
+
+pub(crate) async fn ssh_target_answers_windows(target: &SshTarget) -> bool {
+    run_remote_command(target, "windows", "Write-Output ready")
+        .await
+        .is_ok()
+}
+
+pub(crate) async fn run_remote_command(
     target: &SshTarget,
     platform: &str,
     script: &str,
 ) -> Result<RemoteCommandOutput> {
+    if platform == "windows" {
+        return crate::ssh_windows_command::run(target, script).await;
+    }
     let mut args = ssh_args(target);
-    let command = if platform == "windows" {
-        format!(
-            "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand {}",
-            powershell_encoded(script)
-        )
-    } else {
-        format!("sh -lc {}", shell_quote(script))
-    };
+    let command = format!("sh -lc {}", shell_quote(script));
     args.push(command);
     run_checked("ssh", &args).await
 }
 
-async fn run_sftp_put(target: &SshTarget, local_path: &Path, remote_path: &str) -> Result<()> {
+pub(crate) async fn run_sftp_put(
+    target: &SshTarget,
+    local_path: &Path,
+    remote_path: &str,
+) -> Result<()> {
     let mut command = windowless_async_command("sftp");
     command
         .arg("-P")
@@ -854,7 +893,9 @@ fn default_install_dir(platform: &str) -> String {
     if platform == "windows" {
         "%LOCALAPPDATA%\\Alera\\runtime".to_string()
     } else {
-        "~/.alera/runtime".to_string()
+        // Sidecar layout (current/, bin/, versions/, data/). Distinct from the
+        // CLI runtime profile at ~/.alera/runtime (runtime.sqlite, host json).
+        "~/.alera/sidecar".to_string()
     }
 }
 
@@ -905,7 +946,27 @@ fn configured_bootstrap_arch(
         .map(normalize_arch)
 }
 
-fn remote_join(platform: &str, base: &str, parts: &[&str]) -> String {
+fn posix_resolve_install_dir_script(install_dir: &str) -> String {
+    // Quote/escape the `~/` prefix strip. Unquoted `#~/` tilde-expands the
+    // pattern on macOS /bin/sh and Linux dash, so the strip no-ops and the
+    // path becomes `$HOME/~/.alera/...` (literal `~` directory). See #666.
+    format!(
+        r#"
+set -eu
+install_dir={install_dir}
+case "$install_dir" in
+  "~") install_dir="$HOME" ;;
+  "~/"*) install_dir="$HOME/${{install_dir#"~/"}}" ;;
+esac
+mkdir -p "$install_dir"
+command -v tar >/dev/null 2>&1 || {{ echo "tar is required on the remote host." >&2; exit 11; }}
+printf '%s\n' "$install_dir"
+"#,
+        install_dir = shell_quote(install_dir),
+    )
+}
+
+pub(crate) fn remote_join(platform: &str, base: &str, parts: &[&str]) -> String {
     let separator = "/";
     let mut value = if platform == "windows" {
         windows_sftp_path(base)
@@ -922,8 +983,20 @@ fn remote_join(platform: &str, base: &str, parts: &[&str]) -> String {
     value
 }
 
-fn windows_sftp_path(value: &str) -> String {
-    value.replace('\\', "/")
+pub(crate) fn windows_sftp_path(value: &str) -> String {
+    // OpenSSH on Windows treats bare `C:/...` as relative to the remote home
+    // (nesting as `/C:/Users/<user>/C:/...`). Force the absolute SFTP form
+    // `/X:/...` so puts land at the intended drive path.
+    let normalized = value.replace('\\', "/");
+    let trimmed = normalized.trim_end_matches('/');
+    let without_leading = trimmed.trim_start_matches('/');
+    let mut chars = without_leading.chars();
+    match (chars.next(), chars.next()) {
+        (Some(drive), Some(':')) if drive.is_ascii_alphabetic() => {
+            format!("/{without_leading}")
+        }
+        _ => trimmed.to_string(),
+    }
 }
 
 pub(crate) fn shell_quote(value: &str) -> String {
@@ -984,12 +1057,11 @@ fn progress(
     }
 }
 
-fn redact_error(message: &str, target: &SshTarget) -> String {
-    truncate_error(
-        &message
-            .replace(&target.host, "<host>")
-            .replace(&target.username, "<user>"),
-    )
+fn redact_error(message: &str) -> String {
+    // Keep real paths such as `/home/leynier` so mkdir failures stay
+    // diagnosable. Replacing the SSH username used to turn that into
+    // `/home/<user>`, which looked like a template bug. See #675.
+    truncate_error(&redact_known_patterns(message))
 }
 
 fn truncate_error(message: &str) -> String {
@@ -1005,141 +1077,5 @@ fn truncate_error(message: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn normalizes_common_platform_and_arch_values() {
-        assert_eq!(normalize_platform("Darwin"), "macos");
-        assert_eq!(normalize_platform("Windows_NT"), "windows");
-        assert_eq!(normalize_platform("MINGW64_NT-10.0-22631"), "windows");
-        assert_eq!(normalize_platform("MSYS_NT-10.0-22631"), "windows");
-        assert_eq!(normalize_platform("CYGWIN_NT-10.0-22631"), "windows");
-        assert_eq!(normalize_arch("x86_64"), "x64");
-        assert_eq!(normalize_arch("AARCH64"), "arm64");
-    }
-
-    #[test]
-    fn posix_install_script_repoints_current_symlink_and_runtime_data_dir() {
-        let script = posix_install_script(
-            "/home/me/.alera/runtime",
-            "1.2.3",
-            "linux",
-            "x64",
-            "/home/me/.alera/runtime/staging/job/alera-runtime.tar.gz",
-            "alera",
-        );
-        assert!(script.contains("ln -sfn \"$version_dir\" \"$install_dir/current\""));
-        assert!(!script.contains("current.tmp"));
-        assert!(script.contains("trap rollback EXIT"));
-        assert!(!script.contains("trap rollback ERR"));
-        assert!(
-            script.contains("mkdir -p \"$version_dir\" \"$install_dir/bin\" \"$install_dir/data\"")
-        );
-        assert!(script.contains("export ALERA_RUNTIME_DIR=\"$DIR/data\""));
-        assert!(script.contains("exec \"$DIR/current/alera\" \"$@\""));
-        assert!(script.contains("<<-'SH'"));
-        assert!(script.contains("\n\tSH\n"));
-    }
-
-    #[test]
-    fn configured_platform_and_arch_prevent_detection_requirement() {
-        let target = SshTarget {
-            id: "target-1".to_string(),
-            alias: "remote".to_string(),
-            host: "remote.example.test".to_string(),
-            port: 22,
-            username: "alera".to_string(),
-            platform: Some("Darwin".to_string()),
-            arch: Some("AARCH64".to_string()),
-            auth_kind: SshAuthKind::Agent,
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
-            last_status: None,
-            install_dir: None,
-            runtime_version: None,
-            runtime_platform: None,
-            runtime_arch: None,
-            bootstrap_status: SshBootstrapStatus::NotInstalled,
-            last_bootstrap_at: None,
-            last_checked_at: None,
-            last_error: None,
-        };
-        let request = SshTargetBootstrapRequest {
-            target_id: target.id.clone(),
-            install_dir: None,
-            platform: Some("linux".to_string()),
-            arch: Some("x86_64".to_string()),
-            channel: None,
-            version: None,
-            archive_url: None,
-            archive_path: None,
-            artifact_path: None,
-            manifest_public_key: None,
-        };
-
-        assert_eq!(
-            configured_bootstrap_platform(&request, &target).as_deref(),
-            Some("linux")
-        );
-        assert_eq!(
-            configured_bootstrap_arch(&request, &target).as_deref(),
-            Some("x64")
-        );
-    }
-
-    #[test]
-    fn runtime_archive_public_key_selection_ignores_empty_values() {
-        assert_eq!(
-            select_runtime_archive_public_key(
-                Some(" ".to_string()),
-                Some("\t".to_string()),
-                Some(" update-key ".to_string()),
-            )
-            .as_deref(),
-            Some("update-key")
-        );
-        assert_eq!(
-            select_runtime_archive_public_key(
-                Some(" request-key ".to_string()),
-                Some("runtime-key".to_string()),
-                Some("update-key".to_string()),
-            )
-            .as_deref(),
-            Some("request-key")
-        );
-    }
-
-    #[test]
-    fn windows_install_script_avoids_symlink_privileges() {
-        let script = windows_install_script(
-            "C:/Users/me/AppData/Local/Alera/runtime",
-            "1.2.3",
-            "windows",
-            "x64",
-            "C:/Users/me/AppData/Local/Alera/runtime/staging/job/alera-runtime.tar.gz",
-            "alera.exe",
-        );
-        assert!(script.contains("current.txt"));
-        assert!(script.contains("alera.cmd"));
-        assert!(script.contains("set \"ALERA_RUNTIME_DIR=%~dp0..\\data\""));
-        assert!(script.contains("tar.exe -xzf $stagingArchive"));
-    }
-
-    #[test]
-    fn windows_validate_script_uses_current_file_layout() {
-        let script = windows_validate_script("windows", "C:/Users/me/AppData/Local/Alera/runtime");
-        assert!(script.contains("current.txt"));
-        assert!(script.contains("Join-Path $current 'alera.exe'"));
-        assert!(!script.contains("current/alera.exe"));
-    }
-
-    #[test]
-    fn truncate_error_handles_multibyte_text() {
-        let message = "falló ".repeat(200);
-        let truncated = truncate_error(&message);
-
-        assert!(truncated.ends_with("..."));
-        assert_eq!(truncated.trim_end_matches("...").chars().count(), 600);
-    }
-}
+#[path = "ssh_bootstrap_tests.rs"]
+mod tests;

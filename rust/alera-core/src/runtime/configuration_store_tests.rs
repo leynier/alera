@@ -279,27 +279,16 @@ async fn configuration_keyboard_edits_preserve_future_actions_and_reset_known_ac
 }
 
 #[tokio::test]
-async fn configuration_native_edits_preserve_opaque_ai_and_browser_fields() {
+async fn configuration_native_edits_preserve_opaque_ai_fields() {
     let (_dir, store) = fixture().await;
     let before = store.configuration_snapshot("a").await.unwrap();
     let mut next = before["document"].clone();
-    next["desktop"]["browser"]["futureBrowser"] = json!(true);
     next["desktop"]["settings"]["aiTextGeneration"] = json!({"futureAi":42,"promptSettingsByOperation":{"commitMessage":{"agent":"codex","futurePrompt":true}}});
     apply(&store, &before, &next).await.unwrap();
     let mut ai = store.ai_assist_settings().await.unwrap().unwrap();
     ai.enabled = false;
     store.set_ai_assist_settings(ai).await.unwrap();
-    store
-        .set_browser_settings(super::BrowserSettings {
-            search_engine: super::BrowserSearchEngine::Bing,
-        })
-        .await
-        .unwrap();
     let after = store.configuration_snapshot("a").await.unwrap();
-    assert_eq!(
-        after["document"]["desktop"]["browser"],
-        json!({"searchEngine":"bing","futureBrowser":true})
-    );
     assert_eq!(
         after["document"]["desktop"]["settings"]["aiTextGeneration"]["futureAi"],
         42

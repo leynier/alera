@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:alera/src/app/dependencies.dart';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_model_discovery_service.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_registry.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/application/settings_repository.dart';
@@ -124,6 +127,79 @@ void main() {
       expect(cache.settings.aiAssist, saved);
       expect(tester.takeException(), isNull);
     });
+  }
+
+  testWidgets('lists OpenCode Go and can select a static model', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final client = _LegacyRuntimeClient()..persisted.complete();
+    final cache = _MemorySettingsRepository();
+    final container = ProviderContainer(
+      overrides: [
+        settingsRepositoryProvider.overrideWithValue(
+          RuntimeSettingsRepository(client: client, legacyRepository: cache),
+        ),
+        aiAssistModelDiscoveryServiceProvider.overrideWithValue(
+          _StaticOpenCodeGoDiscovery(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    await container.read(settingsControllerProvider.notifier).load();
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAleraDarkTheme(),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: Consumer(
+                builder: (context, ref, _) => AiAssistSettingsPane(
+                  settings: ref.watch(settingsControllerProvider).aiAssist,
+                  onChanged: (value) => unawaited(
+                    ref
+                        .read(settingsControllerProvider.notifier)
+                        .updateAiAssist(value),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final selector = find.byKey(
+      const ValueKey<String>('ai-assist-agent-codex'),
+    );
+    await tester.ensureVisible(selector);
+    await tester.pumpAndSettle();
+    await tester.tap(selector);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OpenCode Go').last);
+    await tester.pumpAndSettle();
+    expect(
+      container.read(settingsControllerProvider).aiAssist.agent,
+      AiAssistAgent.opencodeGo,
+    );
+    expect(find.text('OpenCode Go'), findsWidgets);
+    expect(find.text('GLM-5.3-Flash'), findsOneWidget);
+  });
+}
+
+class _StaticOpenCodeGoDiscovery implements AiAssistModelDiscoveryService {
+  @override
+  Future<AiAssistModelDiscoveryResult> discover(AiAssistAgent agent) async {
+    final spec = aiAssistAgentSpecs[agent]!;
+    return AiAssistModelDiscoveryResult(
+      success: false,
+      agent: agent,
+      models: spec.models,
+      defaultModelId: spec.defaultModelId,
+      error: 'OpenCode Go API key was not found',
+    );
   }
 }
 

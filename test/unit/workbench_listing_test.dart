@@ -153,29 +153,32 @@ void main() {
         state,
         agentStatuses: _agentStatuses(state, <String>['t-1', 't-2']),
       );
-      // alera header → Main + feature, orca header → Main
+      // Each project uses the requested name order for all tasks.
       expect(rows, hasLength(5));
       expect(rows[0], isA<WorkbenchProjectHeaderRow>());
       expect((rows[0] as WorkbenchProjectHeaderRow).project.name, 'alera');
       expect(rows[1], isA<WorkbenchWorkspaceRow>());
-      expect((rows[1] as WorkbenchWorkspaceRow).workspace.name, 'Main');
+      expect((rows[1] as WorkbenchWorkspaceRow).workspace.name, 'feature');
       expect((rows[1] as WorkbenchWorkspaceRow).showProjectChip, isFalse);
       expect(rows[2], isA<WorkbenchWorkspaceRow>());
-      expect((rows[2] as WorkbenchWorkspaceRow).workspace.name, 'feature');
+      expect((rows[2] as WorkbenchWorkspaceRow).workspace.name, 'Main');
       expect(rows[3], isA<WorkbenchProjectHeaderRow>());
       expect((rows[3] as WorkbenchProjectHeaderRow).project.name, 'orca');
       expect(rows[4], isA<WorkbenchWorkspaceRow>());
       expect((rows[4] as WorkbenchWorkspaceRow).workspace.name, 'Main');
     });
 
-    test('main worktree is pinned to the top regardless of name sort', () {
-      // 'feature' would normally come before 'main' alphabetically - main wins.
+    test('project-folder tasks follow name sorting without priority', () {
+      // Storage kind does not override alphabetical ordering.
       final rows = buildSidebarRows(_fixtureState());
       final aleraWorkspaces = rows
           .whereType<WorkbenchWorkspaceRow>()
           .where((r) => r.project.id == 'p-alera')
           .toList();
-      expect(aleraWorkspaces.first.workspace.isMain, isTrue);
+      expect(aleraWorkspaces.map((row) => row.workspace.name), [
+        'feature',
+        'Main',
+      ]);
     });
 
     test('collapsed project hides its workspaces', () {
@@ -252,53 +255,50 @@ void main() {
       expect(names, <String>['beta', 'zebra']);
     });
 
-    test(
-      'recent workspace sort keeps main pinned and sorts linked workspaces',
-      () {
-        final prefs = WorkbenchViewPrefs.defaults.copyWith(
-          workspaceSort: .recent,
-        );
-        final project = _project('p-alpha', 'alpha');
-        final main = _workspace(
-          'w-main',
-          project.id,
-          'Main',
-          'main',
-          kind: .main,
-          recencyOffset: 0,
-        );
-        final stale = _workspace(
-          'w-stale',
-          project.id,
-          'stale',
-          'feature/stale',
-          recencyOffset: 1,
-        );
-        final fresh = _workspace(
-          'w-fresh',
-          project.id,
-          'fresh',
-          'feature/fresh',
-          recencyOffset: 3,
-        );
-        final state = WorkbenchState(
-          projects: <Project>[project],
-          workspacesByProject: <String, List<Workspace>>{
-            project.id: <Workspace>[main, stale, fresh],
-          },
-          viewPrefs: prefs,
-          bootstrapped: true,
-        );
+    test('recent workspace sort applies equally to project-folder and linked tasks', () {
+      final prefs = WorkbenchViewPrefs.defaults.copyWith(
+        workspaceSort: .recent,
+      );
+      final project = _project('p-alpha', 'alpha');
+      final main = _workspace(
+        'w-main',
+        project.id,
+        'Main',
+        'main',
+        kind: .main,
+        recencyOffset: 0,
+      );
+      final stale = _workspace(
+        'w-stale',
+        project.id,
+        'stale',
+        'feature/stale',
+        recencyOffset: 1,
+      );
+      final fresh = _workspace(
+        'w-fresh',
+        project.id,
+        'fresh',
+        'feature/fresh',
+        recencyOffset: 3,
+      );
+      final state = WorkbenchState(
+        projects: <Project>[project],
+        workspacesByProject: <String, List<Workspace>>{
+          project.id: <Workspace>[main, stale, fresh],
+        },
+        viewPrefs: prefs,
+        bootstrapped: true,
+      );
 
-        final rows = buildSidebarRows(state);
-        final ids = rows
-            .whereType<WorkbenchWorkspaceRow>()
-            .map((row) => row.workspace.id)
-            .toList();
+      final rows = buildSidebarRows(state);
+      final ids = rows
+          .whereType<WorkbenchWorkspaceRow>()
+          .map((row) => row.workspace.id)
+          .toList();
 
-        expect(ids, <String>['w-main', 'w-fresh', 'w-stale']);
-      },
-    );
+      expect(ids, <String>['w-fresh', 'w-stale', 'w-main']);
+    });
   });
 
   group('buildSidebarRows · group by none', () {

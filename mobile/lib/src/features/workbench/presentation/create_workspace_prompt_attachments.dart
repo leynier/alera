@@ -1,25 +1,20 @@
 part of 'create_workspace_screen.dart';
 
 extension _CreateWorkspacePromptAttachments on _CreateWorkspaceScreenState {
-  /// The worktree Quick Open indexes for a workspace that does not exist yet.
-  /// The selected parent is preferred and the project's own default answers
-  /// otherwise; a parent from another project is skipped, since Quick Open
-  /// returns paths relative to the worktree it indexed and those would not
-  /// exist in the repository being branched. That relative answer is also what
-  /// keeps an inserted path valid once the agent starts in the new worktree.
   String? _workspaceFilesSourceId(String? projectId) {
-    if (!widget.supportsWorkspaceFiles || projectId == null) {
-      return null;
+    if (!widget.supportsWorkspaceFiles || projectId == null) return null;
+    if (widget.supportsSharedCheckoutWorkspaces) return projectId;
+    // Older runtimes only index an existing local task, not a project checkout.
+    final candidates = widget.workspaces.where(
+      (workspace) =>
+          workspace.projectId == projectId &&
+          !workspace.isRemote &&
+          workspace.status == 'active',
+    );
+    for (final workspace in candidates) {
+      if (workspace.id == _promptParentWorkspaceId) return workspace.id;
     }
-    final parentId = _promptParentWorkspaceId;
-    if (parentId != null) {
-      for (final workspace in widget.workspaces) {
-        if (workspace.id == parentId && workspace.projectId == projectId) {
-          return parentId;
-        }
-      }
-    }
-    return _defaultParentWorkspaceId(projectId);
+    return candidates.where((workspace) => workspace.isMain).firstOrNull?.id;
   }
 
   Future<void> _showPromptAttachmentPicker(
@@ -27,8 +22,12 @@ extension _CreateWorkspacePromptAttachments on _CreateWorkspaceScreenState {
   ) async {
     final source = await showPromptAttachmentSheet(
       context,
-      allowPhotoLibrary: widget.supportsPromptImageUpload,
-      allowFiles: widget.supportsPromptFileUpload,
+      allowPhotoLibrary:
+          (_checkoutHostId == null || _checkoutHostId == 'local') &&
+          widget.supportsPromptImageUpload,
+      allowFiles:
+          (_checkoutHostId == null || _checkoutHostId == 'local') &&
+          widget.supportsPromptFileUpload,
       allowWorkspaceFile: workspaceFilesSourceId != null,
     );
     if (!mounted || source == null) {
@@ -75,6 +74,14 @@ extension _CreateWorkspacePromptAttachments on _CreateWorkspaceScreenState {
       if (!mounted) {
         return;
       }
+      ref
+          .read(
+            promptLocalAttachmentsProvider(
+              widget.hostId,
+              widget.initialLocalAttachmentPaths,
+            ).notifier,
+          )
+          .add(result.hostPath);
       insertPromptPaths(_prompt, <String>[result.hostPath]);
       _update(() {
         _promptAttachmentError = null;
@@ -94,7 +101,7 @@ extension _CreateWorkspacePromptAttachments on _CreateWorkspaceScreenState {
     }
   }
 
-  Future<void> _addPromptWorkspaceFile(String workspaceId) async {
+  Future<void> _addPromptWorkspaceFile(String sourceId) async {
     try {
       final client = await ref.read(
         workspaceClientProvider(widget.hostId).future,
@@ -115,7 +122,12 @@ extension _CreateWorkspacePromptAttachments on _CreateWorkspaceScreenState {
       }
       final path = await showWorkspaceFilePickerSheet(
         context,
-        start: () => filesClient.startWorkspaceQuickOpen(workspaceId),
+        start: () => widget.supportsSharedCheckoutWorkspaces
+            ? requireSharedCheckoutClient(client).startProjectCheckoutQuickOpen(
+                projectId: sourceId,
+                checkoutHostId: _checkoutHostId,
+              )
+            : filesClient.startWorkspaceQuickOpen(sourceId),
         search: filesClient.searchWorkspaceQuickOpen,
         stop: filesClient.stopWorkspaceQuickOpen,
       );
@@ -161,6 +173,14 @@ extension _CreateWorkspacePromptAttachments on _CreateWorkspaceScreenState {
         if (!mounted) {
           return;
         }
+        ref
+            .read(
+              promptLocalAttachmentsProvider(
+                widget.hostId,
+                widget.initialLocalAttachmentPaths,
+              ).notifier,
+            )
+            .add(result.hostPath);
         insertPromptPaths(_prompt, <String>[result.hostPath]);
       }
       if (mounted) {

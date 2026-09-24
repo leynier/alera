@@ -10,6 +10,7 @@ import 'package:alera/src/features/desktop_presence/infra/desktop_presence_chann
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -54,6 +55,26 @@ void desktopPresenceSync(Ref ref) {
   coordinator.start();
   final lifecycle = ref.watch(appWindowLifecycleCoordinatorProvider);
   lifecycle.bindHideOnClose(() => coordinator.trayInstalled);
+  lifecycle.bindHiddenOnClose(
+    defaultTargetPlatform == TargetPlatform.windows
+        ? () {
+            unawaited(
+              coordinator.announceHiddenToTray(
+                alreadyShown: ref
+                    .read(settingsControllerProvider)
+                    .general
+                    .trayHideNoticeShown,
+                markShown: ref
+                    .read(settingsControllerProvider.notifier)
+                    .markTrayHideNoticeShown,
+              ),
+            );
+          }
+        : null,
+  );
+  // The callback closes over this provider's ref. Clear it on dispose so a
+  // later hide does not call into a disposed container.
+  ref.onDispose(() => lifecycle.bindHiddenOnClose(null));
 
   void push() {
     final settings = ref.read(settingsControllerProvider).general;

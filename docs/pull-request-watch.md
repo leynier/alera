@@ -1,0 +1,11 @@
+# Pull Request Watch
+
+For GitHub, a runtime advertising `pullRequestWatchExecutionV1` owns Watch and Fix and Watch, Fix and Merge. Mobile and desktop activate and stop the same persisted workspace watch with `pullRequestWatch.start` and `pullRequestWatch.stop`; `pullRequestWatch.list` and `pullRequestWatchChanged` supply both the PR panel and workspace-row indicators. The capability is advertised in the local control file, `status.get`, and `mobile.hello`, without changing either strict protocol version.
+
+The runtime polls in background jobs every 30 seconds and immediately after activation, with at most four concurrent snapshot reads. An active watch keeps an otherwise idle runtime alive. Closing a PR panel or disconnecting a client does not stop execution. Watches and dispatch watermarks survive runtime restart. Updates and stops invalidate pending evaluations; a late result cannot recreate a stopped watch or overwrite a replacement.
+
+Failed checks, unresolved current review threads from another author, and merge conflicts are evaluated according to the selected scope. The same concerns on the same commit are not sent again. A busy agent is retried on a later poll; an unavailable bound terminal can be replaced using its saved profile. Profile launch and prompt delivery do not select a workspace or tab in either client.
+
+Automatic merge requires an open, non-draft, mergeable PR with successful checks, complete watched comment data, no watched unresolved threads, and a repository-allowed merge method. The GitHub merge command is bound to the evaluated head commit with `--match-head-commit`. A queued merge keeps the watch active until a snapshot confirms the final PR state, without submitting the same head again. Failed reads preserve the watch for retry; a closed, merged, removed, or replaced PR ends it. Stop cancels pending jobs, but cannot undo a merge already accepted by GitHub.
+
+Clients connected to older runtimes keep the legacy execution path. GitLab and Azure DevOps watches retain desktop execution; the runtime executor described here is GitHub-specific. Upgrade both clients and the runtime to use shared GitHub execution, since an older desktop does not understand the execution capability.

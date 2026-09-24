@@ -72,51 +72,73 @@ class _GitHistoryPanelState extends State<_GitHistoryPanel> {
   Widget build(BuildContext context) {
     final result = widget.state.result;
     final count = result?.items.length ?? 0;
-    return DecoratedBox(
-      decoration: const BoxDecoration(color: AleraTokens.surfaceVariant),
-      child: Column(
-        mainAxisSize: .min,
-        children: <Widget>[
-          if (widget.collapsed)
-            const Divider(height: 1, color: AleraTokens.borderSubtle)
-          else
-            _HistoryResizeHandle(onResize: _resize),
-          DecoratedBox(
-            decoration: const BoxDecoration(color: AleraTokens.surface),
-            child: SizedBox(
-              height: AleraTokens.sidebarHeaderHeight,
-              // The whole strip toggles the section, so the hover tint runs
-              // edge to edge and stays square: a rounded inset block would
-              // read as a button instead of a section row.
-              child: HoverContainer(
-                onTap: widget.onToggle,
-                hoverColor: AleraTokens.surfaceVariant,
-                borderRadius: 0,
-                padding: const .symmetric(horizontal: AleraTokens.space8),
-                child: Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: _HistoryHeaderLabel(
-                        collapsed: widget.collapsed,
-                        count: count,
-                        hasMore: result?.hasMore ?? false,
-                        showCount: result != null,
-                      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const handleHeight = AleraTokens.space6;
+        const headerHeight = AleraTokens.sidebarHeaderHeight;
+        const collapsedDividerHeight = 1.0;
+        final maxH = constraints.maxHeight;
+        final hasBound = maxH.isFinite;
+        final topHeight = widget.collapsed
+            ? collapsedDividerHeight
+            : handleHeight;
+        final remaining = hasBound
+            ? math.max(0.0, maxH - topHeight)
+            : headerHeight + _height;
+        final fittedHeaderHeight = math.min(headerHeight, remaining);
+        final bodyHeight = widget.collapsed
+            ? 0.0
+            : _height
+                  .clamp(0.0, math.max(0.0, remaining - fittedHeaderHeight))
+                  .toDouble();
+        final header = DecoratedBox(
+          decoration: const BoxDecoration(color: AleraTokens.surface),
+          child: SizedBox(
+            height: fittedHeaderHeight,
+            // The whole strip toggles the section, so the hover tint runs
+            // edge to edge and stays square: a rounded inset block would
+            // read as a button instead of a section row.
+            child: HoverContainer(
+              onTap: widget.onToggle,
+              hoverColor: AleraTokens.surfaceVariant,
+              borderRadius: 0,
+              padding: const .symmetric(horizontal: AleraTokens.space8),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: _HistoryHeaderLabel(
+                      collapsed: widget.collapsed,
+                      count: count,
+                      hasMore: result?.hasMore ?? false,
+                      showCount: result != null,
                     ),
-                    const SizedBox(width: AleraTokens.space4),
-                    _RefreshCommitsButton(
-                      loading: widget.state.loading,
-                      onPressed: () => unawaited(widget.onRefresh()),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: AleraTokens.space4),
+                  _RefreshCommitsButton(
+                    loading: widget.state.loading,
+                    onPressed: () => unawaited(widget.onRefresh()),
+                  ),
+                ],
               ),
             ),
           ),
-          if (!widget.collapsed)
-            SizedBox(height: _height, child: _buildBody(context)),
-        ],
-      ),
+        );
+        return DecoratedBox(
+          decoration: const BoxDecoration(color: AleraTokens.surfaceVariant),
+          child: Column(
+            mainAxisSize: .min,
+            children: <Widget>[
+              if (widget.collapsed)
+                const Divider(height: 1, color: AleraTokens.borderSubtle)
+              else
+                _HistoryResizeHandle(onResize: _resize),
+              header,
+              if (!widget.collapsed && bodyHeight > 0)
+                SizedBox(height: bodyHeight, child: _buildBody(context)),
+            ],
+          ),
+        );
+      },
     );
   }
 

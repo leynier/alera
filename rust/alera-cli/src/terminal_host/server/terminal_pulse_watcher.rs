@@ -6,7 +6,7 @@ use std::thread;
 use std::time::Duration;
 
 use git2::{Repository, StatusOptions};
-use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{Config, Event, EventKind, RecursiveMode};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
@@ -29,10 +29,15 @@ use event_scope::{
 };
 pub(super) use git_ignore_sources::GitConfigEnvironment;
 use git_ignore_sources::{
-    prepare_repository, refresh_git_ignore_source_watches, reopen_repository, GitIgnoreSources,
+    ancestor_gitignore_files, prepare_repository, refresh_git_ignore_source_watches,
+    reopen_repository, GitIgnoreSources,
 };
 use git_relevance::event_is_git_relevant;
 use reconciliation::ignored_git_status_paths;
+
+#[path = "terminal_pulse_shared_watcher.rs"]
+mod shared_watcher;
+use shared_watcher::SharedPulseWatcher;
 
 const EVENT_COALESCE_WINDOW: Duration = Duration::from_millis(25);
 
@@ -58,7 +63,7 @@ struct WorkspacePulseWorker {
     reconcile_requested: Arc<AtomicBool>,
     cancelled: Arc<AtomicBool>,
     inbox: tokio::sync::mpsc::UnboundedSender<ServerCommand>,
-    watcher: RecommendedWatcher,
+    watcher: SharedPulseWatcher,
     repository: Repository,
     root: PathBuf,
     watched_directories: HashSet<PathBuf>,
@@ -162,7 +167,8 @@ impl WorkspacePulseWatcher {
         let (wake_tx, wake_rx) = mpsc::sync_channel::<()>(1);
         let callback_wake_tx = wake_tx.clone();
         let mut git_rules_dirty = false;
-        let mut watcher = RecommendedWatcher::new(
+        let mut watcher = SharedPulseWatcher::new(
+            &root,
             move |event: notify::Result<Event>| {
                 if callback_cancelled.load(Ordering::Relaxed) {
                     return;
@@ -410,27 +416,6 @@ fn path_is_git_index_event(git_metadata_directory: &Path, path: &Path) -> bool {
         && path
             .file_name()
             .is_some_and(|name| name == "index" || name == "index.lock")
-}
-
-fn ancestor_gitignore_files(root: &Path, repository: &Repository) -> HostResult<HashSet<PathBuf>> {
-    let workdir = repository
-        .workdir()
-        .ok_or_else(|| HostError::state("Terminal Pulse requires a Git working tree."))?;
-    let workdir = dunce::canonicalize(workdir).map_err(|error| {
-        HostError::state(format!(
-            "Terminal Pulse Git working tree could not be resolved: {error}"
-        ))
-    })?;
-    let mut files = HashSet::new();
-    let mut directory = root.parent();
-    while let Some(current) = directory.filter(|current| current.starts_with(&workdir)) {
-        files.insert(current.join(".gitignore"));
-        if current == workdir {
-            break;
-        }
-        directory = current.parent();
-    }
-    Ok(files)
 }
 
 #[cfg(test)]

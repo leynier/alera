@@ -8,6 +8,7 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/agent_profiles/domain/managed_agent_profile_options.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/settings/presentation/panes/agent_profile_cursor_model_controls.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -39,23 +40,40 @@ class const AgentProfileManagedEditor({
           keyName: 'ccsProfile',
         ),
       if (agentProfileSupportsModel(adapter)) ...<Widget>[
-        _choiceRow(
-          title: 'Model',
-          description: 'Leave as default to use the agent configuration.',
-          keyName: 'model',
-          options: models,
-          filterable: true,
-          trailing: onRefreshModels == null
-              ? null
-              : AleraIconButton(
-                  tooltip: 'Refresh Models',
-                  icon: modelsLoading ? AleraIcons.loading : AleraIcons.refresh,
-                  onPressed: enabled && !modelsLoading ? onRefreshModels : null,
-                ),
-        ),
+        if (adapter == AgentType.cursor)
+          ...cursorManagedModelRows(
+            models: models,
+            modelId: config['model'] is String ? config['model'] as String : '',
+            enabled: enabled,
+            modelsLoading: modelsLoading,
+            onRefreshModels: onRefreshModels,
+            onModelChanged: (value) => _setValue('model', value),
+          )
+        else
+          _choiceRow(
+            title: 'Model',
+            description: 'Leave as default to use the agent configuration.',
+            keyName: 'model',
+            options: models,
+            filterable: true,
+            trailing: onRefreshModels == null
+                ? null
+                : AleraIconButton(
+                    tooltip: 'Refresh Models',
+                    icon: modelsLoading
+                        ? AleraIcons.loading
+                        : AleraIcons.refresh,
+                    onPressed: enabled && !modelsLoading
+                        ? onRefreshModels
+                        : null,
+                  ),
+          ),
         _textRow(
           title: 'Exact Model ID',
-          description: 'Use a model ID that is not in the discovered list.',
+          description: adapter == AgentType.cursor
+              ? 'Use a model ID that is not in the discovered list. An unknown '
+                    'ID stays as typed and hides effort, thinking, and fast.'
+              : 'Use a model ID that is not in the discovered list.',
           keyName: 'model',
         ),
       ],

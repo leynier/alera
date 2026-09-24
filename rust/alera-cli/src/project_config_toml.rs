@@ -39,18 +39,23 @@ fn parse_new_workspace_config(value: Option<&toml::Value>) -> Result<NewWorkspac
     let Some(table) = value.as_table() else {
         bail!("alera.toml [new_workspace] must be a table");
     };
-    let prompt_append = table
-        .get("prompt_append")
-        .map(|value| {
-            value
-                .as_str()
-                .map(str::trim)
-                .map(str::to_string)
-                .ok_or_else(|| anyhow!("new_workspace.prompt_append must be a string"))
-        })
-        .transpose()?
-        .unwrap_or_default();
-    Ok(NewWorkspaceConfig { prompt_append })
+    let prompt_append = optional_new_workspace_string(table.get("prompt_append"), "prompt_append")?;
+    let source_branch = optional_new_workspace_string(table.get("source_branch"), "source_branch")?;
+    Ok(NewWorkspaceConfig {
+        prompt_append,
+        source_branch,
+    })
+}
+
+fn optional_new_workspace_string(value: Option<&toml::Value>, field: &str) -> Result<String> {
+    let Some(value) = value else {
+        return Ok(String::new());
+    };
+    value
+        .as_str()
+        .map(str::trim)
+        .map(str::to_string)
+        .ok_or_else(|| anyhow!("new_workspace.{field} must be a string"))
 }
 
 fn parse_git_hosting_provider(value: Option<&toml::Value>) -> Result<Option<String>> {
@@ -203,5 +208,38 @@ Preserve Existing APIs.
             config.new_workspace.prompt_append,
             "Run The Focused Tests.\nPreserve Existing APIs."
         );
+    }
+
+    #[test]
+    fn project_config_empty_new_workspace_table_stays_empty() {
+        let config = parse_project_config_toml("[new_workspace]").unwrap();
+        assert!(config.new_workspace.prompt_append.is_empty());
+        assert!(config.new_workspace.source_branch.is_empty());
+        assert!(config.is_empty());
+    }
+
+    #[test]
+    fn project_config_reads_new_workspace_source_branch() {
+        let config = parse_project_config_toml(
+            r#"
+[new_workspace]
+source_branch = "develop"
+"#,
+        )
+        .unwrap();
+        assert_eq!(config.new_workspace.source_branch, "develop");
+        assert!(!config.is_empty());
+    }
+
+    #[test]
+    fn project_config_rejects_non_string_new_workspace_source_branch() {
+        let error = parse_project_config_toml(
+            r#"
+[new_workspace]
+source_branch = ["develop"]
+"#,
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("source_branch must be a string"));
     }
 }

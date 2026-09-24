@@ -11,6 +11,7 @@ use windows::Win32::System::Threading::{
     SYNCHRONIZATION_SYNCHRONIZE,
 };
 
+pub(crate) const COMMAND_BOOTSTRAP_ARGUMENT: &str = "__workspace-job-bootstrap";
 pub(crate) const BOOTSTRAP_ARGUMENT: &str = "__pty-job-bootstrap";
 pub(crate) const BOOTSTRAP_EVENT_ENV: &str = "ALERA_PTY_JOB_BOOTSTRAP_EVENT";
 pub(crate) const BOOTSTRAP_PARENT_PID_ENV: &str = "ALERA_PTY_JOB_BOOTSTRAP_PARENT_PID";
@@ -23,7 +24,9 @@ struct BootstrapRequest {
 }
 
 pub(crate) fn is_invocation() -> bool {
-    std::env::args_os().nth(1).as_deref() == Some(OsStr::new(BOOTSTRAP_ARGUMENT))
+    matches!(std::env::args_os().nth(1).as_deref(),
+        Some(argument) if argument == OsStr::new(BOOTSTRAP_ARGUMENT)
+            || argument == OsStr::new(COMMAND_BOOTSTRAP_ARGUMENT))
 }
 
 pub(crate) fn run() -> i32 {
@@ -41,14 +44,23 @@ fn run_inner() -> Result<i32, String> {
         .map_err(|error| format!("missing launch request: {error}"))?;
     let request: BootstrapRequest = serde_json::from_str(&request)
         .map_err(|error| format!("invalid launch request: {error}"))?;
-    install_control_handler()?;
+    let command_mode =
+        std::env::args_os().nth(1).as_deref() == Some(OsStr::new(COMMAND_BOOTSTRAP_ARGUMENT));
+    if !command_mode {
+        install_control_handler()?;
+    }
     wait_for_release()?;
 
     // This process is already attached to ConPTY and its Job Object. The shell
     // must inherit both, so CREATE_NO_WINDOW from the normal command boundary
     // is intentionally not applicable here.
     #[allow(clippy::disallowed_methods)]
-    let status = Command::new(&request.shell)
+    let mut command = if command_mode {
+        alera_core::child_process::windowless_command(&request.shell)
+    } else {
+        Command::new(&request.shell)
+    };
+    let status = command
         .args(&request.arguments)
         .env_remove(BOOTSTRAP_EVENT_ENV)
         .env_remove(BOOTSTRAP_PARENT_PID_ENV)

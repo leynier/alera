@@ -25,6 +25,7 @@ void _registerPromptWorkspaceClipboardTests() {
                 required operationId,
                 required projectId,
                 required prompt,
+                required autoAssignSection,
               }) async => const GeneratedWorkspaceIdentity(
                 workspaceName: 'Prompt Workspace',
                 branchName: 'feat/prompt-workspace',
@@ -37,6 +38,8 @@ void _registerPromptWorkspaceClipboardTests() {
                 required newBranchName,
                 required name,
                 parentWorkspaceId,
+                hostId,
+                issueUrl,
               }) async => WorkspaceCreationResult(
                 workspace: _workspace(
                   id: 'workspace-1',

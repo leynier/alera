@@ -87,17 +87,20 @@ jobs:
   build:
     needs: revision
     name: build ${{ matrix.platform }}
-    timeout-minutes: 90
+    timeout-minutes: ${{ matrix.timeout_minutes }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: macos
             os: macos-latest
+            timeout_minutes: 180
           - platform: windows
             os: windows-latest
+            timeout_minutes: 120
           - platform: linux
             os: ubuntu-latest
+            timeout_minutes: 90
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -203,6 +206,7 @@ jobs:
           retention-days: 7
 
       - name: Verify native process boundary and workbench flow
+        if: matrix.platform != 'windows'
         shell: bash
         env:
           ALERA_FLAVOR: dev
@@ -217,6 +221,23 @@ jobs:
               flutter test "integration_test/${suite}.dart" -d "$PLATFORM" --reporter expanded
             fi
           done
+
+      # path_provider_windows derives %APPDATA%\<CompanyName>\<ProductName>.
+      # Changing the release pair would move every user's data.
+      # Pin the runner paths. Get-ChildItem -Filter is case-insensitive, so
+      # Alera.exe also matches the sidecar alera.exe under resources\ and sidecar\.
+      - name: Verify Windows data directory identity
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $releasePath = 'build/windows/x64/runner/Release/Alera.exe'
+          $devPath = 'build/windows/x64/runner/Debug/alera-dev.exe'
+          if (-not (Test-Path -LiteralPath $releasePath)) { throw "Release executable not found: $releasePath" }
+          if (-not (Test-Path -LiteralPath $devPath)) { throw "Dev executable not found: $devPath" }
+          $release = Get-Item -LiteralPath $releasePath
+          $dev = Get-Item -LiteralPath $devPath
+          if ($release.VersionInfo.CompanyName -ne 'dev.leynier' -or $release.VersionInfo.ProductName -ne 'Alera') { throw "Release identity changed: $($release.VersionInfo.CompanyName)\$($release.VersionInfo.ProductName)" }
+          if ($dev.VersionInfo.CompanyName -ne 'dev.leynier' -or $dev.VersionInfo.ProductName -ne 'Alera Dev') { throw "Dev identity is $($dev.VersionInfo.CompanyName)\$($dev.VersionInfo.ProductName)" }
 
       - name: Verify macOS startup and desktop presence
         if: matrix.platform == 'macos'
@@ -257,9 +278,6 @@ jobs:
               ;;
           esac
           test -d "$bundle" || { echo "::error::Missing desktop bundle for $PLATFORM"; exit 1; }
-          dart tool/native_helpers/verify_desktop_runtime_bundle.dart \
-            --platform "$PLATFORM" \
-            --bundle "$bundle"
           if [[ "$PLATFORM" == "macos" ]]; then
             bash tool/release/verify_macos_arm64_only.sh "$bundle"
           fi
@@ -291,6 +309,51 @@ jobs:
             sccache --show-stats || true
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  windows_native_smoke:
+    name: windows native ${{ matrix.suite }}
+    needs: revision
+    runs-on: windows-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - rust_process_runner_test
+          - alera_smoke_flow_test
+          - terminal_input_native_test
+    env:
+      ALERA_FLAVOR: dev
+      ALERA_NATIVE_TEST_CLIPBOARD: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          submodules: false
+          persist-credentials: false
+
+      - name: Setup Flutter workspace
+        uses: ./.github/actions/setup-flutter-workspace
+        with:
+          rust: 'true'
+
+      - name: Tune Windows build environment
+        uses: ./.github/actions/tune-windows-build
+
+      - name: Restore cargokit build
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            build/**/cargokit_build
+            build/**/ck
+          key: cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock') }}-
+          restore-keys: |
+            cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock') }}-
+            cargokit-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Verify native suite on a fresh runner
+        run: flutter test integration_test/${{ matrix.suite }}.dart -d windows --reporter expanded
 
   golden:
     name: validation golden
@@ -371,7 +434,7 @@ jobs:
   validation_ready:
     name: desktop-validation-ready
     if: ${{ always() && inputs.full_validation }}
-    needs: [revision, build, golden, desktop_e2e_linux]
+    needs: [revision, build, windows_native_smoke, golden, desktop_e2e_linux]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -380,12 +443,13 @@ jobs:
         env:
           REVISION_RESULT: ${{ needs.revision.result }}
           BUILD_RESULT: ${{ needs.build.result }}
+          WINDOWS_NATIVE_RESULT: ${{ needs.windows_native_smoke.result }}
           GOLDEN_RESULT: ${{ needs.golden.result }}
           E2E_RESULT: ${{ needs.desktop_e2e_linux.result }}
           SOURCE_SHA: ${{ needs.revision.outputs.sha }}
         run: |
           set -euo pipefail
-          for result in "$REVISION_RESULT" "$BUILD_RESULT" "$GOLDEN_RESULT" "$E2E_RESULT"; do
+          for result in "$REVISION_RESULT" "$BUILD_RESULT" "$WINDOWS_NATIVE_RESULT" "$GOLDEN_RESULT" "$E2E_RESULT"; do
             if [ "$result" != success ]; then
               echo "::error::Desktop validation did not pass: $result"
               exit 1

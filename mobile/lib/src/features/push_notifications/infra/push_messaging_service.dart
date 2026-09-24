@@ -82,7 +82,8 @@ class FirebasePushMessagingService([FirebaseMessaging? messaging])
     return switch (settings.authorizationStatus) {
       AuthorizationStatus.authorized ||
       AuthorizationStatus.provisional => PushPermissionState.authorized,
-      AuthorizationStatus.denied => PushPermissionState.denied,
+      AuthorizationStatus.denied ||
+      AuthorizationStatus.deniedPermanently => PushPermissionState.denied,
       AuthorizationStatus.notDetermined => PushPermissionState.notDetermined,
     };
   }

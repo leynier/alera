@@ -1,11 +1,10 @@
 use serde_json::Value;
 
-use crate::managed_workspace::{ManagedWorkspaceCreateRequest, ManagedWorkspaceRemoveRequest};
+use crate::managed_workspace::ManagedWorkspaceCreateRequest;
 use crate::terminal_host::host_error::{HostError, HostResult};
 
 use super::request_payloads::parse_payload;
 use super::requests::require_string_key;
-use super::runtime_mutations::RuntimeMutationRequest;
 use super::ServerActor;
 
 impl ServerActor {
@@ -16,10 +15,32 @@ impl ServerActor {
         request_type: &str,
         payload: &Value,
     ) -> HostResult<bool> {
+        self.require_shared_checkout_support(client_id, request_type)?;
+        if self
+            .try_start_remote_terminal_lifecycle(client_id, request_id, request_type, payload)
+            .await?
+        {
+            return Ok(true);
+        }
+        if self
+            .try_start_remote_setup_control(client_id, request_id, request_type, payload)
+            .await?
+        {
+            return Ok(true);
+        }
         if self.try_start_configuration_cloud(client_id, request_id, request_type, payload)? {
             return Ok(true);
         }
         if self.try_start_account_request(client_id, request_id, request_type, payload)? {
+            return Ok(true);
+        }
+        if self.try_start_deferred_workspace_setup(client_id, request_id, request_type, payload)? {
+            return Ok(true);
+        }
+        if self
+            .try_start_deferred_workspace_lifecycle(client_id, request_id, request_type, payload)
+            .await?
+        {
             return Ok(true);
         }
         match request_type {
@@ -50,6 +71,25 @@ impl ServerActor {
             | "orchestration.runSnapshot"
             | "orchestration.taskInspection" => {
                 self.start_orchestration_board_read(client_id, request_id, request_type, payload)?;
+                Ok(true)
+            }
+            "terminal.ownerLifecycle" => {
+                self.start_owner_terminal_lifecycle(client_id, request_id, payload)
+                    .await?;
+                Ok(true)
+            }
+            "workspace.sshRelocationRecovery" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                let id = require_string_key(payload, "id")?;
+                let limit = super::remote_recovery_requests::recovery_limit(payload)?;
+                self.start_remote_relocation_recovery(
+                    client_id,
+                    request_id,
+                    id,
+                    limit,
+                    crate::ssh_remote::LiveSshRemoteHost,
+                );
                 Ok(true)
             }
             "mobile.status.get"
@@ -86,17 +126,75 @@ impl ServerActor {
                 self.start_ai_assist_workspace_identity(client_id, request_id, payload)?;
                 Ok(true)
             }
+            "aiText.commitMessage.generate" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_ai_assist_commit_message(client_id, request_id, payload)?;
+                Ok(true)
+            }
+            "aiText.pullRequestDetails.generate" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_ai_assist_pull_request_details(client_id, request_id, payload)?;
+                Ok(true)
+            }
             "aiText.speechMessage.generate" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
-                self.start_ai_assist_speech_message(client_id, request_id, payload)?;
+                self.start_ai_assist_speech_message(client_id, request_id, payload)
+                    .await?;
                 Ok(true)
             }
-            "mobile.workspaceQuickOpen.start"
+            "aiAssist.complete" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_ai_assist_complete(client_id, request_id, payload)?;
+                Ok(true)
+            }
+            "aiAssist.opencodeGo.models" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_opencode_go_models(client_id, request_id)?;
+                Ok(true)
+            }
+            "project.branches.list"
+            | "checkout.quickOpen.start"
+            | "mobile.workspaceQuickOpen.start"
             | "mobile.workspaceQuickOpen.search"
             | "mobile.workspaceFile.read"
             | "mobile.promptAttachment.read"
-            | "mobile.codexSavedPrompts.list" => {
+            | "mobile.workspaceExplorer.list"
+            | "mobile.workspaceSearch.run"
+            | "mobile.workspaceSearch.replace"
+            | "mobile.workspaceSearch.cancel"
+            | "mobile.git.status"
+            | "mobile.git.diff"
+            | "mobile.git.stage"
+            | "mobile.git.unstage"
+            | "mobile.git.discard"
+            | "mobile.git.commit"
+            | "mobile.git.fetch"
+            | "mobile.git.pull"
+            | "mobile.git.push"
+            | "mobile.git.sync"
+            | "mobile.git.stash"
+            | "mobile.git.stashPop"
+            | "mobile.git.branches"
+            | "mobile.git.checkout"
+            | "mobile.git.createBranch"
+            | "mobile.pullRequest.snapshot"
+            | "mobile.pullRequest.summaries"
+            | "mobile.pullRequest.comment"
+            | "mobile.pullRequest.commentUpdate"
+            | "mobile.pullRequest.merge"
+            | "mobile.pullRequest.draftStatus"
+            | "mobile.pullRequest.close"
+            | "mobile.pullRequest.link"
+            | "mobile.pullRequest.unlink"
+            | "mobile.pullRequest.create"
+            | "mobile.pullRequest.ship"
+            | "workspace.files.list"
+            | "workspace.files.read" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 self.start_mobile_workspace_file_request(
@@ -116,185 +214,53 @@ impl ServerActor {
                 self.start_mobile_prompt_file_request(client_id, request_id, request_type, payload);
                 Ok(true)
             }
+            "project.checkout.register" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_project_checkout_registration(
+                    client_id,
+                    request_id,
+                    parse_payload(payload)?,
+                );
+                Ok(true)
+            }
+            "workspace.createShared" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                let issue_url = super::requests::optional_string_key(payload, "issueUrl")
+                    .filter(|url| !url.trim().is_empty());
+                if let Some(url) = issue_url.as_deref() {
+                    crate::issue_tracking::parse_issue_reference(url)
+                        .map_err(|error| HostError::format(error.to_string()))?;
+                }
+                self.start_shared_workspace_create(
+                    client_id,
+                    request_id,
+                    parse_payload(payload)?,
+                    issue_url,
+                );
+                Ok(true)
+            }
+            "issue.fetch" | "linkedIssue.link" | "linkedIssue.refresh" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_linked_issue_request(client_id, request_id, request_type, payload)?;
+                Ok(true)
+            }
             "workspace.createManaged" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let mut request: ManagedWorkspaceCreateRequest = parse_payload(payload)?;
                 request.setup_script_directory = self.setup_script_directory();
-                self.start_managed_workspace_create(client_id, request_id, request);
-                Ok(true)
-            }
-            "workspace.runSetup" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let workspace_id = require_string_key(payload, "id")?;
-                let copies_only = payload
-                    .get("copiesOnly")
-                    .and_then(Value::as_bool)
-                    .unwrap_or(false);
-                self.start_workspace_setup(client_id, request_id, workspace_id, copies_only);
-                Ok(true)
-            }
-            "workspace.storageImpact" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let workspace_id = require_string_key(payload, "id")?;
-                let active_workspace_id = payload
-                    .get("activeWorkspaceId")
-                    .and_then(Value::as_str)
-                    .filter(|value| !value.trim().is_empty())
-                    .map(str::to_string);
-                self.start_workspace_storage_measurement(
-                    client_id,
-                    request_id,
-                    workspace_id,
-                    active_workspace_id,
-                    payload
-                        .get("closeSessions")
-                        .and_then(Value::as_bool)
-                        .unwrap_or(false),
-                );
-                Ok(true)
-            }
-            "workspace.removeManaged" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let request: ManagedWorkspaceRemoveRequest = parse_payload(payload)?;
-                if !request.close_sessions
-                    && request.active_workspace_id.as_deref() == Some(request.id.as_str())
-                {
-                    return Err(HostError::state("Workspace is active in the workbench"));
+                // Validated before the worktree exists, so a typo cannot leave
+                // a workspace behind with a link that was never stored.
+                let issue_url = super::requests::optional_string_key(payload, "issueUrl")
+                    .filter(|url| !url.trim().is_empty());
+                if let Some(url) = issue_url.as_deref() {
+                    crate::issue_tracking::parse_issue_reference(url)
+                        .map_err(|error| HostError::format(error.to_string()))?;
                 }
-                if !request.close_sessions
-                    && self
-                        .sessions
-                        .values()
-                        .any(|session| session.workspace_id == request.id && session.running())
-                {
-                    return Err(HostError::state(
-                        "Workspace has a live terminal session or process",
-                    ));
-                }
-                if !request.close_sessions && self.browser.has_pages_for_workspace(&request.id) {
-                    return Err(HostError::state("Workspace has a live browser session"));
-                }
-                let has_active_automation =
-                    crate::managed_workspace::workspace_has_active_automation_owner(
-                        &self.runtime_store,
-                        &request.id,
-                    )
-                    .await
-                    .map_err(|error| HostError::state(error.to_string()))?;
-                if has_active_automation {
-                    return Err(HostError::state(
-                        "Workspace is owned by an active automation",
-                    ));
-                }
-                crate::managed_workspace::validate_managed_workspace_removal(
-                    &self.runtime_store,
-                    &request,
-                )
-                .await
-                .map_err(|error| HostError::state(error.to_string()))?;
-                crate::managed_workspace::validate_workspace_storage_path(
-                    &self.runtime_store,
-                    &request.id,
-                )
-                .await
-                .map_err(|error| HostError::state(error.to_string()))?;
-                let cleanup = self.plan_codex_workspace_cleanup(&request.id).await?;
-                self.start_runtime_mutation_after_codex_cleanup(
-                    client_id,
-                    request_id,
-                    RuntimeMutationRequest::RemoveManagedWorkspace { request },
-                    cleanup,
-                );
-                Ok(true)
-            }
-            "project.remove" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let project_id = require_string_key(payload, "id")?;
-                let cleanup = self.plan_codex_project_cleanup(&project_id).await?;
-                self.start_runtime_mutation_after_codex_cleanup(
-                    client_id,
-                    request_id,
-                    RuntimeMutationRequest::RemoveProject { project_id },
-                    cleanup,
-                );
-                Ok(true)
-            }
-            "workspace.remove" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let workspace_id = require_string_key(payload, "id")?;
-                let cleanup = self.plan_codex_workspace_cleanup(&workspace_id).await?;
-                let cascade_tabs = payload
-                    .get("cascadeTabs")
-                    .and_then(Value::as_bool)
-                    .unwrap_or(true);
-                self.start_runtime_mutation_after_codex_cleanup(
-                    client_id,
-                    request_id,
-                    RuntimeMutationRequest::RemoveWorkspace {
-                        workspace_id,
-                        cascade_tabs,
-                    },
-                    cleanup,
-                );
-                Ok(true)
-            }
-            "workspace.removeForProject" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let project_id = require_string_key(payload, "projectId")?;
-                let cleanup = self.plan_codex_project_cleanup(&project_id).await?;
-                self.start_runtime_mutation_after_codex_cleanup(
-                    client_id,
-                    request_id,
-                    RuntimeMutationRequest::RemoveProjectWorkspaces { project_id },
-                    cleanup,
-                );
-                Ok(true)
-            }
-            "workspace.sleep" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let workspace_id = require_string_key(payload, "workspaceId")?;
-                let cleanup = self.plan_codex_workspace_cleanup(&workspace_id).await?;
-                self.start_runtime_mutation_after_codex_cleanup(
-                    client_id,
-                    request_id,
-                    RuntimeMutationRequest::SleepWorkspace { workspace_id },
-                    cleanup,
-                );
-                Ok(true)
-            }
-            "tab.remove" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let tab_id = require_string_key(payload, "id")?;
-                self.cancel_agent_title_job(&tab_id);
-                let cleanup = self.plan_codex_tab_cleanup(&tab_id).await?;
-                self.start_runtime_mutation_after_codex_cleanup(
-                    client_id,
-                    request_id,
-                    RuntimeMutationRequest::RemoveTab { tab_id },
-                    cleanup,
-                );
-                Ok(true)
-            }
-            "tab.removeForWorkspace" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let workspace_id = require_string_key(payload, "workspaceId")?;
-                let cleanup = self.plan_codex_workspace_cleanup(&workspace_id).await?;
-                self.start_runtime_mutation_after_codex_cleanup(
-                    client_id,
-                    request_id,
-                    RuntimeMutationRequest::RemoveWorkspaceTabs { workspace_id },
-                    cleanup,
-                );
+                self.start_managed_workspace_create(client_id, request_id, request, issue_url);
                 Ok(true)
             }
             "write" => {
@@ -313,12 +279,6 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 self.start_agent_quota_request(client_id, request_id, payload)?;
-                Ok(true)
-            }
-            "agentUsage.snapshot" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                self.start_agent_usage_request(client_id, request_id, payload)?;
                 Ok(true)
             }
             "agentQuota.fetchClaudeTui" => {
@@ -347,17 +307,6 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 self.start_skill_install_request(client_id, request_id, payload)?;
-                Ok(true)
-            }
-            _ if request_type.starts_with("emulator.") => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                self.start_emulator_request(
-                    client_id,
-                    request_id,
-                    request_type.to_string(),
-                    payload.clone(),
-                );
                 Ok(true)
             }
             _ => Ok(false),

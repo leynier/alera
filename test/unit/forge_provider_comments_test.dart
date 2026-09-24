@@ -1,3 +1,4 @@
+import 'package:alera/src/features/pull_requests/domain/review_comment_load.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
 import 'package:alera/src/features/pull_requests/infra/azure_devops_forge_provider.dart';
@@ -90,7 +91,7 @@ void main() {
 [[{"id":1,"user":{"login":"alice"},"body":"General note","created_at":"2026-07-16T12:00:00Z","html_url":"https://github.com/leynier/alera/pull/123#issuecomment-1"}]]
 '''),
         _ok('''
-{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[{"id":"T1","isResolved":true,"line":null,"originalLine":17,"comments":{"nodes":[{"databaseId":2,"author":{"login":"bob"},"body":"Change this line","createdAt":"2026-07-16T11:00:00Z","url":"https://github.com/leynier/alera/pull/123#discussion_r2","path":"lib/a.dart"}]}}]}}}}}
+{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[{"id":"T1","isResolved":true,"isOutdated":true,"line":null,"originalLine":17,"comments":{"nodes":[{"databaseId":2,"author":{"login":"bob"},"body":"Change this line","createdAt":"2026-07-16T11:00:00Z","url":"https://github.com/leynier/alera/pull/123#discussion_r2","path":"lib/a.dart"}]}}]}}}}}
 '''),
         _ok('''
 [[{"id":3,"user":{"login":"carol"},"body":"LGTM","state":"APPROVED","submitted_at":"2026-07-16T13:00:00Z","html_url":"https://github.com/leynier/alera/pull/123#pullrequestreview-3"}]]
@@ -110,7 +111,11 @@ void main() {
       expect(comments.first.path, 'lib/a.dart');
       expect(comments.first.line, 17);
       expect(comments.first.resolved, isTrue);
+      expect(comments.first.outdated, isTrue);
+      expect(comments.first.threadId, 'T1');
       expect(comments[1].body, 'General note');
+      expect(comments[1].outdated, isFalse);
+      expect(comments[1].threadId, isNull);
       expect(comments.last.body, 'LGTM');
       expect(
         runner.calls.first.arguments,
@@ -148,6 +153,7 @@ void main() {
       );
 
       expect(comments.single.body, 'General note');
+      expect(reviewCommentsComplete(comments), isFalse);
     });
 
     test('keeps the first thread page when the next page fails', () async {
@@ -171,6 +177,7 @@ void main() {
       );
 
       expect(comments.single.body, 'First page');
+      expect(reviewCommentsComplete(comments), isFalse);
       expect(runner.calls.last.arguments, contains('threadsAfter=THREADS-1'));
     });
 
@@ -197,6 +204,7 @@ void main() {
         );
 
         expect(comments.single.body, 'First reply page');
+        expect(reviewCommentsComplete(comments), isFalse);
         expect(
           runner.calls.last.arguments,
           contains('commentsAfter=COMMENTS-1'),
@@ -305,7 +313,10 @@ void main() {
       expect(comments.first.path, '/lib/a.dart');
       expect(comments.first.line, 9);
       expect(comments.first.resolved, isTrue);
+      expect(comments.first.threadId, '11');
       expect(comments.last.kind, ReviewCommentKind.conversation);
+      expect(comments.last.threadId, '10');
+      expect(comments.last.resolved, isFalse);
       final call = runner.calls.single;
       expect(call.optionValue('resource'), 'pullRequestThreads');
       expect(call.optionValue('http-method'), 'GET');
