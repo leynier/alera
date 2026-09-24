@@ -26,7 +26,9 @@ mixin MobileRuntimeVoiceRequests {
     return requestMap('mobile.voice.status');
   }
 
-  Future<Map<String, Object?>?> startVoice({bool Function()? stillValid}) async {
+  Future<Map<String, Object?>?> startVoice({
+    bool Function()? stillValid,
+  }) async {
     _requireVoice();
     await awaitVoiceSessionShutdown();
     if (stillValid != null && !stillValid()) {

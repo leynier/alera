@@ -65,7 +65,7 @@ final class MobileVoiceSessionControllerProvider
 }
 
 String _$mobileVoiceSessionControllerHash() =>
-    r'337f623f1a0b328a8717122130259d30806f8f42';
+    r'5b2842911f90ae2323667fc931130f3bd6b5ebef';
 
 final class MobileVoiceSessionControllerFamily extends $Family
     with

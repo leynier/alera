@@ -68,7 +68,12 @@ class RuntimeVoiceClient({required this.client, required this.capabilities}) {
     return base64Decode(encoded);
   }
 
-  Future<void> markSpoken(String text, {int? id, bool failed = false, String? error}) async {
+  Future<void> markSpoken(
+    String text, {
+    int? id,
+    bool failed = false,
+    String? error,
+  }) async {
     await client.runtimeRequest('voice.spoken', <String, Object?>{
       'text': text,
       'id': ?id,

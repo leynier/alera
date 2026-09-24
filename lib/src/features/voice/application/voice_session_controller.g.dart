@@ -124,7 +124,7 @@ final class VoiceSessionControllerProvider
 }
 
 String _$voiceSessionControllerHash() =>
-    r'48f1125a0b3597af2f970094f7a001863898fe55';
+    r'8ed7d2b0b0d20dfd1e4204a3b7266810cd7dd8c6';
 
 abstract class _$VoiceSessionController extends $Notifier<VoiceSessionStatus> {
   VoiceSessionStatus build();

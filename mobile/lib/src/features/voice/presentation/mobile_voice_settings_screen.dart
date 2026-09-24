@@ -92,13 +92,17 @@ class _MobileVoiceSettingsScreenState
   }
 
   Future<void> _saveGemini() async {
+    // Blank Save is a no-op; the host treats an empty token as a clear, and
+    // only Clear may remove a saved key.
+    final token = _geminiController.text.trim();
+    if (token.isEmpty) {
+      return;
+    }
     try {
       final client = await ref.read(
         hostConnectionControllerProvider(widget.host.id).future,
       );
-      final status = await client.saveVoiceCredentials(
-        geminiToken: _geminiController.text,
-      );
+      final status = await client.saveVoiceCredentials(geminiToken: token);
       _geminiController.clear();
       if (!mounted) {
         return;
@@ -113,13 +117,17 @@ class _MobileVoiceSettingsScreenState
   }
 
   Future<void> _saveOpenai() async {
+    // Blank Save is a no-op; the host treats an empty token as a clear, and
+    // only Clear may remove a saved key.
+    final token = _openaiController.text.trim();
+    if (token.isEmpty) {
+      return;
+    }
     try {
       final client = await ref.read(
         hostConnectionControllerProvider(widget.host.id).future,
       );
-      final status = await client.saveVoiceCredentials(
-        openaiToken: _openaiController.text,
-      );
+      final status = await client.saveVoiceCredentials(openaiToken: token);
       _openaiController.clear();
       if (!mounted) {
         return;

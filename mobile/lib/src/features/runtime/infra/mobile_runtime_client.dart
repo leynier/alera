@@ -52,6 +52,7 @@ part 'mobile_runtime_client_lifecycle.dart';
 part 'mobile_runtime_client_relay.dart';
 part 'mobile_runtime_transport_connection.dart';
 part 'mobile_runtime_relay_authorization.dart';
+part 'mobile_runtime_cloud_requests.dart';
 part 'mobile_runtime_dictation_requests.dart';
 part 'mobile_runtime_voice_requests.dart';
 part 'mobile_runtime_terminal_requests.dart';
@@ -72,6 +73,7 @@ class MobileRuntimeClient._(
         MobileRuntimeProjectClient,
         MobileRuntimeClientHostTools,
         MobileRuntimeClientRelay,
+        MobileRuntimeCloudRequests,
         MobileRuntimeDictationRequests,
         MobileRuntimeVoiceRequests,
         MobileRuntimeTerminalRequests,
@@ -213,8 +215,6 @@ class MobileRuntimeClient._(
       _runtimeCapabilities.contains(codexResetCreditsCapability);
   bool get supportsHostTools =>
       _runtimeCapabilities.contains(mobileHostToolsCapability);
-  bool get supportsCloudEnrollment =>
-      _runtimeCapabilities.contains(mobileCloudEnrollmentCapability);
   @override
   bool get supportsPromptImageUpload =>
       _runtimeCapabilities.contains(mobilePromptImageUploadCapability);
@@ -244,22 +244,6 @@ class MobileRuntimeClient._(
     _binaryFrames = payload['binaryFrames'] == true;
     unawaited(_refreshCrashReportingRuntimeContext());
     return payload;
-  }
-
-  Future<String> createCloudEnrollment() async {
-    if (!supportsCloudEnrollment) {
-      throw StateError('This host does not support account enrollment');
-    }
-    final payload = await requestMap('mobile.cloudEnrollment.create');
-    return payload.requiredString('code');
-  }
-
-  Future<int> refreshCloudSubscriptions() async {
-    if (!supportsCloudEnrollment) {
-      throw StateError('This host does not support cloud subscriptions');
-    }
-    final payload = await requestMap('mobile.cloudSubscriptions.refresh');
-    return payload.requiredInt('activeSubscriptions');
   }
 
   Future<MobileRuntimeStatus> mobileStatus() async {

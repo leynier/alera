@@ -314,8 +314,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsSectionData(
         id: 'voice',
         title: 'Voice',
-        description:
-            'Global voice home agent, STT/TTS pipeline, and realtime providers.',
+        description: 'Global voice home agent, STT/TTS pipeline, and realtime providers.',
         icon: AleraIcons.mic,
         entries: voiceSearchEntries,
         groups: voiceGroups,

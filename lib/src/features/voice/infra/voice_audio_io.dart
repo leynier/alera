@@ -16,9 +16,11 @@ class VoicePcmFrame({required this.samples, required this.rms}) {
 /// Microphone capture for chained STT. Playback writes a temp WAV and plays
 /// it through the platform audio helper via [ProcessRunner].
 class VoiceAudioIo {
-  VoiceAudioIo(this._runner);
+  VoiceAudioIo(this._runner, {AudioRecorder Function()? createRecorder})
+    : _createRecorder = createRecorder ?? AudioRecorder.new;
 
   final ProcessRunner _runner;
+  final AudioRecorder Function() _createRecorder;
   AudioRecorder? _recorder;
   StreamSubscription<Uint8List>? _subscription;
   final _frames = StreamController<VoicePcmFrame>.broadcast();
@@ -26,6 +28,7 @@ class VoiceAudioIo {
   final VoicePcmPlayer _pcm = VoicePcmPlayer();
   var _capturing = false;
   var _captureGeneration = 0;
+  var _recorderClaim = 0;
   final BytesBuilder _pcmRemainder = BytesBuilder(copy: false);
   var _streaming = false;
   var _playbackToken = 0;
@@ -35,7 +38,7 @@ class VoiceAudioIo {
   bool get isStreaming => _streaming;
 
   Future<bool> hasPermission() async {
-    final recorder = _recorder ??= AudioRecorder();
+    final recorder = _recorder ??= _createRecorder();
     return recorder.hasPermission();
   }
 
@@ -43,7 +46,7 @@ class VoiceAudioIo {
     if (_capturing) {
       return;
     }
-    final recorder = _recorder ??= AudioRecorder();
+    final recorder = _recorder ??= _createRecorder();
     final generation = _captureGeneration;
     if (!await recorder.hasPermission()) {
       throw StateError('Microphone permission is required for voice.');
@@ -51,6 +54,7 @@ class VoiceAudioIo {
     if (generation != _captureGeneration) {
       return;
     }
+    final claim = ++_recorderClaim;
     final stream = await recorder.startStream(
       const RecordConfig(
         encoder: AudioEncoder.pcm16bits,
@@ -59,6 +63,16 @@ class VoiceAudioIo {
       ),
     );
     if (generation != _captureGeneration) {
+      // A stop ran while the recorder was starting, so its recorder.stop()
+      // may have landed before the stream opened. Close the microphone here
+      // unless a newer start has already claimed the recorder.
+      if (claim == _recorderClaim) {
+        try {
+          await recorder.stop();
+        } on Object {
+          // Best-effort close of a start that lost the race with stop.
+        }
+      }
       return;
     }
     _capturing = true;
@@ -235,7 +249,11 @@ class VoiceAudioIo {
     var buffer = _pcmRemainder.takeBytes();
     var offset = 0;
     while (buffer.length - offset >= bytesPerFrame) {
-      final frameBytes = Uint8List.sublistView(buffer, offset, offset + bytesPerFrame);
+      final frameBytes = Uint8List.sublistView(
+        buffer,
+        offset,
+        offset + bytesPerFrame,
+      );
       offset += bytesPerFrame;
       final samples = Int16List(bytesPerFrame ~/ 2);
       final view = ByteData.sublistView(frameBytes);

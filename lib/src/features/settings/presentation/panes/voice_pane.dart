@@ -89,6 +89,13 @@ class _VoiceSettingsPaneState extends ConsumerState<VoiceSettingsPane> {
     String? geminiToken,
     String? openaiToken,
   }) async {
+    // A blank field must never reach the host: the host treats an empty token
+    // as a clear, and only the Clear button may remove a saved key.
+    geminiToken = _nonBlank(geminiToken);
+    openaiToken = _nonBlank(openaiToken);
+    if (geminiToken == null && openaiToken == null) {
+      return;
+    }
     try {
       await ref
           .read(runtimeVoiceClientProvider)
@@ -108,6 +115,11 @@ class _VoiceSettingsPaneState extends ConsumerState<VoiceSettingsPane> {
         _credentialError = error.toString();
       });
     }
+  }
+
+  static String? _nonBlank(String? token) {
+    final trimmed = token?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
   }
 
   Future<void> _clearCredential(String provider) async {
