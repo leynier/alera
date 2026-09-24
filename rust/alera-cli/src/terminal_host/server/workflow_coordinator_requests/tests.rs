@@ -6,6 +6,7 @@ use serde_json::json;
 use crate::managed_workspace::workflow::tests::fixture::Fixture;
 use crate::terminal_host::client::ClientHandle;
 use crate::terminal_host::server::actor_test_harness::{local_client, mobile_client, test_actor};
+use crate::terminal_host::server::workflow_launch_requests::CancellationShutdown;
 
 #[tokio::test]
 async fn workflow_coordinator_lookup_uses_nonblocking_job_accounting() {
@@ -209,11 +210,34 @@ async fn workflow_coordinator_launch_replays_one_terminal_with_frozen_profile() 
         .await
         .is_err());
     assert!(actor.sessions.contains_key(tab));
-    actor
+    let shutdown = actor
         .cancel_workflow_proposal_terminal(&cancellation)
         .await
         .unwrap();
     assert!(!actor.sessions.contains_key(tab));
+    let checkpoint = actor.store.read(tab, 1024 * 1024).await.unwrap().unwrap();
+    assert!(!checkpoint.running);
+    assert_eq!(checkpoint.tab_id, tab);
+    let mut restarted_before_verification = test_actor(&dir, HashMap::new(), HashMap::new()).await;
+    restarted_before_verification.runtime_store = fixture.store.clone();
+    assert!(restarted_before_verification
+        .cancel_workflow_proposal_terminal(&cancellation)
+        .await
+        .is_err());
+    assert!(fixture
+        .store
+        .settle_workflow_proposal_cancellation(&cancellation, None)
+        .await
+        .is_err());
+    let CancellationShutdown::Wait(mut guard) = shutdown else {
+        panic!("live coordinator requires process closure verification");
+    };
+    guard.wait().await.unwrap();
+    fixture
+        .store
+        .verify_workflow_terminal_shutdown(tab, "owner")
+        .await
+        .unwrap();
     fixture
         .store
         .settle_workflow_proposal_cancellation(&cancellation, None)

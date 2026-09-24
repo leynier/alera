@@ -5,7 +5,7 @@ use crate::managed_workspace::workflow::tests::fixture::Fixture;
 use crate::terminal_host::server::actor_test_harness::test_actor;
 use alera_core::runtime::{
     ControlWorkflowExecution, WorkflowExecutionAction, WorkflowLaunchQuery, WorkflowLaunchStatus,
-    WorkflowWorkspaceQuery,
+    WorkflowTerminalShutdownState, WorkflowWorkspaceQuery,
 };
 
 #[path = "workflow_execution_pump_tests/cancelled_integrations.rs"]
@@ -121,6 +121,17 @@ async fn cancellation_stops_only_matching_workers_while_execution_is_busy() {
     drain_cancellation(&mut actor, &mut commands).await;
     assert_eq!(actor.workflow_workspace_jobs, 0);
     assert!(!actor.sessions.contains_key(&record.terminal_handle));
+    assert_eq!(
+        fixture
+            .store
+            .workflow_terminal_shutdown_state(
+                &record.terminal_handle,
+                &workspace.identity.workspace.id,
+            )
+            .await
+            .unwrap(),
+        WorkflowTerminalShutdownState::Verified
+    );
     assert_eq!(std::fs::read_to_string(&file).unwrap(), "uncommitted work");
     assert!(fixture
         .store

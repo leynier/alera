@@ -71,6 +71,14 @@ impl RuntimeStore {
         self.require_workflow_proposal_cancellation_target(target)
             .await?;
         let mut tx = self.pool().begin().await?;
+        if error.is_none() {
+            super::workflow_cancellation::require_terminal_shutdown_settle(
+                &mut tx,
+                target.tab_id.as_deref().unwrap_or_default(),
+                &target.workspace_id,
+            )
+            .await?;
+        }
         sqlx::query("UPDATE workflowProposalCancellations SET status=?,error=? WHERE proposal_id=? AND status='pending' AND tab_id=? AND workspace_id=? AND sequence=?")
             .bind(if error.is_some() { "attention" } else { "settled" })
             .bind(error.map(|value| value.chars().take(1024).collect::<String>()))

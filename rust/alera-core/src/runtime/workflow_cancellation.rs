@@ -14,6 +14,13 @@ pub struct WorkflowCancellationTarget {
     pub workspace_id: String,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WorkflowTerminalShutdownState {
+    Unstarted,
+    Started,
+    Verified,
+}
+
 pub(super) async fn migrate(tx: &mut Transaction<'_, Sqlite>) -> Result<()> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS workflowCancellationTargets (
@@ -32,6 +39,13 @@ pub(super) async fn migrate(tx: &mut Transaction<'_, Sqlite>) -> Result<()> {
         .execute(&mut **tx).await?;
     sqlx::query("CREATE INDEX IF NOT EXISTS workflowProposalRun ON workflowProposalDrafts(json_extract(document,'$.request.runId'))")
         .execute(&mut **tx).await?;
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS workflowTerminalShutdowns (
+        tab_id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL,
+        state TEXT NOT NULL CHECK(state IN ('started','verified')))",
+    )
+    .execute(&mut **tx)
+    .await?;
     Ok(())
 }
 
@@ -89,6 +103,63 @@ async fn finish(tx: &mut Transaction<'_, Sqlite>, run: &str) -> Result<()> {
 }
 
 impl RuntimeStore {
+    pub async fn workflow_terminal_shutdown_state(
+        &self,
+        tab: &str,
+        workspace: &str,
+    ) -> Result<WorkflowTerminalShutdownState> {
+        let row =
+            sqlx::query("SELECT workspace_id,state FROM workflowTerminalShutdowns WHERE tab_id=?")
+                .bind(tab)
+                .fetch_optional(self.pool())
+                .await?;
+        let Some(row) = row else {
+            return Ok(WorkflowTerminalShutdownState::Unstarted);
+        };
+        if row.try_get::<String, _>("workspace_id")? != workspace {
+            bail!("workflow terminal shutdown belongs to another workspace");
+        }
+        match row.try_get::<&str, _>("state")? {
+            "started" => Ok(WorkflowTerminalShutdownState::Started),
+            "verified" => Ok(WorkflowTerminalShutdownState::Verified),
+            _ => bail!("workflow terminal shutdown has an invalid state"),
+        }
+    }
+
+    /// Commit the process-closure barrier before removing a live session.
+    /// A host restart cannot turn a lost process guard into a successful retry.
+    pub async fn begin_workflow_terminal_shutdown(&self, tab: &str, workspace: &str) -> Result<()> {
+        let changed = sqlx::query(
+            "INSERT INTO workflowTerminalShutdowns(tab_id,workspace_id,state) VALUES(?,?,'started') ON CONFLICT(tab_id) DO NOTHING",
+        )
+        .bind(tab)
+        .bind(workspace)
+        .execute(self.pool())
+        .await?;
+        if changed.rows_affected() != 1 {
+            bail!("workflow terminal shutdown already started; process closure remains unverified");
+        }
+        Ok(())
+    }
+
+    pub async fn verify_workflow_terminal_shutdown(
+        &self,
+        tab: &str,
+        workspace: &str,
+    ) -> Result<()> {
+        let changed = sqlx::query(
+            "UPDATE workflowTerminalShutdowns SET state='verified' WHERE tab_id=? AND workspace_id=? AND state IN ('started','verified')",
+        )
+        .bind(tab)
+        .bind(workspace)
+        .execute(self.pool())
+        .await?;
+        if changed.rows_affected() != 1 {
+            bail!("workflow terminal shutdown identity changed");
+        }
+        Ok(())
+    }
+
     pub async fn workflow_cancellation_page(&self) -> Result<Vec<WorkflowCancellationTarget>> {
         sqlx::query("SELECT c.launch_id,c.proposal_id,c.run_id,COALESCE(l.workspace_id,p.workspace_id) AS workspace_id,
             COALESCE(l.terminal_handle,p.tab_id) AS terminal_handle
@@ -113,6 +184,14 @@ impl RuntimeStore {
             .execute(&mut *tx)
             .await?;
         validate(&mut tx, target, false).await?;
+        if error.is_none() {
+            require_terminal_shutdown_settle(
+                &mut tx,
+                &target.terminal_handle,
+                &target.workspace_id,
+            )
+            .await?;
+        }
         sqlx::query("UPDATE workflowCancellationTargets SET state=?,error=? WHERE launch_id IS ? AND proposal_id IS ? AND state='pending'")
             .bind(if error.is_some() { "attention" } else { "settled" })
             .bind(error.map(|value| value.chars().take(1000).collect::<String>()))
@@ -129,6 +208,26 @@ impl RuntimeStore {
         let mut tx = self.pool().begin().await?;
         validate(&mut tx, target, true).await
     }
+}
+
+pub(super) async fn require_terminal_shutdown_settle(
+    tx: &mut Transaction<'_, Sqlite>,
+    tab: &str,
+    workspace: &str,
+) -> Result<()> {
+    let row =
+        sqlx::query("SELECT workspace_id,state FROM workflowTerminalShutdowns WHERE tab_id=?")
+            .bind(tab)
+            .fetch_optional(&mut **tx)
+            .await?;
+    if let Some(row) = row {
+        if row.try_get::<String, _>("workspace_id")? != workspace
+            || row.try_get::<String, _>("state")? != "verified"
+        {
+            bail!("workflow terminal process closure remains unverified");
+        }
+    }
+    Ok(())
 }
 
 async fn validate(
@@ -150,4 +249,76 @@ async fn validate(
         bail!("workflow cancellation identity changed");
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        require_terminal_shutdown_settle, RuntimeStore, WorkflowTerminalShutdownState as State,
+    };
+
+    #[tokio::test]
+    async fn terminal_shutdown_evidence_survives_restart_and_rejects_other_owners() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = RuntimeStore::open(dir.path()).await.unwrap();
+        assert_eq!(
+            store
+                .workflow_terminal_shutdown_state("tab", "owner")
+                .await
+                .unwrap(),
+            State::Unstarted
+        );
+        store
+            .begin_workflow_terminal_shutdown("tab", "owner")
+            .await
+            .unwrap();
+        assert!(store
+            .begin_workflow_terminal_shutdown("tab", "owner")
+            .await
+            .is_err());
+        assert!(store
+            .workflow_terminal_shutdown_state("tab", "foreign")
+            .await
+            .is_err());
+        drop(store);
+        let reopened = RuntimeStore::open(dir.path()).await.unwrap();
+        assert_eq!(
+            reopened
+                .workflow_terminal_shutdown_state("tab", "owner")
+                .await
+                .unwrap(),
+            State::Started
+        );
+        let mut transaction = reopened.pool().begin().await.unwrap();
+        assert!(
+            require_terminal_shutdown_settle(&mut transaction, "tab", "owner")
+                .await
+                .is_err()
+        );
+        transaction.rollback().await.unwrap();
+        assert!(reopened
+            .verify_workflow_terminal_shutdown("tab", "foreign")
+            .await
+            .is_err());
+        reopened
+            .verify_workflow_terminal_shutdown("tab", "owner")
+            .await
+            .unwrap();
+        reopened
+            .verify_workflow_terminal_shutdown("tab", "owner")
+            .await
+            .unwrap();
+        assert_eq!(
+            reopened
+                .workflow_terminal_shutdown_state("tab", "owner")
+                .await
+                .unwrap(),
+            State::Verified
+        );
+        let mut transaction = reopened.pool().begin().await.unwrap();
+        require_terminal_shutdown_settle(&mut transaction, "tab", "owner")
+            .await
+            .unwrap();
+        transaction.rollback().await.unwrap();
+    }
 }

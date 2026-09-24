@@ -13,6 +13,7 @@ use crate::terminal_host::orchestration::agent_profile_launch_snapshot::{
 };
 use crate::terminal_host::orchestration::agent_registry::adapter_for;
 use crate::terminal_host::orchestration::dispatch_preamble::build_dispatch_bootstrap;
+use crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown;
 
 use super::orchestration_profile_spawn::launch_for_profile;
 use super::ServerActor;
@@ -40,13 +41,18 @@ pub(crate) enum WorkflowLaunchCommand {
         reply: tokio::sync::oneshot::Sender<HostResult<()>>,
     },
     CancellationFinished(HostResult<bool>),
+    RetainCancellationShutdown {
+        tab: String,
+        shutdown: WorkspaceShutdown,
+        reply: tokio::sync::oneshot::Sender<()>,
+    },
     CancelProposalTerminal {
         target: alera_core::runtime::WorkflowProposalCancellation,
-        reply: tokio::sync::oneshot::Sender<HostResult<()>>,
+        reply: tokio::sync::oneshot::Sender<HostResult<CancellationShutdown>>,
     },
     CancelTerminal {
         target: alera_core::runtime::WorkflowCancellationTarget,
-        reply: tokio::sync::oneshot::Sender<HostResult<()>>,
+        reply: tokio::sync::oneshot::Sender<HostResult<CancellationShutdown>>,
     },
     ExecutionWake,
     ExecutionFinished(execution::ExecutionPass),
@@ -73,6 +79,11 @@ pub(crate) enum WorkflowLaunchCommand {
     },
     SpawnValidated(Box<ValidatedWorkflowLaunch>),
     AcceptanceTimeout(String),
+}
+
+pub(crate) enum CancellationShutdown {
+    AlreadyClosed,
+    Wait(WorkspaceShutdown),
 }
 
 /// Constructed only after the durable one-shot claim. No payload grants this.
@@ -124,6 +135,25 @@ impl ServerActor {
             WorkflowLaunchCommand::CancelProposalTerminal { target, reply } => {
                 let result = self.cancel_workflow_proposal_terminal(&target).await;
                 let _ = reply.send(result);
+            }
+            WorkflowLaunchCommand::RetainCancellationShutdown {
+                tab,
+                shutdown,
+                reply,
+            } => {
+                if let Some(mut pending) =
+                    self.workflow_execution.cancellation_shutdowns.remove(&tab)
+                {
+                    pending.merge(shutdown);
+                    self.workflow_execution
+                        .cancellation_shutdowns
+                        .insert(tab, pending);
+                } else {
+                    self.workflow_execution
+                        .cancellation_shutdowns
+                        .insert(tab, shutdown);
+                }
+                let _ = reply.send(());
             }
             WorkflowLaunchCommand::CancellationFinished(result) => {
                 self.finish_workflow_cancellation(result).await

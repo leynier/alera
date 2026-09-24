@@ -334,8 +334,21 @@ impl ServerActor {
             self.await_output_writes(&session_id).await;
             if let Some(mut session) = self.sessions.remove(&session_id) {
                 let clients: Vec<_> = session.clients.iter().copied().collect();
-                let workflow_terminal = self.is_workflow_terminal(&session_id).await;
-                session.terminate(!workflow_terminal, &store).await;
+                let retained_workflow_history = self.is_workflow_terminal(&session_id).await
+                    || match self
+                        .runtime_store
+                        .workflow_coordinator_for_terminal(&session_id)
+                        .await
+                    {
+                        Ok(receipt) => receipt.is_some(),
+                        Err(error) => {
+                            tracing::warn!(
+                                "workflow coordinator ownership is unavailable: {error}"
+                            );
+                            true
+                        }
+                    };
+                session.terminate(!retained_workflow_history, &store).await;
                 for client in clients {
                     self.client_write(
                         client,

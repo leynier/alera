@@ -166,7 +166,7 @@ mod workflow_coordinator_tests;
 #[cfg(test)]
 mod workflow_correction_tests;
 mod workflow_execution;
-pub use workflow_cancellation::WorkflowCancellationTarget;
+pub use workflow_cancellation::{WorkflowCancellationTarget, WorkflowTerminalShutdownState};
 mod workflow_run_controls;
 #[cfg(test)]
 mod workflow_run_controls_tests;

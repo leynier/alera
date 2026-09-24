@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use alera_core::runtime::{RuntimeStore, WorkflowExecutionState, WorkflowExecutionStep};
 use tokio::sync::mpsc::UnboundedSender;
@@ -16,6 +16,8 @@ pub(in crate::terminal_host) struct ExecutionPump {
     pub(in crate::terminal_host::server) ready: bool,
     pub(in crate::terminal_host::server) cancelling: bool,
     pub(in crate::terminal_host::server) cancellation_dirty: bool,
+    pub(in crate::terminal_host::server) cancellation_shutdowns:
+        HashMap<String, crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown>,
     busy: bool,
     dirty: bool,
     cursor: Option<String>,
