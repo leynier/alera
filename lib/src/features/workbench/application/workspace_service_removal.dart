@@ -7,10 +7,13 @@ extension WorkspaceServiceRemoval on WorkspaceService {
     required bool deleteBranch,
     String? activeWorkspaceId,
   }) async {
-    if (workspace.isMain) {
-      throw WorkspaceException('The main workspace cannot be removed');
+    if (workspace.isMain && deleteBranch) {
+      throw WorkspaceException(
+        'Removing a shared workspace cannot delete its branch',
+      );
     }
-    final shouldDeleteBranch = deleteBranch && !workspace.reusesExistingBranch;
+    var shouldDeleteBranch =
+        deleteBranch && !workspace.isMain && !workspace.reusesExistingBranch;
     final managedRuntime = _managedRuntime;
     if (managedRuntime != null) {
       await managedRuntime.removeWorkspace(
@@ -19,6 +22,16 @@ extension WorkspaceServiceRemoval on WorkspaceService {
         activeWorkspaceId: activeWorkspaceId,
       );
       return;
+    }
+    if (workspace.isMain) {
+      await _repository.removeWorkspace(workspace.id, cascadeTabs: true);
+      return;
+    }
+    if (shouldDeleteBranch) {
+      shouldDeleteBranch = await _branchDeletionIdentityAllowsDelete(
+        project: project,
+        workspace: workspace,
+      );
     }
     try {
       await _gitBackend.removeWorktree(
@@ -41,25 +54,48 @@ extension WorkspaceServiceRemoval on WorkspaceService {
     }
     if (shouldDeleteBranch) {
       final branch = workspace.branch;
-      if (branch == null || branch.isEmpty) {
-        throw WorkspaceException('Workspace branch is required');
-      }
-      try {
-        await _gitBackend.deleteBranch(
-          repoPath: project.repoPath,
-          branch: branch,
-          force: true,
-        );
-      } on BranchNotFoundException {
-        // The requested final state already exists.
-      } on GitException catch (error) {
-        throw WorkspaceException(
-          'git branch -D $branch failed',
-          stderr: error.context,
-        );
+      if (branch != null && branch.isNotEmpty) {
+        try {
+          await _gitBackend.deleteBranch(
+            repoPath: project.repoPath,
+            branch: branch,
+            force: false,
+          );
+        } on BranchNotFoundException {
+          // The requested final state already exists.
+        } on GitException {
+          // Worktree is already gone; keep the branch rather than failing cleanup.
+        }
       }
     }
     await _repository.removeWorkspace(workspace.id, cascadeTabs: true);
+  }
+
+  Future<bool> _branchDeletionIdentityAllowsDelete({
+    required Project project,
+    required Workspace workspace,
+  }) async {
+    final branch = workspace.branch;
+    if (branch == null || branch.isEmpty) {
+      return false;
+    }
+    try {
+      if (await _gitBackend.currentBranch(workspace.path) != branch) {
+        return false;
+      }
+      final home = await _gitBackend.defaultBranch(project.repoPath);
+      if (branch == home) {
+        return false;
+      }
+      final worktrees = await _gitBackend.listWorktrees(project.repoPath);
+      return !worktrees.any(
+        (entry) =>
+            entry.branch == branch &&
+            p.normalize(entry.path) != p.normalize(workspace.path),
+      );
+    } on GitException {
+      return false;
+    }
   }
 
   Future<bool> _filesystemEntryIsMissing(String path) async {

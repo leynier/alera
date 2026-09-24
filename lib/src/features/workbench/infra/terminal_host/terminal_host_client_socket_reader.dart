@@ -136,6 +136,7 @@ Future<_TerminalHostConnection> _openHostConnection(
       supportsRunBoard: control.supportsRunBoard,
       supportsWorkflowPlans: control.supportsWorkflowPlans,
       supportsWorkspaceSections: control.supportsWorkspaceSections,
+      runtimeCapabilities: control.runtimeCapabilities,
     );
   }
   final socket = await Socket.connect(
@@ -154,5 +155,6 @@ Future<_TerminalHostConnection> _openHostConnection(
     supportsRunBoard: control.supportsRunBoard,
     supportsWorkflowPlans: control.supportsWorkflowPlans,
     supportsWorkspaceSections: control.supportsWorkspaceSections,
+    runtimeCapabilities: control.runtimeCapabilities,
   );
 }

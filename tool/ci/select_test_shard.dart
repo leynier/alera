@@ -122,21 +122,55 @@ List<String> collectTestFiles(List<String> roots, List<String> skips) {
   return files;
 }
 
-/// Assigns files round-robin rather than in contiguous slices: cost per file
-/// varies a lot by directory, and contiguous slices would put all of the
-/// heavier widget tests in the same shard.
+/// Packs files into [total] shards by descending size.
+///
+/// Round-robin over a path-sorted list still clustered large widget and
+/// provider suites onto later shards (CI shard 3 was ~70s slower than shard 1).
+/// Contiguous slices are worse: they put whole directories on one runner.
+/// Size is a stable compile-cost proxy that does not depend on prior timings.
 List<String> selectShard(
   List<String> files, {
   required int total,
   required int index,
+  int Function(String path)? sizeOf,
 }) {
-  final selected = <String>[];
-  for (var cursor = 0; cursor < files.length; cursor += 1) {
-    if (cursor % total == index) {
-      selected.add(files[cursor]);
+  return partitionShards(files, total: total, sizeOf: sizeOf)[index];
+}
+
+/// Returns every shard as a path-sorted list. [sizeOf] is injectable so tests
+/// can pack fake paths without touching the filesystem.
+List<List<String>> partitionShards(
+  List<String> files, {
+  required int total,
+  int Function(String path)? sizeOf,
+}) {
+  final sizeFor = sizeOf ?? (String path) => File(path).lengthSync();
+  final sizes = <String, int>{for (final file in files) file: sizeFor(file)};
+  final ordered = [...files]
+    ..sort((left, right) {
+      final bySize = sizes[right]!.compareTo(sizes[left]!);
+      if (bySize != 0) {
+        return bySize;
+      }
+      return left.compareTo(right);
+    });
+
+  final shards = List<List<String>>.generate(total, (_) => <String>[]);
+  final loads = List<int>.filled(total, 0);
+  for (final file in ordered) {
+    var best = 0;
+    for (var cursor = 1; cursor < total; cursor += 1) {
+      if (loads[cursor] < loads[best]) {
+        best = cursor;
+      }
     }
+    shards[best].add(file);
+    loads[best] += sizes[file]!;
   }
-  return selected;
+  for (final shard in shards) {
+    shard.sort();
+  }
+  return shards;
 }
 
 void _printUsage() {

@@ -143,6 +143,8 @@ fn a_claude_ccs_profile_replaces_the_executable_and_leads_the_arguments() {
     let direct = build_managed_agent_launch("claude", &json!({"model": "opus"})).unwrap();
     assert_eq!(direct.executable, "claude");
     assert_eq!(direct.arguments, ["--model", "opus"]);
+    assert_eq!(launch.resume_insert_index(), 1);
+    assert_eq!(direct.resume_insert_index(), 0);
 }
 
 #[test]

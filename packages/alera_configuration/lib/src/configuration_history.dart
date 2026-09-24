@@ -26,7 +26,6 @@ ConfigurationDocument configurationForRestore(
             entry.value,
           ),
       },
-      'browser': _fields(now['browser'], old['browser'], ['searchEngine']),
     };
   }
   if (ownedBlocks.contains('shared')) {

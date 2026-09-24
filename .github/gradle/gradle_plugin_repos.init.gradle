@@ -1,0 +1,11 @@
+// Flutter's included flutter_tools/gradle build has no pluginManagement
+// block, so Gradle only searches the plugin portal for that project's
+// plugin classpath. The portal 303s Kotlin artifacts to Maven Central and
+// then fails to parse kotlin-gradle-plugins-bom on a cold runner.
+gradle.beforeSettings { settings ->
+    settings.pluginManagement.repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}

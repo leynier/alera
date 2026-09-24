@@ -4,6 +4,8 @@ import 'package:alera_mobile/src/core/json_payload_fields.dart';
 /// `lib/src/features/workbench/infra/runtime_workbench_repository.dart`.
 class const WorkspaceSummary({
   required final String id,
+  final String? instanceId,
+  final String hostId = 'local',
   required final String projectId,
   required final String name,
   required final String path,
@@ -11,6 +13,7 @@ class const WorkspaceSummary({
   final String kind = 'linked',
   final String status = 'active',
   final bool isPinned = false,
+  final bool isArchived = false,
   final String? sectionId,
   final String? parentWorkspaceId,
   final int childCount = 0,
@@ -21,11 +24,14 @@ class const WorkspaceSummary({
   final DateTime? updatedAt,
 }) {
   bool get isMain => kind == 'main';
+  bool get isRemote => hostId.trim().isNotEmpty && hostId != 'local';
   bool get hasParent => parentWorkspaceId != null;
 
   factory fromJson(Map<String, Object?> json) {
     return WorkspaceSummary(
       id: json.requiredString('id'),
+      instanceId: json.optionalString('instanceId'),
+      hostId: json.optionalString('hostId') ?? 'local',
       projectId: json.requiredString('projectId'),
       name: json.requiredString('name'),
       path: json.requiredString('path'),
@@ -33,6 +39,7 @@ class const WorkspaceSummary({
       kind: json.optionalString('kind') ?? 'linked',
       status: json.optionalString('status') ?? 'active',
       isPinned: json['isPinned'] == true,
+      isArchived: json['isArchived'] == true,
       sectionId: json.optionalString('sectionId'),
       parentWorkspaceId: json.optionalString('parentWorkspaceId'),
       childCount: (json['childCount'] as num?)?.toInt() ?? 0,

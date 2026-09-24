@@ -49,11 +49,15 @@ const SCHEMA: &[&str] = &[
         WHEN OLD.status = 'stalled' AND NEW.status IN ('ready','failed')
           AND EXISTS(SELECT 1 FROM workflowPlanTasks WHERE task_id = OLD.id)
         BEGIN SELECT RAISE(ABORT, 'stalled workflow tasks require terminal settlement and a fresh attempt'); END",
-    "CREATE TRIGGER IF NOT EXISTS workflowDispatchAcceptance BEFORE UPDATE OF status ON orchestrationDispatchContexts
+    "DROP TRIGGER IF EXISTS workflowDispatchAcceptance",
+    "CREATE TRIGGER workflowDispatchAcceptance BEFORE UPDATE OF status ON orchestrationDispatchContexts
         WHEN NEW.status = 'dispatched' AND OLD.status <> 'dispatched'
           AND EXISTS(SELECT 1 FROM workflowLaunches WHERE dispatch_id = OLD.id)
           AND NOT EXISTS(SELECT 1 FROM workflowLaunches l JOIN workflowRuns r ON r.run_id = l.run_id
-            AND r.revision = l.revision WHERE l.dispatch_id = OLD.id AND l.status IN ('starting','started') AND r.status = 'approved')
+            AND r.revision = l.revision WHERE l.dispatch_id = OLD.id AND r.status = 'approved'
+              AND ((OLD.status = 'awaiting_acceptance' AND l.status IN ('starting','started'))
+                OR (OLD.status = 'stalled' AND OLD.accepted_at IS NOT NULL
+                  AND l.status IN ('starting','started','attention'))))
         BEGIN SELECT RAISE(ABORT, 'workflow dispatch acceptance requires its current approved launch'); END",
     "CREATE TRIGGER IF NOT EXISTS workflowLaunchImmutable BEFORE UPDATE OF
         id,request_id,request_digest,request,run_id,revision,task_id,workspace_id,terminal_handle,dispatch_id,base_sha,profile_id,profile_revision,inputs,context_hash ON workflowLaunches

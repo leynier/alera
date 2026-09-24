@@ -48,6 +48,7 @@ final class _TerminalHostTestServer._(
   Socket? _client;
   final Set<Socket> _clients = <Socket>{};
   String token = 'existing-token';
+  Map<String, Object?> helloPayload = {};
   int acceptedConnections = 0;
   bool _binaryFrames = false;
 
@@ -110,7 +111,7 @@ final class _TerminalHostTestServer._(
         jsonEncode(<String, Object?>{
           'id': id,
           'ok': true,
-          'payload': const <String, Object?>{},
+          'payload': helloPayload,
           if (accepted) 'binaryFrames': true,
         }),
       );
@@ -339,6 +340,7 @@ Future<void> _writeControlFile({
   bool includeRunBoardCapability = false,
   bool includeWorkflowPlansCapability = false,
   bool includeWorkspaceSectionsCapability = false,
+  bool includeConfigurationSyncCapability = false,
 }) async {
   final runtimeDir = Directory(p.join(tempDir.path, 'terminal_host'));
   await runtimeDir.create(recursive: true);
@@ -361,6 +363,8 @@ Future<void> _writeControlFile({
         aleraRuntimeHostWorkflowPlansCapability,
       if (includeWorkspaceSectionsCapability)
         aleraRuntimeHostWorkspaceSectionsCapability,
+      if (includeConfigurationSyncCapability)
+        aleraRuntimeHostConfigurationSyncCapability,
     ],
   ];
   if (capabilities.isNotEmpty) {

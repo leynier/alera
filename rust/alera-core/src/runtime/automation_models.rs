@@ -1,3 +1,4 @@
+use super::AutomationTarget;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -71,7 +72,7 @@ impl AutomationScheduleKind {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum AutomationSchedule {
     OneTime {
         at: DateTime<Utc>,
@@ -80,11 +81,11 @@ pub enum AutomationSchedule {
     Recurring {
         cron: String,
         timezone: String,
-        #[serde(default)]
+        #[serde(default, alias = "start_at")]
         start_at: Option<DateTime<Utc>>,
-        #[serde(default)]
+        #[serde(default, alias = "end_at")]
         end_at: Option<DateTime<Utc>>,
-        #[serde(default)]
+        #[serde(default, alias = "max_scheduled_runs")]
         max_scheduled_runs: Option<i64>,
     },
 }
@@ -111,63 +112,6 @@ impl AutomationSchedule {
             } => *max_scheduled_runs,
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub enum AutomationTarget {
-    ExistingTab {
-        workspace_id: String,
-        tab_id: String,
-        #[serde(default)]
-        conversation_id: Option<String>,
-    },
-    FreshTab {
-        workspace_id: String,
-        agent_profile_id: String,
-    },
-    ManagedWorkspace {
-        source_workspace_id: String,
-        source_branch: String,
-        #[serde(default = "default_name_template")]
-        name_template: String,
-        agent_profile_id: String,
-    },
-}
-
-impl AutomationTarget {
-    pub fn kind(&self) -> &'static str {
-        match self {
-            Self::ExistingTab { .. } => "existingTab",
-            Self::FreshTab { .. } => "freshTab",
-            Self::ManagedWorkspace { .. } => "managedWorkspace",
-        }
-    }
-
-    pub fn workspace_id(&self) -> Option<&str> {
-        match self {
-            Self::ExistingTab { workspace_id, .. } | Self::FreshTab { workspace_id, .. } => {
-                Some(workspace_id)
-            }
-            Self::ManagedWorkspace { .. } => None,
-        }
-    }
-
-    pub fn agent_profile_id(&self) -> Option<&str> {
-        match self {
-            Self::ExistingTab { .. } => None,
-            Self::FreshTab {
-                agent_profile_id, ..
-            }
-            | Self::ManagedWorkspace {
-                agent_profile_id, ..
-            } => Some(agent_profile_id),
-        }
-    }
-}
-
-fn default_name_template() -> String {
-    AUTOMATION_DEFAULT_NAME_TEMPLATE.to_string()
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -415,6 +359,8 @@ pub struct AutomationDefinition {
     pub notify_on_success: bool,
     #[serde(default)]
     pub circuit_opened: bool,
+    #[serde(default)]
+    pub circuit_opened_at: Option<DateTime<Utc>>,
     pub state: AutomationState,
     pub revision: i64,
     #[serde(default)]

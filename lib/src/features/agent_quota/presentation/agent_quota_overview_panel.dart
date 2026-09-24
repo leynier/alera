@@ -11,7 +11,6 @@ class const _QuotaOverviewButton({
   required final String? error,
   required final AgentQuotaPinToggle onTogglePinned,
   required final String? Function(AgentQuotaSnapshot snapshot) profileLabelFor,
-  final VoidCallback? onOpenUsage,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -26,7 +25,6 @@ class const _QuotaOverviewButton({
           actions: actions,
           emptyMessage: error ?? 'No quota data',
           onTogglePinned: onTogglePinned,
-          onOpenUsage: onOpenUsage,
           profileLabels: <String, String>{
             for (final snapshot in snapshots)
               snapshot.key: ?profileLabelFor(snapshot),
@@ -54,7 +52,6 @@ class const _AgentQuotaOverviewPanel({
   required final AgentQuotaPinToggle onTogglePinned,
   final Map<String, String> profileLabels = const <String, String>{},
   final String emptyMessage = 'No quota data',
-  final VoidCallback? onOpenUsage,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -104,17 +101,6 @@ class const _AgentQuotaOverviewPanel({
                     ),
                     onTogglePinned: onTogglePinned,
                   ),
-                if (onOpenUsage != null) ...<Widget>[
-                  const Divider(height: 1, color: AleraTokens.borderSubtle),
-                  Padding(
-                    padding: const EdgeInsets.all(AleraTokens.space8),
-                    child: FilledButton.tonalIcon(
-                      onPressed: onOpenUsage,
-                      icon: const Icon(AleraIcons.quota),
-                      label: const Text('Open Usage'),
-                    ),
-                  ),
-                ],
               ],
             ),
           ),

@@ -24,6 +24,7 @@ class Win32DesktopPresence {
 
  private:
   bool SetTray(bool visible, const std::wstring& tooltip);
+  bool ShowTrayNotice(const std::wstring& title, const std::wstring& message);
   void SetBadgeCount(int count);
   void ShowFromTray();
   void QuitFromTray();

@@ -43,6 +43,19 @@ class _WorkbenchHarness([ManagedWorkspaceRuntime? runtime]) {
     );
     projectRepository = _FakeProjectRepository(<Project>[project]);
     workbenchRepository = _FakeWorkbenchRepository();
+    workbenchRepository._workspacesByProject[project.id] = [
+      Workspace(
+        id: 'initial-task',
+        projectId: project.id,
+        name: 'Initial Task',
+        branch: 'main',
+        path: repoPath,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+        kind: .main,
+        status: .active,
+      ),
+    ];
     workspaceGraphRepository = _FakeWorkspaceGraphRepository();
     gitBackend = FakeGitBackend()
       ..sourceBranches = <String>['main', 'origin/main']
@@ -64,7 +77,6 @@ class _WorkbenchHarness([ManagedWorkspaceRuntime? runtime]) {
       ),
     );
     terminalRuntime = _FakeTerminalRuntime();
-    final emulatorService = MobileEmulatorService(emulatorRuntimeClient);
     container = ProviderContainer(
       overrides: [
         gitBackendProvider.overrideWithValue(gitBackend),
@@ -90,8 +102,6 @@ class _WorkbenchHarness([ManagedWorkspaceRuntime? runtime]) {
         settingsControllerProvider.overrideWithValue(settings),
         terminalRuntimeProvider.overrideWithValue(terminalRuntime),
         agentHookReceiverProvider.overrideWithValue(hookReceiver),
-        browserSessionRegistryProvider.overrideWithValue(browserRegistry),
-        mobileEmulatorServiceProvider.overrideWithValue(emulatorService),
       ],
     );
     _controller = container.read(workbenchControllerProvider.notifier);
@@ -106,9 +116,6 @@ class _WorkbenchHarness([ManagedWorkspaceRuntime? runtime]) {
   late final _FakeWorktreeSetupRunner worktreeSetupRunner;
   late final _FakeTerminalRuntime terminalRuntime;
   final hookReceiver = _FakeAgentHookReceiver();
-  final browserEngine = FakeBrowserEngine();
-  late final browserRegistry = BrowserSessionRegistry(engine: browserEngine);
-  final emulatorRuntimeClient = _FakeWorkbenchEmulatorRuntimeClient();
   late final ProviderContainer container;
   late final WorkbenchController _controller;
   Future<Project> addProject(String id, String name) async {
@@ -121,14 +128,29 @@ class _WorkbenchHarness([ManagedWorkspaceRuntime? runtime]) {
       createdAt: .utc(2026, 5, 22),
       updatedAt: .utc(2026, 5, 22),
     );
+    await seedInitialWorkspace(newProject);
     await projectRepository.add(newProject);
     return newProject;
   }
 
+  Future<void> seedInitialWorkspace(Project project) async {
+    await workbenchRepository.upsertWorkspace(
+      Workspace(
+        id: '${project.id}-initial',
+        projectId: project.id,
+        name: project.name,
+        branch: project.kind == ProjectKind.folder ? null : 'main',
+        path: project.repoPath,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+        kind: .main,
+        status: .active,
+      ),
+    );
+  }
+
   Future<void> dispose() async {
     container.dispose();
-    await browserRegistry.dispose();
-    await browserEngine.dispose();
     await terminalRuntime.dispose();
     await projectRepository.dispose();
     await workbenchRepository.dispose();
@@ -251,6 +273,7 @@ class _FakeProjectRepository(final List<Project> _projects)
   final StreamController<List<Project>> _projectsController =
       StreamController<List<Project>>.broadcast();
   Object? listAllError;
+  Completer<void>? listAllGate;
   Object? addError;
   Object? updateError;
   Object? removeError;
@@ -259,6 +282,10 @@ class _FakeProjectRepository(final List<Project> _projects)
   Future<List<Project>> listAll() async {
     if (listAllError case final Object error) {
       throw error;
+    }
+    final gate = listAllGate;
+    if (gate != null && !gate.isCompleted) {
+      await gate.future;
     }
     return List<Project>.from(_projects);
   }
@@ -315,8 +342,16 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   _tabControllers = <String, StreamController<List<WorkspaceTabRecord>>>{};
   Future<WorkbenchLayout?>? _findWorkbenchLayoutOverride;
   Object? upsertWorkspaceError, upsertWorkspaceTabError;
+  Completer<void>? upsertWorkspaceTabGate;
+  Completer<void>? upsertWorkspaceTabReleaseGate;
+  Completer<void>? removeWorkspaceTabGate;
+  Completer<void>? findWorkspaceTabByIdGate;
+  Completer<void>? findWorkspaceTabByIdReleaseGate;
+  Completer<void>? listWorkspaceTabsGate;
   Object? upsertWorkbenchLayoutError, removeWorkspaceTabError;
+  final Map<String, Object> removeWorkspaceTabErrorsById = <String, Object>{};
   int upsertWorkbenchLayoutCalls = 0;
+  int upsertWorkspaceTabCalls = 0;
   @override
   Future<List<Workspace>> listWorkspaces(String projectId) async {
     return List<Workspace>.from(
@@ -326,12 +361,23 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
 
   @override
   Stream<List<Workspace>> watchWorkspaces(String projectId) {
-    return _workspaceControllers
+    final changes = _workspaceControllers
         .putIfAbsent(
           projectId,
           () => StreamController<List<Workspace>>.broadcast(),
         )
         .stream;
+    return Stream.multi((controller) {
+      final subscription = changes.listen(
+        controller.add,
+        onError: controller.addError,
+        onDone: controller.close,
+      );
+      controller.add(
+        List<Workspace>.from(_workspacesByProject[projectId] ?? const []),
+      );
+      controller.onCancel = subscription.cancel;
+    });
   }
 
   @override
@@ -361,9 +407,6 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
       current[index] = workspace;
     }
     current.sort((left, right) {
-      if (left.isMain != right.isMain) {
-        return left.isMain ? -1 : 1;
-      }
       return left.createdAt.compareTo(right.createdAt);
     });
     _workspacesByProject[workspace.projectId] = current;
@@ -381,6 +424,21 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
     final current = (await findWorkspaceById(workspaceId))!;
     return upsertWorkspace(current.copyWith(isPinned: isPinned));
   }
+
+  @override
+  Future<Workspace> setWorkspaceArchived(
+    String workspaceId,
+    bool isArchived,
+  ) async {
+    final current = (await findWorkspaceById(workspaceId))!;
+    return upsertWorkspace(current.copyWith(isArchived: isArchived));
+  }
+
+  @override
+  Future<void> sleepWorkspace(String workspaceId) async {}
+
+  @override
+  Future<bool> supportsArchive() async => true;
 
   @override
   Future<void> removeWorkspace(
@@ -421,6 +479,11 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
 
   @override
   Future<List<WorkspaceTabRecord>> listWorkspaceTabs(String workspaceId) async {
+    final gate = listWorkspaceTabsGate;
+    if (gate != null && !gate.isCompleted) {
+      listWorkspaceTabsGate = null;
+      await gate.future;
+    }
     return List<WorkspaceTabRecord>.from(
       _tabsByWorkspace[workspaceId] ?? const <WorkspaceTabRecord>[],
     );
@@ -438,14 +501,29 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
 
   @override
   Future<WorkspaceTabRecord?> findWorkspaceTabById(String tabId) async {
+    final gate = findWorkspaceTabByIdGate;
+    if (gate != null && !gate.isCompleted) {
+      findWorkspaceTabByIdGate = null;
+      await gate.future;
+    }
+    WorkspaceTabRecord? found;
     for (final tabs in _tabsByWorkspace.values) {
       for (final tab in tabs) {
         if (tab.id == tabId) {
-          return tab;
+          found = tab;
+          break;
         }
       }
+      if (found != null) {
+        break;
+      }
     }
-    return null;
+    final releaseGate = findWorkspaceTabByIdReleaseGate;
+    if (releaseGate != null && !releaseGate.isCompleted) {
+      findWorkspaceTabByIdReleaseGate = null;
+      await releaseGate.future;
+    }
+    return found;
   }
 
   @override
@@ -462,8 +540,25 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
     WorkspaceTabRecord tab, {
     bool manualRename = false,
   }) async {
+    upsertWorkspaceTabCalls += 1;
     if (upsertWorkspaceTabError case final Object error) {
       throw error;
+    }
+    final gate = upsertWorkspaceTabGate;
+    if (gate != null && !gate.isCompleted) {
+      upsertWorkspaceTabGate = null;
+      await gate.future;
+    }
+    // Tab IDs are globally unique in the authoritative runtime store.
+    for (final entry in _tabsByWorkspace.entries) {
+      if (entry.key == tab.workspaceId) continue;
+      final previousLength = entry.value.length;
+      entry.value.removeWhere((candidate) => candidate.id == tab.id);
+      if (entry.value.length != previousLength) {
+        _tabControllers[entry.key]?.add(
+          List<WorkspaceTabRecord>.from(entry.value),
+        );
+      }
     }
     final current = List<WorkspaceTabRecord>.from(
       _tabsByWorkspace[tab.workspaceId] ?? const <WorkspaceTabRecord>[],
@@ -479,6 +574,11 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
     _tabControllers[tab.workspaceId]?.add(
       List<WorkspaceTabRecord>.from(current),
     );
+    final releaseGate = upsertWorkspaceTabReleaseGate;
+    if (releaseGate != null && !releaseGate.isCompleted) {
+      upsertWorkspaceTabReleaseGate = null;
+      await releaseGate.future;
+    }
     return tab;
   }
 
@@ -528,8 +628,16 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
 
   @override
   Future<void> removeWorkspaceTab(String tabId) async {
+    if (removeWorkspaceTabErrorsById[tabId] case final Object error) {
+      throw error;
+    }
     if (removeWorkspaceTabError case final Object error) {
       throw error;
+    }
+    final gate = removeWorkspaceTabGate;
+    if (gate != null && !gate.isCompleted) {
+      removeWorkspaceTabGate = null;
+      await gate.future;
     }
     for (final entry in _tabsByWorkspace.entries) {
       final previousLength = entry.value.length;

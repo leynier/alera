@@ -6,6 +6,7 @@ class const _WorkspaceRow({
   required final List<WorkspaceAgentRun> agentRuns,
   required final List<WorkspaceAgentRunGroup> agentRunGroups,
   required final AgentStatusEntry? status,
+  final AgentStatusEntry? primaryStatus,
   required final bool hasTerminalTabs,
   required final bool isActive,
   required final String? activeTabId,
@@ -18,10 +19,13 @@ class const _WorkspaceRow({
   required final VoidCallback onOpenInBrowser,
   required final VoidCallback onOpenProjectSettings,
   required final VoidCallback onSleep,
+  final VoidCallback? onToggleArchived,
   required final VoidCallback onToggleExpanded,
   required final String fileManagerLabel,
   required final VoidCallback onRename,
   required final VoidCallback onSetPinned,
+  final VoidCallback? onPinWorkspaceTree,
+  final VoidCallback? onUnpinWorkspaceTree,
   required final VoidCallback onManageTags,
   required final VoidCallback onSetParent,
   required final _TerminalTabCallback onSelectTerminal,
@@ -29,10 +33,15 @@ class const _WorkspaceRow({
   final int visibleChildCount = 0,
   final bool childrenCollapsed = false,
   final VoidCallback? onToggleChildren,
-  final VoidCallback? onSetSection,
-  final VoidCallback? onClearSection,
+  final List<WorkspaceSection> sections = const <WorkspaceSection>[],
+  final bool hasTreeSection = false,
+  final void Function(_SectionTarget target, bool create)? onSetSection,
+  final void Function(_SectionTarget target)? onClearSection,
+  final void Function(_SectionTarget target, String sectionId)? onAssignSection,
   final VoidCallback? onClearParent,
   final VoidCallback? onDelete,
+  final VoidCallback? onHandOff,
+  final VoidCallback? onHandOn,
 }) extends StatefulWidget {
   @override
   State<_WorkspaceRow> createState() => _WorkspaceRowState();
@@ -95,10 +104,14 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
           child: AnimatedContainer(
             duration: AleraTokens.durationMid,
             decoration: BoxDecoration(
+              // surfaceElevated is nearly the same as the sidebar chrome.
               color: isActive
-                  ? AleraTokens.surfaceElevated
+                  ? AleraTokens.accentSubtle
                   : (_hovered ? AleraTokens.surface : Colors.transparent),
               borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+              border: Border.all(
+                color: isActive ? AleraTokens.border : Colors.transparent,
+              ),
             ),
             child: InkWell(
               key: ValueKey<String>(
@@ -137,6 +150,18 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                           ),
                         ),
                         const SizedBox(width: AleraTokens.space8),
+                        if (widget.primaryStatus
+                            case final AgentStatusEntry primary) ...<Widget>[
+                          Tooltip(
+                            message: _agentRunDescription(primary),
+                            child: AgentIdentityIcon(
+                              agentType: primary.agentType,
+                              size: AleraTokens.space16,
+                              color: AleraTokens.foregroundMuted,
+                            ),
+                          ),
+                          const SizedBox(width: AleraTokens.space6),
+                        ],
                         Expanded(
                           child: Align(
                             alignment: Alignment.centerLeft,
@@ -150,7 +175,9 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                     softWrap: false,
                                     overflow: .ellipsis,
                                     style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: AleraTokens.foreground,
+                                      color: isActive || _hovered
+                                          ? AleraTokens.foreground
+                                          : AleraTokens.foregroundMuted,
                                       fontWeight: .w600,
                                     ),
                                   ),
@@ -171,14 +198,20 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                   widget.workspace,
                                 )) ...<Widget>[
                                   const SizedBox(width: AleraTokens.space6),
-                                  const Tooltip(
-                                    message: 'Default workspace',
-                                    child: Icon(
-                                      AleraIcons.workspaceMain,
-                                      size: 12,
-                                      color: AleraTokens.foregroundMuted,
-                                      key: Key('workspace-tray-home'),
-                                    ),
+                                  Tooltip(
+                                    message: widget.workspace.isMain
+                                        ? 'Project folder'
+                                        : 'Linked worktree',
+                                    child: widget.workspace.isMain
+                                        ? const Icon(
+                                            AleraIcons.workspaceMain,
+                                            size: 12,
+                                            color: AleraTokens.foregroundMuted,
+                                            key: Key('workspace-tray-home'),
+                                          )
+                                        : const AleraLinkedWorktreeIcon(
+                                            key: Key('workspace-tray-worktree'),
+                                          ),
                                   ),
                                 ],
                                 if (widget.workspace.isPinned) ...<Widget>[
@@ -193,6 +226,18 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                     ),
                                   ),
                                 ],
+                                if (widget.workspace.isArchived) ...<Widget>[
+                                  const SizedBox(width: AleraTokens.space6),
+                                  const Tooltip(
+                                    message: 'Archived workspace',
+                                    child: Icon(
+                                      AleraIcons.archive,
+                                      size: 12,
+                                      color: AleraTokens.foregroundMuted,
+                                      key: Key('workspace-tray-archived'),
+                                    ),
+                                  ),
+                                ],
                                 const SizedBox(width: AleraTokens.space6),
                                 Tooltip(
                                   message: branchLabel,
@@ -202,6 +247,38 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                     color: AleraTokens.foregroundMuted,
                                     key: Key('workspace-tray-branch'),
                                   ),
+                                ),
+                                Consumer(
+                                  builder: (context, ref, child) {
+                                    final summary = ref.watch(
+                                      workspacePullRequestSummaryProvider(
+                                        widget.workspace.id,
+                                      ),
+                                    );
+                                    if (summary == null) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return Row(
+                                      mainAxisSize: .min,
+                                      children: <Widget>[
+                                        const SizedBox(
+                                          width: AleraTokens.space6,
+                                        ),
+                                        WorkspacePullRequestStatusIndicator(
+                                          key: const Key(
+                                            'workspace-tray-pull-request',
+                                          ),
+                                          summary: summary,
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                                WorkspacePullRequestWatchIndicator(
+                                  workspaceId: widget.workspace.id,
+                                ),
+                                WorkspaceLinkedIssueTrayIcon(
+                                  workspaceId: widget.workspace.id,
                                 ),
                                 if (tags.isNotEmpty) ...<Widget>[
                                   const SizedBox(width: AleraTokens.space6),
@@ -235,7 +312,10 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                 if (hostId != null) ...<Widget>[
                                   const SizedBox(width: AleraTokens.space6),
                                   Tooltip(
-                                    message: 'Host: $hostId',
+                                    message:
+                                        WorkspaceGraphChips.hostMetadataTooltip(
+                                          hostId,
+                                        ),
                                     child: const Icon(
                                       AleraIcons.host,
                                       size: 12,

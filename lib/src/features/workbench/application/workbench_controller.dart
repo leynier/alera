@@ -2,25 +2,25 @@ import 'package:alera/src/features/workbench/domain/workspace_section.dart';
 import 'package:alera/src/features/workbench/application/workspace_section_repository.dart';
 
 import 'dart:async';
+
+import 'package:alera/src/features/projects/domain/project_branch_catalog.dart';
+import 'package:alera/src/features/projects/infra/runtime_project_branch_client.dart';
+
 import 'dart:io';
 
-import 'package:alera/src/features/browser/application/browser_providers.dart';
-import 'package:alera/src/features/browser/application/browser_session_registry.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_providers.dart';
-import 'package:alera/src/features/codex_chat/application/codex_composer_draft_store.dart';
-import 'package:alera/src/features/mobile_emulator/application/mobile_emulator_providers.dart';
-import 'package:alera/src/features/mobile_emulator/infra/mobile_emulator_service.dart';
 import 'package:alera/src/features/projects/application/project_providers.dart';
+import 'package:alera/src/features/projects/domain/project_clone_job.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/projects/application/projects_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workspace_explorer_reveal.dart';
 import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
-import 'package:alera/src/features/workbench/application/workspace_browser_tab_service.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/application/workbench_listing.dart';
+import 'package:alera/src/features/workbench/application/workspace_descendants.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workbench_view_prefs_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_activity_controller.dart';
@@ -29,48 +29,77 @@ import 'package:alera/src/features/workbench/application/workspace_graph_reposit
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
+import 'package:alera/src/features/workbench/domain/workspace_transfer_layout.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_focus_history.dart';
 import 'package:alera/src/features/workbench/domain/worktree_navigation_history.dart';
+import 'package:alera/src/features/workbench/infra/prompt_workspace_runtime_client.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_state_migration.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:path/path.dart' as p;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../domain/workspace_panel.dart';
+import '../domain/workspace_relocation_recovery.dart';
+import '../infra/workspace_relocation_recovery_client.dart';
+
 part 'workbench_controller.g.dart';
 part 'workbench_controller_internals.dart';
-part 'workbench_controller_browser.dart';
+part 'workbench_controller_internal_layout.dart';
+part 'workbench_controller_workspace_reconciliation.dart';
+part 'workbench_controller_workspace_panel.dart';
+part 'workbench_controller_workspace_panel_panes.dart';
 part 'workbench_controller_projects.dart';
+part 'workbench_controller_project_selection.dart';
+part 'workbench_controller_project_branches.dart';
+part 'workbench_controller_workspace_sleep.dart';
+part 'workbench_controller_workspace_archive.dart';
 part 'workbench_controller_navigation.dart';
 part 'workbench_controller_tab_opening.dart';
 part 'workbench_controller_file_tabs.dart';
 part 'workbench_controller_pull_request_diff_tabs.dart';
 part 'workbench_controller_workspace_creation.dart';
+part 'workbench_controller_transfer.dart';
 part 'workbench_controller_tabs.dart';
 part 'workbench_controller_view_prefs.dart';
+part 'workbench_controller_source_control_root.dart';
 part 'workbench_controller_sync.dart';
+part 'workbench_controller_sync_apply.dart';
 part 'workbench_controller_sections.dart';
 
 @Riverpod(keepAlive: true)
 class WorkbenchController extends _$WorkbenchController
     with
         _WorkbenchControllerInternals,
-        _WorkbenchControllerBrowser,
+        _WorkbenchControllerInternalLayout,
+        _WorkbenchControllerWorkspaceReconciliation,
+        _WorkbenchControllerWorkspacePanel,
+        _WorkbenchControllerWorkspacePanelPanes,
         _WorkbenchControllerTabOpening,
         _WorkbenchControllerFileTabs,
         _WorkbenchControllerPullRequestDiffTabs,
         _WorkbenchControllerProjects,
+        _WorkbenchControllerProjectSelection,
+        _WorkbenchControllerProjectBranches,
+        _WorkbenchControllerWorkspaceSleep,
+        _WorkbenchControllerWorkspaceArchive,
         _WorkbenchControllerNavigation,
         // Creation builds on project selection and tab opening so the prompt
         // flow can synchronize its agent before appending Setup.
         _WorkbenchControllerWorkspaceCreation,
+        _WorkbenchControllerTransfer,
         _WorkbenchControllerTabs,
         _WorkbenchControllerViewPrefs,
+        _WorkbenchControllerSourceControlRoot,
         _WorkbenchControllerSync,
+        _WorkbenchControllerSyncApply,
         _WorkbenchControllerSections {
   @override
   WorkbenchState build() {
@@ -101,14 +130,13 @@ class WorkbenchController extends _$WorkbenchController
         try {
           final prefs = await repo.load();
           state = state.copyWith(viewPrefs: prefs);
-          _viewPrefsSub = repo.changes.listen((prefs) {
-            if (!_disposed) state = state.copyWith(viewPrefs: prefs);
-          });
+          _viewPrefsSub = repo.changes.listen(_applySharedViewPrefs);
         } catch (_) {
           // Fall back to defaults if loading fails; never block bootstrap.
         }
       }
       _startSections();
+      unawaited(_startArchiveSupport());
       _projectsSub = _projectsService.projectRepository.watchAll().listen(
         _onProjectsChanged,
         // A dead watcher is never re-created, so a stream that errors or
@@ -120,10 +148,9 @@ class WorkbenchController extends _$WorkbenchController
       final initialProjects = await _projectsService.projectRepository
           .listAll();
       _onProjectsChanged(initialProjects);
-      await Future.wait<void>(
-        initialProjects.map(_ensureMainWorkspaceForProject),
-      );
+      await Future.wait<void>(initialProjects.map(_reconcileProjectWorkspaces));
       state = state.copyWith(bootstrapped: true, error: null);
+      _pruneStaleWorkspacePrefs();
     } catch (error) {
       state = state.copyWith(
         bootstrapped: true,

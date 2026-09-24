@@ -106,9 +106,19 @@ class RunTaskInspector extends StatelessWidget {
         ],
       ),
       const SizedBox(height: AleraTokens.space8),
-      const Text(
-        'Open Diff shows the current workspace changes, not an immutable task result.',
+      Text(
+        task.workflow != null && task.status == 'completed'
+            ? 'Open Diff compares this attempt’s base and completed result commits.'
+            : 'Open Diff shows the current workspace changes.',
       ),
+      if (onOpenDiff == null &&
+          task.workflow != null &&
+          task.status == 'completed' &&
+          (task.workflow!.baseSha == null ||
+              task.workflow!.completionSha == null))
+        const Text(
+          'The committed result diff is unavailable: its commit coordinates were not recorded.',
+        ),
       _field(context, 'Profile', task.profile ?? 'Not recorded'),
       _field(
         context,
@@ -204,6 +214,10 @@ class _WorkflowOutcome extends StatelessWidget {
       ),
       'conflict' => (
         'The integration workspace was left untouched. Review the retained worktrees.',
+        AleraTokens.error,
+      ),
+      'refused' => (
+        'This result cannot be integrated as-is. The worktrees and result are retained; request a reviewed correction.',
         AleraTokens.error,
       ),
       'attention' => (

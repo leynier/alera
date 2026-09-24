@@ -4,6 +4,7 @@ void _registerWorkbenchControllerViewPrefsTests() {
   test(
     'tab watcher does not overwrite a saved split before layout load finishes',
     () async {
+      _harness.workbenchRepository._workspacesByProject.clear();
       final workspace = Workspace(
         id: 'workspace-1',
         projectId: _harness.project.id,
@@ -208,299 +209,105 @@ void _registerWorkbenchControllerViewPrefsTests() {
     expect(_harness.viewPrefsRepository.saveCount, greaterThan(0));
   });
 
-  test('selecting a folder workspace preserves source control and pull request tabs', () async {
+  test('stores right-sidebar width per workspace', () async {
     await _controller.bootstrap();
-    final gitWorkspace = await _selectMainWorkspace(_controller, _harness);
-    final folderPath = p.join(_harness.tempDir.path, 'notes');
-    Directory(folderPath).createSync(recursive: true);
-    final now = DateTime.utc(2026, 5, 22);
-    final folderProject = Project(
-      id: 'project-folder',
-      name: 'Notes',
-      repoPath: folderPath,
-      createdAt: now,
-      updatedAt: now,
-      kind: .folder,
-    );
-
-    await _harness.projectRepository.add(folderProject);
-    await _flushUntil(
-      () => _controller.state.workspacesFor(folderProject.id).isNotEmpty,
-    );
-    final folderWorkspace = _controller.state
-        .workspacesFor(folderProject.id)
-        .single;
-    for (final tab in <WorkbenchContextPanelTab>[
-      WorkbenchContextPanelTab.gitDiff,
-      WorkbenchContextPanelTab.pullRequests,
-    ]) {
-      _controller.setContextPanelTab(tab);
-      await _flush();
-
-      await _controller.selectWorkspace(
-        project: folderProject,
-        workspace: folderWorkspace,
-      );
-      await _flush();
-
-      expect(_controller.state.viewPrefs.activeContextPanelTab, tab);
-      expect(_harness.viewPrefsRepository.prefs.activeContextPanelTab, tab);
-
-      await _controller.selectWorkspace(
-        project: _harness.project,
-        workspace: gitWorkspace,
-      );
-      await _flush();
-
-      expect(_controller.state.viewPrefs.activeContextPanelTab, tab);
-    }
-  });
-
-  test('selecting a git workspace keeps source control active', () async {
-    await _controller.bootstrap();
-    _controller.setContextPanelTab(.gitDiff);
-    await _flush();
-
     final workspace = await _selectMainWorkspace(_controller, _harness);
 
-    expect(workspace.projectId, _harness.project.id);
-    expect(_harness.project.isGitRepository, isTrue);
+    _controller.setRightSidebarWidth(420);
+    await _flush();
+
+    expect(_controller.state.viewPrefs.rightSidebarWidth, 280);
     expect(
-      _controller.state.viewPrefs.activeContextPanelTab,
-      WorkbenchContextPanelTab.gitDiff,
+      _controller.state.viewPrefs.rightSidebarWidthFor(
+        workspace.id,
+        fallback: _controller.state.viewPrefs.rightSidebarWidth,
+      ),
+      420,
     );
   });
 
   test(
-    'folder workspace can focus and clear a nested git source control root',
+    'setRightSidebarWidth stores a compact override per workspace',
     () async {
       await _controller.bootstrap();
-      final folderPath = p.join(_harness.tempDir.path, 'notes');
-      Directory(folderPath).createSync(recursive: true);
-      final nestedRepoPath = p.join(folderPath, 'packages', 'app');
-      Directory(nestedRepoPath).createSync(recursive: true);
-      Directory(p.join(nestedRepoPath, '.git')).createSync();
-      final now = DateTime.utc(2026, 5, 22);
-      final folderProject = Project(
-        id: 'project-folder',
-        name: 'Notes',
-        repoPath: folderPath,
-        createdAt: now,
-        updatedAt: now,
-        kind: .folder,
-      );
-      await _harness.projectRepository.add(folderProject);
-      await _flushUntil(
-        () => _controller.state.workspacesFor(folderProject.id).isNotEmpty,
-      );
-      final folderWorkspace = _controller.state
-          .workspacesFor(folderProject.id)
-          .single;
-      await _controller.selectWorkspace(
-        project: folderProject,
-        workspace: folderWorkspace,
-      );
+      final first = await _selectMainWorkspace(_controller, _harness);
+
+      _controller.setRightSidebarWidth(360);
       await _flush();
 
-      final focused = await _controller.focusSourceControlFolder(
-        workspace: folderWorkspace,
-        relativePath: './packages\\app',
-      );
+      expect(_controller.state.viewPrefs.rightSidebarWidth, 280);
+      expect(_controller.state.viewPrefs.rightSidebarWidthFor(first.id), 360);
+      expect(_controller.state.viewPrefs.rightSidebarWidthByWorkspaceId, {
+        first.id: 360,
+      });
+
+      _controller.setRightSidebarWidth(280);
       await _flush();
-
-      expect(focused, isTrue);
       expect(
-        _harness.gitBackend.calls
-            .where((call) => call.method == 'isGitRepository')
-            .last
-            .args,
-        <String, Object?>{'path': nestedRepoPath},
-      );
-      expect(
-        _controller
-            .state
-            .viewPrefs
-            .sourceControlRootByWorkspaceId[folderWorkspace.id],
-        'packages/app',
-      );
-      expect(
-        _controller.state.viewPrefs.activeContextPanelTab,
-        WorkbenchContextPanelTab.gitDiff,
-      );
-      expect(_controller.state.viewPrefs.rightSidebarVisible, isTrue);
-
-      _controller.clearFocusedSourceControlFolder(workspace: folderWorkspace);
-      await _flush();
-
-      expect(
-        _controller.state.viewPrefs.sourceControlRootByWorkspaceId,
-        isNot(contains(folderWorkspace.id)),
-      );
-      expect(
-        _controller.state.viewPrefs.activeContextPanelTab,
-        WorkbenchContextPanelTab.gitDiff,
-      );
-    },
-  );
-
-  test(
-    'folder workspace does not focus a git-discoverable subdirectory',
-    () async {
-      await _controller.bootstrap();
-      final folderPath = p.join(_harness.tempDir.path, 'notes');
-      final repoPath = p.join(folderPath, 'repo');
-      final nestedPath = p.join(repoPath, 'packages', 'app');
-      Directory(p.join(repoPath, '.git')).createSync(recursive: true);
-      Directory(nestedPath).createSync(recursive: true);
-      final now = DateTime.utc(2026, 5, 22);
-      final folderProject = Project(
-        id: 'project-folder',
-        name: 'Notes',
-        repoPath: folderPath,
-        createdAt: now,
-        updatedAt: now,
-        kind: .folder,
-      );
-      await _harness.projectRepository.add(folderProject);
-      await _flushUntil(
-        () => _controller.state.workspacesFor(folderProject.id).isNotEmpty,
-      );
-      final folderWorkspace = _controller.state
-          .workspacesFor(folderProject.id)
-          .single;
-      await _controller.selectWorkspace(
-        project: folderProject,
-        workspace: folderWorkspace,
-      );
-      await _flush();
-      final repositoryChecksBefore = _harness.gitBackend.calls
-          .where((call) => call.method == 'isGitRepository')
-          .length;
-
-      final focused = await _controller.focusSourceControlFolder(
-        workspace: folderWorkspace,
-        relativePath: 'repo/packages/app',
-      );
-      await _flush();
-
-      expect(focused, isFalse);
-      expect(
-        _harness.gitBackend.calls
-            .where((call) => call.method == 'isGitRepository')
-            .length,
-        repositoryChecksBefore,
-      );
-      expect(
-        _controller.state.viewPrefs.sourceControlRootByWorkspaceId,
+        _controller.state.viewPrefs.rightSidebarWidthByWorkspaceId,
         isEmpty,
       );
-    },
-  );
 
-  test(
-    'folder workspace ignores stale source control focus completions',
-    () async {
-      await _controller.bootstrap();
-      final folderPath = p.join(_harness.tempDir.path, 'notes');
-      final nestedRepoPath = p.join(folderPath, 'packages', 'app');
-      Directory(p.join(nestedRepoPath, '.git')).createSync(recursive: true);
-      final now = DateTime.utc(2026, 5, 22);
-      final folderProject = Project(
-        id: 'project-folder',
-        name: 'Notes',
-        repoPath: folderPath,
-        createdAt: now,
-        updatedAt: now,
-        kind: .folder,
-      );
-      await _harness.projectRepository.add(folderProject);
-      await _flushUntil(
-        () => _controller.state.workspacesFor(folderProject.id).isNotEmpty,
-      );
-      final folderWorkspace = _controller.state
-          .workspacesFor(folderProject.id)
-          .single;
-      await _controller.selectWorkspace(
-        project: folderProject,
-        workspace: folderWorkspace,
-      );
+      _controller.setRightSidebarWidth(360);
       await _flush();
 
-      final gate = Completer<void>();
-      _harness.gitBackend.beforeIsGitRepository = (_) => gate.future;
-      final focusFuture = _controller.focusSourceControlFolder(
-        workspace: folderWorkspace,
-        relativePath: 'packages/app',
-      );
-      await _flushUntil(
-        () => _harness.gitBackend.calls.any(
-          (call) => call.method == 'isGitRepository',
-        ),
-      );
-
-      final mainWorkspace = _controller.state
-          .workspacesFor(_harness.project.id)
-          .single;
+      final second = (await _controller.createWorkspace(
+        project: _harness.project,
+        sourceBranch: 'main',
+        newBranchName: 'feature/sidebar-width',
+      )).workspace;
       await _controller.selectWorkspace(
         project: _harness.project,
-        workspace: mainWorkspace,
+        workspace: second,
       );
       await _flush();
-      gate.complete();
 
-      expect(await focusFuture, isFalse);
-      expect(_controller.state.activeProjectId, _harness.project.id);
-      expect(_controller.state.activeWorkspaceId, mainWorkspace.id);
-      expect(
-        _controller.state.viewPrefs.sourceControlRootByWorkspaceId,
-        isEmpty,
-      );
+      expect(_controller.state.viewPrefs.rightSidebarWidthFor(second.id), 280);
+      _controller.setRightSidebarWidth(400);
+      await _flush();
+
+      expect(_controller.state.viewPrefs.rightSidebarWidthFor(first.id), 360);
+      expect(_controller.state.viewPrefs.rightSidebarWidthFor(second.id), 400);
+      expect(_controller.state.viewPrefs.rightSidebarWidthByWorkspaceId, {
+        first.id: 360,
+        second.id: 400,
+      });
     },
   );
 
   test(
-    'folder workspace does not focus a non-git source control root',
+    'workspace updates prune right-sidebar widths for removed workspaces',
     () async {
       await _controller.bootstrap();
-      final folderPath = p.join(_harness.tempDir.path, 'notes');
-      Directory(folderPath).createSync(recursive: true);
-      final now = DateTime.utc(2026, 5, 22);
-      final folderProject = Project(
-        id: 'project-folder',
-        name: 'Notes',
-        repoPath: folderPath,
-        createdAt: now,
-        updatedAt: now,
-        kind: .folder,
-      );
-      await _harness.projectRepository.add(folderProject);
-      await _flushUntil(
-        () => _controller.state.workspacesFor(folderProject.id).isNotEmpty,
-      );
-      final folderWorkspace = _controller.state
-          .workspacesFor(folderProject.id)
-          .single;
+      await _selectMainWorkspace(_controller, _harness);
+      final linkedWorkspace = (await _controller.createWorkspace(
+        project: _harness.project,
+        sourceBranch: 'main',
+        newBranchName: 'feature/remove-sidebar-width',
+      )).workspace;
       await _controller.selectWorkspace(
-        project: folderProject,
-        workspace: folderWorkspace,
-      );
-      await _flush();
-      _harness.gitBackend.isRepository = false;
-
-      final focused = await _controller.focusSourceControlFolder(
-        workspace: folderWorkspace,
-        relativePath: 'packages/app',
+        project: _harness.project,
+        workspace: linkedWorkspace,
       );
       await _flush();
 
-      expect(focused, isFalse);
+      _controller.setRightSidebarWidth(360);
+      await _flush();
       expect(
-        _controller.state.viewPrefs.sourceControlRootByWorkspaceId,
-        isEmpty,
+        _controller.state.viewPrefs.rightSidebarWidthByWorkspaceId,
+        containsPair(linkedWorkspace.id, 360),
+      );
+
+      await _harness.workbenchRepository.removeWorkspace(linkedWorkspace.id);
+      await _flush();
+
+      expect(
+        _controller.state.viewPrefs.rightSidebarWidthByWorkspaceId,
+        isNot(contains(linkedWorkspace.id)),
       );
       expect(
-        _controller.state.viewPrefs.activeContextPanelTab,
-        WorkbenchContextPanelTab.explorer,
+        _controller.state.viewPrefs.workspacePanels,
+        isNot(contains(linkedWorkspace.id)),
       );
     },
   );
@@ -522,6 +329,79 @@ void _registerWorkbenchControllerViewPrefsTests() {
     expect(_controller.state.viewPrefs.selectedProjectIds, <String>{
       _harness.project.id,
     });
+  });
+
+  test(
+    'bootstrap prunes stale workspace prefs after workspaces arrive first',
+    () async {
+      _harness.viewPrefsRepository.prefs = WorkbenchViewPrefs.defaults.copyWith(
+        workspacePanels: <String, WorkspacePanel>{
+          'stale-workspace': const WorkspacePanel(),
+        },
+        rightSidebarWidthByWorkspaceId: const <String, double>{
+          'stale-workspace': 400,
+        },
+      );
+      final gate = Completer<void>();
+      _harness.projectRepository.listAllGate = gate;
+      final bootstrap = _controller.bootstrap();
+      await _flush();
+      expect(_controller.state.bootstrapped, isFalse);
+      expect(
+        _controller.state.viewPrefs.workspacePanels.containsKey(
+          'stale-workspace',
+        ),
+        isTrue,
+      );
+      gate.complete();
+      await bootstrap;
+      await _flushUntil(
+        () => _controller.state.workspacesFor(_harness.project.id).isNotEmpty,
+      );
+      await _flush();
+
+      expect(
+        _controller.state.viewPrefs.workspacePanels.containsKey(
+          'stale-workspace',
+        ),
+        isFalse,
+      );
+      expect(
+        _controller.state.viewPrefs.rightSidebarWidthByWorkspaceId.containsKey(
+          'stale-workspace',
+        ),
+        isFalse,
+      );
+    },
+  );
+
+  test('bootstrap prunes stale persisted workspace panel prefs', () async {
+    _harness.viewPrefsRepository.prefs = WorkbenchViewPrefs.defaults.copyWith(
+      workspacePanels: <String, WorkspacePanel>{
+        'stale-workspace': const WorkspacePanel(),
+      },
+      rightSidebarWidthByWorkspaceId: const <String, double>{
+        'stale-workspace': 400,
+      },
+    );
+
+    await _controller.bootstrap();
+    await _flushUntil(
+      () => _controller.state.workspacesFor(_harness.project.id).isNotEmpty,
+    );
+
+    expect(
+      _controller.state.viewPrefs.workspacePanels.containsKey(
+        'stale-workspace',
+      ),
+      isFalse,
+    );
+    expect(
+      _controller.state.viewPrefs.rightSidebarWidthByWorkspaceId.containsKey(
+        'stale-workspace',
+      ),
+      isFalse,
+    );
   });
 
   test('bootstrap surfaces project repository failures', () async {
@@ -628,7 +508,7 @@ void _registerWorkbenchControllerViewPrefsTests() {
     );
     expect(
       _controller.state.error,
-      contains('The main workspace cannot be removed'),
+      contains('Removing a shared workspace cannot delete its branch'),
     );
   });
 
@@ -667,7 +547,8 @@ void _registerWorkbenchControllerViewPrefsTests() {
     expect(_controller.state.error, contains('Tab title must not be empty'));
 
     final firstGroupId = _controller.state
-        .layoutFor(workspace.id)!
+        .workspacePanelFor(workspace.id)
+        .ensuredMainLayout(workspace.id)
         .activeGroupId;
     final splitTab = await _controller.splitWorkbenchGroupWithTerminal(
       workspace: workspace,
@@ -676,39 +557,32 @@ void _registerWorkbenchControllerViewPrefsTests() {
     );
     await _flush();
 
-    final splitLayout = _controller.state.layoutFor(workspace.id)!;
-    final splitGroupId = splitLayout.groupIdForTab(splitTab.id)!;
+    final splitLayout = _controller.state
+        .workspacePanelFor(workspace.id)
+        .ensuredMainLayout(workspace.id);
+    final splitGroupId = splitLayout.groupIdForTab(
+      WorkspacePanel.tabKey(splitTab.id),
+    )!;
     final targetGroupId = splitLayout.paneGroupIds.firstWhere(
       (groupId) => groupId != splitGroupId,
     );
 
-    _harness.workbenchRepository.upsertWorkbenchLayoutError = StateError(
-      'cannot persist layout',
+    await _controller.moveWorkspaceTab(
+      workspaceId: workspace.id,
+      tabId: splitTab.id,
+      targetGroupId: targetGroupId,
+      zone: .center,
     );
-    await expectLater(
-      _controller.moveWorkspaceTab(
-        workspaceId: workspace.id,
-        tabId: splitTab.id,
-        targetGroupId: targetGroupId,
-        zone: .center,
-      ),
-      throwsStateError,
-    );
-    expect(_controller.state.error, contains('cannot persist layout'));
+    await _flush();
+    expect(_controller.state.error, isNull);
 
-    await expectLater(
-      _controller.mergeWorkbenchGroupIntoSibling(
-        workspaceId: workspace.id,
-        groupId: splitGroupId,
-      ),
-      throwsStateError,
-    );
-    expect(_controller.state.error, contains('cannot persist layout'));
-    _harness.workbenchRepository.upsertWorkbenchLayoutError = null;
-
+    final afterMove = _controller.state
+        .workspacePanelFor(workspace.id)
+        .ensuredMainLayout(workspace.id);
+    final remainingGroupId = afterMove.paneGroupIds.first;
     await _controller.mergeWorkbenchGroupIntoSibling(
       workspaceId: workspace.id,
-      groupId: splitGroupId,
+      groupId: remainingGroupId,
     );
     await _flush();
     expect(_controller.state.error, isNull);

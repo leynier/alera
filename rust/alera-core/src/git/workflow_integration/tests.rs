@@ -8,6 +8,9 @@ use uuid::Uuid;
 use super::*;
 use crate::git::{ensure_workflow_worktree, verify_workflow_worktree};
 
+mod artifact_limits;
+mod refusals;
+
 struct Fixture {
     directory: TempDir,
     repo_path: String,

@@ -344,7 +344,9 @@ fn unshallows_when_the_review_merge_base_is_outside_the_boundary() {
     push(&seed, "refs/heads/feature:refs/pull/9/head");
 
     let client_directory = tempfile::tempdir().expect("client tempdir");
-    let remote_url = format!("file://{}", remote_directory.path().to_string_lossy());
+    let remote_url = url::Url::from_directory_path(remote_directory.path())
+        .expect("remote file URL")
+        .to_string();
     let client = Repository::clone(&remote_url, client_directory.path()).expect("client clone");
     let current_main = client
         .refname_to_id("refs/heads/main")

@@ -15,6 +15,8 @@ mod receipt;
 #[cfg(test)]
 mod tests;
 
+pub const MAX_WORKFLOW_ARTIFACTS: usize = 128;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WorkflowGitResource {
@@ -59,6 +61,31 @@ pub enum WorkflowGitPreparation {
         paths: Vec<String>,
         truncated: bool,
     },
+    Refused {
+        paths: Vec<String>,
+        truncated: bool,
+        reason: String,
+    },
+}
+
+/// Check the artifact list against the exact committed task result before
+/// completion seals that commit in the durable dispatch record.
+pub fn validate_workflow_artifacts(
+    worktree_path: &str,
+    source_sha: &str,
+    paths: &[String],
+) -> Result<(), GitError> {
+    if paths.len() > MAX_WORKFLOW_ARTIFACTS {
+        return Err(invalid("workflow result has too many artifacts"));
+    }
+    let repo = Repository::open(worktree_path).map_err(GitError::from_git2)?;
+    let tree = repo
+        .find_commit(oid(source_sha)?)
+        .map_err(GitError::from_git2)?
+        .tree()
+        .map_err(GitError::from_git2)?;
+    artifact_digest(&tree, paths)?;
+    Ok(())
 }
 
 pub fn prepare_workflow_integration(
@@ -139,6 +166,27 @@ pub fn prepare_workflow_integration(
     }
     let tree_id = index.write_tree_to(&repo).map_err(GitError::from_git2)?;
     let tree = repo.find_tree(tree_id).map_err(GitError::from_git2)?;
+    let mut invalid_artifacts = BTreeSet::new();
+    for path in &request.artifacts {
+        match tree.get_path(Path::new(path)) {
+            Ok(entry) if matches!(entry.filemode(), 0o100644 | 0o100755) => {}
+            Ok(_) => {
+                invalid_artifacts.insert(path.clone());
+            }
+            Err(error) if error.code() == git2::ErrorCode::NotFound => {
+                invalid_artifacts.insert(path.clone());
+            }
+            Err(error) => return Err(GitError::from_git2(error)),
+        }
+    }
+    if !invalid_artifacts.is_empty() {
+        return Ok(WorkflowGitPreparation::Refused {
+            paths: invalid_artifacts.into_iter().collect(),
+            truncated: false,
+            reason: "result artifacts are missing or are not regular files in the merged tree"
+                .into(),
+        });
+    }
     let artifact_digest = artifact_digest(&tree, &request.artifacts)?;
     // A submodule has its own checkout lifecycle; never claim to have updated it.
     let delta = repo
@@ -148,13 +196,27 @@ pub fn prepare_workflow_integration(
             None,
         )
         .map_err(GitError::from_git2)?;
-    if delta.deltas().any(|delta| {
-        delta.old_file().mode() == git2::FileMode::Commit
+    let mut submodules = BTreeSet::new();
+    for delta in delta.deltas() {
+        if delta.old_file().mode() == git2::FileMode::Commit
             || delta.new_file().mode() == git2::FileMode::Commit
-    }) {
-        return Err(invalid(
-            "submodule changes require explicit integration outside this workflow",
-        ));
+        {
+            if let Some(path) = delta.new_file().path().or_else(|| delta.old_file().path()) {
+                submodules.insert(
+                    path.to_string_lossy()
+                        .chars()
+                        .take(1024)
+                        .collect::<String>(),
+                );
+            }
+        }
+    }
+    if !submodules.is_empty() {
+        return Ok(WorkflowGitPreparation::Refused {
+            truncated: submodules.len() > 128,
+            paths: submodules.into_iter().take(128).collect(),
+            reason: "submodule changes require explicit integration outside this workflow".into(),
+        });
     }
     let signature = repo.signature().map_err(GitError::from_git2)?;
     let integrated_sha = if tree_id == ours.tree_id() {
@@ -224,7 +286,7 @@ impl WorkflowIntegrationRequest {
                 .result_digest
                 .bytes()
                 .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
-            || self.artifacts.len() > 128
+            || self.artifacts.len() > MAX_WORKFLOW_ARTIFACTS
         {
             return Err(invalid("invalid integration revision, digest or resource"));
         }
@@ -288,7 +350,7 @@ fn artifact_digest(tree: &git2::Tree<'_>, paths: &[String]) -> Result<String, Gi
         digest.update(entry.filemode().to_be_bytes());
         digest.update(entry.id().as_bytes());
     }
-    Ok(format!("{:x}", digest.finalize()))
+    Ok(hex::encode(digest.finalize()))
 }
 
 fn oid(value: &str) -> Result<Oid, GitError> {

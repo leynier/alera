@@ -7,7 +7,22 @@ Future<void> _pumpDiffSurface(
   WorkspaceTabRecord? tab,
   ReadingDiffService? readingDiffService,
   SettingsController? settingsController,
+  bool autofocus = false,
+  ValueChanged<bool>? onPaneFocusChange,
 }) {
+  Widget surface = WorkspaceGitDiffSurface(
+    workspace: _workspace(),
+    tab: tab ?? _diffTab(),
+    autofocus: autofocus,
+  );
+  if (onPaneFocusChange != null) {
+    // Mirrors the workbench pane scope that promotes the active group.
+    surface = FocusScope(
+      skipTraversal: true,
+      onFocusChange: onPaneFocusChange,
+      child: surface,
+    );
+  }
   return tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -22,16 +37,7 @@ Future<void> _pumpDiffSurface(
           workbenchControllerProvider.overrideWith(() => controller),
       ],
       child: MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            width: 900,
-            height: 600,
-            child: WorkspaceGitDiffSurface(
-              workspace: _workspace(),
-              tab: tab ?? _diffTab(),
-            ),
-          ),
-        ),
+        home: Scaffold(body: SizedBox(width: 900, height: 600, child: surface)),
       ),
     ),
   );
@@ -127,7 +133,9 @@ class _GitDiffSurfaceTestController extends WorkbenchController {
     required Workspace workspace,
     required String relativePath,
     String? targetGroupId,
+    String? sourceKey,
     bool preview = false,
+    bool oppositePanel = false,
   }) async {
     openedRelativePaths.add(relativePath);
     final now = DateTime.utc(2026, 6, 6);

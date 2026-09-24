@@ -6,6 +6,7 @@ import 'package:alera/src/design_system/layout/alera_master_detail.dart';
 import 'package:alera/src/features/app_menu/presentation/alera_app_menu_scope.dart';
 import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
 import 'package:alera/src/features/orchestration/application/run_board_pages.dart';
+import 'package:alera/src/features/orchestration/infra/runtime_run_board_repository.dart';
 import 'package:alera/src/features/orchestration/presentation/run_board_detail.dart';
 import 'package:alera/src/features/orchestration/presentation/run_board_filters.dart';
 import 'package:alera/src/features/orchestration/presentation/run_board_list.dart';
@@ -17,7 +18,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class RunBoardPage extends ConsumerWidget {
-  const RunBoardPage({super.key});
+  const RunBoardPage({super.key, this.onReturnToWorkspace});
+  final VoidCallback? onReturnToWorkspace;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final location = ref.watch(runBoardNavigationProvider);
@@ -75,10 +77,18 @@ class RunBoardPage extends ConsumerWidget {
         ),
       );
     }
+    final filtered =
+        location.projectId != null ||
+        location.workspaceId != null ||
+        location.search.isNotEmpty ||
+        location.bucket != null;
     Widget master({bool showError = true}) => RunBoardList(
       snapshot: data?.data,
       selectedRunId: location.runId,
       onSelect: navigation.selectRun,
+      emptyMessage: filtered
+          ? 'No runs match these filters. Clear or adjust them to see other runs.'
+          : 'No runs yet. Runs created through orchestration will appear here.',
       filters: RunBoardFilters(
         location: location,
         projects: projects,
@@ -100,7 +110,9 @@ class RunBoardPage extends ConsumerWidget {
                     padding: const EdgeInsets.all(AleraTokens.space16),
                     child: Text(
                       page.hasError
-                          ? 'The run list is unavailable. Use Refresh Run Board to retry.'
+                          ? page.error is RunBoardUpdateRequired
+                                ? 'This host cannot load runs. Update the runtime host, then reconnect.'
+                                : 'The run list is unavailable. Reconnect or refresh to retry.'
                           : 'Loading runs...',
                     ),
                   )
@@ -115,11 +127,6 @@ class RunBoardPage extends ConsumerWidget {
       ),
     );
     final empty = data?.data.items.isEmpty ?? false;
-    final filtered =
-        location.projectId != null ||
-        location.workspaceId != null ||
-        location.search.isNotEmpty ||
-        location.bucket != null;
     final detail = location.runId == null
         ? data == null
               ? RunBoardReadState(
@@ -170,7 +177,7 @@ class RunBoardPage extends ConsumerWidget {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 TextButton.icon(
-                  onPressed: navigation.close,
+                  onPressed: onReturnToWorkspace ?? navigation.close,
                   icon: const Icon(AleraIcons.back),
                   label: const Text('Return to Workspace'),
                 ),
@@ -264,6 +271,9 @@ class _RunBoardSelection extends ConsumerWidget {
           ref,
           executionWorkspaceId,
           RunBoardWorkspaceAction.diff,
+          committedResult: task.workflow != null && task.status == 'completed',
+          resultBaseSha: task.workflow?.baseSha,
+          resultCompletionSha: task.workflow?.completionSha,
         ),
         footer: RunBoardPageFooter(
           hasMore: data.data.nextCursor != null,

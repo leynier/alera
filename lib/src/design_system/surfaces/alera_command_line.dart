@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/layout/alera_horizontal_scroll_view.dart';
 import 'package:alera/src/design_system/menus/alera_text_selection_toolbar.dart';
 import 'package:flutter/material.dart';
 
@@ -43,10 +44,7 @@ class const AleraCommandLine({
         children: <Widget>[
           Expanded(
             child: singleLine
-                ? SingleChildScrollView(
-                    scrollDirection: .horizontal,
-                    child: commandText,
-                  )
+                ? AleraHorizontalScrollView(child: commandText)
                 : commandText,
           ),
           if (trailing case final action?) ...<Widget>[

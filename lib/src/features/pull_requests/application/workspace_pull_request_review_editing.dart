@@ -6,7 +6,13 @@ mixin _WorkspacePullRequestReviewEditing on _$WorkspacePullRequestController {
 
   /// Creates a review from [input]: pushes the branch, calls the forge, and
   /// links the result on success.
-  Future<CreateReviewResult> createReview(CreateReviewInput input) async {
+  Future<CreateReviewResult> createReview(CreateReviewInput input) =>
+      _createReview(input, action: .create);
+
+  Future<CreateReviewResult> _createReview(
+    CreateReviewInput input, {
+    required PullRequestAction action,
+  }) async {
     final controller = _editingController;
     final identity = state.value?.identity;
     final forge = identity == null
@@ -21,7 +27,7 @@ mixin _WorkspacePullRequestReviewEditing on _$WorkspacePullRequestController {
     controller._pollTimer?.cancel();
     state = AsyncData(
       (state.value ?? const WorkspacePullRequestState()).copyWith(
-        action: .create,
+        action: action,
         clearError: true,
       ),
     );
@@ -68,6 +74,7 @@ mixin _WorkspacePullRequestReviewEditing on _$WorkspacePullRequestController {
           url: result.review.url,
         ),
       );
+      controller._refreshWorkspacePullRequestMonitor();
     }
     controller._applyActionOutcome(
       failureMessage: result is CreateReviewFailure ? result.message : null,
@@ -153,6 +160,9 @@ mixin _WorkspacePullRequestReviewEditing on _$WorkspacePullRequestController {
     controller._applyActionOutcome(
       failureMessage: result is UpdateReviewFailure ? result.message : null,
     );
+    if (result is UpdateReviewSuccess) {
+      controller._refreshWorkspacePullRequestMonitor();
+    }
     // Reload only on success; the refresh path would clear the error message.
     if (!controller._disposed &&
         controller._visible &&

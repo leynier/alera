@@ -84,6 +84,7 @@ impl RuntimeStore {
                 ,CASE WHEN p.task_id IS NULL THEN NULL
                   WHEN i.state = 'integrated' AND e.task_id IS NOT NULL THEN 'integrated'
                   WHEN i.state = 'integrated' THEN 'attention'
+                  WHEN i.state = 'conflict' AND i.error IS NOT NULL THEN 'refused'
                   WHEN i.state = 'conflict' THEN 'conflict'
                   WHEN i.state = 'attention' OR l.status = 'attention' OR x.phase = 'attention' THEN 'attention'
                   WHEN t.status = 'completed' AND t.result IS NOT NULL THEN 'result_ready'

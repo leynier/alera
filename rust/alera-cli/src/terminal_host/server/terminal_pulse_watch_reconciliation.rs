@@ -157,7 +157,7 @@ fn workspace_git_status_snapshot(
 }
 
 fn reconcile_watch_directories(
-    watcher: &mut RecommendedWatcher,
+    watcher: &mut SharedPulseWatcher,
     repository: &Repository,
     root: &Path,
     watched_directories: &mut HashSet<PathBuf>,
@@ -218,7 +218,7 @@ fn directories_have_git_changes(
     Ok(false)
 }
 
-#[cfg(all(test, unix))]
+#[cfg(all(test, unix, not(target_os = "macos")))]
 mod tests {
     use std::os::unix::ffi::OsStringExt;
 

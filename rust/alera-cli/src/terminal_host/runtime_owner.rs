@@ -9,9 +9,7 @@ use alera_core::runtime::{
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
 
-mod process_identity;
-
-use process_identity::{
+use crate::process_identity::{
     current_process_identity, terminate_process, ProcessIdentity, ProcessIdentityProbe,
     ProcessLookup, SystemProcessIdentityProbe, PLATFORM,
 };

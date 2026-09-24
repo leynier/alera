@@ -11,14 +11,26 @@ bool workspaceMatchesTagFilter(WorkbenchViewPrefs prefs, Workspace workspace) {
   return workspace.tagIds.any(prefs.selectedTagIds.contains);
 }
 
-/// Whether [workspace] passes the workspace-kind visibility filter: the main
-/// worktree counts as the project's default workspace.
+/// OR semantics over the selected section filter: an empty selection shows
+/// every workspace; otherwise a workspace must belong to at least one selected
+/// section.
+bool workspaceMatchesSectionFilter(
+  WorkbenchViewPrefs prefs,
+  Workspace workspace,
+) {
+  if (prefs.selectedSectionIds.isEmpty) {
+    return true;
+  }
+  final sectionId = workspace.sectionId;
+  if (sectionId == null) {
+    return false;
+  }
+  return prefs.selectedSectionIds.contains(sectionId);
+}
+
+/// Legacy saved kind filters no longer hide tasks on shared checkouts.
 bool workspaceMatchesKindFilter(WorkbenchViewPrefs prefs, Workspace workspace) {
-  return switch (prefs.workspaceKindFilter) {
-    WorkspaceKindFilter.all => true,
-    WorkspaceKindFilter.defaultOnly => workspace.isMain,
-    WorkspaceKindFilter.nonDefaultOnly => !workspace.isMain,
-  };
+  return true;
 }
 
 /// Whether [tabs] make a workspace active for sidebar filtering and activity
@@ -30,9 +42,17 @@ bool workspaceMatchesActiveFilter(
   if (!prefs.showActiveWorkspacesOnly) {
     return true;
   }
-  return tabs.any(
-    (tab) =>
-        tab.kind == WorkspaceTabKind.terminal ||
-        tab.kind == WorkspaceTabKind.codex,
-  );
+  return tabs.any((tab) => tab.kind == WorkspaceTabKind.terminal);
+}
+
+/// Archived workspaces stay hidden unless the user opts in through View
+/// Options. Pinned copies follow the same rule as their regular row.
+bool workspaceMatchesArchivedFilter(
+  WorkbenchViewPrefs prefs,
+  Workspace workspace,
+) {
+  if (prefs.showArchivedWorkspaces) {
+    return true;
+  }
+  return !workspace.isArchived;
 }

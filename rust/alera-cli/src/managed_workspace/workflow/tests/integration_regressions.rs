@@ -320,7 +320,8 @@ async fn workflow_integration_service_replays_and_prepares_dependents_at_the_int
     );
     assert_eq!(
         std::fs::read_to_string(Path::new(&dependent.identity.workspace.path).join("shared.txt"))
-            .unwrap(),
+            .unwrap()
+            .replace("\r\n", "\n"),
         "fixed\n"
     );
 }
@@ -351,7 +352,8 @@ async fn workflow_integration_service_conflict_is_attention_and_preserves_parall
     assert_eq!(result.conflict_paths, vec!["shared.txt"]);
     assert_eq!(
         std::fs::read_to_string(Path::new(&target.identity.workspace.path).join("shared.txt"))
-            .unwrap(),
+            .unwrap()
+            .replace("\r\n", "\n"),
         "first\n"
     );
     let board = fixture

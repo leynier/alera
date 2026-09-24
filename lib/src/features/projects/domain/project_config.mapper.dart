@@ -506,14 +506,25 @@ class NewWorkspaceConfigMapper extends ClassMapperBase<NewWorkspaceConfig> {
     opt: true,
     def: '',
   );
+  static String _$sourceBranch(NewWorkspaceConfig v) => v.sourceBranch;
+  static const Field<NewWorkspaceConfig, String> _f$sourceBranch = Field(
+    'sourceBranch',
+    _$sourceBranch,
+    opt: true,
+    def: '',
+  );
 
   @override
   final MappableFields<NewWorkspaceConfig> fields = const {
     #promptAppend: _f$promptAppend,
+    #sourceBranch: _f$sourceBranch,
   };
 
   static NewWorkspaceConfig _instantiate(DecodingData data) {
-    return NewWorkspaceConfig(promptAppend: data.dec(_f$promptAppend));
+    return NewWorkspaceConfig(
+      promptAppend: data.dec(_f$promptAppend),
+      sourceBranch: data.dec(_f$sourceBranch),
+    );
   }
 
   @override
@@ -587,7 +598,7 @@ abstract class NewWorkspaceConfigCopyWith<
   $Out
 >
     implements ClassCopyWith<$R, $In, $Out> {
-  $R call({String? promptAppend});
+  $R call({String? promptAppend, String? sourceBranch});
   NewWorkspaceConfigCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
   );
@@ -602,12 +613,16 @@ class _NewWorkspaceConfigCopyWithImpl<$R, $Out>
   late final ClassMapperBase<NewWorkspaceConfig> $mapper =
       NewWorkspaceConfigMapper.ensureInitialized();
   @override
-  $R call({String? promptAppend}) => $apply(
-    FieldCopyWithData({if (promptAppend != null) #promptAppend: promptAppend}),
+  $R call({String? promptAppend, String? sourceBranch}) => $apply(
+    FieldCopyWithData({
+      if (promptAppend != null) #promptAppend: promptAppend,
+      if (sourceBranch != null) #sourceBranch: sourceBranch,
+    }),
   );
   @override
   NewWorkspaceConfig $make(CopyWithData data) => NewWorkspaceConfig(
     promptAppend: data.get(#promptAppend, or: $value.promptAppend),
+    sourceBranch: data.get(#sourceBranch, or: $value.sourceBranch),
   );
 
   @override

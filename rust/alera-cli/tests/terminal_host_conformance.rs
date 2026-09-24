@@ -6,6 +6,9 @@ mod agent_integration_home_isolation;
 
 mod terminal_host_test_platform;
 
+#[path = "support/shared_task_removal_protocol.rs"]
+mod shared_removal;
+
 use agent_integration_home_isolation::alera_command_with_isolated_home;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
@@ -272,6 +275,27 @@ fn ssh_target_payload(id: &str, bootstrap_status: &str) -> Value {
     })
 }
 
+const PASSWORD_BOOTSTRAP_UNSUPPORTED: &str =
+    "password SSH targets are not supported for bootstrap; configure SSH agent or key authentication.";
+
+fn seed_ssh_target(runtime_dir: &std::path::Path, payload: Value) {
+    let target: alera_core::runtime::SshTarget =
+        serde_json::from_value(payload).expect("ssh target payload");
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(async {
+            let store = alera_core::runtime::RuntimeStore::open(runtime_dir)
+                .await
+                .expect("open runtime store");
+            store
+                .upsert_ssh_target(target)
+                .await
+                .expect("seed ssh target");
+        });
+}
+
 fn fake_blocking_ssh_path(root: &std::path::Path) -> String {
     let bin_dir = root.join("fake-bin");
     std::fs::create_dir_all(&bin_dir).unwrap();
@@ -483,7 +507,7 @@ fn runtime_workspace_remove_terminates_active_sessions() {
     let token = "test-token";
     let (_guard, port) = spawn_host(dir.path(), &control_path, token);
     let (mut writer, mut reader) = connect(port);
-    handshake(&mut writer, &mut reader, token);
+    let folder = shared_removal::register(&mut writer, &mut reader, token, dir.path());
 
     create_long_running_session(
         &mut writer,
@@ -494,15 +518,11 @@ fn runtime_workspace_remove_terminates_active_sessions() {
         "t1",
     );
 
-    send(
-        &mut writer,
-        json!({
-            "id": 2,
-            "type": "workspace.remove",
-            "payload": {"id": "w1", "cascadeTabs": true}
-        }),
+    let removed = shared_removal::remove(&mut writer, &mut reader, 2);
+    assert_eq!(
+        std::fs::read_to_string(folder.join("retained.txt")).unwrap(),
+        "shared files stay\n"
     );
-    let removed = read_response(&mut reader, 2);
     assert_eq!(
         removed["ok"],
         json!(true),
@@ -519,7 +539,7 @@ fn runtime_linked_review_persists_and_cascades_on_workspace_remove() {
     let token = "linked-review-token";
     let (_guard, port) = spawn_host(dir.path(), &control_path, token);
     let (mut writer, mut reader) = connect(port);
-    handshake(&mut writer, &mut reader, token);
+    let folder = shared_removal::register(&mut writer, &mut reader, token, dir.path());
 
     // No review linked yet.
     send(
@@ -561,15 +581,11 @@ fn runtime_linked_review_persists_and_cascades_on_workspace_remove() {
     );
 
     // Removing the workspace cascades the linked review.
-    send(
-        &mut writer,
-        json!({
-            "id": 4,
-            "type": "workspace.remove",
-            "payload": {"id": "w1", "cascadeTabs": true}
-        }),
+    let removed = shared_removal::remove(&mut writer, &mut reader, 4);
+    assert_eq!(
+        std::fs::read_to_string(folder.join("retained.txt")).unwrap(),
+        "shared files stay\n"
     );
-    let removed = read_response(&mut reader, 4);
     assert_eq!(removed["ok"], json!(true), "remove failed: {removed}");
 
     send(
@@ -705,6 +721,8 @@ fn cli_mutations_use_running_runtime_host() {
             "CLI Project",
             "--repo-path",
             dir.path().to_str().unwrap(),
+            "--kind",
+            "folder",
         ])
         .output()
         .expect("failed to run alera project add");
@@ -715,7 +733,7 @@ fn cli_mutations_use_running_runtime_host() {
         String::from_utf8_lossy(&output.stderr)
     );
     let project: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(project["id"], json!("cli-project"));
+    assert_eq!(project["project"]["id"], json!("cli-project"));
 
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
@@ -760,6 +778,8 @@ fn cli_mutations_use_alternate_runtime_host_control_after_legacy_host_json() {
             "Alternate CLI Project",
             "--repo-path",
             dir.path().to_str().unwrap(),
+            "--kind",
+            "folder",
         ])
         .output()
         .expect("failed to run alera project add");
@@ -770,7 +790,7 @@ fn cli_mutations_use_alternate_runtime_host_control_after_legacy_host_json() {
         String::from_utf8_lossy(&output.stderr)
     );
     let project: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(project["id"], json!("alternate-cli-project"));
+    assert_eq!(project["project"]["id"], json!("alternate-cli-project"));
 
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
@@ -899,10 +919,10 @@ fn runtime_bootstrap_start_rejects_missing_target_before_job() {
 }
 
 #[test]
-fn runtime_bootstrap_start_rejects_password_target_before_job() {
+fn runtime_ssh_target_upsert_rejects_password_auth() {
     let dir = tempfile::tempdir().unwrap();
     let control_path = dir.path().join("runtime-host.json");
-    let token = "ssh-password-token";
+    let token = "ssh-password-upsert-token";
     let (_guard, port) = spawn_host(dir.path(), &control_path, token);
     let (mut writer, mut reader) = connect(port);
     handshake(&mut writer, &mut reader, token);
@@ -917,13 +937,154 @@ fn runtime_bootstrap_start_rejects_password_target_before_job() {
             "payload": target
         }),
     );
-    let saved = read_response(&mut reader, 1);
-    assert_eq!(saved["ok"], json!(true), "upsert failed: {saved}");
+    let response = read_response(&mut reader, 1);
+    assert_eq!(
+        response["ok"],
+        json!(false),
+        "password upsert should fail: {response}"
+    );
+    assert_eq!(
+        response["error"].as_str(),
+        Some(PASSWORD_BOOTSTRAP_UNSUPPORTED),
+        "error should match bootstrap: {response}"
+    );
+
+    send(
+        &mut writer,
+        json!({"id": 2, "type": "sshTarget.list", "payload": {}}),
+    );
+    let listed = read_response(&mut reader, 2);
+    assert_eq!(listed["ok"], json!(true), "list failed: {listed}");
+    assert_eq!(listed["payload"], json!([]));
 
     send(
         &mut writer,
         json!({
-            "id": 2,
+            "id": 3,
+            "type": "sshTarget.upsert",
+            "payload": ssh_target_payload("remote-agent", "notInstalled")
+        }),
+    );
+    let saved = read_response(&mut reader, 3);
+    assert_eq!(saved["ok"], json!(true), "agent upsert failed: {saved}");
+
+    let mut converted = ssh_target_payload("remote-agent", "notInstalled");
+    converted["authKind"] = json!("password");
+    send(
+        &mut writer,
+        json!({
+            "id": 4,
+            "type": "sshTarget.upsert",
+            "payload": converted
+        }),
+    );
+    let converted_response = read_response(&mut reader, 4);
+    assert_eq!(
+        converted_response["ok"],
+        json!(false),
+        "converting to password should fail: {converted_response}"
+    );
+    assert_eq!(
+        converted_response["error"].as_str(),
+        Some(PASSWORD_BOOTSTRAP_UNSUPPORTED),
+        "conversion error should match bootstrap: {converted_response}"
+    );
+
+    send(
+        &mut writer,
+        json!({"id": 5, "type": "sshTarget.list", "payload": {}}),
+    );
+    let listed = read_response(&mut reader, 5);
+    assert_eq!(listed["ok"], json!(true), "list failed: {listed}");
+    assert_eq!(listed["payload"][0]["id"], json!("remote-agent"));
+    assert_eq!(listed["payload"][0]["authKind"], json!("agent"));
+}
+
+#[test]
+fn runtime_ssh_target_upsert_keeps_existing_password_target() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut target = ssh_target_payload("remote-password", "notInstalled");
+    target["authKind"] = json!("password");
+    seed_ssh_target(dir.path(), target.clone());
+
+    let control_path = dir.path().join("runtime-host.json");
+    let token = "ssh-password-legacy-token";
+    let (_guard, port) = spawn_host(dir.path(), &control_path, token);
+    let (mut writer, mut reader) = connect(port);
+    handshake(&mut writer, &mut reader, token);
+
+    target["alias"] = json!("Renamed Password");
+    send(
+        &mut writer,
+        json!({
+            "id": 1,
+            "type": "sshTarget.upsert",
+            "payload": target
+        }),
+    );
+    let saved = read_response(&mut reader, 1);
+    assert_eq!(
+        saved["ok"],
+        json!(true),
+        "legacy password upsert failed: {saved}"
+    );
+    assert_eq!(saved["payload"]["authKind"], json!("password"));
+    assert_eq!(saved["payload"]["alias"], json!("Renamed Password"));
+}
+
+#[test]
+fn runtime_bootstrap_plan_rejects_password_target() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut target = ssh_target_payload("remote-password", "notInstalled");
+    target["authKind"] = json!("password");
+    seed_ssh_target(dir.path(), target);
+
+    let control_path = dir.path().join("runtime-host.json");
+    let token = "ssh-password-plan-token";
+    let (_guard, port) = spawn_host(dir.path(), &control_path, token);
+    let (mut writer, mut reader) = connect(port);
+    handshake(&mut writer, &mut reader, token);
+
+    send(
+        &mut writer,
+        json!({
+            "id": 1,
+            "type": "sshTarget.bootstrap.plan",
+            "payload": {
+                "targetId": "remote-password"
+            }
+        }),
+    );
+    let response = read_response(&mut reader, 1);
+    assert_eq!(
+        response["ok"],
+        json!(false),
+        "bootstrap-plan should fail: {response}"
+    );
+    assert_eq!(
+        response["error"].as_str(),
+        Some(PASSWORD_BOOTSTRAP_UNSUPPORTED),
+        "error should match bootstrap: {response}"
+    );
+}
+
+#[test]
+fn runtime_bootstrap_start_rejects_password_target_before_job() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut target = ssh_target_payload("remote-password", "notInstalled");
+    target["authKind"] = json!("password");
+    seed_ssh_target(dir.path(), target);
+
+    let control_path = dir.path().join("runtime-host.json");
+    let token = "ssh-password-token";
+    let (_guard, port) = spawn_host(dir.path(), &control_path, token);
+    let (mut writer, mut reader) = connect(port);
+    handshake(&mut writer, &mut reader, token);
+
+    send(
+        &mut writer,
+        json!({
+            "id": 1,
             "type": "sshTarget.bootstrap.start",
             "payload": {
                 "targetId": "remote-password",
@@ -933,24 +1094,23 @@ fn runtime_bootstrap_start_rejects_password_target_before_job() {
             }
         }),
     );
-    let response = read_response(&mut reader, 2);
+    let response = read_response(&mut reader, 1);
     assert_eq!(
         response["ok"],
         json!(false),
         "bootstrap should fail: {response}"
     );
-    assert!(
-        response["error"]
-            .as_str()
-            .is_some_and(|error| error.contains("password SSH targets are not supported")),
+    assert_eq!(
+        response["error"].as_str(),
+        Some(PASSWORD_BOOTSTRAP_UNSUPPORTED),
         "error should explain the unsupported auth: {response}"
     );
 
     send(
         &mut writer,
-        json!({"id": 3, "type": "sshTarget.bootstrap.jobs", "payload": {}}),
+        json!({"id": 2, "type": "sshTarget.bootstrap.jobs", "payload": {}}),
     );
-    let jobs = read_response(&mut reader, 3);
+    let jobs = read_response(&mut reader, 2);
     assert_eq!(jobs["ok"], json!(true), "jobs failed: {jobs}");
     assert_eq!(jobs["payload"], json!([]));
 }
@@ -1330,7 +1490,7 @@ fn remints_session_from_disk_after_restart_with_prior_scrollback() {
             &mut writer,
             json!({"id": 2, "type": "detach", "payload": {"sessionId": "s1"}}),
         );
-        let detached = read_message(&mut reader);
+        let detached = read_response(&mut reader, 2);
         assert_eq!(detached["id"], json!(2));
         assert_eq!(detached["ok"], json!(true));
         // Dropping _guard kills host A, leaving the checkpoint on disk.
@@ -1364,7 +1524,7 @@ fn remints_session_from_disk_after_restart_with_prior_scrollback() {
             }),
         );
         answer_conpty_cursor_query(&mut writer, "s1");
-        let restored = read_message(&mut reader);
+        let restored = read_response(&mut reader, 1);
         assert_eq!(restored["id"], json!(1));
         assert_eq!(restored["ok"], json!(true), "restore failed: {restored}");
         assert_eq!(restored["payload"]["created"], json!(true));
@@ -1390,7 +1550,7 @@ fn remints_session_from_disk_after_restart_with_prior_scrollback() {
             &mut writer,
             json!({"id": 2, "type": "detach", "payload": {"sessionId": "s1"}}),
         );
-        let detached = read_message(&mut reader);
+        let detached = read_response(&mut reader, 2);
         assert_eq!(detached["id"], json!(2));
         assert_eq!(detached["ok"], json!(true));
     }
@@ -1417,7 +1577,7 @@ fn remints_session_from_disk_after_restart_with_prior_scrollback() {
             }
         }),
     );
-    let restored = read_message(&mut reader);
+    let restored = read_response(&mut reader, 1);
     assert_eq!(restored["id"], json!(1));
     assert_eq!(restored["ok"], json!(true), "restore failed: {restored}");
     let snapshot = STANDARD

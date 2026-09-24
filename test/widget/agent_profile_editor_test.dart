@@ -55,6 +55,16 @@ void main() {
     expect(find.textContaining('Command mode is for advanced'), findsOneWidget);
   });
 
+  testWidgets('offers a new tab menu opt-in that is off by default', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const _EditorHarness(launchMode: .managed));
+
+    expect(find.text('Show In New Tab Menu'), findsOneWidget);
+    final toggle = tester.widget<Switch>(find.byType(Switch).first);
+    expect(toggle.value, isFalse);
+  });
+
   testWidgets('command mode explains where the dispatched prompt goes', (
     tester,
   ) async {
@@ -316,6 +326,8 @@ class _EditorHarnessState extends State<_EditorHarness> {
             onRefreshPersonas: null,
             onSave: () {},
             onRemove: () {},
+            showInNewTabMenu: false,
+            onShowInNewTabMenuChanged: (_) {},
             onTestCommand: widget.onTestCommand,
           ),
         ),

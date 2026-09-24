@@ -18,7 +18,8 @@ extension _CreateWorkspaceDialogSubmission on _CreateWorkspaceDialogState {
         ? _targetBranchRequiredError()
         : null;
 
-    if (sourceBranchError != null || newBranchError != null) {
+    if (!_useProjectCheckout &&
+        (sourceBranchError != null || newBranchError != null)) {
       _update(() {
         _sourceBranchError = sourceBranchError;
         _newBranchError = newBranchError;
@@ -26,7 +27,60 @@ extension _CreateWorkspaceDialogSubmission on _CreateWorkspaceDialogState {
       return;
     }
 
-    if (_branchValidationError != null) {
+    if (!_useProjectCheckout && _branchValidationError != null) {
+      return;
+    }
+
+    final hostError = remoteWorkspaceHostSelectionError(
+      hostId: _selectedHostId,
+      targets: widget.sshTargets,
+      supportsRemoteSshWorkspaces: widget.supportsRemoteSshWorkspaces,
+    );
+    if (hostError != null) {
+      _update(() => _creationError = hostError);
+      return;
+    }
+
+    final request = ManualWorkspaceCreateRequest(
+      useProjectCheckout: _useProjectCheckout,
+      project: project,
+      sourceBranch: sourceBranch,
+      newBranchName: newBranchName,
+      reuseExistingBranch: _reuseExistingBranch,
+      name: name.isEmpty ? null : name,
+      parentWorkspaceId: _selectedParentWorkspaceId,
+      hostId: _selectedHostId,
+      issueUrl: _linkedIssueUrl(),
+    );
+    final enqueue = widget.enqueueCreate;
+    if (enqueue != null) {
+      final done = enqueue(request);
+      if (done == null) {
+        return;
+      }
+      if (_createAnother) {
+        _update(() {
+          _creating = true;
+          _creationError = null;
+        });
+        try {
+          await done;
+          if (!mounted) {
+            return;
+          }
+          _resetAfterCreation(project);
+        } catch (error) {
+          if (mounted) {
+            _update(() {
+              _creating = false;
+              _creationError = userFacingExceptionMessage(error);
+            });
+          }
+        }
+      } else {
+        done.ignore();
+        Navigator.of(context).pop();
+      }
       return;
     }
 
@@ -43,6 +97,8 @@ extension _CreateWorkspaceDialogSubmission on _CreateWorkspaceDialogState {
         reuseExistingBranch: _reuseExistingBranch,
         name: name.isEmpty ? null : name,
         parentWorkspaceId: _selectedParentWorkspaceId,
+        hostId: _selectedHostId,
+        issueUrl: _linkedIssueUrl(),
       );
       if (!mounted) {
         return;
@@ -50,6 +106,8 @@ extension _CreateWorkspaceDialogSubmission on _CreateWorkspaceDialogState {
       if (_createAnother) {
         widget.onWorkspaceCreated?.call(result);
         _resetAfterCreation(project);
+      } else if (widget.embedded) {
+        Navigator.of(context).pop();
       } else {
         Navigator.of(context).pop(result);
       }
@@ -57,7 +115,7 @@ extension _CreateWorkspaceDialogSubmission on _CreateWorkspaceDialogState {
       if (mounted) {
         _update(() {
           _creating = false;
-          _creationError = error.toString();
+          _creationError = userFacingExceptionMessage(error);
         });
       }
     }
@@ -69,10 +127,13 @@ extension _CreateWorkspaceDialogSubmission on _CreateWorkspaceDialogState {
     _sourceBranchController.clear();
     _newBranchController.clear();
     _nameController.clear();
+    _issueUrlController.clear();
     _update(() {
       _selectedParentWorkspaceId = null;
       _reuseExistingBranch = false;
       _nameTouched = false;
+      _nameFromIssue = false;
+      _branchFromIssue = null;
       _creating = false;
       _creationError = null;
       _sourceBranchError = null;
@@ -80,6 +141,6 @@ extension _CreateWorkspaceDialogSubmission on _CreateWorkspaceDialogState {
       _branchValidationError = null;
       _isValidatingBranch = false;
     });
-    unawaited(_loadBranches(project));
+    if (!_useProjectCheckout) unawaited(_loadBranches(project));
   }
 }

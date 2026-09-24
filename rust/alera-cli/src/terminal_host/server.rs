@@ -5,28 +5,27 @@ use std::sync::{atomic::AtomicU64, Arc};
 use std::time::{Duration, Instant};
 
 use alera_core::runtime::{
-    prepare_private_runtime_directory, MobileAccessSettings, RuntimeStore, SshAuthKind,
-    SshBootstrapStatus, SshTarget,
+    prepare_private_runtime_directory, MobileAccessSettings, RuntimeStore, SshBootstrapStatus,
+    SshTarget,
 };
 use anyhow::Result;
 use serde_json::{json, Value};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::mpsc::{self, UnboundedSender};
-use tokio::sync::Mutex;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
 use crate::agent_status::{start_agent_integrations, start_fx_herdr_receiver, start_hook_receiver};
 use crate::ssh_bootstrap::{
-    cancel_ssh_bootstrap, mark_ssh_bootstrap_installing, new_bootstrap_job_id, run_ssh_bootstrap,
-    SshTargetBootstrapJob, SshTargetBootstrapProgress, SshTargetBootstrapRequest,
+    cancel_ssh_bootstrap, mark_ssh_bootstrap_installing, new_bootstrap_job_id,
+    reject_password_ssh_bootstrap_auth, run_ssh_bootstrap, SshTargetBootstrapJob,
+    SshTargetBootstrapProgress, SshTargetBootstrapRequest,
 };
 use crate::terminal_host::client::{
     connection_loop, ClientFrame, ClientHandle, CLIENT_TERMINAL_OUT_QUEUE_CAPACITY,
 };
 use crate::terminal_host::control_file;
-use crate::terminal_host::emulator::EmulatorManager;
 use crate::terminal_host::history_store::TerminalHostHistoryStore;
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::mobile_gateway::spawn_mobile_gateway_accept_loop;
@@ -45,7 +44,6 @@ use crate::terminal_host::sleep_detector::SleepDetector;
 
 use client_accept_loop::{display_socket_address, spawn_accept_loop};
 
-use browser_broker::BrowserBroker;
 use resource_requests::ResourceMonitorState;
 
 mod account_push_state;
@@ -54,8 +52,8 @@ mod account_requests;
 mod account_requests_tests;
 #[cfg(test)]
 mod actor_test_harness;
-mod agent_canvas_requests;
 mod agent_hook_events;
+mod agent_native_session;
 mod agent_profile_launch_requests;
 mod agent_prompt_composition;
 mod agent_title_context;
@@ -67,86 +65,109 @@ mod agent_title_state;
 #[cfg(test)]
 mod agent_title_tests;
 mod ai_assist_command_execution;
+mod ai_assist_commit_message;
 mod ai_assist_failure_detail;
 mod ai_assist_fx_plan;
+mod ai_assist_generation;
 mod ai_assist_grok_plan;
 mod ai_assist_model_defaults;
 mod ai_assist_open_code;
+mod ai_assist_opencode_go;
+mod ai_assist_opencode_go_requests;
+mod ai_assist_operation_registry;
+mod ai_assist_process_journal;
+mod ai_assist_pull_request_details;
 mod ai_assist_requests;
 mod ai_assist_speech_message;
 mod ai_assist_workspace_identity;
+mod ai_assist_workspace_owner;
+#[cfg(test)]
+mod ai_assist_workspace_owner_tests;
 mod ai_dictation_credentials;
 mod ai_dictation_openai;
 mod ai_dictation_remote_requests;
 mod ai_dictation_requests;
 mod automation_actor;
 mod automation_catalog_requests;
+#[cfg(test)]
+mod automation_catalog_requests_tests;
 mod automation_definition_requests;
+#[cfg(test)]
+mod automation_definition_requests_tests;
 mod automation_dispatch;
 mod automation_policy_requests;
+#[cfg(test)]
+mod automation_policy_requests_tests;
 mod automation_request_authorization;
 mod automation_request_routes;
 mod automation_requests;
 mod automation_run_target_requests;
 mod automation_scheduler;
-mod browser_artifact_requests;
-mod browser_artifact_store;
-mod browser_broker;
-#[cfg(test)]
-mod browser_broker_tests;
-mod browser_catalog_requests;
-mod browser_driver_requests;
-mod browser_requests;
-mod browser_tab_requests;
-mod browser_tab_rollback;
-mod browser_url_privacy;
+mod automation_shared_cleanup_jobs;
+mod automation_shared_cleanup_requests;
+mod automation_target_location;
 mod client_accept_loop;
 mod client_delivery;
 mod codex_app_server;
-mod codex_app_server_history;
 mod codex_app_server_session_state;
 mod codex_dictation;
-mod codex_event_routing;
-mod codex_events;
-mod codex_goal_requests;
-mod codex_nonblocking_questions;
-mod codex_presence;
-mod codex_requests;
-mod codex_runtime_cleanup;
-mod codex_state;
-mod codex_tab_lifecycle;
-mod codex_thread_identity;
-mod codex_user_messages;
-mod codex_workspace_inputs;
-mod computer_request_payloads;
-mod computer_requests;
+mod codex_server_startup;
 mod configuration_requests;
 mod configuration_transfers;
 mod mobile_gateway_replacement;
+mod owner_terminal_lifecycle;
+mod owner_terminal_natural_exit;
+mod project_checkout_file_requests;
+mod project_checkout_requests;
+mod remote_recovery_requests;
+#[cfg(test)]
+mod remote_relocation_terminal_restore_tests;
+mod remote_setup_requests;
+mod remote_terminal_lifecycle;
+pub(crate) mod shared_checkout_compatibility;
 use mobile_gateway_replacement::MobileGatewayReplacement;
 mod coordinator_requests;
 mod coordinator_stall_policy;
 mod declared_catalog_requests;
 mod deferred_requests;
-mod emulator_request_payloads;
-mod emulator_request_queue;
-mod emulator_requests;
+mod deferred_workspace_lifecycle;
+mod deferred_workspace_setup;
 mod host_service_agent_quota;
 mod host_service_requests;
 mod host_status;
 mod lifecycle;
+mod linked_issue_requests;
+#[cfg(test)]
+mod linked_issue_requests_tests;
 #[cfg(test)]
 mod managed_workspace_cleanup_tests;
 mod managed_workspace_requests;
+mod mobile_explorer_requests;
 mod mobile_gateway_surface;
 mod mobile_hello_requests;
+mod mobile_pull_request_actions;
+mod mobile_pull_request_busy;
+mod mobile_pull_request_comments;
+mod mobile_pull_request_failures;
+mod mobile_pull_request_identity;
+mod mobile_pull_request_links;
+mod mobile_pull_request_merge_methods;
+mod mobile_pull_request_requests;
+mod mobile_pull_request_ship;
+mod mobile_pull_request_snapshot_extras;
+mod mobile_pull_request_summaries;
 #[cfg(test)]
 mod mobile_relay_presence_tests;
+mod mobile_source_control_requests;
+mod mobile_source_control_snapshot;
+mod mobile_source_control_write_requests;
 mod mobile_terminal_requests;
 #[cfg(test)]
 mod mobile_terminal_viewport_tests;
+mod mobile_workspace_file_helpers;
 mod mobile_workspace_file_paths;
 mod mobile_workspace_file_requests;
+mod mobile_workspace_search_requests;
 mod orchestration_agent_spawn_requests;
 mod orchestration_board_requests;
 #[cfg(test)]
@@ -159,6 +180,7 @@ mod orchestration_requests;
 #[cfg(test)]
 mod orchestration_role_contract_tests;
 mod orchestration_task_creation;
+mod orchestration_terminal_input;
 mod orchestration_terminal_requests;
 mod orchestration_validation;
 mod orchestration_wait_requests;
@@ -172,6 +194,11 @@ mod prompt_image_requests;
 mod prompt_image_store;
 mod pty_event_forwarder;
 mod pty_events;
+mod pull_request_watch_evaluation;
+mod pull_request_watch_requests;
+#[cfg(test)]
+mod pull_request_watch_requests_tests;
+mod pull_request_watch_runtime;
 mod push_delivery;
 mod remote_relay;
 mod request_payloads;
@@ -179,6 +206,7 @@ mod requests;
 mod resource_requests;
 mod runtime_change_broadcasts;
 mod runtime_mutation_barrier;
+mod runtime_mutation_queue;
 mod runtime_mutations;
 mod server_command;
 #[path = "server_runner.rs"]
@@ -187,18 +215,21 @@ mod server_shutdown;
 mod session_termination;
 #[cfg(test)]
 mod session_termination_tests;
+mod ssh_bootstrap_job_events;
 mod tab_compatibility;
 #[cfg(test)]
 mod tab_compatibility_tests;
 #[cfg(test)]
 mod tab_profile_launch_compatibility_tests;
 mod terminal_driver;
+mod terminal_initial_input;
 mod terminal_input_requests;
-mod terminal_launch_defaults;
+pub(crate) mod terminal_launch_defaults;
 mod terminal_prompt_rearm;
 mod terminal_pulse;
 mod terminal_session_requests;
 mod terminal_spawn;
+mod terminal_spawn_command;
 mod terminal_startup_commands;
 mod terminal_startup_delivery;
 mod workflow_catalog_requests;
@@ -211,11 +242,17 @@ mod workflow_plan_requests;
 mod workflow_plan_tests;
 mod workflow_worker_context;
 mod workflow_workspace_requests;
+mod workspace_archive_requests;
+mod workspace_handoff_relocate;
+mod workspace_main_tabs;
+mod workspace_mutation_preparation;
 mod workspace_pinning;
 mod workspace_section_requests;
 #[cfg(test)]
 mod workspace_section_requests_tests;
 mod workspace_sidebar_requests;
+#[cfg(test)]
+mod workspace_sidebar_requests_tests;
 
 pub use server_command::ServerCommand;
 
@@ -238,12 +275,17 @@ pub(crate) enum ClientKind {
     Mobile,
 }
 
+mod checkout_buffer_guard_claims;
+mod checkout_buffer_guards;
+#[cfg(test)]
+mod checkout_buffer_guards_tests;
+
 struct ClientState {
     handle: ClientHandle,
     authenticated: bool,
+    shared_checkout_workspaces: bool,
+    checkout_buffer_guards: bool,
     binary_frames: bool,
-    supports_mobile_emulator_tab_kind: bool,
-    supports_codex_tab_kind: bool,
     kind: ClientKind,
     local_role: client_delivery::LocalClientRole,
     mobile_device_id: Option<String>,
@@ -269,13 +311,21 @@ struct ServerActor {
     store: TerminalHostHistoryStore,
     runtime_store: RuntimeStore,
     automation_wake: Arc<Notify>,
+    pull_request_watches: pull_request_watch_runtime::WatchRuntime,
     automations_active: bool,
     sessions: HashMap<String, Session>,
     ssh_bootstrap_jobs: HashMap<String, SshBootstrapJobState>,
     project_clone_jobs: HashMap<String, tokio::sync::oneshot::Sender<()>>,
     agent_title_jobs: HashMap<String, agent_title_generation::AgentTitleJob>,
     managed_workspace_jobs: usize,
-    emulator_requests: emulator_request_queue::EmulatorRequestQueue,
+    workflow_workspace_jobs: usize,
+    workflow_workspace_recovery_running: bool,
+    automation_checkout_jobs: std::collections::HashSet<String>,
+    automation_precheck_jobs: std::collections::HashSet<String>,
+    pending_terminal_lifecycle_shutdowns:
+        HashMap<String, crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown>,
+    checkout_buffer_guards: HashMap<String, checkout_buffer_guards::CheckoutBufferGuard>,
+    mutation_queue: runtime_mutation_queue::RuntimeMutationQueue,
     agent_quota_cache: Option<(Instant, u64, Value)>,
     configuration_transfers: configuration_transfers::ConfigurationTransfers,
     account_push: account_push_state::AccountPushState,
@@ -290,13 +340,8 @@ struct ServerActor {
     coordinators: HashMap<String, CoordinatorHandle>,
     resources: ResourceMonitorState,
     terminal_pulses: terminal_pulse::TerminalPulseManager,
-    browser: BrowserBroker,
-    emulators: Option<Arc<Mutex<EmulatorManager>>>,
     codex: Option<codex_app_server::CodexAppServer>,
-    codex_presence: HashMap<String, Value>,
-    codex_presence_scheduled: bool,
-    codex_pending_messages: HashMap<String, Vec<Value>>,
-    codex_flush_scheduled: HashSet<String>,
+    codex_starting: Option<codex_server_startup::CodexServerStartup>,
     inbox: UnboundedSender<ServerCommand>,
     next_client_id: Arc<AtomicU64>,
     mobile_gateway: Option<JoinHandle<()>>,
@@ -452,6 +497,63 @@ impl ServerActor {
 
     async fn handle(&mut self, command: ServerCommand) {
         match command {
+            ServerCommand::OwnerAutomationPrecheckFinished { operation_id } => {
+                self.finish_owner_precheck(&operation_id)
+            }
+            ServerCommand::AutomationPrecheckFinished {
+                definition,
+                run,
+                host_id,
+                path,
+                result,
+            } => {
+                self.finish_automation_precheck(*definition, *run, host_id, path, result)
+                    .await;
+            }
+            ServerCommand::AutomationCheckoutPrepared {
+                definition,
+                run,
+                project,
+                result,
+            } => {
+                self.finish_automation_checkout_preparation(*definition, *run, *project, result)
+                    .await;
+            }
+            ServerCommand::RemoteTerminalLifecycleFinished {
+                client_id,
+                request_id,
+                verb,
+                payload,
+                result,
+            } => {
+                self.finish_remote_terminal_lifecycle(client_id, request_id, verb, payload, result)
+                    .await;
+            }
+            ServerCommand::OwnerTerminalLifecycleFinished {
+                client_id,
+                request_id,
+                operation_id,
+                shutdown,
+                result,
+            } => {
+                self.finish_owner_terminal_lifecycle(
+                    client_id,
+                    request_id,
+                    operation_id,
+                    shutdown,
+                    result,
+                )
+                .await;
+            }
+            ServerCommand::RemoteSetupFinished {
+                client_id,
+                request_id,
+                operation,
+                result,
+            } => {
+                self.finish_remote_setup_control(client_id, request_id, operation, result);
+            }
+            ServerCommand::BufferGuardExpired { id } => self.expire_checkout_buffer_guard(&id),
             command @ (ServerCommand::RelayActivity { .. }
             | ServerCommand::RelayStatus { .. }
             | ServerCommand::RelayClientConnected { .. }
@@ -462,9 +564,9 @@ impl ServerActor {
                     ClientState {
                         handle,
                         authenticated: false,
+                        shared_checkout_workspaces: false,
+                        checkout_buffer_guards: false,
                         binary_frames: false,
-                        supports_mobile_emulator_tab_kind: false,
-                        supports_codex_tab_kind: false,
                         kind,
                         local_role: client_delivery::LocalClientRole::Cli,
                         mobile_device_id: None,
@@ -486,11 +588,13 @@ impl ServerActor {
             } => {
                 self.finish_mobile_network_snapshot(client_id, request_id, payload);
             }
-            ServerCommand::EmulatorPointerTimeout {
-                tab_id,
+            ServerCommand::RemoteRecoveryFinished {
                 client_id,
-                generation,
-            } => self.handle_emulator_pointer_timeout(&tab_id, client_id, generation),
+                request_id,
+                result,
+            } => {
+                self.finish_remote_relocation_recovery(client_id, request_id, result);
+            }
             ServerCommand::Pty {
                 session_id,
                 event,
@@ -529,13 +633,24 @@ impl ServerActor {
                 job_id,
                 status,
             } => self.handle_ssh_bootstrap_finished(target_id, job_id, status),
+            ServerCommand::ProjectCheckoutRegistered {
+                client_id,
+                request_id,
+                result,
+            } => self.handle_project_checkout_registered(client_id, request_id, result),
             ServerCommand::ManagedWorkspaceCreated {
                 client_id,
                 request_id,
                 result,
+                handoff_source_workspace_id,
             } => {
-                self.handle_managed_workspace_created(client_id, request_id, result)
-                    .await
+                self.handle_managed_workspace_created(
+                    client_id,
+                    request_id,
+                    result,
+                    handoff_source_workspace_id,
+                )
+                .await
             }
             ServerCommand::WorkspaceStorageMeasured {
                 client_id,
@@ -566,6 +681,14 @@ impl ServerActor {
                 request_id,
                 result,
             } => self.handle_ai_dictation_finished(client_id, request_id, result),
+            ServerCommand::LinkedIssueRequestFinished {
+                client_id,
+                request_id,
+                result,
+            } => self.handle_linked_issue_request_finished(client_id, request_id, result),
+            ServerCommand::LinkedIssuesChanged { workspace_id } => {
+                self.broadcast_linked_issues_changed(Some(&workspace_id))
+            }
             ServerCommand::MobileWorkspaceFileFinished {
                 client_id,
                 request_id,
@@ -630,16 +753,6 @@ impl ServerActor {
                 operation_id,
                 skill,
             } => self.handle_host_tool_finished(client_id, request_id, result, operation_id, skill),
-            ServerCommand::EmulatorRequestFinished {
-                client_id,
-                request_id,
-                completion,
-            } => {
-                self.handle_emulator_request_finished(client_id, request_id, completion);
-            }
-            ServerCommand::EmulatorMaintenanceFinished(completion) => {
-                self.handle_emulator_maintenance_finished(completion)
-            }
             ServerCommand::RuntimeMutationFinished(finished) => {
                 self.handle_runtime_mutation_finished(finished).await
             }
@@ -757,25 +870,37 @@ impl ServerActor {
             ServerCommand::ResourceSampleReady { snapshot } => {
                 self.handle_resource_sample_ready(snapshot)
             }
-            ServerCommand::AutomationTick => self.handle_automation_tick().await,
-            ServerCommand::BrowserRequestTimeout { correlation_id } => {
-                self.handle_browser_timeout(&correlation_id)
-            }
-            ServerCommand::CodexMessage { message } => self.handle_codex_message(message).await,
-            ServerCommand::CodexProcessExited { reason } => {
-                self.handle_codex_process_exited(reason).await
-            }
-            ServerCommand::CodexMalformed { reason } => self.handle_codex_malformed(reason),
-            ServerCommand::CodexPresenceTick => self.handle_codex_presence_tick(),
-            ServerCommand::CodexFlush { tab_id } => self.handle_codex_flush(&tab_id).await,
-            ServerCommand::CodexAutoResolve {
-                tab_id,
-                thread_id,
-                request_id,
-                server_instance,
+            ServerCommand::PullRequestWatchTick => self.poll_pull_request_watches().await,
+            ServerCommand::PullRequestWatchSnapshot {
+                watch,
+                generation,
+                result,
             } => {
-                self.handle_codex_auto_resolve(&tab_id, &thread_id, request_id, server_instance)
+                self.finish_pull_request_watch_snapshot(*watch, generation, result)
                     .await
+            }
+            ServerCommand::PullRequestWatchMerged {
+                watch,
+                generation,
+                result,
+            } => {
+                self.finish_pull_request_watch_merge(*watch, generation, result)
+                    .await
+            }
+            ServerCommand::AutomationTick => self.handle_automation_tick().await,
+            ServerCommand::AutomationSharedCleanupFinished { attempt, result } => {
+                self.finish_automation_shared_cleanup(&attempt, result)
+                    .await;
+            }
+
+            ServerCommand::CodexMessage { .. } => {}
+            ServerCommand::CodexMalformed { reason } => {
+                tracing::warn!(reason, "Codex app-server returned malformed JSON");
+            }
+            ServerCommand::CodexProcessExited { reason } => {
+                tracing::warn!(reason, "Codex app-server exited");
+                self.codex = None;
+                self.codex_starting = None;
             }
             ServerCommand::Account(command) => self.handle_account_command(command).await,
             ServerCommand::Push(command) => self.handle_push_command(command),
@@ -929,49 +1054,6 @@ impl ServerActor {
         });
     }
 
-    pub(super) fn queue_orchestration_paste(
-        &mut self,
-        session_id: &str,
-        prompt: &str,
-        message_ids: Vec<String>,
-        force_submit: bool,
-    ) -> HostResult<()> {
-        let session = self
-            .sessions
-            .get_mut(session_id)
-            .ok_or_else(|| HostError::state(format!("terminal {session_id} vanished")))?;
-        let session_instance_id = session.instance_id();
-        let paste = prompt_injection::build_agent_prompt_paste_bytes(prompt);
-        session.queue_write(
-            PtyWriteCompletion::OrchestrationPaste {
-                session_instance_id,
-                message_ids,
-                force_submit,
-            },
-            &paste,
-        )
-    }
-
-    pub(super) fn queue_orchestration_control(
-        &mut self,
-        session_id: &str,
-        bytes: &[u8],
-    ) -> HostResult<()> {
-        let session = self
-            .sessions
-            .get_mut(session_id)
-            .filter(|session| session.running())
-            .ok_or_else(|| HostError::state(format!("terminal is not running: {session_id}")))?;
-        let session_instance_id = session.instance_id();
-        session.queue_write(
-            PtyWriteCompletion::OrchestrationEnter {
-                session_instance_id,
-                message_ids: Vec::new(),
-            },
-            bytes,
-        )
-    }
-
     fn broadcast_terminal_error(&self, session_id: &str, message: String) {
         if let Some(session) = self.sessions.get(session_id) {
             let clients: Vec<u64> = session.clients.iter().copied().collect();
@@ -998,11 +1080,8 @@ impl ServerActor {
             .ok_or_else(|| {
                 HostError::state(format!("ssh target not found: {}", request.target_id))
             })?;
-        if matches!(target.auth_kind, SshAuthKind::Password) {
-            return Err(HostError::state(
-                "password SSH targets are not supported for bootstrap; configure SSH agent or key authentication.",
-            ));
-        }
+        reject_password_ssh_bootstrap_auth(target.auth_kind)
+            .map_err(|error| HostError::state(error.to_string()))?;
         let job_id = new_bootstrap_job_id();
         mark_ssh_bootstrap_installing(&self.runtime_store, &target.id)
             .await
@@ -1131,67 +1210,6 @@ impl ServerActor {
         Ok(target)
     }
 
-    fn list_ssh_bootstrap_jobs(&self) -> Value {
-        let jobs = self
-            .ssh_bootstrap_jobs
-            .values()
-            .map(|job| {
-                json!(SshTargetBootstrapJob {
-                    job_id: job.job_id.clone(),
-                    target_id: job.target_id.clone(),
-                    status: job.status,
-                })
-            })
-            .collect::<Vec<_>>();
-        json!(jobs)
-    }
-
-    fn handle_ssh_bootstrap_progress(&mut self, progress: SshTargetBootstrapProgress) {
-        let Some(job) = self.ssh_bootstrap_jobs.get_mut(&progress.target_id) else {
-            return;
-        };
-        if job.job_id != progress.job_id {
-            return;
-        }
-        job.status = progress.status;
-        self.broadcast_authenticated(event("sshTargetBootstrapProgress", json!(progress)));
-        self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
-    }
-
-    fn handle_ssh_bootstrap_finished(
-        &mut self,
-        target_id: String,
-        job_id: String,
-        status: SshBootstrapStatus,
-    ) {
-        if self
-            .ssh_bootstrap_jobs
-            .get(&target_id)
-            .is_some_and(|job| job.job_id == job_id)
-        {
-            self.ssh_bootstrap_jobs.remove(&target_id);
-            self.broadcast_authenticated(event(
-                "sshTargetBootstrapProgress",
-                json!(SshTargetBootstrapProgress {
-                    job_id,
-                    target_id,
-                    status,
-                    stage: status.as_str().to_string(),
-                    message: match status {
-                        SshBootstrapStatus::Installed => "Remote Runtime Installed",
-                        SshBootstrapStatus::Failed => "Remote Runtime Install Failed",
-                        SshBootstrapStatus::Cancelled => "Remote Runtime Install Cancelled",
-                        _ => "Remote Runtime Bootstrap Updated",
-                    }
-                    .to_string(),
-                    error: None,
-                }),
-            ));
-            self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
-            self.schedule_shutdown_if_idle();
-        }
-    }
-
     fn spawn_checkpoint_timer(&self, session_id: String, generation: u64) {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
@@ -1239,6 +1257,7 @@ mod tests {
             runtime_store: runtime_store.clone(),
             automation_wake: Arc::new(Notify::new()),
             automations_active: false,
+            pull_request_watches: Default::default(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::from([(
                 "remote".to_string(),
@@ -1252,7 +1271,13 @@ mod tests {
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
+            workflow_workspace_jobs: 0,
+            workflow_workspace_recovery_running: false,
+            automation_checkout_jobs: Default::default(),
+            automation_precheck_jobs: Default::default(),
+            pending_terminal_lifecycle_shutdowns: Default::default(),
+            checkout_buffer_guards: HashMap::new(),
+            mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
@@ -1267,13 +1292,8 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
-            emulators: None,
             codex: None,
-            codex_presence: HashMap::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
+            codex_starting: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,
@@ -1327,12 +1347,19 @@ mod tests {
             runtime_store: runtime_store.clone(),
             automation_wake: Arc::new(Notify::new()),
             automations_active: false,
+            pull_request_watches: Default::default(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
+            workflow_workspace_jobs: 0,
+            workflow_workspace_recovery_running: false,
+            automation_checkout_jobs: Default::default(),
+            automation_precheck_jobs: Default::default(),
+            pending_terminal_lifecycle_shutdowns: Default::default(),
+            checkout_buffer_guards: HashMap::new(),
+            mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
@@ -1347,13 +1374,8 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
-            emulators: None,
             codex: None,
-            codex_presence: HashMap::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
+            codex_starting: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1425,12 +1447,19 @@ mod tests {
             runtime_store: runtime_store.clone(),
             automation_wake: Arc::new(Notify::new()),
             automations_active: false,
+            pull_request_watches: Default::default(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
+            workflow_workspace_jobs: 0,
+            workflow_workspace_recovery_running: false,
+            automation_checkout_jobs: Default::default(),
+            automation_precheck_jobs: Default::default(),
+            pending_terminal_lifecycle_shutdowns: Default::default(),
+            checkout_buffer_guards: HashMap::new(),
+            mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
@@ -1445,13 +1474,8 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
-            emulators: None,
             codex: None,
-            codex_presence: HashMap::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
+            codex_starting: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1518,12 +1542,19 @@ mod tests {
             runtime_store: runtime_store.clone(),
             automation_wake: Arc::new(Notify::new()),
             automations_active: false,
+            pull_request_watches: Default::default(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
+            workflow_workspace_jobs: 0,
+            workflow_workspace_recovery_running: false,
+            automation_checkout_jobs: Default::default(),
+            automation_precheck_jobs: Default::default(),
+            pending_terminal_lifecycle_shutdowns: Default::default(),
+            checkout_buffer_guards: HashMap::new(),
+            mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
@@ -1538,13 +1569,8 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
-            emulators: None,
             codex: None,
-            codex_presence: HashMap::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
+            codex_starting: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1633,12 +1659,19 @@ mod tests {
             runtime_store: runtime_store.clone(),
             automation_wake: Arc::new(Notify::new()),
             automations_active: false,
+            pull_request_watches: Default::default(),
             sessions: HashMap::from([("term-1".to_string(), session)]),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
+            workflow_workspace_jobs: 0,
+            workflow_workspace_recovery_running: false,
+            automation_checkout_jobs: Default::default(),
+            automation_precheck_jobs: Default::default(),
+            pending_terminal_lifecycle_shutdowns: Default::default(),
+            checkout_buffer_guards: HashMap::new(),
+            mutation_queue: Default::default(),
             agent_quota_cache: None,
             configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
@@ -1653,13 +1686,8 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
-            emulators: None,
             codex: None,
-            codex_presence: HashMap::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
+            codex_starting: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1743,58 +1771,19 @@ mod tests {
     #[tokio::test]
     async fn last_app_client_disconnect_preserves_host_agent_presence() {
         let dir = tempfile::tempdir().unwrap();
-        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
-        let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
-        let (inbox, _rx) = mpsc::unbounded_channel();
         let (first_app_handle, _first_app_rx) = ClientHandle::test_channels();
         let (second_app_handle, _second_app_rx) = ClientHandle::test_channels();
         let (cli_handle, _cli_rx) = ClientHandle::test_channels();
-        let mut actor = ServerActor {
-            runtime_dir: dir.path().to_path_buf(),
-            control_file_path: dir.path().join("runtime-host.json"),
-            token: "token".to_string(),
-            config: TerminalHostConfig::default(),
-            store,
-            runtime_store: runtime_store.clone(),
-            automation_wake: Arc::new(Notify::new()),
-            automations_active: false,
-            sessions: HashMap::new(),
-            ssh_bootstrap_jobs: HashMap::new(),
-            project_clone_jobs: HashMap::new(),
-            agent_title_jobs: HashMap::new(),
-            managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
-            agent_quota_cache: None,
-            configuration_transfers: Default::default(),
-            account_push: account_push_for_test(&dir, &runtime_store).await,
-            clients: HashMap::from([
+        let mut actor = actor_test_harness::test_actor(
+            &dir,
+            HashMap::from([
                 (1, ClientState::local(first_app_handle, true)),
                 (2, ClientState::local(second_app_handle, true)),
                 (3, ClientState::local(cli_handle, false)),
             ]),
-            mobile_prompt_file_uploads: HashMap::new(),
-            pending_output_writes: HashMap::new(),
-            agent_presence: AgentPresenceRegistry::default(),
-            orchestration_waiters: MessageWaiterRegistry::default(),
-            orchestration_delivery_in_flight: HashSet::new(),
-            orchestration_delivery_backpressured: HashSet::new(),
-            orchestration_activity_last_recorded: HashMap::new(),
-            coordinators: HashMap::new(),
-            resources: ResourceMonitorState::default(),
-            terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
-            emulators: None,
-            codex: None,
-            codex_presence: HashMap::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
-            inbox,
-            next_client_id: Arc::new(AtomicU64::new(4)),
-            mobile_gateway: None,
-            shutdown_gen: 0,
-            disposed: false,
-        };
+            HashMap::new(),
+        )
+        .await;
         actor
             .agent_presence
             .update("term-1", "claude".to_string(), AgentPresenceState::Done);
@@ -1808,3 +1797,6 @@ mod tests {
         assert!(actor.agent_presence.is_injection_ready("term-1"));
     }
 }
+
+#[cfg(test)]
+mod remote_automation_cleanup_runtime_tests;

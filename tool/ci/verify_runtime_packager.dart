@@ -30,12 +30,6 @@ Future<void> main() async {
         final name = platform == 'windows' ? 'alera.exe' : 'alera';
         File.fromUri(directory.uri.resolve(name))
             .writeAsStringSync('$platform-$architecture');
-        if (architecture == 'x64') {
-          final helpers = Directory.fromUri(directory.uri.resolve('emulator/'))
-            ..createSync();
-          File.fromUri(helpers.uri.resolve('manifest.json'))
-              .writeAsStringSync('{"schemaVersion":1}');
-        }
       }
     }
     final script = File.fromUri(

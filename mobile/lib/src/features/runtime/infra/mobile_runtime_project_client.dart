@@ -1,6 +1,8 @@
+import 'package:alera_mobile/src/core/mobile_protocol.dart';
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
 import 'package:alera_mobile/src/features/projects/domain/project_management_models.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_removal_dependency.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
 mixin MobileRuntimeProjectClient {
@@ -66,6 +68,53 @@ mixin MobileRuntimeProjectClient {
     return ProjectRemovalPreview.fromJson(
       await requestMap('project.remove.preview', <String, Object?>{'id': id}),
     );
+  }
+
+  Future<List<WorkspaceRemovalDependency>> projectRemovalDependencies(
+    String projectId,
+  ) async {
+    if (!runtimeCapabilities.contains(sharedCheckoutWorkspacesCapability)) {
+      return const [];
+    }
+    final payload = await requestList(
+      'project.removalDependencies',
+      <String, Object?>{'id': projectId},
+    );
+    return payload
+        .map((item) => WorkspaceRemovalDependency.fromJson(asJsonMap(item)))
+        .toList(growable: false);
+  }
+
+  Future<void> pauseProjectRemovalDependencies(
+    String projectId,
+    List<WorkspaceRemovalDependency> approved,
+  ) async {
+    final approvedIds = approved.map((dependency) => dependency.id).toSet();
+    for (final dependency in approved.where((item) => item.requiresPause)) {
+      await request('automation.pause', <String, Object?>{
+        'id': dependency.id,
+        'activeRuns': 'cancel-active',
+        'reason': 'Project removal requested',
+      });
+    }
+    final deadline = DateTime.now().add(const Duration(seconds: 30));
+    while (true) {
+      final pending = (await projectRemovalDependencies(projectId))
+          .where((dependency) => dependency.requiresPause)
+          .toList();
+      if (pending.isEmpty) return;
+      if (pending.any((dependency) => !approvedIds.contains(dependency.id))) {
+        throw StateError(
+          'Automation dependencies changed. Refresh and confirm their impact again.',
+        );
+      }
+      if (DateTime.now().isAfter(deadline)) {
+        throw StateError(
+          'Automation shutdown has not completed. The project was preserved; retry when its runs have stopped.',
+        );
+      }
+      await Future.pause(const Duration(milliseconds: 250));
+    }
   }
 
   Future<void> removeProject(String id) async {

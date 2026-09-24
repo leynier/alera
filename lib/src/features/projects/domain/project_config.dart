@@ -26,11 +26,20 @@ class const ProjectConfig({
 }
 
 @MappableClass()
-class const NewWorkspaceConfig({this.promptAppend = ''})
+class const NewWorkspaceConfig({this.promptAppend = '', this.sourceBranch = ''})
     with NewWorkspaceConfigMappable {
   final String promptAppend;
 
-  bool get isEmpty => promptAppend.trim().isEmpty;
+  /// Pre-selected in Source Branch pickers when the branch exists.
+  final String sourceBranch;
+
+  bool get isEmpty =>
+      promptAppend.trim().isEmpty && sourceBranch.trim().isEmpty;
+
+  String? get preferredSourceBranch {
+    final branch = sourceBranch.trim();
+    return branch.isEmpty ? null : branch;
+  }
 
   static const NewWorkspaceConfig defaults = NewWorkspaceConfig();
 }

@@ -1,7 +1,11 @@
 part of 'workbench_controller.dart';
 
 mixin _WorkbenchControllerViewPrefs
-    on _$WorkbenchController, _WorkbenchControllerInternals {
+    on
+        _$WorkbenchController,
+        _WorkbenchControllerInternals,
+        _WorkbenchControllerWorkspacePanelPanes,
+        _WorkbenchControllerInternalLayout {
   void toggleExpanded(String projectId) {
     toggleProjectCollapsed(projectId);
   }
@@ -54,6 +58,13 @@ mixin _WorkbenchControllerViewPrefs
       return;
     }
     _updateViewPrefs(state.viewPrefs.copyWith(showPinnedWorkspacesBelow: show));
+  }
+
+  void setShowArchivedWorkspaces(bool show) {
+    if (state.viewPrefs.showArchivedWorkspaces == show) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(showArchivedWorkspaces: show));
   }
 
   void toggleProjectFilter(String projectId) {
@@ -133,6 +144,47 @@ mixin _WorkbenchControllerViewPrefs
     }
     _updateViewPrefs(
       state.viewPrefs.copyWith(selectedTagIds: const <String>{}),
+    );
+  }
+
+  void toggleSectionFilter(String sectionId) {
+    final next = Set<String>.from(state.viewPrefs.selectedSectionIds);
+    if (!next.add(sectionId)) {
+      next.remove(sectionId);
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(selectedSectionIds: next));
+  }
+
+  void addSectionFilter(String sectionId) {
+    final current = state.viewPrefs.selectedSectionIds;
+    if (current.contains(sectionId)) {
+      return;
+    }
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(
+        selectedSectionIds: <String>{...current, sectionId},
+      ),
+    );
+  }
+
+  void removeSectionFilter(String sectionId) {
+    final current = state.viewPrefs.selectedSectionIds;
+    if (!current.contains(sectionId)) {
+      return;
+    }
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(
+        selectedSectionIds: current.where((id) => id != sectionId).toSet(),
+      ),
+    );
+  }
+
+  void clearSectionFilters() {
+    if (state.viewPrefs.selectedSectionIds.isEmpty) {
+      return;
+    }
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(selectedSectionIds: const <String>{}),
     );
   }
 
@@ -235,6 +287,18 @@ mixin _WorkbenchControllerViewPrefs
       return;
     }
     _updateViewPrefs(state.viewPrefs.copyWith(rightSidebarVisible: visible));
+    if (!visible && state.activeWorkspaceId != null) {
+      final id = state.activeWorkspaceId!;
+      final panel = state.workspacePanelFor(id);
+      _panelSelectionRevisionByWorkspace[id] =
+          (_panelSelectionRevisionByWorkspace[id] ?? 0) + 1;
+      final mainKey =
+          panel.ensuredMainLayout(id).activeTabId ?? panel.mainKeys.firstOrNull;
+      if (mainKey != null) {
+        _saveWorkspacePanel(id, panel.select(mainKey));
+        _focusPanelTerminal(id, mainKey);
+      }
+    }
   }
 
   void toggleRightSidebarVisible() {
@@ -242,21 +306,65 @@ mixin _WorkbenchControllerViewPrefs
   }
 
   void setRightSidebarWidth(double value) {
-    final clamped = value.clamp(
-      AleraTokens.sidebarMinWidth,
-      AleraTokens.sidebarMaxWidth,
-    );
-    if ((state.viewPrefs.rightSidebarWidth - clamped).abs() < 0.5) {
+    if (!value.isFinite) {
       return;
     }
-    _updateViewPrefs(state.viewPrefs.copyWith(rightSidebarWidth: clamped));
+    final clamped = value.clamp(AleraTokens.sidebarMinWidth, double.infinity);
+    final workspaceId = state.activeWorkspaceId;
+    final prefs = state.viewPrefs;
+    final fallback = prefs.rightSidebarWidth;
+    if (workspaceId == null) {
+      if ((fallback - clamped).abs() < 0.5) {
+        return;
+      }
+      _updateViewPrefs(prefs.copyWith(rightSidebarWidth: clamped));
+      return;
+    }
+    final nextWidths = Map<String, double>.from(
+      prefs.rightSidebarWidthByWorkspaceId,
+    );
+    if ((fallback - clamped).abs() < 0.5) {
+      if (!nextWidths.containsKey(workspaceId)) {
+        return;
+      }
+      nextWidths.remove(workspaceId);
+    } else if ((prefs.rightSidebarWidthFor(workspaceId, fallback: fallback) -
+                clamped)
+            .abs() <
+        0.5) {
+      return;
+    } else {
+      nextWidths[workspaceId] = clamped;
+    }
+    _updateViewPrefs(
+      prefs.copyWith(rightSidebarWidthByWorkspaceId: nextWidths),
+    );
   }
 
   void setContextPanelTab(WorkbenchContextPanelTab tab) {
-    if (state.viewPrefs.activeContextPanelTab == tab) {
+    var prefs = state.viewPrefs;
+    if (prefs.activeContextPanelTab != tab) {
+      prefs = prefs.copyWith(activeContextPanelTab: tab);
+      state = state.copyWith(viewPrefs: prefs);
+      unawaited(_persistViewPrefs());
+    }
+    final id = state.activeWorkspaceId;
+    if (id == null) {
       return;
     }
-    _updateViewPrefs(state.viewPrefs.copyWith(activeContextPanelTab: tab));
+    final tool = switch (tab) {
+      WorkbenchContextPanelTab.explorer => WorkspaceTool.explorer,
+      WorkbenchContextPanelTab.search => WorkspaceTool.search,
+      WorkbenchContextPanelTab.gitDiff => WorkspaceTool.sourceControl,
+      WorkbenchContextPanelTab.pullRequests => WorkspaceTool.pullRequest,
+    };
+    _panelSelectionRevisionByWorkspace[id] =
+        (_panelSelectionRevisionByWorkspace[id] ?? 0) + 1;
+    _saveWorkspacePanel(
+      id,
+      state.workspacePanelFor(id).select(tool.key),
+      reveal: true,
+    );
   }
 
   void revealInExplorer({
@@ -299,6 +407,20 @@ mixin _WorkbenchControllerViewPrefs
     _updateViewPrefs(state.viewPrefs.copyWith(gitDiffGroupMode: mode));
   }
 
+  void setSearchViewAsTree(bool value) {
+    if (state.viewPrefs.searchViewAsTree == value) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(searchViewAsTree: value));
+  }
+
+  void setSearchIncludeIgnored(bool value) {
+    if (state.viewPrefs.searchIncludeIgnored == value) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(searchIncludeIgnored: value));
+  }
+
   void setPullRequestCreateAction(PullRequestCreateAction action) {
     if (state.viewPrefs.pullRequestCreateAction == action) {
       return;
@@ -306,100 +428,22 @@ mixin _WorkbenchControllerViewPrefs
     _updateViewPrefs(state.viewPrefs.copyWith(pullRequestCreateAction: action));
   }
 
-  Future<bool> focusSourceControlFolder({
-    required Workspace workspace,
-    required String relativePath,
-  }) async {
-    final project = _projectById(state.projects, workspace.projectId);
-    if (project == null || !project.isFolder) {
-      return false;
+  void setNewWorkspaceTools(List<WorkspaceTool> tools) {
+    final next = WorkspaceTool.uniqueInOrder(tools);
+    final current = state.viewPrefs.newWorkspaceTools;
+    if (current.length == next.length) {
+      var same = true;
+      for (var i = 0; i < current.length; i++) {
+        if (current[i] != next[i]) {
+          same = false;
+          break;
+        }
+      }
+      if (same) {
+        return;
+      }
     }
-    if (state.activeProjectId != project.id ||
-        state.activeWorkspaceId != workspace.id) {
-      return false;
-    }
-    final normalized = normalizeSourceControlRootRelativePath(relativePath);
-    if (normalized == null) {
-      return false;
-    }
-    final path = sourceControlRootAbsolutePath(
-      workspacePath: workspace.path,
-      relativeRoot: normalized,
-    );
-    if (!_hasDirectGitEntry(path)) {
-      return false;
-    }
-    final isRepository = await ref
-        .read(gitBackendProvider)
-        .isGitRepository(path);
-    if (!isRepository) {
-      return false;
-    }
-    if (state.activeProjectId != project.id ||
-        state.activeWorkspaceId != workspace.id) {
-      return false;
-    }
-    final nextRoots = <String, String>{
-      ...state.viewPrefs.sourceControlRootByWorkspaceId,
-      workspace.id: normalized,
-    };
-    _updateViewPrefs(
-      state.viewPrefs.copyWith(
-        sourceControlRootByWorkspaceId: nextRoots,
-        activeContextPanelTab: .gitDiff,
-        rightSidebarVisible: true,
-      ),
-    );
-    state = state.copyWith(error: null);
-    return true;
-  }
-
-  bool _hasDirectGitEntry(String path) {
-    final gitEntryPath = p.join(path, '.git');
-    return Directory(gitEntryPath).existsSync() ||
-        File(gitEntryPath).existsSync();
-  }
-
-  void clearFocusedSourceControlFolder({required Workspace workspace}) {
-    if (!state.viewPrefs.sourceControlRootByWorkspaceId.containsKey(
-      workspace.id,
-    )) {
-      return;
-    }
-    final nextRoots = Map<String, String>.from(
-      state.viewPrefs.sourceControlRootByWorkspaceId,
-    )..remove(workspace.id);
-    _updateViewPrefs(
-      state.viewPrefs.copyWith(sourceControlRootByWorkspaceId: nextRoots),
-    );
-  }
-
-  void syncSourceControlRootAfterPathMove({
-    required Workspace workspace,
-    required String oldRelativePath,
-    required String newRelativePath,
-  }) {
-    final current =
-        state.viewPrefs.sourceControlRootByWorkspaceId[workspace.id];
-    if (current == null) {
-      return;
-    }
-    final nextRoot = _replaceSourceControlPathPrefix(
-      path: current,
-      oldPath: oldRelativePath,
-      newPath: newRelativePath,
-    );
-    if (nextRoot == null || nextRoot == current) {
-      return;
-    }
-    _updateViewPrefs(
-      state.viewPrefs.copyWith(
-        sourceControlRootByWorkspaceId: <String, String>{
-          ...state.viewPrefs.sourceControlRootByWorkspaceId,
-          workspace.id: nextRoot,
-        },
-      ),
-    );
+    _updateViewPrefs(state.viewPrefs.copyWith(newWorkspaceTools: next));
   }
 
   void _updateViewPrefs(WorkbenchViewPrefs prefs) {
@@ -407,27 +451,26 @@ mixin _WorkbenchControllerViewPrefs
     unawaited(_persistViewPrefs());
   }
 
-  String? _replaceSourceControlPathPrefix({
-    required String path,
-    required String oldPath,
-    required String newPath,
-  }) {
-    final normalizedPath = normalizeSourceControlRootRelativePath(path);
-    final normalizedOld = normalizeSourceControlRootRelativePath(oldPath);
-    final normalizedNew = normalizeSourceControlRootRelativePath(newPath);
-    if (normalizedPath == null ||
-        normalizedOld == null ||
-        normalizedNew == null) {
-      return null;
+  void _applySharedViewPrefs(WorkbenchViewPrefs prefs) {
+    if (_disposed) {
+      return;
     }
-    if (normalizedPath == normalizedOld) {
-      return normalizedNew;
-    }
-    final prefix = '$normalizedOld/';
-    if (!normalizedPath.startsWith(prefix)) {
-      return null;
-    }
-    return '$normalizedNew/${normalizedPath.substring(prefix.length)}';
+    final current = state.viewPrefs;
+    state = state.copyWith(
+      viewPrefs: prefs.copyWith(
+        workspacePanels: current.workspacePanels,
+        expandedWorkspaceIds: current.expandedWorkspaceIds,
+        sourceControlRootByWorkspaceId: current.sourceControlRootByWorkspaceId,
+        rightSidebarVisible: current.rightSidebarVisible,
+        rightSidebarWidth: current.rightSidebarWidth,
+        rightSidebarWidthByWorkspaceId: current.rightSidebarWidthByWorkspaceId,
+        sidebarWidth: current.sidebarWidth,
+        activeContextPanelTab: current.activeContextPanelTab,
+        explorerMode: current.explorerMode,
+        pullRequestCreateAction: current.pullRequestCreateAction,
+        newWorkspaceTools: current.newWorkspaceTools,
+      ),
+    );
   }
 
   void setSearchQuery(String query) {

@@ -5,15 +5,24 @@ import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
+import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
+import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 const _quickOpenResultLimit = 50;
+
+typedef QuickOpenSelection = ({
+  Workspace workspace,
+  String relativePath,
+  String? sourceKey,
+  bool oppositePanel,
+});
 
 class const QuickOpenDialog({super.key}) extends ConsumerStatefulWidget {
   @override
@@ -260,8 +269,15 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
       return;
     }
     final relativePath = _matches[_selectedIndex].relativePath;
-    Navigator.of(context)
-        .pop((workspace: workspace, relativePath: relativePath));
+    Navigator.of(context).pop<QuickOpenSelection>((
+      workspace: workspace,
+      relativePath: relativePath,
+      sourceKey: ref
+          .read(workbenchControllerProvider)
+          .workspacePanelFor(workspace.id)
+          .focusedKey,
+      oppositePanel: isModModifierPressed(),
+    ));
   }
 
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {

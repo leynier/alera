@@ -32,6 +32,7 @@ class FakeForgeProvider implements ForgeProvider {
     message: 'not set',
   );
   int createCalls = 0;
+  CreateReviewInput? lastCreateInput;
   Object? createError;
   ReviewCheckDetails? details;
   ReviewCheck? lastDetailsCheck;
@@ -47,6 +48,9 @@ class FakeForgeProvider implements ForgeProvider {
     ReviewMergeMethod.squash,
     ReviewMergeMethod.rebase,
   ];
+  String? lastMergeMethodsBaseBranch;
+  int mergeMethodsCalls = 0;
+  Object? mergeMethodsError;
   bool canCloseReview = true;
   bool canChangeDraftStatus = true;
   bool canComment = true;
@@ -79,7 +83,19 @@ class FakeForgeProvider implements ForgeProvider {
   bool get supportsReviewCreation => true;
 
   @override
-  List<ReviewMergeMethod> get supportedMergeMethods => mergeMethods;
+  Future<List<ReviewMergeMethod>> allowedMergeMethods({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    String? baseBranch,
+  }) async {
+    mergeMethodsCalls++;
+    lastMergeMethodsBaseBranch = baseBranch;
+    final error = mergeMethodsError;
+    if (error != null) {
+      throw error;
+    }
+    return mergeMethods;
+  }
 
   @override
   bool get supportsReviewClosure => canCloseReview;
@@ -211,6 +227,7 @@ class FakeForgeProvider implements ForgeProvider {
     required CreateReviewInput input,
   }) async {
     createCalls++;
+    lastCreateInput = input;
     final error = createError;
     if (error != null) {
       throw error;

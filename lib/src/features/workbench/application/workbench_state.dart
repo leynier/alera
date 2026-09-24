@@ -6,12 +6,15 @@ import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 
+import '../domain/workspace_panel.dart';
+
 part 'workbench_state.mapper.dart';
 
 @MappableClass()
 class const WorkbenchState({
   this.sections = const <WorkspaceSection>[],
   this.supportsSections = false,
+  this.supportsArchive = false,
   this.projects = const <Project>[],
   this.workspacesByProject = const <String, List<Workspace>>{},
   this.tabsByWorkspace = const <String, List<WorkspaceTabRecord>>{},
@@ -27,6 +30,7 @@ class const WorkbenchState({
 }) with WorkbenchStateMappable {
   final List<WorkspaceSection> sections;
   final bool supportsSections;
+  final bool supportsArchive;
   final List<Project> projects;
   final Map<String, List<Workspace>> workspacesByProject;
   final Map<String, List<WorkspaceTabRecord>> tabsByWorkspace;
@@ -39,6 +43,14 @@ class const WorkbenchState({
   final String? error;
   final String searchQuery;
   final bool collapsed;
+
+  WorkspacePanel workspacePanelFor(String workspaceId) =>
+      (viewPrefs.workspacePanels[workspaceId] ?? const WorkspacePanel())
+          .reconcile(
+            tabsFor(workspaceId),
+            preferredPrimaryId: layoutFor(workspaceId)?.activeTabId,
+            workspaceId: workspaceId,
+          );
 
   /// Project ids that are visually expanded in the sidebar. Computed as the
   /// inverse of [WorkbenchViewPrefs.collapsedProjectIds] over the currently
@@ -85,8 +97,12 @@ class const WorkbenchState({
     if (workspace == null) {
       return null;
     }
+    final focusedKey = workspacePanelFor(workspace.id).focusedKey;
+    if (focusedKey != null && WorkspacePanel.tabId(focusedKey) == null) {
+      return null;
+    }
     final tabId =
-        layoutByWorkspace[workspace.id]?.activeTabId ??
+        WorkspacePanel.tabId(focusedKey) ??
         activeTabIdByWorkspace[workspace.id];
     if (tabId == null) {
       return null;

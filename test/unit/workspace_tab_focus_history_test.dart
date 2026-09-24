@@ -53,8 +53,18 @@ void main() {
       history.record('workspace-1', 'a');
 
       expect(history.mostRecentOpen('workspace-1', <String>{'b'}), isNull);
-      // The emptied workspace is dropped rather than left as an empty list.
+      history.pruneClosed('workspace-1', <String>{'b'});
+      // Peeking must not drop a tab that is still open; prune does.
       expect(history.mostRecentOpen('workspace-1', <String>{'a'}), isNull);
+    });
+
+    test('mostRecentOpen does not prune closed tabs', () {
+      final history = WorkspaceTabFocusHistory();
+      history.record('workspace-1', 'a');
+      history.record('workspace-1', 'b');
+
+      expect(history.mostRecentOpen('workspace-1', <String>{'a'}), 'a');
+      expect(history.mostRecentOpen('workspace-1', <String>{'a', 'b'}), 'b');
     });
 
     test('keeps only the most recent entries up to the limit', () {

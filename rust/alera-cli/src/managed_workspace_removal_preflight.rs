@@ -1,0 +1,86 @@
+//! Validate branch deletion and worktree ownership before destructive cleanup.
+
+use alera_core::git as core_git;
+use alera_core::runtime::{RuntimeStore, WorkspaceKind, LOCAL_HOST_ID};
+use anyhow::{anyhow, bail, Result};
+
+use super::{
+    filesystem_entry_is_missing, path_equals, validate_workspace_storage_ownership,
+    workspace_has_active_automation_owner, ManagedWorkspaceRemoval, ManagedWorkspaceRemoveRequest,
+};
+
+pub(super) async fn managed_workspace_removal(
+    store: &RuntimeStore,
+    request: &ManagedWorkspaceRemoveRequest,
+) -> Result<ManagedWorkspaceRemoval> {
+    if store.workflow_workspace_owned(&request.id).await? {
+        bail!("Workflow resources require reviewed cleanup from the Run Board");
+    }
+    let workspace = store
+        .find_workspace(&request.id)
+        .await?
+        .ok_or_else(|| anyhow!("Workspace not found: {}", request.id))?;
+    if workspace.kind == WorkspaceKind::Main {
+        bail!("The main workspace cannot be removed");
+    }
+    if workspace.host_id != LOCAL_HOST_ID {
+        bail!("Workspace is not owned by the local host");
+    }
+    let project = store
+        .find_project(&workspace.project_id)
+        .await?
+        .ok_or_else(|| anyhow!("Project not found: {}", workspace.project_id))?;
+    super::workflow::ownership::ensure_unowned(store, &workspace, &project).await?;
+    let should_delete_branch = request.delete_branch.unwrap_or(false);
+    if request.delete_branch.is_none() && !workspace.reuses_existing_branch {
+        bail!("Branch deletion requires a choice: use --keep-branch (recommended) or --delete-branch. No worktree was removed.");
+    }
+    let mut branch_to_delete = if should_delete_branch && !workspace.reuses_existing_branch {
+        workspace
+            .branch
+            .as_deref()
+            .filter(|branch| !branch.is_empty())
+            .map(str::to_string)
+    } else {
+        None
+    };
+    validate_workspace_storage_ownership(store, &workspace, &project).await?;
+    if workspace_has_active_automation_owner(store, &workspace.id).await? {
+        bail!("Workspace is owned by an active automation");
+    }
+    if !filesystem_entry_is_missing(&workspace.path)? {
+        let registered = core_git::list_worktrees(&project.repo_path)?
+            .into_iter()
+            .find(|entry| path_equals(&entry.path, &workspace.path))
+            .ok_or_else(|| anyhow!("Workspace path is not a registered Git worktree"))?;
+        if let Some(expected_branch) = branch_to_delete.as_deref() {
+            if registered.branch != expected_branch {
+                branch_to_delete = None;
+            }
+        }
+    } else {
+        branch_to_delete = None;
+    }
+    if let Some(branch) = branch_to_delete.as_deref() {
+        let keep_default = match core_git::default_branch(&project.repo_path) {
+            Ok(home) => home == branch,
+            Err(_) => true,
+        };
+        if keep_default
+            || core_git::validate_branch_deletion(
+                &project.repo_path,
+                branch,
+                false,
+                Some(&workspace.path),
+            )
+            .is_err()
+        {
+            branch_to_delete = None;
+        }
+    }
+    Ok(ManagedWorkspaceRemoval {
+        workspace,
+        project,
+        branch_to_delete,
+    })
+}

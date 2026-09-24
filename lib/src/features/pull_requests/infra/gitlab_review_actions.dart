@@ -7,11 +7,14 @@ mixin _GitLabReviewActions {
 
   bool get supportsReviewDraftConversion => true;
 
-  List<ReviewMergeMethod> get supportedMergeMethods =>
-      const <ReviewMergeMethod>[
-        ReviewMergeMethod.providerDefault,
-        ReviewMergeMethod.squash,
-      ];
+  Future<List<ReviewMergeMethod>> allowedMergeMethods({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    String? baseBranch,
+  }) async => const <ReviewMergeMethod>[
+    ReviewMergeMethod.providerDefault,
+    ReviewMergeMethod.squash,
+  ];
 
   Future<void> mergeReview({
     required GitRemoteIdentity identity,

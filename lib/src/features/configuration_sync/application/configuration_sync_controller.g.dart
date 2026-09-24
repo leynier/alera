@@ -49,7 +49,7 @@ final class ConfigurationSyncServiceProvider
 }
 
 String _$configurationSyncServiceHash() =>
-    r'4f716cb785d13225fd61d0f46df150e49dd72354';
+    r'75da83c5dd9944f74c82388c8b6208886dc65109';
 
 @ProviderFor(ConfigurationSyncController)
 final configurationSyncControllerProvider =

@@ -35,7 +35,13 @@ Future<void> routePushIntent(WidgetRef ref, PushNavigationIntent intent) async {
   if (intent.eventKind == PushEventKind.automation) {
     unawaited(
       navigator.push<void>(
-        MaterialPageRoute<void>(builder: (_) => AutomationsScreen(host: host)),
+        MaterialPageRoute<void>(
+          builder: (_) => AutomationsScreen(
+            host: host,
+            initialAutomationId: intent.automationId,
+            initialRunId: intent.runId,
+          ),
+        ),
       ),
     );
     return;

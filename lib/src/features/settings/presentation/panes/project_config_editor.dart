@@ -19,6 +19,8 @@ class const ProjectConfigEditor({
   required final List<String> setupCommands,
   required final String promptAppend,
   required final ValueChanged<String> onPromptAppendChanged,
+  required final String sourceBranch,
+  required final ValueChanged<String> onSourceBranchChanged,
   required final String? saveError,
   required final bool saving,
   required final void Function(int index, EditableCopyRule rule) updateCopyRule,
@@ -67,9 +69,18 @@ class const ProjectConfigEditor({
         const SizedBox(height: AleraTokens.space16),
         AleraSettingsGroup(
           title: 'New Workspace',
-          description:
-              'Project instructions appended to prompts that start an agent.',
+          description: 'Project defaults for new worktrees, including the Source Branch picker and prompt text appended when an agent starts.',
           children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.all(AleraTokens.space16),
+              child: _ProjectConfigTextField(
+                key: const ValueKey<String>('source-branch-field'),
+                value: sourceBranch,
+                labelText: 'Default Source Branch',
+                hintText: 'develop',
+                onChanged: onSourceBranchChanged,
+              ),
+            ),
             Padding(
               padding: const EdgeInsets.all(AleraTokens.space16),
               child: _ProjectConfigTextField(
@@ -418,6 +429,8 @@ String projectConfigSignature(ProjectConfig config) {
     ..write('\u{1d}')
     ..write(config.gitHostingProvider?.name ?? '')
     ..write('\u{1d}')
-    ..write(config.newWorkspace.promptAppend);
+    ..write(config.newWorkspace.promptAppend)
+    ..write('\u{1d}')
+    ..write(config.newWorkspace.sourceBranch);
   return buffer.toString();
 }

@@ -77,31 +77,6 @@ class const _GroupBySegmented({
   }
 }
 
-class const _WorkspaceKindSegmented({
-  required final WorkspaceKindFilter value,
-  required final ValueChanged<WorkspaceKindFilter> onChanged,
-}) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return AleraSegmentedButton<WorkspaceKindFilter>(
-      dense: true,
-      backgroundColor: AleraTokens.surface,
-      foregroundColor: AleraTokens.foregroundMuted,
-      selectedBackgroundColor: AleraTokens.accentSubtle,
-      selectedForegroundColor: AleraTokens.foreground,
-      borderColor: AleraTokens.borderSubtle,
-      textStyle: Theme.of(context).textTheme.labelSmall,
-      selected: value,
-      onSelectionChanged: onChanged,
-      segments: const <ButtonSegment<WorkspaceKindFilter>>[
-        ButtonSegment(value: .all, label: Text('All')),
-        ButtonSegment(value: .defaultOnly, label: Text('Default')),
-        ButtonSegment(value: .nonDefaultOnly, label: Text('Non-Default')),
-      ],
-    );
-  }
-}
-
 class const _SortRow({
   required final String label,
   required final WorkbenchSortBy value,
