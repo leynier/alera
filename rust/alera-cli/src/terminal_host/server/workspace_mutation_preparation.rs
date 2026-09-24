@@ -80,9 +80,21 @@ impl ServerActor {
             _ => None,
         };
         if let Some((workspace_id, buffer_guard, operation)) = relocation {
+            let mut source = self
+                .runtime_store
+                .find_workspace(workspace_id)
+                .await
+                .map_err(|error| HostError::state(error.to_string()))?
+                .ok_or_else(|| HostError::state("Workspace no longer exists"))?;
+            let project = self
+                .runtime_store
+                .find_project(&source.project_id)
+                .await
+                .map_err(|error| HostError::state(error.to_string()))?
+                .ok_or_else(|| HostError::state("Project no longer exists"))?;
             if self
                 .runtime_store
-                .workflow_workspace_owned(workspace_id)
+                .workflow_workspace_resource_owned(&source, &project)
                 .await
                 .map_err(|error| HostError::state(error.to_string()))?
             {
@@ -91,12 +103,6 @@ impl ServerActor {
                 ));
             }
             self.start_checkout_buffer_guard(buffer_guard).await?;
-            let mut source = self
-                .runtime_store
-                .find_workspace(workspace_id)
-                .await
-                .map_err(|error| HostError::state(error.to_string()))?
-                .ok_or_else(|| HostError::state("Workspace no longer exists"))?;
             if source.kind == alera_core::runtime::WorkspaceKind::Linked
                 && source.host_id == alera_core::runtime::LOCAL_HOST_ID
             {

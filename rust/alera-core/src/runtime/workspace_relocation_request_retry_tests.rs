@@ -12,16 +12,30 @@ async fn workflow_owned_workspace_cannot_begin_relocation() {
         .worktrees()
         .unwrap()
         .len();
+    let mut original = source.clone();
+    original.id = "retained-workflow-id".into();
+    let identity = crate::runtime::WorkflowWorkspaceIdentity {
+        workspace: original,
+        repo_path: source.path.clone(),
+        owner_workspace_id: source.id.clone(),
+        run_id: "run".into(),
+        revision: 1,
+        task_id: None,
+        attempt: 0,
+        base_sha: before_commit.clone(),
+    };
     sqlx::query(
         "INSERT INTO workflowWorkspaces
          (id, run_id, revision, task_id, attempt, path, identity, phase)
-         VALUES (?, 'run', 1, NULL, 0, ?, '{}', 'ready')",
+         VALUES (?, 'run', 1, NULL, 0, ?, ?, 'ready')",
     )
-    .bind(&source.id)
+    .bind(&identity.workspace.id)
     .bind(&source.path)
+    .bind(serde_json::to_string(&identity).unwrap())
     .execute(store.pool())
     .await
     .unwrap();
+    assert!(!store.workflow_workspace_owned(&source.id).await.unwrap());
 
     let intent = WorkspaceRelocationIntent {
         workspace_id: source.id.clone(),

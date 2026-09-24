@@ -162,6 +162,7 @@ mod workflow_setup_report;
 mod workflow_source_identity;
 mod workflow_workspace;
 mod workflow_workspace_eligibility;
+mod workflow_workspace_ownership;
 mod workflow_workspace_schema;
 mod workflow_workspace_snapshot;
 mod workflow_workspace_store;
