@@ -3,8 +3,13 @@ import 'dart:async';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/orchestration/application/workflow_catalog_providers.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_catalog_pane.dart';
+import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -12,6 +17,42 @@ import '../support/run_board_widget_harness.dart';
 import '../support/workflow_catalog_fixture.dart';
 
 void main() {
+  testWidgets('Open File uses the source workspace without a preview', (
+    tester,
+  ) async {
+    final workbench = _FileOpenWorkbench();
+    await _pumpProjectRecipe(tester, workbench);
+    await tester.tap(find.text('Open File'));
+    await tester.pumpAndSettle();
+    expect(workbench.actions, contains('workspace:ws-1'));
+    expect(workbench.opens, [(false, false)]);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final platform in [TargetPlatform.linux, TargetPlatform.macOS]) {
+    testWidgets('Mod+Open File previews opposite panel on $platform', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = platform;
+      final workbench = _FileOpenWorkbench()
+        ..pendingSelection = Completer<void>();
+      await _pumpProjectRecipe(tester, workbench);
+      final key = platform == TargetPlatform.macOS
+          ? LogicalKeyboardKey.metaLeft
+          : LogicalKeyboardKey.controlLeft;
+      await tester.sendKeyDownEvent(key);
+      await tester.tap(find.text('Open File'));
+      await tester.pump();
+      expect(workbench.opens, isEmpty);
+      await tester.sendKeyUpEvent(key);
+      workbench.pendingSelection!.complete();
+      await tester.pumpAndSettle();
+      expect(workbench.opens, [(true, true)]);
+      expect(tester.takeException(), isNull);
+      debugDefaultTargetPlatformOverride = null;
+    });
+  }
+
   testWidgets('compact navigation preserves visible search and clear', (
     tester,
   ) async {
@@ -196,4 +237,82 @@ void main() {
     expect(repository.saves, 0);
     expect(find.textContaining('Keep the recipe id'), findsOneWidget);
   });
+}
+
+const _projectSource = <String, Object?>{
+  'origin': 'project',
+  'id': 'feature-delivery',
+  'workspaceId': 'ws-1',
+  'path': '.alera/workflows/feature-delivery.yaml',
+};
+
+Future<void> _pumpProjectRecipe(
+  WidgetTester tester,
+  _FileOpenWorkbench workbench,
+) async {
+  final repository = _ProjectCatalogTestRepository();
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        workflowCatalogRepositoryProvider.overrideWithValue(repository),
+        workbenchControllerProvider.overrideWith(() => workbench),
+      ],
+      child: MaterialApp(
+        theme: buildAleraDarkTheme(),
+        home: const Scaffold(body: WorkflowCatalogPane()),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Feature Delivery'));
+  await tester.pumpAndSettle();
+  expect(find.text('Open File'), findsOneWidget);
+}
+
+class _ProjectCatalogTestRepository extends CatalogTestRepository {
+  _ProjectCatalogTestRepository() {
+    entries = [
+      {'source': _projectSource, 'name': 'Feature Delivery'},
+    ];
+  }
+
+  @override
+  Future<Map<String, Object?>> read(Map<String, Object?> source) async => {
+    ...workflowCatalogRecord,
+    'source': _projectSource,
+  };
+}
+
+class _FileOpenWorkbench extends BoardTestWorkbench {
+  Completer<void>? pendingSelection;
+  final opens = <(bool, bool)>[];
+
+  @override
+  Future<void> selectWorkspace({
+    required Project project,
+    required Workspace workspace,
+  }) async {
+    if (pendingSelection != null) await pendingSelection!.future;
+    await super.selectWorkspace(project: project, workspace: workspace);
+  }
+
+  @override
+  Future<WorkspaceTabRecord> openEditorTab({
+    required Workspace workspace,
+    required String relativePath,
+    String? targetGroupId,
+    String? sourceKey,
+    bool preview = false,
+    bool oppositePanel = false,
+  }) async {
+    opens.add((preview, oppositePanel));
+    final now = DateTime.utc(2026);
+    return WorkspaceTabRecord(
+      id: 'recipe-file',
+      workspaceId: workspace.id,
+      title: relativePath,
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
 }

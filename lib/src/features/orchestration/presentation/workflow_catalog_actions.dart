@@ -105,34 +105,39 @@ extension _WorkflowCatalogActions on _WorkflowCatalogPaneState {
     }
   });
 
-  Future<void> _open() => _run(() async {
-    final source = _object(_selected!['source']);
-    final state = ref.read(workbenchControllerProvider);
-    final workspace = state.workspacesByProject.values
-        .expand((items) => items)
-        .where(
-          (w) =>
-              w.id == source['workspaceId'] &&
-              w.isActive &&
-              w.hostId == 'local',
-        )
-        .firstOrNull;
-    if (workspace == null) throw StateError('Workspace is unavailable.');
-    final project = state.projects
-        .where((p) => p.id == workspace.projectId)
-        .firstOrNull;
-    if (project == null) throw StateError('Project is unavailable.');
-    final controller = ref.read(workbenchControllerProvider.notifier);
-    await controller.selectWorkspace(project: project, workspace: workspace);
-    await controller.openEditorTab(
-      workspace: workspace,
-      relativePath: source['path']! as String,
-    );
-    if (mounted) {
-      _change(
-        () => _notice =
-            'File opened in its workspace. Close Settings to view it.',
+  Future<void> _open() {
+    final modOpen = isModModifierPressed();
+    return _run(() async {
+      final source = _object(_selected!['source']);
+      final state = ref.read(workbenchControllerProvider);
+      final workspace = state.workspacesByProject.values
+          .expand((items) => items)
+          .where(
+            (w) =>
+                w.id == source['workspaceId'] &&
+                w.isActive &&
+                w.hostId == 'local',
+          )
+          .firstOrNull;
+      if (workspace == null) throw StateError('Workspace is unavailable.');
+      final project = state.projects
+          .where((p) => p.id == workspace.projectId)
+          .firstOrNull;
+      if (project == null) throw StateError('Project is unavailable.');
+      final controller = ref.read(workbenchControllerProvider.notifier);
+      await controller.selectWorkspace(project: project, workspace: workspace);
+      await controller.openEditorTab(
+        workspace: workspace,
+        relativePath: source['path']! as String,
+        preview: modOpen,
+        oppositePanel: modOpen,
       );
-    }
-  });
+      if (mounted) {
+        _change(
+          () => _notice =
+              'File opened in its workspace. Close Settings to view it.',
+        );
+      }
+    });
+  }
 }
