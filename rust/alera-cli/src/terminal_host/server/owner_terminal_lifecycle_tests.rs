@@ -85,14 +85,31 @@ async fn verified_action_retries_preserve_a_replacement_session_and_neighbor() {
         assert_eq!(actor.managed_workspace_jobs, 1);
         assert!(actor.sessions.contains_key("neighbor"));
         assert!(!actor.sessions.contains_key("session"));
-        let command = tokio::time::timeout(std::time::Duration::from_secs(3), commands.recv())
-            .await
-            .unwrap()
-            .unwrap();
-        assert!(matches!(
-            &command,
-            ServerCommand::OwnerTerminalLifecycleFinished { result: Ok(_), .. }
-        ));
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(3);
+        let command = loop {
+            let command = tokio::time::timeout_at(deadline, commands.recv())
+                .await
+                .unwrap()
+                .unwrap();
+            if matches!(
+                &command,
+                ServerCommand::WorkflowLaunch(
+                    super::super::workflow_launch_requests::WorkflowLaunchCommand::ExecutionWake
+                )
+            ) {
+                // A Board revision may queue a no-op workflow wake first.
+                actor.handle(command).await;
+                continue;
+            }
+            break command;
+        };
+        match &command {
+            ServerCommand::OwnerTerminalLifecycleFinished { result: Ok(_), .. } => {}
+            ServerCommand::OwnerTerminalLifecycleFinished {
+                result: Err(error), ..
+            } => panic!("terminal lifecycle failed: {}", error.wire_message()),
+            _ => panic!("unexpected terminal lifecycle command"),
+        }
         actor.handle(command).await;
         assert_eq!(actor.managed_workspace_jobs, 0);
         let saved = actor
