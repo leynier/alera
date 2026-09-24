@@ -492,10 +492,8 @@ async fn workflow_launch_acceptance_timeout_retains_the_attempt_without_relaunch
         .is_some());
     actor.reconcile_spawn_on_create_tabs().await;
     assert!(actor.sessions.is_empty());
-    assert!(matches!(
-        launch::prepare(&fixture.store, &fixture.runtime, input)
-            .await
-            .unwrap(),
-        PreparedLaunch::Replay(_)
-    ));
+    let replay = launch::prepare(&fixture.store, &fixture.runtime, input)
+        .await
+        .unwrap();
+    assert!(matches!(replay, PreparedLaunch::Replay(_)));
 }
