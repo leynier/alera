@@ -265,6 +265,23 @@ void main() {
     },
   );
 
+  test('xterm copies conpty padded rows as separate lines on windows', () {
+    // ConPTY reaches the next row by padding the current one with spaces up
+    // to the margin, then writing the next row without a line break.
+    final terminal = Terminal(
+      reflowWithHiddenCursor: false,
+      windowsPtyMode: true,
+    )..resize(12, 4);
+    terminal.write('Hi Erik,${' ' * 16}Hope you${' ' * 4}are well.');
+
+    final text = terminal.buffer.getText(
+      BufferRangeLine(const CellOffset(0, 0), const CellOffset(9, 3)),
+      true,
+    );
+
+    expect(text, 'Hi Erik,\n\nHope you\nare well.');
+  });
+
   test('xterm repairs a stale row before writing past its capacity', () {
     final terminal = Terminal(reflowWithHiddenCursor: false)..resize(680, 24);
     terminal.mainBuffer.lines[0] = BufferLine(80);
