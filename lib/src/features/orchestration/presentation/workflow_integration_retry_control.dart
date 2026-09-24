@@ -58,9 +58,7 @@ class _WorkflowIntegrationRetryControlState
       setState(() {
         _integrated = result['state'] == 'integrated';
         if (!_integrated) {
-          _error =
-              result['error'] as String? ??
-              'Integration still needs attention. Inspect its retained error and workspace.';
+          _error = result['error'] as String? ?? 'Integration still needs attention. Inspect its retained error and workspace.';
         }
       });
       widget.onSettled();
