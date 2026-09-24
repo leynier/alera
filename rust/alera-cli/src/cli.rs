@@ -54,7 +54,7 @@ pub enum Command {
 
     /// Create, list, update, and remove runtime-owned projects.
     Project(ProjectCommand),
-    /// Create, list, tag, section, relate, and remove runtime-owned workspaces.
+    /// Create, list, rename, tag, section, relate, and remove runtime-owned workspaces.
     Workspace(WorkspaceCommand),
 
     /// Read issues from GitHub, GitLab, or Azure DevOps through their CLIs.

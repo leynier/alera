@@ -104,6 +104,7 @@ mod workspace_registration;
 mod workspace_relocation_recovery;
 mod workspace_relocation_setup;
 mod workspace_removal_dependencies;
+mod workspace_rename;
 mod workspace_sections;
 mod workspace_setup_command;
 mod workspace_start;
@@ -547,6 +548,9 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
                 ),
                 Err(error) => return print_error(error),
             }
+        }
+        WorkspaceAction::Rename(args) => {
+            return workspace_rename::run(&runtime, args, json_output).await;
         }
         WorkspaceAction::Pin(IdArgs { id }) => {
             return workspace_pinning::run(runtime_dir(&runtime), json_output, id, true).await;
