@@ -4,7 +4,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'workflow_catalog_providers.g.dart';
 
-@riverpod
+@Riverpod(keepAlive: true)
 WorkflowCatalogRepository workflowCatalogRepository(Ref ref) =>
     WorkflowCatalogRepository(ref.watch(runtimeHostClientProvider));
 

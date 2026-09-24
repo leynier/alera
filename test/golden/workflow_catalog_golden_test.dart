@@ -26,9 +26,12 @@ void main() {
         },
         builder: () => ProviderScope(
           overrides: [
+            // Root providers are overridden only inside this golden frame.
+            // ignore: riverpod_lint/scoped_providers_should_specify_dependencies
             workflowCatalogRepositoryProvider.overrideWithValue(
               CatalogTestRepository(),
             ),
+            // ignore: riverpod_lint/scoped_providers_should_specify_dependencies
             workbenchControllerProvider.overrideWith(BoardTestWorkbench.new),
           ],
           child: Builder(
