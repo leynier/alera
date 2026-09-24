@@ -1,5 +1,7 @@
 part of 'alera_shell_page_test.dart';
 
+// ignore_for_file: riverpod_lint/avoid_public_notifier_properties
+
 class _ShellTestAgentStatusController(
   final Map<String, AgentStatusEntry> _entries,
 ) extends AgentStatusController {
@@ -124,28 +126,14 @@ class _ShellTestWorkbenchController(
 
   @override
   Future<void> sleepWorkspace(Workspace workspace) async {
-    final nextLayouts = <String, WorkbenchLayout>{...state.layoutByWorkspace}
-      ..remove(workspace.id);
-    final nextActiveTabs = <String, String>{...state.activeTabIdByWorkspace}
-      ..remove(workspace.id);
-    final nextPanels = <String, WorkspacePanel>{
-      ...state.viewPrefs.workspacePanels,
-    }..remove(workspace.id);
     final nextWidths = <String, double>{
       ...state.viewPrefs.rightSidebarWidthByWorkspaceId,
     }..remove(workspace.id);
     state = state.copyWith(
-      tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
-        ...state.tabsByWorkspace,
-        workspace.id: const <WorkspaceTabRecord>[],
-      },
-      layoutByWorkspace: nextLayouts,
-      activeTabIdByWorkspace: nextActiveTabs,
       activeWorkspaceId: state.activeWorkspaceId == workspace.id
           ? null
           : state.activeWorkspaceId,
       viewPrefs: state.viewPrefs.copyWith(
-        workspacePanels: nextPanels,
         rightSidebarWidthByWorkspaceId: nextWidths,
       ),
     );

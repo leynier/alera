@@ -161,9 +161,8 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
           child: Row(
             children: <Widget>[
               Expanded(
-                child: SingleChildScrollView(
+                child: AleraHorizontalScrollView(
                   controller: _scrollController,
-                  scrollDirection: .horizontal,
                   padding: const EdgeInsets.symmetric(
                     horizontal: AleraTokens.space8,
                     vertical: AleraTokens.space6,

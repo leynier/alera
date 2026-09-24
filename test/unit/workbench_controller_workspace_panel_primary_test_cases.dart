@@ -156,6 +156,10 @@ void _registerWorkspacePanelPrimaryTests() {
         newBranchName: 'simple-second',
       )).workspace;
       expect(_controller.state.workspacePanelFor(second.id).tabKeys, isEmpty);
+      await _controller.selectWorkspace(
+        project: _harness.project,
+        workspace: second,
+      );
       _controller.setContextPanelTab(WorkbenchContextPanelTab.gitDiff);
       final secondPanel = _controller.state.workspacePanelFor(second.id);
       await _controller.selectWorkspace(
@@ -182,6 +186,9 @@ void _registerWorkspacePanelPrimaryTests() {
       final restarted = ProviderContainer(
         parent: _harness.container,
         overrides: [
+          // Root provider, overridden in a child container so persisted
+          // view prefs survive a controller restart.
+          // ignore: riverpod_lint/scoped_providers_should_specify_dependencies
           workbenchControllerProvider.overrideWith(WorkbenchController.new),
         ],
       );
@@ -232,17 +239,36 @@ void _registerWorkspacePanelPrimaryTests() {
     },
   );
 
-  test('closing all terminals does not recreate a slept workspace', () async {
-    await _controller.bootstrap();
-    final workspace = await _selectMainWorkspace(_controller, _harness);
-    await _controller.createTerminalTab(workspace);
-    await _controller.sleepWorkspace(workspace);
-    await _flush();
-    expect(_controller.state.tabsFor(workspace.id), isEmpty);
-    expect(_controller.state.activeWorkspaceId, isNull);
-    expect(
-      await _harness.workbenchRepository.listWorkspaceTabs(workspace.id),
-      isEmpty,
-    );
-  });
+  test(
+    'closing all terminals of a slept workspace does not recreate it',
+    () async {
+      await _controller.bootstrap();
+      final workspace = await _selectMainWorkspace(_controller, _harness);
+      await _controller.createTerminalTab(workspace);
+      await _controller.sleepWorkspace(workspace);
+      await _flush();
+      expect(_controller.state.tabsFor(workspace.id), hasLength(2));
+      expect(_controller.state.activeWorkspaceId, isNull);
+      expect(
+        await _harness.workbenchRepository.listWorkspaceTabs(workspace.id),
+        hasLength(2),
+      );
+
+      await _controller.closeWorkspaceTabs(
+        workspace: workspace,
+        tabIds: _controller.state
+            .tabsFor(workspace.id)
+            .map((tab) => tab.id)
+            .toList(),
+      );
+      await _flush();
+
+      expect(_controller.state.tabsFor(workspace.id), isEmpty);
+      expect(_controller.state.activeWorkspaceId, isNull);
+      expect(
+        await _harness.workbenchRepository.listWorkspaceTabs(workspace.id),
+        isEmpty,
+      );
+    },
+  );
 }

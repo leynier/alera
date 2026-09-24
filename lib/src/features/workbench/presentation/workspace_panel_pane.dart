@@ -228,9 +228,8 @@ class _WorkspacePanelPaneState extends State<_WorkspacePanelPane> {
         child: Row(
           children: <Widget>[
             Expanded(
-              child: SingleChildScrollView(
+              child: AleraHorizontalScrollView(
                 controller: _scrollController,
-                scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(
                   horizontal: AleraTokens.space8,
                   vertical: AleraTokens.space6,

@@ -17,9 +17,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::remote_managed_workspace::create_remote_managed_workspace;
-use crate::ssh_remote::{
-    is_remote_host_id, normalized_host_id, LiveSshRemoteHost, RemoteHostExecutor,
-};
+use crate::ssh_remote::{is_remote_host_id, LiveSshRemoteHost, RemoteHostExecutor};
 use crate::worktree_setup::{prepare_deferred_worktree_setup, run_worktree_setup};
 
 #[path = "managed_workspace_removal_preflight.rs"]
@@ -102,7 +100,7 @@ pub async fn create_managed_workspace(
 
 pub(crate) async fn create_managed_workspace_with<E: RemoteHostExecutor>(
     store: &RuntimeStore,
-    request: ManagedWorkspaceCreateRequest,
+    mut request: ManagedWorkspaceCreateRequest,
     executor: &E,
 ) -> Result<WorkspaceCreationResult> {
     let project = store
@@ -132,12 +130,16 @@ pub(crate) async fn create_managed_workspace_with<E: RemoteHostExecutor>(
     }
 
     let branch = require_trimmed(&request.branch, "New Branch Name Is Required")?;
-    let source_branch = request
+    let mut source_branch = request
         .source_branch
         .as_deref()
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(ToString::to_string);
+    if !request.reuse_existing_branch && source_branch.is_none() {
+        source_branch = crate::worktree_setup::preferred_source_branch(store, &project).await;
+        request.source_branch.clone_from(&source_branch);
+    }
     if !request.reuse_existing_branch && source_branch.is_none() {
         bail!("Source Branch Is Required");
     }
@@ -145,7 +147,8 @@ pub(crate) async fn create_managed_workspace_with<E: RemoteHostExecutor>(
     if !core_git::is_valid_branch_name(&branch)? {
         bail!("Invalid branch name \"{branch}\"");
     }
-    let host_id = normalized_host_id(request.host_id.as_deref());
+    let host_id =
+        crate::project_hosts::workspace_host_id(store, &project, request.host_id.as_deref()).await;
     if is_remote_host_id(Some(&host_id)) {
         return create_remote_managed_workspace(store, request, &project, &host_id, executor).await;
     }
@@ -220,6 +223,7 @@ pub(crate) async fn create_managed_workspace_with<E: RemoteHostExecutor>(
         },
         reuses_existing_branch: request.reuse_existing_branch,
         is_pinned: false,
+        is_archived: false,
         tag_ids: Vec::new(),
         tag_names: Vec::new(),
         parent_workspace_id: None,
@@ -691,6 +695,10 @@ fn canonical_path(path: &str) -> String {
 }
 
 #[cfg(test)]
+#[path = "managed_workspace_source_branch_tests.rs"]
+mod managed_workspace_source_branch_tests;
+
+#[cfg(test)]
 mod tests {
     use std::path::Path;
     use std::process::Command as StdCommand;
@@ -754,6 +762,7 @@ mod tests {
                 source_branch: None,
                 reuses_existing_branch: false,
                 is_pinned: false,
+                is_archived: false,
                 tag_ids: Vec::new(),
                 tag_names: Vec::new(),
                 parent_workspace_id: None,
@@ -881,6 +890,7 @@ mod tests {
                 source_branch: None,
                 reuses_existing_branch: false,
                 is_pinned: false,
+                is_archived: false,
                 tag_ids: Vec::new(),
                 tag_names: Vec::new(),
                 parent_workspace_id: None,

@@ -72,7 +72,7 @@ void _registerWorkbenchControllerLifecycleTests() {
       _harness.worktreeSetupRunner.calls.single.workspace.id,
       result.workspace.id,
     );
-    expect(_controller.state.activeWorkspaceId, result.workspace.id);
+    expect(_controller.state.activeWorkspaceId, isNot(result.workspace.id));
   });
 
   test(
@@ -152,7 +152,7 @@ void _registerWorkbenchControllerLifecycleTests() {
         newBranchName: 'feature/inactive-close',
       )).workspace;
       await _flush();
-      final linkedTab = _controller.state.activeWorkspaceTab!;
+      final linkedTab = _controller.state.tabsFor(linked.id).single;
 
       await _controller.selectWorkspace(
         project: _harness.project,

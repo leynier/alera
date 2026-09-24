@@ -25,6 +25,17 @@ void main() {
     expect(legacy.showActiveWorkspacesOnly, isFalse);
   });
 
+  test('View prefs preserve the archived workspace filter', () {
+    final shown = MobileViewPrefs.fromJson(<String, Object?>{
+      'showArchivedWorkspaces': true,
+    });
+    final legacy = MobileViewPrefs.fromJson(const <String, Object?>{});
+
+    expect(shown.showArchivedWorkspaces, isTrue);
+    expect(shown.toJson()['showArchivedWorkspaces'], isTrue);
+    expect(legacy.showArchivedWorkspaces, isFalse);
+  });
+
   test('Parses runtime terminal counts and full agent details', () {
     final snapshot = WorkspaceSidebarSnapshot.fromJson(<String, Object?>{
       'projects': <Object?>[],
@@ -87,5 +98,34 @@ void main() {
     });
 
     expect(snapshot.agentPresence.single.title, isEmpty);
+  });
+
+  test('Parses main-panel tab ids from an additive snapshot field', () {
+    final snapshot = WorkspaceSidebarSnapshot.fromJson(<String, Object?>{
+      'projects': <Object?>[],
+      'workspaces': <Object?>[],
+      'tags': <Object?>[],
+      'activity': <String, Object?>{},
+      'viewPrefs': <String, Object?>{},
+      'runtimeSettings': <String, Object?>{},
+      'workspaceMainTabIds': <String, Object?>{
+        'workspace-1': <Object?>['tab-1', '', 2],
+      },
+    });
+
+    expect(snapshot.workspaceMainTabIds, <String, List<String>>{
+      'workspace-1': <String>['tab-1'],
+    });
+    expect(
+      WorkspaceSidebarSnapshot.fromJson(<String, Object?>{
+        'projects': <Object?>[],
+        'workspaces': <Object?>[],
+        'tags': <Object?>[],
+        'activity': <String, Object?>{},
+        'viewPrefs': <String, Object?>{},
+        'runtimeSettings': <String, Object?>{},
+      }).workspaceMainTabIds,
+      isEmpty,
+    );
   });
 }

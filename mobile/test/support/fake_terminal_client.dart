@@ -142,7 +142,10 @@ class FakeTerminalClient
   bool supportsDeferredTerminalInput = true;
 
   @override
-  bool get supportsWorkspaceMutations => true;
+  bool supportsWorkspaceMutations = true;
+
+  @override
+  bool supportsWorkspaceArchive = true;
 
   @override
   bool get supportsWorkspaceSidebarParity => true;

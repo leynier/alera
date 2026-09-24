@@ -64,8 +64,7 @@ class const _SourceControlToolbar({
                 ),
               ),
               Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: .horizontal,
+                child: AleraHorizontalScrollView(
                   reverse: true,
                   child: Row(
                     mainAxisSize: .min,
@@ -464,6 +463,8 @@ class const _PrimaryActionButton({
   required final ValueChanged<_SourceControlMenuAction> onSelected,
 }) extends StatelessWidget {
   static const double _height = 28;
+  // Compensates the chevron segment so the label centers on the full width.
+  static const double _trailingWidth = 34.5;
 
   @override
   Widget build(BuildContext context) {
@@ -492,14 +493,17 @@ class const _PrimaryActionButton({
                           ? SystemMouseCursors.click
                           : SystemMouseCursors.basic,
                       onTap: enabled ? onPressed : null,
-                      child: Center(
-                        child: Row(
-                          mainAxisSize: .min,
-                          children: <Widget>[
-                            Icon(icon, size: 15, color: AleraTokens.onAccent),
-                            const SizedBox(width: AleraTokens.space8),
-                            Text(label, style: textStyle),
-                          ],
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: _trailingWidth),
+                        child: Center(
+                          child: Row(
+                            mainAxisSize: .min,
+                            children: <Widget>[
+                              Icon(icon, size: 15, color: AleraTokens.onAccent),
+                              const SizedBox(width: AleraTokens.space8),
+                              Text(label, style: textStyle),
+                            ],
+                          ),
                         ),
                       ),
                     ),

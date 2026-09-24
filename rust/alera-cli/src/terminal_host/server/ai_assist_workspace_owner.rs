@@ -1,9 +1,12 @@
-use alera_core::runtime::{Workspace, LOCAL_HOST_ID};
+use alera_core::runtime::Workspace;
 
 use super::ServerActor;
 use crate::terminal_host::host_error::{HostError, HostResult};
 
 impl ServerActor {
+    /// Resolves the workspace a generation belongs to and refuses while a
+    /// checkout operation owns it. The workspace may live on another host; the
+    /// caller forwards the generation there (`remote_ai_assist_requests`).
     pub(super) async fn resolve_ai_assist_workspace(
         &self,
         workspace_id: Option<String>,
@@ -37,11 +40,6 @@ impl ServerActor {
             .await
             .map_err(|error| HostError::state(error.to_string()))?
             .ok_or_else(|| HostError::state(format!("Workspace not found: {id}")))?;
-        if workspace.host_id != LOCAL_HOST_ID {
-            return Err(HostError::state(
-                "AI Assist must run on the workspace's owning host. Remote speech processing is not available yet.",
-            ));
-        }
         if self
             .mutation_queue
             .pending_workspace_shutdowns

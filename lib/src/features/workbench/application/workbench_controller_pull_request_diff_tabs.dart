@@ -14,7 +14,20 @@ mixin _WorkbenchControllerPullRequestDiffTabs
     required String retentionId,
     String? subject,
     String? targetGroupId,
+    String? sourceKey,
+    bool oppositePanel = false,
   }) async {
+    targetGroupId = _groupForOpening(
+      workspace.id,
+      sourceKey,
+      targetGroupId: targetGroupId,
+      oppositePanel: oppositePanel,
+    );
+    final reuseTabIds = _reuseTabIdsForOpening(
+      workspaceId: workspace.id,
+      targetGroupId: targetGroupId,
+      oppositePanel: oppositePanel,
+    );
     var retainedByTab = false;
     WorkspaceTabRecord? createdTab;
     var existedBeforeRequest = false;
@@ -31,6 +44,7 @@ mixin _WorkbenchControllerPullRequestDiffTabs
         parentOid: parentOid,
         retentionId: retentionId,
         subject: subject,
+        reuseTabIds: reuseTabIds,
       );
       createdTab = tab;
       existedBeforeRequest = previousIds.contains(tab.id);

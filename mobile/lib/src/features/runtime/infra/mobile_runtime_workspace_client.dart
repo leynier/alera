@@ -221,6 +221,7 @@ mixin MobileRuntimeWorkspaceClient {
   }) async {
     await request('workspace.removeManaged', <String, Object?>{
       'id': workspaceId,
+      'closeSessions': true,
       'deleteBranch': ?deleteBranch,
     }, _managedWorkspaceRemoveTimeout);
   }
@@ -299,6 +300,7 @@ mixin MobileRuntimeWorkspaceClient {
     required String operationId,
     required String projectId,
     required String prompt,
+    bool autoAssignSection = false,
   }) async {
     final payload = await requestMap(
       'aiText.workspaceIdentity.generate',
@@ -306,12 +308,16 @@ mixin MobileRuntimeWorkspaceClient {
         'operationId': operationId,
         'projectId': projectId,
         'prompt': prompt,
+        // Additive: an older host ignores the flag and simply omits
+        // sectionId from the response.
+        'autoAssignSection': autoAssignSection,
       },
       const Duration(minutes: 11),
     );
     return GeneratedWorkspaceIdentity(
       workspaceName: payload.requiredString('workspaceName'),
       branchName: payload.requiredString('branchName'),
+      sectionId: payload.optionalString('sectionId'),
     );
   }
 

@@ -262,6 +262,19 @@ impl ServerActor {
                     json!({"workspaceId": workspace_id}),
                 ));
             }
+            RuntimeMutationEffect::WorkspaceArchived { workspace_id } => {
+                if let Some(server) = self.codex.as_ref() {
+                    server.clear_thread_hydrations().await;
+                }
+                self.terminate_terminal_sessions_for_workspace(&workspace_id)
+                    .await;
+                self.broadcast_workspaces_changed(None);
+                self.broadcast_workspace_tabs_changed(Some(&workspace_id));
+                self.broadcast_authenticated(event(
+                    "workbenchLayoutsChanged",
+                    json!({"workspaceId": workspace_id}),
+                ));
+            }
         }
     }
 

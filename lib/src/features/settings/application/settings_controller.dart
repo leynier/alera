@@ -457,6 +457,17 @@ class SettingsController extends _$SettingsController
     );
   });
 
+  Future<void> markTrayHideNoticeShown() => _serialize(() async {
+    if (state.general.trayHideNoticeShown) {
+      return;
+    }
+    await _save(
+      state.copyWith(
+        general: state.general.copyWith(trayHideNoticeShown: true),
+      ),
+    );
+  });
+
   Future<void>? _operations;
 
   // Construct each mutation after prior persistence, including reloads from runtime events.

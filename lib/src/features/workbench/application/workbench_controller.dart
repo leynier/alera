@@ -60,6 +60,7 @@ part 'workbench_controller_projects.dart';
 part 'workbench_controller_project_selection.dart';
 part 'workbench_controller_project_branches.dart';
 part 'workbench_controller_workspace_sleep.dart';
+part 'workbench_controller_workspace_archive.dart';
 part 'workbench_controller_navigation.dart';
 part 'workbench_controller_tab_opening.dart';
 part 'workbench_controller_file_tabs.dart';
@@ -88,6 +89,7 @@ class WorkbenchController extends _$WorkbenchController
         _WorkbenchControllerProjectSelection,
         _WorkbenchControllerProjectBranches,
         _WorkbenchControllerWorkspaceSleep,
+        _WorkbenchControllerWorkspaceArchive,
         _WorkbenchControllerNavigation,
         // Creation builds on project selection and tab opening so the prompt
         // flow can synchronize its agent before appending Setup.
@@ -134,6 +136,7 @@ class WorkbenchController extends _$WorkbenchController
         }
       }
       _startSections();
+      unawaited(_startArchiveSupport());
       _projectsSub = _projectsService.projectRepository.watchAll().listen(
         _onProjectsChanged,
         // A dead watcher is never re-created, so a stream that errors or

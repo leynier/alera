@@ -254,6 +254,17 @@ impl ServerActor {
                 );
                 Ok(true)
             }
+            "workspace.archive" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                let workspace_id = require_string_key(payload, "workspaceId")?;
+                self.start_runtime_mutation(
+                    client_id,
+                    request_id,
+                    RuntimeMutationRequest::ArchiveWorkspace { workspace_id },
+                );
+                Ok(true)
+            }
             "tab.remove" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;

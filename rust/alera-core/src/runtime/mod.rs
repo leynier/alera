@@ -75,6 +75,9 @@ mod orchestration_store_tests;
 mod orchestration_task_store;
 mod project_clone_job_store;
 mod project_clone_models;
+mod pull_request_watch_store;
+#[cfg(test)]
+mod pull_request_watch_store_tests;
 mod relocation_setup_cancellation_store;
 mod relocation_setup_descendant_store;
 mod relocation_setup_process_store;
@@ -100,6 +103,7 @@ mod settings_models;
 mod settings_store;
 #[cfg(test)]
 mod settings_store_tests;
+mod ssh_target_store;
 #[cfg(test)]
 mod ssh_target_store_tests;
 mod store;
@@ -110,6 +114,9 @@ mod workbench_shared_state_models;
 mod workbench_shared_state_store;
 #[cfg(test)]
 mod workbench_shared_state_store_tests;
+mod workspace_archive_store;
+#[cfg(test)]
+mod workspace_archive_store_tests;
 mod workspace_checkout_relocation_barrier;
 mod workspace_content_transfer;
 mod workspace_location_path;
@@ -131,6 +138,7 @@ mod workspace_relocation_store_tests;
 mod workspace_section_store;
 #[cfg(test)]
 mod workspace_section_store_tests;
+mod workspace_tab_store;
 mod workspace_transfer_layout;
 mod worktree_setup_models;
 pub use relocation_setup_store::RelocationSetupReceipt;
@@ -159,8 +167,10 @@ pub use orchestration_message_store::{
 pub use orchestration_models::*;
 pub use orchestration_task_store::NewOrchestrationTask;
 pub use project_clone_models::*;
+pub use pull_request_watch_store::{PullRequestWatch, PullRequestWatchDispatchMark};
 pub use runtime_file_security::*;
 pub use settings_models::*;
+pub use ssh_target_store::SshTargetBootstrapStateUpdate;
 pub use store::*;
 pub use store_error::*;
 pub use text_actions_validation::{validate_text_actions_settings, AI_ASSIST_AGENTS};

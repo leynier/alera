@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/layout/alera_horizontal_scroll_view.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/design_system/surfaces/hover_container.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';

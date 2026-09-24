@@ -10,19 +10,29 @@ mixin _WorkbenchControllerFileTabs
     required Workspace workspace,
     required String relativePath,
     String? targetGroupId,
+    String? sourceKey,
     bool preview = false,
+    bool oppositePanel = false,
   }) {
     return _openReplaceableTab(
       workspace: workspace,
       targetGroupId: targetGroupId,
+      sourceKey: sourceKey,
       preview: preview,
+      oppositePanel: oppositePanel,
       createTab:
-          ({required workspaceId, required preview, replacePreviewTabId}) {
+          ({
+            required workspaceId,
+            required preview,
+            replacePreviewTabId,
+            reuseTabIds,
+          }) {
             return _workspaceTabService.openOrCreateEditorTab(
               workspaceId: workspaceId,
               relativePath: relativePath,
               preview: preview,
               replacePreviewTabId: replacePreviewTabId,
+              reuseTabIds: reuseTabIds,
             );
           },
     );
@@ -32,19 +42,29 @@ mixin _WorkbenchControllerFileTabs
     required Workspace workspace,
     required String relativePath,
     String? targetGroupId,
+    String? sourceKey,
     bool preview = false,
+    bool oppositePanel = false,
   }) {
     return _openReplaceableTab(
       workspace: workspace,
       targetGroupId: targetGroupId,
+      sourceKey: sourceKey,
       preview: preview,
+      oppositePanel: oppositePanel,
       createTab:
-          ({required workspaceId, required preview, replacePreviewTabId}) {
+          ({
+            required workspaceId,
+            required preview,
+            replacePreviewTabId,
+            reuseTabIds,
+          }) {
             return _workspaceTabService.openOrCreateMarkdownViewerTab(
               workspaceId: workspaceId,
               relativePath: relativePath,
               preview: preview,
               replacePreviewTabId: replacePreviewTabId,
+              reuseTabIds: reuseTabIds,
             );
           },
     );
@@ -54,19 +74,29 @@ mixin _WorkbenchControllerFileTabs
     required Workspace workspace,
     required String relativePath,
     String? targetGroupId,
+    String? sourceKey,
     bool preview = false,
+    bool oppositePanel = false,
   }) {
     return _openReplaceableTab(
       workspace: workspace,
       targetGroupId: targetGroupId,
+      sourceKey: sourceKey,
       preview: preview,
+      oppositePanel: oppositePanel,
       createTab:
-          ({required workspaceId, required preview, replacePreviewTabId}) {
+          ({
+            required workspaceId,
+            required preview,
+            replacePreviewTabId,
+            reuseTabIds,
+          }) {
             return _workspaceTabService.openOrCreatePdfTab(
               workspaceId: workspaceId,
               relativePath: relativePath,
               preview: preview,
               replacePreviewTabId: replacePreviewTabId,
+              reuseTabIds: reuseTabIds,
             );
           },
     );
@@ -76,14 +106,18 @@ mixin _WorkbenchControllerFileTabs
     required Workspace workspace,
     required String relativePath,
     String? targetGroupId,
+    String? sourceKey,
     bool preview = false,
+    bool oppositePanel = false,
   }) {
     if (isWorkspaceMarkdownFilePath(relativePath)) {
       return openMarkdownViewerTab(
         workspace: workspace,
         relativePath: relativePath,
         targetGroupId: targetGroupId,
+        sourceKey: sourceKey,
         preview: preview,
+        oppositePanel: oppositePanel,
       );
     }
     return isWorkspacePdfFilePath(relativePath)
@@ -91,13 +125,17 @@ mixin _WorkbenchControllerFileTabs
             workspace: workspace,
             relativePath: relativePath,
             targetGroupId: targetGroupId,
+            sourceKey: sourceKey,
             preview: preview,
+            oppositePanel: oppositePanel,
           )
         : openEditorTab(
             workspace: workspace,
             relativePath: relativePath,
             targetGroupId: targetGroupId,
+            sourceKey: sourceKey,
             preview: preview,
+            oppositePanel: oppositePanel,
           );
   }
 
@@ -108,14 +146,23 @@ mixin _WorkbenchControllerFileTabs
     required WorkspaceGitDiffScope scope,
     String? gitDiffRoot,
     String? targetGroupId,
+    String? sourceKey,
     bool preview = false,
+    bool oppositePanel = false,
   }) {
     return _openReplaceableTab(
       workspace: workspace,
       targetGroupId: targetGroupId,
+      sourceKey: sourceKey,
       preview: preview,
+      oppositePanel: oppositePanel,
       createTab:
-          ({required workspaceId, required preview, replacePreviewTabId}) {
+          ({
+            required workspaceId,
+            required preview,
+            replacePreviewTabId,
+            reuseTabIds,
+          }) {
             return _workspaceTabService.openOrCreateGitDiffTab(
               workspaceId: workspaceId,
               relativePath: relativePath,
@@ -124,6 +171,7 @@ mixin _WorkbenchControllerFileTabs
               gitDiffRoot: gitDiffRoot,
               preview: preview,
               replacePreviewTabId: replacePreviewTabId,
+              reuseTabIds: reuseTabIds,
             );
           },
     );
@@ -141,14 +189,23 @@ mixin _WorkbenchControllerFileTabs
     String? subject,
     String? message,
     String? targetGroupId,
+    String? sourceKey,
     bool preview = false,
+    bool oppositePanel = false,
   }) {
     return _openReplaceableTab(
       workspace: workspace,
       targetGroupId: targetGroupId,
+      sourceKey: sourceKey,
       preview: preview,
+      oppositePanel: oppositePanel,
       createTab:
-          ({required workspaceId, required preview, replacePreviewTabId}) {
+          ({
+            required workspaceId,
+            required preview,
+            replacePreviewTabId,
+            reuseTabIds,
+          }) {
             return _workspaceTabService.openOrCreateGitCommitDiffTab(
               workspaceId: workspaceId,
               relativePath: relativePath,
@@ -162,6 +219,7 @@ mixin _WorkbenchControllerFileTabs
               message: message,
               preview: preview,
               replacePreviewTabId: replacePreviewTabId,
+              reuseTabIds: reuseTabIds,
             );
           },
     );
@@ -183,20 +241,30 @@ mixin _WorkbenchControllerFileTabs
   Future<WorkspaceTabRecord> _openReplaceableTab({
     required Workspace workspace,
     String? targetGroupId,
+    String? sourceKey,
     required bool preview,
+    bool oppositePanel = false,
     required Future<WorkspaceTabRecord> Function({
       required String workspaceId,
       required bool preview,
       String? replacePreviewTabId,
+      Set<String>? reuseTabIds,
     })
     createTab,
   }) {
     final sleepGeneration = _workspaceSleepGeneration[workspace.id] ?? 0;
+    final openingGroupId = _groupForOpening(
+      workspace.id,
+      sourceKey,
+      targetGroupId: targetGroupId,
+      oppositePanel: oppositePanel,
+    );
     return _serializedFileTabMutation(
       () => _openReplaceableTabUnlocked(
         workspace: workspace,
-        targetGroupId: targetGroupId,
+        targetGroupId: openingGroupId,
         preview: preview,
+        oppositePanel: oppositePanel,
         createTab: createTab,
         sleepGeneration: sleepGeneration,
       ),
@@ -254,10 +322,12 @@ mixin _WorkbenchControllerFileTabs
     required Workspace workspace,
     String? targetGroupId,
     required bool preview,
+    required bool oppositePanel,
     required Future<WorkspaceTabRecord> Function({
       required String workspaceId,
       required bool preview,
       String? replacePreviewTabId,
+      Set<String>? reuseTabIds,
     })
     createTab,
     required int sleepGeneration,
@@ -266,9 +336,18 @@ mixin _WorkbenchControllerFileTabs
       if (_isStaleWorkspaceOpen(workspace.id, sleepGeneration)) {
         throw StateError('Workspace is no longer available for an editor tab');
       }
+      final reuseTabIds = _reuseTabIdsForOpening(
+        workspaceId: workspace.id,
+        targetGroupId: targetGroupId,
+        oppositePanel: oppositePanel,
+      );
       var previousTabs = state.tabsFor(workspace.id);
       var replacePreviewTabId = preview
-          ? _previewTabIdInGroup(workspaceId: workspace.id, tabs: previousTabs)
+          ? _previewTabIdInGroup(
+              workspaceId: workspace.id,
+              tabs: previousTabs,
+              targetGroupId: targetGroupId,
+            )
           : null;
       if (replacePreviewTabId != null &&
           ref
@@ -293,6 +372,7 @@ mixin _WorkbenchControllerFileTabs
         workspaceId: workspace.id,
         preview: preview,
         replacePreviewTabId: replacePreviewTabId,
+        reuseTabIds: reuseTabIds,
       );
       final existedBeforeRequest = previousById.containsKey(tab.id);
       if (_isStaleWorkspaceOpen(workspace.id, sleepGeneration) ||
@@ -349,9 +429,29 @@ mixin _WorkbenchControllerFileTabs
   String? _previewTabIdInGroup({
     required String workspaceId,
     required List<WorkspaceTabRecord> tabs,
+    String? targetGroupId,
   }) {
     final panel = state.workspacePanelFor(workspaceId);
+    if (targetGroupId != null) {
+      final group =
+          panel.ensuredMainLayout(workspaceId).groups[targetGroupId] ??
+          panel.ensuredLayout(workspaceId).groups[targetGroupId];
+      final keys = group?.tabIds ?? const <String>[];
+      final previews = tabs.where(
+        (tab) =>
+            tab.isFilePreviewSlot &&
+            keys.contains(WorkspacePanel.tabKey(tab.id)),
+      );
+      return previews
+              .where(
+                (tab) => WorkspacePanel.tabKey(tab.id) == group?.activeTabId,
+              )
+              .firstOrNull
+              ?.id ??
+          previews.firstOrNull?.id;
+    }
     final active = WorkspacePanel.tabId(panel.activeKey);
+
     return tabs
             .where((tab) => tab.id == active && tab.isFilePreviewSlot)
             .firstOrNull

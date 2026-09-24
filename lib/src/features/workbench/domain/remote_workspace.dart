@@ -19,10 +19,6 @@ String remoteWorkspaceFilesMissingCapabilityMessage() {
   return 'This Alera runtime cannot browse files on a remote workspace. Update the app and sidecar, then retry.';
 }
 
-String remoteWorkspaceWriteUnsupportedMessage() {
-  return 'Saving or changing files on a remote SSH workspace is not supported yet. Edit them on the host or in a terminal.';
-}
-
 String sshTargetNotFoundMessage(String hostId) {
   return 'ssh target not found: $hostId. Add it in Settings → Remote Hosts, then install the sidecar.';
 }
@@ -74,6 +70,21 @@ String sshTargetPickerLabel(SshTarget target) {
     return '${target.alias} (Unreachable)';
   }
   return target.alias;
+}
+
+/// The name the UI shows for [hostId]: the target's alias, the raw id when the
+/// target is no longer registered, and "This Device" for the local host.
+String workspaceHostLabel(List<SshTarget> targets, String? hostId) {
+  final remoteId = normalizedRemoteHostId(hostId);
+  if (remoteId == null) {
+    return 'This Device';
+  }
+  for (final target in targets) {
+    if (target.id == remoteId) {
+      return target.alias;
+    }
+  }
+  return remoteId;
 }
 
 String userFacingExceptionMessage(Object error) {

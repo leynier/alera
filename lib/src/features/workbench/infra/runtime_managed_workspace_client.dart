@@ -397,6 +397,7 @@ Workspace _workspaceFromJson(Map<String, Object?> json) {
     ),
     sourceBranch: _emptyToNull(json['sourceBranch']),
     reusesExistingBranch: json['reusesExistingBranch'] == true,
+    isArchived: json['isArchived'] == true,
     tagIds: _stringList(json['tagIds']),
     tagNames: _stringList(json['tagNames']),
     parentWorkspaceId: _emptyToNull(json['parentWorkspaceId']),

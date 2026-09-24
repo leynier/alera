@@ -3,6 +3,10 @@ part of 'project_workbench_sidebar.dart';
 class const _WorkspaceRow({
   required final Project project,
   required final Workspace workspace,
+
+  /// Registered SSH target for a remote workspace, or null when the workspace
+  /// is local or its host was removed from Settings.
+  final SshTarget? hostTarget,
   required final List<WorkspaceAgentRun> agentRuns,
   required final List<WorkspaceAgentRunGroup> agentRunGroups,
   required final AgentStatusEntry? status,
@@ -19,6 +23,7 @@ class const _WorkspaceRow({
   required final VoidCallback onOpenInBrowser,
   required final VoidCallback onOpenProjectSettings,
   required final VoidCallback onSleep,
+  final VoidCallback? onToggleArchived,
   required final VoidCallback onToggleExpanded,
   required final String fileManagerLabel,
   required final VoidCallback onRename,
@@ -197,14 +202,20 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                   widget.workspace,
                                 )) ...<Widget>[
                                   const SizedBox(width: AleraTokens.space6),
-                                  const Tooltip(
-                                    message: 'Project folder',
-                                    child: Icon(
-                                      AleraIcons.workspaceMain,
-                                      size: 12,
-                                      color: AleraTokens.foregroundMuted,
-                                      key: Key('workspace-tray-home'),
-                                    ),
+                                  Tooltip(
+                                    message: widget.workspace.isMain
+                                        ? 'Project folder'
+                                        : 'Linked worktree',
+                                    child: widget.workspace.isMain
+                                        ? const Icon(
+                                            AleraIcons.workspaceMain,
+                                            size: 12,
+                                            color: AleraTokens.foregroundMuted,
+                                            key: Key('workspace-tray-home'),
+                                          )
+                                        : const AleraLinkedWorktreeIcon(
+                                            key: Key('workspace-tray-worktree'),
+                                          ),
                                   ),
                                 ],
                                 if (widget.workspace.isPinned) ...<Widget>[
@@ -216,6 +227,18 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                       size: 12,
                                       color: AleraTokens.foregroundMuted,
                                       key: Key('workspace-tray-pinned'),
+                                    ),
+                                  ),
+                                ],
+                                if (widget.workspace.isArchived) ...<Widget>[
+                                  const SizedBox(width: AleraTokens.space6),
+                                  const Tooltip(
+                                    message: 'Archived workspace',
+                                    child: Icon(
+                                      AleraIcons.archive,
+                                      size: 12,
+                                      color: AleraTokens.foregroundMuted,
+                                      key: Key('workspace-tray-archived'),
                                     ),
                                   ),
                                 ],
@@ -255,6 +278,9 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                     );
                                   },
                                 ),
+                                WorkspacePullRequestWatchIndicator(
+                                  workspaceId: widget.workspace.id,
+                                ),
                                 WorkspaceLinkedIssueTrayIcon(
                                   workspaceId: widget.workspace.id,
                                 ),
@@ -290,15 +316,14 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                 if (hostId != null) ...<Widget>[
                                   const SizedBox(width: AleraTokens.space6),
                                   Tooltip(
-                                    message:
-                                        WorkspaceGraphChips.hostMetadataTooltip(
-                                          hostId,
-                                        ),
-                                    child: const Icon(
-                                      AleraIcons.host,
-                                      size: 12,
-                                      color: AleraTokens.foregroundMuted,
-                                      key: Key('workspace-tray-host'),
+                                    message: workspaceHostTooltip(
+                                      hostId: hostId,
+                                      target: widget.hostTarget,
+                                    ),
+                                    child: AleraHostOsIcon(
+                                      key: const Key('workspace-tray-host'),
+                                      os: sshTargetHostOs(widget.hostTarget),
+                                      size: AleraTokens.iconSm,
                                     ),
                                   ),
                                 ],

@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:alera/src/features/workbench/application/workbench_view_prefs_repository.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/runtime_workbench_view_prefs_repository.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,6 +21,7 @@ void main() {
           'sectionSort': 'recent',
           'collapsedSectionIds': ['s'],
           'othersSectionCollapsed': true,
+          'selectedSectionIds': ['sec-1'],
         },
       };
       final repo = RuntimeWorkbenchViewPrefsRepository(
@@ -29,6 +32,7 @@ void main() {
       expect(prefs.groupBy, WorkbenchGroupBy.section);
       expect(prefs.sectionSort, WorkbenchSortBy.recent);
       expect(prefs.collapsedSectionIds, {'s'});
+      expect(prefs.selectedSectionIds, {'sec-1'});
       await repo.save(prefs);
       expect(
         client.payloads['workbenchViewPrefs.update']!.last['prefs'],
@@ -38,17 +42,48 @@ void main() {
         client.payloads['workbenchViewPrefs.update']!.last['prefs'],
         containsPair('othersSectionCollapsed', true),
       );
+      expect(
+        client.payloads['workbenchViewPrefs.update']!.last['prefs'],
+        containsPair('selectedSectionIds', ['sec-1']),
+      );
       client.supportsSections = false;
       final fallback = await repo.load();
       expect(fallback.groupBy, WorkbenchGroupBy.project);
       expect(fallback.sectionSort, WorkbenchSortBy.recent);
       expect(fallback.collapsedSectionIds, {'s'});
+      expect(fallback.selectedSectionIds, {'sec-1'});
       await repo.save(prefs);
       final old =
           client.payloads['workbenchViewPrefs.update']!.last['prefs'] as Map;
       expect(old['groupBy'], 'project');
       expect(old.containsKey('sectionSort'), isFalse);
       expect(old.containsKey('collapsedSectionIds'), isFalse);
+      expect(old.containsKey('selectedSectionIds'), isFalse);
+    },
+  );
+
+  test(
+    'an echo that omits selectedSectionIds preserves the local selection',
+    () async {
+      final client = _FakeRuntimeHostClient()
+        ..supportsSections = true
+        ..responses['workbenchViewPrefs.get'] = <String, Object?>{
+          'revision': 4,
+          'desktopInitialized': true,
+          'prefs': <String, Object?>{'groupBy': 'project'},
+        };
+      final legacy = _MemoryViewPrefsRepository()
+        ..prefs = WorkbenchViewPrefs.defaults.copyWith(
+          selectedSectionIds: const <String>{'sec-1'},
+        );
+      final repository = RuntimeWorkbenchViewPrefsRepository(
+        client: client,
+        legacyRepository: legacy,
+      );
+
+      final loaded = await repository.load();
+      expect(loaded.selectedSectionIds, const <String>{'sec-1'});
+      expect(legacy.prefs.selectedSectionIds, const <String>{'sec-1'});
     },
   );
 
@@ -77,6 +112,33 @@ void main() {
       containsPair('showActiveWorkspacesOnly', false),
     );
     expect(legacy.prefs.showActiveWorkspacesOnly, isFalse);
+  });
+
+  test('loads and saves the shared archived workspace filter', () async {
+    final client = _FakeRuntimeHostClient()
+      ..responses['workbenchViewPrefs.get'] = <String, Object?>{
+        'revision': 4,
+        'desktopInitialized': true,
+        'prefs': <String, Object?>{'showArchivedWorkspaces': true},
+      }
+      ..responses['workbenchViewPrefs.update'] = <String, Object?>{
+        'revision': 5,
+      };
+    final legacy = _MemoryViewPrefsRepository();
+    final repository = RuntimeWorkbenchViewPrefsRepository(
+      client: client,
+      legacyRepository: legacy,
+    );
+
+    final loaded = await repository.load();
+    expect(loaded.showArchivedWorkspaces, isTrue);
+
+    await repository.save(loaded.copyWith(showArchivedWorkspaces: false));
+    expect(
+      client.payloads['workbenchViewPrefs.update']?.single['prefs'],
+      containsPair('showArchivedWorkspaces', false),
+    );
+    expect(legacy.prefs.showArchivedWorkspaces, isFalse);
   });
 
   test('shares the search and source control view options', () async {
@@ -112,6 +174,49 @@ void main() {
     expect(sent['searchIncludeIgnored'], isTrue);
     expect(sent['gitDiffViewMode'], 'flat');
     expect(sent['gitDiffGroupMode'], 'unified');
+  });
+
+  test('shares main-panel tab ids from workspace panels', () async {
+    final client = _FakeRuntimeHostClient()
+      ..responses['workbenchViewPrefs.get'] = <String, Object?>{
+        'revision': 4,
+        'desktopInitialized': true,
+        'prefs': <String, Object?>{'groupBy': 'project'},
+      }
+      ..responses['workbenchViewPrefs.update'] = <String, Object?>{
+        'revision': 5,
+      };
+    final panel = const WorkspacePanel().reconcile(<WorkspaceTabRecord>[
+      WorkspaceTabRecord(
+        id: 'primary',
+        workspaceId: 'w-1',
+        title: 'Terminal',
+        createdAt: DateTime.utc(2026),
+        updatedAt: DateTime.utc(2026),
+      ),
+      WorkspaceTabRecord(
+        id: 'side',
+        workspaceId: 'w-1',
+        title: 'Review',
+        createdAt: DateTime.utc(2026),
+        updatedAt: DateTime.utc(2026),
+      ),
+    ]);
+    final repository = RuntimeWorkbenchViewPrefsRepository(
+      client: client,
+      legacyRepository: _MemoryViewPrefsRepository(),
+    );
+
+    await repository.save(
+      WorkbenchViewPrefs.defaults.copyWith(
+        workspacePanels: <String, WorkspacePanel>{'w-1': panel},
+      ),
+    );
+    final sent =
+        client.payloads['workbenchViewPrefs.update']!.single['prefs'] as Map;
+    expect(sent['workspaceMainTabIds'], {
+      'w-1': <String>['primary'],
+    });
   });
 
   test(

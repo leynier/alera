@@ -28,6 +28,7 @@ const _review = HostedReview(
 class _Callbacks {
   int unlinkCalls = 0;
   int closeCalls = 0;
+  int archiveWorkspaceCalls = 0;
   int removeWorkspaceCalls = 0;
   bool? draftStatus;
   final List<String> commentBodies = <String>[];
@@ -51,6 +52,7 @@ Widget _wrap(
   bool canCloseReview = true,
   bool canChangeDraftStatus = true,
   bool canComment = true,
+  bool offerArchiveWorkspace = true,
   bool offerRemoveWorkspace = true,
 }) {
   return MaterialApp(
@@ -69,6 +71,11 @@ Widget _wrap(
         onUnlink: () async {
           callbacks.unlinkCalls++;
         },
+        onArchiveWorkspace: offerArchiveWorkspace
+            ? () {
+                callbacks.archiveWorkspaceCalls++;
+              }
+            : null,
         onRemoveWorkspace: offerRemoveWorkspace
             ? () {
                 callbacks.removeWorkspaceCalls++;

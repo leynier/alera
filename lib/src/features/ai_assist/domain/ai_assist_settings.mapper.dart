@@ -107,6 +107,8 @@ class AiAssistAgentMapper extends EnumMapper<AiAssistAgent> {
         return AiAssistAgent.opencode;
       case r'opencode2':
         return AiAssistAgent.opencode2;
+      case 'opencode-go':
+        return AiAssistAgent.opencodeGo;
       case r'pi':
         return AiAssistAgent.pi;
       case r'amp':
@@ -139,6 +141,8 @@ class AiAssistAgentMapper extends EnumMapper<AiAssistAgent> {
         return r'opencode';
       case AiAssistAgent.opencode2:
         return r'opencode2';
+      case AiAssistAgent.opencodeGo:
+        return 'opencode-go';
       case AiAssistAgent.pi:
         return r'pi';
       case AiAssistAgent.amp:
@@ -154,9 +158,9 @@ class AiAssistAgentMapper extends EnumMapper<AiAssistAgent> {
 }
 
 extension AiAssistAgentMapperExtension on AiAssistAgent {
-  String toValue() {
+  dynamic toValue() {
     AiAssistAgentMapper.ensureInitialized();
-    return MapperContainer.globals.toValue<AiAssistAgent>(this) as String;
+    return MapperContainer.globals.toValue<AiAssistAgent>(this);
   }
 }
 

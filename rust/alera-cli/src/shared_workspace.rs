@@ -79,7 +79,8 @@ async fn prepare_shared_workspace_with<E: crate::ssh_remote::RemoteHostExecutor>
         .find_project(&request.project_id)
         .await?
         .ok_or_else(|| anyhow!("Project not found: {}", request.project_id))?;
-    let host_id = crate::ssh_remote::normalized_host_id(request.host_id.as_deref());
+    let host_id =
+        crate::project_hosts::workspace_host_id(store, &project, request.host_id.as_deref()).await;
     if let Some(parent_id) = request.parent_workspace_id.as_deref() {
         if store.find_workspace(parent_id).await?.is_none() {
             bail!("Parent workspace not found: {parent_id}");
@@ -92,7 +93,7 @@ async fn prepare_shared_workspace_with<E: crate::ssh_remote::RemoteHostExecutor>
         crate::project_checkout_inspection::inspect(project.repo_path.clone(), project.kind).await?
     } else {
         let checkout = store.find_project_checkout(&project.id, &host_id).await?
-            .ok_or_else(|| anyhow!("Register a project checkout on the SSH host before creating a shared workspace"))?;
+            .ok_or_else(|| anyhow!("This project is not on that host yet. Add it first with `alera project hosts add --project-id {} --host-id {host_id}`, which clones it there, then create the workspace", project.id))?;
         let inspection = crate::remote_project_checkout::inspect_remote(
             store,
             &host_id,
@@ -101,7 +102,7 @@ async fn prepare_shared_workspace_with<E: crate::ssh_remote::RemoteHostExecutor>
             executor,
         )
         .await?;
-        if inspection.path != checkout.path {
+        if !crate::windows_path_form::same_path(&inspection.path, &checkout.path) {
             bail!("The registered SSH checkout now resolves to a different directory; no task was created");
         }
         if require_remote_automation_declaration {
@@ -133,7 +134,7 @@ async fn prepare_shared_workspace_with<E: crate::ssh_remote::RemoteHostExecutor>
     if let Some(existing) = store.find_workspace(&id).await? {
         if existing.project_id != project.id
             || existing.host_id != host_id
-            || existing.path != path
+            || !crate::windows_path_form::same_path(&existing.path, &path)
             || existing.kind != WorkspaceKind::Main
             || request
                 .name
@@ -182,6 +183,7 @@ async fn prepare_shared_workspace_with<E: crate::ssh_remote::RemoteHostExecutor>
         source_branch: None,
         reuses_existing_branch: false,
         is_pinned: false,
+        is_archived: false,
         tag_ids: vec![],
         tag_names: vec![],
         section_id: None,

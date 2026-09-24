@@ -21,6 +21,8 @@ const String mobileSourceControlWritesCapability =
 const String aiTextCommitMessageCapability = 'aiTextCommitMessageV1';
 const String mobilePullRequestCapability = 'mobilePullRequestV1';
 const String mobilePullRequestActionsCapability = 'mobilePullRequestActionsV1';
+const String mobilePullRequestSummariesCapability =
+    'mobilePullRequestSummariesV1';
 const String aiTextPullRequestDetailsCapability = 'aiTextPullRequestDetailsV1';
 const String mobilePullRequestShipCapability = 'mobilePullRequestShipV1';
 const String sharedCheckoutWorkspacesCapability = 'sharedCheckoutWorkspacesV1';
@@ -46,3 +48,11 @@ bool requiresSharedCheckoutSupport(String operation) => switch (operation) {
 /// Linked issues (`linkedIssue.*`, `issue.fetch`, `issueUrl` on
 /// `workspace.createManaged`). Additive: never bump the protocol version.
 const String linkedIssuesCapability = 'linkedIssuesV1';
+
+/// Watch and Fix sessions (`pullRequestWatch.list` / `find`). Additive.
+const String pullRequestWatchCapability = 'pullRequestWatchV1';
+
+/// Workspaces on another host: `mobile.hosts.list` names them, and the hub
+/// forwards the file, search, quick open, git, pull request and AI Assist
+/// verbs to the owning host. Additive.
+const String mobileRemoteWorkspacesCapability = 'mobileRemoteWorkspacesV1';

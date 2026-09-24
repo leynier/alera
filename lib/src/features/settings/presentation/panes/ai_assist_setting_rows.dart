@@ -18,7 +18,7 @@ class const AiAssistAgentRow({
   Widget build(BuildContext context) {
     return AleraSettingRow(
       title: 'Agent',
-      description: 'CLI used for AI Assist jobs.',
+      description: 'Provider used for AI Assist jobs.',
       child: AleraDropdownField<AiAssistAgent>(
         key: ValueKey<String>('ai-assist-agent-${value.key}'),
         value: value,

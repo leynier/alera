@@ -52,7 +52,7 @@ alera project remove --id <project-id>
 
 ## Managed Workspaces
 
-Create a new Git worktree workspace from a source branch:
+Create a new Git worktree workspace from a source branch. `--source-branch` may be omitted on `workspace add --worktree` when the project sets `new_workspace.source_branch` in `alera.toml` or Settings → Projects:
 
 This command is the same from Bash, PowerShell, and CMD when no explicit path is passed:
 
@@ -183,6 +183,20 @@ alera workspace --json issue show
 alera issue --json show https://dev.azure.com/org/project/_workitems/edit/42
 ```
 
+### Watch And Fix
+
+Start, inspect, or stop the pull-request watch from an Alera terminal. The calling terminal is the default agent (`ALERA_TERMINAL_HANDLE`). The workspace must already have a linked pull request.
+
+```bash
+alera workspace pr-watch show
+alera workspace pr-watch start
+alera workspace pr-watch start --merge
+alera workspace pr-watch start --no-conflicts --profile "Grok Build"
+alera workspace pr-watch stop
+```
+
+`--merge` is Watch, Fix and Merge. `--no-checks`, `--no-comments`, and `--no-conflicts` turn off those problems; at least one must stay on. `--handle` and `--profile` / `--profile-id` override the bound agent. `--workspace-id` and `--review-number` override the defaults. Use `--json` for structured output.
+
 ## Tags, Tabs, And Relations
 
 Common runtime metadata commands:
@@ -195,8 +209,11 @@ alera tag upsert --name "Review" --color "#3b82f6"
 alera workspace tag --workspace-id <workspace-id> --tag-id <tag-id>
 alera workspace untag --workspace-id <workspace-id> --tag-id <tag-id>
 alera workspace link --parent-workspace-id <parent-id> --child-workspace-id <child-id>
+alera workspace rename --id <workspace-id> --name "Checkout flow"
 alera workspace pin --id <workspace-id>
 alera workspace unpin --id <workspace-id>
+alera workspace archive --id <workspace-id>
+alera workspace unarchive --id <workspace-id>
 alera tab list --workspace-id <workspace-id>
 alera tab create --workspace-id <workspace-id> --title "Terminal" --kind terminal
 ```
@@ -210,4 +227,28 @@ alera terminal write --handle <terminal-handle> --text "continue" --enter
 alera terminal write --handle <terminal-handle> --stdin --enter
 ```
 
+`workspace rename` changes only the display name shown on desktop and mobile; the branch and worktree folder stay as they are. `--id` defaults to the workspace of the current Alera terminal, and `--name` is trimmed and must not be empty. With a live runtime host, connected apps refresh immediately.
+
 JSON list commands return a consistent `{ "kind": "...", "items": [...], "filters": {...} }` envelope. Read `items` rather than relying on a resource-specific top-level array.
+
+## Sections
+
+Sections group workspaces in the sidebar without moving files or changing parent links. Prefer a live runtime host so connected apps refresh; when no host is connected the CLI updates the runtime store the same way `workspace pin` does. Do not edit `runtime.sqlite` to assign sections.
+
+`--section` resolves by case-insensitive unique name from `section list`. Ambiguous or missing names fail closed. `--section` and `--section-id` on `workspace add` and `workspace start` are optional and default unset.
+
+These commands are the same from Bash, PowerShell, and CMD:
+
+```bash
+alera workspace section list
+alera workspace --json section list
+alera workspace section create --name Alera --workspace-id <workspace-id>
+alera workspace section set --workspace-id <workspace-id> --section-id <section-id>
+alera workspace section set --workspace-id <workspace-id> --section Alera
+alera workspace section clear --workspace-id <workspace-id>
+alera workspace section remove --id <section-id>
+alera workspace add --project-id <project-id> --worktree --branch <branch> --source-branch main --section Alera
+alera workspace --json start --worktree --profile "Grok Build" --prompt "Add the feature" --section Alera
+```
+
+JSON section lists use `{ "kind": "workspaceSections", "items": [...], "filters": {} }`.

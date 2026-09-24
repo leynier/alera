@@ -30,7 +30,10 @@ const resourceSnapshotClosedInterval = Duration(seconds: 15);
 const _resourceSnapshotTimeout = Duration(seconds: 5);
 
 /// Whether the resource panel is on screen. Drives the polling cadence.
-@riverpod
+///
+/// This flag stays alive with [resourceSnapshot], which watches it for the
+/// whole session.
+@Riverpod(keepAlive: true)
 class ResourcePanelOpen extends _$ResourcePanelOpen {
   @override
   bool build() => false;

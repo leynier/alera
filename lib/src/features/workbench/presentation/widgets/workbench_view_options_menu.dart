@@ -5,20 +5,23 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/chips/alera_chip.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
-import 'package:alera/src/design_system/forms/alera_checkbox.dart';
+import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_dialog_header.dart';
+import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_selection_order.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
+import 'package:alera/src/features/workbench/domain/workspace_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'workbench_view_options_controls.dart';
+part 'workbench_view_options_sections.dart';
 part 'workbench_view_options_tags.dart';
 
 /// Filter/sort/group icon button that opens the view-options modal centered on
@@ -32,13 +35,17 @@ class const WorkbenchViewOptionsButton({super.key}) extends ConsumerWidget {
     );
     final hasFilters =
         prefs.selectedProjectIds.isNotEmpty ||
+        prefs.selectedSectionIds.isNotEmpty ||
         prefs.selectedTagIds.isNotEmpty ||
+        prefs.showArchivedWorkspaces !=
+            WorkbenchViewPrefs.defaults.showArchivedWorkspaces ||
         prefs.showActiveWorkspacesOnly !=
             WorkbenchViewPrefs.defaults.showActiveWorkspacesOnly ||
         prefs.showPinnedWorkspacesBelow !=
             WorkbenchViewPrefs.defaults.showPinnedWorkspacesBelow ||
         prefs.groupBy != WorkbenchViewPrefs.defaults.groupBy ||
         prefs.projectSort != WorkbenchViewPrefs.defaults.projectSort ||
+        prefs.sectionSort != WorkbenchViewPrefs.defaults.sectionSort ||
         prefs.workspaceSort != WorkbenchViewPrefs.defaults.workspaceSort;
     return Stack(
       clipBehavior: .none,
@@ -106,8 +113,11 @@ class const _WorkbenchViewOptionsPanel({required final VoidCallback onDismiss})
 class _WorkbenchViewOptionsPanelState
     extends ConsumerState<_WorkbenchViewOptionsPanel> {
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _sectionSearchController =
+      TextEditingController();
   final TextEditingController _tagSearchController = TextEditingController();
   String _projectQuery = '';
+  String _sectionQuery = '';
   String _tagQuery = '';
 
   /// Tags known to the runtime, loaded once when the panel opens. Until (or if
@@ -122,6 +132,12 @@ class _WorkbenchViewOptionsPanelState
       final value = _searchController.text.trim().toLowerCase();
       if (value != _projectQuery) {
         setState(() => _projectQuery = value);
+      }
+    });
+    _sectionSearchController.addListener(() {
+      final value = _sectionSearchController.text.trim().toLowerCase();
+      if (value != _sectionQuery) {
+        setState(() => _sectionQuery = value);
       }
     });
     _tagSearchController.addListener(() {
@@ -154,6 +170,7 @@ class _WorkbenchViewOptionsPanelState
   @override
   void dispose() {
     _searchController.dispose();
+    _sectionSearchController.dispose();
     _tagSearchController.dispose();
     super.dispose();
   }
@@ -207,6 +224,21 @@ class _WorkbenchViewOptionsPanelState
           (p) =>
               _projectQuery.isEmpty ||
               p.name.toLowerCase().contains(_projectQuery),
+        )
+        .toList(growable: false);
+
+    final orderedSections = [...state.sections]
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    final selectedSections = <WorkspaceSection>[
+      for (final section in orderedSections)
+        if (prefs.selectedSectionIds.contains(section.id)) section,
+    ];
+    final availableSections = orderedSections
+        .where((s) => !prefs.selectedSectionIds.contains(s.id))
+        .where(
+          (s) =>
+              _sectionQuery.isEmpty ||
+              s.name.toLowerCase().contains(_sectionQuery),
         )
         .toList(growable: false);
 
@@ -285,24 +317,16 @@ class _WorkbenchViewOptionsPanelState
                     ),
                   ],
                   const SizedBox(height: AleraTokens.space12),
-                  _SectionLabel(text: 'Show Workspaces'),
-                  const SizedBox(height: AleraTokens.space6),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: AleraCheckbox(
-                      value: prefs.showActiveWorkspacesOnly,
-                      onChanged: controller.setShowActiveWorkspacesOnly,
-                      label: 'Active Workspaces Only',
-                    ),
-                  ),
-                  const SizedBox(height: AleraTokens.space6),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: AleraCheckbox(
-                      value: prefs.showPinnedWorkspacesBelow,
-                      onChanged: controller.setShowPinnedWorkspacesBelow,
-                      label: 'Repeat Pinned Workspaces',
-                    ),
+                  _ShowWorkspacesSettings(
+                    showActiveWorkspacesOnly: prefs.showActiveWorkspacesOnly,
+                    showPinnedWorkspacesBelow: prefs.showPinnedWorkspacesBelow,
+                    showArchivedWorkspaces: prefs.showArchivedWorkspaces,
+                    onShowActiveWorkspacesOnly:
+                        controller.setShowActiveWorkspacesOnly,
+                    onShowPinnedWorkspacesBelow:
+                        controller.setShowPinnedWorkspacesBelow,
+                    onShowArchivedWorkspaces:
+                        controller.setShowArchivedWorkspaces,
                   ),
                   const SizedBox(height: AleraTokens.space16),
                   const Divider(height: 1, color: AleraTokens.borderSubtle),
@@ -347,6 +371,26 @@ class _WorkbenchViewOptionsPanelState
                     },
                     theme: theme,
                   ),
+                  if (state.supportsSections) ...<Widget>[
+                    const SizedBox(height: AleraTokens.space16),
+                    const Divider(height: 1, color: AleraTokens.borderSubtle),
+                    const SizedBox(height: AleraTokens.space12),
+                    _SectionsFilterSection(
+                      selectedSections: selectedSections,
+                      availableSections: availableSections,
+                      query: _sectionQuery,
+                      searchController: _sectionSearchController,
+                      onAdd: (sectionId) {
+                        controller.addSectionFilter(sectionId);
+                        _sectionSearchController.clear();
+                      },
+                      onRemove: controller.removeSectionFilter,
+                      onClear: prefs.selectedSectionIds.isEmpty
+                          ? null
+                          : controller.clearSectionFilters,
+                      theme: theme,
+                    ),
+                  ],
                   const SizedBox(height: AleraTokens.space16),
                   const Divider(height: 1, color: AleraTokens.borderSubtle),
                   const SizedBox(height: AleraTokens.space12),

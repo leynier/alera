@@ -27,15 +27,20 @@ mixin FakeWorkspaceLifecycleClient {
   Future<void>? listAgentProfilesDelay;
   Future<void>? generateWorkspaceIdentityDelay;
   Object? listAgentProfilesError;
+  bool? lastGenerateWorkspaceIdentityAutoAssign;
+
+  List<ProjectSummary> projects = const <ProjectSummary>[];
+  List<WorkspaceSummary> workspaces = const <WorkspaceSummary>[];
+  bool confirmWorkspaceRemoval = true;
 
   Future<WorkspaceSidebarSnapshot> workspaceSidebarSnapshot() async {
-    return const WorkspaceSidebarSnapshot(
-      projects: <ProjectSummary>[],
-      workspaces: <WorkspaceSummary>[],
-      tags: <WorkspaceTagSummary>[],
-      activity: <String, DateTime>{},
-      viewPrefs: MobileViewPrefs(),
-      confirmWorkspaceRemoval: true,
+    return WorkspaceSidebarSnapshot(
+      projects: projects,
+      workspaces: workspaces,
+      tags: const <WorkspaceTagSummary>[],
+      activity: const <String, DateTime>{},
+      viewPrefs: const MobileViewPrefs(),
+      confirmWorkspaceRemoval: confirmWorkspaceRemoval,
     );
   }
 
@@ -52,7 +57,7 @@ mixin FakeWorkspaceLifecycleClient {
   Future<List<AgentPresenceSummary>> listAgentPresence() async => agentPresence;
 
   Future<List<ProjectSummary>> listProjects() async {
-    return const <ProjectSummary>[];
+    return projects;
   }
 
   Future<ProjectBranches> listBranches(
@@ -82,8 +87,10 @@ mixin FakeWorkspaceLifecycleClient {
     required String operationId,
     required String projectId,
     required String prompt,
+    bool autoAssignSection = false,
   }) async {
     calls.add('generateWorkspaceIdentity $projectId');
+    lastGenerateWorkspaceIdentityAutoAssign = autoAssignSection;
     final delay = generateWorkspaceIdentityDelay;
     if (delay != null) {
       await delay;
@@ -114,7 +121,7 @@ mixin FakeWorkspaceLifecycleClient {
   }
 
   Future<List<WorkspaceSummary>> listWorkspaces() async {
-    return const <WorkspaceSummary>[];
+    return workspaces;
   }
 
   Future<void> setWorkspacePinned(String workspaceId, bool isPinned) async {
@@ -207,7 +214,17 @@ mixin FakeWorkspaceLifecycleClient {
   Future<WorkspaceSummary> renameWorkspace(String id, String name) async =>
       WorkspaceSummary(id: id, projectId: 'p1', name: name, path: '/tmp/$id');
 
-  Future<void> sleepWorkspace(String workspaceId) async {}
+  Future<void> sleepWorkspace(String workspaceId) async {
+    calls.add('sleep $workspaceId');
+  }
+
+  Future<void> archiveWorkspace(String workspaceId) async {
+    calls.add('archive $workspaceId');
+  }
+
+  Future<void> unarchiveWorkspace(String workspaceId) async {
+    calls.add('unarchive $workspaceId');
+  }
 
   Future<String?> workspaceRepositoryRemoteUrl(String workspaceId) async =>
       null;

@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
 import 'package:alera_mobile/src/design_system/markdown/alera_markdown_view.dart';
+import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
@@ -11,11 +13,13 @@ import 'package:alera_mobile/src/features/terminal/presentation/terminal_keys_se
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_tab_view.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/agent_identity_icon.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_viewer_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/fake_ai_dictation_settings.dart';
 import 'support/fake_terminal_client.dart';
 import 'support/fake_workspace_files_client.dart';
 
@@ -243,12 +247,18 @@ void main() {
         ),
       ];
     addTearDown(client.dispose);
+    tester.view.physicalSize = const Size(800, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           terminalClientProvider('host-1').overrideWith((ref) async => client),
           workspaceClientProvider('host-1').overrideWith((ref) async => client),
+          mobileAiDictationSettingsControllerProvider.overrideWith(
+            () => FakeMobileAiDictationSettingsController(),
+          ),
         ],
         child: const MaterialApp(
           home: WorkspaceTabsScreen(
@@ -278,6 +288,35 @@ void main() {
       tester.getTopLeft(find.text('New Terminal')).dy,
       lessThan(tester.getTopLeft(find.text('Shown Codex')).dy),
     );
+    expect(
+      find.descendant(
+        of: find
+            .ancestor(of: find.text('New Terminal'), matching: find.byType(Row))
+            .first,
+        matching: find.byIcon(Icons.terminal),
+      ),
+      findsOneWidget,
+    );
+    final shownProfileIcon = find.descendant(
+      of: find
+          .ancestor(of: find.text('Shown Codex'), matching: find.byType(Row))
+          .first,
+      matching: find.byType(AgentIdentityIcon),
+    );
+    expect(shownProfileIcon, findsOneWidget);
+    expect(
+      tester.widget<AgentIdentityIcon>(shownProfileIcon).agentType,
+      'codex',
+    );
+    expect(
+      tester.widget<AgentIdentityIcon>(shownProfileIcon).size,
+      AleraTokens.space20,
+    );
+    expect(
+      tester.widget<AgentIdentityIcon>(shownProfileIcon).showTooltip,
+      isFalse,
+    );
+    expect(find.byIcon(Icons.smart_toy), findsNothing);
 
     await tester.tapAt(const Offset(1, 1));
     await tester.pumpAndSettle();
@@ -312,6 +351,15 @@ void main() {
     await tester.tap(find.byTooltip('New Tab'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Shown Codex'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Start Shown Codex'), findsOneWidget);
+    expect(
+      client.calls.where((call) => call.startsWith('launchAgentProfile')),
+      isEmpty,
+    );
+
+    await tester.tap(find.text('Skip'));
     await tester.pumpAndSettle();
 
     expect(

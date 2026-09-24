@@ -24,6 +24,13 @@ impl ServerActor {
         if session.tab_id != event.tab_id {
             return;
         }
+        // Published before this runtime's own settings are consulted: a hub
+        // that proxies the terminal decides with the settings the user keeps
+        // there, which this host may not share.
+        self.broadcast_authenticated_local(crate::terminal_host::protocol::event(
+            super::remote_agent_presence_relay::AGENT_HOOK_EVENT,
+            super::remote_agent_presence_relay::hook_event_payload(&event),
+        ));
         if session.workspace_id != event.workspace_id {
             let Ok(Some(tab)) = self.runtime_store.find_workspace_tab(&session.tab_id).await else {
                 return;

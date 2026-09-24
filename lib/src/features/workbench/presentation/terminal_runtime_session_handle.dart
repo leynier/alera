@@ -94,6 +94,10 @@ class _XtermTerminalSessionHandle(
       ValueNotifier<TerminalRestoreProgress?>(null);
   int _restoreGeneration = 0, _restoreTotalChars = 0, _restoreWrittenChars = 0;
   bool _pendingInteractionModeReset = false;
+
+  /// Set only while a restored snapshot is being parsed. See
+  /// [_handleTerminalInput].
+  bool _replayingRestore = false;
   @override
   int _pointerInputCatchUpChars = 0;
   @override
@@ -228,6 +232,7 @@ class _XtermTerminalSessionHandle(
       key: _terminalViewKey,
       shortcuts: xterm.clipboardTerminalShortcuts,
       shiftOverridesMouseReporting: true,
+      dragOverridesMouseReporting: _settings.dragSelectsInTuis,
       controller: _terminalController,
       scrollController: _scrollController,
       focusNode: _focusNode,
@@ -273,6 +278,13 @@ class _XtermTerminalSessionHandle(
   }
 
   void _handleTerminalInput(String data) {
+    // A snapshot is the raw PTY stream, so it still holds the queries the
+    // program sent when it started (XTVERSION, device attributes, cursor
+    // reports). The emulator answers them again as it replays them, but the
+    // program got its answer long ago and would read these as typed text.
+    if (_replayingRestore) {
+      return;
+    }
     _ptySession?.writeBytes(utf8.encode(data));
   }
 
@@ -520,7 +532,8 @@ class _XtermTerminalSessionHandle(
 
   void _handleTerminalOutput(String data) => _queueTerminalOutput(data);
 
-  void _writeToTerminal(String data) => _writeSessionTerminal(this, data);
+  void _writeToTerminal(String data, {bool restore = false}) =>
+      _writeSessionTerminal(this, data, restore: restore);
 
   void _queueTerminalOutput(
     String data, {

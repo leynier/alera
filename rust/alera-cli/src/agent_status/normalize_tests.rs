@@ -34,23 +34,41 @@ fn every_supported_agent_reports_working() {
     }
 }
 
-// Cursor emits the `before` event whether or not the user is asked, so the
-// `after` event is the only thing that ends the wait for a long command.
+// Cursor emits the `before` event whether or not the user is asked, so those
+// events stay working. A human-input `preToolUse` stays waiting if Cursor
+// later emits it for AskQuestion.
 #[test]
-fn cursor_execution_events_close_the_approval_wait() {
-    for event_name in ["beforeShellExecution", "beforeMCPExecution"] {
-        let status = normalize_hook_event(&event("cursor", event_name, json!({})), None).unwrap();
-        assert_eq!(status.state, AgentPresenceState::Waiting, "{event_name}");
-    }
-    for event_name in ["afterShellExecution", "afterMCPExecution"] {
+fn cursor_execution_events_stay_working() {
+    for event_name in [
+        "beforeShellExecution",
+        "beforeMCPExecution",
+        "afterShellExecution",
+        "afterMCPExecution",
+    ] {
         let status = normalize_hook_event(
             &event("cursor", event_name, json!({ "command": "sleep 30" })),
             None,
         )
         .unwrap();
         assert_eq!(status.state, AgentPresenceState::Working, "{event_name}");
-        assert_eq!(status.tool_input.as_deref(), Some("sleep 30"));
     }
+}
+
+#[test]
+fn cursor_ask_question_is_waiting() {
+    let status = normalize_hook_event(
+        &event(
+            "cursor",
+            "preToolUse",
+            json!({
+                "tool_name": "AskQuestion",
+                "tool_input": { "title": "Which path?" }
+            }),
+        ),
+        None,
+    )
+    .unwrap();
+    assert_eq!(status.state, AgentPresenceState::Waiting);
 }
 
 #[test]

@@ -62,6 +62,9 @@ Future<void> _runCreateWorkspaceFlow(
     beforeAccess: ref.read(runtimeStateMigrationProvider).ensureMigrated,
   );
   final sshTargets = await _loadSshTargets(ref);
+  final hostEnrollment = ProjectHostEnrollmentController(
+    _supportsProjectHosts(ref) ? projectHostAdder(ref) : null,
+  );
   // Read from the snapshot the sidebar already keeps rather than asking the
   // host again, so opening the form never waits on a runtime connection, and
   // never starts a watch of its own when nothing else is watching.
@@ -70,24 +73,30 @@ Future<void> _runCreateWorkspaceFlow(
       ref.exists(linkedIssueSnapshotProvider) &&
       ref.read(linkedIssuesSupportedProvider);
   if (!context.mounted) {
+    hostEnrollment.dispose();
     return;
   }
-  await _showCreateWorkspaceDialogs(
-    context,
-    ref,
-    controller: controller,
-    projects: projects,
-    parentCandidates: parentCandidates,
-    sshTargets: sshTargets,
-    resolvedInitialProject: resolvedInitialProject,
-    profiles: profiles,
-    runtime: runtime,
-    fetchIssue: linkedIssuesSupported ? issueRepository.fetch : null,
-    retryManual: retryManual,
-    retryPrompt: retryPrompt,
-    retryError: retryError,
-    remainingRetryJobId: remainingRetryJobId,
-  );
+  try {
+    await _showCreateWorkspaceDialogs(
+      context,
+      ref,
+      controller: controller,
+      projects: projects,
+      parentCandidates: parentCandidates,
+      sshTargets: sshTargets,
+      hostEnrollment: hostEnrollment,
+      resolvedInitialProject: resolvedInitialProject,
+      profiles: profiles,
+      runtime: runtime,
+      fetchIssue: linkedIssuesSupported ? issueRepository.fetch : null,
+      retryManual: retryManual,
+      retryPrompt: retryPrompt,
+      retryError: retryError,
+      remainingRetryJobId: remainingRetryJobId,
+    );
+  } finally {
+    hostEnrollment.dispose();
+  }
 }
 
 Future<void> _showCreateWorkspaceDialogs(
@@ -97,6 +106,7 @@ Future<void> _showCreateWorkspaceDialogs(
   required List<Project> projects,
   required List<WorkspaceParentCandidate> parentCandidates,
   required List<SshTarget> sshTargets,
+  required ProjectHostEnrollmentController hostEnrollment,
   required Project? resolvedInitialProject,
   required List<AgentProfile> profiles,
   required PromptWorkspaceRuntimeClient runtime,
@@ -107,17 +117,22 @@ Future<void> _showCreateWorkspaceDialogs(
   String? remainingRetryJobId,
 }) async {
   var boundJobId = remainingRetryJobId;
+  final workbenchState = ref.read(workbenchControllerProvider);
+  final hasWorkspaceSections =
+      workbenchState.supportsSections && workbenchState.sections.isNotEmpty;
   final promptResult = await showDialog<PromptWorkspaceDialogResult>(
     context: context,
     builder: (_) => PromptWorkspaceDialog(
       projects: projects,
       agentProfiles: profiles,
       sshTargets: sshTargets,
+      hostEnrollment: hostEnrollment,
       defaultAgentProfileId:
           retryPrompt?.profileId ??
           ref.read(settingsControllerProvider).agents.defaultAgentProfileId,
       initialProject: resolvedInitialProject,
       initialPrompt: retryPrompt?.prompt,
+      loadPreferredSourceBranch: _loadPreferredSourceBranch(ref),
       initialSourceBranch: retryPrompt?.sourceBranch,
       initialParentWorkspaceId: retryPrompt?.parentWorkspaceId,
       initialHostId: retryPrompt?.hostId,
@@ -134,6 +149,7 @@ Future<void> _showCreateWorkspaceDialogs(
         projects: projects,
         parentCandidates: parentCandidates,
         sshTargets: sshTargets,
+        hostEnrollment: hostEnrollment,
         resolvedInitialProject: resolvedInitialProject,
         retryManual: retryManual,
         retryError: retryError,
@@ -165,11 +181,7 @@ Future<void> _showCreateWorkspaceDialogs(
       },
       loadBranches: controller.listSourceBranches,
       loadHostBranchCatalog: controller.loadHostBranchCatalog,
-      checkBranchExists: (project, branchName) {
-        return ref
-            .read(gitBackendProvider)
-            .branchExists(project.repoPath, branchName);
-      },
+      checkBranchExists: _projectBranchCheck(ref, controller),
       workspaceBranches: (project) {
         return ref
             .read(workbenchControllerProvider)
@@ -183,6 +195,10 @@ Future<void> _showCreateWorkspaceDialogs(
         for (final candidate in parentCandidates) candidate.workspace,
       ],
       initialUseProjectCheckout: retryPrompt?.useProjectCheckout ?? true,
+      hasWorkspaceSections: hasWorkspaceSections,
+      initialAutoAssignSection: retryPrompt?.autoAssignSection ?? true,
+      assignSection: (workspaceId, sectionId) =>
+          controller.saveWorkspaceSection(workspaceId, sectionId: sectionId),
       generateIdentity: runtime.generateIdentity,
       cancelGeneration: runtime.cancel,
       createWorkspace:
@@ -242,6 +258,7 @@ Widget _buildManualWorkspaceForm(
   required List<Project> projects,
   required List<WorkspaceParentCandidate> parentCandidates,
   required List<SshTarget> sshTargets,
+  required ProjectHostEnrollmentController hostEnrollment,
   required Project? resolvedInitialProject,
   required Future<void>? Function(ManualWorkspaceCreateRequest request)
   enqueueCreate,
@@ -253,6 +270,7 @@ Widget _buildManualWorkspaceForm(
     embedded: true,
     projects: projects,
     initialProject: resolvedInitialProject,
+    loadPreferredSourceBranch: _loadPreferredSourceBranch(ref),
     initialSourceBranch: retryManual?.sourceBranch,
     initialNewBranchName: retryManual?.newBranchName,
     initialName: retryManual?.name,
@@ -266,6 +284,7 @@ Widget _buildManualWorkspaceForm(
     enqueueCreate: enqueueCreate,
     parentCandidates: parentCandidates,
     sshTargets: sshTargets,
+    hostEnrollment: hostEnrollment,
     loadBranches: controller.listSourceBranches,
     loadHostBranchCatalog: controller.loadHostBranchCatalog,
     getProjectActiveBranch: (project) {
@@ -294,10 +313,7 @@ Widget _buildManualWorkspaceForm(
           .where((branch) => branch.isNotEmpty)
           .toSet();
     },
-    checkBranchExists: (project, branchName) async {
-      final gitBackend = ref.read(gitBackendProvider);
-      return gitBackend.branchExists(project.repoPath, branchName);
-    },
+    checkBranchExists: _projectBranchCheck(ref, controller),
     onCreateWorkspace:
         ({
           required project,
@@ -330,6 +346,36 @@ Widget _buildManualWorkspaceForm(
       }
     },
   );
+}
+
+Future<String?> Function(Project project) _loadPreferredSourceBranch(
+  WidgetRef ref,
+) {
+  return (project) async {
+    try {
+      final effective = await ref
+          .read(projectConfigServiceProvider)
+          .resolve(project);
+      return effective.config.newWorkspace.preferredSourceBranch;
+    } catch (_) {
+      return null;
+    }
+  };
+}
+
+/// Whether a branch exists in the project's own repository. The dialogs only
+/// fall back to this without a host branch catalog, and a project that lives
+/// only on a server is asked there rather than at a local path it lacks.
+Future<bool> Function(Project project, String branchName) _projectBranchCheck(
+  WidgetRef ref,
+  WorkbenchController controller,
+) {
+  return PromptWorkspaceBranchChecks(
+    hostId: null,
+    git: ref.read(gitBackendProvider),
+    loadHostCatalog: controller.loadHostBranchCatalog,
+    workspaces: () => const <Workspace>[],
+  ).branchExists;
 }
 
 Future<List<SshTarget>> _loadSshTargets(WidgetRef ref) async {

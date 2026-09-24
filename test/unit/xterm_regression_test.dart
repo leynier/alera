@@ -14,6 +14,77 @@ void main() {
     expect(output, <String>['\x1b[13;2u']);
   });
 
+  test(
+    'xterm does not report Kitty private-use keys under Cursor CLI mode',
+    () {
+      final output = <String>[];
+      final terminal = Terminal(
+        reflowWithHiddenCursor: false,
+        onOutput: output.add,
+      );
+
+      terminal.write('\x1b[>1u');
+      for (final key in [
+        TerminalKey.shiftLeft,
+        TerminalKey.controlLeft,
+        TerminalKey.altLeft,
+        TerminalKey.metaLeft,
+        TerminalKey.capsLock,
+        TerminalKey.numLock,
+        TerminalKey.scrollLock,
+        TerminalKey.printScreen,
+        TerminalKey.pause,
+        TerminalKey.contextMenu,
+        TerminalKey.f13,
+        TerminalKey.mediaPlay,
+        TerminalKey.audioVolumeMute,
+        TerminalKey.numpad0,
+      ]) {
+        terminal.keyInput(key);
+      }
+      terminal.keyInput(.keyH, shift: true, text: 'H');
+      terminal.keyInput(.enter, shift: true);
+      terminal.keyInput(.shiftLeft, type: TerminalKeyEventType.release);
+
+      expect(
+        output.where((sequence) {
+          final match = RegExp(r'^\x1b\[(\d+)').firstMatch(sequence);
+          return match != null && int.parse(match.group(1)!) >= 0xE000;
+        }),
+        isEmpty,
+      );
+      expect(output, contains('\x1b[13;2u'));
+    },
+  );
+
+  test(
+    'xterm sends Shift+Enter, Escape and Ctrl+V once under Kitty flag 1',
+    () {
+      final output = <String>[];
+      final terminal = Terminal(
+        reflowWithHiddenCursor: false,
+        onOutput: output.add,
+      );
+
+      // Agents that enable disambiguate mode alone (Cursor, Gemini, Copilot,
+      // OpenCode) never asked for release events, so the release must not
+      // repeat the press: that was the doubled newline and the second paste.
+      terminal.write('\x1b[>1u');
+      terminal.keyInput(.enter, shift: true);
+      terminal.keyInput(
+        .enter,
+        shift: true,
+        type: TerminalKeyEventType.release,
+      );
+      terminal.keyInput(.escape);
+      terminal.keyInput(.escape, type: TerminalKeyEventType.release);
+      terminal.keyInput(.keyV, ctrl: true);
+      terminal.keyInput(.keyV, ctrl: true, type: TerminalKeyEventType.release);
+
+      expect(output, <String>['\x1b[13;2u', '\x1b[27u', '\x1b[118;5u']);
+    },
+  );
+
   test('xterm handles resize while scrollback and margins are active', () {
     final terminal = Terminal(
       reflowWithHiddenCursor: false,
@@ -193,6 +264,23 @@ void main() {
       expect(terminal.buffer.lines[7].toString(), isEmpty);
     },
   );
+
+  test('xterm copies conpty padded rows as separate lines on windows', () {
+    // ConPTY reaches the next row by padding the current one with spaces up
+    // to the margin, then writing the next row without a line break.
+    final terminal = Terminal(
+      reflowWithHiddenCursor: false,
+      windowsPtyMode: true,
+    )..resize(12, 4);
+    terminal.write('Hi Erik,${' ' * 16}Hope you${' ' * 4}are well.');
+
+    final text = terminal.buffer.getText(
+      BufferRangeLine(const CellOffset(0, 0), const CellOffset(9, 3)),
+      true,
+    );
+
+    expect(text, 'Hi Erik,\n\nHope you\nare well.');
+  });
 
   test('xterm repairs a stale row before writing past its capacity', () {
     final terminal = Terminal(reflowWithHiddenCursor: false)..resize(680, 24);

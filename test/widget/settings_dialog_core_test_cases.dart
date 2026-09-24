@@ -84,6 +84,7 @@ void _registerSettingsDialogCoreTests() {
     expect(find.text('Font Family'), findsOneWidget);
     expect(find.text('Theme Preset'), findsOneWidget);
     expect(find.text('TUI Scroll Speed'), findsOneWidget);
+    expect(find.text('Drag To Select In TUIs'), findsOneWidget);
     expect(find.text('Copy On Select'), findsOneWidget);
     expect(find.text('Allow OSC 52 Clipboard Writes'), findsOneWidget);
     expect(find.text('Scrollback Lines'), findsOneWidget);
@@ -156,6 +157,16 @@ void _registerSettingsDialogCoreTests() {
     await tester.pump();
     await tester.tap(find.byType(AleraCheckbox).first);
     await tester.pump();
+    await tester.ensureVisible(find.text('Default Source Branch'));
+    await tester.pump();
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('source-branch-field')),
+        matching: find.byType(TextField),
+      ),
+      'develop',
+    );
+    await tester.pump();
     await tester.ensureVisible(find.text('Add Setup Command'));
     await tester.pump();
     await tester.tap(find.text('Add Setup Command'));
@@ -178,6 +189,7 @@ void _registerSettingsDialogCoreTests() {
     expect(saved.worktree.copy.single.to, '.env.local');
     expect(saved.worktree.copy.single.overwrite, isTrue);
     expect(saved.worktree.setup, <String>['pnpm install']);
+    expect(saved.newWorkspace.sourceBranch, 'develop');
   });
 
   testWidgets('clears dirty project setup edits when using repo file', (

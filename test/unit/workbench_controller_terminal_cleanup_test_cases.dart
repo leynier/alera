@@ -15,6 +15,10 @@ void _registerWorkbenchControllerTerminalCleanupTests() {
         sourceBranch: 'main',
         newBranchName: 'feature/cleanup',
       )).workspace;
+      await _controller.selectWorkspace(
+        project: _harness.project,
+        workspace: workspace,
+      );
       await _flush();
       final terminal = _controller.state.activeWorkspaceTab!;
       _harness.terminalRuntime.sessionFor(workspace: workspace, tab: terminal);

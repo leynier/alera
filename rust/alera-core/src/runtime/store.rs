@@ -3,6 +3,7 @@ mod legacy_orchestration;
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::Path;
+use std::time::Duration;
 
 use anyhow::Result;
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
@@ -16,9 +17,8 @@ use super::{harden_sqlite_files, open_private_runtime_file, prepare_private_runt
 use super::{
     CascadePreview, LinkedReview, MobileAccessSettings, MobileDevice, MobileDevicePermission,
     MobilePairingOffer, Project, ProjectConfig, ProjectConfigMap, ProjectConfigRecord, ProjectKind,
-    RuntimeSettings, SshAuthKind, SshBootstrapStatus, SshTarget, SshTargetLastStatus,
-    WorkbenchLayoutRecord, Workspace, WorkspaceKind, WorkspaceRelation, WorkspaceStatus,
-    WorkspaceTabRecord, WorkspaceTag,
+    RuntimeSettings, WorkbenchLayoutRecord, Workspace, WorkspaceKind, WorkspaceRelation,
+    WorkspaceStatus, WorkspaceTabRecord, WorkspaceTag,
 };
 
 pub const RUNTIME_DATABASE_FILE_NAME: &str = "runtime.sqlite";
@@ -28,15 +28,6 @@ const RUNTIME_STORE_MAX_CONNECTIONS: u32 = 4;
 #[derive(Clone)]
 pub struct RuntimeStore {
     pool: SqlitePool,
-}
-
-pub struct SshTargetBootstrapStateUpdate<'a> {
-    pub status: SshBootstrapStatus,
-    pub install_dir: Option<&'a str>,
-    pub runtime_version: Option<&'a str>,
-    pub runtime_platform: Option<&'a str>,
-    pub runtime_arch: Option<&'a str>,
-    pub last_error: Option<&'a str>,
 }
 
 impl RuntimeStore {
@@ -61,11 +52,13 @@ impl RuntimeStore {
             .filename(&path)
             .create_if_missing(true)
             .journal_mode(SqliteJournalMode::Wal)
-            .synchronous(SqliteSynchronous::Normal);
+            .synchronous(SqliteSynchronous::Normal)
+            .busy_timeout(Duration::from_secs(5));
         // SQLite gives every pooled connection its own worker thread. The
         // runtime actor serializes ordinary mutations, while a few background
         // jobs can read concurrently, so the default of ten only leaves idle
-        // threads and connection-local caches behind after a burst.
+        // threads and connection-local caches behind after a burst. A busy
+        // timeout lets those writers wait on WAL instead of returning SQLITE_BUSY.
         let pool = SqlitePoolOptions::new()
             .max_connections(RUNTIME_STORE_MAX_CONNECTIONS)
             .connect_with(options)
@@ -99,6 +92,8 @@ impl RuntimeStore {
             super::orchestration_message_store::ORCHESTRATION_SCHEMA_VERSION,
         )
         .await?;
+        self.ensure_column("sshTargets", "projectsDir", "TEXT")
+            .await?;
         self.ensure_column("sshTargets", "installDir", "TEXT")
             .await?;
         self.ensure_column("sshTargets", "runtimeVersion", "TEXT")
@@ -120,6 +115,8 @@ impl RuntimeStore {
         self.ensure_column("sshTargets", "lastError", "TEXT")
             .await?;
         self.ensure_column("workspaces", "isPinned", "INTEGER NOT NULL DEFAULT 0")
+            .await?;
+        self.ensure_column("workspaces", "isArchived", "INTEGER NOT NULL DEFAULT 0")
             .await?;
         self.ensure_column(
             "mobileAccessSettings",
@@ -732,7 +729,7 @@ impl RuntimeStore {
     pub async fn list_workspaces(&self, project_id: &str) -> Result<Vec<Workspace>> {
         let rows = sqlx::query(
             "SELECT id, instanceId, hostId, projectId, name, branch, path, createdAt, updatedAt, \
-             kind, status, sourceBranch, reusesExistingBranch, isPinned \
+             kind, status, sourceBranch, reusesExistingBranch, isPinned, isArchived \
              FROM workspaces WHERE projectId = ? AND status = 'active' \
              ORDER BY createdAt ASC, name COLLATE NOCASE ASC",
         )
@@ -745,7 +742,7 @@ impl RuntimeStore {
     pub async fn list_all_workspaces(&self) -> Result<Vec<Workspace>> {
         let rows = sqlx::query(
             "SELECT id, instanceId, hostId, projectId, name, branch, path, createdAt, updatedAt, \
-             kind, status, sourceBranch, reusesExistingBranch, isPinned \
+             kind, status, sourceBranch, reusesExistingBranch, isPinned, isArchived \
              FROM workspaces WHERE status = 'active' \
              ORDER BY projectId ASC, createdAt ASC",
         )
@@ -757,7 +754,7 @@ impl RuntimeStore {
     pub async fn find_workspace(&self, workspace_id: &str) -> Result<Option<Workspace>> {
         let row = sqlx::query(
             "SELECT id, instanceId, hostId, projectId, name, branch, path, createdAt, updatedAt, \
-             kind, status, sourceBranch, reusesExistingBranch, isPinned FROM workspaces WHERE id = ?",
+             kind, status, sourceBranch, reusesExistingBranch, isPinned, isArchived FROM workspaces WHERE id = ?",
         )
         .bind(workspace_id)
         .fetch_optional(&self.pool)
@@ -1070,7 +1067,11 @@ impl RuntimeStore {
         Ok(())
     }
 
-    pub async fn sleep_workspace(&self, workspace_id: &str) -> Result<()> {
+    /// Removes every tab and the layout for a workspace while keeping the
+    /// workspace, branch, and files. Used by explicit tab-clear flows
+    /// (`tab.removeForWorkspace`); sleep and archive terminate sessions but
+    /// preserve tab records so agent sessions can resume on reopen.
+    pub async fn remove_workspace_tabs(&self, workspace_id: &str) -> Result<()> {
         let mut tx = self.pool.begin().await?;
         sqlx::query("DELETE FROM workspaceTabs WHERE workspaceId = ?")
             .bind(workspace_id)
@@ -1346,150 +1347,6 @@ impl RuntimeStore {
         })
     }
 
-    pub async fn list_ssh_targets(&self) -> Result<Vec<SshTarget>> {
-        let rows = sqlx::query(
-            "SELECT id, alias, host, port, username, platform, arch, authKind, createdAt, updatedAt, lastStatus, \
-             installDir, runtimeVersion, runtimePlatform, runtimeArch, bootstrapStatus, lastBootstrapAt, lastCheckedAt, lastError \
-             FROM sshTargets ORDER BY alias COLLATE NOCASE ASC",
-        )
-        .fetch_all(&self.pool)
-        .await?;
-        rows.into_iter().map(ssh_target_from_row).collect()
-    }
-
-    pub async fn find_ssh_target(&self, target_id: &str) -> Result<Option<SshTarget>> {
-        let row = sqlx::query(
-            "SELECT id, alias, host, port, username, platform, arch, authKind, createdAt, updatedAt, lastStatus, \
-             installDir, runtimeVersion, runtimePlatform, runtimeArch, bootstrapStatus, lastBootstrapAt, lastCheckedAt, lastError \
-             FROM sshTargets WHERE id = ?",
-        )
-        .bind(target_id)
-        .fetch_optional(&self.pool)
-        .await?;
-        row.map(ssh_target_from_row).transpose()
-    }
-
-    pub async fn upsert_ssh_target(&self, target: SshTarget) -> Result<SshTarget> {
-        // Pre-check instead of relying on the unique index, so a duplicate alias
-        // reports the attempted alias rather than a SQLite error.
-        if sqlx::query(
-            "SELECT id FROM sshTargets WHERE alias = ? COLLATE NOCASE AND id <> ? LIMIT 1",
-        )
-        .bind(&target.alias)
-        .bind(&target.id)
-        .fetch_optional(&self.pool)
-        .await?
-        .is_some()
-        {
-            anyhow::bail!(RuntimeStoreError::Message(format!(
-                "ssh target alias already exists: {}",
-                target.alias
-            )));
-        }
-        sqlx::query(
-            "INSERT INTO sshTargets \
-             (id, alias, host, port, username, platform, arch, authKind, createdAt, updatedAt, lastStatus, \
-              installDir, runtimeVersion, runtimePlatform, runtimeArch, bootstrapStatus, lastBootstrapAt, lastCheckedAt, lastError) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
-             ON CONFLICT(id) DO UPDATE SET \
-             alias = excluded.alias, host = excluded.host, port = excluded.port, username = excluded.username, \
-             platform = excluded.platform, arch = excluded.arch, authKind = excluded.authKind, \
-             updatedAt = excluded.updatedAt, lastStatus = excluded.lastStatus, installDir = excluded.installDir",
-        )
-        .bind(&target.id)
-        .bind(&target.alias)
-        .bind(&target.host)
-        .bind(target.port)
-        .bind(&target.username)
-        .bind(&target.platform)
-        .bind(&target.arch)
-        .bind(target.auth_kind.as_str())
-        .bind(format_timestamp(target.created_at))
-        .bind(format_timestamp(target.updated_at))
-        .bind(&target.last_status)
-        .bind(&target.install_dir)
-        .bind(&target.runtime_version)
-        .bind(&target.runtime_platform)
-        .bind(&target.runtime_arch)
-        .bind(target.bootstrap_status.as_str())
-        .bind(target.last_bootstrap_at.map(format_timestamp))
-        .bind(target.last_checked_at.map(format_timestamp))
-        .bind(&target.last_error)
-        .execute(&self.pool)
-        .await?;
-        self.find_ssh_target(&target.id).await?.ok_or_else(|| {
-            anyhow::anyhow!(RuntimeStoreError::Message(format!(
-                "ssh target not found after upsert: {}",
-                target.id
-            )))
-        })
-    }
-
-    pub async fn update_ssh_target_bootstrap_state(
-        &self,
-        target_id: &str,
-        update: SshTargetBootstrapStateUpdate<'_>,
-    ) -> Result<SshTarget> {
-        let now = format_timestamp(Utc::now());
-        sqlx::query(
-            "UPDATE sshTargets SET \
-             bootstrapStatus = ?, installDir = COALESCE(?, installDir), runtimeVersion = COALESCE(?, runtimeVersion), \
-             runtimePlatform = COALESCE(?, runtimePlatform), runtimeArch = COALESCE(?, runtimeArch), \
-             lastError = ?, lastBootstrapAt = ?, updatedAt = ? WHERE id = ?",
-        )
-        .bind(update.status.as_str())
-        .bind(update.install_dir)
-        .bind(update.runtime_version)
-        .bind(update.runtime_platform)
-        .bind(update.runtime_arch)
-        .bind(update.last_error)
-        .bind(&now)
-        .bind(&now)
-        .bind(target_id)
-        .execute(&self.pool)
-        .await?;
-        self.find_ssh_target(target_id).await?.ok_or_else(|| {
-            anyhow::anyhow!(RuntimeStoreError::Message(format!(
-                "ssh target not found: {target_id}"
-            )))
-        })
-    }
-
-    pub async fn mark_ssh_target_checked(
-        &self,
-        target_id: &str,
-        last_status: SshTargetLastStatus,
-    ) -> Result<SshTarget> {
-        let now = format_timestamp(Utc::now());
-        sqlx::query(
-            "UPDATE sshTargets SET lastStatus = ?, lastCheckedAt = ?, updatedAt = ? WHERE id = ?",
-        )
-        .bind(last_status.as_str())
-        .bind(&now)
-        .bind(&now)
-        .bind(target_id)
-        .execute(&self.pool)
-        .await?;
-        self.find_ssh_target(target_id).await?.ok_or_else(|| {
-            anyhow::anyhow!(RuntimeStoreError::Message(format!(
-                "ssh target not found: {target_id}"
-            )))
-        })
-    }
-
-    pub async fn remove_ssh_target(&self, target_id: &str) -> Result<()> {
-        let result = sqlx::query("DELETE FROM sshTargets WHERE id = ?")
-            .bind(target_id)
-            .execute(&self.pool)
-            .await?;
-        if result.rows_affected() == 0 {
-            return Err(anyhow::anyhow!(RuntimeStoreError::Message(format!(
-                "ssh target not found: {target_id}"
-            ))));
-        }
-        Ok(())
-    }
-
     async fn workspace_rows(&self, rows: Vec<sqlx::sqlite::SqliteRow>) -> Result<Vec<Workspace>> {
         let mut workspaces = Vec::with_capacity(rows.len());
         for row in rows {
@@ -1532,6 +1389,7 @@ impl RuntimeStore {
             source_branch: empty_to_none(row.try_get("sourceBranch")?),
             reuses_existing_branch: row.try_get::<i64, _>("reusesExistingBranch")? == 1,
             is_pinned: row.try_get::<i64, _>("isPinned")? == 1,
+            is_archived: row.try_get::<i64, _>("isArchived").unwrap_or(0) == 1,
             tag_ids,
             tag_names,
             parent_workspace_id,
@@ -1602,7 +1460,7 @@ fn project_from_row(row: sqlx::sqlite::SqliteRow) -> Result<Project> {
     })
 }
 
-fn tab_from_row(row: sqlx::sqlite::SqliteRow) -> Result<WorkspaceTabRecord> {
+pub(crate) fn tab_from_row(row: sqlx::sqlite::SqliteRow) -> Result<WorkspaceTabRecord> {
     let payload_json: String = row.try_get("payloadJson")?;
     Ok(WorkspaceTabRecord {
         id: row.try_get("id")?,
@@ -1658,38 +1516,6 @@ fn relation_from_row(row: sqlx::sqlite::SqliteRow) -> Result<WorkspaceRelation> 
         child_workspace_id: row.try_get("childWorkspaceId")?,
         child_instance_id: row.try_get("childInstanceId")?,
         created_at: parse_timestamp(row.try_get::<String, _>("createdAt")?.as_str()),
-    })
-}
-
-fn ssh_target_from_row(row: sqlx::sqlite::SqliteRow) -> Result<SshTarget> {
-    let last_bootstrap_at = row
-        .try_get::<Option<String>, _>("lastBootstrapAt")?
-        .map(|value| parse_timestamp(&value));
-    let last_checked_at = row
-        .try_get::<Option<String>, _>("lastCheckedAt")?
-        .map(|value| parse_timestamp(&value));
-    Ok(SshTarget {
-        id: row.try_get("id")?,
-        alias: row.try_get("alias")?,
-        host: row.try_get("host")?,
-        port: row.try_get("port")?,
-        username: row.try_get("username")?,
-        platform: row.try_get("platform")?,
-        arch: row.try_get("arch")?,
-        auth_kind: SshAuthKind::from_db(row.try_get::<String, _>("authKind")?.as_str()),
-        created_at: parse_timestamp(row.try_get::<String, _>("createdAt")?.as_str()),
-        updated_at: parse_timestamp(row.try_get::<String, _>("updatedAt")?.as_str()),
-        last_status: row.try_get("lastStatus")?,
-        install_dir: row.try_get("installDir")?,
-        runtime_version: row.try_get("runtimeVersion")?,
-        runtime_platform: row.try_get("runtimePlatform")?,
-        runtime_arch: row.try_get("runtimeArch")?,
-        bootstrap_status: SshBootstrapStatus::from_db(
-            row.try_get::<String, _>("bootstrapStatus")?.as_str(),
-        ),
-        last_bootstrap_at,
-        last_checked_at,
-        last_error: row.try_get("lastError")?,
     })
 }
 
@@ -1760,6 +1586,10 @@ fn empty_to_none(value: Option<String>) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    use super::super::{
+        SshAuthKind, SshBootstrapStatus, SshTarget, SshTargetBootstrapStateUpdate,
+        SshTargetLastStatus,
+    };
     use super::*;
 
     #[tokio::test]
@@ -1807,6 +1637,7 @@ mod tests {
             source_branch: None,
             reuses_existing_branch: false,
             is_pinned: false,
+            is_archived: false,
             tag_ids: Vec::new(),
             tag_names: Vec::new(),
             parent_workspace_id: None,
@@ -1830,6 +1661,7 @@ mod tests {
             updated_at: now,
             last_status: None,
             install_dir: None,
+            projects_dir: None,
             runtime_version: None,
             runtime_platform: None,
             runtime_arch: None,

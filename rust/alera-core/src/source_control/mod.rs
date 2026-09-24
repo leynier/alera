@@ -6,7 +6,10 @@ use git2::{
     build::CheckoutBuilder, BranchType, DiffOptions, ErrorCode, Index, ObjectType, Oid, Repository,
     RepositoryState, Signature, StashApplyOptions, StashSaveOptions,
 };
+use serde::{Deserialize, Serialize};
 
+mod diff_blob;
+mod explorer_status;
 #[path = "git_ancestry_impl.rs"]
 mod git_ancestry_impl;
 #[path = "git_commit_state_impl.rs"]
@@ -19,6 +22,7 @@ pub(crate) mod git_diff_paths;
 mod git_history_impl;
 #[path = "git_range_impl.rs"]
 mod git_range_impl;
+mod remotes;
 mod source_control_actions;
 mod working_tree_commit;
 mod working_tree_paths;
@@ -29,8 +33,14 @@ mod working_tree_stash;
 use git_commit_state_impl::{commit_parent_commits, current_head_commit, repository_has_conflicts};
 
 pub use crate::git::{GitError, GitErrorKind};
+pub use diff_blob::git_diff_blob_bytes;
+pub use explorer_status::{
+    git_explorer_status_snapshot, GitExplorerStatus, GitExplorerStatusEntry,
+    GitExplorerStatusSnapshot,
+};
 pub use git_diff_impl::git_reading_diff_patch::git_reading_diff_patch;
 pub use git_diff_paths::GitPathContext;
+pub use remotes::{list_remotes, GitRemote};
 pub use source_control_actions::{
     can_discard_from_parent, can_stage_from_parent, can_unstage_from_parent,
     is_submodule_worktree_only, source_control_actions, source_control_primary_action,
@@ -47,6 +57,8 @@ pub use working_tree_stage::{
 };
 pub use working_tree_stash::{git_list_stashes, git_stash, git_stash_pop};
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitRepositoryState {
     pub branch: String,
     pub upstream: Option<String>,
@@ -56,6 +68,25 @@ pub struct GitRepositoryState {
     pub head_message: Option<String>,
 }
 
+impl GitRepositoryState {
+    /// True when HEAD tracks a remote branch with the same name.
+    ///
+    /// New worktrees inherit the source branch's upstream (`origin/develop`
+    /// while HEAD is `fix/foo`). Git's default `push.default=simple` then
+    /// refuses a bare `git push`, so Push/Publish must treat that as
+    /// unpublished and push `origin/<local-branch>` instead.
+    pub fn tracks_same_named_upstream(&self) -> bool {
+        let Some(upstream) = self.upstream.as_deref().filter(|value| !value.is_empty()) else {
+            return false;
+        };
+        upstream
+            .split_once('/')
+            .is_some_and(|(_, tracked)| !tracked.is_empty() && tracked == self.branch)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitStashEntry {
     pub index: u32,
     pub reference: String,
@@ -63,14 +94,16 @@ pub struct GitStashEntry {
     pub oid: String,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum GitChangeArea {
     Untracked,
     Unstaged,
     Staged,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum GitChangeStatus {
     Modified,
     Added,
@@ -80,13 +113,15 @@ pub enum GitChangeStatus {
     Untracked,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum GitChangeTreeRowKind {
     Directory,
     File,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum GitDiffLineKind {
     Addition,
     Deletion,
@@ -95,7 +130,8 @@ pub enum GitDiffLineKind {
     Context,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitSubmoduleStatus {
     pub commit_changed: bool,
     pub tracked_changes: bool,
@@ -103,7 +139,8 @@ pub struct GitSubmoduleStatus {
     pub inspectable: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitChangeEntry {
     pub path: String,
     pub old_path: Option<String>,
@@ -116,7 +153,8 @@ pub struct GitChangeEntry {
     pub submodule: Option<GitSubmoduleStatus>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitChangeTreeRow {
     pub kind: GitChangeTreeRowKind,
     pub name: String,
@@ -126,25 +164,30 @@ pub struct GitChangeTreeRow {
     pub entry: Option<GitChangeEntry>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitChangeGroup {
     pub area: GitChangeArea,
     pub entries: Vec<GitChangeEntry>,
     pub tree_rows: Vec<GitChangeTreeRow>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitStatusResult {
     pub entries: Vec<GitChangeEntry>,
     pub groups: Vec<GitChangeGroup>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitDiffLine {
     pub text: String,
     pub kind: GitDiffLineKind,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitDiffFile {
     pub path: String,
     pub old_path: Option<String>,
@@ -160,12 +203,15 @@ pub struct GitDiffFile {
     pub line_preview_truncated: bool,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitDiffResult {
     pub files: Vec<GitDiffFile>,
     pub truncated: bool,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum GitHistoryRefCategory {
     Branches,
     RemoteBranches,
@@ -173,7 +219,8 @@ pub enum GitHistoryRefCategory {
     Commits,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitHistoryItemRef {
     pub id: String,
     pub name: String,
@@ -181,7 +228,8 @@ pub struct GitHistoryItemRef {
     pub category: Option<GitHistoryRefCategory>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitHistoryItem {
     pub id: String,
     pub parent_ids: Vec<String>,
@@ -194,6 +242,8 @@ pub struct GitHistoryItem {
     pub references: Vec<GitHistoryItemRef>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitHistoryResult {
     pub items: Vec<GitHistoryItem>,
     pub current_ref: Option<GitHistoryItemRef>,
@@ -206,13 +256,16 @@ pub struct GitHistoryResult {
     pub limit: u32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum GitCommitCompareStatus {
     Ready,
     InvalidCommit,
     Error,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitCommitChangeEntry {
     pub path: String,
     pub old_path: Option<String>,
@@ -221,6 +274,8 @@ pub struct GitCommitChangeEntry {
     pub removed: Option<u32>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitCommitCompareSummary {
     pub commit_oid: String,
     pub parent_oid: Option<String>,
@@ -231,12 +286,16 @@ pub struct GitCommitCompareSummary {
     pub error_message: Option<String>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitCommitCompareResult {
     pub summary: GitCommitCompareSummary,
     pub entries: Vec<GitCommitChangeEntry>,
 }
 
 /// One commit on the range from merge-base(base, HEAD) to HEAD.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitRangeCommit {
     pub oid: String,
     pub subject: String,
@@ -244,6 +303,8 @@ pub struct GitRangeCommit {
 }
 
 /// One file changed between merge-base(base, HEAD) and HEAD.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitRangeFile {
     pub path: String,
     pub status: GitChangeStatus,
@@ -252,6 +313,8 @@ pub struct GitRangeFile {
 }
 
 /// Tree-to-tree range summary used for AI pull-request prompts.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitRangeContext {
     pub base_ref: String,
     pub head_oid: String,

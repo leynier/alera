@@ -15,8 +15,16 @@ $requiredZigVersion = [version]'0.16.0'
 $requiredRustToolchain = '1.98.0'
 $requiredVulkanSdkVersion = '1.4.350.0'
 
+. (Join-Path $PSScriptRoot 'setup_windows_vulkan.ps1')
+
 function Write-Step([string]$Message) {
     Write-Host "`n==> $Message" -ForegroundColor Cyan
+}
+
+function Write-DirectCargoBuildHint {
+    Write-Host "`nflutter run and flutter build configure the native Rust build themselves." -ForegroundColor Yellow
+    Write-Host 'Direct cargo builds (cargo build or cargo test in rust/, make cli-build, make rust-test) need Ninja, _CL_=/Z7 /FS, GGML_CCACHE=OFF, and a short CARGO_TARGET_DIR in that shell.' -ForegroundColor Yellow
+    Write-Host 'See "Direct Cargo builds on Windows" in .github/CONTRIBUTING.md.' -ForegroundColor Yellow
 }
 
 function Invoke-Native([string]$FilePath, [string[]]$Arguments, [string]$WorkingDirectory = $repoRoot) {
@@ -113,24 +121,6 @@ function Get-LibClangIncludeDirectory([string]$libClangDirectory) {
         ForEach-Object { Join-Path $_.FullName 'include' } |
         Where-Object { Test-Path -LiteralPath (Join-Path $_ 'stdbool.h') } |
         Select-Object -First 1
-}
-
-function Get-VulkanSdkDirectory {
-    $candidates = @(
-        $env:VULKAN_SDK,
-        (Join-Path 'C:\VulkanSDK' $requiredVulkanSdkVersion)
-    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
-    $candidates += Get-ChildItem -LiteralPath 'C:\VulkanSDK' -Directory -ErrorAction SilentlyContinue |
-        Sort-Object Name -Descending |
-        Select-Object -ExpandProperty FullName
-
-    foreach ($candidate in $candidates) {
-        if ((Test-Path -LiteralPath (Join-Path $candidate 'Lib\vulkan-1.lib')) -and
-            (Test-Path -LiteralPath (Join-Path $candidate 'Bin\glslc.exe'))) {
-            return (Resolve-Path $candidate).Path
-        }
-    }
-    return $null
 }
 
 function Install-VulkanSdk {
@@ -301,13 +291,14 @@ Write-Host "LIBCLANG_PATH=$libClangDirectory"
 Write-Host "BINDGEN_EXTRA_CLANG_ARGS=$bindgenClangArguments"
 
 Write-Step 'Checking the Vulkan SDK'
-$vulkanSdkDirectory = Get-VulkanSdkDirectory
+$vulkanSdkDirectory = Get-VulkanSdkDirectory -RequiredVersion $requiredVulkanSdkVersion
 if ($null -eq $vulkanSdkDirectory -and -not $CheckOnly) {
     Install-VulkanSdk
-    $vulkanSdkDirectory = Get-VulkanSdkDirectory
+    Write-Host 'Waiting for the Vulkan SDK installer to finish unpacking...'
+    $vulkanSdkDirectory = Wait-VulkanSdkDirectory -RequiredVersion $requiredVulkanSdkVersion
 }
 if ($null -eq $vulkanSdkDirectory) {
-    throw "Vulkan SDK $requiredVulkanSdkVersion with glslc was not found."
+    throw "Vulkan SDK $requiredVulkanSdkVersion with glslc was not found under VULKAN_SDK or C:\VulkanSDK. If its installer is still running, let it finish and rerun this script."
 }
 $env:VULKAN_SDK = $vulkanSdkDirectory
 $env:PATH = "$(Join-Path $vulkanSdkDirectory 'Bin');$env:PATH"
@@ -317,6 +308,7 @@ if (-not $CheckOnly) {
 Write-Host "VULKAN_SDK=$vulkanSdkDirectory"
 
 if ($CheckOnly) {
+    Write-DirectCargoBuildHint
     Write-Host "`nWindows prerequisites are ready." -ForegroundColor Green
     exit 0
 }
@@ -325,7 +317,8 @@ Write-Step 'Enabling Flutter Windows desktop support'
 Invoke-Native $flutter.Source @('config', '--enable-windows-desktop')
 
 Write-Step 'Initializing required source submodules'
-Invoke-Native $dart.Source @('tool/development/initialize_required_submodules.dart')
+$cargo = Get-RequiredCommand 'cargo' 'Install rustup so cargo is on PATH, then reopen PowerShell.'
+Invoke-Native $cargo.Source @('run', '--quiet', '--locked', '--manifest-path', 'rust/Cargo.toml', '-p', 'alera-xtask', '--', 'init-submodules')
 
 Write-Step 'Resolving Flutter dependencies'
 Invoke-Native $flutter.Source @('pub', 'get')
@@ -345,3 +338,4 @@ if (-not $SkipNativePreflight) {
 Write-Host "`nAlera is ready for Windows development." -ForegroundColor Green
 Write-Host 'Run: flutter run -d windows'
 Write-Host 'Optional make flow: make app-debug'
+Write-DirectCargoBuildHint

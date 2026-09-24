@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use chrono::{Duration, Utc};
 
 use super::{
@@ -64,6 +66,49 @@ fn legacy_shared_view_prefs_show_all_workspaces() {
 }
 
 #[test]
+fn legacy_shared_view_prefs_hide_archived_workspaces() {
+    let mut encoded = serde_json::to_value(SharedWorkbenchViewPrefs::default()).unwrap();
+    encoded
+        .as_object_mut()
+        .unwrap()
+        .remove("showArchivedWorkspaces");
+
+    let restored: SharedWorkbenchViewPrefs = serde_json::from_value(encoded).unwrap();
+
+    assert!(!restored.show_archived_workspaces);
+}
+
+#[test]
+fn shared_view_prefs_roundtrips_selected_section_ids() {
+    let prefs = SharedWorkbenchViewPrefs {
+        selected_section_ids: vec!["sec-1".to_string(), "sec-2".to_string()],
+        ..SharedWorkbenchViewPrefs::default()
+    };
+    let encoded = serde_json::to_value(&prefs).unwrap();
+    assert_eq!(
+        encoded["selectedSectionIds"],
+        serde_json::json!(["sec-1", "sec-2"])
+    );
+    let restored: SharedWorkbenchViewPrefs = serde_json::from_value(encoded).unwrap();
+    assert_eq!(
+        restored.selected_section_ids,
+        vec!["sec-1".to_string(), "sec-2".to_string()]
+    );
+}
+
+#[test]
+fn legacy_shared_view_prefs_default_selected_section_ids() {
+    let mut encoded = serde_json::to_value(SharedWorkbenchViewPrefs::default()).unwrap();
+    encoded
+        .as_object_mut()
+        .unwrap()
+        .remove("selectedSectionIds");
+
+    let restored: SharedWorkbenchViewPrefs = serde_json::from_value(encoded).unwrap();
+    assert!(restored.selected_section_ids.is_empty());
+}
+
+#[test]
 fn legacy_shared_view_prefs_default_the_panel_view_options() {
     let mut encoded = serde_json::to_value(SharedWorkbenchViewPrefs::default()).unwrap();
     let object = encoded.as_object_mut().unwrap();
@@ -99,6 +144,35 @@ fn panel_view_options_use_the_desktop_enum_names() {
         serde_json::to_value(SharedGitDiffGroupMode::ByArea).unwrap(),
         "byArea"
     );
+}
+
+#[test]
+fn shared_view_prefs_roundtrip_workspace_main_tab_ids() {
+    let prefs = SharedWorkbenchViewPrefs {
+        workspace_main_tab_ids: BTreeMap::from([(
+            "ws-1".to_string(),
+            vec!["tab-1".to_string(), "tab-2".to_string()],
+        )]),
+        ..SharedWorkbenchViewPrefs::default()
+    };
+    let encoded = serde_json::to_value(&prefs).unwrap();
+    assert_eq!(
+        encoded["workspaceMainTabIds"],
+        serde_json::json!({ "ws-1": ["tab-1", "tab-2"] })
+    );
+    let restored: SharedWorkbenchViewPrefs = serde_json::from_value(encoded).unwrap();
+    assert_eq!(
+        restored.workspace_main_tab_ids["ws-1"],
+        vec!["tab-1".to_string(), "tab-2".to_string()]
+    );
+
+    let mut omitted = serde_json::to_value(SharedWorkbenchViewPrefs::default()).unwrap();
+    omitted
+        .as_object_mut()
+        .unwrap()
+        .remove("workspaceMainTabIds");
+    let legacy: SharedWorkbenchViewPrefs = serde_json::from_value(omitted).unwrap();
+    assert!(legacy.workspace_main_tab_ids.is_empty());
 }
 
 #[tokio::test]
@@ -325,7 +399,7 @@ async fn sleeping_workspace_removes_its_tabs_and_layout_only() {
         .await
         .unwrap();
 
-    store.sleep_workspace("workspace-1").await.unwrap();
+    store.remove_workspace_tabs("workspace-1").await.unwrap();
 
     assert!(store
         .list_workspace_tabs("workspace-1")

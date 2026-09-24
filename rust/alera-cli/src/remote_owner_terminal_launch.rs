@@ -2,7 +2,6 @@ use alera_core::runtime::{RuntimeStore, SshTarget, Workspace};
 use anyhow::{anyhow, Result};
 use base64::Engine;
 use serde_json::json;
-use sha2::{Digest, Sha256};
 
 use crate::ssh_bootstrap::{powershell_encoded, powershell_string, shell_quote};
 use crate::terminal_host::protocol::TerminalHostLaunch;
@@ -14,13 +13,13 @@ pub(crate) struct TerminalIdentity<'a> {
     pub rows: u16,
 }
 
-pub(crate) async fn owned_launch(
+/// The `{project, workspace, repositoryPath?}` document a satellite needs to
+/// register a hub workspace as its own (`remote_workspace_owner::register`).
+/// The project path is the checkout registered for the workspace's host.
+pub(crate) async fn satellite_registration(
     store: &RuntimeStore,
-    target: &SshTarget,
     workspace: &Workspace,
-    identity: TerminalIdentity<'_>,
-    windows: bool,
-) -> Result<TerminalHostLaunch> {
+) -> Result<serde_json::Value> {
     let mut project = store
         .find_project(&workspace.project_id)
         .await?
@@ -52,6 +51,21 @@ pub(crate) async fn owned_launch(
     } else {
         None
     };
+    let mut registration = json!({"project":project,"workspace":workspace});
+    if let Some(repository_path) = repository_path {
+        registration["repositoryPath"] = json!(repository_path);
+    }
+    Ok(registration)
+}
+
+pub(crate) async fn owned_launch(
+    store: &RuntimeStore,
+    target: &SshTarget,
+    workspace: &Workspace,
+    identity: TerminalIdentity<'_>,
+    windows: bool,
+) -> Result<TerminalHostLaunch> {
+    let registration = satellite_registration(store, workspace).await?;
     let install = target
         .install_dir
         .as_deref()
@@ -59,11 +73,6 @@ pub(crate) async fn owned_launch(
         .ok_or_else(|| {
             anyhow!("Bootstrap this SSH host again to record its sidecar installation directory")
         })?;
-    let profile = hex::encode(Sha256::digest(project.id.as_bytes()));
-    let mut registration = json!({"project":project,"workspace":workspace});
-    if let Some(repository_path) = repository_path {
-        registration["repositoryPath"] = json!(repository_path);
-    }
     let metadata =
         base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(&registration)?);
     let automation_run_id = crate::remote_owner_terminal_ownership::automation_run_id(
@@ -78,7 +87,6 @@ pub(crate) async fn owned_launch(
     let script = command_script(
         windows,
         install,
-        &profile,
         &metadata,
         identity,
         automation_run_id.as_deref(),
@@ -103,7 +111,6 @@ pub(crate) async fn owned_launch(
 fn command_script(
     windows: bool,
     install: &str,
-    profile: &str,
     metadata: &str,
     identity: TerminalIdentity<'_>,
     automation_run_id: Option<&str>,
@@ -122,24 +129,23 @@ fn command_script(
     if let Some(token) = launch_token {
         arguments.push_str(&format!(" --launch-token {}", quote(token)));
     }
-    owner_command_script(windows, install, profile, &arguments)
+    owner_command_script(windows, install, &arguments)
 }
 
-pub(crate) fn owner_command_script(
-    windows: bool,
-    install: &str,
-    profile: &str,
-    arguments: &str,
-) -> String {
+/// Wraps a sidecar CLI invocation so it runs against the satellite runtime
+/// profile at `<installDir>/data`: the same profile the host link attaches
+/// to, so every project on a host shares one runtime instead of the retired
+/// per-project `owners/<sha256(projectId)>` profiles.
+pub(crate) fn owner_command_script(windows: bool, install: &str, arguments: &str) -> String {
     let quote = if windows {
         powershell_string
     } else {
         shell_quote
     };
     if windows {
-        format!("$ErrorActionPreference = 'Stop'\n$install = [Environment]::ExpandEnvironmentVariables({})\n$current = (Get-Content -Raw -LiteralPath (Join-Path $install 'current.txt')).Trim()\n$state = Join-Path (Join-Path $install 'owners') {}\n& (Join-Path $current 'alera.exe') {arguments} --state-dir $state\nexit $LASTEXITCODE\n", quote(install), quote(profile))
+        format!("$ErrorActionPreference = 'Stop'\n$install = [Environment]::ExpandEnvironmentVariables({})\n$current = (Get-Content -Raw -LiteralPath (Join-Path $install 'current.txt')).Trim()\n$state = Join-Path $install 'data'\n& (Join-Path $current 'alera.exe') {arguments} --state-dir $state\nexit $LASTEXITCODE\n", quote(install))
     } else {
-        format!("set -eu\ninstall={}\ncase \"$install\" in '~/'*) install=\"$HOME/${{install#\"~/\"}}\";; esac\nexec \"$install/current/alera\" {arguments} --state-dir \"$install/owners/\"{}\n", quote(install), quote(profile))
+        format!("set -eu\ninstall={}\ncase \"$install\" in '~/'*) install=\"$HOME/${{install#\"~/\"}}\";; esac\nexec \"$install/current/alera\" {arguments} --state-dir \"$install/data\"\n", quote(install))
     }
 }
 
@@ -174,7 +180,6 @@ mod tests {
         })).unwrap();
         project = store.find_project(&project.id).await.unwrap().unwrap();
         project.repo_path = task.path.clone();
-        let profile = hex::encode(Sha256::digest(project.id.as_bytes()));
         for id in ["one", "two"] {
             task.id = id.into();
             task.instance_id = format!("instance-{id}");
@@ -196,7 +201,7 @@ mod tests {
             let expected = base64::engine::general_purpose::STANDARD
                 .encode(serde_json::to_vec(&json!({"project":project,"workspace":task})).unwrap());
             assert!(command.contains(&expected));
-            assert!(command.contains(&profile));
+            assert!(command.contains("--state-dir \"$install/data\""));
             assert!(launch.arguments.contains(&"-tt".into()));
         }
         task.path = "/remote/other".into();
@@ -252,7 +257,7 @@ mod tests {
             );
             assert!(command.contains(&expected));
             assert!(command.contains("project owner-terminal"));
-            assert!(command.contains(&profile));
+            assert!(command.contains("--state-dir \"$install/data\""));
             assert_eq!(
                 store
                     .find_workspace_checkout(id)
@@ -272,7 +277,6 @@ mod tests {
             let script = command_script(
                 windows,
                 "~/sidecar's files",
-                "profile",
                 "e30=",
                 TerminalIdentity {
                     session_id: "session'1",
@@ -292,7 +296,12 @@ mod tests {
                 shell_quote
             };
             assert!(script.contains(&format!("--automation-run-id {}", quote("run'3"))));
-            assert!(script.contains("owners"));
+            assert!(!script.contains("owners"));
+            if windows {
+                assert!(script.contains("$state = Join-Path $install 'data'"));
+            } else {
+                assert!(script.contains("--state-dir \"$install/data\""));
+            }
             if windows {
                 assert!(script.contains("'session''1'"));
                 assert!(script.contains("exit $LASTEXITCODE"));

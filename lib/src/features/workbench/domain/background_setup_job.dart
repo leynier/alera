@@ -36,6 +36,7 @@ class const PromptWorkspaceCreateRequest({
   final String? parentWorkspaceId,
   final String? hostId,
   final String? issueUrl,
+  final bool autoAssignSection = false,
   final WorkspaceCreationResult? created,
   final String? clientMutationId,
   final bool? originalLaunchWasIdempotent,
@@ -56,6 +57,7 @@ class const PromptWorkspaceCreateRequest({
       parentWorkspaceId: parentWorkspaceId,
       hostId: hostId,
       issueUrl: issueUrl,
+      autoAssignSection: autoAssignSection,
       created: created,
       clientMutationId: clientMutationId ?? this.clientMutationId,
       originalLaunchWasIdempotent:

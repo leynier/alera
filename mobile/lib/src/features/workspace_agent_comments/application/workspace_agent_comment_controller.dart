@@ -8,8 +8,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'workspace_agent_comment_controller.g.dart';
 
-/// Draft file comments for one workspace, held in memory like the desktop
-/// queue. `keepAlive` so switching panels does not discard them.
+/// Draft file and diff comments for one workspace, held in memory like the
+/// desktop queue. `keepAlive` so switching panels does not discard them.
 @Riverpod(keepAlive: true)
 class WorkspaceAgentCommentController
     extends _$WorkspaceAgentCommentController {
@@ -19,7 +19,15 @@ class WorkspaceAgentCommentController
   List<WorkspaceAgentComment> build(String hostId, String workspaceId) =>
       const <WorkspaceAgentComment>[];
 
-  void add({required String path, required String body, String? snippet}) {
+  void add({
+    required String path,
+    required String body,
+    WorkspaceAgentCommentKind kind = WorkspaceAgentCommentKind.file,
+    WorkspaceAgentCommentLineRange? lineRange,
+    String? hunkHeader,
+    String? areaLabel,
+    String? snippet,
+  }) {
     final trimmed = body.trim();
     if (trimmed.isEmpty) {
       return;
@@ -29,8 +37,12 @@ class WorkspaceAgentCommentController
       ...state,
       WorkspaceAgentComment(
         id: 'comment-$_nextId',
+        kind: kind,
         path: path,
         body: trimmed,
+        lineRange: lineRange,
+        hunkHeader: hunkHeader,
+        areaLabel: areaLabel,
         snippet: capWorkspaceAgentCommentSnippet(snippet),
       ),
     ];
@@ -46,7 +58,8 @@ class WorkspaceAgentCommentController
   void clear() => state = const <WorkspaceAgentComment>[];
 
   /// Delivers every queued comment as one prompt and returns the tab that
-  /// received it. The queue is cleared only after the host accepted the
+  /// received it. Does not select that tab or workspace; callers may offer an
+  /// opt-in Open action. The queue is cleared only after the host accepted the
   /// prompt, so a failed send keeps the comments for a retry.
   Future<String> sendTo(WorkspaceAgentCommentTarget target) async {
     final prompt = workspaceAgentCommentPrompt(state);

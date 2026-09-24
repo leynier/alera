@@ -23,6 +23,10 @@ const String mobileWorkspaceSidebarParityCapability =
 const String mobileProjectManagementCapability = 'mobileProjectManagementV1';
 const String mobileTabRenameCapability = 'mobileTabRenameV1';
 
+/// The runtime archives workspaces (`workspace.archive` / `workspace.unarchive`):
+/// sessions stop while tabs, branch, and files are preserved. Additive.
+const String workspaceArchiveCapability = 'workspaceArchiveV1';
+
 /// The runtime can send terminal output as a binary WebSocket message instead
 /// of base64 inside JSON. Feature-detected, never version-gated: the runtime
 /// requires an exact `aleraMobileProtocolVersion` match, so bumping it would
@@ -214,6 +218,7 @@ MobileSharedCheckoutClient requireSharedCheckoutClient(
 abstract interface class MobileWorkspaceClient {
   Stream<MobileRuntimeEvent> get events;
   bool get supportsWorkspaceMutations;
+  bool get supportsWorkspaceArchive;
   bool get supportsWorkspaceSidebarParity;
   bool get supportsTabRename;
   bool get supportsPromptWorkspaceCreation;
@@ -233,6 +238,7 @@ abstract interface class MobileWorkspaceClient {
     required String operationId,
     required String projectId,
     required String prompt,
+    bool autoAssignSection = false,
   });
   Future<void> cancelWorkspaceIdentity(String operationId);
   Future<PromptImageUploadResult> uploadPromptImage({
@@ -272,6 +278,8 @@ abstract interface class MobileWorkspaceClient {
   Future<WorkspaceTabSummary> renameTab(String tabId, String title);
   Future<WorkspaceSummary> renameWorkspace(String workspaceId, String name);
   Future<void> sleepWorkspace(String workspaceId);
+  Future<void> archiveWorkspace(String workspaceId);
+  Future<void> unarchiveWorkspace(String workspaceId);
   Future<String?> workspaceRepositoryRemoteUrl(String workspaceId);
   Future<WorkspaceTagSummary> createWorkspaceTag(String name, {String? color});
   Future<void> removeWorkspaceTag(String tagId);

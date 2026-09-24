@@ -19,7 +19,7 @@ pub fn git_push(path: String) -> Result<(), GitError> {
             "cannot push detached HEAD",
         ));
     }
-    if state.upstream.is_some() {
+    if state.tracks_same_named_upstream() {
         return git_cli_in_path(&path, &["push"]);
     }
     if repo.find_remote("origin").is_err() {

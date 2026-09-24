@@ -184,7 +184,7 @@ class const _ShipPullRequestButton({
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(AleraIcons.send, size: 16),
-          label: Text(shipping ? 'Shipping' : 'Ship'),
+          label: Text(shipping ? 'Shipping Changes' : 'Ship Changes'),
         ),
       ),
     );
@@ -203,6 +203,8 @@ class const _CreatePullRequestButton({
   required final ValueChanged<PullRequestCreateAction> onSelected,
 }) extends StatelessWidget {
   static const double _height = 28;
+  // Compensates the chevron segment so the label centers on the full width.
+  static const double _trailingWidth = 34.5;
 
   String get _label => switch (action) {
     PullRequestCreateAction.publish => 'Create Pull Request',
@@ -237,35 +239,38 @@ class const _CreatePullRequestButton({
                           ? SystemMouseCursors.click
                           : SystemMouseCursors.basic,
                       onTap: enabled ? onPressed : null,
-                      child: Center(
-                        child: Row(
-                          mainAxisSize: .min,
-                          children: <Widget>[
-                            if (busy)
-                              const SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: _trailingWidth),
+                        child: Center(
+                          child: Row(
+                            mainAxisSize: .min,
+                            children: <Widget>[
+                              if (busy)
+                                const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AleraTokens.onAccent,
+                                  ),
+                                )
+                              else
+                                Icon(
+                                  _icon,
+                                  size: 15,
                                   color: AleraTokens.onAccent,
                                 ),
-                              )
-                            else
-                              Icon(
-                                _icon,
-                                size: 15,
-                                color: AleraTokens.onAccent,
+                              const SizedBox(width: AleraTokens.space8),
+                              Flexible(
+                                child: Text(
+                                  _label,
+                                  maxLines: 1,
+                                  overflow: .ellipsis,
+                                  style: textStyle,
+                                ),
                               ),
-                            const SizedBox(width: AleraTokens.space8),
-                            Flexible(
-                              child: Text(
-                                _label,
-                                maxLines: 1,
-                                overflow: .ellipsis,
-                                style: textStyle,
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),

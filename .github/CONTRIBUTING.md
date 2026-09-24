@@ -26,6 +26,20 @@ flutter run -d windows
 
 Use `pwsh -File tool/development/setup_windows.ps1 -CheckOnly` for a read-only prerequisite check. The first native preflight can spend several minutes compiling Ghostty without output. GNU Make is optional for initial setup; install it if you want to use the convenience targets documented below.
 
+### Direct Cargo builds on Windows
+
+`flutter run -d windows` and `flutter build windows` configure the native Rust build themselves (`rust_builder/cargokit/cmake/cargokit.cmake` and `windows/CMakeLists.txt`). Cargo commands you run directly, such as `cargo build` or `cargo test` under `rust/`, `make rust-test`, and `make cli-build`, do not. On x64 Windows they compile ggml-vulkan through `whisper-rs-sys`, and with the Visual Studio generator that the setup script pins for Flutter, or with the default `rust\target` directory, the build fails with MSBuild `FTK1011` or `cl.exe` `C1083` path-length errors. Run them from **Developer PowerShell for VS 2022**, which puts `cl.exe` and Visual Studio's bundled Ninja on `PATH`, after setting these for that shell only:
+
+```powershell
+$env:CMAKE_GENERATOR = 'Ninja'
+$env:CMAKE_GENERATOR_x86_64_pc_windows_msvc = 'Ninja'
+$env:_CL_ = '/Z7 /FS'
+$env:GGML_CCACHE = 'OFF'
+$env:CARGO_TARGET_DIR = "$env:SystemDrive\c\t"
+```
+
+`CMAKE_GENERATOR` must be Ninja, not only the target-specific form, because ggml's nested vulkan-shaders-gen CMake build reads only the generic variable. `cl.exe` ignores `CFLAGS` and reads `_CL_`. `GGML_CCACHE=OFF` stops ggml from wrapping `cl.exe` with sccache, which drops object files under Ninja. Keep the target directory a few characters long, like `C:\c\t`: ggml's nested TryCompile objects sit more than 200 characters below it and `cl.exe` fails once the full path passes `MAX_PATH`. It is separate from the `C:\c\n` and `C:\c\cli` directories that the Flutter build uses, so a running `flutter run` does not block it. Do not persist these variables at user scope; the Flutter build keeps the Visual Studio generator.
+
 ### Linux
 
 On Ubuntu and Debian, install the native dependencies required by the Linux desktop build:
@@ -72,7 +86,7 @@ Shared components live in `lib/src/design_system/` (prefixed `Alera`) with co-lo
 
 Alera runs as a Flutter desktop app plus a bundled Rust CLI named `alera`. The app owns UI state and terminal surfaces; the CLI sidecar runs `alera runtime-host`, owns runtime Projects/Workspaces/Tabs graph state plus long-lived PTY sessions, writes host control metadata, and keeps terminal checkpoints alive after the app is closed. `alera terminal-host` is kept as a compatibility alias.
 
-Use the lowercase repository `makefile` for the standard debug flows. These targets intentionally call Dart tooling instead of inline shell snippets, so the same commands work from PowerShell 7 on Windows and from normal Linux/macOS shells:
+Use the lowercase repository `makefile` for the standard debug flows. These targets call `alera-xtask` (a Rust workspace crate) instead of inline shell snippets, so the same commands work from PowerShell 7 on Windows and from normal Linux/macOS shells without a matching Dart SDK:
 
 ```bash
 make help

@@ -101,6 +101,8 @@ IconData pullRequestReviewActionIcon(MobilePullRequestReviewAction action) {
     .merge => AleraIcons.gitMerge,
     .convertToDraft => AleraIcons.gitPullRequestDraft,
     .close => AleraIcons.gitPullRequestClosed,
+    .archiveWorkspace => AleraIcons.archive,
+    .removeWorkspace => AleraIcons.delete,
     .unlink => AleraIcons.unlink,
   };
 }

@@ -14,9 +14,13 @@ mixin _WorkbenchControllerWorkspacePanel
     }
   }
 
-  bool _canKeepPrimaryTerminal(Workspace workspace, {int? sleepGeneration}) {
+  bool _canKeepPrimaryTerminal(
+    Workspace workspace, {
+    int? sleepGeneration,
+    bool requireActive = true,
+  }) {
     return !_disposed &&
-        state.activeWorkspaceId == workspace.id &&
+        (!requireActive || state.activeWorkspaceId == workspace.id) &&
         !_closingTabWorkspaceIds.contains(workspace.id) &&
         !_workspaceIdsWithClearedLayout.contains(workspace.id) &&
         (sleepGeneration == null ||
@@ -58,7 +62,11 @@ mixin _WorkbenchControllerWorkspacePanel
     _persistLayoutInBackground(persisted);
   }
 
-  Future<void> _ensurePrimaryTerminal(Workspace workspace) {
+  @override
+  Future<void> _ensurePrimaryTerminal(
+    Workspace workspace, {
+    bool requireActive = true,
+  }) {
     final existing = _primaryTerminalLoads[workspace.id];
     if (existing != null) {
       return existing;
@@ -73,9 +81,13 @@ mixin _WorkbenchControllerWorkspacePanel
         if (!_canKeepPrimaryTerminal(
           workspace,
           sleepGeneration: sleepGeneration,
+          requireActive: requireActive,
         )) {
           retryAfterInvalidation =
-              _canKeepPrimaryTerminal(workspace) &&
+              _canKeepPrimaryTerminal(
+                workspace,
+                requireActive: requireActive,
+              ) &&
               !state.tabsFor(workspace.id).any(isPrimaryTerminalCandidate);
           return;
         }
@@ -86,11 +98,15 @@ mixin _WorkbenchControllerWorkspacePanel
         if (!_canKeepPrimaryTerminal(
               workspace,
               sleepGeneration: sleepGeneration,
+              requireActive: requireActive,
             ) ||
             _isClosedTabId(created.id)) {
           await _discardStalePrimaryTerminal(workspace, created);
           retryAfterInvalidation =
-              _canKeepPrimaryTerminal(workspace) &&
+              _canKeepPrimaryTerminal(
+                workspace,
+                requireActive: requireActive,
+              ) &&
               !state.tabsFor(workspace.id).any(isPrimaryTerminalCandidate);
           return;
         }
@@ -115,9 +131,11 @@ mixin _WorkbenchControllerWorkspacePanel
           _primaryTerminalLoads.remove(workspace.id);
         }
         if (retryAfterInvalidation &&
-            _canKeepPrimaryTerminal(workspace) &&
+            _canKeepPrimaryTerminal(workspace, requireActive: requireActive) &&
             !state.tabsFor(workspace.id).any(isPrimaryTerminalCandidate)) {
-          unawaited(_ensurePrimaryTerminal(workspace));
+          unawaited(
+            _ensurePrimaryTerminal(workspace, requireActive: requireActive),
+          );
         }
       }
     }();

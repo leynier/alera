@@ -5,6 +5,8 @@ import 'package:alera/src/features/workbench/presentation/create_workspace_dialo
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+part 'create_workspace_dialog_source_test_cases.dart';
+
 typedef MockSubmitResult = ({
   Project project,
   String sourceBranch,
@@ -15,6 +17,7 @@ typedef MockSubmitResult = ({
 });
 
 void main() {
+  _registerCreateWorkspaceDialogSourceTests();
   testWidgets('selects a project, filters source branches, and submits', (
     tester,
   ) async {
@@ -75,44 +78,6 @@ void main() {
     expect(result!.newBranchName, 'feature/workspace-imports');
     expect(result!.reuseExistingBranch, isFalse);
     expect(result!.name, 'Workspace imports');
-  });
-
-  testWidgets('preselects the requested project and default branch', (
-    tester,
-  ) async {
-    MockSubmitResult? result;
-    final projects = <Project>[_project(id: 'alera', name: 'Alera'), _orca()];
-
-    await _pumpDialogLauncher(
-      tester,
-      projects: projects,
-      initialProject: _orca(),
-      loadBranches: (project) async {
-        expect(project.id, 'orca');
-        return const <String>['develop', 'main'];
-      },
-      onSubmit: (val) => result = val,
-    );
-
-    await tester.tap(find.text('Open'));
-    await tester.pumpAndSettle();
-
-    // Tap Continue to go to Step 2
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
-
-    await tester.enterText(
-      find.widgetWithText(TextField, 'New Branch Name *'),
-      'feature/default-source',
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Create Workspace'));
-    await tester.pumpAndSettle();
-
-    expect(result, isNotNull);
-    expect(result!.project.id, 'orca');
-    expect(result!.sourceBranch, 'main');
   });
 
   testWidgets('can create a workspace from an existing branch', (tester) async {
@@ -504,6 +469,7 @@ Future<void> _pumpDialogLauncher(
   WidgetTester tester, {
   required List<Project> projects,
   required Future<List<String>> Function(Project project) loadBranches,
+  Future<String?> Function(Project project)? loadPreferredSourceBranch,
   required ValueChanged<MockSubmitResult?> onSubmit,
   Project? initialProject,
   Set<String> existingBranches = const <String>{},
@@ -524,6 +490,7 @@ Future<void> _pumpDialogLauncher(
                     builder: (_) => CreateWorkspaceDialog(
                       projects: projects,
                       initialProject: initialProject,
+                      loadPreferredSourceBranch: loadPreferredSourceBranch,
                       loadBranches: loadBranches,
                       getProjectActiveBranch:
                           getProjectActiveBranch ?? ((_) => null),

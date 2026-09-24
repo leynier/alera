@@ -229,6 +229,9 @@ impl ServerActor {
         {
             launch = remote_launch;
             working_directory = remote_cwd;
+            if let Ok(Some(workspace)) = self.runtime_store.find_workspace(&workspace_id).await {
+                self.ensure_host_link_for_remote_terminal(&workspace.host_id);
+            }
         }
         let mut agent_settings = self
             .runtime_store

@@ -492,6 +492,13 @@ impl ServerActor {
                 self.linked_issue_request(client_id, request_type, payload)
                     .await
             }
+            "pullRequestWatch.list"
+            | "pullRequestWatch.find"
+            | "pullRequestWatch.start"
+            | "pullRequestWatch.stop" => {
+                self.pull_request_watch_request(client_id, request_type, payload)
+                    .await
+            }
             "workspaceSection.list"
             | "workspaceSection.create"
             | "workspaceSection.setForWorkspace"
@@ -522,7 +529,9 @@ impl ServerActor {
                     .map_err(|error| HostError::state(error.to_string()))?;
                 projects
                     .retain(|project| !alera_core::runtime::is_voice_home_project_id(&project.id));
-                serde_json::to_value(projects).map_err(|error| HostError::state(error.to_string()))
+                let mut projects = json_result(Ok::<_, HostError>(projects))?;
+                crate::project_hosts::decorate_projects(&self.runtime_store, &mut projects).await;
+                Ok(projects)
             }
             "hostDirectory.roots" => {
                 self.require_auth(client_id)?;
@@ -704,6 +713,7 @@ impl ServerActor {
                 Ok(value)
             }
             "workspace.setPinned" => self.handle_workspace_pinning(client_id, payload).await,
+            "workspace.unarchive" => self.handle_workspace_unarchive(client_id, payload).await,
             "workspace.rename" => self.rename_workspace_request(client_id, payload).await,
             "workspace.repositoryWebUrl" => {
                 self.workspace_repository_web_url(client_id, payload).await
@@ -1085,6 +1095,10 @@ impl ServerActor {
             "sshTarget.list" => {
                 self.require_auth(client_id)?;
                 self.ssh_target_list().await
+            }
+            "mobile.hosts.list" => {
+                self.require_auth(client_id)?;
+                self.mobile_host_list().await
             }
             "sshTarget.upsert" => {
                 self.require_auth(client_id)?;

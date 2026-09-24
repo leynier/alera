@@ -57,6 +57,7 @@ async fn removing_tab_releases_its_hosted_review_refs() {
             source_branch: None,
             reuses_existing_branch: false,
             is_pinned: false,
+            is_archived: false,
             tag_ids: Vec::new(),
             tag_names: Vec::new(),
             parent_workspace_id: None,
@@ -131,9 +132,11 @@ async fn sleep_reports_committed_effect_when_activity_recording_fails() {
         Some(RuntimeMutationEffect::WorkspaceSlept { workspace_id })
             if workspace_id == "force-activity-failure"
     ));
+    // Sleep terminates sessions but preserves tab records so agent sessions
+    // can resume when the workspace wakes.
     assert!(store
         .find_workspace_tab("emulator-tab")
         .await
         .unwrap()
-        .is_none());
+        .is_some());
 }

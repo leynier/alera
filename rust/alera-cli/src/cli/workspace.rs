@@ -30,10 +30,17 @@ pub enum WorkspaceAction {
     Register(WorkspaceRegisterArgs),
     /// Remove a workspace record and related runtime records without touching Git worktrees.
     Unregister(IdArgs),
+    /// Change a workspace's display name. The branch and worktree folder are not touched.
+    Rename(WorkspaceRenameArgs),
     /// Pin a workspace in the desktop sidebar.
     Pin(IdArgs),
     /// Unpin a workspace from the desktop sidebar.
     Unpin(IdArgs),
+    /// Archive a workspace: stop its sessions and hide it from the sidebar
+    /// while preserving tabs, branch, and files for later resume.
+    Archive(IdArgs),
+    /// Unarchive a workspace so it returns to the sidebar.
+    Unarchive(IdArgs),
     /// Add a parent/child relationship.
     Link(WorkspaceLinkArgs),
     /// Remove a parent/child relationship.
@@ -52,6 +59,11 @@ pub enum WorkspaceAction {
     HandOn(WorkspaceHandOnArgs),
     /// Show, link, or unlink the issue a workspace was created for.
     Issue(WorkspaceIssueCommand),
+    /// Start, stop, or inspect Watch and Fix for the workspace pull request.
+    #[command(name = "pr-watch")]
+    PrWatch(WorkspacePrWatchCommand),
+    /// List, create, assign, and remove workspace sections.
+    Section(WorkspaceSectionCommand),
 }
 
 #[derive(Debug, Args)]
@@ -60,6 +72,9 @@ pub struct WorkspaceListArgs {
     pub project_id: Option<String>,
     #[arg(long)]
     pub all: bool,
+    /// Only workspaces on this host: an SSH target id, or `local`.
+    #[arg(long = "host-id")]
+    pub host_id: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -95,6 +110,12 @@ pub struct WorkspaceAddArgs {
     /// Issue URL to link to the new workspace (GitHub, GitLab, Azure DevOps, or any tracker URL).
     #[arg(long = "issue", value_name = "url")]
     pub issue: Option<String>,
+    /// Assign the new workspace to this section by unique name (case-insensitive).
+    #[arg(long = "section", conflicts_with = "section_id")]
+    pub section: Option<String>,
+    /// Assign the new workspace to this section by id.
+    #[arg(long = "section-id", conflicts_with = "section")]
+    pub section_id: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -141,6 +162,12 @@ pub struct WorkspaceStartArgs {
     /// Issue URL to link to the new workspace (GitHub, GitLab, Azure DevOps, or any tracker URL).
     #[arg(long = "issue", value_name = "url")]
     pub issue: Option<String>,
+    /// Assign the new workspace to this section by unique name (case-insensitive).
+    #[arg(long = "section", conflicts_with = "section_id")]
+    pub section: Option<String>,
+    /// Assign the new workspace to this section by id.
+    #[arg(long = "section-id", conflicts_with = "section")]
+    pub section_id: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -209,6 +236,16 @@ pub struct WorkspaceRegisterArgs {
     pub kind: WorkspaceKindArg,
     #[arg(long = "reuse-existing-branch")]
     pub reuses_existing_branch: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceRenameArgs {
+    /// Workspace to rename. Defaults to the workspace of the current Alera terminal.
+    #[arg(long)]
+    pub id: Option<String>,
+    /// New display name. Leading and trailing whitespace is trimmed.
+    #[arg(long)]
+    pub name: String,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -325,4 +362,111 @@ pub struct WorkspaceIssueLinkArgs {
     /// Issue URL. Unrecognized trackers are stored as a plain link.
     #[arg(value_name = "url")]
     pub url: String,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspacePrWatchCommand {
+    #[command(subcommand)]
+    pub action: WorkspacePrWatchAction,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum WorkspacePrWatchAction {
+    /// Print the active Watch and Fix session for a workspace.
+    Show(WorkspacePrWatchTargetArgs),
+    /// Watch the linked pull request and send fix prompts to an agent.
+    Start(WorkspacePrWatchStartArgs),
+    /// Stop Watch and Fix for a workspace.
+    Stop(WorkspacePrWatchTargetArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspacePrWatchTargetArgs {
+    /// Workspace to act on. Defaults to ALERA_WORKSPACE_ID.
+    #[arg(long = "workspace-id", value_name = "id")]
+    pub workspace_id: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspacePrWatchStartArgs {
+    #[command(flatten)]
+    pub target: WorkspacePrWatchTargetArgs,
+    /// Merge once the watched scope is clear (Watch, Fix and Merge).
+    #[arg(long)]
+    pub merge: bool,
+    /// Skip failing CI checks.
+    #[arg(long = "no-checks")]
+    pub no_checks: bool,
+    /// Skip unresolved review comments.
+    #[arg(long = "no-comments")]
+    pub no_comments: bool,
+    /// Skip merge conflicts.
+    #[arg(long = "no-conflicts")]
+    pub no_conflicts: bool,
+    /// Pull request number. Defaults to the workspace's linked review.
+    #[arg(long = "review-number", value_name = "n")]
+    pub review_number: Option<i64>,
+    /// Terminal handle to dispatch to. Defaults to ALERA_TERMINAL_HANDLE.
+    #[arg(long)]
+    pub handle: Option<String>,
+    /// Stable agent profile id used when the bound terminal is gone.
+    #[arg(long = "profile-id", value_name = "id")]
+    pub profile_id: Option<String>,
+    /// Unique agent profile name. Alias for looking up --profile-id.
+    #[arg(long = "profile", value_name = "name", conflicts_with = "profile_id")]
+    pub profile: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceSectionCommand {
+    #[command(subcommand)]
+    pub action: WorkspaceSectionAction,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum WorkspaceSectionAction {
+    /// List workspace sections.
+    List,
+    /// Create a section and assign its first workspace.
+    Create(WorkspaceSectionCreateArgs),
+    /// Assign a workspace to an existing section.
+    Set(WorkspaceSectionSetArgs),
+    /// Move a workspace to Others (no section).
+    Clear(WorkspaceSectionWorkspaceArgs),
+    /// Delete a section. Workspaces are kept and moved to Others.
+    Remove(IdArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceSectionCreateArgs {
+    #[arg(long)]
+    pub name: String,
+    #[arg(long = "workspace-id")]
+    pub workspace_id: String,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceSectionSetArgs {
+    #[arg(long = "workspace-id")]
+    pub workspace_id: String,
+    /// Unique section name, matched case-insensitively.
+    #[arg(
+        long = "section",
+        required_unless_present = "section_id",
+        conflicts_with = "section_id"
+    )]
+    pub section: Option<String>,
+    /// Section id.
+    #[arg(
+        long = "section-id",
+        required_unless_present = "section",
+        conflicts_with = "section"
+    )]
+    pub section_id: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceSectionWorkspaceArgs {
+    #[arg(long = "workspace-id")]
+    pub workspace_id: String,
 }

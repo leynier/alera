@@ -364,5 +364,28 @@ void main() {
         expect(secondRestore.general.starClicked, isTrue);
       },
     );
+
+    test(
+      'markTrayHideNoticeShown persists once and becomes a no-op afterward',
+      () async {
+        final db = AleraDatabase(executor: NativeDatabase.memory());
+        addTearDown(db.close);
+        final repository = DriftSettingsRepository(db);
+        final container = ProviderContainer(
+          overrides: [settingsRepositoryProvider.overrideWithValue(repository)],
+        );
+        addTearDown(container.dispose);
+        final controller = container.read(settingsControllerProvider.notifier);
+        await controller.load();
+
+        await controller.markTrayHideNoticeShown();
+        final firstRestore = await repository.load();
+        expect(firstRestore.general.trayHideNoticeShown, isTrue);
+
+        await controller.markTrayHideNoticeShown();
+        final secondRestore = await repository.load();
+        expect(secondRestore.general.trayHideNoticeShown, isTrue);
+      },
+    );
   });
 }

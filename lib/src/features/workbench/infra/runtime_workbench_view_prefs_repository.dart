@@ -1,5 +1,6 @@
 import 'package:alera/src/features/workbench/application/workbench_view_prefs_repository.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:logging/logging.dart';
 
@@ -95,6 +96,7 @@ class RuntimeWorkbenchViewPrefsRepository({
       shared.remove('sectionSort');
       shared.remove('collapsedSectionIds');
       shared.remove('othersSectionCollapsed');
+      shared.remove('selectedSectionIds');
       if (prefs.groupBy == WorkbenchGroupBy.section) {
         shared['groupBy'] = 'project';
       }
@@ -118,6 +120,7 @@ Map<String, Object?> _sharedJson(WorkbenchViewPrefs prefs) {
     'projectSort': prefs.projectSort.name,
     'workspaceSort': prefs.workspaceSort.name,
     'selectedProjectIds': prefs.selectedProjectIds.toList(),
+    'selectedSectionIds': prefs.selectedSectionIds.toList(),
     'selectedTagIds': prefs.selectedTagIds.toList(),
     'collapsedProjectIds': prefs.collapsedProjectIds.toList(),
     'collapsedParentWorkspaceIds': prefs.collapsedParentWorkspaceIds.toList(),
@@ -126,10 +129,12 @@ Map<String, Object?> _sharedJson(WorkbenchViewPrefs prefs) {
     'showPinnedWorkspacesBelow': prefs.showPinnedWorkspacesBelow,
     'workspaceKindFilter': prefs.workspaceKindFilter.name,
     'showActiveWorkspacesOnly': prefs.showActiveWorkspacesOnly,
+    'showArchivedWorkspaces': prefs.showArchivedWorkspaces,
     'gitDiffViewMode': prefs.gitDiffViewMode.name,
     'gitDiffGroupMode': prefs.gitDiffGroupMode.name,
     'searchViewAsTree': prefs.searchViewAsTree,
     'searchIncludeIgnored': prefs.searchIncludeIgnored,
+    'workspaceMainTabIds': sharedWorkspaceMainTabIds(prefs.workspacePanels),
   };
 }
 
@@ -165,6 +170,9 @@ WorkbenchViewPrefs _mergeShared(
       local.workspaceSort,
     ),
     selectedProjectIds: _stringSet(shared['selectedProjectIds']),
+    selectedSectionIds: shared.containsKey('selectedSectionIds')
+        ? _stringSet(shared['selectedSectionIds'])
+        : local.selectedSectionIds,
     selectedTagIds: _stringSet(shared['selectedTagIds']),
     collapsedProjectIds: _stringSet(shared['collapsedProjectIds']),
     collapsedParentWorkspaceIds: _stringSet(
@@ -183,6 +191,9 @@ WorkbenchViewPrefs _mergeShared(
     showActiveWorkspacesOnly:
         shared['showActiveWorkspacesOnly'] as bool? ??
         local.showActiveWorkspacesOnly,
+    showArchivedWorkspaces:
+        shared['showArchivedWorkspaces'] as bool? ??
+        local.showArchivedWorkspaces,
     gitDiffViewMode: _enumByName(
       GitDiffViewMode.values,
       shared['gitDiffViewMode'],

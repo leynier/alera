@@ -141,6 +141,7 @@ class const MobileProjectConfig({
   final List<ProjectConfigCopyRule> copyRules = const <ProjectConfigCopyRule>[],
   final List<String> setupCommands = const <String>[],
   final String promptAppend = '',
+  final String sourceBranch = '',
   final String? gitHostingProvider,
 }) {
   factory fromJson(Map<String, Object?> json) {
@@ -154,8 +155,14 @@ class const MobileProjectConfig({
       ],
       setupCommands: worktree.stringList('setup'),
       promptAppend: newWorkspace.optionalString('promptAppend') ?? '',
+      sourceBranch: newWorkspace.optionalString('sourceBranch') ?? '',
       gitHostingProvider: json.optionalString('gitHostingProvider'),
     );
+  }
+
+  String? get preferredSourceBranch {
+    final branch = sourceBranch.trim();
+    return branch.isEmpty ? null : branch;
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -165,7 +172,10 @@ class const MobileProjectConfig({
       ],
       'setup': setupCommands,
     },
-    'newWorkspace': <String, Object?>{'promptAppend': promptAppend.trim()},
+    'newWorkspace': <String, Object?>{
+      'promptAppend': promptAppend.trim(),
+      'sourceBranch': sourceBranch.trim(),
+    },
     'gitHostingProvider': ?gitHostingProvider,
   };
 }

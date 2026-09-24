@@ -343,7 +343,7 @@ final class PullRequestActionControllerProvider
 }
 
 String _$pullRequestActionControllerHash() =>
-    r'740acf17ed0460fcdfc242511d484acd0a3fe52b';
+    r'79586d860a89351f8975ccad2ce8845a2ab27c4e';
 
 /// The pull request write in flight for one workspace, or null when idle.
 ///

@@ -14,13 +14,16 @@ abstract final class const AleraIcons._() {
   static const IconData pin = LucideIcons.pin;
   static const IconData pinOff = LucideIcons.pinOff;
   static const IconData folderSpecial = LucideIcons.folderGit2;
+  static const IconData host = LucideIcons.server;
   static const IconData tag = LucideIcons.tag;
   // Workspace sections group workspaces; they are not filesystem folders.
   static const IconData section = LucideIcons.layers;
   static const IconData sectionOff = LucideIcons.layersMinus;
   static const IconData workspaceMain = LucideIcons.home;
   static const IconData workspaceChildren = LucideIcons.workflow;
+  static const IconData split = LucideIcons.split;
   static const IconData gitBranch = LucideIcons.gitBranch;
+  static const IconData gitFork = LucideIcons.gitFork;
   static const IconData success = LucideIcons.circleCheck;
   static const IconData check = LucideIcons.check;
   static const IconData notifications = LucideIcons.bell;
@@ -80,6 +83,8 @@ abstract final class const AleraIcons._() {
   static const IconData folderOff = LucideIcons.folderX;
   static const IconData file = LucideIcons.fileText;
   static const IconData fileGeneric = LucideIcons.file;
+  static const IconData attach = LucideIcons.paperclip;
+  static const IconData agent = LucideIcons.bot;
   static const IconData cloudOff = LucideIcons.cloudOff;
   static const IconData systemUpdate = LucideIcons.download;
   static const IconData contextCompact = LucideIcons.foldHorizontal;
@@ -88,6 +93,7 @@ abstract final class const AleraIcons._() {
   static const IconData public = LucideIcons.globe;
   static const IconData comment = LucideIcons.messageSquare;
   static const IconData send = LucideIcons.send;
+  static const IconData restore = LucideIcons.history;
 
   // Source control actions
   static const IconData gitCommit = LucideIcons.gitCommitHorizontal;
@@ -102,5 +108,7 @@ abstract final class const AleraIcons._() {
   static const IconData gitPublish = LucideIcons.cloudUpload;
   static const IconData gitStash = LucideIcons.archive;
   static const IconData gitStashPop = LucideIcons.archiveRestore;
+  static const IconData archive = LucideIcons.archive;
+  static const IconData unarchive = LucideIcons.archiveRestore;
   static const IconData generate = LucideIcons.sparkles;
 }

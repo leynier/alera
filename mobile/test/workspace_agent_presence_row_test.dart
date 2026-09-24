@@ -4,6 +4,8 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snaps
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_workspace_rows.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_listing_tree.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/agent_identity_icon.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/mobile_workspace_agent_compact_summary.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_row_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,13 +15,19 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      _rowApp(
+      _rowApp(<AgentPresenceSummary>[
         _presence(
           title: 'Map Monetization',
           state: 'waiting',
           lastAssistantMessage: '**paymentBroker**',
         ),
-      ),
+        _presence(
+          title: 'Other Agent',
+          state: 'done',
+          tabId: 'tab-2',
+          sessionId: 'session-2',
+        ),
+      ]),
     );
 
     final title = tester.widget<Text>(find.text('Map Monetization'));
@@ -34,14 +42,20 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      _rowApp(
+      _rowApp(<AgentPresenceSummary>[
         _presence(
           title: 'Map Monetization',
           state: 'working',
           toolName: 'Read',
           toolInput: 'lib/foo.dart',
         ),
-      ),
+        _presence(
+          title: 'Other Agent',
+          state: 'done',
+          tabId: 'tab-2',
+          sessionId: 'session-2',
+        ),
+      ]),
     );
 
     expect(find.text('Map Monetization'), findsOneWidget);
@@ -52,12 +66,18 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      _rowApp(
+      _rowApp(<AgentPresenceSummary>[
         _presence(
           state: 'waiting',
           lastAssistantMessage: 'Waiting for approval',
         ),
-      ),
+        _presence(
+          title: 'Other Agent',
+          state: 'done',
+          tabId: 'tab-2',
+          sessionId: 'session-2',
+        ),
+      ]),
     );
 
     final title = tester.widget<Text>(find.text('Codex'));
@@ -65,9 +85,88 @@ void main() {
     expect(find.text('Waiting for approval'), findsOneWidget);
     expect(find.text('Codex · Waiting for input'), findsNothing);
   });
+
+  testWidgets(
+    'a single agent shows its identity on the workspace without nested rows',
+    (tester) async {
+      await tester.pumpWidget(
+        _rowApp(<AgentPresenceSummary>[
+          _presence(
+            title: 'Map Monetization',
+            state: 'working',
+            toolName: 'Read',
+            toolInput: 'lib/foo.dart',
+          ),
+        ]),
+      );
+
+      expect(find.byKey(const Key('workspace-primary-agent')), findsOneWidget);
+      expect(
+        tester
+            .widget<AgentIdentityIcon>(
+              find.byKey(const Key('workspace-primary-agent')),
+            )
+            .agentType,
+        'codex',
+      );
+      expect(find.byType(MobileWorkspaceAgentCompactSummary), findsNothing);
+      expect(find.text('Map Monetization'), findsNothing);
+      expect(find.text('Read: lib/foo.dart'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'two agents keep nested rows and omit the workspace primary icon',
+    (tester) async {
+      await tester.pumpWidget(
+        _rowApp(<AgentPresenceSummary>[
+          _presence(title: 'Map Monetization', state: 'working'),
+          _presence(
+            title: 'Other Agent',
+            state: 'done',
+            tabId: 'tab-2',
+            sessionId: 'session-2',
+          ),
+        ]),
+      );
+
+      expect(find.byKey(const Key('workspace-primary-agent')), findsNothing);
+      expect(find.byType(MobileWorkspaceAgentCompactSummary), findsOneWidget);
+      expect(find.text('Map Monetization'), findsOneWidget);
+      expect(find.text('Other Agent'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a single main-panel agent stays on the row when a secondary agent is listed',
+    (tester) async {
+      await tester.pumpWidget(
+        _rowApp(
+          <AgentPresenceSummary>[
+            _presence(title: 'Map Monetization', state: 'working'),
+            _presence(
+              title: 'Other Agent',
+              state: 'done',
+              tabId: 'tab-2',
+              sessionId: 'session-2',
+            ),
+          ],
+          mainTabIds: <String>{'tab-1'},
+        ),
+      );
+
+      expect(find.byKey(const Key('workspace-primary-agent')), findsOneWidget);
+      expect(find.byType(MobileWorkspaceAgentCompactSummary), findsOneWidget);
+      expect(find.text('Map Monetization'), findsNothing);
+      expect(find.text('Other Agent'), findsOneWidget);
+    },
+  );
 }
 
-Widget _rowApp(AgentPresenceSummary status) {
+Widget _rowApp(
+  List<AgentPresenceSummary> agentPresence, {
+  Set<String> mainTabIds = const <String>{},
+}) {
   return MaterialApp(
     theme: buildAleraMobileDarkTheme(),
     home: Scaffold(
@@ -94,7 +193,8 @@ Widget _rowApp(AgentPresenceSummary status) {
         onToggleAgents: () {},
         onAgentTap: (_) {},
         onCloseAgent: (_) {},
-        agentPresence: <AgentPresenceSummary>[status],
+        agentPresence: agentPresence,
+        mainTabIds: mainTabIds,
       ),
     ),
   );
@@ -106,11 +206,13 @@ AgentPresenceSummary _presence({
   String? toolName,
   String? toolInput,
   String? lastAssistantMessage,
+  String tabId = 'tab-1',
+  String sessionId = 'session-1',
 }) {
   return AgentPresenceSummary(
-    terminalSessionId: 'session-1',
+    terminalSessionId: sessionId,
     workspaceId: 'workspace-1',
-    tabId: 'tab-1',
+    tabId: tabId,
     agentType: 'codex',
     state: state,
     title: title,

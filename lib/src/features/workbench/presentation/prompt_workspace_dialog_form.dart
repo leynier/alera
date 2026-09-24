@@ -6,6 +6,7 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
         _created == null &&
         _orderedProjects.isNotEmpty &&
         widget.agentProfiles.isNotEmpty &&
+        !_hostBlocksCreation &&
         (_useProjectCheckout || !_loadingBranches);
   }
 
@@ -19,7 +20,10 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
           children: <Widget>[
             AleraDropdownField<Project>(
               labelText: 'Project',
-              value: _project,
+              value: switch (_project) {
+                final project? => _hostEnrollment.resolve(project),
+                null => null,
+              },
               entries: <AleraDropdownFieldEntry<Project>>[
                 for (final project in _orderedProjects)
                   AleraDropdownFieldEntry<Project>(
@@ -110,12 +114,17 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
                   _selectedHostId = hostId;
                   _sourceBranch = null;
                 });
+                _hostEnrollment.clearError();
                 final project = _project;
                 if (!_useProjectCheckout && project != null) {
                   unawaited(_loadBranches(project));
                 }
               },
             ),
+            if (_hostEnrollmentNotice() case final notice?) ...<Widget>[
+              const SizedBox(height: AleraTokens.space12),
+              notice,
+            ],
             const SizedBox(height: AleraTokens.space12),
             AleraDropdownField<AgentProfile>(
               labelText: 'Agent Profile',
@@ -169,13 +178,28 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
               ),
             ],
             const SizedBox(height: AleraTokens.space12),
-            AleraCheckbox(
-              value: _createAnother,
-              enabled: !_working && created == null,
-              onChanged: (value) {
-                _update(() => _createAnother = value);
-              },
-              label: 'Create Another',
+            Row(
+              children: <Widget>[
+                if (widget.hasWorkspaceSections) ...<Widget>[
+                  AleraCheckbox(
+                    value: _autoAssignSection,
+                    enabled: !_working && created == null,
+                    onChanged: (value) {
+                      _update(() => _autoAssignSection = value);
+                    },
+                    label: 'Auto Assign Section',
+                  ),
+                  const SizedBox(width: AleraTokens.space12),
+                ],
+                AleraCheckbox(
+                  value: _createAnother,
+                  enabled: !_working && created == null,
+                  onChanged: (value) {
+                    _update(() => _createAnother = value);
+                  },
+                  label: 'Create Another',
+                ),
+              ],
             ),
             const SizedBox(height: AleraTokens.space20),
             Row(

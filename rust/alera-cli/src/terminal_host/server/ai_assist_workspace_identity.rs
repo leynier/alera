@@ -1,3 +1,4 @@
+use alera_core::runtime::WorkspaceSection;
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -31,31 +32,84 @@ pub(super) fn handoff_identity_context(
     )
 }
 
-pub(super) fn workspace_identity_prompt(initial_prompt: &str, custom_instructions: &str) -> String {
-    let mut sections = vec![
+pub(super) fn workspace_identity_prompt(
+    initial_prompt: &str,
+    custom_instructions: &str,
+    project_name: &str,
+    project_path: &str,
+    sections: &[WorkspaceSection],
+) -> String {
+    let fields = if sections.is_empty() {
+        "workspaceName and branchName".to_string()
+    } else {
+        "workspaceName, branchName, and section".to_string()
+    };
+    let mut lines = vec![
         "Generate the identity for a new development workspace from the user's task.".to_string(),
-        "Return only one compact JSON object with exactly these string fields: workspaceName and branchName.".to_string(),
+        format!("Return only one compact JSON object with exactly these string fields: {fields}."),
         String::new(),
         "Rules:".to_string(),
         "- workspaceName: concise human-readable title, title case, 2 to 6 words.".to_string(),
         "- branchName: lowercase valid Git branch, use kebab-case, and start with feat/, fix/, chore/, docs/, refactor/, test/, or perf/.".to_string(),
+    ];
+    if !sections.is_empty() {
+        lines.push(
+            "- section: the workspace section the task belongs to. Use the project name and path together with the user task. Answer with exactly one of the section names listed below, or \"Others\" when none fits."
+                .to_string(),
+        );
+    }
+    lines.extend([
         "- Describe the requested outcome, not the implementation process.".to_string(),
-        "- Do not include markdown, explanations, quotes around the whole object, or extra fields.".to_string(),
+        "- Do not include markdown, explanations, quotes around the whole object, or extra fields."
+            .to_string(),
+    ]);
+    append_project_context(&mut lines, project_name, project_path);
+    if !sections.is_empty() {
+        lines.push(String::new());
+        lines.push("Sections:".to_string());
+        for section in sections {
+            lines.push(format!("- {}", section.name));
+        }
+    }
+    lines.extend([
         String::new(),
         "User task:".to_string(),
         initial_prompt.trim().to_string(),
-    ];
+    ]);
     if !custom_instructions.trim().is_empty() {
-        sections.extend([
+        lines.extend([
             String::new(),
             "Additional user instructions:".to_string(),
             custom_instructions.trim().to_string(),
         ]);
     }
-    sections.join("\n")
+    lines.join("\n")
 }
 
-pub(super) fn parse_workspace_identity(raw: &str) -> HostResult<Value> {
+fn append_project_context(lines: &mut Vec<String>, project_name: &str, project_path: &str) {
+    let name = project_name.trim();
+    let path = project_path.trim();
+    if name.is_empty() && path.is_empty() {
+        return;
+    }
+    lines.push(String::new());
+    lines.push("Project:".to_string());
+    if !name.is_empty() {
+        lines.push(format!("- name: {}", bound_prompt_text(name, 200)));
+    }
+    if !path.is_empty() {
+        lines.push(format!("- path: {}", bound_prompt_text(path, 500)));
+    }
+}
+
+fn bound_prompt_text(text: &str, max: usize) -> String {
+    text.chars().take(max).collect()
+}
+
+pub(super) fn parse_workspace_identity(
+    raw: &str,
+    sections: &[WorkspaceSection],
+) -> HostResult<Value> {
     let trimmed = raw.trim();
     let unfenced = trimmed
         .strip_prefix("```json")
@@ -90,38 +144,147 @@ pub(super) fn parse_workspace_identity(raw: &str) -> HostResult<Value> {
             "AI Assist returned an invalid Git branch name.",
         ));
     }
-    Ok(json!({
+    let mut response = json!({
         "workspaceName": workspace_name,
         "branchName": branch_name,
-    }))
+    });
+    if !sections.is_empty() {
+        // The store keeps section names unique case-insensitively, so a
+        // case-insensitive match here cannot be ambiguous. A missing, unknown,
+        // or "Others" answer leaves the workspace unassigned.
+        let section_name = value
+            .get("section")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty() && value.len() <= 200);
+        if let Some(section) = section_name.and_then(|name| {
+            sections
+                .iter()
+                .find(|section| section.name.to_lowercase() == name.to_lowercase())
+        }) {
+            response["sectionId"] = json!(section.id);
+        }
+    }
+    Ok(response)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Utc;
+
+    fn section(id: &str, name: &str) -> WorkspaceSection {
+        WorkspaceSection {
+            id: id.to_string(),
+            name: name.to_string(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    fn prompt_text(task: &str, instructions: &str, sections: &[WorkspaceSection]) -> String {
+        workspace_identity_prompt(task, instructions, "Alera", "/repo/alera", sections)
+    }
 
     #[test]
     fn identity_prompt_includes_custom_workspace_instructions() {
-        let prompt = workspace_identity_prompt("Add offline mode", "Use fix/ branches.");
+        let prompt = prompt_text("Add offline mode", "Use fix/ branches.", &[]);
         assert!(prompt.contains("Add offline mode"));
         assert!(prompt.contains("Use fix/ branches."));
         assert!(prompt.contains("workspaceName"));
     }
 
     #[test]
+    fn identity_prompt_includes_project_name_and_path() {
+        let prompt = prompt_text("Add offline mode", "", &[]);
+        assert!(prompt.contains("Project:\n- name: Alera\n- path: /repo/alera"));
+    }
+
+    #[test]
+    fn identity_prompt_omits_empty_project_fields() {
+        let prompt = workspace_identity_prompt("Add offline mode", "", "", "", &[]);
+        assert!(!prompt.contains("Project:"));
+        let name_only = workspace_identity_prompt("Add offline mode", "", "Alera", "", &[]);
+        assert!(name_only.contains("Project:\n- name: Alera"));
+        assert!(!name_only.contains("- path:"));
+    }
+
+    #[test]
+    fn identity_prompt_without_sections_omits_the_section_rule() {
+        let prompt = prompt_text("Add offline mode", "", &[]);
+        assert!(prompt.contains("workspaceName and branchName"));
+        assert!(!prompt.contains("Sections:"));
+        assert!(!prompt.contains("Others"));
+    }
+
+    #[test]
+    fn identity_prompt_lists_sections_with_others_fallback() {
+        let sections = vec![section("a", "Work"), section("b", "Personal")];
+        let prompt = prompt_text("Add offline mode", "", &sections);
+        assert!(prompt.contains("workspaceName, branchName, and section"));
+        assert!(prompt.contains("Project:\n- name: Alera\n- path: /repo/alera"));
+        assert!(prompt.contains("Sections:\n- Work\n- Personal"));
+        assert!(prompt.contains("\"Others\" when none fits"));
+        assert!(prompt.contains("Use the project name and path together with the user task"));
+    }
+
+    #[test]
     fn parses_fenced_workspace_identity() {
         let value = parse_workspace_identity(
             "```json\n{\"workspaceName\":\"Offline Mode\",\"branchName\":\"feat/offline-mode\"}\n```",
+            &[],
         )
         .unwrap();
         assert_eq!(value["workspaceName"], "Offline Mode");
         assert_eq!(value["branchName"], "feat/offline-mode");
+        assert!(value.get("sectionId").is_none());
+    }
+
+    #[test]
+    fn resolves_a_returned_section_name_case_insensitively() {
+        let sections = vec![section("a", "Work"), section("b", "Personal")];
+        let value = parse_workspace_identity(
+            "{\"workspaceName\":\"Offline Mode\",\"branchName\":\"feat/offline-mode\",\"section\":\"work\"}",
+            &sections,
+        )
+        .unwrap();
+        assert_eq!(value["sectionId"], "a");
+    }
+
+    #[test]
+    fn others_and_unknown_sections_leave_the_workspace_unassigned() {
+        let sections = vec![section("a", "Work")];
+        for answer in ["Others", "unknown", ""] {
+            let value = parse_workspace_identity(
+                &format!("{{\"workspaceName\":\"Offline Mode\",\"branchName\":\"feat/offline-mode\",\"section\":\"{answer}\"}}"),
+                &sections,
+            )
+            .unwrap();
+            assert!(value.get("sectionId").is_none(), "answer: {answer}");
+        }
+        let value = parse_workspace_identity(
+            "{\"workspaceName\":\"Offline Mode\",\"branchName\":\"feat/offline-mode\"}",
+            &sections,
+        )
+        .unwrap();
+        assert!(value.get("sectionId").is_none());
+    }
+
+    #[test]
+    fn ignores_a_returned_section_when_assignment_was_not_requested() {
+        let value = parse_workspace_identity(
+            "{\"workspaceName\":\"Offline Mode\",\"branchName\":\"feat/offline-mode\",\"section\":\"Work\"}",
+            &[],
+        )
+        .unwrap();
+        assert!(value.get("sectionId").is_none());
     }
 
     #[test]
     fn rejects_invalid_generated_branch() {
         let result = parse_workspace_identity(
             "{\"workspaceName\":\"Offline Mode\",\"branchName\":\"invalid branch\"}",
+            &[],
         );
         assert!(result.is_err());
     }

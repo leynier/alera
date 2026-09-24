@@ -69,7 +69,8 @@ void _handleTerminalSelectionChanged(_XtermTerminalSessionHandle handle) {
     if (currentSelection == null) {
       return;
     }
-    final text = handle._terminal.buffer.getText(currentSelection);
+    // Match explicit copy: drop row padding before hard line breaks.
+    final text = handle._terminal.buffer.getText(currentSelection, true);
     if (text.isEmpty) {
       return;
     }
@@ -96,6 +97,7 @@ xterm.Terminal _createSessionTerminal(_XtermTerminalSessionHandle handle) {
   return xterm.Terminal(
     reflowWithHiddenCursor: false,
     preserveOrphanCombiningMarks: true,
+    windowsPtyMode: _xtermWindowsPtyMode,
     allowITerm2ClipboardCapture: false,
     allowKittyClipboard: false,
     // An unset callback lets TerminalView install its system clipboard reader.

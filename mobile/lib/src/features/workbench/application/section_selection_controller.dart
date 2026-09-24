@@ -2,8 +2,8 @@ import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces
 import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:logging/logging.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'section_selection_controller.g.dart';
 
@@ -75,7 +75,23 @@ class SectionSelectionController extends _$SectionSelectionController {
     }
   }
 
-  Future<bool> save({List<String> extraWorkspaceIds = const []}) async {
+  SectionSelectionState? get draft => state.value;
+
+  Future<void> restoreDraft(SectionSelectionState draft) async {
+    try {
+      await future;
+    } catch (error, stack) {
+      _logger.warning(
+        'Could not refresh recovered section draft',
+        error,
+        stack,
+      );
+    }
+    if (!ref.mounted || state.value?.saving == true) return;
+    state = AsyncData(draft.copyWith(saving: false));
+  }
+
+  bool validate() {
     final current = state.value;
     if (current == null || current.saving) return false;
     final creating = current.selected == '__new__';
@@ -93,6 +109,15 @@ class SectionSelectionController extends _$SectionSelectionController {
       );
       return false;
     }
+    return true;
+  }
+
+  Future<bool> save({List<String> extraWorkspaceIds = const []}) async {
+    final current = state.value;
+    if (current == null || current.saving) return false;
+    if (!validate()) return false;
+    final creating = current.selected == '__new__';
+    final name = current.name.trim();
     state = AsyncData(current.copyWith(saving: true, error: ''));
     try {
       final client = await ref.read(workspaceClientProvider(hostId).future);

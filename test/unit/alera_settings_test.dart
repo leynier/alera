@@ -27,7 +27,8 @@ void main() {
       expect(terminal.colorOverrides.isEmpty, isTrue);
       expect(terminal.scrollbackLines, 10000);
       expect(terminal.tuiScrollSensitivity, 1);
-      expect(terminal.clipboardOnSelect, isFalse);
+      expect(terminal.dragSelectsInTuis, isTrue);
+      expect(terminal.clipboardOnSelect, isTrue);
       expect(terminal.allowOsc52Clipboard, isFalse);
       expect(terminal.showComposerByDefault, isFalse);
       expect(terminal.toolbarCorner, TerminalToolbarCorner.topRight);
@@ -46,6 +47,7 @@ void main() {
       expect(general.showTrayIcon, isTrue);
       expect(general.showDockBadge, isTrue);
       expect(general.showTrayBadge, isTrue);
+      expect(general.trayHideNoticeShown, isFalse);
       expect(general.showPullRequestStatusInSidebar, isTrue);
       expect(general.pullRequestFailureNotificationsEnabled, isFalse);
       expect(
@@ -126,7 +128,7 @@ void main() {
             .map((agent) => agent.agentType)
             .whereType<Object>()
             .length,
-        11,
+        12,
       );
     });
 
@@ -262,7 +264,8 @@ void main() {
         'colorOverrides': <String, Object?>{'cursor': '#abcdef'},
         'scrollbackLines': 15000,
         'tuiScrollSensitivity': 4,
-        'clipboardOnSelect': true,
+        'dragSelectsInTuis': false,
+        'clipboardOnSelect': false,
         'allowOsc52Clipboard': true,
         'showComposerByDefault': true,
         'toolbarCorner': 'bottomLeft',
@@ -281,7 +284,8 @@ void main() {
       expect(restored.colorOverrides.cursor, '#abcdef');
       expect(restored.scrollbackLines, 15000);
       expect(restored.tuiScrollSensitivity, 4);
-      expect(restored.clipboardOnSelect, isTrue);
+      expect(restored.dragSelectsInTuis, isFalse);
+      expect(restored.clipboardOnSelect, isFalse);
       expect(restored.allowOsc52Clipboard, isTrue);
       expect(restored.showComposerByDefault, isTrue);
       expect(restored.toolbarCorner, TerminalToolbarCorner.bottomLeft);

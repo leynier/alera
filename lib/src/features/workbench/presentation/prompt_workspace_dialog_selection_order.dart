@@ -1,22 +1,19 @@
 part of 'prompt_workspace_dialog.dart';
 
 extension _PromptWorkspaceDialogSelectionOrder on _PromptWorkspaceDialogState {
-  String? _defaultBranch(List<String> branches) {
-    for (final preferred in const <String>[
-      'main',
-      'origin/main',
-      'master',
-      'origin/master',
-    ]) {
-      if (branches.contains(preferred)) {
-        return preferred;
-      }
+  Future<String?> _preferredSourceFor(Project project) async {
+    try {
+      final value = await widget.loadPreferredSourceBranch?.call(project);
+      final trimmed = value?.trim();
+      return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
+    } catch (_) {
+      return null;
     }
-    return branches.firstOrNull;
   }
 
-  List<Project> get _orderedProjects =>
-      sortProjectsForSelection(widget.projects);
+  List<Project> get _orderedProjects => sortProjectsForSelection(<Project>[
+    for (final project in widget.projects) _hostEnrollment.resolve(project),
+  ]);
 
   List<Workspace> get _parentWorkspaces {
     final projectNameById = <String, String>{

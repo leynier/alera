@@ -529,12 +529,19 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     opt: true,
     def: 1,
   );
+  static bool _$dragSelectsInTuis(TerminalSettings v) => v.dragSelectsInTuis;
+  static const Field<TerminalSettings, bool> _f$dragSelectsInTuis = Field(
+    'dragSelectsInTuis',
+    _$dragSelectsInTuis,
+    opt: true,
+    def: true,
+  );
   static bool _$clipboardOnSelect(TerminalSettings v) => v.clipboardOnSelect;
   static const Field<TerminalSettings, bool> _f$clipboardOnSelect = Field(
     'clipboardOnSelect',
     _$clipboardOnSelect,
     opt: true,
-    def: false,
+    def: true,
   );
   static bool _$allowOsc52Clipboard(TerminalSettings v) =>
       v.allowOsc52Clipboard;
@@ -627,6 +634,7 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     #colorOverrides: _f$colorOverrides,
     #scrollbackLines: _f$scrollbackLines,
     #tuiScrollSensitivity: _f$tuiScrollSensitivity,
+    #dragSelectsInTuis: _f$dragSelectsInTuis,
     #clipboardOnSelect: _f$clipboardOnSelect,
     #allowOsc52Clipboard: _f$allowOsc52Clipboard,
     #showComposerByDefault: _f$showComposerByDefault,
@@ -659,6 +667,7 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
       colorOverrides: data.dec(_f$colorOverrides),
       scrollbackLines: data.dec(_f$scrollbackLines),
       tuiScrollSensitivity: data.dec(_f$tuiScrollSensitivity),
+      dragSelectsInTuis: data.dec(_f$dragSelectsInTuis),
       clipboardOnSelect: data.dec(_f$clipboardOnSelect),
       allowOsc52Clipboard: data.dec(_f$allowOsc52Clipboard),
       showComposerByDefault: data.dec(_f$showComposerByDefault),
@@ -758,6 +767,7 @@ abstract class TerminalSettingsCopyWith<$R, $In extends TerminalSettings, $Out>
     TerminalColorOverrides? colorOverrides,
     int? scrollbackLines,
     int? tuiScrollSensitivity,
+    bool? dragSelectsInTuis,
     bool? clipboardOnSelect,
     bool? allowOsc52Clipboard,
     bool? showComposerByDefault,
@@ -807,6 +817,7 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
     TerminalColorOverrides? colorOverrides,
     int? scrollbackLines,
     int? tuiScrollSensitivity,
+    bool? dragSelectsInTuis,
     bool? clipboardOnSelect,
     bool? allowOsc52Clipboard,
     bool? showComposerByDefault,
@@ -835,6 +846,7 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
       if (scrollbackLines != null) #scrollbackLines: scrollbackLines,
       if (tuiScrollSensitivity != null)
         #tuiScrollSensitivity: tuiScrollSensitivity,
+      if (dragSelectsInTuis != null) #dragSelectsInTuis: dragSelectsInTuis,
       if (clipboardOnSelect != null) #clipboardOnSelect: clipboardOnSelect,
       if (allowOsc52Clipboard != null)
         #allowOsc52Clipboard: allowOsc52Clipboard,
@@ -877,6 +889,10 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
     tuiScrollSensitivity: data.get(
       #tuiScrollSensitivity,
       or: $value.tuiScrollSensitivity,
+    ),
+    dragSelectsInTuis: data.get(
+      #dragSelectsInTuis,
+      or: $value.dragSelectsInTuis,
     ),
     clipboardOnSelect: data.get(
       #clipboardOnSelect,
@@ -1466,6 +1482,13 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     opt: true,
     def: PullRequestAgentWatchScope.defaults,
   );
+  static bool _$trayHideNoticeShown(GeneralSettings v) => v.trayHideNoticeShown;
+  static const Field<GeneralSettings, bool> _f$trayHideNoticeShown = Field(
+    'trayHideNoticeShown',
+    _$trayHideNoticeShown,
+    opt: true,
+    def: false,
+  );
 
   @override
   final MappableFields<GeneralSettings> fields = const {
@@ -1481,6 +1504,7 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     #pullRequestFailureNotificationsEnabled:
         _f$pullRequestFailureNotificationsEnabled,
     #pullRequestAgentWatchScope: _f$pullRequestAgentWatchScope,
+    #trayHideNoticeShown: _f$trayHideNoticeShown,
   };
 
   static GeneralSettings _instantiate(DecodingData data) {
@@ -1500,6 +1524,7 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
         _f$pullRequestFailureNotificationsEnabled,
       ),
       pullRequestAgentWatchScope: data.dec(_f$pullRequestAgentWatchScope),
+      trayHideNoticeShown: data.dec(_f$trayHideNoticeShown),
     );
   }
 
@@ -1583,6 +1608,7 @@ abstract class GeneralSettingsCopyWith<$R, $In extends GeneralSettings, $Out>
     bool? showPullRequestStatusInSidebar,
     bool? pullRequestFailureNotificationsEnabled,
     PullRequestAgentWatchScope? pullRequestAgentWatchScope,
+    bool? trayHideNoticeShown,
   });
   GeneralSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -1618,6 +1644,7 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     bool? showPullRequestStatusInSidebar,
     bool? pullRequestFailureNotificationsEnabled,
     PullRequestAgentWatchScope? pullRequestAgentWatchScope,
+    bool? trayHideNoticeShown,
   }) => $apply(
     FieldCopyWithData({
       if (workspaceDirectory != $none) #workspaceDirectory: workspaceDirectory,
@@ -1637,6 +1664,8 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
             pullRequestFailureNotificationsEnabled,
       if (pullRequestAgentWatchScope != null)
         #pullRequestAgentWatchScope: pullRequestAgentWatchScope,
+      if (trayHideNoticeShown != null)
+        #trayHideNoticeShown: trayHideNoticeShown,
     }),
   );
   @override
@@ -1669,6 +1698,10 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     pullRequestAgentWatchScope: data.get(
       #pullRequestAgentWatchScope,
       or: $value.pullRequestAgentWatchScope,
+    ),
+    trayHideNoticeShown: data.get(
+      #trayHideNoticeShown,
+      or: $value.trayHideNoticeShown,
     ),
   );
 

@@ -45,6 +45,7 @@ class const GitLabForgeProvider(final ProcessRunner _processRunner)
   @override
   Future<ForgeAuthStatus> checkAuth({
     required GitRemoteIdentity identity,
+    String? repoPath,
   }) async {
     try {
       final result = await _processRunner.run('glab', <String>[
@@ -52,7 +53,7 @@ class const GitLabForgeProvider(final ProcessRunner _processRunner)
         'status',
         '--hostname',
         identity.host,
-      ]);
+      ], workingDirectory: repoPath);
       if (result.exitCode == 0) {
         return ForgeAuthStatus.authenticated;
       }

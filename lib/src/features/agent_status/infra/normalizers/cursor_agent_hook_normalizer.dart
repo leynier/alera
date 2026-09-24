@@ -2,21 +2,26 @@ part of '../agent_hook_event_normalizer.dart';
 
 AgentStatusState? _normalizeCursorState(
   String eventName,
+  String? toolName,
   AgentStatusEntry? previous,
 ) {
+  if (eventName == 'preToolUse' && _isHumanInputTool(toolName)) {
+    return AgentStatusState.waiting;
+  }
   return switch (eventName) {
     'beforeSubmitPrompt' ||
     'sessionStart' ||
     'preToolUse' ||
     'postToolUse' ||
     'postToolUseFailure' ||
-    // Cursor fires the `before` events ahead of every execution, approval
-    // prompt or not, and never tells the hook which it was. The matching
-    // `after` event is what ends the wait, so a long command does not sit
-    // marked as needing attention for its whole run.
+    // Cursor fires `beforeShellExecution` / `beforeMCPExecution` ahead of
+    // every run, approval prompt or not, and never tells the hook which it
+    // was. Treating those as waiting notifies on each command. AskQuestion
+    // currently skips `preToolUse`; a later CLI fix still maps to waiting.
+    'beforeShellExecution' ||
+    'beforeMCPExecution' ||
     'afterShellExecution' ||
     'afterMCPExecution' => AgentStatusState.working,
-    'beforeShellExecution' || 'beforeMCPExecution' => AgentStatusState.waiting,
     'afterAgentResponse' =>
       previous?.agentType == AgentType.cursor &&
               previous?.state == AgentStatusState.done

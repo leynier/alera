@@ -69,6 +69,11 @@ class const WorkspaceSidebarSnapshot({
   final List<AgentPresenceSummary> agentPresence =
       const <AgentPresenceSummary>[],
   final Map<String, int> terminalTabCountByWorkspaceId = const <String, int>{},
+
+  /// Main-panel terminal tab ids, keyed by workspace. Additive: an older
+  /// host omits it and every agent on the row counts as main.
+  final Map<String, List<String>> workspaceMainTabIds =
+      const <String, List<String>>{},
 }) {
   factory fromJson(Map<String, Object?> json) {
     final activity = <String, DateTime>{};
@@ -113,6 +118,14 @@ class const WorkspaceSidebarSnapshot({
         for (final entry
             in json.mapValue('terminalTabCountByWorkspaceId').entries)
           if (entry.value is num) entry.key: (entry.value as num).toInt(),
+      },
+      workspaceMainTabIds: <String, List<String>>{
+        for (final entry in json.mapValue('workspaceMainTabIds').entries)
+          entry.key: <String>[
+            if (entry.value is List)
+              for (final item in entry.value as List)
+                if (item is String && item.isNotEmpty) item,
+          ],
       },
     );
   }

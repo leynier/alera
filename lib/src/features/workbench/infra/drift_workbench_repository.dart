@@ -76,6 +76,29 @@ class DriftWorkbenchRepository(final AleraDatabase _db)
   }
 
   @override
+  Future<Workspace> setWorkspaceArchived(
+    String workspaceId,
+    bool isArchived,
+  ) async {
+    final workspace = await findWorkspaceById(workspaceId);
+    if (workspace == null) {
+      throw StateError('Workspace not found: $workspaceId');
+    }
+    final updated = workspace.copyWith(isArchived: isArchived);
+    await upsertWorkspace(updated);
+    return updated;
+  }
+
+  @override
+  Future<void> sleepWorkspace(String workspaceId) async {
+    // The local database holds no live sessions; the controller drops the
+    // in-memory terminal handles while tab records and layout stay stored.
+  }
+
+  @override
+  Future<bool> supportsArchive() async => true;
+
+  @override
   Future<void> removeWorkspace(
     String workspaceId, {
     bool cascadeTabs = true,
@@ -254,6 +277,7 @@ Workspace _workspaceFromRow(WorkspacesTableData row) {
     sourceBranch: row.sourceBranch?.isEmpty ?? true ? null : row.sourceBranch,
     reusesExistingBranch: row.reusesExistingBranch,
     isPinned: row.isPinned,
+    isArchived: row.isArchived,
     hostId: 'local',
   );
 }
@@ -272,6 +296,7 @@ WorkspacesTableCompanion _workspaceCompanion(Workspace workspace) {
     sourceBranch: Value(workspace.sourceBranch),
     reusesExistingBranch: Value(workspace.reusesExistingBranch),
     isPinned: Value(workspace.isPinned),
+    isArchived: Value(workspace.isArchived),
   );
 }
 

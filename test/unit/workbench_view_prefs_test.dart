@@ -13,6 +13,7 @@ void main() {
       expect(WorkbenchViewPrefs.defaults.selectedProjectIds, isEmpty);
       expect(WorkbenchViewPrefs.defaults.collapsedProjectIds, isEmpty);
       expect(WorkbenchViewPrefs.defaults.expandedWorkspaceIds, isEmpty);
+      expect(WorkbenchViewPrefs.defaults.selectedSectionIds, isEmpty);
       expect(WorkbenchViewPrefs.defaults.selectedTagIds, isEmpty);
       expect(WorkbenchViewPrefs.defaults.collapsedParentWorkspaceIds, isEmpty);
       expect(WorkbenchViewPrefs.defaults.showPinnedWorkspacesBelow, isTrue);
@@ -49,6 +50,7 @@ void main() {
         selectedProjectIds: <String>{'p1', 'p2'},
         collapsedProjectIds: <String>{'p3'},
         expandedWorkspaceIds: <String>{'w1'},
+        selectedSectionIds: <String>{'sec-1'},
         selectedTagIds: <String>{'tag-1'},
         collapsedParentWorkspaceIds: <String>{'w-parent'},
         showPinnedWorkspacesBelow: false,
@@ -72,6 +74,7 @@ void main() {
       expect(restored.selectedProjectIds, <String>{'p1', 'p2'});
       expect(restored.collapsedProjectIds, <String>{'p3'});
       expect(restored.expandedWorkspaceIds, <String>{'w1'});
+      expect(restored.selectedSectionIds, <String>{'sec-1'});
       expect(restored.selectedTagIds, <String>{'tag-1'});
       expect(restored.collapsedParentWorkspaceIds, <String>{'w-parent'});
       expect(restored.showPinnedWorkspacesBelow, isFalse);

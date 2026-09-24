@@ -4,7 +4,15 @@ import 'package:dart_mappable/dart_mappable.dart';
 
 part 'workspace_panel.mapper.dart';
 
-enum WorkspacePanelTree { main, right }
+enum WorkspacePanelTree {
+  main,
+  right;
+
+  WorkspacePanelTree get opposite => switch (this) {
+    main => right,
+    right => main,
+  };
+}
 
 /// Tool keys belong to desktop preferences, never to runtime tab records.
 @MappableEnum()
@@ -59,6 +67,32 @@ bool isPrimaryTerminalCandidate(WorkspaceTabRecord tab) =>
     !tab.autoCloseOnSuccess &&
     !tab.initialCommandOnce &&
     tab.title != 'Setup';
+
+/// Terminal tab ids in the main workspace panel. Right-pane tabs are omitted
+/// so a single main-panel agent can sit on the workspace row.
+List<String> workspacePanelMainTabIds(WorkspacePanel panel) {
+  final ids = <String>[
+    for (final key in panel.mainKeys)
+      if (WorkspacePanel.tabId(key) case final String id) id,
+  ];
+  final primary = panel.primaryTabId;
+  if (ids.isEmpty && primary != null && primary.isNotEmpty) {
+    return <String>[primary];
+  }
+  return ids;
+}
+
+/// Shared view-prefs map of main-panel tab ids, keyed by workspace.
+Map<String, List<String>> sharedWorkspaceMainTabIds(
+  Map<String, WorkspacePanel> panels,
+) {
+  return <String, List<String>>{
+    for (final entry in panels.entries)
+      if (workspacePanelMainTabIds(entry.value) case final List<String> ids
+          when ids.isNotEmpty)
+        entry.key: ids,
+  };
+}
 
 List<String> workspacePanelLayoutKeys(WorkbenchLayout layout) => <String>[
   for (final groupId in layout.paneGroupIds)

@@ -3,10 +3,13 @@ import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_act
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_action_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_pull_request_conversation.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_comment_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_link_create_sheets.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_ship_sheet.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/archive_workspace_dialog.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_removal_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -30,6 +33,14 @@ class const PullRequestPanelActions({
   ) async {
     final review = snapshot.review;
     if (review == null) {
+      return;
+    }
+    if (action.kind == .archiveWorkspace) {
+      await _archiveWorkspace(context);
+      return;
+    }
+    if (action.kind == .removeWorkspace) {
+      await _removeWorkspace(context);
       return;
     }
     final controller = _controller;
@@ -77,6 +88,12 @@ class const PullRequestPanelActions({
           number: number,
           url: review.url.isEmpty ? null : review.url,
         ),
+      ),
+      .archiveWorkspace => throw StateError(
+        'Archive Workspace uses the workspace archive dialog.',
+      ),
+      .removeWorkspace => throw StateError(
+        'Remove Workspace uses the workspace removal dialog.',
       ),
     };
     _report(messenger, error);
@@ -197,19 +214,137 @@ class const PullRequestPanelActions({
     );
   }
 
-  Future<void> ship(BuildContext context, MobilePullRequestSnapshot snapshot) {
+  Future<void> ship(
+    BuildContext context,
+    MobilePullRequestSnapshot snapshot,
+  ) async {
     final controller = _controller;
+    final askWorkingTreeScope = await _askWorkingTreeScope();
+    if (!context.mounted) {
+      return;
+    }
     return showShipPullRequestSheet(
       context,
       headBranch: snapshot.branch,
       baseBranches: snapshot.baseBranches,
       suggestedBaseBranch: snapshot.suggestedBaseBranch,
+      askWorkingTreeScope: askWorkingTreeScope,
       onSubmit: (input) => controller.run(
         .ship,
         (client) =>
             client.shipPullRequest(workspaceId: workspaceId, input: input),
       ),
     );
+  }
+
+  /// Statuses the workspace root, not the Source Control panel's nested root.
+  /// Host Ship always plans against `workspace.path`, matching desktop.
+  Future<bool> _askWorkingTreeScope() async {
+    try {
+      final client = await ref.read(workspaceClientProvider(hostId).future);
+      if (client case final MobileWorkspacePanelsClient panels
+          when panels.supportsSourceControl) {
+        final snapshot = await panels.gitStatus(workspaceId);
+        return shipShowsWorkingTreeScopeChoice(snapshot);
+      }
+      return true;
+    } on Object {
+      return true;
+    }
+  }
+
+  Future<void> _archiveWorkspace(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    late final WorkspaceListData list;
+    final loaded = ref.read(workspaceListControllerProvider(hostId)).value;
+    if (loaded != null) {
+      list = loaded;
+    } else {
+      try {
+        list = await ref.read(workspaceListControllerProvider(hostId).future);
+      } on Object catch (error) {
+        _report(messenger, pullRequestActionErrorMessage(error));
+        return;
+      }
+    }
+    if (!list.supportsArchive) {
+      _report(
+        messenger,
+        'Update the paired Alera runtime to archive workspaces.',
+      );
+      return;
+    }
+    final workspace = list.workspaceById(workspaceId);
+    if (workspace == null) {
+      _report(messenger, 'Workspace no longer exists. Refresh the list.');
+      return;
+    }
+    if (!context.mounted) {
+      return;
+    }
+    final confirmed = await showArchiveWorkspaceDialog(
+      context,
+      workspace: workspace,
+    );
+    if (!confirmed || !context.mounted) {
+      return;
+    }
+    try {
+      await ref
+          .read(workspaceListControllerProvider(hostId).notifier)
+          .archiveWorkspace(workspaceId);
+      if (context.mounted) {
+        await navigator.maybePop();
+      }
+    } on Object catch (error) {
+      _report(messenger, pullRequestActionErrorMessage(error));
+    }
+  }
+
+  Future<void> _removeWorkspace(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    late final WorkspaceListData list;
+    final loaded = ref.read(workspaceListControllerProvider(hostId)).value;
+    if (loaded != null) {
+      list = loaded;
+    } else {
+      try {
+        list = await ref.read(workspaceListControllerProvider(hostId).future);
+      } on Object catch (error) {
+        _report(messenger, pullRequestActionErrorMessage(error));
+        return;
+      }
+    }
+    if (!list.supportsMutations) {
+      _report(
+        messenger,
+        'Update the paired Alera runtime to remove workspaces.',
+      );
+      return;
+    }
+    final workspace = list.workspaceById(workspaceId);
+    if (workspace == null) {
+      _report(messenger, 'Workspace no longer exists. Refresh the list.');
+      return;
+    }
+    if (!context.mounted) {
+      return;
+    }
+    try {
+      final removed = await confirmAndDeleteWorkspace(
+        context,
+        ref.read(workspaceListControllerProvider(hostId).notifier),
+        workspace,
+        list,
+      );
+      if (removed && context.mounted) {
+        await navigator.maybePop();
+      }
+    } on Object catch (error) {
+      _report(messenger, pullRequestActionErrorMessage(error));
+    }
   }
 
   void _report(ScaffoldMessengerState messenger, String? error) {

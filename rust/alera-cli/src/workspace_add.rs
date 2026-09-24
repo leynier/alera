@@ -17,6 +17,8 @@ pub async fn run(runtime: RuntimeDirArgs, args: WorkspaceAddArgs, json_output: b
         "workspace.createShared"
     };
     let linking_issue = args.issue.is_some();
+    let section = args.section.clone();
+    let section_id = args.section_id.clone();
     let payload = match workspace_add_payload(args) {
         Ok(payload) => payload,
         Err(error) => return crate::print_error(error),
@@ -36,13 +38,39 @@ pub async fn run(runtime: RuntimeDirArgs, args: WorkspaceAddArgs, json_output: b
     } else {
         crate::runtime_host_required(&runtime).await
     };
-    let value: Value = match client {
-        Ok(mut client) => match client.request_value(operation, &payload).await {
-            Ok(value) => value,
-            Err(error) => return crate::print_error(error),
-        },
+    let mut client = match client {
+        Ok(client) => client,
         Err(error) => return crate::print_error(error),
     };
+    let resolved_section_id = match crate::workspace_sections::resolve_optional_section_id(
+        &mut client,
+        section.as_deref(),
+        section_id.as_deref(),
+    )
+    .await
+    {
+        Ok(section_id) => section_id,
+        Err(error) => return crate::print_error(error),
+    };
+    let value: Value = match client.request_value(operation, &payload).await {
+        Ok(value) => value,
+        Err(error) => return crate::print_error(error),
+    };
+    if let Some(section_id) = resolved_section_id {
+        let workspace_id = match crate::workspace_sections::created_workspace_id(&value) {
+            Ok(id) => id.to_string(),
+            Err(error) => return crate::print_error(error),
+        };
+        if let Err(error) = crate::workspace_sections::set_for_workspace_on_client(
+            &mut client,
+            &workspace_id,
+            Some(&section_id),
+        )
+        .await
+        {
+            return crate::print_error(error);
+        }
+    }
     crate::print_value(&value, json_output, "workspace created");
     0
 }

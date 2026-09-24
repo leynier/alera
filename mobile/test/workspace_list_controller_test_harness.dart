@@ -17,6 +17,8 @@ class _FakeWorkspaceClient()
   Completer<void>? pinCompletion;
   int eventSubscriptionCount = 0;
   List<WorkspaceSummary> workspaces = <WorkspaceSummary>[_workspace('a')];
+  Map<String, List<String>> workspaceMainTabIds =
+      const <String, List<String>>{};
   List<String> cascadeIds = <String>['a'];
 
   void emit(String name) {
@@ -42,6 +44,9 @@ class _FakeWorkspaceClient()
   bool get supportsWorkspaceMutations => true;
 
   @override
+  bool get supportsWorkspaceArchive => true;
+
+  @override
   bool get supportsWorkspaceSidebarParity => true;
 
   @override
@@ -65,6 +70,7 @@ class _FakeWorkspaceClient()
       activity: const <String, DateTime>{},
       viewPrefs: const MobileViewPrefs(),
       confirmWorkspaceRemoval: true,
+      workspaceMainTabIds: workspaceMainTabIds,
     );
   }
 
@@ -112,6 +118,7 @@ class _FakeWorkspaceClient()
     required String operationId,
     required String projectId,
     required String prompt,
+    bool autoAssignSection = false,
   }) async {
     return const GeneratedWorkspaceIdentity(
       workspaceName: 'Generated Workspace',
@@ -239,6 +246,16 @@ class _FakeWorkspaceClient()
   @override
   Future<void> sleepWorkspace(String workspaceId) async {
     calls.add('sleep $workspaceId');
+  }
+
+  @override
+  Future<void> archiveWorkspace(String workspaceId) async {
+    calls.add('archive $workspaceId');
+  }
+
+  @override
+  Future<void> unarchiveWorkspace(String workspaceId) async {
+    calls.add('unarchive $workspaceId');
   }
 
   @override

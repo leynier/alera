@@ -20,6 +20,7 @@ mod cli_orchestration_timeouts;
 mod cli_tests;
 mod host_tools;
 mod hosted_review_retention;
+mod hub_federation;
 mod issue_commands;
 mod issue_tracking;
 mod linked_issue_service;
@@ -32,6 +33,7 @@ mod managed_workspace_slug;
 mod mobile_access;
 mod native_credential_entry;
 mod netbird;
+mod opencode_auth;
 mod orchestration_command_summaries;
 mod orchestration_commands;
 mod orchestration_delegate;
@@ -44,6 +46,7 @@ mod project_checkout_inspection;
 mod project_checkout_worktree;
 mod project_config_toml;
 mod project_file_catalog;
+mod project_hosts;
 mod project_management;
 #[cfg(windows)]
 mod pty_job_bootstrap;
@@ -71,6 +74,7 @@ mod remote_workspace_files;
 mod remote_workspace_owner;
 mod remote_workspace_relocation;
 mod runtime_archive;
+mod runtime_attach;
 mod runtime_clear;
 mod runtime_commands;
 mod runtime_host_client;
@@ -88,16 +92,21 @@ mod terminal_alias_commands;
 mod terminal_host;
 mod terminal_stdio_mode;
 mod voice_commands;
+mod windows_path_form;
 mod workspace_add;
+mod workspace_archive;
 mod workspace_buffer_guard_request;
 mod workspace_context;
 mod workspace_handoff;
 mod workspace_issue_commands;
 mod workspace_pinning;
+mod workspace_pr_watch_commands;
 mod workspace_registration;
 mod workspace_relocation_recovery;
 mod workspace_relocation_setup;
 mod workspace_removal_dependencies;
+mod workspace_rename;
+mod workspace_sections;
 mod workspace_setup_command;
 mod workspace_start;
 mod worktree_copy;
@@ -124,8 +133,8 @@ use uuid::Uuid;
 use crate::cli::{
     CascadePreviewArgs, Cli, Command, IdArgs, ProjectAction, ProjectCommand, ProjectKindArg,
     RuntimeDirArgs, SshAuthKindArg, SshTargetAction, SshTargetAddArgs, SshTargetBootstrapArgs,
-    SshTargetBootstrapPlanArgs, SshTargetCommand, SshTargetStatusArgs, TabAction, TabCommand,
-    WorkspaceAction, WorkspaceCommand,
+    SshTargetBootstrapPlanArgs, SshTargetCommand, SshTargetLinkArgs, SshTargetStatusArgs,
+    TabAction, TabCommand, WorkspaceAction, WorkspaceCommand,
 };
 use crate::cli::{MobileAction, MobileCommand, MobileDevicesAction, MobilePairingAction};
 use crate::cli::{TerminalAction, TerminalCommand};
@@ -177,6 +186,10 @@ async fn run(cli: Cli) -> i32 {
         Command::RuntimeHost(args) => runtime_host_command::run(args).await,
         Command::AutomationHost(args) => runtime_host_command::run_automation_host(args).await,
         Command::RuntimeProxy => agent_quota::run_runtime_proxy().await,
+        Command::RuntimeAttach(args) => match runtime_attach::run(args).await {
+            Ok(code) => code,
+            Err(error) => print_error(error),
+        },
         Command::Version(command) => run_version_command(command).await,
         Command::TerminalHost(args) => runtime_host_command::run(args).await,
         Command::Runtime(command) => runtime_commands::run_runtime_command(command).await,
@@ -324,6 +337,35 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
                 Ok(store) => store,
                 Err(error) => return print_error(error),
             };
+            if !args.all && args.project_id.is_none() {
+                eprintln!("Missing --project-id or --all.");
+                return USAGE_EXIT_CODE;
+            }
+            match crate::hub_federation::read_from_hub(
+                &runtime,
+                &store,
+                "workspace.list",
+                json!({ "projectId": args.project_id, "hostId": args.host_id }),
+            )
+            .await
+            {
+                Ok(Some(answer)) => {
+                    print_value(
+                        &json!({
+                            "kind": "workspaces",
+                            "items": answer["items"],
+                            "filters": { "hostId": args.host_id },
+                            "source": "hub",
+                            "originHostId": answer["originHostId"],
+                        }),
+                        json_output,
+                        "workspaces listed",
+                    );
+                    return 0;
+                }
+                Err(error) => return print_error(error),
+                Ok(None) => {}
+            }
             let result = if args.all {
                 store.list_all_workspaces().await
             } else if let Some(project_id) = args.project_id {
@@ -332,12 +374,25 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
                 eprintln!("Missing --project-id or --all.");
                 return USAGE_EXIT_CODE;
             };
+            let host_id = args
+                .host_id
+                .as_deref()
+                .map(|host_id| crate::ssh_remote::normalized_host_id(Some(host_id)));
             match result {
-                Ok(workspaces) => print_value(
-                    &json!({ "kind": "workspaces", "items": workspaces, "filters": {} }),
-                    json_output,
-                    "workspaces listed",
-                ),
+                Ok(mut workspaces) => {
+                    if let Some(host_id) = &host_id {
+                        workspaces.retain(|workspace| &workspace.host_id == host_id);
+                    }
+                    print_value(
+                        &json!({
+                            "kind": "workspaces",
+                            "items": workspaces,
+                            "filters": { "hostId": host_id },
+                        }),
+                        json_output,
+                        "workspaces listed",
+                    )
+                }
                 Err(error) => return print_error(error),
             }
         }
@@ -355,6 +410,12 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
         }
         WorkspaceAction::Issue(command) => {
             return workspace_issue_commands::run(runtime, command, json_output).await;
+        }
+        WorkspaceAction::PrWatch(command) => {
+            return workspace_pr_watch_commands::run(runtime, command, json_output).await;
+        }
+        WorkspaceAction::Section(command) => {
+            return workspace_sections::run(runtime, command, json_output).await;
         }
         WorkspaceAction::Setup(args) => {
             let client = match runtime_host_required(&runtime).await {
@@ -490,11 +551,20 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
                 Err(error) => return print_error(error),
             }
         }
+        WorkspaceAction::Rename(args) => {
+            return workspace_rename::run(&runtime, args, json_output).await;
+        }
         WorkspaceAction::Pin(IdArgs { id }) => {
-            return workspace_pinning::run(runtime_dir(&runtime), json_output, id, true).await
+            return workspace_pinning::run(runtime_dir(&runtime), json_output, id, true).await;
         }
         WorkspaceAction::Unpin(IdArgs { id }) => {
-            return workspace_pinning::run(runtime_dir(&runtime), json_output, id, false).await
+            return workspace_pinning::run(runtime_dir(&runtime), json_output, id, false).await;
+        }
+        WorkspaceAction::Archive(IdArgs { id }) => {
+            return workspace_archive::run(runtime_dir(&runtime), json_output, id, true).await;
+        }
+        WorkspaceAction::Unarchive(IdArgs { id }) => {
+            return workspace_archive::run(runtime_dir(&runtime), json_output, id, false).await;
         }
         WorkspaceAction::Link(args) => {
             let payload = json!({
@@ -585,13 +655,28 @@ async fn run_tag_command(command: crate::cli::TagCommand) -> i32 {
     let json_output = command.output.json;
     match command.action {
         crate::cli::TagAction::List => match open_store(&runtime).await {
-            Ok(store) => match store.list_tags().await {
-                Ok(tags) => print_value(
-                    &json!({ "kind": "tags", "items": tags, "filters": {} }),
+            Ok(store) => match crate::hub_federation::read_from_hub(
+                &runtime,
+                &store,
+                "workspaceTag.list",
+                json!({}),
+            )
+            .await
+            {
+                Ok(Some(tags)) => print_value(
+                    &json!({ "kind": "tags", "items": tags, "filters": {}, "source": "hub" }),
                     json_output,
                     "tags listed",
                 ),
                 Err(error) => return print_error(error),
+                Ok(None) => match store.list_tags().await {
+                    Ok(tags) => print_value(
+                        &json!({ "kind": "tags", "items": tags, "filters": {} }),
+                        json_output,
+                        "tags listed",
+                    ),
+                    Err(error) => return print_error(error),
+                },
             },
             Err(error) => return print_error(error),
         },
@@ -735,6 +820,36 @@ async fn run_ssh_target_command(command: SshTargetCommand) -> i32 {
                     json_output,
                     "ssh target removed",
                 ),
+                Err(error) => return print_error(error),
+            }
+        }
+        SshTargetAction::Link(SshTargetLinkArgs {
+            id,
+            connect,
+            disconnect,
+        }) => {
+            let mut client = match runtime_host_required(&runtime).await {
+                Ok(client) => client,
+                Err(error) => return print_error(error),
+            };
+            let (verb, payload, message) = match (id, connect, disconnect) {
+                (Some(id), true, _) => (
+                    "hostLink.connect",
+                    json!({ "hostId": id }),
+                    "host link attached",
+                ),
+                (Some(id), _, true) => (
+                    "hostLink.disconnect",
+                    json!({ "hostId": id }),
+                    "host link closed",
+                ),
+                (None, true, _) | (None, _, true) => {
+                    return print_error("--id is required with --connect or --disconnect")
+                }
+                (_, false, false) => ("hostLink.status", json!({}), "host links listed"),
+            };
+            match client.request_value(verb, &payload).await {
+                Ok(value) => print_value(&value, json_output, message),
                 Err(error) => return print_error(error),
             }
         }
@@ -1016,6 +1131,10 @@ fn ssh_target_from_args(args: SshTargetAddArgs) -> SshTarget {
         updated_at: now,
         last_status: None,
         install_dir: None,
+        projects_dir: args
+            .projects_dir
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty()),
         runtime_version: None,
         runtime_platform: None,
         runtime_arch: None,

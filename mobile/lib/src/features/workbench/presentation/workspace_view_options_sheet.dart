@@ -106,14 +106,27 @@ class const _WorkspaceViewOptions({
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Active Workspaces Only'),
+              subtitle: const Text(
+                'Hide workspaces that do not have an open terminal or Codex tab.',
+              ),
               value: prefs.showActiveWorkspacesOnly,
               onChanged: controller.setShowActiveWorkspacesOnly,
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Repeat Pinned Workspaces'),
+              subtitle: const Text(
+                'Also show pinned workspaces in their regular project or All groups.',
+              ),
               value: prefs.showPinnedWorkspacesBelow,
               onChanged: controller.setShowPinnedWorkspacesBelow,
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Show Archived Workspaces'),
+              subtitle: const Text('Show archived workspaces in the sidebar.'),
+              value: prefs.showArchivedWorkspaces,
+              onChanged: controller.setShowArchivedWorkspaces,
             ),
             const SizedBox(height: AleraTokens.space16),
             const Divider(height: 1),
@@ -130,6 +143,22 @@ class const _WorkspaceViewOptions({
                   _toggle(prefs.selectedProjectIds, project.id),
                 ),
               ),
+            if (data.supportsSections && data.sections.isNotEmpty) ...[
+              const Divider(height: 1),
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Sections'),
+              ),
+              for (final section in data.sections)
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(section.name),
+                  value: prefs.selectedSectionIds.contains(section.id),
+                  onChanged: (_) => controller.setSectionFilter(
+                    _toggle(prefs.selectedSectionIds, section.id),
+                  ),
+                ),
+            ],
             const Divider(height: 1),
             const ListTile(
               contentPadding: EdgeInsets.zero,

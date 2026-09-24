@@ -204,6 +204,20 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
           ),
         ],
         const SizedBox(height: AleraTokens.spaceMd),
+        if (widget.sections.isNotEmpty)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: .leading,
+            value: _autoAssignSection,
+            onChanged:
+                promptState.loading || created != null || _uploadingAttachment
+                ? null
+                : (value) {
+                    _update(() => _autoAssignSection = value ?? false);
+                  },
+            title: const Text('Auto Assign Section'),
+            subtitle: const Text('Pick the section that fits the prompt'),
+          ),
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           controlAffinity: .leading,
@@ -336,7 +350,6 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
     }
     _retryJobId ??= 'job-${DateTime.now().microsecondsSinceEpoch}';
     final jobId = _retryJobId;
-    final hostId = widget.hostId;
     final future = ref
         .read(backgroundSetupJobsProvider.notifier)
         .enqueuePromptWorkspace(
@@ -357,6 +370,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
             useProjectCheckout: _useProjectCheckout,
             parentWorkspaceId: _promptParentWorkspaceId,
             issueUrl: _linkedIssueUrl(),
+            autoAssignSection: widget.sections.isNotEmpty && _autoAssignSection,
           ),
           jobId: jobId,
         );
@@ -373,22 +387,8 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
         _retryJobId = null;
         controller.resetForAnother();
       } else if (mounted) {
+        future.ignore();
         Navigator.of(context).pop(true);
-        future.then((outcome) {
-          final nav = aleraNavigatorKey.currentState;
-          if (nav == null) {
-            return;
-          }
-          nav.push(
-            MaterialPageRoute<void>(
-              builder: (_) => WorkspaceTabsScreen(
-                hostId: hostId,
-                workspace: outcome.creation.workspace,
-                initialTabId: outcome.agentTabId,
-              ),
-            ),
-          );
-        }).ignore();
       }
     } on Object catch (error) {
       if (mounted) {

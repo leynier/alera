@@ -1,3 +1,5 @@
+// ignore_for_file: riverpod_lint/avoid_public_notifier_properties
+
 import 'dart:async';
 
 import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
@@ -22,6 +24,7 @@ import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -52,11 +55,23 @@ class _PanelWorkbenchController extends WorkbenchController {
   bool? lastDeleteBranch;
   int deleteWorkspaceCalls = 0;
   final List<
-    ({int number, String commitOid, String? gitDiffRoot, String parentOid})
+    ({
+      int number,
+      String commitOid,
+      String? gitDiffRoot,
+      String parentOid,
+      bool oppositePanel,
+    })
   >
   openedPullRequestDiffs =
       <
-        ({int number, String commitOid, String? gitDiffRoot, String parentOid})
+        ({
+          int number,
+          String commitOid,
+          String? gitDiffRoot,
+          String parentOid,
+          bool oppositePanel,
+        })
       >[];
 
   @override
@@ -83,12 +98,15 @@ class _PanelWorkbenchController extends WorkbenchController {
     required String retentionId,
     String? subject,
     String? targetGroupId,
+    String? sourceKey,
+    bool oppositePanel = false,
   }) async {
     openedPullRequestDiffs.add((
       number: pullRequestNumber,
       commitOid: commitOid,
       gitDiffRoot: gitDiffRoot,
       parentOid: parentOid,
+      oppositePanel: oppositePanel,
     ));
     final now = DateTime.utc(2026, 8, 10);
     return WorkspaceTabRecord(

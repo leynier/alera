@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_relocation_client.dart';
@@ -23,6 +25,7 @@ class RelocationTestClient
   bool get supportsWorkspaceRelocation => true;
   final requests = <Map<String, Object?>>[];
   bool failNext = false;
+  Completer<void>? pending;
   bool deferredSetup = false;
 
   @override
@@ -42,6 +45,7 @@ class RelocationTestClient
       'replacement': replacementBranch,
       'confirmed': sharedImpactConfirmed,
     });
+    await pending?.future;
     if (failNext) {
       failNext = false;
       throw StateError('Response lost');

@@ -4,6 +4,7 @@ class const _SidebarBody({
   required final WorkbenchState state,
   required final WorkbenchController controller,
   required final List<WorkbenchSidebarRow> rows,
+  required final Map<String, SshTarget> sshTargets,
   required final Future<void> Function(Project project, Workspace workspace)
   onOpenWorkspace,
   required final Future<void> Function(Workspace workspace)
@@ -12,6 +13,8 @@ class const _SidebarBody({
   required final Future<void> Function(Workspace workspace)
   onOpenWorkspaceInBrowser,
   required final Future<void> Function(Workspace workspace) onSleepWorkspace,
+  required final Future<void> Function(Workspace workspace)
+  onToggleWorkspaceArchived,
   required final Future<void> Function(Project project) onCreateWorkspace,
   required final Future<void> Function(Project project) onOpenProjectSettings,
   required final Future<void> Function(Project project, Workspace workspace)
@@ -21,6 +24,9 @@ class const _SidebarBody({
   onHandOnWorkspace,
   required final Future<void> Function(Project project) onRenameProject,
   required final Future<void> Function(Project project) onRemoveProject,
+
+  /// Null when the runtime cannot put a project on more hosts.
+  required final Future<void> Function(Project project)? onManageProjectHosts,
   required final Future<void> Function(Workspace workspace) onRenameWorkspace,
   required final Future<void> Function(Workspace workspace, bool isPinned)
   onSetWorkspacePinned,
@@ -103,6 +109,10 @@ class const _SidebarBody({
               unawaited(onOpenProjectSettings(row.project)),
           onRenameProject: () => onRenameProject(row.project),
           onRemoveProject: () => onRemoveProject(row.project),
+          onManageHosts:
+              onManageProjectHosts == null || !row.project.isGitRepository
+              ? null
+              : () => unawaited(onManageProjectHosts!(row.project)),
         ),
       );
     }
@@ -137,6 +147,7 @@ class const _SidebarBody({
         child: _WorkspaceRow(
           project: row.project,
           workspace: row.workspace,
+          hostTarget: sshTargets[row.workspace.hostId.trim()],
           agentRuns: secondaryRuns,
           agentRunGroups: groupWorkspaceAgentRuns(secondaryRuns),
           status: primaryRun?.status,
@@ -161,6 +172,9 @@ class const _SidebarBody({
           onOpenProjectSettings: () =>
               unawaited(onOpenProjectSettings(row.project)),
           onSleep: () => onSleepWorkspace(row.workspace),
+          onToggleArchived: state.supportsArchive
+              ? () => onToggleWorkspaceArchived(row.workspace)
+              : null,
           onToggleExpanded: () =>
               controller.toggleWorkspaceExpanded(row.workspace.id),
           fileManagerLabel: fileManagerLabel,

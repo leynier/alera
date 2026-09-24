@@ -56,6 +56,8 @@ pub struct Workspace {
     #[serde(default)]
     pub is_pinned: bool,
     #[serde(default)]
+    pub is_archived: bool,
+    #[serde(default)]
     pub tag_ids: Vec<String>,
     #[serde(default)]
     pub tag_names: Vec<String>,
@@ -189,6 +191,11 @@ pub struct SshTarget {
     pub last_status: Option<String>,
     #[serde(default)]
     pub install_dir: Option<String>,
+    /// Where a project cloned onto this host lands when the user picked no
+    /// path. Relative to the remote home when unset (`alera-projects`); may
+    /// name `~/...` on POSIX or `%USERPROFILE%\...` on Windows.
+    #[serde(default)]
+    pub projects_dir: Option<String>,
     #[serde(default)]
     pub runtime_version: Option<String>,
     #[serde(default)]
@@ -462,6 +469,7 @@ impl ProjectConfig {
         self.worktree.copy.is_empty()
             && self.worktree.setup.is_empty()
             && self.new_workspace.prompt_append.trim().is_empty()
+            && self.new_workspace.source_branch.trim().is_empty()
             && self.git_hosting_provider.is_none()
     }
 }
@@ -471,6 +479,8 @@ impl ProjectConfig {
 pub struct NewWorkspaceConfig {
     #[serde(default)]
     pub prompt_append: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub source_branch: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

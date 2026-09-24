@@ -40,6 +40,7 @@ mixin _WorkbenchControllerWorkspacePanelPanes
         next,
         reveal: focus && next.treeForKey(key) != WorkspacePanelTree.main,
         recordFocus: focus,
+        requestTerminalFocus: focus,
       );
       final persisted = _layoutForMutation(workspaceId, tabs);
       final nextLayouts = Map<String, WorkbenchLayout>.from(
@@ -73,6 +74,7 @@ mixin _WorkbenchControllerWorkspacePanelPanes
         next,
         reveal: focus && !addToMain,
         recordFocus: focus,
+        requestTerminalFocus: focus,
       );
       final persisted = _layoutForMutation(workspaceId, tabs);
       final nextLayouts = Map<String, WorkbenchLayout>.from(
@@ -90,7 +92,11 @@ mixin _WorkbenchControllerWorkspacePanelPanes
     final placedLayout = addToMain
         ? source.ensuredMainLayout(workspaceId)
         : source.ensuredLayout(workspaceId);
-    final placed = placedLayout.addTabToGroup(groupId: groupId, tabId: key);
+    final placed = placedLayout.addTabToGroup(
+      groupId: groupId,
+      tabId: key,
+      activate: focus,
+    );
     final next = addToMain
         ? source.applyMainLayout(placed)
         : source.applyPaneLayout(placed);
@@ -103,6 +109,7 @@ mixin _WorkbenchControllerWorkspacePanelPanes
       focus ? next.copyWith(focusedKey: key) : next,
       reveal: focus && !addToMain,
       recordFocus: focus,
+      requestTerminalFocus: focus,
     );
     final persisted = _layoutForMutation(workspaceId, tabs);
     final nextLayouts = Map<String, WorkbenchLayout>.from(

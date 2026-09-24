@@ -62,6 +62,28 @@ Preserve Existing APIs.
       expect(config.isEmpty, isFalse);
     });
 
+    test('parses New Workspace source branch without prompt append', () {
+      final config = parseProjectConfigToml('''
+[new_workspace]
+source_branch = "develop"
+''');
+
+      expect(config.newWorkspace.sourceBranch, 'develop');
+      expect(config.newWorkspace.preferredSourceBranch, 'develop');
+      expect(config.newWorkspace.promptAppend, isEmpty);
+      expect(config.isEmpty, isFalse);
+    });
+
+    test('rejects a non-string New Workspace source branch', () {
+      expect(
+        () => parseProjectConfigToml('''
+[new_workspace]
+source_branch = ["develop"]
+'''),
+        throwsA(isA<ProjectConfigException>()),
+      );
+    });
+
     test('rejects a non-string New Workspace prompt append', () {
       expect(
         () => parseProjectConfigToml('''
@@ -75,6 +97,13 @@ prompt_append = ["invalid"]
     test('returns empty config when the worktree table is absent', () {
       final config = parseProjectConfigToml('title = "Alera"');
 
+      expect(config.isEmpty, isTrue);
+    });
+
+    test('treats an empty new_workspace table as empty config', () {
+      final config = parseProjectConfigToml('[new_workspace]');
+
+      expect(config.newWorkspace.isEmpty, isTrue);
       expect(config.isEmpty, isTrue);
     });
 
@@ -127,6 +156,27 @@ setup = ["dart pub get"]
       );
 
       expect(config?.worktree.setup, <String>['dart pub get']);
+    });
+
+    test('never reads a remote-only project from this device', () async {
+      final tempDir = Directory.systemTemp.createTempSync('alera-config-test-');
+      addTearDown(() => tempDir.deleteSync(recursive: true));
+      await File(p.join(tempDir.path, aleraProjectConfigFileName))
+          .writeAsString('this is = not = toml');
+      final store = const TomlProjectConfigFileStore();
+
+      final config = await store.load(
+        Project(
+          id: 'project-1',
+          name: 'Project',
+          repoPath: tempDir.path,
+          primaryHostId: 'ssh-box',
+          createdAt: .utc(2026),
+          updatedAt: .utc(2026),
+        ),
+      );
+
+      expect(config, isNull, reason: 'the file at that path is not its own');
     });
   });
 }

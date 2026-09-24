@@ -1,6 +1,6 @@
 part of 'workbench_controller.dart';
 
-/// Creates workspaces and initializes their first tabs.
+/// Creates workspaces and initializes their first tabs without selecting them.
 ///
 /// Kept separate from project lifecycle actions because the From Prompt flow
 /// deliberately persists its agent terminal before the Setup terminal.
@@ -97,9 +97,11 @@ mixin _WorkbenchControllerWorkspaceCreation
             );
       _reconcileCreatedWorkspace(project, result.workspace);
       if (initializeTabs) {
-        await selectWorkspace(project: project, workspace: result.workspace);
-        _seedNewWorkspacePanel(result.workspace.id);
-        await _openDeferredSetupTab(result);
+        await _initializeCreatedWorkspace(
+          workspace: result.workspace,
+          ensureInitialTerminal: true,
+          deferredSetup: result,
+        );
       }
       final parentId = parentWorkspaceId?.trim();
       if (parentId != null && parentId.isNotEmpty) {
@@ -128,41 +130,69 @@ mixin _WorkbenchControllerWorkspaceCreation
     }
   }
 
-  /// Activates a workspace created from a prompt after the host has persisted
-  /// the agent tab, then appends Setup and restores focus to the agent.
+  /// Finishes a From Prompt workspace after the host has persisted the agent
+  /// tab: seeds the panel, appends Setup, and records the agent as that
+  /// workspace's active tab without changing the visible workspace.
   Future<void> completePromptWorkspaceCreation({
     required WorkspaceCreationResult creation,
     String? agentTabId,
     bool openDeferredSetup = true,
   }) async {
     final workspace = creation.workspace;
-    final project = state.projects
-        .where((candidate) => candidate.id == workspace.projectId)
-        .firstOrNull;
-    if (project == null) {
+    if (state.projects.every(
+      (candidate) => candidate.id != workspace.projectId,
+    )) {
       throw StateError('Workspace project not found: ${workspace.projectId}');
     }
     final setupCommand = creation.deferredSetupCommand?.trim();
     final expectsPromptTab =
         agentTabId?.trim().isNotEmpty == true ||
         (setupCommand != null && setupCommand.isNotEmpty);
-    await _selectWorkspace(
-      project: project,
+    await _initializeCreatedWorkspace(
       workspace: workspace,
       ensureInitialTerminal: !expectsPromptTab,
+      deferredSetup: openDeferredSetup ? creation : null,
+      preferredTabId: agentTabId,
     );
-    _seedNewWorkspacePanel(workspace.id);
-    if (openDeferredSetup) {
-      await _openDeferredSetupTab(creation);
+  }
+
+  Future<void> _initializeCreatedWorkspace({
+    required Workspace workspace,
+    required bool ensureInitialTerminal,
+    WorkspaceCreationResult? deferredSetup,
+    String? preferredTabId,
+  }) async {
+    if (_disposed) {
+      return;
     }
-    final resolvedAgentTabId = agentTabId?.trim();
-    if (resolvedAgentTabId != null && resolvedAgentTabId.isNotEmpty) {
+    if (ensureInitialTerminal) {
+      await _ensurePrimaryTerminal(workspace, requireActive: false);
+    }
+    if (_disposed) {
+      return;
+    }
+    final tabs = await _workspaceTabService.listTabs(workspace.id);
+    if (_disposed) {
+      return;
+    }
+    _setTabsForWorkspace(workspace.id, tabs);
+    final layout = await _ensureWorkbenchLayout(workspace.id, tabs);
+    if (_disposed) {
+      return;
+    }
+    await _applyLayout(layout, persist: false);
+    _seedNewWorkspacePanel(workspace.id);
+    if (deferredSetup != null) {
+      await _openDeferredSetupTab(deferredSetup);
+    }
+    final resolvedTabId = preferredTabId?.trim();
+    if (resolvedTabId != null && resolvedTabId.isNotEmpty) {
       final groupId = state
           .layoutFor(workspace.id)
-          ?.groupIdForTab(resolvedAgentTabId);
+          ?.groupIdForTab(resolvedTabId);
       _setActiveTabInternal(
         workspaceId: workspace.id,
-        tabId: resolvedAgentTabId,
+        tabId: resolvedTabId,
         groupId: groupId,
       );
     }

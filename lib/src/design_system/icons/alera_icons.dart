@@ -82,6 +82,7 @@ abstract final class const AleraIcons._() {
   static const IconData link = LucideIcons.link;
   static const IconData unlink = LucideIcons.unlink;
   static const IconData unarchive = LucideIcons.archiveRestore;
+  static const IconData archive = LucideIcons.archive;
 
   // Workspace graph
   static const IconData host = LucideIcons.server;
@@ -100,6 +101,9 @@ abstract final class const AleraIcons._() {
 
   /// Parent/child workspace lineage (matches Orca's workflow glyph).
   static const IconData workspaceChildren = LucideIcons.workflow;
+
+  /// Split used as the linked-worktree marker after a 90-degree clockwise rotation.
+  static const IconData split = LucideIcons.split;
 
   // Git / version control
   static const IconData gitBranch = LucideIcons.gitBranch;

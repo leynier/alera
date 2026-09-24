@@ -60,6 +60,13 @@ mixin _WorkbenchControllerViewPrefs
     _updateViewPrefs(state.viewPrefs.copyWith(showPinnedWorkspacesBelow: show));
   }
 
+  void setShowArchivedWorkspaces(bool show) {
+    if (state.viewPrefs.showArchivedWorkspaces == show) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(showArchivedWorkspaces: show));
+  }
+
   void toggleProjectFilter(String projectId) {
     final next = Set<String>.from(state.viewPrefs.selectedProjectIds);
     if (!next.add(projectId)) {
@@ -137,6 +144,47 @@ mixin _WorkbenchControllerViewPrefs
     }
     _updateViewPrefs(
       state.viewPrefs.copyWith(selectedTagIds: const <String>{}),
+    );
+  }
+
+  void toggleSectionFilter(String sectionId) {
+    final next = Set<String>.from(state.viewPrefs.selectedSectionIds);
+    if (!next.add(sectionId)) {
+      next.remove(sectionId);
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(selectedSectionIds: next));
+  }
+
+  void addSectionFilter(String sectionId) {
+    final current = state.viewPrefs.selectedSectionIds;
+    if (current.contains(sectionId)) {
+      return;
+    }
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(
+        selectedSectionIds: <String>{...current, sectionId},
+      ),
+    );
+  }
+
+  void removeSectionFilter(String sectionId) {
+    final current = state.viewPrefs.selectedSectionIds;
+    if (!current.contains(sectionId)) {
+      return;
+    }
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(
+        selectedSectionIds: current.where((id) => id != sectionId).toSet(),
+      ),
+    );
+  }
+
+  void clearSectionFilters() {
+    if (state.viewPrefs.selectedSectionIds.isEmpty) {
+      return;
+    }
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(selectedSectionIds: const <String>{}),
     );
   }
 

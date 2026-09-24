@@ -37,6 +37,7 @@ async fn store_with_workspace() -> (tempfile::TempDir, RuntimeStore) {
             source_branch: None,
             reuses_existing_branch: false,
             is_pinned: false,
+            is_archived: false,
             tag_ids: vec![],
             tag_names: vec![],
             parent_workspace_id: None,

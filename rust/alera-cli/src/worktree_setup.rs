@@ -9,6 +9,7 @@
 use std::collections::HashSet;
 use std::path::Path;
 
+use alera_core::git as core_git;
 use alera_core::runtime::{
     Project, ProjectConfig, RuntimeStore, Workspace, WorktreeCopyRule, WorktreeSetupReport,
     WorktreeSetupStepKind, WorktreeSetupStepReport,
@@ -25,6 +26,9 @@ use crate::worktree_setup_process::run_setup_command;
 #[cfg(test)]
 #[path = "worktree_setup_owner_tests.rs"]
 mod owner_tests;
+#[cfg(test)]
+#[path = "worktree_setup_source_branch_tests.rs"]
+mod source_branch_tests;
 
 /// Resolves the project config and writes the script the "Setup" terminal will
 /// run, instead of running the copies and commands here.
@@ -284,6 +288,47 @@ fn append_copy_rules(
     false
 }
 
+pub(crate) fn preferred_source_branch_candidates(preferred: &str) -> Vec<String> {
+    let trimmed = preferred.trim();
+    if trimmed.is_empty() {
+        return Vec::new();
+    }
+    if let Some(local) = trimmed.strip_prefix("origin/") {
+        if local.is_empty() {
+            return vec![trimmed.to_string()];
+        }
+        return vec![trimmed.to_string(), local.to_string()];
+    }
+    vec![trimmed.to_string(), format!("origin/{trimmed}")]
+}
+
+pub(crate) fn resolve_configured_source_branch(
+    branches: &[String],
+    preferred: &str,
+) -> Option<String> {
+    preferred_source_branch_candidates(preferred)
+        .into_iter()
+        .find(|candidate| branches.iter().any(|branch| branch == candidate))
+}
+
+pub(crate) async fn preferred_source_branch(
+    store: &RuntimeStore,
+    project: &Project,
+) -> Option<String> {
+    let config = effective_project_config(store, project).await.ok()?;
+    let preferred = config.new_workspace.source_branch.trim();
+    if preferred.is_empty() {
+        return None;
+    }
+    match core_git::list_branches(&project.repo_path) {
+        Ok(branches) => Some(
+            resolve_configured_source_branch(&branches, preferred)
+                .unwrap_or_else(|| preferred.to_string()),
+        ),
+        Err(_) => Some(preferred.to_string()),
+    }
+}
+
 pub(crate) async fn effective_project_config(
     store: &RuntimeStore,
     project: &Project,
@@ -292,7 +337,8 @@ pub(crate) async fn effective_project_config(
         return Ok(config);
     }
     let config_path = Path::new(&project.repo_path).join("alera.toml");
-    if !config_path.exists() {
+    if !crate::project_hosts::project_folder_is_local(store, project).await || !config_path.exists()
+    {
         return Ok(ProjectConfig::default());
     }
     let contents = std::fs::read_to_string(&config_path)

@@ -130,6 +130,7 @@ pub async fn register_project_with_identity(
         source_branch: None,
         reuses_existing_branch: false,
         is_pinned: false,
+        is_archived: false,
         tag_ids: Vec::new(),
         tag_names: Vec::new(),
         parent_workspace_id: None,
@@ -239,7 +240,9 @@ pub async fn effective_project_config(
         });
     }
     let config_path = Path::new(&project.repo_path).join("alera.toml");
-    if !config_path.exists() {
+    if !crate::project_hosts::project_folder_is_local(store, &project).await
+        || !config_path.exists()
+    {
         return Ok(EffectiveProjectConfigPayload {
             config: ProjectConfig::default(),
             origin: "none",

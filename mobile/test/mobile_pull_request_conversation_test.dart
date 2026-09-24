@@ -316,6 +316,37 @@ void main() {
       expect(find.text('1 comment'), findsNothing);
     });
 
+    testWidgets('renders html-sized bot glyphs at the declared pixel size', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildAleraMobileDarkTheme(),
+          home: Scaffold(
+            body: PullRequestConversationSection(
+              comments: <MobilePullRequestComment>[
+                _comment(
+                  1,
+                  age: const Duration(minutes: 6),
+                  body: '- [ ] <img src="https://uploads.pullfrog.com/Progress%20Indicator.gif" width="11" /> Checkout PR',
+                ),
+              ],
+              now: _now,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final image = tester.widget<Image>(find.byType(Image));
+      expect(
+        (image.image as NetworkImage).url,
+        'https://uploads.pullfrog.com/Progress%20Indicator.gif',
+      );
+      expect(image.width, 11);
+      expect(find.textContaining('Checkout PR'), findsOneWidget);
+    });
+
     testWidgets('an empty conversation is one quiet line', (tester) async {
       await pump(tester, const <MobilePullRequestComment>[]);
 

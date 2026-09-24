@@ -9,6 +9,7 @@ import 'package:alera_mobile/src/design_system/markdown/alera_markdown_view.dart
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/updater/infra/mobile_external_browser.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_pull_request_conversation.dart';
+import 'package:alera_mobile/src/features/workbench/domain/pull_request_comment_body.dart';
 import 'package:alera_mobile/src/features/workbench/domain/workspace_markdown_uri_policy.dart';
 import 'package:flutter/material.dart';
 
@@ -393,7 +394,7 @@ class const _CommentBody({
   @override
   Widget build(BuildContext context) {
     return AleraMarkdownView(
-      data: body,
+      data: sanitizePullRequestCommentBody(body),
       onLinkTap: onOpen,
       imageBuilder: _commentImage,
     );
@@ -407,26 +408,47 @@ Widget _commentImage(
   double? height,
 ) {
   if (!isSupportedMarkdownViewerRemoteImageUri(Uri.tryParse(imageUrl))) {
-    return const _CommentImagePlaceholder();
+    return _CommentImagePlaceholder(width: width, height: height);
+  }
+  final image = Image.network(
+    imageUrl,
+    width: width,
+    height: height,
+    fit: .contain,
+    errorBuilder: (_, _, _) =>
+        _CommentImagePlaceholder(width: width, height: height),
+  );
+  // Bot glyphs (spinners, 9px logos) are HTML-sized under space24. radiusMd
+  // would round an 11px image into a dot.
+  if (_isInlineCommentImage(width, height)) {
+    return image;
   }
   return ClipRRect(
     borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-    child: Image.network(
-      imageUrl,
-      width: width,
-      height: height,
-      fit: .contain,
-      errorBuilder: (_, _, _) => const _CommentImagePlaceholder(),
-    ),
+    child: image,
   );
 }
 
-class const _CommentImagePlaceholder() extends StatelessWidget {
+bool _isInlineCommentImage(double? width, double? height) {
+  final sides = <double>[
+    if (width != null && width > 0) width,
+    if (height != null && height > 0) height,
+  ];
+  if (sides.isEmpty) {
+    return false;
+  }
+  return sides.every((side) => side <= AleraTokens.space24);
+}
+
+class const _CommentImagePlaceholder({
+  final double? width,
+  final double? height,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: AleraTokens.space48,
-      height: AleraTokens.space48,
+      width: width ?? AleraTokens.space48,
+      height: height ?? AleraTokens.space48,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: AleraTokens.surface,

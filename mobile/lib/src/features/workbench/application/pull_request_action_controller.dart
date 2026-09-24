@@ -70,6 +70,7 @@ class PullRequestActionController extends _$PullRequestActionController {
     if (state != null) {
       return 'Another pull request action is already running.';
     }
+    final keepClient = ref.listen(workspaceClientProvider(hostId), (_, _) {});
     state = kind;
     try {
       final client = await ref.read(workspaceClientProvider(hostId).future);
@@ -89,7 +90,8 @@ class PullRequestActionController extends _$PullRequestActionController {
       _logger.warning('Pull request ${kind.name} failed.', error, stackTrace);
       return pullRequestActionErrorMessage(error);
     } finally {
-      state = null;
+      keepClient.close();
+      if (ref.mounted) state = null;
     }
   }
 }

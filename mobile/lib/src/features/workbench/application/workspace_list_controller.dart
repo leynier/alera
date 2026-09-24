@@ -29,6 +29,7 @@ const Set<String> _refreshEvents = <String>{
   'workspaceActivityChanged',
   'runtimeSettingsChanged',
   'agentPresenceChanged',
+  'workbenchViewPrefsChanged',
 };
 
 class const WorkspaceListData({
@@ -37,6 +38,7 @@ class const WorkspaceListData({
   required final List<WorkspaceSummary> workspaces,
   required final List<ProjectSummary> projects,
   required this.supportsMutations,
+  final bool supportsArchive = false,
   final bool supportsPromptWorkspaceCreation = true,
   final bool supportsPromptImageUpload = false,
   final bool supportsPromptFileUpload = false,
@@ -49,6 +51,8 @@ class const WorkspaceListData({
   required final List<AgentPresenceSummary> agentPresence,
   final String? defaultAgentProfileId,
   final Map<String, int> terminalTabCountByWorkspaceId = const <String, int>{},
+  final Map<String, List<String>> workspaceMainTabIds =
+      const <String, List<String>>{},
 }) {
   /// False against runtimes that predate the mobile mutation allowlist; the
   /// UI hides mutating actions in that case.
@@ -91,6 +95,7 @@ class WorkspaceListController extends _$WorkspaceListController {
       workspaces: snapshot.workspaces,
       projects: snapshot.projects,
       supportsMutations: client.supportsWorkspaceMutations,
+      supportsArchive: client.supportsWorkspaceArchive,
       supportsSharedCheckoutWorkspaces:
           client is MobileSharedCheckoutClient &&
           (client as MobileSharedCheckoutClient)
@@ -114,6 +119,7 @@ class WorkspaceListController extends _$WorkspaceListController {
       agentPresence: snapshot.agentPresence,
       defaultAgentProfileId: snapshot.defaultAgentProfileId,
       terminalTabCountByWorkspaceId: snapshot.terminalTabCountByWorkspaceId,
+      workspaceMainTabIds: snapshot.workspaceMainTabIds,
     );
   }
 
@@ -351,6 +357,18 @@ class WorkspaceListController extends _$WorkspaceListController {
   Future<void> sleepWorkspace(String workspaceId) async {
     final client = await ref.read(workspaceClientProvider(hostId).future);
     await client.sleepWorkspace(workspaceId);
+    _invalidateIfMounted();
+  }
+
+  Future<void> archiveWorkspace(String workspaceId) async {
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    await client.archiveWorkspace(workspaceId);
+    _invalidateIfMounted();
+  }
+
+  Future<void> unarchiveWorkspace(String workspaceId) async {
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    await client.unarchiveWorkspace(workspaceId);
     _invalidateIfMounted();
   }
 

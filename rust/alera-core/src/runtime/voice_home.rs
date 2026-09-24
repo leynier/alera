@@ -100,6 +100,7 @@ impl RuntimeStore {
                 || existing.path != home_path
                 || existing.kind != WorkspaceKind::Main
                 || existing.status != WorkspaceStatus::Active
+                || existing.is_archived
             {
                 let mut updated = existing;
                 updated.project_id = project.id.clone();
@@ -108,6 +109,7 @@ impl RuntimeStore {
                 updated.path = home_path;
                 updated.kind = WorkspaceKind::Main;
                 updated.status = WorkspaceStatus::Active;
+                updated.is_archived = false;
                 updated.branch = None;
                 updated.source_branch = None;
                 updated.parent_workspace_id = None;
@@ -136,6 +138,7 @@ impl RuntimeStore {
                 source_branch: None,
                 reuses_existing_branch: false,
                 is_pinned: false,
+                is_archived: false,
                 tag_ids: Vec::new(),
                 tag_names: Vec::new(),
                 section_id: None,

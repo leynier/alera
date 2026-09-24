@@ -35,7 +35,7 @@ void main() {
 
     expect(find.text('Sleep Workspace?'), findsOneWidget);
     expect(
-      find.textContaining('all tabs and terminal sessions'),
+      find.textContaining('Tabs, branch, and files will be preserved'),
       findsOneWidget,
     );
 

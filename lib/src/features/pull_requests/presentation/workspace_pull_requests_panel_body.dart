@@ -9,6 +9,7 @@ class const _PullRequestBody({
   required final Set<String> localWorkspaceBranches,
   required final List<ReviewStackWorkspaceCandidate> stackWorkspaceCandidates,
   required final Future<void> Function(String branch)? onOpenWorkspaceBranch,
+  final VoidCallback? onArchiveWorkspace,
   final VoidCallback? onRemoveWorkspace,
   required final Future<void> Function(String url) onOpenUrl,
   required final ValueChanged<HostedReview>? onOpenDiff,
@@ -83,6 +84,7 @@ class const _PullRequestBody({
         onOpenDiff: onOpenDiff == null ? null : () => onOpenDiff!(review),
         onOpenWorkspaceBranch: onOpenWorkspaceBranch,
         onUnlink: controller.unlink,
+        onArchiveWorkspace: onArchiveWorkspace,
         onRemoveWorkspace: onRemoveWorkspace,
         onLinkStack: controller.linkReviewStack,
         onCreateStackFromWorkspaces: controller.createReviewStackFromWorkspaces,
@@ -107,6 +109,15 @@ class const _PullRequestBody({
                   ref: ref,
                   workspaceId: controller.scope.workspaceId,
                   review: review,
+                ),
+              )
+            : null,
+        onRestack: review.isOpen
+            ? () => unawaited(
+                dispatchPullRequestRestack(
+                  context: context,
+                  ref: ref,
+                  workspaceId: controller.scope.workspaceId,
                 ),
               )
             : null,
@@ -202,6 +213,13 @@ class const _PullRequestBody({
           },
       onCreateStack: (draft) =>
           _openWorkspaceStackDialog(context, currentDraft: draft),
+      onRestack: () => unawaited(
+        dispatchPullRequestRestack(
+          context: context,
+          ref: ref,
+          workspaceId: controller.scope.workspaceId,
+        ),
+      ),
       onLink: controller.link,
       onCreateActionChanged: onCreateActionChanged,
     );

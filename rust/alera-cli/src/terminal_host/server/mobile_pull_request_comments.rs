@@ -21,6 +21,7 @@ query($owner: String!, $repo: String!, $pr: Int!, $threadsAfter: String) {
         nodes {
           id
           isResolved
+          isOutdated
           line
           originalLine
           comments(first: 100) {
@@ -224,6 +225,10 @@ fn map_review_threads(connection: &Value) -> Vec<Value> {
                 "path": node.get("path").and_then(Value::as_str),
                 "line": line,
                 "resolved": resolved,
+                "outdated": thread
+                    .get("isOutdated")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false),
                 "threadId": thread_id,
             }));
         }
@@ -324,6 +329,7 @@ mod tests {
                 {
                     "id": "T1",
                     "isResolved": true,
+                    "isOutdated": true,
                     "line": null,
                     "originalLine": 17,
                     "comments": {"nodes": [
@@ -344,7 +350,9 @@ mod tests {
         assert_eq!(comments[0]["path"], "lib/a.dart");
         assert_eq!(comments[0]["line"], 17);
         assert_eq!(comments[0]["resolved"], true);
+        assert_eq!(comments[0]["outdated"], true);
         assert_eq!(comments[0]["threadId"], "T1");
+        assert_eq!(comments[2]["outdated"], false);
         assert!(comments[1]["author"].is_null());
         assert_eq!(comments[1]["threadId"], "T1");
         assert_eq!(comments[2]["line"], 4);

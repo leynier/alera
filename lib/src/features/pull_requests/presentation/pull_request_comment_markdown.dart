@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/forms/alera_checkbox.dart';
+import 'package:alera/src/design_system/layout/alera_horizontal_scroll_view.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_text_selection_toolbar.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_comment_body.dart';
 import 'package:flutter/material.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 
@@ -57,7 +59,7 @@ class const PullRequestCommentMarkdown({
         child: DefaultTextStyle(
           style: bodyStyle,
           child: GptMarkdown(
-            body,
+            sanitizePullRequestCommentBody(body),
             style: bodyStyle,
             components: components,
             codeBuilder: _buildCodeBlock,
@@ -104,8 +106,7 @@ class const PullRequestCommentMarkdown({
             ),
             const Divider(height: 1, color: AleraTokens.borderSubtle),
           ],
-          SingleChildScrollView(
-            scrollDirection: .horizontal,
+          AleraHorizontalScrollView(
             padding: const EdgeInsets.all(AleraTokens.space8),
             child: Text(
               code,
@@ -190,6 +191,21 @@ Widget buildPullRequestCommentImage(
       height: safeHeight,
     );
   }
+  final image = Image.network(
+    imageUrl,
+    width: safeWidth,
+    height: safeHeight,
+    fit: .contain,
+    errorBuilder: (_, _, _) => _PullRequestCommentImagePlaceholder(
+      width: safeWidth,
+      height: safeHeight,
+    ),
+  );
+  // Bot glyphs (spinners, 9px logos) are HTML-sized under space24. radiusMd
+  // would round an 11px image into a dot.
+  if (isInlinePullRequestCommentImage(safeWidth, safeHeight)) {
+    return image;
+  }
   return ConstrainedBox(
     constraints: const BoxConstraints(
       maxWidth: AleraTokens.imageMaxWidth,
@@ -197,18 +213,20 @@ Widget buildPullRequestCommentImage(
     ),
     child: ClipRRect(
       borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-      child: Image.network(
-        imageUrl,
-        width: safeWidth,
-        height: safeHeight,
-        fit: .contain,
-        errorBuilder: (_, _, _) => _PullRequestCommentImagePlaceholder(
-          width: safeWidth,
-          height: safeHeight,
-        ),
-      ),
+      child: image,
     ),
   );
+}
+
+bool isInlinePullRequestCommentImage(double? width, double? height) {
+  final sides = <double>[
+    if (width != null && width > 0) width,
+    if (height != null && height > 0) height,
+  ];
+  if (sides.isEmpty) {
+    return false;
+  }
+  return sides.every((side) => side <= AleraTokens.space24);
 }
 
 double? _limitImageDimension(double? value, double maximum) {

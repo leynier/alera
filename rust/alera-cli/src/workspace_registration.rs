@@ -33,6 +33,7 @@ pub fn from_args(args: WorkspaceRegisterArgs) -> Result<Workspace> {
         source_branch: args.source_branch,
         reuses_existing_branch: args.reuses_existing_branch,
         is_pinned: false,
+        is_archived: false,
         tag_ids: Vec::new(),
         tag_names: Vec::new(),
         parent_workspace_id: None,

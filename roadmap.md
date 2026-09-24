@@ -95,7 +95,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| Pull requests panel | 4 | 4 | Shipped | Create, edit, comment (markdown), toggle draft, and merge reviews per worktree on GitHub, GitLab, and Azure DevOps; GitHub native stack discovery, workspace-driven PR creation, linking, and atomic merge are included; Watch and Fix sends one agent prompt for failed checks, unresolved review threads, and merge conflicts inside a remembered scope, and Watch, Fix and Merge merges once that scope is clear |
+| Pull requests panel | 4 | 4 | Shipped | Create, edit, comment (markdown), toggle draft, and merge reviews per worktree on GitHub, GitLab, and Azure DevOps; GitHub native stack discovery, workspace-driven PR creation, linking, and atomic merge are included; Restack sends one agent prompt to rewrite commits since the merge base without pushing; Watch and Fix sends one agent prompt for failed checks, unresolved review threads, and merge conflicts inside a remembered scope, and Watch, Fix and Merge merges once that scope is clear |
 | Checks panel (CI/CD) | 4 | 4 | Shipped | CI checks grouped by status with drill-down details on GitHub, GitLab, and Azure DevOps |
 | GitHub Projects integration | 4 | 3 | Planned | Full project board with columns, cards, filtering, inline editing |
 | Linear integration | 4 | 2 | Planned | Linear SDK, issue workspace, item drawer, team selection |
@@ -110,7 +110,8 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 |---|:---:|:---:|:---:|---|
 | Quick Open / Command Palette | 3 | 5 | Planned | Fuzzy file search (Cmd+P) and command execution (Cmd+Shift+P) |
 | Worktree navigation history | 2 | 4 | Shipped | Back/forward navigation stack between worktrees |
-| Worktree sleep/wake | 3 | 3 | Shipped | Sleep removes tabs/layout and terminates terminals while keeping branch/files; desktop and mobile |
+| Worktree sleep/wake | 3 | 3 | Shipped | Sleep terminates terminals while keeping tabs/layout/branch/files for resume; desktop and mobile |
+| Worktree archiving | 3 | 4 | Shipped | Archive stops sessions and hides the workspace unless Show Archived Workspaces is on, preserving tabs/layout/branch/files; merged PRs default to Archive with Remove still offered; desktop, mobile, and CLI |
 | Worktree comments & metadata | 2 | 3 | Partial | Rename, pins, tags, parent/child relations, and linked issues ship; freeform comments do not |
 | Worktree multi-selection | 2 | 3 | Planned | Select multiple worktrees for batch operations |
 | Worktree manual ordering | 2 | 3 | Planned | Sort by name/recent/activity exists; no drag-and-drop manual order with persistence |

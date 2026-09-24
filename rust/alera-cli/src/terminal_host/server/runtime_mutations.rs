@@ -72,6 +72,9 @@ pub(crate) enum RuntimeMutationRequest {
     SleepWorkspace {
         workspace_id: String,
     },
+    ArchiveWorkspace {
+        workspace_id: String,
+    },
 }
 
 pub(crate) struct RuntimeMutationCompletion {
@@ -139,6 +142,9 @@ pub(super) enum RuntimeMutationEffect {
         workspace_id: String,
     },
     WorkspaceSlept {
+        workspace_id: String,
+    },
+    WorkspaceArchived {
         workspace_id: String,
     },
 }
@@ -355,7 +361,7 @@ pub(super) async fn run_runtime_mutation(
             }
             RuntimeMutationRequest::RemoveWorkspaceTabs { workspace_id } => {
                 runtime_store
-                    .sleep_workspace(&workspace_id)
+                    .remove_workspace_tabs(&workspace_id)
                     .await
                     .map_err(runtime_store_error)?;
                 Ok(RuntimeMutationCompletion {
@@ -366,10 +372,8 @@ pub(super) async fn run_runtime_mutation(
                 })
             }
             RuntimeMutationRequest::SleepWorkspace { workspace_id } => {
-                runtime_store
-                    .sleep_workspace(&workspace_id)
-                    .await
-                    .map_err(runtime_store_error)?;
+                // Sleep terminates live sessions but preserves tab records and
+                // layout so agent sessions can resume when the workspace wakes.
                 effect_on_error = Some(RuntimeMutationEffect::WorkspaceSlept {
                     workspace_id: workspace_id.clone(),
                 });
@@ -377,6 +381,24 @@ pub(super) async fn run_runtime_mutation(
                 Ok(RuntimeMutationCompletion {
                     response: json!({}),
                     effect: RuntimeMutationEffect::WorkspaceSlept { workspace_id },
+                    closed_tab_ids: Vec::new(),
+                    hand_on_relocate: None,
+                })
+            }
+            RuntimeMutationRequest::ArchiveWorkspace { workspace_id } => {
+                // Archiving terminates live sessions but preserves tab records,
+                // layout, branch, and files so the workspace can resume on
+                // unarchive. No git state is touched.
+                let workspace = runtime_store
+                    .set_workspace_archived(&workspace_id, true)
+                    .await
+                    .map_err(runtime_store_error)?;
+                effect_on_error = Some(RuntimeMutationEffect::WorkspaceArchived {
+                    workspace_id: workspace_id.clone(),
+                });
+                Ok(RuntimeMutationCompletion {
+                    response: serde_json::to_value(workspace).map_err(runtime_store_error)?,
+                    effect: RuntimeMutationEffect::WorkspaceArchived { workspace_id },
                     closed_tab_ids: Vec::new(),
                     hand_on_relocate: None,
                 })

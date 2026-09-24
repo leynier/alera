@@ -13,11 +13,12 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 use super::ai_assist_commit_message::{
     clean_generated_text, limit_prompt_section, truncate_diff_for_prompt,
 };
+use super::ai_assist_generation::generate_ai_assist_output;
 use super::ai_assist_operation_registry::active_generations;
-use super::ai_assist_requests::{plan_command, run_command};
 use super::host_service_requests::required_non_blank;
 use super::mobile_source_control_snapshot::git_host_error;
 use super::mobile_workspace_file_requests::spawn_blocking_workspace;
+use super::remote_ai_assist_requests::{effective_ai_assist_settings, hub_ai_assist_settings};
 use super::{ServerActor, ServerCommand};
 
 const OPERATION: &str = "pullRequestDetails";
@@ -41,20 +42,26 @@ impl ServerActor {
         let operation_id = required_non_blank(payload, "operationId")?;
         let workspace_id = required_non_blank(payload, "workspaceId")?;
         let base_branch = required_non_blank(payload, "baseBranch")?;
+        let hub_settings = hub_ai_assist_settings(payload)?;
         let store = self.runtime_store.clone();
         let inbox = self.inbox.clone();
         let (registration, cancel_rx) = active_generations().register(operation_id, None)?;
         tokio::spawn(async move {
-            let result =
-                generate_pull_request_details(&store, &workspace_id, &base_branch, cancel_rx)
-                    .await
-                    .map(|(details, agent_label)| {
-                        json!({
-                            "title": details.title,
-                            "body": details.body,
-                            "agentLabel": agent_label,
-                        })
-                    });
+            let result = generate_pull_request_details(
+                &store,
+                &workspace_id,
+                &base_branch,
+                hub_settings,
+                cancel_rx,
+            )
+            .await
+            .map(|(details, agent_label)| {
+                json!({
+                    "title": details.title,
+                    "body": details.body,
+                    "agentLabel": agent_label,
+                })
+            });
             drop(registration);
             let _ = inbox.send(ServerCommand::AiAssistFinished {
                 client_id,
@@ -72,6 +79,7 @@ pub(super) async fn generate_pull_request_details(
     store: &RuntimeStore,
     workspace_id: &str,
     base_branch: &str,
+    hub_settings: Option<RuntimeAiAssistSettings>,
     cancel_rx: oneshot::Receiver<()>,
 ) -> HostResult<(PullRequestDetails, String)> {
     let workspace = store
@@ -85,10 +93,7 @@ pub(super) async fn generate_pull_request_details(
             "Pull request details can only be generated for workspaces on this runtime.",
         ));
     }
-    let settings = store
-        .effective_ai_assist_settings()
-        .await
-        .map_err(|error| HostError::state(error.to_string()))?;
+    let settings = effective_ai_assist_settings(store, hub_settings).await?;
     if !settings.enabled {
         return Err(HostError::state("AI Assist is disabled."));
     }
@@ -105,9 +110,9 @@ pub(super) async fn generate_pull_request_details(
     })
     .await?;
     let prompt = pull_request_details_prompt(&base, &range, instructions(&settings))?;
-    let plan = plan_command(&settings, OPERATION, &prompt)?;
-    let label = plan.label.clone();
-    let output = run_command(plan, &workspace.path, settings.timeout_seconds, cancel_rx).await?;
+    let (output, label) =
+        generate_ai_assist_output(&settings, OPERATION, &prompt, &workspace.path, cancel_rx)
+            .await?;
     Ok((parse_pull_request_details(&output), label))
 }
 

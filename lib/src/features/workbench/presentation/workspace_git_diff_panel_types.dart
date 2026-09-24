@@ -41,6 +41,7 @@ typedef OpenGitDiffTabCallback = Future<void> Function({
   String? gitDiffRoot,
   required WorkspaceGitDiffScope scope,
   bool preview,
+  bool oppositePanel,
 });
 
 typedef OpenGitCommitDiffTabCallback = Future<void> Function({
@@ -54,4 +55,5 @@ typedef OpenGitCommitDiffTabCallback = Future<void> Function({
   String? subject,
   String? message,
   bool preview,
+  bool oppositePanel,
 });

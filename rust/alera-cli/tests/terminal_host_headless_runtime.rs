@@ -15,10 +15,22 @@ use serde_json::{json, Value};
 
 #[path = "terminal_host_headless_runtime/home_owner_retirement_case.rs"]
 mod home_owner_retirement_case;
+#[path = "terminal_host_headless_runtime/host_link_git_case.rs"]
+mod host_link_git_case;
+#[path = "terminal_host_headless_runtime/host_link_mirror_case.rs"]
+mod host_link_mirror_case;
+#[path = "terminal_host_headless_runtime/host_link_process_case.rs"]
+mod host_link_process_case;
+#[cfg(unix)]
+#[path = "terminal_host_headless_runtime/hub_federation_case.rs"]
+mod hub_federation_case;
 #[path = "terminal_host_headless_runtime/owner_terminal_case.rs"]
 mod owner_terminal_case;
 #[path = "terminal_host_headless_runtime/profile_snapshot_restart_cases.rs"]
 mod profile_snapshot_restart_cases;
+#[cfg(unix)]
+#[path = "terminal_host_headless_runtime/project_hosts_case.rs"]
+mod project_hosts_case;
 #[path = "terminal_host_headless_runtime/startup_command_cases.rs"]
 mod startup_command_cases;
 #[path = "terminal_host_headless_runtime/startup_reconciliation_case.rs"]

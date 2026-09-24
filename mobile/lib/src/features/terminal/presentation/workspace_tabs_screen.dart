@@ -7,11 +7,13 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/features/workbench/application/workspace_hosts_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_panels_controller.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/explorer_panel.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_panel.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/source_control_panel.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_viewer_screen.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_host_marker.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_text_search_panel.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
@@ -20,9 +22,11 @@ import 'package:alera_mobile/src/features/terminal/application/agent_presence_co
 import 'package:alera_mobile/src/features/terminal/application/tabs_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_tab_session.dart';
+import 'package:alera_mobile/src/features/terminal/presentation/agent_profile_launch_sheet.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_keys_settings_screen.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_tab_view.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/agent_identity_icon.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/agent_run_state_indicator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -62,8 +66,8 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     switch (action) {
       case _NewTerminalTabAction():
         await _createTab();
-      case _NewAgentProfileTabAction(:final profileId):
-        await _launchProfileTab(profileId);
+      case _NewAgentProfileTabAction(:final profile):
+        await _launchProfileTab(profile);
     }
   }
 
@@ -75,37 +79,31 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
         .listNewTabMenuProfiles();
   }
 
-  Future<void> _launchProfileTab(String profileId) async {
-    if (_creating) {
+  Future<void> _launchProfileTab(AgentProfileSummary profile) async {
+    if (_creating || !profile.showInNewTabMenu) {
       return;
     }
-    setState(() {
-      _creating = true;
-    });
-    try {
-      final tabId = await ref
-          .read(
-            tabsControllerProvider(widget.hostId, widget.workspace.id).notifier,
-          )
-          .launchAgentProfileTab(profileId);
-      if (mounted) {
-        setState(() {
-          _selectedTabId = tabId;
-        });
-      }
-    } on Object catch (error, stackTrace) {
-      _logger.warning('could not launch agent profile tab', error, stackTrace);
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _creating = false;
-        });
-      }
-    }
+    await showAgentProfileLaunchSheet(
+      context,
+      profile: profile,
+      hostId: widget.hostId,
+      workspaceId: widget.workspace.id,
+      onLaunch: ({required prompt}) async {
+        final tabId = await ref
+            .read(
+              tabsControllerProvider(
+                widget.hostId,
+                widget.workspace.id,
+              ).notifier,
+            )
+            .launchAgentProfileTab(profile.id, prompt: prompt);
+        if (mounted) {
+          setState(() {
+            _selectedTabId = tabId;
+          });
+        }
+      },
+    );
   }
 
   Future<void> _createTab() async {
@@ -348,7 +346,13 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
         // toolbar leaves ~18dp of dead space under the title before the chips
         // start; 48dp still fits the back button exactly.
         toolbarHeight: AleraTokens.minTapTarget,
-        title: Text(widget.workspace.name, overflow: .ellipsis),
+        title: WorkspaceHostTitle(
+          name: widget.workspace.name,
+          host: ref
+              .watch(workspaceHostsControllerProvider(widget.hostId))
+              .value
+              ?.hostOf(widget.workspace),
+        ),
         actions: <Widget>[
           PopupMenuButton<_TabsMenuAction>(
             tooltip: 'More Actions',

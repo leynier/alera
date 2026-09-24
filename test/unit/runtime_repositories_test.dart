@@ -544,9 +544,24 @@ final class _MemoryWorkbenchRepository implements WorkbenchRepository {
     String workspaceId,
     bool isPinned,
   ) async {
-    final workspace = workspaces[workspaceId]!;
-    return upsertWorkspace(workspace.copyWith(isPinned: isPinned));
+    final current = (await findWorkspaceById(workspaceId))!;
+    return upsertWorkspace(current.copyWith(isPinned: isPinned));
   }
+
+  @override
+  Future<Workspace> setWorkspaceArchived(
+    String workspaceId,
+    bool isArchived,
+  ) async {
+    final current = (await findWorkspaceById(workspaceId))!;
+    return upsertWorkspace(current.copyWith(isArchived: isArchived));
+  }
+
+  @override
+  Future<void> sleepWorkspace(String workspaceId) async {}
+
+  @override
+  Future<bool> supportsArchive() async => true;
 
   @override
   Future<void> removeWorkspace(

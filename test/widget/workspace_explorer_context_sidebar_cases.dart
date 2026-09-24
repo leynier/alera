@@ -29,6 +29,7 @@ void _registerWorkspaceExplorerContextSidebarTests() {
                   gitDiffRoot,
                   required scope,
                   bool preview = false,
+                  bool oppositePanel = false,
                 }) async {},
                 onOpenGitCommitDiff: ({
                   relativePath,
@@ -41,6 +42,7 @@ void _registerWorkspaceExplorerContextSidebarTests() {
                   subject,
                   message,
                   bool preview = false,
+                  bool oppositePanel = false,
                 }) async {},
                 onOpenSearchMatch: (_) {},
                 onPathMoved: (_, _) async {},
@@ -88,6 +90,7 @@ void _registerWorkspaceExplorerContextSidebarTests() {
                   gitDiffRoot,
                   required scope,
                   bool preview = false,
+                  bool oppositePanel = false,
                 }) async {},
                 onOpenGitCommitDiff: ({
                   relativePath,
@@ -100,6 +103,7 @@ void _registerWorkspaceExplorerContextSidebarTests() {
                   subject,
                   message,
                   bool preview = false,
+                  bool oppositePanel = false,
                 }) async {},
                 onOpenSearchMatch: (_) {},
                 onPathMoved: (_, _) async {},
@@ -137,6 +141,7 @@ void _registerWorkspaceExplorerContextSidebarTests() {
                   gitDiffRoot,
                   required scope,
                   bool preview = false,
+                  bool oppositePanel = false,
                 }) async {},
                 onOpenGitCommitDiff: ({
                   relativePath,
@@ -149,6 +154,7 @@ void _registerWorkspaceExplorerContextSidebarTests() {
                   subject,
                   message,
                   bool preview = false,
+                  bool oppositePanel = false,
                 }) async {},
                 onOpenSearchMatch: (_) {},
                 onPathMoved: (_, _) async {},

@@ -126,10 +126,7 @@ pub fn source_control_primary_action(
 }
 
 fn has_upstream(state: &GitRepositoryState) -> bool {
-    state
-        .upstream
-        .as_deref()
-        .is_some_and(|upstream| !upstream.is_empty())
+    state.tracks_same_named_upstream()
 }
 
 #[cfg(test)]

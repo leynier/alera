@@ -64,9 +64,13 @@ void _registerAleraShellSectionMenuTests() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Set Section'), findsOneWidget);
-    expect(find.text('Set Section Tree'), findsOneWidget);
+    expect(find.text('Section'), findsOneWidget);
+    await tester.tap(find.text('Section'));
+    await tester.pumpAndSettle();
     expect(find.text('Clear Section'), findsOneWidget);
+    expect(find.text('Apply to Tree'), findsOneWidget);
+    await tester.tap(find.text('Apply to Tree'));
+    await tester.pumpAndSettle();
     expect(find.text('Clear Section Tree'), findsOneWidget);
   });
 
@@ -86,7 +90,7 @@ void _registerAleraShellSectionMenuTests() {
       buttons: kSecondaryMouseButton,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Set Section'));
+    await tester.tap(find.text('Section'));
     await tester.pumpAndSettle();
     expect(find.text('Work'), findsOneWidget);
     expect(find.text('New Section'), findsOneWidget);
@@ -129,9 +133,11 @@ void _registerAleraShellSectionMenuTests() {
       buttons: kSecondaryMouseButton,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Set Section Tree'));
+    await tester.tap(find.text('Section'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Work'));
+    await tester.tap(find.text('Apply to Tree'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Work').last);
     await tester.pumpAndSettle();
 
     expect(controller.saves.single.tree, isTrue);

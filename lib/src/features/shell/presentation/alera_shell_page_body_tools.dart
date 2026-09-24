@@ -1,5 +1,7 @@
 part of 'alera_shell_page.dart';
 
+bool _oppositePanelOpenRequested() => isModModifierPressed();
+
 extension _AleraShellPageBodyTools on _AleraShellPageBodyState {
   Widget Function(WorkbenchContextPanelTab tab) _workspaceToolFactory({
     required Workspace workspace,
@@ -9,6 +11,13 @@ extension _AleraShellPageBodyTools on _AleraShellPageBodyState {
   }) {
     final controller = ref.read(workbenchControllerProvider.notifier);
     return (tab) {
+      final sourceKey = switch (tab) {
+        WorkbenchContextPanelTab.explorer => WorkspaceTool.explorer.key,
+        WorkbenchContextPanelTab.search => WorkspaceTool.search.key,
+        WorkbenchContextPanelTab.gitDiff => WorkspaceTool.sourceControl.key,
+        WorkbenchContextPanelTab.pullRequests => WorkspaceTool.pullRequest.key,
+      };
+
       return WorkspaceContextSidebar.toolFor(
         tab: tab,
         workspace: workspace,
@@ -41,8 +50,10 @@ extension _AleraShellPageBodyTools on _AleraShellPageBodyState {
           unawaited(
             controller.openFileTab(
               workspace: workspace,
+              sourceKey: sourceKey,
               relativePath: relativePath,
               preview: true,
+              oppositePanel: _oppositePanelOpenRequested(),
             ),
           );
         },
@@ -50,7 +61,9 @@ extension _AleraShellPageBodyTools on _AleraShellPageBodyState {
           unawaited(
             controller.openFileTab(
               workspace: workspace,
+              sourceKey: sourceKey,
               relativePath: relativePath,
+              oppositePanel: _oppositePanelOpenRequested(),
             ),
           );
         },
@@ -67,14 +80,17 @@ extension _AleraShellPageBodyTools on _AleraShellPageBodyState {
               gitDiffRoot,
               required scope,
               preview = false,
+              oppositePanel = false,
             }) {
               return controller.openGitDiffTab(
                 workspace: workspace,
+                sourceKey: sourceKey,
                 relativePath: relativePath,
                 area: area,
                 scope: scope,
                 gitDiffRoot: gitDiffRoot,
                 preview: preview,
+                oppositePanel: oppositePanel,
               );
             },
         onOpenGitCommitDiff:
@@ -89,9 +105,11 @@ extension _AleraShellPageBodyTools on _AleraShellPageBodyState {
               subject,
               message,
               preview = false,
+              oppositePanel = false,
             }) {
               return controller.openGitCommitDiffTab(
                 workspace: workspace,
+                sourceKey: sourceKey,
                 relativePath: relativePath,
                 oldPath: oldPath,
                 scope: scope,
@@ -102,14 +120,17 @@ extension _AleraShellPageBodyTools on _AleraShellPageBodyState {
                 subject: subject,
                 message: message,
                 preview: preview,
+                oppositePanel: oppositePanel,
               );
             },
         onOpenSearchMatch: (target) {
           unawaited(() async {
             final tab = await controller.openEditorTab(
               workspace: workspace,
+              sourceKey: sourceKey,
               relativePath: target.relativePath,
               preview: true,
+              oppositePanel: _oppositePanelOpenRequested(),
             );
             ref
                 .read(editorSessionRegistryProvider)

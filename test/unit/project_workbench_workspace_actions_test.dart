@@ -16,78 +16,95 @@ List<String> _labels(List<PopupMenuEntry<String>> entries) {
   ];
 }
 
+AleraDropdownSubmenuEntry<String>? _submenu(
+  List<PopupMenuEntry<String>> entries,
+  String label,
+) {
+  for (final entry in entries) {
+    if (entry is AleraDropdownSubmenuEntry<String> && entry.label == label) {
+      return entry;
+    }
+  }
+  return null;
+}
+
 WorkspaceSection _section(String id) {
   final now = DateTime.utc(2026, 8, 30);
   return WorkspaceSection(id: id, name: id, createdAt: now, updatedAt: now);
 }
 
 void main() {
-  test(
-    'section actions follow Parent and Clear Section requires membership',
-    () {
-      final labels = _labels(
-        workspaceContextMenuEntries(
-          fileManagerLabel: 'Files',
-          hasClearParent: true,
-          canRemove: true,
-          isPinned: true,
-          supportsSections: true,
-          hasSection: true,
-          hasDescendants: true,
-          hasTreeSection: true,
-        ),
-      );
-      expect(
-        labels.sublist(
-          labels.indexOf('Pin Workspace Tree'),
-          labels.indexOf('Clear Section Tree') + 1,
-        ),
-        [
-          'Pin Workspace Tree',
-          'Unpin Workspace Tree',
-          'Manage Tags',
-          'Set Parent Workspace',
-          'Clear Parent Workspace',
-          'Set Section',
-          'Set Section Tree',
-          'Clear Section',
-          'Clear Section Tree',
-        ],
-      );
-      final unassigned = _labels(
-        workspaceContextMenuEntries(
-          fileManagerLabel: 'Files',
-          hasClearParent: false,
-          canRemove: true,
-          isPinned: false,
-          supportsSections: true,
-        ),
-      );
-      expect(unassigned, contains('Set Section'));
-      expect(unassigned, isNot(contains('Set Section Tree')));
-      expect(unassigned, isNot(contains('Clear Section')));
-      expect(unassigned, isNot(contains('Clear Section Tree')));
-      expect(unassigned, isNot(contains('Pin Workspace Tree')));
-      expect(unassigned, isNot(contains('Unpin Workspace Tree')));
-      final withTree = workspaceContextMenuEntries(
+  test('organize families nest variants and keep tags after section', () {
+    final entries = workspaceContextMenuEntries(
+      fileManagerLabel: 'Files',
+      hasClearParent: true,
+      canRemove: true,
+      isPinned: true,
+      supportsSections: true,
+      hasSection: true,
+      hasDescendants: true,
+      hasTreeSection: true,
+      sections: <WorkspaceSection>[_section('Work'), _section('Review')],
+      currentSectionId: 'Work',
+    );
+    expect(_labels(entries).sublist(1, 6), <String>[
+      'Pin',
+      'Parent',
+      'Section',
+      'Manage Tags',
+      'Open',
+    ]);
+    expect(_labels(_submenu(entries, 'Pin')!.items), <String>[
+      'Unpin Workspace',
+      'Pin Workspace Tree',
+      'Unpin Workspace Tree',
+    ]);
+    expect(_labels(_submenu(entries, 'Parent')!.items), <String>[
+      'Set Parent Workspace',
+      'Clear Parent Workspace',
+    ]);
+    final section = _submenu(entries, 'Section')!;
+    expect(_labels(section.items), <String>[
+      'Work',
+      'Review',
+      'New Section',
+      'Clear Section',
+      'Apply to Tree',
+    ]);
+    expect(_labels(_submenu(section.items, 'Apply to Tree')!.items), <String>[
+      'Work',
+      'Review',
+      'New Section',
+      'Clear Section Tree',
+    ]);
+    expect(_labels(_submenu(entries, 'Open')!.items), <String>[
+      'In Browser',
+      'In Files',
+      'In Project Settings',
+    ]);
+    expect(_leadingIcon(entries, 'Section'), AleraIcons.section);
+    expect(_leadingIcon(section.items, 'Clear Section'), AleraIcons.sectionOff);
+  });
+
+  test('leaves omit tree and clear actions', () {
+    final unassigned = _labels(
+      workspaceContextMenuEntries(
         fileManagerLabel: 'Files',
         hasClearParent: false,
         canRemove: true,
         isPinned: false,
         supportsSections: true,
-        hasSection: true,
-        hasDescendants: true,
-        hasTreeSection: true,
-      );
-      expect(_leadingIcon(withTree, 'Set Section'), AleraIcons.section);
-      expect(_leadingIcon(withTree, 'Set Section Tree'), AleraIcons.section);
-      expect(_leadingIcon(withTree, 'Clear Section'), AleraIcons.sectionOff);
-      expect(
-        _leadingIcon(withTree, 'Clear Section Tree'),
-        AleraIcons.sectionOff,
-      );
-    },
-  );
+      ),
+    );
+    expect(unassigned, contains('Section'));
+    expect(unassigned, contains('Pin Workspace'));
+    expect(unassigned, contains('Set Parent Workspace'));
+    expect(unassigned, isNot(contains('Pin')));
+    expect(unassigned, isNot(contains('Parent')));
+    expect(unassigned, isNot(contains('Apply to Tree')));
+    expect(unassigned, isNot(contains('Clear Section')));
+    expect(unassigned, isNot(contains('Pin Workspace Tree')));
+  });
 
   test('fewer than 10 sections use a submenu with New Section', () {
     final entries = workspaceContextMenuEntries(
@@ -100,17 +117,13 @@ void main() {
       sections: <WorkspaceSection>[_section('Work'), _section('Review')],
       currentSectionId: 'Work',
     );
-    final submenu = entries.whereType<AleraDropdownSubmenuEntry<String>>();
-    expect(submenu.map((entry) => entry.label), <String>[
-      'Set Section',
-      'Set Section Tree',
+    final section = _submenu(entries, 'Section')!;
+    expect(_labels(section.items).take(3), <String>[
+      'Work',
+      'Review',
+      'New Section',
     ]);
-    expect(
-      submenu.first.items.whereType<AleraDropdownEntry<String>>().map(
-        (entry) => entry.label,
-      ),
-      <String>['Work', 'Review', 'New Section'],
-    );
+    expect(_submenu(section.items, 'Apply to Tree'), isNotNull);
     expect(
       entries.whereType<AleraDropdownEntry<String>>().map(
         (entry) => entry.label,
@@ -130,7 +143,7 @@ void main() {
         for (var i = 0; i < workspaceSectionSubmenuLimit; i++) _section('s$i'),
       ],
     );
-    expect(entries.whereType<AleraDropdownSubmenuEntry<String>>(), isEmpty);
+    expect(_submenu(entries, 'Section'), isNull);
     expect(
       entries.whereType<AleraDropdownEntry<String>>().map(
         (entry) => entry.label,
@@ -141,18 +154,15 @@ void main() {
   });
 
   test('hand off and hand on are first-class workspace actions', () {
-    expect(
-      _labels(
-        workspaceContextMenuEntries(
-          fileManagerLabel: 'Files',
-          hasClearParent: false,
-          canRemove: false,
-          isPinned: false,
-          canHandOff: true,
-        ),
-      ),
-      containsAll(['Hand Off', 'Workspace Recovery']),
+    final handOff = workspaceContextMenuEntries(
+      fileManagerLabel: 'Files',
+      hasClearParent: false,
+      canRemove: false,
+      isPinned: false,
+      canHandOff: true,
     );
+    expect(_labels(handOff), containsAll(['Hand Off', 'Recovery']));
+    expect(_leadingIcon(handOff, 'Recovery'), AleraIcons.restore);
     expect(
       _labels(
         workspaceContextMenuEntries(
@@ -163,7 +173,7 @@ void main() {
           canHandOn: true,
         ),
       ),
-      containsAll(['Hand On', 'Workspace Recovery']),
+      containsAll(['Hand On', 'Recovery']),
     );
   });
 
@@ -178,15 +188,47 @@ void main() {
     expect(_labels(entries), <String>[
       'Rename',
       'Pin Workspace',
-      'Manage Tags',
       'Set Parent Workspace',
-      'Open in Browser',
-      'Open in Files',
-      'Open in Project Settings',
+      'Manage Tags',
+      'Open',
       'Copy Path',
       'Sleep',
+      'Archive',
       'Remove',
     ]);
+    expect(_labels(_submenu(entries, 'Open')!.items), <String>[
+      'In Browser',
+      'In Files',
+      'In Project Settings',
+    ]);
+  });
+
+  test('workspace context menu omits archive when unsupported', () {
+    final entries = workspaceContextMenuEntries(
+      fileManagerLabel: 'Files',
+      hasClearParent: false,
+      canRemove: true,
+      isPinned: false,
+      supportsArchive: false,
+    );
+
+    expect(_labels(entries), contains('Sleep'));
+    expect(_labels(entries), isNot(contains('Archive')));
+    expect(_labels(entries), contains('Remove'));
+  });
+
+  test('workspace context menu offers unarchive for archived workspaces', () {
+    final entries = workspaceContextMenuEntries(
+      fileManagerLabel: 'Files',
+      hasClearParent: false,
+      canRemove: true,
+      isPinned: false,
+      isArchived: true,
+    );
+
+    expect(_labels(entries), contains('Unarchive'));
+    expect(_labels(entries), isNot(contains('Archive')));
+    expect(_leadingIcon(entries, 'Unarchive'), AleraIcons.unarchive);
   });
 }
 

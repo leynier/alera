@@ -144,6 +144,27 @@ void main() {
       expect(repository.tabs, hasLength(1));
     });
 
+    test(
+      'openOrCreateEditorTab creates another tab when reuse is excluded',
+      () async {
+        final repository = _FakeWorkbenchRepository();
+        final service = WorkspaceTabService(repository: repository);
+
+        final first = await service.openOrCreateEditorTab(
+          workspaceId: 'workspace-1',
+          relativePath: 'lib/main.dart',
+        );
+        final second = await service.openOrCreateEditorTab(
+          workspaceId: 'workspace-1',
+          relativePath: 'lib/main.dart',
+          reuseTabIds: const <String>{},
+        );
+
+        expect(second.id, isNot(first.id));
+        expect(repository.tabs, hasLength(2));
+      },
+    );
+
     test('openOrCreateEditorTab ignores merman preview tabs', () async {
       final repository = _FakeWorkbenchRepository()
         ..tabs.add(
@@ -1042,6 +1063,18 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
     String workspaceId,
     bool isPinned,
   ) async => throw StateError('Workspace not found');
+
+  @override
+  Future<Workspace> setWorkspaceArchived(
+    String workspaceId,
+    bool isArchived,
+  ) async => throw StateError('Workspace not found');
+
+  @override
+  Future<void> sleepWorkspace(String workspaceId) async {}
+
+  @override
+  Future<bool> supportsArchive() async => true;
 
   @override
   Stream<List<WorkspaceTabRecord>> watchWorkspaceTabs(String workspaceId) =>
