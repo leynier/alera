@@ -325,3 +325,75 @@ async fn workflow_stalls_override_the_started_launch_in_task_projections() {
     assert_eq!(inspect_workflow(&store, &request).await.state, "stalled");
     assert_eq!(snapshot_workflow_state(&store, &request).await, "stalled");
 }
+
+#[tokio::test]
+async fn successful_completion_resolves_escalation_attention_in_every_board_projection() {
+    let (_dir, store, request) = prepared().await;
+    let context_hash = "a".repeat(64);
+    let (launch, _) = store
+        .reserve_workflow_launch(&request, &context_hash)
+        .await
+        .unwrap();
+    store.claim_workflow_launch(&launch.id).await.unwrap();
+    store
+        .mark_workflow_launch_started(&launch.id)
+        .await
+        .unwrap();
+    store
+        .accept_orchestration_dispatch(&launch.dispatch_id, &launch.terminal_handle, &context_hash)
+        .await
+        .unwrap();
+    store
+        .workflow_launch_attention(&launch.id, "Worker requested human help")
+        .await
+        .unwrap();
+    assert_eq!(snapshot_workflow_state(&store, &request).await, "attention");
+    assert_eq!(
+        board_bucket(&store).await,
+        OrchestrationBoardBucket::Attention
+    );
+
+    let result = r#"{"summary":"Done","completionKind":"success","artifacts":["shared.txt"],"filesModified":["shared.txt"],"validation":[{"id":"regression","passed":true,"evidence":"regression covered"},{"id":"checks","passed":true,"evidence":"focused checks passed"}]}"#;
+    let sha = "b".repeat(40);
+    store
+        .complete_workflow_orchestration_dispatch(
+            &launch.dispatch_id,
+            &launch.terminal_handle,
+            result,
+            &sha,
+        )
+        .await
+        .unwrap();
+    let resolved = store.workflow_launch(&launch.id).await.unwrap();
+    assert_eq!(resolved.status, WorkflowLaunchStatus::Started);
+    assert!(resolved.error.is_none());
+    assert_eq!(
+        snapshot_workflow_state(&store, &request).await,
+        "result_ready"
+    );
+    assert_eq!(
+        inspect_workflow(&store, &request).await.state,
+        "result_ready"
+    );
+    assert_eq!(board_bucket(&store).await, OrchestrationBoardBucket::Active);
+
+    // Replaying a prior successful completion repairs old persisted attention.
+    store
+        .workflow_launch_attention(&launch.id, "old unresolved escalation")
+        .await
+        .unwrap();
+    store
+        .complete_workflow_orchestration_dispatch(
+            &launch.dispatch_id,
+            &launch.terminal_handle,
+            result,
+            &sha,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        store.workflow_launch(&launch.id).await.unwrap().status,
+        WorkflowLaunchStatus::Started
+    );
+    assert_eq!(board_bucket(&store).await, OrchestrationBoardBucket::Active);
+}
