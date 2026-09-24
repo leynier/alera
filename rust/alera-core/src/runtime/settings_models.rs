@@ -82,60 +82,40 @@ impl Default for RuntimeVoiceSettings {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum RuntimeVoicePipeline {
+    #[default]
     Chained,
     Realtime,
 }
 
-impl Default for RuntimeVoicePipeline {
-    fn default() -> Self {
-        Self::Chained
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum RuntimeVoiceSttProvider {
+    #[default]
     LocalWhisper,
     GeminiTranscribeLive,
     OpenAiCompatible,
     CodexRealtime,
 }
 
-impl Default for RuntimeVoiceSttProvider {
-    fn default() -> Self {
-        Self::LocalWhisper
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum RuntimeVoiceTtsProvider {
+    #[default]
     GeminiFlashTts,
     OpenAiTts,
 }
 
-impl Default for RuntimeVoiceTtsProvider {
-    fn default() -> Self {
-        Self::GeminiFlashTts
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum RuntimeVoiceRealtimeProvider {
+    #[default]
     GeminiFlashLive,
     GptRealtimeMini,
     GptRealtime,
     GptLive1,
-}
-
-impl Default for RuntimeVoiceRealtimeProvider {
-    fn default() -> Self {
-        Self::GeminiFlashLive
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

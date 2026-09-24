@@ -476,15 +476,6 @@ mod mobile_codex_file_surface_tests {
         assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_AI_DICTATION_BACKENDS_CAPABILITY));
         assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_REMOTE_AI_DICTATION_CAPABILITY));
         assert!(mobile_request_allowed("mobile.aiDictation.capabilities"));
-        assert!(MOBILE_HELLO_CAPABILITIES
-            .contains(&crate::terminal_host::protocol::RUNTIME_HOST_VOICE_HOME_AGENT_CAPABILITY));
-        assert!(mobile_request_allowed("mobile.voice.turn"));
-        assert!(mobile_request_allowed("mobile.voice.synthesize"));
-        assert!(mobile_request_allowed("mobile.voice.audio"));
-        assert!(mobile_request_allowed("mobile.voice.activity"));
-        assert!(mobile_request_allowed("mobile.voice.credentials.status"));
-        assert!(mobile_request_allowed("mobile.voice.credentials.save"));
-        assert!(mobile_request_allowed("mobile.voice.credentials.clear"));
     }
 }
 

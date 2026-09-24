@@ -7,6 +7,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 
 use super::voice_realtime_session::VoiceRealtimeHandle;
+use super::voice_transcript::merge_pending_transcript;
 use crate::terminal_host::host_error::{HostError, HostResult};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -63,6 +64,8 @@ pub(super) struct VoiceSessionState {
     pub last_error: Option<String>,
     pub realtime: Option<VoiceRealtimeHandle>,
     pub realtime_generation: u64,
+    /// Reconnects scheduled since the realtime socket last finished setup.
+    pub realtime_reconnect_attempts: u32,
     pub session_generation: u64,
     pub capture_owner_client_id: Option<u64>,
     pub pending_transcript: String,
@@ -103,6 +106,7 @@ impl Default for VoiceSessionState {
             last_error: None,
             realtime: None,
             realtime_generation: 0,
+            realtime_reconnect_attempts: 0,
             session_generation: 0,
             capture_owner_client_id: None,
             pending_transcript: String::new(),
@@ -249,9 +253,7 @@ impl VoiceSessionState {
     }
 
     pub(super) fn refresh_speak_head_identity(&mut self) -> Option<(u64, VoiceUtterance)> {
-        let Some(head) = self.speak_queue.front_mut() else {
-            return None;
-        };
+        let head = self.speak_queue.front_mut()?;
         let old_id = head.id;
         self.next_utterance_id = self.next_utterance_id.saturating_add(1);
         head.id = self.next_utterance_id;
@@ -356,6 +358,7 @@ impl VoiceSessionState {
 
     pub(super) fn stop_realtime(&mut self) {
         self.realtime_generation = self.realtime_generation.saturating_add(1);
+        self.realtime_reconnect_attempts = 0;
         if let Some(handle) = self.realtime.take() {
             handle.abort();
         }
@@ -385,387 +388,6 @@ impl VoiceSessionState {
     }
 }
 
-pub(super) fn merge_pending_transcript(flushed: &str, pending: &str, incoming: &str) -> String {
-    let incoming = normalize_transcript(incoming);
-    let flushed = normalize_transcript(flushed);
-    let pending = normalize_transcript(pending);
-    if incoming.is_empty() {
-        return pending;
-    }
-    if is_transcript_prefix(&incoming, &flushed) && incoming != flushed {
-        return pending;
-    }
-    if incoming == flushed {
-        return pending;
-    }
-    if !pending.is_empty() && is_transcript_prefix(&incoming, &pending) && incoming != pending {
-        return pending;
-    }
-    if !flushed.is_empty() && is_transcript_prefix(&flushed, &incoming) {
-        return incoming;
-    }
-    if pending.is_empty() {
-        return if flushed.is_empty() {
-            incoming
-        } else {
-            join_transcript(&flushed, &incoming)
-        };
-    }
-    let pending_already_includes_flushed =
-        flushed.is_empty() || is_transcript_prefix(&flushed, &pending);
-    let full = if pending_already_includes_flushed {
-        pending.clone()
-    } else {
-        join_transcript(&flushed, &pending)
-    };
-    if is_transcript_prefix(&full, &incoming) {
-        return incoming;
-    }
-    if is_transcript_prefix(&incoming, &full) {
-        return pending;
-    }
-    if is_transcript_prefix(&pending, &incoming) {
-        return if pending_already_includes_flushed {
-            incoming
-        } else {
-            join_transcript(&flushed, &incoming)
-        };
-    }
-    if is_transcript_prefix(&incoming, &pending) {
-        return pending;
-    }
-    if pending_already_includes_flushed {
-        join_transcript(&pending, &incoming)
-    } else {
-        join_transcript(&full, &incoming)
-    }
-}
-
-pub(super) fn transcript_dispatch(
-    flushed: Option<&str>,
-    pending: &str,
-) -> Option<(String, String)> {
-    let pending = normalize_transcript(pending);
-    if pending.is_empty() {
-        return None;
-    }
-    let flushed = flushed.map(normalize_transcript).unwrap_or_default();
-    if pending == flushed {
-        return None;
-    }
-    if !flushed.is_empty() && is_transcript_prefix(&pending, &flushed) && pending != flushed {
-        return None;
-    }
-    if !flushed.is_empty() && is_transcript_prefix(&flushed, &pending) {
-        let extra = pending[flushed.len()..].trim().to_string();
-        if extra.is_empty() {
-            return None;
-        }
-        return Some((pending, extra));
-    }
-    Some((join_transcript(&flushed, &pending), pending))
-}
-
-fn normalize_transcript(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
-fn join_transcript(left: &str, right: &str) -> String {
-    match (left.is_empty(), right.is_empty()) {
-        (true, true) => String::new(),
-        (true, false) => right.to_string(),
-        (false, true) => left.to_string(),
-        (false, false) => format!("{left} {right}"),
-    }
-}
-
-pub(super) fn is_transcript_prefix(prefix: &str, full: &str) -> bool {
-    if prefix.is_empty() || full == prefix {
-        return true;
-    }
-    full.starts_with(prefix) && full[prefix.len()..].starts_with(' ')
-}
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn second_client_cannot_take_capture() {
-        let mut session = VoiceSessionState::default();
-        assert_eq!(session.claim_capture(1).unwrap(), 1);
-        assert!(session.claim_capture(2).is_err());
-        assert!(!session.release_capture(Some(2)));
-        assert!(session.release_capture(Some(1)));
-        assert!(session.capture_owner_client_id.is_none());
-    }
-
-    #[test]
-    fn stop_realtime_invalidates_generation() {
-        let mut session = VoiceSessionState::default();
-        let before = session.realtime_generation;
-        session.stop_realtime();
-        assert_eq!(session.realtime_generation, before.saturating_add(1));
-        assert!(session.realtime.is_none());
-        assert!(session.realtime_kind.is_none());
-        let after_stop = session.realtime_generation;
-        session.stop_realtime();
-        assert_eq!(session.realtime_generation, after_stop.saturating_add(1));
-    }
-
-    #[test]
-    fn refresh_speak_head_identity_keeps_text_and_later_items() {
-        let mut session = VoiceSessionState::default();
-        let first = session.enqueue_speak("one".into());
-        let second = session.enqueue_speak("two".into());
-        let refreshed = session.refresh_speak_head_identity().unwrap();
-        assert_eq!(refreshed.0, first.id);
-        assert_ne!(refreshed.1.id, first.id);
-        assert_eq!(refreshed.1.text, "one");
-        assert_eq!(
-            session.speak_queue.front().map(|item| item.id),
-            Some(refreshed.1.id)
-        );
-        assert_eq!(
-            session.speak_queue.back().map(|item| item.id),
-            Some(second.id)
-        );
-        assert!(session.refresh_speak_head_identity().is_some());
-        session.interrupt_playback();
-        assert!(session.refresh_speak_head_identity().is_none());
-    }
-
-    #[test]
-    fn fail_speak_retires_head_without_updating_last_spoken() {
-        let mut session = VoiceSessionState::default();
-        session.enqueue_speak("A".into());
-        session.enqueue_speak("B".into());
-        assert!(session.fail_speak("A", Some(1), "playback failed".into()));
-        assert_eq!(session.last_spoken, None);
-        assert_eq!(session.last_error.as_deref(), Some("playback failed"));
-        assert_eq!(
-            session.speak_queue.front().map(|item| item.text.as_str()),
-            Some("B")
-        );
-        assert!(session.finish_speak("B".into(), Some(2)));
-        assert_eq!(session.last_spoken.as_deref(), Some("B"));
-        assert!(session.speak_queue.is_empty());
-    }
-
-    #[test]
-    fn finish_speak_pops_only_the_matching_head() {
-        let mut session = VoiceSessionState::default();
-        let first = session.enqueue_speak("On it.".into());
-        let _second = session.enqueue_speak("Done.".into());
-        let third = session.enqueue_speak("On it.".into());
-        assert!(session.finish_speak(first.text.clone(), Some(first.id)));
-        assert_eq!(session.speak_queue.len(), 2);
-        assert_eq!(
-            session.speak_queue.front().map(|item| item.id),
-            Some(third.id - 1)
-        );
-        assert!(!session.finish_speak("On it.".into(), Some(first.id)));
-        assert_eq!(session.speak_queue.len(), 2);
-    }
-
-    #[test]
-    fn interrupt_playback_head_keeps_later_utterances() {
-        let mut session = VoiceSessionState::default();
-        let first = session.enqueue_speak("one".into());
-        let second = session.enqueue_speak("two".into());
-        let cancelled = session.interrupt_playback_head(Some(first.id));
-        assert_eq!(cancelled.len(), 1);
-        assert_eq!(cancelled[0].id, first.id);
-        assert_eq!(session.speak_queue.len(), 1);
-        assert_eq!(
-            session.speak_queue.front().map(|item| item.id),
-            Some(second.id)
-        );
-        assert!(session.speaking);
-        assert!(!session.expecting_speech);
-        assert!(session.interrupt_playback_head(Some(first.id)).is_empty());
-        assert_eq!(session.speak_queue.len(), 1);
-    }
-
-    #[test]
-    fn late_delta_plus_cumulative_final_keeps_dispatched_prefix() {
-        let mut session = VoiceSessionState::default();
-        session.last_flushed_transcript = Some("open the repo".into());
-        session.merge_pending_transcript("and run tests");
-        session.merge_pending_transcript("open the repo and run tests");
-        assert_eq!(session.pending_transcript, "open the repo and run tests");
-        let extra = session
-            .pending_transcript
-            .strip_prefix(session.last_flushed_transcript.as_deref().unwrap())
-            .unwrap()
-            .trim();
-        assert_eq!(extra, "and run tests");
-    }
-
-    #[test]
-    fn shorter_late_prefix_does_not_replace_pending_suffix() {
-        let mut session = VoiceSessionState::default();
-        session.last_flushed_transcript = Some("open the repo".into());
-        session.merge_pending_transcript("and run tests");
-        session.merge_pending_transcript("open the");
-        assert_eq!(session.pending_transcript, "open the repo and run tests");
-    }
-
-    #[test]
-    fn duplicate_flushed_prefix_keeps_pending_suffix() {
-        let mut session = VoiceSessionState::default();
-        session.last_flushed_transcript = Some("open the repo".into());
-        session.merge_pending_transcript("and run tests");
-        session.merge_pending_transcript("open the repo");
-        assert_eq!(session.pending_transcript, "open the repo and run tests");
-        assert_eq!(
-            transcript_dispatch(
-                session.last_flushed_transcript.as_deref(),
-                &session.pending_transcript,
-            )
-            .unwrap()
-            .1,
-            "and run tests"
-        );
-    }
-
-    #[test]
-    fn settle_then_cumulative_final_extends_dispatched_prefix() {
-        let flushed = Some("open the repo");
-        let first = transcript_dispatch(flushed, "and run tests").unwrap();
-        assert_eq!(first.0, "open the repo and run tests");
-        assert_eq!(first.1, "and run tests");
-        let second = transcript_dispatch(Some(first.0.as_str()), "open the repo and run tests");
-        assert!(second.is_none());
-    }
-
-    #[test]
-    fn cumulative_then_delta_does_not_replay_flushed_prefix() {
-        let mut session = VoiceSessionState::default();
-        session.last_flushed_transcript = Some("open the repo".into());
-        session.merge_pending_transcript("open the repo and run");
-        session.merge_pending_transcript("tests");
-        assert_eq!(session.pending_transcript, "open the repo and run tests");
-        let dispatch = transcript_dispatch(
-            session.last_flushed_transcript.as_deref(),
-            &session.pending_transcript,
-        )
-        .unwrap();
-        assert_eq!(dispatch.1, "and run tests");
-    }
-
-    #[test]
-    fn shorter_than_pending_cumulative_keeps_later_words() {
-        let mut session = VoiceSessionState::default();
-        session.last_flushed_transcript = Some("open the repo".into());
-        session.merge_pending_transcript("and run tests");
-        session.merge_pending_transcript("open the repo and run");
-        assert_eq!(session.pending_transcript, "open the repo and run tests");
-        assert_eq!(
-            transcript_dispatch(
-                session.last_flushed_transcript.as_deref(),
-                &session.pending_transcript,
-            )
-            .unwrap()
-            .1,
-            "and run tests"
-        );
-    }
-
-    #[test]
-    fn held_gemini_activity_keeps_pending_until_flush() {
-        let mut session = VoiceSessionState::default();
-        session.pending_transcript = "open the repo".into();
-        session.gemini_settling = true;
-        session.hold_gemini_activity_start();
-        session.hold_gemini_activity_audio(&[1, 2, 3, 4]);
-        session.hold_gemini_activity_end();
-        session.hold_gemini_activity_start();
-        session.hold_gemini_activity_audio(&[5, 6]);
-        assert_eq!(session.gemini_held_activities.len(), 2);
-        assert!(session.gemini_held_activities[0].ended);
-        assert!(!session.gemini_held_activities[1].ended);
-        assert_eq!(session.gemini_held_activities[0].pcm, vec![1, 2, 3, 4]);
-        assert_eq!(session.gemini_held_activities[1].pcm, vec![5, 6]);
-        session.reset_gemini_utterance();
-        assert!(session.pending_transcript.is_empty());
-        assert!(!session.gemini_settling);
-        assert!(session.gemini_held_activities.is_empty());
-        assert!(!session.gemini_transcript_final);
-    }
-
-    #[test]
-    fn empty_gemini_settle_keeps_held_next_activity() {
-        let mut session = VoiceSessionState::default();
-        session.gemini_activity_ended = true;
-        session.gemini_settling = true;
-        session.hold_gemini_activity_start();
-        session.hold_gemini_activity_audio(&[1, 2]);
-        session.hold_gemini_activity_end();
-        assert!(session.pending_transcript.trim().is_empty());
-        assert!(session.holding_gemini_activity());
-        assert_eq!(session.gemini_held_activities.len(), 1);
-        assert!(session.gemini_held_activities[0].ended);
-        assert!(session.gemini_settling);
-    }
-
-    #[test]
-    fn empty_gemini_settle_keeps_reservation_for_later_activity() {
-        let mut session = VoiceSessionState::default();
-        session.gemini_activity_ended = true;
-        session.gemini_settling = true;
-        assert!(session.pending_transcript.trim().is_empty());
-        assert!(session.holding_gemini_activity());
-        session.hold_gemini_activity_start();
-        session.hold_gemini_activity_audio(&[9, 8]);
-        session.hold_gemini_activity_end();
-        assert!(session.holding_gemini_activity());
-        assert_eq!(session.gemini_held_activities.len(), 1);
-        assert!(session.gemini_settling);
-    }
-
-    #[test]
-    fn early_gemini_final_stays_until_reset() {
-        let mut session = VoiceSessionState::default();
-        session.gemini_transcript_final = true;
-        assert!(session.gemini_transcript_final);
-        session.reset_gemini_utterance();
-        assert!(!session.gemini_transcript_final);
-        session.gemini_transcript_final = true;
-        session.stop_realtime();
-        assert!(!session.gemini_transcript_final);
-    }
-
-    #[test]
-    fn openai_item_change_keeps_full_second_transcript() {
-        let mut session = VoiceSessionState::default();
-        session.openai_item_id = Some("a".into());
-        session.last_flushed_transcript = Some("yes".into());
-        session.pending_transcript = "yes".into();
-        session.openai_item_id = Some("b".into());
-        session.last_flushed_transcript = None;
-        session.pending_transcript = "yes".into();
-        let dispatch = transcript_dispatch(
-            session.last_flushed_transcript.as_deref(),
-            &session.pending_transcript,
-        )
-        .unwrap();
-        assert_eq!(dispatch.1, "yes");
-    }
-
-    #[test]
-    fn successive_suffix_deltas_do_not_replay_flushed_prefix() {
-        let mut session = VoiceSessionState::default();
-        session.last_flushed_transcript = Some("open the repo".into());
-        session.merge_pending_transcript("and");
-        session.merge_pending_transcript("run");
-        session.merge_pending_transcript("tests");
-        assert_eq!(session.pending_transcript, "open the repo and run tests");
-        let dispatch = transcript_dispatch(
-            session.last_flushed_transcript.as_deref(),
-            &session.pending_transcript,
-        )
-        .unwrap();
-        assert_eq!(dispatch.1, "and run tests");
-    }
-}
+#[path = "voice_session_tests.rs"]
+mod tests;

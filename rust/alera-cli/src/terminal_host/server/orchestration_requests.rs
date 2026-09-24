@@ -627,9 +627,7 @@ impl ServerActor {
                     .record_orchestration_activity(&dispatch.id)
                     .await;
             }
-            if state.accepts_injection()
-                && (changed || self.voice.home_session_id.as_deref() != Some(handle))
-            {
+            if state.accepts_injection() && self.voice_home_ready_transition(handle, changed) {
                 became_ready.push(handle.to_string());
             }
         }
