@@ -612,6 +612,116 @@ final class WorkspaceSearchServiceProvider
 String _$workspaceSearchServiceHash() =>
     r'd4b42d3d093dad896f72742e1ba91f7a5e556d67';
 
+/// Search for a workspace whose checkout lives on another host: the runtime
+/// forwards the request over that host's link. Kept alive because the search
+/// controller that reads it is, and released when the workspace is retired so
+/// it does not outlive the deleted workspace for the rest of the session.
+
+@ProviderFor(remoteWorkspaceSearchService)
+final remoteWorkspaceSearchServiceProvider =
+    RemoteWorkspaceSearchServiceFamily._();
+
+/// Search for a workspace whose checkout lives on another host: the runtime
+/// forwards the request over that host's link. Kept alive because the search
+/// controller that reads it is, and released when the workspace is retired so
+/// it does not outlive the deleted workspace for the rest of the session.
+
+final class RemoteWorkspaceSearchServiceProvider
+    extends
+        $FunctionalProvider<
+          WorkspaceSearchService,
+          WorkspaceSearchService,
+          WorkspaceSearchService
+        >
+    with $Provider<WorkspaceSearchService> {
+  /// Search for a workspace whose checkout lives on another host: the runtime
+  /// forwards the request over that host's link. Kept alive because the search
+  /// controller that reads it is, and released when the workspace is retired so
+  /// it does not outlive the deleted workspace for the rest of the session.
+  RemoteWorkspaceSearchServiceProvider._({
+    required RemoteWorkspaceSearchServiceFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'remoteWorkspaceSearchServiceProvider',
+         isAutoDispose: false,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$remoteWorkspaceSearchServiceHash();
+
+  @override
+  String toString() {
+    return r'remoteWorkspaceSearchServiceProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $ProviderElement<WorkspaceSearchService> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  WorkspaceSearchService create(Ref ref) {
+    final argument = this.argument as String;
+    return remoteWorkspaceSearchService(ref, argument);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(WorkspaceSearchService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<WorkspaceSearchService>(value),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is RemoteWorkspaceSearchServiceProvider &&
+        other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$remoteWorkspaceSearchServiceHash() =>
+    r'cfaa4cb4cdc8ee4f24b12eceacf845b081fd2f9d';
+
+/// Search for a workspace whose checkout lives on another host: the runtime
+/// forwards the request over that host's link. Kept alive because the search
+/// controller that reads it is, and released when the workspace is retired so
+/// it does not outlive the deleted workspace for the rest of the session.
+
+final class RemoteWorkspaceSearchServiceFamily extends $Family
+    with $FunctionalFamilyOverride<WorkspaceSearchService, String> {
+  RemoteWorkspaceSearchServiceFamily._()
+    : super(
+        retry: null,
+        name: r'remoteWorkspaceSearchServiceProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: false,
+      );
+
+  /// Search for a workspace whose checkout lives on another host: the runtime
+  /// forwards the request over that host's link. Kept alive because the search
+  /// controller that reads it is, and released when the workspace is retired so
+  /// it does not outlive the deleted workspace for the rest of the session.
+
+  RemoteWorkspaceSearchServiceProvider call(String workspaceId) =>
+      RemoteWorkspaceSearchServiceProvider._(argument: workspaceId, from: this);
+
+  @override
+  String toString() => r'remoteWorkspaceSearchServiceProvider';
+}
+
 @ProviderFor(managedWorkspaceRuntime)
 final managedWorkspaceRuntimeProvider = ManagedWorkspaceRuntimeProvider._();
 

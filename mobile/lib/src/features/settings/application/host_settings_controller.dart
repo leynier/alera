@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera_mobile/src/features/quotas/domain/quota_settings.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/settings/domain/portable_host_settings.dart';
+import 'package:alera_mobile/src/features/voice/domain/mobile_voice_settings.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'host_settings_controller.g.dart';
@@ -44,6 +45,10 @@ class HostSettingsController extends _$HostSettingsController {
 
   Future<void> updateQuotas(QuotaSettings settings) {
     return _update(<String, Object?>{'agentQuotas': settings.toJson()});
+  }
+
+  Future<void> updateVoice(MobileVoiceSettings settings) {
+    return _update(<String, Object?>{'voice': settings.toJson()});
   }
 
   Future<void> _update(Map<String, Object?> patch) async {

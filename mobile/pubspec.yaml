@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 0.44.0+423
+version: 0.45.0+441
 
 environment:
   sdk: ^3.13.2
@@ -70,6 +70,7 @@ dependencies:
   sentry_flutter: ^9.28.0
   path: ^1.9.1
   speech_to_text: ^7.4.0
+  flutter_soloud: ^5.0.2
 
 dev_dependencies:
   shared_preferences_platform_interface: ^2.4.2
@@ -114,6 +115,9 @@ flutter:
     - family: JetBrains Mono
       fonts:
         - asset: assets/fonts/JetBrainsMono-Variable.ttf
+    - family: Alera Codicons
+      fonts:
+        - asset: assets/fonts/VSCodeCodicons-0.0.46-24.ttf
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

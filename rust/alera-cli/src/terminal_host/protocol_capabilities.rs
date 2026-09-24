@@ -11,6 +11,36 @@ pub const RUNTIME_HOST_SHARED_CHECKOUT_CAPABILITY: &str = "sharedCheckoutWorkspa
 /// `workspace.createManaged` and would create a local worktree instead, so
 /// callers must feature-check this rather than the protocol version.
 pub const RUNTIME_HOST_REMOTE_SSH_WORKSPACES_CAPABILITY: &str = "remoteSshWorkspacesV1";
+/// The hub keeps one persistent ssh link per bootstrapped host
+/// (`alera runtime-attach --stdio` on the satellite) and answers
+/// `hostLink.status` / `connect` / `disconnect` / `request`, broadcasting
+/// `hostLinkChanged` and `hostLinkEvent`. Additive: clients feature-check it.
+pub const RUNTIME_HOST_REMOTE_HOST_LINK_CAPABILITY: &str = "remoteHostLinkV1";
+/// This runtime can be the satellite end of a host link: it accepts
+/// `runtime-attach --stdio` and serves the hub as a local client. Additive.
+pub const RUNTIME_HOST_REMOTE_SATELLITE_CAPABILITY: &str = "remoteSatelliteV1";
+/// `git.*`: the desktop `GitBackend` surface served for a workspace on this
+/// host and forwarded by the hub over the host link. Additive.
+pub const RUNTIME_HOST_REMOTE_GIT_CAPABILITY: &str = "remoteGitV1";
+
+/// `host.process.run` for a workspace on another host, forwarded over its
+/// link. Local clients only.
+pub const RUNTIME_HOST_REMOTE_PROCESS_CAPABILITY: &str = "remoteProcessV1";
+
+/// The runtime re-publishes each agent hook it receives as the local-only
+/// `agentHookEvent`, so a hub can run its own status, title and resume
+/// pipeline for the terminals it proxies to this host. Additive.
+pub const RUNTIME_HOST_REMOTE_AGENT_HOOK_RELAY_CAPABILITY: &str = "remoteAgentHookRelayV1";
+
+/// `project.hosts.*`, and `primaryHostId` plus `checkouts` on `project.list`:
+/// one project registered on several hosts. Additive.
+pub const RUNTIME_HOST_PROJECT_HOSTS_CAPABILITY: &str = "projectHostsV1";
+
+/// A paired phone can work on workspaces that live on another host: the file,
+/// search, quick open, git, pull request and AI Assist verbs it already uses
+/// are forwarded to the owning host, and `mobile.hosts.list` names those hosts
+/// without exposing how to reach them. Additive.
+pub const RUNTIME_HOST_MOBILE_REMOTE_WORKSPACES_CAPABILITY: &str = "mobileRemoteWorkspacesV1";
 pub const RUNTIME_HOST_MOBILE_CAPABILITY: &str = "mobileCompanionAccess";
 pub const RUNTIME_HOST_MOBILE_NETBIRD_CAPABILITY: &str = "mobileNetBirdGatewayV1";
 pub const RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY: &str = "workspaceSectionsV1";
@@ -172,3 +202,5 @@ pub const RUNTIME_HOST_DIAGNOSTICS_LOGS_CAPABILITY: &str = "hostDiagnosticsLogsV
 // version; a host that lacks it is still fully usable.
 pub const RUNTIME_HOST_SHELL_ENVIRONMENT_RELOAD_CAPABILITY: &str = "shellEnvironmentReloadV1";
 pub const RUNTIME_HOST_AUTOMATIONS_CAPABILITY: &str = "automationsV1";
+pub const RUNTIME_HOST_VOICE_HOME_AGENT_CAPABILITY: &str =
+    crate::terminal_host::voice_capabilities::RUNTIME_HOST_VOICE_HOME_AGENT_CAPABILITY;

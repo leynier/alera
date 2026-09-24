@@ -9,6 +9,7 @@ import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
+import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -28,6 +29,8 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
 
   String? _workspaceId;
   native.WorkspaceQuickOpenSession? _session;
+  // The session's owner; a remote workspace routes search and stop to its host.
+  Workspace? _sessionWorkspace;
   List<native.WorkspaceQuickOpenMatch> _matches =
       const <native.WorkspaceQuickOpenMatch>[];
   bool _loading = true;
@@ -58,11 +61,13 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
   @override
   void dispose() {
     final session = _session;
+    final sessionWorkspace = _sessionWorkspace;
     _session = null;
+    _sessionWorkspace = null;
     _workspaceGeneration++;
     _searchGeneration++;
-    if (session != null) {
-      unawaited(_stopSession(session));
+    if (session != null && sessionWorkspace != null) {
+      unawaited(_stopSession(sessionWorkspace, session));
     }
     _queryController.dispose();
     _queryFocusNode.dispose();
@@ -76,9 +81,11 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
     final generation = ++_workspaceGeneration;
     ++_searchGeneration;
     final previousSession = _session;
+    final previousWorkspace = _sessionWorkspace;
     _session = null;
-    if (previousSession != null) {
-      unawaited(_stopSession(previousSession));
+    _sessionWorkspace = null;
+    if (previousSession != null && previousWorkspace != null) {
+      unawaited(_stopSession(previousWorkspace, previousSession));
     }
     final workspaceChanged = _workspaceId != workspaceId;
     _workspaceId = workspaceId;
@@ -103,16 +110,18 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
       return;
     }
     try {
-      final session = await _workspaceFiles.startQuickOpenSession(
-        workspacePath: workspace.path,
+      final session = await _workspaceFiles.startWorkspaceQuickOpenSession(
+        workspace: workspace,
       );
       if (!mounted || generation != _workspaceGeneration) {
-        unawaited(_stopSession(session));
+        unawaited(_stopSession(workspace, session));
         return;
       }
       _session = session;
+      _sessionWorkspace = workspace;
       final searchGeneration = ++_searchGeneration;
       await _searchSession(
+        workspace: workspace,
         session: session,
         workspaceGeneration: generation,
         searchGeneration: searchGeneration,
@@ -130,13 +139,15 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
   }
 
   Future<void> _searchSession({
+    required Workspace workspace,
     required native.WorkspaceQuickOpenSession session,
     required int workspaceGeneration,
     required int searchGeneration,
     required String query,
   }) async {
     try {
-      final matches = await _workspaceFiles.searchQuickOpenSession(
+      final matches = await _workspaceFiles.searchWorkspaceQuickOpenSession(
+        workspace: workspace,
         session: session,
         query: query,
         limit: _quickOpenResultLimit,
@@ -174,6 +185,7 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
 
   void _updateQuery(String query) {
     final session = _session;
+    final sessionWorkspace = _sessionWorkspace;
     final workspaceGeneration = _workspaceGeneration;
     final searchGeneration = ++_searchGeneration;
     _resetResultsScroll();
@@ -184,9 +196,10 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
         _loading = true;
       }
     });
-    if (session != null) {
+    if (session != null && sessionWorkspace != null) {
       unawaited(
         _searchSession(
+          workspace: sessionWorkspace,
           session: session,
           workspaceGeneration: workspaceGeneration,
           searchGeneration: searchGeneration,
@@ -202,9 +215,15 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
     }
   }
 
-  Future<void> _stopSession(native.WorkspaceQuickOpenSession session) async {
+  Future<void> _stopSession(
+    Workspace workspace,
+    native.WorkspaceQuickOpenSession session,
+  ) async {
     try {
-      await _workspaceFiles.stopQuickOpenSession(session: session);
+      await _workspaceFiles.stopWorkspaceQuickOpenSession(
+        workspace: workspace,
+        session: session,
+      );
     } catch (_) {
       // Session cleanup is best effort during stale requests and disposal.
     }

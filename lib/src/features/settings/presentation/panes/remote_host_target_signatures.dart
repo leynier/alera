@@ -11,6 +11,7 @@ String remoteHostEditorSignature(SshTarget target) {
     target.arch,
     target.authKind,
     target.installDir,
+    target.projectsDir,
   ]).toString();
 }
 

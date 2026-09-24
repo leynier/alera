@@ -236,7 +236,9 @@ impl ServerActor {
         if self.checkout_buffer_guards.values().any(|guard| {
             guard.project_id == workspace.project_id && guard.host_id == workspace.host_id
         }) {
-            return Err(HostError::state("Another workspace operation is awaiting buffer verification on this project and host"));
+            return Err(HostError::state(
+                "Another workspace operation is awaiting buffer verification on this project and host",
+            ));
         }
         let participants: HashMap<_, _> = self.clients.iter().filter(|(_, client)| client.authenticated && client.kind == ClientKind::Local && client.local_role == LocalClientRole::App)
             .map(|(id, client)| {

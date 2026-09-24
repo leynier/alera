@@ -5,7 +5,6 @@ use alera_core::runtime::{
 };
 use anyhow::{bail, Context, Result};
 use base64::Engine;
-use sha2::{Digest, Sha256};
 
 use crate::remote_owner_precheck::OwnerPrecheckEnvelope;
 use crate::ssh_remote::{require_bootstrapped_ssh_target, RemoteHostExecutor};
@@ -232,14 +231,12 @@ async fn owner_response<E: RemoteHostExecutor>(
         crate::ssh_bootstrap::shell_quote
     };
     let metadata = base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(envelope)?);
-    let profile = hex::encode(Sha256::digest(envelope.project.id.as_bytes()));
     let arguments = format!(
         "project control-owner-precheck --metadata-base64 {} --action {action}",
         quote(&metadata)
     );
-    let script = crate::remote_owner_terminal_launch::owner_command_script(
-        windows, install, &profile, &arguments,
-    );
+    let script =
+        crate::remote_owner_terminal_launch::owner_command_script(windows, install, &arguments);
     let output = tokio::time::timeout(
         std::time::Duration::from_secs(30),
         executor.run(target, windows, &script),

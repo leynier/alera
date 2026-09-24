@@ -12,7 +12,9 @@ import 'package:alera/src/features/agent_profiles/application/agent_profile_prov
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
+import 'package:alera/src/features/projects/application/project_hosts_providers.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/infra/runtime_project_hosts_client.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
 import 'package:alera/src/features/remote_hosts/infra/runtime_ssh_target_repository.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
@@ -66,6 +68,7 @@ part 'alera_shell_page_workspace_removal_test_cases.dart';
 part 'alera_shell_page_sidebar_titles_test_cases.dart';
 part 'alera_shell_page_pinning_test_cases.dart';
 part 'alera_shell_page_section_menu_test_cases.dart';
+part 'alera_shell_page_project_hosts_test_cases.dart';
 part 'alera_shell_page_project_removal_test_cases.dart';
 part 'alera_shell_page_sidebar_identity_test_cases.dart';
 
@@ -86,6 +89,8 @@ Future<_ShellPumpHarness> _pumpShell(
   Map<String, AgentStatusEntry> agentStatuses =
       const <String, AgentStatusEntry>{},
   bool agentTitlesAvailable = false,
+  bool projectHostsSupported = false,
+  RuntimeProjectHostsClient? projectHostsClient,
 }) async {
   final shellController = controller ?? _ShellTestWorkbenchController(state);
   final runtime = terminalRuntime ?? _FakeTerminalRuntime();
@@ -125,6 +130,11 @@ Future<_ShellPumpHarness> _pumpShell(
         agentTitleAvailableProvider.overrideWith(
           (ref) async => agentTitlesAvailable,
         ),
+        projectHostsSupportedProvider.overrideWith(
+          (ref) async => projectHostsSupported,
+        ),
+        if (projectHostsClient != null)
+          projectHostsClientProvider.overrideWithValue(projectHostsClient),
         if (workspaceFolderOpener != null)
           workspaceFolderOpenerProvider.overrideWith(
             (ref) => workspaceFolderOpener,
@@ -154,6 +164,7 @@ void main() {
   _registerAleraShellShortcutTests();
   _registerAleraShellSidebarActionTests();
   _registerProjectRemovalDependencyTests();
+  _registerProjectHostsMenuTests();
   _registerAleraShellSidebarMutationTests();
   _registerAleraShellSidebarStateTests();
   _registerAleraShellSidebarWorktreeRoleTests();

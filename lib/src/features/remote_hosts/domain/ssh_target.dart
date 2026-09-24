@@ -47,6 +47,10 @@ class const SshTarget({
   final String? arch,
   final String? lastStatus,
   final String? installDir,
+
+  /// Where the host clones projects when no path is chosen. Null means the
+  /// host's default; `~` and `%VAR%` are expanded on the host, not here.
+  final String? projectsDir,
   final String? runtimeVersion,
   final String? runtimePlatform,
   final String? runtimeArch,
@@ -69,6 +73,7 @@ class const SshTarget({
       updatedAt: _dateTime(json['updatedAt']),
       lastStatus: _optionalString(json['lastStatus']),
       installDir: _optionalString(json['installDir']),
+      projectsDir: _optionalString(json['projectsDir']),
       runtimeVersion: _optionalString(json['runtimeVersion']),
       runtimePlatform: _optionalString(json['runtimePlatform']),
       runtimeArch: _optionalString(json['runtimeArch']),
@@ -93,6 +98,7 @@ class const SshTarget({
       'updatedAt': updatedAt.toUtc().toIso8601String(),
       'lastStatus': lastStatus,
       'installDir': installDir,
+      'projectsDir': projectsDir,
       'runtimeVersion': runtimeVersion,
       'runtimePlatform': runtimePlatform,
       'runtimeArch': runtimeArch,
@@ -112,6 +118,7 @@ class const SshTarget({
     String? arch,
     SshAuthKind? authKind,
     String? installDir,
+    String? projectsDir,
   }) {
     final now = DateTime.now().toUtc();
     return SshTarget(
@@ -127,6 +134,7 @@ class const SshTarget({
       updatedAt: now,
       lastStatus: lastStatus,
       installDir: installDir ?? this.installDir,
+      projectsDir: projectsDir ?? this.projectsDir,
       runtimeVersion: runtimeVersion,
       runtimePlatform: runtimePlatform,
       runtimeArch: runtimeArch,
