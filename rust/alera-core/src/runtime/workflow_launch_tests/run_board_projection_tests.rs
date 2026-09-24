@@ -61,6 +61,7 @@ async fn workflow_prepared_attempts_project_the_execution_workspace_before_launc
         Some(workspace.identity.workspace.path.as_str())
     );
     assert_eq!(ready.branch, workspace.identity.workspace.branch);
+    assert!(ready.completion_sha.is_none());
     assert_eq!(
         ready.base_sha.as_deref(),
         Some(workspace.identity.base_sha.as_str())
@@ -268,6 +269,10 @@ async fn workflow_launch_projects_active_attempts_without_masking_a_ready_result
         inspect_workflow(&store, &request).await.state,
         "result_ready"
     );
+    assert!(inspect_workflow(&store, &request)
+        .await
+        .completion_sha
+        .is_none());
     assert_eq!(
         snapshot_workflow_state(&store, &request).await,
         "result_ready"
@@ -374,6 +379,10 @@ async fn successful_completion_resolves_escalation_attention_in_every_board_proj
     assert_eq!(
         inspect_workflow(&store, &request).await.state,
         "result_ready"
+    );
+    assert_eq!(
+        inspect_workflow(&store, &request).await.completion_sha,
+        Some(sha.clone())
     );
     assert_eq!(board_bucket(&store).await, OrchestrationBoardBucket::Active);
 

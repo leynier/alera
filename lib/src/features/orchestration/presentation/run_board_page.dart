@@ -271,6 +271,9 @@ class _RunBoardSelection extends ConsumerWidget {
           ref,
           executionWorkspaceId,
           RunBoardWorkspaceAction.diff,
+          committedResult: task.workflow != null && task.status == 'completed',
+          resultBaseSha: task.workflow?.baseSha,
+          resultCompletionSha: task.workflow?.completionSha,
         ),
         footer: RunBoardPageFooter(
           hasMore: data.data.nextCursor != null,

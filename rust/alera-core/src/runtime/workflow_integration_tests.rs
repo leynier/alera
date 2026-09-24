@@ -153,6 +153,10 @@ async fn workflow_integration_store_defers_dependencies_until_git_and_evidence_c
     let workflow = inspection.workflow.unwrap();
     assert_eq!(workflow.state, "result_ready");
     assert_eq!(workflow.execution_workspace_id, fixture.input.workspace_id);
+    assert_eq!(
+        workflow.completion_sha.as_deref(),
+        Some(fixture.source_sha.as_str())
+    );
     let record = fixture.reserve().await;
     fixture.assert_dependent_blocked().await;
     assert_eq!(record.state, WorkflowIntegrationState::Pending);
@@ -183,6 +187,10 @@ async fn workflow_integration_store_defers_dependencies_until_git_and_evidence_c
         .unwrap();
     let workflow = inspection.workflow.unwrap();
     assert_eq!(workflow.state, "integrated");
+    assert_eq!(
+        workflow.completion_sha.as_deref(),
+        Some(fixture.source_sha.as_str())
+    );
     assert_eq!(
         workflow.integrated_sha,
         Some(receipt.integrated_sha.clone())

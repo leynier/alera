@@ -203,9 +203,56 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Open Diff'));
     await tester.pumpAndSettle();
-    expect(workbench.actions.last, 'diff:workflow-attempt-2');
+    expect(
+      workbench.actions.last,
+      'commitDiff:workflow-attempt-2:1234567890abcdef1234567890abcdef12345678:abcdef0123456789abcdef0123456789abcdef01',
+    );
     expect(f.container.read(runBoardNavigationProvider).taskId, 'task-2');
   });
+
+  testWidgets(
+    'completed workflow without a recorded commit cannot open an empty diff',
+    (tester) async {
+      final f = await mount(tester, workbench: BoardTestWorkbench());
+      f.repository.task = boardTask(completionSha: null);
+      final navigation = f.container.read(runBoardNavigationProvider.notifier);
+      navigation.selectRun('run-1');
+      navigation.selectTask('task-2');
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<OutlinedButton>(
+              find.widgetWithText(OutlinedButton, 'Open Diff'),
+            )
+            .onPressed,
+        isNull,
+      );
+      expect(
+        find.textContaining('commit coordinates were not recorded'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  for (final state in ['integrated', 'conflict', 'refused']) {
+    testWidgets('$state workflow retains its committed result diff', (
+      tester,
+    ) async {
+      final workbench = BoardTestWorkbench();
+      final f = await mount(tester, workbench: workbench);
+      f.repository.task = boardTask(workflowState: state);
+      final navigation = f.container.read(runBoardNavigationProvider.notifier);
+      navigation.selectRun('run-1');
+      navigation.selectTask('task-2');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Open Diff'));
+      await tester.pumpAndSettle();
+      expect(
+        workbench.actions.last,
+        'commitDiff:workflow-attempt-2:1234567890abcdef1234567890abcdef12345678:abcdef0123456789abcdef0123456789abcdef01',
+      );
+    });
+  }
 
   testWidgets('active workflow actions target the execution workspace', (
     tester,

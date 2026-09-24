@@ -137,6 +137,35 @@ class BoardTestWorkbench extends WorkbenchController {
       kind: WorkspaceTabKind.gitDiff,
     );
   }
+
+  @override
+  Future<WorkspaceTabRecord> openGitCommitDiffTab({
+    required Workspace workspace,
+    String? relativePath,
+    String? oldPath,
+    required WorkspaceGitDiffScope scope,
+    String? gitDiffRoot,
+    required String commitOid,
+    String? parentOid,
+    required String compareRef,
+    String? subject,
+    String? message,
+    String? targetGroupId,
+    String? sourceKey,
+    bool preview = false,
+    bool oppositePanel = false,
+  }) async {
+    actions.add('commitDiff:${workspace.id}:$parentOid:$commitOid');
+    final now = DateTime.utc(2026);
+    return WorkspaceTabRecord(
+      id: 'commit-diff',
+      workspaceId: workspace.id,
+      title: 'Workflow Result',
+      createdAt: now,
+      updatedAt: now,
+      kind: WorkspaceTabKind.gitDiff,
+    );
+  }
 }
 
 ProviderContainer boardContainer(
