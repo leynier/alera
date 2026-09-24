@@ -60,8 +60,13 @@ async fn finish_spawn_validation(
 
 #[tokio::test]
 async fn workflow_launch_claim_restore_and_restart_never_duplicate_a_worker() {
-    let fixture =
-        Fixture::with_command("", "echo workflow-launch-test > workflow-launch-marker").await;
+    // The adapter appends its initial prompt as arguments to the final command.
+    // Keep the marker redirection in the first command on both cmd.exe and sh.
+    let fixture = Fixture::with_command(
+        "",
+        "echo workflow-launch-test > workflow-launch-marker && echo workflow-launch-ready",
+    )
+    .await;
     let (input, prepared) = prepared(&fixture).await;
     let PreparedLaunch::Fresh {
         record,
@@ -156,7 +161,9 @@ async fn workflow_launch_claim_restore_and_restart_never_duplicate_a_worker() {
     }
     assert!(
         startup && executed,
-        "the harmless command must execute, not just create a PTY"
+        "the harmless command must execute, not just create a PTY (startup={startup}, marker_exists={}, terminal_bytes={})",
+        marker.exists(),
+        actor.sessions[&record.terminal_handle].buffer.to_bytes().len()
     );
     let dispatch = fixture
         .store
