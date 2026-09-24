@@ -270,7 +270,7 @@ async fn terminate_invocation(child: &Child) {
     }
     #[cfg(windows)]
     if let Some(pid) = child.id() {
-        let mut command = windowless_async_command("taskkill.exe");
+        let mut command = alera_core::child_process::windowless_async_command("taskkill.exe");
         command
             .args(windows_process_tree_kill_arguments(pid))
             .stdin(Stdio::null())
