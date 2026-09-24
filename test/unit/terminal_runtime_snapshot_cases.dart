@@ -79,6 +79,51 @@ void _registerTerminalRuntimeSnapshotTests() {
     },
   );
 
+  test('replaying a snapshot never answers its queries again', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    final fakeSession = _FakeTerminalPtySession();
+    final runtime = XtermTerminalRuntime(
+      ptySessionFactory: _FakeTerminalPtySessionFactory(
+        sessions: <_FakeTerminalPtySession>[fakeSession],
+      ),
+      shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+        _launch('shell', shell: '/bin/sh'),
+      ],
+    );
+    addTearDown(runtime.dispose);
+    final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+    final visibility = acquireTerminalVisibilityForTesting(session);
+    try {
+      await session.ensureStarted();
+      String replies() =>
+          fakeSession.writes.map((bytes) => utf8.decode(bytes)).join();
+
+      // What a TUI such as Grok Build writes when it starts: XTVERSION,
+      // primary device attributes and a cursor position report.
+      fakeSession.emitSnapshot(utf8.encode('\x1b[>q\x1b[c\x1b[6nprompt'));
+      // Live output queued behind the restore lands in the same frame and is
+      // still a real query that must be answered.
+      fakeSession.emitOutput(utf8.encode('\x1b[>q'));
+      await Future.pause(.zero);
+      flushTerminalOutputForTesting(session);
+
+      expect(terminalBufferTextForTesting(session), contains('prompt'));
+      expect(replies(), '\x1bP>|xterm2 5.3.0\x1b\\');
+
+      // A process exit flushes everything at once, restore included.
+      fakeSession.writes.clear();
+      fakeSession.emitSnapshot(utf8.encode('\x1b[>q'));
+      await Future.pause(.zero);
+      fakeSession.emitExit(0);
+      await Future.pause(.zero);
+
+      expect(replies(), isEmpty);
+    } finally {
+      visibility.dispose();
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   test('a process exit mid-restore takes the restore overlay down', () async {
     debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
     final fakeSession = _FakeTerminalPtySession();
