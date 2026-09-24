@@ -34,8 +34,12 @@ void main() {
   });
 
   test('credential status defaults to nothing configured', () {
-    const status = VoiceCredentialStatus();
-    const saved = VoiceCredentialStatus(geminiConfigured: true);
+    // Built at runtime on purpose: const instances never execute the
+    // constructor, so coverage would miss it.
+    // ignore: prefer_const_constructors
+    final status = VoiceCredentialStatus();
+    // ignore: prefer_const_constructors
+    final saved = VoiceCredentialStatus(geminiConfigured: true);
 
     expect(status.geminiConfigured, isFalse);
     expect(status.openaiConfigured, isFalse);
