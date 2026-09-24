@@ -146,6 +146,36 @@ async fn workflow_coordinator_launch_replays_one_terminal_with_frozen_profile() 
     let serialized = serde_json::to_string(&saved.payload).unwrap();
     assert!(serialized.contains("echo workflow-coordinator-test"));
     assert!(!serialized.contains("must-not-run-edited-profile"));
+    actor.handle_session_exit(tab.into(), 0).await;
+    assert!(fixture
+        .store
+        .find_workspace_tab(tab)
+        .await
+        .unwrap()
+        .is_some());
+    assert!(
+        !actor
+            .store
+            .read(tab, 1024 * 1024)
+            .await
+            .unwrap()
+            .unwrap()
+            .running
+    );
+    assert!(actor.remove_terminal_session_tab(tab).await.unwrap());
+    assert!(fixture
+        .store
+        .find_workspace_tab(tab)
+        .await
+        .unwrap()
+        .is_some());
+    assert!(actor.store.read(tab, 1024 * 1024).await.unwrap().is_some());
+    assert!(actor
+        .attach_workflow_terminal(1, tab, "owner", tab)
+        .await
+        .unwrap()
+        .is_some());
+    assert!(!actor.sessions[tab].running());
     // A second host has no process-local winner permit, even while the durable
     // receipt says started and no cancellation has happened yet.
     let mut restored = test_actor(&dir, HashMap::new(), HashMap::new()).await;

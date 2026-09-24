@@ -173,4 +173,30 @@ impl ServerActor {
             }
         }
     }
+
+    pub(super) async fn retains_workflow_terminal_history(&self, session_id: &str) -> bool {
+        let tab_id = self
+            .sessions
+            .get(session_id)
+            .map(|session| session.tab_id.as_str())
+            .unwrap_or(session_id);
+        for terminal in [session_id, tab_id] {
+            if self.is_workflow_terminal(terminal).await {
+                return true;
+            }
+            match self
+                .runtime_store
+                .workflow_coordinator_for_terminal(terminal)
+                .await
+            {
+                Ok(Some(_)) => return true,
+                Ok(None) => {}
+                Err(error) => {
+                    tracing::warn!("workflow coordinator ownership is unavailable: {error}");
+                    return true;
+                }
+            }
+        }
+        false
+    }
 }
