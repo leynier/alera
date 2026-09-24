@@ -31,6 +31,7 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
   (int, int)? _suppressedViewportSize;
   bool _ignoreViewportResize = false;
   bool _osc52BlockedNoticeShown = false;
+  bool _replayingRestore = false;
 
   @override
   void initState() {
@@ -150,7 +151,7 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
       onClipboardStore: (_, text) => _storeRemoteClipboardText(text),
       onClipboardQuery: (_) => null,
       clipboardDecoder: decodeTerminalOsc52Payload,
-      onOutput: (data) => widget.onInput(data),
+      onOutput: _handleEmulatorOutput,
       onResize: (width, height, _, _) => _handleViewportResize(width, height),
       // This emulator is filled from restored history, and the program that
       // wrote it keeps the cursor hidden for as long as it runs. Without this
@@ -164,6 +165,7 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
     // build parse and repaint many times inside a single frame.
     _batcher = TerminalOutputBatcher(
       write: next.write,
+      writeRestore: (text) => _replayRestore(next, text),
       onRestoreProgress: _handleRestoreProgress,
     );
     // Entering or leaving the alternate screen changes who owns scrolling.
@@ -173,6 +175,27 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
       setState(() => _terminal = next);
     } else {
       _terminal = next;
+    }
+  }
+
+  /// Keys typed into the view and the emulator's replies both arrive here.
+  void _handleEmulatorOutput(String data) {
+    if (_replayingRestore) {
+      return;
+    }
+    widget.onInput(data);
+  }
+
+  /// A snapshot is the raw PTY stream, so it still holds the queries the
+  /// program sent when it started (XTVERSION, device attributes, cursor
+  /// reports). The emulator answers them again as it replays them, but the
+  /// program got its answer long ago and would read these as typed text.
+  void _replayRestore(Terminal terminal, String text) {
+    _replayingRestore = true;
+    try {
+      terminal.write(text);
+    } finally {
+      _replayingRestore = false;
     }
   }
 
