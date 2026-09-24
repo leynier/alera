@@ -166,6 +166,27 @@ pub fn prepare_workflow_integration(
     }
     let tree_id = index.write_tree_to(&repo).map_err(GitError::from_git2)?;
     let tree = repo.find_tree(tree_id).map_err(GitError::from_git2)?;
+    let mut invalid_artifacts = BTreeSet::new();
+    for path in &request.artifacts {
+        match tree.get_path(Path::new(path)) {
+            Ok(entry) if matches!(entry.filemode(), 0o100644 | 0o100755) => {}
+            Ok(_) => {
+                invalid_artifacts.insert(path.clone());
+            }
+            Err(error) if error.code() == git2::ErrorCode::NotFound => {
+                invalid_artifacts.insert(path.clone());
+            }
+            Err(error) => return Err(GitError::from_git2(error)),
+        }
+    }
+    if !invalid_artifacts.is_empty() {
+        return Ok(WorkflowGitPreparation::Refused {
+            paths: invalid_artifacts.into_iter().collect(),
+            truncated: false,
+            reason: "result artifacts are missing or are not regular files in the merged tree"
+                .into(),
+        });
+    }
     let artifact_digest = artifact_digest(&tree, &request.artifacts)?;
     // A submodule has its own checkout lifecycle; never claim to have updated it.
     let delta = repo
