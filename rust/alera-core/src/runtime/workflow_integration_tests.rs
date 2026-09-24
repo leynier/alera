@@ -7,6 +7,7 @@ use crate::git::{
 };
 
 pub(super) mod fixture;
+mod refusal_correction;
 use fixture::Fixture;
 
 #[tokio::test]

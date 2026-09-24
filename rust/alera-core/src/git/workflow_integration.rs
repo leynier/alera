@@ -61,6 +61,11 @@ pub enum WorkflowGitPreparation {
         paths: Vec<String>,
         truncated: bool,
     },
+    Refused {
+        paths: Vec<String>,
+        truncated: bool,
+        reason: String,
+    },
 }
 
 /// Check the artifact list against the exact committed task result before
@@ -170,13 +175,27 @@ pub fn prepare_workflow_integration(
             None,
         )
         .map_err(GitError::from_git2)?;
-    if delta.deltas().any(|delta| {
-        delta.old_file().mode() == git2::FileMode::Commit
+    let mut submodules = BTreeSet::new();
+    for delta in delta.deltas() {
+        if delta.old_file().mode() == git2::FileMode::Commit
             || delta.new_file().mode() == git2::FileMode::Commit
-    }) {
-        return Err(invalid(
-            "submodule changes require explicit integration outside this workflow",
-        ));
+        {
+            if let Some(path) = delta.new_file().path().or_else(|| delta.old_file().path()) {
+                submodules.insert(
+                    path.to_string_lossy()
+                        .chars()
+                        .take(1024)
+                        .collect::<String>(),
+                );
+            }
+        }
+    }
+    if !submodules.is_empty() {
+        return Ok(WorkflowGitPreparation::Refused {
+            truncated: submodules.len() > 128,
+            paths: submodules.into_iter().take(128).collect(),
+            reason: "submodule changes require explicit integration outside this workflow".into(),
+        });
     }
     let signature = repo.signature().map_err(GitError::from_git2)?;
     let integrated_sha = if tree_id == ours.tree_id() {

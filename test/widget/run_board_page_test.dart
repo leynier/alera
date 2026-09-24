@@ -67,6 +67,28 @@ void main() {
     },
   );
 
+  testWidgets('terminal integration refusal explains the correction path', (
+    tester,
+  ) async {
+    final f = await mount(tester);
+    f.repository.task = boardTask(
+      workflowState: 'refused',
+      workflowError: 'submodule changes require explicit integration outside this workflow',
+    );
+    await tester.tap(find.text('Deliver reviewed workflow plans'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Build the review surface'));
+    await tester.tap(find.text('Build the review surface'));
+    await tester.pumpAndSettle();
+    expect(find.text('Needs Correction'), findsWidgets);
+    expect(
+      find.textContaining('request a reviewed correction'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('submodule changes require'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('many runs build lazily and do not request per-run details', (
     tester,
   ) async {

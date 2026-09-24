@@ -279,7 +279,14 @@ async fn inspect_workflow_task(
     } else if integration_state.as_deref() == Some("integrated") {
         "attention"
     } else if integration_state.as_deref() == Some("conflict") {
-        "conflict"
+        if row
+            .try_get::<Option<String>, _>("integration_error")?
+            .is_some()
+        {
+            "refused"
+        } else {
+            "conflict"
+        }
     } else if integration_state.as_deref() == Some("attention")
         || launch_state.as_deref() == Some("attention")
         || task_state == "failed"

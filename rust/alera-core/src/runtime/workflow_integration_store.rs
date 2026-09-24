@@ -150,6 +150,27 @@ impl RuntimeStore {
                     error = NULL, updated_at = datetime('now') WHERE id = ?")
                     .bind(serde_json::to_string(paths)?).bind(truncated).bind(id).execute(&mut *tx).await?;
             }
+            WorkflowGitPreparation::Refused {
+                paths,
+                truncated,
+                reason,
+            } => {
+                // A proven pre-apply refusal is terminal. Reuse the retained
+                // conflict state to release the single-flight fence; the error
+                // distinguishes it from a merge conflict in projections.
+                if record.receipt.is_some()
+                    || reason.is_empty()
+                    || reason.len() > 1000
+                    || paths.len() > 128
+                    || paths.iter().any(|path| path.chars().count() > 1024)
+                {
+                    bail!("terminal workflow integration refusal is invalid");
+                }
+                sqlx::query("UPDATE workflowIntegrations SET state = 'conflict', conflict_paths = ?, conflicts_truncated = ?,
+                    error = ?, updated_at = datetime('now') WHERE id = ?")
+                    .bind(serde_json::to_string(paths)?).bind(truncated).bind(reason).bind(id)
+                    .execute(&mut *tx).await?;
+            }
         }
         tx.commit().await?;
         self.workflow_integration(id).await

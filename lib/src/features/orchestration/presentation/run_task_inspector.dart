@@ -206,6 +206,10 @@ class _WorkflowOutcome extends StatelessWidget {
         'The integration workspace was left untouched. Review the retained worktrees.',
         AleraTokens.error,
       ),
+      'refused' => (
+        'This result cannot be integrated as-is. The worktrees and result are retained; request a reviewed correction.',
+        AleraTokens.error,
+      ),
       'attention' => (
         'This attempt needs inspection before execution or integration can continue.',
         AleraTokens.warning,
