@@ -30,6 +30,8 @@ pub enum WorkspaceAction {
     Register(WorkspaceRegisterArgs),
     /// Remove a workspace record and related runtime records without touching Git worktrees.
     Unregister(IdArgs),
+    /// Change a workspace's display name. The branch and worktree folder are not touched.
+    Rename(WorkspaceRenameArgs),
     /// Pin a workspace in the desktop sidebar.
     Pin(IdArgs),
     /// Unpin a workspace from the desktop sidebar.
@@ -234,6 +236,16 @@ pub struct WorkspaceRegisterArgs {
     pub kind: WorkspaceKindArg,
     #[arg(long = "reuse-existing-branch")]
     pub reuses_existing_branch: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceRenameArgs {
+    /// Workspace to rename. Defaults to the workspace of the current Alera terminal.
+    #[arg(long)]
+    pub id: Option<String>,
+    /// New display name. Leading and trailing whitespace is trimmed.
+    #[arg(long)]
+    pub name: String,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
