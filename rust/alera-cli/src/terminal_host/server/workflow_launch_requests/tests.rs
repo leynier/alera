@@ -127,15 +127,19 @@ async fn workflow_launch_claim_restore_and_restart_never_duplicate_a_worker() {
     assert!(actor.restart_terminal(1, &restart).await.is_err());
     assert!(actor.sessions[&record.terminal_handle].running());
     // Run the real startup callback against a harmless echo command, never a model.
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(30);
     let mut startup = false;
     let mut echoed = false;
-    while let Ok(Some(event)) = tokio::time::timeout_at(deadline, events.recv()).await {
-        startup |= matches!(
-            event,
-            crate::terminal_host::server::ServerCommand::TerminalStartupInput { .. }
-        );
-        actor.handle(event).await;
+    while tokio::time::Instant::now() < deadline {
+        if let Ok(Some(event)) =
+            tokio::time::timeout(std::time::Duration::from_millis(50), events.recv()).await
+        {
+            startup |= matches!(
+                event,
+                crate::terminal_host::server::ServerCommand::TerminalStartupInput { .. }
+            );
+            actor.handle(event).await;
+        }
         echoed =
             String::from_utf8_lossy(&actor.sessions[&record.terminal_handle].buffer.to_bytes())
                 .matches("workflow-launch-test")

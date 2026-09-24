@@ -29,7 +29,7 @@ pub(crate) enum WorkflowLaunchCommand {
     Claimed {
         client_id: u64,
         request_id: i64,
-        record: WorkflowLaunchRecord,
+        record: Box<WorkflowLaunchRecord>,
         token: String,
         locks: [File; 2],
         result: Box<HostResult<WorkflowLaunchInputs>>,
@@ -83,7 +83,7 @@ impl ServerActor {
                 result,
             } => {
                 self.handle_workflow_launch_claimed(
-                    client_id, request_id, record, token, locks, *result,
+                    client_id, request_id, *record, token, locks, *result,
                 )
                 .await;
             }
@@ -154,7 +154,7 @@ impl ServerActor {
                 WorkflowLaunchCommand::Claimed {
                     client_id,
                     request_id,
-                    record,
+                    record: Box::new(record),
                     token,
                     locks,
                     result: Box::new(result),
