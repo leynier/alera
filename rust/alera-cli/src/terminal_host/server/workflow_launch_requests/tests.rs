@@ -60,7 +60,8 @@ async fn finish_spawn_validation(
 
 #[tokio::test]
 async fn workflow_launch_claim_restore_and_restart_never_duplicate_a_worker() {
-    let fixture = Fixture::with_command("", "echo workflow-launch-test").await;
+    let fixture =
+        Fixture::with_command("", "echo workflow-launch-test > workflow-launch-marker").await;
     let (input, prepared) = prepared(&fixture).await;
     let PreparedLaunch::Fresh {
         record,
@@ -126,10 +127,17 @@ async fn workflow_launch_claim_restore_and_restart_never_duplicate_a_worker() {
         "tabId":record.terminal_handle,"workingDirectory":fixture.store.workflow_workspace(&input.workspace_id).await.unwrap().identity.workspace.path});
     assert!(actor.restart_terminal(1, &restart).await.is_err());
     assert!(actor.sessions[&record.terminal_handle].running());
-    // Run the real startup callback against a harmless echo command, never a model.
+    // Run the real startup callback against a harmless marker command, never a model.
+    let workspace = fixture
+        .store
+        .workflow_workspace(&input.workspace_id)
+        .await
+        .unwrap();
+    let marker =
+        std::path::Path::new(&workspace.identity.workspace.path).join("workflow-launch-marker");
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(30);
     let mut startup = false;
-    let mut echoed = false;
+    let mut executed = false;
     while tokio::time::Instant::now() < deadline {
         if let Ok(Some(event)) =
             tokio::time::timeout(std::time::Duration::from_millis(50), events.recv()).await
@@ -140,17 +148,14 @@ async fn workflow_launch_claim_restore_and_restart_never_duplicate_a_worker() {
             );
             actor.handle(event).await;
         }
-        echoed =
-            String::from_utf8_lossy(&actor.sessions[&record.terminal_handle].buffer.to_bytes())
-                .matches("workflow-launch-test")
-                .count()
-                >= 2;
-        if startup && echoed {
+        executed = std::fs::read_to_string(&marker)
+            .is_ok_and(|content| content.contains("workflow-launch-test"));
+        if startup && executed {
             break;
         }
     }
     assert!(
-        startup && echoed,
+        startup && executed,
         "the harmless command must execute, not just create a PTY"
     );
     let dispatch = fixture

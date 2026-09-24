@@ -1,3 +1,4 @@
+use super::startup_command_cases::wait_for_file;
 use super::*;
 use std::process::Stdio;
 
@@ -92,8 +93,7 @@ fn exercise_owner_lifecycle(retire: bool) {
         .unwrap()
         .write_all(b"printf '%s' \"$$\" > first-pid\n")
         .unwrap();
-    wait_for_path(&folder.join("first-pid"));
-    let original_pid = std::fs::read_to_string(folder.join("first-pid")).unwrap();
+    let original_pid = wait_for_file(&folder.join("first-pid"));
     assert!(!original_pid.is_empty());
     tokio::runtime::Runtime::new().unwrap().block_on(async {
         let store = RuntimeStore::open(directory.path()).await.unwrap();
@@ -117,8 +117,7 @@ fn exercise_owner_lifecycle(retire: bool) {
         .unwrap()
         .write_all(b"printf '%s' \"$$\" > peer-pid\n")
         .unwrap();
-    wait_for_path(&folder.join("peer-pid"));
-    let peer_pid = std::fs::read_to_string(folder.join("peer-pid")).unwrap();
+    let peer_pid = wait_for_file(&folder.join("peer-pid"));
     assert!(!peer_pid.is_empty());
     assert_ne!(peer_pid, original_pid);
     drop(first.0.stdin.take());
@@ -135,11 +134,7 @@ fn exercise_owner_lifecycle(retire: bool) {
         .unwrap()
         .write_all(b"printf '%s' \"$$\" > second-pid\n")
         .unwrap();
-    wait_for_path(&folder.join("second-pid"));
-    assert_eq!(
-        std::fs::read_to_string(folder.join("second-pid")).unwrap(),
-        original_pid
-    );
+    assert_eq!(wait_for_file(&folder.join("second-pid")), original_pid);
     if retire {
         for _ in 0..2 {
             let mut command = retirement_command(directory.path());
@@ -176,11 +171,7 @@ fn exercise_owner_lifecycle(retire: bool) {
         .unwrap()
         .write_all(b"printf '%s' \"$$\" > peer-retained-pid\n")
         .unwrap();
-    wait_for_path(&folder.join("peer-retained-pid"));
-    assert_eq!(
-        std::fs::read_to_string(folder.join("peer-retained-pid")).unwrap(),
-        peer_pid
-    );
+    assert_eq!(wait_for_file(&folder.join("peer-retained-pid")), peer_pid);
     peer.0
         .stdin
         .as_mut()
