@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use super::ExecutionPump;
 use crate::managed_workspace::workflow::tests::fixture::Fixture;
 use crate::terminal_host::server::actor_test_harness::test_actor;
 use alera_core::runtime::{
@@ -9,6 +10,23 @@ use alera_core::runtime::{
 
 #[path = "workflow_execution_pump_tests/cancelled_integrations.rs"]
 mod cancelled_integrations;
+
+#[test]
+fn execution_wake_survives_full_waiting_pages_until_cursor_wraps() {
+    let mut pump = ExecutionPump {
+        busy: true,
+        dirty: true,
+        ..ExecutionPump::default()
+    };
+    assert!(pump.settle_page(Some("run-01".into()), true));
+    assert!(pump.dirty);
+    assert!(pump.settle_page(Some("run-26".into()), true));
+    assert!(pump.dirty);
+    assert!(pump.settle_page(None, false));
+    assert!(!pump.dirty);
+    assert!(pump.cursor.is_none());
+    assert!(!pump.settle_page(None, false));
+}
 
 #[tokio::test]
 async fn cancellation_stops_only_matching_workers_while_execution_is_busy() {
@@ -148,7 +166,7 @@ async fn drain_cancellation(
 }
 
 #[tokio::test]
-async fn execution_pump_launches_once_without_a_board_or_desktop_client() {
+async fn execution_pump_launches_to_concurrency_without_a_board_or_desktop_client() {
     let fixture = Fixture::with_command("", "echo execution-pump-test").await;
     fixture
         .store
@@ -177,10 +195,28 @@ async fn execution_pump_launches_once_without_a_board_or_desktop_client() {
     assert!(!actor.has_blocking_managed_workspace_jobs());
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(30);
     loop {
-        let command = tokio::time::timeout_at(deadline, commands.recv())
-            .await
-            .unwrap()
-            .unwrap();
+        let command = match tokio::time::timeout_at(deadline, commands.recv()).await {
+            Ok(Some(command)) => command,
+            _ => {
+                let launches = fixture
+                    .store
+                    .workflow_launch_summaries(&WorkflowLaunchQuery {
+                        run_id: fixture.plan.run_id.clone(),
+                        after_row: None,
+                    })
+                    .await
+                    .unwrap();
+                panic!(
+                    "execution stalled: busy={}, cancelling={}, dirty={}, cursor={:?}, jobs={}, launches={:?}",
+                    actor.workflow_execution.busy,
+                    actor.workflow_execution.cancelling,
+                    actor.workflow_execution.dirty,
+                    actor.workflow_execution.cursor,
+                    actor.workflow_workspace_jobs,
+                    launches.items,
+                );
+            }
+        };
         actor.handle(command).await;
         let launches = fixture
             .store
@@ -190,8 +226,11 @@ async fn execution_pump_launches_once_without_a_board_or_desktop_client() {
             })
             .await
             .unwrap();
-        if launches.items.len() == 1
-            && launches.items[0].status == WorkflowLaunchStatus::Started
+        if launches.items.len() == 2
+            && launches
+                .items
+                .iter()
+                .all(|launch| launch.status == WorkflowLaunchStatus::Started)
             && !actor.workflow_execution.busy
             && !actor.workflow_execution.cancelling
         {
@@ -207,7 +246,7 @@ async fn execution_pump_launches_once_without_a_board_or_desktop_client() {
         })
         .await
         .unwrap();
-    assert_eq!(workspaces.items.len(), 2);
+    assert_eq!(workspaces.items.len(), 3);
     assert!(workspaces
         .items
         .iter()

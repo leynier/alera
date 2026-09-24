@@ -21,6 +21,15 @@ pub(in crate::terminal_host) struct ExecutionPump {
     cursor: Option<String>,
 }
 
+impl ExecutionPump {
+    fn settle_page(&mut self, cursor: Option<String>, again: bool) -> bool {
+        self.busy = false;
+        self.cursor = cursor;
+        let dirty = self.cursor.is_none() && std::mem::take(&mut self.dirty);
+        again || dirty
+    }
+}
+
 pub(crate) struct ExecutionPass {
     cursor: Option<String>,
     again: bool,
@@ -78,17 +87,15 @@ impl ServerActor {
         pass: ExecutionPass,
     ) {
         self.workflow_workspace_jobs = self.workflow_workspace_jobs.saturating_sub(1);
-        self.workflow_execution.busy = false;
-        self.workflow_execution.cursor = pass.cursor;
+        let should_wake = self.workflow_execution.settle_page(pass.cursor, pass.again);
         if let Some(error) = pass.error {
             tracing::warn!("workflow execution pass stopped: {error}");
         }
-        let dirty = std::mem::take(&mut self.workflow_execution.dirty);
         if pass.changed {
             self.broadcast_workspaces_changed(None);
         }
         self.broadcast_orchestration_board_change().await;
-        if pass.again || dirty {
+        if should_wake {
             self.wake_workflow_execution();
         }
         self.schedule_shutdown_if_idle();
