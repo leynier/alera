@@ -440,19 +440,26 @@ async fn workflow_integration_service_skips_live_operation_and_retains_dirty_fai
             .is_err()
     );
     drop(lock);
-    std::fs::write(
-        Path::new(&target.identity.workspace.path).join("shared.txt"),
-        "user edit",
-    )
-    .unwrap();
-    let result = integration::integrate(&fixture.store, &fixture.runtime, input)
+    let shared = Path::new(&target.identity.workspace.path).join("shared.txt");
+    let original = std::fs::read(&shared).unwrap();
+    std::fs::write(&shared, "user edit").unwrap();
+    let result = integration::integrate(&fixture.store, &fixture.runtime, input.clone())
         .await
         .unwrap();
     assert_eq!(result.state, WorkflowIntegrationState::Attention);
     assert!(result.error.is_some());
-    assert_eq!(
-        std::fs::read_to_string(Path::new(&target.identity.workspace.path).join("shared.txt"))
-            .unwrap(),
-        "user edit"
-    );
+    assert_eq!(std::fs::read_to_string(&shared).unwrap(), "user edit");
+    std::fs::write(&shared, original).unwrap();
+    let retried = integration::integrate(&fixture.store, &fixture.runtime, input)
+        .await
+        .unwrap();
+    assert_eq!(retried.request.id, record.request.id);
+    assert_eq!(retried.state, WorkflowIntegrationState::Integrated);
+    let reservations: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM workflowIntegrations WHERE task_id=?")
+            .bind(&record.request.task_id)
+            .fetch_one(fixture.store.pool())
+            .await
+            .unwrap();
+    assert_eq!(reservations, 1);
 }

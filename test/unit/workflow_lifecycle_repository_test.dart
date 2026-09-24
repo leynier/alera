@@ -153,6 +153,43 @@ void main() {
   });
 
   test(
+    'integration retry reuses the exact request and checks its receipt',
+    () async {
+      final client = _Client()
+        ..response = {
+          'state': 'integrated',
+          'request': {
+            'id': 'integration-id',
+            'run_id': 'run',
+            'revision': 3,
+            'task_id': 'task',
+            'source': {'id': 'workspace'},
+          },
+        };
+      final repository = WorkflowLifecycleRepository(client, _Signer());
+      Future<Map<String, Object?>> retry() => repository.retryIntegration(
+        integrationId: 'integration-id',
+        requestId: 'original-request-id',
+        runId: 'run',
+        revision: 3,
+        taskId: 'task',
+        workspaceId: 'workspace',
+      );
+      expect((await retry())['state'], 'integrated');
+      expect(client.calls, ['workflows.integrateResult']);
+      expect(client.payloads.single, {
+        'requestId': 'original-request-id',
+        'runId': 'run',
+        'revision': 3,
+        'taskId': 'task',
+        'workspaceId': 'workspace',
+      });
+      (client.response['request']! as Map)['id'] = 'another-integration';
+      await expectLater(retry(), throwsFormatException);
+    },
+  );
+
+  test(
     'response loss replays the exact signed statement without signing again',
     () async {
       final client = _Client()..response = review();
@@ -266,6 +303,7 @@ class _Client implements RuntimeHostClient, RuntimeHostCapabilityClient {
   bool supported = true;
   bool fail = false;
   final calls = <String>[];
+  final payloads = <Map<String, Object?>>[];
   final documents = <String>[];
   Map<String, Object?> response = {};
   @override
@@ -281,6 +319,7 @@ class _Client implements RuntimeHostClient, RuntimeHostCapabilityClient {
     Duration? timeout,
   ]) async {
     calls.add(verb);
+    payloads.add(Map.of(payload));
     if (payload['document'] case final String document) documents.add(document);
     if (fail) throw StateError('Response lost');
     return response;

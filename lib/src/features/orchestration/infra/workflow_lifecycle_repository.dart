@@ -91,6 +91,36 @@ class WorkflowLifecycleRepository {
   Future<Map<String, Object?>> prepareRetry(Map<String, Object?> payload) =>
       request('workflows.prepareWorkspace', payload);
 
+  Future<Map<String, Object?>> retryIntegration({
+    required String integrationId,
+    required String requestId,
+    required String runId,
+    required int revision,
+    required String taskId,
+    required String workspaceId,
+  }) async {
+    final result = await request('workflows.integrateResult', {
+      'requestId': requestId,
+      'runId': runId,
+      'revision': revision,
+      'taskId': taskId,
+      'workspaceId': workspaceId,
+    });
+    final record = result['request'];
+    if (record is! Map ||
+        record['id'] != integrationId ||
+        record['run_id'] != runId ||
+        record['revision'] != revision ||
+        record['task_id'] != taskId ||
+        record['source'] is! Map ||
+        (record['source'] as Map)['id'] != workspaceId) {
+      throw const FormatException(
+        'The integration response does not match the selected task.',
+      );
+    }
+    return result;
+  }
+
   Future<Map<String, Object?>> cancelProposal(String id) =>
       request('workflows.cancelProposal', {'id': id});
 

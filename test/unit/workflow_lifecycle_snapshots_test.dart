@@ -1,4 +1,5 @@
 import 'package:alera/src/features/orchestration/domain/workflow_cleanup_snapshot.dart';
+import 'package:alera/src/features/orchestration/domain/task_inspection.dart';
 import 'package:alera/src/features/orchestration/domain/workflow_run_controls.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -6,6 +7,31 @@ import '../support/workflow_cleanup_fixture.dart';
 import '../support/workflow_controls_fixture.dart';
 
 void main() {
+  test(
+    'task inspection distinguishes integration retry from attempt retry',
+    () {
+      final workflow = TaskWorkflowInspection.fromJson({
+        'state': 'attention',
+        'execution_workspace_id': 'workspace',
+        'plan_revision': 3,
+        'can_retry': false,
+        'can_retry_integration': true,
+        'integration_id': 'reservation',
+        'integration_request_id': 'original-request',
+      });
+      expect(workflow.canRetry, false);
+      expect(workflow.canRetryIntegration, true);
+      expect(workflow.integrationRequestId, 'original-request');
+      expect(
+        TaskWorkflowInspection.fromJson({
+          'state': 'attention',
+          'execution_workspace_id': 'workspace',
+        }).canRetryIntegration,
+        false,
+      );
+    },
+  );
+
   test('controls reject execution from a previous plan revision', () {
     final source = workflowControlsFixture();
     expect(

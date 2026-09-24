@@ -13,6 +13,7 @@ import 'package:alera/src/features/orchestration/presentation/run_board_list.dar
 import 'package:alera/src/features/orchestration/presentation/run_board_read_state.dart';
 import 'package:alera/src/features/orchestration/presentation/run_board_workspace_actions.dart';
 import 'package:alera/src/features/orchestration/presentation/run_task_inspector.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_integration_retry_control.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_retry_control.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_cleanup_page.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_review_page.dart';
@@ -293,8 +294,24 @@ class _RunBoardSelection extends ConsumerWidget {
       return RunTaskInspector(
         task: task,
         retryControl:
-            task.workflow?.canRetry == true &&
+            task.workflow?.canRetryIntegration == true &&
+                task.workflow?.integrationId != null &&
+                task.workflow?.integrationRequestId != null &&
                 task.workflow?.planRevision != null
+            ? WorkflowIntegrationRetryControl(
+                key: ValueKey(
+                  'integration-retry:${task.workflow!.integrationId}',
+                ),
+                integrationId: task.workflow!.integrationId!,
+                requestId: task.workflow!.integrationRequestId!,
+                runId: runId,
+                taskId: selectedTask,
+                revision: task.workflow!.planRevision!,
+                workspaceId: executionWorkspaceId,
+                onSettled: () => ref.invalidate(provider),
+              )
+            : task.workflow?.canRetry == true &&
+                  task.workflow?.planRevision != null
             ? WorkflowRetryControl(
                 key: ValueKey('retry:$selectedTask:$executionWorkspaceId'),
                 runId: runId,

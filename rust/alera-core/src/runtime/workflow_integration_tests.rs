@@ -6,6 +6,7 @@ use crate::git::{
     apply_workflow_integration, prepare_workflow_integration, WorkflowGitPreparation,
 };
 
+mod attention_retry;
 pub(super) mod fixture;
 mod refusal_correction;
 use fixture::Fixture;

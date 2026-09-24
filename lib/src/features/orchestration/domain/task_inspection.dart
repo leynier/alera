@@ -153,9 +153,11 @@ class TaskWorkflowInspection {
   const TaskWorkflowInspection({
     this.planRevision,
     this.canRetry = false,
+    this.canRetryIntegration = false,
     required this.state,
     required this.executionWorkspaceId,
     this.integrationId,
+    this.integrationRequestId,
     this.launchId,
     this.worktree,
     this.branch,
@@ -171,9 +173,11 @@ class TaskWorkflowInspection {
       TaskWorkflowInspection(
         planRevision: json['plan_revision'] as int?,
         canRetry: json['can_retry'] as bool? ?? false,
+        canRetryIntegration: json['can_retry_integration'] as bool? ?? false,
         state: json['state'] as String,
         executionWorkspaceId: json['execution_workspace_id'] as String,
         integrationId: json['integration_id'] as String?,
+        integrationRequestId: json['integration_request_id'] as String?,
         launchId: json['launch_id'] as String?,
         worktree: json['worktree'] as String?,
         branch: json['branch'] as String?,
@@ -190,8 +194,10 @@ class TaskWorkflowInspection {
   final String state;
   final int? planRevision;
   final bool canRetry;
+  final bool canRetryIntegration;
   final String executionWorkspaceId;
   final String? integrationId;
+  final String? integrationRequestId;
   final String? launchId;
   final String? worktree;
   final String? branch;
