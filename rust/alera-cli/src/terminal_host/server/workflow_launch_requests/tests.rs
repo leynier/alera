@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use alera_core::runtime::{
-    LaunchWorkflowTask, OrchestrationDispatchStatus, OrchestrationTaskStatus,
+    LaunchWorkflowTask, OrchestrationDispatchStatus, OrchestrationTaskStatus, WorkflowLaunchStatus,
     WorkflowWorkspacePhase,
 };
 use sha2::{Digest, Sha256};

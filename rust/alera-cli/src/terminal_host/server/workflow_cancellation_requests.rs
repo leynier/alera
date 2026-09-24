@@ -1,11 +1,33 @@
 use alera_core::runtime::{WorkflowCancellationTarget, WorkflowTerminalShutdownState};
 
-use super::{CancellationShutdown, ServerActor, WorkflowLaunchCommand};
+use super::{ServerActor, WorkflowLaunchCommand};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::server::ServerCommand;
 use crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown;
 
+pub(crate) enum CancellationShutdown {
+    AlreadyClosed,
+    Wait(WorkspaceShutdown),
+}
+
 impl ServerActor {
+    pub(super) fn retain_cancellation_shutdown(
+        &mut self,
+        tab: String,
+        shutdown: WorkspaceShutdown,
+    ) {
+        if let Some(mut pending) = self.workflow_execution.cancellation_shutdowns.remove(&tab) {
+            pending.merge(shutdown);
+            self.workflow_execution
+                .cancellation_shutdowns
+                .insert(tab, pending);
+        } else {
+            self.workflow_execution
+                .cancellation_shutdowns
+                .insert(tab, shutdown);
+        }
+    }
+
     pub(in crate::terminal_host::server) fn wake_workflow_cancellation(&mut self) {
         if self.workflow_execution.cancelling {
             self.workflow_execution.cancellation_dirty = true;

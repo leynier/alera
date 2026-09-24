@@ -1,8 +1,6 @@
 use std::fs::File;
 
-use alera_core::runtime::{
-    WorkflowLaunchInputs, WorkflowLaunchRecord, WorkflowLaunchStatus, WorkspaceTabRecord,
-};
+use alera_core::runtime::{WorkflowLaunchInputs, WorkflowLaunchRecord, WorkspaceTabRecord};
 use serde_json::json;
 
 use crate::managed_workspace::workflow::launch::PreparedLaunch;
@@ -20,10 +18,13 @@ use super::ServerActor;
 
 #[path = "workflow_cancellation_requests.rs"]
 mod cancellation;
+pub(crate) use cancellation::CancellationShutdown;
 #[path = "workflow_cleanup_owners.rs"]
 mod cleanup_owners;
 #[path = "workflow_execution_pump.rs"]
 pub(super) mod execution;
+#[path = "workflow_launch_permit.rs"]
+mod permit;
 
 pub(crate) enum WorkflowLaunchReply {
     Client(u64, i64),
@@ -81,11 +82,6 @@ pub(crate) enum WorkflowLaunchCommand {
     AcceptanceTimeout(String),
 }
 
-pub(crate) enum CancellationShutdown {
-    AlreadyClosed,
-    Wait(WorkspaceShutdown),
-}
-
 /// Constructed only after the durable one-shot claim. No payload grants this.
 pub(super) struct WorkflowLaunchPermit {
     record: Option<WorkflowLaunchRecord>,
@@ -99,23 +95,6 @@ pub(crate) struct ValidatedWorkflowLaunch {
     locks: [File; 2],
     frozen: WorkflowLaunchInputs,
     result: HostResult<()>,
-}
-
-impl WorkflowLaunchPermit {
-    pub(super) fn coordinator(receipt: alera_core::runtime::WorkflowCoordinatorReceipt) -> Self {
-        Self {
-            record: None,
-            coordinator: Some(receipt),
-        }
-    }
-
-    pub(super) fn allows(&self, record: &WorkflowLaunchRecord, workspace: &str, tab: &str) -> bool {
-        self.record.as_ref().is_some_and(|owned| {
-            owned.id == record.id && owned.terminal_handle == record.terminal_handle
-        }) && record.request.workspace_id == workspace
-            && record.terminal_handle == tab
-            && record.status == WorkflowLaunchStatus::Starting
-    }
 }
 
 impl ServerActor {
@@ -141,18 +120,7 @@ impl ServerActor {
                 shutdown,
                 reply,
             } => {
-                if let Some(mut pending) =
-                    self.workflow_execution.cancellation_shutdowns.remove(&tab)
-                {
-                    pending.merge(shutdown);
-                    self.workflow_execution
-                        .cancellation_shutdowns
-                        .insert(tab, pending);
-                } else {
-                    self.workflow_execution
-                        .cancellation_shutdowns
-                        .insert(tab, shutdown);
-                }
+                self.retain_cancellation_shutdown(tab, shutdown);
                 let _ = reply.send(());
             }
             WorkflowLaunchCommand::CancellationFinished(result) => {
