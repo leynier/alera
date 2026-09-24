@@ -195,18 +195,20 @@ impl ServerActor {
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
         if let Some(session) = self.sessions.get(tab) {
-            if state != WorkflowTerminalShutdownState::Unstarted {
+            if state != WorkflowTerminalShutdownState::Unstarted && session.running() {
                 return Err(HostError::state(
                     "The terminal has a new session after cancellation started. Inspect its owner before retrying.",
                 ));
             }
-            let shutdown = WorkspaceShutdown::capture(std::iter::once(session)).await?;
-            self.runtime_store
-                .begin_workflow_terminal_shutdown(tab, workspace)
-                .await
-                .map_err(|error| HostError::state(error.to_string()))?;
-            self.terminate_sessions_for_tab(tab).await;
-            return Ok(CancellationShutdown::Wait(shutdown));
+            if state == WorkflowTerminalShutdownState::Unstarted {
+                let shutdown = WorkspaceShutdown::capture(std::iter::once(session)).await?;
+                self.runtime_store
+                    .begin_workflow_terminal_shutdown(tab, workspace)
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?;
+                self.terminate_sessions_for_tab(tab).await;
+                return Ok(CancellationShutdown::Wait(shutdown));
+            }
         }
         if let Some(shutdown) = self.workflow_execution.cancellation_shutdowns.remove(tab) {
             return Ok(CancellationShutdown::Wait(shutdown));
@@ -260,9 +262,12 @@ mod tests {
     use std::collections::HashMap;
 
     use alera_core::runtime::WorkflowTerminalShutdownState;
+    use chrono::Utc;
 
     use super::{finish_shutdown, CancellationShutdown, WorkspaceShutdown};
+    use crate::terminal_host::history_store::TerminalHostCheckpoint;
     use crate::terminal_host::server::actor_test_harness::test_actor;
+    use crate::terminal_host::session::Session;
 
     #[tokio::test]
     async fn failed_shutdown_wait_retains_guard_for_explicit_retry() {
@@ -300,6 +305,51 @@ mod tests {
                 .unwrap(),
             WorkflowTerminalShutdownState::Started
         );
+        actor
+            .store
+            .upsert(TerminalHostCheckpoint {
+                session_id: "tab".into(),
+                workspace_id: "owner".into(),
+                tab_id: "tab".into(),
+                working_directory: dir.path().to_string_lossy().into_owned(),
+                running: false,
+                exit_code: Some(0),
+                ended_at: Some(Utc::now()),
+                output_stream_bytes: 0,
+                updated_at: Utc::now(),
+                buffer: Vec::new(),
+            })
+            .await
+            .unwrap();
+        let restored = Session::restore_exited(
+            "tab".into(),
+            "owner".into(),
+            "tab".into(),
+            &actor.store,
+            1024,
+        )
+        .await
+        .unwrap();
+        assert!(!restored.running());
+        actor.sessions.insert("tab".into(), restored);
+        let mut restarted = test_actor(&dir, HashMap::new(), HashMap::new()).await;
+        restarted.sessions.insert(
+            "tab".into(),
+            Session::restore_exited(
+                "tab".into(),
+                "owner".into(),
+                "tab".into(),
+                &restarted.store,
+                1024,
+            )
+            .await
+            .unwrap(),
+        );
+        assert!(restarted
+            .prepare_workflow_cancellation_shutdown("tab", "owner")
+            .await
+            .is_err());
+        restarted.dispose().await;
         let retry = actor
             .prepare_workflow_cancellation_shutdown("tab", "owner")
             .await
