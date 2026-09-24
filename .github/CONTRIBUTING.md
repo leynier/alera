@@ -53,6 +53,7 @@ sudo apt-get install -y \
   pkg-config \
   libgtk-3-dev \
   libayatana-appindicator3-dev \
+  libasound2-dev \
   libjson-glib-dev \
   libsecret-1-dev \
   libsqlite3-dev \
@@ -62,7 +63,7 @@ sudo apt-get install -y \
   glslc
 ```
 
-These packages provide the compiler toolchain and the GTK, storage, security, and Vulkan compute libraries used by the desktop app. Cargo builds outside Flutter should set `VULKAN_SDK=/usr`.
+These packages provide the compiler toolchain and the GTK, storage, security, audio, and Vulkan compute libraries used by the desktop app. Cargo builds outside Flutter should set `VULKAN_SDK=/usr`.
 
 ### Common setup
 
