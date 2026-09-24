@@ -61,6 +61,23 @@ pub enum WorkflowGitPreparation {
     },
 }
 
+/// Check the artifact list against the exact committed task result before
+/// completion seals that commit in the durable dispatch record.
+pub fn validate_workflow_artifacts(
+    worktree_path: &str,
+    source_sha: &str,
+    paths: &[String],
+) -> Result<(), GitError> {
+    let repo = Repository::open(worktree_path).map_err(GitError::from_git2)?;
+    let tree = repo
+        .find_commit(oid(source_sha)?)
+        .map_err(GitError::from_git2)?
+        .tree()
+        .map_err(GitError::from_git2)?;
+    artifact_digest(&tree, paths)?;
+    Ok(())
+}
+
 pub fn prepare_workflow_integration(
     request: &WorkflowIntegrationRequest,
 ) -> Result<WorkflowGitPreparation, GitError> {

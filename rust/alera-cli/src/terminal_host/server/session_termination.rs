@@ -336,13 +336,11 @@ impl ServerActor {
                 let clients: Vec<_> = session.clients.iter().copied().collect();
                 let workflow_terminal = self.is_workflow_terminal(&session_id).await;
                 session.terminate(!workflow_terminal, &store).await;
-                if !workflow_terminal {
-                    for client in clients {
-                        self.client_write(
-                            client,
-                            event("terminalSessionRemoved", json!({"sessionId":session_id})),
-                        );
-                    }
+                for client in clients {
+                    self.client_write(
+                        client,
+                        event("terminalSessionRemoved", json!({"sessionId":session_id})),
+                    );
                 }
             }
             self.settle_closed_workflow_terminal(

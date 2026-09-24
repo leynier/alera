@@ -26,6 +26,7 @@ impl Fixture {
         config
             .set_str("user.email", "workflow@example.invalid")
             .unwrap();
+        config.set_bool("core.autocrlf", false).unwrap();
         let base = commit(
             &repo_path,
             &[("shared.txt", "base\n"), (".gitignore", "ignored.txt\n")],

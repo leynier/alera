@@ -135,10 +135,12 @@ impl ServerActor {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             let _permit = permit;
-            let completion_sha = tokio::task::spawn_blocking(move || verify_completion(check))
-                .await
-                .map_err(|error| HostError::state(error.to_string()))
-                .and_then(|result| result);
+            let result_for_check = result.clone();
+            let completion_sha =
+                tokio::task::spawn_blocking(move || verify_completion(check, &result_for_check))
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))
+                    .and_then(|result| result);
             let _ = inbox.send(ServerCommand::OrchestrationCompletionFinished(
                 OrchestrationCompletionFinished {
                     client_id,
@@ -212,7 +214,7 @@ impl ServerActor {
     }
 }
 
-fn verify_completion(check: WorkflowCompletionCheck) -> HostResult<String> {
+fn verify_completion(check: WorkflowCompletionCheck, result: &str) -> HostResult<String> {
     let sha = alera_core::git::verify_workflow_worktree_tip(
         &check.repo_path,
         &check.path,
@@ -227,6 +229,22 @@ fn verify_completion(check: WorkflowCompletionCheck) -> HostResult<String> {
             "commit or discard pending changes before completing the workflow task",
         ));
     }
+    let result: Value = serde_json::from_str(result)
+        .map_err(|error| HostError::format(format!("workflow result must be JSON: {error}")))?;
+    let artifacts = result
+        .get("artifacts")
+        .and_then(Value::as_array)
+        .ok_or_else(|| HostError::format("workflow result requires an artifacts array"))?
+        .iter()
+        .map(|artifact| {
+            artifact
+                .as_str()
+                .map(str::to_owned)
+                .ok_or_else(|| HostError::format("workflow artifact must be a path string"))
+        })
+        .collect::<HostResult<Vec<_>>>()?;
+    alera_core::git::validate_workflow_artifacts(&check.path, &sha, &artifacts)
+        .map_err(|error| HostError::state(error.to_string()))?;
     Ok(sha)
 }
 

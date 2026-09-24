@@ -101,7 +101,7 @@ void _registerAleraShellRunBoardTests() {
     addTearDown(repository.dispose);
     final seed = boardWorkbenchState().copyWith(
       activeProjectId: 'project-1',
-      activeWorkspaceId: 'ws-1',
+      activeWorkspaceId: 'workflow-attempt-2',
     );
     final harness = await _pumpShell(
       tester,

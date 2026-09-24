@@ -23,6 +23,20 @@ async fn accepted_workflow() -> (Fixture, WorkflowLaunchRecord, String) {
         .claim_workflow_launch(&record.id)
         .await
         .unwrap();
+    let now = chrono::Utc::now();
+    fixture
+        .store
+        .insert_workspace_tab(alera_core::runtime::WorkspaceTabRecord {
+            id: record.terminal_handle.clone(),
+            workspace_id: record.request.workspace_id.clone(),
+            kind: "terminal".into(),
+            title: "Workflow worker".into(),
+            created_at: now,
+            updated_at: now,
+            payload: json!({"terminalSessionId": record.terminal_handle}),
+        })
+        .await
+        .unwrap();
     fixture
         .store
         .mark_workflow_launch_started(&record.id)
@@ -298,4 +312,141 @@ async fn workflow_completion_rechecks_dispatch_after_deferred_git_work() {
         .unwrap();
     assert_eq!(dispatch.status, OrchestrationDispatchStatus::Cancelled);
     assert!(dispatch.completion_sha.is_none());
+}
+
+#[tokio::test]
+async fn workflow_completion_rejects_artifacts_outside_the_committed_result() {
+    let mut cases = vec!["missing", "ignored", "directory"];
+    #[cfg(unix)]
+    cases.push("symlink");
+    for case in cases {
+        let (fixture, launch, token) = accepted_workflow().await;
+        let workspace = fixture
+            .store
+            .workflow_workspace(&launch.request.workspace_id)
+            .await
+            .unwrap();
+        let path = &workspace.identity.workspace.path;
+        commit_result(path);
+        let repo = git2::Repository::open(path).unwrap();
+        let artifact = match case {
+            "missing" => "missing.txt",
+            "ignored" => {
+                std::fs::create_dir_all(repo.path().join("info")).unwrap();
+                std::fs::write(repo.path().join("info/exclude"), "ignored.txt\n").unwrap();
+                std::fs::write(Path::new(path).join("ignored.txt"), "ignored\n").unwrap();
+                "ignored.txt"
+            }
+            "directory" => {
+                std::fs::create_dir(Path::new(path).join("artifact-dir")).unwrap();
+                std::fs::write(Path::new(path).join("artifact-dir/file.txt"), "file\n").unwrap();
+                let mut index = repo.index().unwrap();
+                index.add_path(Path::new("artifact-dir/file.txt")).unwrap();
+                index.write().unwrap();
+                let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+                let parent = repo.head().unwrap().peel_to_commit().unwrap();
+                repo.commit(
+                    Some("HEAD"),
+                    &repo.signature().unwrap(),
+                    &repo.signature().unwrap(),
+                    "test: add directory",
+                    &tree,
+                    &[&parent],
+                )
+                .unwrap();
+                "artifact-dir"
+            }
+            #[cfg(unix)]
+            "symlink" => {
+                std::os::unix::fs::symlink("shared.txt", Path::new(path).join("linked.txt"))
+                    .unwrap();
+                let mut index = repo.index().unwrap();
+                index.add_path(Path::new("linked.txt")).unwrap();
+                index.write().unwrap();
+                let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+                let parent = repo.head().unwrap().peel_to_commit().unwrap();
+                repo.commit(
+                    Some("HEAD"),
+                    &repo.signature().unwrap(),
+                    &repo.signature().unwrap(),
+                    "test: add symlink",
+                    &tree,
+                    &[&parent],
+                )
+                .unwrap();
+                "linked.txt"
+            }
+            _ => unreachable!(),
+        };
+        let mut output = result(&fixture);
+        output["artifacts"] = json!(["shared.txt", artifact]);
+        let (mut actor, mut commands, mut responses) = actor_for(&fixture).await;
+        assert!(actor
+            .handle_orchestration_request(
+                1,
+                1,
+                "orchestration.complete",
+                &json!({"terminal": launch.terminal_handle, "contextToken": token, "result": output}),
+            )
+            .await
+            .unwrap()
+            .is_none());
+        let response = finish_deferred_completion(&mut actor, &mut commands, &mut responses).await;
+        assert_eq!(response["ok"], false, "case {case}: {response}");
+        let dispatch = fixture
+            .store
+            .orchestration_dispatch_by_id(&launch.dispatch_id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            dispatch.status,
+            OrchestrationDispatchStatus::Dispatched,
+            "{case}"
+        );
+        assert!(dispatch.completion_sha.is_none(), "{case}");
+        assert_eq!(
+            fixture
+                .store
+                .orchestration_task_by_id(&launch.request.task_id)
+                .await
+                .unwrap()
+                .unwrap()
+                .status,
+            OrchestrationTaskStatus::Dispatched,
+            "{case}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn retained_workflow_terminal_notifies_clients_without_removing_the_tab() {
+    let (fixture, launch, _token) = accepted_workflow().await;
+    let workspace_id = launch.request.workspace_id.clone();
+    let (mut actor, _commands, mut responses) = actor_for(&fixture).await;
+    let mut session =
+        crate::terminal_host::session::Session::driver_test_stub(&launch.terminal_handle, 80, 24);
+    session.workspace_id = workspace_id;
+    session.tab_id = launch.terminal_handle.clone();
+    session.clients.insert(1);
+    actor
+        .sessions
+        .insert(launch.terminal_handle.clone(), session);
+    actor
+        .terminate_sessions_for_tab(&launch.terminal_handle)
+        .await;
+    assert!(!actor.sessions.contains_key(&launch.terminal_handle));
+    assert!(fixture
+        .store
+        .find_workspace_tab(&launch.terminal_handle)
+        .await
+        .unwrap()
+        .is_some());
+    let frames = std::iter::from_fn(|| responses.try_recv().ok())
+        .filter_map(|frame| frame.as_json())
+        .collect::<Vec<_>>();
+    assert!(frames.iter().any(|frame| {
+        frame["event"] == "terminalSessionRemoved"
+            && frame["payload"]["sessionId"] == launch.terminal_handle
+    }));
 }
