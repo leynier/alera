@@ -1,6 +1,6 @@
 use alera_core::runtime::{
     RuntimeAgentQuotaSettings, RuntimeAiAssistSettings, RuntimeAutomationSettings,
-    RuntimeMobilePushSettings, RuntimeTextActionsSettings,
+    RuntimeMobilePushSettings, RuntimeTextActionsSettings, RuntimeVoiceSettings,
 };
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -27,7 +27,7 @@ impl ServerActor {
                 _ => {
                     return Err(HostError::format(
                         "workspaceDirectory must be a string or null.",
-                    ))
+                    ));
                 }
             };
             runtime_value(self.runtime_store.set_workspace_directory(directory).await)?;
@@ -59,7 +59,7 @@ impl ServerActor {
                 _ => {
                     return Err(HostError::format(
                         "defaultAgentProfileId must be a string or null.",
-                    ))
+                    ));
                 }
             };
             runtime_value(
@@ -178,6 +178,11 @@ impl ServerActor {
                 .map_err(|_| HostError::format("textActions is invalid."))?;
             validate_text_actions_settings(&settings)?;
             runtime_value(self.runtime_store.set_text_actions_settings(settings).await)?;
+        }
+        if let Some(value) = payload.get("voice") {
+            let settings: RuntimeVoiceSettings = serde_json::from_value(value.clone())
+                .map_err(|_| HostError::format("voice settings are invalid."))?;
+            runtime_value(self.runtime_store.set_voice_settings(settings).await)?;
         }
         let value = runtime_value(self.runtime_store.runtime_settings().await)?;
         self.broadcast_authenticated(event("runtimeSettingsChanged", json!({})));

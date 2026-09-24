@@ -261,6 +261,11 @@ impl ServerActor {
         if !self.agent_presence.is_injection_ready(session_id) {
             return;
         }
+        if self.voice.home_session_id.as_deref() == Some(session_id)
+            && (self.voice.home_inject.is_some() || self.voice.home_needs_fresh_ready)
+        {
+            return;
+        }
         let Some(session) = self.sessions.get(session_id) else {
             return;
         };
@@ -308,6 +313,9 @@ impl ServerActor {
             .is_err()
         {
             return;
+        }
+        if self.voice.home_session_id.as_deref() == Some(session_id) {
+            self.voice.home_needs_fresh_ready = true;
         }
         session.initial_agent_prompt_delivered = true;
         tab.payload["pendingAgentPrompt"] = Value::Null;

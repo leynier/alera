@@ -35,6 +35,10 @@ impl ServerActor {
             .filter(|item| {
                 item.get("agentType").is_some_and(Value::is_string)
                     && item.get("agentState").is_some_and(Value::is_string)
+                    && !item
+                        .get("workspaceId")
+                        .and_then(Value::as_str)
+                        .is_some_and(alera_core::runtime::is_voice_home_workspace_id)
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -85,22 +89,28 @@ impl ServerActor {
 
     pub(super) async fn workspace_sidebar_snapshot(&self, client_id: u64) -> HostResult<Value> {
         self.require_auth(client_id)?;
-        let projects = self
+        let mut projects = self
             .runtime_store
             .list_projects()
             .await
             .map_err(state_error)?;
-        let workspaces = self
+        projects.retain(|project| !alera_core::runtime::is_voice_home_project_id(&project.id));
+        let mut workspaces = self
             .runtime_store
             .list_all_workspaces()
             .await
             .map_err(state_error)?;
+        workspaces
+            .retain(|workspace| !alera_core::runtime::is_voice_home_workspace_id(&workspace.id));
         let tags = self.runtime_store.list_tags().await.map_err(state_error)?;
-        let activity = self
+        let mut activity = self
             .runtime_store
             .list_workspace_activity()
             .await
             .map_err(state_error)?;
+        activity.retain(|workspace_id, _| {
+            !alera_core::runtime::is_voice_home_workspace_id(workspace_id)
+        });
         let view_prefs = self
             .runtime_store
             .shared_workbench_view_prefs()
@@ -111,20 +121,26 @@ impl ServerActor {
             .runtime_settings()
             .await
             .map_err(state_error)?;
-        let terminal_tab_count_by_workspace_id = self
+        let mut terminal_tab_count_by_workspace_id = self
             .runtime_store
             .terminal_tab_counts_by_workspace()
             .await
             .map_err(state_error)?;
+        terminal_tab_count_by_workspace_id.retain(|workspace_id, _| {
+            !alera_core::runtime::is_voice_home_workspace_id(workspace_id)
+        });
         let tabs = self
             .runtime_store
             .list_all_workspace_tabs()
             .await
             .map_err(state_error)?;
-        let workspace_main_tab_ids = super::workspace_main_tabs::resolve_workspace_main_tab_ids(
+        let mut workspace_main_tab_ids = super::workspace_main_tabs::resolve_workspace_main_tab_ids(
             &view_prefs.prefs.workspace_main_tab_ids,
             &tabs,
         );
+        workspace_main_tab_ids.retain(|workspace_id, _| {
+            !alera_core::runtime::is_voice_home_workspace_id(workspace_id)
+        });
         let agent_presence = self.agent_presence_items_with_titles().await?;
         Ok(json!({
             "projects": projects,
@@ -153,13 +169,15 @@ impl ServerActor {
 
     pub(super) async fn workspace_activity(&self, client_id: u64) -> HostResult<Value> {
         self.require_auth(client_id)?;
-        serde_json::to_value(
-            self.runtime_store
-                .list_workspace_activity()
-                .await
-                .map_err(state_error)?,
-        )
-        .map_err(state_error)
+        let mut activity = self
+            .runtime_store
+            .list_workspace_activity()
+            .await
+            .map_err(state_error)?;
+        activity.retain(|workspace_id, _| {
+            !alera_core::runtime::is_voice_home_workspace_id(workspace_id)
+        });
+        serde_json::to_value(activity).map_err(state_error)
     }
 
     pub(super) async fn upsert_workspace_activity(

@@ -100,6 +100,7 @@ const String aleraRuntimeHostTerminalDeferredInputCapability =
     'terminalDeferredInputV1';
 const String aleraRuntimeHostRemoteAiDictationCapability =
     'aiDictationRemoteProvidersV1';
+const String aleraRuntimeHostVoiceHomeAgentCapability = 'voiceHomeAgentV1';
 
 /// Feature-detect OpenCode Go AI Assist HTTP completion and model discovery.
 /// Additive: do not bump [aleraTerminalHostProtocolVersion].
@@ -111,6 +112,7 @@ const String aleraRuntimeHostAiAssistOpenCodeGoCapability =
 /// and the `alera` CLI keep getting newline-delimited JSON from the same host.
 const String aleraRuntimeHostBinaryFramesCapability = 'binaryFrames';
 const String aleraRuntimeHostConnectedEvent = 'runtimeHostConnected';
+const String aleraRuntimeHostDisconnectedEvent = 'runtimeHostDisconnected';
 const int defaultTerminalHostEmptyShutdownDelaySeconds = 30;
 const int defaultTerminalHostDetachedSessionShutdownDelaySeconds = 60 * 60;
 const int defaultTerminalHostScrollbackBytes = 10 * 1000 * 1000;

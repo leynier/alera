@@ -128,6 +128,7 @@ pub fn write_control_file(
                 RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
                 RUNTIME_HOST_RESOURCE_MONITOR_CAPABILITY,
                 RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
+                crate::terminal_host::protocol::RUNTIME_HOST_VOICE_HOME_AGENT_CAPABILITY,
             ],
             "persistent": persistent,
             "startedAt": Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
@@ -251,6 +252,7 @@ mod tests {
                 RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
                 RUNTIME_HOST_RESOURCE_MONITOR_CAPABILITY,
                 RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
+                crate::terminal_host::protocol::RUNTIME_HOST_VOICE_HOME_AGENT_CAPABILITY,
             ])
         );
         assert_eq!(value["persistent"], json!(true));

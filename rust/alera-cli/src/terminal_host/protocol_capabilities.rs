@@ -202,3 +202,5 @@ pub const RUNTIME_HOST_DIAGNOSTICS_LOGS_CAPABILITY: &str = "hostDiagnosticsLogsV
 // version; a host that lacks it is still fully usable.
 pub const RUNTIME_HOST_SHELL_ENVIRONMENT_RELOAD_CAPABILITY: &str = "shellEnvironmentReloadV1";
 pub const RUNTIME_HOST_AUTOMATIONS_CAPABILITY: &str = "automationsV1";
+pub const RUNTIME_HOST_VOICE_HOME_AGENT_CAPABILITY: &str =
+    crate::terminal_host::voice_capabilities::RUNTIME_HOST_VOICE_HOME_AGENT_CAPABILITY;

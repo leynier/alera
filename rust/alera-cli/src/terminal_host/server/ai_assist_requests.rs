@@ -418,7 +418,7 @@ pub(super) fn plan_command(
         _ => {
             return Err(HostError::format(
                 "The configured AI Assist agent is unsupported.",
-            ))
+            ));
         }
     };
     if stdin_payload.is_none() && prompt.len() > MAX_ARGV_PROMPT_BYTES {

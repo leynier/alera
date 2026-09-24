@@ -215,6 +215,12 @@ impl ServerActor {
                     self.broadcast_terminal_error(&session_id, message);
                 }
             }
+            PtyWriteCompletion::VoiceHomePrompt {
+                session_instance_id,
+                generation,
+            } => {
+                self.finish_voice_home_inject(&session_id, session_instance_id, generation, error);
+            }
             PtyWriteCompletion::BestEffort => {
                 if let Some(message) = error {
                     tracing::warn!(
@@ -248,6 +254,7 @@ impl ServerActor {
         let keep_failed_setup =
             exit_code != 0 && self.should_keep_failed_setup_terminal(&session_id).await;
         let keep_failed_spawn = self.should_keep_failed_owned_spawn(&session_id).await;
+        self.abandon_home_inject(&session_id);
         self.cleanup_orchestration_for_closed_session(&session_id, &reason)
             .await;
         let keep_failed_spawn =

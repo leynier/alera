@@ -211,6 +211,7 @@ impl ServerActor {
             self.immediate_checkpoint(&session_id).await;
         }
         self.disconnect_buffer_guard_client(client_id);
+        self.release_voice_capture_for_client(client_id).await;
         self.forget_hub_reverse_client(client_id);
         self.clients.remove(&client_id);
         self.configuration_transfers.disconnect(client_id);
@@ -350,6 +351,7 @@ mod tests {
             hub_reverse: Default::default(),
             remote_project_configs: Default::default(),
             terminal_pulses: Default::default(),
+            voice: Default::default(),
             codex: None,
             codex_starting: None,
             inbox,

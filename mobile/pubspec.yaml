@@ -70,6 +70,7 @@ dependencies:
   sentry_flutter: ^9.28.0
   path: ^1.9.1
   speech_to_text: ^7.4.0
+  flutter_soloud: ^5.0.2
 
 dev_dependencies:
   shared_preferences_platform_interface: ^2.4.2

@@ -1,5 +1,6 @@
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
 import 'package:alera_mobile/src/features/quotas/domain/quota_settings.dart';
+import 'package:alera_mobile/src/features/voice/domain/mobile_voice_settings.dart';
 
 const List<String> supportedAgentHooks = <String>[
   'codex',
@@ -35,6 +36,7 @@ class const PortableHostSettings({
   required final bool confirmWorkspaceRemoval,
   required final Map<String, bool> agentStatusHooks,
   required final QuotaSettings agentQuotas,
+  required final MobileVoiceSettings voice,
 }) {
   factory fromJson(Map<String, Object?> json) {
     final hooks = json.mapValue('agentStatusHooks');
@@ -46,6 +48,7 @@ class const PortableHostSettings({
         for (final agent in supportedAgentHooks) agent: hooks[agent] == true,
       },
       agentQuotas: .fromJson(json.mapValue('agentQuotas')),
+      voice: MobileVoiceSettings.fromJson(json.mapValue('voice')),
     );
   }
 
@@ -56,6 +59,7 @@ class const PortableHostSettings({
     bool? confirmWorkspaceRemoval,
     Map<String, bool>? agentStatusHooks,
     QuotaSettings? agentQuotas,
+    MobileVoiceSettings? voice,
   }) {
     return PortableHostSettings(
       workspaceDirectory: clearWorkspaceDirectory
@@ -67,6 +71,7 @@ class const PortableHostSettings({
           confirmWorkspaceRemoval ?? this.confirmWorkspaceRemoval,
       agentStatusHooks: agentStatusHooks ?? this.agentStatusHooks,
       agentQuotas: agentQuotas ?? this.agentQuotas,
+      voice: voice ?? this.voice,
     );
   }
 }

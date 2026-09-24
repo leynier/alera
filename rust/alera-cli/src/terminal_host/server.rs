@@ -240,6 +240,24 @@ mod terminal_session_requests;
 mod terminal_spawn;
 mod terminal_spawn_command;
 mod terminal_startup_commands;
+mod voice_chained_jobs;
+mod voice_credential_requests;
+mod voice_credentials;
+mod voice_home_agent;
+mod voice_realtime;
+mod voice_realtime_events;
+mod voice_realtime_parse;
+mod voice_realtime_reconnect;
+mod voice_realtime_session;
+mod voice_realtime_socket;
+mod voice_requests;
+#[cfg(test)]
+mod voice_requests_tests;
+mod voice_session;
+mod voice_stt;
+mod voice_transcript;
+mod voice_tts;
+mod voice_turn_jobs;
 mod workspace_archive_requests;
 mod workspace_file_mutation_requests;
 mod workspace_git_requests;
@@ -341,6 +359,7 @@ struct ServerActor {
     hub_reverse: hub_reverse_requests::HubReverseState,
     remote_project_configs: remote_project_config_cache::RemoteProjectConfigCache,
     terminal_pulses: terminal_pulse::TerminalPulseManager,
+    voice: voice_session::VoiceSessionState,
     codex: Option<codex_app_server::CodexAppServer>,
     codex_starting: Option<codex_server_startup::CodexServerStartup>,
     inbox: UnboundedSender<ServerCommand>,
@@ -904,6 +923,49 @@ impl ServerActor {
             }
             ServerCommand::Account(command) => self.handle_account_command(command).await,
             ServerCommand::Push(command) => self.handle_push_command(command),
+            ServerCommand::VoiceRealtime { generation, event } => {
+                self.handle_voice_realtime_event(generation, event).await;
+            }
+            ServerCommand::VoiceRealtimeReconnect { generation } => {
+                self.handle_voice_realtime_reconnect(generation).await;
+            }
+            ServerCommand::VoiceGeminiTranscriptSettle { generation, token } => {
+                self.handle_voice_gemini_transcript_settle(generation, token)
+                    .await;
+            }
+            ServerCommand::VoiceTurnFinished {
+                client_id,
+                request_id,
+                job_id,
+                session_generation,
+                from_realtime,
+                cancel_home,
+                result,
+            } => {
+                self.handle_voice_turn_finished(
+                    client_id,
+                    request_id,
+                    job_id,
+                    session_generation,
+                    from_realtime,
+                    cancel_home,
+                    result,
+                )
+                .await;
+            }
+            ServerCommand::VoiceSynthesizeFinished {
+                client_id,
+                request_id,
+                job_id,
+                session_generation,
+                result,
+            } => self.handle_voice_synthesize_finished(
+                client_id,
+                request_id,
+                job_id,
+                session_generation,
+                result,
+            ),
         }
     }
 
@@ -923,6 +985,11 @@ impl ServerActor {
         if self.orchestration_delivery_in_flight.contains(handle) {
             return;
         }
+        if self.voice.home_session_id.as_deref() == Some(handle)
+            && (self.voice.home_inject.is_some() || self.voice.home_needs_fresh_ready)
+        {
+            return;
+        }
         self.orchestration_delivery_backpressured.remove(handle);
         let messages = match self
             .runtime_store
@@ -939,11 +1006,12 @@ impl ServerActor {
         let session_instance_id = session.instance_id();
         let ids: Vec<String> = messages.iter().map(|message| message.id.clone()).collect();
         let paste = prompt_injection::build_agent_prompt_paste_bytes(&formatted);
+        let force_submit = self.voice.home_session_id.as_deref() == Some(handle);
         if let Err(error) = session.queue_write(
             PtyWriteCompletion::OrchestrationPaste {
                 session_instance_id,
                 message_ids: ids,
-                force_submit: false,
+                force_submit,
             },
             &paste,
         ) {
@@ -958,6 +1026,9 @@ impl ServerActor {
         }
         self.orchestration_delivery_in_flight
             .insert(handle.to_string());
+        if self.voice.home_session_id.as_deref() == Some(handle) {
+            self.voice.home_needs_fresh_ready = true;
+        }
     }
 
     fn is_active_coordinator_handle(&self, handle: &str) -> bool {
@@ -1032,6 +1103,10 @@ impl ServerActor {
             }
             self.orchestration_delivery_in_flight.remove(&session_id);
             self.broadcast_terminal_error(&session_id, message);
+            return;
+        }
+        if self.voice.home_session_id.as_deref() == Some(session_id.as_str()) {
+            self.voice.home_needs_fresh_ready = true;
         }
     }
 

@@ -6,6 +6,7 @@ impl ServerActor {
             return;
         }
         self.disposed = true;
+        self.voice.stop_realtime();
         self.pull_request_watches = Default::default();
         for tab_id in self.agent_title_jobs.keys().cloned().collect::<Vec<_>>() {
             self.cancel_agent_title_job(&tab_id);

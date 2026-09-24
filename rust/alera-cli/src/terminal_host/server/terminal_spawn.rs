@@ -11,7 +11,7 @@ use super::terminal_launch_defaults::default_terminal_launch;
 use super::terminal_spawn_command::{resolve_spawn_command, SpawnCommand};
 use super::terminal_startup_commands::{
     agent_profile_id, delivers_initial_command_once, delivers_initial_prompt_once,
-    pending_agent_type, terminal_session_id,
+    pending_agent_type, tab_agent_type, terminal_session_id,
 };
 use super::{ServerActor, ServerCommand};
 
@@ -137,6 +137,11 @@ impl ServerActor {
             .await;
         let default_launch =
             default_terminal_launch(&workspace.path, self.config.login_shell).await;
+        let forced_hook = pending_agent_type(tab).or_else(|| {
+            alera_core::runtime::is_voice_home_workspace_id(&workspace.id)
+                .then(|| tab_agent_type(tab))
+                .flatten()
+        });
         self.start_new_terminal_session(
             session_id.clone(),
             workspace.id,
@@ -147,7 +152,7 @@ impl ServerActor {
             DEFAULT_TERMINAL_ROWS,
             initial_scrollback,
             initial_output_stream_bytes,
-            pending_agent_type(tab),
+            forced_hook,
         )
         .await?;
         let command = match resolve_spawn_command(tab, &default_launch.interactive_shell)? {
@@ -328,6 +333,7 @@ impl ServerActor {
         max_bytes: usize,
     ) -> (Vec<u8>, u64) {
         self.disarm_terminal_pulse(session_id);
+        self.abandon_home_inject(session_id);
         if let Some(mut dead) = self.sessions.remove(session_id) {
             let scrollback = dead.buffer.to_bytes();
             let output_stream_bytes = dead.output_stream_range().1;

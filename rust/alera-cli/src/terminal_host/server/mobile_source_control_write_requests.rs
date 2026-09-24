@@ -75,7 +75,7 @@ pub(super) async fn handle_mobile_git_request(
     let mut snapshot = match request_type {
         "mobile.git.diff" => {
             return super::mobile_source_control_requests::mobile_git_diff(runtime_store, payload)
-                .await
+                .await;
         }
         "mobile.git.branches" => return mobile_git_branches(runtime_store, payload).await,
         "mobile.git.status" => {
@@ -164,7 +164,7 @@ fn parse_write(request_type: &str, payload: &Value) -> HostResult<GitWrite> {
                 Some(other) => {
                     return Err(HostError::format(format!(
                         "Unknown follow-up after commit: {other}"
-                    )))
+                    )));
                 }
             },
         },
@@ -187,7 +187,7 @@ fn parse_write(request_type: &str, payload: &Value) -> HostResult<GitWrite> {
         _ => {
             return Err(HostError::state(
                 "Unsupported mobile source control operation.",
-            ))
+            ));
         }
     })
 }

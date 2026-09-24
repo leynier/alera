@@ -10,6 +10,7 @@ const String aiDictationCapability = 'aiDictationV1';
 const String aiDictationModelsCapability = 'aiDictationModelsV2';
 const String aiDictationBackendsCapability = 'aiDictationBackendsV3';
 const String remoteAiDictationCapability = 'aiDictationRemoteProvidersV1';
+const String voiceHomeAgentCapability = 'voiceHomeAgentV1';
 const String mobileExplorerCapability = 'mobileExplorerV1';
 const String mobileWorkspaceSearchCapability = 'mobileWorkspaceSearchV1';
 const String mobileWorkspaceReplaceCapability = 'mobileWorkspaceReplaceV1';

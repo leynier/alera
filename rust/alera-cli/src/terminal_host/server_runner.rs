@@ -101,6 +101,7 @@ pub async fn run_terminal_host_server(
         hub_reverse: Default::default(),
         remote_project_configs: Default::default(),
         terminal_pulses: Default::default(),
+        voice: Default::default(),
         codex: None,
         codex_starting: None,
         inbox,

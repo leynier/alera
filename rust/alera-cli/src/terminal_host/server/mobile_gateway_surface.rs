@@ -112,6 +112,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_AI_DICTATION_MODELS_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_BACKENDS_CAPABILITY,
     RUNTIME_HOST_REMOTE_AI_DICTATION_CAPABILITY,
+    crate::terminal_host::protocol::RUNTIME_HOST_VOICE_HOME_AGENT_CAPABILITY,
 ];
 pub(super) fn mobile_hello_capabilities(renewal_enabled: bool) -> Vec<&'static str> {
     MOBILE_HELLO_CAPABILITIES
@@ -235,6 +236,18 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "mobile.aiDictation.transcribe"
             | "mobile.aiDictation.cancel"
             | "mobile.aiDictation.capabilities"
+            | "mobile.voice.ensure"
+            | "mobile.voice.status"
+            | "mobile.voice.start"
+            | "mobile.voice.stop"
+            | "mobile.voice.turn"
+            | "mobile.voice.synthesize"
+            | "mobile.voice.spoken"
+            | "mobile.voice.audio"
+            | "mobile.voice.activity"
+            | "mobile.voice.credentials.status"
+            | "mobile.voice.credentials.save"
+            | "mobile.voice.credentials.clear"
             | "tab.list"
             | "tab.find"
             | "tab.rename"

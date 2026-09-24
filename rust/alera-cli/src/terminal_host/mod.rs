@@ -32,3 +32,4 @@ pub(crate) mod runtime_owner;
 pub mod server;
 pub mod session;
 pub mod sleep_detector;
+pub(crate) mod voice_capabilities;

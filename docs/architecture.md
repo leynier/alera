@@ -106,6 +106,10 @@ Interactive terminal applications can own mouse input through the xterm DEC mous
 
 Terminal clipboard integration is explicit at the runtime boundary. Text takes priority during paste; when the clipboard has no text but contains an image, the Linux GTK runner or the Rust bridge on macOS and Windows writes a private, size-limited PNG under the platform temporary directory and pastes its path into the terminal. The GTK path uses the compositor-native clipboard API, so it also works in pure Wayland sessions without XWayland or data-control support. Expired Alera clipboard images are removed opportunistically. OSC 52 clipboard queries are ignored, and writes are size-limited and disabled by default; enabling **Allow OSC 52 Clipboard Writes** applies the policy to all active terminal sessions. The mobile app applies the same off-by-default policy through a phone-local setting (Settings > Terminal > Allow OSC 52 Clipboard Writes): when enabled, size-limited writes land on the phone's clipboard and are announced, because the agent runs on the paired machine and OSC 52 is the only copy path that can reach the phone; a blocked write shows a one-time notice, and queries are always ignored.
 
+## Voice Home Agent
+
+The runtime owns a hidden folder project (`alera-home`) and one shared task for a global voice conversation. Speech I/O is a replaceable chained or realtime pipeline; the home CLI agent thinks and delegates through existing orchestration commands. See [Voice](voice.md).
+
 ## AI Assist
 
 AI Assist runs a user-installed agent CLI for short one-shot jobs such as commit messages, pull request details, reading diffs, workspace identity, agent titles, and speech cleanup. Settings define a global agent and model, while each supported prompt can independently override either value or inherit it. The runtime stores the portable execution settings so desktop and mobile workspace-identity generation resolve the same effective configuration. The persisted runtime key remains `aiTextGeneration`, and the host verbs stay `aiText.*`, so older hosts and existing settings keep working.

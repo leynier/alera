@@ -21,7 +21,11 @@ impl ServerActor {
                 force_submit,
             },
             &paste,
-        )
+        )?;
+        if self.voice.home_session_id.as_deref() == Some(session_id) {
+            self.voice.home_needs_fresh_ready = true;
+        }
+        Ok(())
     }
 
     pub(super) fn queue_orchestration_control(

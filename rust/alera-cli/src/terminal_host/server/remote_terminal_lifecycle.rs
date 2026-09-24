@@ -118,7 +118,9 @@ impl ServerActor {
         }
         let explicit_id = payload["operationId"].as_str();
         if action == TerminalLifecycleAction::Restart && explicit_id.is_none() {
-            return Err(HostError::state("Update this client: restarting an SSH terminal requires a stable operationId for safe retries"));
+            return Err(HostError::state(
+                "Update this client: restarting an SSH terminal requires a stable operationId for safe retries",
+            ));
         }
         if payload.get("operationId").is_some()
             && explicit_id.is_none_or(|id| uuid::Uuid::parse_str(id).is_err())

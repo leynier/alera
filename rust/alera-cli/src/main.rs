@@ -91,6 +91,7 @@ mod tailscale;
 mod terminal_alias_commands;
 mod terminal_host;
 mod terminal_stdio_mode;
+mod voice_commands;
 mod windows_path_form;
 mod workspace_add;
 mod workspace_archive;
@@ -206,6 +207,7 @@ async fn run(cli: Cli) -> i32 {
         Command::Orchestration(command) => {
             orchestration_commands::run_orchestration_command(command).await
         }
+        Command::Voice(command) => voice_commands::run(command).await,
     }
 }
 
