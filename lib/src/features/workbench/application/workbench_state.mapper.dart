@@ -45,6 +45,16 @@ class WorkbenchStateMapper extends ClassMapperBase<WorkbenchState> {
     opt: true,
     def: false,
   );
+  static Map<String, List<String>> _$sleptTabIdsByWorkspaceId(
+    WorkbenchState v,
+  ) => v.sleptTabIdsByWorkspaceId;
+  static const Field<WorkbenchState, Map<String, List<String>>>
+  _f$sleptTabIdsByWorkspaceId = Field(
+    'sleptTabIdsByWorkspaceId',
+    _$sleptTabIdsByWorkspaceId,
+    opt: true,
+    def: const <String, List<String>>{},
+  );
   static List<Project> _$projects(WorkbenchState v) => v.projects;
   static const Field<WorkbenchState, List<Project>> _f$projects = Field(
     'projects',
@@ -141,6 +151,7 @@ class WorkbenchStateMapper extends ClassMapperBase<WorkbenchState> {
     #sections: _f$sections,
     #supportsSections: _f$supportsSections,
     #supportsArchive: _f$supportsArchive,
+    #sleptTabIdsByWorkspaceId: _f$sleptTabIdsByWorkspaceId,
     #projects: _f$projects,
     #workspacesByProject: _f$workspacesByProject,
     #tabsByWorkspace: _f$tabsByWorkspace,
@@ -160,6 +171,7 @@ class WorkbenchStateMapper extends ClassMapperBase<WorkbenchState> {
       sections: data.dec(_f$sections),
       supportsSections: data.dec(_f$supportsSections),
       supportsArchive: data.dec(_f$supportsArchive),
+      sleptTabIdsByWorkspaceId: data.dec(_f$sleptTabIdsByWorkspaceId),
       projects: data.dec(_f$projects),
       workspacesByProject: data.dec(_f$workspacesByProject),
       tabsByWorkspace: data.dec(_f$tabsByWorkspace),
@@ -243,6 +255,13 @@ abstract class WorkbenchStateCopyWith<$R, $In extends WorkbenchState, $Out>
     WorkspaceSectionCopyWith<$R, WorkspaceSection, WorkspaceSection>
   >
   get sections;
+  MapCopyWith<
+    $R,
+    String,
+    List<String>,
+    ObjectCopyWith<$R, List<String>, List<String>>
+  >
+  get sleptTabIdsByWorkspaceId;
   ListCopyWith<$R, Project, ProjectCopyWith<$R, Project, Project>> get projects;
   MapCopyWith<
     $R,
@@ -273,6 +292,7 @@ abstract class WorkbenchStateCopyWith<$R, $In extends WorkbenchState, $Out>
     List<WorkspaceSection>? sections,
     bool? supportsSections,
     bool? supportsArchive,
+    Map<String, List<String>>? sleptTabIdsByWorkspaceId,
     List<Project>? projects,
     Map<String, List<Workspace>>? workspacesByProject,
     Map<String, List<WorkspaceTabRecord>>? tabsByWorkspace,
@@ -309,6 +329,18 @@ class _WorkbenchStateCopyWithImpl<$R, $Out>
     $value.sections,
     (v, t) => v.copyWith.$chain(t),
     (v) => call(sections: v),
+  );
+  @override
+  MapCopyWith<
+    $R,
+    String,
+    List<String>,
+    ObjectCopyWith<$R, List<String>, List<String>>
+  >
+  get sleptTabIdsByWorkspaceId => MapCopyWith(
+    $value.sleptTabIdsByWorkspaceId,
+    (v, t) => ObjectCopyWith(v, $identity, t),
+    (v) => call(sleptTabIdsByWorkspaceId: v),
   );
   @override
   ListCopyWith<$R, Project, ProjectCopyWith<$R, Project, Project>>
@@ -368,6 +400,7 @@ class _WorkbenchStateCopyWithImpl<$R, $Out>
     List<WorkspaceSection>? sections,
     bool? supportsSections,
     bool? supportsArchive,
+    Map<String, List<String>>? sleptTabIdsByWorkspaceId,
     List<Project>? projects,
     Map<String, List<Workspace>>? workspacesByProject,
     Map<String, List<WorkspaceTabRecord>>? tabsByWorkspace,
@@ -385,6 +418,8 @@ class _WorkbenchStateCopyWithImpl<$R, $Out>
       if (sections != null) #sections: sections,
       if (supportsSections != null) #supportsSections: supportsSections,
       if (supportsArchive != null) #supportsArchive: supportsArchive,
+      if (sleptTabIdsByWorkspaceId != null)
+        #sleptTabIdsByWorkspaceId: sleptTabIdsByWorkspaceId,
       if (projects != null) #projects: projects,
       if (workspacesByProject != null)
         #workspacesByProject: workspacesByProject,
@@ -406,6 +441,10 @@ class _WorkbenchStateCopyWithImpl<$R, $Out>
     sections: data.get(#sections, or: $value.sections),
     supportsSections: data.get(#supportsSections, or: $value.supportsSections),
     supportsArchive: data.get(#supportsArchive, or: $value.supportsArchive),
+    sleptTabIdsByWorkspaceId: data.get(
+      #sleptTabIdsByWorkspaceId,
+      or: $value.sleptTabIdsByWorkspaceId,
+    ),
     projects: data.get(#projects, or: $value.projects),
     workspacesByProject: data.get(
       #workspacesByProject,
@@ -437,3 +476,4 @@ class _WorkbenchStateCopyWithImpl<$R, $Out>
     Then<$Out2, $R2> t,
   ) => _WorkbenchStateCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
+

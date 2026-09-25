@@ -15,6 +15,7 @@ class const WorkbenchState({
   this.sections = const <WorkspaceSection>[],
   this.supportsSections = false,
   this.supportsArchive = false,
+  this.sleptTabIdsByWorkspaceId = const <String, List<String>>{},
   this.projects = const <Project>[],
   this.workspacesByProject = const <String, List<Workspace>>{},
   this.tabsByWorkspace = const <String, List<WorkspaceTabRecord>>{},
@@ -31,6 +32,11 @@ class const WorkbenchState({
   final List<WorkspaceSection> sections;
   final bool supportsSections;
   final bool supportsArchive;
+
+  /// Terminal tabs a workspace sleep stopped, by workspace, as the runtime
+  /// host records them. Their records stay for resume, but the sidebar shows
+  /// them as closed until a session starts again for one of them.
+  final Map<String, List<String>> sleptTabIdsByWorkspaceId;
   final List<Project> projects;
   final Map<String, List<Workspace>> workspacesByProject;
   final Map<String, List<WorkspaceTabRecord>> tabsByWorkspace;
@@ -121,6 +127,17 @@ class const WorkbenchState({
 
   List<WorkspaceTabRecord> tabsFor(String workspaceId) {
     return tabsByWorkspace[workspaceId] ?? const <WorkspaceTabRecord>[];
+  }
+
+  /// [tabsFor] without the tabs a workspace sleep stopped, which the sidebar
+  /// shows as closed until the workspace wakes.
+  List<WorkspaceTabRecord> awakeTabsFor(String workspaceId) {
+    final slept = sleptTabIdsByWorkspaceId[workspaceId];
+    final tabs = tabsFor(workspaceId);
+    if (slept == null || slept.isEmpty) {
+      return tabs;
+    }
+    return tabs.where((tab) => !slept.contains(tab.id)).toList(growable: false);
   }
 
   WorkbenchLayout? layoutFor(String workspaceId) {
