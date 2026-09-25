@@ -261,6 +261,7 @@ impl ServerActor {
                     "workspaceActivityChanged",
                     json!({"workspaceId": workspace_id}),
                 ));
+                self.broadcast_workspace_sleep_changed(&workspace_id);
             }
             RuntimeMutationEffect::WorkspaceArchived { workspace_id } => {
                 if let Some(server) = self.codex.as_ref() {

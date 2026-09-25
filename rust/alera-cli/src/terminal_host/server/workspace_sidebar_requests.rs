@@ -141,7 +141,14 @@ impl ServerActor {
         workspace_main_tab_ids.retain(|workspace_id, _| {
             !alera_core::runtime::is_voice_home_workspace_id(workspace_id)
         });
-        let agent_presence = self.agent_presence_items_with_titles().await?;
+        let mut agent_presence = self.agent_presence_items_with_titles().await?;
+        let slept_tab_ids = self.slept_workspace_tab_ids().await?;
+        super::workspace_sleep_requests::hide_slept_terminals(
+            &slept_tab_ids,
+            &tabs,
+            &mut terminal_tab_count_by_workspace_id,
+            &mut agent_presence,
+        );
         Ok(json!({
             "projects": projects,
             "workspaces": workspaces,
@@ -153,6 +160,7 @@ impl ServerActor {
             "agentPresence": agent_presence,
             "terminalTabCountByWorkspaceId": terminal_tab_count_by_workspace_id,
             "workspaceMainTabIds": workspace_main_tab_ids,
+            "sleptTabIdsByWorkspaceId": slept_tab_ids,
         }))
     }
 

@@ -306,6 +306,8 @@ impl ServerActor {
             .record_workspace_tab_terminal_launch(&workspace_id, &tab_id, &session_id)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
+        let woken_workspace_id = workspace_id.clone();
+        let woken_tab_id = tab_id.clone();
         let session = Box::pin(Session::start(
             session_id.clone(),
             workspace_id,
@@ -322,6 +324,8 @@ impl ServerActor {
         ))
         .await?;
         self.sessions.insert(session_id, session);
+        self.wake_workspace_for_tab(&woken_workspace_id, &woken_tab_id)
+            .await;
         Ok(())
     }
 

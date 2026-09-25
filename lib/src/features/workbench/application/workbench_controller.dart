@@ -23,6 +23,7 @@ import 'package:alera/src/features/workbench/application/workbench_listing.dart'
 import 'package:alera/src/features/workbench/application/workspace_descendants.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workbench_view_prefs_repository.dart';
+import 'package:alera/src/features/workbench/application/workspace_sleep_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_activity_controller.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_preview_kind.dart';
 import 'package:alera/src/features/workbench/application/workspace_graph_repository.dart';
@@ -107,6 +108,7 @@ class WorkbenchController extends _$WorkbenchController
     ref.onDispose(() {
       _disposed = true;
       unawaited(_sectionsSub?.cancel());
+      unawaited(_sleptTabsSub?.cancel());
       unawaited(_projectsSub?.cancel());
       unawaited(_viewPrefsSub?.cancel());
       for (final subscription in _workspaceSubs.values) {
@@ -136,6 +138,7 @@ class WorkbenchController extends _$WorkbenchController
         }
       }
       _startSections();
+      _startSleptTabs();
       unawaited(_startArchiveSupport());
       _projectsSub = _projectsService.projectRepository.watchAll().listen(
         _onProjectsChanged,
