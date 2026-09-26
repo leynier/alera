@@ -38,6 +38,9 @@ void main() {
       expect(linuxPackage, contains('Requires: libsecret'));
       expect(linuxPackage, contains('Requires: sqlite'));
       expect(linuxPackage, contains('Requires: openssl-libs'));
+      expect(linuxPackage, contains('libasound2t64 | libasound2'));
+      expect(linuxPackage, contains('Requires: alsa-lib'));
+      expect(setup, contains('libasound2-dev'));
       expect(podfile, contains("platform :osx, '14.0'"));
       expect(xcodeProject, isNot(contains('MACOSX_DEPLOYMENT_TARGET = 10.15')));
       expect(xcodeProject, contains('MACOSX_DEPLOYMENT_TARGET = 14.0'));

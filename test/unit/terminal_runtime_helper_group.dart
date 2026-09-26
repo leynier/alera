@@ -49,6 +49,16 @@ void _registerTerminalRuntimeHelperGroup() {
           defaultXtermTargetPlatformForTesting(),
           xtermTargetPlatformForTesting(defaultTargetPlatform),
         );
+        expect(xtermWindowsPtyModeForTesting(.windows), isTrue);
+        for (final platform in <TargetPlatform>[
+          .linux,
+          .macOS,
+          .android,
+          .iOS,
+          .fuchsia,
+        ]) {
+          expect(xtermWindowsPtyModeForTesting(platform), isFalse);
+        }
 
         expect(resolveTerminalFontFamilyForTesting('  '), 'monospace');
         expect(resolveTerminalFontFamilyForTesting('Fira Code'), 'Fira Code');

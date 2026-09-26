@@ -326,6 +326,7 @@ class _FakeBatchForge implements ForgeProvider, ForgeReviewBatchProvider {
   @override
   Future<ForgeAuthStatus> checkAuth({
     required GitRemoteIdentity identity,
+    String? repoPath,
   }) async {
     authCalls++;
     return ForgeAuthStatus.authenticated;

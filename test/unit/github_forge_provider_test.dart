@@ -320,6 +320,21 @@ void main() {
       expect(runner.calls.single.optionValue('hostname'), 'github.com');
     });
 
+    test(
+      'probes in the checkout so a remote workspace asks its own host',
+      () async {
+        final runner = FakeRecordingProcessRunner(<Object>[_ok(''), _ok('')]);
+        final provider = GitHubForgeProvider(runner);
+        await provider.checkAuth(
+          identity: _identity,
+          repoPath: '/srv/checkout',
+        );
+        await provider.checkAuth(identity: _identity);
+        expect(runner.calls.first.workingDirectory, '/srv/checkout');
+        expect(runner.calls.last.workingDirectory, isNull);
+      },
+    );
+
     test('checks authentication for the GitHub Enterprise host', () async {
       final runner = FakeRecordingProcessRunner(<Object>[_ok('')]);
       final provider = GitHubForgeProvider(runner);

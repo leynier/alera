@@ -5,6 +5,7 @@ import 'package:alera_mobile/src/design_system/icons/alera_linked_worktree_icon.
 import 'package:alera_mobile/src/features/linked_issues/domain/mobile_linked_issue.dart';
 import 'package:alera_mobile/src/features/linked_issues/presentation/mobile_linked_issue_icon.dart';
 import 'package:alera_mobile/src/features/pull_requests/domain/mobile_pull_request_watch.dart';
+import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_host.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_pull_request_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_workspace_rows.dart';
@@ -15,6 +16,7 @@ import 'package:alera_mobile/src/features/workbench/presentation/agent_run_state
 import 'package:alera_mobile/src/features/workbench/presentation/mobile_agent_run_labels.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/mobile_workspace_agent_compact_summary.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/mobile_workspace_pull_request_status_icon.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_host_marker.dart';
 import 'package:flutter/material.dart';
 
 part 'workspace_row_trays.dart';
@@ -40,6 +42,7 @@ class const MobileWorkspaceListRow({
   final MobileLinkedIssue? linkedIssue,
   final MobileWorkspacePullRequestSummary? pullRequestSummary,
   final MobilePullRequestWatch? pullRequestWatch,
+  final MobileWorkspaceHost? host,
 }) extends StatelessWidget {
   /// Fixed leading slot so status glyphs do not shift the title (desktop: 14).
   static const double _statusSlotSize = 14;
@@ -162,6 +165,14 @@ class const MobileWorkspaceListRow({
               ),
             ],
           ),
+        ),
+      ],
+      if (host case final owner?) ...<Widget>[
+        const SizedBox(width: AleraTokens.space6),
+        WorkspaceHostMarker(
+          key: const Key('workspace-tray-host'),
+          host: owner,
+          size: _trayIconSize,
         ),
       ],
     ];

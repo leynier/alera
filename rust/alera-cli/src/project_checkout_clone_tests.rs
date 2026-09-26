@@ -13,7 +13,9 @@ async fn clone_rejects_existing_empty_and_populated_directories() {
         }
         let error = clone_checkout(CloneCheckoutArgs {
             url: "/unused-source".into(),
-            path: destination.to_str().unwrap().into(),
+            path: Some(destination.to_str().unwrap().into()),
+            name: None,
+            projects_dir: None,
         })
         .await
         .unwrap_err();
@@ -45,7 +47,9 @@ async fn clones_an_isolated_repository_and_keeps_failed_destination() {
     let destination = dir.path().join("cloned");
     let result = clone_checkout(CloneCheckoutArgs {
         url: source.to_str().unwrap().into(),
-        path: destination.to_str().unwrap().into(),
+        path: Some(destination.to_str().unwrap().into()),
+        name: None,
+        projects_dir: None,
     })
     .await
     .unwrap();
@@ -65,7 +69,9 @@ async fn clones_an_isolated_repository_and_keeps_failed_destination() {
     let failed = dir.path().join("failed");
     let error = clone_checkout(CloneCheckoutArgs {
         url: dir.path().join("missing-source").to_str().unwrap().into(),
-        path: failed.to_str().unwrap().into(),
+        path: Some(failed.to_str().unwrap().into()),
+        name: None,
+        projects_dir: None,
     })
     .await
     .unwrap_err();
@@ -84,7 +90,9 @@ async fn clone_rejects_symlink_destination_without_touching_its_target() {
     std::os::unix::fs::symlink(&target, &link).unwrap();
     assert!(clone_checkout(CloneCheckoutArgs {
         url: "/unused-source".into(),
-        path: link.to_str().unwrap().into()
+        path: Some(link.to_str().unwrap().into()),
+        name: None,
+        projects_dir: None,
     })
     .await
     .is_err());
@@ -93,4 +101,64 @@ async fn clone_rejects_symlink_destination_without_touching_its_target() {
         "original"
     );
     assert!(std::fs::symlink_metadata(&link).unwrap().is_symlink());
+}
+
+#[test]
+fn a_default_clone_takes_the_first_free_name_and_rejects_paths() {
+    let projects = tempfile::tempdir().unwrap();
+    assert_eq!(
+        first_free_destination(projects.path(), "alera"),
+        projects.path().join("alera")
+    );
+    std::fs::create_dir(projects.path().join("alera")).unwrap();
+    std::fs::write(
+        projects.path().join("alera-2"),
+        "a file also occupies the name",
+    )
+    .unwrap();
+    assert_eq!(
+        first_free_destination(projects.path(), "alera"),
+        projects.path().join("alera-3")
+    );
+    for name in ["", " ", ".", "..", "a/b", "a\\b", "c:repo"] {
+        assert!(default_clone_destination(name, None).is_err(), "{name:?}");
+    }
+}
+
+#[test]
+fn a_configured_projects_folder_is_expanded_on_this_host() {
+    let home = std::path::Path::new(if cfg!(windows) {
+        r"C:\Users\me"
+    } else {
+        "/home/me"
+    });
+    assert_eq!(
+        expand_projects_dir("~/code", home).unwrap(),
+        home.join("code")
+    );
+    assert_eq!(expand_projects_dir("~", home).unwrap(), home);
+    assert_eq!(
+        expand_projects_dir("$HOME/src", home).unwrap(),
+        home.join("src")
+    );
+    assert_eq!(
+        expand_projects_dir("projects", home).unwrap(),
+        home.join("projects")
+    );
+    let absolute = if cfg!(windows) {
+        r"D:\work"
+    } else {
+        "/srv/work"
+    };
+    assert_eq!(
+        expand_projects_dir(absolute, home).unwrap(),
+        std::path::PathBuf::from(absolute)
+    );
+    std::env::set_var("ALERA_TEST_PROJECTS_ROOT", absolute);
+    assert_eq!(
+        expand_projects_dir("%ALERA_TEST_PROJECTS_ROOT%", home).unwrap(),
+        std::path::PathBuf::from(absolute)
+    );
+    std::env::remove_var("ALERA_TEST_PROJECTS_ROOT");
+    assert!(expand_projects_dir("%ALERA_TEST_UNSET_VARIABLE%", home).is_err());
 }

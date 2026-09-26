@@ -865,6 +865,7 @@ void _registerSettingsDialogAdvancedTests() {
     );
 
     await _enterRemoteHostText(tester, 'Port', '70000');
+    await tester.ensureVisible(saveButton);
     await tester.tap(saveButton);
     await tester.pumpAndSettle();
 

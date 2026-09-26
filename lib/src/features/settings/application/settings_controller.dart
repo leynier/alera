@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_settings.dart';
+import 'package:alera/src/features/voice/domain/voice_settings.dart';
 import 'package:alera/src/features/settings/application/settings_providers.dart';
 import 'package:alera/src/features/settings/application/runtime_settings_changes.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
@@ -79,6 +80,15 @@ class SettingsController extends _$SettingsController
 
   Future<void> resetAiDictation() => _serialize(() async {
     await _save(state.copyWith(aiDictation: .defaults));
+  });
+
+  Future<void> updateVoice(VoiceSettings Function(VoiceSettings) edit) =>
+      _serialize(() async {
+        await _save(state.copyWith(voice: edit(state.voice)));
+      });
+
+  Future<void> resetVoice() => _serialize(() async {
+    await _save(state.copyWith(voice: .defaults));
   });
 
   Future<void> updateTextActions(

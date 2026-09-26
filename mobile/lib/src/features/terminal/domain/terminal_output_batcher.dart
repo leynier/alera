@@ -15,6 +15,7 @@ import 'package:flutter/scheduler.dart';
 /// which makes draining a backlog quadratic in its size.
 class TerminalOutputBatcher({
   required final void Function(String text) write,
+  final void Function(String text)? writeRestore,
   this.onRestoreProgress,
   final int maxCharsPerFrame = _defaultMaxCharsPerFrame,
   final int maxPendingChars = _defaultMaxPendingChars,
@@ -24,6 +25,11 @@ class TerminalOutputBatcher({
   static const int _defaultMaxCharsPerFrame = 64 * 1024;
   static const int _defaultMaxPendingChars = 512 * 1024;
   static const Duration _defaultMinFlushInterval = Duration(milliseconds: 33);
+
+  /// Writes restored history. It is never handed live output in the same
+  /// call, so the caller can mute the replies the emulator produces while it
+  /// replays queries the program already had answered. Defaults to [write].
+  final void Function(String text) _writeRestore = writeRestore ?? write;
 
   /// Reports how far a restored snapshot has been written, and null once it is
   /// fully in. The surface covers the emulator until then, because a restore
@@ -153,15 +159,28 @@ class TerminalOutputBatcher({
       return;
     }
     final frame = StringBuffer();
+    var frameRestore = false;
+    void writeFrame() {
+      if (frame.isEmpty) {
+        return;
+      }
+      (frameRestore ? _writeRestore : write)(frame.toString());
+      frame.clear();
+    }
+
     var written = 0;
     var restoreWritten = 0;
     while (_pending.isNotEmpty && written < maxCharsPerFrame) {
       final chunk = _pending.first;
+      final restore = chunk.source == _OutputSource.restore;
+      if (restore != frameRestore) {
+        writeFrame();
+        frameRestore = restore;
+      }
       final remaining = maxCharsPerFrame - written;
       if (chunk.remaining <= remaining) {
         final available = chunk.remaining;
         frame.write(chunk.remainingText);
-        final restore = chunk.source == _OutputSource.restore;
         _consume(chunk, available);
         written += available;
         if (restore) {
@@ -175,16 +194,13 @@ class TerminalOutputBatcher({
       }
       final consumed = cutoff - chunk.head;
       frame.write(chunk.text.substring(chunk.head, cutoff));
-      final restore = chunk.source == _OutputSource.restore;
       _consume(chunk, consumed);
       written += consumed;
       if (restore) {
         restoreWritten += consumed;
       }
     }
-    if (written > 0) {
-      write(frame.toString());
-    }
+    writeFrame();
     _advanceRestore(restoreWritten);
     if (_pending.isNotEmpty) {
       _schedule();

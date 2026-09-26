@@ -85,6 +85,8 @@ class const ResourceSessionSample({
   required final int memoryBytes,
   required final int processCount,
   required final List<int> history,
+  this.hostId,
+  this.cpuCoreCount,
 }) {
   static ResourceSessionSample? tryFromJson(Object? value) {
     if (value is! Map) {
@@ -108,8 +110,23 @@ class const ResourceSessionSample({
       memoryBytes: _intValue(json['memoryBytes']),
       processCount: _intValue(json['processCount']),
       history: _intList(json['history']),
+      hostId: json['hostId'] is String ? json['hostId']! as String : null,
+      cpuCoreCount: json['cpuCoreCount'] is num
+          ? (json['cpuCoreCount']! as num).toInt()
+          : null,
     );
   }
+
+  /// The remote host that measured this row. Present only when the runtime
+  /// relayed the sample from the satellite that owns the session; absent for a
+  /// local session and for a remote one whose host is not linked, where the
+  /// local numbers describe the `ssh` pipe and not the work behind it.
+  final String? hostId;
+
+  /// Core count of the machine that measured the row, sent with a relayed
+  /// sample because `cpuPercent` is per core and the hub's count is not the
+  /// satellite's.
+  final int? cpuCoreCount;
 
   /// Absent once the shell exits: the OS recycles pids, so the host drops it
   /// rather than let a stale value point at an unrelated process.

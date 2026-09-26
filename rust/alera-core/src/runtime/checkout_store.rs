@@ -308,6 +308,33 @@ impl RuntimeStore {
         tx.commit().await?;
         Ok(checkout)
     }
+
+    /// Unregisters a project's checkout on one host. Files are never touched:
+    /// this only forgets where the project lives there. Refused while
+    /// workspaces remain on that host, because each of them is bound to it.
+    pub async fn remove_project_checkout(&self, project_id: &str, host_id: &str) -> Result<bool> {
+        let mut tx = self.pool().begin().await?;
+        let workspaces: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM workspaces WHERE projectId = ? AND hostId = ?",
+        )
+        .bind(project_id)
+        .bind(host_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        if workspaces > 0 {
+            bail!("Remove the {workspaces} workspace(s) on this host before removing the host from the project");
+        }
+        let removed = sqlx::query(
+            "DELETE FROM repositoryCheckouts WHERE projectId = ? AND hostId = ? AND kind = 'project'",
+        )
+        .bind(project_id)
+        .bind(host_id)
+        .execute(&mut *tx)
+        .await?
+        .rows_affected();
+        tx.commit().await?;
+        Ok(removed > 0)
+    }
 }
 
 pub(super) async fn bind_workspace_checkout(

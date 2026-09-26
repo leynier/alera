@@ -58,6 +58,7 @@ extension _WorkspaceEditorLoading on _WorkspaceEditorSurfaceState {
     _document.attachFile(
       workspacePath: widget.workspace.path,
       relativePath: filePath,
+      workspace: widget.workspace,
     );
     if (_document.hasSnapshot) {
       _invalidatePendingLoads();

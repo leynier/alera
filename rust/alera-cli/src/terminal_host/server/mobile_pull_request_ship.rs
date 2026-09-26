@@ -6,7 +6,7 @@
 //! leave a commit without its pull request.
 
 use alera_core::git as core_git;
-use alera_core::runtime::{RuntimeStore, Workspace};
+use alera_core::runtime::{RuntimeAiAssistSettings, RuntimeStore, Workspace};
 use alera_core::source_control::{self, GitChangeArea, GitErrorKind, GitRangeContext};
 use regex::Regex;
 use serde_json::json;
@@ -23,6 +23,7 @@ use super::mobile_pull_request_identity::GitHubIdentity;
 use super::mobile_source_control_snapshot::git_host_error;
 use super::mobile_source_control_write_requests::WorkspaceWriteGuard;
 use super::mobile_workspace_file_requests::spawn_blocking_workspace;
+use super::remote_ai_assist_requests::effective_ai_assist_settings;
 
 const MAX_BRANCH_CANDIDATES: usize = 100;
 const MAX_BRANCH_SLUG_CHARS: usize = 48;
@@ -57,11 +58,9 @@ pub(super) async fn ship_pull_request(
     workspace: &Workspace,
     identity: &GitHubIdentity,
     request: ShipRequest,
+    hub_settings: Option<RuntimeAiAssistSettings>,
 ) -> HostResult<()> {
-    let settings = store
-        .effective_ai_assist_settings()
-        .await
-        .map_err(|error| HostError::state(error.to_string()))?;
+    let settings = effective_ai_assist_settings(store, hub_settings.clone()).await?;
     if !settings.enabled {
         return Err(HostError::state(
             "Enable AI Assist before shipping changes.",
@@ -86,7 +85,8 @@ pub(super) async fn ship_pull_request(
     }
     let message = if plan.needs_commit {
         let (_cancel, cancel_rx) = oneshot::channel();
-        let generated = generate_commit_message(store, &workspace.id, cancel_rx).await?;
+        let generated =
+            generate_commit_message(store, &workspace.id, hub_settings.clone(), cancel_rx).await?;
         let message = generated["message"]
             .as_str()
             .unwrap_or_default()
@@ -130,13 +130,18 @@ pub(super) async fn ship_pull_request(
         let (_cancel, cancel_rx) = oneshot::channel();
         // A commit already exists, so optional details must never strand it:
         // fall back to the commit message like the desktop.
-        let details =
-            match generate_pull_request_details(store, &workspace.id, &request.base, cancel_rx)
-                .await
-            {
-                Ok((details, _)) => details,
-                Err(_) => parse_pull_request_details(&message),
-            };
+        let details = match generate_pull_request_details(
+            store,
+            &workspace.id,
+            &request.base,
+            hub_settings,
+            cancel_rx,
+        )
+        .await
+        {
+            Ok((details, _)) => details,
+            Err(_) => parse_pull_request_details(&message),
+        };
         blocking({
             let root = root.clone();
             move || source_control::git_push(root).map_err(git_host_error)

@@ -12,8 +12,6 @@ use crate::frb_generated::StreamSink;
 
 #[path = "process_session.rs"]
 mod process_session;
-#[path = "process_shell.rs"]
-mod process_shell;
 
 pub struct ProcessRunResult {
     pub exit_code: i32,

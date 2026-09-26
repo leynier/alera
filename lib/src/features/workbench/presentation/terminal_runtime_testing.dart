@@ -15,6 +15,11 @@ xterm.TerminalTargetPlatform xtermTargetPlatformForTesting(
 }
 
 @visibleForTesting
+bool xtermWindowsPtyModeForTesting(TargetPlatform platform) {
+  return _xtermWindowsPtyModeFor(platform);
+}
+
+@visibleForTesting
 String resolveTerminalFontFamilyForTesting(String fontFamily) {
   return _resolveTerminalFontFamily(fontFamily);
 }
