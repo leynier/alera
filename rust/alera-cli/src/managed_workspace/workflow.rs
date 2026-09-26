@@ -261,12 +261,27 @@ async fn verify_registered(store: &RuntimeStore, record: &WorkflowWorkspaceRecor
     {
         bail!("workflow workspace identity or status changed");
     }
-    core_git::verify_workflow_worktree(
+    let tip = core_git::verify_workflow_worktree_tip(
         &record.identity.repo_path,
         &expected.path,
         &record.identity.base_sha,
         &expected.id,
     )?;
+    let expected_tip = if record.identity.task_id.is_none() && record.phase == Phase::Ready {
+        Some(
+            store
+                .workflow_plan_revision(&record.identity.run_id, None)
+                .await?
+                .integration_sha,
+        )
+    } else if record.dispatch_id.is_none() {
+        Some(record.identity.base_sha.clone())
+    } else {
+        None
+    };
+    if expected_tip.is_some_and(|expected| tip != expected) {
+        bail!("workflow branch differs from its expected integration or attempt SHA");
+    }
     Ok(())
 }
 

@@ -115,6 +115,20 @@ pub fn verify_workflow_worktree(
     base_sha: &str,
     id: &str,
 ) -> Result<(), GitError> {
+    let tip = verify_workflow_worktree_tip(repo_path, path, base_sha, id)?;
+    if tip != base_sha {
+        return Err(invalid("workflow branch moved from its reserved base"));
+    }
+    Ok(())
+}
+
+/// Verify retained ownership without requiring a worker's branch to stay empty.
+pub fn verify_workflow_worktree_tip(
+    repo_path: &str,
+    path: &str,
+    base_sha: &str,
+    id: &str,
+) -> Result<String, GitError> {
     uuid::Uuid::parse_str(id).map_err(|_| invalid("invalid workflow resource id"))?;
     let repo = open_repo(repo_path)?;
     let reference_name = format!("refs/heads/alera/workflows/{id}");
@@ -139,14 +153,28 @@ pub fn verify_workflow_worktree(
             .name()
             .map_err(GitError::from_git2)?
             != reference_name
-        || checkout.head().map_err(GitError::from_git2)?.target()
-            != Some(Oid::from_str(base_sha).map_err(GitError::from_git2)?)
     {
         return Err(invalid(
             "workflow repository, branch or base identity changed",
         ));
     }
-    ownership.persist(&repo)
+    let base = Oid::from_str(base_sha).map_err(GitError::from_git2)?;
+    let tip = checkout
+        .head()
+        .map_err(GitError::from_git2)?
+        .target()
+        .ok_or_else(|| invalid("workflow branch has no commit"))?;
+    if tip != base
+        && !repo
+            .graph_descendant_of(tip, base)
+            .map_err(GitError::from_git2)?
+    {
+        return Err(invalid(
+            "workflow branch no longer descends from its reserved base",
+        ));
+    }
+    ownership.persist(&repo)?;
+    Ok(tip.to_string())
 }
 
 fn canonical(path: &Path) -> Result<std::path::PathBuf, GitError> {

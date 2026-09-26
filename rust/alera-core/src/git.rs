@@ -19,6 +19,7 @@ pub use linked_worktree_origin::linked_worktree_repository_origin;
 #[cfg(feature = "runtime")]
 pub use workflow_worktree::{
     ensure_workflow_worktree, is_registered_workflow_worktree, verify_workflow_worktree,
+    verify_workflow_worktree_tip,
 };
 pub use worktree_creation::create_worktree;
 mod workspace_relocation_checkout;
