@@ -85,13 +85,16 @@ pub fn ccs_profile_from_config_dir(dir: &str) -> Option<&str> {
 
 pub fn usable_native_session_id(id: &str) -> Option<&str> {
     let id = id.trim();
-    if id.is_empty() {
+    if id.is_empty() || id.starts_with('-') {
         return None;
     }
     if id.chars().any(|ch| {
         ch.is_whitespace()
             || ch.is_control()
-            || matches!(ch, '|' | '&' | ';' | '<' | '>' | '$' | '`' | '(' | ')')
+            || matches!(
+                ch,
+                '|' | '&' | ';' | '<' | '>' | '$' | '`' | '(' | ')' | '\'' | '"' | '%' | '!' | '^'
+            )
     }) {
         return None;
     }
