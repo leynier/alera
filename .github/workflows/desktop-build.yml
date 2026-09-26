@@ -5,7 +5,7 @@ on:
   workflow_call:
     inputs:
       source_sha:
-        description: Expected triggering commit SHA; empty skips the assertion.
+        description: Expected triggering commit SHA; required for full validation.
         type: string
         default: ''
       full_validation:
@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       source_sha:
-        description: Expected 40-character SHA of the selected workflow ref.
+        description: Expected 40-character SHA of the selected workflow ref; required for full validation.
         type: string
         default: ''
       full_validation:
@@ -27,7 +27,7 @@ on:
 # runs otherwise keep saturating the runner pool for the whole repository.
 # Explicit SHA dispatches remain independent from automatic builds and each other.
 concurrency:
-  group: desktop-builds-${{ github.event.pull_request.number || github.ref }}-${{ inputs.source_sha }}-${{ inputs.full_validation }}
+  group: desktop-builds-${{ github.event.pull_request.number || github.ref }}-${{ inputs.source_sha && github.sha || '' }}-${{ inputs.full_validation }}
   cancel-in-progress: true
 
 permissions:
@@ -47,10 +47,16 @@ jobs:
       - name: Require an immutable revision
         shell: bash
         env:
-          SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
           TRIGGER_SHA: ${{ github.sha }}
+          FULL_VALIDATION: ${{ inputs.full_validation }}
         run: |
           set -euo pipefail
+          if [ "$FULL_VALIDATION" = "true" ] && [ -z "$SOURCE_SHA" ]; then
+            echo "::error::source_sha is required for full validation."
+            exit 1
+          fi
+          SOURCE_SHA="${SOURCE_SHA:-$TRIGGER_SHA}"
           if [[ ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
             echo "::error::source_sha must be a full lowercase commit SHA, not a branch or tag."
             exit 1
