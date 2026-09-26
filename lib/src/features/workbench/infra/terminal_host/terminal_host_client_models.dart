@@ -314,6 +314,7 @@ const Set<String> runtimeHostEventNames = <String>{
   'codexThreadChanged',
   'codexServerChanged',
   'orchestrationBoardChanged',
+  'workflowCatalogChanged',
   'voice.utterance',
   'voice.session',
   'voice.interrupt',
