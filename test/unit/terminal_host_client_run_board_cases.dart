@@ -56,19 +56,31 @@ void _registerTerminalHostClientRunBoardTests() {
           0,
           reason: 'an old host remains usable without board support',
         );
+        final events = <RuntimeHostEvent>[];
+        final subscription = client.runtimeEvents.listen(events.add);
+        addTearDown(subscription.cancel);
         final disconnected = client.runtimeEvents.firstWhere(
           (event) => event.name == aleraRuntimeHostDisconnectedEvent,
         );
         server.closeClient();
         await disconnected.timeout(const Duration(seconds: 5));
+        await Future.pause(Duration.zero);
+        expect(
+          events.where(
+            (event) => event.name == aleraRuntimeHostDisconnectedEvent,
+          ),
+          hasLength(1),
+        );
       },
     );
   }
 
-  for (final binaryFrames in [false, true]) {
-    test(
-      'forwards board revisions over socket frames: $binaryFrames',
-      () async {
+  for (final eventName in [
+    'orchestrationBoardChanged',
+    'workflowCatalogChanged',
+  ]) {
+    for (final binaryFrames in [false, true]) {
+      test('forwards $eventName over socket frames: $binaryFrames', () async {
         final directory = await Directory.systemTemp.createTemp(
           'alera-run-board-events-',
         );
@@ -96,17 +108,20 @@ void _registerTerminalHostClientRunBoardTests() {
           isTrue,
         );
         expect(server.usingBinaryFrames, binaryFrames);
+        final payload = eventName == 'workflowCatalogChanged'
+            ? <String, Object?>{
+                'source': {'origin': 'personal', 'id': 'quick-fix'},
+                'catalogRevision': 42,
+              }
+            : <String, Object?>{'revision': 42};
         final changed = client.runtimeEvents.firstWhere(
-          (event) => event.name == 'orchestrationBoardChanged',
+          (event) => event.name == eventName,
         );
-        server.send({
-          'event': 'orchestrationBoardChanged',
-          'payload': {'revision': 42},
-        });
+        server.send({'event': eventName, 'payload': payload});
         final event = await changed.timeout(const Duration(seconds: 5));
-        expect(event.name, 'orchestrationBoardChanged');
-        expect(event.payload, {'revision': 42});
-      },
-    );
+        expect(event.name, eventName);
+        expect(event.payload, payload);
+      });
+    }
   }
 }
