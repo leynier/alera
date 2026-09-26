@@ -94,6 +94,52 @@ void registerNativeRunBoardEditorLifecycleTest() {
 }
 
 void _registerAleraShellRunBoardTests() {
+  for (final action in [
+    'Open Workspace',
+    'Return to Workspace',
+    'Navigation',
+  ]) {
+    testWidgets('Board $action restores the active pane after hiding', (
+      tester,
+    ) async {
+      final repository = BoardTestRepository();
+      addTearDown(repository.dispose);
+      final seed = boardWorkbenchState().copyWith(
+        activeProjectId: 'project-1',
+        activeWorkspaceId: 'ws-1',
+      );
+      final harness = await _pumpShell(
+        tester,
+        state: seed,
+        boardRepository: repository,
+      );
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(AleraShellPage)),
+      );
+      final navigation = container.read(runBoardNavigationProvider.notifier);
+      navigation
+        ..open()
+        ..selectRun('run-1');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.tap(find.byType(TextField).first);
+      await tester.pump();
+      final session = harness.runtime._sessions['session-1']!;
+      final before = session.requestFocusCalls;
+      if (action == 'Navigation') {
+        navigation.close();
+      } else {
+        await tester.ensureVisible(find.text(action).first);
+        await tester.tap(find.text(action).first);
+      }
+      await tester.pump();
+      await tester.pump();
+      expect(container.read(runBoardNavigationProvider).visible, isFalse);
+      expect(session.requestFocusCalls, greaterThan(before));
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('Board Open Terminal focuses the retained shell session', (
     tester,
   ) async {
