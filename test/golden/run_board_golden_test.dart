@@ -14,6 +14,24 @@ void main() {
   runAleraGoldenTests(() {
     for (final scenario in [
       (
+        name: 'run_board_cleanup_attention',
+        width: 1100.0,
+        height: 800.0,
+        run: true,
+        task: false,
+        scale: 1.0,
+        error: false,
+      ),
+      (
+        name: 'run_board_cleanup_applying',
+        width: 420.0,
+        height: 900.0,
+        run: true,
+        task: false,
+        scale: 2.0,
+        error: false,
+      ),
+      (
         name: 'run_board_overview',
         width: 1100.0,
         height: 800.0,
@@ -71,6 +89,12 @@ void main() {
         },
         builder: () {
           final repository = BoardTestRepository();
+          if (scenario.name.startsWith('run_board_cleanup_')) {
+            repository.run = boardRunDetail(
+              cleanupAttention: scenario.name.endsWith('attention'),
+              cleanupApplying: scenario.name.endsWith('applying'),
+            );
+          }
           if (scenario.error) repository.error = const RunBoardUpdateRequired();
           final container = boardContainer(repository);
           addTearDown(container.dispose);

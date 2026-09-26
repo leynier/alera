@@ -334,6 +334,10 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
 }
 
 #[cfg(test)]
+#[path = "mobile_gateway_surface_workflow_tests.rs"]
+mod workflow_lifecycle_mobile_tests;
+
+#[cfg(test)]
 mod mobile_codex_file_surface_tests {
     use super::*;
 

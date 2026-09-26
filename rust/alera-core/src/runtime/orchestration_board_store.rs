@@ -126,6 +126,8 @@ pub(super) fn summary_from_row(row: SqliteRow) -> Result<OrchestrationRunSummary
         created_at: row.try_get("created_at")?,
         last_activity_at: row.try_get("last_activity_at")?,
         policy_status: row.try_get("policy_status")?,
+        workflow_revision: row.try_get("workflow_revision")?,
+        workflow_status: row.try_get("workflow_status")?,
         task_count: row.try_get("task_count")?,
         completed_count: row.try_get("completed_count")?,
         running_count: row.try_get("running_count")?,
@@ -133,5 +135,7 @@ pub(super) fn summary_from_row(row: SqliteRow) -> Result<OrchestrationRunSummary
         stalled_count: row.try_get("stalled_count")?,
         blocked_count: row.try_get("blocked_count")?,
         pending_gate_count: row.try_get("pending_gate_count")?,
+        cleanup_attention: row.try_get("cleanup_attention")?,
+        cleanup_applying: row.try_get("cleanup_applying")?,
     })
 }

@@ -43,7 +43,8 @@ jobs:
   rust-test:
     name: rust test
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The full workflow suite can exceed 20 minutes on a cold hosted runner.
+    timeout-minutes: 35
     env:
       ALERA_SCCACHE_R2_ACCOUNT_ID: ${{ vars.SCCACHE_R2_ACCOUNT_ID }}
       ALERA_SCCACHE_R2_BUCKET: ${{ vars.SCCACHE_R2_BUCKET }}

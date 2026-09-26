@@ -2440,6 +2440,7 @@ fn cancelling_active_worker_interrupts_before_idle_banner_delivery() {
     let (mut writer, mut reader) = connect(host.port);
     handshake(&mut writer, &mut reader, &host.token);
     let session_id = "cancel-worker";
+    let ready = host._dir.path().join("cancel-worker-ready");
     attach_shell_session(
         &mut writer,
         &mut reader,
@@ -2449,11 +2450,19 @@ fn cancelling_active_worker_interrupts_before_idle_banner_delivery() {
         "tab-1",
         &[
             "-c",
-            "stty -echo; trap 'printf INTERRUPTED' INT; while :; do IFS= read -r line || continue; printf 'LINE:%s' \"$line\"; done",
+            "stty -echo; trap 'printf INTERRUPTED' INT; : > \"$1\"; while :; do IFS= read -r line || continue; printf 'LINE:%s' \"$line\"; done",
+            "cancel-worker",
+            ready.to_str().unwrap(),
         ],
     );
-    std::thread::sleep(Duration::from_millis(700));
-    let _ = collect_output(&mut reader, session_id, Duration::from_millis(400));
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !ready.exists() {
+        assert!(
+            Instant::now() < deadline,
+            "worker did not install its interrupt trap"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
     expect_ok(request(
         &mut writer,
         &mut reader,

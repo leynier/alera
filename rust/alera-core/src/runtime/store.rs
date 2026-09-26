@@ -862,35 +862,12 @@ impl RuntimeStore {
                 anyhow::bail!("Workspace identity or location changed before retirement");
             }
         }
-        if cascade_tabs {
-            sqlx::query("DELETE FROM workspaceTabs WHERE workspaceId = ?")
-                .bind(workspace_id)
-                .execute(&mut *tx)
-                .await?;
-        }
-        sqlx::query("DELETE FROM linkedReviews WHERE workspaceId = ?")
-            .bind(workspace_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM workbenchLayouts WHERE workspaceId = ?")
-            .bind(workspace_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM workspaceTagAssignments WHERE workspaceId = ?")
-            .bind(workspace_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query(
-            "DELETE FROM workspaceRelations WHERE parentWorkspaceId = ? OR childWorkspaceId = ?",
+        super::workspace_retirement::remove_workspace_in_transaction(
+            &mut tx,
+            workspace_id,
+            cascade_tabs,
         )
-        .bind(workspace_id)
-        .bind(workspace_id)
-        .execute(&mut *tx)
         .await?;
-        sqlx::query("DELETE FROM workspaces WHERE id = ?")
-            .bind(workspace_id)
-            .execute(&mut *tx)
-            .await?;
         tx.commit().await?;
         Ok(())
     }

@@ -83,6 +83,22 @@ impl ServerActor {
             return Ok(true);
         }
         match request_type {
+            "workflows.retryCleanup" => {
+                self.start_workflow_cleanup_retry(client_id, request_id, payload)?;
+                Ok(true)
+            }
+            "workflows.abandonCleanup" => {
+                self.start_workflow_cleanup_abandonment(client_id, request_id, payload)?;
+                Ok(true)
+            }
+            "workflows.applyCleanup" => {
+                self.start_workflow_cleanup_request(client_id, request_id, payload)?;
+                Ok(true)
+            }
+            "workflows.startCoordinator" => {
+                self.start_workflow_coordinator_request(client_id, request_id, payload)?;
+                Ok(true)
+            }
             "workflows.prepareWorkspace"
             | "workflows.launchTask"
             | "workflows.launches"
@@ -99,8 +115,24 @@ impl ServerActor {
                 Ok(true)
             }
             "workflows.preparePlan"
+            | "workflows.cleanupStatus"
+            | "workflows.cleanupResources"
+            | "workflows.cleanups"
+            | "workflows.previewCleanup"
+            | "workflows.execution"
+            | "workflows.controlExecution"
+            | "workflows.createCorrection"
+            | "workflows.source"
+            | "workflows.createProposal"
+            | "workflows.proposal"
+            | "workflows.proposals"
+            | "workflows.proposalStatus"
+            | "workflows.retryProposalCancellation"
+            | "workflows.cancelProposal"
+            | "workflows.submitProposal"
             | "workflows.plan"
             | "workflows.approvalChallenge"
+            | "workflows.review"
             | "workflows.decide" => {
                 self.start_workflow_plan_request(client_id, request_id, request_type, payload)?;
                 Ok(true)

@@ -261,7 +261,7 @@ impl ServerActor {
             keep_failed_spawn && self.make_failed_owned_spawn_inert(&session_id).await;
         let keep_terminal = keep_failed_setup
             || keep_failed_spawn
-            || self.is_workflow_terminal(&session_id).await
+            || self.retains_workflow_terminal_history(&session_id).await
             || self.is_remote_terminal(&session_id).await
             || self.is_ssh_owner_terminal(&session_id).await;
         self.settle_closed_workflow_terminal(&session_id, &reason)
@@ -348,7 +348,7 @@ impl ServerActor {
         if !tab_exists {
             return Ok(false);
         }
-        let workflow_owned = self.is_workflow_terminal(session_id).await;
+        let workflow_owned = self.retains_workflow_terminal_history(session_id).await;
         if !workflow_owned {
             self.runtime_store
                 .remove_workspace_tab(&tab_id)

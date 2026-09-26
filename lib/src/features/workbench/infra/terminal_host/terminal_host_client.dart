@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
+import 'package:alera/src/features/orchestration/infra/workflow_decision_signer.dart';
 import 'package:alera/src/features/diagnostics/infra/crash_reporting.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/runtime_buffer_guard_handler.dart';
@@ -36,6 +38,7 @@ part 'terminal_host_client_session_events.dart';
 part 'terminal_host_client_terminal_pulse.dart';
 part 'terminal_host_client_socket_reader.dart';
 part 'terminal_host_control_file.dart';
+part 'terminal_host_workflow_signer.dart';
 
 final class SocketTerminalHostClient._(
   final TerminalHostProcessLauncher _launcher,
@@ -50,11 +53,13 @@ final class SocketTerminalHostClient._(
         _TerminalHostClientSessionEvents,
         _TerminalPulseHostClientSupport,
         _RuntimeHostCapabilitySupport,
+        _WorkflowDecisionSignerSupport,
         _GuardedRuntimeHostClientSupport
     implements
         TerminalHostClient,
         TerminalPulseHostClient,
         RuntimeHostClient,
+        WorkflowDecisionSigner,
         RuntimeHostCapabilityClient {
   factory({
     TerminalHostProcessLauncher? launcher,
@@ -601,6 +606,7 @@ final class SocketTerminalHostClient._(
     }
   }
 
+  @override
   Future<_TerminalHostPaths> _runtimePaths() async {
     final support = await _applicationSupportDirectory();
     final runtimeDir = Directory(p.join(support.path, 'terminal_host'));

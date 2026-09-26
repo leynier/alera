@@ -75,6 +75,10 @@ impl RuntimeStore {
     ) -> Result<WorkflowDecisionReceipt> {
         let statement = verified.statement();
         let challenge = &statement.challenge;
+        if challenge.scope == "correction" && statement.decision != WorkflowDecision::RequestChanges
+        {
+            bail!("a correction review can only request changes");
+        }
         let digest = workflow_digest(statement)?;
         let mut tx = self.pool().begin().await?;
         sqlx::query("UPDATE orchestrationBoardRevision SET revision = revision WHERE id = 1")
@@ -182,6 +186,12 @@ impl RuntimeStore {
                     .bind(&challenge.run_id)
                     .execute(&mut *tx)
                     .await?;
+                super::workflow_execution::pause_for_revision(
+                    &mut tx,
+                    &challenge.run_id,
+                    current_revision,
+                )
+                .await?;
                 // Original completed evidence remains immutable and inspectable.
                 sqlx::query("UPDATE orchestrationTasks SET status = 'cancelled', cancelled_at = datetime('now')
                     WHERE run_id = ? AND status IN ('pending','ready','blocked','failed')")

@@ -20,7 +20,7 @@ pub(super) async fn approval_state(
 ) -> Result<ApprovalState> {
     let unsettled: bool = sqlx::query_scalar(
         "SELECT EXISTS(SELECT 1 FROM workflowIntegrations
-        WHERE run_id = ? AND state IN ('pending','prepared','attention'))",
+        WHERE run_id = ? AND cancelled=0 AND state IN ('pending','prepared','attention'))",
     )
     .bind(run_id)
     .fetch_one(&mut **tx)
@@ -53,7 +53,26 @@ pub(super) async fn approval_state(
         if status != "prepared" {
             bail!("workflow plan is not awaiting approval");
         }
-        workflow_digest(&serde_json::json!([plan.digest, integration_sha]))?
+        if plan
+            .tasks
+            .iter()
+            .any(|task| task.task.corrects_task_id.is_some())
+        {
+            let prior_evidence =
+                super::workflow_correction_evidence::referenced_evidence(tx, run_id, &plan).await?;
+            workflow_digest(&serde_json::json!([
+                plan.digest,
+                integration_sha,
+                prior_evidence
+            ]))?
+        } else {
+            workflow_digest(&serde_json::json!([plan.digest, integration_sha]))?
+        }
+    } else if scope == "correction" {
+        if status != "approved" {
+            bail!("only an approved workflow can request an execution correction");
+        }
+        super::workflow_correction_evidence::correction_evidence(tx, run_id, revision).await?
     } else if let Some(integration_id) = scope.strip_prefix("integration:") {
         uuid::Uuid::parse_str(integration_id)
             .map_err(|_| anyhow!("invalid workflow integration correction scope"))?;

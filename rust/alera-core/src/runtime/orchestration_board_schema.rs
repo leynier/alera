@@ -31,6 +31,11 @@ impl RuntimeStore {
             "workflowWorkspaces",
             "workflowIntegrations",
             "workflowLaunches",
+            "workflowExecution",
+            "workflowExecutionIssues",
+            "workflowCancellationTargets",
+            "workflowCleanup",
+            "workflowCleanupResources",
         ] {
             for operation in ["INSERT", "UPDATE", "DELETE"] {
                 sqlx::query(sqlx::AssertSqlSafe(format!(
@@ -90,6 +95,7 @@ const BOARD_SCHEMA: &[&str] = &[
          w.projectId AS project_id, substr(p.name, 1, 256) AS project_name,
          r.created_at, r.last_activity_at,
          r.execution_policy_status AS policy_status,
+         workflow.revision AS workflow_revision, workflow.status AS workflow_status,
          COALESCE(t.task_count, 0) AS task_count,
          COALESCE(t.completed_count, 0) AS completed_count,
          COALESCE(t.running_count, 0) AS running_count,
@@ -97,14 +103,27 @@ const BOARD_SCHEMA: &[&str] = &[
          COALESCE(t.stalled_count, 0) AS stalled_count,
          COALESCE(t.blocked_count, 0) AS blocked_count,
          COALESCE(g.pending_gate_count, 0) AS pending_gate_count,
+         EXISTS(SELECT 1 FROM workflowCleanup WHERE run_id=r.id AND abandoned=0 AND state='attention') AS cleanup_attention,
+         EXISTS(SELECT 1 FROM workflowCleanup WHERE run_id=r.id AND abandoned=0 AND state='applying') AS cleanup_applying,
          CASE
+             WHEN EXISTS(SELECT 1 FROM workflowCleanup WHERE run_id=r.id AND abandoned=0 AND state='attention') THEN 'attention'
+             WHEN EXISTS(SELECT 1 FROM workflowCleanup WHERE run_id=r.id AND abandoned=0 AND state='applying') THEN 'active'
+             WHEN workflow.status = 'cancelled' AND EXISTS(SELECT 1 FROM workflowIntegrations
+                 WHERE run_id=r.id AND cancelled=0 AND state='attention') THEN 'attention'
+             WHEN workflow.status = 'cancelled' AND EXISTS(SELECT 1 FROM workflowIntegrations
+                 WHERE run_id=r.id AND cancelled=0 AND state IN ('pending','prepared')) THEN 'active'
              WHEN r.status IN ('completed','stopped') THEN 'history'
+             WHEN workflow.status = 'cancelled' AND EXISTS(SELECT 1 FROM workflowCancellationTargets
+                 WHERE run_id=r.id AND state='attention') THEN 'attention'
+             WHEN workflow.status = 'cancelled' THEN 'active'
              WHEN r.status = 'failed'
                  OR r.execution_policy_status IN ('draft','rejected')
                  OR COALESCE(t.failed_count, 0) > 0
                  OR COALESCE(t.stalled_count, 0) > 0
                  OR COALESCE(t.blocked_count, 0) > 0
                  OR COALESCE(g.pending_gate_count, 0) > 0
+                 OR EXISTS(SELECT 1 FROM workflowExecutionIssues i JOIN workflowExecution e ON e.run_id=i.run_id
+                     WHERE i.run_id=r.id AND i.revision=e.revision AND i.sequence=e.sequence)
                  OR EXISTS(SELECT 1 FROM workflowLaunches l JOIN workflowRuns wr ON wr.run_id = l.run_id
                      WHERE l.run_id = r.id AND l.revision = wr.revision AND l.status = 'attention'
                        AND NOT EXISTS(SELECT 1 FROM workflowTaskEvidence e WHERE e.task_id = l.task_id)
@@ -115,7 +134,7 @@ const BOARD_SCHEMA: &[&str] = &[
                              AND newer.attempt > (SELECT attempt FROM workflowWorkspaces
                                  WHERE id = l.workspace_id)))
                  OR EXISTS(SELECT 1 FROM workflowIntegrations i JOIN workflowRuns wr ON wr.run_id = i.run_id
-                     WHERE i.run_id = r.id AND i.state IN ('conflict','attention')
+                     WHERE i.run_id = r.id AND i.cancelled=0 AND i.state IN ('conflict','attention')
                        AND (i.state = 'attention' OR i.revision = wr.revision)
                        AND NOT EXISTS(SELECT 1 FROM workflowTaskEvidence e WHERE e.task_id = i.task_id))
                  OR EXISTS(SELECT 1 FROM workflowIntegrations i JOIN workflowRuns wr ON wr.run_id = i.run_id
@@ -130,6 +149,7 @@ const BOARD_SCHEMA: &[&str] = &[
              ELSE 'active'
          END AS bucket
      FROM orchestrationCoordinatorRuns r
+     LEFT JOIN workflowRuns workflow ON workflow.run_id = r.id
      LEFT JOIN tasks t ON t.run_id = r.id
      LEFT JOIN gates g ON g.run_id = r.id
      LEFT JOIN workspaces w ON w.id = r.workspace_id

@@ -7,7 +7,9 @@ use serde_json::{json, Value};
 use crate::cli::RuntimeDirArgs;
 use crate::cli_workflow_plans::{WorkflowPlansAction, WorkflowPlansArgs};
 use crate::orchestration_commands::request_value_with_capability;
-use crate::terminal_host::protocol::RUNTIME_HOST_WORKFLOW_PLANS_CAPABILITY;
+use crate::terminal_host::protocol::{
+    RUNTIME_HOST_WORKFLOW_LIFECYCLE_CAPABILITY, RUNTIME_HOST_WORKFLOW_PLANS_CAPABILITY,
+};
 
 pub(crate) async fn run_workflow_plans(runtime: &RuntimeDirArgs, args: WorkflowPlansArgs) -> i32 {
     let (verb, payload) = match request_payload(args.action) {
@@ -19,7 +21,11 @@ pub(crate) async fn run_workflow_plans(runtime: &RuntimeDirArgs, args: WorkflowP
     };
     match request_value_with_capability(
         runtime,
-        RUNTIME_HOST_WORKFLOW_PLANS_CAPABILITY,
+        if matches!(verb, "workflows.proposal" | "workflows.submitProposal") {
+            RUNTIME_HOST_WORKFLOW_LIFECYCLE_CAPABILITY
+        } else {
+            RUNTIME_HOST_WORKFLOW_PLANS_CAPABILITY
+        },
         verb,
         payload,
         Some(30_000),
@@ -42,29 +48,49 @@ pub(crate) async fn run_workflow_plans(runtime: &RuntimeDirArgs, args: WorkflowP
 
 fn request_payload(action: WorkflowPlansAction) -> Result<(&'static str, Value)> {
     match action {
+        WorkflowPlansAction::Proposal { id } => Ok(("workflows.proposal", json!({"id": id}))),
+        WorkflowPlansAction::SubmitProposal {
+            id,
+            document,
+            stdin,
+        } => {
+            let document = read_document(document, stdin)?;
+            let tasks: Vec<alera_core::runtime::WorkflowPlanTask> = serde_json::from_str(&document)
+                .map_err(|_| anyhow::anyhow!("invalid workflow proposal task array"))?;
+            let document = serde_json::to_string(&json!({"id": id, "tasks": tasks}))?;
+            if document.len() > WORKFLOW_PLAN_MAX_BYTES {
+                bail!("workflow proposal exceeds the byte limit");
+            }
+            Ok(("workflows.submitProposal", json!({"document": document})))
+        }
         WorkflowPlansAction::Show { run, revision } => Ok((
             "workflows.plan",
             json!({"runId": run, "revision": revision}),
         )),
         WorkflowPlansAction::Prepare { document, stdin } => {
-            let document = if stdin {
-                let mut bytes = Vec::new();
-                std::io::stdin()
-                    .lock()
-                    .take((WORKFLOW_PLAN_MAX_BYTES + 1) as u64)
-                    .read_to_end(&mut bytes)?;
-                String::from_utf8(bytes)?
-            } else {
-                document.unwrap_or_default()
-            };
-            if document.len() > WORKFLOW_PLAN_MAX_BYTES {
-                bail!("workflow plan exceeds the byte limit");
-            }
+            let document = read_document(document, stdin)?;
             serde_json::from_str::<PrepareWorkflowPlan>(&document)
                 .map_err(|_| anyhow::anyhow!("invalid workflow plan document"))?;
             Ok(("workflows.preparePlan", json!({"document": document})))
         }
     }
+}
+
+fn read_document(document: Option<String>, stdin: bool) -> Result<String> {
+    let document = if stdin {
+        let mut bytes = Vec::new();
+        std::io::stdin()
+            .lock()
+            .take((WORKFLOW_PLAN_MAX_BYTES + 1) as u64)
+            .read_to_end(&mut bytes)?;
+        String::from_utf8(bytes)?
+    } else {
+        document.unwrap_or_default()
+    };
+    if document.len() > WORKFLOW_PLAN_MAX_BYTES {
+        bail!("workflow plan exceeds the byte limit");
+    }
+    Ok(document)
 }
 
 #[cfg(test)]

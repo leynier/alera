@@ -13,6 +13,14 @@ import 'package:alera/src/features/orchestration/presentation/run_board_list.dar
 import 'package:alera/src/features/orchestration/presentation/run_board_read_state.dart';
 import 'package:alera/src/features/orchestration/presentation/run_board_workspace_actions.dart';
 import 'package:alera/src/features/orchestration/presentation/run_task_inspector.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_integration_retry_control.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_retry_control.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_cleanup_page.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_review_page.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_correction_page.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_run_control_section.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_new_run_page.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_proposal_page.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -127,7 +135,19 @@ class RunBoardPage extends ConsumerWidget {
       ),
     );
     final empty = data?.data.items.isEmpty ?? false;
-    final detail = location.runId == null
+    final detail = location.newRun
+        ? WorkflowNewRunPage(
+            onCreated: navigation.selectProposal,
+            onBack: () => navigation.selectRun(null),
+          )
+        : location.proposalId != null
+        ? WorkflowProposalPage(
+            key: ValueKey(location.proposalId),
+            id: location.proposalId!,
+            onBack: () => navigation.selectRun(null),
+            onOpenRun: navigation.selectRun,
+          )
+        : location.runId == null
         ? data == null
               ? RunBoardReadState(
                   error: page.error,
@@ -176,6 +196,10 @@ class RunBoardPage extends ConsumerWidget {
                   'Run Board',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
+                FilledButton(
+                  onPressed: navigation.createRun,
+                  child: const Text('New Run'),
+                ),
                 TextButton.icon(
                   onPressed: onReturnToWorkspace ?? navigation.close,
                   icon: const Icon(AleraIcons.back),
@@ -208,7 +232,11 @@ class RunBoardPage extends ConsumerWidget {
                   final scale = MediaQuery.textScalerOf(context).scale(1);
                   if (constraints.maxWidth <
                       AleraTokens.wideContentBreakpoint * scale) {
-                    return location.runId == null ? master() : detail;
+                    return location.runId == null &&
+                            !location.newRun &&
+                            location.proposalId == null
+                        ? master()
+                        : detail;
                   }
                   return AleraMasterDetail(
                     masterTitle: 'Runs',
@@ -234,6 +262,20 @@ class _RunBoardSelection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final navigation = ref.read(runBoardNavigationProvider.notifier);
     final selectedTask = taskId;
+    final correctionRevision = ref.watch(
+      runBoardNavigationProvider.select(
+        (location) => location.correctionRevision,
+      ),
+    );
+    if (correctionRevision != null) {
+      return WorkflowCorrectionPage(
+        key: ValueKey('correction:$runId:$correctionRevision'),
+        runId: runId,
+        revision: correctionRevision,
+        onBack: () => navigation.review(null),
+        onCreated: navigation.selectProposal,
+      );
+    }
     if (selectedTask != null) {
       final provider = runTaskInspectionPageProvider(runId, selectedTask);
       final page = ref.watch(provider);
@@ -251,6 +293,34 @@ class _RunBoardSelection extends ConsumerWidget {
           task.workflow?.executionWorkspaceId ?? task.workspaceId;
       return RunTaskInspector(
         task: task,
+        retryControl:
+            task.workflow?.canRetryIntegration == true &&
+                task.workflow?.integrationId != null &&
+                task.workflow?.integrationRequestId != null &&
+                task.workflow?.planRevision != null
+            ? WorkflowIntegrationRetryControl(
+                key: ValueKey(
+                  'integration-retry:${task.workflow!.integrationId}',
+                ),
+                integrationId: task.workflow!.integrationId!,
+                requestId: task.workflow!.integrationRequestId!,
+                runId: runId,
+                taskId: selectedTask,
+                revision: task.workflow!.planRevision!,
+                workspaceId: executionWorkspaceId,
+                onSettled: () => ref.invalidate(provider),
+              )
+            : task.workflow?.canRetry == true &&
+                  task.workflow?.planRevision != null
+            ? WorkflowRetryControl(
+                key: ValueKey('retry:$selectedTask:$executionWorkspaceId'),
+                runId: runId,
+                taskId: selectedTask,
+                revision: task.workflow!.planRevision!,
+                workspaceId: executionWorkspaceId,
+                onPrepared: () => ref.invalidate(provider),
+              )
+            : null,
         history: data.data.history,
         onBack: () => navigation.selectTask(null),
         onOpenWorkspace: runBoardWorkspaceAction(
@@ -296,8 +366,55 @@ class _RunBoardSelection extends ConsumerWidget {
         () => navigation.selectRun(null),
       );
     }
+    final reviewScope = ref.watch(
+      runBoardNavigationProvider.select((location) => location.reviewScope),
+    );
+    final workflowRevision = data.data.run.workflowRevision;
+    final cleanup = ref.watch(
+      runBoardNavigationProvider.select(
+        (location) => (location.cleanupOpen, location.cleanupId),
+      ),
+    );
+    if (cleanup.$1 && workflowRevision != null) {
+      return WorkflowCleanupPage(
+        key: ValueKey('cleanup:$runId'),
+        runId: runId,
+        initialCleanupId: cleanup.$2,
+        allowPrepare: {
+          'completed',
+          'cancelled',
+        }.contains(data.data.run.workflowStatus),
+        onBack: navigation.closeCleanup,
+        onSelected: navigation.openCleanup,
+      );
+    }
+    if (reviewScope != null && workflowRevision != null) {
+      return WorkflowReviewPage(
+        key: ValueKey('review:$runId:$reviewScope'),
+        runId: runId,
+        revision: workflowRevision,
+        scope: reviewScope,
+        onBack: () => navigation.review(null),
+        onInspectTask: navigation.selectTask,
+      );
+    }
     return RunBoardDetail(
       snapshot: data.data,
+      onCleanup: workflowRevision == null ? null : navigation.openCleanup,
+      workflowControls: workflowRevision == null
+          ? null
+          : WorkflowRunControlSection(
+              key: ValueKey('controls:$runId:$workflowRevision'),
+              runId: runId,
+              revision: workflowRevision,
+              onReview: navigation.review,
+              onCorrection: () =>
+                  navigation.prepareCorrection(workflowRevision),
+            ),
+      onReviewPlan:
+          workflowRevision != null && data.data.run.workflowStatus == 'prepared'
+          ? () => navigation.review('plan')
+          : null,
       onTask: navigation.selectTask,
       onBack: () => navigation.selectRun(null),
       onOpenWorkspace: runBoardWorkspaceAction(

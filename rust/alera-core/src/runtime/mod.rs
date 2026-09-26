@@ -137,10 +137,47 @@ mod workbench_shared_state_store;
 mod workbench_shared_state_store_tests;
 mod workflow_approval_store;
 mod workflow_builtins;
+mod workflow_cancellation;
 mod workflow_catalog;
 mod workflow_catalog_store;
 #[cfg(test)]
 mod workflow_catalog_tests;
+mod workflow_cleanup;
+mod workflow_cleanup_abandon;
+mod workflow_cleanup_catalog;
+mod workflow_cleanup_claim;
+mod workflow_cleanup_status;
+#[cfg(test)]
+mod workflow_cleanup_tests;
+mod workflow_coordinator;
+pub use workflow_cleanup::{WorkflowCleanupItem, WorkflowCleanupPreview};
+pub use workflow_cleanup_catalog::{
+    WorkflowCleanupPage, WorkflowCleanupQuery, WorkflowCleanupResource, WorkflowCleanupSummary,
+};
+pub use workflow_cleanup_claim::WorkflowCleanupClaim;
+pub use workflow_cleanup_status::{WorkflowCleanupState, WorkflowCleanupStatus};
+mod workflow_proposal_cancellation;
+pub use workflow_proposal_cancellation::WorkflowProposalCancellation;
+mod workflow_correction;
+mod workflow_correction_evidence;
+#[cfg(test)]
+mod workflow_correction_review_tests;
+pub use workflow_correction::{CreateWorkflowCorrection, WorkflowCorrectionContext};
+#[cfg(test)]
+mod workflow_coordinator_tests;
+#[cfg(test)]
+mod workflow_correction_tests;
+mod workflow_execution;
+pub use workflow_cancellation::{WorkflowCancellationTarget, WorkflowTerminalShutdownState};
+mod workflow_run_controls;
+#[cfg(test)]
+mod workflow_run_controls_tests;
+pub use workflow_run_controls::{WorkflowRunControls, WorkflowStageControl};
+mod workflow_execution_completion;
+mod workflow_execution_step;
+#[cfg(test)]
+mod workflow_execution_step_tests;
+pub use workflow_execution_step::WorkflowExecutionStep;
 mod workflow_export;
 #[cfg(test)]
 mod workflow_export_tests;
@@ -148,6 +185,7 @@ mod workflow_gate_evidence;
 #[cfg(test)]
 mod workflow_gate_tests;
 mod workflow_integration;
+mod workflow_integration_cancellation;
 mod workflow_integration_schema;
 mod workflow_integration_snapshot;
 mod workflow_integration_store;
@@ -172,15 +210,27 @@ mod workflow_plan_tests;
 mod workflow_project_files;
 #[cfg(test)]
 mod workflow_project_files_tests;
+mod workflow_proposal;
+mod workflow_proposal_listing;
+mod workflow_proposal_store;
+#[cfg(test)]
+mod workflow_proposal_tests;
 mod workflow_recipe;
 mod workflow_recipe_compilation;
 #[cfg(test)]
 mod workflow_recipe_tests;
+mod workflow_review;
+#[cfg(test)]
+mod workflow_review_tests;
 mod workflow_schema;
+pub use workflow_execution::{
+    ControlWorkflowExecution, WorkflowExecutionAction, WorkflowExecutionState,
+};
 #[cfg(test)]
 mod workflow_schema_tests;
 mod workflow_setup_report;
 mod workflow_source_identity;
+mod workflow_source_snapshot;
 mod workflow_workspace;
 mod workflow_workspace_eligibility;
 mod workflow_workspace_ownership;
@@ -209,6 +259,7 @@ mod workspace_relocation_location_write;
 mod workspace_relocation_models;
 mod workspace_relocation_preparation;
 mod workspace_relocation_store;
+mod workspace_retirement;
 mod workspace_sleep_store;
 #[cfg(test)]
 mod workspace_sleep_store_tests;
@@ -265,11 +316,16 @@ pub use workbench_shared_state_models::*;
 pub use workflow_approval_store::WorkflowDecisionReceipt;
 pub use workflow_builtins::builtin_workflow_recipes;
 pub use workflow_catalog::{WorkflowCatalog, WorkflowCatalogEntry, WorkflowCatalogRecipe};
+pub use workflow_coordinator::*;
 pub use workflow_export::{WorkflowExportPreview, WorkflowExportRequest};
 pub use workflow_integration::*;
 pub use workflow_launch::*;
 pub use workflow_plan::*;
+pub use workflow_proposal::*;
+pub use workflow_proposal_listing::*;
 pub use workflow_recipe::*;
+pub use workflow_review::*;
+pub use workflow_source_snapshot::*;
 pub use workflow_workspace::*;
 pub use workflow_workspace_snapshot::*;
 pub use workflow_yaml::{parse_workflow_yaml, WORKFLOW_DOCUMENT_MAX_BYTES};

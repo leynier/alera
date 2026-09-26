@@ -1,5 +1,30 @@
 use super::*;
 
+pub(super) async fn finish_spawn_validation(
+    actor: &mut ServerActor,
+    commands: &mut tokio::sync::mpsc::UnboundedReceiver<
+        crate::terminal_host::server::ServerCommand,
+    >,
+) {
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        let command = tokio::time::timeout_at(deadline, commands.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        let validated = matches!(
+            &command,
+            crate::terminal_host::server::ServerCommand::WorkflowLaunch(
+                WorkflowLaunchCommand::SpawnValidated(_)
+            )
+        );
+        actor.handle(command).await;
+        if validated {
+            return;
+        }
+    }
+}
+
 async fn reject_after_prepare(
     fixture: &Fixture,
     input: &LaunchWorkflowTask,
@@ -192,7 +217,13 @@ async fn workflow_launch_does_not_spawn_after_claim_is_cancelled() {
     actor.inbox = inbox;
 
     actor
-        .handle_workflow_launch_claimed(1, 1, record.clone(), token, locks, Ok(frozen))
+        .handle_workflow_launch_claimed(
+            WorkflowLaunchReply::Client(1, 1),
+            record.clone(),
+            token,
+            locks,
+            Ok(frozen),
+        )
         .await;
     finish_spawn_validation(&mut actor, &mut commands).await;
 
@@ -253,7 +284,13 @@ async fn workflow_launch_rechecks_attempt_commit_at_spawn_boundary() {
     actor.inbox = inbox;
 
     actor
-        .handle_workflow_launch_claimed(1, 1, record.clone(), token, locks, Ok(frozen))
+        .handle_workflow_launch_claimed(
+            WorkflowLaunchReply::Client(1, 1),
+            record.clone(),
+            token,
+            locks,
+            Ok(frozen),
+        )
         .await;
     finish_spawn_validation(&mut actor, &mut commands).await;
 
@@ -307,7 +344,13 @@ async fn workflow_launch_rechecks_dirty_attempt_at_spawn_boundary() {
     actor.inbox = inbox;
 
     actor
-        .handle_workflow_launch_claimed(1, 1, record.clone(), token, locks, Ok(frozen))
+        .handle_workflow_launch_claimed(
+            WorkflowLaunchReply::Client(1, 1),
+            record.clone(),
+            token,
+            locks,
+            Ok(frozen),
+        )
         .await;
     finish_spawn_validation(&mut actor, &mut commands).await;
 

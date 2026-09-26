@@ -80,6 +80,8 @@ class RunSummary {
     required this.createdAt,
     required this.lastActivityAt,
     required this.policyStatus,
+    this.workflowRevision,
+    this.workflowStatus,
     required this.taskCount,
     required this.completedCount,
     required this.runningCount,
@@ -87,6 +89,8 @@ class RunSummary {
     required this.stalledCount,
     required this.blockedCount,
     required this.pendingGateCount,
+    this.cleanupAttention = false,
+    this.cleanupApplying = false,
     this.workspaceName,
     this.projectId,
     this.projectName,
@@ -104,6 +108,8 @@ class RunSummary {
     createdAt: json['created_at'] as String,
     lastActivityAt: json['last_activity_at'] as String,
     policyStatus: json['policy_status'] as String,
+    workflowRevision: json['workflow_revision'] as int?,
+    workflowStatus: json['workflow_status'] as String?,
     taskCount: json['task_count'] as int,
     completedCount: json['completed_count'] as int,
     runningCount: json['running_count'] as int,
@@ -111,6 +117,8 @@ class RunSummary {
     stalledCount: json['stalled_count'] as int,
     blockedCount: json['blocked_count'] as int,
     pendingGateCount: json['pending_gate_count'] as int,
+    cleanupAttention: json['cleanup_attention'] as bool? ?? false,
+    cleanupApplying: json['cleanup_applying'] as bool? ?? false,
   );
 
   final String id;
@@ -124,6 +132,8 @@ class RunSummary {
   final String createdAt;
   final String lastActivityAt;
   final String policyStatus;
+  final int? workflowRevision;
+  final String? workflowStatus;
   final int taskCount;
   final int completedCount;
   final int runningCount;
@@ -131,6 +141,8 @@ class RunSummary {
   final int stalledCount;
   final int blockedCount;
   final int pendingGateCount;
+  final bool cleanupAttention;
+  final bool cleanupApplying;
 }
 
 class RunBoardSnapshot {

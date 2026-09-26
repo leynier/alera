@@ -57,7 +57,13 @@ async fn workflow_launch_spawn_failure_broadcasts_the_retained_tab() {
     );
 
     actor
-        .handle_workflow_launch_claimed(1, 1, record.clone(), token, locks, Ok(frozen))
+        .handle_workflow_launch_claimed(
+            WorkflowLaunchReply::Client(1, 1),
+            record.clone(),
+            token,
+            locks,
+            Ok(frozen),
+        )
         .await;
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
@@ -130,7 +136,13 @@ async fn workflow_launch_failure_before_tab_insert_does_not_broadcast_tabs() {
     actor.inbox = inbox;
 
     actor
-        .handle_workflow_launch_claimed(1, 1, record.clone(), token, locks, Ok(frozen))
+        .handle_workflow_launch_claimed(
+            WorkflowLaunchReply::Client(1, 1),
+            record.clone(),
+            token,
+            locks,
+            Ok(frozen),
+        )
         .await;
     finish_spawn_validation(&mut actor, &mut commands).await;
 

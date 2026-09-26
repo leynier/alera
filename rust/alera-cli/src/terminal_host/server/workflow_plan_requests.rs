@@ -16,6 +16,12 @@ use crate::terminal_host::protocol::{error_response, ok_response};
 
 use super::{ClientKind, ServerActor, ServerCommand};
 
+#[path = "workflow_coordinator_requests.rs"]
+mod coordinator;
+
+#[path = "workflow_plan_blocking.rs"]
+mod blocking;
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Document {
@@ -44,10 +50,59 @@ struct DecisionQuery {
     proof: Vec<u8>,
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProposalQuery {
+    id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ProposalCancellationRetry {
+    id: String,
+    expected_sequence: i64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ProposalCreation {
+    request: PrepareWorkflowPlan,
+    expected_source: alera_core::runtime::WorkflowSourceWorkspace,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct SourceQuery {
+    workspace_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProposalSubmission {
+    id: String,
+    tasks: Vec<alera_core::runtime::WorkflowPlanTask>,
+}
+
 enum PlanRequest {
+    CleanupResources(alera_core::runtime::WorkflowCleanupQuery),
+    Cleanups(alera_core::runtime::WorkflowCleanupQuery),
+    PreviewCleanup(String),
+    CleanupStatus(ProposalQuery),
+    Execution(PlanQuery),
+    ControlExecution(String),
+    CreateCorrection(String),
+    Proposals(alera_core::runtime::WorkflowProposalQuery),
+    Source(SourceQuery),
+    CreateProposal(String),
+    Proposal(ProposalQuery),
+    ProposalStatus(ProposalQuery),
+    CancelProposal(ProposalQuery),
+    RetryProposalCancellation(ProposalCancellationRetry),
+    SubmitProposal(String),
     Prepare(String),
     Get(PlanQuery),
     Challenge(ChallengeQuery),
+    Review(ChallengeQuery),
     Decide(String),
 }
 
@@ -70,11 +125,33 @@ impl ServerActor {
             ));
         }
         let request = match request_type {
+            "workflows.cleanupResources" => PlanRequest::CleanupResources(parse(payload)?),
+            "workflows.cleanups" => PlanRequest::Cleanups(parse(payload)?),
+            "workflows.previewCleanup" => PlanRequest::PreviewCleanup(document(payload, 8192)?),
+            "workflows.cleanupStatus" => PlanRequest::CleanupStatus(parse(payload)?),
+            "workflows.execution" => PlanRequest::Execution(parse(payload)?),
+            "workflows.controlExecution" => PlanRequest::ControlExecution(document(payload, 4096)?),
+            "workflows.createCorrection" => PlanRequest::CreateCorrection(document(payload, 8192)?),
+            "workflows.proposals" => PlanRequest::Proposals(parse(payload)?),
+            "workflows.source" => PlanRequest::Source(parse(payload)?),
+            "workflows.createProposal" => {
+                PlanRequest::CreateProposal(document(payload, WORKFLOW_PLAN_MAX_BYTES)?)
+            }
+            "workflows.proposal" => PlanRequest::Proposal(parse(payload)?),
+            "workflows.proposalStatus" => PlanRequest::ProposalStatus(parse(payload)?),
+            "workflows.cancelProposal" => PlanRequest::CancelProposal(parse(payload)?),
+            "workflows.retryProposalCancellation" => {
+                PlanRequest::RetryProposalCancellation(parse(payload)?)
+            }
+            "workflows.submitProposal" => {
+                PlanRequest::SubmitProposal(document(payload, WORKFLOW_PLAN_MAX_BYTES)?)
+            }
             "workflows.preparePlan" => {
                 PlanRequest::Prepare(document(payload, WORKFLOW_PLAN_MAX_BYTES)?)
             }
             "workflows.plan" => PlanRequest::Get(parse(payload)?),
             "workflows.approvalChallenge" => PlanRequest::Challenge(parse(payload)?),
+            "workflows.review" => PlanRequest::Review(parse(payload)?),
             "workflows.decide" => {
                 PlanRequest::Decide(document(payload, APPROVAL_MESSAGE_MAX_BYTES + 256)?)
             }
@@ -96,9 +173,102 @@ impl ServerActor {
         let client = client.handle.clone();
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
-            let _permit = permit;
+            let permit = Arc::new(permit);
             let result = tokio::time::timeout(Duration::from_secs(25), async {
                 match request {
+                    PlanRequest::CleanupResources(query) => {
+                        let runtime = tokio::runtime::Handle::current();
+                        blocking::spawn(permit.clone(), move || runtime.block_on(async {
+                            serde_json::to_value(store.workflow_cleanup_resources(&query).await?).map_err(anyhow::Error::from)
+                        })).await.map_err(state)?.map_err(state)
+                    }
+                    PlanRequest::Cleanups(query) => {
+                        let runtime = tokio::runtime::Handle::current();
+                        blocking::spawn(permit.clone(), move || runtime.block_on(async {
+                            serde_json::to_value(store.workflow_cleanups(&query).await?).map_err(anyhow::Error::from)
+                        })).await.map_err(state)?.map_err(state)
+                    }
+                    PlanRequest::PreviewCleanup(document) => {
+                        let runtime = tokio::runtime::Handle::current();
+                        blocking::spawn(permit.clone(), move || runtime.block_on(async {
+                            let selection = serde_json::from_str(&document)?;
+                            serde_json::to_value(crate::managed_workspace::workflow::cleanup_preview::preview(&store, selection).await?).map_err(anyhow::Error::from)
+                        })).await.map_err(state)?.map_err(state)
+                    }
+                    PlanRequest::CleanupStatus(query) => {
+                        let runtime = tokio::runtime::Handle::current();
+                        blocking::spawn(permit.clone(), move || runtime.block_on(async {
+                            serde_json::to_value(store.workflow_cleanup_status(&query.id).await?).map_err(anyhow::Error::from)
+                        })).await.map_err(state)?.map_err(state)
+                    }
+                    PlanRequest::CancelProposal(query) => serde_json::to_value(store.cancel_workflow_proposal(&query.id).await.map_err(state)?).map_err(state),
+                    PlanRequest::RetryProposalCancellation(query) => serde_json::to_value(store.retry_workflow_proposal_cancellation(&query.id, query.expected_sequence).await.map_err(state)?).map_err(state),
+                    PlanRequest::Execution(query) => {
+                        let runtime=tokio::runtime::Handle::current();
+                        blocking::spawn(permit.clone(), move || runtime.block_on(async {
+                            serde_json::to_value(store.workflow_run_controls(&query.run_id,query.revision).await?).map_err(anyhow::Error::from)
+                        })).await.map_err(state)?.map_err(state)
+                    }
+                    PlanRequest::ControlExecution(document) => {
+                        let request = serde_json::from_str(&document)
+                            .map_err(|_| HostError::format("invalid workflow execution command"))?;
+                        Ok(serde_json::json!({"execution":store.control_workflow_execution(&request).await.map_err(state)?}))
+                    }
+                    PlanRequest::CreateCorrection(document) => {
+                        let runtime=tokio::runtime::Handle::current();
+                        blocking::spawn(permit.clone(), move || runtime.block_on(async {
+                            let request=serde_json::from_str(&document).map_err(|_|HostError::format("invalid workflow correction document"))?;
+                            serde_json::to_value(store.create_workflow_correction(request,validate_profile).await.map_err(state)?).map_err(state)
+                        })).await.map_err(state)?
+                    }
+                    PlanRequest::Proposals(query) => {
+                        serde_json::to_value(store.workflow_proposals(query).await.map_err(state)?)
+                            .map_err(state)
+                    }
+                    PlanRequest::Source(query) => serde_json::to_value(
+                        store
+                            .workflow_source_snapshot(&query.workspace_id)
+                            .await
+                            .map_err(state)?,
+                    )
+                    .map_err(state),
+                    PlanRequest::CreateProposal(document) => {
+                        let input: ProposalCreation = serde_json::from_str(&document)
+                            .map_err(|_| HostError::format("invalid workflow proposal document"))?;
+                        serde_json::to_value(
+                            store
+                                .create_workflow_proposal_at_source(
+                                    input.request,
+                                    validate_profile,
+                                    Some(input.expected_source),
+                                )
+                                .await
+                                .map_err(state)?,
+                        )
+                        .map_err(state)
+                    }
+                    PlanRequest::Proposal(query) => serde_json::to_value(
+                        store.workflow_proposal(&query.id).await.map_err(state)?,
+                    )
+                    .map_err(state),
+                    PlanRequest::ProposalStatus(query) => serde_json::to_value(
+                        store
+                            .workflow_proposal_status(&query.id)
+                            .await
+                            .map_err(state)?,
+                    )
+                    .map_err(state),
+                    PlanRequest::SubmitProposal(document) => {
+                        let request: ProposalSubmission = serde_json::from_str(&document)
+                            .map_err(|_| HostError::format("invalid workflow proposal tasks"))?;
+                        serde_json::to_value(
+                            store
+                                .submit_workflow_proposal(&request.id, request.tasks)
+                                .await
+                                .map_err(state)?,
+                        )
+                        .map_err(state)
+                    }
                     PlanRequest::Prepare(document) => {
                         let request: PrepareWorkflowPlan = serde_json::from_str(&document)
                             .map_err(|_| HostError::format("invalid workflow plan document"))?;
@@ -129,13 +299,20 @@ impl ServerActor {
                             .map_err(state)?,
                     )
                     .map_err(state),
+                    PlanRequest::Review(query) => serde_json::to_value(
+                        store
+                            .workflow_review(&query.run_id, query.revision, &query.scope, &audience)
+                            .await
+                            .map_err(state)?,
+                    )
+                    .map_err(state),
                     PlanRequest::Decide(document) => {
                         let input: DecisionQuery = serde_json::from_str(&document)
                             .map_err(|_| HostError::format("invalid workflow decision"))?;
                         if input.proof.len() != 32 {
                             return Err(HostError::state("desktop workflow authorization failed"));
                         }
-                        let verified = tokio::task::spawn_blocking(move || {
+                        let verified = blocking::spawn(permit.clone(), move || {
                             DesktopWorkflowCredential::load_or_create(&runtime_dir)?
                                 .verify(input.statement, &input.proof)
                         })
@@ -186,6 +363,26 @@ fn document(payload: &Value, limit: usize) -> HostResult<String> {
 }
 
 fn parse<T: serde::de::DeserializeOwned>(payload: &Value) -> HostResult<T> {
+    if payload.as_object().is_none_or(|fields| {
+        fields.len() > 3
+            || fields.iter().any(|(key, value)| {
+                key.len() > 32
+                    || match value {
+                        Value::String(text) => {
+                            text.len()
+                                > if key == "document" {
+                                    WORKFLOW_PLAN_MAX_BYTES
+                                } else {
+                                    160
+                                }
+                        }
+                        Value::Null | Value::Number(_) => false,
+                        _ => true,
+                    }
+            })
+    }) {
+        return Err(HostError::format("invalid or oversized workflow request"));
+    }
     serde_json::from_value(payload.clone())
         .map_err(|_| HostError::format("invalid workflow request"))
 }

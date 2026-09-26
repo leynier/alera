@@ -20,6 +20,7 @@ pub enum WorkflowIntegrationState {
     Integrated,
     Conflict,
     Attention,
+    Cancelled,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

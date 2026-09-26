@@ -129,6 +129,16 @@ pub fn verify_workflow_worktree_tip(
     base_sha: &str,
     id: &str,
 ) -> Result<String, GitError> {
+    inspect_workflow_worktree_tip(repo_path, path, base_sha, id, true)
+}
+
+pub(super) fn inspect_workflow_worktree_tip(
+    repo_path: &str,
+    path: &str,
+    base_sha: &str,
+    id: &str,
+    persist_receipt: bool,
+) -> Result<String, GitError> {
     uuid::Uuid::parse_str(id).map_err(|_| invalid("invalid workflow resource id"))?;
     let repo = open_repo(repo_path)?;
     let reference_name = format!("refs/heads/alera/workflows/{id}");
@@ -173,7 +183,9 @@ pub fn verify_workflow_worktree_tip(
             "workflow branch no longer descends from its reserved base",
         ));
     }
-    ownership.persist(&repo)?;
+    if persist_receipt {
+        ownership.persist(&repo)?;
+    }
     Ok(tip.to_string())
 }
 

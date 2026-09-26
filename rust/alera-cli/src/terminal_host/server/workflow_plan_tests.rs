@@ -11,14 +11,69 @@ use super::client_delivery::LocalClientRole;
 use crate::terminal_host::client::ClientHandle;
 
 #[tokio::test]
+async fn workflow_plan_rpc_rejects_unbounded_source_queries_before_queueing() {
+    let dir = tempfile::tempdir().unwrap();
+    let (handle, _responses) = ClientHandle::test_channels();
+    let actor = test_actor(
+        &dir,
+        HashMap::from([(1, local_client(handle))]),
+        HashMap::new(),
+    )
+    .await;
+    for payload in [
+        json!({"workspaceId": "x".repeat(161)}),
+        json!({"workspaceId": {"nested": []}}),
+        json!({"workspaceId":"workspace","extra":true}),
+        json!({"workspaceId": []}),
+    ] {
+        assert!(actor
+            .start_workflow_plan_request(1, 1, "workflows.source", &payload)
+            .is_err());
+    }
+    for payload in [
+        json!({"document":"x".repeat(8193)}),
+        json!({"document": {"reason":"fix"}}),
+        json!({"document":"{}","actor":"app"}),
+    ] {
+        assert!(actor
+            .start_workflow_plan_request(1, 1, "workflows.createCorrection", &payload)
+            .is_err());
+    }
+    for payload in [
+        json!({"document":"x".repeat(4097)}),
+        json!({"document": {"action":"start"}}),
+        json!({"document":"{}","actor":"app"}),
+    ] {
+        assert!(actor
+            .start_workflow_plan_request(1, 1, "workflows.controlExecution", &payload)
+            .is_err());
+    }
+}
+
+#[tokio::test]
 async fn workflow_plan_rpc_rejects_mobile_and_unauthenticated_clients() {
     let dir = tempfile::tempdir().unwrap();
     let (handle, _rx) = ClientHandle::test_channels();
     let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
     for verb in [
         "workflows.preparePlan",
+        "workflows.execution",
+        "workflows.controlExecution",
+        "workflows.createCorrection",
+        "workflows.source",
         "workflows.plan",
         "workflows.approvalChallenge",
+        "workflows.review",
+        "workflows.createProposal",
+        "workflows.proposal",
+        "workflows.proposalStatus",
+        "workflows.cleanupStatus",
+        "workflows.cleanupResources",
+        "workflows.cleanups",
+        "workflows.previewCleanup",
+        "workflows.cancelProposal",
+        "workflows.retryProposalCancellation",
+        "workflows.submitProposal",
         "workflows.decide",
     ] {
         assert!(actor

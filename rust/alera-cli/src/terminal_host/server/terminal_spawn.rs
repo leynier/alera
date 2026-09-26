@@ -19,6 +19,8 @@ use super::ServerActor;
 const DEFAULT_TERMINAL_COLS: u16 = 80;
 const DEFAULT_TERMINAL_ROWS: u16 = 24;
 
+mod tab_spawn;
+
 impl ServerActor {
     pub(super) async fn reconcile_spawn_on_create_tabs(&mut self) {
         let workspaces = match self.runtime_store.list_all_workspaces().await {
@@ -66,40 +68,6 @@ impl ServerActor {
         }
     }
 
-    pub(super) async fn upsert_workspace_tab_and_spawn(
-        &mut self,
-        mut tab: WorkspaceTabRecord,
-    ) -> HostResult<WorkspaceTabRecord> {
-        if spawns_on_create(&tab)
-            && self
-                .runtime_store
-                .pending_workspace_checkout_relocation(&tab.workspace_id)
-                .await
-                .map_err(|error| HostError::state(error.to_string()))?
-                .is_some()
-        {
-            return Err(HostError::state(
-                "Recover the checkout relocation before starting this terminal",
-            ));
-        }
-        self.initialize_agent_title_if_new(&mut tab).await?;
-        let saved = self
-            .runtime_store
-            .upsert_workspace_tab(tab)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        let saved = match self.ensure_spawn_on_create_terminal(&saved).await {
-            Ok(rewritten) => rewritten.unwrap_or(saved),
-            Err(error) => {
-                let _ = self.runtime_store.remove_workspace_tab(&saved.id).await;
-                self.terminate_sessions_for_tab(&saved.id).await;
-                return Err(error);
-            }
-        };
-        self.broadcast_workspace_tabs_changed(Some(&saved.workspace_id));
-        Ok(saved)
-    }
-
     /// Spawns the PTY a `spawnOnCreate` tab asks for. Returns the tab record
     /// when spawning rewrote it, which happens for a one-shot initial command.
     pub(super) async fn ensure_spawn_on_create_terminal(
@@ -120,6 +88,16 @@ impl ServerActor {
         }
         let session_id = terminal_session_id(tab);
         if self.sessions.get(&session_id).is_some_and(Session::running) {
+            return Ok(None);
+        }
+        if permit.is_none()
+            && self
+                .runtime_store
+                .workflow_coordinator_for_terminal(&tab.id)
+                .await
+                .map_err(|error| HostError::state(error.to_string()))?
+                .is_some()
+        {
             return Ok(None);
         }
         if permit.is_none()
@@ -267,6 +245,10 @@ impl ServerActor {
     ) -> HostResult<()> {
         self.require_workflow_spawn_permit(&session_id, &workspace_id, &tab_id, permit)
             .await?;
+        self.runtime_store
+            .require_workspace_outside_cleanup(&workspace_id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
         // This is the final owner-creation boundary for client, automation,
         // and orchestration launches. Runtime mutations perform filesystem
         // cleanup concurrently with the actor, so no new terminal owner may

@@ -270,6 +270,8 @@ mod voice_turn_jobs;
 mod workflow_catalog_requests;
 #[cfg(test)]
 mod workflow_catalog_tests;
+mod workflow_cleanup_execution;
+mod workflow_cleanup_requests;
 mod workflow_launch_recovery;
 mod workflow_launch_requests;
 mod workflow_plan_requests;
@@ -357,6 +359,7 @@ struct ServerActor {
     project_clone_jobs: HashMap<String, tokio::sync::oneshot::Sender<()>>,
     agent_title_jobs: HashMap<String, agent_title_generation::AgentTitleJob>,
     managed_workspace_jobs: usize,
+    workflow_execution: workflow_launch_requests::execution::ExecutionPump,
     workflow_workspace_jobs: usize,
     workflow_workspace_recovery_running: bool,
     automation_checkout_jobs: std::collections::HashSet<String>,

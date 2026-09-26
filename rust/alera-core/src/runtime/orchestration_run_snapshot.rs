@@ -82,6 +82,7 @@ impl RuntimeStore {
                 t.status, t.stage_id, t.workspace_id,
                 CASE WHEN length(deps) <= 16384 THEN deps END AS deps
                 ,CASE WHEN p.task_id IS NULL THEN NULL
+                  WHEN i.cancelled=1 THEN 'cancelled'
                   WHEN i.state = 'integrated' AND e.task_id IS NOT NULL THEN 'integrated'
                   WHEN i.state = 'integrated' THEN 'attention'
                   WHEN i.state = 'conflict' AND i.error IS NOT NULL THEN 'refused'

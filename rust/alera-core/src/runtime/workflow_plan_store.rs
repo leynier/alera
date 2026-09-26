@@ -147,6 +147,8 @@ impl RuntimeStore {
             tx.commit().await?;
             return self.workflow_plan_revision(&run_id, Some(revision)).await;
         }
+        super::workflow_proposal_cancellation::require_open_proposal(&mut tx, &request.request_id)
+            .await?;
         let run_id = request
             .run_id
             .clone()
@@ -190,6 +192,7 @@ impl RuntimeStore {
             .bind(&run_id)
             .execute(&mut *tx)
             .await?;
+            super::workflow_execution::pause_for_revision(&mut tx, &run_id, expected + 1).await?;
             expected + 1
         } else {
             sqlx::query(
@@ -225,8 +228,8 @@ impl RuntimeStore {
         }
         sqlx::query(
             "INSERT INTO workflowPlanRevisions
-            (run_id, revision, request_id, request_digest, snapshot, digest, previous_revision)
-            VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (run_id, revision, request_id, request_digest, snapshot, digest, previous_revision, change_reason)
+            VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT json_extract(document,'$.correction.reason') FROM workflowProposalDrafts WHERE id=?))",
         )
         .bind(&run_id)
         .bind(revision)
@@ -235,6 +238,7 @@ impl RuntimeStore {
         .bind(serde_json::to_string(plan)?)
         .bind(&plan.digest)
         .bind(request.expected_revision)
+        .bind(&request.request_id)
         .execute(&mut *tx)
         .await?;
         sqlx::query(

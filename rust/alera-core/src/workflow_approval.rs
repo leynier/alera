@@ -29,7 +29,7 @@ pub struct WorkflowApprovalChallenge {
     pub audience: String,
     pub run_id: String,
     pub revision: i64,
-    /// "plan", "stage:<exact recipe stage id>", or "integration:<terminal receipt id>".
+    /// "plan", "correction", "stage:<exact recipe stage id>", or "integration:<terminal receipt id>".
     pub scope: String,
     pub plan_digest: String,
     pub evidence_digest: String,

@@ -13,12 +13,18 @@ class RunBoardDetail extends StatelessWidget {
     required this.onTask,
     required this.onBack,
     this.onOpenWorkspace,
+    this.onReviewPlan,
+    this.onCleanup,
+    this.workflowControls,
     required this.footer,
   });
   final RunSnapshot snapshot;
   final ValueChanged<String> onTask;
   final VoidCallback onBack;
   final VoidCallback? onOpenWorkspace;
+  final VoidCallback? onReviewPlan;
+  final VoidCallback? onCleanup;
+  final Widget? workflowControls;
   final Widget footer;
   @override
   Widget build(BuildContext context) {
@@ -43,7 +49,18 @@ class RunBoardDetail extends StatelessWidget {
       padding: const EdgeInsets.all(AleraTokens.space16),
       itemCount: rows.length + 2,
       itemBuilder: (context, index) {
-        if (index == 0) return _header(context);
+        if (index == 0) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _header(context),
+              if (workflowControls != null) ...[
+                const SizedBox(height: AleraTokens.space16),
+                workflowControls!,
+              ],
+            ],
+          );
+        }
         if (index == rows.length + 1) return footer;
         final row = rows[index - 1];
         if (row is String) {
@@ -89,10 +106,33 @@ class RunBoardDetail extends StatelessWidget {
               icon: const Icon(AleraIcons.folderOpen),
               label: const Text('Open Workspace'),
             ),
+            if (onCleanup != null)
+              OutlinedButton(
+                onPressed: onCleanup,
+                child: const Text('Manage Resources'),
+              ),
           ],
         ),
         const SizedBox(height: AleraTokens.space16),
+        if (onReviewPlan != null) ...[
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton(
+              onPressed: onReviewPlan,
+              child: const Text('Review Plan'),
+            ),
+          ),
+          const SizedBox(height: AleraTokens.space12),
+        ],
         Text('Run Overview', style: Theme.of(context).textTheme.titleLarge),
+        if (run.cleanupAttention || run.cleanupApplying) ...[
+          const SizedBox(height: AleraTokens.space12),
+          Text(
+            run.cleanupAttention
+                ? 'Resource cleanup needs attention. Open Manage Resources to inspect its receipt and retry after resolving the obstruction.'
+                : 'Resource cleanup is in progress. Open Manage Resources to inspect its durable progress.',
+          ),
+        ],
         const SizedBox(height: AleraTokens.space12),
         Wrap(
           spacing: AleraTokens.space8,

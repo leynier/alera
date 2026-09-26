@@ -59,6 +59,20 @@ pub(super) async fn materialize(
         .bind(&challenge.run_id)
         .execute(&mut **tx)
         .await?;
+    // Desktop proposals require an explicit Start after approval. Existing
+    // low-level prepared plans keep their independently managed launch flow.
+    sqlx::query(
+        "INSERT INTO workflowExecution(run_id,revision,sequence,status)
+        SELECT p.run_id,p.revision,0,'paused' FROM workflowPlanRevisions p
+        JOIN workflowProposalDrafts d ON d.id=p.request_id
+        WHERE p.run_id=? AND p.revision=?
+        ON CONFLICT(run_id) DO UPDATE SET revision=excluded.revision,
+            sequence=workflowExecution.sequence+1,status='paused'",
+    )
+    .bind(&challenge.run_id)
+    .bind(challenge.revision)
+    .execute(&mut **tx)
+    .await?;
     sqlx::query(
         "UPDATE orchestrationCoordinatorRuns SET execution_policy_status = 'approved',
         last_activity_at = datetime('now') WHERE id = ?",

@@ -13,9 +13,19 @@ mod linked_worktree_origin;
 mod repository;
 mod repository_metadata;
 #[cfg(feature = "runtime")]
+mod workflow_cleanup;
+#[cfg(feature = "runtime")]
+mod workflow_cleanup_removal;
+#[cfg(feature = "runtime")]
 mod workflow_integration;
 #[cfg(feature = "runtime")]
 mod workflow_worktree;
+#[cfg(feature = "runtime")]
+pub use workflow_cleanup::{preview_workflow_cleanup, WorkflowCleanupGitPreview};
+#[cfg(feature = "runtime")]
+pub use workflow_cleanup_removal::{
+    remove_workflow_cleanup_resource, verify_workflow_cleanup_abandonment, WorkflowCleanupRemoval,
+};
 mod worktree_creation;
 pub use linked_worktree_origin::linked_worktree_repository_origin;
 #[cfg(feature = "runtime")]

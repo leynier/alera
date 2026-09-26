@@ -1,6 +1,6 @@
 use super::*;
 
-async fn completed(
+pub(crate) async fn completed(
     fixture: &Fixture,
     logical: &str,
     content: &str,
@@ -49,6 +49,23 @@ async fn completed(
     .unwrap();
     let mut index = repo.index().unwrap();
     index.add_path(Path::new("shared.txt")).unwrap();
+    let contract = &fixture
+        .plan
+        .plan
+        .tasks
+        .iter()
+        .find(|t| t.task.id == logical)
+        .unwrap()
+        .contract
+        .contract;
+    let mut artifacts = vec!["shared.txt".to_owned()];
+    for artifact in &contract.required_artifacts {
+        let path = Path::new(&workspace.identity.workspace.path).join(artifact);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, format!("Reviewed evidence for {logical}\n")).unwrap();
+        index.add_path(Path::new(artifact)).unwrap();
+        artifacts.push(artifact.clone());
+    }
     index.write().unwrap();
     let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
     let signature = repo.signature().unwrap();
@@ -65,17 +82,8 @@ async fn completed(
         .unwrap()
         .to_string();
     let dispatch = launch.dispatch_id;
-    let contract = &fixture
-        .plan
-        .plan
-        .tasks
-        .iter()
-        .find(|t| t.task.id == logical)
-        .unwrap()
-        .contract
-        .contract;
-    let result = json!({"completionKind":"success","summary":"Completed","artifacts":["shared.txt"],
-        "filesModified":["shared.txt"], "validation":contract.checklist.iter()
+    let result = json!({"completionKind":"success","summary":"Completed","artifacts":artifacts,
+        "filesModified":artifacts, "validation":contract.checklist.iter()
             .map(|c| json!({"id":c.id,"passed":true,"evidence":"focused checks passed"})).collect::<Vec<_>>()});
     fixture
         .store
@@ -432,19 +440,26 @@ async fn workflow_integration_service_skips_live_operation_and_retains_dirty_fai
             .is_err()
     );
     drop(lock);
-    std::fs::write(
-        Path::new(&target.identity.workspace.path).join("shared.txt"),
-        "user edit",
-    )
-    .unwrap();
-    let result = integration::integrate(&fixture.store, &fixture.runtime, input)
+    let shared = Path::new(&target.identity.workspace.path).join("shared.txt");
+    let original = std::fs::read(&shared).unwrap();
+    std::fs::write(&shared, "user edit").unwrap();
+    let result = integration::integrate(&fixture.store, &fixture.runtime, input.clone())
         .await
         .unwrap();
     assert_eq!(result.state, WorkflowIntegrationState::Attention);
     assert!(result.error.is_some());
-    assert_eq!(
-        std::fs::read_to_string(Path::new(&target.identity.workspace.path).join("shared.txt"))
-            .unwrap(),
-        "user edit"
-    );
+    assert_eq!(std::fs::read_to_string(&shared).unwrap(), "user edit");
+    std::fs::write(&shared, original).unwrap();
+    let retried = integration::integrate(&fixture.store, &fixture.runtime, input)
+        .await
+        .unwrap();
+    assert_eq!(retried.request.id, record.request.id);
+    assert_eq!(retried.state, WorkflowIntegrationState::Integrated);
+    let reservations: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM workflowIntegrations WHERE task_id=?")
+            .bind(&record.request.task_id)
+            .fetch_one(fixture.store.pool())
+            .await
+            .unwrap();
+    assert_eq!(reservations, 1);
 }

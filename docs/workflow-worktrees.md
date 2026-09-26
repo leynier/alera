@@ -28,7 +28,7 @@ On startup, one paginated recovery sweep reconciles unfinished preparations. Set
 alera orchestration workspaces prepare --run <run-id> --revision <revision> --request-id <new-stable-id> --task <task-id> --retry-of <latest-attempt-workspace-id>
 ```
 
-Every retry receives a new branch and worktree. No automatic reset, rebase or cleanup is performed. Generic managed-workspace removal and setup replay reject workflow-owned resources, including worktrees re-registered under another metadata ID. The desktop's generic project reconciliation also retains workflow identities when a checkout is missing, detached or on another branch; `workspace.list` includes a runtime-derived `workflowOwned` flag from one bulk ownership query, never from client input. Cancellation and legacy orchestration resets preserve resource ownership records and Git data. Reviewed cleanup belongs to the later Run Board lifecycle surface, including the retained ownership refs.
+Every retry receives a new branch and worktree. No automatic reset, rebase or cleanup is performed. Generic managed-workspace removal and setup replay reject workflow-owned resources, including worktrees re-registered under another metadata ID. The desktop's generic project reconciliation also retains workflow identities when a checkout is missing, detached or on another branch; `workspace.list` includes a runtime-derived `workflowOwned` flag from one bulk ownership query, never from client input. Cancellation and legacy orchestration resets preserve resource ownership records and Git data. [Reviewed cleanup in Run Board](workflow-lifecycle.md#reviewed-resource-cleanup) requires an explicit preview and confirmation.
 
 ## Validation boundary
 

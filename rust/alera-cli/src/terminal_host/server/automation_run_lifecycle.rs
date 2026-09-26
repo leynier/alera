@@ -1,6 +1,5 @@
 use alera_core::runtime::{
-    AutomationDefinition, AutomationRun, AutomationRunStatus, AutomationState, AutomationTarget,
-    AutomationTargetIdentity,
+    AutomationRun, AutomationRunStatus, AutomationState, AutomationTarget, AutomationTargetIdentity,
 };
 use chrono::{Duration, Utc};
 use serde_json::{json, Value};
@@ -11,11 +10,28 @@ use super::{managed_actor, ServerActor};
 use crate::terminal_host::host_error::{HostError, HostResult};
 
 impl ServerActor {
-    pub(super) async fn target_identity(
+    pub(in crate::terminal_host::server) async fn target_identity(
         &self,
-        definition: &AutomationDefinition,
+        target: &AutomationTarget,
     ) -> Result<AutomationTargetIdentity, String> {
-        match &definition.target {
+        let workspace_id = match target {
+            AutomationTarget::ProjectCheckout { .. } => None,
+            AutomationTarget::ExistingTab { workspace_id, .. }
+            | AutomationTarget::FreshTab { workspace_id, .. } => Some(workspace_id),
+            AutomationTarget::ManagedWorkspace {
+                source_workspace_id,
+                ..
+            } => Some(source_workspace_id),
+        };
+        // Fence prechecks and managed source reads as well as eventual PTY
+        // creation. Cleanup checks live owners after publishing this claim.
+        if let Some(workspace_id) = workspace_id {
+            self.runtime_store
+                .require_workspace_outside_cleanup(workspace_id)
+                .await
+                .map_err(|error| error.to_string())?;
+        }
+        match target {
             AutomationTarget::ProjectCheckout {
                 agent_profile_id, ..
             } => Ok(AutomationTargetIdentity {

@@ -42,12 +42,14 @@ impl ServerActor {
         let inbox = self.inbox.clone();
         let runtime = tokio::runtime::Handle::current();
         tokio::spawn(async move {
+            let events = inbox.clone();
             let result = tokio::task::spawn_blocking(move || {
                 runtime.block_on(async {
                     crate::managed_workspace::workflow::integration::reconcile(&store, &directory)
                         .await?;
                     crate::managed_workspace::workflow::recovery::reconcile(&store, &directory)
-                        .await
+                        .await?;
+                    super::workflow_cleanup_execution::reconcile(&store, &directory, &events).await
                 })
             })
             .await;
@@ -257,6 +259,8 @@ impl ServerActor {
     }
 
     pub(super) async fn handle_workflow_workspace_recovery_finished(&mut self) {
+        self.workflow_execution.ready = true;
+        self.wake_workflow_execution();
         self.managed_workspace_jobs = self.managed_workspace_jobs.saturating_sub(1);
         self.workflow_workspace_recovery_running = false;
         self.broadcast_workspaces_changed(None);

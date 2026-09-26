@@ -13,7 +13,10 @@ pub(crate) async fn integrate(
     input: IntegrateWorkflowResult,
 ) -> Result<WorkflowIntegrationRecord> {
     if let Some(record) = store.workflow_integration_for_request(&input).await? {
-        if matches!(record.state, State::Integrated | State::Conflict) {
+        if matches!(
+            record.state,
+            State::Integrated | State::Conflict | State::Cancelled
+        ) {
             return Ok(record);
         }
         let _lock = resource_lock(runtime_dir, &record.request.integration.id)?
@@ -32,11 +35,18 @@ async fn resume(
     record: WorkflowIntegrationRecord,
 ) -> Result<WorkflowIntegrationRecord> {
     let record = store.workflow_integration(&record.request.id).await?;
-    if matches!(record.state, State::Integrated | State::Conflict) {
+    if matches!(
+        record.state,
+        State::Integrated | State::Conflict | State::Cancelled
+    ) {
         return Ok(record);
     }
     let id = &record.request.id;
     let result = async {
+        if store.workflow_integration_run_cancelled(id).await? {
+            return settle_cancelled(store, &record).await;
+        }
+        store.require_workflow_integration_current(id).await?;
         let outcome = core_git::prepare_workflow_integration(&record.request)?;
         let record = store
             .record_workflow_integration_preparation(id, &outcome)
@@ -44,6 +54,7 @@ async fn resume(
         if record.state == State::Conflict {
             return Ok(record);
         }
+        store.require_workflow_integration_current(id).await?;
         let receipt = core_git::apply_workflow_integration(&record.request)?;
         store.complete_workflow_integration(&receipt).await
     }
@@ -51,6 +62,16 @@ async fn resume(
     match result {
         Ok(record) => Ok(record),
         Err(error) => {
+            if store.workflow_integration_run_cancelled(id).await? {
+                match settle_cancelled(store, &store.workflow_integration(id).await?).await {
+                    Ok(record) => return Ok(record),
+                    Err(error) => {
+                        return store
+                            .workflow_integration_attention(id, &error.to_string())
+                            .await
+                    }
+                }
+            }
             store
                 .workflow_integration_attention(id, &error.to_string())
                 .await
@@ -58,7 +79,29 @@ async fn resume(
     }
 }
 
+async fn settle_cancelled(
+    store: &RuntimeStore,
+    record: &WorkflowIntegrationRecord,
+) -> Result<WorkflowIntegrationRecord> {
+    let receipt = core_git::inspect_cancelled_workflow_integration(&record.request)?;
+    store
+        .settle_cancelled_workflow_integration(&record.request.id, receipt.as_ref())
+        .await
+}
+
 pub(crate) async fn reconcile(store: &RuntimeStore, runtime_dir: &Path) -> Result<()> {
+    reconcile_internal(store, runtime_dir, false).await
+}
+
+pub(crate) async fn reconcile_cancelled(store: &RuntimeStore, runtime_dir: &Path) -> Result<()> {
+    reconcile_internal(store, runtime_dir, true).await
+}
+
+async fn reconcile_internal(
+    store: &RuntimeStore,
+    runtime_dir: &Path,
+    cancelled_only: bool,
+) -> Result<()> {
     let upper: i64 =
         sqlx::query_scalar("SELECT COALESCE(MAX(sequence), 0) FROM workflowIntegrations")
             .fetch_one(store.pool())
@@ -66,8 +109,10 @@ pub(crate) async fn reconcile(store: &RuntimeStore, runtime_dir: &Path) -> Resul
     let mut after = 0_i64;
     loop {
         let rows = sqlx::query("SELECT sequence, id FROM workflowIntegrations
-            WHERE sequence > ? AND sequence <= ? AND state IN ('pending','prepared') ORDER BY sequence LIMIT 25")
-            .bind(after).bind(upper).fetch_all(store.pool()).await?;
+            WHERE sequence > ? AND sequence <= ? AND cancelled=0 AND state IN ('pending','prepared')
+            AND (?=0 OR EXISTS(SELECT 1 FROM workflowRuns r WHERE r.run_id=workflowIntegrations.run_id AND r.status='cancelled'))
+            ORDER BY sequence LIMIT 25")
+            .bind(after).bind(upper).bind(cancelled_only).fetch_all(store.pool()).await?;
         if rows.is_empty() {
             break;
         }

@@ -9,6 +9,15 @@ impl RuntimeStore {
             sqlx::query(*statement).execute(&mut *tx).await?;
         }
         tx.commit().await?;
+        self.ensure_column(
+            "workflowIntegrations",
+            "cancelled",
+            "INTEGER NOT NULL DEFAULT 0",
+        )
+        .await?;
+        sqlx::query("CREATE TRIGGER IF NOT EXISTS workflowCancelledIntegrationImmutable BEFORE UPDATE ON workflowIntegrations
+            WHEN OLD.cancelled=1 BEGIN SELECT RAISE(ABORT, 'cancelled integration settlement is immutable'); END")
+            .execute(self.pool()).await?;
         Ok(())
     }
 }
@@ -30,6 +39,7 @@ const SCHEMA: &[&str] = &[
         WHERE state IN ('pending','prepared','attention')",
     "CREATE UNIQUE INDEX IF NOT EXISTS workflowIntegratedTask ON workflowIntegrations(task_id) WHERE state = 'integrated'",
     "CREATE INDEX IF NOT EXISTS workflowIntegrationRun ON workflowIntegrations(run_id, sequence)",
+    "CREATE INDEX IF NOT EXISTS workflowIntegrationTaskHistory ON workflowIntegrations(task_id, sequence)",
     "CREATE TRIGGER IF NOT EXISTS workflowIntegrationIdentityImmutable
         BEFORE UPDATE OF id, request_id, request_digest, run_id, revision, task_id, workspace_id, request ON workflowIntegrations
         BEGIN SELECT RAISE(ABORT, 'workflow integration identity is immutable'); END",

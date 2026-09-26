@@ -8,7 +8,9 @@ use super::*;
 
 mod durable_receipt_regressions;
 pub(crate) mod fixture;
+mod integration_cancellation;
 mod integration_regressions;
+mod lifecycle;
 mod ready_replay_regressions;
 mod receipt_and_report_regressions;
 mod regressions;
@@ -16,6 +18,7 @@ mod review_regressions;
 mod snapshot_regressions;
 mod stale_registration_regressions;
 use fixture::Fixture;
+pub(crate) use integration_regressions::completed;
 
 #[tokio::test]
 async fn workflow_worktrees_freeze_source_isolate_attempts_and_replay_requests() {

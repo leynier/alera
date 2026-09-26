@@ -67,6 +67,44 @@ class RunBoardLocationMapper extends ClassMapperBase<RunBoardLocation> {
     _$taskId,
     opt: true,
   );
+  static String? _$reviewScope(RunBoardLocation v) => v.reviewScope;
+  static const Field<RunBoardLocation, String> _f$reviewScope = Field(
+    'reviewScope',
+    _$reviewScope,
+    opt: true,
+  );
+  static bool _$newRun(RunBoardLocation v) => v.newRun;
+  static const Field<RunBoardLocation, bool> _f$newRun = Field(
+    'newRun',
+    _$newRun,
+    opt: true,
+    def: false,
+  );
+  static String? _$proposalId(RunBoardLocation v) => v.proposalId;
+  static const Field<RunBoardLocation, String> _f$proposalId = Field(
+    'proposalId',
+    _$proposalId,
+    opt: true,
+  );
+  static int? _$correctionRevision(RunBoardLocation v) => v.correctionRevision;
+  static const Field<RunBoardLocation, int> _f$correctionRevision = Field(
+    'correctionRevision',
+    _$correctionRevision,
+    opt: true,
+  );
+  static bool _$cleanupOpen(RunBoardLocation v) => v.cleanupOpen;
+  static const Field<RunBoardLocation, bool> _f$cleanupOpen = Field(
+    'cleanupOpen',
+    _$cleanupOpen,
+    opt: true,
+    def: false,
+  );
+  static String? _$cleanupId(RunBoardLocation v) => v.cleanupId;
+  static const Field<RunBoardLocation, String> _f$cleanupId = Field(
+    'cleanupId',
+    _$cleanupId,
+    opt: true,
+  );
 
   @override
   final MappableFields<RunBoardLocation> fields = const {
@@ -77,6 +115,12 @@ class RunBoardLocationMapper extends ClassMapperBase<RunBoardLocation> {
     #bucket: _f$bucket,
     #runId: _f$runId,
     #taskId: _f$taskId,
+    #reviewScope: _f$reviewScope,
+    #newRun: _f$newRun,
+    #proposalId: _f$proposalId,
+    #correctionRevision: _f$correctionRevision,
+    #cleanupOpen: _f$cleanupOpen,
+    #cleanupId: _f$cleanupId,
   };
 
   static RunBoardLocation _instantiate(DecodingData data) {
@@ -88,6 +132,12 @@ class RunBoardLocationMapper extends ClassMapperBase<RunBoardLocation> {
       bucket: data.dec(_f$bucket),
       runId: data.dec(_f$runId),
       taskId: data.dec(_f$taskId),
+      reviewScope: data.dec(_f$reviewScope),
+      newRun: data.dec(_f$newRun),
+      proposalId: data.dec(_f$proposalId),
+      correctionRevision: data.dec(_f$correctionRevision),
+      cleanupOpen: data.dec(_f$cleanupOpen),
+      cleanupId: data.dec(_f$cleanupId),
     );
   }
 
@@ -161,6 +211,12 @@ abstract class RunBoardLocationCopyWith<$R, $In extends RunBoardLocation, $Out>
     RunBoardBucket? bucket,
     String? runId,
     String? taskId,
+    String? reviewScope,
+    bool? newRun,
+    String? proposalId,
+    int? correctionRevision,
+    bool? cleanupOpen,
+    String? cleanupId,
   });
   RunBoardLocationCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -184,6 +240,12 @@ class _RunBoardLocationCopyWithImpl<$R, $Out>
     Object? bucket = $none,
     Object? runId = $none,
     Object? taskId = $none,
+    Object? reviewScope = $none,
+    bool? newRun,
+    Object? proposalId = $none,
+    Object? correctionRevision = $none,
+    bool? cleanupOpen,
+    Object? cleanupId = $none,
   }) => $apply(
     FieldCopyWithData({
       if (visible != null) #visible: visible,
@@ -193,6 +255,12 @@ class _RunBoardLocationCopyWithImpl<$R, $Out>
       if (bucket != $none) #bucket: bucket,
       if (runId != $none) #runId: runId,
       if (taskId != $none) #taskId: taskId,
+      if (reviewScope != $none) #reviewScope: reviewScope,
+      if (newRun != null) #newRun: newRun,
+      if (proposalId != $none) #proposalId: proposalId,
+      if (correctionRevision != $none) #correctionRevision: correctionRevision,
+      if (cleanupOpen != null) #cleanupOpen: cleanupOpen,
+      if (cleanupId != $none) #cleanupId: cleanupId,
     }),
   );
   @override
@@ -204,6 +272,15 @@ class _RunBoardLocationCopyWithImpl<$R, $Out>
     bucket: data.get(#bucket, or: $value.bucket),
     runId: data.get(#runId, or: $value.runId),
     taskId: data.get(#taskId, or: $value.taskId),
+    reviewScope: data.get(#reviewScope, or: $value.reviewScope),
+    newRun: data.get(#newRun, or: $value.newRun),
+    proposalId: data.get(#proposalId, or: $value.proposalId),
+    correctionRevision: data.get(
+      #correctionRevision,
+      or: $value.correctionRevision,
+    ),
+    cleanupOpen: data.get(#cleanupOpen, or: $value.cleanupOpen),
+    cleanupId: data.get(#cleanupId, or: $value.cleanupId),
   );
 
   @override

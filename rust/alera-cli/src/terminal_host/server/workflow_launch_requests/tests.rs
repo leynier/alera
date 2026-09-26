@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use alera_core::runtime::{
-    LaunchWorkflowTask, OrchestrationDispatchStatus, OrchestrationTaskStatus,
+    LaunchWorkflowTask, OrchestrationDispatchStatus, OrchestrationTaskStatus, WorkflowLaunchStatus,
     WorkflowWorkspacePhase,
 };
 use sha2::{Digest, Sha256};
@@ -11,12 +11,14 @@ use crate::managed_workspace::workflow::{launch, tests::fixture::Fixture};
 use crate::terminal_host::client::ClientHandle;
 use crate::terminal_host::server::actor_test_harness::{local_client, test_actor};
 
+mod cleanup_fence;
 mod completion;
 mod final_preflight;
 mod pty_diagnostics;
 mod recovery;
 mod reset;
 mod spawn_failure;
+use final_preflight::finish_spawn_validation;
 
 async fn prepared(fixture: &Fixture) -> (LaunchWorkflowTask, PreparedLaunch) {
     fixture.integration().await;
@@ -32,31 +34,6 @@ async fn prepared(fixture: &Fixture) -> (LaunchWorkflowTask, PreparedLaunch) {
         .await
         .unwrap();
     (input, result)
-}
-
-async fn finish_spawn_validation(
-    actor: &mut ServerActor,
-    commands: &mut tokio::sync::mpsc::UnboundedReceiver<
-        crate::terminal_host::server::ServerCommand,
-    >,
-) {
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
-    loop {
-        let command = tokio::time::timeout_at(deadline, commands.recv())
-            .await
-            .unwrap()
-            .unwrap();
-        let validated = matches!(
-            &command,
-            crate::terminal_host::server::ServerCommand::WorkflowLaunch(
-                WorkflowLaunchCommand::SpawnValidated(_)
-            )
-        );
-        actor.handle(command).await;
-        if validated {
-            return;
-        }
-    }
 }
 
 #[tokio::test]
