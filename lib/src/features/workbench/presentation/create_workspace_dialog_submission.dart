@@ -3,7 +3,7 @@ part of 'create_workspace_dialog.dart';
 extension _CreateWorkspaceDialogSubmission on _CreateWorkspaceDialogState {
   void _submit() async {
     final project = _selectedProject;
-    if (project == null) {
+    if (project == null || _hostBlocksCreation) {
       return;
     }
     final sourceBranch = (_selectedSourceBranch ?? _sourceBranchController.text)

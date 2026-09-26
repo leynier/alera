@@ -584,6 +584,14 @@ final class SocketTerminalHostClient._(
       _runtimeConnectionFuture = null;
       unawaited(_runtimeLineSub?.cancel());
       _runtimeLineSub = null;
+      if (!_runtimeEvents.isClosed) {
+        _runtimeEvents.add(
+          const RuntimeHostEvent(
+            aleraRuntimeHostDisconnectedEvent,
+            <String, Object?>{},
+          ),
+        );
+      }
     }
     connection.dispose();
     final pendingIds = <int>[

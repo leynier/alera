@@ -17,7 +17,10 @@ import 'package:alera/src/features/linked_issues/presentation/issue_url_field.da
 import 'package:alera/src/features/projects/domain/preferred_source_branch.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_branch_catalog.dart';
+import 'package:alera/src/features/projects/domain/project_host_enrollment.dart';
 import 'package:alera/src/features/projects/domain/project_selection_order.dart';
+import 'package:alera/src/features/projects/presentation/project_host_enrollment_controller.dart';
+import 'package:alera/src/features/projects/presentation/project_host_enrollment_notice.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -30,6 +33,7 @@ import 'package:flutter/material.dart';
 part 'create_workspace_dialog_pickers.dart';
 part 'create_workspace_dialog_branch_loading.dart';
 part 'create_workspace_dialog_frame.dart';
+part 'create_workspace_dialog_host_enrollment.dart';
 part 'create_workspace_dialog_interactions.dart';
 part 'create_workspace_dialog_linked_issue.dart';
 part 'create_workspace_dialog_selection_order.dart';
@@ -69,6 +73,11 @@ class const CreateWorkspaceDialog({
   final bool initialUseProjectCheckout = true,
   final List<SshTarget> sshTargets = const <SshTarget>[],
   final bool supportsRemoteSshWorkspaces = true,
+
+  /// Owned by the caller, so an add made in one New Workspace form is known to
+  /// the other. Null, or one without an add function, means the runtime cannot
+  /// put a project on more hosts and every host is trusted as before.
+  final ProjectHostEnrollmentController? hostEnrollment,
   final Future<String?> Function(Project project)? loadPreferredSourceBranch,
   final String? initialSourceBranch,
   final String? initialNewBranchName,
@@ -122,6 +131,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   String? _selectedParentWorkspaceId;
   String? _selectedHostId;
   int _branchLoadGeneration = 0;
+  bool _branchesAwaitHostEnrollment = false;
   bool _reuseExistingBranch = false;
   bool _createAnother = false;
   bool _useProjectCheckout = false;
@@ -133,6 +143,9 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   Timer? _validationDebounce;
   bool _isValidatingBranch = false;
   String? _branchValidationError;
+  late final ProjectHostEnrollmentController _hostEnrollment =
+      (widget.hostEnrollment ?? ProjectHostEnrollmentController(null))
+        ..addListener(_onHostEnrollmentChanged);
 
   void _update(VoidCallback callback) => setState(callback);
 
@@ -143,7 +156,10 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
         widget.enqueueCreate != null && widget.initialUseProjectCheckout;
     _selectedProject = _pickInitialProject();
     _selectedParentWorkspaceId = widget.initialParentWorkspaceId;
-    _selectedHostId = widget.initialHostId;
+    _selectedHostId = initialWorkspaceHostId(
+      project: _selectedProject,
+      requested: widget.initialHostId,
+    );
     _reuseExistingBranch = widget.initialReuseExistingBranch;
     _creationError = widget.initialCreationError;
     _issueUrlController.text = widget.initialIssueUrl ?? '';
@@ -180,6 +196,8 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
     _nameController.dispose();
     _issueUrlController.dispose();
     _validationDebounce?.cancel();
+    _hostEnrollment.removeListener(_onHostEnrollmentChanged);
+    if (widget.hostEnrollment == null) _hostEnrollment.dispose();
     super.dispose();
   }
 
@@ -203,47 +221,6 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
       branches,
       preferred: useProjectPreference ? _projectPreferredSource : null,
     );
-  }
-
-  Future<List<String>> _filterLocalBranches(
-    Project project,
-    List<String> branches,
-  ) async {
-    final hostId = _selectedHostId;
-    final catalog = await widget.loadHostBranchCatalog?.call(project, hostId);
-    final workspaceBranches =
-        (catalog == null
-                ? widget.getProjectWorkspaceBranches(project)
-                : widget.parentCandidates
-                      .map((candidate) => candidate.workspace)
-                      .where(
-                        (workspace) =>
-                            workspace.projectId == project.id &&
-                            workspace.hostId == (hostId ?? 'local'),
-                      )
-                      .map((workspace) => workspace.branch ?? ''))
-            .map((branch) => branch.trim())
-            .where((branch) => branch.isNotEmpty)
-            .toSet();
-    final results = await Future.wait(
-      branches.map((branch) async {
-        try {
-          return (
-            branch: branch,
-            isLocal:
-                catalog?.localBranches.contains(branch) ??
-                await widget.checkBranchExists(project, branch),
-          );
-        } catch (_) {
-          return (branch: branch, isLocal: false);
-        }
-      }),
-    );
-    return <String>[
-      for (final result in results)
-        if (result.isLocal && !workspaceBranches.contains(result.branch))
-          result.branch,
-    ];
   }
 
   List<String> _branchesForMode(bool reuseExistingBranch) {
@@ -270,6 +247,12 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
     setState(() {
       _selectedProject = project;
       _sourceBranchError = null;
+      if (project.isRemoteOnly && !project.isOnHost(_selectedHostId)) {
+        _selectedHostId = initialWorkspaceHostId(
+          project: project,
+          requested: null,
+        );
+      }
       if (!project.isGitRepository && widget.enqueueCreate != null) {
         _useProjectCheckout = true;
       }
@@ -465,6 +448,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
             creating: _creating,
             onSubmit: _submit,
             issueField: _linkedIssueField(),
+            hostNotice: _hostEnrollmentNotice(),
           );
 
     return _CreateWorkspaceDialogFrame(
@@ -482,7 +466,10 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
           ? null
           : _continueToSettings,
       onCreate:
-          selectedProject == null || _creating || _branchValidationError != null
+          selectedProject == null ||
+              _creating ||
+              _branchValidationError != null ||
+              _hostBlocksCreation
           ? null
           : _submitFromButton,
     );

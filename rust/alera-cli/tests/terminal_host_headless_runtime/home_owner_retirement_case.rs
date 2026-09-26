@@ -1,6 +1,5 @@
 use super::*;
 use alera_core::runtime::{Project, SshTarget, Workspace};
-use sha2::{Digest, Sha256};
 use std::os::unix::fs::{symlink, PermissionsExt};
 
 #[test]
@@ -33,9 +32,8 @@ fn home_retirement_preserves_terminal_on_transport_failure_then_recovers() {
             "createdAt":"2026-07-19T00:00:00Z","updatedAt":"2026-07-19T00:00:00Z","installDir":install,"bootstrapStatus":"installed","runtimePlatform":"linux"})).unwrap();
         store.upsert_ssh_target(target).await.unwrap();
     });
-    let owner = install
-        .join("owners")
-        .join(hex::encode(Sha256::digest(b"project-1")));
+    // Every project on a host shares the satellite runtime at `<installDir>/data`.
+    let owner = install.join("data");
     std::fs::create_dir_all(&owner).unwrap();
     let (_owner_guard, owner_port) = spawn_host(&owner, "owner-token");
     let path = std::env::join_paths(std::iter::once(commands).chain(std::env::split_paths(

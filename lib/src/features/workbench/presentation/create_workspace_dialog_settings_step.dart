@@ -23,6 +23,7 @@ class const _CreateWorkspaceSettingsStep({
   required final bool creating,
   required final VoidCallback onSubmit,
   final Widget? issueField,
+  final Widget? hostNotice,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -107,6 +108,10 @@ class const _CreateWorkspaceSettingsStep({
           enabled: !creating,
           onChanged: onHostChanged,
         ),
+        if (hostNotice case final hostNotice?) ...<Widget>[
+          const SizedBox(height: AleraTokens.space12),
+          hostNotice,
+        ],
         const SizedBox(height: AleraTokens.space16),
         if (useProjectCheckout)
           const Text(
@@ -123,7 +128,7 @@ class const _CreateWorkspaceSettingsStep({
               parentCandidates,
               selectedParentWorkspaceId,
             ),
-            hostLabel: _selectedHostLabel(sshTargets, selectedHostId),
+            hostLabel: workspaceHostLabel(sshTargets, selectedHostId),
           ),
       ],
     );
@@ -401,19 +406,6 @@ String? _selectedWorkspaceParentLabel(
     }
   }
   return null;
-}
-
-String _selectedHostLabel(List<SshTarget> targets, String? hostId) {
-  final remoteId = normalizedRemoteHostId(hostId);
-  if (remoteId == null) {
-    return 'This Device';
-  }
-  for (final target in targets) {
-    if (target.id == remoteId) {
-      return target.alias;
-    }
-  }
-  return remoteId;
 }
 
 String _previewWorkspacePath(

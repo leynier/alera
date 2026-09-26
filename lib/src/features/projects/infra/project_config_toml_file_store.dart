@@ -11,8 +11,14 @@ import 'package:toml/toml.dart';
 const String aleraProjectConfigFileName = 'alera.toml';
 
 class const TomlProjectConfigFileStore() implements ProjectConfigFileStore {
+  /// Null for a project that lives only on a host: `alera.toml` is on that
+  /// host, and whatever sits at the same path on this device is unrelated.
+  /// The runtime-backed store is what reads it from there.
   @override
   Future<ProjectConfig?> load(Project project) async {
+    if (project.isRemoteOnly) {
+      return null;
+    }
     final file = File(p.join(project.repoPath, aleraProjectConfigFileName));
     if (!await file.exists()) {
       return null;

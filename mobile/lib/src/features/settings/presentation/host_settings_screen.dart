@@ -9,6 +9,7 @@ import 'package:alera_mobile/src/features/runtime/domain/runtime_restart_result.
 import 'package:alera_mobile/src/features/settings/application/host_settings_controller.dart';
 import 'package:alera_mobile/src/features/settings/domain/portable_host_settings.dart';
 import 'package:alera_mobile/src/features/settings/presentation/host_agent_tools_section.dart';
+import 'package:alera_mobile/src/features/voice/presentation/mobile_voice_settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -159,6 +160,17 @@ class const _SettingsBody({
                   ),
                 ),
               ),
+              if (connection.value?.supportsVoiceHomeAgent == true)
+                _NavigationTile(
+                  icon: Icons.record_voice_over_outlined,
+                  title: 'Voice',
+                  scope: 'On this host',
+                  onTap: () => Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (_) => MobileVoiceSettingsScreen(host: host),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

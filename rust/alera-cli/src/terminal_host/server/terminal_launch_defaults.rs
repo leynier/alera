@@ -55,7 +55,7 @@ fn default_terminal_launch_for(
                     "/d".to_string(),
                     "/s".to_string(),
                     "/k".to_string(),
-                    format!("cd /d {}", cmd_quote(working_directory)),
+                    format!("cd /d {}", cmd_launch_directory(working_directory)),
                 ],
                 environment,
             },
@@ -120,6 +120,32 @@ pub(super) fn sh_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
 
+/// The directory as it must appear inside the `/k` argument of the launch.
+///
+/// It cannot be quoted. The whole `cd /d <dir>` string is one process argument,
+/// and the standard library escapes a quote inside an argument as `\"`, which
+/// `cmd.exe` does not understand: the `cd` then fails and the terminal opens in
+/// whatever directory the host happened to be in, which on a remote host is
+/// the user's home. Left unquoted, the argument is wrapped in one outer pair of
+/// quotes that `/s` strips again, and `cd` accepts spaces without quotes. What
+/// does need care are the characters `cmd.exe` would act on, which `^` escapes.
+pub(super) fn cmd_launch_directory(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len());
+    for character in value.chars() {
+        match character {
+            '"' => continue,
+            '^' | '&' | '|' | '<' | '>' | '(' | ')' => {
+                escaped.push('^');
+                escaped.push(character);
+            }
+            _ => escaped.push(character),
+        }
+    }
+    escaped
+}
+
+/// For text typed into a running `cmd.exe`, where quotes are read as quotes.
+#[cfg(windows)]
 pub(super) fn cmd_quote(value: &str) -> String {
     format!("\"{}\"", value.replace('"', "\"\""))
 }
@@ -154,7 +180,12 @@ mod tests {
         assert_eq!(windows.launch.shell, "cmd.exe");
         assert_eq!(
             windows.launch.arguments,
-            ["/d", "/s", "/k", r#"cd /d "C:\repo ""main""""#]
+            ["/d", "/s", "/k", r"cd /d C:\repo main"],
+            "no quotes inside the argument: the standard library would escape them as \\\" and cmd.exe cannot read that"
+        );
+        assert_eq!(
+            cmd_launch_directory(r"C:\Users\me\R&D (new)^1"),
+            r"C:\Users\me\R^&D ^(new^)^^1"
         );
     }
 
@@ -214,7 +245,7 @@ mod tests {
         );
         assert_eq!(
             windows.launch.arguments,
-            ["/d", "/s", "/k", r#"cd /d "C:\repo""#]
+            ["/d", "/s", "/k", r"cd /d C:\repo"]
         );
     }
 }

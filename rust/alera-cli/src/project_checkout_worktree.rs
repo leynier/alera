@@ -62,7 +62,7 @@ pub(crate) async fn create(args: CreateCheckoutWorktreeArgs) -> Result<CreatedCh
             &args.source,
             args.reuse_existing_branch,
         )?;
-        let path = std::fs::canonicalize(path)?
+        let path = crate::windows_path_form::canonicalize(path)?
             .to_str()
             .ok_or_else(|| anyhow!("Worktree path is not valid UTF-8"))?
             .to_string();

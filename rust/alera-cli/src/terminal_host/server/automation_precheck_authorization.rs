@@ -66,7 +66,7 @@ pub(super) async fn authorize_remote_precheck<E: RemoteHostExecutor>(
     match inspection.automation_declared {
         Some(true) => {}
         Some(false) => {
-            return Err("SSH repository has no automation declaration in alera.toml".into())
+            return Err("SSH repository has no automation declaration in alera.toml".into());
         }
         None => return Err(
             "Update the SSH runtime to verify automation authorization before precheck execution"

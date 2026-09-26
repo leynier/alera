@@ -120,12 +120,9 @@ impl ServerActor {
                 "Workspace is not active: {workspace_id}"
             )));
         }
-        let effective_config = crate::project_management::effective_project_config(
-            &self.runtime_store,
-            &workspace.project_id,
-        )
-        .await
-        .map_err(|error| HostError::state(error.to_string()))?;
+        let effective_config = self
+            .effective_project_config_for_launch(&workspace.project_id)
+            .await?;
         if let Some(error) = effective_config.error {
             return Err(HostError::state(format!(
                 "Could not load project configuration: {error}"
@@ -295,6 +292,11 @@ impl ServerActor {
         if !self.agent_presence.is_injection_ready(session_id) {
             return;
         }
+        if self.voice.home_session_id.as_deref() == Some(session_id)
+            && (self.voice.home_inject.is_some() || self.voice.home_needs_fresh_ready)
+        {
+            return;
+        }
         let Some(session) = self.sessions.get(session_id) else {
             return;
         };
@@ -342,6 +344,9 @@ impl ServerActor {
             .is_err()
         {
             return;
+        }
+        if self.voice.home_session_id.as_deref() == Some(session_id) {
+            self.voice.home_needs_fresh_ready = true;
         }
         session.initial_agent_prompt_delivered = true;
         tab.payload["pendingAgentPrompt"] = Value::Null;

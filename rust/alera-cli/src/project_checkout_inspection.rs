@@ -20,7 +20,7 @@ pub(crate) async fn inspect(path: String, kind: ProjectKind) -> Result<CheckoutI
         if path.trim().is_empty() {
             bail!("A checkout path is required");
         }
-        let canonical = std::fs::canonicalize(path).context("Project checkout is unavailable")?;
+        let canonical = crate::windows_path_form::canonicalize(path).context("Project checkout is unavailable")?;
         // Opening the directory verifies access without changing its contents.
         let mut entries = std::fs::read_dir(&canonical).context("Project checkout is not accessible")?;
         if let Some(entry) = entries.next() {
@@ -54,7 +54,7 @@ pub(crate) struct LinkedCheckoutInspection {
 pub(crate) async fn inspect_linked(path: String) -> Result<LinkedCheckoutInspection> {
     tokio::task::spawn_blocking(move || {
         let repository_path = alera_core::git::linked_worktree_repository_origin(&path)?;
-        let path = std::fs::canonicalize(path)?
+        let path = crate::windows_path_form::canonicalize(path)?
             .to_str()
             .ok_or_else(|| anyhow!("Linked checkout path is not valid UTF-8"))?
             .to_string();

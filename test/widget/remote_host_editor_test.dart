@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
+import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/features/settings/presentation/panes/remote_host_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -11,11 +12,13 @@ void main() {
     final portController = TextEditingController(text: '22');
     final usernameController = TextEditingController();
     final installDirController = TextEditingController();
+    final projectsDirController = TextEditingController();
     addTearDown(aliasController.dispose);
     addTearDown(hostController.dispose);
     addTearDown(portController.dispose);
     addTearDown(usernameController.dispose);
     addTearDown(installDirController.dispose);
+    addTearDown(projectsDirController.dispose);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -27,6 +30,7 @@ void main() {
             portController: portController,
             usernameController: usernameController,
             installDirController: installDirController,
+            projectsDirController: projectsDirController,
             platform: '',
             arch: '',
             authKind: .agent,
@@ -70,11 +74,13 @@ void main() {
     final portController = TextEditingController(text: '22');
     final usernameController = TextEditingController();
     final installDirController = TextEditingController();
+    final projectsDirController = TextEditingController();
     addTearDown(aliasController.dispose);
     addTearDown(hostController.dispose);
     addTearDown(portController.dispose);
     addTearDown(usernameController.dispose);
     addTearDown(installDirController.dispose);
+    addTearDown(projectsDirController.dispose);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -86,6 +92,7 @@ void main() {
             portController: portController,
             usernameController: usernameController,
             installDirController: installDirController,
+            projectsDirController: projectsDirController,
             platform: '',
             arch: '',
             authKind: .agent,
@@ -116,5 +123,61 @@ void main() {
       find.text('SSH target used by the Home Runtime to install a sidecar.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('remote host editor shows the projects folder field', (
+    tester,
+  ) async {
+    final aliasController = TextEditingController();
+    final hostController = TextEditingController();
+    final portController = TextEditingController(text: '22');
+    final usernameController = TextEditingController();
+    final installDirController = TextEditingController();
+    final projectsDirController = TextEditingController(text: '~/code');
+    addTearDown(aliasController.dispose);
+    addTearDown(hostController.dispose);
+    addTearDown(portController.dispose);
+    addTearDown(usernameController.dispose);
+    addTearDown(installDirController.dispose);
+    addTearDown(projectsDirController.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAleraDarkTheme(),
+        home: Scaffold(
+          body: RemoteHostEditor(
+            aliasController: aliasController,
+            hostController: hostController,
+            portController: portController,
+            usernameController: usernameController,
+            installDirController: installDirController,
+            projectsDirController: projectsDirController,
+            platform: '',
+            arch: '',
+            authKind: .agent,
+            hasSelection: true,
+            saving: false,
+            planning: false,
+            bootstrapping: false,
+            onPlatformChanged: (_) {},
+            onArchChanged: (_) {},
+            onAuthKindChanged: (_) {},
+            onSave: () {},
+            onRemove: null,
+            onPlan: null,
+            onBootstrap: null,
+            onCancel: null,
+          ),
+        ),
+      ),
+    );
+
+    final field = find.byWidgetPredicate(
+      (widget) =>
+          widget is AleraTextField && widget.labelText == 'Projects Folder',
+    );
+    expect(field, findsOneWidget);
+    expect(tester.widget<AleraTextField>(field).controller?.text, '~/code');
+    expect(find.text(projectsFolderHelpText), findsOneWidget);
   });
 }

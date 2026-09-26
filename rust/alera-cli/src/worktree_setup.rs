@@ -342,7 +342,8 @@ pub(crate) async fn effective_project_config(
         return Ok(config);
     }
     let config_path = Path::new(&project.repo_path).join("alera.toml");
-    if !config_path.exists() {
+    if !crate::project_hosts::project_folder_is_local(store, project).await || !config_path.exists()
+    {
         return Ok(ProjectConfig::default());
     }
     let contents = std::fs::read_to_string(&config_path)

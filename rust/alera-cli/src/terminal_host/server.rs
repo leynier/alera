@@ -119,9 +119,16 @@ mod owner_terminal_lifecycle;
 mod owner_terminal_natural_exit;
 mod project_checkout_file_requests;
 mod project_checkout_requests;
+mod project_host_requests;
+mod remote_agent_presence_relay;
+mod remote_ai_assist_requests;
+mod remote_project_config;
+mod remote_project_config_cache;
+mod remote_pull_request_routing;
 mod remote_recovery_requests;
 #[cfg(test)]
 mod remote_relocation_terminal_restore_tests;
+mod remote_resource_relay;
 mod remote_setup_requests;
 mod remote_terminal_lifecycle;
 pub(crate) mod shared_checkout_compatibility;
@@ -132,9 +139,15 @@ mod declared_catalog_requests;
 mod deferred_requests;
 mod deferred_workspace_lifecycle;
 mod deferred_workspace_setup;
+mod host_link_requests;
+mod host_link_routing;
+mod host_process_requests;
 mod host_service_agent_quota;
 mod host_service_requests;
 mod host_status;
+mod hub_reverse_policy;
+mod hub_reverse_requests;
+mod hub_self_client;
 mod lifecycle;
 mod linked_issue_requests;
 #[cfg(test)]
@@ -147,6 +160,7 @@ mod mobile_gateway_surface;
 mod mobile_hello_requests;
 mod mobile_pull_request_actions;
 mod mobile_pull_request_busy;
+mod mobile_pull_request_check_counts;
 mod mobile_pull_request_comments;
 mod mobile_pull_request_failures;
 mod mobile_pull_request_identity;
@@ -156,6 +170,7 @@ mod mobile_pull_request_requests;
 mod mobile_pull_request_ship;
 mod mobile_pull_request_snapshot_extras;
 mod mobile_pull_request_summaries;
+mod mobile_pull_request_summaries_remote;
 #[cfg(test)]
 mod mobile_relay_presence_tests;
 mod mobile_source_control_requests;
@@ -208,6 +223,7 @@ mod runtime_change_broadcasts;
 mod runtime_mutation_barrier;
 mod runtime_mutation_queue;
 mod runtime_mutations;
+mod satellite_mirror_requests;
 mod server_command;
 #[path = "server_runner.rs"]
 mod server_runner;
@@ -244,7 +260,27 @@ mod workflow_plan_requests;
 mod workflow_plan_tests;
 mod workflow_worker_context;
 mod workflow_workspace_requests;
+mod voice_chained_jobs;
+mod voice_credential_requests;
+mod voice_credentials;
+mod voice_home_agent;
+mod voice_realtime;
+mod voice_realtime_events;
+mod voice_realtime_parse;
+mod voice_realtime_reconnect;
+mod voice_realtime_session;
+mod voice_realtime_socket;
+mod voice_requests;
+#[cfg(test)]
+mod voice_requests_tests;
+mod voice_session;
+mod voice_stt;
+mod voice_transcript;
+mod voice_tts;
+mod voice_turn_jobs;
 mod workspace_archive_requests;
+mod workspace_file_mutation_requests;
+mod workspace_git_requests;
 mod workspace_handoff_relocate;
 mod workspace_main_tabs;
 mod workspace_mutation_preparation;
@@ -255,6 +291,7 @@ mod workspace_section_requests_tests;
 mod workspace_sidebar_requests;
 #[cfg(test)]
 mod workspace_sidebar_requests_tests;
+mod workspace_sleep_requests;
 
 pub use server_command::ServerCommand;
 
@@ -317,6 +354,7 @@ struct ServerActor {
     automations_active: bool,
     sessions: HashMap<String, Session>,
     ssh_bootstrap_jobs: HashMap<String, SshBootstrapJobState>,
+    host_links: crate::terminal_host::host_link_registry::HostLinkRegistry,
     project_clone_jobs: HashMap<String, tokio::sync::oneshot::Sender<()>>,
     agent_title_jobs: HashMap<String, agent_title_generation::AgentTitleJob>,
     managed_workspace_jobs: usize,
@@ -342,7 +380,10 @@ struct ServerActor {
     orchestration_activity_last_recorded: HashMap<String, Instant>,
     coordinators: HashMap<String, CoordinatorHandle>,
     resources: ResourceMonitorState,
+    hub_reverse: hub_reverse_requests::HubReverseState,
+    remote_project_configs: remote_project_config_cache::RemoteProjectConfigCache,
     terminal_pulses: terminal_pulse::TerminalPulseManager,
+    voice: voice_session::VoiceSessionState,
     codex: Option<codex_app_server::CodexAppServer>,
     codex_starting: Option<codex_server_startup::CodexServerStartup>,
     inbox: UnboundedSender<ServerCommand>,
@@ -636,6 +677,24 @@ impl ServerActor {
                 job_id,
                 status,
             } => self.handle_ssh_bootstrap_finished(target_id, job_id, status),
+            ServerCommand::HostLinkEvent { host_id, event } => {
+                self.handle_host_link_event(host_id, event)
+            }
+            ServerCommand::RemoteAgentPresenceListed { host_id, result } => {
+                self.finish_remote_agent_presence_sync(host_id, result)
+                    .await
+            }
+            ServerCommand::HostLinkClosed { host_id, error } => {
+                self.handle_host_link_closed(host_id, error)
+            }
+            ServerCommand::HostLinkStateChanged { host_id } => {
+                self.handle_host_link_state_changed(host_id)
+            }
+            ServerCommand::HostLinkRequestFinished {
+                client_id,
+                request_id,
+                result,
+            } => self.finish_host_link_request(client_id, request_id, result),
             ServerCommand::ProjectCheckoutRegistered {
                 client_id,
                 request_id,
@@ -873,6 +932,15 @@ impl ServerActor {
             ServerCommand::ResourceSampleReady { snapshot } => {
                 self.handle_resource_sample_ready(snapshot)
             }
+            ServerCommand::RemoteProjectConfigRead { project_id, result } => {
+                self.finish_remote_project_config_read(&project_id, result)
+            }
+            ServerCommand::HubReverseRequestExpired { reverse_id } => {
+                self.expire_hub_reverse_request(&reverse_id)
+            }
+            ServerCommand::RemoteResourceSnapshot { host_id, result } => {
+                self.finish_remote_resource_sample(host_id, result)
+            }
             ServerCommand::PullRequestWatchTick => self.poll_pull_request_watches().await,
             ServerCommand::PullRequestWatchSnapshot {
                 watch,
@@ -907,6 +975,49 @@ impl ServerActor {
             }
             ServerCommand::Account(command) => self.handle_account_command(command).await,
             ServerCommand::Push(command) => self.handle_push_command(command),
+            ServerCommand::VoiceRealtime { generation, event } => {
+                self.handle_voice_realtime_event(generation, event).await;
+            }
+            ServerCommand::VoiceRealtimeReconnect { generation } => {
+                self.handle_voice_realtime_reconnect(generation).await;
+            }
+            ServerCommand::VoiceGeminiTranscriptSettle { generation, token } => {
+                self.handle_voice_gemini_transcript_settle(generation, token)
+                    .await;
+            }
+            ServerCommand::VoiceTurnFinished {
+                client_id,
+                request_id,
+                job_id,
+                session_generation,
+                from_realtime,
+                cancel_home,
+                result,
+            } => {
+                self.handle_voice_turn_finished(
+                    client_id,
+                    request_id,
+                    job_id,
+                    session_generation,
+                    from_realtime,
+                    cancel_home,
+                    result,
+                )
+                .await;
+            }
+            ServerCommand::VoiceSynthesizeFinished {
+                client_id,
+                request_id,
+                job_id,
+                session_generation,
+                result,
+            } => self.handle_voice_synthesize_finished(
+                client_id,
+                request_id,
+                job_id,
+                session_generation,
+                result,
+            ),
         }
     }
 
@@ -926,6 +1037,11 @@ impl ServerActor {
         if self.orchestration_delivery_in_flight.contains(handle) {
             return;
         }
+        if self.voice.home_session_id.as_deref() == Some(handle)
+            && (self.voice.home_inject.is_some() || self.voice.home_needs_fresh_ready)
+        {
+            return;
+        }
         self.orchestration_delivery_backpressured.remove(handle);
         let messages = match self
             .runtime_store
@@ -942,11 +1058,12 @@ impl ServerActor {
         let session_instance_id = session.instance_id();
         let ids: Vec<String> = messages.iter().map(|message| message.id.clone()).collect();
         let paste = prompt_injection::build_agent_prompt_paste_bytes(&formatted);
+        let force_submit = self.voice.home_session_id.as_deref() == Some(handle);
         if let Err(error) = session.queue_write(
             PtyWriteCompletion::OrchestrationPaste {
                 session_instance_id,
                 message_ids: ids,
-                force_submit: false,
+                force_submit,
             },
             &paste,
         ) {
@@ -961,6 +1078,9 @@ impl ServerActor {
         }
         self.orchestration_delivery_in_flight
             .insert(handle.to_string());
+        if self.voice.home_session_id.as_deref() == Some(handle) {
+            self.voice.home_needs_fresh_ready = true;
+        }
     }
 
     fn is_active_coordinator_handle(&self, handle: &str) -> bool {
@@ -1035,6 +1155,10 @@ impl ServerActor {
             }
             self.orchestration_delivery_in_flight.remove(&session_id);
             self.broadcast_terminal_error(&session_id, message);
+            return;
+        }
+        if self.voice.home_session_id.as_deref() == Some(session_id.as_str()) {
+            self.voice.home_needs_fresh_ready = true;
         }
     }
 
@@ -1226,544 +1350,14 @@ impl ServerActor {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::terminal_host::history_store::TerminalHostCheckpoint;
-    use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
-    use alera_core::runtime::{
-        NewOrchestrationTask, OrchestrationDispatchStatus, OrchestrationTaskStatus,
-    };
-    use std::net::Ipv6Addr;
-
-    async fn account_push_for_test(
-        dir: &tempfile::TempDir,
-        runtime_store: &RuntimeStore,
-    ) -> account_push_state::AccountPushState {
-        account_push_state::AccountPushState::new(dir.path().to_path_buf(), runtime_store.clone())
-            .await
-            .unwrap()
-    }
-
-    #[tokio::test]
-    async fn stale_ssh_bootstrap_progress_is_not_broadcast() {
-        let dir = tempfile::tempdir().unwrap();
-        let (handle, mut out_rx) = ClientHandle::test_channels();
-        let mut actor = actor_test_harness::test_actor(
-            &dir,
-            HashMap::from([(1, ClientState::local(handle, true))]),
-            HashMap::new(),
-        )
-        .await;
-        actor.ssh_bootstrap_jobs.insert(
-            "remote".into(),
-            SshBootstrapJobState {
-                job_id: "active-job".into(),
-                target_id: "remote".into(),
-                status: SshBootstrapStatus::Installing,
-                handle: tokio::spawn(async {}),
-            },
-        );
-
-        actor.handle_ssh_bootstrap_progress(SshTargetBootstrapProgress {
-            job_id: "stale-job".to_string(),
-            target_id: "remote".to_string(),
-            status: SshBootstrapStatus::Failed,
-            stage: "failed".to_string(),
-            message: "Stale failure".to_string(),
-            error: Some("stale".to_string()),
-        });
-
-        assert!(out_rx.try_recv().is_err());
-        assert_eq!(
-            actor.ssh_bootstrap_jobs["remote"].status,
-            SshBootstrapStatus::Installing
-        );
-    }
-
-    #[tokio::test]
-    async fn mobile_gateway_rebinds_same_port_after_releasing_old_listener() {
-        let port_probe = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
-        let port = port_probe.local_addr().unwrap().port();
-        drop(port_probe);
-        let dir = tempfile::tempdir().unwrap();
-        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
-        let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
-        let (inbox, _rx) = mpsc::unbounded_channel();
-        let current = MobileAccessSettings {
-            enabled: true,
-            bind_host: "127.0.0.1".to_string(),
-            port: i64::from(port),
-            ..MobileAccessSettings::default()
-        };
-        let next = MobileAccessSettings {
-            enabled: true,
-            bind_host: "0.0.0.0".to_string(),
-            port: i64::from(port),
-            ..MobileAccessSettings::default()
-        };
-        let mut actor = ServerActor {
-            runtime_dir: dir.path().to_path_buf(),
-            control_file_path: dir.path().join("runtime-host.json"),
-            token: "token".to_string(),
-            config: TerminalHostConfig::default(),
-            store,
-            runtime_store: runtime_store.clone(),
-            automation_wake: Arc::new(Notify::new()),
-            automations_active: false,
-            pull_request_watches: Default::default(),
-            sessions: HashMap::new(),
-            ssh_bootstrap_jobs: HashMap::new(),
-            project_clone_jobs: HashMap::new(),
-            agent_title_jobs: HashMap::new(),
-            managed_workspace_jobs: 0,
-            workflow_execution: Default::default(),
-            workflow_workspace_jobs: 0,
-            workflow_workspace_recovery_running: false,
-            automation_checkout_jobs: Default::default(),
-            automation_precheck_jobs: Default::default(),
-            pending_terminal_lifecycle_shutdowns: Default::default(),
-            checkout_buffer_guards: HashMap::new(),
-            mutation_queue: Default::default(),
-            agent_quota_cache: None,
-            configuration_transfers: Default::default(),
-            account_push: account_push_for_test(&dir, &runtime_store).await,
-            clients: HashMap::new(),
-            mobile_prompt_file_uploads: HashMap::new(),
-            pending_output_writes: HashMap::new(),
-            agent_presence: AgentPresenceRegistry::default(),
-            orchestration_waiters: MessageWaiterRegistry::default(),
-            orchestration_delivery_in_flight: HashSet::new(),
-            orchestration_delivery_backpressured: HashSet::new(),
-            orchestration_activity_last_recorded: HashMap::new(),
-            coordinators: HashMap::new(),
-            resources: ResourceMonitorState::default(),
-            terminal_pulses: Default::default(),
-            codex: None,
-            codex_starting: None,
-            inbox,
-            next_client_id: Arc::new(AtomicU64::new(1)),
-            mobile_gateway: None,
-            shutdown_gen: 0,
-            disposed: false,
-        };
-
-        actor
-            .apply_mobile_gateway_settings(MobileAccessSettings::default(), current.clone())
-            .await
-            .unwrap();
-        let saved = actor
-            .apply_mobile_gateway_settings(current, next)
-            .await
-            .unwrap();
-
-        assert_eq!(saved.bind_host, "0.0.0.0");
-        assert!(actor.mobile_gateway.is_some());
-        actor.dispose().await;
-    }
-
-    #[tokio::test]
-    async fn mobile_gateway_binds_ipv6_loopback() {
-        let port_probe = match TcpListener::bind((Ipv6Addr::LOCALHOST, 0)).await {
-            Ok(listener) => listener,
-            Err(_) => return,
-        };
-        let port = port_probe.local_addr().unwrap().port();
-        drop(port_probe);
-        let dir = tempfile::tempdir().unwrap();
-        let actor = actor_test_harness::test_actor(&dir, HashMap::new(), HashMap::new()).await;
-        let settings = MobileAccessSettings {
-            enabled: true,
-            bind_host: "::1".to_string(),
-            port: i64::from(port),
-            ..MobileAccessSettings::default()
-        };
-
-        let replacement = actor
-            .prepare_mobile_gateway_replacement(&settings)
-            .await
-            .unwrap();
-
-        match replacement {
-            MobileGatewayReplacement::Bound { bind_address, .. } => {
-                assert!(bind_address.starts_with("[::1]:"));
-            }
-            MobileGatewayReplacement::Disabled => panic!("expected bound mobile gateway"),
-            MobileGatewayReplacement::Keep => panic!("expected bound mobile gateway"),
-        }
-    }
-
-    #[tokio::test]
-    async fn run_stop_clears_persisted_run_without_in_memory_ticker() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
-        let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
-        let run = runtime_store
-            .create_orchestration_coordinator_run("coordinate", Some("coord"), 1000)
-            .await
-            .unwrap();
-        let (inbox, _rx) = mpsc::unbounded_channel();
-        let mut actor = ServerActor {
-            runtime_dir: dir.path().to_path_buf(),
-            control_file_path: dir.path().join("runtime-host.json"),
-            token: "token".to_string(),
-            config: TerminalHostConfig::default(),
-            store,
-            runtime_store: runtime_store.clone(),
-            automation_wake: Arc::new(Notify::new()),
-            automations_active: false,
-            pull_request_watches: Default::default(),
-            sessions: HashMap::new(),
-            ssh_bootstrap_jobs: HashMap::new(),
-            project_clone_jobs: HashMap::new(),
-            agent_title_jobs: HashMap::new(),
-            managed_workspace_jobs: 0,
-            workflow_execution: Default::default(),
-            workflow_workspace_jobs: 0,
-            workflow_workspace_recovery_running: false,
-            automation_checkout_jobs: Default::default(),
-            automation_precheck_jobs: Default::default(),
-            pending_terminal_lifecycle_shutdowns: Default::default(),
-            checkout_buffer_guards: HashMap::new(),
-            mutation_queue: Default::default(),
-            agent_quota_cache: None,
-            configuration_transfers: Default::default(),
-            account_push: account_push_for_test(&dir, &runtime_store).await,
-            clients: HashMap::new(),
-            mobile_prompt_file_uploads: HashMap::new(),
-            pending_output_writes: HashMap::new(),
-            agent_presence: AgentPresenceRegistry::default(),
-            orchestration_waiters: MessageWaiterRegistry::default(),
-            orchestration_delivery_in_flight: HashSet::new(),
-            orchestration_delivery_backpressured: HashSet::new(),
-            orchestration_activity_last_recorded: HashMap::new(),
-            coordinators: HashMap::new(),
-            resources: ResourceMonitorState::default(),
-            terminal_pulses: Default::default(),
-            codex: None,
-            codex_starting: None,
-            inbox,
-            next_client_id: Arc::new(AtomicU64::new(1)),
-            mobile_gateway: None,
-            shutdown_gen: 0,
-            disposed: false,
-        };
-
-        let response = actor
-            .orchestration_run_stop(&json!({
-                "id": run.id,
-                "actor": "coord",
-                "reason": "maintenance"
-            }))
-            .await
-            .unwrap();
-        assert_eq!(response["runId"], json!(run.id));
-        assert_eq!(response["status"], json!("stopped"));
-        assert!(actor
-            .runtime_store
-            .active_orchestration_coordinator_run()
-            .await
-            .unwrap()
-            .is_none());
-        let stopped = actor
-            .runtime_store
-            .orchestration_coordinator_run_by_id(&run.id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(stopped.stop_reason.as_deref(), Some("maintenance"));
-    }
-
-    #[tokio::test]
-    async fn terminal_exit_fails_active_orchestration_dispatch() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
-        let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
-        let task = runtime_store
-            .create_orchestration_task(NewOrchestrationTask {
-                spec: "do work".to_string(),
-                task_title: None,
-                display_name: None,
-                deps: Vec::new(),
-                parent_id: None,
-                created_by_terminal_handle: None,
-                run_id: None,
-                workspace_id: "workspace-1".to_string(),
-                coordinator_handle: "coord".to_string(),
-                result_schema: None,
-            })
-            .await
-            .unwrap();
-        let dispatch = runtime_store
-            .create_orchestration_dispatch(&task.id, "term-1")
-            .await
-            .unwrap();
-        let (inbox, _rx) = mpsc::unbounded_channel();
-        let mut actor = ServerActor {
-            runtime_dir: dir.path().to_path_buf(),
-            control_file_path: dir.path().join("runtime-host.json"),
-            token: "token".to_string(),
-            config: TerminalHostConfig::default(),
-            store,
-            runtime_store: runtime_store.clone(),
-            automation_wake: Arc::new(Notify::new()),
-            automations_active: false,
-            pull_request_watches: Default::default(),
-            sessions: HashMap::new(),
-            ssh_bootstrap_jobs: HashMap::new(),
-            project_clone_jobs: HashMap::new(),
-            agent_title_jobs: HashMap::new(),
-            managed_workspace_jobs: 0,
-            workflow_execution: Default::default(),
-            workflow_workspace_jobs: 0,
-            workflow_workspace_recovery_running: false,
-            automation_checkout_jobs: Default::default(),
-            automation_precheck_jobs: Default::default(),
-            pending_terminal_lifecycle_shutdowns: Default::default(),
-            checkout_buffer_guards: HashMap::new(),
-            mutation_queue: Default::default(),
-            agent_quota_cache: None,
-            configuration_transfers: Default::default(),
-            account_push: account_push_for_test(&dir, &runtime_store).await,
-            clients: HashMap::new(),
-            mobile_prompt_file_uploads: HashMap::new(),
-            pending_output_writes: HashMap::new(),
-            agent_presence: AgentPresenceRegistry::default(),
-            orchestration_waiters: MessageWaiterRegistry::default(),
-            orchestration_delivery_in_flight: HashSet::new(),
-            orchestration_delivery_backpressured: HashSet::new(),
-            orchestration_activity_last_recorded: HashMap::new(),
-            coordinators: HashMap::new(),
-            resources: ResourceMonitorState::default(),
-            terminal_pulses: Default::default(),
-            codex: None,
-            codex_starting: None,
-            inbox,
-            next_client_id: Arc::new(AtomicU64::new(1)),
-            mobile_gateway: None,
-            shutdown_gen: 0,
-            disposed: false,
-        };
-
-        actor.handle_session_exit("term-1".to_string(), 9).await;
-
-        let updated_dispatch = actor
-            .runtime_store
-            .orchestration_dispatch_by_id(&dispatch.id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(updated_dispatch.status, OrchestrationDispatchStatus::Failed);
-        assert_eq!(updated_dispatch.failure_count, 1);
-        assert_eq!(
-            updated_dispatch.last_failure.as_deref(),
-            Some("terminal exited with code 9")
-        );
-        let updated_task = actor
-            .runtime_store
-            .orchestration_task_by_id(&task.id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(updated_task.status, OrchestrationTaskStatus::Ready);
-    }
-
-    #[tokio::test]
-    async fn host_dispose_fails_active_orchestration_dispatch() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
-        let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
-        let task = runtime_store
-            .create_orchestration_task(NewOrchestrationTask {
-                spec: "do work".to_string(),
-                task_title: None,
-                display_name: None,
-                deps: Vec::new(),
-                parent_id: None,
-                created_by_terminal_handle: None,
-                run_id: None,
-                workspace_id: "workspace-1".to_string(),
-                coordinator_handle: "coord".to_string(),
-                result_schema: None,
-            })
-            .await
-            .unwrap();
-        let dispatch = runtime_store
-            .create_orchestration_dispatch(&task.id, "term-1")
-            .await
-            .unwrap();
-        store
-            .upsert(TerminalHostCheckpoint {
-                session_id: "term-1".to_string(),
-                workspace_id: "workspace-1".to_string(),
-                tab_id: "tab-1".to_string(),
-                working_directory: "/tmp".to_string(),
-                running: false,
-                exit_code: None,
-                ended_at: None,
-                output_stream_bytes: 0,
-                updated_at: chrono::Utc::now(),
-                buffer: Vec::new(),
-            })
-            .await
-            .unwrap();
-        let session = Session::restore_exited(
-            "term-1".to_string(),
-            "workspace-1".to_string(),
-            "tab-1".to_string(),
-            &store,
-            1024,
-        )
-        .await
-        .unwrap();
-        let (inbox, _rx) = mpsc::unbounded_channel();
-        let mut actor = ServerActor {
-            runtime_dir: dir.path().to_path_buf(),
-            control_file_path: dir.path().join("runtime-host.json"),
-            token: "token".to_string(),
-            config: TerminalHostConfig::default(),
-            store,
-            runtime_store: runtime_store.clone(),
-            automation_wake: Arc::new(Notify::new()),
-            automations_active: false,
-            pull_request_watches: Default::default(),
-            sessions: HashMap::from([("term-1".to_string(), session)]),
-            ssh_bootstrap_jobs: HashMap::new(),
-            project_clone_jobs: HashMap::new(),
-            agent_title_jobs: HashMap::new(),
-            managed_workspace_jobs: 0,
-            workflow_execution: Default::default(),
-            workflow_workspace_jobs: 0,
-            workflow_workspace_recovery_running: false,
-            automation_checkout_jobs: Default::default(),
-            automation_precheck_jobs: Default::default(),
-            pending_terminal_lifecycle_shutdowns: Default::default(),
-            checkout_buffer_guards: HashMap::new(),
-            mutation_queue: Default::default(),
-            agent_quota_cache: None,
-            configuration_transfers: Default::default(),
-            account_push: account_push_for_test(&dir, &runtime_store).await,
-            clients: HashMap::new(),
-            mobile_prompt_file_uploads: HashMap::new(),
-            pending_output_writes: HashMap::new(),
-            agent_presence: AgentPresenceRegistry::default(),
-            orchestration_waiters: MessageWaiterRegistry::default(),
-            orchestration_delivery_in_flight: HashSet::new(),
-            orchestration_delivery_backpressured: HashSet::new(),
-            orchestration_activity_last_recorded: HashMap::new(),
-            coordinators: HashMap::new(),
-            resources: ResourceMonitorState::default(),
-            terminal_pulses: Default::default(),
-            codex: None,
-            codex_starting: None,
-            inbox,
-            next_client_id: Arc::new(AtomicU64::new(1)),
-            mobile_gateway: None,
-            shutdown_gen: 0,
-            disposed: false,
-        };
-
-        actor.dispose().await;
-
-        let updated_dispatch = actor
-            .runtime_store
-            .orchestration_dispatch_by_id(&dispatch.id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(updated_dispatch.status, OrchestrationDispatchStatus::Failed);
-        assert_eq!(updated_dispatch.failure_count, 1);
-        assert_eq!(
-            updated_dispatch.last_failure.as_deref(),
-            Some("terminal host shut down")
-        );
-        let updated_task = actor
-            .runtime_store
-            .orchestration_task_by_id(&task.id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(updated_task.status, OrchestrationTaskStatus::Ready);
-    }
-
-    #[tokio::test]
-    async fn coordinator_does_not_spawn_worker_tab_for_cli_only_client() {
-        let dir = tempfile::tempdir().unwrap();
-        let (handle, _control_out_rx) = ClientHandle::test_channels();
-        let mut actor = super::actor_test_harness::test_actor(
-            &dir,
-            HashMap::from([(1, ClientState::local(handle, false))]),
-            HashMap::new(),
-        )
-        .await;
-        actor
-            .runtime_store
-            .create_orchestration_task(NewOrchestrationTask {
-                spec: "do work".to_string(),
-                task_title: None,
-                display_name: None,
-                deps: Vec::new(),
-                parent_id: None,
-                created_by_terminal_handle: None,
-                run_id: None,
-                workspace_id: "workspace-1".to_string(),
-                coordinator_handle: "coord".to_string(),
-                result_schema: None,
-            })
-            .await
-            .unwrap();
-        let response = actor
-            .orchestration_run(&json!({
-                "spec": "coordinate",
-                "from": "coord",
-                "workspace": "workspace-1",
-                "pollIntervalMs": 600_000,
-            }))
-            .await
-            .unwrap();
-
-        actor
-            .handle(ServerCommand::CoordinatorTick {
-                run_id: response["runId"].as_str().unwrap().to_string(),
-            })
-            .await;
-
-        assert!(actor
-            .runtime_store
-            .list_workspace_tabs("workspace-1")
-            .await
-            .unwrap()
-            .is_empty());
-    }
-
-    #[tokio::test]
-    async fn last_app_client_disconnect_preserves_host_agent_presence() {
-        let dir = tempfile::tempdir().unwrap();
-        let (first_app_handle, _first_app_rx) = ClientHandle::test_channels();
-        let (second_app_handle, _second_app_rx) = ClientHandle::test_channels();
-        let (cli_handle, _cli_rx) = ClientHandle::test_channels();
-        let mut actor = actor_test_harness::test_actor(
-            &dir,
-            HashMap::from([
-                (1, ClientState::local(first_app_handle, true)),
-                (2, ClientState::local(second_app_handle, true)),
-                (3, ClientState::local(cli_handle, false)),
-            ]),
-            HashMap::new(),
-        )
-        .await;
-        actor
-            .agent_presence
-            .update("term-1", "claude".to_string(), AgentPresenceState::Done);
-
-        actor.dispose_client(3).await;
-        assert!(actor.agent_presence.is_injection_ready("term-1"));
-        actor.dispose_client(1).await;
-        assert!(actor.agent_presence.is_injection_ready("term-1"));
-        actor.dispose_client(2).await;
-
-        assert!(actor.agent_presence.is_injection_ready("term-1"));
-    }
-}
+#[path = "server/server_actor_gateway_tests.rs"]
+mod server_actor_gateway_tests;
+#[cfg(test)]
+#[path = "server/server_actor_orchestration_tests.rs"]
+mod server_actor_orchestration_tests;
+#[cfg(test)]
+#[path = "server/server_actor_test_support.rs"]
+mod server_actor_test_support;
 
 #[cfg(test)]
 mod remote_automation_cleanup_runtime_tests;

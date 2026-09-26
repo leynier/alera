@@ -30,7 +30,9 @@ impl ServerActor {
                     .and_then(Value::as_bool)
                     != Some(true)
                 {
-                    return Err(HostError::state("Confirm the shared checkout impact with sharedImpactConfirmed before Hand Off"));
+                    return Err(HostError::state(
+                        "Confirm the shared checkout impact with sharedImpactConfirmed before Hand Off",
+                    ));
                 }
                 let move_changes = payload.get("moveChanges").and_then(Value::as_bool).ok_or_else(|| HostError::state("Choose whether to move all transferable changes or leave them in the project folder with moveChanges"))?;
                 let replacement_branch = payload
@@ -79,7 +81,9 @@ impl ServerActor {
                     .and_then(Value::as_bool)
                     != Some(true)
                 {
-                    return Err(HostError::state("Confirm the impact on other workspaces with sharedImpactConfirmed before Hand On"));
+                    return Err(HostError::state(
+                        "Confirm the impact on other workspaces with sharedImpactConfirmed before Hand On",
+                    ));
                 }
                 let buffer_guard = self.claim_checkout_buffer_guard(
                     client_id,

@@ -1,10 +1,48 @@
 part of 'terminal_runtime.dart';
 
-void _writeSessionTerminal(_XtermTerminalSessionHandle handle, String data) {
+void _writeSessionTerminal(
+  _XtermTerminalSessionHandle handle,
+  String data, {
+  bool restore = false,
+}) {
   if (data.isEmpty || handle._disposed) {
     return;
   }
-  handle._terminal.write(data);
+  if (!restore) {
+    handle._terminal.write(data);
+    return;
+  }
+  handle._replayingRestore = true;
+  try {
+    handle._terminal.write(data);
+  } finally {
+    handle._replayingRestore = false;
+  }
+}
+
+/// Batches pending output into as few terminal writes as possible while never
+/// mixing a restored snapshot with live output in one write, because replies
+/// are muted for the whole of a restore write.
+class _TerminalWriteRuns(final _XtermTerminalSessionHandle handle) {
+  final StringBuffer _run = StringBuffer();
+  bool _restore = false;
+
+  void add(String text, _TerminalOutputSource source) {
+    final restore = source == _TerminalOutputSource.restore;
+    if (restore != _restore) {
+      flush();
+      _restore = restore;
+    }
+    _run.write(text);
+  }
+
+  void flush() {
+    if (_run.isEmpty) {
+      return;
+    }
+    handle._writeToTerminal(_run.toString(), restore: _restore);
+    _run.clear();
+  }
 }
 
 void _queueSessionTerminalOutput(
@@ -112,7 +150,7 @@ void _drainSessionTerminalOutputChunk(_XtermTerminalSessionHandle handle) {
   if (pending.isEmpty) {
     return;
   }
-  final frame = StringBuffer();
+  final frame = _TerminalWriteRuns(handle);
   var written = 0;
   var restoreWritten = 0;
   while (pending.isNotEmpty && written < _terminalOutputMaxCharsPerFrame) {
@@ -121,7 +159,7 @@ void _drainSessionTerminalOutputChunk(_XtermTerminalSessionHandle handle) {
     final available = segment.remaining;
     final remaining = _terminalOutputMaxCharsPerFrame - written;
     if (available <= remaining) {
-      frame.write(segment.remainingText);
+      frame.add(segment.remainingText, segment.source);
       handle._output.consume(segment, available);
       written += available;
       if (segment.source == _TerminalOutputSource.restore) {
@@ -136,7 +174,7 @@ void _drainSessionTerminalOutputChunk(_XtermTerminalSessionHandle handle) {
       break;
     }
     final consumed = cutoff - head;
-    frame.write(segment.text.substring(head, cutoff));
+    frame.add(segment.text.substring(head, cutoff), segment.source);
     handle._output.consume(segment, consumed);
     written += consumed;
     if (segment.source == _TerminalOutputSource.restore) {
@@ -146,7 +184,7 @@ void _drainSessionTerminalOutputChunk(_XtermTerminalSessionHandle handle) {
   if (written == 0) {
     return;
   }
-  handle._writeToTerminal(frame.toString());
+  frame.flush();
   handle._advanceRestore(restoreWritten);
   handle._advancePointerInputCatchUp(written);
 }
@@ -158,12 +196,13 @@ void _flushSessionTerminalOutputNow(_XtermTerminalSessionHandle handle) {
   }
   handle._output.restartFlushClock();
   final pendingChars = handle._output.length;
-  final buffer = StringBuffer();
-  for (final segment in handle._output.pending) {
-    buffer.write(segment.remainingText);
-  }
+  final runs = _TerminalWriteRuns(handle);
+  final segments = handle._output.pending.toList();
   handle._clearPendingTerminalOutput();
-  handle._writeToTerminal(buffer.toString());
+  for (final segment in segments) {
+    runs.add(segment.remainingText, segment.source);
+  }
+  runs.flush();
   // Everything queued is on screen now, including a restore this bypassed.
   handle._finishRestore();
   handle._advancePointerInputCatchUp(pendingChars);

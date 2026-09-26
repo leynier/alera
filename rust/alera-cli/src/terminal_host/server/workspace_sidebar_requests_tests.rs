@@ -108,3 +108,110 @@ async fn sidebar_snapshot_falls_back_to_the_first_primary_candidate() {
         json!({ "workspace-1": ["primary"] })
     );
 }
+
+#[tokio::test]
+async fn sidebar_hides_voice_home_activity_presence_and_terminal_counts() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mobile, _events) = ClientHandle::test_channels();
+    let mut session = Session::driver_test_stub("home-session", 80, 24);
+    session.workspace_id = alera_core::runtime::VOICE_HOME_WORKSPACE_ID.into();
+    session.tab_id = "home-tab".into();
+    let mut actor = test_actor(
+        &dir,
+        HashMap::from([(2, mobile_client(mobile, "phone"))]),
+        HashMap::from([("home-session".into(), session)]),
+    )
+    .await;
+    let now = Utc::now();
+    actor
+        .runtime_store
+        .upsert_workspace_tab(WorkspaceTabRecord {
+            id: "home-tab".into(),
+            workspace_id: alera_core::runtime::VOICE_HOME_WORKSPACE_ID.into(),
+            kind: "terminal".into(),
+            title: "Voice".into(),
+            created_at: now,
+            updated_at: now,
+            payload: json!({}),
+        })
+        .await
+        .unwrap();
+    actor
+        .agent_presence
+        .update("home-session", "codex".into(), AgentPresenceState::Working);
+    actor
+        .runtime_store
+        .record_workspace_activity_batch(std::collections::BTreeMap::from([(
+            alera_core::runtime::VOICE_HOME_WORKSPACE_ID.to_string(),
+            now,
+        )]))
+        .await
+        .unwrap();
+
+    let snapshot = actor.workspace_sidebar_snapshot(2).await.unwrap();
+    assert!(snapshot["agentPresence"].as_array().unwrap().is_empty());
+    assert!(snapshot["activity"]
+        .as_object()
+        .unwrap()
+        .get(alera_core::runtime::VOICE_HOME_WORKSPACE_ID)
+        .is_none());
+    assert!(snapshot["terminalTabCountByWorkspaceId"]
+        .as_object()
+        .unwrap()
+        .get(alera_core::runtime::VOICE_HOME_WORKSPACE_ID)
+        .is_none());
+    assert!(snapshot["workspaceMainTabIds"]
+        .as_object()
+        .unwrap()
+        .get(alera_core::runtime::VOICE_HOME_WORKSPACE_ID)
+        .is_none());
+}
+
+#[tokio::test]
+async fn sidebar_lists_a_slept_workspace_without_terminals() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mobile, _events) = ClientHandle::test_channels();
+    let mut session = Session::driver_test_stub("slept-session", 80, 24);
+    session.workspace_id = "workspace-1".into();
+    session.tab_id = "slept-tab".into();
+    let mut actor = test_actor(
+        &dir,
+        HashMap::from([(2, mobile_client(mobile, "phone"))]),
+        HashMap::from([("slept-session".into(), session)]),
+    )
+    .await;
+    let now = Utc::now();
+    actor
+        .runtime_store
+        .upsert_workspace_tab(WorkspaceTabRecord {
+            id: "slept-tab".into(),
+            workspace_id: "workspace-1".into(),
+            kind: "terminal".into(),
+            title: "Codex".into(),
+            created_at: now,
+            updated_at: now,
+            payload: json!({}),
+        })
+        .await
+        .unwrap();
+    actor
+        .agent_presence
+        .update("slept-session", "codex".into(), AgentPresenceState::Done);
+    actor
+        .runtime_store
+        .record_workspace_sleep("workspace-1")
+        .await
+        .unwrap();
+
+    let snapshot = actor.workspace_sidebar_snapshot(2).await.unwrap();
+    assert!(snapshot["agentPresence"].as_array().unwrap().is_empty());
+    assert!(snapshot["terminalTabCountByWorkspaceId"]
+        .as_object()
+        .unwrap()
+        .get("workspace-1")
+        .is_none());
+    assert_eq!(
+        snapshot["sleptTabIdsByWorkspaceId"],
+        json!({ "workspace-1": ["slept-tab"] })
+    );
+}

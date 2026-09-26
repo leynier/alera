@@ -70,13 +70,15 @@ pub use worktree_handoff::{
 };
 pub use worktree_setup_protection::validate_relocated_setup_copy;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitWorktreeEntry {
     pub path: String,
     pub branch: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum GitErrorKind {
     NotARepository,
     AccessDenied,

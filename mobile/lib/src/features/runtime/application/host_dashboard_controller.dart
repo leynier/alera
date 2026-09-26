@@ -16,6 +16,7 @@ class const HostDashboardData({
   required final List<ProjectSummary> projects,
   required final List<WorkspaceSummary> workspaces,
   required final Map<String, ProjectBranches> branchesByProject,
+  final bool supportsVoiceHomeAgent = false,
 });
 
 @riverpod
@@ -49,5 +50,6 @@ Future<HostDashboardData> hostDashboardData(Ref ref, String hostId) async {
     projects: projects,
     workspaces: workspaces,
     branchesByProject: branchesByProject,
+    supportsVoiceHomeAgent: client.supportsVoiceHomeAgent,
   );
 }

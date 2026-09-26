@@ -9,6 +9,7 @@ mod issue;
 mod mobile;
 mod project;
 mod text_source;
+mod voice;
 mod workspace;
 
 pub use agent_profile::*;
@@ -17,6 +18,7 @@ pub use issue::*;
 pub use mobile::*;
 pub use project::*;
 pub use text_source::*;
+pub use voice::*;
 pub use workspace::*;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
@@ -43,6 +45,9 @@ pub enum Command {
     #[command(name = "automation-host", hide = true)]
     AutomationHost(AutomationHostArgs),
     RuntimeProxy,
+    /// Attach a hub host link to this machine's runtime over stdio (run by the hub over ssh).
+    #[command(name = "runtime-attach", hide = true)]
+    RuntimeAttach(crate::runtime_attach::RuntimeAttachArgs),
     /// Run the persistent terminal host sidecar.
     #[command(name = TERMINAL_HOST_COMMAND)]
     TerminalHost(TerminalHostArgs),
@@ -51,7 +56,7 @@ pub enum Command {
 
     /// Create, list, update, and remove runtime-owned projects.
     Project(ProjectCommand),
-    /// Create, list, tag, section, relate, and remove runtime-owned workspaces.
+    /// Create, list, rename, tag, section, relate, and remove runtime-owned workspaces.
     Workspace(WorkspaceCommand),
 
     /// Read issues from GitHub, GitLab, or Azure DevOps through their CLIs.
@@ -82,6 +87,9 @@ pub enum Command {
 
     /// Inter-agent orchestration: messaging, task DAG, dispatch, gates, coordinator.
     Orchestration(OrchestrationCommand),
+
+    /// Global voice home agent: speak, status, and the runtime home folder.
+    Voice(VoiceCommand),
 }
 
 #[derive(Debug, Args)]
@@ -399,6 +407,21 @@ pub enum SshTargetAction {
     Bootstrap(SshTargetBootstrapArgs),
     /// Cancel an in-progress sidecar bootstrap job.
     BootstrapCancel(IdArgs),
+    /// Show, open, or close the hub's persistent link to a bootstrapped host.
+    Link(SshTargetLinkArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct SshTargetLinkArgs {
+    /// Host id. Omit to list every link the runtime knows.
+    #[arg(long)]
+    pub id: Option<String>,
+    /// Open the link (starts the satellite runtime when needed).
+    #[arg(long, conflicts_with = "disconnect")]
+    pub connect: bool,
+    /// Close the link.
+    #[arg(long, conflicts_with = "connect")]
+    pub disconnect: bool,
 }
 
 #[derive(Debug, Args)]
@@ -419,6 +442,11 @@ pub struct SshTargetAddArgs {
     pub arch: Option<String>,
     #[arg(long = "auth", value_enum, default_value_t = SshAuthKindArg::Agent)]
     pub auth_kind: SshAuthKindArg,
+    /// Folder on the host where projects are cloned when no path is given
+    /// (default: alera-projects under the remote home). `~/` and `%VAR%` are
+    /// expanded on the host.
+    #[arg(long)]
+    pub projects_dir: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]

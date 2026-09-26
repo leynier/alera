@@ -1,7 +1,9 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
+import 'package:alera/src/design_system/icons/alera_host_os_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
+import 'package:alera/src/features/remote_hosts/domain/ssh_target_host_os.dart';
 import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:flutter/material.dart';
 
@@ -36,7 +38,10 @@ class const WorkspaceHostPicker({
               AleraDropdownFieldEntry<String?>(
                 value: target.id,
                 label: sshTargetPickerLabel(target),
-                leading: const Icon(AleraIcons.host, size: 14),
+                leading: AleraHostOsIcon(
+                  os: sshTargetHostOs(target),
+                  size: AleraTokens.iconMd,
+                ),
                 enabled: supportsRemoteSshWorkspaces,
               ),
           ],

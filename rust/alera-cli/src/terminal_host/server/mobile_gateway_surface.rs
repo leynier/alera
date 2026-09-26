@@ -59,6 +59,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     crate::terminal_host::protocol::RUNTIME_HOST_SAFE_HANDOFF_CAPABILITY,
     crate::terminal_host::protocol::RUNTIME_HOST_SHARED_CHECKOUT_CAPABILITY,
     crate::terminal_host::protocol::RUNTIME_HOST_REMOTE_SSH_WORKSPACES_CAPABILITY,
+    crate::terminal_host::protocol::RUNTIME_HOST_MOBILE_REMOTE_WORKSPACES_CAPABILITY,
     RUNTIME_HOST_MOBILE_CAPABILITY,
     RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
     RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
@@ -111,6 +112,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_AI_DICTATION_MODELS_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_BACKENDS_CAPABILITY,
     RUNTIME_HOST_REMOTE_AI_DICTATION_CAPABILITY,
+    crate::terminal_host::protocol::RUNTIME_HOST_VOICE_HOME_AGENT_CAPABILITY,
 ];
 pub(super) fn mobile_hello_capabilities(renewal_enabled: bool) -> Vec<&'static str> {
     MOBILE_HELLO_CAPABILITIES
@@ -128,6 +130,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "mobile.status.get"
             | "mobile.relayAuthorization.renew"
             | "project.list"
+            | "mobile.hosts.list"
             | "hostDirectory.roots"
             | "hostDirectory.list"
             | "project.register"
@@ -233,6 +236,18 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "mobile.aiDictation.transcribe"
             | "mobile.aiDictation.cancel"
             | "mobile.aiDictation.capabilities"
+            | "mobile.voice.ensure"
+            | "mobile.voice.status"
+            | "mobile.voice.start"
+            | "mobile.voice.stop"
+            | "mobile.voice.turn"
+            | "mobile.voice.synthesize"
+            | "mobile.voice.spoken"
+            | "mobile.voice.audio"
+            | "mobile.voice.activity"
+            | "mobile.voice.credentials.status"
+            | "mobile.voice.credentials.save"
+            | "mobile.voice.credentials.clear"
             | "tab.list"
             | "tab.find"
             | "tab.rename"
@@ -418,6 +433,19 @@ mod mobile_codex_file_surface_tests {
             &crate::terminal_host::protocol::RUNTIME_HOST_MOBILE_PULL_REQUEST_SHIP_CAPABILITY
         ));
         assert!(mobile_request_allowed("mobile.pullRequest.ship"));
+    }
+
+    #[test]
+    fn advertises_remote_workspaces_and_names_hosts_without_exposing_them() {
+        assert!(MOBILE_HELLO_CAPABILITIES.contains(
+            &crate::terminal_host::protocol::RUNTIME_HOST_MOBILE_REMOTE_WORKSPACES_CAPABILITY
+        ));
+        assert!(mobile_request_allowed("mobile.hosts.list"));
+        // The full target record says how to reach a host, and running a tool
+        // on one is a desktop power.
+        for request in ["sshTarget.list", "host.process.run", "project.hosts.add"] {
+            assert!(!mobile_request_allowed(request), "{request}");
+        }
     }
 
     #[test]
