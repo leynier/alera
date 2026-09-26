@@ -138,3 +138,44 @@ final class SshTargetBootstrapProgressProvider
 
 String _$sshTargetBootstrapProgressHash() =>
     r'e9f439c965032784b33bc4731580217a16408bc0';
+
+@ProviderFor(hostLinks)
+final hostLinksProvider = HostLinksProvider._();
+
+final class HostLinksProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<HostLinkState>>,
+          List<HostLinkState>,
+          Stream<List<HostLinkState>>
+        >
+    with
+        $FutureModifier<List<HostLinkState>>,
+        $StreamProvider<List<HostLinkState>> {
+  HostLinksProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'hostLinksProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$hostLinksHash();
+
+  @$internal
+  @override
+  $StreamProviderElement<List<HostLinkState>> $createElement(
+    $ProviderPointer pointer,
+  ) => $StreamProviderElement(pointer);
+
+  @override
+  Stream<List<HostLinkState>> create(Ref ref) {
+    return hostLinks(ref);
+  }
+}
+
+String _$hostLinksHash() => r'8c566e60bdd843b78dfc09b860ae8f0c02f2ff90';

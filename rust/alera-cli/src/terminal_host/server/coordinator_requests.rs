@@ -172,7 +172,7 @@ impl ServerActor {
             None => {
                 return Err(HostError::format(
                     "id is required when zero or multiple runs are active.",
-                ))
+                ));
             }
         };
         let run_id = run_id.as_str();

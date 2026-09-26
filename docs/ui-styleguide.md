@@ -135,7 +135,7 @@ Components are **presentational**: they take data and callbacks as parameters an
 | Buttons | `AleraIconButton`, `AleraSegmentedButton` |
 | Badges & chips | `AleraBadge`, `AleraChip` |
 | Surfaces | `AleraPanel`, `AleraCommandLine`, `HoverContainer` |
-| Feedback | `AleraStatusDot`, `AleraStatusIndicator`, `AleraColorSwatch`, `AleraEmptyState`, `AleraToast`, `AleraQrCode` |
+| Feedback | `AleraStatusDot`, `AleraStatusIndicator`, `AleraColorSwatch`, `AleraEmptyState`, `AleraInlineNotice`, `AleraToast`, `AleraQrCode` |
 | Forms | `AleraTextField`, `AleraSearchField`, `AleraNumberField`, `AleraSettingRow`, `AleraDropdownField`, `AleraCheckbox` |
 | Layout | `AleraSectionHeader`, `AleraDialog`, `AleraDialogHeader`, `AleraConfirmDialog`, `AleraSettingsGroup`, `AleraMasterDetail`, `AleraHorizontalScrollView` |
 | Menus | `AleraDropdownEntry`, `AleraMenuItem` |

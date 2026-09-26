@@ -388,6 +388,7 @@ impl ServerActor {
                     .get(&session_id)
                     .map(|session| session.clients.iter().copied().collect::<Vec<_>>())
                     .unwrap_or_default();
+                self.abandon_home_inject(&session_id);
                 self.queue_terminal_exit_push(&session_id, None).await;
                 self.cleanup_orchestration_for_closed_session(
                     &session_id,
@@ -480,7 +481,7 @@ impl ServerActor {
             }
             "mobile.runtimeSettings.update" => {
                 self.require_auth(client_id)?;
-                const ALLOWED: [&str; 8] = [
+                const ALLOWED: [&str; 9] = [
                     "workspaceDirectory",
                     "confirmProjectRemoval",
                     "confirmWorkspaceRemoval",
@@ -489,6 +490,7 @@ impl ServerActor {
                     "agentQuotas",
                     "mobilePushNotifications",
                     "automation",
+                    "voice",
                 ];
                 if let Some(key) = payload
                     .as_object()
@@ -524,6 +526,7 @@ impl ServerActor {
                 self.update_workbench_view_prefs(client_id, payload).await
             }
             "workspaceActivity.list" => self.workspace_activity(client_id).await,
+            "workspace.sleptTabs" => self.slept_workspace_tabs(client_id).await,
             "workspaceActivity.upsertAll" => {
                 self.upsert_workspace_activity(client_id, payload).await
             }
@@ -534,7 +537,16 @@ impl ServerActor {
             }
             "project.list" => {
                 self.require_auth(client_id)?;
-                json_result(self.runtime_store.list_projects().await)
+                let mut projects = self
+                    .runtime_store
+                    .list_projects()
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?;
+                projects
+                    .retain(|project| !alera_core::runtime::is_voice_home_project_id(&project.id));
+                let mut projects = json_result(Ok::<_, HostError>(projects))?;
+                crate::project_hosts::decorate_projects(&self.runtime_store, &mut projects).await;
+                Ok(projects)
             }
             "hostDirectory.roots" => {
                 self.require_auth(client_id)?;
@@ -673,15 +685,28 @@ impl ServerActor {
             "workspace.list" => {
                 self.require_auth(client_id)?;
                 let project_id = require_string_key(payload, "projectId")?;
-                json_result(
-                    self.runtime_store
-                        .list_workspace_snapshots(&project_id)
-                        .await,
-                )
+                if alera_core::runtime::is_voice_home_project_id(&project_id) {
+                    Ok(json!([]))
+                } else {
+                    json_result(
+                        self.runtime_store
+                            .list_workspace_snapshots(&project_id)
+                            .await,
+                    )
+                }
             }
             "workspace.listAll" => {
                 self.require_auth(client_id)?;
-                json_result(self.runtime_store.list_all_workspaces().await)
+                let mut workspaces = self
+                    .runtime_store
+                    .list_all_workspaces()
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?;
+                workspaces.retain(|workspace| {
+                    !alera_core::runtime::is_voice_home_workspace_id(&workspace.id)
+                });
+                serde_json::to_value(workspaces)
+                    .map_err(|error| HostError::state(error.to_string()))
             }
             "workspace.find" => {
                 self.require_auth(client_id)?;
@@ -995,6 +1020,77 @@ impl ServerActor {
                 self.require_authenticated_local_request(client_id, request_type)?;
                 self.save_ai_dictation_credential(payload).await
             }
+            "voice.ensure" => {
+                self.require_auth(client_id)?;
+                self.voice_ensure_request().await
+            }
+            "voice.status" => {
+                self.require_auth(client_id)?;
+                self.voice_status_request().await
+            }
+            "voice.speak" => {
+                self.require_auth(client_id)?;
+                self.voice_speak_request(payload).await
+            }
+            "voice.start" => {
+                self.require_auth(client_id)?;
+                self.voice_start_request(client_id).await
+            }
+            "voice.stop" => {
+                self.require_auth(client_id)?;
+                self.voice_stop_request(client_id).await
+            }
+            "voice.turn" | "mobile.voice.turn" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.voice_turn_request(client_id, payload).await
+            }
+            "voice.spoken" | "mobile.voice.spoken" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.voice_spoken_request(client_id, payload).await
+            }
+            "voice.audio" | "mobile.voice.audio" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.voice_audio_request(client_id, payload).await
+            }
+            "voice.activity" | "mobile.voice.activity" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.voice_activity_request(client_id, payload).await
+            }
+            "mobile.voice.ensure" | "mobile.voice.status" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                if request_type.ends_with(".ensure") {
+                    self.voice_ensure_request().await
+                } else {
+                    self.voice_status_request().await
+                }
+            }
+            "mobile.voice.start" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.voice_start_request(client_id).await
+            }
+            "mobile.voice.stop" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.voice_stop_request(client_id).await
+            }
+            "voice.credentials.status" | "mobile.voice.credentials.status" => {
+                self.require_authenticated_local_request(client_id, request_type)?;
+                self.voice_credential_status_request().await
+            }
+            "voice.credentials.save" | "mobile.voice.credentials.save" => {
+                self.require_authenticated_local_request(client_id, request_type)?;
+                self.voice_credential_save_request(payload).await
+            }
+            "voice.credentials.clear" | "mobile.voice.credentials.clear" => {
+                self.require_authenticated_local_request(client_id, request_type)?;
+                self.voice_credential_clear_request(payload).await
+            }
             "aiDictation.credentials.clear" => {
                 self.require_authenticated_local_request(client_id, request_type)?;
                 self.clear_ai_dictation_credential().await
@@ -1018,6 +1114,10 @@ impl ServerActor {
             "sshTarget.list" => {
                 self.require_auth(client_id)?;
                 self.ssh_target_list().await
+            }
+            "mobile.hosts.list" => {
+                self.require_auth(client_id)?;
+                self.mobile_host_list().await
             }
             "sshTarget.upsert" => {
                 self.require_auth(client_id)?;

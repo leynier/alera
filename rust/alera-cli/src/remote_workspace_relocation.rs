@@ -4,7 +4,6 @@ use alera_core::runtime::{
 use anyhow::{bail, Context, Result};
 use base64::Engine;
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 
 use crate::ssh_remote::{
     probe_or_unreachable, require_bootstrapped_ssh_target, RemoteHostExecutor,
@@ -119,10 +118,8 @@ async fn request_owner<E: RemoteHostExecutor>(
             quote(&metadata)
         ));
     }
-    let profile = hex::encode(Sha256::digest(workspace.project_id.as_bytes()));
-    let script = crate::remote_owner_terminal_launch::owner_command_script(
-        windows, install, &profile, &arguments,
-    );
+    let script =
+        crate::remote_owner_terminal_launch::owner_command_script(windows, install, &arguments);
     let output = tokio::time::timeout(std::time::Duration::from_secs(60), executor.run(&target, windows, &script)).await
         .context("The SSH relocation response timed out. Retain both locations and retry the same relocation ID to recover the owner journal")??;
     if output.len() > 2_097_152 {

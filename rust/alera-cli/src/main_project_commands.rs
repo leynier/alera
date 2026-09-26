@@ -5,16 +5,78 @@ pub(super) async fn run_project_command(command: ProjectCommand) -> i32 {
     let json_output = command.output.json;
     match command.action {
         ProjectAction::List => match open_store(&runtime).await {
-            Ok(store) => match store.list_projects().await {
-                Ok(projects) => print_value(
-                    &json!({ "kind": "projects", "items": projects, "filters": {} }),
+            Ok(store) => match crate::hub_federation::read_from_hub(
+                &runtime,
+                &store,
+                "project.list",
+                json!({}),
+            )
+            .await
+            {
+                Ok(Some(answer)) => print_value(
+                    &json!({
+                        "kind": "projects",
+                        "items": answer["items"],
+                        "filters": {},
+                        "source": "hub",
+                    }),
                     json_output,
                     "projects listed",
                 ),
                 Err(error) => return print_error(error),
+                Ok(None) => match store.list_projects().await {
+                    Ok(projects) => {
+                        let mut items = json!(projects);
+                        crate::project_hosts::decorate_projects(&store, &mut items).await;
+                        print_value(
+                            &json!({ "kind": "projects", "items": items, "filters": {} }),
+                            json_output,
+                            "projects listed",
+                        )
+                    }
+                    Err(error) => return print_error(error),
+                },
             },
             Err(error) => return print_error(error),
         },
+        ProjectAction::Hosts(command) => {
+            use crate::cli::ProjectHostsAction;
+            let (request_type, payload, message, deadline_ms) = match command.action {
+                ProjectHostsAction::List(args) => (
+                    "project.hosts.list",
+                    json!({ "projectId": args.project_id }),
+                    "project hosts listed",
+                    30_000,
+                ),
+                // A clone can take as long as the repository is large.
+                ProjectHostsAction::Add(args) => (
+                    "project.hosts.add",
+                    json!({
+                        "projectId": args.project_id, "hostId": args.host_id,
+                        "path": args.path, "cloneUrl": args.clone_url,
+                    }),
+                    "project added to host",
+                    1_800_000,
+                ),
+                ProjectHostsAction::Remove(args) => (
+                    "project.hosts.remove",
+                    json!({ "projectId": args.project_id, "hostId": args.host_id }),
+                    "project removed from host",
+                    30_000,
+                ),
+            };
+            let mut client = match runtime_host_required(&runtime).await {
+                Ok(client) => client,
+                Err(error) => return print_error(error),
+            };
+            match client
+                .request_value_with_deadline(request_type, &payload, deadline_ms)
+                .await
+            {
+                Ok(value) => print_value(&value, json_output, message),
+                Err(error) => return print_error(error),
+            }
+        }
         ProjectAction::OwnerTerminal(args) => {
             return match remote_owner_terminal::run(args).await {
                 Ok(code) => code,
@@ -119,6 +181,30 @@ pub(super) async fn run_project_command(command: ProjectCommand) -> i32 {
             .await
             {
                 Ok(checkout) => print_value(&checkout, true, "checkout inspected"),
+                Err(error) => return print_error(error),
+            }
+        }
+        ProjectAction::AddRemote(args) => {
+            let kind = match args.kind {
+                ProjectKindArg::GitRepository => ProjectKind::GitRepository,
+                ProjectKindArg::Folder => ProjectKind::Folder,
+            };
+            let mut client = match runtime_host_required(&runtime).await {
+                Ok(client) => client,
+                Err(error) => return print_error(error),
+            };
+            match client
+                .request_value_with_deadline(
+                    "project.registerRemote",
+                    &json!({
+                        "hostId": args.host_id, "path": args.path.unwrap_or_default(),
+                        "cloneUrl": args.clone_url, "name": args.name, "kind": kind,
+                    }),
+                    1_800_000,
+                )
+                .await
+            {
+                Ok(value) => print_value(&value, json_output, "remote project registered"),
                 Err(error) => return print_error(error),
             }
         }

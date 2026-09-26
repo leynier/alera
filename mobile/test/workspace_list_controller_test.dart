@@ -70,6 +70,22 @@ void main() {
     },
   );
 
+  test('refreshes the terminal counts when a workspace sleeps', () async {
+    final client = _FakeWorkspaceClient()
+      ..terminalTabCountByWorkspaceId = <String, int>{'a': 1};
+    final container = _container(client);
+    await container.read(workspaceListControllerProvider('host-1').future);
+
+    client.terminalTabCountByWorkspaceId = const <String, int>{};
+    client.emit('workspaceSleepChanged');
+    await Future.pause(.zero);
+
+    final refreshed = await container.read(
+      workspaceListControllerProvider('host-1').future,
+    );
+    expect(refreshed.terminalTabCountByWorkspaceId, isEmpty);
+  });
+
   test('ignores a runtime event delivered after controller disposal', () async {
     final client = _FakeWorkspaceClient();
     final container = _container(client);

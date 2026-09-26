@@ -39,7 +39,9 @@ impl ServerActor {
                 .map_err(|error| HostError::state(error.to_string()))?
             {
                 if payload["launchToken"].as_str() != Some(expected.as_str()) {
-                    return Err(HostError::state("The terminal restart superseded this launch; reconnect using the replacement identity"));
+                    return Err(HostError::state(
+                        "The terminal restart superseded this launch; reconnect using the replacement identity",
+                    ));
                 }
             }
         }

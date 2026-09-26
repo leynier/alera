@@ -144,6 +144,7 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
         updatedAt TEXT NOT NULL,
         lastStatus TEXT,
         installDir TEXT,
+        projectsDir TEXT,
         runtimeVersion TEXT,
         runtimePlatform TEXT,
         runtimeArch TEXT,

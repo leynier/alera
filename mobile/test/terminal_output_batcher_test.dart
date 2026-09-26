@@ -38,6 +38,25 @@ void main() {
     expect(writes.single, endsWith('chunk-19 '));
   });
 
+  test('restored history is never written together with live output', () {
+    // The surface mutes emulator replies for restore writes, so a mixed write
+    // would either answer a replayed query or swallow a live one.
+    final restores = <String>[];
+    final subject = TerminalOutputBatcher(
+      write: writes.add,
+      writeRestore: restores.add,
+    );
+    addTearDown(subject.dispose);
+
+    subject.add('live-before ');
+    subject.addSnapshot('history ');
+    subject.add('live-after');
+    subject.flushFrame();
+
+    expect(writes, <String>['live-before ', 'live-after']);
+    expect(restores, <String>['history ']);
+  });
+
   test('output past the frame budget carries into the next frame', () {
     final subject = batcher(maxCharsPerFrame: 10);
 

@@ -19,6 +19,7 @@ class _FakeWorkspaceClient()
   List<WorkspaceSummary> workspaces = <WorkspaceSummary>[_workspace('a')];
   Map<String, List<String>> workspaceMainTabIds =
       const <String, List<String>>{};
+  Map<String, int> terminalTabCountByWorkspaceId = const <String, int>{};
   List<String> cascadeIds = <String>['a'];
 
   void emit(String name) {
@@ -71,6 +72,7 @@ class _FakeWorkspaceClient()
       viewPrefs: const MobileViewPrefs(),
       confirmWorkspaceRemoval: true,
       workspaceMainTabIds: workspaceMainTabIds,
+      terminalTabCountByWorkspaceId: terminalTabCountByWorkspaceId,
     );
   }
 

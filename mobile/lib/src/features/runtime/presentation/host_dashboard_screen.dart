@@ -6,6 +6,7 @@ import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart'
 import 'package:alera_mobile/src/features/hosts/presentation/rename_host_dialog.dart';
 import 'package:alera_mobile/src/features/projects/presentation/projects_screen.dart';
 import 'package:alera_mobile/src/features/automations/presentation/automations_screen.dart';
+import 'package:alera_mobile/src/features/voice/presentation/mobile_voice_screen.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_dashboard_controller.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_runtime_status.dart';
@@ -76,6 +77,16 @@ class const HostDashboardScreen({
                   ),
                 ),
               ),
+              if (dashboard.supportsVoiceHomeAgent) ...<Widget>[
+                const SizedBox(height: AleraTokens.spaceMd),
+                _VoiceCard(
+                  onOpen: () => Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (_) => MobileVoiceScreen(host: currentHost),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
           AsyncError(:final error) => _ErrorState(
@@ -285,6 +296,43 @@ class const _AutomationsCard({required final VoidCallback onOpen})
               onPressed: onOpen,
               icon: const Icon(Icons.arrow_forward),
               tooltip: 'Open Automations',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class const _VoiceCard({required this.onOpen}) extends StatelessWidget {
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: AleraTokens.contentPadding,
+        child: Row(
+          children: <Widget>[
+            Icon(
+              Icons.record_voice_over_outlined,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: AleraTokens.spaceSm),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: .start,
+                children: <Widget>[
+                  Text('Voice'),
+                  SizedBox(height: AleraTokens.space2),
+                  Text('Talk to the home agent on this runtime.'),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: onOpen,
+              icon: const Icon(Icons.arrow_forward),
+              tooltip: 'Open Voice',
             ),
           ],
         ),

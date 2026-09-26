@@ -22,6 +22,11 @@ const String aleraRuntimeHostPullRequestWatchCapability = 'pullRequestWatchV1';
 /// Feature-detect `workspace.archive` / `workspace.unarchive`. Additive: do
 /// not bump [aleraTerminalHostProtocolVersion].
 const String aleraRuntimeHostWorkspaceArchiveCapability = 'workspaceArchiveV1';
+
+/// Feature-detect `workspace.sleptTabs` and `workspaceSleepChanged`. Additive:
+/// do not bump [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostWorkspaceSleepStateCapability =
+    'workspaceSleepStateV1';
 const String aleraRuntimeHostBootstrapCapability = 'sshTargetBootstrap';
 const String aleraRuntimeHostManagedWorkspaceCapability =
     'managedWorkspaceLifecycle';
@@ -51,6 +56,28 @@ bool requiresSharedCheckoutSupport(String operation) => switch (operation) {
 /// attach. Additive: do not bump [aleraTerminalHostProtocolVersion].
 const String aleraRuntimeHostRemoteSshWorkspacesCapability =
     'remoteSshWorkspacesV1';
+
+/// The hub keeps one persistent ssh link per bootstrapped host and answers
+/// `hostLink.status` / `connect` / `disconnect` / `request`, broadcasting
+/// `hostLinkChanged`. Additive: do not bump [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostRemoteHostLinkCapability = 'remoteHostLinkV1';
+
+/// The runtime answers the desktop `git.*` verbs for a workspace on another
+/// host by forwarding them over that host's link, so Source Control, diffs,
+/// history and the explorer badges work on a remote checkout. Additive: do
+/// not bump [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostRemoteGitCapability = 'remoteGitV1';
+
+/// The runtime runs a tool for a workspace on the host that owns its checkout
+/// (`host.process.run`), which is how the forge CLIs reach a remote checkout.
+/// Local clients only. Additive: do not bump
+/// [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostRemoteProcessCapability = 'remoteProcessV1';
+
+/// The runtime serves `project.hosts.*` and reports `primaryHostId` and
+/// `checkouts` on every project, so one project can live on several hosts.
+/// Additive: do not bump [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostProjectHostsCapability = 'projectHostsV1';
 const String aleraRuntimeHostOrchestrationCapability = 'orchestration';
 const String aleraRuntimeHostRunBoardCapability = 'orchestrationRunBoardV1';
 const String aleraRuntimeHostWorkflowPlansCapability =
@@ -82,6 +109,7 @@ const String aleraRuntimeHostTerminalDeferredInputCapability =
     'terminalDeferredInputV1';
 const String aleraRuntimeHostRemoteAiDictationCapability =
     'aiDictationRemoteProvidersV1';
+const String aleraRuntimeHostVoiceHomeAgentCapability = 'voiceHomeAgentV1';
 
 /// Feature-detect OpenCode Go AI Assist HTTP completion and model discovery.
 /// Additive: do not bump [aleraTerminalHostProtocolVersion].

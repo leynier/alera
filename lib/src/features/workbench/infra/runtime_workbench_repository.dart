@@ -4,6 +4,7 @@ import 'package:alera/src/features/workbench/application/workspace_section_repos
 import 'dart:async';
 
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
+import 'package:alera/src/features/workbench/application/workspace_sleep_repository.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -13,12 +14,14 @@ import 'package:alera/src/shared/infra/runtime/runtime_change_coalescer.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_snapshot_stream.dart';
 
 part 'runtime_workbench_sections.dart';
+part 'runtime_workbench_sleep.dart';
 
 class RuntimeWorkbenchRepository(
   @override final RuntimeHostClient _client, {
   final Future<void> Function()? beforeAccess,
   RuntimeChangeCoalescer? coalescer,
-}) with _RuntimeWorkbenchSections implements WorkbenchRepository {
+}) with _RuntimeWorkbenchSections, _RuntimeWorkbenchSleep
+    implements WorkbenchRepository {
   this : _coalescer = coalescer ?? RuntimeChangeCoalescer();
 
   @override

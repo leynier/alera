@@ -19,7 +19,7 @@ pub(crate) struct RemoteOwnerRetirementArgs {
     pub enroll_never_started_base64: Option<String>,
 }
 
-pub(crate) async fn run(args: RemoteOwnerRetirementArgs) -> Result<Value> {
+pub(crate) async fn run(mut args: RemoteOwnerRetirementArgs) -> Result<Value> {
     if !args.state_dir.is_absolute()
         || args.workspace_id.trim().is_empty()
         || args.instance_id.trim().is_empty()
@@ -30,6 +30,7 @@ pub(crate) async fn run(args: RemoteOwnerRetirementArgs) -> Result<Value> {
         bail!("Pass --close-sessions to confirm stopping only this workspace's processes before retirement");
     }
     let automation_cleanup = parse_cleanup_scope(&args)?;
+    args.state_dir = owning_state_dir(&args).await?;
     if let Some(workspace) = alera_core::runtime::RuntimeStore::read_workspace_retirement_receipt(
         &args.state_dir,
         &args.workspace_id,
@@ -105,6 +106,64 @@ pub(crate) async fn run(args: RemoteOwnerRetirementArgs) -> Result<Value> {
     )
     .await?;
     Ok(json!({"version":1, "workspace":workspace, "processClosureVerified":true}))
+}
+
+/// The hub retires every remote workspace through the satellite profile, but a
+/// workspace that was created before the satellite existed still lives, with
+/// its retirement receipt or its live sessions, in the retired per-project
+/// `owners/<sha256(projectId)>` profile next to it. That profile is the one
+/// that can prove process closure, so it is used when the satellite has no
+/// record of the workspace and one of them does.
+async fn owning_state_dir(args: &RemoteOwnerRetirementArgs) -> Result<std::path::PathBuf> {
+    if knows_workspace(&args.state_dir, &args.workspace_id, &args.instance_id).await? {
+        return Ok(args.state_dir.clone());
+    }
+    let Some(legacy_root) = args.state_dir.parent().map(|dir| dir.join("owners")) else {
+        return Ok(args.state_dir.clone());
+    };
+    let mut entries = match tokio::fs::read_dir(&legacy_root).await {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(args.state_dir.clone())
+        }
+        Err(error) => return Err(error.into()),
+    };
+    while let Some(entry) = entries.next_entry().await? {
+        let candidate = entry.path();
+        if candidate.is_dir()
+            && knows_workspace(&candidate, &args.workspace_id, &args.instance_id).await?
+        {
+            return Ok(candidate);
+        }
+    }
+    Ok(args.state_dir.clone())
+}
+
+async fn knows_workspace(
+    state_dir: &std::path::Path,
+    workspace_id: &str,
+    instance_id: &str,
+) -> Result<bool> {
+    if !tokio::fs::try_exists(state_dir.join(alera_core::runtime::RUNTIME_DATABASE_FILE_NAME))
+        .await?
+    {
+        return Ok(false);
+    }
+    if alera_core::runtime::RuntimeStore::read_workspace_retirement_receipt(
+        state_dir,
+        workspace_id,
+        instance_id,
+    )
+    .await?
+    .is_some()
+    {
+        return Ok(true);
+    }
+    let store = alera_core::runtime::RuntimeStore::open_read_only(state_dir).await?;
+    Ok(store
+        .find_workspace(workspace_id)
+        .await?
+        .is_some_and(|workspace| workspace.instance_id == instance_id))
 }
 
 async fn enroll_never_started(args: &RemoteOwnerRetirementArgs, encoded: &str) -> Result<()> {
@@ -229,6 +288,73 @@ mod tests {
                 "retained"
             );
         }
+    }
+
+    #[tokio::test]
+    async fn retirement_falls_back_to_the_legacy_owner_profile_that_knows_the_workspace() {
+        let install = tempfile::tempdir().unwrap();
+        let satellite = install.path().join("data");
+        let legacy = install.path().join("owners").join("abc123");
+        let folder = install.path().join("folder");
+        std::fs::create_dir_all(&folder).unwrap();
+        for profile in [&satellite, &legacy] {
+            let store = alera_core::runtime::RuntimeStore::open(profile)
+                .await
+                .unwrap();
+            drop(store);
+        }
+        let legacy_store = alera_core::runtime::RuntimeStore::open(&legacy)
+            .await
+            .unwrap();
+        let workspace = crate::project_management::register_project(
+            &legacy_store,
+            folder.to_str().unwrap(),
+            None,
+        )
+        .await
+        .unwrap()
+        .initial_workspace
+        .unwrap();
+        let args = |workspace_id: &str, instance_id: &str| RemoteOwnerRetirementArgs {
+            state_dir: satellite.clone(),
+            workspace_id: workspace_id.into(),
+            instance_id: instance_id.into(),
+            close_sessions: true,
+            delete_branch: false,
+            automation_cleanup_base64: None,
+            enroll_never_started_base64: None,
+        };
+        assert_eq!(
+            owning_state_dir(&args(&workspace.id, &workspace.instance_id))
+                .await
+                .unwrap(),
+            legacy
+        );
+        // A different instance is another task; the satellite stays authoritative.
+        assert_eq!(
+            owning_state_dir(&args(&workspace.id, "other-instance"))
+                .await
+                .unwrap(),
+            satellite
+        );
+        assert_eq!(
+            owning_state_dir(&args("unknown", "instance"))
+                .await
+                .unwrap(),
+            satellite
+        );
+        // Without a legacy directory at all the satellite is used unchanged.
+        let lone = tempfile::tempdir().unwrap();
+        let lone_state = lone.path().join("data");
+        assert_eq!(
+            owning_state_dir(&RemoteOwnerRetirementArgs {
+                state_dir: lone_state.clone(),
+                ..args("task", "instance")
+            })
+            .await
+            .unwrap(),
+            lone_state
+        );
     }
 }
 

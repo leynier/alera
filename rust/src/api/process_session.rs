@@ -11,13 +11,11 @@ use std::process::Stdio;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
-use alera_core::child_process::windowless_async_command;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::process::{Child, Command};
 use tokio::runtime::{Builder, Runtime};
 use tokio::sync::{mpsc, Notify};
 
-use super::process_shell::{shell_invocation, ShellInvocation};
 use super::{ProcessEvent, ProcessEventKind, ProcessRunResult};
 use crate::frb_generated::StreamSink;
 
@@ -230,102 +228,13 @@ fn build_command(
     environment: Option<HashMap<String, String>>,
     include_parent_environment: bool,
 ) -> Command {
-    #[cfg(windows)]
-    let executable = resolve_windows_executable(
+    alera_core::shell_command::shell_command(
         executable,
+        arguments,
         working_directory.as_deref(),
         environment.as_ref(),
-    );
-    #[cfg(not(windows))]
-    let executable = executable.to_string();
-    let mut command = match shell_invocation(&executable, arguments) {
-        ShellInvocation::Posix { program, arguments } => {
-            let mut command = windowless_async_command(program);
-            command.args(arguments);
-            command
-        }
-        ShellInvocation::Windows {
-            program,
-            raw_arguments,
-        } => {
-            #[cfg_attr(not(windows), allow(unused_mut))]
-            let mut command = windowless_async_command(program);
-            #[cfg(windows)]
-            {
-                command.raw_arg(&raw_arguments);
-            }
-            #[cfg(not(windows))]
-            {
-                let _ = raw_arguments;
-            }
-            command
-        }
-    };
-    if let Some(working_directory) = working_directory {
-        command.current_dir(working_directory);
-    }
-    if !include_parent_environment {
-        command.env_clear();
-    }
-    if let Some(environment) = environment {
-        command.envs(environment);
-    }
-    // The shell does not necessarily exec the command it was given, so killing
-    // the child alone can leave the real process running with the output pipes
-    // still open. Its own group makes the whole invocation killable at once.
-    #[cfg(unix)]
-    command.process_group(0);
-    command.kill_on_drop(true);
-    command
-}
-
-#[cfg(windows)]
-fn resolve_windows_executable(
-    executable: &str,
-    working_directory: Option<&str>,
-    environment: Option<&HashMap<String, String>>,
-) -> String {
-    if executable.contains(['/', '\\']) {
-        return executable.to_string();
-    }
-    let environment_value = |name: &str| {
-        environment
-            .and_then(|values| {
-                values
-                    .iter()
-                    .find(|(key, _)| key.eq_ignore_ascii_case(name))
-                    .map(|(_, value)| value.clone())
-            })
-            .or_else(|| std::env::var(name).ok())
-    };
-    let extensions = if std::path::Path::new(executable).extension().is_some() {
-        vec![String::new()]
-    } else {
-        environment_value("PATHEXT")
-            .unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".to_string())
-            .split(';')
-            .filter(|extension| !extension.is_empty())
-            .map(str::to_string)
-            .collect()
-    };
-    let mut directories = Vec::new();
-    if let Some(working_directory) = working_directory {
-        directories.push(std::path::PathBuf::from(working_directory));
-    } else if let Ok(current_directory) = std::env::current_dir() {
-        directories.push(current_directory);
-    }
-    if let Some(path) = environment_value("PATH") {
-        directories.extend(std::env::split_paths(&path));
-    }
-    for directory in directories {
-        for extension in &extensions {
-            let candidate = directory.join(format!("{executable}{extension}"));
-            if candidate.is_file() {
-                return candidate.to_string_lossy().into_owned();
-            }
-        }
-    }
-    executable.to_string()
+        include_parent_environment,
+    )
 }
 
 /// Waits for the child, killing it if the Dart side asks in the meantime.
@@ -361,7 +270,7 @@ async fn terminate_invocation(child: &Child) {
     }
     #[cfg(windows)]
     if let Some(pid) = child.id() {
-        let mut command = windowless_async_command("taskkill.exe");
+        let mut command = alera_core::child_process::windowless_async_command("taskkill.exe");
         command
             .args(windows_process_tree_kill_arguments(pid))
             .stdin(Stdio::null())

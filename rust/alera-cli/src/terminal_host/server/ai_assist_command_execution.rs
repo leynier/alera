@@ -275,12 +275,12 @@ async fn execute_command(
             Ok(Err(error)) => {
                 return Err(HostError::state(format!(
                     "AI Assist process closure could not be verified: {error}"
-                )))
+                )));
             }
             Err(_) => {
                 return Err(HostError::state(
                     "AI Assist process closure could not be verified before the deadline.",
-                ))
+                ));
             }
         }
     }

@@ -7,11 +7,13 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/features/workbench/application/workspace_hosts_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_panels_controller.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/explorer_panel.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_panel.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/source_control_panel.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_viewer_screen.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_host_marker.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_text_search_panel.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
@@ -344,7 +346,13 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
         // toolbar leaves ~18dp of dead space under the title before the chips
         // start; 48dp still fits the back button exactly.
         toolbarHeight: AleraTokens.minTapTarget,
-        title: Text(widget.workspace.name, overflow: .ellipsis),
+        title: WorkspaceHostTitle(
+          name: widget.workspace.name,
+          host: ref
+              .watch(workspaceHostsControllerProvider(widget.hostId))
+              .value
+              ?.hostOf(widget.workspace),
+        ),
         actions: <Widget>[
           PopupMenuButton<_TabsMenuAction>(
             tooltip: 'More Actions',

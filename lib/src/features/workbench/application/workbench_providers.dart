@@ -22,6 +22,8 @@ import 'package:alera/src/features/workbench/application/workspace_explorer_sess
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_graph_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_search_service.dart';
+import 'package:alera/src/features/workbench/infra/runtime_workspace_search_client.dart';
+import 'package:alera/src/features/workbench/application/retired_workspace_invalidation.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
 import 'package:alera/src/features/workbench/application/worktree_setup_service.dart';
@@ -94,6 +96,7 @@ List<WorkbenchSidebarRow> workbenchSidebarRows(Ref ref) {
         projects: state.projects,
         searchQuery: state.searchQuery,
         tabsByWorkspace: state.tabsByWorkspace,
+        sleptTabIdsByWorkspaceId: state.sleptTabIdsByWorkspaceId,
         viewPrefs: state.viewPrefs,
         workspacesByProject: state.workspacesByProject,
       ),
@@ -105,6 +108,7 @@ List<WorkbenchSidebarRow> workbenchSidebarRows(Ref ref) {
       projects: state.projects,
       workspacesByProject: state.workspacesByProject,
       tabsByWorkspace: state.tabsByWorkspace,
+      sleptTabIdsByWorkspaceId: state.sleptTabIdsByWorkspaceId,
       viewPrefs: state.viewPrefs,
       searchQuery: state.searchQuery,
     ),
@@ -180,6 +184,23 @@ WorkspaceFileService workspaceFileService(Ref ref) {
 @Riverpod(keepAlive: true)
 WorkspaceSearchService workspaceSearchService(Ref ref) {
   return const WorkspaceSearchService();
+}
+
+/// Search for a workspace whose checkout lives on another host: the runtime
+/// forwards the request over that host's link. Kept alive because the search
+/// controller that reads it is, and released when the workspace is retired so
+/// it does not outlive the deleted workspace for the rest of the session.
+@Riverpod(keepAlive: true)
+WorkspaceSearchService remoteWorkspaceSearchService(
+  Ref ref,
+  String workspaceId,
+) {
+  invalidateWhenWorkspaceRetired(ref, workspaceId);
+  return RuntimeWorkspaceSearchClient(
+    ref.watch(runtimeHostClientProvider),
+    workspaceId: workspaceId,
+    beforeAccess: ref.watch(runtimeStateMigrationProvider).ensureMigrated,
+  );
 }
 
 @Riverpod(keepAlive: true)

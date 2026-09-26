@@ -22,6 +22,31 @@ void _registerAddProjectDialogLocalTests() {
     expect(local.name, 'notes');
   });
 
+  testWidgets('offers Add Remote Project only when it is available', (
+    tester,
+  ) async {
+    await _pumpDialogLauncher(tester, onResult: (_) {});
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    expect(find.text('Add Remote Project'), findsNothing);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    AddProjectResult? result;
+    await _pumpDialogLauncher(
+      tester,
+      onResult: (value) => result = value,
+      remoteProjectAvailable: true,
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add Remote Project'));
+    await tester.pumpAndSettle();
+
+    expect(result, isA<AddRemoteProjectResult>());
+    expect(find.text('Clone From URL'), findsNothing);
+  });
+
   testWidgets('submits a clone-from-URL project', (tester) async {
     AddProjectResult? result;
 
