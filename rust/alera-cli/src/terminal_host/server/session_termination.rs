@@ -9,6 +9,40 @@ use super::runtime_mutations::{
 use super::ServerActor;
 
 impl ServerActor {
+    pub(super) async fn terminate_session_request(
+        &mut self,
+        session_id: String,
+    ) -> crate::terminal_host::host_error::HostResult<()> {
+        let attached_clients = self
+            .sessions
+            .get(&session_id)
+            .map(|session| session.clients.iter().copied().collect::<Vec<_>>())
+            .unwrap_or_default();
+        self.abandon_home_inject(&session_id);
+        self.queue_terminal_exit_push(&session_id, None).await;
+        self.cleanup_orchestration_for_closed_session(
+            &session_id,
+            "terminal was explicitly terminated",
+        )
+        .await;
+        if !self.remove_terminal_session_tab(&session_id).await? {
+            self.flush_all_output(&session_id);
+            self.await_output_writes(&session_id).await;
+            let store = self.store.clone();
+            if let Some(mut session) = self.sessions.remove(&session_id) {
+                session.terminate(true, &store).await;
+            }
+        }
+        for client in attached_clients {
+            self.client_write(
+                client,
+                event("terminalSessionRemoved", json!({"sessionId": session_id})),
+            );
+        }
+        self.schedule_shutdown_if_idle();
+        Ok(())
+    }
+
     pub(super) async fn prepare_managed_workspace_removal(
         &mut self,
         request: &crate::managed_workspace::ManagedWorkspaceRemoveRequest,
