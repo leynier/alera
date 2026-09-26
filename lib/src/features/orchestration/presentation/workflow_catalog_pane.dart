@@ -221,7 +221,7 @@ class _WorkflowCatalogPaneState extends ConsumerState<WorkflowCatalogPane> {
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  key: ValueKey(_workspaceId),
+                  key: ValueKey(workspaceExists ? _workspaceId : ''),
                   initialValue: workspaceExists ? _workspaceId : '',
                   isExpanded: true,
                   decoration: const InputDecoration(
