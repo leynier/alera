@@ -27,6 +27,17 @@ void main() {
     expect(jobs['desktop_e2e_linux']['if'], 'inputs.full_validation');
   });
 
+  test(
+    'explicit validation concurrency follows the actual triggering commit',
+    () {
+      expect(
+        workflow['concurrency']['group'],
+        r"desktop-builds-${{ github.event.pull_request.number || github.ref }}-${{ inputs.source_sha && github.sha || '' }}-${{ inputs.full_validation }}",
+      );
+      expect(workflow['concurrency']['cancel-in-progress'], isTrue);
+    },
+  );
+
   test('every validation job uses the resolved immutable revision', () {
     for (final job in [
       'build',
@@ -235,9 +246,34 @@ void main() {
         final result = Process.runSync(
           'bash',
           ['-c', script],
-          environment: {'SOURCE_SHA': value, 'TRIGGER_SHA': sha},
+          environment: {
+            'SOURCE_SHA': value,
+            'TRIGGER_SHA': sha,
+            'FULL_VALIDATION': 'true',
+          },
         );
         expect(result.exitCode, value == sha ? 0 : 1, reason: value);
+      }
+    });
+
+    test('only build-only runs allow an unnamed triggering revision', () {
+      final revision = step('revision', 'Require an immutable revision');
+      expect(revision['env']['SOURCE_SHA'], r'${{ inputs.source_sha }}');
+      expect(
+        revision['env']['FULL_VALIDATION'],
+        r'${{ inputs.full_validation }}',
+      );
+      for (final fullValidation in ['true', 'false']) {
+        final result = Process.runSync(
+          'bash',
+          ['-c', revision['run'] as String],
+          environment: {
+            'SOURCE_SHA': '',
+            'TRIGGER_SHA': '0123456789abcdef0123456789abcdef01234567',
+            'FULL_VALIDATION': fullValidation,
+          },
+        );
+        expect(result.exitCode, fullValidation == 'true' ? 1 : 0);
       }
     });
 
