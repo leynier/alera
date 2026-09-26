@@ -11,6 +11,7 @@ final class _TerminalHostConnection {
     required this.supportsDeferredInput,
     required this.supportsTerminalPulse,
     required this.supportsRemoteAiDictation,
+    required this.supportsRunBoard,
     required this.supportsWorkspaceSections,
     required this.runtimeCapabilities,
   }) : _reader = null {
@@ -36,6 +37,7 @@ final class _TerminalHostConnection {
     required this.supportsDeferredInput,
     required this.supportsTerminalPulse,
     required this.supportsRemoteAiDictation,
+    required this.supportsRunBoard,
     required this.supportsWorkspaceSections,
     required this.runtimeCapabilities,
   }) : _reader = reader,
@@ -59,6 +61,7 @@ final class _TerminalHostConnection {
   final bool supportsDeferredInput;
   final bool supportsTerminalPulse;
   final bool supportsRemoteAiDictation;
+  final bool supportsRunBoard;
   final bool supportsWorkspaceSections;
   final Set<String> runtimeCapabilities;
 
@@ -157,6 +160,7 @@ final class const _TerminalHostControl({
   final bool supportsDeferredInput = false,
   final bool supportsTerminalPulse = false,
   final bool supportsRemoteAiDictation = false,
+  final bool supportsRunBoard = false,
   final bool supportsWorkspaceSections = false,
   final Set<String> runtimeCapabilities = const <String>{},
 });

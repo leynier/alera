@@ -337,6 +337,7 @@ Future<void> _writeControlFile({
   bool includeManagedWorkspaceCapability = true,
   bool includeOrchestrationCapability = true,
   bool includeBinaryFramesCapability = false,
+  bool includeRunBoardCapability = false,
   bool includeWorkspaceSectionsCapability = false,
   bool includeConfigurationSyncCapability = false,
 }) async {
@@ -356,6 +357,7 @@ Future<void> _writeControlFile({
       if (includeOrchestrationCapability)
         aleraRuntimeHostOrchestrationCapability,
       if (includeBinaryFramesCapability) aleraRuntimeHostBinaryFramesCapability,
+      if (includeRunBoardCapability) aleraRuntimeHostRunBoardCapability,
       if (includeWorkspaceSectionsCapability)
         aleraRuntimeHostWorkspaceSectionsCapability,
       if (includeConfigurationSyncCapability)

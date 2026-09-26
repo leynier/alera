@@ -127,6 +127,9 @@ Future<_TerminalHostControl?> _readControl(File file) async {
       supportsRemoteAiDictation: capabilities.contains(
         aleraRuntimeHostRemoteAiDictationCapability,
       ),
+      supportsRunBoard: capabilities.contains(
+        aleraRuntimeHostRunBoardCapability,
+      ),
       supportsWorkspaceSections: capabilities.contains(
         aleraRuntimeHostWorkspaceSectionsCapability,
       ),

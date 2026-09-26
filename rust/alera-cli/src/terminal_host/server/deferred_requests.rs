@@ -83,6 +83,10 @@ impl ServerActor {
             return Ok(true);
         }
         match request_type {
+            "orchestration.boardSnapshot" | "orchestration.runSnapshot" => {
+                self.start_orchestration_board_read(client_id, request_id, request_type, payload)?;
+                Ok(true)
+            }
             "terminal.ownerLifecycle" => {
                 self.start_owner_terminal_lifecycle(client_id, request_id, payload)
                     .await?;

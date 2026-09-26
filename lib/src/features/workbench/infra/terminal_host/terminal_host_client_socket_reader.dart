@@ -133,6 +133,7 @@ Future<_TerminalHostConnection> _openHostConnection(
       supportsDeferredInput: control.supportsDeferredInput,
       supportsTerminalPulse: control.supportsTerminalPulse,
       supportsRemoteAiDictation: control.supportsRemoteAiDictation,
+      supportsRunBoard: control.supportsRunBoard,
       supportsWorkspaceSections: control.supportsWorkspaceSections,
       runtimeCapabilities: control.runtimeCapabilities,
     );
@@ -150,6 +151,7 @@ Future<_TerminalHostConnection> _openHostConnection(
     supportsDeferredInput: control.supportsDeferredInput,
     supportsTerminalPulse: control.supportsTerminalPulse,
     supportsRemoteAiDictation: control.supportsRemoteAiDictation,
+    supportsRunBoard: control.supportsRunBoard,
     supportsWorkspaceSections: control.supportsWorkspaceSections,
     runtimeCapabilities: control.runtimeCapabilities,
   );
