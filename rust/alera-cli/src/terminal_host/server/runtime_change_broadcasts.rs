@@ -19,6 +19,17 @@ use super::ServerActor;
 /// really is broader than one workspace or project: the wildcard is the safe
 /// value, never guess a scope.
 impl ServerActor {
+    pub(super) fn broadcast_workflow_catalog_changed(
+        &self,
+        source: &alera_core::runtime::WorkflowRecipeSource,
+        catalog_revision: i64,
+    ) {
+        self.broadcast_authenticated_local(event(
+            "workflowCatalogChanged",
+            json!({"source": source, "catalogRevision": catalog_revision}),
+        ));
+    }
+
     pub(super) fn broadcast_workspace_tabs_changed(&self, workspace_id: Option<&str>) {
         self.broadcast_authenticated(event(
             "workspaceTabsChanged",

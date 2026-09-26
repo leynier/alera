@@ -1,0 +1,64 @@
+version: 1
+id: quick-fix
+revision: 1
+name: Quick Fix
+description: Diagnose, fix and verify a narrowly scoped problem.
+coordinatorInstructions: >-
+  Propose a small concrete task DAG covering every stage. State the expected
+  behavior, reproduction and verification before requesting plan approval.
+  Do not dispatch workers before human approval. Preserve unrelated work.
+roles:
+  - {id: implementer, name: Implementer, contractId: fix, contractRevision: 1}
+  - {id: reviewer, name: Reviewer, contractId: verification, contractRevision: 1}
+contracts:
+  - version: 1
+    id: fix
+    revision: 1
+    name: Scoped Fix
+    purpose: Fix the assigned problem with the smallest justified change.
+    instructions: >-
+      Establish the failure, implement the scoped fix, add regression coverage
+      and run applicable checks. Report unverified assumptions and blockers.
+    inputSchema:
+      type: object
+      properties: {objective: {type: string, minLength: 1}}
+      required: [objective]
+    resultSchema:
+      type: object
+      properties: {summary: {type: string, minLength: 1}}
+      required: [summary]
+    requiredArtifacts: []
+    checklist:
+      - {id: regression, description: Reproduction and regression coverage are documented.}
+      - {id: checks, description: Applicable focused checks pass with recorded evidence.}
+  - version: 1
+    id: verification
+    revision: 1
+    name: Fix Verification
+    purpose: Verify the integrated fix against its approved objective.
+    instructions: >-
+      Inspect the integrated changes and rerun applicable checks. Do not mark
+      success with unresolved findings. Report findings for a corrective task.
+    inputSchema:
+      type: object
+      properties: {objective: {type: string, minLength: 1}}
+      required: [objective]
+    resultSchema:
+      type: object
+      properties: {summary: {type: string, minLength: 1}}
+      required: [summary]
+    requiredArtifacts: []
+    checklist:
+      - {id: review, description: No unresolved correctness or scope findings remain.}
+      - {id: checks, description: Verification checks pass with recorded evidence.}
+stages:
+  - id: fix
+    name: Fix
+    purpose: Diagnose and implement the scoped correction.
+    roles: [implementer]
+    dependsOn: []
+  - id: verify
+    name: Verify
+    purpose: Independently verify the integrated result.
+    roles: [reviewer]
+    dependsOn: [fix]

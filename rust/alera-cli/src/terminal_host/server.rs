@@ -265,6 +265,9 @@ mod voice_stt;
 mod voice_transcript;
 mod voice_tts;
 mod voice_turn_jobs;
+mod workflow_catalog_requests;
+#[cfg(test)]
+mod workflow_catalog_tests;
 mod workspace_archive_requests;
 mod workspace_file_mutation_requests;
 mod workspace_git_requests;
@@ -801,6 +804,12 @@ impl ServerActor {
             } => self.handle_host_tool_finished(client_id, request_id, result, operation_id, skill),
             ServerCommand::RuntimeMutationFinished(finished) => {
                 self.handle_runtime_mutation_finished(finished).await
+            }
+            ServerCommand::WorkflowCatalogChanged {
+                source,
+                catalog_revision,
+            } => {
+                self.broadcast_workflow_catalog_changed(&source, catalog_revision);
             }
             ServerCommand::PrepareRuntimeMutation {
                 request,

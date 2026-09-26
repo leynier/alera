@@ -2,6 +2,8 @@
 
 Role contracts define the purpose, instructions, concrete inputs and completion requirements of a task. They are portable data, not agent launch configurations. A contract does not choose a provider, model, command, credential or execution environment; Agent Profiles continue to control launches.
 
+[Workflow recipes](workflow-recipes.md) can embed these contracts with exact role references in Built-in, Personal and Project catalogs. Catalog compilation is separate from task creation and does not launch workers.
+
 ## Creation And Frozen Context
 
 Use `alera orchestration task-create --workspace <workspace-id> --spec "<task brief>" --role-contract '<contract JSON>' --contract-inputs '<input JSON>'`. Both JSON flags are required together and cannot be combined with the legacy `--result-schema`.
