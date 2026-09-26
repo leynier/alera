@@ -406,6 +406,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                       mainAxisSize: .min,
                       children: <Widget>[
                         RunBoardAttentionControl(),
+                        VoiceStatusBarControl(),
                         ResourceStatusBarControl(),
                         KeepAliveStatusBarControl(),
                         RuntimeHostStatusBarControl(),

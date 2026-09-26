@@ -82,6 +82,10 @@ mixin _ProjectWorkbenchSidebarActions
     );
   }
 
+  Future<void> _manageProjectHosts(Project project) {
+    return showProjectHostsFlow(context, ref, project);
+  }
+
   Future<void> _renameWorkspace(Workspace workspace) async {
     final name = await showRenameDialog(
       context,

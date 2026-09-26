@@ -68,6 +68,9 @@ installed_size="$(du -sk "$deb_root/opt/alera" | awk '{print $1}')"
 #     stand: only `alera` carries RUNPATH `$ORIGIN/lib`, while the plugins that
 #     actually need this keep the build tree's RUNPATH, so the loader never
 #     searches lib/ for it. Bundling it means fixing that first.
+#   libasound2  flutter_soloud links ALSA directly for voice playback, and the
+#     sound server behind it is the system's, so it stays a system package.
+#     Ubuntu 24.04 renamed it libasound2t64, hence the alternative.
 #   libgtk-3-0  Never bundle. GTK loads theme, GIO, pixbuf and input method
 #     modules from the system that are built against the system GTK, so a
 #     second one breaks IME.
@@ -79,7 +82,7 @@ Priority: optional
 Architecture: ${arch_deb}
 Maintainer: ${maintainer}
 Installed-Size: ${installed_size}
-Depends: libgtk-3-0, libjson-glib-1.0-0, libsecret-1-0, libsqlite3-0, libssl3, libvulkan1, libayatana-appindicator3-1
+Depends: libgtk-3-0, libjson-glib-1.0-0, libsecret-1-0, libsqlite3-0, libssl3, libvulkan1, libayatana-appindicator3-1, libasound2t64 | libasound2
 Description: ${description}
 DEB
 dpkg-deb --build "$deb_root" "$output_dir/alera-${release_version}-linux.deb"
@@ -110,6 +113,7 @@ Requires: sqlite
 Requires: openssl-libs
 Requires: vulkan-loader
 Requires: libayatana-appindicator-gtk3
+Requires: alsa-lib
 
 %description
 ${description}

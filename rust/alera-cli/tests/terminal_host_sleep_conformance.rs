@@ -216,3 +216,60 @@ fn workspace_sleep_terminates_sessions_but_preserves_tabs_and_layout() {
     );
     assert_eq!(read_response(&mut reader, 10)["ok"], json!(false));
 }
+
+#[test]
+fn slept_terminals_stay_listed_until_one_of_them_starts_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let control_path = dir.path().join("runtime-host.json");
+    let _guard = spawn_host(dir.path(), &control_path);
+    let (mut writer, mut reader) = connect(&control_path);
+    send(
+        &mut writer,
+        json!({
+            "id": 0,
+            "type": "hello",
+            "payload": {"protocolVersion": PROTOCOL_VERSION, "token": "sleep-token"}
+        }),
+    );
+    assert_eq!(read_response(&mut reader, 0)["ok"], json!(true));
+    upsert_tab(&mut writer, &mut reader, 1, "terminal-1", "w1", "terminal");
+    upsert_tab(&mut writer, &mut reader, 2, "editor-1", "w1", "editor");
+
+    send(
+        &mut writer,
+        json!({"id": 3, "type": "workspace.sleep", "payload": {"workspaceId": "w1"}}),
+    );
+    assert_eq!(read_response(&mut reader, 3)["ok"], json!(true));
+    send(
+        &mut writer,
+        json!({"id": 4, "type": "workspace.sleptTabs", "payload": {}}),
+    );
+    assert_eq!(
+        read_response(&mut reader, 4)["payload"],
+        json!({"w1": ["terminal-1"]})
+    );
+
+    send(
+        &mut writer,
+        json!({
+            "id": 5,
+            "type": "createOrAttach",
+            "payload": {
+                "sessionId": "woken-session",
+                "workspaceId": "w1",
+                "tabId": "terminal-1",
+                "workingDirectory": terminal_host_test_platform::working_directory(),
+                "launch": terminal_host_test_platform::long_running_launch(),
+                "cols": 80,
+                "rows": 24
+            }
+        }),
+    );
+    answer_conpty_cursor_query(&mut writer, "woken-session");
+    assert_eq!(read_response(&mut reader, 5)["ok"], json!(true));
+    send(
+        &mut writer,
+        json!({"id": 6, "type": "workspace.sleptTabs", "payload": {}}),
+    );
+    assert_eq!(read_response(&mut reader, 6)["payload"], json!({}));
+}

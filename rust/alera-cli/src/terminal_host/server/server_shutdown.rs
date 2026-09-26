@@ -6,12 +6,14 @@ impl ServerActor {
             return;
         }
         self.disposed = true;
+        self.voice.stop_realtime();
         self.pull_request_watches = Default::default();
         for tab_id in self.agent_title_jobs.keys().cloned().collect::<Vec<_>>() {
             self.cancel_agent_title_job(&tab_id);
         }
         self.cancel_shutdown_timer();
         self.codex = None;
+        self.host_links.disconnect_all().await;
         self.stop_remote_relay().await;
         if let Some(handle) = self.mobile_gateway.take() {
             handle.abort();

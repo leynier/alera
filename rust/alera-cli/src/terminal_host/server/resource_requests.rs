@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -24,6 +25,9 @@ pub(super) struct ResourceMonitorState {
     /// Cadence the ticker is currently running at, following what callers say
     /// they poll at rather than a fixed value.
     interval: Duration,
+    /// The latest snapshot of each attached satellite, merged into the answer
+    /// so proxied sessions show what runs on their host.
+    remote_snapshots: HashMap<String, Value>,
 }
 
 impl Default for ResourceMonitorState {
@@ -36,6 +40,7 @@ impl Default for ResourceMonitorState {
             release_sampler_when_ready: false,
             app_pid: None,
             interval: RESOURCE_SAMPLE_INTERVAL,
+            remote_snapshots: HashMap::new(),
         }
     }
 }
@@ -44,6 +49,7 @@ impl ResourceMonitorState {
     fn stop_ticker(&mut self) {
         self.ticker.stop();
         self.last_snapshot = None;
+        self.remote_snapshots.clear();
         self.app_pid = None;
         self.interval = RESOURCE_SAMPLE_INTERVAL;
         if self.sample_in_flight {
@@ -68,6 +74,20 @@ impl ResourceMonitorState {
     }
 }
 
+impl ResourceMonitorState {
+    pub(super) fn note_remote_snapshot(&mut self, host_id: String, snapshot: Value) {
+        // A poll that comes back after the panel closed must not revive state
+        // the stopped ticker already dropped.
+        if self.ticker.is_running() {
+            self.remote_snapshots.insert(host_id, snapshot);
+        }
+    }
+
+    pub(super) fn forget_remote_snapshot(&mut self, host_id: &str) {
+        self.remote_snapshots.remove(host_id);
+    }
+}
+
 impl ServerActor {
     /// Answer `resources.snapshot` with the most recent sweep and keep the
     /// ticker alive for the caller.
@@ -89,11 +109,16 @@ impl ServerActor {
             self.resources.interval = interval;
             self.start_resource_ticker(!running);
         }
-        Ok(self
+        let mut snapshot = self
             .resources
             .last_snapshot
             .clone()
-            .unwrap_or_else(warming_snapshot))
+            .unwrap_or_else(warming_snapshot);
+        super::remote_resource_relay::merge_remote_sessions(
+            &mut snapshot,
+            &self.resources.remote_snapshots,
+        );
+        Ok(snapshot)
     }
 
     /// (Re)start the ticker at the current cadence.
@@ -125,6 +150,9 @@ impl ServerActor {
             self.resources.stop_ticker();
             return;
         }
+        self.start_remote_resource_samples(
+            u64::try_from(self.resources.interval.as_millis()).unwrap_or(u64::MAX),
+        );
         if self.resources.sample_in_flight {
             // A previous sweep is still running on a loaded machine. Skipping
             // keeps blocking threads from piling up.

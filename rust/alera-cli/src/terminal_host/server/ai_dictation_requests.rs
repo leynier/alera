@@ -28,7 +28,9 @@ struct DictationRequestGuard {
 impl Drop for DictationRequestGuard {
     fn drop(&mut self) {
         if let Ok(mut requests) = active_requests().lock() {
-            requests.remove(&self.request_id);
+            if let Some(cancelled) = requests.remove(&self.request_id) {
+                cancelled.store(true, Ordering::Relaxed);
+            }
         }
         if let Some(path) = self.temporary_audio.take() {
             let _ = fs::remove_file(path);
@@ -51,6 +53,27 @@ pub(super) async fn transcribe_mobile(
         ));
     }
     transcribe_whisper(payload, false, runtime_dir).await
+}
+
+pub(super) async fn transcribe_wav_bytes_with_model_id(
+    wav: &[u8],
+    runtime_dir: &std::path::Path,
+    model_id: &str,
+    request_id: String,
+) -> HostResult<String> {
+    use base64::Engine as _;
+    let payload = json!({
+        "requestId": request_id,
+        "audioBase64": base64::engine::general_purpose::STANDARD.encode(wav),
+        "modelId": model_id,
+    });
+    let result = transcribe_whisper(&payload, false, runtime_dir).await?;
+    Ok(result
+        .get("text")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim()
+        .to_string())
 }
 
 async fn transcribe_whisper(
@@ -85,9 +108,16 @@ async fn transcribe_whisper(
         }
         let path =
             std::env::temp_dir().join(format!("alera-dictation-{}.wav", uuid::Uuid::new_v4()));
-        fs::write(&path, bytes)
-            .map_err(|error| HostError::state(format!("audio could not be stored: {error}")))?;
         request_guard.temporary_audio = Some(path.clone());
+        {
+            use std::io::Write as _;
+            let mut file = alera_core::runtime::create_private_runtime_file(&path)
+                .map_err(|error| HostError::state(format!("audio could not be stored: {error}")))?;
+            file.write_all(&bytes)
+                .map_err(|error| HostError::state(format!("audio could not be stored: {error}")))?;
+            file.sync_all()
+                .map_err(|error| HostError::state(format!("audio could not be stored: {error}")))?;
+        }
         path.to_string_lossy().to_string()
     } else {
         string(payload, "audioPath")?

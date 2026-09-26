@@ -97,7 +97,7 @@ final class AiAssistServiceProvider
   }
 }
 
-String _$aiAssistServiceHash() => r'e09183626cfcac5376420083d6e456c824d9198d';
+String _$aiAssistServiceHash() => r'cd56a850b681aab725aabebac5e62f6077604b2f';
 
 @ProviderFor(aiAssistModelDiscoveryService)
 final aiAssistModelDiscoveryServiceProvider =

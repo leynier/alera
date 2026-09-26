@@ -16,6 +16,39 @@ impl ServerActor {
         payload: &Value,
     ) -> HostResult<bool> {
         self.require_shared_checkout_support(client_id, request_type)?;
+        self.refuse_hub_only_payload_fields(client_id, payload)?;
+        // The reverse channel runs before every local handler: on a satellite,
+        // a hub-owned verb such as `project.hosts.add` must reach the hub
+        // instead of the handler below that would act on this runtime's copies.
+        match self.try_handle_hub_reverse_request(client_id, request_id, request_type, payload)? {
+            Some(super::hub_reverse_requests::ReverseOutcome::Answer(value)) => {
+                self.client_write(
+                    client_id,
+                    crate::terminal_host::protocol::ok_response(request_id, value),
+                );
+                return Ok(true);
+            }
+            Some(super::hub_reverse_requests::ReverseOutcome::Deferred) => return Ok(true),
+            None => {}
+        }
+        if self
+            .try_forward_to_hub(client_id, request_id, request_type, payload)
+            .await?
+        {
+            return Ok(true);
+        }
+        if self
+            .try_start_remote_ai_assist(client_id, request_id, request_type, payload)
+            .await?
+        {
+            return Ok(true);
+        }
+        if self
+            .try_start_project_hosts_request(client_id, request_id, request_type, payload)
+            .await?
+        {
+            return Ok(true);
+        }
         if self
             .try_start_remote_terminal_lifecycle(client_id, request_id, request_type, payload)
             .await?
@@ -29,6 +62,12 @@ impl ServerActor {
             return Ok(true);
         }
         if self.try_start_configuration_cloud(client_id, request_id, request_type, payload)? {
+            return Ok(true);
+        }
+        if self.try_start_satellite_mirror_request(client_id, request_id, request_type, payload)? {
+            return Ok(true);
+        }
+        if self.try_start_host_link_request(client_id, request_id, request_type, payload)? {
             return Ok(true);
         }
         if self.try_start_account_request(client_id, request_id, request_type, payload)? {
@@ -83,6 +122,22 @@ impl ServerActor {
                 self.require_request_allowed(client_id, request_type)?;
                 self.start_mobile_network_snapshot(client_id, request_id)
                     .await?;
+                Ok(true)
+            }
+            "voice.turn" | "mobile.voice.turn" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                if payload.get("audioBase64").is_some() {
+                    self.start_voice_turn(client_id, request_id, payload)?;
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            }
+            "voice.synthesize" | "mobile.voice.synthesize" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_voice_synthesize(client_id, request_id, payload)?;
                 Ok(true)
             }
             "aiDictation.transcribe" => {
@@ -178,7 +233,26 @@ impl ServerActor {
             | "mobile.pullRequest.create"
             | "mobile.pullRequest.ship"
             | "workspace.files.list"
-            | "workspace.files.read" => {
+            | "workspace.files.read"
+            | "workspace.files.write"
+            | "workspace.files.create"
+            | "workspace.files.rename"
+            | "workspace.files.copy"
+            | "workspace.files.move"
+            | "workspace.files.delete" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_mobile_workspace_file_request(
+                    client_id,
+                    request_id,
+                    request_type,
+                    payload,
+                )?;
+                Ok(true)
+            }
+            verb if super::workspace_git_requests::is_workspace_git_verb(verb)
+                || verb == super::host_process_requests::HOST_PROCESS_RUN =>
+            {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 self.start_mobile_workspace_file_request(

@@ -31,6 +31,35 @@ impl ServerActor {
         });
     }
 
+    /// A project that lives only on another host. The same job accounting and
+    /// finish path as a checkout registration: both may clone, and both end by
+    /// announcing that the project list changed.
+    pub(super) fn start_remote_project_registration(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        request: crate::remote_project_checkout::RegisterRemoteProjectRequest,
+    ) {
+        self.managed_workspace_jobs += 1;
+        self.cancel_shutdown_timer();
+        let store = self.runtime_store.clone();
+        let inbox = self.inbox.clone();
+        tokio::spawn(async move {
+            let result = crate::remote_project_checkout::register_remote_project(
+                &store,
+                request,
+                &crate::ssh_remote::LiveSshRemoteHost,
+            )
+            .await
+            .map_err(|error| crate::terminal_host::host_error::HostError::state(error.to_string()));
+            let _ = inbox.send(ServerCommand::ProjectCheckoutRegistered {
+                client_id,
+                request_id,
+                result,
+            });
+        });
+    }
+
     pub(super) fn handle_project_checkout_registered(
         &mut self,
         client_id: u64,

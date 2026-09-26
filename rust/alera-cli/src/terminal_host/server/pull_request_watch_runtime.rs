@@ -86,6 +86,7 @@ impl ServerActor {
                 continue;
             }
             let store = self.runtime_store.clone();
+            let links = self.host_links.clone();
             let inbox = self.inbox.clone();
             let id = watch.workspace_id.clone();
             let generation = Uuid::new_v4();
@@ -94,9 +95,12 @@ impl ServerActor {
                 let Ok(_permit) = polls.acquire_owned().await else {
                     return;
                 };
-                let result = super::mobile_pull_request_requests::snapshot_mobile_pull_request(
+                // A remote checkout is read on its own host: `gh` and the
+                // repository are there, not here.
+                let result = super::remote_pull_request_routing::snapshot_for_workspace(
                     &store,
-                    &json!({"workspaceId": watch.workspace_id}),
+                    &links,
+                    &watch.workspace_id,
                 )
                 .await;
                 let _ = inbox.send(ServerCommand::PullRequestWatchSnapshot {
@@ -161,10 +165,11 @@ impl ServerActor {
             }
             Evaluation::Merge { head, method } => {
                 let store = self.runtime_store.clone();
+                let links = self.host_links.clone();
                 let inbox = self.inbox.clone();
                 let id = watch.workspace_id.clone();
                 let job = tokio::spawn(async move {
-                    let result = merge(&store, &watch, &snapshot, &head, &method).await;
+                    let result = merge(&store, &links, &watch, &snapshot, &head, &method).await;
                     let _ = inbox.send(ServerCommand::PullRequestWatchMerged {
                         watch: Box::new(watch),
                         generation,
@@ -266,6 +271,7 @@ impl ServerActor {
 
 async fn merge(
     store: &alera_core::runtime::RuntimeStore,
+    links: &crate::terminal_host::host_link_registry::HostLinkRegistry,
     watch: &PullRequestWatch,
     snapshot: &Value,
     head: &str,
@@ -286,8 +292,10 @@ async fn merge(
         "rebase" => "--rebase",
         _ => "--merge",
     };
-    let (code, _, stderr) = super::mobile_pull_request_requests::run_gh(
-        &workspace.path,
+    let (code, _, stderr) = super::remote_pull_request_routing::run_gh_for_workspace(
+        store,
+        links,
+        &workspace,
         &[
             "pr",
             "merge",

@@ -100,19 +100,20 @@ impl ServerActor {
     }
 }
 
-/// Every `mobile.pullRequest.*` verb: the snapshot read, the summaries read,
-/// and the writes.
+/// Every `mobile.pullRequest.*` verb with a workspace: the snapshot read and
+/// the writes. `summaries` spans projects and hosts and is dispatched to
+/// `mobile_pull_request_summaries` by the caller.
 pub(super) async fn handle_mobile_pull_request(
     store: &RuntimeStore,
     request_type: &str,
     payload: &Value,
 ) -> HostResult<Value> {
+    if let Some(workspace_id) = payload.get("workspaceId").and_then(Value::as_str) {
+        super::remote_pull_request_routing::adopt_hub_linked_review(store, workspace_id, payload)
+            .await?;
+    }
     if request_type == "mobile.pullRequest.snapshot" {
         return snapshot_mobile_pull_request(store, payload).await;
-    }
-    if request_type == "mobile.pullRequest.summaries" {
-        return super::mobile_pull_request_summaries::load_mobile_pull_request_summaries(store)
-            .await;
     }
     run_mobile_pull_request_action(store, request_type, payload).await
 }
@@ -161,7 +162,10 @@ async fn run_mobile_pull_request_action(
             )
             .await?;
         }
-        Action::Ship(request) => ship_pull_request(store, &workspace, &identity, request).await?,
+        Action::Ship(request) => {
+            let hub_settings = super::remote_ai_assist_requests::hub_ai_assist_settings(payload)?;
+            ship_pull_request(store, &workspace, &identity, request, hub_settings).await?
+        }
         _ => {
             run_checked(&workspace.path, &gh_args(&action, &identity, "")).await?;
         }
@@ -253,7 +257,7 @@ pub(super) fn parse_action(request_type: &str, payload: &Value) -> HostResult<Ac
                 "providerDefault" => {
                     return Err(HostError::state(
                         "GitHub does not expose a provider-default merge method through gh.",
-                    ))
+                    ));
                 }
                 other => return Err(HostError::state(format!("Unknown merge method: {other}"))),
             },
@@ -313,7 +317,7 @@ pub(super) fn parse_action(request_type: &str, payload: &Value) -> HostResult<Ac
                     None | Some("all") => ShipScope::All,
                     Some("staged") => ShipScope::Staged,
                     Some(other) => {
-                        return Err(HostError::state(format!("Unknown ship scope: {other}")))
+                        return Err(HostError::state(format!("Unknown ship scope: {other}")));
                     }
                 },
             })
@@ -321,7 +325,7 @@ pub(super) fn parse_action(request_type: &str, payload: &Value) -> HostResult<Ac
         other => {
             return Err(HostError::state(format!(
                 "Unsupported pull request action: {other}"
-            )))
+            )));
         }
     })
 }
@@ -438,7 +442,7 @@ async fn run_checked(repo_path: &str, args: &[String]) -> HostResult<String> {
     let (code, stdout, stderr) = match run_gh(repo_path, &args).await {
         Ok(output) => output,
         Err(error) if error.wire_message().starts_with("failed to run gh") => {
-            return Err(gh_missing())
+            return Err(gh_missing());
         }
         Err(error) => return Err(error),
     };

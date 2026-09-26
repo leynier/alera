@@ -41,7 +41,9 @@ impl CheckoutBufferGuardProof {
     }
     pub(super) fn verify(&self) -> HostResult<()> {
         if !self.valid.load(Ordering::SeqCst) {
-            return Err(HostError::state("Editor buffer verification changed or disconnected. The workspace was preserved; prepare the operation again."));
+            return Err(HostError::state(
+                "Editor buffer verification changed or disconnected. The workspace was preserved; prepare the operation again.",
+            ));
         }
         Ok(())
     }
@@ -70,7 +72,9 @@ impl ServerActor {
             ));
         }
         if guard.status(id)["ready"] != true {
-            return Err(HostError::state("All connected editors must acknowledge clean, frozen buffers before this operation can continue"));
+            return Err(HostError::state(
+                "All connected editors must acknowledge clean, frozen buffers before this operation can continue",
+            ));
         }
         guard.claimed_request_id = Some(request_id);
         Ok(CheckoutBufferGuardProof {
@@ -104,7 +108,9 @@ impl ServerActor {
             || workspace.project_id != guard.project_id
             || workspace.host_id != guard.host_id
         {
-            return Err(HostError::state("Workspace identity or location changed during buffer verification. Prepare the operation again."));
+            return Err(HostError::state(
+                "Workspace identity or location changed during buffer verification. Prepare the operation again.",
+            ));
         }
         let guarded_tabs = guard.scope.tab_ids.clone();
         let current_tabs = self

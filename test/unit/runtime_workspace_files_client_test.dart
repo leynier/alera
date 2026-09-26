@@ -75,6 +75,7 @@ void main() {
     final file = await files.readEditorTextFile(
       workspaceId: 'workspace-1',
       relativePath: 'readme.md',
+      tabSize: 4,
     );
 
     expect(file.displayContent, 'hello');
@@ -118,6 +119,7 @@ void main() {
       final file = await files.readEditorTextFile(
         workspaceId: 'workspace-1',
         relativePath: 'readme.md',
+        tabSize: 4,
       );
 
       expect(file.displayContent, 'hello world');
@@ -153,6 +155,7 @@ void main() {
         files.readEditorTextFile(
           workspaceId: 'workspace-1',
           relativePath: 'readme.md',
+          tabSize: 4,
         ),
         throwsA(_invalidReadOffsetException),
       );
@@ -189,6 +192,7 @@ void main() {
         files.readEditorTextFile(
           workspaceId: 'workspace-1',
           relativePath: 'readme.md',
+          tabSize: 4,
         ),
         throwsA(_invalidReadOffsetException),
       );
@@ -216,22 +220,29 @@ void main() {
     expect(remote.readWorkspaceId, 'workspace-1');
   });
 
-  test('WorkspaceFileService refuses remote writes', () async {
-    final service = WorkspaceFileService(remoteFiles: _RecordingRemoteFiles());
+  test('WorkspaceFileService routes remote writes to the runtime', () async {
+    final remote = _RecordingRemoteFiles();
+    final service = WorkspaceFileService(remoteFiles: remote);
 
-    await expectLater(
-      service.writeWorkspaceEditorTextFile(
-        workspace: _workspace(hostId: 'ssh-box'),
-        relativePath: 'readme.md',
-        currentDisplayContent: 'x',
-        originalRawContent: 'x',
-        originalDisplayContent: 'x',
-        expectedContentToken: 'token',
-        overwriteIfChanged: false,
-        tabSize: 4,
-      ),
-      throwsA(isA<WorkspaceException>()),
+    await service.writeWorkspaceEditorTextFile(
+      workspace: _workspace(hostId: 'ssh-box'),
+      relativePath: 'readme.md',
+      currentDisplayContent: 'x',
+      originalRawContent: 'x',
+      originalDisplayContent: 'x',
+      expectedContentToken: 'token',
+      overwriteIfChanged: false,
+      tabSize: 4,
     );
+    await service.createWorkspaceEntry(
+      workspace: _workspace(hostId: 'ssh-box'),
+      parentRelativePath: 'lib',
+      name: 'new.dart',
+      directory: false,
+    );
+
+    expect(remote.writtenWorkspaceId, 'workspace-1');
+    expect(remote.createdWorkspaceId, 'workspace-1');
   });
 }
 
@@ -267,6 +278,8 @@ Workspace _workspace({required String hostId}) {
 class _RecordingRemoteFiles implements RuntimeWorkspaceFiles {
   String? listedWorkspaceId;
   String? readWorkspaceId;
+  String? writtenWorkspaceId;
+  String? createdWorkspaceId;
 
   @override
   Future<List<native.WorkspaceFileEntry>> listChildren({
@@ -282,6 +295,7 @@ class _RecordingRemoteFiles implements RuntimeWorkspaceFiles {
   Future<native.WorkspaceEditorTextFile> readEditorTextFile({
     required String workspaceId,
     required String relativePath,
+    required int tabSize,
   }) async {
     readWorkspaceId = workspaceId;
     return native.WorkspaceEditorTextFile(
@@ -306,6 +320,106 @@ class _RecordingRemoteFiles implements RuntimeWorkspaceFiles {
       size: BigInt.zero,
     );
   }
+
+  @override
+  Future<native.WorkspaceEditorTextFile> writeEditorTextFile({
+    required String workspaceId,
+    required String relativePath,
+    required String currentDisplayContent,
+    required String? originalRawContent,
+    required String? originalDisplayContent,
+    required String? expectedContentToken,
+    required bool overwriteIfChanged,
+    required int tabSize,
+  }) async {
+    writtenWorkspaceId = workspaceId;
+    return native.WorkspaceEditorTextFile(
+      rawContent: currentDisplayContent,
+      displayContent: currentDisplayContent,
+      contentToken: 'token-2',
+      modifiedMillis: 0,
+      size: BigInt.zero,
+    );
+  }
+
+  @override
+  Future<native.WorkspaceTextFile> writeTextFile({
+    required String workspaceId,
+    required String relativePath,
+    required String content,
+    required String? expectedContentToken,
+    required bool overwriteIfChanged,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<native.WorkspaceFileEntry> createEntry({
+    required String workspaceId,
+    required String parentRelativePath,
+    required String name,
+    required bool directory,
+  }) async {
+    createdWorkspaceId = workspaceId;
+    return native.WorkspaceFileEntry(
+      relativePath: '$parentRelativePath/$name',
+      name: name,
+      kind: directory
+          ? native.WorkspaceFileKind.directory
+          : native.WorkspaceFileKind.file,
+      size: BigInt.zero,
+      modifiedMillis: 0,
+      contentToken: 'token',
+      isIgnored: false,
+      isHidden: false,
+      isSymlink: false,
+      isProtected: false,
+      hasChildrenHint: false,
+    );
+  }
+
+  @override
+  Future<native.WorkspaceFileEntry> renameEntry({
+    required String workspaceId,
+    required String relativePath,
+    required String newName,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<native.WorkspaceFileEntry> copyEntry({
+    required String workspaceId,
+    required String relativePath,
+    required String targetParentRelativePath,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<native.WorkspaceFileEntry> moveEntry({
+    required String workspaceId,
+    required String relativePath,
+    required String targetParentRelativePath,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<void> deleteEntry({
+    required String workspaceId,
+    required String relativePath,
+    required bool useTrash,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<native.WorkspaceQuickOpenSession> startQuickOpenSession({
+    required String workspaceId,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<List<native.WorkspaceQuickOpenMatch>> searchQuickOpenSession({
+    required native.WorkspaceQuickOpenSession session,
+    required String query,
+    required int limit,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<void> stopQuickOpenSession({
+    required native.WorkspaceQuickOpenSession session,
+  }) => throw UnimplementedError();
 }
 
 final class _FakeRuntimeHostClient implements RuntimeHostClient {

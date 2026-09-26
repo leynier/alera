@@ -211,6 +211,8 @@ impl ServerActor {
             self.immediate_checkpoint(&session_id).await;
         }
         self.disconnect_buffer_guard_client(client_id);
+        self.release_voice_capture_for_client(client_id).await;
+        self.forget_hub_reverse_client(client_id);
         self.clients.remove(&client_id);
         self.configuration_transfers.disconnect(client_id);
         if mobile_disconnected {
@@ -300,12 +302,16 @@ mod tests {
             token: "token".to_string(),
             config: TerminalHostConfig::default(),
             store,
-            runtime_store,
+            runtime_store: runtime_store.clone(),
             automation_wake: Arc::new(Notify::new()),
             automations_active: false,
             pull_request_watches: Default::default(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
+            host_links: crate::terminal_host::host_link_registry::HostLinkRegistry::new(
+                runtime_store.clone(),
+                inbox.clone(),
+            ),
             project_clone_jobs: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
@@ -342,7 +348,10 @@ mod tests {
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
+            hub_reverse: Default::default(),
+            remote_project_configs: Default::default(),
             terminal_pulses: Default::default(),
+            voice: Default::default(),
             codex: None,
             codex_starting: None,
             inbox,

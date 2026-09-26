@@ -2,7 +2,6 @@ use alera_core::runtime::{TerminalLifecycleAction, TerminalLifecycleOperation, L
 use anyhow::{Context, Result};
 use base64::Engine;
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 
 use super::{ServerActor, ServerCommand};
 use crate::ssh_remote::{
@@ -119,7 +118,9 @@ impl ServerActor {
         }
         let explicit_id = payload["operationId"].as_str();
         if action == TerminalLifecycleAction::Restart && explicit_id.is_none() {
-            return Err(HostError::state("Update this client: restarting an SSH terminal requires a stable operationId for safe retries"));
+            return Err(HostError::state(
+                "Update this client: restarting an SSH terminal requires a stable operationId for safe retries",
+            ));
         }
         if payload.get("operationId").is_some()
             && explicit_id.is_none_or(|id| uuid::Uuid::parse_str(id).is_err())
@@ -338,10 +339,8 @@ async fn execute<E: RemoteHostExecutor>(
         "project control-owner-terminal --request-base64 {}",
         quote(&encoded)
     );
-    let profile = hex::encode(Sha256::digest(operation.workspace.project_id.as_bytes()));
-    let script = crate::remote_owner_terminal_launch::owner_command_script(
-        windows, install, &profile, &arguments,
-    );
+    let script =
+        crate::remote_owner_terminal_launch::owner_command_script(windows, install, &arguments);
     let output = tokio::time::timeout(
         std::time::Duration::from_secs(60),
         executor.run(&target, windows, &script),

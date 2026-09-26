@@ -447,7 +447,7 @@ impl ServerActor {
                 .await
                 .map_err(state_error)?,
             (None, "outbox") => {
-                return Err(HostError::format("--terminal is required for outbox."))
+                return Err(HostError::format("--terminal is required for outbox."));
             }
             (None, _) => self
                 .runtime_store
@@ -625,13 +625,13 @@ impl ServerActor {
                     .record_orchestration_activity(&dispatch.id)
                     .await;
             }
-            if state.accepts_injection() {
+            if state.accepts_injection() && self.voice_home_ready_transition(handle, changed) {
                 became_ready.push(handle.to_string());
             }
         }
         for handle in became_ready {
             self.dispatch_pending_agent_spawn(&handle).await;
-            self.deliver_pending_messages(&handle).await;
+            self.deliver_home_ready_queues(&handle).await;
         }
         self.broadcast_agent_presence_changed();
         Ok(json!({}))
