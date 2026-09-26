@@ -149,6 +149,10 @@ impl ServerActor {
     ) -> HostResult<Value> {
         let workspace_id = require_string(payload, "workspace")?;
         let task_id = require_string(payload, "task")?;
+        self.runtime_store
+            .ensure_legacy_workflow_dispatch_allowed(&task_id)
+            .await
+            .map_err(state_error)?;
         let from = require_string(payload, "from")?;
         // A profile is the single source of truth for the adapter and the
         // launch command, so it replaces --agent/--command rather than layering

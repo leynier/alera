@@ -268,6 +268,9 @@ mod voice_turn_jobs;
 mod workflow_catalog_requests;
 #[cfg(test)]
 mod workflow_catalog_tests;
+mod workflow_plan_requests;
+#[cfg(test)]
+mod workflow_plan_tests;
 mod workspace_archive_requests;
 mod workspace_file_mutation_requests;
 mod workspace_git_requests;
@@ -811,6 +814,7 @@ impl ServerActor {
             } => {
                 self.broadcast_workflow_catalog_changed(&source, catalog_revision);
             }
+            ServerCommand::WorkflowPlanChanged => self.broadcast_orchestration_board_change().await,
             ServerCommand::PrepareRuntimeMutation {
                 request,
                 completion,

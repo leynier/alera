@@ -840,6 +840,10 @@ impl ServerActor {
         config: &CoordinatorConfig,
         task: &alera_core::runtime::OrchestrationTask,
     ) -> Option<(String, Option<BaseDrift>)> {
+        self.runtime_store
+            .ensure_legacy_workflow_dispatch_allowed(&task.id)
+            .await
+            .ok()?;
         let (allow_stale, stripped_spec) = parse_allow_stale_base_from_spec(&task.spec);
         let drift = self.coordinator_probe_drift(config).await;
         if let Some(drift) = &drift {

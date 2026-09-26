@@ -80,6 +80,9 @@ const String aleraRuntimeHostRemoteProcessCapability = 'remoteProcessV1';
 const String aleraRuntimeHostProjectHostsCapability = 'projectHostsV1';
 const String aleraRuntimeHostOrchestrationCapability = 'orchestration';
 const String aleraRuntimeHostRunBoardCapability = 'orchestrationRunBoardV1';
+const String aleraRuntimeHostWorkflowPlansCapability =
+    'workflowReviewedPlansV1';
+const String aleraRuntimeHostAgentCanvasCapability = 'agentCanvasV1';
 const String aleraRuntimeHostAccountCapability = 'aleraAccountV1';
 const String aleraRuntimeHostConfigurationSyncCapability =
     'configurationSyncV1';

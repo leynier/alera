@@ -39,7 +39,12 @@ void main() {
   );
 
   test('every validation job uses the resolved immutable revision', () {
-    for (final job in ['build', 'golden', 'desktop_e2e_linux']) {
+    for (final job in [
+      'build',
+      'windows_native_smoke',
+      'golden',
+      'desktop_e2e_linux',
+    ]) {
       expect(jobs[job]['needs'], 'revision');
       final checkout = step(job, 'Checkout')['with'];
       expect(checkout['ref'], r'${{ github.sha }}');
@@ -69,7 +74,12 @@ void main() {
         'windows': 'windows-latest',
       },
     );
-    for (final job in ['build', 'golden', 'desktop_e2e_linux']) {
+    for (final job in [
+      'build',
+      'windows_native_smoke',
+      'golden',
+      'desktop_e2e_linux',
+    ]) {
       expect(
         step(job, 'Setup Flutter workspace')['uses'],
         './.github/actions/setup-flutter-workspace',
@@ -79,7 +89,7 @@ void main() {
       step('golden', 'Setup Flutter workspace')['with']['linux-toolchain'],
       'false',
     );
-    for (final job in ['build', 'desktop_e2e_linux']) {
+    for (final job in ['build', 'windows_native_smoke', 'desktop_e2e_linux']) {
       expect(step(job, 'Setup Flutter workspace')['with']['rust'], 'true');
     }
     final e2e = step('desktop_e2e_linux', 'Desktop E2E')['run'] as String;
@@ -103,6 +113,7 @@ void main() {
     expect(jobs['validation_ready']['needs'], [
       'revision',
       'build',
+      'windows_native_smoke',
       'golden',
       'desktop_e2e_linux',
     ]);
@@ -117,12 +128,31 @@ void main() {
     for (final entry in {
       'REVISION_RESULT': 'revision',
       'BUILD_RESULT': 'build',
+      'WINDOWS_NATIVE_RESULT': 'windows_native_smoke',
       'GOLDEN_RESULT': 'golden',
       'E2E_RESULT': 'desktop_e2e_linux',
     }.entries) {
       expect(gateEnv[entry.key], '\${{ needs.${entry.value}.result }}');
     }
   });
+
+  test(
+    'desktop builds execute credential protection tests on every platform',
+    () {
+      final credential = step(
+        'build',
+        'Verify desktop workflow credential protection',
+      );
+      expect(credential['if'], isNull);
+      expect(credential['continue-on-error'], isNull);
+      expect(
+        credential['run'],
+        contains('-p alera-core --features workflow-approval'),
+      );
+      expect(credential['run'], contains('--lib workflow_approval::'));
+      expect(credential['run'], contains('--locked'));
+    },
+  );
 
   test(
     'native clipboard coverage opts in only on disposable runner desktops',
@@ -135,6 +165,7 @@ void main() {
         'Verify native process boundary and workbench flow',
       );
       expect(native['env']['ALERA_NATIVE_TEST_CLIPBOARD'], '1');
+      expect(native['if'], "matrix.platform != 'windows'");
       expect(
         native['run'],
         contains(
@@ -142,6 +173,22 @@ void main() {
         ),
       );
       expect(native['run'], contains('xvfb-run -a flutter test'));
+      final windows = jobs['windows_native_smoke'] as YamlMap;
+      expect(windows['runs-on'], 'windows-latest');
+      expect(windows['strategy']['fail-fast'], false);
+      expect(windows['strategy']['matrix']['suite'], [
+        'rust_process_runner_test',
+        'alera_smoke_flow_test',
+        'terminal_input_native_test',
+      ]);
+      expect(windows['env']['ALERA_NATIVE_TEST_CLIPBOARD'], '1');
+      expect(
+        step(
+          'windows_native_smoke',
+          'Verify native suite on a fresh runner',
+        )['run'],
+        r'flutter test integration_test/${{ matrix.suite }}.dart -d windows --reporter expanded',
+      );
       expect(
         workflow['env'].containsKey('ALERA_NATIVE_TEST_CLIPBOARD'),
         isFalse,
@@ -233,6 +280,7 @@ void main() {
       final results = {
         'REVISION_RESULT': 'success',
         'BUILD_RESULT': 'success',
+        'WINDOWS_NATIVE_RESULT': 'success',
         'GOLDEN_RESULT': 'success',
         'E2E_RESULT': 'success',
       };

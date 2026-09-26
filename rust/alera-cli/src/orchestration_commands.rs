@@ -48,6 +48,9 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
         }
     }
     match action {
+        OrchestrationAction::Plans(args) => {
+            crate::workflow_plan_commands::run_workflow_plans(&runtime, args).await
+        }
         OrchestrationAction::Recipes(args) => {
             crate::workflow_recipe_commands::run_workflow_recipes(&runtime, args, json_output).await
         }

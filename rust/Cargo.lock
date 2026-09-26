@@ -132,6 +132,7 @@ dependencies = [
  "grep-matcher",
  "grep-regex",
  "hex",
+ "hmac 0.13.0",
  "ignore",
  "jsonschema 0.49.9",
  "libc",
@@ -147,7 +148,9 @@ dependencies = [
  "trash",
  "url",
  "uuid",
+ "windows 0.62.2",
  "yaml-rust2",
+ "zeroize",
 ]
 
 [[package]]

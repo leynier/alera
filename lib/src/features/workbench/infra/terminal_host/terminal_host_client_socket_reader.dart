@@ -134,6 +134,7 @@ Future<_TerminalHostConnection> _openHostConnection(
       supportsTerminalPulse: control.supportsTerminalPulse,
       supportsRemoteAiDictation: control.supportsRemoteAiDictation,
       supportsRunBoard: control.supportsRunBoard,
+      supportsWorkflowPlans: control.supportsWorkflowPlans,
       supportsWorkspaceSections: control.supportsWorkspaceSections,
       runtimeCapabilities: control.runtimeCapabilities,
     );
@@ -152,6 +153,7 @@ Future<_TerminalHostConnection> _openHostConnection(
     supportsTerminalPulse: control.supportsTerminalPulse,
     supportsRemoteAiDictation: control.supportsRemoteAiDictation,
     supportsRunBoard: control.supportsRunBoard,
+    supportsWorkflowPlans: control.supportsWorkflowPlans,
     supportsWorkspaceSections: control.supportsWorkspaceSections,
     runtimeCapabilities: control.runtimeCapabilities,
   );

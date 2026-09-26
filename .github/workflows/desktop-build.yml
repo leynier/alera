@@ -126,6 +126,11 @@ jobs:
         if: runner.os == 'Windows'
         uses: ./.github/actions/tune-windows-build
 
+      - name: Verify desktop workflow credential protection
+        run: >-
+          cargo test --manifest-path rust/Cargo.toml --locked
+          -p alera-core --features workflow-approval --lib workflow_approval::
+
       # Cargokit contains fully linked alera_native and code_forge outputs, so
       # restoring it remains faster than compiler caching alone. Only the
       # warm-cache workflow saves, so pull requests never write a private copy.
@@ -191,6 +196,7 @@ jobs:
           retention-days: 7
 
       - name: Verify native process boundary and workbench flow
+        if: matrix.platform != 'windows'
         shell: bash
         env:
           ALERA_FLAVOR: dev
@@ -294,6 +300,51 @@ jobs:
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
+  windows_native_smoke:
+    name: windows native ${{ matrix.suite }}
+    needs: revision
+    runs-on: windows-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - rust_process_runner_test
+          - alera_smoke_flow_test
+          - terminal_input_native_test
+    env:
+      ALERA_FLAVOR: dev
+      ALERA_NATIVE_TEST_CLIPBOARD: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          submodules: false
+          persist-credentials: false
+
+      - name: Setup Flutter workspace
+        uses: ./.github/actions/setup-flutter-workspace
+        with:
+          rust: 'true'
+
+      - name: Tune Windows build environment
+        uses: ./.github/actions/tune-windows-build
+
+      - name: Restore cargokit build
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            build/**/cargokit_build
+            build/**/ck
+          key: cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock') }}-
+          restore-keys: |
+            cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock') }}-
+            cargokit-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Verify native suite on a fresh runner
+        run: flutter test integration_test/${{ matrix.suite }}.dart -d windows --reporter expanded
+
   golden:
     name: validation golden
     if: inputs.full_validation
@@ -373,7 +424,7 @@ jobs:
   validation_ready:
     name: desktop-validation-ready
     if: ${{ always() && inputs.full_validation }}
-    needs: [revision, build, golden, desktop_e2e_linux]
+    needs: [revision, build, windows_native_smoke, golden, desktop_e2e_linux]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -382,12 +433,13 @@ jobs:
         env:
           REVISION_RESULT: ${{ needs.revision.result }}
           BUILD_RESULT: ${{ needs.build.result }}
+          WINDOWS_NATIVE_RESULT: ${{ needs.windows_native_smoke.result }}
           GOLDEN_RESULT: ${{ needs.golden.result }}
           E2E_RESULT: ${{ needs.desktop_e2e_linux.result }}
           SOURCE_SHA: ${{ needs.revision.outputs.sha }}
         run: |
           set -euo pipefail
-          for result in "$REVISION_RESULT" "$BUILD_RESULT" "$GOLDEN_RESULT" "$E2E_RESULT"; do
+          for result in "$REVISION_RESULT" "$BUILD_RESULT" "$WINDOWS_NATIVE_RESULT" "$GOLDEN_RESULT" "$E2E_RESULT"; do
             if [ "$result" != success ]; then
               echo "::error::Desktop validation did not pass: $result"
               exit 1

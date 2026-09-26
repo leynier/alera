@@ -1,12 +1,13 @@
 part of 'terminal_host_client_test.dart';
 
 void _registerTerminalHostClientRunBoardTests() {
-  for (final (supported, sections) in [
+  for (final (supported, sections, workflows) in [
     for (final board in [false, true])
-      for (final sections in [false, true]) (board, sections),
+      for (final sections in [false, true])
+        for (final workflows in [false, true]) (board, sections, workflows),
   ]) {
     test(
-      'negotiates independent board/sections capabilities: $supported/$sections',
+      'negotiates independent board/sections/workflow capabilities: $supported/$sections/$workflows',
       () async {
         final directory = await Directory.systemTemp.createTemp(
           'alera-run-board-client-',
@@ -20,6 +21,7 @@ void _registerTerminalHostClientRunBoardTests() {
           token: 'test-token',
           includeRunBoardCapability: supported,
           includeWorkspaceSectionsCapability: sections,
+          includeWorkflowPlansCapability: workflows,
         );
         final launcher = _NoopTerminalHostLauncher();
         final client = SocketTerminalHostClient(
@@ -42,6 +44,12 @@ void _registerTerminalHostClientRunBoardTests() {
         expect(
           await client.supportsRuntimeCapability('unknown-capability'),
           isFalse,
+        );
+        expect(
+          await client.supportsRuntimeCapability(
+            aleraRuntimeHostWorkflowPlansCapability,
+          ),
+          workflows,
         );
         expect(
           launcher.starts,

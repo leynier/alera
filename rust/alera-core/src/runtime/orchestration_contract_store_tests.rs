@@ -109,6 +109,10 @@ async fn role_contract_invalid_creation_is_atomic() {
 #[tokio::test]
 async fn role_contract_migration_preserves_pre_contract_tasks() {
     let (dir, store) = store().await;
+    sqlx::query("DROP TRIGGER workflowTaskDefinitionImmutable")
+        .execute(store.pool())
+        .await
+        .unwrap();
     let created = store.create_orchestration_task(task(vec![])).await.unwrap();
     sqlx::query("DROP TRIGGER orchestrationRoleContractImmutable")
         .execute(store.pool())

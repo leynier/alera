@@ -226,6 +226,7 @@ fn v049_host_accepts_current_baseline_client() {
     let capabilities = assert_v049_baseline(&binary, identity);
     assert!(!capabilities.contains(&json!(PROFILE_ORDERING_CAPABILITY)));
     assert!(!capabilities.contains(&json!("workflowRecipeCatalogV1")));
+    assert!(!capabilities.contains(&json!("workflowReviewedPlansV1")));
 
     let (_guard, mut writer, mut reader) = spawn_host(&binary, identity);
     send(
@@ -270,4 +271,12 @@ fn v049_host_accepts_current_baseline_client() {
     assert!(response["error"]
         .as_str()
         .is_some_and(|error| error.contains("Unknown terminal host request: workflows.catalog")));
+    for (id, verb) in [(10, "workflows.preparePlan"), (11, "workflows.decide")] {
+        send(
+            &mut writer,
+            json!({"id": id, "type": verb, "payload": {"actor":"app", "document":"{}"}}),
+        );
+        let response = read_response(&mut reader, id);
+        assert_eq!(response["ok"], json!(false), "old host accepted {verb}");
+    }
 }

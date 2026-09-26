@@ -56,6 +56,11 @@ jobs:
           --
           --nocapture
 
+      - name: Test Windows workflow credential protection
+        run: >-
+          cargo test --manifest-path rust/Cargo.toml --locked
+          -p alera-core --features workflow-approval --lib workflow_approval::
+
       - name: Report sccache statistics
         if: always()
         shell: bash

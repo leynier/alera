@@ -18,6 +18,7 @@ mod cli_orchestration_terminal;
 mod cli_orchestration_timeouts;
 #[cfg(test)]
 mod cli_tests;
+mod cli_workflow_plans;
 mod cli_workflow_recipes;
 mod host_tools;
 mod hosted_review_retention;
@@ -95,6 +96,7 @@ mod terminal_host;
 mod terminal_stdio_mode;
 mod voice_commands;
 mod windows_path_form;
+mod workflow_plan_commands;
 mod workflow_recipe_commands;
 mod workspace_add;
 mod workspace_archive;
