@@ -93,6 +93,7 @@ jobs:
   build:
     needs: revision
     name: build ${{ matrix.platform }}
+    # Cold builds and native validation need the full platform-specific budget.
     timeout-minutes: ${{ matrix.timeout_minutes }}
     strategy:
       fail-fast: false

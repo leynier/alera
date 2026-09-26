@@ -20,6 +20,11 @@ impl Fixture {
         let runtime = dir.path().join("runtime");
         let source = dir.path().join("source");
         let repo = git2::Repository::init(&source).unwrap();
+        // These fixtures assert LF bytes independently of the runner's Git defaults.
+        repo.config()
+            .unwrap()
+            .set_bool("core.autocrlf", false)
+            .unwrap();
         repo.config().unwrap().set_str("user.name", "Test").unwrap();
         repo.config()
             .unwrap()

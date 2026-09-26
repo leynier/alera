@@ -469,3 +469,6 @@ async fn workflow_launch_recovery_page_includes_unsettled_terminal_failures() {
         );
     }
 }
+
+#[path = "workflow_launch_tests/eligibility.rs"]
+mod eligibility;
