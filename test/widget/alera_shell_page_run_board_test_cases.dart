@@ -124,7 +124,8 @@ void _registerAleraShellRunBoardTests() {
       await tester.pump(const Duration(milliseconds: 200));
       await tester.tap(find.byType(TextField).first);
       await tester.pump();
-      final session = harness.runtime._sessions['session-1']!;
+      final tab = seed.tabsFor(seed.activeWorkspaceId!).single;
+      final session = harness.runtime._sessions[tab.id]!;
       final before = session.requestFocusCalls;
       if (action == 'Navigation') {
         navigation.close();
