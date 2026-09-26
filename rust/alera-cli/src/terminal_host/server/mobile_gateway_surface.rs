@@ -330,28 +330,12 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
 }
 
 #[cfg(test)]
+#[path = "mobile_gateway_surface_workflow_tests.rs"]
+mod workflow_lifecycle_mobile_tests;
+
+#[cfg(test)]
 mod mobile_codex_file_surface_tests {
     use super::*;
-
-    #[test]
-    fn workflow_lifecycle_remains_desktop_only() {
-        assert!(!MOBILE_HELLO_CAPABILITIES
-            .contains(&crate::terminal_host::protocol::RUNTIME_HOST_WORKFLOW_LIFECYCLE_CAPABILITY));
-        for verb in [
-            "workflows.createProposal",
-            "workflows.startCoordinator",
-            "workflows.cancelProposal",
-            "workflows.retryProposalCancellation",
-            "workflows.controlExecution",
-            "workflows.decide",
-            "workflows.previewCleanup",
-            "workflows.applyCleanup",
-            "workflows.retryCleanup",
-            "workflows.abandonCleanup",
-        ] {
-            assert!(!mobile_request_allowed(verb), "{verb}");
-        }
-    }
 
     #[test]
     fn advertises_and_allows_mobile_codex_file_surfaces() {
