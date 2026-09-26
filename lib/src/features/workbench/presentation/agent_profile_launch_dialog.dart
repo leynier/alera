@@ -1,10 +1,14 @@
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
+import 'package:alera/src/features/agent_profiles/domain/agent_profile_adapters.dart';
+import 'package:alera/src/features/agent_profiles/domain/agent_session_id.dart';
+import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_field_overlay.dart';
 import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/terminal_composer_attachment.dart';
@@ -16,6 +20,15 @@ import 'package:alera/src/shared/infra/uri/external_uri_launcher.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+import 'package:uuid/uuid.dart';
+
+part 'agent_profile_launch_dialog_content.dart';
+
+typedef AgentProfileLaunchCallback = Future<void> Function({
+  required String prompt,
+  String? resumeSessionId,
+  String? clientMutationId,
+});
 
 Future<List<String>> pickAgentProfileLaunchFiles() async {
   final files = await openFiles();
@@ -29,7 +42,8 @@ Future<void> showAgentProfileLaunchDialog(
   BuildContext context, {
   required AgentProfile profile,
   required String workspacePath,
-  required Future<void> Function({required String prompt}) onLaunch,
+  required AgentProfileLaunchCallback onLaunch,
+  Future<bool> Function()? supportsResume,
   TerminalClipboard clipboard = const NativeTerminalClipboard(),
   Future<List<String>> Function() pickFiles = pickAgentProfileLaunchFiles,
   ExternalUriLauncher? externalUriLauncher,
@@ -40,6 +54,7 @@ Future<void> showAgentProfileLaunchDialog(
       profile: profile,
       workspacePath: workspacePath,
       onLaunch: onLaunch,
+      supportsResume: supportsResume,
       clipboard: clipboard,
       pickFiles: pickFiles,
       externalUriLauncher: externalUriLauncher,
@@ -51,7 +66,8 @@ class const AgentProfileLaunchDialog({
   super.key,
   required final AgentProfile profile,
   required final String workspacePath,
-  required final Future<void> Function({required String prompt}) onLaunch,
+  required final AgentProfileLaunchCallback onLaunch,
+  final Future<bool> Function()? supportsResume,
   final TerminalClipboard clipboard = const NativeTerminalClipboard(),
   final Future<List<String>> Function()? pickFiles,
   final ExternalUriLauncher? externalUriLauncher,
@@ -69,11 +85,36 @@ class _AgentProfileLaunchDialogState extends State<AgentProfileLaunchDialog> {
   int _nextAttachmentId = 0;
   bool _working = false;
   String? _error;
+  final _sessionController = TextEditingController();
+  final _sessionFocusNode = FocusNode();
+  bool _resume = false;
+  bool _supportsResume = false;
+  String? _mutationId;
+  String? _mutationSessionId;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadResumeSupport());
+  }
+
+  Future<void> _loadResumeSupport() async {
+    try {
+      final supported =
+          agentProfileAdapterFromKey(widget.profile.agentType) != null &&
+          await (widget.supportsResume?.call() ?? Future.value(false));
+      if (mounted) setState(() => _supportsResume = supported);
+    } on Object {
+      // A failed capability check must not turn resume into a fresh launch.
+    }
+  }
 
   @override
   void dispose() {
     _promptController.dispose();
     _promptFocusNode.dispose();
+    _sessionController.dispose();
+    _sessionFocusNode.dispose();
     super.dispose();
   }
 
@@ -81,21 +122,31 @@ class _AgentProfileLaunchDialogState extends State<AgentProfileLaunchDialog> {
 
   bool get _canStart {
     return !_working &&
-        (_promptController.text.trim().isNotEmpty || _attachments.isNotEmpty);
+        (_resume
+            ? _supportsResume && isUsableAgentSessionId(_sessionController.text)
+            : _promptController.text.trim().isNotEmpty ||
+                  _attachments.isNotEmpty);
   }
 
   Future<void> _submit({required bool skip}) async {
     if (_working) {
       return;
     }
-    final prompt = skip
+    if (_resume && !_canStart) return;
+    final sessionId = _resume ? _sessionController.text.trim() : null;
+    if (sessionId != null &&
+        (_mutationId == null || _mutationSessionId != sessionId)) {
+      _mutationId = const Uuid().v4();
+      _mutationSessionId = sessionId;
+    }
+    final prompt = skip || _resume
         ? ''
         : buildTerminalComposerSubmission(
             prompt: _promptController.text,
             attachments: _attachments,
             workspacePath: widget.workspacePath,
           );
-    if (!skip && prompt.trim().isEmpty) {
+    if (!skip && !_resume && prompt.trim().isEmpty) {
       _update(
         () =>
             _error = 'Write a prompt, attach files, or skip to open the agent.',
@@ -107,7 +158,11 @@ class _AgentProfileLaunchDialogState extends State<AgentProfileLaunchDialog> {
       _error = null;
     });
     try {
-      await widget.onLaunch(prompt: prompt);
+      await widget.onLaunch(
+        prompt: prompt,
+        resumeSessionId: sessionId,
+        clientMutationId: _resume ? _mutationId : null,
+      );
       if (mounted) {
         Navigator.of(context).pop();
       }
@@ -208,142 +263,5 @@ class _AgentProfileLaunchDialogState extends State<AgentProfileLaunchDialog> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return AleraDialog(
-      maxWidth: 620,
-      maxHeight: 720,
-      child: Padding(
-        padding: const EdgeInsets.all(AleraTokens.space20),
-        child: Column(
-          mainAxisSize: .min,
-          crossAxisAlignment: .start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                const Icon(AleraIcons.agent, color: AleraTokens.accent),
-                const SizedBox(width: AleraTokens.space8),
-                Expanded(
-                  child: Text(
-                    'Start ${widget.profile.name}',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: .bold,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: _working
-                      ? null
-                      : () => Navigator.of(context).pop(),
-                  icon: const Icon(AleraIcons.close),
-                  tooltip: 'Close',
-                ),
-              ],
-            ),
-            const SizedBox(height: AleraTokens.space12),
-            Text(
-              'Write a starting prompt, attach files, or skip to open this agent without one.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: AleraTokens.foregroundMuted,
-              ),
-            ),
-            const SizedBox(height: AleraTokens.space16),
-            Flexible(
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: .min,
-                  crossAxisAlignment: .start,
-                  children: <Widget>[
-                    AiDictationFieldOverlay(
-                      controller: _promptController,
-                      focusNode: _promptFocusNode,
-                      initialPrompt:
-                          'The user is describing a software task for Alera.',
-                      controlKey: const ValueKey<String>(
-                        'agent-profile-launch-dictation-control',
-                      ),
-                      enabled: !_working,
-                      child: AleraTextField(
-                        controller: _promptController,
-                        focusNode: _promptFocusNode,
-                        labelText: 'Initial Prompt',
-                        hintText: 'Describe what the agent should do or paste an image',
-                        minLines: 4,
-                        maxLines: 8,
-                        autofocus: true,
-                        enabled: !_working,
-                        onChanged: (_) {
-                          if (_error != null || !_working) {
-                            setState(() {});
-                          }
-                        },
-                        onPaste: _pasteClipboard,
-                        onCommandEnter: () => unawaited(_submit(skip: false)),
-                        suffix: const SizedBox(width: AleraTokens.space32),
-                      ),
-                    ),
-                    TerminalComposerAttachmentBar(
-                      attachments: _attachments,
-                      onRemove: (id) {
-                        _update(
-                          () => _attachments.removeWhere(
-                            (attachment) => attachment.id == id,
-                          ),
-                        );
-                      },
-                      onOpenFile: (path) => unawaited(_openFile(path)),
-                      enabled: !_working,
-                    ),
-                    const SizedBox(height: AleraTokens.space12),
-                    OutlinedButton.icon(
-                      onPressed: _working ? null : () => unawaited(_addFiles()),
-                      icon: const Icon(AleraIcons.attach, size: 16),
-                      label: const Text('Add Files'),
-                    ),
-                    if (_error != null) ...<Widget>[
-                      const SizedBox(height: AleraTokens.space16),
-                      Text(
-                        _error!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: AleraTokens.error,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: AleraTokens.space20),
-                    Row(
-                      children: <Widget>[
-                        if (_working) ...<Widget>[
-                          const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                          const SizedBox(width: AleraTokens.space8),
-                          const Expanded(child: Text('Starting agent')),
-                        ] else ...<Widget>[
-                          const Spacer(),
-                          TextButton(
-                            onPressed: () => unawaited(_submit(skip: true)),
-                            child: const Text('Skip'),
-                          ),
-                          const SizedBox(width: AleraTokens.space8),
-                          FilledButton.icon(
-                            onPressed: _canStart
-                                ? () => unawaited(_submit(skip: false))
-                                : null,
-                            icon: const Icon(AleraIcons.agent, size: 16),
-                            label: const Text('Start Agent'),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => _buildDialog(context);
 }

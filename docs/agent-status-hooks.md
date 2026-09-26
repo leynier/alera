@@ -6,6 +6,8 @@ Every switch defaults off. Enabling a switch writes Alera-scoped entries; disabl
 
 ## What Alera writes
 
+For the desktop profile launch dialog and persistent conversation binding, see [Agent Session Resume](agent-session-resume.md).
+
 Alera-managed hook commands include `alera-runtime-agent-hook` in the command string. Older versions used per-agent names such as `alera-claude-hook.sh`; cleanup still recognizes those. Plugin files start with the comment `ALERA_AGENT_STATUS_MANAGED_FILE`.
 
 | Agent | File | Shape |
