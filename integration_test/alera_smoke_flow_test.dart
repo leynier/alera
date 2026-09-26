@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:alera/src/app/app.dart';
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/application/projects_service.dart';
 import 'package:alera/src/features/projects/infra/drift_project_config_repository.dart';
@@ -32,6 +33,12 @@ void main() {
   testWidgets('adds a local folder and opens its terminal workspace', (
     tester,
   ) async {
+    // This two-panel smoke flow needs a visible right panel on every native
+    // runner, including macOS where the initial window is only 800x600.
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     final tempRoot = await Directory.systemTemp.createTemp('alera-e2e-');
     addTearDown(() async {
       if (tempRoot.existsSync()) {
@@ -89,6 +96,10 @@ void main() {
             projectConfigRepository,
           ),
           settingsRepositoryProvider.overrideWithValue(settingsRepository),
+          // Quota discovery can start installed CLIs and their login flows.
+          agentQuotaStateProvider.overrideWith(
+            (_) async => AgentQuotaState.empty('local'),
+          ),
           managedWorkspaceRuntimeProvider.overrideWithValue(null),
           gitBackendProvider.overrideWithValue(gitBackend),
           terminalRuntimeProvider.overrideWith((ref) => terminalRuntime),
@@ -99,7 +110,9 @@ void main() {
 
     await _pumpUntilFound(tester, find.text('No projects yet'));
 
-    await tester.tap(find.text('Add Project').last);
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Add Your First Project'),
+    );
     await _pumpUntilFound(tester, find.byType(AddProjectDialog));
 
     final projectPathField = find.descendant(
@@ -128,12 +141,13 @@ void main() {
     await tester.ensureVisible(workspaceRow);
     await tester.pumpAndSettle();
     await tester.tap(workspaceRow);
-    await _pumpUntilFound(tester, find.byTooltip('New Tab'));
     await _pumpUntilFound(tester, find.text('E2E terminal: Terminal 1'));
 
-    await tester.tap(find.byTooltip('New Tab').first);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('New Terminal'));
+    // The main panel intentionally hides tab chrome with only one tab.
+    // Use the visible empty-panel action to create a second terminal.
+    final newTerminal = find.text('Terminal');
+    await _pumpUntilFound(tester, newTerminal);
+    await tester.tap(newTerminal);
     await _pumpUntilFound(tester, find.text('E2E terminal: Terminal 2'));
 
     expect(
@@ -181,7 +195,14 @@ Future<void> _pumpUntilFound(
       .whereType<String>()
       .take(40)
       .join(' | ');
-  fail('Expected to find $finder. Visible text: $visibleText');
+  final tooltips = tester
+      .widgetList<IconButton>(find.byType(IconButton))
+      .map((widget) => widget.tooltip)
+      .whereType<String>()
+      .join(' | ');
+  fail(
+    'Expected to find $finder. Visible text: $visibleText. Buttons: $tooltips',
+  );
 }
 
 class _E2eTerminalRuntime implements TerminalRuntime {
