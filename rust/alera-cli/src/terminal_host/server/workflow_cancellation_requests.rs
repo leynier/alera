@@ -1,4 +1,9 @@
-use alera_core::runtime::{WorkflowCancellationTarget, WorkflowTerminalShutdownState};
+use std::time::Duration;
+
+use alera_core::runtime::{
+    RuntimeStore, WorkflowCancellationTarget, WorkflowProposalCancellation,
+    WorkflowTerminalShutdownState,
+};
 
 use super::{ServerActor, WorkflowLaunchCommand};
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -29,6 +34,13 @@ impl ServerActor {
     }
 
     pub(in crate::terminal_host::server) fn wake_workflow_cancellation(&mut self) {
+        self.start_workflow_cancellation(Duration::ZERO);
+    }
+
+    fn start_workflow_cancellation(&mut self, delay: Duration) {
+        if self.disposed {
+            return;
+        }
         if self.workflow_execution.cancelling {
             self.workflow_execution.cancellation_dirty = true;
             return;
@@ -42,10 +54,14 @@ impl ServerActor {
         // Independent from worktree setup/integration so a slow Git or setup
         // job never delays stopping the run's already-active workers.
         tokio::spawn(async move {
+            if !delay.is_zero() {
+                tokio::time::sleep(delay).await;
+            }
             let result = async {
                 let targets = store.workflow_cancellation_page().await?;
                 let proposals = store.pending_workflow_proposal_cancellations().await?;
                 let progress = !targets.is_empty() || !proposals.is_empty();
+                let mut settlement_error = None;
                 for target in proposals {
                     let (reply, done) = tokio::sync::oneshot::channel();
                     inbox
@@ -74,9 +90,9 @@ impl ServerActor {
                         .map(|error| error.wire_message()),
                         Err(error) => Some(error.wire_message()),
                     };
-                    store
-                        .settle_workflow_proposal_cancellation(&target, error.as_deref())
-                        .await?;
+                    if let Err(error) = settle_proposal(&store, &target, error.as_deref()).await {
+                        settlement_error.get_or_insert(error);
+                    }
                 }
                 for target in targets {
                     let (reply, done) = tokio::sync::oneshot::channel();
@@ -106,9 +122,9 @@ impl ServerActor {
                         .map(|error| error.wire_message()),
                         Err(error) => Some(error.wire_message()),
                     };
-                    store
-                        .settle_workflow_cancellation(&target, error.as_deref())
-                        .await?;
+                    if let Err(error) = settle_run(&store, &target, error.as_deref()).await {
+                        settlement_error.get_or_insert(error);
+                    }
                 }
                 // Stop processes first; cancelled integration inspection is
                 // read-only Git work on a bounded, off-actor blocking job.
@@ -123,6 +139,9 @@ impl ServerActor {
                     )
                 })
                 .await??;
+                if let Some(error) = settlement_error {
+                    return Err(error);
+                }
                 Ok::<bool, anyhow::Error>(progress)
             }
             .await
@@ -144,10 +163,17 @@ impl ServerActor {
                     self.wake_workflow_cancellation();
                 }
             }
-            Err(error) => tracing::warn!(
-                "workflow cancellation needs recovery: {}",
-                error.wire_message()
-            ),
+            Err(error) => {
+                tracing::warn!(
+                    "workflow cancellation needs recovery: {}",
+                    error.wire_message()
+                );
+                self.workflow_execution.cancellation_dirty |= dirty;
+                self.broadcast_orchestration_board_change().await;
+                // Retry undurable failures off-actor; recorded Attention rows
+                // remain excluded and require an explicit human retry.
+                self.start_workflow_cancellation(Duration::from_secs(2));
+            }
         }
         self.schedule_shutdown_if_idle();
     }
@@ -244,6 +270,35 @@ impl ServerActor {
     }
 }
 
+async fn settle_run(
+    store: &RuntimeStore,
+    target: &WorkflowCancellationTarget,
+    error: Option<&str>,
+) -> anyhow::Result<()> {
+    if let Err(failure) = store.settle_workflow_cancellation(target, error).await {
+        store
+            .settle_workflow_cancellation(target, Some(&failure.to_string()))
+            .await?;
+    }
+    Ok(())
+}
+
+async fn settle_proposal(
+    store: &RuntimeStore,
+    target: &WorkflowProposalCancellation,
+    error: Option<&str>,
+) -> anyhow::Result<()> {
+    if let Err(failure) = store
+        .settle_workflow_proposal_cancellation(target, error)
+        .await
+    {
+        store
+            .settle_workflow_proposal_cancellation(target, Some(&failure.to_string()))
+            .await?;
+    }
+    Ok(())
+}
+
 async fn finish_shutdown(
     store: &alera_core::runtime::RuntimeStore,
     inbox: &tokio::sync::mpsc::UnboundedSender<ServerCommand>,
@@ -278,6 +333,10 @@ async fn finish_shutdown(
     }
     result
 }
+
+#[cfg(test)]
+#[path = "workflow_cancellation_recovery_tests.rs"]
+mod recovery_tests;
 
 #[cfg(test)]
 mod tests {
