@@ -4,13 +4,16 @@ import 'package:alera_mobile/src/design_system/chips/alera_chip.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/linked_issues/application/linked_issues_controller.dart';
 import 'package:alera_mobile/src/features/linked_issues/presentation/mobile_link_issue_dialog.dart';
+import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_host.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
+import 'package:alera_mobile/src/features/workbench/application/workspace_hosts_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_listing_tree.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/parent_picker_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/archive_workspace_dialog.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/sleep_workspace_dialog.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_host_marker.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_relocation_dialog.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_relocation_recovery_launcher.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_removal_launcher.dart';
@@ -85,7 +88,13 @@ Future<void> showWorkspaceActionsSheet(
         child: Column(
           mainAxisSize: .min,
           children: <Widget>[
-            _WorkspaceActionsHeader(workspace: workspace),
+            _WorkspaceActionsHeader(
+              workspace: workspace,
+              host: ref
+                  .read(workspaceHostsControllerProvider(hostId))
+                  .value
+                  ?.hostOf(workspace),
+            ),
             const Divider(height: 1),
             Flexible(
               child: ListView(
@@ -226,8 +235,10 @@ Future<void> showWorkspaceActionsSheet(
   }
 }
 
-class const _WorkspaceActionsHeader({required final WorkspaceSummary workspace})
-    extends StatelessWidget {
+class const _WorkspaceActionsHeader({
+  required final WorkspaceSummary workspace,
+  final MobileWorkspaceHost? host,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -283,6 +294,26 @@ class const _WorkspaceActionsHeader({required final WorkspaceSummary workspace})
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: AleraTokens.foregroundMuted,
                       fontFamily: AleraTokens.monoFontFamily,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (host case final owner?) ...<Widget>[
+            const SizedBox(height: AleraTokens.space8),
+            Row(
+              key: const Key('workspace-actions-host'),
+              children: <Widget>[
+                WorkspaceHostMarker(host: owner, size: AleraTokens.space16),
+                const SizedBox(width: AleraTokens.space6),
+                Expanded(
+                  child: Text(
+                    owner.label,
+                    maxLines: 1,
+                    overflow: .ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: AleraTokens.foregroundMuted,
                     ),
                   ),
                 ),

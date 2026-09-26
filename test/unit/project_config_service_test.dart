@@ -48,6 +48,42 @@ void main() {
       expect(effective.config.worktree.setup, <String>['ui']);
     });
 
+    test(
+      'a remote-only project reads its repo file through the store',
+      () async {
+        fileStore.config = const ProjectConfig(
+          worktree: WorktreeSetupConfig(setup: <String>['from-the-host']),
+        );
+        final remoteOnly = project.copyWith(primaryHostId: 'ssh-box');
+
+        expect(
+          (await service.loadRepoFile(remoteOnly))?.worktree.setup,
+          <String>['from-the-host'],
+        );
+        expect(fileStore.loadedProjectIds, <String>[remoteOnly.id]);
+        final effective = await service.resolve(remoteOnly);
+        expect(effective.origin, ProjectConfigOrigin.repoFile);
+        expect(effective.config.worktree.setup, <String>['from-the-host']);
+        expect(effective.hasError, isFalse);
+
+        fileStore.error = ProjectConfigException('Invalid alera.toml');
+        final broken = await service.resolve(remoteOnly);
+        expect(broken.origin, ProjectConfigOrigin.repoFile);
+        expect(broken.hasError, isTrue);
+        expect(broken.config.isEmpty, isTrue);
+
+        await service.saveUiOverride(
+          projectId: remoteOnly.id,
+          config: const ProjectConfig(
+            worktree: WorktreeSetupConfig(setup: <String>['ui']),
+          ),
+        );
+        final overridden = await service.resolve(remoteOnly);
+        expect(overridden.origin, ProjectConfigOrigin.uiOverride);
+        expect(overridden.config.worktree.setup, <String>['ui']);
+      },
+    );
+
     test('falls back to repo file after removing UI override', () async {
       fileStore.config = const ProjectConfig(
         worktree: WorktreeSetupConfig(setup: <String>['repo']),

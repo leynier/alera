@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:alera/src/features/workbench/application/retired_workspace_invalidation.dart';
+import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_search_service.dart';
+import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/rust/api/workspace_search.dart' as native;
 import 'package:path/path.dart' as p;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -142,7 +144,16 @@ class WorkspaceSearchController extends _$WorkspaceSearchController {
   @override
   WorkspaceSearchState build(String workspaceId) {
     invalidateWhenWorkspaceRetired(ref, workspaceId);
-    _searchService = ref.read(workspaceSearchServiceProvider);
+    final workspace = ref
+        .read(workbenchControllerProvider)
+        .workspacesByProject
+        .values
+        .expand((workspaces) => workspaces)
+        .where((workspace) => workspace.id == workspaceId)
+        .firstOrNull;
+    _searchService = workspace != null && workspace.isRemote
+        ? ref.read(remoteWorkspaceSearchServiceProvider(workspaceId))
+        : ref.read(workspaceSearchServiceProvider);
     ref.onDispose(() {
       _debounce?.cancel();
       _cancelActiveSearch();
@@ -471,6 +482,9 @@ class WorkspaceSearchController extends _$WorkspaceSearchController {
     }
     if (error is WorkspaceSearchDirtyFilesException) {
       return _dirtyMessage(error.paths);
+    }
+    if (error is WorkspaceException) {
+      return error.message;
     }
     return 'Search failed: $error';
   }

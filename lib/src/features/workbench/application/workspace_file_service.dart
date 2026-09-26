@@ -11,6 +11,7 @@ import 'package:alera/src/shared/infra/git/git_explorer_status.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
+part 'editor_document_session.dart';
 part 'editor_session_registry.dart';
 part 'editor_buffer_guards.dart';
 
@@ -48,6 +49,41 @@ class WorkspaceFileService {
       relativePath: relativePath,
       hideIgnored: hideIgnored,
     );
+  }
+
+  Future<native.WorkspaceQuickOpenSession> startWorkspaceQuickOpenSession({
+    required Workspace workspace,
+  }) {
+    if (workspace.isRemote) {
+      return _remoteFiles().startQuickOpenSession(workspaceId: workspace.id);
+    }
+    return startQuickOpenSession(workspacePath: workspace.path);
+  }
+
+  Future<List<native.WorkspaceQuickOpenMatch>> searchWorkspaceQuickOpenSession({
+    required Workspace workspace,
+    required native.WorkspaceQuickOpenSession session,
+    required String query,
+    int limit = 50,
+  }) {
+    if (workspace.isRemote) {
+      return _remoteFiles().searchQuickOpenSession(
+        session: session,
+        query: query,
+        limit: limit,
+      );
+    }
+    return searchQuickOpenSession(session: session, query: query, limit: limit);
+  }
+
+  Future<void> stopWorkspaceQuickOpenSession({
+    required Workspace workspace,
+    required native.WorkspaceQuickOpenSession session,
+  }) {
+    if (workspace.isRemote) {
+      return _remoteFiles().stopQuickOpenSession(session: session);
+    }
+    return stopQuickOpenSession(session: session);
   }
 
   Future<native.WorkspaceQuickOpenSession> startQuickOpenSession({
@@ -195,6 +231,7 @@ class WorkspaceFileService {
       return _remoteFiles().readEditorTextFile(
         workspaceId: workspace.id,
         relativePath: relativePath,
+        tabSize: tabSize,
       );
     }
     return readEditorTextFile(
@@ -227,8 +264,15 @@ class WorkspaceFileService {
     required int tabSize,
   }) {
     if (workspace.isRemote) {
-      return Future<native.WorkspaceEditorTextFile>.error(
-        WorkspaceException(remoteWorkspaceWriteUnsupportedMessage()),
+      return _remoteFiles().writeEditorTextFile(
+        workspaceId: workspace.id,
+        relativePath: relativePath,
+        currentDisplayContent: currentDisplayContent,
+        originalRawContent: originalRawContent,
+        originalDisplayContent: originalDisplayContent,
+        expectedContentToken: expectedContentToken,
+        overwriteIfChanged: overwriteIfChanged,
+        tabSize: tabSize,
       );
     }
     return writeEditorTextFile(
@@ -278,6 +322,109 @@ class WorkspaceFileService {
       expectedContentToken: expectedContentToken,
       overwriteIfChanged: overwriteIfChanged,
       tabSize: tabSize,
+    );
+  }
+
+  Future<native.WorkspaceFileEntry> createWorkspaceEntry({
+    required Workspace workspace,
+    required String parentRelativePath,
+    required String name,
+    required bool directory,
+  }) {
+    if (workspace.isRemote) {
+      return _remoteFiles().createEntry(
+        workspaceId: workspace.id,
+        parentRelativePath: parentRelativePath,
+        name: name,
+        directory: directory,
+      );
+    }
+    return directory
+        ? createDirectory(
+            workspacePath: workspace.path,
+            parentRelativePath: parentRelativePath,
+            name: name,
+          )
+        : createFile(
+            workspacePath: workspace.path,
+            parentRelativePath: parentRelativePath,
+            name: name,
+          );
+  }
+
+  Future<native.WorkspaceFileEntry> renameWorkspaceEntry({
+    required Workspace workspace,
+    required String relativePath,
+    required String newName,
+  }) {
+    if (workspace.isRemote) {
+      return _remoteFiles().renameEntry(
+        workspaceId: workspace.id,
+        relativePath: relativePath,
+        newName: newName,
+      );
+    }
+    return renameEntry(
+      workspacePath: workspace.path,
+      relativePath: relativePath,
+      newName: newName,
+    );
+  }
+
+  Future<native.WorkspaceFileEntry> copyWorkspaceEntry({
+    required Workspace workspace,
+    required String relativePath,
+    required String targetParentRelativePath,
+  }) {
+    if (workspace.isRemote) {
+      return _remoteFiles().copyEntry(
+        workspaceId: workspace.id,
+        relativePath: relativePath,
+        targetParentRelativePath: targetParentRelativePath,
+      );
+    }
+    return copyEntry(
+      workspacePath: workspace.path,
+      relativePath: relativePath,
+      targetParentRelativePath: targetParentRelativePath,
+    );
+  }
+
+  Future<native.WorkspaceFileEntry> moveWorkspaceEntry({
+    required Workspace workspace,
+    required String relativePath,
+    required String targetParentRelativePath,
+  }) {
+    if (workspace.isRemote) {
+      return _remoteFiles().moveEntry(
+        workspaceId: workspace.id,
+        relativePath: relativePath,
+        targetParentRelativePath: targetParentRelativePath,
+      );
+    }
+    return moveEntry(
+      workspacePath: workspace.path,
+      relativePath: relativePath,
+      targetParentRelativePath: targetParentRelativePath,
+    );
+  }
+
+  Future<void> deleteWorkspaceEntry({
+    required Workspace workspace,
+    required String relativePath,
+    bool useTrash = true,
+  }) {
+    if (workspace.isRemote) {
+      return _remoteFiles().deleteEntry(
+        workspaceId: workspace.id,
+        relativePath: relativePath,
+        useTrash: useTrash,
+      );
+    }
+    return deleteEntry(
+      workspacePath: workspace.path,
+      relativePath: relativePath,
+      useTrash: useTrash,
     );
   }
 

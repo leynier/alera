@@ -137,7 +137,9 @@ class WorkspaceService._(
   static DateTime _defaultNow() => DateTime.now().toUtc();
 
   Future<List<String>> listSourceBranches(Project project) {
-    if (!project.supportsLinkedWorkspaces) {
+    // A remote-only project has no repository here; its branches come from
+    // the per-host branch catalog.
+    if (!project.supportsLinkedWorkspaces || project.isRemoteOnly) {
       return Future<List<String>>.value(const <String>[]);
     }
     return _projectService.listGitBranches(project.repoPath);
@@ -366,7 +368,9 @@ class WorkspaceService._(
   }
 
   Future<List<Workspace>> reconcile(Project project) async {
-    if (!project.supportsLinkedWorkspaces) {
+    // Every workspace of a remote-only project is remote, and those are never
+    // pruned from a local worktree listing.
+    if (!project.supportsLinkedWorkspaces || project.isRemoteOnly) {
       return _repository.listWorkspaces(project.id);
     }
     final liveWorktrees = await _listLiveWorktrees(project.repoPath);

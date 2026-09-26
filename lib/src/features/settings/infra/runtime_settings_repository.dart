@@ -1,6 +1,7 @@
 import 'package:alera/src/features/settings/application/settings_repository.dart';
 import 'package:alera_configuration/alera_configuration.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
+import 'package:alera/src/features/voice/domain/voice_settings.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/text_actions/domain/text_actions_settings.dart';
@@ -55,6 +56,10 @@ class RuntimeSettingsRepository({
       final sharedTextActions = runtimeTextActions.isEmpty
           ? legacy.textActions
           : TextActionsSettings.fromJson(runtimeTextActions);
+      final runtimeVoice = _asMap(runtime['voice']);
+      final sharedVoice = runtimeVoice.isEmpty
+          ? legacy.voice
+          : VoiceSettings.fromJson(runtimeVoice);
       final defaultAgentProfileId = runtime.containsKey('defaultAgentProfileId')
           ? _optionalRuntimeString(runtime['defaultAgentProfileId'])
           : legacy.agents.defaultAgentProfileId;
@@ -86,6 +91,7 @@ class RuntimeSettingsRepository({
         ),
         aiAssist: sharedAiAssist,
         textActions: sharedTextActions,
+        voice: sharedVoice,
       );
       await legacyRepository.save(resolved);
       return resolved;
@@ -114,6 +120,7 @@ class RuntimeSettingsRepository({
       'agentQuotas': settings.agents.quotas.forHost('local').toMap(),
       'aiTextGeneration': _runtimeAiAssistSettings(settings.aiAssist),
       'textActions': settings.textActions.toMap(),
+      'voice': settings.voice.toMap(),
     });
     await legacyRepository.save(settings);
   }

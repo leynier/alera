@@ -19,6 +19,18 @@ xterm.TerminalTargetPlatform defaultXtermTargetPlatformForTesting() {
   return _xtermTargetPlatform;
 }
 
+final bool _xtermWindowsPtyMode = _xtermWindowsPtyModeFor(
+  defaultTargetPlatform,
+);
+
+/// Windows terminals run behind ConPTY, which often reaches the next row by
+/// padding the current one with spaces instead of sending a line break, so
+/// those wraps must be recorded as hard breaks for copied text to keep its
+/// lines.
+bool _xtermWindowsPtyModeFor(TargetPlatform platform) {
+  return platform == TargetPlatform.windows;
+}
+
 bool _isSupportedNativeDesktopTerminalPlatformFor(
   TargetPlatform platform, {
   required bool isWeb,

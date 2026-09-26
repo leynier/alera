@@ -64,6 +64,9 @@ class ProjectConfigService._(
     return _repository.watchAll();
   }
 
+  /// The repository `alera.toml`, or null when the project has none. For a
+  /// project that lives only on a host the store is what knows how to reach
+  /// that host's file; nothing here reads `repoPath` from this device.
   Future<ProjectConfig?> loadRepoFile(Project project) {
     return _fileStore.load(project);
   }
@@ -91,7 +94,7 @@ class ProjectConfigService._(
     }
 
     try {
-      final repoConfig = await _fileStore.load(project);
+      final repoConfig = await loadRepoFile(project);
       if (repoConfig != null) {
         return EffectiveProjectConfig(config: repoConfig, origin: .repoFile);
       }

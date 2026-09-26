@@ -2,7 +2,7 @@ use std::path::Path;
 
 use alera_core::git as core_git;
 use alera_core::git_cli::git_in_dir;
-use alera_core::source_control::{self, open_repo};
+use alera_core::source_control;
 use flutter_rust_bridge::frb;
 
 pub use alera_core::git::{GitError, GitErrorKind};
@@ -491,23 +491,15 @@ pub fn list_worktrees(repo_path: String) -> Result<Vec<GitWorktreeEntry>, GitErr
 /// detect the git hosting provider (GitHub, Azure DevOps, ...) from the remote
 /// identity. Remotes without a URL yield `None`.
 pub fn list_remotes(path: String) -> Result<Vec<GitRemote>, GitError> {
-    let repo = open_repo(&path)?;
-    let names = repo.remotes().map_err(GitError::from_git2)?;
-    let mut remotes = Vec::new();
-    for name in names.iter() {
-        let Some(name) = name.map_err(GitError::from_git2)? else {
-            continue;
-        };
-        let url = match repo.find_remote(name) {
-            Ok(remote) => remote.url().ok().map(ToString::to_string),
-            Err(_) => None,
-        };
-        remotes.push(GitRemote {
-            name: name.to_string(),
-            url,
-        });
-    }
-    Ok(remotes)
+    alera_core::source_control::list_remotes(&path).map(|remotes| {
+        remotes
+            .into_iter()
+            .map(|remote| GitRemote {
+                name: remote.name,
+                url: remote.url,
+            })
+            .collect()
+    })
 }
 
 /// Splits `destination_path` into the parent directory to run `git` in and the

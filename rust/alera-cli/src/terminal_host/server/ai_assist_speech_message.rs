@@ -12,7 +12,10 @@ use super::ai_assist_requests::{
     is_opencode_go_agent, plan_command, resolved_agent, resolved_model, SUPPORTED_AGENTS,
 };
 use super::host_service_requests::required_non_blank;
+use super::remote_ai_assist_requests::{effective_ai_assist_settings, hub_ai_assist_settings};
 use super::{ServerActor, ServerCommand};
+
+const SPEECH_MESSAGE_VERB: &str = "aiText.speechMessage.generate";
 
 impl ServerActor {
     pub(super) async fn start_ai_assist_speech_message(
@@ -35,16 +38,24 @@ impl ServerActor {
         let workspace = self
             .resolve_ai_assist_workspace(workspace_id, tab_id)
             .await?;
+        if crate::ssh_remote::is_remote_host_id(Some(&workspace.host_id)) {
+            self.start_remote_ai_assist(
+                client_id,
+                request_id,
+                SPEECH_MESSAGE_VERB,
+                &workspace,
+                payload,
+            );
+            return Ok(());
+        }
+        let hub_settings = hub_ai_assist_settings(payload)?;
         let store = self.runtime_store.clone();
         let inbox = self.inbox.clone();
         let (registration, cancel_rx) =
             active_generations().register(operation_id.clone(), Some(workspace.clone()))?;
         tokio::spawn(async move {
             let result = async {
-                let settings = store
-                    .effective_ai_assist_settings()
-                    .await
-                    .map_err(|error| HostError::state(error.to_string()))?;
+                let settings = effective_ai_assist_settings(&store, hub_settings).await?;
                 generate_speech_message(
                     AiAssistProcessOwner {
                         store,

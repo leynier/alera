@@ -22,7 +22,7 @@ impl ServerActor {
                         .await
                         .map_err(state_error)?,
                 )
-                .map_err(state_error)
+                .map_err(state_error);
             }
             "workspaceSection.create" => serde_json::to_value(
                 self.runtime_store

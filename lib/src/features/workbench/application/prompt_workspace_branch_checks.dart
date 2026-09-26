@@ -12,7 +12,11 @@ class PromptWorkspaceBranchChecks({
   required final Iterable<Workspace> Function() workspaces,
 }) {
   Future<bool> branchExists(Project project, String branch) async {
-    final owner = normalizedRemoteHostId(hostId);
+    // No host means the project's own: this device, unless the project lives
+    // only on a server, where there is no local repository to ask.
+    final owner =
+        normalizedRemoteHostId(hostId) ??
+        (project.isRemoteOnly ? project.primaryHostId : null);
     if (owner == null) return git.branchExists(project.repoPath, branch);
     final catalog = await loadHostCatalog(project, owner);
     return catalog.localBranches.contains(branch);
