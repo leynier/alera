@@ -157,7 +157,7 @@ fn profile_resume_binds_before_launch_and_survives_a_host_restart() {
 fn wait_for_output(marker: &std::path::Path, expected: &str) {
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
-        let output = std::fs::read_to_string(&marker).unwrap_or_default();
+        let output = std::fs::read_to_string(marker).unwrap_or_default();
         if output == expected {
             break;
         }
