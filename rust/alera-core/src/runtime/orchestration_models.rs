@@ -313,6 +313,10 @@ pub struct OrchestrationDispatchContext {
     pub completion_policy: String,
     pub terminal_policy: String,
     pub startup_error: Option<String>,
+    /// Exact task-worktree commit accepted with a successful workflow result.
+    /// Generic orchestration dispatches leave this unset.
+    #[serde(default)]
+    pub completion_sha: Option<String>,
     /// Which declared profile launched this dispatch, when one was used.
     /// Recorded so fallback selection knows what has already been tried.
     #[serde(default)]

@@ -13,9 +13,13 @@ mod linked_worktree_origin;
 mod repository;
 mod repository_metadata;
 #[cfg(feature = "runtime")]
+mod workflow_integration;
+#[cfg(feature = "runtime")]
 mod workflow_worktree;
 mod worktree_creation;
 pub use linked_worktree_origin::linked_worktree_repository_origin;
+#[cfg(feature = "runtime")]
+pub use workflow_integration::*;
 #[cfg(feature = "runtime")]
 pub use workflow_worktree::{
     ensure_workflow_worktree, is_registered_workflow_worktree, verify_workflow_worktree,

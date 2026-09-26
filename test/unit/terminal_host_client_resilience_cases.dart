@@ -16,6 +16,38 @@ Future<TerminalHostOutputResyncRequiredEvent> _sendOutputResyncEvent(
 }
 
 void _registerTerminalHostClientResilienceTests() {
+  test('retained terminal removal exits the local session handle', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'alera-host-client-retained-terminal-',
+    );
+    addTearDown(() async {
+      if (await tempDir.exists()) await tempDir.delete(recursive: true);
+    });
+    final server = await _TerminalHostTestServer.start();
+    addTearDown(server.dispose);
+    await _writeControlFile(
+      tempDir: tempDir,
+      port: server.port,
+      token: 'existing-token',
+    );
+    final client = SocketTerminalHostClient(
+      launcher: _NoopTerminalHostLauncher(),
+      applicationSupportDirectory: () async => tempDir,
+    );
+    addTearDown(client.dispose);
+    await client.write(sessionId: 'session-1', bytes: const <int>[1]);
+    final exit = client
+        .eventsForSession('session-1')
+        .where((event) => event is TerminalHostExitEvent)
+        .cast<TerminalHostExitEvent>()
+        .first;
+    server.send(<String, Object?>{
+      'event': 'terminalSessionRemoved',
+      'payload': <String, Object?>{'sessionId': 'session-1'},
+    });
+    expect((await exit).exitCode, -1);
+  });
+
   test('pulse state distinguishes an unavailable status from disarmed', () {
     final state = TerminalPulseState.fromJson(<String, Object?>{
       'configuration': const TerminalPulseConfiguration().toJson(),

@@ -6,7 +6,7 @@ Workflow plans extend the Rust orchestration runtime. They do not replace it or 
 
 The additive `workflowReviewedPlansV1` capability is independent of `orchestrationRunBoardV1` and `workflowRecipeCatalogV1`. Strict protocol versions are unchanged. A client must show Update Required when its host lacks the required capability; it must not fall back to legacy policy approval.
 
-This layer supports preparation and authenticated review. [Managed task worktrees](workflow-worktrees.md) can be prepared after approval; execution intentionally remains blocked until serial integration is implemented. Approval does not start a worker in the owner's shared workspace. The desktop launch and review screens are delivered in a later stack layer.
+This layer supports preparation and authenticated review. [Managed task worktrees](workflow-worktrees.md) can be prepared after approval and launched through the [isolated workflow execution API](workflow-integration.md). Approval does not start a worker in the owner's shared workspace. The desktop launch and review screens are delivered in a later stack layer.
 
 ## Preparing a plan
 
@@ -31,6 +31,8 @@ This authenticates possession of the desktop credential, not physical human pres
 ## Revisions and human gates
 
 Foundation and Product gates are always human decisions. A stage scope is `stage:<recipe-stage-id>`; the plan scope is `plan`. Stage gates require completed results and recorded integration and artifact evidence for that stage and its ancestors. Changed evidence or integration SHA invalidates an outstanding challenge.
+
+When local integration reaches a terminal, proven pre-apply refusal or merge conflict, the desktop may request an `integration:<integration-id>` challenge. That scope permits Request Changes only and binds the immutable result, refusal evidence, plan revision and integration SHA. Uncertain Git outcomes remain in Attention and cannot enter this path. The correction retains the original result and requires a new reviewed plan revision; it never silently reopens completed work.
 
 Reject keeps dispatch blocked. Request Changes creates a traceable revision with the review reason and requires a new coordinator proposal before approval. Pending work is cancelled; completed evidence is not silently reopened. Corrections reference tasks from the same run and retain the original source commit. Active attempts must be stopped before a correction can be prepared.
 

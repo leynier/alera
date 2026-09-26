@@ -261,8 +261,11 @@ impl ServerActor {
             keep_failed_spawn && self.make_failed_owned_spawn_inert(&session_id).await;
         let keep_terminal = keep_failed_setup
             || keep_failed_spawn
+            || self.is_workflow_terminal(&session_id).await
             || self.is_remote_terminal(&session_id).await
             || self.is_ssh_owner_terminal(&session_id).await;
+        self.settle_closed_workflow_terminal(&session_id, &reason)
+            .await;
         self.flush_all_output(&session_id);
         let broadcast = self.sessions.get_mut(&session_id).and_then(|session| {
             let payload = session.handle_exit(exit_code)?;
@@ -345,10 +348,13 @@ impl ServerActor {
         if !tab_exists {
             return Ok(false);
         }
-        self.runtime_store
-            .remove_workspace_tab(&tab_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
+        let workflow_owned = self.is_workflow_terminal(session_id).await;
+        if !workflow_owned {
+            self.runtime_store
+                .remove_workspace_tab(&tab_id)
+                .await
+                .map_err(|error| HostError::state(error.to_string()))?;
+        }
         if let Err(error) = self
             .runtime_store
             .record_workspace_activity(&workspace_id, chrono::Utc::now())
@@ -359,7 +365,14 @@ impl ServerActor {
         self.flush_all_output(session_id);
         self.await_output_writes(session_id).await;
         if let Some(mut session) = self.sessions.remove(session_id) {
-            session.terminate(true, &self.store).await;
+            session.terminate(!workflow_owned, &self.store).await;
+        }
+        if workflow_owned {
+            self.settle_closed_workflow_terminal(
+                session_id,
+                "The terminal was explicitly terminated. Retry in a new attempt.",
+            )
+            .await;
         }
         self.broadcast_workspace_tabs_changed(Some(&workspace_id));
         self.broadcast_authenticated(event("workspaceActivityChanged", json!({})));

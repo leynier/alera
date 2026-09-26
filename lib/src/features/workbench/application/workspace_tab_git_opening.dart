@@ -97,6 +97,7 @@ extension WorkspaceTabGitOpening on WorkspaceTabService {
           tab.gitDiffOldPath == normalizedOldPath &&
           tab.gitDiffRoot == normalizedRoot &&
           tab.gitDiffCommitOid == commitOid &&
+          tab.gitDiffParentOid == parentOid &&
           _allowsTabReuse(tab, reuseTabIds)) {
         if (!preview && tab.isPreview) {
           return keepPreviewTab(tab.id);

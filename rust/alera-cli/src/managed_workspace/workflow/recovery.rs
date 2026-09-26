@@ -23,6 +23,22 @@ pub(crate) async fn reconcile(store: &RuntimeStore, runtime_dir: &Path) -> Resul
             after = row.try_get("sequence")?;
             let id: String = row.try_get("id")?;
             let revision = row.try_get("revision")?;
+            let record = store.workflow_workspace(&id).await?;
+            let integration_id = task_integration_resource_id(
+                store,
+                &record.identity.run_id,
+                record.identity.task_id.is_some(),
+            )
+            .await?;
+            let _integration_lock = match integration_id {
+                Some(integration_id) => {
+                    let Some(lock) = resource_lock(runtime_dir, &integration_id)? else {
+                        continue;
+                    };
+                    Some(lock)
+                }
+                None => None,
+            };
             let Some(_lock) = resource_lock(runtime_dir, &id)? else {
                 continue;
             };

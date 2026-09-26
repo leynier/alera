@@ -93,6 +93,7 @@ pub(super) const ORCHESTRATION_SCHEMA: &[&str] = &[
         completion_policy TEXT NOT NULL DEFAULT 'return-immediately',
         terminal_policy TEXT NOT NULL DEFAULT 'keep-open',
         startup_error TEXT,
+        completion_sha TEXT,
         agent_profile TEXT,
         agent_quota_group TEXT
     );",

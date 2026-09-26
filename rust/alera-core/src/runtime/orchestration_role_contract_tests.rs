@@ -248,6 +248,25 @@ fn role_contract_completion_requires_schema_artifacts_and_passing_evidence() {
 }
 
 #[test]
+fn role_contract_completion_enforces_the_integration_artifact_limit() {
+    let contract = snapshot();
+    let mut output = result();
+    let mut artifacts = vec!["docs/result.md".to_owned()];
+    artifacts.extend((1..crate::git::MAX_WORKFLOW_ARTIFACTS).map(|i| format!("docs/{i}.md")));
+    output["artifacts"] = json!(artifacts);
+    contract
+        .validate_success_result(&output.to_string())
+        .unwrap();
+    artifacts.push("docs/overflow.md".into());
+    output["artifacts"] = json!(artifacts);
+    assert!(contract
+        .validate_success_result(&output.to_string())
+        .unwrap_err()
+        .to_string()
+        .contains("too many artifacts"));
+}
+
+#[test]
 fn role_contract_validation_does_not_echo_rejected_private_values() {
     let error = RoleContractSnapshot::freeze(
         contract(),

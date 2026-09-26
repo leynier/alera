@@ -80,6 +80,7 @@ RunSnapshot boardRunDetail({
           status: 'completed',
           workspaceId: 'ws-1',
           stageId: 'Foundation',
+          workflowState: 'integrated',
         ),
         RunTaskSummary(
           id: 'task-2',
@@ -88,6 +89,7 @@ RunSnapshot boardRunDetail({
           workspaceId: 'ws-1',
           stageId: 'Product',
           dependencies: ['task-1'],
+          workflowState: 'result_ready',
         ),
         RunTaskSummary(
           id: 'task-3',
@@ -103,6 +105,11 @@ RunSnapshot boardRunDetail({
 TaskInspection boardTask({
   int revision = 1,
   String taskId = 'task-2',
+  String status = 'completed',
+  String workflowState = 'result_ready',
+  String? workflowError,
+  String? completionSha = 'abcdef0123456789abcdef0123456789abcdef01',
+  String? terminalHandle = 'session-1',
   List<TaskHistoryEntry>? history,
   TaskHistoryCursor? nextCursor,
 }) => TaskInspection(
@@ -112,13 +119,23 @@ TaskInspection boardTask({
   title: 'Build the review surface',
   description:
       'Keep reviews accessible, durable and bound to the exact plan revision.',
-  status: 'completed',
+  status: status,
   workspaceId: 'ws-1',
   workspaceName: 'Workflow Delivery',
   workspacePath: '/projects/alera/workflow-delivery',
   branch: 'feature/review-surface',
   profile: 'Implementation',
-  terminalHandle: 'session-1',
+  terminalHandle: terminalHandle,
+  workflow: TaskWorkflowInspection(
+    state: workflowState,
+    executionWorkspaceId: 'workflow-attempt-2',
+    launchId: 'launch-2',
+    worktree: '/projects/alera/workflow-attempt-2',
+    branch: 'alera/workflows/workflow-attempt-2',
+    baseSha: '1234567890abcdef1234567890abcdef12345678',
+    completionSha: status == 'completed' ? completionSha : null,
+    error: workflowError,
+  ),
   dependencies: const ['task-1'],
   result: const TaskResultInspection(
     summary: 'Review surface implemented.',

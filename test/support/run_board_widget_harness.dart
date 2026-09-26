@@ -42,17 +42,40 @@ WorkbenchState boardWorkbenchState() {
         kind: WorkspaceKind.main,
         status: WorkspaceStatus.active,
       ),
+    Workspace(
+      id: 'workflow-attempt-2',
+      projectId: 'project-1',
+      name: 'Workflow Attempt 2',
+      path: '/projects/alera/workflow-attempt-2',
+      branch: 'alera/workflows/workflow-attempt-2',
+      createdAt: now,
+      updatedAt: now,
+      kind: WorkspaceKind.linked,
+      status: WorkspaceStatus.active,
+    ),
   ];
   return WorkbenchState(
     projects: projects,
     workspacesByProject: {
-      for (final workspace in workspaces) workspace.projectId: [workspace],
+      for (final project in projects)
+        project.id: workspaces
+            .where((workspace) => workspace.projectId == project.id)
+            .toList(),
     },
     tabsByWorkspace: {
       'ws-1': [
         WorkspaceTabRecord(
-          id: 'session-1',
+          id: 'main-session-1',
           workspaceId: 'ws-1',
+          title: 'Main Terminal',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      ],
+      'workflow-attempt-2': [
+        WorkspaceTabRecord(
+          id: 'session-1',
+          workspaceId: 'workflow-attempt-2',
           title: 'Implementation',
           createdAt: now,
           updatedAt: now,
@@ -109,6 +132,35 @@ class BoardTestWorkbench extends WorkbenchController {
       id: 'diff',
       workspaceId: workspace.id,
       title: 'Diff',
+      createdAt: now,
+      updatedAt: now,
+      kind: WorkspaceTabKind.gitDiff,
+    );
+  }
+
+  @override
+  Future<WorkspaceTabRecord> openGitCommitDiffTab({
+    required Workspace workspace,
+    String? relativePath,
+    String? oldPath,
+    required WorkspaceGitDiffScope scope,
+    String? gitDiffRoot,
+    required String commitOid,
+    String? parentOid,
+    required String compareRef,
+    String? subject,
+    String? message,
+    String? targetGroupId,
+    String? sourceKey,
+    bool preview = false,
+    bool oppositePanel = false,
+  }) async {
+    actions.add('commitDiff:${workspace.id}:$parentOid:$commitOid');
+    final now = DateTime.utc(2026);
+    return WorkspaceTabRecord(
+      id: 'commit-diff',
+      workspaceId: workspace.id,
+      title: 'Workflow Result',
       createdAt: now,
       updatedAt: now,
       kind: WorkspaceTabKind.gitDiff,

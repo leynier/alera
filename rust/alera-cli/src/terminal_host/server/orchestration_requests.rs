@@ -186,8 +186,14 @@ impl ServerActor {
             "orchestration.context" => self.orchestration_context(payload).await.map(Some),
             "orchestration.heartbeat" => self.orchestration_heartbeat(payload).await.map(Some),
             "orchestration.escalate" => self.orchestration_escalate(payload).await.map(Some),
-            "orchestration.complete" => self.orchestration_complete(payload).await.map(Some),
-            "orchestration.workerDone" => self.orchestration_worker_done(payload).await.map(Some),
+            "orchestration.complete" => {
+                self.orchestration_complete(client_id, request_id, payload)
+                    .await
+            }
+            "orchestration.workerDone" => {
+                self.orchestration_worker_done(client_id, request_id, payload)
+                    .await
+            }
             "orchestration.workerHelp" => Ok(Some(self.orchestration_worker_help())),
             "orchestration.gateCreate" => self.orchestration_gate_create(payload).await.map(Some),
             "orchestration.gateResolve" => self.orchestration_gate_resolve(payload).await.map(Some),
@@ -1267,6 +1273,9 @@ impl ServerActor {
 
     async fn orchestration_context(&mut self, payload: &Value) -> HostResult<Value> {
         let dispatch = self.active_worker_dispatch(payload).await?;
+        if let Some(context) = self.workflow_worker_context(&dispatch).await? {
+            return Ok(context);
+        }
         let mut task = self
             .runtime_store
             .orchestration_task_by_id(&dispatch.task_id)
@@ -1359,6 +1368,18 @@ impl ServerActor {
     async fn orchestration_escalate(&mut self, payload: &Value) -> HostResult<Value> {
         let dispatch = self.active_worker_dispatch(payload).await?;
         let assignee = dispatch.assignee_handle.clone().unwrap_or_default();
+        if let Some(launch) = self
+            .runtime_store
+            .workflow_launch_for_terminal(&assignee)
+            .await
+            .map_err(state_error)?
+        {
+            self.runtime_store
+                .workflow_launch_attention(&launch.id, &require_string(payload, "subject")?)
+                .await
+                .map_err(state_error)?;
+            self.broadcast_orchestration_board_change().await;
+        }
         let message = self
             .runtime_store
             .insert_orchestration_message(NewOrchestrationMessage {
@@ -1398,7 +1419,12 @@ impl ServerActor {
         Ok(json!({ "lifecycleAccepted": true, "message": message }))
     }
 
-    async fn orchestration_complete(&mut self, payload: &Value) -> HostResult<Value> {
+    async fn orchestration_complete(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        payload: &Value,
+    ) -> HostResult<Option<Value>> {
         let dispatch = self.active_worker_dispatch(payload).await?;
         let assignee = dispatch
             .assignee_handle
@@ -1441,36 +1467,37 @@ impl ServerActor {
                 .fail_orchestration_dispatch_with_result(&dispatch.id, summary, Some(&result_json))
                 .await
                 .map_err(state_error)?;
-            return Ok(json!({
+            if self.is_workflow_terminal(&assignee).await {
+                self.terminate_sessions_for_tab(&assignee).await;
+            }
+            return Ok(Some(json!({
                 "lifecycleAccepted": true,
                 "taskId": dispatch.task_id,
                 "dispatchId": failed.id,
                 "dispatchStatus": failed.status.as_str(),
-            }));
+            })));
         }
         if completion_kind != "success" {
             return Err(HostError::format(
                 "result.completionKind must be success or failure.",
             ));
         }
-        let completed = self
-            .runtime_store
-            .complete_orchestration_dispatch(&dispatch.id, &assignee, &result_json)
-            .await
-            .map_err(state_error)?;
-        self.apply_terminal_completion_policy(&assignee, &completed.terminal_policy)
-            .await?;
-        Ok(json!({
-            "delivered": true,
-            "lifecycleAccepted": true,
-            "taskId": completed.task_id,
-            "dispatchId": completed.id,
-            "taskStatus": "completed",
-            "dispatchStatus": completed.status.as_str(),
-        }))
+        self.complete_or_defer_dispatch_result(
+            client_id,
+            request_id,
+            &dispatch,
+            &assignee,
+            result_json,
+        )
+        .await
     }
 
-    async fn orchestration_worker_done(&mut self, payload: &Value) -> HostResult<Value> {
+    async fn orchestration_worker_done(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        payload: &Value,
+    ) -> HostResult<Option<Value>> {
         let terminal = optional_string(payload, "terminal")
             .ok_or_else(|| HostError::format("terminal is required."))?;
         let task_id = require_string(payload, "task")?;
@@ -1519,24 +1546,17 @@ impl ServerActor {
         validate_result_schema(result, task.result_schema.as_deref())?;
         let result_json =
             serde_json::to_string(result).map_err(|error| HostError::format(error.to_string()))?;
-        let completed = self
-            .runtime_store
-            .complete_orchestration_dispatch(&dispatch_id, &terminal, &result_json)
-            .await
-            .map_err(state_error)?;
-        self.apply_terminal_completion_policy(&terminal, &completed.terminal_policy)
-            .await?;
-        Ok(json!({
-            "delivered": true,
-            "lifecycleAccepted": true,
-            "taskId": completed.task_id,
-            "dispatchId": completed.id,
-            "taskStatus": "completed",
-            "dispatchStatus": completed.status.as_str(),
-        }))
+        self.complete_or_defer_dispatch_result(
+            client_id,
+            request_id,
+            &dispatch,
+            &terminal,
+            result_json,
+        )
+        .await
     }
 
-    async fn apply_terminal_completion_policy(
+    pub(super) async fn apply_terminal_completion_policy(
         &mut self,
         handle: &str,
         policy: &str,
@@ -1718,7 +1738,7 @@ impl ServerActor {
 
     // --- reset --------------------------------------------------------------
 
-    async fn orchestration_reset(&mut self, payload: &Value) -> HostResult<Value> {
+    pub(super) async fn orchestration_reset(&mut self, payload: &Value) -> HostResult<Value> {
         let tasks = payload
             .get("tasks")
             .and_then(Value::as_bool)
@@ -1732,13 +1752,26 @@ impl ServerActor {
         let all =
             (!tasks && !messages) || payload.get("all").and_then(Value::as_bool).unwrap_or(false);
         if all || tasks {
-            for (_, handle) in self.coordinators.drain() {
-                handle.stop();
+            let live_terminals = self
+                .sessions
+                .iter()
+                .filter(|(_, session)| session.running())
+                .map(|(terminal, _)| terminal.clone())
+                .collect::<Vec<_>>();
+            for terminal in live_terminals {
+                if self.is_workflow_terminal(&terminal).await {
+                    return Err(HostError::state(
+                        "settle active workflow workers before resetting orchestration",
+                    ));
+                }
             }
             self.runtime_store
                 .reset_orchestration_tasks()
                 .await
                 .map_err(state_error)?;
+            for (_, handle) in self.coordinators.drain() {
+                handle.stop();
+            }
         }
         if all || messages {
             self.runtime_store

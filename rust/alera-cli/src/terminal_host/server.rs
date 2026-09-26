@@ -188,6 +188,7 @@ mod orchestration_agent_spawn_requests;
 mod orchestration_board_requests;
 #[cfg(test)]
 mod orchestration_board_tests;
+mod orchestration_completion;
 mod orchestration_owned_spawn;
 mod orchestration_policy_requests;
 mod orchestration_profile_spawn;
@@ -247,6 +248,7 @@ mod terminal_session_requests;
 mod terminal_spawn;
 mod terminal_spawn_command;
 mod terminal_startup_commands;
+mod terminal_startup_delivery;
 mod voice_chained_jobs;
 mod voice_credential_requests;
 mod voice_credentials;
@@ -268,9 +270,12 @@ mod voice_turn_jobs;
 mod workflow_catalog_requests;
 #[cfg(test)]
 mod workflow_catalog_tests;
+mod workflow_launch_recovery;
+mod workflow_launch_requests;
 mod workflow_plan_requests;
 #[cfg(test)]
 mod workflow_plan_tests;
+mod workflow_worker_context;
 mod workflow_workspace_requests;
 mod workspace_archive_requests;
 mod workspace_file_mutation_requests;
@@ -820,6 +825,13 @@ impl ServerActor {
             ServerCommand::WorkflowPlanChanged => self.broadcast_orchestration_board_change().await,
             ServerCommand::WorkflowWorkspaceRecoveryFinished => {
                 self.handle_workflow_workspace_recovery_finished().await;
+            }
+            ServerCommand::WorkflowLaunch(command) => {
+                self.handle_workflow_launch_command(command).await
+            }
+            ServerCommand::OrchestrationCompletionFinished(completion) => {
+                self.handle_orchestration_completion_finished(completion)
+                    .await
             }
             ServerCommand::WorkflowWorkspaceFinished {
                 client_id,

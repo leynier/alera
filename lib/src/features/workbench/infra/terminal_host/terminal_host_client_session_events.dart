@@ -87,6 +87,10 @@ mixin _TerminalHostClientSessionEvents {
           sessionId,
           TerminalHostExitEvent(sessionId, (payload['exitCode'] as int?) ?? -1),
         );
+      case 'terminalSessionRemoved':
+        // The host can retain the tab and checkpoint while removing its PTY.
+        // Treat the local handle as exited so input cannot target a dead session.
+        _emitHostEvent(sessionId, TerminalHostExitEvent(sessionId, -1));
       case 'error':
         _emitHostEvent(
           sessionId,

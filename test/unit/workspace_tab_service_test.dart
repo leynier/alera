@@ -499,6 +499,18 @@ void main() {
       expect(first.gitDiffCommitSubject, 'Add Main');
       expect(first.gitDiffCommitMessage, 'Add Main\n\nBody');
       expect(repository.tabs, hasLength(2));
+      final differentBase = await service.openOrCreateGitCommitDiffTab(
+        workspaceId: 'workspace-1',
+        relativePath: 'packages/app/lib/main.dart',
+        oldPath: 'packages/app/lib/old_main.dart',
+        scope: .file,
+        gitDiffRoot: 'packages/app',
+        commitOid: 'abc123456789',
+        parentOid: 'another-base',
+        compareRef: 'abc1234',
+      );
+      expect(differentBase.id, isNot(first.id));
+      expect(repository.tabs, hasLength(3));
     });
 
     test(

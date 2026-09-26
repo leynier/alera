@@ -8,6 +8,8 @@ use alera_core::runtime::{
 
 use super::*;
 mod destination;
+pub(crate) mod integration;
+pub(crate) mod launch;
 pub(crate) mod ownership;
 pub(crate) mod recovery;
 
@@ -69,28 +71,65 @@ pub(crate) async fn prepare(
         section_id: None,
         child_count: 0,
     };
+    let integration_lock =
+        task_integration_resource_id(store, &request.run_id, request.task_id.is_some())
+            .await?
+            .map(|id| {
+                resource_lock(runtime_dir, &id)?.ok_or_else(|| {
+                    anyhow!("workflow integration is busy; inspect or retry shortly")
+                })
+            })
+            .transpose()?;
     let record = store
         .reserve_workflow_workspace(&request, candidate)
         .await?;
-    resume(
+    resume_with_integration_lock(
         store,
         runtime_dir,
         &record.identity.workspace.id,
         request.revision,
+        integration_lock.as_ref(),
     )
     .await
 }
 
+#[cfg(test)]
 pub(crate) async fn resume(
     store: &RuntimeStore,
     runtime_dir: &Path,
     id: &str,
     revision: i64,
 ) -> Result<WorkflowWorkspaceRecord> {
+    let record = store.workflow_workspace(id).await?;
+    let integration_lock = task_integration_resource_id(
+        store,
+        &record.identity.run_id,
+        record.identity.task_id.is_some(),
+    )
+    .await?
+    .map(|integration_id| {
+        resource_lock(runtime_dir, &integration_id)?
+            .ok_or_else(|| anyhow!("workflow integration is busy; inspect or retry shortly"))
+    })
+    .transpose()?;
+    resume_with_integration_lock(store, runtime_dir, id, revision, integration_lock.as_ref()).await
+}
+
+async fn resume_with_integration_lock(
+    store: &RuntimeStore,
+    runtime_dir: &Path,
+    id: &str,
+    revision: i64,
+    _integration_lock: Option<&File>,
+) -> Result<WorkflowWorkspaceRecord> {
     let _lock = resource_lock(runtime_dir, id)?.ok_or_else(|| {
         anyhow!("workflow workspace preparation is already running; inspect or retry shortly")
     })?;
     let record = store.workflow_workspace(id).await?;
+    if record.phase == Phase::Ready && record.dispatch_id.is_some() {
+        verify_registered(store, &record).await?;
+        return Ok(record);
+    }
     store.validate_workflow_workspace(id, revision).await?;
     if record.phase == Phase::Attention {
         return Ok(record);
@@ -107,6 +146,24 @@ pub(crate) async fn resume(
             attention(store, &record, revision, &error.to_string()).await
         }
     }
+}
+
+async fn task_integration_resource_id(
+    store: &RuntimeStore,
+    run_id: &str,
+    task_attempt: bool,
+) -> Result<Option<String>> {
+    if !task_attempt {
+        return Ok(None);
+    }
+    Ok(Some(
+        store
+            .workflow_integration_workspace(run_id)
+            .await?
+            .identity
+            .workspace
+            .id,
+    ))
 }
 
 async fn advance(
@@ -319,4 +376,4 @@ fn resource_lock(runtime_dir: &Path, id: &str) -> Result<Option<File>> {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

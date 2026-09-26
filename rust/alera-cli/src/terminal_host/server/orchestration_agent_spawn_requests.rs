@@ -53,6 +53,9 @@ impl ServerActor {
             }
             return;
         };
+        if self.is_workflow_terminal(session_id).await {
+            return;
+        }
         let result = if dispatch.status == OrchestrationDispatchStatus::AwaitingAcceptance
             && self
                 .is_owned_orchestration_spawn(session_id, &dispatch.task_id)

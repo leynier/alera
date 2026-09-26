@@ -269,6 +269,17 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let tab_id = require_string_key(payload, "id")?;
+                if self
+                    .runtime_store
+                    .workflow_launch_for_terminal(&tab_id)
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?
+                    .is_some()
+                {
+                    return Err(HostError::state(
+                        "Workflow terminals remain available until reviewed cleanup.",
+                    ));
+                }
                 self.cancel_agent_title_job(&tab_id);
                 self.start_runtime_mutation(
                     client_id,

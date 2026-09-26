@@ -1,5 +1,7 @@
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
+use std::os::windows::process::CommandExt;
+use std::path::Path;
 use std::process::Command;
 
 use serde::Deserialize;
@@ -60,8 +62,8 @@ fn run_inner() -> Result<i32, String> {
     } else {
         Command::new(&request.shell)
     };
+    append_shell_arguments(&mut command, &request, command_mode);
     let status = command
-        .args(&request.arguments)
         .env_remove(BOOTSTRAP_EVENT_ENV)
         .env_remove(BOOTSTRAP_PARENT_PID_ENV)
         .env_remove(BOOTSTRAP_REQUEST_ENV)
@@ -70,6 +72,29 @@ fn run_inner() -> Result<i32, String> {
         .wait()
         .map_err(|error| format!("failed to wait for {}: {error}", request.shell))?;
     Ok(status.code().unwrap_or(1))
+}
+
+fn append_shell_arguments(command: &mut Command, request: &BootstrapRequest, command_mode: bool) {
+    let cmd_shell = Path::new(&request.shell)
+        .file_name()
+        .and_then(OsStr::to_str)
+        .is_some_and(|name| name.eq_ignore_ascii_case("cmd.exe"));
+    let default_cmd_line = request.arguments.len() == 4
+        && request.arguments[0].eq_ignore_ascii_case("/d")
+        && request.arguments[1].eq_ignore_ascii_case("/s")
+        && matches!(
+            request.arguments[2].to_ascii_lowercase().as_str(),
+            "/k" | "/c"
+        );
+    if !command_mode && cmd_shell && default_cmd_line {
+        command.args(&request.arguments[..3]);
+        // cmd.exe parses its command string itself. Windows CRT quoting would
+        // turn the embedded path quotes into literal backslashes and make cd
+        // fail before the interactive shell reaches its workspace.
+        command.raw_arg(&request.arguments[3]);
+    } else {
+        command.args(&request.arguments);
+    }
 }
 
 fn install_control_handler() -> Result<(), String> {
@@ -124,6 +149,42 @@ pub(crate) fn wait_for_release() -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn workflow_cmd_bootstrap_preserves_quoted_working_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let workspace = dir.path().join("workflow task");
+        std::fs::create_dir(&workspace).unwrap();
+        let request = BootstrapRequest {
+            shell: "cmd.exe".into(),
+            arguments: vec![
+                "/d".into(),
+                "/s".into(),
+                "/c".into(),
+                format!("cd /d \"{}\" && cd", workspace.display()),
+            ],
+        };
+        let mut command = Command::new("cmd.exe");
+        append_shell_arguments(&mut command, &request, false);
+        let output = command.output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let actual = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(
+            std::fs::canonicalize(actual.trim()).unwrap(),
+            std::fs::canonicalize(workspace).unwrap()
+        );
+    }
+
+    #[test]
+    fn pty_job_test_harness_bootstrap() {
+        if std::env::var("ALERA_PTY_JOB_TEST_BOOTSTRAP").as_deref() == Ok("1") {
+            std::process::exit(run());
+        }
+    }
 
     /// Helper process for the Job Object integration test. A normal test run
     /// returns without spawning anything; the parent test opts in explicitly.

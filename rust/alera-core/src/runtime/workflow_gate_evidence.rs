@@ -18,6 +18,16 @@ pub(super) async fn approval_state(
     revision: i64,
     scope: &str,
 ) -> Result<ApprovalState> {
+    let unsettled: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM workflowIntegrations
+        WHERE run_id = ? AND state IN ('pending','prepared','attention'))",
+    )
+    .bind(run_id)
+    .fetch_one(&mut **tx)
+    .await?;
+    if unsettled {
+        bail!("reconcile the pending integration before approving a workflow plan or gate");
+    }
     let row = sqlx::query("SELECT r.workspace_id, r.revision, r.status, r.integration_sha, p.snapshot, c.status AS coordinator_status
         FROM workflowRuns r JOIN workflowPlanRevisions p ON p.run_id = r.run_id AND p.revision = r.revision
         JOIN orchestrationCoordinatorRuns c ON c.id = r.run_id
@@ -44,6 +54,40 @@ pub(super) async fn approval_state(
             bail!("workflow plan is not awaiting approval");
         }
         workflow_digest(&serde_json::json!([plan.digest, integration_sha]))?
+    } else if let Some(integration_id) = scope.strip_prefix("integration:") {
+        uuid::Uuid::parse_str(integration_id)
+            .map_err(|_| anyhow!("invalid workflow integration correction scope"))?;
+        if status != "approved" {
+            bail!("workflow correction requires the current approved plan");
+        }
+        let refusal = sqlx::query(
+            "SELECT request, conflict_paths, error, receipt FROM workflowIntegrations
+            WHERE id = ? AND run_id = ? AND revision = ? AND state = 'conflict'
+              AND NOT EXISTS(SELECT 1 FROM workflowTaskEvidence e
+                WHERE e.task_id = workflowIntegrations.task_id)",
+        )
+        .bind(integration_id)
+        .bind(run_id)
+        .bind(revision)
+        .fetch_optional(&mut **tx)
+        .await?
+        .ok_or_else(|| anyhow!("workflow integration has no terminal correction evidence"))?;
+        if refusal.try_get::<Option<String>, _>("receipt")?.is_some() {
+            bail!("a prepared Git receipt cannot be treated as a terminal refusal");
+        }
+        let request: serde_json::Value =
+            serde_json::from_str(&refusal.try_get::<String, _>("request")?)?;
+        let paths: serde_json::Value =
+            serde_json::from_str(&refusal.try_get::<String, _>("conflict_paths")?)?;
+        let error: Option<String> = refusal.try_get("error")?;
+        workflow_digest(&serde_json::json!([
+            plan.digest,
+            integration_sha,
+            integration_id,
+            request,
+            paths,
+            error
+        ]))?
     } else {
         if status != "approved" {
             bail!("workflow plan is not approved");

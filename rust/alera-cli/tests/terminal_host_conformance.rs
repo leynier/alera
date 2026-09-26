@@ -1490,7 +1490,7 @@ fn remints_session_from_disk_after_restart_with_prior_scrollback() {
             &mut writer,
             json!({"id": 2, "type": "detach", "payload": {"sessionId": "s1"}}),
         );
-        let detached = read_message(&mut reader);
+        let detached = read_response(&mut reader, 2);
         assert_eq!(detached["id"], json!(2));
         assert_eq!(detached["ok"], json!(true));
         // Dropping _guard kills host A, leaving the checkpoint on disk.
@@ -1524,7 +1524,7 @@ fn remints_session_from_disk_after_restart_with_prior_scrollback() {
             }),
         );
         answer_conpty_cursor_query(&mut writer, "s1");
-        let restored = read_message(&mut reader);
+        let restored = read_response(&mut reader, 1);
         assert_eq!(restored["id"], json!(1));
         assert_eq!(restored["ok"], json!(true), "restore failed: {restored}");
         assert_eq!(restored["payload"]["created"], json!(true));
@@ -1550,7 +1550,7 @@ fn remints_session_from_disk_after_restart_with_prior_scrollback() {
             &mut writer,
             json!({"id": 2, "type": "detach", "payload": {"sessionId": "s1"}}),
         );
-        let detached = read_message(&mut reader);
+        let detached = read_response(&mut reader, 2);
         assert_eq!(detached["id"], json!(2));
         assert_eq!(detached["ok"], json!(true));
     }
@@ -1577,7 +1577,7 @@ fn remints_session_from_disk_after_restart_with_prior_scrollback() {
             }
         }),
     );
-    let restored = read_message(&mut reader);
+    let restored = read_response(&mut reader, 1);
     assert_eq!(restored["id"], json!(1));
     assert_eq!(restored["ok"], json!(true), "restore failed: {restored}");
     let snapshot = STANDARD

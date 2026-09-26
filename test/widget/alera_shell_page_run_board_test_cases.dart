@@ -148,14 +148,21 @@ void _registerAleraShellRunBoardTests() {
     addTearDown(repository.dispose);
     final seed = boardWorkbenchState().copyWith(
       activeProjectId: 'project-1',
-      activeWorkspaceId: 'ws-1',
+      activeWorkspaceId: 'workflow-attempt-2',
     );
     final harness = await _pumpShell(
       tester,
       state: seed,
       boardRepository: repository,
     );
-    final session = harness.runtime._sessions['session-1']!;
+    final executionWorkspace = seed
+        .workspacesFor('project-1')
+        .singleWhere((workspace) => workspace.id == 'workflow-attempt-2');
+    final session = harness.runtime.sessionFor(
+      workspace: executionWorkspace,
+      tab: seed.tabsFor(executionWorkspace.id).single,
+    ) as _FakeTerminalSessionHandle;
+    await session.ensureStarted();
     final requestsBefore = session.requestFocusCalls;
     final visibilityLeasesBefore = session.visibilityLeases;
     expect(visibilityLeasesBefore, greaterThan(0));
@@ -170,7 +177,11 @@ void _registerAleraShellRunBoardTests() {
     await tester.pump(const Duration(milliseconds: 200));
     expect(session.visibilityLeases, 0);
     expect(session.requestFocusCalls, requestsBefore);
-    await tester.ensureVisible(find.text('Open Terminal'));
+    await Scrollable.ensureVisible(
+      tester.element(find.text('Open Terminal')),
+      alignment: 0.5,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Open Terminal'));
     await tester.pump();
     await tester.pump();

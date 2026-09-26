@@ -88,12 +88,16 @@ class RunBoardPageFooter extends StatelessWidget {
 }
 
 String runBoardStatusLabel(String status) => switch (status) {
-  'result_ready' => 'Result Ready',
+  'result_ready' || 'resultReady' => 'Result Ready',
   'integrated' => 'Integrated',
   'conflict' => 'Conflict',
+  'refused' => 'Needs Correction',
   'completed' => 'Completed',
   'running' => 'Running',
   'dispatched' => 'Dispatched',
+  'reserved' => 'Reserved',
+  'starting' => 'Starting',
+  'started' => 'Started',
   'stopped' => 'Stopped',
   'active' => 'Active',
   'closed' => 'Closed',
@@ -104,6 +108,7 @@ String runBoardStatusLabel(String status) => switch (status) {
   'blocked' => 'Blocked',
   'failed' => 'Failed',
   'stalled' => 'Stalled',
+  'attention' => 'Attention',
   'cancelled' => 'Cancelled',
   'canceled' => 'Cancelled',
   'approved' => 'Approved',
@@ -113,8 +118,12 @@ String runBoardStatusLabel(String status) => switch (status) {
 };
 
 Color runBoardStatusColor(String status) => switch (status) {
-  'failed' || 'conflict' => AleraTokens.error,
-  'blocked' || 'stalled' || 'pending' || 'rejected' => AleraTokens.warning,
+  'failed' || 'conflict' || 'refused' => AleraTokens.error,
+  'blocked' ||
+  'stalled' ||
+  'pending' ||
+  'rejected' ||
+  'attention' => AleraTokens.warning,
   'completed' || 'integrated' => AleraTokens.success,
   _ => AleraTokens.foregroundMuted,
 };

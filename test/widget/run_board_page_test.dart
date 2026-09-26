@@ -67,6 +67,28 @@ void main() {
     },
   );
 
+  testWidgets('terminal integration refusal explains the correction path', (
+    tester,
+  ) async {
+    final f = await mount(tester);
+    f.repository.task = boardTask(
+      workflowState: 'refused',
+      workflowError: 'submodule changes require explicit integration outside this workflow',
+    );
+    await tester.tap(find.text('Deliver reviewed workflow plans'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Build the review surface'));
+    await tester.tap(find.text('Build the review surface'));
+    await tester.pumpAndSettle();
+    expect(find.text('Needs Correction'), findsWidgets);
+    expect(
+      find.textContaining('request a reviewed correction'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('submodule changes require'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('many runs build lazily and do not request per-run details', (
     tester,
   ) async {
@@ -163,16 +185,145 @@ void main() {
     navigation.selectRun('run-1');
     navigation.selectTask('task-2');
     await tester.pumpAndSettle();
+    expect(find.text('Result Ready'), findsWidgets);
+    expect(
+      find.text(
+        'The worker result passed its contract and is waiting for local integration.',
+      ),
+      findsOneWidget,
+    );
     await tester.tap(find.text('Open Terminal'));
     await tester.pumpAndSettle();
-    expect(workbench.actions, ['workspace:ws-1', 'terminal:session-1']);
+    expect(workbench.actions, [
+      'workspace:workflow-attempt-2',
+      'terminal:session-1',
+    ]);
     expect(f.container.read(runBoardNavigationProvider).visible, isFalse);
     navigation.open();
     await tester.pumpAndSettle();
     await tester.tap(find.text('Open Diff'));
     await tester.pumpAndSettle();
-    expect(workbench.actions.last, 'diff:ws-1');
+    expect(
+      workbench.actions.last,
+      'commitDiff:workflow-attempt-2:1234567890abcdef1234567890abcdef12345678:abcdef0123456789abcdef0123456789abcdef01',
+    );
     expect(f.container.read(runBoardNavigationProvider).taskId, 'task-2');
+  });
+
+  testWidgets(
+    'completed workflow without a recorded commit cannot open an empty diff',
+    (tester) async {
+      final f = await mount(tester, workbench: BoardTestWorkbench());
+      f.repository.task = boardTask(completionSha: null);
+      final navigation = f.container.read(runBoardNavigationProvider.notifier);
+      navigation.selectRun('run-1');
+      navigation.selectTask('task-2');
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<OutlinedButton>(
+              find.widgetWithText(OutlinedButton, 'Open Diff'),
+            )
+            .onPressed,
+        isNull,
+      );
+      expect(
+        find.textContaining('commit coordinates were not recorded'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  for (final state in ['integrated', 'conflict', 'refused']) {
+    testWidgets('$state workflow retains its committed result diff', (
+      tester,
+    ) async {
+      final workbench = BoardTestWorkbench();
+      final f = await mount(tester, workbench: workbench);
+      f.repository.task = boardTask(workflowState: state);
+      final navigation = f.container.read(runBoardNavigationProvider.notifier);
+      navigation.selectRun('run-1');
+      navigation.selectTask('task-2');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Open Diff'));
+      await tester.pumpAndSettle();
+      expect(
+        workbench.actions.last,
+        'commitDiff:workflow-attempt-2:1234567890abcdef1234567890abcdef12345678:abcdef0123456789abcdef0123456789abcdef01',
+      );
+    });
+  }
+
+  testWidgets('active workflow actions target the execution workspace', (
+    tester,
+  ) async {
+    final workbench = BoardTestWorkbench();
+    final f = await mount(tester, workbench: workbench);
+    f.repository.task = boardTask(
+      status: 'dispatched',
+      workflowState: 'started',
+    );
+    final navigation = f.container.read(runBoardNavigationProvider.notifier);
+    navigation.selectRun('run-1');
+    navigation.selectTask('task-2');
+    await tester.pumpAndSettle();
+    expect(find.text('Started'), findsWidgets);
+    expect(
+      find.text('The worker is running in its isolated workspace.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Open Terminal'));
+    await tester.pumpAndSettle();
+    expect(workbench.actions, [
+      'workspace:workflow-attempt-2',
+      'terminal:session-1',
+    ]);
+    navigation.open();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open Diff'));
+    await tester.pumpAndSettle();
+    expect(workbench.actions.last, 'diff:workflow-attempt-2');
+  });
+
+  testWidgets('prepared workflow attempts explain readiness and setup errors', (
+    tester,
+  ) async {
+    final f = await mount(tester);
+    f.repository.task = boardTask(
+      status: 'pending',
+      workflowState: 'ready',
+      terminalHandle: null,
+    );
+    final navigation = f.container.read(runBoardNavigationProvider.notifier);
+    navigation.selectRun('run-1');
+    navigation.selectTask('task-2');
+    await tester.pumpAndSettle();
+    expect(find.text('Ready'), findsWidgets);
+    expect(
+      find.text(
+        'The isolated workspace is ready. Launch the reviewed task when you are ready.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, 'Open Terminal'),
+          )
+          .onPressed,
+      isNull,
+    );
+
+    f.repository.task = boardTask(
+      status: 'pending',
+      workflowState: 'attention',
+      workflowError: 'Project setup failed',
+      terminalHandle: null,
+    );
+    f.repository.events.add(null);
+    await tester.pumpAndSettle();
+    expect(find.text('Attention'), findsWidgets);
+    expect(find.text('Project setup failed'), findsOneWidget);
   });
 
   testWidgets('runtime events retain search focus and typing is debounced', (
