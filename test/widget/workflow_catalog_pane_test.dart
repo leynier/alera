@@ -17,6 +17,28 @@ import '../support/run_board_widget_harness.dart';
 import '../support/workflow_catalog_fixture.dart';
 
 void main() {
+  testWidgets('workspace selector recovers when its workspace disappears', (
+    tester,
+  ) async {
+    final workbench = _FileOpenWorkbench();
+    await _pumpProjectRecipe(tester, workbench);
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Other Project / Current Workspace').last);
+    await tester.pumpAndSettle();
+    FormFieldState<String> field() =>
+        tester.state(find.byType(DropdownButtonFormField<String>));
+    expect(field().value, 'ws-2');
+    workbench.setWorkspaceAvailable(false);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(field().value, '');
+    workbench.setWorkspaceAvailable(true);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(field().value, 'ws-2');
+  });
+
   testWidgets('Open File uses the source workspace without a preview', (
     tester,
   ) async {
@@ -286,6 +308,16 @@ class _ProjectCatalogTestRepository extends CatalogTestRepository {
 class _FileOpenWorkbench extends BoardTestWorkbench {
   Completer<void>? pendingSelection;
   final opens = <(bool, bool)>[];
+
+  void setWorkspaceAvailable(bool available) {
+    final original = boardWorkbenchState();
+    state = state.copyWith(
+      workspacesByProject: {
+        ...original.workspacesByProject,
+        if (!available) 'project-2': [],
+      },
+    );
+  }
 
   @override
   Future<void> selectWorkspace({

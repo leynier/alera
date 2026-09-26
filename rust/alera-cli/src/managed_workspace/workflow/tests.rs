@@ -11,6 +11,7 @@ pub(crate) mod fixture;
 mod integration_cancellation;
 mod integration_regressions;
 mod lifecycle;
+mod ready_replay_regressions;
 mod receipt_and_report_regressions;
 mod regressions;
 mod review_regressions;
