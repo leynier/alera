@@ -11,3 +11,7 @@ pub(crate) const RUNTIME_HOST_AGENT_PROFILE_REVISIONS_CAPABILITY: &str =
 /// authenticated caller and workspace.
 pub(crate) const RUNTIME_HOST_AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY: &str =
     "agentProfileLaunchIdempotencyV1";
+
+/// Explicit session IDs are bound to profile tabs before their first spawn.
+pub(crate) const RUNTIME_HOST_AGENT_PROFILE_SESSION_RESUME_CAPABILITY: &str =
+    "agentProfileSessionResumeV1";
