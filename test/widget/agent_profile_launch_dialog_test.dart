@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/workbench/infra/terminal_clipboard.dart';
 import 'package:alera/src/features/workbench/presentation/agent_profile_launch_dialog.dart';
@@ -23,16 +25,17 @@ void main() {
         home: AgentProfileLaunchDialog(
           profile: profile,
           workspacePath: '/repo/workspace',
-          onLaunch: ({required prompt}) async {
-            launched.add(prompt);
-          },
+          onLaunch:
+              ({required prompt, resumeSessionId, clientMutationId}) async {
+                launched.add(prompt);
+              },
         ),
       ),
     );
     await tester.pumpAndSettle();
 
     expect(find.text('Start Shown Codex'), findsOneWidget);
-    await tester.tap(find.text('Skip'));
+    await tester.tap(find.text('Start Without Prompt'));
     await tester.pumpAndSettle();
 
     expect(launched, ['']);
@@ -49,9 +52,10 @@ void main() {
           profile: profile,
           workspacePath: '/repo/workspace',
           pickFiles: () async => <String>['/repo/workspace/lib/main.dart'],
-          onLaunch: ({required prompt}) async {
-            launched.add(prompt);
-          },
+          onLaunch:
+              ({required prompt, resumeSessionId, clientMutationId}) async {
+                launched.add(prompt);
+              },
         ),
       ),
     );
@@ -86,9 +90,10 @@ void main() {
         home: AgentProfileLaunchDialog(
           profile: profile,
           workspacePath: '/repo/workspace',
-          onLaunch: ({required prompt}) async {
-            launched.add(prompt);
-          },
+          onLaunch:
+              ({required prompt, resumeSessionId, clientMutationId}) async {
+                launched.add(prompt);
+              },
         ),
       ),
     );
@@ -108,6 +113,37 @@ void main() {
     expect(find.byType(AgentProfileLaunchDialog), findsNothing);
   });
 
+  testWidgets('empty Control+Enter explains how to start without a prompt', (
+    tester,
+  ) async {
+    var launched = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AgentProfileLaunchDialog(
+          profile: profile,
+          workspacePath: '/repo',
+          onLaunch:
+              ({required prompt, resumeSessionId, clientMutationId}) async {
+                launched = true;
+              },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextField, 'Initial Prompt'));
+    await tester.sendKeyDownEvent(.controlLeft);
+    await tester.sendKeyEvent(.enter);
+    await tester.sendKeyUpEvent(.controlLeft);
+    await tester.pumpAndSettle();
+
+    expect(launched, isFalse);
+    expect(
+      find.text('Write a prompt, attach files, or start without a prompt.'),
+      findsOneWidget,
+    );
+    expect(find.text('Start Without Prompt'), findsOneWidget);
+  });
+
   testWidgets('pastes an image as an attachment', (tester) async {
     final clipboard = _FakeTerminalClipboard(imagePath: '/tmp/alera-paste.png');
     await tester.pumpWidget(
@@ -116,7 +152,11 @@ void main() {
           profile: profile,
           workspacePath: '/repo/workspace',
           clipboard: clipboard,
-          onLaunch: ({required prompt}) async {},
+          onLaunch: ({
+            required prompt,
+            resumeSessionId,
+            clientMutationId,
+          }) async {},
         ),
       ),
     );
@@ -133,6 +173,157 @@ void main() {
 
     expect(find.text('alera-paste.png'), findsOneWidget);
   });
+
+  testWidgets('resume keeps drafts and retries the same bound launch', (
+    tester,
+  ) async {
+    final attempts = <({String prompt, String? session, String? mutation})>[];
+    final pending = Completer<void>();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AgentProfileLaunchDialog(
+          profile: profile,
+          workspacePath: '/repo',
+          supportsResume: () async => true,
+          onLaunch:
+              ({required prompt, resumeSessionId, clientMutationId}) async {
+                attempts.add((
+                  prompt: prompt,
+                  session: resumeSessionId,
+                  mutation: clientMutationId,
+                ));
+                if (attempts.length == 1) throw StateError('Resume failed');
+                await pending.future;
+              },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Initial Prompt'),
+      'Keep this draft',
+    );
+    await tester.tap(find.text('Resume Session'));
+    await tester.pumpAndSettle();
+    expect(find.text('Initial Prompt'), findsNothing);
+    expect(find.text('Add Files'), findsNothing);
+    final session = find.widgetWithText(TextField, 'Session ID');
+    expect(tester.widget<TextField>(session).focusNode!.hasFocus, isTrue);
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNull,
+    );
+    await tester.enterText(session, '--last');
+    await tester.pump();
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNull,
+    );
+    await tester.enterText(session, '  sess-123  ');
+    await tester.tap(find.text('New Session'));
+    await tester.pumpAndSettle();
+    expect(find.text('Keep this draft'), findsOneWidget);
+    await tester.tap(find.text('Resume Session'));
+    await tester.pumpAndSettle();
+    expect(find.text('  sess-123  '), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Resume Session'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Resume failed'), findsOneWidget);
+    expect(attempts.single.prompt, isEmpty);
+    expect(attempts.single.session, 'sess-123');
+    expect(attempts.single.mutation, isNotEmpty);
+    await tester.tap(find.widgetWithText(FilledButton, 'Resume Session'));
+    await tester.pump();
+    expect(find.text('Resuming session…'), findsOneWidget);
+    expect(attempts.length, 2);
+    expect(attempts.last.mutation, attempts.first.mutation);
+    pending.complete();
+    await tester.pumpAndSettle();
+    expect(find.byType(AgentProfileLaunchDialog), findsNothing);
+  });
+
+  testWidgets(
+    'an old runtime disables resume while new sessions remain available',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AgentProfileLaunchDialog(
+            profile: profile,
+            workspacePath: '/repo',
+            supportsResume: () async => false,
+            onLaunch: ({
+              required prompt,
+              resumeSessionId,
+              clientMutationId,
+            }) async {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final control = tester.widget<SegmentedButton<bool>>(
+        find.byType(SegmentedButton<bool>),
+      );
+      expect(control.segments.last.enabled, isFalse);
+      expect(find.text('Start Without Prompt'), findsOneWidget);
+    },
+  );
+
+  for (final outcome in ['supported', 'unsupported', 'failed']) {
+    testWidgets('resume waits for the capability check: $outcome', (
+      tester,
+    ) async {
+      final support = Completer<bool>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AgentProfileLaunchDialog(
+            profile: profile,
+            workspacePath: '/repo',
+            supportsResume: () => support.future,
+            onLaunch: ({
+              required prompt,
+              resumeSessionId,
+              clientMutationId,
+            }) async {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final unavailable = find.text(
+        'Session resume is unavailable for this runtime or agent.',
+      );
+      final control = find.byType(SegmentedButton<bool>);
+      expect(
+        tester.widget<SegmentedButton<bool>>(control).segments.last.enabled,
+        isFalse,
+      );
+      expect(unavailable, findsNothing);
+      await tester.tap(find.text('Resume Session'));
+      await tester.pumpAndSettle();
+      expect(find.text('Session ID'), findsNothing);
+      expect(find.text('Start Without Prompt'), findsOneWidget);
+
+      if (outcome == 'failed') {
+        support.completeError(StateError('Runtime unavailable'));
+      } else {
+        support.complete(outcome == 'supported');
+      }
+      await tester.pumpAndSettle();
+
+      final supported = outcome == 'supported';
+      expect(
+        tester.widget<SegmentedButton<bool>>(control).segments.last.enabled,
+        supported,
+      );
+      expect(unavailable, supported ? findsNothing : findsOneWidget);
+      await tester.tap(find.text('Resume Session'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Session ID'),
+        supported ? findsOneWidget : findsNothing,
+      );
+    });
+  }
 }
 
 final class _FakeTerminalClipboard({final String? imagePath})

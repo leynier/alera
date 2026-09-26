@@ -9,12 +9,16 @@ use crate::terminal_host::orchestration::agent_profile_launch_snapshot::{
 };
 use crate::terminal_host::orchestration::agent_registry::adapter_for;
 
+use super::agent_profile_session_resume::{prepare_resume_snapshot, requested_resume_session};
 use super::agent_prompt_composition::compose_agent_prompt;
 use super::client_delivery::LocalClientRole;
 use super::host_service_requests::required_non_blank;
 use super::orchestration_profile_spawn::launch_for_profile;
 use super::tab_compatibility::redact_private_tab_payload;
 use super::{ClientKind, ServerActor};
+use crate::terminal_host::orchestration::agent_session_resume::{
+    AGENT_NATIVE_SESSION_AGENT_KEY, AGENT_NATIVE_SESSION_ID_KEY,
+};
 
 const CLIENT_MUTATION_ID_MAX_BYTES: usize = 128;
 
@@ -27,6 +31,7 @@ impl ServerActor {
         let workspace_id = required_non_blank(payload, "workspaceId")?;
         let profile_id = required_non_blank(payload, "profileId")?;
         let prompt = optional_launch_prompt(payload)?;
+        let resume_session_id = requested_resume_session(payload, &prompt)?;
         let client_mutation_id = match payload.get("clientMutationId") {
             None => None,
             Some(Value::String(value)) if !value.trim().is_empty() => {
@@ -73,6 +78,7 @@ impl ServerActor {
                 &prompt,
                 automation_run_id.as_deref(),
                 automation_owned,
+                resume_session_id.as_deref(),
             )
         });
         if let (Some(mutation_id), Some(scope), Some(digest)) = (
@@ -123,16 +129,20 @@ impl ServerActor {
             .map_err(|error| HostError::state(error.to_string()))?
             .ok_or_else(|| HostError::state(format!("Agent profile not found: {profile_id}")))?;
         let title_prompt = prompt.clone();
-        let prompt = compose_agent_prompt(
-            &prompt,
-            &profile.custom_prompt,
-            &effective_config.config.new_workspace.prompt_append,
-        );
+        let prompt = if resume_session_id.is_some() {
+            String::new()
+        } else {
+            compose_agent_prompt(
+                &prompt,
+                &profile.custom_prompt,
+                &effective_config.config.new_workspace.prompt_append,
+            )
+        };
         let adapter = adapter_for(&profile.agent_type).ok_or_else(|| {
             HostError::format(format!("Unsupported agent type: {}", profile.agent_type))
         })?;
         let (command, managed_launch) = launch_for_profile(&profile).map_err(HostError::format)?;
-        let launch_snapshot = AgentProfileLaunchSnapshotV1::new(
+        let mut launch_snapshot = AgentProfileLaunchSnapshotV1::new(
             &profile,
             adapter,
             command,
@@ -140,6 +150,9 @@ impl ServerActor {
             AgentInitialDeliveryReplayV1::Once,
         )
         .map_err(HostError::format)?;
+        if let Some(id) = resume_session_id.as_deref() {
+            prepare_resume_snapshot(&mut launch_snapshot, id)?;
+        }
         let prompt_after_ready = launch_snapshot.initial_delivery.mechanism
             == AgentInitialDeliveryMechanismV1::TerminalAfterReady;
         let id = uuid::Uuid::new_v4().to_string();
@@ -163,6 +176,10 @@ impl ServerActor {
             "automationRunId": automation_run_id,
             "automationOwned": automation_owned,
         });
+        if let Some(id) = resume_session_id.as_deref() {
+            tab_payload[AGENT_NATIVE_SESSION_ID_KEY] = json!(id);
+            tab_payload[AGENT_NATIVE_SESSION_AGENT_KEY] = json!(adapter.agent_type);
+        }
         tab_payload[AGENT_PROFILE_LAUNCH_SNAPSHOT_KEY] = serde_json::to_value(launch_snapshot)
             .map_err(|error| {
                 HostError::state(format!(
@@ -371,14 +388,19 @@ fn agent_profile_launch_payload_digest(
     prompt: &str,
     automation_run_id: Option<&str>,
     automation_owned: bool,
+    resume_session_id: Option<&str>,
 ) -> String {
-    let canonical = json!({
+    let mut canonical = json!({
         "automationOwned": automation_owned,
         "automationRunId": automation_run_id,
         "profileId": profile_id,
         "prompt": prompt,
         "workspaceId": workspace_id,
     });
+    // Keep old receipts replayable for requests that do not use resume.
+    if let Some(id) = resume_session_id {
+        canonical["resumeSessionId"] = json!(id);
+    }
     let bytes = serde_json::to_vec(&canonical).expect("canonical launch payload is serializable");
     hex::encode(Sha256::digest(bytes))
 }
@@ -395,6 +417,7 @@ mod tests {
             "Build it",
             None,
             false,
+            None,
         );
         assert_eq!(
             first,
@@ -404,6 +427,7 @@ mod tests {
                 "Build it",
                 None,
                 false,
+                None,
             )
         );
         assert_ne!(
@@ -414,6 +438,7 @@ mod tests {
                 "Build something else",
                 None,
                 false,
+                None,
             )
         );
     }
@@ -431,5 +456,13 @@ mod tests {
             Some("Ship it".to_string())
         );
         assert_eq!(agent_profile_launch_initial_prompt(false, ""), None);
+    }
+
+    #[test]
+    fn resume_receipts_include_the_conversation_id() {
+        let digest = |id| agent_profile_launch_payload_digest("w", "p", "", None, false, id);
+        assert_ne!(digest(None), digest(Some("sess-1")));
+        assert_ne!(digest(Some("sess-1")), digest(Some("sess-2")));
+        assert_eq!(digest(Some("sess-1")), digest(Some("sess-1")));
     }
 }
