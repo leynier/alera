@@ -157,7 +157,7 @@ fn read_dir_children(directory: &Path) -> Result<Vec<PathBuf>, WorkspaceFileErro
     Ok(paths)
 }
 
-fn entry_for_path(
+pub(super) fn entry_for_path(
     root: &Path,
     path: &Path,
 ) -> Result<Option<WorkspaceExplorerEntry>, WorkspaceFileError> {

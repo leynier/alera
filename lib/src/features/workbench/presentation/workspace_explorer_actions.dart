@@ -89,21 +89,10 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
     }
   }
 
-  bool _rejectRemoteMutation() {
-    if (!widget.workspace.isRemote) {
-      return false;
-    }
-    _showError(StateError(remoteWorkspaceWriteUnsupportedMessage()));
-    return true;
-  }
-
   Future<void> _createEntry({
     String parentPath = '',
     required bool directory,
   }) async {
-    if (_rejectRemoteMutation()) {
-      return;
-    }
     final name = await _promptName(
       title: directory ? 'New folder' : 'New file',
       label: directory ? 'Folder name' : 'File name',
@@ -115,19 +104,12 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
       return;
     }
     try {
-      if (directory) {
-        await _workspaceFiles.createDirectory(
-          workspacePath: widget.workspace.path,
-          parentRelativePath: parentPath,
-          name: name,
-        );
-      } else {
-        await _workspaceFiles.createFile(
-          workspacePath: widget.workspace.path,
-          parentRelativePath: parentPath,
-          name: name,
-        );
-      }
+      await _workspaceFiles.createWorkspaceEntry(
+        workspace: widget.workspace,
+        parentRelativePath: parentPath,
+        name: name,
+        directory: directory,
+      );
       if (!mounted) {
         return;
       }
@@ -138,9 +120,6 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
   }
 
   Future<void> _rename(native.WorkspaceFileEntry entry) async {
-    if (_rejectRemoteMutation()) {
-      return;
-    }
     final name = await _promptName(
       title: 'Rename',
       label: 'Name',
@@ -153,8 +132,8 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
       return;
     }
     try {
-      final renamed = await _workspaceFiles.renameEntry(
-        workspacePath: widget.workspace.path,
+      final renamed = await _workspaceFiles.renameWorkspaceEntry(
+        workspace: widget.workspace,
         relativePath: entry.relativePath,
         newName: name,
       );
@@ -172,9 +151,6 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
   }
 
   Future<void> _paste(String targetDir) async {
-    if (_rejectRemoteMutation()) {
-      return;
-    }
     final clipboard = _clipboard;
     if (clipboard == null) {
       return;
@@ -183,8 +159,8 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
       if (clipboard.cut) {
         await _moveEntry(clipboard.relativePath, targetDir);
       } else {
-        await _workspaceFiles.copyEntry(
-          workspacePath: widget.workspace.path,
+        await _workspaceFiles.copyWorkspaceEntry(
+          workspace: widget.workspace,
           relativePath: clipboard.relativePath,
           targetParentRelativePath: targetDir,
         );
@@ -205,13 +181,10 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
   }
 
   Future<void> _duplicate(native.WorkspaceFileEntry entry) async {
-    if (_rejectRemoteMutation()) {
-      return;
-    }
     final parentPath = _parentPath(entry.relativePath);
     try {
-      await _workspaceFiles.copyEntry(
-        workspacePath: widget.workspace.path,
+      await _workspaceFiles.copyWorkspaceEntry(
+        workspace: widget.workspace,
         relativePath: entry.relativePath,
         targetParentRelativePath: parentPath,
       );
@@ -292,13 +265,10 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
   }
 
   Future<void> _moveEntry(String relativePath, String targetDir) async {
-    if (_rejectRemoteMutation()) {
-      return;
-    }
     try {
       final sourceParent = _parentPath(relativePath);
-      final moved = await _workspaceFiles.moveEntry(
-        workspacePath: widget.workspace.path,
+      final moved = await _workspaceFiles.moveWorkspaceEntry(
+        workspace: widget.workspace,
         relativePath: relativePath,
         targetParentRelativePath: targetDir,
       );
@@ -322,9 +292,6 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
   }
 
   Future<void> _delete(native.WorkspaceFileEntry entry) async {
-    if (_rejectRemoteMutation()) {
-      return;
-    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AleraConfirmDialog(
@@ -341,8 +308,8 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
       return;
     }
     try {
-      await _workspaceFiles.deleteEntry(
-        workspacePath: widget.workspace.path,
+      await _workspaceFiles.deleteWorkspaceEntry(
+        workspace: widget.workspace,
         relativePath: entry.relativePath,
       );
       if (!mounted) {

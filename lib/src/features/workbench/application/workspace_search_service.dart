@@ -1,5 +1,8 @@
 import 'package:alera/src/rust/api/workspace_search.dart' as native;
 
+/// Text search and replace for one workspace, run by the native engine
+/// against `options.workspacePath`. `RuntimeWorkspaceSearchClient` implements
+/// the same surface for a checkout on another host and ignores that path.
 class const WorkspaceSearchService() {
   Future<native.WorkspaceSearchResult> search({
     required native.WorkspaceSearchOptions options,

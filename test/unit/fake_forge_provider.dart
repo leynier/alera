@@ -112,6 +112,7 @@ class FakeForgeProvider implements ForgeProvider {
   @override
   Future<ForgeAuthStatus> checkAuth({
     required GitRemoteIdentity identity,
+    String? repoPath,
   }) async => auth;
 
   @override

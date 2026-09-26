@@ -191,6 +191,11 @@ pub struct SshTarget {
     pub last_status: Option<String>,
     #[serde(default)]
     pub install_dir: Option<String>,
+    /// Where a project cloned onto this host lands when the user picked no
+    /// path. Relative to the remote home when unset (`alera-projects`); may
+    /// name `~/...` on POSIX or `%USERPROFILE%\...` on Windows.
+    #[serde(default)]
+    pub projects_dir: Option<String>,
     #[serde(default)]
     pub runtime_version: Option<String>,
     #[serde(default)]

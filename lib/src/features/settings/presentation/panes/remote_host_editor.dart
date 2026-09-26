@@ -5,7 +5,9 @@ import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
+import 'package:alera/src/features/remote_hosts/domain/host_link.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
+import 'package:alera/src/features/settings/presentation/panes/remote_host_link_group.dart';
 import 'package:flutter/material.dart';
 
 class const RemoteHostEditor({
@@ -15,6 +17,7 @@ class const RemoteHostEditor({
   required final TextEditingController portController,
   required final TextEditingController usernameController,
   required final TextEditingController installDirController,
+  required final TextEditingController projectsDirController,
   required final String platform,
   required final String arch,
   required final SshAuthKind authKind,
@@ -33,6 +36,13 @@ class const RemoteHostEditor({
   final String? error,
   final SshTargetBootstrapPlan? plan,
   final SshTargetBootstrapProgress? progress,
+
+  /// Null hides the group: no selection, or a runtime without host links.
+  final HostLinkState? link,
+  final bool showLink = false,
+  final bool linkBusy = false,
+  final VoidCallback? onConnectLink,
+  final VoidCallback? onDisconnectLink,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -167,6 +177,28 @@ class const RemoteHostEditor({
               ),
               Padding(
                 padding: const EdgeInsets.all(AleraTokens.space12),
+                child: Column(
+                  crossAxisAlignment: .start,
+                  children: <Widget>[
+                    AleraTextField(
+                      controller: projectsDirController,
+                      labelText: 'Projects Folder',
+                      hintText: 'alera-projects under the home folder',
+                      prefixIcon: AleraIcons.folder,
+                      enabled: !bootstrapping,
+                    ),
+                    const SizedBox(height: AleraTokens.space4),
+                    Text(
+                      projectsFolderHelpText,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AleraTokens.foregroundMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(AleraTokens.space12),
                 child: Wrap(
                   spacing: AleraTokens.space8,
                   runSpacing: AleraTokens.space8,
@@ -210,6 +242,15 @@ class const RemoteHostEditor({
               ),
             ],
           ),
+          if (showLink) ...<Widget>[
+            const SizedBox(height: AleraTokens.space16),
+            RemoteHostLinkGroup(
+              state: link,
+              busy: linkBusy,
+              onConnect: onConnectLink,
+              onDisconnect: onDisconnectLink,
+            ),
+          ],
           if (plan != null) ...<Widget>[
             const SizedBox(height: AleraTokens.space16),
             _RemoteHostPlanPanel(plan: plan!),
@@ -368,6 +409,9 @@ class const RemoteHostError({super.key, required final String message})
     );
   }
 }
+
+const String projectsFolderHelpText =
+    'Where projects are cloned on this host when no path is chosen. Empty means alera-projects under the home folder. ~ and %VAR% are expanded on the host.';
 
 String statusLabel(SshBootstrapStatus status) {
   return switch (status) {

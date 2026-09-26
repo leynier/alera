@@ -66,7 +66,7 @@ WorkbenchSidebarCollapseTargets visibleSidebarCollapseTargets(
             _sectionNameMatches(state, workspace, query) ? '' : query,
             project,
             workspace,
-            state.tabsFor(workspace.id),
+            state.awakeTabsFor(workspace.id),
           ),
         );
   }
@@ -218,7 +218,7 @@ int countVisibleWorkspaces(WorkbenchState state) {
         _sectionNameMatches(state, workspace, query) ? '' : query,
         project,
         workspace,
-        state.tabsFor(workspace.id),
+        state.awakeTabsFor(workspace.id),
       )) {
         count++;
       }

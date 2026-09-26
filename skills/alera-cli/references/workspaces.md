@@ -209,6 +209,7 @@ alera tag upsert --name "Review" --color "#3b82f6"
 alera workspace tag --workspace-id <workspace-id> --tag-id <tag-id>
 alera workspace untag --workspace-id <workspace-id> --tag-id <tag-id>
 alera workspace link --parent-workspace-id <parent-id> --child-workspace-id <child-id>
+alera workspace rename --id <workspace-id> --name "Checkout flow"
 alera workspace pin --id <workspace-id>
 alera workspace unpin --id <workspace-id>
 alera workspace archive --id <workspace-id>
@@ -225,6 +226,8 @@ alera terminal read --handle <terminal-handle> --cursor <next-cursor>
 alera terminal write --handle <terminal-handle> --text "continue" --enter
 alera terminal write --handle <terminal-handle> --stdin --enter
 ```
+
+`workspace rename` changes only the display name shown on desktop and mobile; the branch and worktree folder stay as they are. `--id` defaults to the workspace of the current Alera terminal, and `--name` is trimmed and must not be empty. With a live runtime host, connected apps refresh immediately.
 
 JSON list commands return a consistent `{ "kind": "...", "items": [...], "filters": {...} }` envelope. Read `items` rather than relying on a resource-specific top-level array.
 

@@ -15,6 +15,8 @@ pub(super) fn workspace_range_response(
         "totalBytes": range.total_bytes,
         "mimeType": range.mime_type,
         "isText": range.is_text,
+        "contentToken": range.content_token,
+        "modifiedMillis": range.modified_millis,
         "dataBase64": STANDARD.encode(range.bytes),
     })
 }

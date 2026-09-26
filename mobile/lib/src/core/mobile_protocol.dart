@@ -10,6 +10,7 @@ const String aiDictationCapability = 'aiDictationV1';
 const String aiDictationModelsCapability = 'aiDictationModelsV2';
 const String aiDictationBackendsCapability = 'aiDictationBackendsV3';
 const String remoteAiDictationCapability = 'aiDictationRemoteProvidersV1';
+const String voiceHomeAgentCapability = 'voiceHomeAgentV1';
 const String mobileExplorerCapability = 'mobileExplorerV1';
 const String mobileWorkspaceSearchCapability = 'mobileWorkspaceSearchV1';
 const String mobileWorkspaceReplaceCapability = 'mobileWorkspaceReplaceV1';
@@ -50,3 +51,8 @@ const String linkedIssuesCapability = 'linkedIssuesV1';
 
 /// Watch and Fix sessions (`pullRequestWatch.list` / `find`). Additive.
 const String pullRequestWatchCapability = 'pullRequestWatchV1';
+
+/// Workspaces on another host: `mobile.hosts.list` names them, and the hub
+/// forwards the file, search, quick open, git, pull request and AI Assist
+/// verbs to the owning host. Additive.
+const String mobileRemoteWorkspacesCapability = 'mobileRemoteWorkspacesV1';

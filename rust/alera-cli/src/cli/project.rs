@@ -57,12 +57,62 @@ pub enum ProjectAction {
     /// Index files on the owning host without starting a runtime.
     #[command(hide = true)]
     InspectCheckoutFiles(ProjectLinkedCheckoutInspectArgs),
-    /// List all projects.
+    /// List all projects with the hosts each one is on.
     List,
+    /// List, add, and remove the hosts a project is on.
+    Hosts(ProjectHostsCommand),
     /// Register a local project path.
     Add(ProjectAddArgs),
+    /// Register a project that lives only on an SSH host, from an existing
+    /// folder there or by cloning a repository into its default projects folder.
+    AddRemote(ProjectAddRemoteArgs),
     /// Remove a project and runtime-owned child records.
     Remove(ProjectRemoveArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct ProjectHostsCommand {
+    #[command(subcommand)]
+    pub action: ProjectHostsAction,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ProjectHostsAction {
+    /// List the hosts a project is on, with its path on each.
+    List(ProjectHostsListArgs),
+    /// Add a project to an SSH host. Without --path the host clones the
+    /// project's Git remote into its default projects folder.
+    Add(ProjectHostsAddArgs),
+    /// Forget a project's checkout on a host. Files are never deleted.
+    Remove(ProjectHostsRemoveArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct ProjectHostsListArgs {
+    #[arg(long)]
+    pub project_id: String,
+}
+
+#[derive(Debug, Args)]
+pub struct ProjectHostsAddArgs {
+    #[arg(long)]
+    pub project_id: String,
+    #[arg(long)]
+    pub host_id: String,
+    /// Register this existing checkout instead of cloning.
+    #[arg(long)]
+    pub path: Option<String>,
+    /// Clone this source instead of the project's own Git remote.
+    #[arg(long)]
+    pub clone_url: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct ProjectHostsRemoveArgs {
+    #[arg(long)]
+    pub project_id: String,
+    #[arg(long)]
+    pub host_id: String,
 }
 
 #[derive(Debug, Args)]
@@ -109,6 +159,22 @@ pub struct ProjectAddArgs {
     pub name: String,
     #[arg(long = "repo-path")]
     pub repo_path: String,
+    #[arg(long, value_enum, default_value_t = ProjectKindArg::GitRepository)]
+    pub kind: ProjectKindArg,
+}
+
+#[derive(Debug, Args)]
+pub struct ProjectAddRemoteArgs {
+    #[arg(long)]
+    pub host_id: String,
+    /// An existing folder on the host.
+    #[arg(long)]
+    pub path: Option<String>,
+    /// Clone this repository on the host instead of using an existing folder.
+    #[arg(long)]
+    pub clone_url: Option<String>,
+    #[arg(long)]
+    pub name: Option<String>,
     #[arg(long, value_enum, default_value_t = ProjectKindArg::GitRepository)]
     pub kind: ProjectKindArg,
 }

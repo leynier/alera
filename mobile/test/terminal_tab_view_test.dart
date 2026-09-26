@@ -373,6 +373,33 @@ void main() {
     expect(current.buffer.getText(), closedText);
   });
 
+  testWidgets('Replayed history never answers its queries again', (
+    tester,
+  ) async {
+    // XTVERSION, device attributes and a cursor report, as a TUI such as Grok
+    // Build writes them on startup. Answering them from a replay typed the
+    // replies into the agent's prompt.
+    const queries = '\x1b[>q\x1b[c\x1b[6n';
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')]
+      ..attachmentSnapshot = utf8.encode('${queries}history');
+    await _pumpTab(tester, client);
+    client.emitOutput(
+      'session-tab-1',
+      .fromList(utf8.encode('${queries}resync')),
+      replacesScrollback: true,
+    );
+    await tester.pumpAndSettle();
+
+    expect(_terminalOf(tester).buffer.getText(), contains('resync'));
+    expect(client.writes, isEmpty);
+
+    client.emitOutput('session-tab-1', .fromList(utf8.encode('\x1b[>q')));
+    await tester.pumpAndSettle();
+
+    expect(utf8.decode(client.writes.single), '\x1bP>|xterm2 5.3.0\x1b\\');
+  });
+
   testWidgets('A dead connection offers explicit recovery', (tester) async {
     final client = FakeTerminalClient()
       ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];

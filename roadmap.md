@@ -212,7 +212,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| Voice / dictation / STT | 4 | 2 | Planned | Offline speech-to-text via sherpa-onnx, dictation controller, voice settings |
+| Voice / dictation / STT | 4 | 2 | Partial | Dictation ships; voice home agent thinks via a persistent CLI, speech is chained STT/TTS or realtime I/O |
 
 ---
 

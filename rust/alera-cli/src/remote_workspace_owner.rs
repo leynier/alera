@@ -64,7 +64,7 @@ pub(crate) async fn register(
     let (path, repository_path) =
         tokio::task::spawn_blocking(move || -> Result<(String, Option<String>)> {
             let canonical = |path: String| -> Result<String> {
-                std::fs::canonicalize(path)?
+                crate::windows_path_form::canonicalize(path)?
                     .to_str()
                     .map(str::to_string)
                     .ok_or_else(|| anyhow!("Owner checkout path is not valid UTF-8"))
@@ -82,7 +82,7 @@ pub(crate) async fn register(
         WorkspaceKind::Main if workspace.path == project.repo_path => {
             if repository_path
                 .as_deref()
-                .is_some_and(|path| path != project.repo_path)
+                .is_some_and(|path| !crate::windows_path_form::same_path(path, &project.repo_path))
             {
                 bail!("A shared task cannot use a different repository origin");
             }
@@ -97,7 +97,7 @@ pub(crate) async fn register(
             let path = workspace.path.clone();
             let (branch, repository) =
                 tokio::task::spawn_blocking(move || -> Result<(String, String)> {
-                    let repository = std::fs::canonicalize(repository)?
+                    let repository = crate::windows_path_form::canonicalize(repository)?
                         .to_str()
                         .map(str::to_owned)
                         .ok_or_else(|| anyhow!("Repository path is not valid UTF-8"))?;
@@ -124,7 +124,7 @@ pub(crate) async fn register(
         if existing.instance_id != workspace.instance_id
             || existing.project_id != project.id
             || existing.host_id != LOCAL_HOST_ID
-            || existing.path != workspace.path
+            || !crate::windows_path_form::same_path(&existing.path, &workspace.path)
             || existing.kind != workspace.kind
             || existing.status != WorkspaceStatus::Active
         {
@@ -136,7 +136,9 @@ pub(crate) async fn register(
             .find_project(&project.id)
             .await?
             .ok_or_else(|| anyhow!("Remote task project is unavailable"))?;
-        if owner.repo_path != project.repo_path || owner.kind != project.kind {
+        if !crate::windows_path_form::same_path(&owner.repo_path, &project.repo_path)
+            || owner.kind != project.kind
+        {
             bail!("Remote task repository ownership changed");
         }
         if workspace.kind == WorkspaceKind::Linked

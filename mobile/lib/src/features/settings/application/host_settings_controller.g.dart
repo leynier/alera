@@ -53,7 +53,7 @@ final class HostSettingsControllerProvider
 }
 
 String _$hostSettingsControllerHash() =>
-    r'4256d7938f88dc9f311261c351aba8854d874e4c';
+    r'bce66ef212c97210501c1b955d87b7480820df39';
 
 final class HostSettingsControllerFamily extends $Family
     with

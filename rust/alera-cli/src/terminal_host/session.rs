@@ -97,6 +97,11 @@ pub enum PtyWriteCompletion {
         session_instance_id: u64,
         active: Arc<AtomicBool>,
     },
+    /// Home-agent voice turn paste plus deferred Enter.
+    VoiceHomePrompt {
+        session_instance_id: u64,
+        generation: u64,
+    },
     /// Host-originated write that must not fail the caller (hand off/on cwd).
     BestEffort,
 }

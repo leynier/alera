@@ -1,8 +1,9 @@
 part of 'create_workspace_dialog.dart';
 
 extension _CreateWorkspaceDialogSelectionOrder on _CreateWorkspaceDialogState {
-  List<Project> get _orderedProjects =>
-      sortProjectsForSelection(widget.projects);
+  List<Project> get _orderedProjects => sortProjectsForSelection(<Project>[
+    for (final project in widget.projects) _hostEnrollment.resolve(project),
+  ]);
 
   List<WorkspaceParentCandidate> get _parentCandidates {
     final candidates = <WorkspaceParentCandidate>[

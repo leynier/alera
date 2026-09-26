@@ -1,7 +1,5 @@
 //! Create and remove Alera-managed Git worktrees on a bootstrapped SSH host.
 
-use std::path::Path;
-
 use alera_core::runtime::{
     Project, RuntimeStore, Workspace, WorkspaceCreationResult, WorkspaceKind, WorkspaceStatus,
     WorktreeSetupReport,
@@ -95,7 +93,7 @@ pub(crate) async fn create_remote_managed_workspace<E: RemoteHostExecutor>(
     let created: crate::project_checkout_worktree::CreatedCheckoutWorktree = serde_json::from_str(stdout.trim())
         .context("The remote sidecar did not return a supported worktree receipt; inspect the remote destination before retrying")?;
     if created.version != 1
-        || created.repository_path != repo_path
+        || !crate::windows_path_form::same_path(&created.repository_path, &repo_path)
         || created.branch != branch
         || created.path.is_empty()
     {
@@ -204,10 +202,7 @@ async fn run_remote_workspace_removal<E: RemoteHostExecutor>(
                 )
             })?;
             let project_slug = crate::managed_workspace_slug::slugify(
-                Path::new(&project.repo_path)
-                    .file_name()
-                    .and_then(|value| value.to_str())
-                    .unwrap_or(&project.name),
+                crate::project_hosts::folder_name(&project.repo_path).unwrap_or(&project.name),
             )?;
             checkout_join(
                 platform,
@@ -281,10 +276,7 @@ fn remote_layout(
         explicit_path,
         explicit_root,
         project_slug: crate::managed_workspace_slug::slugify(
-            Path::new(&project.repo_path)
-                .file_name()
-                .and_then(|value| value.to_str())
-                .unwrap_or(&project.name),
+            crate::project_hosts::folder_name(&project.repo_path).unwrap_or(&project.name),
         )?,
         workspace_slug: crate::managed_workspace_slug::slugify(display_name)?,
     })
