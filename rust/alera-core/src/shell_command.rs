@@ -10,7 +10,7 @@
 //! `host.process.run` both build their commands here, so a tool invoked for a
 //! remote workspace runs exactly as it would have locally.
 
-#[cfg(feature = "async-process")]
+#[cfg(any(feature = "async-process", windows))]
 use std::collections::HashMap;
 
 /// How a command reaches its shell. Windows needs a raw command line because
