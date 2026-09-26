@@ -7,10 +7,6 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
 
   void _returnFromRunBoard() {
     ref.read(runBoardNavigationProvider.notifier).close();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || ref.read(runBoardNavigationProvider).visible) return;
-      KeyboardCommandDispatcher(ref: ref, context: context).focusActivePane();
-    });
   }
 
   @override
@@ -23,6 +19,20 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(
+      runBoardNavigationProvider.select((location) => location.visible),
+      (wasVisible, visible) {
+        if (wasVisible != true || visible) return;
+        // All exit routes restore focus after the retained panes become visible.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || ref.read(runBoardNavigationProvider).visible) return;
+          KeyboardCommandDispatcher(
+            ref: ref,
+            context: context,
+          ).focusActivePane();
+        });
+      },
+    );
     ref.watch(terminalHostWarmupCoordinatorProvider);
     ref.watch(runtimeAgentStatusSyncProvider);
     ref.watch(agentStatusNotificationCoordinatorProvider);

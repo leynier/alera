@@ -167,6 +167,49 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn explicit_binding_survives_child_hooks_and_is_confirmed_by_the_parent() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
+        let mut record = tab();
+        record.payload[AGENT_NATIVE_SESSION_ID_KEY] = json!("requested-session");
+        record.payload[AGENT_NATIVE_SESSION_AGENT_KEY] = json!("codex");
+        actor
+            .runtime_store
+            .upsert_workspace_tab(record)
+            .await
+            .unwrap();
+        actor
+            .observe_hook_native_session(&event(
+                Some("child-session"),
+                json!({"parent_session_id": "requested-session"}),
+            ))
+            .await;
+        let saved = actor
+            .runtime_store
+            .find_workspace_tab("tab")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            native_session_resume(&saved).unwrap().session_id,
+            "requested-session"
+        );
+        actor
+            .observe_hook_native_session(&event(Some("requested-session"), json!({})))
+            .await;
+        let saved = actor
+            .runtime_store
+            .find_workspace_tab("tab")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            native_session_resume(&saved).unwrap().session_id,
+            "requested-session"
+        );
+    }
+
+    #[tokio::test]
     async fn store_path_persists_a_hook_session_id_on_the_tab() {
         let dir = tempfile::tempdir().unwrap();
         let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
