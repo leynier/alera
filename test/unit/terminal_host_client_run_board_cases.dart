@@ -48,11 +48,21 @@ void _registerTerminalHostClientRunBoardTests() {
           0,
           reason: 'an old host remains usable without board support',
         );
+        final events = <RuntimeHostEvent>[];
+        final subscription = client.runtimeEvents.listen(events.add);
+        addTearDown(subscription.cancel);
         final disconnected = client.runtimeEvents.firstWhere(
           (event) => event.name == aleraRuntimeHostDisconnectedEvent,
         );
         server.closeClient();
         await disconnected.timeout(const Duration(seconds: 5));
+        await Future.pause(Duration.zero);
+        expect(
+          events.where(
+            (event) => event.name == aleraRuntimeHostDisconnectedEvent,
+          ),
+          hasLength(1),
+        );
       },
     );
   }

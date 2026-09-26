@@ -8,6 +8,17 @@ use crate::terminal_host::client::ClientHandle;
 use super::actor_test_harness::{local_client, mobile_client, test_actor};
 
 #[tokio::test]
+async fn board_capability_is_advertised_in_host_status() {
+    let dir = tempfile::tempdir().unwrap();
+    let actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
+    let status = actor.host_status_payload();
+    let capabilities = status["runtimeCapabilities"].as_array().unwrap();
+    assert!(capabilities.contains(&json!(
+        crate::terminal_host::protocol::RUNTIME_HOST_ORCHESTRATION_BOARD_CAPABILITY
+    )));
+}
+
+#[tokio::test]
 async fn board_read_is_authenticated_local_only_and_does_not_trust_actor_fields() {
     let dir = tempfile::tempdir().unwrap();
     let (handle, _rx) = ClientHandle::test_channels();
