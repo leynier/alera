@@ -2,6 +2,46 @@ part of 'workbench_controller_test.dart';
 
 void _registerWorkbenchControllerNavigationTests() {
   test(
+    'opening a resumed tab does not return to a workspace left during lookup',
+    () async {
+      await _controller.bootstrap();
+      final workspace = await _selectMainWorkspace(_controller, _harness);
+      final original = await _controller.createTerminalTab(workspace);
+      final other = (await _controller.createWorkspace(
+        project: _harness.project,
+        sourceBranch: 'main',
+        newBranchName: 'feature/resume-background',
+      )).workspace;
+      final resumed = original.copyWith(id: 'resumed-tab', title: 'Resumed');
+      _harness.workbenchRepository._tabsByWorkspace[workspace.id] = [
+        original,
+        resumed,
+      ];
+      final gate = Completer<void>();
+      _harness.workbenchRepository.findWorkspaceTabByIdGate = gate;
+      final pending = _controller.openPersistedWorkspaceTab(
+        workspaceId: workspace.id,
+        tabId: resumed.id,
+        activateOnlyIfCurrent: true,
+      );
+      await _flushUntil(
+        () => _harness.workbenchRepository.findWorkspaceTabByIdGate == null,
+      );
+      await _controller.selectWorkspace(
+        project: _harness.project,
+        workspace: other,
+      );
+      gate.complete();
+      await pending;
+      expect(_controller.state.activeWorkspaceId, other.id);
+      expect(
+        _controller.state.tabsFor(workspace.id).map((tab) => tab.id),
+        contains(resumed.id),
+      );
+    },
+  );
+
+  test(
     'opening a persisted fork selects it before and after a delayed tab event',
     () async {
       await _controller.bootstrap();

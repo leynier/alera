@@ -26,6 +26,8 @@ mod host_link_process_case;
 mod hub_federation_case;
 #[path = "terminal_host_headless_runtime/owner_terminal_case.rs"]
 mod owner_terminal_case;
+#[path = "terminal_host_headless_runtime/profile_resume_cases.rs"]
+mod profile_resume_cases;
 #[path = "terminal_host_headless_runtime/profile_snapshot_restart_cases.rs"]
 mod profile_snapshot_restart_cases;
 #[cfg(unix)]

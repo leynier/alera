@@ -9,11 +9,16 @@ mixin _WorkbenchControllerNavigation
         _WorkbenchControllerWorkspacePanel,
         _WorkbenchControllerWorkspacePanelPanes,
         _WorkbenchControllerInternalLayout {
+  Future<bool> supportsAgentSessionResume() =>
+      _promptWorkspaceRuntimeClient.supportsSessionResume();
+
   Future<String> launchAgentProfileTab({
     required Workspace workspace,
     required String profileId,
     String? targetGroupId,
     String prompt = '',
+    String? resumeSessionId,
+    String? clientMutationId,
   }) async {
     final sleepGeneration = _workspaceSleepGeneration[workspace.id] ?? 0;
     try {
@@ -21,7 +26,8 @@ mixin _WorkbenchControllerNavigation
         workspaceId: workspace.id,
         profileId: profileId,
         prompt: prompt,
-        clientMutationId: _uuid.v4(),
+        resumeSessionId: resumeSessionId,
+        clientMutationId: clientMutationId ?? _uuid.v4(),
         requireIdempotency: false,
       );
       await openPersistedWorkspaceTab(
@@ -29,6 +35,8 @@ mixin _WorkbenchControllerNavigation
         tabId: launch.tabId,
         targetGroupId: targetGroupId,
         sleepGeneration: sleepGeneration,
+        activate: state.activeWorkspaceId == workspace.id,
+        activateOnlyIfCurrent: true,
       );
       state = state.copyWith(error: null);
       return launch.tabId;
@@ -44,6 +52,7 @@ mixin _WorkbenchControllerNavigation
     String? targetGroupId,
     int? sleepGeneration,
     bool activate = true,
+    bool activateOnlyIfCurrent = false,
   }) async {
     final generation =
         sleepGeneration ?? (_workspaceSleepGeneration[workspaceId] ?? 0);
@@ -52,6 +61,9 @@ mixin _WorkbenchControllerNavigation
         .any((candidate) => candidate.id == tabId);
     final tab = await _repository.findWorkspaceTabById(tabId);
     if (_disposed) return;
+    final shouldActivate =
+        activate &&
+        (!activateOnlyIfCurrent || state.activeWorkspaceId == workspaceId);
     if (tab == null || tab.workspaceId != workspaceId) {
       throw StateError(
         'The created tab is no longer available in this workspace.',
@@ -76,9 +88,9 @@ mixin _WorkbenchControllerNavigation
       tabs: tabs,
       previousTabs: currentTabs,
       targetGroupId: targetGroupId,
-      focus: activate,
+      focus: shouldActivate,
     );
-    if (activate &&
+    if (shouldActivate &&
         !_disposed &&
         !_isStaleWorkspaceOpen(workspaceId, generation)) {
       await selectWorkspaceTab(workspaceId: workspaceId, tabId: tabId);
