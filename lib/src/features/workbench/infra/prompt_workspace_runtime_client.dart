@@ -64,14 +64,21 @@ class PromptWorkspaceRuntimeClient(
     required String workspaceId,
     required String profileId,
     String prompt = '',
+    String? resumeSessionId,
     required String clientMutationId,
     required bool requireIdempotency,
   }) async {
     await beforeAccess?.call();
+    if (resumeSessionId != null && !await supportsSessionResume()) {
+      throw StateError(
+        'This runtime does not support resuming agent sessions.',
+      );
+    }
     final requestPayload = <String, Object?>{
       'workspaceId': workspaceId,
       'profileId': profileId,
       'prompt': prompt,
+      'resumeSessionId': ?resumeSessionId?.trim(),
       'clientMutationId': clientMutationId,
     };
     Object? response;
@@ -83,6 +90,7 @@ class PromptWorkspaceRuntimeClient(
       );
     } on StateError catch (error) {
       if (requireIdempotency ||
+          resumeSessionId != null ||
           error.message !=
               'Unknown terminal host request: agentProfile.launchIdempotent') {
         rethrow;
@@ -117,6 +125,16 @@ class PromptWorkspaceRuntimeClient(
     return capabilities is List &&
         capabilities.contains(
           aleraRuntimeHostAgentProfileLaunchIdempotencyCapability,
+        );
+  }
+
+  Future<bool> supportsSessionResume() async {
+    await beforeAccess?.call();
+    final status = _asMap(await _client.runtimeRequest('status.get'));
+    final capabilities = status['runtimeCapabilities'];
+    return capabilities is List &&
+        capabilities.contains(
+          aleraRuntimeHostAgentProfileSessionResumeCapability,
         );
   }
 }
