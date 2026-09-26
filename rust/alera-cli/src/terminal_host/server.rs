@@ -55,6 +55,7 @@ mod actor_test_harness;
 mod agent_hook_events;
 mod agent_native_session;
 mod agent_profile_launch_requests;
+mod agent_profile_session_resume;
 mod agent_prompt_composition;
 mod agent_title_context;
 mod agent_title_events;
