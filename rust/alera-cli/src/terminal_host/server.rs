@@ -246,9 +246,6 @@ mod terminal_session_requests;
 mod terminal_spawn;
 mod terminal_spawn_command;
 mod terminal_startup_commands;
-mod workflow_catalog_requests;
-#[cfg(test)]
-mod workflow_catalog_tests;
 mod voice_chained_jobs;
 mod voice_credential_requests;
 mod voice_credentials;
@@ -267,6 +264,9 @@ mod voice_stt;
 mod voice_transcript;
 mod voice_tts;
 mod voice_turn_jobs;
+mod workflow_catalog_requests;
+#[cfg(test)]
+mod workflow_catalog_tests;
 mod workspace_archive_requests;
 mod workspace_file_mutation_requests;
 mod workspace_git_requests;
