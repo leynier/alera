@@ -27,6 +27,78 @@ void main() {
     expect(launch.idempotent, isTrue);
   });
 
+  test('resume checks capability and forwards the normalized ID', () async {
+    final host = _FakeRuntimeHostClient((type, payload) async {
+      if (type == 'status.get') {
+        return <String, Object?>{
+          'runtimeCapabilities': [
+            aleraRuntimeHostAgentProfileSessionResumeCapability,
+          ],
+        };
+      }
+      expect(payload['resumeSessionId'], 'sess-1');
+      expect(payload['prompt'], '');
+      return result;
+    });
+    await PromptWorkspaceRuntimeClient(host).launchAgent(
+      workspaceId: 'workspace-1',
+      profileId: 'profile-1',
+      resumeSessionId: ' sess-1 ',
+      clientMutationId: 'mutation-1',
+      requireIdempotency: false,
+    );
+    expect(host.requests, ['status.get', 'agentProfile.launchIdempotent']);
+  });
+
+  test(
+    'resume never sends a launch to a host without the capability',
+    () async {
+      final host = _FakeRuntimeHostClient(
+        (_, _) async => <String, Object?>{'runtimeCapabilities': []},
+      );
+      await expectLater(
+        PromptWorkspaceRuntimeClient(host).launchAgent(
+          workspaceId: 'workspace-1',
+          profileId: 'profile-1',
+          resumeSessionId: 'sess-1',
+          clientMutationId: 'mutation-1',
+          requireIdempotency: false,
+        ),
+        throwsStateError,
+      );
+      expect(host.requests, ['status.get']);
+    },
+  );
+
+  test(
+    'resume cannot fall back even if an advertised verb is missing',
+    () async {
+      final host = _FakeRuntimeHostClient((type, _) async {
+        if (type == 'status.get') {
+          return <String, Object?>{
+            'runtimeCapabilities': [
+              aleraRuntimeHostAgentProfileSessionResumeCapability,
+            ],
+          };
+        }
+        throw StateError(
+          'Unknown terminal host request: agentProfile.launchIdempotent',
+        );
+      });
+      await expectLater(
+        PromptWorkspaceRuntimeClient(host).launchAgent(
+          workspaceId: 'workspace-1',
+          profileId: 'profile-1',
+          resumeSessionId: 'sess-1',
+          clientMutationId: 'mutation-1',
+          requireIdempotency: false,
+        ),
+        throwsStateError,
+      );
+      expect(host.requests, ['status.get', 'agentProfile.launchIdempotent']);
+    },
+  );
+
   test('initial launch falls back only when the new verb is unknown', () async {
     final host = _FakeRuntimeHostClient((type, _) async {
       if (type == 'agentProfile.launchIdempotent') {

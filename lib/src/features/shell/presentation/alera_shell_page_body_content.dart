@@ -12,19 +12,24 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
       context,
       profile: profile,
       workspacePath: workspace.path,
-      onLaunch: ({required prompt}) async {
+      supportsResume: controller.supportsAgentSessionResume,
+      onLaunch: ({required prompt, resumeSessionId, clientMutationId}) async {
         final tabId = await controller.launchAgentProfileTab(
           workspace: workspace,
           profileId: profile.id,
           targetGroupId: targetGroupId,
           prompt: prompt,
+          resumeSessionId: resumeSessionId,
+          clientMutationId: clientMutationId,
         );
         final tab = ref
             .read(workbenchControllerProvider)
             .tabsFor(workspace.id)
             .where((candidate) => candidate.id == tabId)
             .firstOrNull;
-        if (tab == null) {
+        if (tab == null ||
+            ref.read(workbenchControllerProvider).activeWorkspaceId !=
+                workspace.id) {
           return;
         }
         terminalRuntime
