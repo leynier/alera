@@ -145,6 +145,7 @@ pub const RUNTIME_HOST_ORCHESTRATION_CAPABILITY: &str = "orchestration";
 pub const RUNTIME_HOST_ORCHESTRATION_BOARD_CAPABILITY: &str = "orchestrationRunBoardV1";
 pub const RUNTIME_HOST_WORKFLOW_CATALOG_CAPABILITY: &str = "workflowRecipeCatalogV1";
 pub const RUNTIME_HOST_WORKFLOW_PLANS_CAPABILITY: &str = "workflowReviewedPlansV1";
+pub const RUNTIME_HOST_WORKFLOW_WORKSPACES_CAPABILITY: &str = "workflowManagedWorktreesV1";
 pub const RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY: &str =
     "orchestrationTerminalInspectionV1";
 pub const RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY: &str = "orchestrationWaitV1";

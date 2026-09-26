@@ -13,6 +13,9 @@ pub(super) async fn managed_workspace_removal(
     store: &RuntimeStore,
     request: &ManagedWorkspaceRemoveRequest,
 ) -> Result<ManagedWorkspaceRemoval> {
+    if store.workflow_workspace_owned(&request.id).await? {
+        bail!("Workflow resources require reviewed cleanup from the Run Board");
+    }
     let workspace = store
         .find_workspace(&request.id)
         .await?
@@ -27,6 +30,7 @@ pub(super) async fn managed_workspace_removal(
         .find_project(&workspace.project_id)
         .await?
         .ok_or_else(|| anyhow!("Project not found: {}", workspace.project_id))?;
+    super::workflow::ownership::ensure_unowned(store, &workspace, &project).await?;
     let should_delete_branch = request.delete_branch.unwrap_or(false);
     if request.delete_branch.is_none() && !workspace.reuses_existing_branch {
         bail!("Branch deletion requires a choice: use --keep-branch (recommended) or --delete-branch. No worktree was removed.");

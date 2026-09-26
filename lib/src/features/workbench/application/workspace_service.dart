@@ -382,7 +382,9 @@ class WorkspaceService._(
         liveWorktrees != null &&
         liveWorktrees.containsKey(_canonicalPath(project.repoPath));
     for (final workspace in workspaces) {
-      if (workspace.isRemote) {
+      // Workflow identity and missing resources are reconciled by the host.
+      // Generic refresh must not rewrite or prune a retained task attempt.
+      if (workspace.isRemote || workspace.workflowOwned) {
         continue;
       }
       final live = liveWorktrees?[_canonicalPath(workspace.path)];

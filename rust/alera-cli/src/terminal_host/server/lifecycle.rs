@@ -67,6 +67,7 @@ impl ServerActor {
             || self.has_authenticated_clients()
             || !self.ssh_bootstrap_jobs.is_empty()
             || self.managed_workspace_jobs > 0
+            || self.workflow_workspace_jobs > 0
             || !self.automation_checkout_jobs.is_empty()
             || !self.automation_precheck_jobs.is_empty()
             || !self.pending_terminal_lifecycle_shutdowns.is_empty()

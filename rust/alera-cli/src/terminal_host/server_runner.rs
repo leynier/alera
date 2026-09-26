@@ -80,6 +80,8 @@ pub async fn run_terminal_host_server(
         project_clone_jobs: HashMap::new(),
         agent_title_jobs: HashMap::new(),
         managed_workspace_jobs: 0,
+        workflow_workspace_jobs: 0,
+        workflow_workspace_recovery_running: false,
         automation_checkout_jobs: Default::default(),
         automation_precheck_jobs: Default::default(),
         pending_terminal_lifecycle_shutdowns: Default::default(),
@@ -125,6 +127,7 @@ pub async fn run_terminal_host_server(
     }
     actor.restart_remote_relay().await;
     actor.reconcile_interrupted_project_clones().await;
+    actor.start_workflow_workspace_recovery();
     actor.reconcile_spawn_on_create_tabs().await;
     if actor.account_push.push_enabled
         && actor.account_push.service.local_account().await?.is_some()

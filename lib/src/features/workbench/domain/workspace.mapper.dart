@@ -223,6 +223,13 @@ class WorkspaceMapper extends ClassMapperBase<Workspace> {
     opt: true,
     def: 0,
   );
+  static bool _$workflowOwned(Workspace v) => v.workflowOwned;
+  static const Field<Workspace, bool> _f$workflowOwned = Field(
+    'workflowOwned',
+    _$workflowOwned,
+    opt: true,
+    def: false,
+  );
 
   @override
   final MappableFields<Workspace> fields = const {
@@ -246,6 +253,7 @@ class WorkspaceMapper extends ClassMapperBase<Workspace> {
     #sectionId: _f$sectionId,
     #parentWorkspaceId: _f$parentWorkspaceId,
     #childCount: _f$childCount,
+    #workflowOwned: _f$workflowOwned,
   };
 
   static Workspace _instantiate(DecodingData data) {
@@ -270,6 +278,7 @@ class WorkspaceMapper extends ClassMapperBase<Workspace> {
       sectionId: data.dec(_f$sectionId),
       parentWorkspaceId: data.dec(_f$parentWorkspaceId),
       childCount: data.dec(_f$childCount),
+      workflowOwned: data.dec(_f$workflowOwned),
     );
   }
 
@@ -355,6 +364,7 @@ abstract class WorkspaceCopyWith<$R, $In extends Workspace, $Out>
     String? sectionId,
     String? parentWorkspaceId,
     int? childCount,
+    bool? workflowOwned,
   });
   WorkspaceCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -403,6 +413,7 @@ class _WorkspaceCopyWithImpl<$R, $Out>
     Object? sectionId = $none,
     Object? parentWorkspaceId = $none,
     int? childCount,
+    bool? workflowOwned,
   }) => $apply(
     FieldCopyWithData({
       if (id != null) #id: id,
@@ -426,6 +437,7 @@ class _WorkspaceCopyWithImpl<$R, $Out>
       if (sectionId != $none) #sectionId: sectionId,
       if (parentWorkspaceId != $none) #parentWorkspaceId: parentWorkspaceId,
       if (childCount != null) #childCount: childCount,
+      if (workflowOwned != null) #workflowOwned: workflowOwned,
     }),
   );
   @override
@@ -456,6 +468,7 @@ class _WorkspaceCopyWithImpl<$R, $Out>
       or: $value.parentWorkspaceId,
     ),
     childCount: data.get(#childCount, or: $value.childCount),
+    workflowOwned: data.get(#workflowOwned, or: $value.workflowOwned),
   );
 
   @override

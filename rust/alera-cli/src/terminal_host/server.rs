@@ -271,6 +271,7 @@ mod workflow_catalog_tests;
 mod workflow_plan_requests;
 #[cfg(test)]
 mod workflow_plan_tests;
+mod workflow_workspace_requests;
 mod workspace_archive_requests;
 mod workspace_file_mutation_requests;
 mod workspace_git_requests;
@@ -351,6 +352,8 @@ struct ServerActor {
     project_clone_jobs: HashMap<String, tokio::sync::oneshot::Sender<()>>,
     agent_title_jobs: HashMap<String, agent_title_generation::AgentTitleJob>,
     managed_workspace_jobs: usize,
+    workflow_workspace_jobs: usize,
+    workflow_workspace_recovery_running: bool,
     automation_checkout_jobs: std::collections::HashSet<String>,
     automation_precheck_jobs: std::collections::HashSet<String>,
     pending_terminal_lifecycle_shutdowns:
@@ -815,6 +818,18 @@ impl ServerActor {
                 self.broadcast_workflow_catalog_changed(&source, catalog_revision);
             }
             ServerCommand::WorkflowPlanChanged => self.broadcast_orchestration_board_change().await,
+            ServerCommand::WorkflowWorkspaceRecoveryFinished => {
+                self.handle_workflow_workspace_recovery_finished().await;
+            }
+            ServerCommand::WorkflowWorkspaceFinished {
+                client_id,
+                request_id,
+                result,
+                mutated,
+            } => {
+                self.handle_workflow_workspace_finished(client_id, request_id, result, mutated)
+                    .await;
+            }
             ServerCommand::PrepareRuntimeMutation {
                 request,
                 completion,

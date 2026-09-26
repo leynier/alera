@@ -19,9 +19,9 @@ use uuid::Uuid;
 use crate::remote_managed_workspace::create_remote_managed_workspace;
 use crate::ssh_remote::{is_remote_host_id, LiveSshRemoteHost, RemoteHostExecutor};
 use crate::worktree_setup::{prepare_deferred_worktree_setup, run_worktree_setup};
-
 #[path = "managed_workspace_removal_preflight.rs"]
 mod removal_preflight;
+pub(crate) mod workflow;
 use removal_preflight::managed_workspace_removal;
 
 #[derive(Debug, Deserialize)]

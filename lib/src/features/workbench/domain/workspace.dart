@@ -39,6 +39,7 @@ class const Workspace({
   this.sectionId,
   this.parentWorkspaceId,
   this.childCount = 0,
+  this.workflowOwned = false,
 }) with WorkspaceMappable {
   final String id;
   final String projectId;
@@ -60,6 +61,9 @@ class const Workspace({
   final String? sectionId;
   final String? parentWorkspaceId;
   final int childCount;
+
+  /// Runtime-derived ownership on project workspace snapshots.
+  final bool workflowOwned;
 
   bool get isMain => kind == WorkspaceKind.main;
 

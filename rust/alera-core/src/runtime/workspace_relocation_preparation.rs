@@ -45,6 +45,16 @@ impl RuntimeStore {
             .find_workspace(&intent.workspace_id)
             .await?
             .ok_or_else(|| anyhow!("Workspace not found: {}", intent.workspace_id))?;
+        let project = self
+            .find_project(&source.project_id)
+            .await?
+            .ok_or_else(|| anyhow!("Project not found: {}", source.project_id))?;
+        if self
+            .workflow_workspace_resource_owned(&source, &project)
+            .await?
+        {
+            bail!("Workflow-owned workspaces cannot be relocated");
+        }
         if source.host_id != LOCAL_HOST_ID || source.status != WorkspaceStatus::Active {
             bail!("Local relocation requires an active workspace on this host");
         }

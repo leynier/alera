@@ -1,6 +1,77 @@
 use super::*;
 
 #[tokio::test]
+async fn prepare_hand_on_rejects_workflow_owned_worktree_before_relocation() {
+    let mut fixture = Fixture::new().await;
+    let source = fixture.child.clone();
+    let mut original = source.clone();
+    original.id = "retained-workflow-id".into();
+    let identity = alera_core::runtime::WorkflowWorkspaceIdentity {
+        workspace: original,
+        repo_path: fixture.main_path.clone(),
+        owner_workspace_id: "main".into(),
+        run_id: "run".into(),
+        revision: 1,
+        task_id: None,
+        attempt: 0,
+        base_sha: alera_core::git::checkout_commit(&source.path).unwrap(),
+    };
+    let before_branch = alera_core::git::current_branch(&source.path).unwrap();
+    let before_worktrees = alera_core::git::list_worktrees(&fixture.main_path)
+        .unwrap()
+        .len();
+    sqlx::query(
+        "INSERT INTO workflowWorkspaces
+         (id, run_id, revision, task_id, attempt, path, identity, phase)
+         VALUES (?, 'run', 1, NULL, 0, ?, ?, 'ready')",
+    )
+    .bind(&identity.workspace.id)
+    .bind(&source.path)
+    .bind(serde_json::to_string(&identity).unwrap())
+    .execute(fixture.actor.runtime_store.pool())
+    .await
+    .unwrap();
+    assert!(!fixture
+        .actor
+        .runtime_store
+        .workflow_workspace_owned(&source.id)
+        .await
+        .unwrap());
+
+    let error = match fixture.prepare_hand_on(true).await {
+        Ok(_) => panic!("workflow-owned worktree should not relocate"),
+        Err(error) => error,
+    };
+    assert!(error.to_string().contains("Workflow-owned"));
+    assert_eq!(
+        fixture
+            .actor
+            .runtime_store
+            .find_workspace(&source.id)
+            .await
+            .unwrap(),
+        Some(source.clone())
+    );
+    assert!(Path::new(&source.path).exists());
+    assert!(Path::new(&source.path).join("README.md").exists());
+    assert_eq!(
+        alera_core::git::current_branch(&source.path).unwrap(),
+        before_branch
+    );
+    assert_eq!(
+        alera_core::git::list_worktrees(&fixture.main_path)
+            .unwrap()
+            .len(),
+        before_worktrees
+    );
+    let journal_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM workspaceRelocations")
+        .fetch_one(fixture.actor.runtime_store.pool())
+        .await
+        .unwrap();
+    assert_eq!(journal_count, 0);
+}
+
+#[tokio::test]
 async fn runtime_relocation_ids_replay_both_directions_without_losing_later_changes() {
     let mut fixture = Fixture::new().await;
     let destination = fixture._root.path().join("workspaces/request-retry");

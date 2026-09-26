@@ -60,7 +60,7 @@ impl ServerActor {
                 if let Some(id) = request_id {
                     if (self.mutation_queue.has_runtime_mutations()
                         && conflicts_with_runtime_mutation(&request_type))
-                        || (self.managed_workspace_jobs > 0
+                        || (self.has_blocking_managed_workspace_jobs()
                             && (conflicts_with_runtime_mutation(&request_type)
                                 || super::runtime_mutation_barrier::is_serialized_runtime_mutation(
                                     &request_type,
@@ -219,6 +219,7 @@ impl ServerActor {
                     .count();
                 let active_jobs = self.ssh_bootstrap_jobs.len()
                     + usize::from(self.managed_workspace_jobs > 0)
+                    + usize::from(self.workflow_workspace_jobs > 0)
                     + self.coordinators.len()
                     + self.mutation_queue.outstanding();
                 let active_agents = self.agent_presence_items().as_array().map_or(0, Vec::len);
@@ -253,6 +254,7 @@ impl ServerActor {
                     .count();
                 let active_jobs = self.ssh_bootstrap_jobs.len()
                     + usize::from(self.managed_workspace_jobs > 0)
+                    + usize::from(self.workflow_workspace_jobs > 0)
                     + self.coordinators.len()
                     + self.mutation_queue.outstanding();
                 let active_agents = self.agent_presence_items().as_array().map_or(0, Vec::len);
@@ -675,7 +677,11 @@ impl ServerActor {
                 if alera_core::runtime::is_voice_home_project_id(&project_id) {
                     Ok(json!([]))
                 } else {
-                    json_result(self.runtime_store.list_workspaces(&project_id).await)
+                    json_result(
+                        self.runtime_store
+                            .list_workspace_snapshots(&project_id)
+                            .await,
+                    )
                 }
             }
             "workspace.listAll" => {

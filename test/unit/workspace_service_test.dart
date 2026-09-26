@@ -24,6 +24,7 @@ part 'workspace_service_shared_checkout_test_cases.dart';
 part 'workspace_service_removal_test_cases.dart';
 part 'workspace_service_handoff_test_cases.dart';
 part 'workspace_service_test_harness.dart';
+part 'workspace_service_workflow_test_cases.dart';
 part 'workspace_service_remote_host_test_cases.dart';
 
 late Directory tempDir;
@@ -66,6 +67,7 @@ void main() {
     _registerWorkspaceServiceSharedCheckoutTests();
     _registerWorkspaceServiceCoreTests();
     _registerWorkspaceServiceRemovalTests();
+    _registerWorkspaceServiceWorkflowTests();
     _registerWorkspaceServiceHandoffTests();
     _registerWorkspaceServiceRemoteHostTests();
   });
