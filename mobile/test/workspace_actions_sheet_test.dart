@@ -1,10 +1,12 @@
 import 'package:alera_mobile/src/app/theme/alera_theme.dart';
 import 'package:alera_mobile/src/features/linked_issues/application/linked_issues_controller.dart';
 import 'package:alera_mobile/src/features/linked_issues/domain/mobile_linked_issue.dart';
+import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_host.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
+import 'package:alera_mobile/src/features/workbench/application/workspace_hosts_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_actions_sheet.dart';
 import 'package:flutter/material.dart';
@@ -128,7 +130,53 @@ void main() {
     expect(find.text('Section'), findsNothing);
     expect(find.text('New Section'), findsNothing);
   });
+
+  testWidgets('the header names the host of a remote workspace only', (
+    tester,
+  ) async {
+    final remote = _workspace('remote', hostId: 'ssh-tux');
+    await _openSheet(
+      tester,
+      workspace: remote,
+      data: _data(workspaces: <WorkspaceSummary>[remote]),
+      hosts: _remoteHosts,
+    );
+    expect(find.byKey(const Key('workspace-actions-host')), findsOneWidget);
+    expect(find.text('Rack (Linux)'), findsOneWidget);
+
+    await tester.tapAt(Offset.zero);
+    await tester.pumpAndSettle();
+    final local = _workspace('leaf');
+    await _openSheet(
+      tester,
+      workspace: local,
+      data: _data(workspaces: <WorkspaceSummary>[local]),
+      hosts: _remoteHosts,
+    );
+    expect(find.byKey(const Key('workspace-actions-host')), findsNothing);
+  });
+
+  testWidgets('an older runtime shows no host in the header', (tester) async {
+    final remote = _workspace('remote', hostId: 'ssh-tux');
+    await _openSheet(
+      tester,
+      workspace: remote,
+      data: _data(workspaces: <WorkspaceSummary>[remote]),
+    );
+    expect(find.byKey(const Key('workspace-actions-host')), findsNothing);
+  });
 }
+
+const _remoteHosts = MobileWorkspaceHostDirectory(
+  supported: true,
+  byId: <String, MobileWorkspaceHost>{
+    'ssh-tux': MobileWorkspaceHost(
+      id: 'ssh-tux',
+      alias: 'Rack',
+      platform: 'linux',
+    ),
+  },
+);
 
 List<String> _sheetLabels(WidgetTester tester) {
   return tester
@@ -145,6 +193,7 @@ Future<void> _openSheet(
   required WorkspaceSummary workspace,
   required WorkspaceListData data,
   MobileLinkedIssue? linked,
+  MobileWorkspaceHostDirectory hosts = const MobileWorkspaceHostDirectory(),
 }) async {
   tester.view.physicalSize = const Size(800, 2000);
   tester.view.devicePixelRatio = 1;
@@ -155,6 +204,7 @@ Future<void> _openSheet(
         linkedIssuesControllerProvider.overrideWith2(
           (_) => _LinkedIssues(_linkedSnapshot(linked)),
         ),
+        workspaceHostsControllerProvider.overrideWith2((_) => _Hosts(hosts)),
       ],
       child: MaterialApp(
         theme: buildAleraMobileDarkTheme(),
@@ -164,6 +214,7 @@ Future<void> _openSheet(
               final issues = ref.watch(
                 linkedIssuesControllerProvider('host-1'),
               );
+              ref.watch(workspaceHostsControllerProvider('host-1'));
               return Column(
                 children: <Widget>[
                   Text(issues.hasValue ? 'Ready' : 'Loading'),
@@ -231,11 +282,13 @@ WorkspaceListData _data({
 
 WorkspaceSummary _workspace(
   String id, {
+  String hostId = 'local',
   String? sectionId,
   String? parentWorkspaceId,
 }) {
   return WorkspaceSummary(
     id: id,
+    hostId: hostId,
     projectId: 'project-1',
     name: id,
     path: '/repo/$id',
@@ -251,4 +304,13 @@ class _LinkedIssues extends LinkedIssuesController {
 
   @override
   Future<MobileLinkedIssueSnapshot> build(String hostId) async => snapshot;
+}
+
+class _Hosts extends WorkspaceHostsController {
+  _Hosts(this.directory);
+
+  final MobileWorkspaceHostDirectory directory;
+
+  @override
+  Future<MobileWorkspaceHostDirectory> build(String hostId) async => directory;
 }

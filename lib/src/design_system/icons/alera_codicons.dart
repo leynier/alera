@@ -19,4 +19,5 @@ abstract final class const AleraCodicons._() {
   static const IconData gitStash = IconData(0xec26, fontFamily: _family);
   static const IconData gitStashPop = IconData(0xec28, fontFamily: _family);
   static const IconData gitFetch = IconData(0xecb2, fontFamily: _family);
+  static const IconData terminalLinux = IconData(0xebc6, fontFamily: _family);
 }

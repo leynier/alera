@@ -54,6 +54,136 @@ extension ProjectKindMapperExtension on ProjectKind {
   }
 }
 
+class ProjectCheckoutMapper extends ClassMapperBase<ProjectCheckout> {
+  ProjectCheckoutMapper._();
+
+  static ProjectCheckoutMapper? _instance;
+  static ProjectCheckoutMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = ProjectCheckoutMapper._());
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'ProjectCheckout';
+
+  static String _$hostId(ProjectCheckout v) => v.hostId;
+  static const Field<ProjectCheckout, String> _f$hostId = Field(
+    'hostId',
+    _$hostId,
+  );
+  static String _$path(ProjectCheckout v) => v.path;
+  static const Field<ProjectCheckout, String> _f$path = Field('path', _$path);
+
+  @override
+  final MappableFields<ProjectCheckout> fields = const {
+    #hostId: _f$hostId,
+    #path: _f$path,
+  };
+
+  static ProjectCheckout _instantiate(DecodingData data) {
+    return ProjectCheckout(
+      hostId: data.dec(_f$hostId),
+      path: data.dec(_f$path),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static ProjectCheckout fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<ProjectCheckout>(map);
+  }
+
+  static ProjectCheckout fromJson(String json) {
+    return ensureInitialized().decodeJson<ProjectCheckout>(json);
+  }
+}
+
+mixin ProjectCheckoutMappable {
+  String toJson() {
+    return ProjectCheckoutMapper.ensureInitialized()
+        .encodeJson<ProjectCheckout>(this as ProjectCheckout);
+  }
+
+  Map<String, dynamic> toMap() {
+    return ProjectCheckoutMapper.ensureInitialized().encodeMap<ProjectCheckout>(
+      this as ProjectCheckout,
+    );
+  }
+
+  ProjectCheckoutCopyWith<ProjectCheckout, ProjectCheckout, ProjectCheckout>
+  get copyWith =>
+      _ProjectCheckoutCopyWithImpl<ProjectCheckout, ProjectCheckout>(
+        this as ProjectCheckout,
+        $identity,
+        $identity,
+      );
+  @override
+  String toString() {
+    return ProjectCheckoutMapper.ensureInitialized().stringifyValue(
+      this as ProjectCheckout,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return ProjectCheckoutMapper.ensureInitialized().equalsValue(
+      this as ProjectCheckout,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return ProjectCheckoutMapper.ensureInitialized().hashValue(
+      this as ProjectCheckout,
+    );
+  }
+}
+
+extension ProjectCheckoutValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, ProjectCheckout, $Out> {
+  ProjectCheckoutCopyWith<$R, ProjectCheckout, $Out> get $asProjectCheckout =>
+      $base.as((v, t, t2) => _ProjectCheckoutCopyWithImpl<$R, $Out>(v, t, t2));
+}
+
+abstract class ProjectCheckoutCopyWith<$R, $In extends ProjectCheckout, $Out>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({String? hostId, String? path});
+  ProjectCheckoutCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  );
+}
+
+class _ProjectCheckoutCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, ProjectCheckout, $Out>
+    implements ProjectCheckoutCopyWith<$R, ProjectCheckout, $Out> {
+  _ProjectCheckoutCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<ProjectCheckout> $mapper =
+      ProjectCheckoutMapper.ensureInitialized();
+  @override
+  $R call({String? hostId, String? path}) => $apply(
+    FieldCopyWithData({
+      if (hostId != null) #hostId: hostId,
+      if (path != null) #path: path,
+    }),
+  );
+  @override
+  ProjectCheckout $make(CopyWithData data) => ProjectCheckout(
+    hostId: data.get(#hostId, or: $value.hostId),
+    path: data.get(#path, or: $value.path),
+  );
+
+  @override
+  ProjectCheckoutCopyWith<$R2, ProjectCheckout, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  ) => _ProjectCheckoutCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
 class ProjectMapper extends ClassMapperBase<Project> {
   ProjectMapper._();
 
@@ -62,6 +192,7 @@ class ProjectMapper extends ClassMapperBase<Project> {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = ProjectMapper._());
       ProjectKindMapper.ensureInitialized();
+      ProjectCheckoutMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -95,6 +226,20 @@ class ProjectMapper extends ClassMapperBase<Project> {
     opt: true,
     def: ProjectKind.gitRepository,
   );
+  static String _$primaryHostId(Project v) => v.primaryHostId;
+  static const Field<Project, String> _f$primaryHostId = Field(
+    'primaryHostId',
+    _$primaryHostId,
+    opt: true,
+    def: 'local',
+  );
+  static List<ProjectCheckout> _$checkouts(Project v) => v.checkouts;
+  static const Field<Project, List<ProjectCheckout>> _f$checkouts = Field(
+    'checkouts',
+    _$checkouts,
+    opt: true,
+    def: const <ProjectCheckout>[],
+  );
 
   @override
   final MappableFields<Project> fields = const {
@@ -104,6 +249,8 @@ class ProjectMapper extends ClassMapperBase<Project> {
     #createdAt: _f$createdAt,
     #updatedAt: _f$updatedAt,
     #kind: _f$kind,
+    #primaryHostId: _f$primaryHostId,
+    #checkouts: _f$checkouts,
   };
 
   static Project _instantiate(DecodingData data) {
@@ -114,6 +261,8 @@ class ProjectMapper extends ClassMapperBase<Project> {
       createdAt: data.dec(_f$createdAt),
       updatedAt: data.dec(_f$updatedAt),
       kind: data.dec(_f$kind),
+      primaryHostId: data.dec(_f$primaryHostId),
+      checkouts: data.dec(_f$checkouts),
     );
   }
 
@@ -174,6 +323,12 @@ extension ProjectValueCopy<$R, $Out> on ObjectCopyWith<$R, Project, $Out> {
 
 abstract class ProjectCopyWith<$R, $In extends Project, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
+  ListCopyWith<
+    $R,
+    ProjectCheckout,
+    ProjectCheckoutCopyWith<$R, ProjectCheckout, ProjectCheckout>
+  >
+  get checkouts;
   $R call({
     String? id,
     String? name,
@@ -181,6 +336,8 @@ abstract class ProjectCopyWith<$R, $In extends Project, $Out>
     DateTime? createdAt,
     DateTime? updatedAt,
     ProjectKind? kind,
+    String? primaryHostId,
+    List<ProjectCheckout>? checkouts,
   });
   ProjectCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -194,6 +351,17 @@ class _ProjectCopyWithImpl<$R, $Out>
   late final ClassMapperBase<Project> $mapper =
       ProjectMapper.ensureInitialized();
   @override
+  ListCopyWith<
+    $R,
+    ProjectCheckout,
+    ProjectCheckoutCopyWith<$R, ProjectCheckout, ProjectCheckout>
+  >
+  get checkouts => ListCopyWith(
+    $value.checkouts,
+    (v, t) => v.copyWith.$chain(t),
+    (v) => call(checkouts: v),
+  );
+  @override
   $R call({
     String? id,
     String? name,
@@ -201,6 +369,8 @@ class _ProjectCopyWithImpl<$R, $Out>
     DateTime? createdAt,
     DateTime? updatedAt,
     ProjectKind? kind,
+    String? primaryHostId,
+    List<ProjectCheckout>? checkouts,
   }) => $apply(
     FieldCopyWithData({
       if (id != null) #id: id,
@@ -209,6 +379,8 @@ class _ProjectCopyWithImpl<$R, $Out>
       if (createdAt != null) #createdAt: createdAt,
       if (updatedAt != null) #updatedAt: updatedAt,
       if (kind != null) #kind: kind,
+      if (primaryHostId != null) #primaryHostId: primaryHostId,
+      if (checkouts != null) #checkouts: checkouts,
     }),
   );
   @override
@@ -219,6 +391,8 @@ class _ProjectCopyWithImpl<$R, $Out>
     createdAt: data.get(#createdAt, or: $value.createdAt),
     updatedAt: data.get(#updatedAt, or: $value.updatedAt),
     kind: data.get(#kind, or: $value.kind),
+    primaryHostId: data.get(#primaryHostId, or: $value.primaryHostId),
+    checkouts: data.get(#checkouts, or: $value.checkouts),
   );
 
   @override

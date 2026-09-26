@@ -135,7 +135,9 @@ impl ServerActor {
                         && checkout.repository_path.as_deref()
                             != Some(project_checkout.path.as_str()))
                 {
-                    return Err(HostError::state("The SSH task uses a different repository origin; its existing worktree was preserved"));
+                    return Err(HostError::state(
+                        "The SSH task uses a different repository origin; its existing worktree was preserved",
+                    ));
                 }
             }
             if let Some(pending) = self
@@ -182,7 +184,10 @@ impl ServerActor {
                 .map(|(id, _)| id.clone())
                 .collect();
             if !running.is_empty() {
-                return Err(HostError::state(format!("Stop these workspace processes before {operation} because their relocation cannot be verified: {}", running.join(", "))));
+                return Err(HostError::state(format!(
+                    "Stop these workspace processes before {operation} because their relocation cannot be verified: {}",
+                    running.join(", ")
+                )));
             }
             if crate::managed_workspace::workspace_has_active_automation_owner(
                 &self.runtime_store,
@@ -210,7 +215,9 @@ impl ServerActor {
             if workspace
                 .is_some_and(|workspace| workspace.kind == alera_core::runtime::WorkspaceKind::Main)
             {
-                return Err(HostError::state("Use workspace.removeShared to verify buffers and owned process shutdown before retiring a shared task"));
+                return Err(HostError::state(
+                    "Use workspace.removeShared to verify buffers and owned process shutdown before retiring a shared task",
+                ));
             }
         }
         if let RuntimeMutationRequest::RemoveProject { project_id } = request {
@@ -260,7 +267,9 @@ impl ServerActor {
                 _ => false,
             };
             if removes_owner {
-                return Err(HostError::state("Workspace has unfinished process shutdown. Retry confirmed workspace cleanup before removing its records or project."));
+                return Err(HostError::state(
+                    "Workspace has unfinished process shutdown. Retry confirmed workspace cleanup before removing its records or project.",
+                ));
             }
         }
         Ok(WorkspaceShutdown::default())

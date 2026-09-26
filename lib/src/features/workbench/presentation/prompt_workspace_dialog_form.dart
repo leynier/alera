@@ -6,6 +6,7 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
         _created == null &&
         _orderedProjects.isNotEmpty &&
         widget.agentProfiles.isNotEmpty &&
+        !_hostBlocksCreation &&
         (_useProjectCheckout || !_loadingBranches);
   }
 
@@ -19,7 +20,10 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
           children: <Widget>[
             AleraDropdownField<Project>(
               labelText: 'Project',
-              value: _project,
+              value: switch (_project) {
+                final project? => _hostEnrollment.resolve(project),
+                null => null,
+              },
               entries: <AleraDropdownFieldEntry<Project>>[
                 for (final project in _orderedProjects)
                   AleraDropdownFieldEntry<Project>(
@@ -110,12 +114,17 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
                   _selectedHostId = hostId;
                   _sourceBranch = null;
                 });
+                _hostEnrollment.clearError();
                 final project = _project;
                 if (!_useProjectCheckout && project != null) {
                   unawaited(_loadBranches(project));
                 }
               },
             ),
+            if (_hostEnrollmentNotice() case final notice?) ...<Widget>[
+              const SizedBox(height: AleraTokens.space12),
+              notice,
+            ],
             const SizedBox(height: AleraTokens.space12),
             AleraDropdownField<AgentProfile>(
               labelText: 'Agent Profile',

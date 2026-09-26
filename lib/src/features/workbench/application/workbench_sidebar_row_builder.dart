@@ -51,7 +51,7 @@ class _WorkbenchSidebarRowBuilder(
       _sectionNameMatches(state, workspace, query) ? '' : query,
       project,
       workspace,
-      state.tabsFor(workspace.id),
+      state.awakeTabsFor(workspace.id),
     );
   }
 
@@ -260,7 +260,7 @@ class _WorkbenchSidebarRowBuilder(
           collapsedParentIds ?? prefs.collapsedParentWorkspaceIds,
     );
     for (final entry in tree) {
-      final tabs = state.tabsFor(entry.workspace.id);
+      final tabs = state.awakeTabsFor(entry.workspace.id);
       final agentRuns = visibleWorkspaceAgentRuns(
         tabs: tabs,
         agentStatuses: agentStatuses,
@@ -314,7 +314,7 @@ class _WorkbenchSidebarRowBuilder(
     return _attentionByWorkspaceId.putIfAbsent(
       workspace.id,
       () => workspaceAttention(
-        tabs: state.tabsFor(workspace.id),
+        tabs: state.awakeTabsFor(workspace.id),
         agentStatuses: agentStatuses,
         now: now,
       ),
@@ -325,7 +325,7 @@ class _WorkbenchSidebarRowBuilder(
     if (_activityByWorkspaceId.containsKey(workspace.id)) {
       return _activityByWorkspaceId[workspace.id];
     }
-    final tabs = state.tabsFor(workspace.id);
+    final tabs = state.awakeTabsFor(workspace.id);
     final activity = tabs.any((tab) => tab.kind == WorkspaceTabKind.terminal)
         ? agentActivityRank(
             attention: _attentionOf(workspace),

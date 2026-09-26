@@ -104,6 +104,43 @@ void main() {
     expect(summaries['ws-1']?.number, 1);
   });
 
+  test('a remote checkout the hub cannot evaluate stays quiet', () async {
+    // The hub answers summaries with its own `gh`. A workspace on another
+    // host comes back eligible but unevaluated, or the whole request fails:
+    // neither may surface as an error over the workspace list.
+    final client = _FakeSummariesClient()
+      ..snapshot = MobileWorkspacePullRequestSummaries(
+        byWorkspace: <String, MobileWorkspacePullRequestSummary>{
+          'ws-1': MobileWorkspacePullRequestSummary(
+            workspaceId: 'ws-1',
+            number: 1,
+          ),
+        },
+        evaluatedWorkspaceIds: const <String>{'ws-1'},
+        eligibleWorkspaceIds: const <String>{'ws-1', 'ws-remote'},
+      );
+    final container = _container(client);
+    final summaries = await container.read(
+      workspacePullRequestSummariesControllerProvider('host-1').future,
+    );
+    expect(summaries.keys, <String>['ws-1']);
+
+    final failing = _FakeSummariesClient()..error = StateError('gh failed');
+    final firstLoad = _container(failing);
+    expect(
+      await firstLoad.read(
+        workspacePullRequestSummariesControllerProvider('host-1').future,
+      ),
+      isEmpty,
+    );
+    expect(
+      firstLoad
+          .read(workspacePullRequestSummariesControllerProvider('host-1'))
+          .hasError,
+      isFalse,
+    );
+  });
+
   test('workspaces that leave the eligible set are dropped', () async {
     final client = _FakeSummariesClient();
     final container = _container(client);

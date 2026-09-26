@@ -59,6 +59,8 @@ ResourceSessionSample _session(
   int memoryBytes = 0,
   bool measured = true,
   bool running = true,
+  String? hostId,
+  int? cpuCoreCount,
 }) => ResourceSessionSample(
   sessionId: sessionId,
   workspaceId: workspaceId,
@@ -70,6 +72,8 @@ ResourceSessionSample _session(
   memoryBytes: memoryBytes,
   processCount: 1,
   history: const <int>[1, 2],
+  hostId: hostId,
+  cpuCoreCount: cpuCoreCount,
 );
 
 /// One core by default, so the grouping and ordering cases below read the
@@ -257,6 +261,54 @@ void main() {
       expect(workspace.cpuMachinePercent, isNull);
       expect(workspace.memoryBytes, isNull);
       expect(tree.projects.single.memoryBytes, isNull);
+    });
+
+    test('a relayed remote session shows its own host\'s share', () {
+      final tree = buildResourceTree(
+        // The hub has 8 cores; the satellite that measured the row has 32.
+        snapshot: _snapshot(<ResourceSessionSample>[
+          _session(
+            's1',
+            workspaceId: 'w1',
+            tabId: 't1',
+            cpuPercent: 320,
+            memoryBytes: 2048,
+            hostId: 'ssh-box',
+            cpuCoreCount: 32,
+          ),
+        ], cpuCoreCount: 8),
+        projects: <Project>[_project('p1', 'Alera')],
+        workspaces: <Workspace>[_workspace('w1', 'Remote', hostId: 'ssh-box')],
+        tabs: <WorkspaceTabRecord>[_tab('t1', 'w1', sessionId: 's1')],
+      );
+
+      final workspace = tree.projects.single.workspaces.single;
+      expect(workspace.remote, isTrue);
+      expect(workspace.sessions.single.cpuMachinePercent, 10);
+      expect(workspace.sessions.single.memoryBytes, 2048);
+      expect(workspace.memoryBytes, 2048);
+    });
+
+    test('a relayed row without a core count keeps cpu absent', () {
+      final tree = buildResourceTree(
+        snapshot: _snapshot(<ResourceSessionSample>[
+          _session(
+            's1',
+            workspaceId: 'w1',
+            tabId: 't1',
+            cpuPercent: 320,
+            memoryBytes: 2048,
+            hostId: 'ssh-box',
+          ),
+        ], cpuCoreCount: 8),
+        projects: <Project>[_project('p1', 'Alera')],
+        workspaces: <Workspace>[_workspace('w1', 'Remote', hostId: 'ssh-box')],
+        tabs: <WorkspaceTabRecord>[_tab('t1', 'w1', sessionId: 's1')],
+      );
+
+      final session = tree.projects.single.workspaces.single.sessions.single;
+      expect(session.cpuMachinePercent, isNull);
+      expect(session.memoryBytes, 2048);
     });
 
     test('an unmeasured local session reports absent metrics', () {

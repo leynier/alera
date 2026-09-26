@@ -17,8 +17,54 @@ extension _CreateWorkspaceDialogBranchLoading on _CreateWorkspaceDialogState {
     return preferred;
   }
 
+  Future<List<String>> _filterLocalBranches(
+    Project project,
+    List<String> branches,
+  ) async {
+    final hostId = _selectedHostId;
+    final catalog = await widget.loadHostBranchCatalog?.call(project, hostId);
+    final workspaceBranches =
+        (catalog == null
+                ? widget.getProjectWorkspaceBranches(project)
+                : widget.parentCandidates
+                      .map((candidate) => candidate.workspace)
+                      .where(
+                        (workspace) =>
+                            workspace.projectId == project.id &&
+                            workspace.hostId == (hostId ?? 'local'),
+                      )
+                      .map((workspace) => workspace.branch ?? ''))
+            .map((branch) => branch.trim())
+            .where((branch) => branch.isNotEmpty)
+            .toSet();
+    final results = await Future.wait(
+      branches.map((branch) async {
+        try {
+          return (
+            branch: branch,
+            isLocal:
+                catalog?.localBranches.contains(branch) ??
+                await widget.checkBranchExists(project, branch),
+          );
+        } catch (_) {
+          return (branch: branch, isLocal: false);
+        }
+      }),
+    );
+    return <String>[
+      for (final result in results)
+        if (result.isLocal && !workspaceBranches.contains(result.branch))
+          result.branch,
+    ];
+  }
+
   Future<void> _loadBranches(Project project) async {
     final generation = ++_branchLoadGeneration;
+    _branchesAwaitHostEnrollment = _hostEnrollmentFor(project) != .enrolled;
+    if (_branchesAwaitHostEnrollment) {
+      _clearBranchChoices();
+      return;
+    }
     final hostId = _selectedHostId;
     final preferredSource =
         (_selectedSourceBranch ?? _sourceBranchController.text).trim();
@@ -85,8 +131,26 @@ extension _CreateWorkspaceDialogBranchLoading on _CreateWorkspaceDialogState {
     }
   }
 
+  /// A host the project is not on has no branch catalog to ask for, so the
+  /// request would only flash a runtime error over the "Add to Host" notice.
+  void _clearBranchChoices() {
+    _update(() {
+      _loadingBranches = false;
+      _branchesError = null;
+      _branches = const <String>[];
+      _localBranches = const <String>[];
+      _localBranchesLoaded = false;
+      _loadingLocalBranches = false;
+      _branchSearchController.clear();
+      _branchQuery = '';
+    });
+  }
+
   Future<void> _loadLocalBranches(Project project) async {
-    if (_localBranchesLoaded || _loadingLocalBranches || _loadingBranches) {
+    if (_localBranchesLoaded ||
+        _loadingLocalBranches ||
+        _loadingBranches ||
+        _hostEnrollmentFor(project) != .enrolled) {
       return;
     }
     _update(() {

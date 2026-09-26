@@ -97,6 +97,7 @@ xterm.Terminal _createSessionTerminal(_XtermTerminalSessionHandle handle) {
   return xterm.Terminal(
     reflowWithHiddenCursor: false,
     preserveOrphanCombiningMarks: true,
+    windowsPtyMode: _xtermWindowsPtyMode,
     allowITerm2ClipboardCapture: false,
     allowKittyClipboard: false,
     // An unset callback lets TerminalView install its system clipboard reader.

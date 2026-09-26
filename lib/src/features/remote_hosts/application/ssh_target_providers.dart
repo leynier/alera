@@ -1,3 +1,4 @@
+import 'package:alera/src/features/remote_hosts/domain/host_link.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/remote_hosts/infra/runtime_ssh_target_repository.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
@@ -21,4 +22,9 @@ Stream<List<SshTarget>> sshTargets(Ref ref) {
 @Riverpod(keepAlive: true)
 Stream<SshTargetBootstrapProgress> sshTargetBootstrapProgress(Ref ref) {
   return ref.watch(sshTargetRepositoryProvider).watchBootstrapProgress();
+}
+
+@Riverpod(keepAlive: true)
+Stream<List<HostLinkState>> hostLinks(Ref ref) {
+  return ref.watch(sshTargetRepositoryProvider).watchHostLinks();
 }

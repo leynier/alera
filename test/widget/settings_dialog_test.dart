@@ -20,6 +20,7 @@ import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.d
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/settings/infra/system_font_service.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_support_section.dart';
+import 'package:alera/src/features/settings/presentation/panes/remote_host_editor.dart';
 import 'package:alera/src/features/settings/presentation/panes/terminal_theme_picker.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog.dart';
@@ -49,6 +50,7 @@ part 'settings_dialog_ai_assist_test_cases.dart';
 part 'settings_dialog_quota_test_cases.dart';
 part 'settings_dialog_terminal_test_cases.dart';
 part 'settings_dialog_interaction_test_cases.dart';
+part 'settings_dialog_remote_host_test_cases.dart';
 part 'settings_dialog_test_harness.dart';
 
 Future<ProviderContainer> _pumpSettingsDialog(
@@ -121,4 +123,5 @@ void main() {
   _registerSettingsDialogQuotaTests();
   _registerSettingsDialogTerminalTests();
   _registerSettingsDialogAdvancedTests();
+  _registerSettingsDialogRemoteHostTests();
 }

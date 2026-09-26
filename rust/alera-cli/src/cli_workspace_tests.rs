@@ -80,6 +80,38 @@ fn workspace_pin_commands_parse_workspace_ids() {
     ));
 }
 #[test]
+fn workspace_rename_parses_optional_id_and_required_name() {
+    use crate::cli::WorkspaceRenameArgs;
+
+    let explicit = Cli::try_parse_from([
+        "alera",
+        "workspace",
+        "rename",
+        "--id",
+        "workspace-1",
+        "--name",
+        "Checkout flow",
+    ])
+    .unwrap();
+    assert!(matches!(
+        explicit.command,
+        Command::Workspace(WorkspaceCommand {
+            action: WorkspaceAction::Rename(WorkspaceRenameArgs { id: Some(id), name }),
+            ..
+        }) if id == "workspace-1" && name == "Checkout flow"
+    ));
+    let current =
+        Cli::try_parse_from(["alera", "workspace", "rename", "--name", "Checkout flow"]).unwrap();
+    assert!(matches!(
+        current.command,
+        Command::Workspace(WorkspaceCommand {
+            action: WorkspaceAction::Rename(WorkspaceRenameArgs { id: None, .. }),
+            ..
+        })
+    ));
+    assert!(Cli::try_parse_from(["alera", "workspace", "rename", "--id", "workspace-1"]).is_err());
+}
+#[test]
 fn workspace_archive_commands_parse_workspace_ids() {
     let archive =
         Cli::try_parse_from(["alera", "workspace", "archive", "--id", "workspace-1"]).unwrap();

@@ -5,6 +5,7 @@ import 'package:ffi/ffi.dart';
 
 /// Dart has no octal literals, so the POSIX modes are spelled in hex.
 const int posixExecutableFileMode = 0x1ED; // 0o755
+const int posixPrivateDirectoryMode = 0x1C0; // 0o700
 const int posixPrivateFileMode = 0x180; // 0o600
 
 /// `mode_t` is 16 bits on Darwin and 32 on Linux. Passing 32 is safe for both:

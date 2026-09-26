@@ -55,7 +55,7 @@ final class GithubForgeProviderProvider
 }
 
 String _$githubForgeProviderHash() =>
-    r'a2e077efe563889196928d3126856f8f9a361172';
+    r'428af1a74d422ca8ff93a37f7afdfd5be9ba9411';
 
 @ProviderFor(azureDevOpsForgeProvider)
 final azureDevOpsForgeProviderProvider = AzureDevOpsForgeProviderProvider._();
@@ -103,7 +103,7 @@ final class AzureDevOpsForgeProviderProvider
 }
 
 String _$azureDevOpsForgeProviderHash() =>
-    r'c211fc7e2bd874cadff65fbd4097a61ee9ef6926';
+    r'912ca4bd230d3113bd3733f71aa318a74fc542be';
 
 @ProviderFor(gitLabForgeProvider)
 final gitLabForgeProviderProvider = GitLabForgeProviderProvider._();
@@ -151,7 +151,7 @@ final class GitLabForgeProviderProvider
 }
 
 String _$gitLabForgeProviderHash() =>
-    r'3086ab4c9030de5f62109607e3bb736ec2571ac2';
+    r'7d90799b782541e8da6483605765ecdfd9a18824';
 
 @ProviderFor(forgeProviderRegistry)
 final forgeProviderRegistryProvider = ForgeProviderRegistryProvider._();

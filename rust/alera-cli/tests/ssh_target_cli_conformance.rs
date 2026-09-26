@@ -95,6 +95,7 @@ fn seed_password_target(runtime_dir: &Path, id: &str) {
         updated_at: now,
         last_status: None,
         install_dir: None,
+        projects_dir: None,
         runtime_version: None,
         runtime_platform: None,
         runtime_arch: None,
