@@ -88,7 +88,7 @@ class _AgentProfileLaunchDialogState extends State<AgentProfileLaunchDialog> {
   final _sessionController = TextEditingController();
   final _sessionFocusNode = FocusNode();
   bool _resume = false;
-  bool _supportsResume = false;
+  bool? _supportsResume;
   String? _mutationId;
   String? _mutationSessionId;
 
@@ -106,6 +106,7 @@ class _AgentProfileLaunchDialogState extends State<AgentProfileLaunchDialog> {
       if (mounted) setState(() => _supportsResume = supported);
     } on Object {
       // A failed capability check must not turn resume into a fresh launch.
+      if (mounted) setState(() => _supportsResume = false);
     }
   }
 
@@ -123,7 +124,8 @@ class _AgentProfileLaunchDialogState extends State<AgentProfileLaunchDialog> {
   bool get _canStart {
     return !_working &&
         (_resume
-            ? _supportsResume && isUsableAgentSessionId(_sessionController.text)
+            ? _supportsResume == true &&
+                  isUsableAgentSessionId(_sessionController.text)
             : _promptController.text.trim().isNotEmpty ||
                   _attachments.isNotEmpty);
   }
@@ -149,7 +151,7 @@ class _AgentProfileLaunchDialogState extends State<AgentProfileLaunchDialog> {
     if (!skip && !_resume && prompt.trim().isEmpty) {
       _update(
         () =>
-            _error = 'Write a prompt, attach files, or skip to open the agent.',
+            _error = 'Write a prompt, attach files, or start without a prompt.',
       );
       return;
     }

@@ -113,6 +113,37 @@ void main() {
     expect(find.byType(AgentProfileLaunchDialog), findsNothing);
   });
 
+  testWidgets('empty Control+Enter explains how to start without a prompt', (
+    tester,
+  ) async {
+    var launched = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AgentProfileLaunchDialog(
+          profile: profile,
+          workspacePath: '/repo',
+          onLaunch:
+              ({required prompt, resumeSessionId, clientMutationId}) async {
+                launched = true;
+              },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextField, 'Initial Prompt'));
+    await tester.sendKeyDownEvent(.controlLeft);
+    await tester.sendKeyEvent(.enter);
+    await tester.sendKeyUpEvent(.controlLeft);
+    await tester.pumpAndSettle();
+
+    expect(launched, isFalse);
+    expect(
+      find.text('Write a prompt, attach files, or start without a prompt.'),
+      findsOneWidget,
+    );
+    expect(find.text('Start Without Prompt'), findsOneWidget);
+  });
+
   testWidgets('pastes an image as an attachment', (tester) async {
     final clipboard = _FakeTerminalClipboard(imagePath: '/tmp/alera-paste.png');
     await tester.pumpWidget(
@@ -236,6 +267,63 @@ void main() {
       expect(find.text('Start Without Prompt'), findsOneWidget);
     },
   );
+
+  for (final outcome in ['supported', 'unsupported', 'failed']) {
+    testWidgets('resume waits for the capability check: $outcome', (
+      tester,
+    ) async {
+      final support = Completer<bool>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AgentProfileLaunchDialog(
+            profile: profile,
+            workspacePath: '/repo',
+            supportsResume: () => support.future,
+            onLaunch: ({
+              required prompt,
+              resumeSessionId,
+              clientMutationId,
+            }) async {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final unavailable = find.text(
+        'Session resume is unavailable for this runtime or agent.',
+      );
+      final control = find.byType(SegmentedButton<bool>);
+      expect(
+        tester.widget<SegmentedButton<bool>>(control).segments.last.enabled,
+        isFalse,
+      );
+      expect(unavailable, findsNothing);
+      await tester.tap(find.text('Resume Session'));
+      await tester.pumpAndSettle();
+      expect(find.text('Session ID'), findsNothing);
+      expect(find.text('Start Without Prompt'), findsOneWidget);
+
+      if (outcome == 'failed') {
+        support.completeError(StateError('Runtime unavailable'));
+      } else {
+        support.complete(outcome == 'supported');
+      }
+      await tester.pumpAndSettle();
+
+      final supported = outcome == 'supported';
+      expect(
+        tester.widget<SegmentedButton<bool>>(control).segments.last.enabled,
+        supported,
+      );
+      expect(unavailable, supported ? findsNothing : findsOneWidget);
+      await tester.tap(find.text('Resume Session'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Session ID'),
+        supported ? findsOneWidget : findsNothing,
+      );
+    });
+  }
 }
 
 final class _FakeTerminalClipboard({final String? imagePath})

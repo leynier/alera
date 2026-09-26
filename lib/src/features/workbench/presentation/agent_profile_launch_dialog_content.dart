@@ -53,7 +53,7 @@ extension _AgentProfileLaunchDialogContent on _AgentProfileLaunchDialogState {
                 ButtonSegment(
                   value: true,
                   label: const Text('Resume Session'),
-                  enabled: !_working && _supportsResume,
+                  enabled: !_working && _supportsResume == true,
                 ),
               ],
               selected: _resume,
@@ -70,7 +70,7 @@ extension _AgentProfileLaunchDialogContent on _AgentProfileLaunchDialogState {
                 });
               },
             ),
-            if (!_supportsResume) ...[
+            if (_supportsResume == false) ...[
               const SizedBox(height: AleraTokens.space8),
               Text(
                 'Session resume is unavailable for this runtime or agent.',
