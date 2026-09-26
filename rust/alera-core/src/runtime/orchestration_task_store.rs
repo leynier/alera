@@ -3,7 +3,7 @@ use sqlx::sqlite::SqliteRow;
 use sqlx::Row;
 use sqlx::{Sqlite, Transaction};
 
-use super::orchestration_message_store::orchestration_id;
+use super::orchestration_contract_store::guard_contract_status_update;
 use super::{OrchestrationTask, OrchestrationTaskStatus, RuntimeStore};
 
 pub struct NewOrchestrationTask {
@@ -22,7 +22,7 @@ pub struct NewOrchestrationTask {
 const TASK_COLUMNS: &str = "id, parent_id, created_by_terminal_handle, task_title, \
      display_name, spec, status, deps, result, created_at, completed_at, run_id, workspace_id, \
      coordinator_handle, result_schema, startup_failure_count, cancelled_at, stalled_at, \
-     stage_id";
+     stage_id, role_contract";
 
 pub(super) fn parse_string_array(raw: &str) -> Vec<String> {
     serde_json::from_str::<Vec<String>>(raw).unwrap_or_default()
@@ -52,6 +52,10 @@ fn task_from_row(row: SqliteRow) -> Result<OrchestrationTask> {
         cancelled_at: row.try_get("cancelled_at")?,
         stalled_at: row.try_get("stalled_at")?,
         stage_id: row.try_get("stage_id")?,
+        role_contract: row
+            .try_get::<Option<String>, _>("role_contract")?
+            .map(|raw| serde_json::from_str(&raw))
+            .transpose()?,
         assignee_handle: None,
         dispatch_id: None,
     })
@@ -59,7 +63,7 @@ fn task_from_row(row: SqliteRow) -> Result<OrchestrationTask> {
 
 /// Derives UI display metadata from the spec when explicit titles are absent:
 /// the first non-empty spec line, truncated to 80 chars.
-fn derive_display_name(spec: &str) -> String {
+pub(super) fn derive_display_name(spec: &str) -> String {
     let line = spec
         .lines()
         .map(str::trim)
@@ -72,7 +76,7 @@ fn derive_display_name(spec: &str) -> String {
     name
 }
 
-async fn status_for_deps(
+pub(super) async fn status_for_deps(
     tx: &mut Transaction<'_, Sqlite>,
     deps: &[String],
 ) -> Result<OrchestrationTaskStatus> {
@@ -297,49 +301,8 @@ impl RuntimeStore {
         &self,
         task: NewOrchestrationTask,
     ) -> Result<OrchestrationTask> {
-        let id = orchestration_id("task");
-        let mut tx = self.pool().begin().await?;
-        let status = status_for_deps(&mut tx, &task.deps).await?;
-        let dependency_result = match status {
-            OrchestrationTaskStatus::Failed => Some("dependency failed"),
-            OrchestrationTaskStatus::Cancelled => Some("dependency cancelled"),
-            _ => None,
-        };
-        let dependency_completed = dependency_result.is_some();
-        let display_name = task
-            .display_name
-            .clone()
-            .or_else(|| task.task_title.clone())
-            .unwrap_or_else(|| derive_display_name(&task.spec));
-        sqlx::query(
-            "INSERT INTO orchestrationTasks \
-             (id, parent_id, created_by_terminal_handle, task_title, display_name, spec, status, deps, \
-              run_id, workspace_id, coordinator_handle, result_schema, result, completed_at, cancelled_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \
-                     CASE WHEN ? THEN datetime('now') ELSE NULL END, \
-                     CASE WHEN ? THEN datetime('now') ELSE NULL END)",
-        )
-        .bind(&id)
-        .bind(&task.parent_id)
-        .bind(&task.created_by_terminal_handle)
-        .bind(&task.task_title)
-        .bind(&display_name)
-        .bind(&task.spec)
-        .bind(status.as_str())
-        .bind(serde_json::to_string(&task.deps)?)
-        .bind(&task.run_id)
-        .bind(&task.workspace_id)
-        .bind(&task.coordinator_handle)
-        .bind(&task.result_schema)
-        .bind(dependency_result)
-        .bind(dependency_completed)
-        .bind(status == OrchestrationTaskStatus::Cancelled)
-        .execute(&mut *tx)
-        .await?;
-        tx.commit().await?;
-        self.orchestration_task_by_id(&id)
-            .await?
-            .ok_or_else(|| anyhow!("inserted orchestration task not found"))
+        self.create_orchestration_task_with_contract(task, None)
+            .await
     }
 
     pub async fn orchestration_task_by_id(&self, id: &str) -> Result<Option<OrchestrationTask>> {
@@ -433,6 +396,7 @@ impl RuntimeStore {
         if existing.is_none() {
             bail!("orchestration task not found: {id}");
         }
+        guard_contract_status_update(&mut tx, id, status).await?;
         let terminal = matches!(
             status,
             OrchestrationTaskStatus::Completed | OrchestrationTaskStatus::Failed

@@ -36,6 +36,7 @@ mod netbird;
 mod opencode_auth;
 mod orchestration_command_summaries;
 mod orchestration_commands;
+mod orchestration_contract_commands;
 mod orchestration_delegate;
 mod orchestration_terminal_commands;
 mod owner_precheck_checkout;

@@ -32,7 +32,7 @@ pub(crate) fn human_summary(request_type: &str, value: &Value) -> String {
                 .unwrap_or(0);
             format!("{count} message(s)")
         }
-        "orchestration.taskCreate" => value
+        "orchestration.taskCreate" | "orchestration.taskCreateContracted" => value
             .get("id")
             .and_then(Value::as_str)
             .map(|id| format!("task created: {id}"))

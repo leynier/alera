@@ -466,6 +466,12 @@ impl RuntimeStore {
         {
             bail!("dispatch completion rejected: inactive context or wrong assignee");
         }
+        super::orchestration_contract_store::validate_task_contract_completion(
+            &mut tx,
+            &ctx.task_id,
+            result,
+        )
+        .await?;
         sqlx::query(
             "UPDATE orchestrationDispatchContexts SET status = 'completed', \
              completed_at = datetime('now'), last_activity_at = datetime('now') WHERE id = ?",

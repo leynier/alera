@@ -206,6 +206,7 @@ impl RuntimeStore {
         self.migrate_relocation_setup_processes().await?;
         self.migrate_relocation_setup_cancellations().await?;
         self.migrate_setup_descendants().await?;
+        self.migrate_role_contracts().await?;
         Ok(())
     }
 

@@ -8,7 +8,7 @@ publish = false
 default = []
 # The async spawn helper, for crates that only need `child_process`.
 async-process = ["dep:tokio"]
-runtime = ["async-process", "dep:anyhow", "dep:chrono", "dep:chrono-tz", "dep:sqlx", "dep:thiserror", "dep:url"]
+runtime = ["async-process", "dep:anyhow", "dep:chrono", "dep:chrono-tz", "dep:jsonschema", "dep:sqlx", "dep:thiserror", "dep:url"]
 
 [dependencies]
 anyhow = { version = "1.0.104", optional = true }
@@ -23,6 +23,7 @@ grep-matcher = "0.1.9"
 grep-regex = "0.1.14"
 hex = "0.4.3"
 ignore = "0.4.33"
+jsonschema = { version = "0.49", default-features = false, optional = true }
 regex = "1.13.1"
 same-file = "1.0.6"
 serde = { version = "1.0.229", features = ["derive"] }

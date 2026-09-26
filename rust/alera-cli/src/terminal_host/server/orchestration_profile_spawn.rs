@@ -178,6 +178,9 @@ impl ServerActor {
             )
             .await
             .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+        let effective_prompt =
+            super::agent_prompt_composition::append_role_contract(task, &effective_prompt)
+                .map_err(|error| anyhow::anyhow!(error.to_string()))?;
         Ok((profile_name, profile_quota_group, effective_prompt))
     }
 

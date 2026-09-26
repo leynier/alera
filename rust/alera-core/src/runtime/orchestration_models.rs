@@ -283,6 +283,8 @@ pub struct OrchestrationTask {
     /// Resolves the preferred profile and the fallback list for the task.
     #[serde(default)]
     pub stage_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role_contract: Option<super::RoleContractSnapshot>,
     /// Populated by list-with-dispatch queries: the active dispatch, if any.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub assignee_handle: Option<String>,
