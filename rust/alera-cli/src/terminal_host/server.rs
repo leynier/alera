@@ -271,6 +271,7 @@ mod workspace_section_requests_tests;
 mod workspace_sidebar_requests;
 #[cfg(test)]
 mod workspace_sidebar_requests_tests;
+mod workspace_sleep_requests;
 
 pub use server_command::ServerCommand;
 

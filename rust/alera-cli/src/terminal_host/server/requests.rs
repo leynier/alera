@@ -512,6 +512,7 @@ impl ServerActor {
                 self.update_workbench_view_prefs(client_id, payload).await
             }
             "workspaceActivity.list" => self.workspace_activity(client_id).await,
+            "workspace.sleptTabs" => self.slept_workspace_tabs(client_id).await,
             "workspaceActivity.upsertAll" => {
                 self.upsert_workspace_activity(client_id, payload).await
             }

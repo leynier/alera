@@ -22,6 +22,11 @@ const String aleraRuntimeHostPullRequestWatchCapability = 'pullRequestWatchV1';
 /// Feature-detect `workspace.archive` / `workspace.unarchive`. Additive: do
 /// not bump [aleraTerminalHostProtocolVersion].
 const String aleraRuntimeHostWorkspaceArchiveCapability = 'workspaceArchiveV1';
+
+/// Feature-detect `workspace.sleptTabs` and `workspaceSleepChanged`. Additive:
+/// do not bump [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostWorkspaceSleepStateCapability =
+    'workspaceSleepStateV1';
 const String aleraRuntimeHostBootstrapCapability = 'sshTargetBootstrap';
 const String aleraRuntimeHostManagedWorkspaceCapability =
     'managedWorkspaceLifecycle';

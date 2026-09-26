@@ -130,6 +130,9 @@ mod workspace_relocation_location_write;
 mod workspace_relocation_models;
 mod workspace_relocation_preparation;
 mod workspace_relocation_store;
+mod workspace_sleep_store;
+#[cfg(test)]
+mod workspace_sleep_store_tests;
 pub use remote_workspace_relocation_store::{
     RemoteWorkspaceRelocationIntent, RemoteWorkspaceRelocationRecovery,
 };

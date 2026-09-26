@@ -49,6 +49,10 @@ pub const RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY: &str = "workspaceSectionsV
 /// branch, and files are preserved so agent sessions can resume on unarchive.
 /// Additive: older hosts reject the verbs, so clients feature-check this.
 pub const RUNTIME_HOST_WORKSPACE_ARCHIVE_CAPABILITY: &str = "workspaceArchiveV1";
+/// The host lists the terminal tabs a workspace sleep stopped through
+/// `workspace.sleptTabs` and announces changes with `workspaceSleepChanged`.
+/// Additive: older hosts reject the verb, so clients feature-check this.
+pub const RUNTIME_HOST_WORKSPACE_SLEEP_STATE_CAPABILITY: &str = "workspaceSleepStateV1";
 /// The host stores one linked issue per workspace (`linkedIssue.*`), fetches
 /// issues through `issue.fetch`, and links one from `workspace.createManaged`
 /// when it carries `issueUrl`. Additive: an older host rejects the verbs and

@@ -27,6 +27,7 @@ const Set<String> _refreshEvents = <String>{
   'projectsChanged',
   'workspaceTagsChanged',
   'workspaceActivityChanged',
+  'workspaceSleepChanged',
   'runtimeSettingsChanged',
   'agentPresenceChanged',
   'workbenchViewPrefsChanged',

@@ -350,4 +350,29 @@ void _registerWorkbenchControllerSleepOpenTests() {
       isNot(contains(workspace.id)),
     );
   });
+
+  test('sleep shows its terminals as closed right away', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+    await _controller.openEditorTab(
+      workspace: workspace,
+      relativePath: 'notes.txt',
+    );
+    await _flush();
+    final terminalId = _controller.state
+        .tabsFor(workspace.id)
+        .firstWhere((tab) => tab.kind == WorkspaceTabKind.terminal)
+        .id;
+
+    await _controller.sleepWorkspace(workspace);
+    await _flush();
+
+    expect(_controller.state.sleptTabIdsByWorkspaceId[workspace.id], <String>[
+      terminalId,
+    ]);
+    expect(
+      _controller.state.awakeTabsFor(workspace.id).map((tab) => tab.kind),
+      <WorkspaceTabKind>[WorkspaceTabKind.editor],
+    );
+  });
 }
