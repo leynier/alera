@@ -29,6 +29,7 @@ pub(super) async fn snapshot_mobile_pull_request(
     super::mobile_pull_request_snapshot_extras::decorate_snapshot(
         runtime_store,
         &workspace,
+        payload,
         &mut snapshot,
     )
     .await;

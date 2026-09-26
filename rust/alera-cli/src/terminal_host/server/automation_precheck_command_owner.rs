@@ -107,7 +107,7 @@ impl<'a> PrecheckCommandOwner<'a> {
                 Err(error) => {
                     return format!(
                         "Automation precheck cancellation state is unavailable: {error}"
-                    )
+                    );
                 }
             }
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;

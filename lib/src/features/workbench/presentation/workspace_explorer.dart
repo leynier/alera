@@ -224,10 +224,6 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
   }
 
   Future<void> _refreshGitStatusSnapshot() async {
-    if (widget.workspace.isRemote) {
-      _gitStatusSnapshot = const GitExplorerStatusSnapshot.empty();
-      return;
-    }
     try {
       _gitStatusSnapshot = await _gitBackend.explorerStatusSnapshot(
         widget.workspace.path,

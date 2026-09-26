@@ -3,6 +3,10 @@ part of 'project_workbench_sidebar.dart';
 class const _WorkspaceRow({
   required final Project project,
   required final Workspace workspace,
+
+  /// Registered SSH target for a remote workspace, or null when the workspace
+  /// is local or its host was removed from Settings.
+  final SshTarget? hostTarget,
   required final List<WorkspaceAgentRun> agentRuns,
   required final List<WorkspaceAgentRunGroup> agentRunGroups,
   required final AgentStatusEntry? status,
@@ -312,15 +316,14 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                 if (hostId != null) ...<Widget>[
                                   const SizedBox(width: AleraTokens.space6),
                                   Tooltip(
-                                    message:
-                                        WorkspaceGraphChips.hostMetadataTooltip(
-                                          hostId,
-                                        ),
-                                    child: const Icon(
-                                      AleraIcons.host,
-                                      size: 12,
-                                      color: AleraTokens.foregroundMuted,
-                                      key: Key('workspace-tray-host'),
+                                    message: workspaceHostTooltip(
+                                      hostId: hostId,
+                                      target: widget.hostTarget,
+                                    ),
+                                    child: AleraHostOsIcon(
+                                      key: const Key('workspace-tray-host'),
+                                      os: sshTargetHostOs(widget.hostTarget),
+                                      size: AleraTokens.iconSm,
                                     ),
                                   ),
                                 ],

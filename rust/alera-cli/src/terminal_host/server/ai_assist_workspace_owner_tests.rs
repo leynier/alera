@@ -2,7 +2,7 @@ use super::checkout_buffer_guards_tests::fixture;
 use serde_json::json;
 
 #[tokio::test]
-async fn ai_assist_resolves_tab_owner_and_rejects_conflicting_or_remote_identity() {
+async fn ai_assist_resolves_tab_owner_rejects_conflicts_and_keeps_remote_workspaces() {
     let (_root, actor) = fixture().await;
     let workspace = actor
         .resolve_ai_assist_workspace(None, Some("task-editor".into()))
@@ -18,12 +18,15 @@ async fn ai_assist_resolves_tab_owner_and_rejects_conflicting_or_remote_identity
     let mut remote = workspace;
     remote.host_id = "ssh".into();
     actor.runtime_store.upsert_workspace(remote).await.unwrap();
-    assert!(actor
+    // A remote workspace resolves: the caller forwards its generation to the
+    // host that owns the checkout instead of refusing it.
+    let resolved = actor
         .resolve_ai_assist_workspace(Some("task".into()), None)
         .await
-        .unwrap_err()
-        .to_string()
-        .contains("owning host"));
+        .unwrap();
+    assert!(crate::ssh_remote::is_remote_host_id(Some(
+        &resolved.host_id
+    )));
 }
 
 #[tokio::test]

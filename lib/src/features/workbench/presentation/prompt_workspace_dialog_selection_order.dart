@@ -11,8 +11,9 @@ extension _PromptWorkspaceDialogSelectionOrder on _PromptWorkspaceDialogState {
     }
   }
 
-  List<Project> get _orderedProjects =>
-      sortProjectsForSelection(widget.projects);
+  List<Project> get _orderedProjects => sortProjectsForSelection(<Project>[
+    for (final project in widget.projects) _hostEnrollment.resolve(project),
+  ]);
 
   List<Workspace> get _parentWorkspaces {
     final projectNameById = <String, String>{

@@ -3,6 +3,17 @@ String? emptyToNull(String value) {
   return trimmed.isEmpty ? null : trimmed;
 }
 
+/// The SSH port typed into the editor: 22 when the field is blank, null when
+/// the text is not a valid port.
+int? parseRemoteHostPort(String text) {
+  final value = text.trim();
+  if (value.isEmpty) {
+    return 22;
+  }
+  final port = int.tryParse(value);
+  return port == null || port < 1 || port > 65535 ? null : port;
+}
+
 String normalizedRemoteHostPlatform(String? value) {
   return switch (value?.trim().toLowerCase()) {
     'darwin' || 'mac' || 'macos' => 'macos',

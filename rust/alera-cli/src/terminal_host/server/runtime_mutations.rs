@@ -378,6 +378,10 @@ pub(super) async fn run_runtime_mutation(
                     workspace_id: workspace_id.clone(),
                 });
                 record_sleep_activity(&runtime_store, &workspace_id).await?;
+                runtime_store
+                    .record_workspace_sleep(&workspace_id)
+                    .await
+                    .map_err(runtime_store_error)?;
                 Ok(RuntimeMutationCompletion {
                     response: json!({}),
                     effect: RuntimeMutationEffect::WorkspaceSlept { workspace_id },

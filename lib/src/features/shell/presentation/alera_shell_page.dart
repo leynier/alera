@@ -13,6 +13,7 @@ import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_quota/presentation/agent_quota_status_bar.dart';
 import 'package:alera/src/features/keep_alive/application/keep_alive_providers.dart';
 import 'package:alera/src/features/keep_alive/presentation/keep_alive_status_bar.dart';
+import 'package:alera/src/features/voice/presentation/voice_status_bar_control.dart';
 import 'package:alera/src/features/runtime_host/presentation/runtime_host_status_bar.dart';
 import 'package:alera/src/features/resource_manager/presentation/resource_status_bar_control.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';

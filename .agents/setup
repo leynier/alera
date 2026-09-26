@@ -24,7 +24,10 @@ sudo -n apt-get install -y --no-install-recommends \
   git \
   libgtk-3-dev \
   libayatana-appindicator3-dev \
+  libasound2-dev \
   liblzma-dev \
+  libvulkan-dev \
+  glslc \
   ninja-build \
   pkg-config \
   unzip \

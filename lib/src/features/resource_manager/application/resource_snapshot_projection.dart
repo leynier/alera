@@ -36,6 +36,10 @@ ResourceTree buildResourceTree({
     final tab = tabsBySessionId[session.sessionId];
     final workspace = workspacesById[session.workspaceId];
     final remote = workspace != null && workspace.hostId != 'local';
+    // A remote session is only measurable through its own host: without a
+    // relayed sample the local sweep saw the ssh pipe, which is not the work.
+    final relayed = session.hostId != null;
+    final measurable = session.measured && (!remote || relayed);
     final row = ResourceSessionRow(
       sessionId: session.sessionId,
       label: tab?.title.trim().isNotEmpty ?? false
@@ -49,10 +53,13 @@ ResourceTree buildResourceTree({
       orphan: tab == null,
       // The host measures CPU per core; every row below this point carries a
       // share of the machine instead.
-      cpuMachinePercent: remote || !session.measured
-          ? null
-          : machineCpuShare(session.cpuPercent, snapshot.host.cpuCoreCount),
-      memoryBytes: remote || !session.measured ? null : session.memoryBytes,
+      cpuMachinePercent: measurable
+          ? machineCpuShare(
+              session.cpuPercent,
+              relayed ? session.cpuCoreCount ?? 0 : snapshot.host.cpuCoreCount,
+            )
+          : null,
+      memoryBytes: measurable ? session.memoryBytes : null,
       processCount: session.processCount,
       history: session.history,
     );

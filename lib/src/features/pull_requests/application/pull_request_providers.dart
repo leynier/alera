@@ -17,17 +17,17 @@ part 'pull_request_providers.g.dart';
 
 @Riverpod(keepAlive: true)
 GitHubForgeProvider githubForgeProvider(Ref ref) {
-  return GitHubForgeProvider(ref.watch(processRunnerProvider));
+  return GitHubForgeProvider(ref.watch(workspaceProcessRunnerProvider));
 }
 
 @Riverpod(keepAlive: true)
 AzureDevOpsForgeProvider azureDevOpsForgeProvider(Ref ref) {
-  return AzureDevOpsForgeProvider(ref.watch(processRunnerProvider));
+  return AzureDevOpsForgeProvider(ref.watch(workspaceProcessRunnerProvider));
 }
 
 @Riverpod(keepAlive: true)
 GitLabForgeProvider gitLabForgeProvider(Ref ref) {
-  return GitLabForgeProvider(ref.watch(processRunnerProvider));
+  return GitLabForgeProvider(ref.watch(workspaceProcessRunnerProvider));
 }
 
 @Riverpod(keepAlive: true)

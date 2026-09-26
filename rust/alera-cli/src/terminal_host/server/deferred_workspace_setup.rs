@@ -27,7 +27,9 @@ impl ServerActor {
                     Some(_) => Some(require_string_key(payload, "relocationId")?),
                 };
                 if copies_only && relocation_id.is_some() {
-                    return Err(HostError::state("Relocation setup runs its complete recorded recipe; copiesOnly is incompatible"));
+                    return Err(HostError::state(
+                        "Relocation setup runs its complete recorded recipe; copiesOnly is incompatible",
+                    ));
                 }
                 if let Some(relocation_id) = relocation_id {
                     self.start_runtime_mutation(

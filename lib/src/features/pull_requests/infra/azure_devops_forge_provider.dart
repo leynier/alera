@@ -72,6 +72,7 @@ class const AzureDevOpsForgeProvider(final ProcessRunner _processRunner)
   @override
   Future<ForgeAuthStatus> checkAuth({
     required GitRemoteIdentity identity,
+    String? repoPath,
   }) async {
     try {
       final result = await _processRunner.run('az', const <String>[
@@ -79,7 +80,7 @@ class const AzureDevOpsForgeProvider(final ProcessRunner _processRunner)
         'show',
         '--output',
         'json',
-      ]);
+      ], workingDirectory: repoPath);
       if (result.exitCode == 0) {
         return ForgeAuthStatus.authenticated;
       }
