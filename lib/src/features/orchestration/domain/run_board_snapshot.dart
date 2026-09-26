@@ -1,3 +1,8 @@
+import 'package:dart_mappable/dart_mappable.dart';
+
+part 'run_board_snapshot.mapper.dart';
+
+@MappableEnum()
 enum RunBoardBucket { attention, active, history }
 
 class RunBoardCursor {

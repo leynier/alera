@@ -207,6 +207,7 @@ class _FakeTerminalSessionHandle({
   required final WorkspaceTabRecord tab,
 }) extends TerminalSessionHandle {
   bool _started = false;
+  int visibilityLeases = 0;
 
   @override
   String get tabId => tab.id;
@@ -240,8 +241,10 @@ class _FakeTerminalSessionHandle({
   Future<void> restart() => ensureStarted();
 
   @override
-  TerminalVisibilityLease acquireVisibility() =>
-      const NoopTerminalVisibilityLease();
+  TerminalVisibilityLease acquireVisibility() {
+    visibilityLeases++;
+    return _ShellVisibilityLease(() => visibilityLeases--);
+  }
 
   /// A real node, so the terminal-focused shortcut hook and the pane focus
   /// registry see the same focus tree they do with the production emulator.
@@ -283,6 +286,16 @@ class _FakeTerminalSessionHandle({
   void dispose() {
     focusNode.dispose();
     super.dispose();
+  }
+}
+
+class _ShellVisibilityLease implements TerminalVisibilityLease {
+  _ShellVisibilityLease(this.onDispose);
+  VoidCallback? onDispose;
+  @override
+  void dispose() {
+    onDispose?.call();
+    onDispose = null;
   }
 }
 

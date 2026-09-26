@@ -31,6 +31,7 @@ part 'terminal_surface_composer_test_cases.dart';
 part 'terminal_surface_composer_submit_test_cases.dart';
 part 'terminal_surface_interaction_test_cases.dart';
 part 'terminal_surface_tab_switch_test_cases.dart';
+part 'terminal_surface_retention_test_cases.dart';
 part 'terminal_surface_toolbar_test_cases.dart';
 part 'terminal_surface_test_harness.dart';
 
@@ -41,5 +42,6 @@ void main() {
   _registerTerminalSurfaceComposerSubmitTests();
   _registerTerminalSurfaceInteractionTests();
   _registerTerminalSurfaceTabSwitchTests();
+  _registerTerminalSurfaceRetentionTests();
   _registerTerminalSurfaceToolbarTests();
 }

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
+
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/app_menu/presentation/app_menu_about_dialog.dart';
@@ -13,6 +15,9 @@ import 'package:package_info_plus/package_info_plus.dart';
 /// Shared actions for the native macOS and in-window Windows/Linux menus.
 
 typedef AppMenuPackageInfoLoader = Future<PackageInfo> Function();
+
+void openRunBoardFromAppMenu(WidgetRef ref) =>
+    ref.read(runBoardNavigationProvider.notifier).open();
 
 Future<void> openAppMenuSettings(BuildContext context) {
   return openSettingsDialog(context);

@@ -17,6 +17,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 const _quickOpenResultLimit = 50;
 
+typedef QuickOpenSelection = ({
+  Workspace workspace,
+  String relativePath,
+  String? sourceKey,
+  bool oppositePanel,
+});
+
 class const QuickOpenDialog({super.key}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<QuickOpenDialog> createState() => _QuickOpenDialogState();
@@ -279,23 +286,16 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
     if (workspace == null || _matches.isEmpty) {
       return;
     }
-    final sourceKey = ref
-        .read(workbenchControllerProvider)
-        .workspacePanelFor(workspace.id)
-        .focusedKey;
     final relativePath = _matches[_selectedIndex].relativePath;
-    Navigator.of(context).pop();
-    unawaited(
-      ref
-          .read(workbenchControllerProvider.notifier)
-          .openFileTab(
-            workspace: workspace,
-            relativePath: relativePath,
-            sourceKey: sourceKey,
-            preview: true,
-            oppositePanel: isModModifierPressed(),
-          ),
-    );
+    Navigator.of(context).pop<QuickOpenSelection>((
+      workspace: workspace,
+      relativePath: relativePath,
+      sourceKey: ref
+          .read(workbenchControllerProvider)
+          .workspacePanelFor(workspace.id)
+          .focusedKey,
+      oppositePanel: isModModifierPressed(),
+    ));
   }
 
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {

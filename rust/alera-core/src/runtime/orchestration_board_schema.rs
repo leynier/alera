@@ -14,6 +14,7 @@ impl RuntimeStore {
             "orchestrationTasks",
             "orchestrationDispatchContexts",
             "orchestrationDecisionGates",
+            "orchestrationAuditEvents",
             "workspaces",
             "projects",
         ] {
@@ -40,6 +41,8 @@ const BOARD_SCHEMA: &[&str] = &[
         ON orchestrationCoordinatorRuns(created_at DESC, id DESC)",
     "CREATE INDEX IF NOT EXISTS orchestrationBoardTasksRunIdx
         ON orchestrationTasks(run_id, status)",
+    "CREATE INDEX IF NOT EXISTS orchestrationBoardAuditTargetIdx
+        ON orchestrationAuditEvents(target_id, created_at DESC, id DESC)",
     "CREATE VIEW IF NOT EXISTS orchestrationBoardRuns AS
      WITH tasks AS (
          SELECT run_id, COUNT(*) AS task_count,

@@ -22,6 +22,15 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     allowInTerminal: true,
   ),
   KeybindingDefinition(
+    id: .openRunBoard,
+    label: 'Open Run Board',
+    group: .global,
+    description: 'Inspect orchestration runs across projects.',
+    defaultBindings: .uniform(<String>[]),
+    searchKeywords: <String>['orchestration', 'attention', 'workflow'],
+    allowInTerminal: true,
+  ),
+  KeybindingDefinition(
     id: .openQuickOpen,
     label: 'Quick Open',
     group: .global,

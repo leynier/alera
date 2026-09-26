@@ -239,12 +239,11 @@ void main() {
     await pumpPane(tester, initialSettings: initialSettings);
 
     // Hand Off / Hand On ship with empty defaults and also render as Unassigned.
-    final newTabRow = find.ancestor(
-      of: find.text('New Terminal Tab'),
-      matching: find.byType(Row),
-    );
+    final newTabRow = find
+        .ancestor(of: find.text('New Terminal Tab'), matching: find.byType(Row))
+        .first;
     expect(
-      find.descendant(of: newTabRow.first, matching: find.text('Unassigned')),
+      find.descendant(of: newTabRow, matching: find.text('Unassigned')),
       findsOneWidget,
     );
   });

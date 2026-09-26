@@ -1,10 +1,17 @@
 part of 'terminal_runtime.dart';
 
-/// Visibility tracking and buffer-cost estimation for a session handle.
-///
-/// Both feed the memory budget: visibility is what makes a terminal an
-/// eviction candidate, and the estimate is what decides whether it has to go.
+/// Visible or retained handles cannot be evicted by the buffer budget.
 extension _TerminalBufferAccounting on _XtermTerminalSessionHandle {
+  TerminalRetentionLease _acquireRetentionLease() {
+    if (_disposed) return const NoopTerminalRetentionLease();
+    final token = Object();
+    _retentionLeases.add(token);
+    return _TerminalRetentionLease(() {
+      if (_disposed || !_retentionLeases.remove(token)) return;
+      _onEvictionEligibilityChanged(this);
+    });
+  }
+
   TerminalVisibilityLease _acquireVisibilityLease() {
     if (_disposed) {
       return const NoopTerminalVisibilityLease();
@@ -47,7 +54,7 @@ extension _TerminalBufferAccounting on _XtermTerminalSessionHandle {
       // Whatever arrived while hidden was queued without a frame callback.
       _scheduleTerminalOutputFlush();
     }
-    _onVisibilityChanged(this);
+    _onEvictionEligibilityChanged(this);
   }
 
   TerminalBufferUsage _estimateBufferUsage() {
@@ -56,5 +63,17 @@ extension _TerminalBufferAccounting on _XtermTerminalSessionHandle {
       bytes: measureTerminalCellBufferBytes(_terminal),
       lastVisibleAt: _lastVisibleAt,
     );
+  }
+}
+
+final class _TerminalRetentionLease implements TerminalRetentionLease {
+  _TerminalRetentionLease(this._release);
+  VoidCallback? _release;
+
+  @override
+  void dispose() {
+    final release = _release;
+    _release = null;
+    release?.call();
   }
 }

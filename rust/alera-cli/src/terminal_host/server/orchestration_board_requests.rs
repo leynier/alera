@@ -1,7 +1,10 @@
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
-use alera_core::runtime::{OrchestrationBoardQuery, OrchestrationRunSnapshotQuery, RuntimeStore};
+use alera_core::runtime::{
+    OrchestrationBoardQuery, OrchestrationRunSnapshotQuery, OrchestrationTaskInspectionQuery,
+    RuntimeStore,
+};
 use serde_json::{json, Value};
 use tokio::sync::Semaphore;
 
@@ -33,6 +36,7 @@ impl ServerActor {
         let read = match request_type {
             "orchestration.boardSnapshot" => BoardRead::List(parse(payload)?),
             "orchestration.runSnapshot" => BoardRead::Run(parse(payload)?),
+            "orchestration.taskInspection" => BoardRead::Task(parse(payload)?),
             _ => return Err(HostError::format("unknown board request")),
         };
         let permit = READ_QUEUE
@@ -98,11 +102,18 @@ impl ServerActor {
 enum BoardRead {
     List(OrchestrationBoardQuery),
     Run(OrchestrationRunSnapshotQuery),
+    Task(OrchestrationTaskInspectionQuery),
 }
 
 impl BoardRead {
     async fn execute(self, store: RuntimeStore) -> HostResult<Value> {
         let value = match self {
+            Self::Task(query) => serde_json::to_value(
+                store
+                    .orchestration_task_inspection(&query)
+                    .await
+                    .map_err(state)?,
+            ),
             Self::List(query) => serde_json::to_value(
                 store
                     .orchestration_board_snapshot(&query)
