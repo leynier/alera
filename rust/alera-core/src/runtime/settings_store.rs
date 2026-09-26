@@ -3,7 +3,7 @@ use anyhow::Result;
 use super::{
     RuntimeAgentQuotaSettings, RuntimeAgentStatusHookSettings, RuntimeAiAssistSettings,
     RuntimeAutomationSettings, RuntimeMobilePushSettings, RuntimeSettings, RuntimeStore,
-    RuntimeTextActionsSettings,
+    RuntimeTextActionsSettings, RuntimeVoiceSettings,
 };
 
 impl RuntimeStore {
@@ -19,7 +19,24 @@ impl RuntimeStore {
             ai_assist: self.ai_assist_settings().await?,
             text_actions: self.text_actions_settings().await?,
             automation: self.automation_settings().await?,
+            voice: self.voice_settings().await?,
         })
+    }
+
+    pub async fn voice_settings(&self) -> Result<RuntimeVoiceSettings> {
+        let Some(encoded) = self.get_metadata("settings.voice").await? else {
+            return Ok(RuntimeVoiceSettings::default());
+        };
+        Ok(serde_json::from_str(&encoded).unwrap_or_default())
+    }
+
+    pub async fn set_voice_settings(
+        &self,
+        settings: RuntimeVoiceSettings,
+    ) -> Result<RuntimeSettings> {
+        self.set_metadata("settings.voice", &serde_json::to_string(&settings)?)
+            .await?;
+        self.runtime_settings().await
     }
 
     pub async fn automation_settings(&self) -> Result<RuntimeAutomationSettings> {

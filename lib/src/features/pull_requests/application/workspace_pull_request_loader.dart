@@ -47,7 +47,10 @@ class const WorkspacePullRequestLoader(
     final stackProvider = forge is ForgeStackProvider
         ? forge as ForgeStackProvider
         : null;
-    final authStatus = await forge.checkAuth(identity: identity);
+    final authStatus = await forge.checkAuth(
+      identity: identity,
+      repoPath: scope.repoPath,
+    );
     final branch = await _resolveBranch(scope);
     final baseInfo = await _resolveBaseBranches(scope);
     final persisted = await _linkedReviews.find(scope.workspaceId);

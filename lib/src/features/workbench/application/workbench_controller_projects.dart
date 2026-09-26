@@ -156,7 +156,7 @@ mixin _WorkbenchControllerProjects
         await _releaseHostedReviewTab(
           workspace,
           tab,
-          fallbackWorkspacePath: project.repoPath,
+          fallbackWorkspacePath: project.isRemoteOnly ? null : project.repoPath,
         );
       }
       _tabFocusHistory.forget(workspace.id);

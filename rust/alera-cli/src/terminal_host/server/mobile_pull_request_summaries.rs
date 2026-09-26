@@ -5,23 +5,37 @@
 //! concurrently so a slow `gh` in one repo cannot starve the rest of the list
 //! past the phone's two-minute timeout. A failed batch stays out of
 //! `evaluatedWorkspaceIds` so the phone keeps last-known icons. Non-GitHub
-//! remotes are a quiet empty group.
+//! remotes are a quiet empty group. A project whose folder lives on another
+//! host is answered by that host (`mobile_pull_request_summaries_remote`).
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use alera_core::git as core_git;
-use alera_core::runtime::{ProjectKind, RuntimeStore, Workspace, WorkspaceStatus};
+use alera_core::runtime::{Project, ProjectKind, RuntimeStore, Workspace, WorkspaceStatus};
 use futures_util::future::join_all;
 use serde_json::{json, Value};
 use tracing::warn;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
+use crate::terminal_host::host_link_registry::HostLinkRegistry;
 
+use super::mobile_pull_request_check_counts::{
+    count_check_contexts, status_rollup_contexts, CheckCounts,
+};
 use super::mobile_pull_request_identity::{parse_github_identity, GitHubIdentity};
 use super::mobile_pull_request_requests::run_gh;
 
+/// What one project contributed to the batch: its summaries and the
+/// workspaces it could answer for.
+#[derive(Debug, Default)]
+pub(super) struct ProjectSummaries {
+    pub(super) summaries: Vec<Value>,
+    pub(super) evaluated: BTreeSet<String>,
+}
+
 pub(super) async fn load_mobile_pull_request_summaries(
     runtime_store: &RuntimeStore,
+    links: &HostLinkRegistry,
 ) -> HostResult<Value> {
     let projects = runtime_store
         .list_projects()
@@ -51,43 +65,58 @@ pub(super) async fn load_mobile_pull_request_summaries(
             .push(workspace);
     }
 
-    let store = runtime_store.clone();
     let jobs = by_project.into_iter().filter_map(|(project_id, group)| {
-        let repo_path = projects
-            .iter()
-            .find(|project| project.id == project_id)
-            .map(|project| project.repo_path.clone())?;
-        Some((project_id, repo_path, group))
+        let project = projects.iter().find(|project| project.id == project_id)?;
+        Some((project.clone(), group))
     });
-    let results = join_all(jobs.map(|(project_id, repo_path, group)| {
-        let store = store.clone();
-        async move {
-            let result = pull_request_summaries_for_project(&store, &repo_path, &group).await;
-            (project_id, group, result)
-        }
+    let results = join_all(jobs.map(|(project, group)| async move {
+        let result = project_summaries(runtime_store, links, &project, &group).await;
+        (group, result)
     }))
     .await;
 
     let mut summaries = Vec::<Value>::new();
     let mut eligible = BTreeSet::<String>::new();
     let mut evaluated = BTreeSet::<String>::new();
-    for (project_id, group, result) in results {
-        for workspace in &group {
-            eligible.insert(workspace.id.clone());
-        }
-        match result {
-            Ok(mut project_summaries) => {
-                summaries.append(&mut project_summaries);
-                for workspace in &group {
-                    evaluated.insert(workspace.id.clone());
-                }
-            }
-            Err(error) => {
-                warn!("could not load mobile pull request summaries for {project_id}: {error}");
-            }
-        }
+    for (group, result) in results {
+        eligible.extend(group.iter().map(|workspace| workspace.id.clone()));
+        summaries.extend(result.summaries);
+        evaluated.extend(result.evaluated);
     }
     Ok(summaries_envelope(summaries, evaluated, eligible))
+}
+
+/// A project with a folder on this device gets the local batch; one whose
+/// folder is on another host is asked there, because `repo_path` names a
+/// directory on that machine and `gh` needs that host's credentials.
+async fn project_summaries(
+    runtime_store: &RuntimeStore,
+    links: &HostLinkRegistry,
+    project: &Project,
+    group: &[Workspace],
+) -> ProjectSummaries {
+    if !crate::project_hosts::project_folder_is_local(runtime_store, project).await {
+        return super::mobile_pull_request_summaries_remote::remote_project_summaries(
+            runtime_store,
+            links,
+            &project.id,
+            group,
+        )
+        .await;
+    }
+    match pull_request_summaries_for_project(runtime_store, &project.repo_path, group).await {
+        Ok(summaries) => ProjectSummaries {
+            summaries,
+            evaluated: group.iter().map(|workspace| workspace.id.clone()).collect(),
+        },
+        Err(error) => {
+            warn!(
+                "could not load mobile pull request summaries for {}: {error}",
+                project.id
+            );
+            ProjectSummaries::default()
+        }
+    }
 }
 
 /// The merge contract the phone implements: `summaries` replaces every
@@ -225,12 +254,24 @@ fn summary_snapshot<'a>(
 }
 
 fn summary_json(workspace_id: &str, snapshot: &Value) -> Value {
-    let state = snapshot
+    let counts = count_check_contexts(&status_rollup_contexts(snapshot));
+    review_summary_json(workspace_id, snapshot, &counts)
+}
+
+/// The summary row the phone renders, from a review object carrying the
+/// GraphQL field names (`number`, `title`, `state`, `url`, `isDraft`,
+/// `mergeable`) and the check counts computed by the caller.
+pub(super) fn review_summary_json(
+    workspace_id: &str,
+    review: &Value,
+    counts: &CheckCounts,
+) -> Value {
+    let state = review
         .get("state")
         .and_then(Value::as_str)
         .unwrap_or("OPEN");
     let state = state.to_ascii_uppercase();
-    let is_draft = snapshot
+    let is_draft = review
         .get("isDraft")
         .and_then(Value::as_bool)
         .unwrap_or(false);
@@ -240,14 +281,13 @@ fn summary_json(workspace_id: &str, snapshot: &Value) -> Value {
         _ if is_draft => "draft",
         _ => "open",
     };
-    let counts = count_check_contexts(&status_rollup_contexts(snapshot));
     json!({
         "workspaceId": workspace_id,
-        "number": snapshot.get("number").and_then(Value::as_i64).unwrap_or(0),
-        "title": snapshot.get("title").and_then(Value::as_str).unwrap_or(""),
-        "url": snapshot.get("url").and_then(Value::as_str).unwrap_or(""),
+        "number": review.get("number").and_then(Value::as_i64).unwrap_or(0),
+        "title": review.get("title").and_then(Value::as_str).unwrap_or(""),
+        "url": review.get("url").and_then(Value::as_str).unwrap_or(""),
         "state": display_state,
-        "mergeable": snapshot.get("mergeable").and_then(Value::as_str),
+        "mergeable": review.get("mergeable").and_then(Value::as_str),
         "checksRollup": counts.rollup,
         "pendingCheckCount": counts.pending,
         "failedCheckCount": counts.failed,
@@ -380,114 +420,6 @@ fn parse_review_batch_response(
         }
     }
     batch
-}
-
-fn status_rollup_contexts(snapshot: &Value) -> Vec<Value> {
-    snapshot
-        .get("commits")
-        .and_then(|commits| commits.get("nodes"))
-        .and_then(Value::as_array)
-        .and_then(|nodes| nodes.first())
-        .and_then(|node| node.get("commit"))
-        .and_then(|commit| commit.get("statusCheckRollup"))
-        .and_then(|rollup| rollup.get("contexts"))
-        .and_then(|contexts| contexts.get("nodes"))
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-}
-
-/// Rolled-up status across the checks of one review, mirroring
-/// `deriveReviewChecksRollup` plus the counts the desktop sidebar keeps:
-/// failure dominates, non-terminal runs count as pending, and at most three
-/// failing names ride along for the row tooltip.
-struct CheckCounts {
-    rollup: &'static str,
-    pending: i64,
-    failed: i64,
-    failing_names: Vec<String>,
-}
-
-fn count_check_contexts(contexts: &[Value]) -> CheckCounts {
-    let mut pending = 0_i64;
-    let mut failed = 0_i64;
-    let mut failing_names = Vec::<String>::new();
-    let mut any_pending = false;
-    let mut any = false;
-    for context in contexts {
-        let Some((name, failed_check, pending_check)) = classify_check(context) else {
-            continue;
-        };
-        any = true;
-        if failed_check {
-            failed += 1;
-            if failing_names.len() < 3 {
-                failing_names.push(name);
-            }
-            continue;
-        }
-        if pending_check {
-            any_pending = true;
-            pending += 1;
-        }
-    }
-    let rollup = if !any {
-        "none"
-    } else if failed > 0 {
-        "failure"
-    } else if any_pending {
-        "pending"
-    } else {
-        "success"
-    };
-    CheckCounts {
-        rollup,
-        pending,
-        failed,
-        failing_names,
-    }
-}
-
-/// Maps one GraphQL `StatusCheckRollupContext` union entry to
-/// `(name, failed, counts-as-pending)`, the neutral projection of
-/// `mapGitHubStatusRollupCheck`. Modern Actions runs arrive as `CheckRun` and
-/// legacy commit statuses as `StatusContext`.
-fn classify_check(context: &Value) -> Option<(String, bool, bool)> {
-    let name = || {
-        context
-            .get("name")
-            .and_then(Value::as_str)
-            .or_else(|| context.get("context").and_then(Value::as_str))
-            .unwrap_or("check")
-            .to_string()
-    };
-    if context.get("__typename").and_then(Value::as_str) == Some("StatusContext") {
-        let state = context
-            .get("state")
-            .and_then(Value::as_str)
-            .unwrap_or("PENDING")
-            .to_ascii_uppercase();
-        let pending = state == "EXPECTED" || state == "PENDING";
-        let failed = state == "ERROR" || state == "FAILURE";
-        return Some((name(), failed, pending));
-    }
-    let status = context
-        .get("status")
-        .and_then(Value::as_str)
-        .unwrap_or("QUEUED")
-        .to_ascii_uppercase();
-    let completed = status == "COMPLETED";
-    let conclusion = context
-        .get("conclusion")
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_ascii_uppercase();
-    let failed = matches!(
-        conclusion.as_str(),
-        "FAILURE" | "STARTUP_FAILURE" | "CANCELLED" | "STALE" | "TIMED_OUT" | "ACTION_REQUIRED"
-    );
-    let pending = !completed || conclusion == "PENDING";
-    Some((name(), failed, pending))
 }
 
 #[cfg(test)]

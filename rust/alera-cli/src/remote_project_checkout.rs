@@ -13,8 +13,14 @@ use crate::ssh_remote::{
 pub(crate) struct RegisterProjectCheckoutRequest {
     pub project_id: String,
     pub host_id: String,
+    /// Empty together with `clone_name` when the host picks the destination.
+    #[serde(default)]
     pub path: String,
     pub clone_url: Option<String>,
+    /// Directory name for a clone into the host's default projects folder,
+    /// used instead of `path`. Only the host knows its home directory.
+    #[serde(default)]
+    pub clone_name: Option<String>,
 }
 
 pub(crate) async fn register<E: RemoteHostExecutor>(
@@ -48,12 +54,165 @@ pub(crate) async fn register<E: RemoteHostExecutor>(
         &request.path,
         project.kind,
         request.clone_url.as_deref(),
+        request.clone_name.as_deref(),
         executor,
     )
     .await?;
     store
         .register_project_checkout(&project.id, &host_id, &checkout.path)
         .await
+}
+
+/// A project whose only folder is on another host: nothing is checked out on
+/// this device, `repoPath` is the path on that host, and the project checkout
+/// row is what says so. With `clone_url` and no `path` the host clones into
+/// its default projects folder first.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct RegisterRemoteProjectRequest {
+    pub host_id: String,
+    #[serde(default)]
+    pub path: String,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub kind: Option<ProjectKind>,
+    #[serde(default)]
+    pub clone_url: Option<String>,
+}
+
+pub(crate) async fn register_remote_project<E: RemoteHostExecutor>(
+    store: &RuntimeStore,
+    request: RegisterRemoteProjectRequest,
+    executor: &E,
+) -> Result<serde_json::Value> {
+    let host_id = crate::ssh_remote::normalized_host_id(Some(&request.host_id));
+    if host_id == alera_core::runtime::LOCAL_HOST_ID {
+        bail!("Use project registration for a folder on this device");
+    }
+    let kind = request.kind.unwrap_or(ProjectKind::GitRepository);
+    let clone_url = request
+        .clone_url
+        .as_deref()
+        .map(str::trim)
+        .filter(|url| !url.is_empty());
+    if clone_url.is_some() && kind != ProjectKind::GitRepository {
+        bail!("Only Git projects can be cloned");
+    }
+    let clone_name = clone_url.map(clone_name_from_url);
+    let checkout = inspect_remote_with_clone(
+        store,
+        &host_id,
+        &request.path,
+        kind,
+        clone_url,
+        clone_name.as_deref(),
+        executor,
+    )
+    .await?;
+    for project in store.list_projects().await? {
+        if project.repo_path == checkout.path
+            && store
+                .find_project_checkout(&project.id, &host_id)
+                .await?
+                .is_some()
+        {
+            bail!(
+                "This folder is already the project \"{}\" on that host",
+                project.name
+            );
+        }
+    }
+    let name = request
+        .name
+        .as_deref()
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| {
+            checkout
+                .path
+                .trim_end_matches(['/', '\\'])
+                .rsplit(['/', '\\'])
+                .next()
+                .filter(|segment| !segment.is_empty())
+                .unwrap_or("Project")
+                .to_string()
+        });
+    let now = chrono::Utc::now();
+    let project = store
+        .upsert_project(alera_core::runtime::Project {
+            id: uuid::Uuid::new_v4().to_string(),
+            name,
+            repo_path: checkout.path.clone(),
+            created_at: now,
+            updated_at: now,
+            kind,
+        })
+        .await?;
+    let registered = store
+        .register_project_checkout(&project.id, &host_id, &checkout.path)
+        .await?;
+    // A local registration starts with a workspace on the project folder, and
+    // so does this one: without it a folder project, which has no worktrees,
+    // would have nothing the user could open. The project stands even if the
+    // workspace cannot be created; it can be added from New Workspace later.
+    let initial_workspace = match crate::shared_workspace::create_shared_workspace_with(
+        store,
+        crate::shared_workspace::SharedWorkspaceCreateRequest {
+            project_id: project.id.clone(),
+            id: None,
+            name: Some(project.name.clone()),
+            host_id: Some(host_id.clone()),
+            parent_workspace_id: None,
+        },
+        executor,
+    )
+    .await
+    {
+        Ok(created) => serde_json::to_value(created.workspace).ok(),
+        Err(error) => {
+            tracing::warn!(
+                project_id = project.id,
+                "remote project registered without an initial workspace: {error}"
+            );
+            None
+        }
+    };
+    let mut listed = serde_json::json!([project]);
+    crate::project_hosts::decorate_projects(store, &mut listed).await;
+    Ok(serde_json::json!({
+        "project": listed[0],
+        "checkout": registered,
+        "initialWorkspace": initial_workspace,
+    }))
+}
+
+/// `git@github.com:owner/repo.git` and `https://host/owner/repo/` both name
+/// the directory `repo`.
+fn clone_name_from_url(url: &str) -> String {
+    let last = url
+        .trim_end_matches('/')
+        .rsplit(['/', ':'])
+        .next()
+        .unwrap_or_default();
+    let name = last.strip_suffix(".git").unwrap_or(last);
+    let cleaned: String = name
+        .chars()
+        .map(|character| {
+            if character.is_alphanumeric() || matches!(character, '-' | '_' | '.') {
+                character
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    let cleaned = cleaned.trim_matches(['-', '.']).to_string();
+    if cleaned.is_empty() {
+        "project".to_string()
+    } else {
+        cleaned
+    }
 }
 
 pub(crate) async fn inspect_remote<E: RemoteHostExecutor>(
@@ -63,7 +222,7 @@ pub(crate) async fn inspect_remote<E: RemoteHostExecutor>(
     kind: ProjectKind,
     executor: &E,
 ) -> Result<CheckoutInspection> {
-    inspect_remote_with_clone(store, host_id, path, kind, None, executor).await
+    inspect_remote_with_clone(store, host_id, path, kind, None, None, executor).await
 }
 
 async fn inspect_remote_with_clone<E: RemoteHostExecutor>(
@@ -72,9 +231,11 @@ async fn inspect_remote_with_clone<E: RemoteHostExecutor>(
     path: &str,
     kind: ProjectKind,
     clone_url: Option<&str>,
+    clone_name: Option<&str>,
     executor: &E,
 ) -> Result<CheckoutInspection> {
-    if path.trim().is_empty() {
+    let clone_name = clone_name.map(str::trim).filter(|name| !name.is_empty());
+    if path.trim().is_empty() && (clone_url.is_none() || clone_name.is_none()) {
         bail!("A checkout path is required");
     }
     let target = require_bootstrapped_ssh_target(store, host_id).await?;
@@ -87,7 +248,16 @@ async fn inspect_remote_with_clone<E: RemoteHostExecutor>(
         })?;
     let windows = probe_or_unreachable(executor, &target).await?;
     let script = match clone_url {
-        Some(url) if !url.trim().is_empty() => clone_script(windows, install_dir, path, url),
+        Some(url) if !url.trim().is_empty() => match clone_name {
+            Some(name) if path.trim().is_empty() => clone_by_name_script(
+                windows,
+                install_dir,
+                name,
+                url,
+                target.projects_dir.as_deref(),
+            ),
+            _ => clone_script(windows, install_dir, path, url),
+        },
         Some(_) => bail!("A clone source is required"),
         None => inspection_script(windows, install_dir, path, kind),
     };
@@ -154,6 +324,33 @@ fn clone_script(windows: bool, install_dir: &str, path: &str, url: &str) -> Stri
             quote(url)
         ),
     )
+}
+
+fn clone_by_name_script(
+    windows: bool,
+    install_dir: &str,
+    name: &str,
+    url: &str,
+    projects_dir: Option<&str>,
+) -> String {
+    let quote = if windows {
+        powershell_string
+    } else {
+        shell_quote
+    };
+    let mut arguments = format!(
+        "project clone-checkout-folder --name {} --url {}",
+        quote(name),
+        quote(url)
+    );
+    // Sent as typed: the host expands `~` and `%VAR%`, since the hub cannot.
+    if let Some(projects_dir) = projects_dir
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        arguments.push_str(&format!(" --projects-dir {}", quote(projects_dir)));
+    }
+    checkout_command_script(windows, install_dir, &arguments)
 }
 
 pub(crate) fn checkout_command_script(windows: bool, install_dir: &str, arguments: &str) -> String {
@@ -223,9 +420,9 @@ pub(crate) async fn ensure_linked_origin<E: RemoteHostExecutor>(
         origin.starts_with('/')
     };
     if inspection.version != 1
-        || inspection.path != checkout.path
+        || !crate::windows_path_form::same_path(&inspection.path, &checkout.path)
         || !absolute
-        || origin == &inspection.path
+        || crate::windows_path_form::same_path(origin, &inspection.path)
         || inspection.branch.is_empty()
     {
         bail!("The native linked inspection does not match the retained checkout");

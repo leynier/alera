@@ -2,7 +2,6 @@ use alera_core::runtime::{RuntimeStore, Workspace, WorkspaceKind, LOCAL_HOST_ID}
 use anyhow::{bail, Context, Result};
 use base64::Engine;
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 
 use crate::ssh_remote::{
     probe_or_unreachable, require_bootstrapped_ssh_target, RemoteHostExecutor,
@@ -101,7 +100,6 @@ async fn retire_scoped<E: RemoteHostExecutor>(
     } else {
         crate::ssh_bootstrap::shell_quote
     };
-    let profile = hex::encode(Sha256::digest(workspace.project_id.as_bytes()));
     let mut arguments = format!(
         "project retire-owner-workspace --workspace-id {} --instance-id {} --close-sessions",
         quote(&workspace.id),
@@ -148,9 +146,8 @@ async fn retire_scoped<E: RemoteHostExecutor>(
         let encoded = base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(scope)?);
         arguments.push_str(&format!(" --automation-cleanup-base64 {}", quote(&encoded)));
     }
-    let script = crate::remote_owner_terminal_launch::owner_command_script(
-        windows, install, &profile, &arguments,
-    );
+    let script =
+        crate::remote_owner_terminal_launch::owner_command_script(windows, install, &arguments);
     let output = tokio::time::timeout(std::time::Duration::from_secs(60), executor.run(&target, windows, &script)).await
         .context("The SSH retirement response timed out. Remote closure is unverified; retry to recover the owner receipt")??;
     let receipt: Value = serde_json::from_str(output.trim())

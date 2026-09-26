@@ -9,6 +9,8 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+part 'add_project_dialog_fields.dart';
+
 sealed class const AddProjectResult({required final String? name});
 
 class const AddLocalProjectResult({
@@ -22,6 +24,12 @@ class const CloneProjectResult({
   required super.name,
 }) extends AddProjectResult;
 
+/// The user asked for a project that lives only on an SSH host, which has its
+/// own form: the launcher opens it once this dialog has closed.
+class const AddRemoteProjectResult() extends AddProjectResult {
+  this : super(name: null);
+}
+
 enum _AddProjectMode { localFolder, cloneFromUrl }
 
 class const AddProjectDialog({
@@ -31,12 +39,17 @@ class const AddProjectDialog({
   this.initialName,
   this.initialError,
   this.startOnClone = false,
+  this.remoteProjectAvailable = false,
 }) extends StatefulWidget {
   final String? initialGitUrl;
   final String? initialDestinationPath;
   final String? initialName;
   final String? initialError;
   final bool startOnClone;
+
+  /// Offers Add Remote Project. False when the runtime cannot register a
+  /// project on a host or no SSH host is bootstrapped.
+  final bool remoteProjectAvailable;
 
   @override
   State<AddProjectDialog> createState() => _AddProjectDialogState();
@@ -324,8 +337,30 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
             ),
             const SizedBox(height: AleraTokens.space16),
             Row(
-              mainAxisAlignment: .end,
               children: <Widget>[
+                // Expanded rather than a Spacer: the label ellipsizes instead
+                // of pushing Cancel and Add Project out of a narrow dialog.
+                Expanded(
+                  child: Align(
+                    alignment: .centerLeft,
+                    child: widget.remoteProjectAvailable
+                        ? TextButton.icon(
+                            onPressed: () =>
+                                Navigator.of(context)
+                                    .pop(const AddRemoteProjectResult()),
+                            icon: const Icon(
+                              AleraIcons.host,
+                              size: AleraTokens.iconLg,
+                            ),
+                            label: const Text(
+                              'Add Remote Project',
+                              maxLines: 1,
+                              overflow: .ellipsis,
+                            ),
+                          )
+                        : null,
+                  ),
+                ),
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   child: const Text('Cancel'),
@@ -340,124 +375,6 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class const _LocalFolderFields({
-  required final TextEditingController pathController,
-  required final TextEditingController nameController,
-  required final VoidCallback onBrowse,
-  required final ValueChanged<String> onPathChanged,
-  required final VoidCallback onNameChanged,
-  required final VoidCallback onSubmitted,
-}) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: .start,
-      children: <Widget>[
-        Text(
-          'Alera will detect whether the folder is a Git repository. Non-Git folders only get a primary workspace.',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: AleraTokens.foregroundMuted,
-          ),
-        ),
-        const SizedBox(height: AleraTokens.space12),
-        AleraTextField(
-          controller: pathController,
-          autofocus: true,
-          labelText: 'Project Path',
-          hintText: '/path/to/project',
-          suffix: AleraIconButton(
-            tooltip: 'Browse',
-            icon: AleraIcons.folderOpen,
-            iconSize: 18,
-            onPressed: onBrowse,
-          ),
-          onChanged: onPathChanged,
-          onSubmitted: (_) => onSubmitted(),
-        ),
-        const SizedBox(height: AleraTokens.space12),
-        _DisplayNameField(
-          controller: nameController,
-          onChanged: onNameChanged,
-          onSubmitted: onSubmitted,
-        ),
-      ],
-    );
-  }
-}
-
-class const _CloneFromUrlFields({
-  required final TextEditingController urlController,
-  required final TextEditingController destinationController,
-  required final TextEditingController nameController,
-  required final VoidCallback onBrowseParent,
-  required final ValueChanged<String> onUrlChanged,
-  required final VoidCallback onDestinationChanged,
-  required final VoidCallback onNameChanged,
-  required final VoidCallback onSubmitted,
-}) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: .start,
-      children: <Widget>[
-        Text(
-          'Alera will run git clone into the destination folder and register the cloned repository.',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: AleraTokens.foregroundMuted,
-          ),
-        ),
-        const SizedBox(height: AleraTokens.space12),
-        AleraTextField(
-          controller: urlController,
-          autofocus: true,
-          labelText: 'Git URL',
-          hintText: 'https://github.com/owner/repository.git',
-          onChanged: onUrlChanged,
-          onSubmitted: (_) => onSubmitted(),
-        ),
-        const SizedBox(height: AleraTokens.space12),
-        AleraTextField(
-          controller: destinationController,
-          labelText: 'Destination Folder',
-          hintText: '/path/to/repository',
-          suffix: AleraIconButton(
-            tooltip: 'Choose Parent Folder',
-            icon: AleraIcons.newFolder,
-            iconSize: 18,
-            onPressed: onBrowseParent,
-          ),
-          onChanged: (_) => onDestinationChanged(),
-          onSubmitted: (_) => onSubmitted(),
-        ),
-        const SizedBox(height: AleraTokens.space12),
-        _DisplayNameField(
-          controller: nameController,
-          onChanged: onNameChanged,
-          onSubmitted: onSubmitted,
-        ),
-      ],
-    );
-  }
-}
-
-class const _DisplayNameField({
-  required final TextEditingController controller,
-  required final VoidCallback onChanged,
-  required final VoidCallback onSubmitted,
-}) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return AleraTextField(
-      controller: controller,
-      labelText: 'Display Name (Optional)',
-      onChanged: (_) => onChanged(),
-      onSubmitted: (_) => onSubmitted(),
     );
   }
 }

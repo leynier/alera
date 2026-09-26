@@ -17,6 +17,7 @@ void main() {
       arch: 'x64',
       lastStatus: 'online',
       installDir: '/opt/alera',
+      projectsDir: '~/code',
       runtimeVersion: '0.14.0',
       runtimePlatform: 'linux',
       runtimeArch: 'x64',
@@ -35,6 +36,7 @@ void main() {
       arch: 'arm64',
       authKind: .agent,
       installDir: '/srv/alera',
+      projectsDir: r'%USERPROFILE%\code',
     );
 
     expect(copied.alias, 'Updated');
@@ -45,6 +47,7 @@ void main() {
     expect(copied.arch, 'arm64');
     expect(copied.authKind, SshAuthKind.agent);
     expect(copied.installDir, '/srv/alera');
+    expect(copied.projectsDir, r'%USERPROFILE%\code');
     expect(copied.createdAt, createdAt);
     expect(copied.updatedAt.isAfter(createdAt), isTrue);
     expect(copied.runtimeVersion, '0.14.0');
@@ -60,6 +63,65 @@ void main() {
     expect(preserved.arch, target.arch);
     expect(preserved.authKind, target.authKind);
     expect(preserved.installDir, target.installDir);
+    expect(preserved.projectsDir, target.projectsDir);
+  });
+
+  test('round trips the projects folder through JSON', () {
+    final createdAt = DateTime.utc(2026, 1, 1);
+    final target = SshTarget(
+      id: 'target-1',
+      alias: 'Server',
+      host: 'example.test',
+      port: 22,
+      username: 'user',
+      authKind: .agent,
+      createdAt: createdAt,
+      updatedAt: createdAt,
+      installDir: '/opt/alera',
+      projectsDir: r'$HOME/code',
+    );
+
+    final json = target.toJson();
+    expect(json['projectsDir'], r'$HOME/code');
+    expect(SshTarget.fromJson(json).projectsDir, r'$HOME/code');
+
+    final withoutFolder = SshTarget(
+      id: 'target-2',
+      alias: 'Server',
+      host: 'example.test',
+      port: 22,
+      username: 'user',
+      authKind: .agent,
+      createdAt: createdAt,
+      updatedAt: createdAt,
+    );
+    final withoutFolderJson = withoutFolder.toJson();
+    expect(withoutFolderJson.containsKey('projectsDir'), isTrue);
+    expect(withoutFolderJson['projectsDir'], isNull);
+    expect(SshTarget.fromJson(withoutFolderJson).projectsDir, isNull);
+  });
+
+  test('reads a payload from a runtime that predates the projects folder', () {
+    final target = SshTarget.fromJson(<String, Object?>{
+      'id': 'target-1',
+      'alias': 'Server',
+      'host': 'example.test',
+      'port': 22,
+      'username': 'user',
+      'installDir': '/opt/alera',
+      'createdAt': '2026-01-01T00:00:00Z',
+      'updatedAt': '2026-01-02T00:00:00Z',
+    });
+
+    expect(target.installDir, '/opt/alera');
+    expect(target.projectsDir, isNull);
+    expect(
+      SshTarget.fromJson(<String, Object?>{
+        ...target.toJson(),
+        'projectsDir': '   ',
+      }).projectsDir,
+      isNull,
+    );
   });
 
   test('parses numeric ports and validates required fields', () {

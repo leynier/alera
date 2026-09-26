@@ -68,6 +68,7 @@ fn ssh_target(id: &str, status: SshBootstrapStatus) -> SshTarget {
         updated_at: now,
         last_status: None,
         install_dir: Some("/remote/sidecar".into()),
+        projects_dir: None,
         runtime_version: None,
         runtime_platform: Some("linux".to_string()),
         runtime_arch: None,

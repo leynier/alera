@@ -115,6 +115,45 @@ void main() {
       expect(session.history, isEmpty);
     });
 
+    test('a relayed session names the host that measured it', () {
+      // The hub replaces the row of a session it proxies with the satellite's
+      // measurement and tags it with that machine's id and core count; a row
+      // measured here carries neither.
+      final snapshot = ResourceSnapshot.fromJson(
+        _payload(
+          sessions: <Object?>[
+            <String, Object?>{
+              'sessionId': 'remote',
+              'workspaceId': 'w1',
+              'tabId': 't1',
+              'running': true,
+              'measured': true,
+              'cpuPercent': 310.5,
+              'memoryBytes': 2000000,
+              'hostId': 'ssh-mac',
+              'cpuCoreCount': 32,
+            },
+            <String, Object?>{
+              'sessionId': 'local',
+              'workspaceId': 'w2',
+              'tabId': 't2',
+              'running': true,
+              'measured': true,
+              'hostId': 7,
+              'cpuCoreCount': 'many',
+            },
+          ],
+        ),
+      );
+
+      final relayed = snapshot.sessions.first;
+      expect(relayed.hostId, 'ssh-mac');
+      expect(relayed.cpuCoreCount, 32);
+      final local = snapshot.sessions.last;
+      expect(local.hostId, isNull, reason: 'a non-string host id is not one');
+      expect(local.cpuCoreCount, isNull);
+    });
+
     test('tolerates an older host that omits fields', () {
       // The app can attach to a sidecar that predates a field, so a missing
       // value has to degrade instead of throwing.

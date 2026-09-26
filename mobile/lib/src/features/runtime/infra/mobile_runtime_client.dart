@@ -28,11 +28,13 @@ import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_pull_request_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/ai_dictation/domain/speech_capabilities.dart';
+import 'package:alera_mobile/src/features/voice/domain/mobile_voice_settings.dart';
 import 'package:alera_mobile/src/features/linked_issues/domain/mobile_linked_issue.dart';
 import 'package:alera_mobile/src/features/linked_issues/infra/mobile_runtime_linked_issue_requests.dart';
 import 'package:alera_mobile/src/features/pull_requests/domain/mobile_pull_request_watch.dart';
 import 'package:alera_mobile/src/features/pull_requests/infra/mobile_runtime_pull_request_watch_requests.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_workspace_sidebar_client.dart';
+import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_workspace_host_requests.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_workspace_client.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_relocation_client.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_recovery_client.dart';
@@ -50,7 +52,9 @@ part 'mobile_runtime_client_lifecycle.dart';
 part 'mobile_runtime_client_relay.dart';
 part 'mobile_runtime_transport_connection.dart';
 part 'mobile_runtime_relay_authorization.dart';
+part 'mobile_runtime_cloud_requests.dart';
 part 'mobile_runtime_dictation_requests.dart';
+part 'mobile_runtime_voice_requests.dart';
 part 'mobile_runtime_terminal_requests.dart';
 part 'mobile_terminal_output_resync.dart';
 part 'mobile_runtime_codex_workspace_requests.dart';
@@ -69,12 +73,15 @@ class MobileRuntimeClient._(
         MobileRuntimeProjectClient,
         MobileRuntimeClientHostTools,
         MobileRuntimeClientRelay,
+        MobileRuntimeCloudRequests,
         MobileRuntimeDictationRequests,
+        MobileRuntimeVoiceRequests,
         MobileRuntimeTerminalRequests,
         MobileRuntimeTerminalOutputResync,
         MobileRuntimeCodexWorkspaceRequests,
         MobileRuntimeWorkspacePanelRequests,
         MobileRuntimeLinkedIssueRequests,
+        MobileRuntimeWorkspaceHostRequests,
         MobileRuntimePullRequestWatchRequests,
         MobileRuntimePullRequestRequests
     implements
@@ -208,8 +215,6 @@ class MobileRuntimeClient._(
       _runtimeCapabilities.contains(codexResetCreditsCapability);
   bool get supportsHostTools =>
       _runtimeCapabilities.contains(mobileHostToolsCapability);
-  bool get supportsCloudEnrollment =>
-      _runtimeCapabilities.contains(mobileCloudEnrollmentCapability);
   @override
   bool get supportsPromptImageUpload =>
       _runtimeCapabilities.contains(mobilePromptImageUploadCapability);
@@ -239,22 +244,6 @@ class MobileRuntimeClient._(
     _binaryFrames = payload['binaryFrames'] == true;
     unawaited(_refreshCrashReportingRuntimeContext());
     return payload;
-  }
-
-  Future<String> createCloudEnrollment() async {
-    if (!supportsCloudEnrollment) {
-      throw StateError('This host does not support account enrollment');
-    }
-    final payload = await requestMap('mobile.cloudEnrollment.create');
-    return payload.requiredString('code');
-  }
-
-  Future<int> refreshCloudSubscriptions() async {
-    if (!supportsCloudEnrollment) {
-      throw StateError('This host does not support cloud subscriptions');
-    }
-    final payload = await requestMap('mobile.cloudSubscriptions.refresh');
-    return payload.requiredInt('activeSubscriptions');
   }
 
   Future<MobileRuntimeStatus> mobileStatus() async {

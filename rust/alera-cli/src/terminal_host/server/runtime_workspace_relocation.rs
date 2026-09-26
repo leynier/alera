@@ -11,7 +11,9 @@ pub(super) async fn prepare_hand_off(
     replacement_branch: Option<String>,
 ) -> Result<WorkspaceRelocation> {
     if request.reuse_existing_branch != replacement_branch.is_some() {
-        bail!("Moving the current branch requires an explicit replacement branch; a new branch must not specify one");
+        bail!(
+            "Moving the current branch requires an explicit replacement branch; a new branch must not specify one"
+        );
     }
     let workspace = store
         .find_workspace(&request.id)

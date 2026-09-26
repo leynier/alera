@@ -120,6 +120,10 @@ class const _ProjectHeaderTile({
   required final VoidCallback onOpenProjectSettings,
   required final VoidCallback onRenameProject,
   required final VoidCallback onRemoveProject,
+
+  /// Null hides the entry: folder projects live on one host, and an older
+  /// runtime has no `project.hosts.*` verbs.
+  required final VoidCallback? onManageHosts,
 }) extends StatefulWidget {
   @override
   State<_ProjectHeaderTile> createState() => _ProjectHeaderTileState();
@@ -151,6 +155,12 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
           leading: Icon(AleraIcons.edit, size: 16),
           label: 'Rename',
         ),
+        if (widget.onManageHosts != null)
+          const AleraDropdownEntry<String>(
+            value: 'hosts',
+            leading: Icon(AleraIcons.host, size: 16),
+            label: 'Hosts',
+          ),
         AleraDropdownEntry<String>(
           value: 'new-workspace',
           leading: Icon(
@@ -177,6 +187,8 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
       widget.onRenameProject();
     } else if (selected == 'new-workspace') {
       widget.onCreateWorkspace?.call();
+    } else if (selected == 'hosts') {
+      widget.onManageHosts?.call();
     } else if (selected == 'remove') {
       widget.onRemoveProject();
     }

@@ -318,7 +318,9 @@ mod tests {
 
     #[test]
     fn binary_marker_does_not_match_plain_differ_lines() {
-        assert!(!diff_is_binary("diff --git a/readme.md b/readme.md\n--- a/readme.md\n+++ b/readme.md\n@@ -1 +1 @@\n-hello\n+hello there\n"));
+        assert!(!diff_is_binary(
+            "diff --git a/readme.md b/readme.md\n--- a/readme.md\n+++ b/readme.md\n@@ -1 +1 @@\n-hello\n+hello there\n"
+        ));
         assert!(!diff_is_binary("files a/foo and b/foo differ\n"));
         assert!(diff_is_binary(
             "Binary files a/logo.png and b/logo.png differ\n"

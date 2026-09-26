@@ -357,6 +357,11 @@ jobs:
           native-assets: 'false'
           preflight: 'false'
 
+      # flutter_soloud 5 compiles its native library in a build hook, and
+      # flutter test runs that hook for the Linux host, which needs ALSA headers.
+      - name: Install ALSA headers
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+
       - name: Format
         run: dart format --set-exit-if-changed lib test
 

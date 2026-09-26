@@ -168,3 +168,21 @@ fn workspace_section_commands_are_documented() {
         "workspace start should document optional section flags: {start}"
     );
 }
+
+#[test]
+fn voice_help_documents_home_and_speak() {
+    let help = clap_help(&["voice"]);
+    let lower = help.to_lowercase();
+    assert!(
+        lower.contains("speak"),
+        "voice help should document speak: {help}"
+    );
+    assert!(
+        lower.contains("ensure"),
+        "voice help should document ensure: {help}"
+    );
+    assert!(
+        lower.contains("status"),
+        "voice help should document status: {help}"
+    );
+}

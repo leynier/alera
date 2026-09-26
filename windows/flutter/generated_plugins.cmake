@@ -18,6 +18,7 @@ list(APPEND FLUTTER_FFI_PLUGIN_LIST
   alera_native
   code_forge
   flutter_local_notifications_windows
+  flutter_soloud
   jni
 )
 

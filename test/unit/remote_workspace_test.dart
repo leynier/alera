@@ -151,12 +151,6 @@ void main() {
       ),
       remoteWorkspaceFilesMissingCapabilityMessage(),
     );
-    expect(
-      userFacingExceptionMessage(
-        Exception(remoteWorkspaceWriteUnsupportedMessage()),
-      ),
-      remoteWorkspaceWriteUnsupportedMessage(),
-    );
   });
 }
 
