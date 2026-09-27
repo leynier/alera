@@ -182,28 +182,23 @@ class HostConnectionController extends _$HostConnectionController {
   }
 
   Future<String?> _findRemoteAccountId() async {
-    final knownHost = ref
+    final knownAccountId = ref
         .read(availableHostsProvider)
         .asData
         ?.value
         .where((host) => host.id == hostId || host.runtimeId == hostId)
-        .firstOrNull;
-    final knownAccountId = knownHost?.accountId;
+        .firstOrNull
+        ?.accountId;
     if (knownAccountId != null) return knownAccountId;
 
     final List<CloudAccountSession> sessions;
     try {
       sessions = await ref.read(cloudAccountsControllerProvider.future);
     } on Object catch (error, stackTrace) {
-      _logger.warning(
-        'could not load cloud accounts while locating runtime $hostId',
-        error,
-        stackTrace,
-      );
+      _logger.warning('account lookup failed: $hostId', error, stackTrace);
       return null;
     }
     if (sessions.isEmpty) return null;
-
     final api = ref.read(aleraRelayCloudApiProvider);
     final accounts = ref.read(cloudAccountsControllerProvider.notifier);
     for (final session in sessions) {
