@@ -4,6 +4,17 @@ use serde_json::json;
 
 use super::*;
 
+/// Closing must stick after the link's reader and writer tasks have gone, as
+/// they had when `registry_connects_once_per_host_and_publishes_states`
+/// failed about half the time.
+#[test]
+fn a_close_signal_without_listeners_still_closes() {
+    let signal = CloseSignal::new();
+    assert!(!signal.is_cancelled());
+    signal.cancel();
+    assert!(signal.is_cancelled());
+}
+
 fn target(platform: &str, install_dir: Option<&str>) -> SshTarget {
     let now = Utc::now();
     SshTarget {
