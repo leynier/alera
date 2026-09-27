@@ -6,6 +6,9 @@ const double terminalEmulatorFakeResizeScale = 1.3;
 /// Fraction of the measured PTY viewport removed for explicit Refresh.
 const double terminalPtyRefreshPulseFraction = 0.3;
 
+/// Keeps the temporary PTY geometry available while a foreground TUI handles SIGWINCH.
+const Duration terminalPtyRefreshHoldDuration = Duration(milliseconds: 100);
+
 /// A distinct PTY geometry large enough for a stuck TUI to relayout.
 ///
 /// Shrinks both axes when possible, matching mobile Refresh. The caller

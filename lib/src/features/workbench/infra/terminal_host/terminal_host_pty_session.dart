@@ -254,7 +254,7 @@ final class TerminalHostPtySession._(
     return _enqueueAttachmentOperation<void>(() async {
       try {
         await _resize(cols: pulse.$1, rows: pulse.$2);
-        await Future.pause(const Duration(milliseconds: 16));
+        await Future.pause(terminalPtyRefreshHoldDuration);
       } finally {
         await _resize(cols: cols, rows: rows);
       }
