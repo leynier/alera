@@ -330,7 +330,14 @@ class _FakeProjectRepository(final List<Project> _projects)
   }
 }
 
-class _FakeWorkbenchRepository implements WorkbenchRepository {
+class _FakeWorkbenchRepository
+    implements WorkbenchRepository, WorkspaceSleepRepository {
+  Stream<Map<String, List<String>>>? sleepSnapshots;
+
+  @override
+  Stream<Map<String, List<String>>> watchSleptWorkspaceTabs() =>
+      sleepSnapshots ?? Stream<Map<String, List<String>>>.value(const {});
+
   final Map<String, List<Workspace>> _workspacesByProject = {};
   final Map<String, List<WorkspaceTabRecord>> _tabsByWorkspace =
       <String, List<WorkspaceTabRecord>>{};

@@ -1,6 +1,44 @@
 part of 'workbench_controller_test.dart';
 
 void _registerWorkbenchControllerSleepTests() {
+  test('bootstrap restores sleep before loading workspace rows', () async {
+    final snapshots = StreamController<Map<String, List<String>>>();
+    _harness.workbenchRepository.sleepSnapshots = snapshots.stream;
+    const tabId = 'persisted-terminal';
+    await _harness.workbenchRepository.upsertWorkspaceTab(
+      WorkspaceTabRecord(
+        id: tabId,
+        workspaceId: 'initial-task',
+        title: 'Terminal',
+        createdAt: _harness.project.createdAt,
+        updatedAt: _harness.project.updatedAt,
+      ),
+    );
+
+    final bootstrap = _controller.bootstrap();
+    await _flush();
+    expect(_controller.state.projects, isEmpty);
+    expect(_controller.state.bootstrapped, isFalse);
+
+    snapshots.add(<String, List<String>>{
+      'initial-task': <String>[tabId],
+    });
+    await bootstrap;
+    await _flushUntil(
+      () => _harness.workbenchRepository.hasTabWatcher('initial-task'),
+    );
+    _harness.workbenchRepository.emitTabs('initial-task');
+    await _flushUntil(
+      () => _controller.state.tabsFor('initial-task').isNotEmpty,
+    );
+
+    final row = buildSidebarRows(_controller.state)
+        .whereType<WorkbenchWorkspaceRow>()
+        .single;
+    expect(row.hasTerminalTabs, isFalse);
+    await snapshots.close();
+  });
+
   test(
     'sleep preserves every tab and layout then deselects the workspace',
     () async {

@@ -138,7 +138,9 @@ class WorkbenchController extends _$WorkbenchController
         }
       }
       _startSections();
-      _startSleptTabs();
+      // Tab records load shortly after projects. Hydrate the host's sleep
+      // snapshot first so persisted terminals do not briefly appear awake.
+      await _startSleptTabs();
       unawaited(_startArchiveSupport());
       _projectsSub = _projectsService.projectRepository.watchAll().listen(
         _onProjectsChanged,
