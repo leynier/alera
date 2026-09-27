@@ -73,7 +73,7 @@ The runtime host reconciles presence every five seconds against what it can obse
 
 An inferred `done` (from the silence rule, or `idle_prompt` after `waiting`) never accepts orchestration or push-on-idle injection, because the agent may be sitting in a prompt no hook announced. `agentPresence.list` and `orchestration terminal list` report it as `inferredIdle: true`, `orchestration terminal show` does not call it `agent_ready`, and a hub mirrors the flag from its satellites. The next real hook replaces it.
 
-Inside `tmux`, `screen` or `zellij` the tab's PTY shows the multiplexer client, not the agent: detaching would read as an exit and a hidden window as silence. The hook script reports the multiplexer, and the host leaves that presence to the agent's own hooks. Known gap: an agent that runs another agent in the background after its own turn ended is only recognized as nested for Claude (through its pid).
+Inside `tmux`, `screen` or `zellij` the tab's PTY shows the multiplexer client, not the agent: detaching would read as an exit and a hidden window as silence. The host leaves that presence to the agent's own hooks when the tab's foreground process is a multiplexer client (`tmux`, `screen`, `zellij`, `abduco`, `dtach`), and the hook script, the plugins and the Windows hooks also report the multiplexer they run under, so a reporter that cannot (fx) is still covered. Known gap: an agent that runs another agent in the background after its own turn ended is only recognized as nested for Claude (through its pid).
 
 ## Activity after migrate
 

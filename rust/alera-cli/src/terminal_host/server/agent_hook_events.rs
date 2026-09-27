@@ -7,7 +7,9 @@ use crate::agent_status::{
 };
 use crate::terminal_host::orchestration::agent_presence::{AgentPresence, AgentPresenceState};
 use crate::terminal_host::orchestration::agent_session_resume::native_session_id;
-use crate::terminal_host::session::{process_alive, process_group_alive};
+use crate::terminal_host::session::{
+    process_alive, process_group_alive, process_is_terminal_multiplexer,
+};
 
 use super::terminal_startup_commands::tab_agent_type;
 use super::ServerActor;
@@ -209,7 +211,8 @@ impl ServerActor {
             .and_then(|session| session.agent_process_group());
         let session_id = native_session_id(&event.payload).map(str::to_string);
         let turn_id = event_turn_id(event).map(str::to_string);
-        let multiplexed = event_runs_in_multiplexer(&event.payload);
+        let multiplexed = event_runs_in_multiplexer(&event.payload)
+            || process_group.is_some_and(process_is_terminal_multiplexer);
         let Some(presence) = self.agent_presence.get_mut(&event.terminal_session_id) else {
             return;
         };

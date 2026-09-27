@@ -65,7 +65,7 @@ $f=$env:ALERA_AGENT_HOOK_ENDPOINT; if(-not $f -and $env:ALERA_RUNTIME_DIR){{$f=J
 if($f -and (Test-Path -LiteralPath $f)){{foreach($l in Get-Content -LiteralPath $f){{if($l -match '^set ([A-Z0-9_]+)=(.*)$'){{Set-Item -Path ('env:'+$Matches[1]) -Value $Matches[2]}}}}}}; \
 if($env:ALERA_AGENT_HOOK_PORT -and $env:ALERA_AGENT_HOOK_TOKEN -and $env:ALERA_TERMINAL_SESSION_ID -and $env:ALERA_WORKSPACE_ID -and $env:ALERA_TAB_ID){{\
 try{{$r=New-Object System.IO.StreamReader([Console]::OpenStandardInput(),(New-Object System.Text.UTF8Encoding($false)));$i=$r.ReadToEnd();if([string]::IsNullOrWhiteSpace($i)){{$i='{{}}'}};\
-$b=@{{terminalSessionId=$env:ALERA_TERMINAL_SESSION_ID;workspaceId=$env:ALERA_WORKSPACE_ID;tabId=$env:ALERA_TAB_ID;hookEventName='{event}';version=$env:ALERA_AGENT_HOOK_VERSION;payload=($i|ConvertFrom-Json)}}|ConvertTo-Json -Depth 100 -Compress;\
+$b=@{{terminalSessionId=$env:ALERA_TERMINAL_SESSION_ID;workspaceId=$env:ALERA_WORKSPACE_ID;tabId=$env:ALERA_TAB_ID;hookEventName='{event}';version=$env:ALERA_AGENT_HOOK_VERSION;multiplexer=$(if($env:TMUX){{'tmux'}}elseif($env:STY){{'screen'}}elseif($env:ZELLIJ){{'zellij'}});payload=($i|ConvertFrom-Json)}}|ConvertTo-Json -Depth 100 -Compress;\
 Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 -Method Post -Uri ('http://127.0.0.1:'+$env:ALERA_AGENT_HOOK_PORT+'/hook/copilot') -ContentType 'application/json; charset=utf-8' -Headers @{{'X-Alera-Agent-Hook-Token'=$env:ALERA_AGENT_HOOK_TOKEN}} -Body ([System.Text.Encoding]::UTF8.GetBytes($b))|Out-Null}}catch{{}}}}; exit 0"
     )
 }

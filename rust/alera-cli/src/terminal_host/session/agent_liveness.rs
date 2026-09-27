@@ -31,6 +31,46 @@ impl Session {
     }
 }
 
+/// Whether `pid` runs a terminal multiplexer client. Inside one, the tab's
+/// foreground group and output belong to that client rather than the agent,
+/// so neither says anything about the agent. Checked from the process itself
+/// because not every reporter (plugins, fx) can say so.
+pub fn process_is_terminal_multiplexer(pid: u32) -> bool {
+    use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
+
+    let sysinfo_pid = Pid::from_u32(pid);
+    let mut system = System::new();
+    system.refresh_processes_specifics(
+        ProcessesToUpdate::Some(&[sysinfo_pid]),
+        true,
+        ProcessRefreshKind::nothing().with_exe(UpdateKind::OnlyIfNotSet),
+    );
+    let Some(process) = system.process(sysinfo_pid) else {
+        return false;
+    };
+    let exe = process
+        .exe()
+        .and_then(std::path::Path::file_name)
+        .map(|name| name.to_string_lossy().into_owned());
+    let name = process.name().to_string_lossy().into_owned();
+    exe.iter()
+        .chain(std::iter::once(&name))
+        .any(|name| is_terminal_multiplexer_name(name))
+}
+
+/// `tmux: client`, `screen-4.9.1`, `zellij.exe` and the like.
+fn is_terminal_multiplexer_name(name: &str) -> bool {
+    let base = name
+        .split(['-', ':', ' ', '.'])
+        .next()
+        .unwrap_or(name)
+        .to_ascii_lowercase();
+    matches!(
+        base.as_str(),
+        "tmux" | "screen" | "zellij" | "abduco" | "dtach"
+    )
+}
+
 /// Whether any process is still a member of `group`. `ESRCH` is the only
 /// answer that proves the group is gone; `EPERM` means it exists.
 #[cfg(unix)]
@@ -67,6 +107,25 @@ pub fn process_alive(pid: u32) -> bool {
 #[cfg(not(unix))]
 pub fn process_alive(pid: u32) -> bool {
     crate::terminal_host::resources::seal_shell_process(pid).is_some()
+}
+
+#[cfg(test)]
+#[test]
+fn multiplexer_clients_are_recognized_by_name() {
+    for name in [
+        "tmux",
+        "tmux: client",
+        "screen-4.9.1",
+        "zellij.exe",
+        "abduco",
+        "dtach",
+    ] {
+        assert!(is_terminal_multiplexer_name(name), "{name}");
+    }
+    for name in ["claude", "codex", "node", "zsh", "tmuxinator", "opencode"] {
+        assert!(!is_terminal_multiplexer_name(name), "{name}");
+    }
+    assert!(!process_is_terminal_multiplexer(std::process::id()));
 }
 
 #[cfg(test)]

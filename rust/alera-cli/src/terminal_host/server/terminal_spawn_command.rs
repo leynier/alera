@@ -180,8 +180,9 @@ mod tests {
         let resumed = resumed_initial_command(&bound, "/bin/zsh")
             .unwrap()
             .unwrap();
-        assert!(resumed.contains("--resume"), "{resumed}");
-        assert!(resumed.contains("sess-1"), "{resumed}");
+        // No failure message: it would print the conversation id.
+        assert!(resumed.contains("--resume"));
+        assert!(resumed.contains("sess-1"));
 
         let unbound = tab(json!({"initialCommand": "claude"}));
         assert_eq!(resumed_initial_command(&unbound, "/bin/zsh").unwrap(), None);

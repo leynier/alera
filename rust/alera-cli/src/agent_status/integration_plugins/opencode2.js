@@ -35,6 +35,15 @@ async function titleSessionContext(payload) {
   }
 }
 
+// Inside tmux, screen or zellij the tab's PTY shows the multiplexer client,
+// so the host must not judge this agent by that PTY's processes or output.
+function terminalMultiplexer() {
+  if (process.env.TMUX) return 'tmux';
+  if (process.env.STY) return 'screen';
+  if (process.env.ZELLIJ) return 'zellij';
+  return undefined;
+}
+
 function endpointPath() {
   if (process.env.ALERA_AGENT_HOOK_ENDPOINT) return process.env.ALERA_AGENT_HOOK_ENDPOINT;
   if (!process.env.ALERA_RUNTIME_DIR) return null;
@@ -71,7 +80,7 @@ async function post(eventName, payload = {}) {
       body: JSON.stringify({
         terminalSessionId,
         workspaceId,
-        tabId,
+        tabId, multiplexer: terminalMultiplexer(),
         payload: { hook_event_name: eventName, ...payload, ...titleContext },
       }),
       signal:

@@ -40,7 +40,7 @@ mod title_tracker;
 pub(crate) mod windows_process_job;
 pub(crate) mod workspace_shutdown;
 
-pub use agent_liveness::{process_alive, process_group_alive};
+pub use agent_liveness::{process_alive, process_group_alive, process_is_terminal_multiplexer};
 #[cfg(test)]
 use input_queue::PtyDeferredWrite;
 use input_queue::PtyWrite;
