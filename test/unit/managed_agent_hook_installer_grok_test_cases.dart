@@ -35,11 +35,12 @@ void _registerGrokHookInstallerTests(
         'Notification',
         'Stop',
         'StopFailure',
+        'StopCancelled',
         'SessionEnd',
       ]),
     );
     expect(_commandsFor(hooks, 'UserPromptSubmit'), contains('echo user-hook'));
-    expect(_managedCommandCount(hooks, 'alera-grok-hook.sh'), 9);
+    expect(_managedCommandCount(hooks, 'alera-grok-hook.sh'), 10);
     expect(
       File(p.join(home.path, '.alera', 'agent-hooks', 'alera-grok-hook.sh'))
           .readAsStringSync(),

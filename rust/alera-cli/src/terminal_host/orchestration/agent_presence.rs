@@ -53,6 +53,31 @@ pub struct AgentPresence {
     pub tool_input: Option<String>,
     pub last_assistant_message: Option<String>,
     pub interrupted: Option<bool>,
+    /// Native conversation that produced this presence, so a nested agent the
+    /// parent runs as a tool (`codex exec`, `claude -p`) cannot take it over.
+    pub native_session_id: Option<String>,
+    /// Foreground process group of the PTY when a local hook last fired: the
+    /// agent's own group, used to notice the agent exiting back to the shell.
+    pub process_group: Option<u32>,
+    /// Process id of the agent that reported, when the agent exposes it
+    /// (Claude's `CLAUDE_PID`). Tells a relaunched agent from a nested one.
+    pub agent_pid: Option<u32>,
+    /// The turn a turn-scoped agent (Grok's `promptId`) is running, so a late
+    /// report for an older turn cannot end the current one.
+    pub turn_id: Option<String>,
+    /// Set only by this host's own hook receiver. Relayed and client-reported
+    /// presence is reconciled by whoever observed it.
+    pub local_hook: bool,
+    /// `done` concluded by the host from a silent PTY rather than reported by
+    /// the agent. It never accepts injection: the agent may be sitting in a
+    /// prompt no hook announced.
+    pub inferred_idle: bool,
+}
+
+impl AgentPresence {
+    pub fn accepts_injection(&self) -> bool {
+        self.state.accepts_injection() && !self.inferred_idle
+    }
 }
 
 /// Last known agent presence per terminal handle, fed by the Flutter app's
@@ -82,8 +107,7 @@ impl AgentPresenceRegistry {
         let was_ready = self
             .entries
             .get(handle)
-            .map(|entry| entry.state.accepts_injection())
-            .unwrap_or(false);
+            .is_some_and(AgentPresence::accepts_injection);
         self.entries.insert(
             handle.to_string(),
             AgentPresence {
@@ -96,6 +120,12 @@ impl AgentPresenceRegistry {
                 tool_input: None,
                 last_assistant_message: None,
                 interrupted: None,
+                native_session_id: None,
+                process_group: None,
+                agent_pid: None,
+                turn_id: None,
+                local_hook: false,
+                inferred_idle: false,
             },
         );
         state.accepts_injection() && !was_ready
@@ -105,8 +135,8 @@ impl AgentPresenceRegistry {
         let was_ready = self
             .entries
             .get(handle)
-            .is_some_and(|entry| entry.state.accepts_injection());
-        let is_ready = presence.state.accepts_injection();
+            .is_some_and(AgentPresence::accepts_injection);
+        let is_ready = presence.accepts_injection();
         self.entries.insert(handle.to_string(), presence);
         is_ready && !was_ready
     }
@@ -114,6 +144,14 @@ impl AgentPresenceRegistry {
     pub fn retain_enabled(&mut self, enabled_agents: &[&str]) {
         self.entries
             .retain(|_, entry| enabled_agents.contains(&entry.agent_type.as_str()));
+    }
+
+    pub fn get_mut(&mut self, handle: &str) -> Option<&mut AgentPresence> {
+        self.entries.get_mut(handle)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &AgentPresence)> {
+        self.entries.iter()
     }
 
     pub fn remove(&mut self, handle: &str) {
@@ -127,8 +165,7 @@ impl AgentPresenceRegistry {
     pub fn is_injection_ready(&self, handle: &str) -> bool {
         self.entries
             .get(handle)
-            .map(|entry| entry.state.accepts_injection())
-            .unwrap_or(false)
+            .is_some_and(AgentPresence::accepts_injection)
     }
 
     pub fn agent_type(&self, handle: &str) -> Option<&str> {
@@ -179,6 +216,18 @@ mod tests {
         let mut registry = AgentPresenceRegistry::default();
         assert!(registry.update("t1", "codex".into(), AgentPresenceState::Done));
         assert!(registry.is_injection_ready("t1"));
+    }
+
+    #[test]
+    fn inferred_idle_never_accepts_injection() {
+        let mut registry = AgentPresenceRegistry::default();
+        registry.update("t1", "claude".into(), AgentPresenceState::Working);
+        let mut inferred = registry.get("t1").unwrap().clone();
+        inferred.state = AgentPresenceState::Done;
+        inferred.inferred_idle = true;
+        assert!(!registry.update_full("t1", inferred));
+        assert!(!registry.is_injection_ready("t1"));
+        assert!(registry.update("t1", "claude".into(), AgentPresenceState::Done));
     }
 
     #[test]

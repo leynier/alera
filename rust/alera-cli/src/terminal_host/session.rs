@@ -16,6 +16,7 @@ use crate::terminal_host::resources::ShellProcess;
 #[cfg(test)]
 use crate::terminal_host::resources::seal_shell_process;
 
+mod agent_liveness;
 mod checkpoint_restore;
 #[cfg(any(windows, test))]
 mod conpty_startup;
@@ -39,6 +40,7 @@ mod title_tracker;
 pub(crate) mod windows_process_job;
 pub(crate) mod workspace_shutdown;
 
+pub use agent_liveness::{process_alive, process_group_alive, process_is_terminal_multiplexer};
 #[cfg(test)]
 use input_queue::PtyDeferredWrite;
 use input_queue::PtyWrite;
@@ -182,6 +184,8 @@ pub struct Session {
     durable_output_batch_armed: bool,
     durable_output_batch_sequence: i64,
     output_stream_bytes: u64,
+    /// When the PTY last wrote anything. Agent TUIs animate while they work.
+    last_output_at: std::time::Instant,
     title_tracker: TerminalTitleTracker,
 }
 
@@ -272,6 +276,7 @@ impl Session {
                 initial_output_stream_bytes,
                 initial_scrollback.len(),
             ),
+            last_output_at: std::time::Instant::now(),
             title_tracker,
         };
         session.write_checkpoint(store, None).await?;
@@ -351,6 +356,7 @@ impl Session {
     /// timer generation when a delayed flush should be armed.
     pub fn append_output(&mut self, data: &[u8]) -> (Option<u64>, Option<u64>, Option<String>) {
         self.output_stream_bytes = self.output_stream_bytes.saturating_add(data.len() as u64);
+        self.last_output_at = std::time::Instant::now();
         self.buffer.append(data);
         self.output_batch.extend_from_slice(data);
         self.durable_output_batch.extend_from_slice(data);

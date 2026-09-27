@@ -2,6 +2,15 @@
 const queue = []
 let draining = false
 
+// Inside tmux, screen or zellij the tab's PTY shows the multiplexer client,
+// so the host must not judge this agent by that PTY's processes or output.
+function terminalMultiplexer() {
+  if (process.env.TMUX) return 'tmux'
+  if (process.env.STY) return 'screen'
+  if (process.env.ZELLIJ) return 'zellij'
+  return undefined
+}
+
 function endpointPath() {
   if (process.env.ALERA_AGENT_HOOK_ENDPOINT) return process.env.ALERA_AGENT_HOOK_ENDPOINT
   if (!process.env.ALERA_RUNTIME_DIR) return null
@@ -28,7 +37,7 @@ async function post(eventName, payload = {}) {
     await fetch(`http://127.0.0.1:${port}/hook/amp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Alera-Agent-Hook-Token': token },
-      body: JSON.stringify({ terminalSessionId, workspaceId, tabId, payload: { hook_event_name: eventName, ...payload } }),
+      body: JSON.stringify({ terminalSessionId, workspaceId, tabId, multiplexer: terminalMultiplexer(), payload: { hook_event_name: eventName, ...payload } }),
       signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(1000) : undefined,
     })
   } catch {}

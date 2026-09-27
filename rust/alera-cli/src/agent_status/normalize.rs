@@ -2,6 +2,8 @@ use serde_json::Value;
 
 use crate::terminal_host::orchestration::agent_presence::{AgentPresence, AgentPresenceState};
 
+use super::normalize_grok::normalize_grok;
+use super::normalize_lifecycle::{claude_lifecycle_state, idle_notification_state, is_interrupt};
 use super::AgentHookEvent;
 
 #[derive(Debug, Clone)]
@@ -12,24 +14,9 @@ pub struct NormalizedAgentStatus {
     pub tool_input: Option<String>,
     pub last_assistant_message: Option<String>,
     pub interrupted: Option<bool>,
-}
-
-pub fn hook_event_closes_session(event: &AgentHookEvent) -> bool {
-    let Some(event_name) = normalized_event_name(event) else {
-        return false;
-    };
-    matches!(
-        (event.agent_type.as_str(), event_name.as_str()),
-        ("copilot", "SessionEnd")
-            | ("cursor", "sessionEnd")
-            | ("pi", "session_shutdown")
-            | ("grok", "SessionEnd")
-            | ("fx", "SessionEnd")
-    )
-}
-
-pub fn hook_event_resets_session(event: &AgentHookEvent) -> bool {
-    event.agent_type == "grok" && normalized_event_name(event).as_deref() == Some("SessionStart")
+    /// A `done` Alera concluded rather than one the agent confirmed at an empty
+    /// prompt. It must not accept injection.
+    pub inferred_idle: bool,
 }
 
 pub fn normalize_hook_event(
@@ -40,6 +27,8 @@ pub fn normalize_hook_event(
     let tool_name = tool_name(&event.payload);
     let state = normalize_state(event, &event_name, tool_name.as_deref(), previous)?;
     let starts_turn = starts_new_turn(event, &event_name);
+    // A notification's `message` is the agent's own UI text, not the prompt.
+    let payload_prompt = name_carries_prompt(&event_name);
     let prompt = (if matches!(event.agent_type.as_str(), "opencode" | "opencode2")
         && event_name == "MessagePart"
         && event.payload["role"] == "user"
@@ -49,6 +38,9 @@ pub fn normalize_hook_event(
         None
     })
     .or_else(|| {
+        if !payload_prompt {
+            return None;
+        }
         first_string(
             &event.payload,
             &[
@@ -86,6 +78,9 @@ pub fn normalize_hook_event(
         tool_input,
         last_assistant_message,
         interrupted: interrupted(event, &event_name, state),
+        inferred_idle: state == AgentPresenceState::Done
+            && event_name == "Notification"
+            && previous.is_some_and(|entry| entry.state == AgentPresenceState::Waiting),
     })
 }
 
@@ -104,21 +99,25 @@ fn normalize_state(
             "PreToolUse" if human_input => Some(AgentPresenceState::Waiting),
             "PreToolUse" => Some(AgentPresenceState::Working),
             "PermissionRequest" => Some(AgentPresenceState::Waiting),
-            "Stop" => Some(AgentPresenceState::Done),
+            "Stop" | "Interrupt" => Some(AgentPresenceState::Done),
             _ => None,
         },
         "claude" => match name {
+            "PostToolUseFailure" if is_interrupt(&event.payload) => Some(AgentPresenceState::Done),
             "UserPromptSubmit" | "PostToolUse" | "PostToolUseFailure" => {
                 Some(AgentPresenceState::Working)
             }
             "PreToolUse" if human_input => Some(AgentPresenceState::Waiting),
             "PreToolUse" => Some(AgentPresenceState::Working),
             "PermissionRequest" | "AskUserQuestion" => Some(AgentPresenceState::Waiting),
-            "Stop" => Some(AgentPresenceState::Done),
+            "Notification" => idle_notification_state(&event.payload, previous),
+            "SessionStart" | "SessionEnd" => claude_lifecycle_state(event, name, previous),
+            "Stop" | "StopFailure" => Some(AgentPresenceState::Done),
             _ => None,
         },
         "copilot" => normalize_copilot(event, name, human_input),
         "cursor" => match name {
+            "postToolUseFailure" if is_interrupt(&event.payload) => Some(AgentPresenceState::Done),
             "beforeSubmitPrompt" | "sessionStart" | "postToolUse" | "postToolUseFailure" => {
                 Some(AgentPresenceState::Working)
             }
@@ -170,17 +169,20 @@ fn normalize_state(
             | "tool_execution_start"
             | "tool_execution_end"
             | "message_end" => Some(AgentPresenceState::Working),
-            "agent_end" | "session_shutdown" => Some(AgentPresenceState::Done),
+            // `agent_settled` is the final one: retries and queued work can
+            // still follow `agent_end`, which older Pi releases end on.
+            "agent_end" | "agent_settled" | "session_shutdown" => Some(AgentPresenceState::Done),
+            "ui_prompt_start" => Some(AgentPresenceState::Waiting),
+            "ui_prompt_end" => Some(AgentPresenceState::Working),
             _ => None,
         },
+        // `session.start` also fires when the user merely opens a thread.
         "amp" => match name {
-            "session.start" | "agent.start" | "tool.call" | "tool.result" => {
-                Some(AgentPresenceState::Working)
-            }
+            "agent.start" | "tool.call" | "tool.result" => Some(AgentPresenceState::Working),
             "agent.end" => Some(AgentPresenceState::Done),
             _ => None,
         },
-        "grok" => normalize_grok(event, name),
+        "grok" => normalize_grok(event, name, previous),
         "fx" => match name {
             "Working" => Some(AgentPresenceState::Working),
             "Blocked" => Some(AgentPresenceState::Blocked),
@@ -207,8 +209,8 @@ fn normalize_copilot(
         return Some(AgentPresenceState::Blocked);
     }
     match name {
-        "SessionStart" | "UserPromptSubmit" | "PreToolUse" | "PostToolUse"
-        | "PostToolUseFailure" | "PermissionRequest" => Some(AgentPresenceState::Working),
+        "UserPromptSubmit" | "PreToolUse" | "PostToolUse" | "PostToolUseFailure"
+        | "PermissionRequest" => Some(AgentPresenceState::Working),
         "Stop" | "SessionEnd" => Some(AgentPresenceState::Done),
         "ErrorOccurred" if bool_field(&event.payload, "recoverable") == Some(true) => {
             Some(AgentPresenceState::Working)
@@ -218,46 +220,11 @@ fn normalize_copilot(
     }
 }
 
-fn normalize_grok(event: &AgentHookEvent, name: &str) -> Option<AgentPresenceState> {
-    if name == "Notification" {
-        let message = first_string(&event.payload, &["message"])?.to_ascii_lowercase();
-        if [
-            "type your message",
-            "enter send",
-            "shift-tab normal",
-            "ask a side question",
-        ]
-        .iter()
-        .any(|needle| message.contains(needle))
-        {
-            return Some(AgentPresenceState::Done);
-        }
-        if [
-            "permission",
-            "approval",
-            "approve",
-            "allow",
-            "confirm",
-            "feedback",
-            "question",
-        ]
-        .iter()
-        .any(|needle| message.contains(needle))
-        {
-            return Some(AgentPresenceState::Waiting);
-        }
-        return None;
-    }
-    match name {
-        "UserPromptSubmit" | "PreToolUse" | "PostToolUse" | "PostToolUseFailure" => {
-            Some(AgentPresenceState::Working)
-        }
-        "Stop" | "StopFailure" | "SessionEnd" => Some(AgentPresenceState::Done),
-        _ => None,
-    }
+fn name_carries_prompt(name: &str) -> bool {
+    name != "Notification"
 }
 
-fn normalized_event_name(event: &AgentHookEvent) -> Option<String> {
+pub(super) fn normalized_event_name(event: &AgentHookEvent) -> Option<String> {
     let raw = event.event_name.clone().or_else(|| {
         first_string(
             &event.payload,
@@ -329,6 +296,7 @@ fn assistant_message(event: &AgentHookEvent, name: &str) -> Option<String> {
     first_string(
         &event.payload,
         &[
+            "last_assistant_message",
             "lastAssistantMessage",
             "assistant_message",
             "assistantMessage",
@@ -342,6 +310,7 @@ fn starts_new_turn(event: &AgentHookEvent, name: &str) -> bool {
         ("codex", "SessionStart")
             | ("codex", "UserPromptSubmit")
             | ("claude", "UserPromptSubmit")
+            | ("claude", "SessionStart")
             | ("copilot", "SessionStart")
             | ("copilot", "UserPromptSubmit")
             | ("cursor", "beforeSubmitPrompt")
@@ -436,12 +405,17 @@ fn interrupted(event: &AgentHookEvent, name: &str, state: AgentPresenceState) ->
         return None;
     }
     let interrupted = bool_field(&event.payload, "interrupted") == Some(true)
-        || first_string(&event.payload, &["status"]).as_deref() == Some("cancelled")
-        || name.contains("Failure");
+        || is_interrupt(&event.payload)
+        || matches!(
+            first_string(&event.payload, &["status"]).as_deref(),
+            Some("cancelled" | "aborted" | "error")
+        )
+        || name.contains("Failure")
+        || matches!(name, "Interrupt" | "StopCancelled");
     interrupted.then_some(true)
 }
 
-fn first_string(value: &Value, keys: &[&str]) -> Option<String> {
+pub(super) fn first_string(value: &Value, keys: &[&str]) -> Option<String> {
     let record = value.as_object()?;
     keys.iter().find_map(|key| {
         let value = record.get(*key)?.as_str()?.trim();
@@ -462,7 +436,7 @@ fn first_array_value<'a>(value: &'a Value, keys: &[&str]) -> Option<&'a Value> {
     first_value(value, keys)?.as_array()?.first()
 }
 
-fn bool_field(value: &Value, key: &str) -> Option<bool> {
+pub(super) fn bool_field(value: &Value, key: &str) -> Option<bool> {
     value.as_object()?.get(key)?.as_bool()
 }
 

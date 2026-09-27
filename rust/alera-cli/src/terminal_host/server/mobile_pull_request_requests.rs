@@ -353,28 +353,6 @@ fn normalize_review(value: Value) -> Option<Value> {
     }))
 }
 
-#[cfg(test)]
-mod normalize_review_tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn maps_head_ref_oid_to_head_sha() {
-        let review = normalize_review(json!({
-            "number": 42,
-            "title": "feat",
-            "state": "OPEN",
-            "url": "https://github.com/leynier/alera/pull/42",
-            "headRefOid": "abc123",
-            "headRefName": "feat",
-            "baseRefName": "main",
-        }))
-        .unwrap();
-        assert_eq!(review["headSha"], "abc123");
-        assert_eq!(review["number"], 42);
-    }
-}
-
 pub(super) async fn run_gh(repo_path: &str, args: &[&str]) -> HostResult<(i32, String, String)> {
     let mut command = alera_core::child_process::windowless_async_command("gh");
     command
@@ -436,5 +414,27 @@ mod process_lifetime_tests {
         assert!(error.to_string().contains("timed out"));
         tokio::time::sleep(Duration::from_millis(2200)).await;
         assert!(!marker.exists(), "timed-out process continued writing");
+    }
+}
+
+#[cfg(test)]
+mod normalize_review_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn maps_head_ref_oid_to_head_sha() {
+        let review = normalize_review(json!({
+            "number": 42,
+            "title": "feat",
+            "state": "OPEN",
+            "url": "https://github.com/leynier/alera/pull/42",
+            "headRefOid": "abc123",
+            "headRefName": "feat",
+            "baseRefName": "main",
+        }))
+        .unwrap();
+        assert_eq!(review["headSha"], "abc123");
+        assert_eq!(review["number"], 42);
     }
 }

@@ -33,6 +33,15 @@ async function titleSessionContext(payload) {
 }
 const messageRoles = new Map()
 
+// Inside tmux, screen or zellij the tab's PTY shows the multiplexer client,
+// so the host must not judge this agent by that PTY's processes or output.
+function terminalMultiplexer() {
+  if (process.env.TMUX) return 'tmux'
+  if (process.env.STY) return 'screen'
+  if (process.env.ZELLIJ) return 'zellij'
+  return undefined
+}
+
 function endpointPath() {
   if (process.env.ALERA_AGENT_HOOK_ENDPOINT) return process.env.ALERA_AGENT_HOOK_ENDPOINT
   if (!process.env.ALERA_RUNTIME_DIR) return null
@@ -59,7 +68,7 @@ async function post(eventName, payload = {}) {
     await fetch(`http://127.0.0.1:${port}/hook/opencode`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Alera-Agent-Hook-Token': token },
-      body: JSON.stringify({ terminalSessionId, workspaceId, tabId, payload: { hook_event_name: eventName, ...payload, ...titleContext } }),
+      body: JSON.stringify({ terminalSessionId, workspaceId, tabId, multiplexer: terminalMultiplexer(), payload: { hook_event_name: eventName, ...payload, ...titleContext } }),
       signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(1000) : undefined,
     })
   } catch {}
@@ -78,8 +87,15 @@ export const AleraOpenCodeStatusPlugin = async (ctx) => {
   titleSessionContextById.clear();
   return ({
   event: async ({ event }) => {
-    if (event?.type === 'permission.asked') return post('PermissionRequest', event.properties)
-    if (event?.type === 'question.asked') return post('AskUserQuestion', event.properties)
+    if (event?.type === 'permission.asked' || event?.type === 'question.asked') {
+      // The session stays busy through the prompt, so no new `busy` arrives
+      // once it is answered; forget the last status so the reply can send one.
+      lastStatus = 'waiting'
+      return post(event.type === 'permission.asked' ? 'PermissionRequest' : 'AskUserQuestion', event.properties)
+    }
+    if (event?.type === 'permission.replied' || event?.type === 'question.replied' || event?.type === 'question.rejected') {
+      return setStatus('busy', event.properties?.sessionID ?? lastSessionId)
+    }
     if (event?.type === 'message.updated') {
       const info = event.properties?.info
       if (info?.id && info?.role) messageRoles.set(info.id, info.role)

@@ -97,7 +97,7 @@ impl WindowsProcessJob {
         // dedicated test that executes the same bootstrap implementation.
         #[cfg(test)]
         {
-            command.args(&[
+            command.args([
                 "--exact",
                 "pty_job_bootstrap::tests::pty_job_test_harness_bootstrap",
                 "--nocapture",

@@ -60,6 +60,7 @@ impl Session {
             output_stream_bytes: checkpoint
                 .output_stream_bytes
                 .max(checkpoint.buffer.len() as u64),
+            last_output_at: std::time::Instant::now(),
             title_tracker,
         })
     }

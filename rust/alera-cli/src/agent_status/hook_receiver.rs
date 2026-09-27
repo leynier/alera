@@ -15,6 +15,10 @@ use uuid::Uuid;
 use crate::terminal_host::server::ServerCommand;
 
 const TOKEN_HEADER: &str = "X-Alera-Agent-Hook-Token";
+/// Where the receiver records the reporting agent's process id in the payload.
+pub const AGENT_PID_PAYLOAD_KEY: &str = "aleraAgentPid";
+/// Where the receiver records that the hook ran inside tmux, screen or zellij.
+pub const MULTIPLEXER_PAYLOAD_KEY: &str = "aleraMultiplexer";
 const REQUEST_MAX_BYTES: usize = 1_000_000;
 const SUPPORTED_AGENTS: [&str; 11] = [
     "codex",
@@ -90,7 +94,10 @@ async fn handle_hook(
     let Some(event) = parse_hook_event(&agent, &content_type, &body) else {
         return StatusCode::NO_CONTENT;
     };
-    let _ = state.inbox.send(ServerCommand::AgentHookEvent { event });
+    let _ = state.inbox.send(ServerCommand::AgentHookEvent {
+        event,
+        relayed: false,
+    });
     StatusCode::NO_CONTENT
 }
 
@@ -120,6 +127,21 @@ fn parse_hook_event(agent: &str, content_type: &str, body: &[u8]) -> Option<Agen
     if let Some(dir) = optional_string(record.get("claudeConfigDir")) {
         if let Some(object) = payload.as_object_mut() {
             object.insert("claudeConfigDir".to_string(), Value::String(dir));
+        }
+    }
+    if let Some(pid) =
+        optional_string(record.get("agentPid")).and_then(|pid| pid.parse::<u32>().ok())
+    {
+        if let Some(object) = payload.as_object_mut() {
+            object.insert(AGENT_PID_PAYLOAD_KEY.to_string(), Value::from(pid));
+        }
+    }
+    if let Some(multiplexer) = optional_string(record.get("multiplexer")) {
+        if let Some(object) = payload.as_object_mut() {
+            object.insert(
+                MULTIPLEXER_PAYLOAD_KEY.to_string(),
+                Value::String(multiplexer),
+            );
         }
     }
     let payload_record = payload.as_object()?;

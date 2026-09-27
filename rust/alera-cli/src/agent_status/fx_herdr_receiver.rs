@@ -1,16 +1,25 @@
+#[cfg(unix)]
 use std::collections::hash_map::DefaultHasher;
+#[cfg(unix)]
 use std::hash::{Hash, Hasher};
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(unix)]
+use std::path::PathBuf;
 
+#[cfg(any(unix, test))]
 use serde_json::{json, Value};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::terminal_host::server::ServerCommand;
 
+#[cfg(any(unix, test))]
 use super::AgentHookEvent;
 
+#[cfg(unix)]
 const MAX_REQUEST_BYTES: u64 = 16 * 1024;
 
+// Herdr is a Unix-socket protocol; Windows has no fx receiver to answer.
+#[cfg(unix)]
 pub fn fx_herdr_socket_path(runtime_dir: &Path) -> PathBuf {
     let direct = runtime_dir.join("fx-herdr.sock");
     if direct.to_string_lossy().len() <= 90 {
@@ -77,6 +86,7 @@ pub async fn start_fx_herdr_receiver(
     Ok(())
 }
 
+#[cfg(any(unix, test))]
 fn fx_herdr_response(line: &str, inbox: &UnboundedSender<ServerCommand>) -> Value {
     let Ok(request) = serde_json::from_str::<Value>(line) else {
         return json!({"id": Value::Null, "error": "invalid request"});
@@ -86,19 +96,35 @@ fn fx_herdr_response(line: &str, inbox: &UnboundedSender<ServerCommand>) -> Valu
     let params = request.get("params").and_then(Value::as_object);
     if let (Some(method), Some(params)) = (method, params) {
         if let Some(event) = fx_event(method, params) {
-            let _ = inbox.send(ServerCommand::AgentHookEvent { event });
+            let _ = inbox.send(ServerCommand::AgentHookEvent {
+                event,
+                relayed: false,
+            });
         }
     }
     json!({"id": id, "result": {}})
 }
 
+#[cfg(any(unix, test))]
 fn fx_event(method: &str, params: &serde_json::Map<String, Value>) -> Option<AgentHookEvent> {
     let pane_id = non_blank(params.get("pane_id"))?;
+    let from_fx = || {
+        non_blank(params.get("source")) == Some("custom:fx")
+            && non_blank(params.get("agent")) == Some("fx")
+    };
+    // fx reports its conversation id at startup, before any prompt, and the
+    // session is already saved then, so `fx --resume <id>` works from there.
+    let session_id = non_blank(params.get("agent_session_id"));
     match method {
-        "pane.report_agent"
-            if non_blank(params.get("source"))? == "custom:fx"
-                && non_blank(params.get("agent"))? == "fx" =>
-        {
+        "pane.report_agent_session" if from_fx() => Some(AgentHookEvent {
+            terminal_session_id: pane_id.to_string(),
+            workspace_id: String::new(),
+            tab_id: String::new(),
+            agent_type: "fx".to_string(),
+            payload: json!({ "session_id": session_id? }),
+            event_name: Some("SessionReport".to_string()),
+        }),
+        "pane.report_agent" if from_fx() => {
             let state = non_blank(params.get("state"))?;
             let event_name = match state {
                 "idle" => "Idle",
@@ -106,15 +132,20 @@ fn fx_event(method: &str, params: &serde_json::Map<String, Value>) -> Option<Age
                 "blocked" => "Blocked",
                 _ => return None,
             };
+            let mut payload = json!({
+                "state": state,
+                "customStatus": non_blank(params.get("message"))
+                    .or_else(|| non_blank(params.get("custom_status"))),
+            });
+            if let Some(session_id) = session_id {
+                payload["session_id"] = json!(session_id);
+            }
             Some(AgentHookEvent {
                 terminal_session_id: pane_id.to_string(),
                 workspace_id: String::new(),
                 tab_id: String::new(),
                 agent_type: "fx".to_string(),
-                payload: json!({
-                    "state": state,
-                    "customStatus": non_blank(params.get("custom_status")),
-                }),
+                payload,
                 event_name: Some(event_name.to_string()),
             })
         }
@@ -132,6 +163,7 @@ fn fx_event(method: &str, params: &serde_json::Map<String, Value>) -> Option<Age
     }
 }
 
+#[cfg(any(unix, test))]
 fn non_blank(value: Option<&Value>) -> Option<&str> {
     value?
         .as_str()
@@ -154,13 +186,35 @@ mod tests {
         );
         assert_eq!(response, json!({"id": "7", "result": {}}));
         let command = receiver.try_recv().expect("fx event");
-        let ServerCommand::AgentHookEvent { event } = command else {
+        let ServerCommand::AgentHookEvent { event, .. } = command else {
             panic!("unexpected server command");
         };
         assert_eq!(event.terminal_session_id, "session-1");
         assert_eq!(event.agent_type, "fx");
         assert_eq!(event.event_name.as_deref(), Some("Blocked"));
         assert_eq!(event.payload["customStatus"], "permission");
+    }
+
+    /// The exact line fx 0.0.11 sends at startup, captured from a real run.
+    #[test]
+    fn a_session_report_carries_the_resumable_fx_session_id() {
+        let (inbox, mut receiver) = mpsc::unbounded_channel();
+        fx_herdr_response(
+            r#"{"id":"1","method":"pane.report_agent_session","params":{"pane_id":"pane-1","source":"custom:fx","agent":"fx","agent_session_id":"3zfNDCfnTsuI"}}"#,
+            &inbox,
+        );
+        let ServerCommand::AgentHookEvent { event, .. } = receiver.try_recv().expect("fx event")
+        else {
+            panic!("unexpected server command");
+        };
+        assert_eq!(event.event_name.as_deref(), Some("SessionReport"));
+        assert_eq!(
+            crate::terminal_host::orchestration::agent_session_resume::native_session_id(
+                &event.payload
+            ),
+            Some("3zfNDCfnTsuI")
+        );
+        assert!(crate::agent_status::normalize_hook_event(&event, None).is_none());
     }
 
     #[test]
@@ -170,7 +224,8 @@ mod tests {
             r#"{"id":"8","method":"pane.clear_agent_authority","params":{"pane_id":"session-1","source":"custom:fx"}}"#,
             &inbox,
         );
-        let ServerCommand::AgentHookEvent { event } = receiver.try_recv().expect("fx event") else {
+        let ServerCommand::AgentHookEvent { event, .. } = receiver.try_recv().expect("fx event")
+        else {
             panic!("unexpected server command");
         };
         assert_eq!(event.event_name.as_deref(), Some("SessionEnd"));

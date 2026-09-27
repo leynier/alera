@@ -39,6 +39,28 @@ fn install_writes_user_hooks_and_trust_without_a_runtime_home() {
     assert!(toml.contains("session_start"));
 }
 
+/// Codex trusts the normalized handler, so the timeout in `hooks.json` and the
+/// one in the trusted hash must agree (verified against `hooks/list`).
+#[test]
+fn teardown_events_request_the_codex_timeout_cap_and_hash_it() {
+    let root = tempfile::tempdir().unwrap();
+    install_codex(root.path(), script()).unwrap();
+    let config = read_json_object(&root.path().join("hooks.json"))
+        .unwrap()
+        .unwrap();
+    for (event, timeout) in [
+        ("Interrupt", Some(3)),
+        ("SessionEnd", Some(3)),
+        ("Stop", None),
+    ] {
+        let handler = &config["hooks"][event][0]["hooks"][0];
+        assert_eq!(handler["timeout"].as_u64(), timeout, "{event}");
+    }
+    let toml = std::fs::read_to_string(root.path().join("config.toml")).unwrap();
+    assert!(toml.contains(":interrupt:0:0"));
+    assert!(toml.contains(":session_end:0:0"));
+}
+
 #[test]
 fn install_is_idempotent() {
     let root = tempfile::tempdir().unwrap();

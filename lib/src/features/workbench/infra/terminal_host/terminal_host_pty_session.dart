@@ -44,6 +44,7 @@ final class TerminalHostPtySession._(
     implements
         RecoverableTerminalPtySession,
         DeferredEnterTerminalPtySession,
+        StartupCommandTerminalPtySession,
         TerminalPulsePtySession {
   factory({
     required TerminalHostClient client,
@@ -78,6 +79,7 @@ final class TerminalHostPtySession._(
   bool _disposed = false;
   bool _started = false;
   bool _startedNewProcess = false;
+  String? _initialCommandOverride;
   bool _outputPaused = false;
   Future<void>? _startFuture;
   // Resize and output resync can both observe a lost attachment. Keep their
@@ -90,6 +92,9 @@ final class TerminalHostPtySession._(
 
   @override
   bool get startedNewProcess => _startedNewProcess;
+
+  @override
+  String? get initialCommandOverride => _initialCommandOverride;
 
   @override
   bool get supportsRestart => _client.supportsTerminalRestart;
@@ -163,6 +168,7 @@ final class TerminalHostPtySession._(
 
   Future<void> _applyAttachment(TerminalHostAttachment attachment) async {
     _startedNewProcess = attachment.created;
+    _initialCommandOverride = attachment.initialCommandOverride;
     if (attachment.snapshot.isNotEmpty || attachment.created) {
       _events.add(
         TerminalPtySnapshotEvent(

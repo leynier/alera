@@ -56,6 +56,12 @@ mod tests {
             tool_input: None,
             last_assistant_message: None,
             interrupted: None,
+            native_session_id: None,
+            process_group: None,
+            agent_pid: None,
+            turn_id: None,
+            local_hook: false,
+            inferred_idle: false,
         }
     }
 

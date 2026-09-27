@@ -431,8 +431,8 @@ void main() {
           'agent': 'build',
           'autoApprove': true,
         }),
-        // Interactive opencode2 only accepts --auto on the default TUI.
-        'opencode2 --auto',
+        // A private server, then the only interactive TUI option.
+        'opencode2 --standalone --auto',
       );
       expect(
         managedAgentCommandPreview(.pi, const <String, Object?>{

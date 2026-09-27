@@ -388,7 +388,11 @@ class _XtermTerminalSessionHandle(
               session: session,
               launch: workspaceLaunch,
               interactiveShell: interactiveLaunch.shell,
-              initialCommand: _tab.initialCommand,
+              initialCommand:
+                  (session is StartupCommandTerminalPtySession
+                      ? session.initialCommandOverride
+                      : null) ??
+                  _tab.initialCommand,
               isCurrent: isCurrent,
             );
           },

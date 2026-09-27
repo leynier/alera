@@ -70,7 +70,7 @@ fn every_adapter_builds_its_native_session_flags() {
         (
             "opencode2",
             json!({"agent": "build", "model": "opencode/deepseek", "autoApprove": true}),
-            vec!["--auto"],
+            vec!["--standalone", "--auto"],
         ),
         (
             "pi",

@@ -54,6 +54,7 @@ mod account_requests_tests;
 mod actor_test_harness;
 mod agent_hook_events;
 mod agent_native_session;
+mod agent_presence_reconciliation;
 mod agent_profile_launch_requests;
 mod agent_profile_session_resume;
 mod agent_prompt_composition;
@@ -669,7 +670,9 @@ impl ServerActor {
             }
             ServerCommand::RequestedShutdown => self.dispose().await,
             ServerCommand::RequestedRestart => self.dispose().await,
-            ServerCommand::AgentHookEvent { event } => self.handle_board_agent_hook(event).await,
+            ServerCommand::AgentHookEvent { event, relayed } => {
+                self.handle_board_agent_hook(event, relayed).await
+            }
             ServerCommand::SshBootstrapProgress { progress } => {
                 self.handle_ssh_bootstrap_progress(progress)
             }
@@ -943,6 +946,7 @@ impl ServerActor {
                 self.finish_remote_resource_sample(host_id, result)
             }
             ServerCommand::PullRequestWatchTick => self.poll_pull_request_watches().await,
+            ServerCommand::AgentPresenceSweepTick => self.reconcile_agent_presence().await,
             ServerCommand::PullRequestWatchSnapshot {
                 watch,
                 generation,

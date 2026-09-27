@@ -274,9 +274,17 @@ fn clear_legacy_runtime_state(runtime_dir: &Path) -> anyhow::Result<()> {
     }
 }
 
+// `Stop` never fires for an interrupted turn or an API error, so the turn can
+// only be closed from `PostToolUseFailure.is_interrupt`, `StopFailure` and the
+// `idle_prompt` notification. `SessionStart`/`SessionEnd` bracket each
+// conversation so a resumed, cleared or exited agent does not keep its state.
 pub(super) const CLAUDE_HOOK_EVENTS: &[(&str, Option<&str>)] = &[
+    ("SessionStart", None),
+    ("SessionEnd", None),
     ("UserPromptSubmit", None),
     ("Stop", None),
+    ("StopFailure", None),
+    ("Notification", None),
     ("PreToolUse", Some("*")),
     ("PostToolUse", Some("*")),
     ("PostToolUseFailure", Some("*")),
@@ -288,7 +296,13 @@ pub(super) fn install_claude_hooks_into(settings: &mut Map<String, Value>, scrip
     for (event, matcher) in CLAUDE_HOOK_EVENTS {
         let command = managed_command(script, "claude", event);
         let mut definitions = clean_managed_definitions(hooks.remove(*event));
-        definitions.push(managed_hook_definition(*matcher, &command));
+        let mut definition = managed_hook_definition(*matcher, &command);
+        // Claude gives `SessionEnd` hooks 1.5 s unless they ask for more, and
+        // the Windows hook starts PowerShell first.
+        if *event == "SessionEnd" {
+            definition["hooks"][0]["timeout"] = json!(5);
+        }
+        definitions.push(definition);
         hooks.insert((*event).to_string(), Value::Array(definitions));
     }
 }
@@ -392,6 +406,7 @@ pub(super) fn env_path(key: &str) -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
+#[cfg(not(windows))]
 fn path_string(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }

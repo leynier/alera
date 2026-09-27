@@ -27,6 +27,10 @@ extension _GrokManagedAgentHook on ManagedAgentHookInstallService {
         _ManagedHookEvent('Notification'),
         _ManagedHookEvent('Stop'),
         _ManagedHookEvent('StopFailure'),
+        // Replaces `Stop` for Ctrl+C, a declined permission and turn limits.
+        // Keep in step with `install_grok` in the runtime host, which owns
+        // the same file.
+        _ManagedHookEvent('StopCancelled'),
         _ManagedHookEvent('SessionEnd'),
       ],
     );
