@@ -4,6 +4,17 @@ use serde_json::json;
 
 use super::*;
 
+#[tokio::test]
+async fn close_signal_latches_without_an_active_receiver() {
+    let signal = CloseSignal::new();
+    signal.cancel();
+
+    assert!(signal.is_cancelled());
+    tokio::time::timeout(Duration::from_secs(1), signal.cancelled())
+        .await
+        .expect("late subscribers observe cancellation");
+}
+
 fn target(platform: &str, install_dir: Option<&str>) -> SshTarget {
     let now = Utc::now();
     SshTarget {
