@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera/src/features/workbench/domain/terminal_refresh_resize.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
@@ -249,10 +250,11 @@ final class TerminalHostPtySession._(
     }
     _cols = cols;
     _rows = rows;
-    final pulseCols = cols > 1 ? cols - 1 : cols + 1;
+    final pulse = terminalPtyRefreshPulseSize(cols, rows);
     return _enqueueAttachmentOperation<void>(() async {
       try {
-        await _resize(cols: pulseCols, rows: rows);
+        await _resize(cols: pulse.$1, rows: pulse.$2);
+        await Future.pause(terminalPtyRefreshHoldDuration);
       } finally {
         await _resize(cols: cols, rows: rows);
       }

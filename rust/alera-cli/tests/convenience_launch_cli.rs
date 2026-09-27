@@ -38,6 +38,8 @@ fn alera(runtime_dir: &Path, args: &[&str]) -> Output {
         .args(rest)
         .env_remove("ALERA_WORKSPACE_ID")
         .env_remove("ALERA_TERMINAL_HANDLE")
+        .env_remove("ALERA_TAB_ID")
+        .env_remove("ALERA_TERMINAL_SESSION_ID")
         .output()
         .expect("failed to run alera")
 }

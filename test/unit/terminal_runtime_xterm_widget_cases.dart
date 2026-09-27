@@ -33,11 +33,15 @@ void _registerXtermRuntimeWidgetTests() {
         writeTerminalOutputForTesting(session, 'preserved output');
         final bufferBefore = terminalBufferTextForTesting(session);
         final sizeBefore = terminalEmulatorViewSizeForTesting(session);
+        final pulse = terminalPtyRefreshPulseSize(sizeBefore.$1, sizeBefore.$2);
 
         await session.refreshRendering();
         await tester.pump(const Duration(milliseconds: 200));
 
-        expect(fakeSession.resizeCalls, isEmpty);
+        expect(
+          fakeSession.resizeCalls.map((call) => (call.cols, call.rows)),
+          <(int, int)>[pulse, sizeBefore],
+        );
         expect(terminalEmulatorViewSizeForTesting(session), sizeBefore);
         expect(terminalBufferTextForTesting(session), bufferBefore);
         expect(runtime.peekSession('tab-1'), same(session));

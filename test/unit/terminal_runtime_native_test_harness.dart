@@ -210,8 +210,8 @@ class _FakeTerminalPtySession({
     int cellWidthPx,
     int cellHeightPx,
   ) async {
-    final pulseCols = cols > 1 ? cols - 1 : cols + 1;
-    resize(pulseCols, rows, cellWidthPx, cellHeightPx);
+    final pulse = terminalPtyRefreshPulseSize(cols, rows);
+    resize(pulse.$1, pulse.$2, cellWidthPx, cellHeightPx);
     resize(cols, rows, cellWidthPx, cellHeightPx);
   }
 

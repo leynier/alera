@@ -84,7 +84,7 @@ impl CloseSignal {
     }
 
     fn cancel(&self) {
-        let _ = self.sender.send(true);
+        self.sender.send_replace(true);
     }
 
     fn is_cancelled(&self) -> bool {

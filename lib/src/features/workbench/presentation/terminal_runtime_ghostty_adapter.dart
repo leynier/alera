@@ -119,9 +119,10 @@ class _GhosttyTerminalPtySessionAdapter implements TerminalPtySession {
     if (_disposed || session == null) {
       return;
     }
-    final pulseCols = cols > 1 ? cols - 1 : cols + 1;
+    final pulse = terminalPtyRefreshPulseSize(cols, rows);
     try {
-      session.resize(rows: rows, cols: pulseCols);
+      session.resize(rows: pulse.$2, cols: pulse.$1);
+      await Future.pause(terminalPtyRefreshHoldDuration);
     } finally {
       session.resize(rows: rows, cols: cols);
     }

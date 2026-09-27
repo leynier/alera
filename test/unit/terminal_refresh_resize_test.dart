@@ -1,7 +1,22 @@
-import 'package:alera/src/features/workbench/domain/terminal_emulator_fake_resize.dart';
+import 'package:alera/src/features/workbench/domain/terminal_refresh_resize.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('terminalPtyRefreshPulseSize', () {
+    test('shrinks both axes by about 30%', () {
+      expect(terminalPtyRefreshPulseSize(120, 40), (84, 28));
+      expect(terminalPtyRefreshPulseSize(80, 24), (56, 17));
+      expect(terminalPtyRefreshPulseSize(10, 10), (7, 7));
+    });
+
+    test('changes a one-cell viewport and leaves invalid sizes alone', () {
+      expect(terminalPtyRefreshPulseSize(1, 1), (2, 2));
+      expect(terminalPtyRefreshPulseSize(2, 2), (1, 1));
+      expect(terminalPtyRefreshPulseSize(0, 24), (0, 24));
+      expect(terminalPtyRefreshPulseSize(80, 0), (80, 0));
+    });
+  });
+
   group('terminalEmulatorFakeResizeSize', () {
     test('bumps both axes by about 30%', () {
       expect(terminalEmulatorFakeResizeSize(80, 24), (104, 31));
