@@ -1,4 +1,4 @@
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{int_or, require_object, TerminalHostLaunch};
@@ -160,9 +160,16 @@ impl ServerActor {
         .await?;
         self.schedule_discovered_session_resume(&session_id, &tab_id, &interactive_shell)
             .await?;
+        let initial_command_override = self
+            .initial_command_override(&tab_id, &interactive_shell)
+            .await;
         let session = self.sessions.get_mut(&session_id).expect("just inserted");
         session.attach(client_id);
-        Ok(session.attachment_payload(true, restore_bytes))
+        let mut attachment = session.attachment_payload(true, restore_bytes);
+        if let Some(command) = initial_command_override {
+            attachment["initialCommandOverride"] = json!(command);
+        }
+        Ok(attachment)
     }
 
     pub(super) async fn restart_terminal(
@@ -224,6 +231,9 @@ impl ServerActor {
         .await?;
         self.schedule_discovered_session_resume(&session_id, &tab_id, &interactive_shell)
             .await?;
+        let initial_command_override = self
+            .initial_command_override(&tab_id, &interactive_shell)
+            .await;
 
         let resync_clients = attached_clients
             .into_iter()
@@ -236,11 +246,29 @@ impl ServerActor {
         for attached_client_id in &resync_clients {
             session.attach_for_resync(*attached_client_id);
         }
-        let attachment = session.attachment_payload(true, restore_bytes);
+        let mut attachment = session.attachment_payload(true, restore_bytes);
+        if let Some(command) = initial_command_override {
+            attachment["initialCommandOverride"] = json!(command);
+        }
         for attached_client_id in resync_clients {
             self.spawn_output_resync_timer(session_id.clone(), attached_client_id);
         }
         Ok(attachment)
+    }
+
+    /// A plain tab that was created with a command gets that command typed by
+    /// the client. Once the agent in it reported a resumable conversation,
+    /// the attach answer carries the resume form for the client to type
+    /// instead. Additive: an older client ignores it and types the original.
+    pub(super) async fn initial_command_override(
+        &self,
+        tab_id: &str,
+        interactive_shell: &str,
+    ) -> Option<String> {
+        let tab = self.runtime_store.find_workspace_tab(tab_id).await.ok()??;
+        super::terminal_spawn_command::resumed_initial_command(&tab, interactive_shell)
+            .ok()
+            .flatten()
     }
 
     /// Interactive tabs have no launch snapshot. After a remint, type the

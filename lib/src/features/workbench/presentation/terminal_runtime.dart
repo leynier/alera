@@ -349,6 +349,13 @@ abstract interface class DeferredEnterTerminalPtySession
   bool writeBytesWithDeferredEnter(List<int> bytes);
 }
 
+/// A backend that can hand the startup delivery a replacement for the tab's
+/// initial command, such as the host's resume form of it.
+abstract interface class StartupCommandTerminalPtySession
+    implements TerminalPtySession {
+  String? get initialCommandOverride;
+}
+
 abstract interface class TerminalPulsePtySession implements TerminalPtySession {
   bool get supportsTerminalPulse;
 

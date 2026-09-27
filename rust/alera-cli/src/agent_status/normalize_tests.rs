@@ -1,6 +1,9 @@
 use serde_json::{json, Value};
 
 use super::*;
+use crate::agent_status::normalize_lifecycle::{
+    hook_event_closes_session, hook_event_resets_session, hook_event_starts_unsaved_session,
+};
 
 fn event(agent_type: &str, event_name: &str, payload: Value) -> AgentHookEvent {
     AgentHookEvent {
@@ -24,7 +27,7 @@ fn every_supported_agent_reports_working() {
         ("opencode", "SessionBusy"),
         ("opencode2", "SessionBusy"),
         ("pi", "agent_start"),
-        ("amp", "session.start"),
+        ("amp", "agent.start"),
         ("grok", "UserPromptSubmit"),
         ("fx", "Working"),
     ] {
@@ -110,6 +113,12 @@ fn new_turn_clears_stale_tool_details() {
         tool_input: Some("old input".into()),
         last_assistant_message: None,
         interrupted: None,
+        native_session_id: None,
+        process_group: None,
+        agent_pid: None,
+        turn_id: None,
+        local_hook: false,
+        inferred_idle: false,
     };
     let status = normalize_hook_event(
         &event("codex", "UserPromptSubmit", json!({"prompt": "New prompt"})),
@@ -139,6 +148,99 @@ fn lifecycle_events_are_detected_before_state_normalization() {
         "SessionEnd",
         json!({})
     )));
+    for agent in ["claude", "codex"] {
+        assert!(hook_event_closes_session(&event(
+            agent,
+            "SessionEnd",
+            json!({})
+        )));
+    }
+}
+
+#[test]
+fn claude_conversation_switches_keep_the_agent_but_only_bind_saved_conversations() {
+    let previous = normalize_hook_event(&event("claude", "UserPromptSubmit", json!({})), None)
+        .map(|status| AgentPresence {
+            agent_type: "claude".into(),
+            state: status.state,
+            state_started_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            prompt: status.prompt,
+            tool_name: None,
+            tool_input: None,
+            last_assistant_message: None,
+            interrupted: None,
+            native_session_id: None,
+            process_group: None,
+            agent_pid: None,
+            turn_id: None,
+            local_hook: true,
+            inferred_idle: false,
+        })
+        .unwrap();
+    for (source, idle, unsaved) in [
+        ("startup", true, true),
+        ("clear", true, true),
+        ("fork", true, true),
+        ("resume", true, false),
+        ("compact", false, false),
+    ] {
+        let start = event("claude", "SessionStart", json!({"source": source}));
+        assert!(!hook_event_resets_session(&start), "{source}");
+        assert_eq!(
+            hook_event_starts_unsaved_session(&start),
+            unsaved,
+            "{source}"
+        );
+        let state = normalize_hook_event(&start, Some(&previous)).map(|status| status.state);
+        assert_eq!(state == Some(AgentPresenceState::Done), idle, "{source}");
+        assert!(normalize_hook_event(&start, None).is_none(), "{source}");
+    }
+    for (reason, closes) in [
+        ("clear", false),
+        ("resume", false),
+        ("prompt_input_exit", true),
+        ("logout", true),
+        ("other", true),
+    ] {
+        let end = event("claude", "SessionEnd", json!({"reason": reason}));
+        assert_eq!(hook_event_closes_session(&end), closes, "{reason}");
+    }
+}
+
+#[test]
+fn notification_text_is_not_mistaken_for_the_prompt() {
+    let previous = normalize_hook_event(
+        &event("claude", "UserPromptSubmit", json!({"prompt": "Ship it"})),
+        None,
+    )
+    .unwrap();
+    assert_eq!(previous.prompt, "Ship it");
+    let notification = event(
+        "claude",
+        "Notification",
+        json!({"notification_type": "permission_prompt", "message": "Claude needs your permission"}),
+    );
+    let status = normalize_hook_event(&notification, None).unwrap();
+    assert_eq!(status.state, AgentPresenceState::Waiting);
+    assert_eq!(status.prompt, "");
+}
+
+#[test]
+fn stop_payloads_carry_the_last_assistant_message() {
+    let status = normalize_hook_event(
+        &event(
+            "codex",
+            "Stop",
+            json!({"last_assistant_message": "All tests pass."}),
+        ),
+        None,
+    )
+    .unwrap();
+    assert_eq!(
+        status.last_assistant_message.as_deref(),
+        Some("All tests pass.")
+    );
 }
 
 #[test]

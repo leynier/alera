@@ -617,7 +617,17 @@ impl ServerActor {
                     .get("interrupted")
                     .and_then(Value::as_bool)
                     .or_else(|| previous.and_then(|value| value.interrupted)),
+                native_session_id: previous.and_then(|value| value.native_session_id.clone()),
+                process_group: previous.and_then(|value| value.process_group),
+                agent_pid: previous.and_then(|value| value.agent_pid),
+                turn_id: previous.and_then(|value| value.turn_id.clone()),
+                local_hook: previous.is_some_and(|value| value.local_hook),
+                inferred_idle: entry
+                    .get("inferredIdle")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false),
             };
+            let accepts_injection = presence.accepts_injection();
             self.agent_presence.update_full(handle, presence);
             self.queue_agent_push(handle, &agent_type, state, started_at, changed)
                 .await;
@@ -631,7 +641,7 @@ impl ServerActor {
                     .record_orchestration_activity(&dispatch.id)
                     .await;
             }
-            if state.accepts_injection() && self.voice_home_ready_transition(handle, changed) {
+            if accepts_injection && self.voice_home_ready_transition(handle, changed) {
                 became_ready.push(handle.to_string());
             }
         }

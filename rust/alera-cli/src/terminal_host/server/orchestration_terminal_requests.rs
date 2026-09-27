@@ -3,7 +3,7 @@ use serde_json::{json, Value};
 use std::collections::BTreeSet;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
-use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
+use crate::terminal_host::orchestration::agent_presence::AgentPresence;
 
 use super::orchestration_validation::{optional_string, require_string, state_error};
 use super::ServerActor;
@@ -35,6 +35,7 @@ impl ServerActor {
                     "toolInput": presence.and_then(|entry| entry.tool_input.clone()),
                     "lastAssistantMessage": presence.and_then(|entry| entry.last_assistant_message.clone()),
                     "interrupted": presence.and_then(|entry| entry.interrupted),
+                    "inferredIdle": presence.map(|entry| entry.inferred_idle),
                 })
             })
             .collect();
@@ -98,9 +99,7 @@ impl ServerActor {
             Some(OrchestrationDispatchStatus::StartupFailed) => "failed",
             Some(OrchestrationDispatchStatus::Stalled) => "stalled",
             _ if spawn_failure.is_some() => "failed",
-            _ if presence.is_some_and(|entry| entry.state == AgentPresenceState::Done) => {
-                "agent_ready"
-            }
+            _ if presence.is_some_and(AgentPresence::accepts_injection) => "agent_ready",
             _ if presence.is_some() => "agent_detected",
             _ => "process_started",
         };

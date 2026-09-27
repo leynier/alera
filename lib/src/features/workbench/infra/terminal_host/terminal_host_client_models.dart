@@ -139,14 +139,21 @@ final class const TerminalHostAttachment({
   required final bool running,
   required final Uint8List snapshot,
   final int? exitCode,
+  final String? initialCommandOverride,
 }) {
   factory fromJson(Map<String, Object?> json) {
+    final override = json['initialCommandOverride'];
     return TerminalHostAttachment(
       sessionId: json['sessionId'] as String,
       created: json['created'] == true,
       running: json['running'] == true,
       snapshot: decodeTerminalHostBytes(json['snapshotBase64']),
       exitCode: json['exitCode'] is int ? json['exitCode'] as int : null,
+      // Set when the agent in a plain tab reported a resumable conversation:
+      // the resume form of the tab's command, typed in place of the original.
+      initialCommandOverride: override is String && override.isNotEmpty
+          ? override
+          : null,
     );
   }
 }

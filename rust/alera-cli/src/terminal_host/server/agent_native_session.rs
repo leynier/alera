@@ -7,9 +7,9 @@ use crate::agent_status::{
 use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
 use crate::terminal_host::orchestration::agent_registry::adapter_for;
 use crate::terminal_host::orchestration::agent_session_resume::{
-    ccs_profile_from_config_dir, hook_identifies_parent_session, native_session_id,
-    usable_native_session_id, AgentSessionResumeShape, AGENT_NATIVE_CCS_PROFILE_KEY,
-    AGENT_NATIVE_SESSION_AGENT_KEY, AGENT_NATIVE_SESSION_ID_KEY,
+    ccs_profile_from_config_dir, native_session_id, usable_native_session_id,
+    AgentSessionResumeShape, AGENT_NATIVE_CCS_PROFILE_KEY, AGENT_NATIVE_SESSION_AGENT_KEY,
+    AGENT_NATIVE_SESSION_ID_KEY,
 };
 
 use super::terminal_startup_commands::tab_agent_type;
@@ -60,7 +60,9 @@ pub(super) fn native_ccs_profile(tab: &WorkspaceTabRecord) -> Option<&str> {
 
 impl ServerActor {
     pub(super) async fn observe_hook_native_session(&mut self, event: &AgentHookEvent) {
-        if hook_identifies_parent_session(&event.payload) {
+        if crate::agent_status::hook_identifies_child_agent(event)
+            || crate::agent_status::hook_event_starts_unsaved_session(event)
+        {
             return;
         }
         let Some(session_id) = native_session_id(&event.payload) else {

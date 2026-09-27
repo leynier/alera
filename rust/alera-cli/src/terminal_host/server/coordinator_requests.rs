@@ -709,7 +709,7 @@ impl ServerActor {
                 pending += 1;
                 continue;
             };
-            if presence.state.accepts_injection() {
+            if presence.accepts_injection() {
                 continue;
             }
             if presence.state == AgentPresenceState::Done {

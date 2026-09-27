@@ -127,7 +127,10 @@ impl ServerActor {
                 // what keeps a satellite from reporting for anything but the
                 // terminals the hub proxies to it.
                 if let Some(event) = hook_event_from_payload(payload) {
-                    let _ = self.inbox.send(ServerCommand::AgentHookEvent { event });
+                    let _ = self.inbox.send(ServerCommand::AgentHookEvent {
+                        event,
+                        relayed: true,
+                    });
                 }
             }
             super::hub_reverse_requests::HUB_REQUEST_EVENT => {
@@ -256,6 +259,7 @@ fn relayed_entries(
             "toolInput": item.get("toolInput"),
             "lastAssistantMessage": item.get("lastAssistantMessage"),
             "interrupted": item.get("interrupted"),
+            "inferredIdle": item.get("inferredIdle"),
         }));
     }
     let mut stale: Vec<&String> = owned
@@ -315,7 +319,7 @@ mod tests {
         actor.relay_host_link_event("ssh", AGENT_HOOK_EVENT, &json!({"agentType": "claude"}));
         actor.relay_host_link_event("ssh", "workspacesChanged", &json!({}));
 
-        let Some(ServerCommand::AgentHookEvent { event }) = commands.recv().await else {
+        let Some(ServerCommand::AgentHookEvent { event, .. }) = commands.recv().await else {
             panic!("the hook must reach the actor's hook handler");
         };
         assert_eq!(event.terminal_session_id, "proxied");

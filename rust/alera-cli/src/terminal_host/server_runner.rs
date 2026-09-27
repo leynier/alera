@@ -40,6 +40,7 @@ pub async fn run_terminal_host_server(
     let (inbox, mut rx) = mpsc::unbounded_channel::<ServerCommand>();
     let shutdown_signal = spawn_termination_listener(inbox.clone());
     let watch_ticker = pull_request_watch_runtime::spawn(inbox.clone());
+    let presence_sweep = agent_presence_reconciliation::spawn(inbox.clone());
     let automation_wake = Arc::new(Notify::new());
     let automation_ticker = automation_scheduler::spawn(
         runtime_store.clone(),
@@ -171,6 +172,8 @@ pub async fn run_terminal_host_server(
     }
     watch_ticker.abort();
     let _ = watch_ticker.await;
+    presence_sweep.abort();
+    let _ = presence_sweep.await;
     automation_ticker.abort();
     let _ = automation_ticker.await;
     if let Some(shutdown_signal) = shutdown_signal {

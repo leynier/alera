@@ -23,7 +23,12 @@ const NATIVE_ID_KEYS: [&str; 7] = [
     "threadId",
 ];
 
-const PARENT_ID_KEYS: [&str; 3] = ["parent_session_id", "parentSessionId", "parentThreadId"];
+const PARENT_ID_KEYS: [&str; 4] = [
+    "parent_session_id",
+    "parentSessionId",
+    "parent_thread_id",
+    "parentThreadId",
+];
 
 /// How a supported agent CLI accepts a stored native session or thread id.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

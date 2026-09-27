@@ -43,6 +43,10 @@ impl ManagedAgentLaunch {
                 executable: CCS_EXECUTABLE.to_string(),
                 arguments: vec![profile.to_string()],
             }),
+            ("opencode2", _) => Some(Self {
+                executable: adapter.default_command.to_string(),
+                arguments: vec![OPENCODE2_PRIVATE_SERVER.to_string()],
+            }),
             _ => Some(Self {
                 executable: adapter.default_command.to_string(),
                 arguments: Vec::new(),
@@ -349,8 +353,14 @@ fn build_opencode(values: &Map<String, Value>, arguments: &mut Vec<String>) -> R
 // consumers, but they are not emitted on the interactive launch line.
 fn build_opencode2(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result<(), String> {
     require_known_keys(values, &["model", "agent", "autoApprove"])?;
+    arguments.push(OPENCODE2_PRIVATE_SERVER.to_string());
     push_flag(values, "autoApprove", "--auto", arguments)
 }
+
+/// opencode2 otherwise attaches to one background service shared by every
+/// terminal, whose environment names whichever tab started it, so Alera's
+/// status plugin could not tell the tabs apart.
+const OPENCODE2_PRIVATE_SERVER: &str = "--standalone";
 
 fn build_pi(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result<(), String> {
     require_known_keys(values, &["model", "thinking", "projectTrust"])?;

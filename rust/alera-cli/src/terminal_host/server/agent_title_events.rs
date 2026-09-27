@@ -54,9 +54,7 @@ impl ServerActor {
             return;
         }
         // Child-agent hooks can share the parent's PTY identity.
-        if crate::terminal_host::orchestration::agent_session_resume::hook_identifies_parent_session(
-            &event.payload,
-        ) {
+        if crate::agent_status::hook_identifies_child_agent(event) {
             return;
         }
         if crate::agent_status::hook_event_closes_session(event) {

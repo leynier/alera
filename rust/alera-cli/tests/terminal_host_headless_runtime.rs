@@ -441,7 +441,7 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
         ("opencode", "SessionBusy", "SessionIdle"),
         ("opencode2", "SessionBusy", "SessionIdle"),
         ("pi", "agent_start", "agent_end"),
-        ("amp", "session.start", "agent.end"),
+        ("amp", "agent.start", "agent.end"),
         ("grok", "UserPromptSubmit", "Stop"),
     ]
     .into_iter()

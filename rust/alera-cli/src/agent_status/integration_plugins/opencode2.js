@@ -108,11 +108,43 @@ async function handleEvent(event) {
   const sessionId = event.sessionID ?? event.sessionId ?? event.data?.sessionID ?? event.data?.sessionId;
 
   if (event.type === "permission.asked") {
+    lastStatus = "waiting";
     await post("PermissionRequest", event.data || {});
     return;
   }
-  if (event.type === "question.asked") {
+  // Betas name the question prompt `question.asked` or `form.created`.
+  if (event.type === "question.asked" || event.type === "form.created") {
+    lastStatus = "waiting";
     await post("AskUserQuestion", event.data || {});
+    return;
+  }
+  // The session stays busy through a prompt, so no new `busy` follows it.
+  if (
+    event.type === "permission.replied" ||
+    event.type === "permission.rejected" ||
+    event.type === "question.replied" ||
+    event.type === "question.rejected" ||
+    event.type === "form.replied" ||
+    event.type === "form.cancelled"
+  ) {
+    await setStatus("busy", sessionId ?? lastSessionId);
+    return;
+  }
+  if (event.type === "session.execution.started") {
+    await setStatus("busy", sessionId);
+    return;
+  }
+  if (event.type === "session.execution.succeeded") {
+    await setStatus("idle", sessionId);
+    return;
+  }
+  if (event.type === "session.execution.failed" || event.type === "session.execution.interrupted") {
+    lastStatus = "idle";
+    lastSessionId = sessionId;
+    await post("SessionIdle", {
+      sessionId,
+      status: event.type === "session.execution.failed" ? "error" : "cancelled",
+    });
     return;
   }
   if (event.type === "session.input.admitted") {
@@ -143,17 +175,34 @@ async function handleEvent(event) {
   }
 }
 
-async function setup(ctx) {
-  readTitleSession = ctx?.session?.get
-    ? (sessionID) => ctx.session.get({ sessionID }) : null;
-  titleSessionContextById.clear();
-  const stream = ctx?.event?.subscribe?.();
-  if (!stream || typeof stream[Symbol.asyncIterator] !== "function") return;
+async function consume(stream) {
   for await (const event of stream) {
     try {
       await handleEvent(event);
     } catch {}
   }
+}
+
+// The background service (`serve --service`) is shared by every terminal and
+// carries the environment of whichever one started it, so events there cannot
+// be attributed to a tab. Alera launches opencode2 with `--standalone`, whose
+// private server (`serve --stdio`) inherits the tab's own environment.
+function runsInSharedService() {
+  return process.argv.includes("--service");
+}
+
+// setup must return: OpenCode awaits it while loading plugins. The stream is
+// consumed in the background, and the returned function is OpenCode's cleanup.
+function setup(ctx) {
+  readTitleSession = ctx?.session?.get
+    ? (sessionID) => ctx.session.get({ sessionID }) : null;
+  titleSessionContextById.clear();
+  if (runsInSharedService()) return undefined;
+  const controller = typeof AbortController === "function" ? new AbortController() : null;
+  const stream = ctx?.event?.subscribe?.(controller ? { signal: controller.signal } : undefined);
+  if (!stream || typeof stream[Symbol.asyncIterator] !== "function") return undefined;
+  void consume(stream).catch(() => {});
+  return () => controller?.abort();
 }
 
 // Accept both Plugin.define output and a plain { id, setup } object.

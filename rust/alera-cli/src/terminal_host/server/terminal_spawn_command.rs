@@ -68,6 +68,28 @@ pub(super) fn resolve_spawn_command(
     })
 }
 
+/// The resume form of a Dart-delivered `initialCommand` (a plain tab created
+/// with a command), which the client types instead of the original when the
+/// host reports it on attach. Managed launches are the host's own to type.
+pub(super) fn resumed_initial_command(
+    tab: &WorkspaceTabRecord,
+    interactive_shell: &str,
+) -> HostResult<Option<String>> {
+    let plain_command = tab
+        .payload
+        .get("initialCommand")
+        .and_then(serde_json::Value::as_str)
+        .is_some_and(|command| !command.is_empty());
+    let one_shot = tab.payload.get("initialCommandOnce") == Some(&serde_json::Value::Bool(true));
+    if !plain_command || one_shot || initial_managed_agent_launch(tab)?.is_some() {
+        return Ok(None);
+    }
+    Ok(match resume_spawn_command(tab, interactive_shell)? {
+        Some(SpawnCommand::Line(command)) => Some(command),
+        _ => None,
+    })
+}
+
 fn resume_spawn_command(
     tab: &WorkspaceTabRecord,
     interactive_shell: &str,
@@ -146,6 +168,34 @@ mod tests {
             updated_at: Utc::now(),
             payload,
         }
+    }
+
+    #[test]
+    fn a_plain_tab_command_resumes_the_conversation_its_agent_reported() {
+        let bound = tab(json!({
+            "initialCommand": "claude",
+            AGENT_NATIVE_SESSION_ID_KEY: "sess-1",
+            AGENT_NATIVE_SESSION_AGENT_KEY: "claude",
+        }));
+        let resumed = resumed_initial_command(&bound, "/bin/zsh")
+            .unwrap()
+            .unwrap();
+        assert!(resumed.contains("--resume"), "{resumed}");
+        assert!(resumed.contains("sess-1"), "{resumed}");
+
+        let unbound = tab(json!({"initialCommand": "claude"}));
+        assert_eq!(resumed_initial_command(&unbound, "/bin/zsh").unwrap(), None);
+
+        let one_shot = tab(json!({
+            "initialCommand": "claude",
+            "initialCommandOnce": true,
+            AGENT_NATIVE_SESSION_ID_KEY: "sess-1",
+            AGENT_NATIVE_SESSION_AGENT_KEY: "claude",
+        }));
+        assert_eq!(
+            resumed_initial_command(&one_shot, "/bin/zsh").unwrap(),
+            None
+        );
     }
 
     fn line(tab: &WorkspaceTabRecord) -> String {

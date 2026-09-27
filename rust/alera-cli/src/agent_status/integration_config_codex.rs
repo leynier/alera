@@ -2,7 +2,9 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 
-use super::codex_hook_trust::{remove_alera_codex_hook_trust, upsert_codex_hook_trust};
+use super::codex_hook_trust::{
+    codex_teardown_timeout, remove_alera_codex_hook_trust, upsert_codex_hook_trust,
+};
 use super::{
     clean_managed_definitions, managed_command, object_field, read_json_object, write_json_object,
 };
@@ -14,6 +16,10 @@ const CODEX_HOOK_EVENTS: &[(&str, &str)] = &[
     ("PermissionRequest", "permission_request"),
     ("PostToolUse", "post_tool_use"),
     ("Stop", "stop"),
+    // Recent Codex releases only; older ones ignore unknown event keys. `Stop`
+    // does not run for an aborted turn, so `Interrupt` is what closes it.
+    ("Interrupt", "interrupt"),
+    ("SessionEnd", "session_end"),
 ];
 
 /// Writes Alera Codex hooks into the Codex home (`~/.codex` or `$CODEX_HOME`).
@@ -35,9 +41,11 @@ pub(super) fn install_codex(root: &Path, script: &Path) -> anyhow::Result<()> {
         let definitions = clean_managed_definitions(hooks.remove(*event));
         let index = definitions.len();
         let mut next = definitions;
-        next.push(json!({
-            "hooks": [{ "type": "command", "command": command.clone() }],
-        }));
+        let mut handler = json!({ "type": "command", "command": command.clone() });
+        if let Some(timeout) = codex_teardown_timeout(label) {
+            handler["timeout"] = json!(timeout);
+        }
+        next.push(json!({ "hooks": [handler] }));
         hooks.insert((*event).to_string(), Value::Array(next));
         trust.push((*label, index, command));
     }

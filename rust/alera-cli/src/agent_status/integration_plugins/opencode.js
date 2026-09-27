@@ -78,8 +78,15 @@ export const AleraOpenCodeStatusPlugin = async (ctx) => {
   titleSessionContextById.clear();
   return ({
   event: async ({ event }) => {
-    if (event?.type === 'permission.asked') return post('PermissionRequest', event.properties)
-    if (event?.type === 'question.asked') return post('AskUserQuestion', event.properties)
+    if (event?.type === 'permission.asked' || event?.type === 'question.asked') {
+      // The session stays busy through the prompt, so no new `busy` arrives
+      // once it is answered; forget the last status so the reply can send one.
+      lastStatus = 'waiting'
+      return post(event.type === 'permission.asked' ? 'PermissionRequest' : 'AskUserQuestion', event.properties)
+    }
+    if (event?.type === 'permission.replied' || event?.type === 'question.replied' || event?.type === 'question.rejected') {
+      return setStatus('busy', event.properties?.sessionID ?? lastSessionId)
+    }
     if (event?.type === 'message.updated') {
       const info = event.properties?.info
       if (info?.id && info?.role) messageRoles.set(info.id, info.role)

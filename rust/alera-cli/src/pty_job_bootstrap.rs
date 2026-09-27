@@ -164,6 +164,7 @@ mod tests {
                 format!("cd /d \"{}\" && cd", workspace.display()),
             ],
         };
+        #[allow(clippy::disallowed_methods)]
         let mut command = Command::new("cmd.exe");
         append_shell_arguments(&mut command, &request, false);
         let output = command.output().unwrap();

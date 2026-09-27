@@ -375,7 +375,10 @@ String managedAgentCommandPreview(
       stringOption('agent', '--agent');
       flag('autoApprove', '--auto');
     case AgentType.opencode2:
-      // Interactive opencode2 only accepts --auto on the default TUI command.
+      // A private server: the shared background service carries the
+      // environment of whichever tab started it, so status could not tell
+      // tabs apart. Interactive opencode2 only accepts --auto besides it.
+      arguments.add('--standalone');
       flag('autoApprove', '--auto');
     case AgentType.pi:
       stringOption('model', '--model');

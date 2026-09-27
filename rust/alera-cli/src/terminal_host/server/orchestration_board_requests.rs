@@ -96,8 +96,9 @@ impl ServerActor {
     pub(super) async fn handle_board_agent_hook(
         &mut self,
         event: crate::agent_status::AgentHookEvent,
+        relayed: bool,
     ) {
-        self.handle_agent_hook_event(event).await;
+        self.handle_agent_hook_event(event, relayed).await;
         self.broadcast_orchestration_board_change().await;
     }
 }

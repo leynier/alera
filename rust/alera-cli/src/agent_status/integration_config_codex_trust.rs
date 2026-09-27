@@ -4,12 +4,21 @@ use std::path::Path;
 use serde_json::json;
 use sha2::{Digest, Sha256};
 
+/// Codex runs `SessionEnd` and `Interrupt` with a one-second default and a
+/// three-second cap. The Windows hook starts PowerShell, which alone can take
+/// longer than a second, so Alera asks for the cap explicitly.
+pub(super) fn codex_teardown_timeout(event_label: &str) -> Option<u64> {
+    matches!(event_label, "session_end" | "interrupt").then_some(3)
+}
+
 pub(super) fn codex_trusted_hash(event_label: &str, command: &str) -> String {
+    // Codex hashes the normalized handler, timeout included.
+    let timeout = codex_teardown_timeout(event_label).unwrap_or(600);
     let identity = BTreeMap::from([
         ("event_name", json!(event_label)),
         (
             "hooks",
-            json!([{ "async": false, "command": command, "timeout": 600, "type": "command" }]),
+            json!([{ "async": false, "command": command, "timeout": timeout, "type": "command" }]),
         ),
     ]);
     let serialized = serde_json::to_string(&identity).expect("serializable trust identity");

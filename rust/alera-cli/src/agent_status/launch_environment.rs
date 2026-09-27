@@ -3,6 +3,7 @@ use std::path::Path;
 
 use alera_core::runtime::RuntimeAgentStatusHookSettings;
 
+#[cfg(unix)]
 use super::fx_herdr_receiver::fx_herdr_socket_path;
 use super::integration_config::prepare_enabled_integrations;
 

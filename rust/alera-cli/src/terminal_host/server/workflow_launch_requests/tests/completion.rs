@@ -318,9 +318,9 @@ async fn workflow_completion_rechecks_dispatch_after_deferred_git_work() {
 
 #[tokio::test]
 async fn workflow_completion_rejects_artifacts_outside_the_committed_result() {
-    let mut cases = vec!["missing", "ignored", "directory"];
-    #[cfg(unix)]
-    cases.push("symlink");
+    let cases = ["missing", "ignored", "directory"]
+        .into_iter()
+        .chain(cfg!(unix).then_some("symlink"));
     for case in cases {
         let (fixture, launch, token) = accepted_workflow().await;
         let workspace = fixture

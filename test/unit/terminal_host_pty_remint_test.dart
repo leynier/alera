@@ -10,6 +10,45 @@ import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 import 'terminal_host_test_fakes.dart';
 
 void main() {
+  test(
+    'a reminted plain tab exposes the host resume form of its command',
+    () async {
+      final attachment = TerminalHostAttachment.fromJson(<String, Object?>{
+        'sessionId': 'session-1',
+        'created': true,
+        'running': true,
+        'snapshotBase64': '',
+        'initialCommandOverride': "'claude' '--resume' 'sess-1'",
+      });
+      final client = FakeTerminalHostClient(
+        attachment: attachment,
+        attachments: <TerminalHostAttachment>[attachment],
+      );
+      final session = _session(client);
+      addTearDown(session.dispose);
+      String? seen;
+
+      await session.start(
+        launch: _launch(),
+        workingDirectory: '/repo',
+        cols: 80,
+        rows: 24,
+        onProcessCreated: () async {
+          seen = session.initialCommandOverride;
+        },
+      );
+
+      expect(seen, "'claude' '--resume' 'sess-1'");
+      expect(
+        TerminalHostAttachment.fromJson(<String, Object?>{
+          'sessionId': 'session-1',
+          'snapshotBase64': '',
+        }).initialCommandOverride,
+        isNull,
+      );
+    },
+  );
+
   test('initial process callback can write startup input', () async {
     final client = _clientWithReattach(created: false);
     final session = _session(client);

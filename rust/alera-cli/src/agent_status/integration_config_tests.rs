@@ -374,6 +374,9 @@ fn claude_user_hooks_install_keeps_the_users_own_definitions() {
                 ],
                 "SessionStart": [
                     {"hooks": [{"type": "command", "command": "echo start"}]}
+                ],
+                "SubagentStop": [
+                    {"hooks": [{"type": "command", "command": "echo subagent"}]}
                 ]
             }),
         )]),
@@ -394,7 +397,10 @@ fn claude_user_hooks_install_keeps_the_users_own_definitions() {
     assert!(settings["hooks"]["SessionStart"]
         .to_string()
         .contains("echo start"));
-    assert!(!settings["hooks"]["SessionStart"]
+    assert!(settings["hooks"]["SessionStart"]
+        .to_string()
+        .contains("alera-runtime-agent-hook"));
+    assert!(!settings["hooks"]["SubagentStop"]
         .to_string()
         .contains("alera-runtime-agent-hook"));
 }

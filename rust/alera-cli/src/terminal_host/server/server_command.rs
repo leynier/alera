@@ -120,6 +120,8 @@ pub enum ServerCommand {
     RequestedRestart,
     AgentHookEvent {
         event: AgentHookEvent,
+        /// Republished by a satellite: its processes are not this host's.
+        relayed: bool,
     },
     SshBootstrapProgress {
         progress: SshTargetBootstrapProgress,
@@ -341,6 +343,8 @@ pub enum ServerCommand {
     },
     /// Wakes the durable automation scheduler to evaluate due occurrences.
     PullRequestWatchTick,
+    /// Reconciles agent presence against the terminals' own processes and output.
+    AgentPresenceSweepTick,
     PullRequestWatchSnapshot {
         watch: Box<alera_core::runtime::PullRequestWatch>,
         generation: uuid::Uuid,
