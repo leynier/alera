@@ -1,12 +1,15 @@
 import 'package:alera_mobile/src/app/theme/alera_theme.dart';
+import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/domain/pull_request_agent_watch_scope.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/agent_identity_icon.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_agent_actions.dart';
 import 'package:alera_mobile/src/features/workspace_agent_comments/presentation/workspace_agent_comment_dispatch_sheet.dart';
 import 'package:flutter/material.dart';
@@ -154,6 +157,61 @@ void main() {
 
     expect(find.text('Restack'), findsOneWidget);
     expect(find.text('Hidden Profile'), findsOneWidget);
+    expect(find.byType(AgentIdentityIcon), findsOneWidget);
+    expect(
+      tester
+          .widget<AgentIdentityIcon>(find.byType(AgentIdentityIcon))
+          .agentType,
+      'codex',
+    );
+  });
+
+  testWidgets('dispatch sheet shows the brand icon for each agent', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAleraMobileDarkTheme(),
+        home: const Scaffold(
+          body: WorkspaceAgentCommentDispatchSheet(
+            title: 'Watch, Fix and Merge',
+            runningAgents: <AgentPresenceSummary>[
+              AgentPresenceSummary(
+                terminalSessionId: 'session-1',
+                workspaceId: 'workspace-1',
+                tabId: 'tab-1',
+                agentType: 'grok',
+                state: 'done',
+                title: 'Consolidate Agent Memory Folder',
+              ),
+            ],
+            profiles: <AgentProfileSummary>[
+              AgentProfileSummary(
+                id: 'grok-build',
+                name: 'Grok Build',
+                agentType: 'grok',
+              ),
+              AgentProfileSummary(
+                id: 'codex-astra',
+                name: 'Codex Astra',
+                agentType: 'codex',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Consolidate Agent Memory Folder'), findsOneWidget);
+    expect(find.text('Done'), findsOneWidget);
+    expect(find.text('done'), findsNothing);
+    expect(find.byIcon(AleraIcons.terminal), findsNothing);
+    expect(find.byIcon(AleraIcons.add), findsNothing);
+    final icons = tester
+        .widgetList<AgentIdentityIcon>(find.byType(AgentIdentityIcon))
+        .map((icon) => icon.agentType)
+        .toList();
+    expect(icons, <String>['grok', 'grok', 'codex']);
   });
 
   testWidgets('restack sits above merge and opens the shared picker', (
