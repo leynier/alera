@@ -45,6 +45,13 @@ class WorkbenchStateMapper extends ClassMapperBase<WorkbenchState> {
     opt: true,
     def: false,
   );
+  static bool _$sleepSnapshotReady(WorkbenchState v) => v.sleepSnapshotReady;
+  static const Field<WorkbenchState, bool> _f$sleepSnapshotReady = Field(
+    'sleepSnapshotReady',
+    _$sleepSnapshotReady,
+    opt: true,
+    def: true,
+  );
   static Map<String, List<String>> _$sleptTabIdsByWorkspaceId(
     WorkbenchState v,
   ) => v.sleptTabIdsByWorkspaceId;
@@ -151,6 +158,7 @@ class WorkbenchStateMapper extends ClassMapperBase<WorkbenchState> {
     #sections: _f$sections,
     #supportsSections: _f$supportsSections,
     #supportsArchive: _f$supportsArchive,
+    #sleepSnapshotReady: _f$sleepSnapshotReady,
     #sleptTabIdsByWorkspaceId: _f$sleptTabIdsByWorkspaceId,
     #projects: _f$projects,
     #workspacesByProject: _f$workspacesByProject,
@@ -171,6 +179,7 @@ class WorkbenchStateMapper extends ClassMapperBase<WorkbenchState> {
       sections: data.dec(_f$sections),
       supportsSections: data.dec(_f$supportsSections),
       supportsArchive: data.dec(_f$supportsArchive),
+      sleepSnapshotReady: data.dec(_f$sleepSnapshotReady),
       sleptTabIdsByWorkspaceId: data.dec(_f$sleptTabIdsByWorkspaceId),
       projects: data.dec(_f$projects),
       workspacesByProject: data.dec(_f$workspacesByProject),
@@ -292,6 +301,7 @@ abstract class WorkbenchStateCopyWith<$R, $In extends WorkbenchState, $Out>
     List<WorkspaceSection>? sections,
     bool? supportsSections,
     bool? supportsArchive,
+    bool? sleepSnapshotReady,
     Map<String, List<String>>? sleptTabIdsByWorkspaceId,
     List<Project>? projects,
     Map<String, List<Workspace>>? workspacesByProject,
@@ -400,6 +410,7 @@ class _WorkbenchStateCopyWithImpl<$R, $Out>
     List<WorkspaceSection>? sections,
     bool? supportsSections,
     bool? supportsArchive,
+    bool? sleepSnapshotReady,
     Map<String, List<String>>? sleptTabIdsByWorkspaceId,
     List<Project>? projects,
     Map<String, List<Workspace>>? workspacesByProject,
@@ -418,6 +429,7 @@ class _WorkbenchStateCopyWithImpl<$R, $Out>
       if (sections != null) #sections: sections,
       if (supportsSections != null) #supportsSections: supportsSections,
       if (supportsArchive != null) #supportsArchive: supportsArchive,
+      if (sleepSnapshotReady != null) #sleepSnapshotReady: sleepSnapshotReady,
       if (sleptTabIdsByWorkspaceId != null)
         #sleptTabIdsByWorkspaceId: sleptTabIdsByWorkspaceId,
       if (projects != null) #projects: projects,
@@ -441,6 +453,10 @@ class _WorkbenchStateCopyWithImpl<$R, $Out>
     sections: data.get(#sections, or: $value.sections),
     supportsSections: data.get(#supportsSections, or: $value.supportsSections),
     supportsArchive: data.get(#supportsArchive, or: $value.supportsArchive),
+    sleepSnapshotReady: data.get(
+      #sleepSnapshotReady,
+      or: $value.sleepSnapshotReady,
+    ),
     sleptTabIdsByWorkspaceId: data.get(
       #sleptTabIdsByWorkspaceId,
       or: $value.sleptTabIdsByWorkspaceId,

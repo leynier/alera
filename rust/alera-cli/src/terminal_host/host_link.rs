@@ -84,8 +84,6 @@ impl CloseSignal {
     }
 
     fn cancel(&self) {
-        // `send` refuses, and keeps the old value, once every receiver is
-        // gone, which is exactly when the reader and writer tasks have ended.
         self.sender.send_replace(true);
     }
 

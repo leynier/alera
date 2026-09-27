@@ -23,6 +23,7 @@ import 'package:alera/src/features/workbench/application/workbench_controller.da
 import 'package:alera/src/features/workbench/application/workbench_listing.dart';
 import 'package:alera/src/features/workbench/application/workspace_explorer_reveal.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
+import 'package:alera/src/features/workbench/application/workspace_sleep_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_view_prefs_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_graph_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
@@ -55,6 +56,7 @@ part 'workbench_controller_origin_panel_test_cases.dart';
 part 'workbench_controller_tab_focus_test_cases.dart';
 part 'workbench_controller_tab_focus_close_test_cases.dart';
 part 'workbench_controller_sleep_test_cases.dart';
+part 'workbench_controller_sleep_bootstrap_test_cases.dart';
 part 'workbench_controller_sleep_open_test_cases.dart';
 part 'workbench_controller_archive_test_cases.dart';
 part 'workbench_controller_layout_persistence_test_cases.dart';
@@ -101,6 +103,7 @@ void main() {
     _registerWorkbenchControllerTabFocusTests();
     _registerWorkbenchControllerTabFocusCloseTests();
     _registerWorkbenchControllerSleepTests();
+    _registerWorkbenchControllerSleepBootstrapTests();
     _registerWorkbenchControllerSleepOpenTests();
     _registerWorkbenchControllerArchiveTests();
     _registerWorkbenchControllerLayoutPersistenceTests();

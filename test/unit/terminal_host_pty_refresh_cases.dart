@@ -27,7 +27,7 @@ void _registerTerminalHostPtyRefreshTests() {
     await session.refreshViewport(120, 40, 8, 16);
 
     expect(client.resizes, <(String, int, int)>[
-      ('session-1', 119, 40),
+      ('session-1', 84, 28),
       ('session-1', 120, 40),
     ]);
     expect(client.writes, isEmpty);
@@ -38,7 +38,7 @@ void _registerTerminalHostPtyRefreshTests() {
     await session.refreshViewport(1, 1, 8, 16);
 
     expect(client.resizes, <(String, int, int)>[
-      ('session-1', 2, 1),
+      ('session-1', 2, 2),
       ('session-1', 1, 1),
     ]);
 
@@ -55,7 +55,7 @@ void _registerTerminalHostPtyRefreshTests() {
     await _flushAsync();
 
     expect(client.resizes, <(String, int, int)>[
-      ('session-1', 99, 30),
+      ('session-1', 70, 21),
       ('session-1', 100, 30),
       ('session-1', 130, 50),
     ]);

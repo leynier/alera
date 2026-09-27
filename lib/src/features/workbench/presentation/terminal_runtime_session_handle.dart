@@ -65,6 +65,8 @@ class _XtermTerminalSessionHandle(
   Timer? _selectionCopyTimer;
   Timer? _deferredSubmitEnterTimer;
   _TerminalPtySize? _pendingPtySize;
+  @override
+  _TerminalPtySize? _lastMeasuredPtySize;
   int _ptyGeneration = 0;
   @override
   int _startAttempt = 0;
@@ -298,18 +300,20 @@ class _XtermTerminalSessionHandle(
     int pixelWidth,
     int pixelHeight,
   ) {
-    _pendingPtySize = _TerminalPtySize(
+    _lastMeasuredPtySize = _TerminalPtySize(
       cols: width,
       rows: height,
       cellWidthPx: pixelWidth,
       cellHeightPx: pixelHeight,
     );
+    _pendingPtySize = _lastMeasuredPtySize;
     _pendingPtyResizeTimer ??= Timer(
       _ptyResizeDebounceDuration,
       _flushPendingPtyResize,
     );
   }
 
+  @override
   void _flushPendingPtyResize() {
     _pendingPtyResizeTimer?.cancel();
     _pendingPtyResizeTimer = null;

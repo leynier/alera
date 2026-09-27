@@ -12,7 +12,7 @@ import 'package:alera/src/features/workbench/presentation/terminal_link_resolver
 import 'package:alera/src/features/workbench/presentation/terminal_search_controller.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/workbench/domain/terminal_agent_prompt_injection.dart';
-import 'package:alera/src/features/workbench/domain/terminal_emulator_fake_resize.dart';
+import 'package:alera/src/features/workbench/domain/terminal_refresh_resize.dart';
 import 'package:alera/src/features/workbench/domain/terminal_image_paste.dart';
 import 'package:alera/src/features/workbench/domain/terminal_mode_reset.dart';
 import 'package:alera/src/features/workbench/domain/terminal_osc52_clipboard.dart';
@@ -145,11 +145,10 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
     FocusOnKeyEventCallback? onKeyEvent,
   });
 
-  /// Bumps the mounted emulator by about 30% and restores it, then repaints.
+  /// Pulses the measured PTY viewport and repaints the mounted emulator.
   ///
-  /// Handles without a measured view intentionally do nothing. Refreshing must
-  /// never replace the emulator or the PTY session, and must not change PTY
-  /// dimensions.
+  /// Handles without a measured view intentionally do nothing. Refreshing
+  /// preserves the terminal and PTY session and restores their viewport size.
   Future<void> refreshRendering() async {}
 
   /// Moves keyboard focus to this terminal's text input so subsequent
@@ -312,11 +311,10 @@ abstract interface class TerminalPtySession {
 
   void resize(int cols, int rows, int cellWidthPx, int cellHeightPx);
 
-  /// Briefly applies an adjacent PTY size before restoring the measured size.
+  /// Briefly shrinks both PTY axes before restoring the measured size.
   ///
-  /// Desktop Refresh no longer uses this path; it fake-resizes the emulator
-  /// instead so PTY dimensions stay put. Adapters keep the one-column pulse
-  /// for callers that still want a host-side redraw.
+  /// The two sizes are separated briefly so the foreground program can
+  /// observe the resize before the original viewport is restored.
   Future<void> refreshViewport(
     int cols,
     int rows,

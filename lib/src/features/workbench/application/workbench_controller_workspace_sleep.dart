@@ -12,12 +12,18 @@ mixin _WorkbenchControllerWorkspaceSleep
   /// including a paired phone, reaches the sidebar.
   void _startSleptTabs() {
     final repository = _repository;
-    if (repository is! WorkspaceSleepRepository) return;
+    if (repository is! WorkspaceSleepRepository) {
+      state = state.copyWith(sleepSnapshotReady: true);
+      return;
+    }
     _sleptTabsSub = (repository as WorkspaceSleepRepository)
         .watchSleptWorkspaceTabs()
         .listen((slept) {
           if (_disposed) return;
-          state = state.copyWith(sleptTabIdsByWorkspaceId: slept);
+          state = state.copyWith(
+            sleepSnapshotReady: true,
+            sleptTabIdsByWorkspaceId: slept,
+          );
         });
   }
 

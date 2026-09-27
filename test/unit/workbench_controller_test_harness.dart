@@ -42,7 +42,7 @@ class _WorkbenchHarness([ManagedWorkspaceRuntime? runtime]) {
       updatedAt: .utc(2026, 5, 22),
     );
     projectRepository = _FakeProjectRepository(<Project>[project]);
-    workbenchRepository = _FakeWorkbenchRepository();
+    workbenchRepository = _FakeSleepingWorkbenchRepository();
     workbenchRepository._workspacesByProject[project.id] = [
       Workspace(
         id: 'initial-task',
@@ -109,7 +109,7 @@ class _WorkbenchHarness([ManagedWorkspaceRuntime? runtime]) {
   late final Directory tempDir;
   late final Project project;
   late final _FakeProjectRepository projectRepository;
-  late final _FakeWorkbenchRepository workbenchRepository;
+  late final _FakeSleepingWorkbenchRepository workbenchRepository;
   late final _FakeWorkspaceGraphRepository workspaceGraphRepository;
   late final FakeGitBackend gitBackend;
   late final _FakeWorkbenchViewPrefsRepository viewPrefsRepository;

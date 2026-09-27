@@ -3,6 +3,29 @@ import 'dart:math' as math;
 /// Scale applied to emulator cols/rows during a Refresh fake-resize.
 const double terminalEmulatorFakeResizeScale = 1.3;
 
+/// Fraction of the measured PTY viewport removed for explicit Refresh.
+const double terminalPtyRefreshPulseFraction = 0.3;
+
+/// Keeps the temporary PTY geometry available while a foreground TUI handles SIGWINCH.
+const Duration terminalPtyRefreshHoldDuration = Duration(milliseconds: 100);
+
+/// A distinct PTY geometry large enough for a stuck TUI to relayout.
+///
+/// Shrinks both axes when possible, matching mobile Refresh. The caller
+/// restores the measured size after the foreground process sees this one.
+(int cols, int rows) terminalPtyRefreshPulseSize(int cols, int rows) {
+  if (cols <= 0 || rows <= 0) {
+    return (cols, rows);
+  }
+  return (_shrinkAxis(cols), _shrinkAxis(rows));
+}
+
+int _shrinkAxis(int value) {
+  final delta = math.max(1, (value * terminalPtyRefreshPulseFraction).round());
+  final smaller = value - delta;
+  return smaller >= 1 ? smaller : value + delta;
+}
+
 /// Adjacent emulator size used to force a stuck agent TUI to relayout.
 ///
 /// About 30% larger than [cols]x[rows], and at least one cell larger on each

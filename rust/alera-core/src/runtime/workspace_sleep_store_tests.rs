@@ -82,6 +82,19 @@ async fn sleep_records_only_terminal_tabs() {
 }
 
 #[tokio::test]
+async fn sleep_survives_runtime_store_restart() {
+    let (dir, store) = store_with_tabs(&[("terminal-1", "terminal")]).await;
+    store.record_workspace_sleep("w").await.unwrap();
+    drop(store);
+
+    let restarted = RuntimeStore::open(dir.path()).await.unwrap();
+    assert_eq!(
+        restarted.list_slept_workspace_tabs().await.unwrap()["w"],
+        vec!["terminal-1".to_string()]
+    );
+}
+
+#[tokio::test]
 async fn sleep_without_terminals_records_nothing() {
     let (_dir, store) = store_with_tabs(&[("editor-1", "editor")]).await;
 
