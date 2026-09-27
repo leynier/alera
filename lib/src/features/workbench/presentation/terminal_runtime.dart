@@ -12,7 +12,7 @@ import 'package:alera/src/features/workbench/presentation/terminal_link_resolver
 import 'package:alera/src/features/workbench/presentation/terminal_search_controller.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/workbench/domain/terminal_agent_prompt_injection.dart';
-import 'package:alera/src/features/workbench/domain/terminal_emulator_fake_resize.dart';
+import 'package:alera/src/features/workbench/domain/terminal_refresh_resize.dart';
 import 'package:alera/src/features/workbench/domain/terminal_image_paste.dart';
 import 'package:alera/src/features/workbench/domain/terminal_mode_reset.dart';
 import 'package:alera/src/features/workbench/domain/terminal_osc52_clipboard.dart';
@@ -311,7 +311,7 @@ abstract interface class TerminalPtySession {
 
   void resize(int cols, int rows, int cellWidthPx, int cellHeightPx);
 
-  /// Briefly applies an adjacent PTY size before restoring the measured size.
+  /// Briefly shrinks both PTY axes before restoring the measured size.
   ///
   /// The two sizes are separated briefly so the foreground program can
   /// observe the resize before the original viewport is restored.

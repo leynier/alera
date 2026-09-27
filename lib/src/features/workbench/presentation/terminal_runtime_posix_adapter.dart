@@ -91,11 +91,11 @@ class _PosixPortablePtySessionAdapter implements TerminalPtySession {
     if (_disposed || pty == null) {
       return;
     }
-    final pulseCols = cols > 1 ? cols - 1 : cols + 1;
+    final pulse = terminalPtyRefreshPulseSize(cols, rows);
     try {
       _resizePty(
-        rows: rows,
-        cols: pulseCols,
+        rows: pulse.$2,
+        cols: pulse.$1,
         resize: ({required rows, required cols}) =>
             pty.resize(rows: rows, cols: cols),
         events: _events,

@@ -45,6 +45,7 @@ void _registerXtermRuntimeEmulatorFakeResizeTests() {
       writeTerminalOutputForTesting(session, 'preserved output');
       final bufferBefore = terminalBufferTextForTesting(session);
       final sizeBefore = terminalEmulatorViewSizeForTesting(session);
+      final pulse = terminalPtyRefreshPulseSize(sizeBefore.$1, sizeBefore.$2);
 
       handleTerminalResizeForTesting(
         session,
@@ -66,8 +67,8 @@ void _registerXtermRuntimeEmulatorFakeResizeTests() {
           cellHeightPx: 16,
         ),
         _ResizeCall(
-          cols: sizeBefore.$1 > 1 ? sizeBefore.$1 - 1 : 2,
-          rows: sizeBefore.$2,
+          cols: pulse.$1,
+          rows: pulse.$2,
           cellWidthPx: 8,
           cellHeightPx: 16,
         ),
