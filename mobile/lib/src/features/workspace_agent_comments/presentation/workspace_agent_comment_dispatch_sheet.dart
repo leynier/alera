@@ -1,15 +1,17 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
-import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/agent_identity_icon.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/agent_run_state_indicator.dart';
 import 'package:alera_mobile/src/features/workspace_agent_comments/domain/workspace_agent_comment_target.dart';
 import 'package:flutter/material.dart';
 
 /// Lets the user pick a running agent or an Agent Profile.
 ///
 /// File comments, Restack, Fix Failed Checks, and Watch and Fix share this
-/// sheet. Pops with the chosen target, or `null` when dismissed.
+/// sheet. Each row shows that agent's brand icon, matching the desktop
+/// dispatch dialog. Pops with the chosen target, or `null` when dismissed.
 Future<WorkspaceAgentCommentTarget?> showWorkspaceAgentCommentDispatchSheet(
   BuildContext context, {
   required List<AgentPresenceSummary> runningAgents,
@@ -85,9 +87,9 @@ class const WorkspaceAgentCommentDispatchSheet({
               for (final agent in runningAgents)
                 ListTile(
                   minTileHeight: AleraTokens.minTapTarget,
-                  leading: const Icon(AleraIcons.terminal, size: 20),
+                  leading: _RunningAgentLeading(agent: agent),
                   title: Text(_agentLabel(agent)),
-                  subtitle: Text(agent.state),
+                  subtitle: Text(agentRunStateLabel(agent)),
                   onTap: () =>
                       Navigator.of(context)
                           .pop(RunningAgentCommentTarget(agent)),
@@ -98,7 +100,11 @@ class const WorkspaceAgentCommentDispatchSheet({
               for (final profile in profiles)
                 ListTile(
                   minTileHeight: AleraTokens.minTapTarget,
-                  leading: const Icon(AleraIcons.add, size: 20),
+                  leading: AgentIdentityIcon(
+                    agentType: profile.agentType,
+                    size: AleraTokens.iconMd,
+                    showTooltip: false,
+                  ),
                   title: Text(profile.name),
                   onTap: () =>
                       Navigator.of(context)
@@ -114,5 +120,26 @@ class const WorkspaceAgentCommentDispatchSheet({
 
 String _agentLabel(AgentPresenceSummary agent) {
   final title = agent.title.trim();
-  return title.isEmpty ? agent.agentType : title;
+  return title.isEmpty ? agentDisplayName(agent.agentType) : title;
+}
+
+/// Status glyph plus the agent brand mark, same pairing as the desktop
+/// dispatch row and the workspace agent rows.
+class const _RunningAgentLeading({required final AgentPresenceSummary agent})
+    extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: .min,
+      children: <Widget>[
+        AgentRunStateIndicator(status: agent, size: AleraTokens.iconSm),
+        const SizedBox(width: AleraTokens.space6),
+        AgentIdentityIcon(
+          agentType: agent.agentType,
+          size: AleraTokens.iconMd,
+          showTooltip: false,
+        ),
+      ],
+    );
+  }
 }
