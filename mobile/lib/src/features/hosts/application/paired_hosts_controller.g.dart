@@ -75,7 +75,7 @@ final class AvailableHostsProvider
         argument: null,
         retry: null,
         name: r'availableHostsProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -88,7 +88,7 @@ final class AvailableHostsProvider
   AvailableHosts create() => AvailableHosts();
 }
 
-String _$availableHostsHash() => r'1adb738db9f5b1cfa0843fb5f7636868fe03e5fb';
+String _$availableHostsHash() => r'e8e83b2fc1d2069736a14d2f9b32de651facf97f';
 
 abstract class _$AvailableHosts
     extends $AsyncNotifier<List<PairedHostProfile>> {

@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/app/lifecycle/app_lifecycle_controller.dart';
 import 'package:alera_mobile/src/features/hosts/application/host_providers.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/accounts/application/cloud_account_providers.dart';
 import 'package:alera_mobile/src/features/accounts/application/cloud_accounts_controller.dart';
+import 'package:alera_mobile/src/features/accounts/domain/cloud_account_session.dart';
 import 'package:logging/logging.dart';
 import 'package:flutter/widgets.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -44,30 +47,48 @@ class PairedHostsController extends _$PairedHostsController {
   }
 }
 
-@riverpod
+@Riverpod(keepAlive: true)
 class AvailableHosts extends _$AvailableHosts {
   final Map<String, List<PairedHostProfile>> _remoteHosts = {};
+
+  String _accountIds(AsyncValue<List<CloudAccountSession>> accounts) {
+    final sessions = accounts.value;
+    if (sessions == null) return '';
+    return (sessions.map((session) => session.account.id).toList()..sort())
+        .join('\n');
+  }
 
   @override
   Future<List<PairedHostProfile>> build() async {
     final logger = Logger('AvailableHosts');
-    // Credential rotation must not tear down the host list and its connections.
-    final accountIdsFuture = ref
-        .watch(
-          cloudAccountsControllerProvider.selectAsync(
-            (sessions) =>
-                (sessions.map((session) => session.account.id).toList()..sort())
-                    .join('\n'),
-          ),
-        )
-        .catchError((Object error, StackTrace stackTrace) {
-          logger.warning(
-            'could not load cloud accounts for host discovery',
-            error,
-            stackTrace,
-          );
-          return '';
-        });
+    final initialAccounts = ref.read(cloudAccountsControllerProvider);
+    if (initialAccounts.hasError) {
+      logger.warning(
+        'could not load cloud accounts for host discovery',
+        initialAccounts.error,
+        initialAccounts.stackTrace,
+      );
+    }
+    var accountIds = _accountIds(initialAccounts);
+    var published = false;
+    var refreshAfterPublish = false;
+    ref.listen(cloudAccountsControllerProvider, (_, next) {
+      if (next.hasError) {
+        logger.warning(
+          'could not load cloud accounts for host discovery',
+          next.error,
+          next.stackTrace,
+        );
+      }
+      final nextIds = _accountIds(next);
+      if (nextIds == accountIds) return;
+      accountIds = nextIds;
+      if (published) {
+        ref.invalidateSelf();
+      } else {
+        refreshAfterPublish = true;
+      }
+    });
     final pairedFuture = ref.watch(pairedHostsControllerProvider.future);
     var backgrounded = false;
     ref.listen(appLifecycleControllerProvider, (_, next) {
@@ -77,19 +98,40 @@ class AvailableHosts extends _$AvailableHosts {
         ref.invalidateSelf();
       }
     });
+    List<PairedHostProfile> publish(List<PairedHostProfile> hosts) {
+      published = true;
+      if (refreshAfterPublish && ref.mounted) {
+        unawaited(
+          Future<void>(() {
+            if (ref.mounted) ref.invalidateSelf();
+          }),
+        );
+      }
+      return hosts;
+    }
+
     final paired = await pairedFuture;
+    if (accountIds.isEmpty) {
+      // Let already-completed local storage futures publish before deciding that
+      // cloud discovery is unavailable for this first result. This yields once;
+      // it never waits on secure storage or the network.
+      await Future<void>.delayed(Duration.zero);
+    }
+    final discoveryAccountIds = accountIds;
+    refreshAfterPublish = false;
     final byRuntime = <String, PairedHostProfile>{
       for (final host in paired) host.runtimeId: host,
     };
-    final accountIds = await accountIdsFuture;
-    _remoteHosts.removeWhere((id, _) => !accountIds.split('\n').contains(id));
-    if (!ref.mounted || accountIds.isEmpty) {
-      return byRuntime.values.toList(growable: false);
+    _remoteHosts.removeWhere(
+      (id, _) => !discoveryAccountIds.split('\n').contains(id),
+    );
+    if (!ref.mounted || discoveryAccountIds.isEmpty) {
+      return publish(byRuntime.values.toList(growable: false));
     }
     final api = ref.watch(aleraRelayCloudApiProvider);
     final accounts = ref.read(cloudAccountsControllerProvider.notifier);
     final discoveries = await Future.wait(
-      accountIds.split('\n').map((accountId) async {
+      discoveryAccountIds.split('\n').map((accountId) async {
         try {
           final session = await accounts.sessionForRequest(accountId);
           if (session == null) return <PairedHostProfile>[];
@@ -131,6 +173,6 @@ class AvailableHosts extends _$AvailableHosts {
                   at: remote.discoveredAt,
                 );
     }
-    return byRuntime.values.toList(growable: false);
+    return publish(byRuntime.values.toList(growable: false));
   }
 }
