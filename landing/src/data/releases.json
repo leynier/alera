@@ -1,10 +1,10 @@
 {
   "desktop": {
-    "tag": "v0.97.0",
-    "version": "0.97.0"
+    "tag": "v0.97.1",
+    "version": "0.97.1"
   },
   "mobile": {
-    "tag": "v0.45.0-mobile",
-    "version": "0.45.0"
+    "tag": "v0.45.1-mobile",
+    "version": "0.45.1"
   }
 }
