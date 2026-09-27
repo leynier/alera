@@ -118,7 +118,7 @@ class WorkbenchController extends _$WorkbenchController
         unawaited(subscription.cancel());
       }
     });
-    return const WorkbenchState();
+    return const WorkbenchState(sleepSnapshotReady: false);
   }
 
   Future<void> bootstrap() async {
