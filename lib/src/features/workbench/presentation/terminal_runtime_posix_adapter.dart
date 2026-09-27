@@ -100,6 +100,7 @@ class _PosixPortablePtySessionAdapter implements TerminalPtySession {
             pty.resize(rows: rows, cols: cols),
         events: _events,
       );
+      await Future.pause(const Duration(milliseconds: 16));
     } finally {
       _resizePty(
         rows: rows,

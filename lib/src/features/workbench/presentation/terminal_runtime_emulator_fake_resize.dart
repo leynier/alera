@@ -7,36 +7,62 @@ mixin _TerminalEmulatorFakeResizeSupport on TerminalSessionHandle {
 
   TerminalPtySession? get _ptySession;
 
+  _TerminalPtySize? get _lastMeasuredPtySize;
+
+  void _flushPendingPtyResize();
+
   bool get _disposed;
 
-  /// Bumps the mounted emulator by about 30% and restores it, then repaints.
+  /// Pulses the PTY viewport and the mounted emulator, then repaints.
   ///
-  /// Handles without a measured view or a live PTY do nothing. Refreshing must
-  /// never replace the emulator, never replace the PTY session, and never
-  /// change PTY dimensions.
+  /// Handles without a measured view or a live PTY do nothing. Neither pulse
+  /// changes the visible layout or the final PTY dimensions.
   @override
   Future<void> refreshRendering() async {
-    if (_disposed || _ptySession == null) {
+    final size = _lastMeasuredPtySize;
+    if (!_refreshEmulatorRendering() || size == null) {
       return;
+    }
+    _flushPendingPtyResize();
+    await _ptySession?.refreshViewport(
+      size.cols,
+      size.rows,
+      size.cellWidthPx,
+      size.cellHeightPx,
+    );
+  }
+
+  bool _refreshEmulatorRendering() {
+    if (_disposed || _ptySession == null) {
+      return false;
     }
     final viewState = _terminalViewKey.currentState;
     if (viewState == null) {
-      return;
+      return false;
     }
     final renderTerminal = viewState.renderTerminal;
     if (!renderTerminal.attached ||
         !renderTerminal.hasSize ||
         renderTerminal.size.isEmpty) {
-      return;
+      return false;
+    }
+    final size = _lastMeasuredPtySize;
+    if (size == null ||
+        size.cols <= 0 ||
+        size.rows <= 0 ||
+        size.cols != _terminal.viewWidth ||
+        size.rows != _terminal.viewHeight) {
+      return false;
     }
     _applyTerminalEmulatorFakeResize(_terminal);
     if (_disposed ||
         !identical(_terminalViewKey.currentState, viewState) ||
         !renderTerminal.attached) {
-      return;
+      return false;
     }
     renderTerminal.markNeedsLayout();
     renderTerminal.markNeedsPaint();
+    return true;
   }
 }
 

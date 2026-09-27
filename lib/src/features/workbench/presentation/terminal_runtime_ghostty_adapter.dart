@@ -122,6 +122,7 @@ class _GhosttyTerminalPtySessionAdapter implements TerminalPtySession {
     final pulseCols = cols > 1 ? cols - 1 : cols + 1;
     try {
       session.resize(rows: rows, cols: pulseCols);
+      await Future.pause(const Duration(milliseconds: 16));
     } finally {
       session.resize(rows: rows, cols: cols);
     }

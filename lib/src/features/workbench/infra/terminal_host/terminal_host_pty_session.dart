@@ -253,6 +253,7 @@ final class TerminalHostPtySession._(
     return _enqueueAttachmentOperation<void>(() async {
       try {
         await _resize(cols: pulseCols, rows: rows);
+        await Future.pause(const Duration(milliseconds: 16));
       } finally {
         await _resize(cols: cols, rows: rows);
       }

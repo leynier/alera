@@ -37,7 +37,13 @@ void _registerXtermRuntimeWidgetTests() {
         await session.refreshRendering();
         await tester.pump(const Duration(milliseconds: 200));
 
-        expect(fakeSession.resizeCalls, isEmpty);
+        expect(
+          fakeSession.resizeCalls.map((call) => (call.cols, call.rows)),
+          <(int, int)>[
+            (sizeBefore.$1 > 1 ? sizeBefore.$1 - 1 : 2, sizeBefore.$2),
+            sizeBefore,
+          ],
+        );
         expect(terminalEmulatorViewSizeForTesting(session), sizeBefore);
         expect(terminalBufferTextForTesting(session), bufferBefore);
         expect(runtime.peekSession('tab-1'), same(session));

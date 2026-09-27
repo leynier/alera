@@ -16,7 +16,7 @@ void _registerXtermRuntimeEmulatorFakeResizeTests() {
     expect(terminal.onResize, isNotNull);
   });
 
-  testWidgets('render refresh fake-resizes the emulator without a PTY resize', (
+  testWidgets('render refresh resizes the PTY and restores the measured size', (
     tester,
   ) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
@@ -46,16 +46,34 @@ void _registerXtermRuntimeEmulatorFakeResizeTests() {
       final bufferBefore = terminalBufferTextForTesting(session);
       final sizeBefore = terminalEmulatorViewSizeForTesting(session);
 
-      handleTerminalResizeForTesting(session, 100, 30, 8, 16);
+      handleTerminalResizeForTesting(
+        session,
+        sizeBefore.$1,
+        sizeBefore.$2,
+        8,
+        16,
+      );
       await session.refreshRendering();
       flushPendingPtyResizeForTesting(session);
 
       expect(terminalEmulatorViewSizeForTesting(session), sizeBefore);
       expect(terminalBufferTextForTesting(session), bufferBefore);
       expect(fakeSession.resizeCalls, <_ResizeCall>[
-        const _ResizeCall(
-          cols: 100,
-          rows: 30,
+        _ResizeCall(
+          cols: sizeBefore.$1,
+          rows: sizeBefore.$2,
+          cellWidthPx: 8,
+          cellHeightPx: 16,
+        ),
+        _ResizeCall(
+          cols: sizeBefore.$1 > 1 ? sizeBefore.$1 - 1 : 2,
+          rows: sizeBefore.$2,
+          cellWidthPx: 8,
+          cellHeightPx: 16,
+        ),
+        _ResizeCall(
+          cols: sizeBefore.$1,
+          rows: sizeBefore.$2,
           cellWidthPx: 8,
           cellHeightPx: 16,
         ),
