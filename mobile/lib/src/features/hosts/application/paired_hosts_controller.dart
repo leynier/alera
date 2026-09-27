@@ -118,7 +118,17 @@ class AvailableHosts extends _$AvailableHosts {
           }),
         );
       }
-      return paired;
+      final published = <String, PairedHostProfile>{
+        for (final host in paired) host.runtimeId: host,
+      };
+      final allowedAccounts = accountIds.split('\n').toSet();
+      for (final entry in _remoteHosts.entries) {
+        if (!allowedAccounts.contains(entry.key)) continue;
+        for (final remote in entry.value) {
+          published.putIfAbsent(remote.runtimeId, () => remote);
+        }
+      }
+      return published.values.toList(growable: false);
     }
 
     final discoveryAccountIds = accountIds;

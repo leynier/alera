@@ -89,6 +89,53 @@ void main() {
   });
 
   test(
+    'First local publish keeps cached remote hosts during discovery',
+    () async {
+      final accounts = _Accounts()..initial.complete([_session()]);
+      final api = _Discovery();
+      final repository = MemoryHostRepository();
+      final container = _container(
+        accounts,
+        api,
+        seedPairedHost: false,
+        repository: repository,
+      );
+      addTearDown(container.dispose);
+      container.listen(availableHostsProvider, (_, _) {});
+
+      final remoteOnly = await container.read(availableHostsProvider.future);
+      expect(remoteOnly.map((host) => host.id), ['remote']);
+
+      api.discoveryGate = Completer<void>();
+      await repository.savePairedHost(
+        PairedHostProfile(
+          id: 'paired',
+          displayName: 'Paired',
+          endpoint: 'ws://localhost:1',
+          runtimeId: 'paired',
+          deviceId: 'phone',
+          pairedAt: .utc(2026),
+        ),
+        'token',
+      );
+      container.invalidate(pairedHostsControllerProvider);
+      await pumpEventQueue();
+
+      expect(
+        container
+            .read(availableHostsProvider)
+            .requireValue
+            .map((host) => host.id),
+        ['paired', 'remote'],
+      );
+      expect(api.calls, 2);
+
+      api.discoveryGate!.complete();
+      await container.read(availableHostsProvider.future);
+    },
+  );
+
+  test(
     'Discovery outages retain known hosts, but sign-out removes them',
     () async {
       final accounts = _Accounts()..initial.complete([_session()]);
@@ -162,8 +209,9 @@ ProviderContainer _container(
   _Discovery api, {
   _Lifecycle? lifecycle,
   bool seedPairedHost = true,
+  MemoryHostRepository? repository,
 }) {
-  final repository = MemoryHostRepository();
+  repository ??= MemoryHostRepository();
   if (seedPairedHost) {
     unawaited(
       repository.savePairedHost(
@@ -224,6 +272,7 @@ class _Discovery implements AleraRelayCloudApi, AleraCloudApi {
   int calls = 0;
   int refreshes = 0;
   bool fail = false;
+  Completer<void>? discoveryGate;
   final discoveryTokens = <String>[];
   @override
   Future<List<CloudRuntimeProfile>> discoverRuntimes(
@@ -231,6 +280,8 @@ class _Discovery implements AleraRelayCloudApi, AleraCloudApi {
   ) async {
     calls++;
     discoveryTokens.add(session.accessToken);
+    final gate = discoveryGate;
+    if (gate != null) await gate.future;
     if (fail) throw TimeoutException('Cloud unavailable');
     return [
       CloudRuntimeProfile(
