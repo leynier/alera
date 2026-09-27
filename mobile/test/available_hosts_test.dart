@@ -68,6 +68,26 @@ void main() {
     },
   );
 
+  test('Cloud-only startup stays pending until accounts resolve', () async {
+    final accounts = _Accounts();
+    final api = _Discovery();
+    final container = _container(accounts, api, seedPairedHost: false);
+    addTearDown(container.dispose);
+    container.listen(availableHostsProvider, (_, _) {});
+
+    var completed = false;
+    final hostsFuture = container.read(availableHostsProvider.future);
+    unawaited(hostsFuture.then((_) => completed = true));
+    await pumpEventQueue();
+    expect(completed, isFalse);
+    expect(api.calls, 0);
+
+    accounts.initial.complete([_session()]);
+    final hosts = await hostsFuture;
+    expect(hosts.map((host) => host.id), ['remote']);
+    expect(api.calls, 1);
+  });
+
   test(
     'Discovery outages retain known hosts, but sign-out removes them',
     () async {
@@ -77,6 +97,10 @@ void main() {
       addTearDown(container.dispose);
       container.listen(availableHostsProvider, (_, _) {});
       await container.read(availableHostsProvider.future);
+      await pumpEventQueue();
+      final discovered = await container.read(availableHostsProvider.future);
+      expect(discovered.map((host) => host.id), ['paired', 'remote']);
+
       api.fail = true;
       container.invalidate(availableHostsProvider);
       final hosts = await container.read(availableHostsProvider.future);
@@ -102,6 +126,10 @@ void main() {
       addTearDown(container.dispose);
       container.listen(availableHostsProvider, (_, _) {});
       await container.read(availableHostsProvider.future);
+      await pumpEventQueue();
+      await container.read(availableHostsProvider.future);
+      expect(api.calls, 1);
+
       lifecycle.change(.inactive);
       lifecycle.change(.resumed);
       await pumpEventQueue();
@@ -121,6 +149,8 @@ void main() {
     addTearDown(container.dispose);
     container.listen(availableHostsProvider, (_, _) {});
     await container.read(availableHostsProvider.future);
+    await pumpEventQueue();
+    await container.read(availableHostsProvider.future);
     expect(api.refreshes, 1);
     expect(api.discoveryTokens, ['fresh']);
     expect(api.calls, 1);
@@ -131,21 +161,24 @@ ProviderContainer _container(
   _Accounts accounts,
   _Discovery api, {
   _Lifecycle? lifecycle,
+  bool seedPairedHost = true,
 }) {
   final repository = MemoryHostRepository();
-  unawaited(
-    repository.savePairedHost(
-      PairedHostProfile(
-        id: 'paired',
-        displayName: 'Paired',
-        endpoint: 'ws://localhost:1',
-        runtimeId: 'paired',
-        deviceId: 'phone',
-        pairedAt: .utc(2026),
+  if (seedPairedHost) {
+    unawaited(
+      repository.savePairedHost(
+        PairedHostProfile(
+          id: 'paired',
+          displayName: 'Paired',
+          endpoint: 'ws://localhost:1',
+          runtimeId: 'paired',
+          deviceId: 'phone',
+          pairedAt: .utc(2026),
+        ),
+        'token',
       ),
-      'token',
-    ),
-  );
+    );
+  }
   return ProviderContainer(
     overrides: [
       hostRepositoryProvider.overrideWithValue(repository),

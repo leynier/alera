@@ -50,6 +50,7 @@ class PairedHostsController extends _$PairedHostsController {
 @Riverpod(keepAlive: true)
 class AvailableHosts extends _$AvailableHosts {
   final Map<String, List<PairedHostProfile>> _remoteHosts = {};
+  bool _publishedInitialLocalHosts = false;
 
   String _accountIds(AsyncValue<List<CloudAccountSession>> accounts) {
     final sessions = accounts.value;
@@ -61,17 +62,28 @@ class AvailableHosts extends _$AvailableHosts {
   @override
   Future<List<PairedHostProfile>> build() async {
     final logger = Logger('AvailableHosts');
-    final initialAccounts = ref.read(cloudAccountsControllerProvider);
-    if (initialAccounts.hasError) {
+    final paired = await ref.watch(pairedHostsControllerProvider.future);
+
+    var accountsState = ref.read(cloudAccountsControllerProvider);
+    if (paired.isEmpty && accountsState.isLoading && !accountsState.hasValue) {
+      // With no local host to show, an unresolved cloud account read is not a
+      // confirmed empty catalog. Keep the first load pending until storage
+      // resolves to accounts or an error.
+      try {
+        await ref.read(cloudAccountsControllerProvider.future);
+      } on Object {
+        // The settled error is logged from the AsyncValue below.
+      }
+      accountsState = ref.read(cloudAccountsControllerProvider);
+    }
+    if (accountsState.hasError) {
       logger.warning(
         'could not load cloud accounts for host discovery',
-        initialAccounts.error,
-        initialAccounts.stackTrace,
+        accountsState.error,
+        accountsState.stackTrace,
       );
     }
-    var accountIds = _accountIds(initialAccounts);
-    var published = false;
-    var refreshAfterPublish = false;
+    var accountIds = _accountIds(accountsState);
     ref.listen(cloudAccountsControllerProvider, (_, next) {
       if (next.hasError) {
         logger.warning(
@@ -83,13 +95,9 @@ class AvailableHosts extends _$AvailableHosts {
       final nextIds = _accountIds(next);
       if (nextIds == accountIds) return;
       accountIds = nextIds;
-      if (published) {
-        ref.invalidateSelf();
-      } else {
-        refreshAfterPublish = true;
-      }
+      ref.invalidateSelf();
     });
-    final pairedFuture = ref.watch(pairedHostsControllerProvider.future);
+
     var backgrounded = false;
     ref.listen(appLifecycleControllerProvider, (_, next) {
       if (next == AppLifecycleState.paused) backgrounded = true;
@@ -98,27 +106,22 @@ class AvailableHosts extends _$AvailableHosts {
         ref.invalidateSelf();
       }
     });
-    List<PairedHostProfile> publish(List<PairedHostProfile> hosts) {
-      published = true;
-      if (refreshAfterPublish && ref.mounted) {
+
+    if (!_publishedInitialLocalHosts && paired.isNotEmpty) {
+      _publishedInitialLocalHosts = true;
+      if (accountIds.isNotEmpty && ref.mounted) {
+        // Publish local hosts before optional network discovery even when cloud
+        // accounts were already available at startup.
         unawaited(
           Future<void>(() {
             if (ref.mounted) ref.invalidateSelf();
           }),
         );
       }
-      return hosts;
+      return paired;
     }
 
-    final paired = await pairedFuture;
-    if (accountIds.isEmpty) {
-      // Let already-completed local storage futures publish before deciding that
-      // cloud discovery is unavailable for this first result. This yields once;
-      // it never waits on secure storage or the network.
-      await Future<void>.delayed(Duration.zero);
-    }
     final discoveryAccountIds = accountIds;
-    refreshAfterPublish = false;
     final byRuntime = <String, PairedHostProfile>{
       for (final host in paired) host.runtimeId: host,
     };
@@ -126,7 +129,7 @@ class AvailableHosts extends _$AvailableHosts {
       (id, _) => !discoveryAccountIds.split('\n').contains(id),
     );
     if (!ref.mounted || discoveryAccountIds.isEmpty) {
-      return publish(byRuntime.values.toList(growable: false));
+      return byRuntime.values.toList(growable: false);
     }
     final api = ref.watch(aleraRelayCloudApiProvider);
     final accounts = ref.read(cloudAccountsControllerProvider.notifier);
@@ -173,6 +176,6 @@ class AvailableHosts extends _$AvailableHosts {
                   at: remote.discoveredAt,
                 );
     }
-    return publish(byRuntime.values.toList(growable: false));
+    return byRuntime.values.toList(growable: false);
   }
 }

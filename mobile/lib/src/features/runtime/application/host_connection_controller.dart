@@ -182,6 +182,15 @@ class HostConnectionController extends _$HostConnectionController {
   }
 
   Future<String?> _findRemoteAccountId() async {
+    final knownHost = ref
+        .read(availableHostsProvider)
+        .asData
+        ?.value
+        .where((host) => host.id == hostId || host.runtimeId == hostId)
+        .firstOrNull;
+    final knownAccountId = knownHost?.accountId;
+    if (knownAccountId != null) return knownAccountId;
+
     final List<CloudAccountSession> sessions;
     try {
       sessions = await ref.read(cloudAccountsControllerProvider.future);
