@@ -10,18 +10,21 @@ mixin _WorkbenchControllerWorkspaceSleep
 
   /// Follows the host's slept terminals so a sleep or wake from any client,
   /// including a paired phone, reaches the sidebar.
-  Future<void> _startSleptTabs() {
+  void _startSleptTabs() {
     final repository = _repository;
-    if (repository is! WorkspaceSleepRepository) return Future<void>.value();
-    final firstSnapshot = Completer<void>();
+    if (repository is! WorkspaceSleepRepository) {
+      state = state.copyWith(sleepSnapshotReady: true);
+      return;
+    }
     _sleptTabsSub = (repository as WorkspaceSleepRepository)
         .watchSleptWorkspaceTabs()
         .listen((slept) {
           if (_disposed) return;
-          state = state.copyWith(sleptTabIdsByWorkspaceId: slept);
-          if (!firstSnapshot.isCompleted) firstSnapshot.complete();
+          state = state.copyWith(
+            sleepSnapshotReady: true,
+            sleptTabIdsByWorkspaceId: slept,
+          );
         });
-    return firstSnapshot.future;
   }
 
   /// Sleeps a workspace: live terminal sessions stop, but tab records, layout,

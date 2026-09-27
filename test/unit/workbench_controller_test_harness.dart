@@ -42,7 +42,7 @@ class _WorkbenchHarness([ManagedWorkspaceRuntime? runtime]) {
       updatedAt: .utc(2026, 5, 22),
     );
     projectRepository = _FakeProjectRepository(<Project>[project]);
-    workbenchRepository = _FakeWorkbenchRepository();
+    workbenchRepository = _FakeSleepingWorkbenchRepository();
     workbenchRepository._workspacesByProject[project.id] = [
       Workspace(
         id: 'initial-task',
@@ -109,7 +109,7 @@ class _WorkbenchHarness([ManagedWorkspaceRuntime? runtime]) {
   late final Directory tempDir;
   late final Project project;
   late final _FakeProjectRepository projectRepository;
-  late final _FakeWorkbenchRepository workbenchRepository;
+  late final _FakeSleepingWorkbenchRepository workbenchRepository;
   late final _FakeWorkspaceGraphRepository workspaceGraphRepository;
   late final FakeGitBackend gitBackend;
   late final _FakeWorkbenchViewPrefsRepository viewPrefsRepository;
@@ -330,14 +330,7 @@ class _FakeProjectRepository(final List<Project> _projects)
   }
 }
 
-class _FakeWorkbenchRepository
-    implements WorkbenchRepository, WorkspaceSleepRepository {
-  Stream<Map<String, List<String>>>? sleepSnapshots;
-
-  @override
-  Stream<Map<String, List<String>>> watchSleptWorkspaceTabs() =>
-      sleepSnapshots ?? Stream<Map<String, List<String>>>.value(const {});
-
+class _FakeWorkbenchRepository implements WorkbenchRepository {
   final Map<String, List<Workspace>> _workspacesByProject = {};
   final Map<String, List<WorkspaceTabRecord>> _tabsByWorkspace =
       <String, List<WorkspaceTabRecord>>{};

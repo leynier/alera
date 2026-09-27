@@ -56,6 +56,7 @@ part 'workbench_controller_origin_panel_test_cases.dart';
 part 'workbench_controller_tab_focus_test_cases.dart';
 part 'workbench_controller_tab_focus_close_test_cases.dart';
 part 'workbench_controller_sleep_test_cases.dart';
+part 'workbench_controller_sleep_bootstrap_test_cases.dart';
 part 'workbench_controller_sleep_open_test_cases.dart';
 part 'workbench_controller_archive_test_cases.dart';
 part 'workbench_controller_layout_persistence_test_cases.dart';
@@ -102,6 +103,7 @@ void main() {
     _registerWorkbenchControllerTabFocusTests();
     _registerWorkbenchControllerTabFocusCloseTests();
     _registerWorkbenchControllerSleepTests();
+    _registerWorkbenchControllerSleepBootstrapTests();
     _registerWorkbenchControllerSleepOpenTests();
     _registerWorkbenchControllerArchiveTests();
     _registerWorkbenchControllerLayoutPersistenceTests();

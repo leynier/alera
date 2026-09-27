@@ -118,7 +118,7 @@ class WorkbenchController extends _$WorkbenchController
         unawaited(subscription.cancel());
       }
     });
-    return const WorkbenchState();
+    return const WorkbenchState(sleepSnapshotReady: false);
   }
 
   Future<void> bootstrap() async {
@@ -138,9 +138,7 @@ class WorkbenchController extends _$WorkbenchController
         }
       }
       _startSections();
-      // Tab records load shortly after projects. Hydrate the host's sleep
-      // snapshot first so persisted terminals do not briefly appear awake.
-      await _startSleptTabs();
+      _startSleptTabs();
       unawaited(_startArchiveSupport());
       _projectsSub = _projectsService.projectRepository.watchAll().listen(
         _onProjectsChanged,

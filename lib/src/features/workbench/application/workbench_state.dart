@@ -15,6 +15,7 @@ class const WorkbenchState({
   this.sections = const <WorkspaceSection>[],
   this.supportsSections = false,
   this.supportsArchive = false,
+  this.sleepSnapshotReady = true,
   this.sleptTabIdsByWorkspaceId = const <String, List<String>>{},
   this.projects = const <Project>[],
   this.workspacesByProject = const <String, List<Workspace>>{},
@@ -32,6 +33,9 @@ class const WorkbenchState({
   final List<WorkspaceSection> sections;
   final bool supportsSections;
   final bool supportsArchive;
+
+  /// False while the host's persisted sleep state is still unknown.
+  final bool sleepSnapshotReady;
 
   /// Terminal tabs a workspace sleep stopped, by workspace, as the runtime
   /// host records them. Their records stay for resume, but the sidebar shows
@@ -129,11 +133,16 @@ class const WorkbenchState({
     return tabsByWorkspace[workspaceId] ?? const <WorkspaceTabRecord>[];
   }
 
-  /// [tabsFor] without the tabs a workspace sleep stopped, which the sidebar
-  /// shows as closed until the workspace wakes.
+  /// [tabsFor] without terminals whose running state is not yet known or that
+  /// workspace sleep stopped.
   List<WorkspaceTabRecord> awakeTabsFor(String workspaceId) {
-    final slept = sleptTabIdsByWorkspaceId[workspaceId];
     final tabs = tabsFor(workspaceId);
+    if (!sleepSnapshotReady) {
+      return tabs
+          .where((tab) => tab.kind != WorkspaceTabKind.terminal)
+          .toList(growable: false);
+    }
+    final slept = sleptTabIdsByWorkspaceId[workspaceId];
     if (slept == null || slept.isEmpty) {
       return tabs;
     }
