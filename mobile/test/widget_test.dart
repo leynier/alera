@@ -163,8 +163,7 @@ void main() {
         child: const AleraMobileApp(),
       ),
     );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
 
     expect(find.text('Ready'), findsOneWidget);
     expect(find.text('Unavailable'), findsNothing);

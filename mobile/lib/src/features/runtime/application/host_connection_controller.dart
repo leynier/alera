@@ -6,6 +6,8 @@ import 'package:alera_mobile/src/features/runtime/domain/connection_attempt.dart
 
 import 'package:alera_mobile/src/app/lifecycle/app_lifecycle_controller.dart';
 import 'package:alera_mobile/src/features/accounts/application/cloud_account_providers.dart';
+import 'package:alera_mobile/src/features/accounts/application/cloud_accounts_controller.dart';
+import 'package:alera_mobile/src/features/accounts/domain/cloud_account_session.dart';
 import 'package:alera_mobile/src/features/hosts/application/host_providers.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
@@ -180,11 +182,43 @@ class HostConnectionController extends _$HostConnectionController {
   }
 
   Future<String?> _findRemoteAccountId() async {
-    final hosts = await ref.read(availableHostsProvider.future);
-    return hosts
-        .where((host) => host.runtimeId == hostId)
+    final knownAccountId = ref
+        .read(availableHostsProvider)
+        .asData
+        ?.value
+        .where((host) => host.id == hostId || host.runtimeId == hostId)
         .firstOrNull
         ?.accountId;
+    if (knownAccountId != null) return knownAccountId;
+
+    final List<CloudAccountSession> sessions;
+    try {
+      sessions = await ref.read(cloudAccountsControllerProvider.future);
+    } on Object catch (error, stackTrace) {
+      _logger.warning('account lookup failed: $hostId', error, stackTrace);
+      return null;
+    }
+    if (sessions.isEmpty) return null;
+    final api = ref.read(aleraRelayCloudApiProvider);
+    final accounts = ref.read(cloudAccountsControllerProvider.notifier);
+    for (final session in sessions) {
+      try {
+        final runtimes = await accounts.withSession(
+          session.account.id,
+          api.discoverRuntimes,
+        );
+        if (runtimes.any((runtime) => runtime.id == hostId)) {
+          return session.account.id;
+        }
+      } on Object catch (error, stackTrace) {
+        _logger.warning(
+          'could not discover runtime $hostId for ${session.account.id}',
+          error,
+          stackTrace,
+        );
+      }
+    }
+    return null;
   }
 
   Future<MobileRuntimeClient> _openPairedClient(PairedHostProfile host) async {

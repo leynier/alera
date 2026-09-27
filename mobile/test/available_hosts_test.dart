@@ -23,36 +23,117 @@ void main() {
     final container = _container(accounts, _Discovery());
     addTearDown(container.dispose);
     container.listen(availableHostsProvider, (_, _) {});
-    final hosts = container.read(availableHostsProvider.future);
+    final hosts = await container.read(availableHostsProvider.future);
+    expect(hosts.map((host) => host.id), ['paired']);
+
     accounts.initial.completeError(StateError('Secure storage unavailable'));
-    expect((await hosts).map((host) => host.id), ['paired']);
+    await pumpEventQueue();
+    expect(container.read(availableHostsProvider).requireValue, same(hosts));
   });
 
-  test('Initial discovery waits for accounts and credential rotation keeps hosts mounted', () async {
+  test(
+    'Local hosts publish before accounts and discovery augments them later',
+    () async {
+      final accounts = _Accounts();
+      final api = _Discovery();
+      final container = _container(accounts, api);
+      addTearDown(container.dispose);
+      final published = <List<PairedHostProfile>>[];
+      container.listen(availableHostsProvider, (_, next) {
+        if (!next.isLoading && next.hasValue) published.add(next.requireValue);
+      });
+
+      final localHosts = await container.read(availableHostsProvider.future);
+      expect(localHosts.map((host) => host.id), ['paired']);
+      expect(published, hasLength(1));
+      expect(api.calls, 0);
+
+      accounts.initial.complete([_session()]);
+      await pumpEventQueue();
+      final discoveredHosts = await container.read(
+        availableHostsProvider.future,
+      );
+      expect(discoveredHosts.map((host) => host.id), ['paired', 'remote']);
+      expect(published, hasLength(2));
+      expect(api.calls, 1);
+
+      accounts.replace([_session(token: 'rotated')]);
+      await pumpEventQueue();
+      expect(api.calls, 1);
+      expect(published, hasLength(2));
+      expect(
+        container.read(availableHostsProvider).requireValue,
+        same(discoveredHosts),
+      );
+    },
+  );
+
+  test('Cloud-only startup stays pending until accounts resolve', () async {
     final accounts = _Accounts();
     final api = _Discovery();
-    final container = _container(accounts, api);
+    final container = _container(accounts, api, seedPairedHost: false);
     addTearDown(container.dispose);
-    final published = <List<PairedHostProfile>>[];
-    container.listen(availableHostsProvider, (_, next) {
-      if (!next.isLoading && next.hasValue) published.add(next.requireValue);
-    });
+    container.listen(availableHostsProvider, (_, _) {});
+
+    var completed = false;
+    final hostsFuture = container.read(availableHostsProvider.future);
+    unawaited(hostsFuture.then((_) => completed = true));
     await pumpEventQueue();
-    expect(published, isEmpty);
+    expect(completed, isFalse);
     expect(api.calls, 0);
 
     accounts.initial.complete([_session()]);
-    final hosts = await container.read(availableHostsProvider.future);
-    expect(hosts.map((host) => host.id), ['paired', 'remote']);
-    expect(published, hasLength(1));
+    final hosts = await hostsFuture;
+    expect(hosts.map((host) => host.id), ['remote']);
     expect(api.calls, 1);
-
-    accounts.replace([_session(token: 'rotated')]);
-    await pumpEventQueue();
-    expect(api.calls, 1);
-    expect(published, hasLength(1));
-    expect(container.read(availableHostsProvider).requireValue, same(hosts));
   });
+
+  test(
+    'First local publish keeps cached remote hosts during discovery',
+    () async {
+      final accounts = _Accounts()..initial.complete([_session()]);
+      final api = _Discovery();
+      final repository = MemoryHostRepository();
+      final container = _container(
+        accounts,
+        api,
+        seedPairedHost: false,
+        repository: repository,
+      );
+      addTearDown(container.dispose);
+      container.listen(availableHostsProvider, (_, _) {});
+
+      final remoteOnly = await container.read(availableHostsProvider.future);
+      expect(remoteOnly.map((host) => host.id), ['remote']);
+
+      api.discoveryGate = Completer<void>();
+      await repository.savePairedHost(
+        PairedHostProfile(
+          id: 'paired',
+          displayName: 'Paired',
+          endpoint: 'ws://localhost:1',
+          runtimeId: 'paired',
+          deviceId: 'phone',
+          pairedAt: .utc(2026),
+        ),
+        'token',
+      );
+      container.invalidate(pairedHostsControllerProvider);
+      await pumpEventQueue();
+
+      expect(
+        container
+            .read(availableHostsProvider)
+            .requireValue
+            .map((host) => host.id),
+        ['paired', 'remote'],
+      );
+      expect(api.calls, 2);
+
+      api.discoveryGate!.complete();
+      await container.read(availableHostsProvider.future);
+    },
+  );
 
   test(
     'Discovery outages retain known hosts, but sign-out removes them',
@@ -63,6 +144,10 @@ void main() {
       addTearDown(container.dispose);
       container.listen(availableHostsProvider, (_, _) {});
       await container.read(availableHostsProvider.future);
+      await pumpEventQueue();
+      final discovered = await container.read(availableHostsProvider.future);
+      expect(discovered.map((host) => host.id), ['paired', 'remote']);
+
       api.fail = true;
       container.invalidate(availableHostsProvider);
       final hosts = await container.read(availableHostsProvider.future);
@@ -88,6 +173,10 @@ void main() {
       addTearDown(container.dispose);
       container.listen(availableHostsProvider, (_, _) {});
       await container.read(availableHostsProvider.future);
+      await pumpEventQueue();
+      await container.read(availableHostsProvider.future);
+      expect(api.calls, 1);
+
       lifecycle.change(.inactive);
       lifecycle.change(.resumed);
       await pumpEventQueue();
@@ -107,6 +196,8 @@ void main() {
     addTearDown(container.dispose);
     container.listen(availableHostsProvider, (_, _) {});
     await container.read(availableHostsProvider.future);
+    await pumpEventQueue();
+    await container.read(availableHostsProvider.future);
     expect(api.refreshes, 1);
     expect(api.discoveryTokens, ['fresh']);
     expect(api.calls, 1);
@@ -117,21 +208,25 @@ ProviderContainer _container(
   _Accounts accounts,
   _Discovery api, {
   _Lifecycle? lifecycle,
+  bool seedPairedHost = true,
+  MemoryHostRepository? repository,
 }) {
-  final repository = MemoryHostRepository();
-  unawaited(
-    repository.savePairedHost(
-      PairedHostProfile(
-        id: 'paired',
-        displayName: 'Paired',
-        endpoint: 'ws://localhost:1',
-        runtimeId: 'paired',
-        deviceId: 'phone',
-        pairedAt: .utc(2026),
+  repository ??= MemoryHostRepository();
+  if (seedPairedHost) {
+    unawaited(
+      repository.savePairedHost(
+        PairedHostProfile(
+          id: 'paired',
+          displayName: 'Paired',
+          endpoint: 'ws://localhost:1',
+          runtimeId: 'paired',
+          deviceId: 'phone',
+          pairedAt: .utc(2026),
+        ),
+        'token',
       ),
-      'token',
-    ),
-  );
+    );
+  }
   return ProviderContainer(
     overrides: [
       hostRepositoryProvider.overrideWithValue(repository),
@@ -177,6 +272,7 @@ class _Discovery implements AleraRelayCloudApi, AleraCloudApi {
   int calls = 0;
   int refreshes = 0;
   bool fail = false;
+  Completer<void>? discoveryGate;
   final discoveryTokens = <String>[];
   @override
   Future<List<CloudRuntimeProfile>> discoverRuntimes(
@@ -184,6 +280,8 @@ class _Discovery implements AleraRelayCloudApi, AleraCloudApi {
   ) async {
     calls++;
     discoveryTokens.add(session.accessToken);
+    final gate = discoveryGate;
+    if (gate != null) await gate.future;
     if (fail) throw TimeoutException('Cloud unavailable');
     return [
       CloudRuntimeProfile(
