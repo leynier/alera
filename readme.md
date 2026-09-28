@@ -69,7 +69,7 @@ Most AI IDEs wrap one chat backend in an Electron shell: slow to start, heavy on
     <td width="50%"><a href="https://alera.build/#product"><img src="assets/product/demo-parallel.webp" alt="Claude Code and Codex in split panes while Claude asks for permission and the phone gets a push"></a></td>
   </tr>
   <tr>
-    <td><strong>Start From A Prompt.</strong> Describe a task once. Alera names the workspace, creates its Git worktree, and starts the agent there.</td>
+    <td><strong>Start From A Prompt.</strong> Describe a task once. Alera names the workspace, creates it on the project folder or in its own Git worktree, and starts the agent there.</td>
     <td><strong>Agents In Parallel.</strong> Split the pane and start a second agent beside the first, in the same worktree.</td>
   </tr>
   <tr>
@@ -160,7 +160,7 @@ Requires x86_64 and Ubuntu 24.04 or newer, Debian 13 or newer, or Fedora. openSU
 
 To add the repository by hand instead, see the manual setup on the [download page](https://alera.build/download). The signing key is published at `https://updates.alera.build/linux/alera-archive-keyring.asc` with fingerprint `5DE97E7CFE234A1C5869EC54708DA940734CF23A`.
 
-On a distribution with no package of ours, download `alera-<version>-linux-x64.tar.gz` from [GitHub Releases](https://github.com/leynier/alera/releases) and extract it somewhere you own, such as `~/.local/share/alera`. Install `gtk3` and the Vulkan loader through your own package manager first, since a tarball declares no dependencies.
+On a distribution with no package of ours, download `alera-<version>-linux-x64.tar.gz` from [GitHub Releases](https://github.com/leynier/alera/releases) and extract it somewhere you own, such as `~/.local/share/alera`. Install GTK 3, json-glib, libsecret, SQLite, OpenSSL, the Vulkan loader, Ayatana AppIndicator, and ALSA through your own package manager first, since a tarball declares no dependencies.
 
 ### macOS
 

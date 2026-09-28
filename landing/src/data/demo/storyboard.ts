@@ -15,7 +15,7 @@ const CHAPTERS: readonly Chapter[] = [
   {
     id: 'prompt',
     title: 'Start From A Prompt',
-    caption: 'Describe a task once. Alera names the workspace, creates its Git worktree and starts the agent there.',
+    caption: 'Describe a task once. Alera names the workspace, creates it on the project folder or in its own Git worktree, and starts the agent there.',
     start: 0,
     end: at(19),
     poster: at(7.3),

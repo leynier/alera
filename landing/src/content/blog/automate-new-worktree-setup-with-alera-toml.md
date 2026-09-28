@@ -9,7 +9,7 @@ relatedDocs: ["alera-toml", "new-workspace", "worktrees"]
 
 > **Update, September 2026:**
 >
-> - On the desktop and the phone, setup now runs in a terminal named **Setup**, where a failing command does not stop the ones after it. Only `alera workspace add` still runs setup inline and stops at the first non-zero exit.
+> - On the desktop and the phone, setup now runs in a terminal named **Setup**, where a failing command does not stop the ones after it. From the CLI, `alera workspace add` and `alera workspace start` with `--worktree` still run setup inline and stop at the first non-zero exit.
 > - Alera keeps the new workspace for you to open from the sidebar, and a failed copy or setup step leaves the Setup terminal open with its output. A setup warning appears only for an invalid `alera.toml` or `.worktreeinclude`, or when the CLI runs setup inline.
 > - A `.worktreeinclude` file at the project root copies the gitignored files it lists, with .gitignore-style patterns including globs, even without an `alera.toml` and alongside a Settings override. The `copy` list itself still takes literal paths.
 > - Setup runs only for new worktree workspaces created on this machine. Workspaces that share the project folder never run it, and creating a workspace on a remote SSH host does not run copy rules or setup commands yet.

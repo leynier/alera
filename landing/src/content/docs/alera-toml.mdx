@@ -61,7 +61,7 @@ Inside the Setup terminal:
 
 The command is delivered once. Restarting the terminal, the app, or the host leaves a clean shell rather than reinstalling dependencies.
 
-`alera workspace add` still runs setup inline and stops on the first non-zero exit, because the CLI has no Setup tab. `alera workspace setup --id <workspace>` applies a project's setup to an existing workspace.
+`alera workspace add` and `alera workspace start` with `--worktree` still run setup inline and stop on the first non-zero exit, because the CLI has no Setup tab. `alera workspace setup --id <workspace>` applies a project's setup to an existing workspace.
 
 If a copy or setup step fails after the Git worktree already exists, Alera keeps the workspace for you to open from the sidebar, and the Setup terminal stays open with the output. A half-configured worktree you can see beats a silent rollback.
 
