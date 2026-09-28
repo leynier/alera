@@ -20,7 +20,7 @@ Mutations pass through the authenticated host actor. Authority comes from the ru
 Profiles can be managed from **Settings → Agent Profiles** or the top-level `alera agent-profile` CLI. Each one has a name, an adapter from the built-in registry (`codex`, `claude`, `copilot`, `cursor`, `agy`, `opencode`, `opencode2`, `pi`, `amp`, `grok`, `fx`, and related defaults), a launch configuration, a description used as a routing signal, and an optional quota group.
 
 ```bash
-alera orchestration agent-profiles --json
+alera orchestration --json agent-profiles
 alera agent-profile --json list
 alera agent-profile create --name "Codex Sol" --agent-type codex --launch-mode command --command "codex --search"
 ```

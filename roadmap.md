@@ -154,7 +154,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| Agent quota status bar | 3 | 4 | Shipped | Bottom status bar with local/remote quota usage for Claude Code and CCS profiles, Codex, Kimi, Grok Build, Cursor, Antigravity, MiniMax, and Z.ai |
+| Agent quota status bar | 3 | 4 | Shipped | Bottom status bar with local/remote quota usage for Claude Code and CCS profiles, Codex, Kimi, Grok Build, Cursor, Antigravity, MiniMax, Z.ai, and OpenCode Go and Zen |
 | Per-agent usage charts | 3 | 4 | Planned | Daily usage visualization per agent provider |
 | Cost tracking | 3 | 4 | Planned | API cost monitoring and visualization |
 | Share/export usage | 2 | 2 | Planned | Export or share usage stats |
@@ -165,7 +165,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| Resource manage | 3 | 3 | Shipped | Status-bar Resource Manager: per-session CPU/memory attributed to Project -> Workspace -> Tab, orphan session detection and kill, host memory and load; local host only |
+| Resource manage | 3 | 3 | Shipped | Status-bar Resource Manager: per-session CPU/memory attributed to Project -> Workspace -> Tab, orphan session detection and kill, and the share of machine memory those sessions hold; sessions on attached remote hosts are relayed from their runtimes |
 | Space analyzer | 2 | 3 | Planned | Disk space tracking and compaction per workspace |
 | Port scanning & dev server management | 3 | 4 | Planned | Auto-detect open ports, panel listing active dev servers |
 

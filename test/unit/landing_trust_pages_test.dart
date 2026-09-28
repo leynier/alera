@@ -4,9 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('links the app install guide at a page the landing site has', () {
-    // The home page no longer carries an install section, so an anchor into it
-    // would send a user chasing a Linux package to a page that does not explain
-    // one.
+    // The updater sends Linux package users here: the download page explains
+    // the manual repository setup, while the home Install section only offers
+    // the one-line installer.
     expect(File('landing/src/pages/download.astro').existsSync(), isTrue);
     expect(
       File('lib/src/features/updater/domain/alera_update.dart')

@@ -117,4 +117,4 @@ GitHub native pull request stack mutations require the official `github/gh-stack
 
 GitLab review pagination requires `glab` 1.80.0 or newer.
 
-If a copy or setup action fails after the Git worktree is created, Alera keeps and opens the workspace. When the setup ran inline, a setup warning is surfaced so the user can fix the workspace in place; when it ran in the Setup terminal, the terminal itself is the report. An invalid `alera.toml` or `.worktreeinclude` is surfaced as a warning either way. The UI and `alera workspace add` both execute this setup through the runtime host.
+If a copy or setup action fails after the Git worktree is created, Alera keeps the workspace; the user opens it from the sidebar. When the setup ran inline, a setup warning is surfaced so the user can fix the workspace in place; when it ran in the Setup terminal, the terminal itself is the report. An invalid `alera.toml` or `.worktreeinclude` is surfaced as a warning either way. The UI and `alera workspace add` both execute this setup through the runtime host.

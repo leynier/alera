@@ -21,7 +21,7 @@ const steps = [
   {
     number: '01',
     title: 'Register Your Projects',
-    description: 'Add a local folder or clone a Git repository. Non-Git folders get one workspace; Git-backed projects get as many as you need.',
+    description: 'Add a local folder or clone a Git repository. Open as many workspaces on it as you need, and give each one its own worktree when the project uses Git.',
   },
   {
     number: '02',
@@ -46,7 +46,7 @@ const iconClass = 'inline-flex size-8 items-center justify-center rounded-md bor
       <h2 class="mb-4 text-headline-lg font-semibold tracking-tight text-foreground md:text-[32px]">One Runtime, Every Screen</h2>
       <p class="mx-auto max-w-xl text-[15px] text-foreground-muted">
         A Rust runtime owns every terminal. The desktop app and your phone are windows onto it, so your agents keep
-        running when you close the app.
+        running when you close the window.
       </p>
     </div>
 
@@ -70,7 +70,7 @@ const iconClass = 'inline-flex size-8 items-center justify-center rounded-md bor
         <p class="mt-3 text-title-lg text-foreground">Alera Runtime</p>
         <p class="mt-1 text-body-md text-foreground-muted">
           A Rust sidecar that owns every PTY, persists sessions and scrollback, tracks agent states, and runs
-          orchestration. Close the app and your sessions keep running.
+          orchestration. Close the window and your sessions keep running.
         </p>
         <ul class="mt-4 flex flex-wrap gap-1.5" aria-label="Runtime Responsibilities">
           {['Terminals', 'Worktrees', 'Agent States', 'Orchestration', 'Push'].map((item) => (

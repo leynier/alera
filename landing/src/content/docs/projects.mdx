@@ -14,7 +14,7 @@ Git is optional. A plain folder is a valid project.
 
 ## Workspace
 
-A **workspace** is your working context inside that project. Every project has a primary workspace that points at the project path itself.
+A **workspace** is your working context inside that project. Registering a project creates its first workspace, which points at the project path itself.
 
 Git-backed projects can add more workspaces. Each one can live in its own linked Git worktree, a separate checkout, so two tasks can change the same repository without sharing a working tree.
 
@@ -22,7 +22,7 @@ Git-backed projects can add more workspaces. Each one can live in its own linked
 
 A **worktree** is the Git mechanism behind a linked workspace. When you create one, Alera makes a new local branch from a source branch, or attaches the workspace to a branch you already have.
 
-Non-Git folders are not second-class; they just get the primary workspace, because there is nothing to link. See [Worktrees](/docs/worktrees) for the parallel-agent workflow this unlocks.
+Non-Git folders are not second-class: you can add more workspaces that share the same folder. Only a Git project can give a workspace its own linked worktree, because without Git there is nothing to link. See [Worktrees](/docs/worktrees) for the parallel-agent workflow this unlocks.
 
 ## What Lives In A Workspace
 
@@ -33,7 +33,7 @@ Once a workspace is open you get:
 - A right panel with Explorer, Search, Source Control, and Pull Request tools scoped to that checkout
 - Optional [setup](/docs/alera-toml) the first time Alera creates a linked workspace
 
-Closing the desktop window does not tear the terminals down. Sessions belong to the runtime host, so you can quit the UI, come back, and reattach.
+Closing the desktop window does not tear the terminals down: with **Show Tray Icon** on, the default, Alera hides to the tray and the sessions keep running. Sessions belong to the runtime host, so when you quit, Alera asks before stopping terminals that still have work, and you can leave the runtime open and reattach later.
 
 ## Keeping Many Workspaces In View
 
@@ -50,7 +50,7 @@ The sidebar groups workspaces by project and shows, for each one, whether its ag
 <Steps>
 
 1. Register the project (local folder or clone).
-2. Stay on the primary workspace for the default branch, or create a workspace per task.
+2. Work on the project folder for the default branch, or create a workspace per task.
 3. Launch agents in that workspace's terminals.
 4. Review the diff and open a pull request from the same workspace when the task is done.
 

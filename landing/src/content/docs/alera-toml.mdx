@@ -48,7 +48,7 @@ A path is copied only when it exists in the main checkout, Git ignores it, and i
 
 ## When It Runs
 
-Setup applies only to **new linked workspaces that Alera creates**. It does not run for the primary workspace, for workspaces found during reconcile, or on removal.
+Setup applies only to **new linked worktree workspaces that Alera creates on this machine**. It does not run for workspaces that share the project folder, for workspaces found during reconcile, on removal, or, for now, for a workspace created on a remote SSH host.
 
 On desktop and mobile, Alera does not hold the New Workspace UI open until setup finishes. Creation completes when the Git worktree exists, and a terminal named **Setup** runs the copies and commands. You can keep working in `Terminal 1` while that runs.
 
@@ -63,7 +63,7 @@ The command is delivered once. Restarting the terminal, the app, or the host lea
 
 `alera workspace add` still runs setup inline and stops on the first non-zero exit, because the CLI has no Setup tab. `alera workspace setup --id <workspace>` applies a project's setup to an existing workspace.
 
-If a copy or setup step fails after the Git worktree already exists, Alera keeps and opens the workspace. A half-configured worktree you can see beats a silent rollback.
+If a copy or setup step fails after the Git worktree already exists, Alera keeps the workspace for you to open from the sidebar, and the Setup terminal stays open with the output. A half-configured worktree you can see beats a silent rollback.
 
 ## Precedence
 

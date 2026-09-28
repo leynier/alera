@@ -46,7 +46,7 @@ For the default Codex account, hover cards can show earned rate-limit resets and
 
 A status-bar chip opens the Resource Manager. It attributes live CPU and memory to **Project → Workspace → Terminal tab**, sampled in the runtime host rather than on the UI isolate.
 
-Per row you get live CPU and memory with sparklines, plus Alera's own app and sidecar rows, plus machine-wide memory and load. CPU is a share of the machine (per-core samples divided by core count), so it reads on the same scale as memory. When the core count is unknown, that column stays empty rather than showing a raw number.
+Per row you get live CPU and memory with sparklines, plus Alera's own app and sidecar rows, and the share of the machine's memory those processes hold. CPU is a share of the machine (per-core samples divided by core count), so it reads on the same scale as memory. When the core count is unknown, that column stays empty rather than showing a raw number.
 
 Orphan rows are sessions the host still holds but no tab claims. You can kill them in one click. In a workbench with persistent terminals, orphans are how you catch the agent that outlived its tab.
 

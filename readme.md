@@ -57,8 +57,8 @@ Most AI IDEs wrap one chat backend in an Electron shell: slow to start, heavy on
 - **Bring your own agent.** Alera is terminal-first. Every CLI agent runs in a real PTY, the way it was built to run. There is no chat layer of ours in between and no provider lock-in.
 - **Run many at once.** Each task gets its own Git worktree, tabs, and terminals, so Claude, Codex, Amp, and the rest work in parallel without touching each other's files.
 - **See who needs you.** Opt-in status hooks tell Alera when an agent is working, waiting for input, blocked, or done. The sidebar, the tab, the tray badge, and your phone all show it.
-- **Sessions outlive the window.** Close Alera and your agents keep running in the runtime. Reopen it and the terminals, scrollback, and layout are where you left them.
-- **Native, not a web page.** Flutter for the interface, Rust for terminals, processes, and Git, and Ghostty's VTE for terminal parsing. No Electron, no embedded Chromium, no Node runtime.
+- **Sessions outlive the window.** Close the window and Alera keeps running in the tray with your agents. Quit it and it asks before stopping terminals that still have work, so you can leave the runtime open and come back to the same terminals, scrollback, and layout.
+- **Native, not a web page.** Flutter for the interface, Rust for terminals, processes, and Git, and a maintained fork of the xterm2 emulator for parsing and drawing terminal output. No Electron, no embedded Chromium, no Node runtime.
 - **Know what it costs.** The status bar shows each provider's remaining quota and a Resource Manager that attributes CPU and memory to every project, workspace, and terminal.
 
 ## See It Work
@@ -102,11 +102,11 @@ flowchart LR
     runtime -->|"one SSH link per host"| remote
 ```
 
-1. **Register a project.** Add a local folder or clone a Git repository. A folder without Git gets one workspace; a Git project gets as many as you need.
+1. **Register a project.** Add a local folder or clone a Git repository. Open as many workspaces on it as you need, and give each one its own worktree when the project uses Git.
 2. **Open a workspace per task.** Each workspace can be its own Git worktree: one branch, one task. Describe it in a prompt and Alera names it and starts the agent.
 3. **Run agents side by side.** Launch any CLI in real terminals, split them, and follow who is working and who needs you from the sidebar or your phone.
 
-The desktop app and the phone are windows onto the runtime, which is why sessions survive closing the app. A remote host runs its own runtime, so terminals, files, search, and Git for a workspace there run where the code lives. See [`docs/architecture.md`](docs/architecture.md) for the full picture.
+The desktop app and the phone are windows onto the runtime, which is why sessions survive closing the window. A remote host runs its own runtime, so terminals, files, search, and Git for a workspace there run where the code lives. See [`docs/architecture.md`](docs/architecture.md) for the full picture.
 
 ## Supported Agents
 
@@ -132,7 +132,7 @@ Anything else that runs in a terminal (Gemini CLI, Goose, Kimi, Crush, Aider, yo
 | Area | What ships today | Docs |
 |---|---|---|
 | **Projects and worktrees** | Projects from local folders or cloned repositories. Workspaces backed by Git worktrees, created from a source branch or an existing one, or from a prompt that names the workspace and starts the agent. Sections, pins, tags, sleep, and archive. | [Worktrees](https://alera.build/docs/worktrees) · [`alera.toml`](https://alera.build/docs/alera-toml) |
-| **Terminals** | Tabs and splits of real PTYs parsed by Ghostty's VTE, terminal search, themes, and sessions that persist across app restarts. | [Projects And Workspaces](https://alera.build/docs/projects#what-lives-in-a-workspace) |
+| **Terminals** | Tabs and splits of real PTYs owned by the Rust runtime, terminal search, themes, and sessions that persist across app restarts. | [Projects And Workspaces](https://alera.build/docs/projects#what-lives-in-a-workspace) |
 | **Agent states** | Working, waiting, blocked, and done for every agent run, in the sidebar, the tab, the tray badge, and on the phone. Agent profiles with a starting prompt, and resume of an agent's own conversation. | [CLI Agents](https://alera.build/docs/agents) |
 | **Files and search** | Explorer, search and replace across the workspace, Quick Open (`Mod+P`), the Command Palette (`Mod+Shift+P`), and previews for Markdown, PDF, Mermaid, and images. | |
 | **Source control** | Staged and unstaged changes as a tree, diffs side by side or unified, stage, commit, amend, stash, and discard, a history graph, and AI Assist commit messages. | |
@@ -300,8 +300,8 @@ See [`docs/release-trust.md`](docs/release-trust.md) for signing, the Linux repo
 Alera stands on brilliant work in the agentic development and terminal space:
 
 - **[Orca](https://github.com/stablyai/orca)**: the primary inspiration for worktree-oriented, multi-agent product thinking
-- **[Ghostty](https://ghostty.org/)**: the bar for fast, high-quality terminals, and the VTE engine Alera parses with
-- **[xterm.js](https://xtermjs.org/)**: the reference for terminal compatibility
+- **[Ghostty](https://ghostty.org/)**: the bar for fast, high-quality terminals
+- **[xterm2](https://github.com/leynier/xterm2)** and **[xterm.js](https://xtermjs.org/)**: the terminal emulator Alera draws with, through a maintained fork, and the reference for terminal compatibility
 - **[Flutter](https://flutter.dev/)**: the foundation of the cross-platform desktop and mobile apps
 - **[Drift](https://drift.simonbinder.eu/)** and **[desktop_updater](https://pub.dev/packages/desktop_updater)**: local persistence and desktop update plumbing
 
