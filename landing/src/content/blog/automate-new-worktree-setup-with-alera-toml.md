@@ -4,7 +4,7 @@ description: "Every new worktree needs the same ritual: copy the .env, install d
 pubDate: 2026-07-28T13:00:00.000Z
 updatedDate: 2026-09-28
 tags: ["Worktrees"]
-relatedDocs: ["alera-toml", "worktrees"]
+relatedDocs: ["alera-toml", "new-workspace", "worktrees"]
 ---
 
 > **Update, September 2026:**

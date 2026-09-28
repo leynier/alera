@@ -4,7 +4,7 @@ description: "Review belongs next to the work. How the Pull Requests panel keeps
 pubDate: 2026-07-28T12:00:00.000Z
 updatedDate: 2026-09-28
 tags: ["Review", "Worktrees"]
-relatedDocs: ["worktrees", "alera-toml", "projects"]
+relatedDocs: ["pull-requests", "source-control", "worktrees"]
 ---
 
 > **Update, September 2026:**

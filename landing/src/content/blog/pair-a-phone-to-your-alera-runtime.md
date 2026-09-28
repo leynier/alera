@@ -4,7 +4,7 @@ description: "The mobile companion is honest about what it is: a window into you
 pubDate: 2026-07-28T10:00:00.000Z
 updatedDate: 2026-09-28
 tags: ["Mobile", "Terminals"]
-relatedDocs: ["mobile", "install"]
+relatedDocs: ["mobile", "remote-access", "accounts"]
 ---
 
 > **Update, September 2026:**

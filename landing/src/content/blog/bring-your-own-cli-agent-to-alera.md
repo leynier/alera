@@ -4,7 +4,7 @@ description: "We did not want to invent another agent protocol. If it runs in a 
 pubDate: 2026-07-28T15:00:00.000Z
 updatedDate: 2026-09-28
 tags: ["Agents", "Orchestration"]
-relatedDocs: ["agents", "orchestration", "worktrees"]
+relatedDocs: ["agents", "agent-profiles", "agent-states"]
 ---
 
 > **Update, September 2026:**

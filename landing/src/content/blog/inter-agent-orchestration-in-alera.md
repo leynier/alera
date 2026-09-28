@@ -4,7 +4,7 @@ description: "Tabs full of agents are useful until they need to coordinate. How 
 pubDate: 2026-07-28T17:00:00.000Z
 updatedDate: 2026-09-28
 tags: ["Orchestration", "Agents"]
-relatedDocs: ["orchestration", "agents"]
+relatedDocs: ["orchestration", "run-board", "agent-profiles"]
 ---
 
 > **Update, September 2026:**

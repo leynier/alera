@@ -4,7 +4,7 @@ description: "A chatty agent can stream output for an hour straight. That is a f
 pubDate: 2026-07-28T11:00:00.000Z
 updatedDate: 2026-09-28
 tags: ["Performance", "Terminals"]
-relatedDocs: ["projects", "quotas"]
+relatedDocs: ["terminals", "quotas"]
 ---
 
 > **Update, September 2026:**

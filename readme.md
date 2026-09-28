@@ -114,15 +114,15 @@ Alera works with any CLI agent. These ship with first-class support today: icons
 
 <p>
   <a href="https://docs.anthropic.com/claude/docs/claude-code"><kbd><img src="assets/agents/claude.svg" width="16" valign="middle" alt=""> Claude Code</kbd></a>&nbsp;
-  <a href="https://github.com/openai/codex"><kbd><img src="assets/agents/codex.svg" width="16" valign="middle" alt=""> Codex</kbd></a>&nbsp;
+  <a href="https://github.com/openai/codex"><kbd><picture><source media="(prefers-color-scheme: dark)" srcset="landing/public/agents/codex.svg"><img src="assets/agents/codex.svg" width="16" valign="middle" alt=""></picture> Codex</kbd></a>&nbsp;
   <a href="https://ampcode.com/manual#install"><kbd><img src="assets/agents/amp.png" width="16" valign="middle" alt=""> Amp</kbd></a>&nbsp;
   <a href="https://antigravity.google/docs/cli-overview"><kbd><img src="assets/agents/agy.png" width="16" valign="middle" alt=""> Antigravity</kbd></a>&nbsp;
   <a href="https://opencode.ai/docs/cli/"><kbd><img src="assets/agents/opencode.png" width="16" valign="middle" alt=""> OpenCode</kbd></a>&nbsp;
   <a href="https://cursor.com/cli"><kbd><img src="assets/agents/cursor.png" width="16" valign="middle" alt=""> Cursor</kbd></a>&nbsp;
-  <a href="https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli"><kbd><img src="assets/agents/copilot.svg" width="16" valign="middle" alt=""> GitHub Copilot</kbd></a>&nbsp;
-  <a href="https://pi.dev"><kbd><img src="assets/agents/pi.svg" width="16" valign="middle" alt=""> Pi</kbd></a>&nbsp;
-  <a href="https://x.ai/cli"><kbd><img src="assets/agents/grok.png" width="16" valign="middle" alt=""> Grok Build</kbd></a>&nbsp;
-  <a href="https://fx.sh"><kbd><img src="assets/agents/fx.svg" width="16" valign="middle" alt=""> fx</kbd></a>
+  <a href="https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli"><kbd><picture><source media="(prefers-color-scheme: dark)" srcset="landing/public/agents/copilot.svg"><img src="assets/agents/copilot.svg" width="16" valign="middle" alt=""></picture> GitHub Copilot</kbd></a>&nbsp;
+  <a href="https://pi.dev"><kbd><picture><source media="(prefers-color-scheme: dark)" srcset="landing/public/agents/pi.svg"><img src="assets/agents/pi.svg" width="16" valign="middle" alt=""></picture> Pi</kbd></a>&nbsp;
+  <a href="https://x.ai/cli"><kbd><picture><source media="(prefers-color-scheme: dark)" srcset="landing/public/agents/grok.svg"><img src="assets/agents/grok.svg" width="16" valign="middle" alt=""></picture> Grok Build</kbd></a>&nbsp;
+  <a href="https://fx.sh"><kbd><picture><source media="(prefers-color-scheme: dark)" srcset="landing/public/agents/fx.svg"><img src="assets/agents/fx.svg" width="16" valign="middle" alt=""></picture> fx</kbd></a>
 </p>
 
 Anything else that runs in a terminal (Gemini CLI, Goose, Kimi, Crush, Aider, your own scripts) works as a plain terminal. See [CLI Agents](https://alera.build/docs/agents).
@@ -131,16 +131,16 @@ Anything else that runs in a terminal (Gemini CLI, Goose, Kimi, Crush, Aider, yo
 
 | Area | What ships today | Docs |
 |---|---|---|
-| **Projects and worktrees** | Projects from local folders or cloned repositories. Workspaces backed by Git worktrees, created from a source branch or an existing one, or from a prompt that names the workspace and starts the agent. Sections, pins, tags, sleep, and archive. | [Worktrees](https://alera.build/docs/worktrees) · [`alera.toml`](https://alera.build/docs/alera-toml) |
-| **Terminals** | Tabs and splits of real PTYs owned by the Rust runtime, terminal search, themes, and sessions that persist across app restarts. | [Projects And Workspaces](https://alera.build/docs/projects#what-lives-in-a-workspace) |
-| **Agent states** | Working, waiting, blocked, and done for every agent run, in the sidebar, the tab, the tray badge, and on the phone. Agent profiles with a starting prompt, and resume of an agent's own conversation. | [CLI Agents](https://alera.build/docs/agents) |
-| **Files and search** | Explorer, search and replace across the workspace, Quick Open (`Mod+P`), the Command Palette (`Mod+Shift+P`), and previews for Markdown, PDF, Mermaid, and images. | |
-| **Source control** | Staged and unstaged changes as a tree, diffs side by side or unified, stage, commit, amend, stash, and discard, a history graph, and AI Assist commit messages. | |
-| **Pull requests** | Create, edit, comment, and merge on GitHub, GitLab, and Azure DevOps, with checks grouped by status, GitHub stacks, linked issues, and Watch and Fix handing failures back to an agent. | |
-| **Coordination** | Orchestration between agents with coordinator runs, task ownership, decision gates, and messaging, plus scheduled automations. | [Orchestration](https://alera.build/docs/orchestration) |
-| **Remote and mobile** | Workspaces on SSH hosts, the Android companion with push when an agent needs you, and optional accounts. | [Mobile Companion](https://alera.build/docs/mobile) |
+| **Projects and worktrees** | Projects from local folders or cloned repositories. Workspaces on the project folder or in their own Git worktree, created by hand from a source branch or an existing one, or from a prompt that names the workspace and starts the agent. Sections, pins, tags, sleep, and archive. | [New Workspace](https://alera.build/docs/new-workspace) · [Worktrees](https://alera.build/docs/worktrees) · [`alera.toml`](https://alera.build/docs/alera-toml) |
+| **Terminals** | Tabs and splits of real PTYs owned by the Rust runtime, terminal search, themes, and sessions that persist across app restarts. | [Terminals And Panes](https://alera.build/docs/terminals) · [Keyboard Shortcuts](https://alera.build/docs/keyboard-shortcuts) |
+| **Agent states** | Working, waiting, blocked, and done for every agent run, in the sidebar, the tab, the tray badge, and on the phone. Agent profiles with a starting prompt, and resume of an agent's own conversation. | [Agent States](https://alera.build/docs/agent-states) · [Agent Profiles](https://alera.build/docs/agent-profiles) |
+| **Files and search** | Explorer, search and replace across the workspace, Quick Open (`Mod+P`), the Command Palette (`Mod+Shift+P`), and previews for Markdown, PDF, Mermaid, and images. | [Files, Search, And Previews](https://alera.build/docs/files-and-search) |
+| **Source control** | Staged and unstaged changes as a tree or a flat list, unified diffs per file or for all changes, image diffs before and after, stage, commit, amend, stash, and discard, a history graph, and AI Assist commit messages. | [Source Control](https://alera.build/docs/source-control) |
+| **Pull requests** | Create, edit, comment, and merge on GitHub, GitLab, and Azure DevOps, with checks grouped by status, GitHub stacks, linked issues, and Watch and Fix handing failures back to an agent. | [Pull Requests And Checks](https://alera.build/docs/pull-requests) |
+| **Coordination** | Orchestration between agents with coordinator runs, task ownership, decision gates, and messaging, plus scheduled automations. | [Orchestration](https://alera.build/docs/orchestration) · [Run Board](https://alera.build/docs/run-board) · [Automations](https://alera.build/docs/automations) |
+| **Remote and mobile** | Workspaces on SSH hosts, the Android companion with push when an agent needs you, and optional accounts. | [Remote Hosts](https://alera.build/docs/remote-hosts) · [Mobile Companion](https://alera.build/docs/mobile) · [Accounts](https://alera.build/docs/accounts) |
 | **Usage** | Remaining quota for Claude Code and CCS profiles, Codex, Kimi Code, Grok Build, Cursor, Antigravity, MiniMax, Z.ai, and OpenCode Go and Zen, and the Resource Manager. | [Quotas And Resources](https://alera.build/docs/quotas) |
-| **Dictation** | Dictate into terminals, prompts, commit messages, and pull request fields with local Whisper models, an OpenAI-compatible transcription API, or a Codex subscription. | |
+| **Dictation** | Dictate into terminals, prompts, commit messages, and pull request fields with local Whisper models, an OpenAI-compatible transcription API, or a Codex subscription. | [AI Assist And Dictation](https://alera.build/docs/ai-assist) |
 
 Everything account-related is optional: every local feature works without signing in. The [roadmap](roadmap.md) lists what is shipped, partial, and planned.
 
@@ -242,7 +242,13 @@ A local build runs as **Alera Dev** (`dev.leynier.alera.dev`) so it can live nex
 
 | | |
 |---|---|
-| **Using Alera** | [Get started](https://alera.build/docs) · [Install](https://alera.build/docs/install) · [Projects and workspaces](https://alera.build/docs/projects) · [Worktrees](https://alera.build/docs/worktrees) · [`alera.toml`](https://alera.build/docs/alera-toml) · [CLI agents](https://alera.build/docs/agents) · [Orchestration](https://alera.build/docs/orchestration) · [Mobile companion](https://alera.build/docs/mobile) · [Quotas and resources](https://alera.build/docs/quotas) |
+| **Start** | [Get started](https://alera.build/docs) · [Install](https://alera.build/docs/install) |
+| **Workbench** | [Projects and workspaces](https://alera.build/docs/projects) · [New workspace](https://alera.build/docs/new-workspace) · [Worktrees](https://alera.build/docs/worktrees) · [`alera.toml`](https://alera.build/docs/alera-toml) · [Terminals and panes](https://alera.build/docs/terminals) · [Files, search, and previews](https://alera.build/docs/files-and-search) · [Keyboard shortcuts](https://alera.build/docs/keyboard-shortcuts) |
+| **Agents** | [CLI agents](https://alera.build/docs/agents) · [Agent profiles](https://alera.build/docs/agent-profiles) · [Agent states and attention](https://alera.build/docs/agent-states) · [AI Assist and dictation](https://alera.build/docs/ai-assist) |
+| **Review** | [Source control](https://alera.build/docs/source-control) · [Pull requests and checks](https://alera.build/docs/pull-requests) |
+| **Coordinate** | [Orchestration](https://alera.build/docs/orchestration) · [Run board and workflows](https://alera.build/docs/run-board) · [Automations](https://alera.build/docs/automations) |
+| **Remote and mobile** | [Mobile companion](https://alera.build/docs/mobile) · [Remote access](https://alera.build/docs/remote-access) · [Remote hosts](https://alera.build/docs/remote-hosts) · [Accounts, push, and sync](https://alera.build/docs/accounts) |
+| **Operate** | [Quotas and resources](https://alera.build/docs/quotas) · [Alera CLI](https://alera.build/docs/cli) · [Troubleshooting](https://alera.build/docs/troubleshooting) |
 | **Architecture** | [`docs/architecture.md`](docs/architecture.md) · [`docs/remote-hosts-hub.md`](docs/remote-hosts-hub.md) · [`docs/orchestration.md`](docs/orchestration.md) · [`docs/agent-status-hooks.md`](docs/agent-status-hooks.md) · [`docs/performance.md`](docs/performance.md) |
 | **Contributing** | [`AGENTS.md`](AGENTS.md) · [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) · [`docs/testing.md`](docs/testing.md) · [`docs/ui-styleguide.md`](docs/ui-styleguide.md) · [`docs/landing-demo.md`](docs/landing-demo.md) |
 | **Trust** | [`docs/release-trust.md`](docs/release-trust.md) · [`SECURITY.md`](SECURITY.md) · [Privacy Policy](https://alera.build/privacy) |

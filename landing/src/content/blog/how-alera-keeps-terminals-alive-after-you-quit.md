@@ -4,7 +4,7 @@ description: "Closing a window should never kill a three-hour agent run. The tri
 pubDate: 2026-07-28T18:00:00.000Z
 updatedDate: 2026-09-28
 tags: ["Terminals"]
-relatedDocs: ["projects", "agents", "mobile"]
+relatedDocs: ["terminals", "mobile", "troubleshooting"]
 ---
 
 > **Update, September 2026:**

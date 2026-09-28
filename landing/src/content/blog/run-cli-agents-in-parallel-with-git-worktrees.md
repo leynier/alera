@@ -4,7 +4,7 @@ description: "Two agents sharing one working tree is a stash fight waiting to ha
 pubDate: 2026-07-28T20:00:00.000Z
 updatedDate: 2026-09-28
 tags: ["Worktrees", "Agents"]
-relatedDocs: ["worktrees", "projects", "agents"]
+relatedDocs: ["worktrees", "new-workspace", "agent-states"]
 featured: true
 ---
 
