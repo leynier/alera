@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/agent_task_dispatch/application/agent_task_dispatch_providers.dart';
 import 'package:alera/src/features/agent_task_dispatch/application/agent_task_dispatch_service.dart';
 import 'package:alera/src/features/agent_task_dispatch/domain/agent_task_dispatch.dart';
 import 'package:alera/src/features/agent_task_dispatch/presentation/agent_task_dispatch_dialog.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Picker result before injection. Watch binds this without sending until
@@ -37,14 +40,6 @@ Future<AgentTaskDispatchChoice?> chooseAgentTaskDispatchTarget(
     message: request.message,
   );
   final catalog = readAgentTaskDispatchCatalog(ref, normalized.workspaceId);
-  if (catalog.isEmpty) {
-    AleraToast.show(
-      context,
-      message: 'Add an agent profile in Settings before sending work.',
-      tone: .error,
-    );
-    return null;
-  }
   final selection = await showAgentTaskDispatchPicker(
     context,
     request: normalized,
@@ -99,13 +94,30 @@ Future<AgentTaskDispatchSelection?> showAgentTaskDispatchPicker(
 }) {
   return showDialog<AgentTaskDispatchSelection>(
     context: context,
-    builder: (_) => AgentTaskDispatchDialog(
+    builder: (dialogContext) => AgentTaskDispatchDialog(
       request: request,
       catalog: catalog,
       includeRunningAgents: includeRunningAgents,
       emptyMessage: emptyMessage,
+      onCopyPrompt: () =>
+          unawaited(_copyAgentTaskPrompt(dialogContext, request.prompt.trim())),
     ),
   );
+}
+
+Future<void> _copyAgentTaskPrompt(BuildContext context, String prompt) async {
+  try {
+    await Clipboard.setData(ClipboardData(text: prompt));
+    if (!context.mounted) return;
+    AleraToast.show(context, message: 'Prompt copied.', tone: .success);
+  } on Object {
+    if (!context.mounted) return;
+    AleraToast.show(
+      context,
+      message: 'Could not copy the prompt. Try again.',
+      tone: .error,
+    );
+  }
 }
 
 /// Injects [request] into [selection] or [binding].

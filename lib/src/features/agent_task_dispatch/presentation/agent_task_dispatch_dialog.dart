@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
@@ -25,11 +26,13 @@ class const AgentTaskDispatchDialog({
   required this.catalog,
   this.includeRunningAgents = true,
   this.emptyMessage,
+  this.onCopyPrompt,
 }) extends StatelessWidget {
   final AgentTaskDispatchRequest request;
   final AgentTaskDispatchCatalog catalog;
   final bool includeRunningAgents;
   final String? emptyMessage;
+  final VoidCallback? onCopyPrompt;
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +54,13 @@ class const AgentTaskDispatchDialog({
           children: <Widget>[
             AleraDialogHeader(
               title: request.title,
+              trailing: onCopyPrompt == null || request.prompt.trim().isEmpty
+                  ? null
+                  : AleraIconButton(
+                      tooltip: 'Copy Prompt',
+                      icon: AleraIcons.copy,
+                      onPressed: onCopyPrompt,
+                    ),
               onClose: () => Navigator.of(context).pop(),
             ),
             if (message != null && message.isNotEmpty) ...<Widget>[
