@@ -1,0 +1,70 @@
+---
+title: Terminals And Panes
+description: Open terminal and agent tabs, split them into panes, and tune how Alera terminals type, copy, search, and look.
+updatedDate: 2026-09-28
+---
+
+Every terminal tab is a real PTY owned by the runtime host, running your shell in the workspace folder; [agents](/docs/agents) run in the same tabs.
+
+## Where Tabs Live
+
+The center holds the workspace's main terminal. The right panel holds the tools (**Explorer**, **Search**, **Source Control**, **Pull Request**) and the terminals you open with `Mod+T` (`Mod` is ⌘ on macOS and Ctrl on Windows and Linux). **Toggle Context Panel** (`Mod+Alt+B`) shows or hides it.
+
+Each pane has a tab strip with **Add Tab** and **Pane Actions**; the center shows its strip once it holds more than one tab. **Add Tab** offers the tools that are not open yet, **Terminal**, and each agent profile with **Show In New Tab Menu** turned on (it starts off) under **Settings → Agent Profiles**. A profile asks for an optional starting prompt, or a session to resume ([Agent Profiles](/docs/agent-profiles)).
+
+Right-click a tab for **Close**, **Close Others**, **Close Tabs to the Right**, and **Change Title**, plus **Generate Title** when [AI Assist](/docs/ai-assist) can name agent tabs. Closing a terminal tab ends its shell and everything running in it.
+
+## Split Panes
+
+**Pane Actions** and a tab's right-click menu offer **Split Right**, **Split Down**, **Split Left**, and **Split Up**, each opening a new terminal in the new pane. **Close Split** merges a pane's tabs into its neighbor without closing any. Drag an existing tab onto a pane's edge to split with it, into its middle to move it, or along a strip to reorder. Tabs move between the center and the right panel the same way.
+
+## Keyboard
+
+Tab commands act on the focused pane; rebind anything under **Settings → Keyboard** ([Keyboard Shortcuts](/docs/keyboard-shortcuts)).
+
+| Action | Default |
+| --- | --- |
+| New Terminal Tab | `Mod+T` |
+| Close Tab | `Mod+W` |
+| Next Tab, Previous Tab | `Ctrl+Tab`, `Ctrl+Shift+Tab`; also `Mod+Shift+BracketRight`, `Mod+Shift+BracketLeft` on macOS |
+| Go to Tab 1 to 8, Go to Last Tab | `Mod+1` to `Mod+8`, `Mod+9` |
+| Split Right | `Mod+D` on macOS, `Mod+Shift+D` elsewhere |
+| Split Down | `Mod+Shift+D` on macOS, `Mod+Alt+D` elsewhere |
+| Close Split | `Mod+Shift+W` |
+| Focus Next Pane, Focus Previous Pane | `Mod+Alt+ArrowRight`, `Mod+Alt+ArrowLeft` |
+
+**Settings → Keyboard → When a Terminal Is Focused** decides who gets a chord. **App First** (the default) lets Alera win, so on Windows and Linux `Mod+W` closes the tab instead of deleting a word. **Terminal First** leaves **New Terminal Tab**, **Close Tab**, **Split Right**, **Split Down**, **Save File**, **Go Back**, and **Go Forward** to the shell; every other shortcut still works.
+
+## Terminal Toolbar
+
+Each terminal has a floating toolbar:
+
+- **Configure Terminal Pulse** (when the runtime supports it) sends **Terminal Input**, such as `r` to reload a dev server, a fixed **Wait** after the workspace's tracked or new untracked files change. It stays **Armed** until the terminal process restarts.
+- **Show Terminal Composer** opens the composer.
+- **Refresh Terminal** makes a garbled TUI redraw by resizing the terminal for a moment.
+- **Move Toolbar** drags it to another corner; right-clicking the toolbar or **Settings → Terminal → Toolbar Corner** picks one.
+
+## Terminal Composer
+
+The composer is a prompt box under the terminal, toggled with `Mod+Shift+Enter`. `Enter` sends, `Shift+Enter` adds a line, and `Escape` hides it. Pasted or dropped files and images become attachments, sent as paths after your text. A program that supports bracketed paste receives it as one paste, then Enter. **Show Terminal Composer By Default** opens it with every new terminal.
+
+## Search, Copy, And Paste
+
+- `Mod+F` opens **Search Terminal** over the scrollback. It ignores case, `Enter` jumps to the next match, and `Escape` closes it.
+- **Copy On Select** (on by default) copies whatever you select. You can also copy with `⌘C` on macOS or `Ctrl+Shift+C` on Windows and Linux, and paste with `⌘V` or `Ctrl+V`.
+- Pasting an image, or dropping files, pastes file paths.
+- **Drag To Select In TUIs** (on by default) lets a drag select text even in agents that capture the mouse, such as OpenCode, Copilot, Amp, and Grok Build; clicks and scrolling still reach them. Shift+drag selects anywhere.
+- **Allow OSC 52 Clipboard Writes** (off by default) lets programs set your clipboard.
+- `Mod`+click opens a web link.
+
+## Appearance And Behavior
+
+**Settings → Terminal** sets the **Font Family** (JetBrains Mono by default), size, weight, line height, and cursor, plus a **Theme Preset** from 31 built-in themes (Alera Dark by default), background opacity, padding, and color overrides.
+
+**Advanced** has **Use Login Shell** (on by default only on macOS), **Reload Shell Environment**, **Scrollback Lines** (10,000), **Host Scrollback Size** (10 MB), **Word Separators**, and **Terminal Memory Budget** (256 MB). Over the budget, terminals you have not viewed lately are unloaded and restored when you return, and their agents keep running.
+
+## Sessions Outlive The Window
+
+Terminals belong to the runtime host, not the window; see [Projects And Workspaces](/docs/projects). With **Show Tray Icon** on, closing the window only hides Alera. Quitting with terminals open asks whether to **Quit And Leave Runtime Open** or **Force Stop And Quit**, unless **Keep Runtime Open When App Quits** is on under **Settings → Application → Runtime**. With nothing attached, a runtime the app started keeps terminals for **Detached Session Shutdown** (one hour by default) unless other work, such as mobile access, keeps it up. One started with `alera runtime start` never times out.
+
+A terminal showing **Terminal unavailable** offers **Reconnect** and, when the runtime supports it, **Restart Terminal**, which starts a new shell but keeps the history.

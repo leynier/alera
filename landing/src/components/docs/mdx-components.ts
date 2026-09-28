@@ -2,6 +2,7 @@ import Callout from './Callout.astro';
 import DocCard from './DocCard.astro';
 import DocCardGrid from './DocCardGrid.astro';
 import DocLinkButton from './DocLinkButton.astro';
+import ShortcutTable from './ShortcutTable.astro';
 import Steps from './Steps.astro';
 
 /**
@@ -13,5 +14,6 @@ export const docsMdxComponents = {
   DocCard,
   DocCardGrid,
   DocLinkButton,
+  ShortcutTable,
   Steps,
 };

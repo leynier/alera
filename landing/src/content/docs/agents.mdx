@@ -27,7 +27,7 @@ Their integrations report whether each agent is working, waiting for you, blocke
 
 Live status comes from hooks Alera installs into each agent's own user configuration (for example `~/.claude/settings.json` or `~/.codex/hooks.json`). Every switch is **off by default**. Turn on the agents you use under **Settings → Agents → Status Hooks**, or with `alera runtime agents` from the CLI.
 
-Enabling a switch writes Alera-scoped entries only; disabling it removes exactly those entries and leaves the rest of your configuration alone. fx is the exception: it reports through its built-in Herdr integration and needs no hook file.
+Enabling a switch writes Alera-scoped entries only; disabling it removes exactly those entries and leaves the rest of your configuration alone. fx is the exception: it reports through its built-in Herdr integration, on macOS and Linux, and needs no hook file.
 
 ## Everything Else
 
@@ -40,12 +40,12 @@ Gemini CLI, Goose, Aider, Kimi, Crush, Continue, or an in-house script nobody el
 <Steps>
 
 1. Open a [workspace](/docs/projects).
-2. Add a terminal tab, or pick an agent profile from the **Add Tab** menu.
+2. Add a terminal tab, or pick an [agent profile](/docs/agent-profiles) from the **Add Tab** menu; a profile appears there once its **Show In New Tab Menu** switch is on.
 3. Run the agent CLI, or let the profile start it with an optional starting prompt.
 
 </Steps>
 
-**New Workspace** can also do all of it at once: choose **From Prompt**, pick an agent profile, and Alera creates the workspace, names it, and starts the agent with your prompt.
+[New Workspace](/docs/new-workspace) can also do all of it at once: choose **From Prompt**, pick an agent profile, and Alera creates the workspace, names it, and starts the agent with your prompt.
 
 Profiles are yours: each one records how to launch an agent, and you approve the launch command. Manage them under **Settings → Agent Profiles** or with `alera agent-profile`.
 

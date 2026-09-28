@@ -1,6 +1,7 @@
 ---
 title: Orchestration
 description: Coordinate several CLI agents in one Alera workspace with a durable coordinator run.
+updatedDate: 2026-09-28
 ---
 
 Tabs full of agents are useful until they need to work together. Who owns this task? Did that worker finish or crash? Which agent is allowed to approve the risky step? Orchestration answers those questions inside the Rust runtime host. It does not replace your agent CLIs; it schedules and owns the work they accept.
@@ -25,7 +26,7 @@ alera agent-profile --json list
 alera agent-profile create --name "Codex Sol" --agent-type codex --launch-mode command --command "codex --search"
 ```
 
-The administrative CLI also supports show, patch-style update, removal impact, confirmed removal, and complete-catalog reorder. Managed profiles accept configuration as inline JSON, a file, or standard input. Changing the adapter of an existing Managed profile requires an explicit new configuration, and reduced-protection settings require an explicit confirmation flag. A coordinator only reads the closed catalog you approved; it never invents a launch command.
+The administrative CLI also supports show, patch-style update, removal impact, confirmed removal, complete-catalog reorder, and launching a profile in a workspace. Managed profiles accept configuration as inline JSON, a file, or standard input. Changing the adapter of an existing Managed profile requires an explicit new configuration, and reduced-protection settings require an explicit confirmation flag. A coordinator only reads the closed catalog you approved, and Alera's own coordinator loop launches only those profiles or adapter defaults. `alera orchestration agent-spawn` still accepts an explicit `--command` from the coordinator that owns the task, so spawn with `--profile` to keep a worker inside the catalog.
 
 ## A Minimal Loop
 

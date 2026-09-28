@@ -27,25 +27,54 @@ export const DOC_SECTIONS: readonly DocSection[] = [
     title: 'Workbench',
     pages: [
       { id: 'projects', label: 'Projects And Workspaces' },
+      { id: 'new-workspace', label: 'New Workspace' },
       { id: 'worktrees', label: 'Worktrees' },
       { id: 'alera-toml', label: 'alera.toml' },
+      { id: 'terminals', label: 'Terminals And Panes' },
+      { id: 'files-and-search', label: 'Files, Search, And Previews' },
+      { id: 'keyboard-shortcuts', label: 'Keyboard Shortcuts' },
     ],
   },
   {
     title: 'Agents',
-    pages: [{ id: 'agents', label: 'CLI Agents' }],
+    pages: [
+      { id: 'agents', label: 'CLI Agents' },
+      { id: 'agent-profiles', label: 'Agent Profiles' },
+      { id: 'agent-states', label: 'Agent States And Attention' },
+      { id: 'ai-assist', label: 'AI Assist And Dictation' },
+    ],
+  },
+  {
+    title: 'Review',
+    pages: [
+      { id: 'source-control', label: 'Source Control' },
+      { id: 'pull-requests', label: 'Pull Requests And Checks' },
+    ],
   },
   {
     title: 'Coordinate',
-    pages: [{ id: 'orchestration', label: 'Orchestration' }],
+    pages: [
+      { id: 'orchestration', label: 'Orchestration' },
+      { id: 'run-board', label: 'Run Board And Workflows' },
+      { id: 'automations', label: 'Automations' },
+    ],
   },
   {
     title: 'Remote And Mobile',
-    pages: [{ id: 'mobile', label: 'Mobile Companion' }],
+    pages: [
+      { id: 'mobile', label: 'Mobile Companion' },
+      { id: 'remote-access', label: 'Remote Access' },
+      { id: 'remote-hosts', label: 'Remote Hosts' },
+      { id: 'accounts', label: 'Accounts, Push, And Sync' },
+    ],
   },
   {
     title: 'Operate',
-    pages: [{ id: 'quotas', label: 'Quotas And Resources' }],
+    pages: [
+      { id: 'quotas', label: 'Quotas And Resources' },
+      { id: 'cli', label: 'Alera CLI' },
+      { id: 'troubleshooting', label: 'Troubleshooting' },
+    ],
   },
 ];
 

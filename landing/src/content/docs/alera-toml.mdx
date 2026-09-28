@@ -30,7 +30,7 @@ Run the focused tests before finishing.
 - `copy` brings files or directories from the main project checkout into the new linked workspace. `to` defaults to `from`. `overwrite` defaults to `false`, so an existing file is never clobbered silently.
 - `setup` runs commands sequentially from the new workspace root.
 - `new_workspace.source_branch` is the branch pre-selected in the **Source Branch** pickers when it exists.
-- `new_workspace.prompt_append` is optional text added last to the prompt when Alera starts the selected agent from the **New Workspace** flow.
+- `new_workspace.prompt_append` is optional text added last to the prompt whenever Alera starts an agent profile in one of the project's workspaces: from **New Workspace**, the tab menu, the phone, `alera agent-profile launch`, or orchestration. Resuming a conversation does not send it.
 
 Paths are repo-relative literals. Absolute paths and `..` escapes are rejected. Globs and custom command environments are not part of the `copy` list.
 
@@ -50,7 +50,7 @@ A path is copied only when it exists in the main checkout, Git ignores it, and i
 
 Setup applies only to **new linked worktree workspaces that Alera creates on this machine**. It does not run for workspaces that share the project folder, for workspaces found during reconcile, on removal, or, for now, for a workspace created on a remote SSH host.
 
-On desktop and mobile, Alera does not hold the New Workspace UI open until setup finishes. Creation completes when the Git worktree exists, and a terminal named **Setup** runs the copies and commands. You can keep working in `Terminal 1` while that runs.
+On desktop and mobile, Alera does not hold the New Workspace UI open until setup finishes. Creation completes when the Git worktree exists, and a terminal named **Setup** runs the copies and commands. You can keep working in the workspace's other tabs while that runs.
 
 Inside the Setup terminal:
 
@@ -82,3 +82,14 @@ git_hosting_provider = "github" # or "gitlab" / "azureDevops"
 When it is absent, Alera auto-detects GitHub.com, GitLab.com, and Azure DevOps from `origin`. Set it explicitly for self-hosted instances. Authentication stays with `gh`, `glab`, or `az`.
 
 `githubEnterprise` / `github_enterprise` / `github-enterprise` are accepted aliases for GitHub Enterprise Server. GitLab self-managed uses `gitlab`. Azure aliases `azure`, `azure_devops`, and `azure-devops` are also accepted.
+
+## Allowing Automations
+
+A repository must opt in before any [automation](/docs/automations) runs in it:
+
+```toml
+[automation]
+declared = true
+```
+
+Declaring it only allows runs. Each automation still needs an agent profile with **May Execute Automations** on and an approved revision.

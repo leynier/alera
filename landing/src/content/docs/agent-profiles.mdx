@@ -1,0 +1,80 @@
+---
+title: Agent Profiles
+description: Save how an agent CLI launches, then start it from a tab menu, New Workspace, the phone, the CLI, or an orchestration run.
+updatedDate: 2026-09-28
+---
+
+An agent profile is a named launch recipe for one of Alera's built-in [agent adapters](/docs/agents): which CLI starts, with which flags, and what instructions travel with every prompt. The runtime host keeps the catalog, so the desktop, the paired phone, and the `alera` CLI share it.
+
+## Create A Profile
+
+<Steps>
+
+1. Open **Settings → Agent Profiles** (`Mod+Comma` opens Settings; `Mod` is ⌘ on macOS and Ctrl on Windows and Linux) and click **New Profile**.
+2. Enter a unique **Name** and pick the **Adapter Type**, the agent CLI it launches.
+3. Choose a **Launch Mode** and set its options.
+4. Turn on **Show In New Tab Menu** (off by default) to list it in tab menus.
+5. Optionally write a **Custom Prompt**, added after every starting prompt, then click **Save**.
+
+</Steps>
+
+Under **Routing**, **Description** tells an [orchestration](/docs/orchestration) coordinator what the profile is for. Profiles sharing a **Quota Group** drain one usage bucket, so a fallback avoids that group.
+
+## Managed And Command Profiles
+
+**Managed** profiles are built from options, and **Command Preview** shows the line Alera assembles; the runtime host quotes it for the shell the tab runs. **Agent Default** leaves an option to the CLI's own configuration.
+
+**Command** profiles take a line you write, for flags Alera does not model. Write only the flags; the **Prompt Delivery** note shows where the prompt goes. Keep it interactive: print modes such as `-p`, `--print`, or `-x` answer once and exit, leaving no agent in the tab.
+
+**Test Command** runs either kind in a terminal dialog without a task.
+
+All adapters but Amp and fx have a **Model** option, listed from the installed CLI when possible (**Refresh Models** reloads; **Exact Model ID** takes any other). Other options vary:
+
+- **Codex:** Reasoning Effort, Plan Mode Reasoning Effort, Sandbox, Approval Policy, Web Search, Bypass All Protections.
+- **Claude Code:** CCS Profile, Persona, Reasoning Effort, Permission Mode, Allow Skip Permissions.
+- **GitHub Copilot:** Persona, Reasoning Effort, Mode, Context, Allow All, Maximum AI Credits, Maximum Autopilot Continues, Do Not Ask User.
+- **Cursor:** Effort, Thinking, and Fast model variants, Mode, Review Mode, Sandbox, Trust Workspace.
+- **Antigravity:** Persona, Reasoning Effort, Mode, Skip Permissions, Sandbox.
+- **OpenCode and OpenCode 2:** Persona, Auto Approve. OpenCode 2 launches with `--standalone` and passes only Auto Approve to its interactive TUI.
+- **Pi:** Thinking, Project Trust.
+- **Amp:** Mode, Fast Mode.
+- **Grok Build:** Persona, Reasoning Effort, Permission Mode, Sandbox, Disable Web Search.
+- **fx:** Resume Latest Session, Ignore Additional Directories, Record Session.
+
+A **CCS Profile** runs Claude Code through `ccs`. Options that loosen protections, such as **Bypass All Protections**, show a warning, and saving one opens **Confirm Reduced Protections**.
+
+## Default, Clone, And Order
+
+The star, **Set As Default**, marks the profile **From Prompt** preselects on the desktop and the phone; without one, the first profile is used. **Clone Profile** copies "Codex Sol" as "Codex Sol Copy", and dragging rows reorders the catalog. **Remove** checks references first: tabs launched from the profile, automations, and active execution policies block deletion. Each saved profile also has **Automation Permissions** for [automations](/docs/automations).
+
+## Launching A Profile
+
+- **Tab menu.** The **Add Tab** menu (the **+** beside the tabs) lists profiles with **Show In New Tab Menu** on, after **Terminal**. Pick one, write an **Initial Prompt** or use **Add Files**, then **Start Agent** or **Start Without Prompt**.
+- **[New Workspace](/docs/new-workspace).** Press `Mod+Shift+N`, choose **From Prompt**, pick an **Agent Profile**, then **Create And Start Agent**.
+- **The phone.** The [mobile companion](/docs/mobile) offers the same tab menu and **From Prompt**.
+- **CLI.** `alera agent-profile launch --profile "Codex Sol" --prompt "Fix the flaky test"` opens a tab in `--workspace`, which defaults to `ALERA_WORKSPACE_ID`.
+- **Orchestration.** A coordinator dispatches to declared profiles, for example with `alera orchestration delegate --profile "Codex Sol" --spec "Review the tests"`.
+
+## The Starting Prompt
+
+An agent starts with your prompt, then the profile's **Custom Prompt**, then the project's `prompt_append` from [alera.toml](/docs/alera-toml), separated by blank lines.
+
+Alera passes the prompt in the shape each CLI accepts, at launch for every agent but fx:
+
+- **Codex, Claude Code, Cursor, and Grok Build:** one argument after `--`, so a leading dash is not read as an option.
+- **Pi:** one bare argument, with a space before a leading dash, because Pi rejects `--`.
+- **GitHub Copilot:** one `--interactive=` argument.
+- **Antigravity:** one `--prompt-interactive=` argument.
+- **OpenCode and OpenCode 2:** one `--prompt=` argument.
+- **Amp:** standard input, through a generated script.
+- **fx:** pasted once fx reports that it is ready, which needs **fx Status** (macOS and Linux).
+
+The launch line is typed into your interactive shell, so that shell's line limit bounds a very long prompt: 8191 characters on cmd.exe.
+
+## Resuming A Conversation
+
+**Resume Session** in the launch dialog takes a **Session ID** and opens a new tab on that conversation with the profile's settings. It sends no prompt; the conversation must exist for that agent and account on the machine running the tab. Alera also resumes by itself after a terminal restarts ([CLI Agents](/docs/agents#resuming-a-conversation)), which relies on the agent's status hook.
+
+## From The CLI
+
+`alera agent-profile` lists, shows, creates, updates, reorders, removes, and launches profiles. `--json` goes before the subcommand, and settings that newly reduce protections need `--confirm-reduced-protections`. [Orchestration](/docs/orchestration#agent-profiles) has examples. The **Agent Profiles Skill** (**Settings → Agents → Extra Skills**) teaches an agent to manage profiles.

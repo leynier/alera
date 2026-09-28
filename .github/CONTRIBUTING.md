@@ -114,8 +114,11 @@ For landing page work:
 ```bash
 cd landing
 bun install
-bun run build
+bun run dev      # local preview
+bun run check    # unit tests, type check, build, and Playwright
 ```
+
+Install Playwright's Chromium once with `bunx playwright install chromium`, or set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to reuse one you already have. The product demo on the home page is documented in [`docs/landing-demo.md`](../docs/landing-demo.md), including `bun run media:demo`, which renders the README media from the demo after `bun run build`.
 
 ## Branch Naming
 
@@ -167,8 +170,10 @@ If your change touches `landing/`, run:
 
 ```bash
 cd landing
-bun run build
+bun run check
 ```
+
+A change to the app's tokens, icons, agent marks, logo, keyboard shortcuts, or copy that the landing demo quotes must update `landing/` too; `bun test` in `landing/` says what drifted.
 
 ## Pull Requests
 

@@ -120,7 +120,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Workspace cleanup dialog | 2 | 3 | Planned | Bulk cleanup of stale worktrees |
 | Status bar | 2 | 4 | Partial | Agent quota and Resource Manager status-bar controls ship; general SSH/ports/disk status remains unavailable |
 | UI zoom controls | 1 | 3 | Planned | Zoom in/out/reset for the entire UI |
-| Global file drop | 2 | 3 | Partial | Terminal OS drop pastes absolute paths; explorer/editor/composer drops still planned |
+| Global file drop | 2 | 3 | Partial | Terminal drops paste paths, relative to the workspace when inside it, and composer drops attach the files; explorer/editor drops still planned |
 
 ---
 

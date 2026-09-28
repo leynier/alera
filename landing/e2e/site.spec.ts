@@ -16,6 +16,40 @@ test('keeps the sitemap to public pages with canonical URLs', async ({ request }
   expect(urls.filter((url) => url !== 'https://alera.build/' && url.endsWith('/'))).toEqual([]);
 });
 
+test('links only to pages and anchors that exist', async ({ request }) => {
+  const sitemap = await (await request.get('/sitemap-0.xml')).text();
+  const pages = [...sitemap.matchAll(/<loc>https:\/\/alera\.build([^<]*)<\/loc>/g)].map((match) => match[1] || '/');
+  const html = new Map<string, string>();
+  const load = async (path: string) => {
+    if (!html.has(path)) {
+      const response = await request.get(path);
+      expect(response.status(), path).toBeLessThan(400);
+      html.set(path, await response.text());
+    }
+    return html.get(path)!;
+  };
+  const statuses = new Map<string, number>();
+  const status = async (path: string) => {
+    if (!statuses.has(path)) statuses.set(path, (await request.get(path)).status());
+    return statuses.get(path)!;
+  };
+  const broken: string[] = [];
+  for (const page of pages) {
+    const body = await load(page);
+    for (const [, href] of body.matchAll(/href="(\/(?!\/)[^"]*)"/g)) {
+      const [path, anchor] = href!.replace(/&amp;/g, '&').split('#');
+      if (!path || /\.(xml|png|svg|webp|jpg|ico|txt|sh|asc|json|webmanifest|css|js|woff2)$/.test(path)) continue;
+      const code = await status(path);
+      if (code >= 400) {
+        broken.push(`${page} -> ${href} (${code})`);
+        continue;
+      }
+      if (anchor && !(await load(path)).includes(`id="${anchor}"`)) broken.push(`${page} -> ${href} (no #${anchor})`);
+    }
+  }
+  expect(broken).toEqual([]);
+});
+
 test('gives every page one h1 and a canonical link to itself', async ({ page }) => {
   for (const path of ['/', '/download', '/docs', '/docs/install', '/blog', '/privacy']) {
     await page.goto(path);
@@ -26,7 +60,7 @@ test('gives every page one h1 and a canonical link to itself', async ({ page }) 
 });
 
 test('has no serious accessibility violations on the docs', async ({ page }) => {
-  for (const path of ['/docs', '/docs/install', '/404']) {
+  for (const path of ['/docs', '/docs/install', '/docs/keyboard-shortcuts', '/docs/pull-requests', '/404']) {
     await page.goto(path);
     const results = await new AxeBuilder({ page }).analyze();
     const serious = results.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? ''));

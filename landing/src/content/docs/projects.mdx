@@ -16,13 +16,13 @@ Git is optional. A plain folder is a valid project.
 
 A **workspace** is your working context inside that project. Registering a project creates its first workspace, which points at the project path itself.
 
-Git-backed projects can add more workspaces. Each one can live in its own linked Git worktree, a separate checkout, so two tasks can change the same repository without sharing a working tree.
+[New Workspace](/docs/new-workspace) adds more. A workspace can share the project folder, or, in a Git-backed project, live in its own linked Git worktree, a separate checkout, so two tasks can change the same repository without sharing a working tree.
 
 ## Worktree
 
 A **worktree** is the Git mechanism behind a linked workspace. When you create one, Alera makes a new local branch from a source branch, or attaches the workspace to a branch you already have.
 
-Non-Git folders are not second-class: you can add more workspaces that share the same folder. Only a Git project can give a workspace its own linked worktree, because without Git there is nothing to link. See [Worktrees](/docs/worktrees) for the parallel-agent workflow this unlocks.
+Non-Git folders are not second-class: they hold several workspaces too, all sharing the folder. Only a Git project can give a workspace its own linked worktree, because without Git there is nothing to link. See [Worktrees](/docs/worktrees) for the parallel-agent workflow this unlocks.
 
 ## What Lives In A Workspace
 
@@ -30,10 +30,10 @@ Once a workspace is open you get:
 
 - Terminal tabs, each a full PTY owned by the runtime host, in splittable panes
 - A layout that belongs to that workspace, not to a global window
-- A right panel with Explorer, Search, Source Control, and Pull Request tools scoped to that checkout
+- A right panel with Explorer, Search, Source Control, and Pull Request tools scoped to that checkout, plus the terminals you open next to the main one ([Terminals And Panes](/docs/terminals))
 - Optional [setup](/docs/alera-toml) the first time Alera creates a linked workspace
 
-Closing the desktop window does not tear the terminals down: with **Show Tray Icon** on, the default, Alera hides to the tray and the sessions keep running. Sessions belong to the runtime host, so when you quit, Alera asks before stopping terminals that still have work, and you can leave the runtime open and reattach later.
+Closing the desktop window does not tear the terminals down: with **Show Tray Icon** on, the default, Alera hides to the tray and the sessions keep running. Sessions belong to the runtime host, so when you quit, Alera asks before stopping terminals that still have work, and you can leave the runtime open and reattach later ([Sessions Outlive The Window](/docs/terminals#sessions-outlive-the-window)).
 
 ## Keeping Many Workspaces In View
 

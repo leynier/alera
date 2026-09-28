@@ -12,7 +12,7 @@ The companion is a separate Flutter app, published as a single arm64 APK for 64-
 
 <Steps>
 
-1. On the desktop, open **Settings → Mobile Devices** and choose to link a device. Alera shows a pairing QR code that expires after ten minutes. From a terminal, `alera mobile --json pairing create` prints the same offer.
+1. On the desktop, open **Settings → Mobile Devices** and, under **Link A Device**, choose **Generate Pairing QR**. The code expires after **Expires In**, ten minutes by default. From a terminal, `alera mobile --json pairing create` prints the same offer.
 2. On the phone, tap **Pair Host** and scan the code, or use **Enter Code Manually** to paste the pairing offer.
 3. Optionally name the phone, then tap **Pair**.
 
@@ -20,9 +20,9 @@ The companion is a separate Flutter app, published as a single arm64 APK for 64-
 
 ## Reaching Your Runtime
 
-The phone talks to the runtime host over a WebSocket. Plain `ws://` is accepted only on the same device, over Tailscale, or over NetBird; every other address must use `wss://`. Tailscale is the recommended way to reach a machine at home from anywhere.
+The phone talks to the runtime host over a WebSocket. Plain `ws://` is accepted only for loopback, Tailscale, and NetBird addresses; every other address must use `wss://`. Tailscale is the recommended way to reach a machine at home from anywhere. [Remote Access](/docs/remote-access) has the exact rules and setup.
 
-If you sign in to an optional Alera account on both sides and turn on **Enable Remote Access**, the phone tries a direct connection first and falls back to an end-to-end encrypted relay only when the network blocks it. The relay is live only: nothing is queued while either side is offline. Each host card on the phone says which path is in use, such as **Ready via direct** or **Ready via relay**.
+If you sign in to an optional [Alera account](/docs/accounts) on both sides and turn on **Enable Remote Access**, the phone tries a direct connection first and falls back to an end-to-end encrypted relay only when the network blocks it. The relay is live only: nothing is queued while either side is offline. Each host card on the phone says which path is in use, such as **Ready via direct** or **Ready via relay**.
 
 ## What The Phone Can Do
 
@@ -38,7 +38,7 @@ When the phone opens a terminal, the terminal resizes to the phone and the deskt
 
 ## What Stays On The Desktop
 
-The phone does not split panes, edit or delete files, or open non-terminal tabs other than Markdown. GitLab and Azure DevOps pull requests, SSH host administration, and Alera account management stay on the desktop. The runtime only accepts requests on the mobile allowlist, so a lost phone is an inconvenience, not an incident. Device tokens live in the phone's secure storage.
+The phone does not split panes, edit or delete files, or open non-terminal tabs other than Markdown. GitLab and Azure DevOps pull requests, SSH host administration, and account ownership (linking a sign-in provider, moving a runtime, deleting the account) stay on the desktop. The runtime only accepts requests on the mobile allowlist, so a lost phone is an inconvenience, not an incident. Device tokens live in the phone's secure storage.
 
 ## The Desktop Does Not Have To Stay Open
 
@@ -50,6 +50,6 @@ Your agents keep working on a machine that is awake. You keep an eye on them fro
 
 Alera accounts are optional for every local feature. If you opt in, the phone can get a push when an agent is waiting or blocked, or when an orchestration decision needs you, even after the desktop UI closes. Pushes for finished agents and exited terminals are separate categories and start turned off.
 
-A push names the agent and the workspace, such as "Claude needs attention" for a workspace in a project. It never includes prompts, commands, terminal output, or source code. Tapping it opens that workspace and tab.
+A push names the agent and the workspace, such as "Claude needs attention" for a workspace in a project. It never includes prompts, commands, terminal output, or source code; an automation push shows the summary its run reported. Tapping an agent push opens that workspace and terminal, a terminal push opens the host's workspace list, and an automation push opens the run. See [Accounts, Push, And Sync](/docs/accounts#push-notifications) for the setup and categories.
 
 [Download Alera](/download) on desktop, pair the phone, and let the next long run finish without you in the chair.

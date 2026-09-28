@@ -1,0 +1,72 @@
+---
+title: New Workspace
+description: Create a workspace from a prompt or by hand, on the project folder or in its own worktree, from the desktop, the phone, or the CLI.
+updatedDate: 2026-09-28
+---
+
+**New Workspace** is where a task starts. Open it with `Mod+Shift+N` (`Mod` is ⌘ on macOS and Ctrl on Windows and Linux), the **New Workspace** button at the top of the sidebar, or the **+** on a Git project's header.
+
+## Two Modes
+
+- **From Prompt** (the default) takes a task description. [AI Assist](/docs/ai-assist) names the workspace and its branch, and Alera starts the agent profile you picked with your prompt.
+- **Manual** has you fill in the details in two steps, **New Workspace - Selection** and **New Workspace - Settings**. No agent starts; the workspace opens with a plain terminal.
+
+Both modes ask where the task lives:
+
+- **Project Folder** (the default) shares the project folder, its current branch, and its Git index. Only the tabs and agents are new. Folder projects always use it.
+- **New Worktree** creates a Git worktree on its own branch. On this device it goes under **Settings → Application → Workspace Directory** (`~/.alera/workspaces` by default). Use it when two agents might edit the same files ([Worktrees](/docs/worktrees)).
+
+## The Fields
+
+- **Project**: any registered project, folder projects included.
+- **Source Branch**: where a new worktree branches from. It starts on `new_workspace.source_branch` from [`alera.toml`](/docs/alera-toml) or **Settings → Projects**, then `main` or `master`. On this device, when the branch tracks a remote, Alera first updates it from that remote and stops if the update fails, for example when the remote is unreachable or the branch has diverged.
+- **New Branch** or **Existing Branch** (Manual): branch fresh, or attach to a local branch no other workspace uses. **New Branch Name** is checked as you type, and **Workspace Name (Optional)** follows it until you type your own.
+- **Parent Workspace**: nests it under another workspace in the sidebar.
+- **Host**: **This Device** or an SSH host from **Settings → Remote Hosts**. When a Git project is not on that host yet, **Add to Host** clones it there or registers an **Existing Path** ([Remote Hosts](/docs/remote-hosts)).
+- **Agent Profile** (From Prompt): starts on your default [agent profile](/docs/agent-profiles).
+- **Issue URL**: optional, covered below.
+- **Initial Prompt** (From Prompt): the task. Pasting an image inserts its saved path; `Ctrl+Enter`, or `⌘Enter` on macOS, submits.
+- **Auto Assign Section** (From Prompt, when you have sections): lets AI Assist pick the section that fits the prompt.
+- **Create Another**: keeps the form open afterwards.
+
+## After You Create
+
+The form closes at once; closing it never cancels the work. A card in the bottom-right corner follows the job. **Creating workspace from prompt** steps through generating the workspace identity, checking the generated branch, and creating the workspace, then becomes **Starting agent**. A Manual job reads like **Creating workspace "fix-login"**.
+
+When it finishes, the card goes away and a **Workspace created** toast appears. The workspace shows up in the sidebar, but Alera does not select it or change the tab you are looking at. A From Prompt workspace opens on its agent tab when you select it.
+
+A new worktree whose project has [copy rules or setup commands](/docs/alera-toml) also gets a terminal named **Setup** that runs them. In From Prompt the agent starts first, so both run at the same time.
+
+On failure, the card turns red with the error. **Retry** reopens the form with everything you submitted, and **Dismiss** clears the card. If only the agent failed to start, retrying the same request starts it in the workspace already created.
+
+<Callout type="note">
+Worktrees created on a remote SSH host do not run worktree setup yet.
+</Callout>
+
+## Start From An Issue
+
+Paste a GitHub, GitLab, or Azure DevOps issue URL into **Issue URL**. The runtime reads it with `gh`, `glab`, or `az boards` and shows its number, state, and title. From Prompt fills an empty **Initial Prompt** with the title, body, and link; Manual fills the branch name with the number and a slug of the title, and the workspace name with the title. Anything you typed stays. Other tracker URLs and unreadable issues are still linked, without details.
+
+The sidebar row then shows the issue state. Right-click the workspace for **Issue** (**Open Issue in Browser**, **Change Linked Issue**, **Unlink Issue**), or **Link Issue** when there is none. The field needs a runtime that supports linked issues.
+
+<Callout type="caution">
+Read a prefilled prompt before you start the agent: an issue body is text from the tracker.
+</Callout>
+
+## From The Phone
+
+The [companion](/docs/mobile) has a similar form behind **New Workspace** on a host's workspace list, with **Issue URL (Optional)** and, when the runtime supports it, **Add Attachment** for the prompt. Its **Host** lists only the hosts where the project already lives. As on the desktop, a card follows the job and nothing opens by itself.
+
+## From The CLI
+
+```bash
+alera project list
+alera workspace add --project-id <project-id> --name "Triage"
+alera workspace add --project-id <project-id> --worktree --branch fix-login --source-branch main --issue <issue-url>
+alera workspace start --worktree --profile "<profile-name>" --prompt "Fix the flaky login test"
+```
+
+- `add` uses the project folder unless you pass `--worktree` with `--branch`. `--source-branch` is optional when the project sets a default, and `--reuse-existing-branch` attaches an existing branch.
+- `start` also launches a profile (`--profile`) with `--prompt`, `--prompt-file`, or `--prompt-stdin`. In an Alera terminal it takes the project and source branch from the current workspace, and AI Assist generates the name, plus the branch with `--worktree`, unless you pass them.
+- Both take `--parent-workspace-id`, `--host-id`, and `--section`. A CLI worktree runs its setup before the command returns, since there is no Setup tab.
+- `alera workspace issue show`, `link`, and `unlink` manage the linked issue later.

@@ -37,7 +37,7 @@ Sometimes the work starts on the main checkout before you know it deserves its o
 
 ## Worktrees On A Remote Host
 
-A workspace can also live on another machine you reach over SSH. Add the machine under **Settings → Remote Hosts**, bootstrap the Alera runtime sidecar there, then pick that host in **New Workspace**, or run `alera workspace add --host-id <id> --worktree` from the CLI. The remote sidecar creates the worktree from the repository already on that host, and terminals, files, search, and source control for that workspace run there.
+A workspace can also live on another machine you reach over SSH. Add the machine under **Settings → Remote Hosts**, bootstrap the Alera runtime sidecar there, then pick that host in **New Workspace**, or run `alera workspace add --project-id <project-id> --host-id <host-id> --worktree --branch <branch>` from the CLI once the project is on that host. The remote sidecar creates the worktree from the repository already on that host, and terminals, files, search, and source control for that workspace run there. Worktrees created on a remote host do not run [setup](/docs/alera-toml) yet. See [Remote Hosts](/docs/remote-hosts) for adding a machine and a project to it.
 
 Bootstrap only installs the sidecar; it does not create a worktree by itself. Authentication uses your SSH agent or key configuration.
 

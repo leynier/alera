@@ -4,7 +4,8 @@ import landingPackage from '../../../package.json';
 import coverage from '../font-coverage.json';
 import { APP_COPY } from './app-copy';
 import { CODICONS } from './codicons';
-import { macKeys, SHORTCUTS } from './shortcuts';
+import { formatChord } from '../../lib/key-chord-label';
+import { SHORTCUTS } from './shortcuts';
 import { lineText, type Block } from './terminal-lines';
 import * as transcripts from './transcripts';
 
@@ -210,7 +211,7 @@ describe('demo shortcuts', () => {
       const definition = definitions.slice(start, definitions.indexOf('KeybindingDefinition(', start));
       const macos = definition.match(/macos: <String>\['([^']+)'\]/)?.[1] ?? definition.match(/\.uniform\(<String>\['([^']+)'\]\)/)?.[1];
       expect({ label: shortcut.label, chord: macos }).toEqual({ label: shortcut.label, chord: shortcut.chord });
-      expect(macKeys(shortcut.chord)).toBe(shortcut.keys);
+      expect(formatChord(shortcut.chord, 'macos')).toBe(shortcut.keys);
     }
   });
 });

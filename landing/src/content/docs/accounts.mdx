@@ -1,0 +1,66 @@
+---
+title: Accounts, Push, And Sync
+description: Optional Alera accounts add phone notifications, the encrypted relay, and Configuration Sync, while every local feature keeps working without one.
+updatedDate: 2026-09-28
+---
+
+An Alera account is optional. Projects, workspaces, terminals, agents, and pairing a phone over your own network all work without one. Signing in adds what needs a service between your devices: push notifications on your phone, the encrypted [relay](/docs/remote-access) for reaching your runtime from anywhere, and Configuration Sync.
+
+## Sign In On The Desktop
+
+Open **Settings → Account**. Under **Identity**, **Continue With Google** or **Continue With GitHub** opens your default browser. Google is asked only for your basic profile and email, and GitHub only for your profile and verified email, never repository access. The runtime holds the session, in your system keychain where one is available, so it keeps working while the window is closed.
+
+Once signed in, the **Alera Account** row shows your email and providers. **Link Google** or **Link GitHub** adds the other sign-in method, and signing in with the other provider under the same verified email reaches the same account. **Sign Out** stops push delivery and the relay from this runtime until you sign in again.
+
+## Accounts On The Phone
+
+On the phone, open **Settings → Alera Accounts**:
+
+- **Sign In With Google** and **Sign In With GitHub** sign the phone in through the browser.
+- **Add From Paired Runtime** asks a paired, signed-in runtime to enroll this phone in its account, with nothing to copy. The phone gets its own session and a push subscription for that runtime. **Add Another Account** runs the same enrollment again, for example from a runtime signed in to a different account.
+
+The phone keeps several accounts side by side. **Remove From This Phone** deletes that account's push subscriptions and signs the phone out of it.
+
+## Push Notifications
+
+Push is opt-in at both ends.
+
+<Steps>
+
+1. On the desktop, turn on **Enable Mobile Push** under **Settings → Account → Mobile Push**.
+2. On the phone, [pair the runtime](/docs/mobile), then use **Add From Paired Runtime** and allow notifications when asked.
+3. Tune each runtime on the phone's account card: a switch for the runtime, plus **Attention**, **Done**, and **Terminal Exit**.
+
+</Steps>
+
+A category reaches the phone only when both the runtime and the phone have it on:
+
+| Desktop Switch | Phone Chip | Default | Sent When |
+| --- | --- | --- | --- |
+| **Attention Required** | **Attention** | On | An agent is waiting or blocked, a decision gate opens (including when an orchestrated worker stalls), an orchestration task escalates, or an automation fails, is blocked, or times out |
+| **Agent Finished** | **Done** | Off | An agent finishes a turn, or an automation with **Notify On Success** succeeds |
+| **Terminal Ended** | **Terminal Exit** | Off | A terminal exits or is closed |
+
+The runtime damps pushes before sending: only real state changes after it started count, the same terminal and state do not repeat within 60 seconds, and events a few seconds apart arrive together, such as "3 Updates Need Attention". Delivery is best effort, with a few quick retries and no queue.
+
+A push says what happened and where, such as "Claude needs attention" with "Workspace Login in Alera": the agent and its state, plus your project and workspace names. It never carries your prompts, commands, terminal input or output, or source code. The one free-text exception is an automation push, which shows the summary its run reported. Tapping an agent or gate push opens that workspace and terminal on the phone, a terminal push opens the host's workspace list, and an automation push opens that run. The host must be paired on this phone.
+
+## Configuration Sync
+
+Configuration Sync copies preferences between your devices through your account, only when you ask. Sign in first, then open **Settings → Configuration Sync** on the desktop or the phone. On the phone, **Target Device** picks **This Phone** or one of your runtimes, listed as **Connected Device** with its name.
+
+- **Review Changes** compares the last shared version, this device, and the latest upload. A change made on one side only is proposed automatically; a value changed on both sides stays unresolved until you choose **Keep Local** or **Keep Remote**, or **Keep All Local** or **Keep All Remote**.
+- **Apply To Device** saves the result here without uploading. **Apply And Upload** saves it, then publishes a new revision. If the upload fails, **Retry Pending Upload** finishes it.
+- **History** lists the last 100 revisions, and **Compare** loads one into the same review.
+
+The desktop syncs application preferences, terminal and editor settings, custom shortcuts, agent notification preferences, AI Assist and AI Dictation preferences, text actions, and [agent profiles](/docs/agent-profiles). The phone syncs its terminal quick keys and dictation preferences. Credentials, account state, pairing secrets, workspace paths, per-host quota settings, consent choices, installed hooks, downloaded models, and runtime resource limits stay on each device. Importing a profile never launches anything.
+
+<Callout type="caution">
+Synced configuration is protected in transit but not end-to-end encrypted: the service can read it. Custom commands and prompts are uploaded as written, so check them for secrets first.
+</Callout>
+
+## Deleting Your Account
+
+On the desktop, open **Settings → Account**, click **Delete Account** on the **Delete Alera Account** row under **Ownership**, and confirm. This removes your sign-in identities, sessions, enrolled runtimes and phones, push subscriptions, quota records, and configuration history. Local projects, repositories, terminals, and settings are untouched. If your last sign-in is more than five minutes old, the service asks you to sign in again first. Removing an account from a phone does not delete it.
+
+Without a signed-in desktop, follow [alera.build/account/delete](https://alera.build/account/delete).
