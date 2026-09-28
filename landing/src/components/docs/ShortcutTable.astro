@@ -25,7 +25,7 @@ const columns: { title: string; platform: KeyboardPlatform }[] = sameOnWindowsAn
   SHORTCUT_GROUPS.map((group) => (
     <section class="shortcut-group">
       <h2 id={`shortcuts-${group.id}`}>{group.title}</h2>
-      <div class="shortcut-table-frame">
+      <div class="shortcut-table-frame" tabindex="0" role="region" aria-label={`${group.title} Shortcuts`}>
         <table class="shortcut-table">
           <thead>
             <tr>
@@ -64,8 +64,15 @@ const columns: { title: string; platform: KeyboardPlatform }[] = sameOnWindowsAn
 }
 
 <style>
+  /* The table scrolls sideways on a phone, and a keyboard can only scroll what takes focus. */
   .shortcut-table-frame {
     overflow-x: auto;
+    border-radius: var(--radius-md);
+  }
+
+  .shortcut-table-frame:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
   }
 
   .shortcut-table {
