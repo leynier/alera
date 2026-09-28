@@ -64,3 +64,18 @@ The guards are the `describe` blocks in `landing/src/data/demo/fidelity.test.ts`
 ## Capture Mode
 
 `/?demo=capture` mounts the demo immediately, hides everything around the stage, never plays, and exposes `window.__aleraDemo` with the duration, the chapters, and an async `seek(t)` that resolves once the frame has been painted. It exists so a script can render exact frames of the demo.
+
+## README Media
+
+The repository README shows media rendered from the demo, never a screen recording: `assets/product/alera-demo.webp`, an animated cut of about 30 seconds, and one poster per chapter (`assets/product/demo-<chapter>.webp`, taken at the chapter's poster time, the same frame a chapter button shows under reduced motion). `landing/src/data/demo/demo-media.ts` holds the size, the frame rate, the cuts, and the 4 MB budget for the animation.
+
+To render them again, from `landing/`:
+
+```bash
+bun run build
+bun run media:demo
+```
+
+`scripts/render-demo-media.ts` serves `dist/`, opens the demo in capture mode at 1376 × 720 (the wide tier, so the camera frames it as on the site), seeks every frame at 10 fps, and writes the animation, the posters, and `assets/product/demo-media.json`. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to reuse an installed Chromium. The output depends only on the build, not on the speed of the machine.
+
+`demo-media.json` records a fingerprint of everything the media draw: the storyboard's keys, the chapter timing, and the render settings, but not the captions, which the media do not show. `landing/src/data/demo/demo-media.test.ts` fails when the storyboard changes without a new render, when the animation grows past its budget, and when the README stops showing one of the files. A visual change to the scene that leaves the storyboard alone does not fail it; render again when such a change shows in the cuts.

@@ -12,6 +12,7 @@
     "test:e2e": "playwright test",
     "check": "bun test && bun run typecheck && astro build && playwright test",
     "fonts:subset": "bun scripts/subset-fonts.ts",
+    "media:demo": "bun scripts/render-demo-media.ts",
     "typecheck": "astro sync && tsc --noEmit"
   },
   "dependencies": {
@@ -30,6 +31,7 @@
     "@types/node": "^26.1.2",
     "harfbuzzjs": "1.6.2",
     "pagefind": "^1.5.2",
+    "sharp": "0.34.5",
     "subset-font": "2.9.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2"

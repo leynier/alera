@@ -53,7 +53,7 @@ Alera checks for a new release every 15 minutes while its window is visible, and
 - **Direct downloads on macOS and Windows** update themselves. Every update is verified against a signed manifest and a per-artifact SHA-256 before it is installed.
 - **A Linux tarball** replaces its own directory, but only after Alera proves it can write there.
 - **Homebrew and Scoop** installations update through that package manager: **Settings → Updates** runs its upgrade after Alera closes, then reopens the app.
-- **Linux packages and Chocolatey** need elevation, so **Settings → Updates** shows the exact command. **Run Update** runs it in a terminal dialog where you can answer the `sudo` or UAC prompt, and **Copy Command** copies it instead.
+- **Linux packages and Chocolatey** need elevated permissions, so **Settings → Updates** shows the exact command. **Run Update** runs it in a terminal dialog where you can answer a prompt such as the `sudo` password, and **Copy Command** copies it instead.
 
 Local development builds never update themselves.
 

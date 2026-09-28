@@ -1,173 +1,148 @@
-<h1 align="center">
-  <a href="https://alera.build"><img src="assets/logo/alera-logo.png" alt="Alera" width="64" valign="middle" /></a> Alera
-</h1>
+<p align="center">
+  <a href="https://alera.build">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="assets/logo/alera-logo-white.png">
+      <img alt="Alera" src="assets/logo/alera-logo.png" width="72">
+    </picture>
+  </a>
+</p>
+
+<h1 align="center">Alera</h1>
+
+<p align="center"><strong>Run every CLI coding agent in parallel, each in its own Git worktree, from one native app.</strong></p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-blue?style=for-the-badge" alt="Supported platforms" />
-  <img src="https://img.shields.io/badge/Built%20with-Flutter%20%2B%20Rust-3DDC84?style=for-the-badge&logo=flutter&logoColor=white" alt="Built with Flutter and Rust" />
-  <img src="https://img.shields.io/badge/Engine-Ghostty%20VTE-111111?style=for-the-badge" alt="Ghostty VTE engine" />
-  <a href="https://github.com/leynier/alera/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License" /></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg"></a>
+  <a href="https://github.com/leynier/alera/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/leynier/alera?label=Release"></a>
+  <a href="https://github.com/leynier/alera/actions/workflows/pr.yml"><img alt="PR Checks" src="https://github.com/leynier/alera/actions/workflows/pr.yml/badge.svg?event=pull_request"></a>
+  <a href="https://github.com/leynier/alera"><img alt="GitHub stars" src="https://img.shields.io/github/stars/leynier/alera?style=social"></a>
 </p>
 
 <p align="center">
-  <strong>The native, performance-first agentic development environment.</strong><br/>
-  Run Claude Code, Codex, Grok Build, Amp, Antigravity, OpenCode, Copilot, Cursor, fx or any other CLI agent side-by-side, each in its own Git worktree, all tracked in one place.<br/>
-  Built with <strong>Flutter + Rust + Ghostty</strong>. No Electron. No bundled Chromium. Available for <strong>macOS, Windows, and Linux</strong>.
+  <a href="https://alera.build">Website</a> ·
+  <a href="https://alera.build/docs">Docs</a> ·
+  <a href="https://alera.build/download">Download</a> ·
+  <a href="https://alera.build/blog">Blog</a> ·
+  <a href="roadmap.md">Roadmap</a> ·
+  <a href="https://github.com/leynier/alera/releases">Releases</a>
 </p>
 
-<p align="center">
-  <a href="#install"><strong>Get Alera →</strong></a> &nbsp;·&nbsp;
-  <a href="https://alera.build"><strong>alera.build</strong></a> &nbsp;·&nbsp;
-  <a href="https://alera.build/docs"><strong>Docs</strong></a> &nbsp;·&nbsp;
-  <a href="roadmap.md"><strong>Roadmap</strong></a>
-</p>
+---
+
+Alera is a desktop workbench for CLI coding agents. Every agent that runs in a terminal, from Claude Code and Codex to Amp, Cursor, and OpenCode, gets a real terminal in its own Git worktree, and Alera keeps track of which one is working, which one is done, and which one is waiting for you.
+
+It is built with Flutter and Rust for macOS, Windows, and Linux, with no Electron and no bundled browser. A Rust runtime owns every terminal, so agents keep running when you close the window, and the Android companion can answer one from anywhere.
 
 <p align="center">
-  <img src="assets/product/desktop-agents.webp" alt="Alera split panes with a Claude agent waiting for approval beside a terminal" width="920" />
+  <a href="https://alera.build/#product"><img src="assets/product/alera-demo.webp" alt="Alera creating a workspace from a prompt, running Claude Code and Codex side by side, answering Claude from an Android phone, and publishing a pull request" width="920"></a>
 </p>
 
-<p align="center">
-  <img src="assets/product/desktop-agents.webp" alt="Alera split panes with a Claude agent waiting for approval beside a terminal" width="32%" />
-  &nbsp;
-  <img src="assets/product/desktop-new-workspace.webp" alt="Alera new workspace dialog starting a Claude agent from a prompt" width="32%" />
-  &nbsp;
-  <img src="assets/product/mobile-pair.webp" alt="Alera mobile companion workspaces and agent waiting for input" width="32%" />
-</p>
+<p align="center"><sub>Rendered frame by frame from the <a href="https://alera.build/#product">interactive demo</a> on alera.build, which redraws both apps from their own tokens, icons, and copy. It is not a screen recording, and the agent sessions are staged samples.</sub></p>
+
+```bash
+curl -fsSL https://alera.build/install.sh | sh          # Linux: Ubuntu 24.04+, Debian 13+, Fedora
+brew tap leynier/tap && brew install --cask alera       # macOS 14+ on Apple Silicon
+```
+
+On Windows, `scoop install leynier/alera` after `scoop bucket add leynier https://github.com/leynier/scoop-bucket`, or `choco install alera`. Every channel, the manual downloads, and the Android APK are on the [download page](https://alera.build/download).
+
+**Contents:** [Why Alera](#why-alera) · [See It Work](#see-it-work) · [How It Works](#how-it-works) · [Supported Agents](#supported-agents) · [What You Get](#what-you-get) · [Install](#install) · [Documentation](#documentation) · [Developing](#developing) · [Releases And Updates](#releases-and-updates) · [Community](#community)
 
 ---
 
 ## Why Alera
 
-Agentic coding is the new bottleneck of developer tooling. Most "AI IDEs" today wrap a single chat backend inside an Electron shell: slow to start, heavy on RAM, locked to one provider, and limited to one task at a time.
+Most AI IDEs wrap one chat backend in an Electron shell: slow to start, heavy on memory, tied to one provider, and busy with one task at a time. Alera takes the other bet.
 
-Alera takes the opposite bet:
+- **Bring your own agent.** Alera is terminal-first. Every CLI agent runs in a real PTY, the way it was built to run. There is no chat layer of ours in between and no provider lock-in.
+- **Run many at once.** Each task gets its own Git worktree, tabs, and terminals, so Claude, Codex, Amp, and the rest work in parallel without touching each other's files.
+- **See who needs you.** Opt-in status hooks tell Alera when an agent is working, waiting for input, blocked, or done. The sidebar, the tab, the tray badge, and your phone all show it.
+- **Sessions outlive the window.** Close Alera and your agents keep running in the runtime. Reopen it and the terminals, scrollback, and layout are where you left them.
+- **Native, not a web page.** Flutter for the interface, Rust for terminals, processes, and Git, and Ghostty's VTE for terminal parsing. No Electron, no embedded Chromium, no Node runtime.
+- **Know what it costs.** The status bar shows each provider's remaining quota and a Resource Manager that attributes CPU and memory to every project, workspace, and terminal.
 
-- **Bring your own agent.** Alera is terminal-first. Every CLI coding agent runs in its own real PTY, the way it was meant to. No proprietary chat layer, no vendor lock-in
-- **Run many agents at once.** Each task gets its own Git worktree, its own tabs, and its own terminals, so Claude, Codex, Amp, and friends can work in parallel without stepping on each other
-- **Native performance.** Flutter for a fast, consistent desktop UI. Rust for the PTY and process layer (`portable_pty`). Ghostty's VTE engine for terminal parsing. No Electron, no embedded browser, no JS event loop in the hot path
-- **See what your agents are doing.** Lifecycle hooks for the most popular CLI agents stream their activity into Alera so you can tell, at a glance, which terminals are idle, working, or waiting on you
-- **Take attention with you.** Optional Alera accounts and Firebase push can notify a subscribed phone when an agent waits, blocks, or reaches an orchestration decision, even after the desktop UI closes
-- **Track agent quotas.** A bottom status bar shows local or remote quota usage for Claude Code and CCS profiles, Codex, Kimi, Grok Build, Antigravity, MiniMax, and Z.ai
-- **See what they cost.** A Resource Manager in the status bar attributes live CPU and memory to each project, workspace, and terminal tab, so you can tell which agent is eating the machine
-- **Never lose a terminal again.** Terminal sessions persist across restarts. Close the app, reboot the machine, come back, and your scrollback, processes, and layout are still there
+## See It Work
 
----
+<table>
+  <tr>
+    <td width="50%"><a href="https://alera.build/#product"><img src="assets/product/demo-prompt.webp" alt="New Workspace in From Prompt mode with the initial prompt filled in"></a></td>
+    <td width="50%"><a href="https://alera.build/#product"><img src="assets/product/demo-parallel.webp" alt="Claude Code and Codex in split panes while Claude asks for permission and the phone gets a push"></a></td>
+  </tr>
+  <tr>
+    <td><strong>Start From A Prompt.</strong> Describe a task once. Alera names the workspace, creates its Git worktree, and starts the agent there.</td>
+    <td><strong>Agents In Parallel.</strong> Split the pane and start a second agent beside the first, in the same worktree.</td>
+  </tr>
+  <tr>
+    <td><a href="https://alera.build/#product"><img src="assets/product/demo-phone.webp" alt="The Android phone driving Claude's terminal while the desktop shows the phone is in control"></a></td>
+    <td><a href="https://alera.build/#product"><img src="assets/product/demo-review.webp" alt="The Pull Request tool with a failing check next to Claude's terminal"></a></td>
+  </tr>
+  <tr>
+    <td><strong>Answer From Your Phone.</strong> The paired Android phone gets the push. One tap opens the same terminal, live.</td>
+    <td><strong>Review And Ship.</strong> Stage, let AI Assist write the commit message, publish the branch, and open the pull request with its checks.</td>
+  </tr>
+</table>
 
-## Supported CLI agents
+## How It Works
 
-Alera works with **any CLI agent**. The agents below ship with first-class integration today (icons, managed lifecycle hooks, and live activity tracking):
+```mermaid
+flowchart LR
+    desktop["Desktop app<br/><small>Flutter · macOS, Windows, Linux</small>"]
+    phone["Android companion"]
+
+    subgraph machine["your machine"]
+        runtime["Alera runtime<br/><small>Rust sidecar · PTYs, sessions, agent states, orchestration</small>"]
+        agents[("CLI agents<br/><small>one Git worktree each</small>")]
+    end
+
+    remote["SSH host<br/><small>satellite runtime</small>"]
+
+    desktop -->|"local socket"| runtime
+    phone -->|"direct, Tailscale, or encrypted relay"| runtime
+    runtime -->|"real PTYs"| agents
+    runtime -->|"one SSH link per host"| remote
+```
+
+1. **Register a project.** Add a local folder or clone a Git repository. A folder without Git gets one workspace; a Git project gets as many as you need.
+2. **Open a workspace per task.** Each workspace can be its own Git worktree: one branch, one task. Describe it in a prompt and Alera names it and starts the agent.
+3. **Run agents side by side.** Launch any CLI in real terminals, split them, and follow who is working and who needs you from the sidebar or your phone.
+
+The desktop app and the phone are windows onto the runtime, which is why sessions survive closing the app. A remote host runs its own runtime, so terminals, files, search, and Git for a workspace there run where the code lives. See [`docs/architecture.md`](docs/architecture.md) for the full picture.
+
+## Supported Agents
+
+Alera works with any CLI agent. These ship with first-class support today: icons, launch profiles, resume, and live states through opt-in status hooks.
 
 <p>
-  <a href="https://docs.anthropic.com/claude/docs/claude-code"><kbd><img src="assets/agents/claude.svg" width="16" valign="middle" /> Claude Code</kbd></a> &nbsp;
-  <a href="https://github.com/openai/codex"><kbd><img src="assets/agents/codex.svg" width="16" valign="middle" /> Codex</kbd></a> &nbsp;
-  <a href="https://ampcode.com/manual#install"><kbd><img src="assets/agents/amp.png" width="16" valign="middle" /> Amp</kbd></a> &nbsp;
-  <a href="https://antigravity.google/docs/cli-overview"><kbd><img src="assets/agents/agy.png" width="16" valign="middle" /> Antigravity (Agy)</kbd></a> &nbsp;
-  <a href="https://opencode.ai/docs/cli/"><kbd><img src="assets/agents/opencode.png" width="16" valign="middle" /> OpenCode</kbd></a> &nbsp;
-  <a href="https://cursor.com/cli"><kbd><img src="assets/agents/cursor.png" width="16" valign="middle" /> Cursor</kbd></a> &nbsp;
-  <a href="https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli"><kbd><img src="assets/agents/copilot.svg" width="16" valign="middle" /> GitHub Copilot</kbd></a> &nbsp;
-  <a href="https://pi.dev"><kbd><img src="assets/agents/pi.svg" width="16" valign="middle" /> Pi</kbd></a> &nbsp;
-  <a href="https://x.ai/cli"><kbd><img src="assets/agents/grok.png" width="16" valign="middle" /> Grok Build</kbd></a> &nbsp;
-  <a href="https://fx.sh"><kbd><img src="assets/agents/fx.svg" width="16" valign="middle" /> fx</kbd></a>
+  <a href="https://docs.anthropic.com/claude/docs/claude-code"><kbd><img src="assets/agents/claude.svg" width="16" valign="middle" alt=""> Claude Code</kbd></a>&nbsp;
+  <a href="https://github.com/openai/codex"><kbd><img src="assets/agents/codex.svg" width="16" valign="middle" alt=""> Codex</kbd></a>&nbsp;
+  <a href="https://ampcode.com/manual#install"><kbd><img src="assets/agents/amp.png" width="16" valign="middle" alt=""> Amp</kbd></a>&nbsp;
+  <a href="https://antigravity.google/docs/cli-overview"><kbd><img src="assets/agents/agy.png" width="16" valign="middle" alt=""> Antigravity</kbd></a>&nbsp;
+  <a href="https://opencode.ai/docs/cli/"><kbd><img src="assets/agents/opencode.png" width="16" valign="middle" alt=""> OpenCode</kbd></a>&nbsp;
+  <a href="https://cursor.com/cli"><kbd><img src="assets/agents/cursor.png" width="16" valign="middle" alt=""> Cursor</kbd></a>&nbsp;
+  <a href="https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli"><kbd><img src="assets/agents/copilot.svg" width="16" valign="middle" alt=""> GitHub Copilot</kbd></a>&nbsp;
+  <a href="https://pi.dev"><kbd><img src="assets/agents/pi.svg" width="16" valign="middle" alt=""> Pi</kbd></a>&nbsp;
+  <a href="https://x.ai/cli"><kbd><img src="assets/agents/grok.png" width="16" valign="middle" alt=""> Grok Build</kbd></a>&nbsp;
+  <a href="https://fx.sh"><kbd><img src="assets/agents/fx.svg" width="16" valign="middle" alt=""> fx</kbd></a>
 </p>
 
-Anything else that runs in a terminal (Gemini CLI, Goose, Kimi, Crush, Continue, Aider, your own scripts) works out of the box. Activity tracking is incrementally rolling out per agent.
+Anything else that runs in a terminal (Gemini CLI, Goose, Kimi, Crush, Aider, your own scripts) works as a plain terminal. See [CLI Agents](https://alera.build/docs/agents).
 
----
+## What You Get
 
-## What you get today
+| Area | What ships today | Docs |
+|---|---|---|
+| **Projects and worktrees** | Projects from local folders or cloned repositories. Workspaces backed by Git worktrees, created from a source branch or an existing one, or from a prompt that names the workspace and starts the agent. Sections, pins, tags, sleep, and archive. | [Worktrees](https://alera.build/docs/worktrees) · [`alera.toml`](https://alera.build/docs/alera-toml) |
+| **Terminals** | Tabs and splits of real PTYs parsed by Ghostty's VTE, terminal search, themes, and sessions that persist across app restarts. | [Projects And Workspaces](https://alera.build/docs/projects#what-lives-in-a-workspace) |
+| **Agent states** | Working, waiting, blocked, and done for every agent run, in the sidebar, the tab, the tray badge, and on the phone. Agent profiles with a starting prompt, and resume of an agent's own conversation. | [CLI Agents](https://alera.build/docs/agents) |
+| **Files and search** | Explorer, search and replace across the workspace, Quick Open (`Mod+P`), the Command Palette (`Mod+Shift+P`), and previews for Markdown, PDF, Mermaid, and images. | |
+| **Source control** | Staged and unstaged changes as a tree, diffs side by side or unified, stage, commit, amend, stash, and discard, a history graph, and AI Assist commit messages. | |
+| **Pull requests** | Create, edit, comment, and merge on GitHub, GitLab, and Azure DevOps, with checks grouped by status, GitHub stacks, linked issues, and Watch and Fix handing failures back to an agent. | |
+| **Coordination** | Orchestration between agents with coordinator runs, task ownership, decision gates, and messaging, plus scheduled automations. | [Orchestration](https://alera.build/docs/orchestration) |
+| **Remote and mobile** | Workspaces on SSH hosts, the Android companion with push when an agent needs you, and optional accounts. | [Mobile Companion](https://alera.build/docs/mobile) |
+| **Usage** | Remaining quota for Claude Code and CCS profiles, Codex, Kimi Code, Grok Build, Cursor, Antigravity, MiniMax, Z.ai, and OpenCode Go and Zen, and the Resource Manager. | [Quotas And Resources](https://alera.build/docs/quotas) |
+| **Dictation** | Dictate into terminals, prompts, commit messages, and pull request fields with local Whisper models, an OpenAI-compatible transcription API, or a Codex subscription. | |
 
-Alera is in active development. These are the features shipping **right now**:
-
-### 🗂️ Project & workspace registry
-
-Register existing local folders or clone Git repositories from one place. Git-backed projects can spin up multiple **workspaces** backed by real Git worktrees: create a branch from a source branch or reuse an existing local branch, one task or experiment per workspace, fully isolated.
-
-### 🌳 Worktree-native workflow
-
-Group workspaces by project, keep a flat list, or organize them into custom **Sections** across projects. Desktop and mobile share section assignments and view preferences; unassigned workspaces appear under **Others**. See [Workspace Sections](docs/workspace-storage.md#workspace-sections).
-
-Every workspace is a worktree. Less branch juggling, fewer "wait, what was I working on?" moments. Switching contexts is instant, and your agents never collide on the same files.
-
-### 🤖 Multi-agent terminals
-
-Open multiple terminals per workspace, organised in tabs. Run Claude Code in one, Codex in another, Amp in a third, all in parallel and all visible at the same time. Each terminal is a full PTY backed by Rust (`portable_pty`) and parsed by Ghostty's VTE.
-
-### 📡 Live agent activity tracking
-
-Managed lifecycle hooks for Claude, Codex, Grok Build, Amp, OpenCode, Antigravity, Cursor, Copilot, Pi and fx stream agent events into Alera. You can see which agents are **idle, working, or waiting on input** without staring at every terminal.
-
-### 📊 Agent quota tracking
-
-A bottom status bar keeps provider quota usage in sight while agents run: Claude Code and CCS profiles, Codex, Kimi, Grok Build, Antigravity, MiniMax, and Z.ai, resolved locally or remotely. Hover for the detailed breakdown, and know before an agent stalls that you're about to hit a limit.
-
-### 🧮 Resource Manager
-
-A status-bar chip opens a panel that attributes live CPU and memory to **Project → Workspace → Terminal tab**, with memory sparklines, Alera's own app and sidecar rows, and machine memory and load for context. Terminal sessions the host still holds but no tab claims are listed as orphans and can be killed in one click. Sampling runs in the Rust sidecar and only while something is watching.
-
-### 🕸️ Inter-agent orchestration
-
-Agents coordinate through orchestration protocol v2: workspace-scoped coordinator runs, atomic spawn/readiness/acceptance, durable task ownership, context-aware completion and cancellation, runtime liveness leases, structured results, decision gates, and persistent messaging. A workspace has at most one active coordinator while unrelated workspaces can run concurrently.
-
-### 💾 Persistent terminal sessions
-
-Close Alera. Reboot. Reopen. Your terminals, their scrollback, their layouts, and the processes you launched are still there. Long-running agent runs survive restarts instead of vanishing with the window.
-
-### 🎨 Terminal customization
-
-Per-terminal configuration: font, size, theme, behaviour. Built on top of the same engine that powers Ghostty for predictable, high-fidelity rendering.
-
-### 🎙️ AI dictation
-
-Dictate into terminals, workspace prompts, Source Control, and pull request fields. Desktop can transcribe locally with checksum-verified Whisper models, through the experimental realtime API included with a Codex subscription, or through an OpenAI-compatible audio transcription API with a custom model and base URL. API tokens use the system credential store with a private mode-`0600` file fallback when the Linux keyring is unavailable, and Settings includes an integrated recording test. Mobile can use on-device Whisper, offline system recognition, call an OpenAI-compatible API directly with a token stored securely on the phone, or send reviewed audio to the paired runtime for Whisper, Codex subscription, or OpenAI-compatible transcription. Recordings can be reviewed before transcription, and completed transcripts can optionally be cleaned up or summarized through the selected AI Assist subscription.
-
-### 🗃️ File explorer, search & previews
-
-Browse workspace folders in a tree-based explorer with a git-ignored toggle and inline rename. Search and replace across the workspace with regex and include/exclude patterns. Preview Markdown, PDFs, Mermaid diagrams, and images in dedicated tabs, right next to your terminals. Files and previews opened from a tab or tool stay in its panel and split group, including Explorer in either the center or the collapsible right panel. Preview replacement stays within that group; files already open are selected in their existing location. Mod+click (Ctrl on Windows and Linux, Cmd on macOS) opens a preview in the opposite panel, even when the file is already open in the origin panel.
-
-### 🔀 Visual source control
-
-Review structured diffs side-by-side or unified, with per-file and aggregated views. Stage, commit, amend, stash, and discard visually, with AI-powered commit message suggestions. A collapsible commit history graph (with a draggable divider) shows HEAD and upstream at a glance, and submodules get lazy read-only status and diff inspection.
-
-### ✅ Pull requests & checks
-
-Work with pull requests and merge requests per worktree on GitHub, GitHub Enterprise Server, GitLab, and Azure DevOps without leaving Alera: create, edit, comment (with Markdown), toggle draft status, and merge. GitHub repositories can also discover native pull request stacks, build a stack directly from ordered workspaces while reusing or creating their pull requests, extend a stack from existing pull requests, and merge atomically through the current layer. CI checks are grouped by status with drill-down into check details. Review titles and descriptions can be AI-generated from the branch changes, and the workspace menu opens the repository in your browser in one click. Self-hosted GitHub and GitLab instances are selected explicitly in project settings; Alera uses the hostname from the repository remote with the official `gh` or `glab` CLI.
-
-Link the issue a workspace was created for, from New Workspace, the workspace menu, or `alera workspace issue link`. GitHub issues, GitLab issues, and Azure DevOps work items are read through `gh`, `glab`, and `az boards`: the sidebar shows the issue state, New Workspace fills the branch, name, and starting prompt from it, and agents read the requirements with `alera workspace issue show`. Links to any other tracker are kept and open in the browser.
-
-### 🖥️ Truly native, truly cross-platform
-
-One codebase, three real desktops. Native window chrome, native keyboard shortcuts (⌘ on macOS, Ctrl elsewhere), dark-mode-first UI built on the Alera design system. No Electron, no embedded browser, no 400 MB install.
-
-### 🔄 Built-in update channel
-
-Stable and release-candidate update channels with a manual download flow today, signed automatic installs as platform trust requirements land.
-
-### 📱 Mobile companion foundation
-
-A separate Flutter app lives under `mobile/` for Android and iOS. Pairing starts from **Settings → Mobile Devices** in the desktop app or through `alera mobile ...`. The mobile app stores device tokens in platform secure storage and connects directly to the runtime-host mobile WebSocket gateway, so the desktop app does not need to stay open. Its workspace surface mirrors the desktop sidebar with shared grouping, sorting, filtering, tags, collapse state, pins, workspace activity, direct-workspace agent presence, terminal indicators, and managed-workspace actions. Mobile can also browse the host filesystem, manage projects, rename every workspace tab, configure runtime-portable settings and agent hooks, inspect and configure agent quotas, register the host CLI, and install the Alera agent skills without a desktop process. Agent summaries expand locally per paired host, expose runtime-owned details, open the exact terminal tab, and confirm before closing it. Terminal Quick Keys are phone preferences and can be shared manually through Configuration Sync.
-
-**Settings → Configuration Sync** shares portable preferences, agent profiles and prompts through your Alera account. Review differences, choose local or remote values, apply to a selected device, upload a new revision, or compare an earlier revision. Desktop and mobile preserve each other's configuration blocks. Credentials, local paths and consent records stay on the device. See [Configuration Sync](docs/configuration-sync.md) for scope, recovery and storage details.
-
-Optional Alera accounts use Google or GitHub sign-in on the desktop. A paired runtime delegates a separate mobile session without asking the phone to repeat provider sign-in. A phone can retain multiple Alera account sessions and subscribe independently to multiple runtimes. After explicit opt-in, the runtime can send Firebase notifications for attention events while the app is closed, with agent-finished and terminal-exit categories available but off by default. Notification payloads can name the project and workspace, but never contain prompts, terminal input or output, source code, or repository contents. The implementation requires production OAuth, cloud, and Firebase configuration before a release can exercise it end to end; Android is the first verification target, while iOS additionally requires Apple signing and APNs configuration.
-
-The standalone runtime can be kept alive on a workstation or VPS with `alera runtime start`, inspected with `alera runtime status`, and stopped with `alera runtime stop`. A non-forced stop refuses to close while sessions or runtime jobs are active. Agent status integrations, automatic agent terminal spawning, and coordinator workers are runtime-owned; use `alera runtime agents status`, `enable`, or `disable` to manage integrations without launching desktop Flutter.
-
----
-
-## What's next
-
-Alera is shipping fast. A non-exhaustive list of what's on the roadmap:
-
-- **SSH worktrees**: run agents on remote machines as if they were local
-- **Mobile live transport expansion**: add file review and non-terminal tab surfaces to the mobile app
-- **Code editing with LSP support**: full editing with language-server autocomplete and diagnostics
-- **Git conflict resolution**: resolve merge conflicts visually with AI-assisted three-way merge
-- **More forge & tracker integrations**: Additional git forges, plus reading Linear and Jira issues linked to a worktree
-- **Automations, MCP management, skills, and more**
-
-See the full [roadmap](roadmap.md) for the complete picture, including difficulty/utility scoring per feature.
-
----
+Everything account-related is optional: every local feature works without signing in. The [roadmap](roadmap.md) lists what is shipped, partial, and planned.
 
 ## Install
 
@@ -185,7 +160,7 @@ Requires x86_64 and Ubuntu 24.04 or newer, Debian 13 or newer, or Fedora. openSU
 
 To add the repository by hand instead, see the manual setup on the [download page](https://alera.build/download). The signing key is published at `https://updates.alera.build/linux/alera-archive-keyring.asc` with fingerprint `5DE97E7CFE234A1C5869EC54708DA940734CF23A`.
 
-On a distribution with no package of ours, download `alera-<version>-linux-x64.tar.gz` from [GitHub Releases](https://github.com/leynier/alera/releases) and extract it somewhere you own, such as `~/.local/share/alera`. Install `gtk3` and the Vulkan loader through your own package manager first, since a tarball declares no dependencies. Alera updates a tarball installation in place; a repository installation keeps updating through apt or dnf, which is what resolves those dependencies.
+On a distribution with no package of ours, download `alera-<version>-linux-x64.tar.gz` from [GitHub Releases](https://github.com/leynier/alera/releases) and extract it somewhere you own, such as `~/.local/share/alera`. Install `gtk3` and the Vulkan loader through your own package manager first, since a tarball declares no dependencies.
 
 ### macOS
 
@@ -194,9 +169,7 @@ brew tap leynier/tap
 brew install --cask alera
 ```
 
-Requires Apple Silicon and macOS 14 or newer. The cask clears the quarantine attribute after installing, because the macOS build is not notarized yet.
-
-Or download `alera-<version>-macos.tar.gz` from [GitHub Releases](https://github.com/leynier/alera/releases) and move `Alera.app` to `/Applications`.
+Requires Apple Silicon and macOS 14 or newer. The cask clears the quarantine attribute after installing, because the macOS build is not notarized yet. Or download `alera-<version>-macos.tar.gz` from [GitHub Releases](https://github.com/leynier/alera/releases) and move `Alera.app` to `/Applications`.
 
 ### Windows
 
@@ -211,11 +184,22 @@ choco install alera
 
 Requires 64-bit Windows. Or download `alera-<version>-windows.zip` from [GitHub Releases](https://github.com/leynier/alera/releases) and extract it anywhere.
 
+### Android
+
+The companion is one arm64 APK for 64-bit Android phones, published as `alera-<version>-android.apk` on the [mobile releases](https://github.com/leynier/alera/releases?q=mobile&expanded=true). Pair it from **Settings → Mobile Devices** on the desktop; see [Mobile Companion](https://alera.build/docs/mobile).
+
 ### Updating
 
-Alera updates itself only when no package manager owns the installation. Under Homebrew or Scoop, **Settings → Updates** runs that manager's own upgrade and reopens Alera; under Chocolatey and on Linux it shows the command to run, because those upgrades need elevation or a dependency resolution Alera must not do itself.
+Alera checks for a release every 15 minutes while its window is visible. How an update is applied depends on who owns the installation:
 
-### Code signing policy
+- **Direct downloads on macOS and Windows** update themselves after verifying the signed manifest and the artifact's SHA-256.
+- **A Linux tarball** replaces its own directory, but only after Alera proves it can write there.
+- **Homebrew and Scoop** update through that package manager: **Settings → Updates** runs its upgrade after Alera closes, then reopens the app.
+- **Linux packages and Chocolatey** need elevated permissions, so **Settings → Updates** shows the upgrade command to copy, or to run with **Run Update** in a terminal inside Alera, where you can answer a prompt such as the `sudo` password.
+
+Local development builds never update themselves.
+
+### Code Signing Policy
 
 Free code signing provided by SignPath.io, certificate by SignPath Foundation.
 
@@ -225,11 +209,11 @@ Alera is maintained by one person, who fills every role: Leynier Gutiérrez Gonz
 
 Current status: Linux packages are distributed through a repository whose metadata is signed with the key above. Windows and macOS builds are not signed yet, so Windows SmartScreen reports an unknown publisher and macOS Gatekeeper asks you to allow the app explicitly. Windows signing through SignPath begins once the certificate is issued.
 
-### Run from source
+### Run From Source
 
-Alera is a Flutter desktop app. Use Flutter 3.47.2 or newer with Dart 3.13.2 or newer; CI is pinned to Flutter 3.47.2. You also need a working Rust toolchain (`rustup`), [Zig](https://ziglang.org/download/) 0.16.0, Git, and the native compiler toolchain for your desktop platform. The Rust workspace under `rust/` provides both the native terminal-host sidecar (`alera-cli`) and the git layer (`alera_native`, compiled into the app through `flutter_rust_bridge`). Zig builds the vendored `ghostty_vte` terminal engine, which a checkout like this one compiles from its own submodule rather than downloading.
+Alera is a Flutter desktop app. Use Flutter 3.47.2 or newer with Dart 3.13.2 or newer; CI is pinned to Flutter 3.47.2. You also need a working Rust toolchain (`rustup`), [Zig](https://ziglang.org/download/) 0.16.0, Git, and the native compiler toolchain for your desktop platform. The Rust workspace under `rust/` provides both the terminal-host sidecar (`alera-cli`) and the native layer (`alera_native`, compiled into the app through `flutter_rust_bridge`). Zig builds the vendored `ghostty_vte` terminal engine from its submodule.
 
-Linux source builds also require system development packages. Install the [Ubuntu and Debian prerequisites](.github/CONTRIBUTING.md#local-setup) before running the app.
+Linux source builds also need system development packages: install the [Ubuntu and Debian prerequisites](.github/CONTRIBUTING.md#local-setup) first.
 
 ```bash
 git clone https://github.com/leynier/alera.git
@@ -243,141 +227,92 @@ flutter run -d windows
 flutter run -d linux
 ```
 
-#### Windows source setup
-
-Install Visual Studio 2022 with the **Desktop development with C++** workload and a Windows 10 or 11 SDK, Flutter 3.47.2 or newer, Git for Windows, and Rustup. PowerShell 7 is recommended for the repository debug flows. Then run the idempotent setup from a normal PowerShell terminal; it also pins native builds to the supported Visual Studio 2022 CMake generator:
+On Windows, install Visual Studio 2022 with the **Desktop development with C++** workload and a Windows 10 or 11 SDK, Flutter 3.47.2 or newer, Git for Windows, and Rustup, then run the idempotent setup from PowerShell. It verifies the toolchain, enables Git long paths, installs Zig and LLVM through Scoop or WinGet when asked, repairs the required submodules, resolves packages, and runs the native-asset preflight:
 
 ```powershell
 pwsh -File tool/development/setup_windows.ps1 -InstallMissingTools
 flutter run -d windows
 ```
 
-The setup verifies the Flutter/Dart versions and Visual Studio workload, enables Git long paths, installs Zig 0.16.0 and LLVM through Scoop or WinGet when requested, persists the CMake and Bindgen environment needed by native Windows dependencies, repairs the required nested submodules, resolves packages, and runs the native-asset preflight. It does not initialize the large optional projects under `reference_projects/`; use `make init-reference-submodules` only when you need those sources. The first Ghostty build can spend several minutes compiling without output, while later builds reuse the native-asset cache.
+Use `-CheckOnly` to diagnose a machine without changing it. The first Ghostty build can compile for several minutes without output; later builds reuse the native-asset cache.
 
-To diagnose an existing machine without changing it, use:
+A local build runs as **Alera Dev** (`dev.leynier.alera.dev`) so it can live next to an installed release without sharing user data; set `ALERA_FLAVOR=release` to build the release identity. The repository `makefile` has the debug workflows (`make help` lists them), and `make frb-generate` regenerates the `flutter_rust_bridge` bindings after a change to `rust/src/api`.
 
-```powershell
-pwsh -File tool/development/setup_windows.ps1 -CheckOnly
-```
+## Documentation
 
-If `flutter pub get` reports an unsupported Flutter or Dart SDK, switch the checkout to Flutter 3.47.2 or newer instead of changing Alera's locked dependencies.
+| | |
+|---|---|
+| **Using Alera** | [Get started](https://alera.build/docs) · [Install](https://alera.build/docs/install) · [Projects and workspaces](https://alera.build/docs/projects) · [Worktrees](https://alera.build/docs/worktrees) · [`alera.toml`](https://alera.build/docs/alera-toml) · [CLI agents](https://alera.build/docs/agents) · [Orchestration](https://alera.build/docs/orchestration) · [Mobile companion](https://alera.build/docs/mobile) · [Quotas and resources](https://alera.build/docs/quotas) |
+| **Architecture** | [`docs/architecture.md`](docs/architecture.md) · [`docs/remote-hosts-hub.md`](docs/remote-hosts-hub.md) · [`docs/orchestration.md`](docs/orchestration.md) · [`docs/agent-status-hooks.md`](docs/agent-status-hooks.md) · [`docs/performance.md`](docs/performance.md) |
+| **Contributing** | [`AGENTS.md`](AGENTS.md) · [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) · [`docs/testing.md`](docs/testing.md) · [`docs/ui-styleguide.md`](docs/ui-styleguide.md) · [`docs/landing-demo.md`](docs/landing-demo.md) |
+| **Trust** | [`docs/release-trust.md`](docs/release-trust.md) · [`SECURITY.md`](SECURITY.md) · [Privacy Policy](https://alera.build/privacy) |
 
-By default a local build runs as **Alera Dev** (`dev.leynier.alera.dev`) so it can coexist with an installed release without sharing user data. Set `ALERA_FLAVOR=release` to opt back into the release identifier.
+## Repository Layout
 
-Regenerate the `flutter_rust_bridge` bindings after changing the Rust API (`rust/src/api`) with `make frb-generate`.
-
----
-
-## Performance & architecture
-
-Alera is built around three deliberate engineering choices:
-
-```diagram
-╭──────────────────────────╮    ╭──────────────────────────╮    ╭──────────────────────────╮
-│         Flutter          │    │           Rust           │    │      Ghostty VTE         │
-│    Native desktop UI,    │ ─> │   PTY + process layer    │ ─> │    Terminal parser &     │
-│   shell, design system   │    │    via portable_pty      │    │  renderer (no Electron)  │
-╰──────────────────────────╯    ╰──────────────────────────╯    ╰──────────────────────────╯
-```
-
-- **Flutter** for the desktop shell, design system, and UI: fast startup, consistent look across macOS / Windows / Linux, fully native rendering
-- **Rust** for the PTY and process boundary through [`portable_pty`](https://crates.io/crates/portable-pty), so spawning, signalling, and resizing real terminals stays predictable on every OS
-- **Ghostty's VTE** through `ghostty_vte_flutter` for terminal parsing: the same engine that powers the Ghostty terminal emulator
-- **Drift / SQLite** for local persistence of projects, workspaces, tabs, layouts, settings, and terminal state
-- **Axum / Postgres** for the optional account and push service, kept outside the local runtime-host protocol
-- **No Electron, no Chromium, no Node runtime** in the desktop or mobile apps
-
-For more, see [`docs/architecture.md`](docs/architecture.md).
-
----
-
-## Inspired by great open source projects
-
-Alera stands on the shoulders of brilliant work in the agentic dev and terminal space. Special thanks to:
-
-- **[Orca](https://github.com/stablyai/orca)**: the primary inspiration for worktree-oriented, multi-agent product thinking
-- **[Ghostty](https://ghostty.org/)**: the bar for fast, high-quality terminal experiences
-- **[xterm.js](https://xtermjs.org/)**: ecosystem reference for terminal compatibility
-- **[Flutter](https://flutter.dev/)**: the foundation that makes Alera's cross-platform desktop UI possible
-- **[Drift](https://drift.simonbinder.eu/)** and **[desktop_updater](https://pub.dev/packages/desktop_updater)**: used for local persistence and desktop update plumbing
-
----
+| Path | What it is |
+|---|---|
+| `lib` | The Flutter desktop app: `app` bootstrap and theme, `features` by domain, `design_system` components, `shared` infrastructure |
+| `rust` | The Cargo workspace: `alera_native` (the desktop app's native layer), `alera-core` (rules the app and the runtime share), `alera-cli` (the `alera` runtime and CLI), `alera_mobile_native` (on-device dictation for the phone), and `alera-xtask` (makefile tooling) |
+| `mobile` | The Android companion app |
+| `packages` | Dart packages shared by the desktop and mobile apps |
+| `third_party` | Forked and vendored dependencies, including the terminal engine |
+| `macos`, `windows`, `linux` | The native runner for each desktop platform: window, tray, and the build hooks that compile the runtime |
+| `landing` | The Astro website: [alera.build](https://alera.build), the docs, the blog, and the product demo |
+| `cloud`, `edge`, `infra/production` | The optional account and push service, the Cloudflare Worker in front of it, and its OpenTofu resources |
+| `skills` | Agent skills Alera installs for the `alera` CLI and orchestration |
+| `tool` | CI, release, and development scripts |
+| `docs` | Contributor documentation |
 
 ## Developing
 
-Want to contribute or hack on Alera locally? Start with:
-
-- [`AGENTS.md`](AGENTS.md): contributor and agent governance rules
-- [`docs/architecture.md`](docs/architecture.md): architecture glossary and naming rules
-- [`docs/release-trust.md`](docs/release-trust.md): release signing, Linux package trust, and update manifest verification
-- [`docs/testing.md`](docs/testing.md): unit, widget, golden, E2E, and coverage workflow
-- [`docs/ui-styleguide.md`](docs/ui-styleguide.md): design tokens and UI rules
-
-### Project layout
-
-- `lib/src/app`: bootstrap, dependency providers, theme setup
-- `lib/src/shared`: shared infrastructure (process, storage, helpers)
-- `lib/src/features/projects`: project registry and project sidebar UI
-- `lib/src/features/workbench`: workspaces, tabs, split layouts, terminal runtime
-- `lib/src/features/agent_status`: agent lifecycle hooks and activity tracking
-- `lib/src/features/updater`: update archive parsing and desktop updater integration
-- `lib/src/features/shell`: top-level application shell
-- `lib/src/design_system`: shared Alera UI components
-- `mobile`: separate Android and iOS companion app
-- `rust`: native Flutter layer, shared runtime core, and the `alera` runtime-host CLI
-- `cloud`: containerized Axum account and push service
-- `edge`: Cloudflare Worker that protects and forwards the public API
-- `infra/production`: OpenTofu resources for the production cloud boundary
-- `landing`: static Astro website and account trust pages
-
-### Checks
+Start with [`AGENTS.md`](AGENTS.md), which holds the rules every change follows, and [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) for local setup. The common checks:
 
 ```bash
 flutter analyze
 flutter test --coverage --exclude-tags golden
-dart run tool/quality/coverage_report.dart --input coverage/lcov.info --min-lines 100 --worst 25
+make rust-test
 ```
 
-Use `flutter test --tags golden` for visual regression tests and `flutter test integration_test -d macos` for local desktop E2E smoke coverage. See [`docs/testing.md`](docs/testing.md).
-
-### Desktop flavors
+Use `flutter test --tags golden` for visual regression tests and `flutter test integration_test -d macos` for desktop end-to-end coverage; [`docs/testing.md`](docs/testing.md) has the full workflow. The website builds from `landing/` with `bun run check`.
 
 Alera builds in two flavors selected by `ALERA_FLAVOR`:
 
-| Flavor    | Bundle ID                  | Display name | Notes                                            |
-|-----------|----------------------------|--------------|--------------------------------------------------|
-| `dev`     | `dev.leynier.alera.dev`    | Alera Dev    | Default for local builds. Auto-update disabled.  |
-| `release` | `dev.leynier.alera`        | Alera        | Used by CI and public release artifacts.         |
+| Flavor | Bundle ID | Display name | Notes |
+|---|---|---|---|
+| `dev` | `dev.leynier.alera.dev` | Alera Dev | Default for local builds. Auto-update disabled. |
+| `release` | `dev.leynier.alera` | Alera | Used by CI and public release artifacts. |
 
-User data lives in `~/Library/Application Support/<bundle id>` on macOS, `$XDG_DATA_HOME/<bundle id>` (default `~/.local/share`) on Linux, and `%APPDATA%\dev.leynier\<display name>` on Windows.
+User data lives in `~/Library/Application Support/<bundle id>` on macOS, `$XDG_DATA_HOME/<bundle id>` (default `~/.local/share`) on Linux, and `%APPDATA%\dev.leynier\<display name>` on Windows. [`lib/src/core/build_flavor.dart`](lib/src/core/build_flavor.dart) holds the canonical strings.
 
-See [`lib/src/core/build_flavor.dart`](lib/src/core/build_flavor.dart) for the canonical strings.
+## Releases And Updates
 
----
+Release cuts are maintainer-run through GitHub Actions, and publish drafts first, verify every asset and update manifest, and only then go public. Update indexes use schema v3: each platform's `release.json` is signed with Ed25519 and commits to the artifact's SHA-256, which the app verifies before installing anything.
 
-## Releases and updates
-
-Public release cuts are maintainer-managed through GitHub Actions. Release artifacts are signed or packaged for platform trust, and the public update indexes are Ed25519-signed schema v2 manifests with SHA-256 metadata for each artifact. Stable automatic installation stays disabled unless the release build embeds the manifest public key and the platform apply path explicitly allows the artifact type. Stable Linux updates are installed through signed package repositories; release-candidate Linux builds remain manual downloads.
-
-- Stable manifest: `https://updates.alera.build/app-archive.json`
-- Release-candidate manifest: `https://updates.alera.build/app-archive-rc.json`
-- Updater payloads are hosted in Cloudflare R2 under `updates/stable/` and `updates/rc/`
-- Stable Linux repositories are hosted in Cloudflare R2 under `linux/apt/` and `linux/rpm/`
+- Stable index: `https://updates.alera.build/updates/stable/app-archive.json`
+- Release-candidate index: `https://updates.alera.build/updates/rc/app-archive.json`
+- Stable Linux packages come from the signed APT and RPM repositories under `https://updates.alera.build/linux/`
 - [GitHub Releases](https://github.com/leynier/alera/releases) remain the manual download surface
 
----
+See [`docs/release-trust.md`](docs/release-trust.md) for signing, the Linux repositories, and manifest verification.
 
-## Community & support
+## Acknowledgements
 
-- ⭐ **Star this repo** to follow along. Alera ships often
-- 🐛 **Found a bug or want a feature?** [Open an issue](https://github.com/leynier/alera/issues)
-- 🌐 **Website:** [alera.build](https://alera.build)
-- 📜 **License:** see [`LICENSE`](LICENSE)
-- 🛡️ **Security:** see [`SECURITY.md`](SECURITY.md)
-- 🤝 **Code of conduct:** see [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)
+Alera stands on brilliant work in the agentic development and terminal space:
 
----
+- **[Orca](https://github.com/stablyai/orca)**: the primary inspiration for worktree-oriented, multi-agent product thinking
+- **[Ghostty](https://ghostty.org/)**: the bar for fast, high-quality terminals, and the VTE engine Alera parses with
+- **[xterm.js](https://xtermjs.org/)**: the reference for terminal compatibility
+- **[Flutter](https://flutter.dev/)**: the foundation of the cross-platform desktop and mobile apps
+- **[Drift](https://drift.simonbinder.eu/)** and **[desktop_updater](https://pub.dev/packages/desktop_updater)**: local persistence and desktop update plumbing
 
-## Reference projects
+Reference projects under [`reference_projects/`](reference_projects/) are reading material for agentic development patterns; Alera does not depend on any of them at runtime.
 
-Reference projects live under [`reference_projects/`](reference_projects/) and are **non-runtime** references for agentic development and orchestration patterns. Alera remains terminal-first and does not depend on any reference project at runtime.
+## Community
+
+- [Open an issue](https://github.com/leynier/alera/issues) for a bug or a feature request, and star the repository to follow along.
+- Report vulnerabilities privately as described in [`SECURITY.md`](SECURITY.md).
+- Read the [Code of Conduct](CODE_OF_CONDUCT.md) before taking part.
+
+## License
+
+[MIT](LICENSE).

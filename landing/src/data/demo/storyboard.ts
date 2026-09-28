@@ -18,7 +18,7 @@ const CHAPTERS: readonly Chapter[] = [
     caption: 'Describe a task once. Alera names the workspace, creates its Git worktree and starts the agent there.',
     start: 0,
     end: at(19),
-    poster: at(15.5),
+    poster: at(7.3),
   },
   {
     id: 'parallel',
@@ -34,7 +34,7 @@ const CHAPTERS: readonly Chapter[] = [
     caption: 'The paired Android phone gets the push. One tap opens the same terminal, live.',
     start: at(40),
     end: at(60),
-    poster: at(44.4),
+    poster: at(44.95),
   },
   {
     id: 'review',
@@ -42,7 +42,7 @@ const CHAPTERS: readonly Chapter[] = [
     caption: 'Review the changes in Source Control, let AI Assist write the commit message, and publish the branch.',
     start: at(60),
     end: at(89),
-    poster: at(82.5),
+    poster: at(79),
   },
 ];
 
