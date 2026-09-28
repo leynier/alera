@@ -10,8 +10,9 @@
     "astro": "astro",
     "test": "bun test",
     "test:e2e": "playwright test",
-    "check": "bun test && astro build && playwright test",
-    "fonts:subset": "bun scripts/subset-fonts.ts"
+    "check": "bun test && bun run typecheck && astro build && playwright test",
+    "fonts:subset": "bun scripts/subset-fonts.ts",
+    "typecheck": "astro sync && tsc --noEmit"
   },
   "dependencies": {
     "@astrojs/mdx": "^7.0.8",
