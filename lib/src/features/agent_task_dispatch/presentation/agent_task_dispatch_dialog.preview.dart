@@ -21,6 +21,7 @@ Widget agentTaskDispatchDialogPreview() {
     width: 440,
     height: 420,
     child: AgentTaskDispatchDialog(
+      onCopyPrompt: () {},
       request: const AgentTaskDispatchRequest(
         workspaceId: 'workspace-1',
         prompt: 'Fix the failing pull request checks.',
