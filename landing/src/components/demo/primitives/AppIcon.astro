@@ -1,0 +1,15 @@
+---
+import { APP_ICONS, type AppIconRole } from './app-icons';
+
+interface Props {
+  name: AppIconRole;
+  size?: number;
+  class?: string;
+  [attribute: `data-${string}`]: string | undefined;
+}
+
+const { name, size = 12, class: className, ...rest } = Astro.props;
+const Icon = APP_ICONS[name];
+---
+
+<Icon width={size} height={size} class:list={['app-icon', className]} aria-hidden="true" focusable="false" {...rest} />

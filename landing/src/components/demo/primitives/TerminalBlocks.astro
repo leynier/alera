@@ -1,0 +1,41 @@
+---
+import { spanTones, type Block, type Line } from '../../../data/demo/terminal-lines';
+
+/**
+ * Renders terminal blocks as lines of spans. A block with a `node` becomes a
+ * storyboard target: its lines are the children a reveal run uncovers one by
+ * one, and a concealed block starts invisible until a show key fades it in.
+ */
+interface Props {
+  blocks: readonly Block[];
+}
+
+const { blocks } = Astro.props;
+const classesFor = (line: Line) => (line.length === 1 && line[0] === '' ? 'term-line term-blank' : 'term-line');
+---
+
+{
+  blocks.map((block) => (
+    <div
+      class:list={['term-block', block.kind && block.kind !== 'plain' && `term-${block.kind}`]}
+      data-demo-node={block.node}
+      data-demo-concealed={block.concealed ? '' : undefined}
+      style={block.concealed ? 'opacity: 0; visibility: hidden' : undefined}
+      hidden={block.concealed}
+    >
+      {block.lines.map((line) => (
+        <div class={classesFor(line)}>
+          {line.map((span) =>
+            typeof span === 'string' ? (
+              span
+            ) : (
+              <span class:list={spanTones(span).map((tone) => `t-${tone}`)} data-demo-node={span.node}>
+                {span.text}
+              </span>
+            ),
+          )}
+        </div>
+      ))}
+    </div>
+  ))
+}

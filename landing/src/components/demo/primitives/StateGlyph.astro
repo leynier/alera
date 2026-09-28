@@ -1,0 +1,30 @@
+---
+import AgentSpinner from './AgentSpinner.astro';
+import AppIcon from './AppIcon.astro';
+
+/**
+ * `AgentRunStateIndicator`: one slot that shows the idle dot or the glyph for
+ * the run's state. Every variant is in the markup and `data-state` picks one,
+ * so the storyboard changes a state without replacing elements.
+ * States: `idle`, `idle-active`, `working`, `waiting`, `blocked`, `done`,
+ * `interrupted`.
+ */
+export type GlyphState = 'idle' | 'idle-active' | 'working' | 'waiting' | 'blocked' | 'done' | 'interrupted';
+
+interface Props {
+  state?: GlyphState;
+  size?: number;
+  node?: string;
+  class?: string;
+}
+
+const { state = 'idle', size = 13, node, class: className } = Astro.props;
+---
+
+<span class:list={['state-glyph', className]} data-state={state} data-demo-node={node} style={`--slot: ${size}px`}>
+  <span class="glyph-dot"></span>
+  <AgentSpinner size={size - 2} class="glyph-working" />
+  <AppIcon name="success" size={size} class="glyph-done" />
+  <AppIcon name="notifications" size={size} class="glyph-attention" />
+  <AppIcon name="cancel" size={size} class="glyph-interrupted" />
+</span>

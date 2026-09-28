@@ -1,0 +1,248 @@
+/* The frame around the demo: viewport, camera stage, pointers, shortcut HUD,
+   controls and end card. These belong to the site, so they use the site
+   palette; only what is inside the stage uses the app's tokens. */
+
+.demo {
+  container-type: inline-size;
+}
+
+.demo-viewport {
+  position: relative;
+  overflow: hidden;
+  container-type: size;
+  aspect-ratio: 1720 / 900;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg);
+}
+
+/* Same breakpoints as `tierFor` in src/scripts/demo/camera.ts, so the box has
+   its final size before the script runs and nothing shifts when it does. */
+@container (max-width: 1099.98px) {
+  .demo-viewport {
+    aspect-ratio: 16 / 10;
+  }
+}
+
+@container (max-width: 719.98px) {
+  .demo-viewport {
+    aspect-ratio: 4 / 5;
+  }
+}
+
+.demo-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1720px;
+  height: 900px;
+  transform-origin: 0 0;
+  /* Until the camera measures the scene, show the whole stage at the
+     viewport's width: tan(atan2(a, b)) is a / b as a plain number. */
+  transform: scale(tan(atan2(100cqw, 1720px)));
+  opacity: 0;
+  transition: opacity var(--transition-duration-slow) ease-out;
+}
+
+.demo[data-ready] .demo-stage {
+  opacity: 1;
+}
+
+.demo-pointer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.demo-pointer-mouse svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: -1px 0 0 -2px;
+  transform: scale(calc(1 - var(--press, 0) * 0.12));
+  transform-origin: 2px 1px;
+  filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.55));
+}
+
+.demo-pointer-touch span {
+  display: block;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border: 1.5px solid rgb(245 245 245 / 0.7);
+  border-radius: 50%;
+  background: rgb(245 245 245 / calc(0.18 + var(--press, 0) * 0.22));
+  transform: scale(calc(1 - var(--press, 0) * 0.18));
+}
+
+.demo-hud {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: rgb(24 24 24 / 0.92);
+  box-shadow: 0 10px 28px -12px rgb(0 0 0 / 0.8);
+  translate: -50% 0;
+  white-space: nowrap;
+}
+
+.demo-hud[hidden] {
+  display: none;
+}
+
+.demo-hud-keys {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--color-foreground);
+}
+
+.demo-hud-label {
+  font-size: 13px;
+  color: var(--color-foreground-muted);
+}
+
+.demo-end-card {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px;
+  background: rgb(16 16 16 / 0.86);
+  backdrop-filter: blur(6px);
+  text-align: center;
+}
+
+.demo[data-state='ended'] .demo-end-card {
+  display: flex;
+}
+
+.demo-caption {
+  min-height: 3.2em;
+  margin-top: 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-foreground-muted);
+  text-align: center;
+  text-wrap: balance;
+}
+
+.demo-controls {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.demo-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-foreground);
+  transition: background-color var(--transition-duration-fast);
+}
+
+.demo-toggle:hover {
+  background: var(--color-surface-variant);
+}
+
+.demo-toggle .toggle-icon {
+  display: none;
+}
+
+.demo-toggle[data-action='play'] .toggle-play,
+.demo-toggle[data-action='pause'] .toggle-pause,
+.demo-toggle[data-action='replay'] .toggle-replay {
+  display: block;
+}
+
+.demo-scrub {
+  width: 100%;
+  accent-color: var(--color-accent);
+}
+
+.demo-time {
+  min-width: 7.5ch;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-foreground-faint);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.demo-chapters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+@media (max-width: 767.98px) {
+  .demo-chapters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.demo-chapter {
+  width: 100%;
+  height: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  text-align: left;
+  transition-property: border-color, background-color;
+  transition-duration: var(--transition-duration-fast);
+}
+
+.demo-chapter:hover {
+  background: var(--color-surface-variant);
+}
+
+.demo-chapter[aria-current='step'] {
+  border-color: var(--color-foreground-faint);
+  background: var(--color-surface-variant);
+}
+
+.demo-chapter-index {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-foreground-faint);
+}
+
+.demo-chapter-title {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-foreground);
+}
+
+.demo[data-capture] .demo-controls,
+.demo[data-capture] .demo-chapters,
+.demo[data-capture] .demo-caption,
+.demo[data-capture] .demo-meta {
+  display: none;
+}

@@ -1,0 +1,52 @@
+---
+import Pause from '@lucide/astro/icons/pause';
+import Play from '@lucide/astro/icons/play';
+import RotateCcw from '@lucide/astro/icons/rotate-ccw';
+import type { Chapter } from '../../scripts/demo/timeline';
+
+interface Props {
+  chapters: readonly Chapter[];
+  duration: number;
+}
+
+const { chapters, duration } = Astro.props;
+const format = (ms: number) => {
+  const seconds = Math.floor(ms / 1000);
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+};
+---
+
+<div class="demo-controls">
+  <button type="button" class="demo-toggle" data-demo-toggle data-action="play" aria-label="Play Demo">
+    <Play size={14} class="toggle-icon toggle-play" aria-hidden="true" />
+    <Pause size={14} class="toggle-icon toggle-pause" aria-hidden="true" />
+    <RotateCcw size={14} class="toggle-icon toggle-replay" aria-hidden="true" />
+    <span data-demo-toggle-label>Play</span>
+  </button>
+  <input
+    type="range"
+    class="demo-scrub"
+    data-demo-scrub
+    min="0"
+    max={duration}
+    step="100"
+    value="0"
+    aria-label="Demo Progress"
+  />
+  <span class="demo-time" data-demo-time>0:00 / {format(duration)}</span>
+</div>
+
+<ol class="demo-chapters" aria-label="Demo Chapters">
+  {
+    chapters.map((chapter, index) => (
+      <li>
+        <button type="button" class="demo-chapter" data-demo-chapter aria-current={index === 0 ? 'step' : undefined}>
+          <span class="demo-chapter-index">
+            {String(index + 1).padStart(2, '0')} · {format(chapter.start)}
+          </span>
+          <span class="demo-chapter-title">{chapter.title}</span>
+        </button>
+      </li>
+    ))
+  }
+</ol>

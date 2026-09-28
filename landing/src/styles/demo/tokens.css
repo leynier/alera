@@ -1,0 +1,83 @@
+/* The product demo draws the app with the app's own values. Every `--app-*`
+   color mirrors lib/src/app/theme/alera_tokens.dart one to one (the fidelity
+   tests compare them), which is why some differ from the site palette: the
+   app's faint text is #606060 where the site uses #8c8c8c for contrast. */
+
+@font-face {
+  font-family: 'Alera Codicons';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url(/demo/fonts/alera-codicons.woff2) format('woff2');
+}
+
+[data-alera-demo] {
+  --app-bg: #101010;
+  --app-surface: #181818;
+  --app-surface-variant: #202020;
+  --app-surface-elevated: #242424;
+  --app-border: #323232;
+  --app-border-subtle: #272727;
+  --app-accent: #e0e0e0;
+  --app-accent-subtle: #e0e0e01a;
+  --app-on-accent: #101010;
+  --app-foreground: #f5f5f5;
+  --app-foreground-muted: #a1a1a1;
+  --app-foreground-faint: #606060;
+  --app-success: #22c55e;
+  --app-codex-diff-addition-background: #22c55e1f;
+  --app-info: #60a5fa;
+  --app-error: #f87171;
+  --app-codex-diff-deletion-background: #f871711a;
+  --app-on-error: #2c0d0d;
+  --app-warning: #f59e0b;
+  --app-done: #a78bfa;
+  --app-syntax-keyword: #c792ea;
+  --app-syntax-operator: #89ddff;
+  --app-syntax-function: #82aaff;
+  --app-syntax-literal: #ffcb6b;
+  --app-syntax-variable: #ffcc80;
+  --app-shadow-soft: #00000014;
+  --app-barrier-dark: #0000008a;
+
+  --app-space-2: 2px;
+  --app-space-4: 4px;
+  --app-space-6: 6px;
+  --app-space-8: 8px;
+  --app-space-12: 12px;
+  --app-space-16: 16px;
+  --app-space-20: 20px;
+  --app-space-24: 24px;
+  --app-space-32: 32px;
+  --app-space-48: 48px;
+
+  --app-sidebar-header-height: 44px;
+  --app-status-bar-height: 30px;
+  --app-sidebar-default-width: 300px;
+  --app-sidebar-collapsed-width: 52px;
+  --app-dialog-wide-width: 560px;
+
+  --app-icon-xs: 10px;
+  --app-icon-sm: 12px;
+  --app-icon-md: 14px;
+  --app-icon-lg: 16px;
+  --app-icon-xl: 18px;
+
+  --app-radius-sm: 4px;
+  --app-radius-md: 6px;
+  --app-radius-lg: 10px;
+  --app-radius-xl: 12px;
+  --app-radius-pill: 20px;
+
+  --app-duration-fast: 100ms;
+  --app-duration-mid: 180ms;
+  --app-duration-slow: 280ms;
+  --app-duration-spin: 1200ms;
+  /* The sidebar's shared agent spinner turns once per 1400 ms
+     (agent_run_spinner_scope.dart), slower than durationSpin. */
+  --app-agent-spin: 1400ms;
+
+  /* Text styles from alera_dark_theme.dart. */
+  --app-font-sans: Inter, system-ui, sans-serif;
+  --app-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}

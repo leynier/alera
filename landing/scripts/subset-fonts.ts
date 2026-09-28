@@ -12,6 +12,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { Blob, Face } from 'harfbuzzjs';
 import subsetFont from 'subset-font';
+import { CODICONS } from '../src/data/demo/codicons';
 import { FONT_SUBSETS, codepointsInRanges } from '../src/lib/font-subsets';
 
 const root = new URL('../', import.meta.url);
@@ -49,3 +50,13 @@ writeFileSync(
   fileURLToPath(new URL('src/data/font-coverage.json', root)),
   `${JSON.stringify(coverage)}\n`,
 );
+
+// The demo's source-control icons come from the same Codicons font the app
+// bundles, cut down to the glyphs `AleraCodicons` names.
+const codicons = await subsetFont(
+  readFileSync(fileURLToPath(new URL('../assets/fonts/VSCodeCodicons-0.0.46-24.ttf', root))),
+  String.fromCodePoint(...Object.values(CODICONS)),
+  { targetFormat: 'woff2', noHinting: true },
+);
+writeFileSync(fileURLToPath(new URL('public/demo/fonts/alera-codicons.woff2', root)), codicons);
+console.log(`alera-codicons.woff2: ${Object.keys(CODICONS).length} glyphs, ${codicons.length} bytes`);

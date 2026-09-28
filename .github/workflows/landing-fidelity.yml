@@ -1,0 +1,53 @@
+name: Landing Demo Fidelity
+
+# The landing page demo redraws the app from its own tokens, icons, marks and
+# copy. `landing.yml` only runs for landing changes, so this workflow runs the
+# fidelity tests when the app sources they read change, and fails the pull
+# request that would leave the demo showing an app that no longer exists.
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - 'lib/src/app/theme/**'
+      - 'lib/src/design_system/**'
+      - 'lib/src/features/**/presentation/**'
+      - 'lib/src/features/**/application/**'
+      - 'lib/src/features/**/domain/**'
+      - 'mobile/lib/**'
+      - 'rust/alera-cli/src/push_notifications/**'
+      - 'assets/agents/**'
+      - 'assets/fonts/**'
+      - 'pubspec.lock'
+      - '.github/workflows/landing-fidelity.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  fidelity:
+    name: demo fidelity
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: landing
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Fidelity tests
+        run: bun test src/data/demo
