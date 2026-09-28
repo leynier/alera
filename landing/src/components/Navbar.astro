@@ -1,4 +1,9 @@
 ---
+import Download from '@lucide/astro/icons/download';
+import Menu from '@lucide/astro/icons/menu';
+import X from '@lucide/astro/icons/x';
+import BrandMark from './BrandMark.astro';
+
 interface Props {
   /** Top-level section the page belongs to, marked as current in the nav. */
   current?: 'docs' | 'blog';
@@ -6,61 +11,122 @@ interface Props {
 
 const { current } = Astro.props;
 const repo = 'leynier/alera';
-const sectionLink = (section: 'docs' | 'blog') =>
-  current === section ? 'text-foreground' : 'text-foreground-faint hover:text-foreground-muted';
+
+// Home sections are linked as `/#id` so they resolve from every subpage.
+const sectionLinks = [
+  { href: '/#product', label: 'Product' },
+  { href: '/#agents', label: 'Agents' },
+  { href: '/#features', label: 'Features' },
+  { href: '/#how-it-works', label: 'How It Works' },
+  { href: '/#install', label: 'Install' },
+  { href: '/#faq', label: 'FAQ' },
+];
+const pageLinks = [
+  { href: '/docs', label: 'Docs', section: 'docs' },
+  { href: '/blog', label: 'Blog', section: 'blog' },
+] as const;
+const linkTone = (active: boolean) =>
+  active ? 'text-foreground' : 'text-foreground-faint hover:text-foreground-muted';
 ---
 
-<header class="fixed top-0 left-0 right-0 z-50 border-b border-border-subtle/50 bg-bg/70 backdrop-blur-xl">
-  <nav class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between gap-6">
-    <a href="/" class="flex items-center gap-2.5 group shrink-0">
-      <img src="/logo.png" alt="Alera" width="20" height="20" class="h-5 w-5 opacity-90 group-hover:opacity-100 transition-opacity duration-fast" />
-      <span class="text-sm font-semibold text-foreground tracking-tight">Alera</span>
+<header class="fixed top-0 right-0 left-0 z-50 border-b border-border-subtle/50 bg-bg/70 backdrop-blur-xl" id="site-header">
+  <nav aria-label="Main" class="mx-auto flex h-14 max-w-6xl items-center justify-between gap-6 px-6">
+    <a href="/" class="group flex shrink-0 items-center gap-2.5">
+      <img src="/logo.png" alt="" width="20" height="20" class="size-5 opacity-90 transition-opacity duration-fast group-hover:opacity-100" />
+      <span class="text-sm font-semibold tracking-tight text-foreground">Alera</span>
     </a>
 
-    <div class="hidden md:flex items-center gap-5 lg:gap-7">
-      <a href="/#product" class="text-body-md text-foreground-faint hover:text-foreground-muted transition-colors duration-fast">Product</a>
-      <a href="/#agents" class="text-body-md text-foreground-faint hover:text-foreground-muted transition-colors duration-fast">Agents</a>
-      <a href="/#features" class="text-body-md text-foreground-faint hover:text-foreground-muted transition-colors duration-fast">Features</a>
-      <a href="/#stack" class="text-body-md text-foreground-faint hover:text-foreground-muted transition-colors duration-fast">Stack</a>
-      <a href="/#roadmap" class="text-body-md text-foreground-faint hover:text-foreground-muted transition-colors duration-fast">Roadmap</a>
-      <a href="/#faq" class="text-body-md text-foreground-faint hover:text-foreground-muted transition-colors duration-fast">FAQ</a>
-      <a href="/docs" aria-current={current === 'docs' ? 'page' : undefined} class:list={['text-body-md transition-colors duration-fast', sectionLink('docs')]}>Docs</a>
-      <a href="/blog" aria-current={current === 'blog' ? 'page' : undefined} class:list={['text-body-md transition-colors duration-fast', sectionLink('blog')]}>Blog</a>
+    <div class="hidden items-center gap-5 lg:flex xl:gap-7">
+      {sectionLinks.map((link) => <a href={link.href} class:list={['text-body-md transition-colors duration-fast', linkTone(false)]}>{link.label}</a>)}
+      {
+        pageLinks.map((link) => (
+          <a
+            href={link.href}
+            aria-current={current === link.section ? 'page' : undefined}
+            class:list={['text-body-md transition-colors duration-fast', linkTone(current === link.section)]}
+          >
+            {link.label}
+          </a>
+        ))
+      }
     </div>
 
-    <div class="flex items-center gap-3 shrink-0">
-      <a
-        href="/docs"
-        class="md:hidden text-body-md text-foreground-faint hover:text-foreground transition-colors duration-fast"
-      >
-        Docs
-      </a>
-      <a
-        href="/blog"
-        class="md:hidden text-body-md text-foreground-faint hover:text-foreground transition-colors duration-fast"
-      >
-        Blog
-      </a>
+    <div class="flex shrink-0 items-center gap-3">
       <a
         href={`https://github.com/${repo}/stargazers`}
         target="_blank"
         rel="noopener noreferrer"
-        class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border text-body-md text-foreground-faint hover:border-foreground-faint hover:text-foreground transition-colors duration-fast"
+        class="hidden items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-body-md text-foreground-faint transition-colors duration-fast hover:border-foreground-faint hover:text-foreground sm:inline-flex"
       >
-        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-        </svg>
+        <BrandMark name="github" class="size-3.5" />
         Star On GitHub
       </a>
       <a
         href="/download"
-        class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-accent text-on-accent text-body-md font-medium hover:opacity-90 transition-opacity duration-fast"
+        class="inline-flex items-center gap-2 rounded-lg bg-accent px-3.5 py-1.5 text-body-md font-medium text-on-accent transition-opacity duration-fast hover:opacity-90"
       >
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-        </svg>
+        <Download size={16} />
         Download
       </a>
+      <button
+        type="button"
+        id="nav-menu-toggle"
+        aria-expanded="false"
+        aria-controls="nav-menu"
+        aria-label="Open Menu"
+        class="inline-flex size-9 items-center justify-center rounded-lg text-foreground-muted transition-colors duration-fast hover:bg-surface hover:text-foreground lg:hidden"
+      >
+        <Menu size={18} data-icon-open />
+        <X size={18} data-icon-close class="hidden" />
+      </button>
     </div>
   </nav>
+
+  <div id="nav-menu" hidden class="border-t border-border-subtle/50 px-6 pt-2 pb-4 lg:hidden">
+    <ul class="mx-auto grid max-w-6xl grid-cols-2 gap-1">
+      {
+        [...sectionLinks, ...pageLinks].map((link) => (
+          <li>
+            <a
+              href={link.href}
+              aria-current={'section' in link && current === link.section ? 'page' : undefined}
+              class="block rounded-md px-2 py-2 text-body-lg text-foreground-muted transition-colors duration-fast hover:bg-surface hover:text-foreground"
+            >
+              {link.label}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
 </header>
+
+<script>
+  const toggle = document.getElementById('nav-menu-toggle');
+  const menu = document.getElementById('nav-menu');
+  const header = document.getElementById('site-header');
+
+  if (toggle && menu && header) {
+    const setOpen = (open: boolean) => {
+      menu.hidden = !open;
+      toggle.setAttribute('aria-expanded', String(open));
+      toggle.setAttribute('aria-label', open ? 'Close Menu' : 'Open Menu');
+      toggle.querySelector('[data-icon-open]')?.classList.toggle('hidden', open);
+      toggle.querySelector('[data-icon-close]')?.classList.toggle('hidden', !open);
+    };
+
+    toggle.addEventListener('click', () => setOpen(menu.hidden));
+    // Following a same-page anchor keeps the page, so close the menu for it.
+    menu.addEventListener('click', (event) => {
+      if ((event.target as HTMLElement).closest('a')) setOpen(false);
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || menu.hidden) return;
+      setOpen(false);
+      toggle.focus();
+    });
+    document.addEventListener('click', (event) => {
+      if (!menu.hidden && event.target instanceof Node && !header.contains(event.target)) setOpen(false);
+    });
+  }
+</script>

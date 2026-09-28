@@ -1,43 +1,42 @@
 ---
+import Plus from '@lucide/astro/icons/plus';
+
+// Planned or partial rows from roadmap.md only; anything that already ships
+// belongs in Features instead.
 const items = [
-  { title: 'SSH worktrees', description: 'Run agents on remote machines as if they were local.' },
-  { title: 'Code editing with LSP support', description: 'Full code editor capabilities with language server integration for autocomplete and diagnostics.' },
-  { title: 'Git conflict resolution', description: 'Resolve complex merge conflicts visually with AI-assisted three-way merge resolution.' },
-  { title: 'Quick Open & Command Palette', description: 'Jump to files and commands without leaving the workbench.' },
-  { title: 'Mobile Companion Expansion', description: 'The companion app already pairs with hosted terminals, workspace activity, agent presence, and managed workspace actions; richer file review and non-terminal surfaces come next.' },
-  { title: 'Voice, automations & MCP management', description: 'Talk to your agents, automate recurring workflows, and manage MCP servers and skills from one place.' },
+  { title: 'Code Editing With LSP', description: 'The in-app editor ships today; language server autocomplete and diagnostics come next.' },
+  { title: 'Visual Conflict Resolution', description: 'Resolve merge conflicts in a three-way view, with AI Assist to propose resolutions.' },
+  { title: 'Usage And Cost Tracking', description: 'Daily usage per agent provider and API cost monitoring next to the quota bar.' },
+  { title: 'Ports And Dev Servers', description: 'Detect open ports and running dev servers per workspace, in one panel.' },
+  { title: 'MCP Configuration', description: 'Manage Model Context Protocol servers for your agents from one place.' },
+  { title: 'iOS Companion', description: 'The companion ships on Android today; an iOS release is planned.' },
 ];
 ---
 
-<section id="roadmap" class="defer-offscreen-rendering py-24 px-6 border-t border-border-subtle/50">
-  <div class="max-w-5xl mx-auto">
-    <div class="text-center mb-14">
-      <p class="text-label-md text-foreground-faint uppercase tracking-widest font-mono mb-4">Roadmap</p>
-      <h2 class="text-headline-lg md:text-[32px] font-semibold tracking-tight text-foreground mb-4">
-        Shipping next
-      </h2>
-      <p class="text-[15px] text-foreground-muted max-w-lg mx-auto">
-        Alera is moving fast. A non-exhaustive list of what's coming.
+<section id="roadmap" class="defer-offscreen-rendering border-t border-border-subtle/50 px-6 py-24">
+  <div class="mx-auto max-w-5xl">
+    <div class="mb-14 text-center">
+      <p class="mb-4 font-mono text-label-md uppercase tracking-widest text-foreground-faint">Roadmap</p>
+      <h2 class="mb-4 text-headline-lg font-semibold tracking-tight text-foreground md:text-[32px]">Shipping Next</h2>
+      <p class="mx-auto max-w-lg text-[15px] text-foreground-muted">
+        Alera is moving fast. A non-exhaustive list of what is coming.
       </p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-      {items.map((item, i) => (
-        <div
-          class="flex items-start gap-4 rounded-xl bg-surface border border-border p-5 transition-colors duration-mid hover:bg-surface-variant hover:border-foreground-faint/20 opacity-0-initial animate-fade-in-up"
-          style={`animation-delay: ${200 + i * 70}ms`}
-        >
-          <span class="inline-flex items-center justify-center w-6 h-6 rounded-md bg-surface-elevated border border-border shrink-0 mt-0.5">
-            <svg class="w-3 h-3 text-foreground-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14" />
-            </svg>
-          </span>
-          <div class="flex-1 min-w-0">
-            <h3 class="text-body-md font-medium text-foreground mb-1">{item.title}</h3>
-            <p class="text-body-md text-foreground-muted leading-relaxed">{item.description}</p>
+    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+      {
+        items.map((item) => (
+          <div class="flex items-start gap-4 rounded-xl border border-border bg-surface p-5 transition-colors duration-mid hover:border-foreground-faint/20 hover:bg-surface-variant">
+            <span class="mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-md border border-border bg-surface-elevated text-foreground-muted">
+              <Plus size={12} stroke-width={2.5} />
+            </span>
+            <div class="min-w-0 flex-1">
+              <h3 class="mb-1 text-body-md font-medium text-foreground">{item.title}</h3>
+              <p class="text-body-md leading-relaxed text-foreground-muted">{item.description}</p>
+            </div>
           </div>
-        </div>
-      ))}
+        ))
+      }
     </div>
 
     <div class="mt-10 text-center">
@@ -45,12 +44,9 @@ const items = [
         href="https://github.com/leynier/alera/blob/main/roadmap.md"
         target="_blank"
         rel="noopener noreferrer"
-        class="inline-flex items-center gap-2 text-body-md text-foreground-muted hover:text-foreground transition-colors duration-fast"
+        class="inline-flex items-center gap-2 text-body-md text-foreground-muted transition-colors duration-fast hover:text-foreground"
       >
-        See the full roadmap
-        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-        </svg>
+        See The Full Roadmap →
       </a>
     </div>
   </div>

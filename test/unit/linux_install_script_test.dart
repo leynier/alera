@@ -34,7 +34,7 @@ void main() {
       _script,
       'readme.md',
       'docs/release-trust.md',
-      'landing/src/pages/download.astro',
+      'landing/src/data/install-channels.ts',
     ]) {
       expect(
         File(path).readAsStringSync(),

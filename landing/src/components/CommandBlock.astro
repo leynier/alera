@@ -1,0 +1,32 @@
+---
+/**
+ * A command (or small file) with a copy button. Uses the same
+ * `[data-code-block]` / `[data-code-copy]` contract as the framed code in the
+ * docs, so one script copies both.
+ */
+interface Props {
+  command: string;
+  /** Optional caption above the command, such as the file it belongs in. */
+  title?: string;
+}
+
+const { command, title } = Astro.props;
+---
+
+<div data-code-block class="min-w-0 rounded-lg border border-border bg-surface-variant p-4">
+  {title && <p class="mb-2 break-all font-mono text-label-md text-foreground-faint">{title}</p>}
+  <div class="flex items-center gap-3">
+    <pre class="min-w-0 grow overflow-x-auto font-mono text-body-md leading-relaxed text-foreground"><code>{command}</code></pre>
+    <button
+      type="button"
+      data-code-copy
+      class="shrink-0 rounded-md border border-border px-3 py-1.5 text-body-md text-foreground-muted transition-colors duration-fast hover:border-foreground-faint hover:text-foreground"
+    >
+      Copy
+    </button>
+  </div>
+</div>
+
+<script>
+  import '../scripts/code-block-copy';
+</script>

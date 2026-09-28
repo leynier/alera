@@ -26,7 +26,7 @@ void main() {
     test('carries the SignPath attribution everywhere it is required', () {
       for (final path in <String>[
         'landing/src/pages/download.astro',
-        // The home page's copy, since there is no Install section any more.
+        // The home page's copy.
         'landing/src/components/CtaSection.astro',
         'readme.md',
       ]) {

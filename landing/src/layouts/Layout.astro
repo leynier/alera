@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import Analytics from '@vercel/analytics/astro';
+import releases from '../data/releases.json';
 
 interface Props {
   title: string;
@@ -37,10 +38,10 @@ const softwareJsonLd = {
   alternateName: 'Alera ADE',
   description: shortDescription,
   applicationCategory: 'DeveloperApplication',
-  operatingSystem: 'macOS, Windows, Linux',
+  operatingSystem: 'macOS, Windows, Linux, Android',
   url: siteUrl,
   downloadUrl: 'https://github.com/leynier/alera/releases',
-  softwareVersion: 'beta',
+  softwareVersion: releases.desktop.version,
   offers: {
     '@type': 'Offer',
     price: '0',
@@ -92,8 +93,9 @@ const jsonLd = articleJsonLd ?? softwareJsonLd;
   <head>
     <meta charset="UTF-8" />
     <meta name="description" content={description} />
-    <meta name="viewport" content="width=device-width" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#101010" />
+    <meta name="color-scheme" content="dark" />
 
     <!-- Canonical -->
     <link rel="canonical" href={canonicalUrl} />

@@ -4,7 +4,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 const String _dataPath = 'landing/src/data/releases.json';
-const String _downloadPage = 'landing/src/pages/download.astro';
+// Every install command and asset name the site shows is composed here.
+const String _installChannels = 'landing/src/data/install-channels.ts';
 const String _workflow = '.github/workflows/release-cut.yml';
 const String _updateScript = 'tool/release/update_landing_release_links.dart';
 
@@ -30,7 +31,7 @@ void main() {
     test('builds asset names the release workflow actually produces', () {
       // The landing composes these names itself, so a rename in CI would
       // silently turn every download button into a 404.
-      final page = File(_downloadPage).readAsStringSync();
+      final page = File(_installChannels).readAsStringSync();
       final workflow = File(_workflow).readAsStringSync();
 
       expect(page, contains(r'alera-${releases.desktop.version}-macos.tar.gz'));
@@ -57,10 +58,11 @@ void main() {
       );
     });
 
-    // The download page is the only place that spells these commands out, so a
-    // rename of the tap, the bucket, or the package would go unnoticed here.
+    // The install channels module is the only place that spells these commands
+    // out, so a rename of the tap, the bucket, or the package would go
+    // unnoticed here.
     test('shows the package-manager commands the release cut publishes', () {
-      final page = File(_downloadPage).readAsStringSync();
+      final page = File(_installChannels).readAsStringSync();
       final workflow = File(_workflow).readAsStringSync();
 
       expect(page, contains('brew install --cask alera'));
@@ -86,7 +88,7 @@ void main() {
     });
 
     test('points at the release download path, not a listing', () {
-      final page = File(_downloadPage).readAsStringSync();
+      final page = File(_installChannels).readAsStringSync();
 
       expect(
         page,

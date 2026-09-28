@@ -29,6 +29,10 @@ This document defines governance only. It does not change runtime APIs, schemas,
   - Keep the explicit `sitemap()` integration so marketing, blog, and docs routes stay in the sitemap; it drops `/404` and `/signed-in` and writes URLs without a trailing slash to match canonicals. Shared `@font-face` rules live in `src/styles/fonts.css`.
   - `src/lib/blog.ts` holds shared blog helpers (`getPublishedBlogPosts`, date formatting). Draft posts (`draft: true`) MUST be omitted from production builds and remain visible in local/dev builds.
   - `src/components/blog/` holds blog-specific presentational components (`BlogPostCard`, `BlogPostHeader`).
+  - `src/data/install-channels.ts` is the single source of every install command, asset name, release URL, and Linux repository detail. The download page (`src/pages/download.astro` plus `src/components/download/`), the home Install section, and the docs read it; `test/unit/landing_release_links_test.dart` and `linux_install_script_test.dart` check it against the release workflow and the installer.
+  - The home page MUST keep an `#install` section (`src/components/Install.astro`): `public/install.sh` writes `https://alera.build/#install` into the package sources it creates.
+  - `src/components/CommandBlock.astro` renders a copyable command with the same `[data-code-block]` / `[data-code-copy]` contract as docs code frames, so `src/scripts/code-block-copy.ts` is the only copy script. `src/components/BrandMark.astro` holds the GitHub, Flutter, and Rust marks (Lucide ships no logos); reuse it instead of pasting SVG paths.
+  - Icons come from `@lucide/astro`, pinned to the Lucide release `lucide_icons_flutter` bundles in the app, imported per icon (`@lucide/astro/icons/<name>`) so only used icons ship.
   - `src/components/TrustDocument.astro` for legal and policy pages, which carry their own navigation instead of the marketing navbar.
   - `src/layouts/Layout.astro` for document metadata, global imports, fonts, analytics, and page shell. Blog posts MAY pass `ogType="article"` plus optional `publishedTime` / `modifiedTime`.
   - `src/components/*.astro` for page sections and reusable UI.

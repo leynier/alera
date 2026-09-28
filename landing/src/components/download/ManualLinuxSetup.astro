@@ -1,0 +1,20 @@
+---
+import { APT_SOURCE, LINUX_KEYRING_URL, LINUX_KEY_FINGERPRINT, RPM_REPO } from '../../data/install-channels';
+import CommandBlock from '../CommandBlock.astro';
+---
+
+<h2 id="manual-linux-setup" class="mb-3 scroll-mt-20 text-headline-sm text-foreground">Manual Linux Setup</h2>
+<p class="mb-4 text-body-md leading-relaxed text-foreground-muted">
+  To add the repository yourself instead of running the script, import the signing key from
+  <span class="break-all font-mono">{LINUX_KEYRING_URL}</span> and confirm its fingerprint is
+  <span class="break-all font-mono">{LINUX_KEY_FINGERPRINT}</span>, then write one of these files.
+</p>
+<div class="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+  <CommandBlock title="/etc/apt/sources.list.d/alera.sources" command={APT_SOURCE} />
+  <CommandBlock title="/etc/yum.repos.d/alera.repo" command={RPM_REPO} />
+</div>
+<p class="mb-14 text-body-md leading-relaxed text-foreground-faint">
+  The published packages carry no per-package signature yet, so <span class="font-mono">gpgcheck</span> stays off
+  while <span class="font-mono">repo_gpgcheck</span> verifies the signed repository metadata, which commits to the
+  checksum of every package. That is the same chain apt relies on.
+</p>
