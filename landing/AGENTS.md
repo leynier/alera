@@ -16,15 +16,19 @@ This document defines governance only. It does not change runtime APIs, schemas,
   - `src/pages/*.astro` for page composition: `index.astro` is the marketing home, `download.astro` is the install page, and the trust documents live at `privacy.astro`, `terms.astro`, and `account/delete.astro`.
   - `src/pages/blog/index.astro` is the blog index, and `src/pages/blog/[id].astro` renders individual posts from the `blog` content collection.
   - `src/pages/rss.xml.ts` emits the blog RSS feed at `/rss.xml`.
-  - `src/content.config.ts` defines the `blog` content collection (Zod schema + `glob` loader) and the Starlight `docs` collection (`docsLoader` + `docsSchema`). Posts live as Markdown files under `src/content/blog/`.
-  - Product documentation is a Starlight section of the same Astro app, served at `/docs`. Doc pages live as MDX under `src/content/docs/docs/` so they do not take over `/`. Do not add a `src/content/docs/index.mdx` at the collection root; that route is the marketing home.
-  - `src/styles/docs.css` is Starlight's Tailwind v4 entry (`@astrojs/starlight-tailwind`) and the Alera token mapping. Marketing pages keep importing `src/styles/global.css`. Shared `@font-face` rules live in `src/styles/fonts.css`. On viewports wider than `86rem`, that file also caps the docs shell (`--alera-docs-max-width`) so the sidebar, article, and TOC stay in one column instead of pinning to the viewport edges.
-  - Docs fenced code uses only the `github-dark` Expressive Code theme. Do not add a light theme: an OS light color scheme would paint dark syntax tokens on the dark block background.
-  - `src/components/docs/` holds Starlight component overrides (`Head`, `SocialIcons`, `ThemeSelect`). Docs stay dark-mode-only; do not restore Starlight's theme toggle.
-  - These `/docs` pages are for people using Alera. Contributor internals stay in the repository `docs/` directory, not in the landing Starlight tree.
-  - `@astrojs/starlight` is registered in `astro.config.mjs` ahead of `@astrojs/sitemap`. Keep the explicit `sitemap()` integration so marketing, blog, and docs routes stay in the sitemap.
+  - `src/content.config.ts` defines the `blog` collection (Markdown posts under `src/content/blog/`) and the `docs` collection (flat MDX files under `src/content/docs/`), both with the `glob` loader and a Zod schema.
+  - Product documentation is a custom docs system in the same Astro app, served at `/docs`, with no documentation framework: a framework would bring a second design system to either fight or rebuild. `src/content/docs/index.mdx` is `/docs` and every other file is `/docs/<id>`, rendered by `src/pages/docs/[...slug].astro` inside `src/layouts/DocsLayout.astro`.
+  - `src/lib/docs-navigation.ts` (`DOC_SECTIONS`) is the single source of the docs order and grouping: the sidebar, the mobile menu, the pager, and the section eyebrow all read it. Adding a page means adding an entry there and an `.mdx` file; the docs route fails the build when the two drift apart, and `docs-navigation.test.ts` checks the same.
+  - The page outline and heading self-links come from `src/lib/heading-outline.ts` over the rendered HTML, and code frames (language label plus copy button) from `src/lib/code-block-frame.ts`. Pages never write their own table of contents.
+  - Docs search is Pagefind, indexed in `astro:build:done` by `config/docs-search-index.mjs` (docs pages only) and queried by `src/components/docs/DocsSearch.astro` in the site's own tokens. The build fails when the index is empty.
+  - MDX components available to every docs page without an import are listed in `src/components/docs/mdx-components.ts` (`Callout`, `DocCard`, `DocCardGrid`, `DocLinkButton`, `Steps`). Prefer these over raw HTML in MDX.
+  - Fenced code on the docs and the blog uses the `alera-dark` Shiki theme in `config/alera-code-theme.mjs`, derived from the app's editor syntax colors. Do not add a light theme: the site is dark-only.
+  - `src/components/Prose.astro` holds the long-form typography shared by the docs and the blog. Its element styles sit inside `:where()` so components rendered inside prose can override them.
+  - These `/docs` pages are for people using Alera and describe shipped behavior only. Contributor internals stay in the repository `docs/` directory.
+  - `src/pages/404.astro` is the site-wide not-found page.
+  - Keep the explicit `sitemap()` integration so marketing, blog, and docs routes stay in the sitemap; it drops `/404` and `/signed-in` and writes URLs without a trailing slash to match canonicals. Shared `@font-face` rules live in `src/styles/fonts.css`.
   - `src/lib/blog.ts` holds shared blog helpers (`getPublishedBlogPosts`, date formatting). Draft posts (`draft: true`) MUST be omitted from production builds and remain visible in local/dev builds.
-  - `src/components/blog/` holds blog-specific presentational components (`BlogPostCard`, `BlogPostHeader`, `Prose`).
+  - `src/components/blog/` holds blog-specific presentational components (`BlogPostCard`, `BlogPostHeader`).
   - `src/components/TrustDocument.astro` for legal and policy pages, which carry their own navigation instead of the marketing navbar.
   - `src/layouts/Layout.astro` for document metadata, global imports, fonts, analytics, and page shell. Blog posts MAY pass `ogType="article"` plus optional `publishedTime` / `modifiedTime`.
   - `src/components/*.astro` for page sections and reusable UI.
@@ -78,6 +82,7 @@ This document defines governance only. It does not change runtime APIs, schemas,
 
 ## Validation
 
-- For landing changes, run `bun run build` from `landing/`.
+- For landing changes, run `bun test` and `bun run build` from `landing/`, then `bunx playwright test` against the built site (`bun run check` runs all three). Locally, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to reuse an installed Chromium instead of downloading one.
+- Unit tests (`*.test.ts`) live next to the code under `src/` and run with `bun test`; `bunfig.toml` keeps that runner out of `e2e/`. Playwright specs live in `e2e/`, and specs with `mobile` in their name run only at a 390 px viewport.
 - If visual layout changes are made, also run or manually inspect a local preview with `bun run dev` or `bun run preview`.
 - Do not commit build artifacts from `dist/` unless the user explicitly requests generated deployment output.

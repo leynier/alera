@@ -1,0 +1,103 @@
+---
+import Pencil from '@lucide/astro/icons/pencil';
+import Search from '@lucide/astro/icons/search';
+import Footer from '../components/Footer.astro';
+import Navbar from '../components/Navbar.astro';
+import OnThisPage from '../components/OnThisPage.astro';
+import Prose from '../components/Prose.astro';
+import DocsMobileBar from '../components/docs/DocsMobileBar.astro';
+import DocsPager from '../components/docs/DocsPager.astro';
+import DocsSearch from '../components/docs/DocsSearch.astro';
+import DocsSidebarNav from '../components/docs/DocsSidebarNav.astro';
+import { frameCodeBlocks } from '../lib/code-block-frame';
+import { docHref, docLabel, docSectionTitle } from '../lib/docs-navigation';
+import { outlineHtml } from '../lib/heading-outline';
+import Layout from './Layout.astro';
+
+/**
+ * The frame every docs page sits in. Navigation is derived rather than
+ * written per page: the page index from `docs-navigation.ts`, the outline from
+ * the page's own headings, and search from the Pagefind index built with the
+ * site.
+ */
+interface Props {
+  id: string;
+  title: string;
+  description: string;
+  /** Path of the source file relative to `landing/`, for "Edit This Page". */
+  sourcePath: string;
+  updatedDate?: Date;
+}
+
+const { id, title, description, sourcePath, updatedDate } = Astro.props;
+const { html, headings } = outlineHtml(await Astro.slots.render('default'));
+const body = frameCodeBlocks(html);
+const hasOutline = headings.length >= 2;
+const editUrl = `https://github.com/leynier/alera/edit/main/landing/${sourcePath}`;
+---
+
+<Layout title={`${title} - Alera Docs`} description={description} canonicalPath={docHref(id)}>
+  <a
+    href="#main-content"
+    class="sr-only z-[60] rounded-md bg-accent px-3 py-2 text-body-md text-on-accent focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+  >
+    Skip To Content
+  </a>
+  <Navbar current="docs" />
+  <DocsMobileBar current={id} label={docLabel(id) ?? title} />
+
+  <div class="mx-auto flex max-w-7xl gap-10 px-6 pt-8 pb-20 lg:pt-24 xl:gap-12">
+    <nav aria-label="Documentation" class="hidden w-56 shrink-0 lg:block">
+      <div class="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pr-2 pb-6">
+        <button
+          type="button"
+          data-docs-search-open
+          class="mb-6 flex w-full items-center gap-2 rounded-lg border border-border bg-surface/60 px-3 py-2 text-left text-body-md text-foreground-faint transition-colors duration-fast hover:border-foreground-faint/40 hover:text-foreground-muted"
+        >
+          <Search size={16} class="shrink-0" />
+          <span class="flex-1">Search Docs</span>
+          <kbd class="rounded border border-border px-1.5 font-mono text-label-md" data-search-shortcut>Ctrl K</kbd>
+        </button>
+        <DocsSidebarNav current={id} />
+      </div>
+    </nav>
+
+    <main id="main-content" class="min-w-0 max-w-3xl flex-1 [&_[id]]:scroll-mt-32 lg:[&_[id]]:scroll-mt-20" data-pagefind-body>
+      <p class="font-mono text-label-md uppercase text-foreground-faint" data-pagefind-ignore>{docSectionTitle(id)}</p>
+      <h1 class="mt-2 text-headline-lg font-semibold tracking-tight text-foreground md:text-[32px]" data-pagefind-meta="title">
+        {title}
+      </h1>
+      <p class="mt-3 text-[15px] leading-relaxed text-foreground-muted">{description}</p>
+
+      {hasOutline && <OnThisPage headings={headings} variant="inline" />}
+
+      <div class="mt-10">
+        <Prose><Fragment set:html={body} /></Prose>
+      </div>
+
+      <div
+        class="mt-12 flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-6 text-body-md text-foreground-faint"
+        data-pagefind-ignore
+      >
+        <a href={editUrl} class="inline-flex items-center gap-2 transition-colors duration-fast hover:text-foreground">
+          <Pencil size={14} />
+          Edit This Page
+        </a>
+        {
+          updatedDate && (
+            <span>
+              Updated <time datetime={updatedDate.toISOString()}>{updatedDate.toLocaleDateString('en-US', { dateStyle: 'long', timeZone: 'UTC' })}</time>
+            </span>
+          )
+        }
+      </div>
+
+      <DocsPager current={id} />
+    </main>
+
+    {hasOutline && <OnThisPage headings={headings} variant="aside" />}
+  </div>
+
+  <DocsSearch />
+  <Footer />
+</Layout>

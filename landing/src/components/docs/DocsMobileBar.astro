@@ -1,0 +1,71 @@
+---
+import ChevronDown from '@lucide/astro/icons/chevron-down';
+import Menu from '@lucide/astro/icons/menu';
+import Search from '@lucide/astro/icons/search';
+import DocsSidebarNav from './DocsSidebarNav.astro';
+
+/**
+ * Stands in for the sidebar below `lg`: the page you are on, the full index
+ * behind a toggle, and search.
+ */
+interface Props {
+  current: string;
+  label: string;
+}
+
+const { current, label } = Astro.props;
+---
+
+<div id="docs-mobile-bar" class="sticky top-14 z-40 mt-14 border-b border-border-subtle bg-bg/90 backdrop-blur-xl lg:hidden">
+  <div class="flex items-center gap-2 px-4 py-2 sm:px-6">
+    <button
+      type="button"
+      id="docs-menu-toggle"
+      aria-expanded="false"
+      aria-controls="docs-menu"
+      class="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-body-md text-foreground transition-colors duration-fast hover:bg-surface"
+    >
+      <Menu size={16} class="shrink-0 text-foreground-muted" />
+      <span class="shrink-0 text-foreground-muted">Docs</span>
+      <span class="shrink-0 text-foreground-faint" aria-hidden="true">/</span>
+      <span class="truncate">{label}</span>
+      <ChevronDown size={16} class="ml-auto shrink-0 text-foreground-muted transition-transform duration-fast" data-chevron />
+    </button>
+    <button
+      type="button"
+      data-docs-search-open
+      aria-label="Search The Docs"
+      class="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-foreground-muted transition-colors duration-fast hover:bg-surface hover:text-foreground"
+    >
+      <Search size={16} />
+    </button>
+  </div>
+  <nav id="docs-menu" aria-label="Documentation" hidden class="max-h-[70vh] overflow-y-auto border-t border-border-subtle px-4 py-4 sm:px-6">
+    <DocsSidebarNav current={current} />
+  </nav>
+</div>
+
+<script>
+  const toggle = document.getElementById('docs-menu-toggle');
+  const menu = document.getElementById('docs-menu');
+  const bar = document.getElementById('docs-mobile-bar');
+
+  if (toggle && menu && bar) {
+    const chevron = toggle.querySelector('[data-chevron]');
+    const setOpen = (open: boolean) => {
+      menu.hidden = !open;
+      toggle.setAttribute('aria-expanded', String(open));
+      chevron?.classList.toggle('rotate-180', open);
+    };
+
+    toggle.addEventListener('click', () => setOpen(menu.hidden));
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || menu.hidden) return;
+      setOpen(false);
+      toggle.focus();
+    });
+    document.addEventListener('click', (event) => {
+      if (!menu.hidden && event.target instanceof Node && !bar.contains(event.target)) setOpen(false);
+    });
+  }
+</script>

@@ -1,0 +1,31 @@
+---
+import { getCollection, render } from 'astro:content';
+import { docsMdxComponents } from '../../components/docs/mdx-components';
+import DocsLayout from '../../layouts/DocsLayout.astro';
+import { navigationDrift } from '../../lib/docs-navigation';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('docs');
+  const drift = navigationDrift(entries.map((entry) => entry.id));
+  if (drift.length > 0) {
+    throw new Error(`Docs navigation and content disagree:\n- ${drift.join('\n- ')}`);
+  }
+  return entries.map((entry) => ({
+    params: { slug: entry.id === 'index' ? undefined : entry.id },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+---
+
+<DocsLayout
+  id={entry.id}
+  title={entry.data.title}
+  description={entry.data.description}
+  sourcePath={`src/content/docs/${entry.id}.mdx`}
+  updatedDate={entry.data.updatedDate}
+>
+  <Content components={docsMdxComponents} />
+</DocsLayout>

@@ -1,0 +1,32 @@
+---
+import { adjacentDocs, docHref } from '../../lib/docs-navigation';
+
+interface Props {
+  current: string;
+}
+
+const { previous, next } = adjacentDocs(Astro.props.current);
+const cardClass =
+  'group rounded-xl border border-border px-4 py-3 transition-colors duration-fast hover:border-foreground-faint hover:bg-surface/60';
+---
+
+<nav aria-label="Previous And Next Page" class="mt-16 grid gap-3 sm:grid-cols-2" data-pagefind-ignore>
+  {
+    previous ? (
+      <a href={docHref(previous.id)} class={cardClass} rel="prev">
+        <span class="block font-mono text-label-md uppercase text-foreground-faint">Previous</span>
+        <span class="mt-1 block text-title-md text-foreground-muted group-hover:text-foreground">← {previous.label}</span>
+      </a>
+    ) : (
+      <span />
+    )
+  }
+  {
+    next && (
+      <a href={docHref(next.id)} class:list={[cardClass, 'text-right']} rel="next">
+        <span class="block font-mono text-label-md uppercase text-foreground-faint">Next</span>
+        <span class="mt-1 block text-title-md text-foreground-muted group-hover:text-foreground">{next.label} →</span>
+      </a>
+    )
+  }
+</nav>

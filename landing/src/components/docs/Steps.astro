@@ -1,0 +1,41 @@
+---
+/** Numbered procedure: wraps a Markdown ordered list and draws its counters. */
+---
+
+<div class="steps my-5">
+  <slot />
+</div>
+
+<style>
+  /* Counters on Markdown-generated list items have no utility equivalent. */
+  .steps :global(ol) {
+    counter-reset: step;
+    padding-left: 0;
+    list-style: none;
+  }
+
+  .steps :global(ol > li) {
+    position: relative;
+    counter-increment: step;
+    margin-bottom: 0.75rem;
+    padding-left: 2.5rem;
+  }
+
+  .steps :global(ol > li::before) {
+    content: counter(step);
+    position: absolute;
+    top: 0.1rem;
+    left: 0;
+    display: inline-flex;
+    width: 1.625rem;
+    height: 1.625rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-surface);
+    color: var(--color-foreground);
+    font-family: var(--font-mono);
+    font-size: var(--text-label-md);
+  }
+</style>

@@ -1,11 +1,12 @@
 ---
-title: Alera.toml
-description: Describe copy rules and setup commands so every new linked worktree is ready to work.
+title: alera.toml
+description: Describe copy rules, setup commands, and New Workspace defaults so every new worktree is ready to work.
+updatedDate: 2026-09-28
 ---
 
 Every new worktree used to need the same ritual: copy `.env`, restore gitignored config, install dependencies, bootstrap. `alera.toml` at the project root describes that ritual once.
 
-## What it looks like
+## What It Looks Like
 
 ```toml
 [worktree]
@@ -19,6 +20,7 @@ setup = [
 ]
 
 [new_workspace]
+source_branch = "main"
 prompt_append = """
 Follow the project's contributor instructions.
 Run the focused tests before finishing.
@@ -27,11 +29,24 @@ Run the focused tests before finishing.
 
 - `copy` brings files or directories from the main project checkout into the new linked workspace. `to` defaults to `from`. `overwrite` defaults to `false`, so an existing file is never clobbered silently.
 - `setup` runs commands sequentially from the new workspace root.
+- `new_workspace.source_branch` is the branch pre-selected in the **Source Branch** pickers when it exists.
 - `new_workspace.prompt_append` is optional text added last to the prompt when Alera starts the selected agent from the **New Workspace** flow.
 
-Paths are repo-relative literals. Absolute paths and `..` escapes are rejected. Globs and custom command environments are not part of this version.
+Paths are repo-relative literals. Absolute paths and `..` escapes are rejected. Globs and custom command environments are not part of the `copy` list.
 
-## When it runs
+## Copying Ignored Files With .worktreeinclude
+
+Git worktrees only check out tracked files. A `.worktreeinclude` file at the repository root lists gitignored files to copy from the main checkout into each new linked workspace, in [`.gitignore` pattern syntax](https://git-scm.com/docs/gitignore): comments, root-anchored paths, nested globs, directory patterns, and negation with `!`. It is the same format Conductor and Claude Code read.
+
+```text
+.env.local
+config/secrets.json
+certs/local/**
+```
+
+A path is copied only when it exists in the main checkout, Git ignores it, and it is not tracked. The file holds patterns, not secret values, so it can usually be committed. It works alongside `copy`: explicit copy rules run first and win when they name the same source path.
+
+## When It Runs
 
 Setup applies only to **new linked workspaces that Alera creates**. It does not run for the primary workspace, for workspaces found during reconcile, or on removal.
 
@@ -54,11 +69,11 @@ If a copy or setup step fails after the Git worktree already exists, Alera keeps
 
 Per-project settings in **Settings → Projects** are the source of truth when present. Choosing **Use Repo File** clears that override and falls back to `alera.toml`. When neither exists, there is no setup.
 
-A UI override replaces the complete repository config for that project, including `prompt_append`.
+A UI override replaces the complete repository config for that project, including `prompt_append`. It does not disable `.worktreeinclude`.
 
-## Git hosting provider
+## Git Hosting Provider
 
-The same file can declare how the Pull Requests panel talks to your forge:
+The same file can declare how the Pull Request panel talks to your forge:
 
 ```toml
 git_hosting_provider = "github" # or "gitlab" / "azureDevops"

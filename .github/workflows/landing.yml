@@ -23,7 +23,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: landing
@@ -37,8 +37,27 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Unit tests
+        run: bun test
+
       - name: Build
         run: bun run build
+
+      - name: Install Playwright Chromium
+        run: bunx playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        run: bunx playwright test
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: landing-playwright-report
+          path: |
+            landing/playwright-report
+            landing/test-results
+          retention-days: 7
 
   landing-ready:
     name: landing-ready

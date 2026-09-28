@@ -1,0 +1,54 @@
+---
+import Search from '@lucide/astro/icons/search';
+import DocsSearch from '../components/docs/DocsSearch.astro';
+import Footer from '../components/Footer.astro';
+import Navbar from '../components/Navbar.astro';
+import Layout from '../layouts/Layout.astro';
+
+const links = [
+  { href: '/', label: 'Alera Home' },
+  { href: '/docs', label: 'Docs' },
+  { href: '/blog', label: 'Blog' },
+  { href: '/download', label: 'Download' },
+];
+---
+
+<Layout title="Page Not Found - Alera" description="That URL is not a page on alera.build." canonicalPath="/404" noIndex>
+  <Navbar />
+  <main class="flex min-h-[70vh] items-center px-6 pt-24 pb-20">
+    <div class="mx-auto max-w-xl text-center">
+      <p class="font-mono text-label-md uppercase text-foreground-faint">404</p>
+      <h1 class="mt-3 text-headline-lg font-semibold tracking-tight text-foreground md:text-[32px]">Page Not Found</h1>
+      <p class="mt-4 text-[15px] leading-relaxed text-foreground-muted">
+        That URL is not a page on alera.build. It may have moved, or the link has a typo.
+      </p>
+      <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+        {
+          links.map((link, index) => (
+            <a
+              href={link.href}
+              class:list={[
+                'rounded-lg px-4 py-2 text-body-lg font-medium transition duration-fast',
+                index === 0
+                  ? 'bg-accent text-on-accent hover:opacity-90'
+                  : 'border border-border text-foreground hover:border-foreground-faint',
+              ]}
+            >
+              {link.label}
+            </a>
+          ))
+        }
+        <button
+          type="button"
+          data-docs-search-open
+          class="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-body-lg font-medium text-foreground transition duration-fast hover:border-foreground-faint"
+        >
+          <Search size={16} />
+          Search The Docs
+        </button>
+      </div>
+    </div>
+  </main>
+  <DocsSearch />
+  <Footer />
+</Layout>

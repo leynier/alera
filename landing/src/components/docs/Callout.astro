@@ -1,0 +1,37 @@
+---
+import Info from '@lucide/astro/icons/info';
+import Lightbulb from '@lucide/astro/icons/lightbulb';
+import TriangleAlert from '@lucide/astro/icons/triangle-alert';
+
+type CalloutType = 'note' | 'tip' | 'caution';
+
+interface Props {
+  type?: CalloutType;
+  title?: string;
+}
+
+const { type = 'note', title } = Astro.props;
+const variants = {
+  note: { title: 'Note', icon: Info, border: 'border-border', tint: 'text-foreground-muted' },
+  tip: { title: 'Tip', icon: Lightbulb, border: 'border-success/35', tint: 'text-success' },
+  caution: { title: 'Caution', icon: TriangleAlert, border: 'border-warning/40', tint: 'text-warning' },
+} satisfies Record<CalloutType, unknown>;
+const variant = variants[type];
+const Icon = variant.icon;
+const heading = title ?? variant.title;
+---
+
+<aside
+  class:list={[
+    'my-6 flex gap-3 rounded-lg border bg-surface px-4 py-3.5 text-body-lg [&_p:last-child]:mb-0',
+    variant.border,
+  ]}
+  data-callout={type}
+  aria-label={heading}
+>
+  <Icon size={16} class:list={['mt-1 shrink-0', variant.tint]} />
+  <div class="min-w-0">
+    <p class="mb-1! font-medium text-foreground">{heading}</p>
+    <slot />
+  </div>
+</aside>

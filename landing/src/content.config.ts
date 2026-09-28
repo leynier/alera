@@ -1,6 +1,4 @@
 import { defineCollection } from 'astro:content';
-import { docsLoader } from '@astrojs/starlight/loaders';
-import { docsSchema } from '@astrojs/starlight/schema';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
 
@@ -15,9 +13,16 @@ const blog = defineCollection({
   }),
 });
 
+// Docs are flat MDX files; `index.mdx` is served at /docs and every other
+// entry at /docs/<id>. Reading order and grouping live in
+// `src/lib/docs-navigation.ts`, not in frontmatter.
 const docs = defineCollection({
-  loader: docsLoader(),
-  schema: docsSchema(),
+  loader: glob({ base: './src/content/docs', pattern: '*.mdx' }),
+  schema: z.object({
+    title: z.string(),
+    description: z.string().max(200),
+    updatedDate: z.coerce.date().optional(),
+  }),
 });
 
 export const collections = { blog, docs };

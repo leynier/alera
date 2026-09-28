@@ -1,0 +1,41 @@
+---
+import { DOC_SECTIONS, docHref } from '../../lib/docs-navigation';
+
+/**
+ * The grouped page index. `DocsLayout` draws it twice, as the sticky sidebar
+ * on wide screens and inside the mobile menu, so both list the same pages.
+ */
+interface Props {
+  current: string;
+}
+
+const { current } = Astro.props;
+---
+
+<div class="space-y-6">
+  {
+    DOC_SECTIONS.map((section) => (
+      <div>
+        <p class="mb-2 px-2 font-mono text-label-md uppercase text-foreground-faint">{section.title}</p>
+        <ul class="space-y-0.5">
+          {section.pages.map((page) => (
+            <li>
+              <a
+                href={docHref(page.id)}
+                aria-current={page.id === current ? 'page' : undefined}
+                class:list={[
+                  'block rounded-md px-2 py-1.5 text-body-md transition-colors duration-fast',
+                  page.id === current
+                    ? 'bg-surface-variant text-foreground'
+                    : 'text-foreground-muted hover:bg-surface hover:text-foreground',
+                ]}
+              >
+                {page.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ))
+  }
+</div>

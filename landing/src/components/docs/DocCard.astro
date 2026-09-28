@@ -1,0 +1,48 @@
+---
+import BookOpen from '@lucide/astro/icons/book-open';
+import Bot from '@lucide/astro/icons/bot';
+import FileCog from '@lucide/astro/icons/file-cog';
+import FolderGit2 from '@lucide/astro/icons/folder-git-2';
+import Gauge from '@lucide/astro/icons/gauge';
+import GitBranch from '@lucide/astro/icons/git-branch';
+import GitPullRequest from '@lucide/astro/icons/git-pull-request';
+import Smartphone from '@lucide/astro/icons/smartphone';
+import Terminal from '@lucide/astro/icons/terminal';
+import Workflow from '@lucide/astro/icons/workflow';
+
+const icons = {
+  'book-open': BookOpen,
+  bot: Bot,
+  'file-cog': FileCog,
+  'folder-git': FolderGit2,
+  gauge: Gauge,
+  'git-branch': GitBranch,
+  'git-pull-request': GitPullRequest,
+  smartphone: Smartphone,
+  terminal: Terminal,
+  workflow: Workflow,
+};
+
+interface Props {
+  title: string;
+  href: string;
+  icon: keyof typeof icons;
+}
+
+const { title, href, icon } = Astro.props;
+const Icon = icons[icon];
+---
+
+<a
+  href={href}
+  data-prose-plain
+  class="flex flex-col gap-1.5 rounded-xl border border-border bg-surface p-4 no-underline transition-colors duration-fast hover:border-foreground-faint hover:bg-surface-variant focus-visible:border-foreground-faint"
+>
+  <span
+    class="inline-flex size-8 items-center justify-center rounded-md border border-border-subtle bg-surface-variant text-foreground-muted"
+  >
+    <Icon size={16} />
+  </span>
+  <span class="mt-1 text-title-md text-foreground">{title}</span>
+  <span class="text-body-md text-foreground-muted [&_p]:m-0!"><slot /></span>
+</a>

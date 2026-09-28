@@ -1,0 +1,229 @@
+---
+/**
+ * Long-form typography shared by the docs and the blog. Styled by element so
+ * the Markdown stays plain; the code-block frames and heading self-links come
+ * from `frameCodeBlocks` and `outlineHtml` in the page layouts.
+ */
+---
+
+<div class="prose-body">
+  <slot />
+</div>
+
+<script>
+  import '../scripts/code-block-copy';
+</script>
+
+<style>
+  /* Element styles sit inside :where() so components rendered in prose
+     (steps, cards, callouts) can override them without !important. */
+  .prose-body {
+    color: var(--color-foreground-muted);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  .prose-body > :global(:first-child) {
+    margin-top: 0;
+  }
+
+  .prose-body :global(:where(h2)) {
+    margin-top: 2.75rem;
+    margin-bottom: 0.75rem;
+    font-size: var(--text-headline-sm);
+    line-height: var(--text-headline-sm--line-height);
+    letter-spacing: var(--text-headline-sm--letter-spacing);
+    font-weight: var(--text-headline-sm--font-weight);
+    color: var(--color-foreground);
+  }
+
+  .prose-body :global(:where(h3)) {
+    margin-top: 2rem;
+    margin-bottom: 0.5rem;
+    font-size: var(--text-title-lg);
+    line-height: var(--text-title-lg--line-height);
+    font-weight: var(--text-title-lg--font-weight);
+    color: var(--color-foreground);
+  }
+
+  .prose-body :global(:where(p)),
+  .prose-body :global(:where(ul)),
+  .prose-body :global(:where(ol)) {
+    margin-bottom: 1rem;
+  }
+
+  .prose-body :global(:where(ul)),
+  .prose-body :global(:where(ol)) {
+    padding-left: 1.25rem;
+  }
+
+  .prose-body :global(:where(ul)) {
+    list-style-type: disc;
+  }
+
+  .prose-body :global(:where(ol)) {
+    list-style-type: decimal;
+  }
+
+  .prose-body :global(:where(li)) {
+    margin-bottom: 0.35rem;
+  }
+
+  .prose-body :global(:where(li > ul)),
+  .prose-body :global(:where(li > ol)) {
+    margin-top: 0.35rem;
+    margin-bottom: 0;
+  }
+
+  .prose-body :global(li::marker) {
+    color: var(--color-foreground-faint);
+  }
+
+  .prose-body :global(:where(a:not(.heading-anchor, [data-prose-plain]))) {
+    color: var(--color-foreground);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: var(--color-border);
+    transition: text-decoration-color var(--transition-duration-fast) ease;
+  }
+
+  .prose-body :global(:where(a:not(.heading-anchor, [data-prose-plain]):hover)) {
+    text-decoration-color: var(--color-foreground-muted);
+  }
+
+  .prose-body :global(:where(strong)) {
+    color: var(--color-foreground);
+    font-weight: 600;
+  }
+
+  .prose-body :global(:where(:not(pre) > code)) {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    padding: 0.15em 0.35em;
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-variant);
+    color: var(--color-foreground);
+    overflow-wrap: anywhere;
+  }
+
+  .prose-body :global(:where(kbd)) {
+    display: inline-block;
+    min-width: 1.5em;
+    padding: 0.05em 0.4em;
+    border: 1px solid var(--color-border);
+    border-bottom-width: 2px;
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-variant);
+    color: var(--color-foreground);
+    font-family: var(--font-mono);
+    font-size: 0.8em;
+    text-align: center;
+  }
+
+  .prose-body :global(:where(pre)) {
+    margin-bottom: 1.25rem;
+    padding: 1rem 1.125rem;
+    overflow-x: auto;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    font-size: var(--text-body-md);
+    line-height: 1.6;
+  }
+
+  .prose-body :global(:where(pre code)) {
+    font-family: var(--font-mono);
+  }
+
+  .prose-body :global(.code-block) {
+    margin: 1.25rem 0;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+  }
+
+  .prose-body :global(.code-block pre) {
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .prose-body :global(.code-block-bar) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.375rem 0.5rem 0.375rem 1.125rem;
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+
+  .prose-body :global(.code-block-language) {
+    font-family: var(--font-mono);
+    font-size: var(--text-label-md);
+    letter-spacing: var(--text-label-md--letter-spacing);
+    color: var(--color-foreground-faint);
+  }
+
+  .prose-body :global(.code-block-copy) {
+    padding: 0.125rem 0.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: var(--text-label-md);
+    color: var(--color-foreground-muted);
+    transition: color var(--transition-duration-fast), border-color var(--transition-duration-fast);
+  }
+
+  .prose-body :global(.code-block-copy:hover),
+  .prose-body :global(.code-block-copy:focus-visible) {
+    border-color: var(--color-foreground-faint);
+    color: var(--color-foreground);
+  }
+
+  .prose-body :global(:where(blockquote)) {
+    margin: 1.25rem 0;
+    padding-left: 1rem;
+    border-left: 2px solid var(--color-border);
+    color: var(--color-foreground-muted);
+  }
+
+  .prose-body :global(:where(hr)) {
+    margin: 2rem 0;
+    border: 0;
+    border-top: 1px solid var(--color-border-subtle);
+  }
+
+  .prose-body :global(:where(table)) {
+    width: 100%;
+    margin: 1.25rem 0;
+    border-collapse: collapse;
+    font-size: var(--text-body-lg);
+  }
+
+  .prose-body :global(:where(th)) {
+    padding: 0.5rem 1rem 0.5rem 0;
+    color: var(--color-foreground);
+    font-weight: 500;
+    text-align: left;
+  }
+
+  .prose-body :global(:where(td)) {
+    padding: 0.5rem 1rem 0.5rem 0;
+    border-top: 1px solid var(--color-border-subtle);
+    vertical-align: top;
+  }
+
+  .prose-body :global(.heading-anchor) {
+    margin-left: 0.5rem;
+    color: var(--color-foreground-faint);
+    text-decoration: none;
+    opacity: 0;
+    transition: opacity var(--transition-duration-fast);
+  }
+
+  .prose-body :global(:is(h2, h3):hover > .heading-anchor),
+  .prose-body :global(.heading-anchor:focus-visible) {
+    opacity: 1;
+  }
+</style>
