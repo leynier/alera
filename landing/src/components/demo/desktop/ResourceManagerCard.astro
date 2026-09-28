@@ -1,0 +1,91 @@
+---
+import AppIcon from '../primitives/AppIcon.astro';
+import { concealedAttributes } from '../primitives/conceal';
+
+/**
+ * The Resource Manager hover card (resource_status_panel*.dart): totals, the
+ * sort header (memory by default), then the tree of projects, workspaces and
+ * terminal sessions with a memory sparkline each, and Alera's own processes.
+ * CPU is a share of the whole machine, as the panel normalizes it.
+ */
+interface Row {
+  label: string;
+  indent: 0 | 1 | 2;
+  bold?: boolean;
+  cpu: string;
+  memory: string;
+  spark?: string;
+  session?: boolean;
+  cpuNode?: string;
+}
+
+// Memory histories as 48x14 polylines, min-max normalized like AleraSparkline.
+const SPARK = {
+  claude: '0,12 6,11 12,11 18,9 24,8 30,6 36,5 42,3 48,2',
+  codex: '0,13 6,13 12,12 18,10 24,9 30,9 36,6 42,4 48,3',
+  search: '0,8 6,7 12,8 18,6 24,7 30,5 36,6 42,5 48,4',
+  release: '0,6 6,6 12,7 18,6 24,6 30,7 36,6 42,6 48,6',
+  app: '0,9 6,8 12,9 18,8 24,7 30,8 36,7 42,7 48,6',
+  host: '0,7 6,7 12,6 18,7 24,6 30,6 36,5 42,6 48,5',
+};
+
+const ROWS: readonly Row[] = [
+  { label: 'storefront', indent: 0, bold: true, cpu: '10.9%', memory: '1.21 GB' },
+  { label: 'Webhook Retry Backoff', indent: 1, cpu: '8.6%', memory: '842.3 MB' },
+  { label: 'Payment Webhook Retries', indent: 2, session: true, cpu: '3.9%', memory: '431.6 MB', spark: SPARK.claude, cpuNode: 'd-res-claude-cpu' },
+  { label: 'Duplicate Delivery Test', indent: 2, session: true, cpu: '4.7%', memory: '410.7 MB', spark: SPARK.codex, cpuNode: 'd-res-codex-cpu' },
+  { label: 'Search Pagination', indent: 1, cpu: '2.1%', memory: '297.4 MB' },
+  { label: 'Paginate Search Results', indent: 2, session: true, cpu: '2.1%', memory: '297.4 MB', spark: SPARK.search },
+  { label: 'Release Notes', indent: 1, cpu: '0.2%', memory: '88.9 MB' },
+  { label: 'Draft Release Notes', indent: 2, session: true, cpu: '0.2%', memory: '88.9 MB', spark: SPARK.release },
+];
+
+const ALERA: readonly Row[] = [
+  { label: 'Alera', indent: 0, bold: true, cpu: '0.9%', memory: '163.0 MB' },
+  { label: 'App', indent: 1, cpu: '0.6%', memory: '141.2 MB', spark: SPARK.app },
+  { label: 'Runtime Host', indent: 1, cpu: '0.3%', memory: '21.8 MB', spark: SPARK.host },
+];
+---
+
+<span class="res-card" data-demo-node="d-resource-card" {...concealedAttributes(true)}>
+  <span class="res-header">
+    <AppIcon name="resources" size={13} />
+    <span>Resource Manager</span>
+  </span>
+  <span class="res-totals">
+    <span class="res-total-label">CPU</span>
+    <span class="res-total-value" data-demo-node="d-res-total-cpu">11.8%</span>
+    <span class="res-total-label res-total-gap">Memory</span>
+    <span class="res-total-value">1.37 GB</span>
+    <span class="res-total-share">4% of RAM</span>
+  </span>
+  <span class="res-sort">
+    <span class="res-sort-name">Name</span>
+    <span class="res-cell">CPU</span>
+    <span class="res-cell res-sorted">Memory</span>
+    <span class="res-action"></span>
+  </span>
+  {
+    [ROWS, ALERA].map((group, index) => (
+      <span class:list={['res-group', index > 0 && 'res-group-divided']}>
+        {group.map((row) => (
+          <span class:list={['res-row', row.bold && 'res-bold']} style={`--indent: ${row.indent}`}>
+            {row.bold && index === 0 && <AppIcon name="chevronDown" size={12} class="res-chevron" />}
+            {row.session && <span class="res-dot" />}
+            <span class="res-label">{row.label}</span>
+            {row.spark && (
+              <svg class="res-spark" width="48" height="14" viewBox="0 0 48 14" aria-hidden="true">
+                <polyline points={row.spark} fill="none" stroke="currentColor" stroke-width="1" />
+              </svg>
+            )}
+            <span class="res-cell" data-demo-node={row.cpuNode}>
+              {row.cpu}
+            </span>
+            <span class="res-cell">{row.memory}</span>
+            <span class="res-action">{row.session && <AppIcon name="close" size={11} />}</span>
+          </span>
+        ))}
+      </span>
+    ))
+  }
+</span>

@@ -1,0 +1,187 @@
+/* The Android device around the companion (mobile/lib): frame, edge-to-edge
+   status bar, the Scaffold every screen shares, and the system overlays drawn
+   above it: gesture bar, snack bar and heads-up notification. */
+
+[data-alera-demo] .phone {
+  position: absolute;
+  top: 18px;
+  left: 1310px;
+  width: 410px;
+  height: 864px;
+  border: 1px solid #2e2e2e;
+  border-radius: 46px;
+  background: #0a0a0a;
+  box-shadow: 0 30px 60px -24px rgb(0 0 0 / 0.75);
+}
+
+[data-alera-demo] .phone-screen {
+  position: absolute;
+  inset: 9px;
+  overflow: hidden;
+  border-radius: 36px;
+  background: var(--app-bg);
+  color: var(--app-foreground);
+  font-family: var(--app-font-sans);
+  font-optical-sizing: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+[data-alera-demo] .phone-status {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 24px;
+  padding: 0 18px 0 22px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+[data-alera-demo] .phone-camera {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-radius: 50%;
+  background: #000;
+  box-shadow: 0 0 0 1.5px #1b1b1b;
+}
+
+[data-alera-demo] .phone-status-icons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+[data-alera-demo] .m-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 24px;
+  background: var(--app-bg);
+}
+
+[data-alera-demo] .m-appbar,
+[data-alera-demo] .m-toolbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: 80px;
+  padding-top: 24px;
+  background: var(--app-surface);
+}
+
+[data-alera-demo] .m-toolbar {
+  height: 72px;
+}
+
+[data-alera-demo] .m-appbar-button {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 100%;
+}
+
+[data-alera-demo] .m-appbar-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.27;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* System and scaffold overlays ------------------------------------------ */
+
+[data-alera-demo] .phone-gesture {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+}
+
+[data-alera-demo] .phone-gesture span {
+  width: 108px;
+  height: 4px;
+  border-radius: 2px;
+  background: #e2e2e2;
+}
+
+[data-alera-demo] .phone-snackbar {
+  position: absolute;
+  right: 15px;
+  bottom: 34px;
+  left: 15px;
+  z-index: 6;
+  padding: 14px 16px;
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface-elevated);
+  box-shadow: 0 3px 8px rgb(0 0 0 / 0.4);
+  font-size: 13px;
+  letter-spacing: 0.25px;
+}
+
+[data-alera-demo] .phone-notification {
+  position: absolute;
+  top: 30px;
+  right: 8px;
+  left: 8px;
+  z-index: 8;
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 24px;
+  background: #2b2b2e;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 0.5);
+}
+
+[data-alera-demo] .phone-notification-icon {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #5f6368;
+}
+
+[data-alera-demo] .phone-notification-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+[data-alera-demo] .phone-notification-app {
+  color: #bdbdbd;
+  font-size: 12px;
+}
+
+[data-alera-demo] .phone-notification-title {
+  color: #f1f1f1;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+[data-alera-demo] .phone-notification-text {
+  color: #cfcfcf;
+  font-size: 14px;
+}

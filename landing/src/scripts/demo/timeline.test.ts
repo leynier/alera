@@ -124,6 +124,22 @@ describe('frameAt', () => {
     expect(timeline.frameAt(3_400).pointers[0]!.pressed).toBe(0);
   });
 
+  test('brings a hidden pointer back at its next target for the lead-in only', () => {
+    const touch = compileStoryboard({
+      duration: 5_000,
+      chapters: [{ id: 'one', title: 'One', caption: '', start: 0, end: 5_000, poster: 0 }],
+      camera: [{ at: 0, wide: [0, 0, 100, 100] }],
+      pointer: [
+        { at: 1_000, device: 'touch', target: [10, 10, 0, 0], press: true, moveMs: 300 },
+        { at: 1_500, device: 'touch', hide: true },
+        { at: 3_000, device: 'touch', target: [50, 60, 0, 0], press: true, moveMs: 300 },
+      ],
+    });
+    expect(touch.frameAt(2_000).pointers[0]!.visible).toBe(false);
+    expect(touch.frameAt(2_800).pointers[0]).toMatchObject({ x: 50, y: 60, visible: true });
+    expect(touch.frameAt(3_050).pointers[0]!.pressed).toBeGreaterThan(0);
+  });
+
   test('uses chapter captions until a beat inside the chapter replaces them', () => {
     expect(timeline.frameAt(1_000).caption).toBe('First chapter.');
     expect(timeline.frameAt(2_500).caption).toBe('A beat inside chapter one.');

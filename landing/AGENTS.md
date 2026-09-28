@@ -38,10 +38,21 @@ This document defines governance only. It does not change runtime APIs, schemas,
   - `src/components/*.astro` for page sections and reusable UI.
   - `src/styles/global.css` for the Tailwind `@theme` tokens, global layers, CSS variables, and shared `@utility` definitions (Tailwind CSS v4 has no `tailwind.config.mjs`; the plugin is registered in `astro.config.mjs` via `@tailwindcss/vite`).
   - `public/` for static assets referenced with root-relative paths.
-  - Product screenshots live in `public/media/` and are mirrored in `../assets/product/` for the repository README. Prefer WebP stills. The landing Product hero cycles those stills with CSS. The README uses the same stills, not an MP4. Desktop stills come from the shipping app with real workspaces and real sidebar agent states; the agent terminal transcripts inside them are staged sample sessions, and mobile stills are UI-faithful companion screens. Do not overclaim live-device capture or real agent output.
+  - The home Product section (`src/components/Product.astro`, `/#product`) is the interactive product demo in `src/components/demo/`, documented in `../docs/landing-demo.md`. It redraws the desktop and Android apps in HTML, CSS, and SVG from the app's own tokens, icons, agent marks, and copy; do not replace it with screenshots or a video.
+  - The repository README screenshots live in `../assets/product/` as WebP stills, not an MP4. Desktop stills come from the shipping app with real workspaces and real sidebar agent states; the agent terminal transcripts inside them are staged sample sessions, and mobile stills are UI-faithful companion screens. Do not overclaim live-device capture or real agent output.
   - `@astrojs/sitemap` is registered in `astro.config.mjs` and MUST stay enabled while `site` is set.
 - Do not edit `dist/`, `.astro/`, `node_modules/`, or other generated output as source.
 - Prefer Astro Content Collections for blog posts. Do not add loose Markdown routes under `src/pages/blog/` or use removed APIs such as `Astro.glob()` / `entry.slug`.
+
+## Product Demo
+
+- Demo values MUST come from the app source they copy: colors, sizes, radii, and durations from `src/styles/demo/tokens.css` (a mirror of `AleraTokens`), icons through the roles in `src/components/demo/primitives/app-icons.ts` and `mobile-icons.ts`, agent marks and the logo as byte-for-byte copies, shortcuts from `src/data/demo/shortcuts.ts`, and every quoted string from `src/data/demo/app-copy.ts` with the file that ships it. `src/data/demo/fidelity.test.ts` checks all of these against the app; when it fails, fix the demo in the same change as the app.
+- Demo CSS lives in `src/styles/demo/`, scoped under `[data-alera-demo]`, and uses the app's values rather than the landing `@theme` tokens. This is the one exception to the landing design system: the demo replicates Flutter widgets, and some landing tokens deliberately differ from the app (`foreground-faint` is lighter on the site for contrast).
+- Agent sessions in the demo are staged samples. The note under the player says so and names the features shown that are opt-in in the app; keep it accurate when the story changes.
+- The scene MUST stay deterministic: its state comes only from the storyboard (`src/data/demo/storyboard*.ts`) through the pure `frameAt(t, layout)` in `src/scripts/demo/timeline.ts`, and motion inside it is a paused CSS animation positioned by `--demo-t`. Do not add timers, free-running animations, or random values to the scene.
+- Every node a storyboard key touches MUST carry a `data-demo-node` id in the scene; `src/data/demo/storyboard.test.ts` fails otherwise.
+- Continuous motion animates only `transform` and `opacity`. The player MUST keep a visible Pause control, pause when scrolled away or when the tab is hidden, skip autoplay under reduced motion, and never loop. The stage stays `aria-hidden` and `inert`, with the captions and **Read The Demo As Text** carrying the story.
+- `/?demo=capture` mounts the demo without playing and exposes `window.__aleraDemo.seek(t)` for rendering exact frames.
 
 ## Bun Usage
 

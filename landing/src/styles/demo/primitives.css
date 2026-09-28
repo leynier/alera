@@ -96,3 +96,39 @@
 [data-alera-demo] .state-glyph:is([data-state='blocked'], [data-state='interrupted']) {
   color: var(--app-error);
 }
+
+/* Author `display` rules would otherwise beat the UA style for `hidden`, and
+   the storyboard hides and shows nodes through that attribute. */
+[data-alera-demo] [hidden] {
+  display: none !important;
+}
+
+/* Material's indeterminate spinner: the turn and the growing arc run on
+   their own periods, both positioned by the demo clock. */
+[data-alera-demo] .material-spinner {
+  display: block;
+  flex: none;
+  transform-origin: 50% 50%;
+  animation: app-turn 1568ms linear infinite paused;
+  animation-delay: calc(var(--demo-t, 0) * -1ms);
+}
+
+[data-alera-demo] .material-spinner circle {
+  animation: app-material-arc 1333ms ease-in-out infinite paused;
+  animation-delay: calc(var(--demo-t, 0) * -1ms);
+}
+
+@keyframes app-material-arc {
+  0% {
+    stroke-dasharray: 1 120;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 72 120;
+    stroke-dashoffset: -28;
+  }
+  100% {
+    stroke-dasharray: 72 120;
+    stroke-dashoffset: -99;
+  }
+}

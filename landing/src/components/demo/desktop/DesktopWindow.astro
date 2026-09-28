@@ -1,0 +1,32 @@
+---
+import DesktopFeedback from './DesktopFeedback.astro';
+import NewWorkspaceDialog from './NewWorkspaceDialog.astro';
+import RightPanel from './RightPanel.astro';
+import Sidebar from './Sidebar.astro';
+import StatusBar from './StatusBar.astro';
+import WorkbenchCenter from './WorkbenchCenter.astro';
+
+/**
+ * The desktop app in a 1280x860 macOS window: title bar, then the Flutter
+ * view with the sidebar, center workbench, right panel and status bar, and
+ * the overlays the shell stacks above them (job cards and dialogs in the
+ * shell, toasts above everything).
+ */
+---
+
+<div class="desk" data-demo-node="d-window">
+  <div class="desk-titlebar">
+    <span class="desk-lights"><span></span><span></span><span></span></span>
+    <span class="desk-title">Alera</span>
+  </div>
+  <div class="desk-view">
+    <div class="desk-shell">
+      <Sidebar />
+      <WorkbenchCenter />
+      <RightPanel />
+    </div>
+    <StatusBar />
+    <DesktopFeedback />
+    <NewWorkspaceDialog />
+  </div>
+</div>

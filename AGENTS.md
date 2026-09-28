@@ -144,6 +144,7 @@ When planning is needed, use a spec-driven development flow. Do not jump straigh
 - Design-system components MUST be presentational: data and callbacks in via parameters, no Riverpod reads and no native (`dart:io`/`dart:ffi`) code, so they stay previewable. Wire providers in a thin feature-level wrapper instead.
 - Preview functions MUST use the `@AleraPreview` annotation (not the bare `@Preview`). Launch with `flutter widget-preview start`.
 - Horizontal-only strips (tab bars, toolbars, chip rows) MUST use `AleraHorizontalScrollView` or wrap a horizontal `ListView` with `AleraMouseWheelHorizontalScroll` so a vertical mouse wheel scrolls them. Do not add a third wheel mapper. Shift+wheel and trackpad horizontal deltas stay on Flutter's built-in path.
+- The landing page demo (`landing/src/components/demo/`, see `docs/landing-demo.md`) redraws the desktop and mobile apps from their tokens, icons, agent marks, logo, shortcuts, and copy. A change to any of those that the demo uses MUST update `landing/src/data/demo/` or `landing/src/styles/demo/` in the same change: `.github/workflows/landing-fidelity.yml` runs `landing/src/data/demo/fidelity.test.ts` on pull requests that touch those app sources, and it fails when the two disagree.
 
 ## Keyboard Shortcuts
 

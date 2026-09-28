@@ -19,6 +19,9 @@ export const SAMPLE = {
     searchPagination: { name: 'Search Pagination', branch: 'feat/search-pagination' },
     webhooks: { name: 'Webhook Retry Backoff', branch: 'feat/webhook-retry-backoff', slug: 'webhook-retry-backoff' },
   },
-  commitMessage: 'feat: retry failed payment webhooks with backoff',
+  commitMessage:
+    'feat: retry failed payment webhooks with backoff\n\nRetry failed deliveries with exponential backoff and jitter, park events after the last attempt, and cover duplicate deliveries with a regression test.',
   pullRequestTitle: 'Retry failed payment webhooks with exponential backoff',
+  pullRequestDescription:
+    '## Summary\n- Retry failed payment webhook deliveries with exponential backoff and jitter\n- Park an event for review after six failed attempts\n- Add a regression test for duplicate deliveries\n\n## Testing\n- bun test src/webhooks',
 } as const;

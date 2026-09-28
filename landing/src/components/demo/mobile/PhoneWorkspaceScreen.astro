@@ -1,0 +1,64 @@
+---
+import { APP_COPY } from '../../../data/demo/app-copy';
+import { SAMPLE } from '../../../data/demo/sample-workspace';
+import { PHONE_CLAUDE_SESSION } from '../../../data/demo/transcripts';
+import MaterialIcon from '../primitives/MaterialIcon.astro';
+import MobileIcon from '../primitives/MobileIcon.astro';
+import StateGlyph from '../primitives/StateGlyph.astro';
+import TerminalBlocks from '../primitives/TerminalBlocks.astro';
+import { concealedAttributes } from '../primitives/conceal';
+
+/**
+ * The workspace screen (workspace_tabs_screen.dart): a 48 px toolbar and a
+ * 48 px tab strip of input chips, the terminal at the phone's own size, the
+ * quick keys and the compose bar. The terminal keeps xterm's default colors,
+ * as the phone app does.
+ */
+const KEYS = ['↑', '↓', 'paste', 'Esc', 'Tab', 'Enter', 'Shift+Tab', 'Space', '⌫', 'Del'];
+---
+
+<div class="m-screen m-workspace" data-demo-node="p-workspace" {...concealedAttributes(true)}>
+  <div class="m-toolbar">
+    <span class="m-appbar-button"><MaterialIcon name="arrow_back" size={24} /></span>
+    <span class="m-appbar-title">{SAMPLE.workspaces.webhooks.name}</span>
+    <span class="m-appbar-button"><MaterialIcon name="more_vert" size={24} /></span>
+  </div>
+  <div class="m-tabs">
+    <div class="m-tab-chips">
+      <span class="m-chip" data-state="selected">
+        <StateGlyph state="waiting" node="p-chip-claude-glyph" phone />
+        <span class="m-chip-label">Payment Webhook Retries</span>
+        <MaterialIcon name="close" size={18} />
+      </span>
+      <span class="m-chip">
+        <StateGlyph state="done" phone />
+        <span class="m-chip-label">Duplicate Delivery Test</span>
+      </span>
+    </div>
+    <span class="m-tab-add"><MaterialIcon name="add" size={24} /></span>
+  </div>
+  <div class="m-terminal">
+    <div class="term-screen phone-term">
+      <div class="term-viewport" data-demo-screen="14.4">
+        <div class="term-content"><TerminalBlocks blocks={PHONE_CLAUDE_SESSION} /></div>
+      </div>
+    </div>
+    <span class="m-term-buttons">
+      <span class="m-term-button"><MobileIcon name="refresh" size={16} /></span>
+      <span class="m-term-button"><MaterialIcon name="keyboard_alt_outlined" size={16} /></span>
+    </span>
+  </div>
+  <div class="m-keys">
+    {
+      KEYS.map((key) => (
+        <span class="m-key" data-demo-node={key === 'Enter' ? 'p-key-enter' : undefined}>
+          {key === 'paste' ? <MobileIcon name="paste" size={20} /> : key}
+        </span>
+      ))
+    }
+  </div>
+  <div class="m-compose">
+    <span class="m-compose-field">{APP_COPY.typeCommand.text}</span>
+    <span class="m-send"><MaterialIcon name="arrow_upward" size={24} /></span>
+  </div>
+</div>

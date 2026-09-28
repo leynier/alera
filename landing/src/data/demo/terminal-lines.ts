@@ -10,6 +10,7 @@ export type Tone =
   | 'dim'
   | 'italic'
   | 'inverse'
+  | 'cursor'
   | 'black'
   | 'red'
   | 'green'
@@ -35,6 +36,8 @@ export interface Block {
   lines: readonly Line[];
   /** Starts hidden; the storyboard shows it. */
   concealed?: boolean;
+  /** Block-element art drawn beside the lines, such as Claude Code's mascot. */
+  art?: readonly string[];
   /** Extra class for block-level chrome such as a permission prompt. */
   kind?: 'plain' | 'claude-input' | 'claude-permission' | 'codex-header' | 'codex-composer' | 'claude-header';
 }

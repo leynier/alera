@@ -1,0 +1,95 @@
+---
+import AgentLogo from '../primitives/AgentLogo.astro';
+import AppIcon from '../primitives/AppIcon.astro';
+import ResourceManagerCard from './ResourceManagerCard.astro';
+
+/**
+ * The 30 px status bar in compact mode (window narrower than 1400 px), in the
+ * order alera_shell_page_body.dart builds it: host, quota overview, one chip
+ * per pinned quota and refresh on the left; Run Board, Voice, Resource
+ * Manager, Keep Alive and the runtime on the right. Quota values are the
+ * remaining percentage, colored by how much is left.
+ */
+interface Reading {
+  label: string;
+  value: number;
+  node?: string;
+}
+const tone = (value: number) => (value < 20 ? 'error' : value < 50 ? 'warning' : 'success');
+const QUOTAS: readonly { agent: 'claude' | 'codex'; profile?: string; readings: readonly Reading[] }[] = [
+  {
+    agent: 'claude',
+    profile: 'Default',
+    readings: [
+      { label: '5H', value: 64, node: 'd-quota-claude-5h' },
+      { label: 'W', value: 41 },
+      { label: 'F', value: 83 },
+    ],
+  },
+  {
+    agent: 'codex',
+    readings: [
+      { label: '5H', value: 91, node: 'd-quota-codex-5h' },
+      { label: 'W', value: 58 },
+    ],
+  },
+];
+---
+
+<footer class="status-bar" data-demo-node="d-status-bar">
+  <span class="status-segment status-host">
+    <AppIcon name="host" size={13} />
+    <span class="status-mono">Local</span>
+  </span>
+  <span class="status-divider"></span>
+  <span class="status-segment status-gauge"><AppIcon name="quota" size={13} /></span>
+  <span class="status-divider"></span>
+  <span class="status-quotas" data-demo-node="d-quotas">
+    {
+      QUOTAS.map((quota) => (
+        <span class="quota-chip">
+          <span class="quota-logo">
+            <AgentLogo agent={quota.agent} size={12} />
+          </span>
+          {quota.profile && <span class="quota-profile">{quota.profile}</span>}
+          <span class="quota-readings">
+            {quota.readings.map((reading) => (
+              <span class="quota-reading">
+                <span class="quota-label">{reading.label}</span>
+                <span class="quota-value" data-tone={tone(reading.value)} data-demo-node={reading.node}>
+                  {reading.value}%
+                </span>
+              </span>
+            ))}
+          </span>
+        </span>
+      ))
+    }
+    <span class="status-refresh"><AppIcon name="refresh" size={13} /></span>
+  </span>
+  <span class="status-trailing">
+    <span class="status-segment status-runboard">
+      <AppIcon name="workspaceChildren" size={12} />
+      <span>0</span>
+    </span>
+    <span class="status-segment status-voice">
+      <AppIcon name="mic" size={14} />
+      <span>Voice</span>
+    </span>
+    <span class="status-segment status-bordered status-resources" data-demo-node="d-resource-chip">
+      <AppIcon name="resources" size={13} />
+      <span class="status-mono" data-demo-node="d-res-memory">1.12 GB</span>
+      <AppIcon name="terminal" size={11} />
+      <span class="status-mono status-tight" data-demo-node="d-res-sessions">3</span>
+      <ResourceManagerCard />
+    </span>
+    <span class="status-segment status-bordered status-keep-alive">
+      <AppIcon name="keepAlive" size={13} />
+      <span class="status-mono">Keep Alive</span>
+    </span>
+    <span class="status-segment status-bordered status-runtime">
+      <AppIcon name="host" size={13} />
+      <span class="status-mono">Runtime v0.1.0</span>
+    </span>
+  </span>
+</footer>

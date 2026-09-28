@@ -49,12 +49,13 @@ export function createSceneBinding(root: HTMLElement, timeline: CompiledTimeline
 
   let lastCaption = '';
   let lastTier: DemoTier | null = null;
+  let measured = false;
   const touched = { states: new Set<string>(), shows: new Set<string>(), texts: new Set<string>(), reveals: new Set<string>() };
 
-  const screenOf = (element: HTMLElement) => element.closest<HTMLElement>('[data-demo-screen]');
+  const screens = [...stage.querySelectorAll<HTMLElement>('[data-demo-screen]')];
 
   const apply = (frame: DemoFrame) => {
-    const dirtyScreens = new Set<HTMLElement>();
+    let reflowed = false;
 
     for (const id of new Set([...touched.states, ...frame.states.keys()])) {
       const element = nodes.get(id);
@@ -63,6 +64,7 @@ export function createSceneBinding(root: HTMLElement, timeline: CompiledTimeline
       if (element.getAttribute('data-state') !== state) {
         if (state === null) element.removeAttribute('data-state');
         else element.setAttribute('data-state', state);
+        reflowed = true;
       }
     }
     touched.states = new Set(frame.states.keys());
@@ -74,12 +76,15 @@ export function createSceneBinding(root: HTMLElement, timeline: CompiledTimeline
       const start = initial.get(id)!;
       const opacity = show ? show.opacity : start.concealed ? 0 : 1;
       const collapsed = show ? show.collapsed : start.hidden;
-      element.hidden = collapsed;
+      // Only taking a node in or out of the layout can reflow a terminal;
+      // opacity, visibility and translate never move its neighbours.
+      if (element.hidden !== collapsed) {
+        element.hidden = collapsed;
+        reflowed = true;
+      }
       element.style.opacity = opacity >= 1 ? '' : String(opacity);
       element.style.visibility = opacity <= 0 ? 'hidden' : '';
       element.style.translate = show && show.lift ? `0 ${show.lift}px` : '';
-      const screen = screenOf(element);
-      if (screen) dirtyScreens.add(screen);
     }
     touched.shows = new Set(frame.shows.keys());
 
@@ -89,8 +94,7 @@ export function createSceneBinding(root: HTMLElement, timeline: CompiledTimeline
       const text = frame.texts.get(id) ?? initial.get(id)!.text;
       if (element.textContent !== text) {
         element.textContent = text;
-        const screen = screenOf(element);
-        if (screen) dirtyScreens.add(screen);
+        reflowed = true;
       }
       element.toggleAttribute('data-typing', frame.typing.has(id));
     }
@@ -99,16 +103,13 @@ export function createSceneBinding(root: HTMLElement, timeline: CompiledTimeline
     for (const [id, count] of frame.reveals) {
       const element = nodes.get(id);
       if (!element) continue;
-      let changed = false;
       [...element.children].forEach((child, index) => {
         const hidden = index >= count;
         if ((child as HTMLElement).hidden !== hidden) {
           (child as HTMLElement).hidden = hidden;
-          changed = true;
+          reflowed = true;
         }
       });
-      const screen = screenOf(element);
-      if (changed && screen) dirtyScreens.add(screen);
     }
 
     for (const [key, value] of frame.vars) {
@@ -116,13 +117,21 @@ export function createSceneBinding(root: HTMLElement, timeline: CompiledTimeline
       nodes.get(id)?.style.setProperty(`--${prop}`, String(value));
     }
 
-    // Terminals keep their newest line on screen once they fill up, the way
-    // a real terminal scrolls. Reads come after every write above.
-    const offsets = [...dirtyScreens].map((screen) => {
-      const content = screen.firstElementChild as HTMLElement | null;
-      return [content, content ? Math.min(0, screen.clientHeight - content.scrollHeight) : 0] as const;
-    });
-    for (const [content, offset] of offsets) if (content) content.style.translate = offset ? `0 ${offset}px` : '';
+    // Terminals keep their newest line on screen once they fill up, scrolling
+    // by whole rows the way a real terminal does (`data-demo-screen` holds the
+    // row height). Any change can reflow a terminal, a split narrows two, so
+    // every screen is measured after all the writes above.
+    if (reflowed || !measured) {
+      measured = true;
+      const offsets = screens.map((screen) => {
+        const content = screen.firstElementChild as HTMLElement | null;
+        const overflow = content ? content.offsetHeight - screen.clientHeight : 0;
+        const row = Number(screen.dataset.demoScreen) || 0;
+        const offset = overflow <= 0 ? 0 : row > 0 ? Math.ceil(overflow / row) * row : overflow;
+        return [content, offset] as const;
+      });
+      for (const [content, offset] of offsets) if (content) content.style.translate = offset ? `0 ${-offset}px` : '';
+    }
 
     root.style.setProperty('--demo-t', String(Math.round(frame.t)));
 

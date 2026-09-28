@@ -1,0 +1,65 @@
+---
+/**
+ * Block-element characters (U+2580 to U+259F) drawn the way a terminal draws
+ * them: every character fills its whole cell, split into quadrants, instead
+ * of using the font's glyph, whose height does not match the line height and
+ * would leave seams between rows.
+ */
+interface Props {
+  lines: readonly string[];
+  class?: string;
+}
+
+// Quadrants per character: upper left, upper right, lower left, lower right.
+const QUADRANTS: Record<string, readonly [number, number, number, number]> = {
+  '█': [1, 1, 1, 1],
+  '▌': [1, 0, 1, 0],
+  '▐': [0, 1, 0, 1],
+  '▀': [1, 1, 0, 0],
+  '▄': [0, 0, 1, 1],
+  '▘': [1, 0, 0, 0],
+  '▝': [0, 1, 0, 0],
+  '▖': [0, 0, 1, 0],
+  '▗': [0, 0, 0, 1],
+  '▛': [1, 1, 1, 0],
+  '▜': [1, 1, 0, 1],
+  '▙': [1, 0, 1, 1],
+  '▟': [0, 1, 1, 1],
+  '▚': [1, 0, 0, 1],
+  '▞': [0, 1, 1, 0],
+};
+
+const { lines, class: className } = Astro.props;
+const columns = Math.max(...lines.map((line) => [...line].length));
+// Each half-row of filled quadrants becomes one run, so no seams show
+// between neighbouring cells when the art is scaled.
+const runs: { x: number; y: number; width: number }[] = [];
+lines.forEach((line, row) => {
+  for (const half of [0, 1]) {
+    const filled = [...line].flatMap((glyph) => {
+      const quadrants = QUADRANTS[glyph] ?? [0, 0, 0, 0];
+      return [quadrants[half * 2]!, quadrants[half * 2 + 1]!];
+    });
+    let start = -1;
+    filled.forEach((on, x) => {
+      if (on && start < 0) start = x;
+      if ((!on || x === filled.length - 1) && start >= 0) {
+        const end = on ? x + 1 : x;
+        runs.push({ x: start, y: row * 2 + half, width: end - start });
+        start = -1;
+      }
+    });
+  }
+});
+---
+
+<svg
+  class:list={['block-art', className]}
+  viewBox={`0 0 ${columns * 2} ${lines.length * 2}`}
+  preserveAspectRatio="none"
+  style={`width: ${columns}ch; height: calc(${lines.length} * var(--term-font-size) * var(--term-line-height))`}
+  aria-hidden="true"
+  focusable="false"
+>
+  {runs.map((run) => <rect x={run.x} y={run.y} width={run.width} height="1.04" fill="currentColor" />)}
+</svg>

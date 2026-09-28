@@ -1,0 +1,28 @@
+---
+import { lineText, spanTones, type Line } from '../../../data/demo/terminal-lines';
+
+interface Props {
+  line: Line;
+}
+
+const { line } = Astro.props;
+const blank = line.length === 1 && line[0] === '';
+// Agent CLIs indent the continuation of a wrapped line under the text after
+// its marker, and reflow it when the terminal is resized; a hanging indent of
+// the marker's width does the same at whatever width the pane has.
+const hang = lineText(line).match(/^\s*(?:[●•└›>❯]\s+|\d+\s[+-]\s+)?/)?.[0].length ?? 0;
+---
+
+<div class:list={['term-line', blank && 'term-blank']} style={hang > 0 ? `--hang: ${hang}ch` : undefined}>
+  {
+    line.map((span) =>
+      typeof span === 'string' ? (
+        span
+      ) : (
+        <span class:list={spanTones(span).map((tone) => `t-${tone}`)} data-demo-node={span.node}>
+          {span.text}
+        </span>
+      ),
+    )
+  }
+</div>

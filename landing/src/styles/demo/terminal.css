@@ -1,0 +1,188 @@
+/* The terminal as the app draws it: the Alera Dark theme from
+   terminal_theme_catalog.dart (each role points at the app token it uses
+   there, and the fidelity tests compare the pairs) and the default terminal
+   settings from alera_settings.dart: JetBrains Mono 13, line height 1.3,
+   12 px padding, a block cursor that does not blink. Agent CLIs also paint
+   a few true colors of their own; those are named after the CLI. */
+
+[data-alera-demo] {
+  --term-background: var(--app-bg);
+  --term-foreground: var(--app-foreground);
+  --term-cursor: var(--app-accent);
+  --term-selection: var(--app-accent-subtle);
+  --term-black: var(--app-foreground-faint);
+  --term-red: var(--app-error);
+  --term-green: var(--app-success);
+  --term-yellow: var(--app-warning);
+  --term-blue: var(--app-info);
+  --term-magenta: var(--app-accent);
+  --term-cyan: var(--app-info);
+  --term-white: var(--app-foreground);
+  --term-bright-black: var(--app-foreground-muted);
+  --term-font-size: 13px;
+  --term-line-height: 1.3;
+  --term-padding: 12px;
+
+  /* Claude Code's dark theme colors, painted as true color by the CLI. */
+  --cli-claude: #d77757;
+  --cli-claude-permission: #b1b9f9;
+  --cli-claude-prompt-border: #888888;
+  --cli-diff-added: #225c2b;
+  --cli-diff-removed: #7a2936;
+}
+
+[data-alera-demo] .term-screen {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  padding: var(--term-padding);
+  background: var(--term-background);
+  color: var(--term-foreground);
+  font-family: var(--app-font-mono);
+  font-size: var(--term-font-size);
+  line-height: var(--term-line-height);
+  font-variant-ligatures: none;
+}
+
+[data-alera-demo] .term-content {
+  min-width: 0;
+}
+
+[data-alera-demo] .term-line {
+  min-height: calc(var(--term-font-size) * var(--term-line-height));
+  padding-left: var(--hang, 0);
+  text-indent: calc(var(--hang, 0) * -1);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+[data-alera-demo] .t-bold {
+  font-weight: 700;
+}
+
+[data-alera-demo] .t-dim {
+  opacity: 0.5;
+}
+
+[data-alera-demo] .t-italic {
+  font-style: italic;
+}
+
+[data-alera-demo] .t-inverse,
+[data-alera-demo] .t-cursor {
+  background: var(--term-cursor);
+  color: var(--term-background);
+}
+
+[data-alera-demo] .t-black { color: var(--term-black); }
+[data-alera-demo] .t-red { color: var(--term-red); }
+[data-alera-demo] .t-green { color: var(--term-green); }
+[data-alera-demo] .t-yellow { color: var(--term-yellow); }
+[data-alera-demo] .t-blue { color: var(--term-blue); }
+[data-alera-demo] .t-magenta { color: var(--term-magenta); }
+[data-alera-demo] .t-cyan { color: var(--term-cyan); }
+[data-alera-demo] .t-white { color: var(--term-white); }
+[data-alera-demo] .t-bright-black { color: var(--term-bright-black); }
+[data-alera-demo] .t-claude { color: var(--cli-claude); }
+
+[data-alera-demo] .t-claude-prompt,
+[data-alera-demo] .t-codex-prompt {
+  background: rgb(255 255 255 / 0.06);
+}
+
+[data-alera-demo] .t-diff-add {
+  background: var(--cli-diff-added);
+}
+
+[data-alera-demo] .t-diff-del {
+  background: var(--cli-diff-removed);
+}
+
+/* TUI frames are drawn with CSS borders sized to the character cell rather
+   than box-drawing glyphs, so they redraw to the pane width like the CLI does
+   when the terminal is resized. */
+[data-alera-demo] .term-claude-header .term-line {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: clip;
+}
+
+[data-alera-demo] .term-claude-permission {
+  margin: calc(var(--term-font-size) * var(--term-line-height) / 2) 0.5ch;
+  padding: 0 1ch;
+  border: 1px solid var(--cli-claude-permission);
+  border-radius: 6px;
+}
+
+[data-alera-demo] .term-claude-input {
+  padding: 0 1ch 0 0;
+  border-block: 1px solid var(--cli-claude-prompt-border);
+}
+
+[data-alera-demo] .term-codex-header {
+  width: fit-content;
+  max-width: calc(100% - 1ch);
+  margin: calc(var(--term-font-size) * var(--term-line-height) / 2) 0.5ch;
+  padding: 0 1ch;
+  border: 1px solid var(--term-bright-black);
+  border-radius: 6px;
+}
+
+[data-alera-demo] .term-codex-composer {
+  padding: calc(var(--term-font-size) * var(--term-line-height) / 2) 0;
+  background: rgb(255 255 255 / 0.05);
+}
+
+/* A command being typed carries the shell's block cursor after it. */
+[data-alera-demo] .term-screen [data-typing]::after {
+  content: ' ';
+  background: var(--term-cursor);
+}
+
+[data-alera-demo] .term-pane {
+  position: relative;
+  height: 100%;
+  min-width: 0;
+}
+
+[data-alera-demo] .term-viewport {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* terminal_surface_toolbar.dart: 22 px buttons 2 px apart, 4 px from the
+   corner, over the terminal padding. */
+[data-alera-demo] .term-toolbar {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 2px;
+}
+
+[data-alera-demo] .term-tool {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface-elevated);
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .term-claude-header {
+  display: flex;
+  gap: 2ch;
+}
+
+[data-alera-demo] .term-art {
+  display: block;
+  flex: none;
+  color: var(--cli-claude);
+}
+
+[data-alera-demo] .term-lines {
+  min-width: 0;
+}

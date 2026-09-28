@@ -1,0 +1,43 @@
+---
+import { APP_COPY } from '../../../data/demo/app-copy';
+import AgentLogo from '../primitives/AgentLogo.astro';
+import AppIcon from '../primitives/AppIcon.astro';
+import PaneStrip from './PaneStrip.astro';
+import PullRequestTool from './PullRequestTool.astro';
+import SourceControlTool from './SourceControlTool.astro';
+import TabChip from './TabChip.astro';
+
+/**
+ * The right panel (workspace_context_sidebar.dart). Hidden, it is a 52 px
+ * strip with only Expand Panel; shown, it is the stored width (280 px by
+ * default, `--panel-w`) plus the 6 px resize handle, with tools as closable
+ * chips. `d-rp` takes `collapsed` or `expanded`.
+ */
+---
+
+<aside class="rp" data-demo-node="d-rp" data-state="collapsed" style="--panel-w: 280">
+  <div class="rp-collapsed">
+    <span class="app-button"><AppIcon name="chevronsLeft" size={16} /></span>
+  </div>
+  <div class="rp-expanded">
+    <span class="rp-handle" data-demo-node="d-rp-handle"></span>
+    <div class="rp-content">
+      <PaneStrip panel addNode="d-rp-add">
+        <TabChip tool icon="gitBranch" title={APP_COPY.sourceControl.text} active node="d-rp-chip-sc" />
+        <TabChip tool icon="gitPullRequest" title={APP_COPY.pullRequest.text} node="d-rp-chip-pr" concealed />
+      </PaneStrip>
+      <div class="rp-body">
+        <SourceControlTool />
+        <PullRequestTool />
+      </div>
+    </div>
+    <div class="menu rp-add-menu" data-demo-node="d-add-menu" hidden data-demo-concealed style="opacity: 0; visibility: hidden">
+      <span class="menu-row"><AppIcon name="folder" size={16} />{APP_COPY.explorer.text}</span>
+      <span class="menu-row"><AppIcon name="search" size={16} />{APP_COPY.search.text}</span>
+      <span class="menu-row" data-demo-node="d-add-menu-pr"><AppIcon name="gitPullRequest" size={16} />{APP_COPY.pullRequest.text}</span>
+      <span class="menu-row"><AppIcon name="terminal" size={16} />{APP_COPY.terminal.text}</span>
+      <span class="menu-row"><AgentLogo agent="claude" size={16} />Claude</span>
+      <span class="menu-row"><AgentLogo agent="codex" size={16} />Codex</span>
+    </div>
+  </div>
+</aside>

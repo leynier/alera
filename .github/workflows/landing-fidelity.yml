@@ -4,6 +4,7 @@ name: Landing Demo Fidelity
 # copy. `landing.yml` only runs for landing changes, so this workflow runs the
 # fidelity tests when the app sources they read change, and fails the pull
 # request that would leave the demo showing an app that no longer exists.
+# `fidelity.test.ts` fails when it reads an app file these paths miss.
 on:
   pull_request:
     types:
@@ -16,9 +17,11 @@ on:
       - 'lib/src/features/**/presentation/**'
       - 'lib/src/features/**/application/**'
       - 'lib/src/features/**/domain/**'
+      - 'lib/src/shared/**'
       - 'mobile/lib/**'
       - 'rust/alera-cli/src/push_notifications/**'
       - 'assets/agents/**'
+      - 'assets/logo/**'
       - 'assets/fonts/**'
       - 'pubspec.lock'
       - '.github/workflows/landing-fidelity.yml'

@@ -1,17 +1,20 @@
 ---
-import { spanTones, type Block, type Line } from '../../../data/demo/terminal-lines';
+import type { Block } from '../../../data/demo/terminal-lines';
+import BlockArt from './BlockArt.astro';
+import TerminalLine from './TerminalLine.astro';
 
 /**
  * Renders terminal blocks as lines of spans. A block with a `node` becomes a
  * storyboard target: its lines are the children a reveal run uncovers one by
  * one, and a concealed block starts invisible until a show key fades it in.
+ * Lines stay the block's direct children for that reason; only a block with
+ * art (which is never revealed) wraps them.
  */
 interface Props {
   blocks: readonly Block[];
 }
 
 const { blocks } = Astro.props;
-const classesFor = (line: Line) => (line.length === 1 && line[0] === '' ? 'term-line term-blank' : 'term-line');
 ---
 
 {
@@ -23,19 +26,18 @@ const classesFor = (line: Line) => (line.length === 1 && line[0] === '' ? 'term-
       style={block.concealed ? 'opacity: 0; visibility: hidden' : undefined}
       hidden={block.concealed}
     >
-      {block.lines.map((line) => (
-        <div class={classesFor(line)}>
-          {line.map((span) =>
-            typeof span === 'string' ? (
-              span
-            ) : (
-              <span class:list={spanTones(span).map((tone) => `t-${tone}`)} data-demo-node={span.node}>
-                {span.text}
-              </span>
-            ),
-          )}
-        </div>
-      ))}
+      {block.art ? (
+        <>
+          <BlockArt lines={block.art} class="term-art" />
+          <div class="term-lines">
+            {block.lines.map((line) => (
+              <TerminalLine line={line} />
+            ))}
+          </div>
+        </>
+      ) : (
+        block.lines.map((line) => <TerminalLine line={line} />)
+      )}
     </div>
   ))
 }

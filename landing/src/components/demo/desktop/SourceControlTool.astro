@@ -1,0 +1,137 @@
+---
+import { APP_COPY } from '../../../data/demo/app-copy';
+import { SAMPLE } from '../../../data/demo/sample-workspace';
+import AppIcon from '../primitives/AppIcon.astro';
+import Codicon from '../primitives/Codicon.astro';
+import FileIcon from '../primitives/FileIcon.astro';
+import MaterialSpinner from '../primitives/MaterialSpinner.astro';
+import { concealedAttributes } from '../primitives/conceal';
+
+/**
+ * The Source Control tool (workspace_git_diff_panel*.dart): title row and
+ * its right-anchored actions, the commit message field, the primary split
+ * button, the branch row, the file tree grouped by staged state, and the
+ * COMMITS pane pinned at the bottom. `d-sc-files` switches the groups
+ * (`unstaged`, `staged`, `clean`) and `d-sc-primary` the primary action.
+ */
+const FILES = [
+  { name: 'handler.test.ts', icon: 'test-ts', add: 28, del: 0 },
+  { name: 'handler.ts', icon: 'typescript', add: 6, del: 2 },
+  { name: 'retry.test.ts', icon: 'test-ts', add: 58, del: 0 },
+  { name: 'retry.ts', icon: 'typescript', add: 31, del: 6 },
+] as const;
+const GROUPS = [
+  { key: 'unstaged', label: 'Unstaged', staged: false },
+  { key: 'staged', label: 'Staged', staged: true },
+] as const;
+---
+
+<div class="sc" data-demo-node="d-tool-sc">
+  <div class="sc-toolbar">
+    <div class="sc-title-row">
+      <span class="sc-title">Source Control</span>
+      <span class="sc-actions">
+        <span class="sc-actions-track">
+          <span class="app-button sc-ai" data-demo-node="d-sc-ai" data-state="idle">
+            <AppIcon name="ai" size={16} class="sc-ai-idle" />
+            <MaterialSpinner size={16} class="sc-ai-busy" />
+          </span>
+          <span class="app-button"><AppIcon name="diff" size={16} /></span>
+          <span class="app-button"><AppIcon name="listView" size={16} /></span>
+          <span class="app-button"><AppIcon name="outline" size={16} /></span>
+          <span class="app-button"><AppIcon name="search" size={16} /></span>
+          <span class="app-button"><AppIcon name="collapseAll" size={16} /></span>
+          <span class="app-button"><Codicon name="refresh" size={16} /></span>
+        </span>
+      </span>
+    </div>
+    <div class="sc-message" data-demo-node="d-sc-message-box" data-state="empty">
+      <span class="sc-message-hint">Message</span>
+      <span class="sc-message-text" data-demo-node="d-sc-message"></span>
+      <span class="sc-mic"><AppIcon name="mic" size={14} /></span>
+      <span class="ai-generating" data-demo-node="d-sc-generating" {...concealedAttributes(true)}>
+        <span class="ai-generating-chip">
+          <MaterialSpinner size={14} />
+          Generating with AI
+        </span>
+      </span>
+    </div>
+    <div class="split-button sc-primary" data-demo-node="d-sc-primary" data-state="publish">
+      <span class="split-button-label">
+        <span class="sc-variant sc-variant-publish"><Codicon name="cloudUpload" size={15} />{APP_COPY.publishBranch.text}</span>
+        <span class="sc-variant sc-variant-commit"><Codicon name="check" size={15} />Commit</span>
+        <span class="sc-variant sc-variant-fetch"><Codicon name="gitFetch" size={15} />Fetch</span>
+      </span>
+      <span class="split-button-separator"></span>
+      <span class="split-button-chevron"><AppIcon name="chevronDown" size={17} /></span>
+    </div>
+    <div class="sc-branch">
+      <span class="sc-branch-button">
+        <AppIcon name="gitBranch" size={14} />
+        <span>{SAMPLE.workspaces.webhooks.branch}</span>
+        <AppIcon name="chevronDown" size={12} />
+      </span>
+      <span class="sc-branch-details" data-demo-node="d-sc-branch-details"></span>
+    </div>
+  </div>
+  <div class="sc-divider"></div>
+  <div class="sc-files" data-demo-node="d-sc-files" data-state="unstaged">
+    {
+      GROUPS.map((group) => (
+        <div class:list={['sc-group', `sc-group-${group.key}`]}>
+          <div class="sc-row" style="--depth: 0">
+            <AppIcon name="chevronDown" size={14} />
+            <span class="sc-group-label">{group.label}</span>
+            <span class="sc-count">{FILES.length}</span>
+            <span class="sc-row-actions">
+              {group.staged ? (
+                <span class="app-button"><Codicon name="remove" /></span>
+              ) : (
+                <span class="app-button" data-demo-node="d-sc-stage-unstaged"><Codicon name="add" /></span>
+              )}
+              {!group.staged && <span class="app-button"><Codicon name="discard" /></span>}
+            </span>
+          </div>
+          {[
+            { name: 'src', icon: 'folder-src-open', depth: 1 },
+            { name: 'webhooks', icon: 'folder-open', depth: 2 },
+          ].map((folder) => (
+            <div class="sc-row" style={`--depth: ${folder.depth}`}>
+              <AppIcon name="chevronDown" size={14} />
+              <span class="sc-folder-icon"><FileIcon name={folder.icon as 'folder-open'} /></span>
+              <span class="sc-name">{folder.name}</span>
+              <span class="sc-count">{FILES.length}</span>
+              <span class="sc-row-actions">
+                {group.staged ? <span class="app-button"><Codicon name="remove" /></span> : <span class="app-button"><Codicon name="add" /></span>}
+                {!group.staged && <span class="app-button"><Codicon name="discard" /></span>}
+              </span>
+            </div>
+          ))}
+          {FILES.map((file) => (
+            <div class="sc-row" style="--depth: 3">
+              <span class="sc-spacer" />
+              <FileIcon name={file.icon} />
+              <span class="sc-name">{file.name}</span>
+              <span class="sc-status">M</span>
+              <span class="sc-stats">
+                <span class="sc-add">+{file.add}</span>
+                {file.del > 0 && <span class="sc-del">-{file.del}</span>}
+              </span>
+              <span class="sc-row-actions">
+                {group.staged ? <span class="app-button"><Codicon name="remove" /></span> : <span class="app-button"><Codicon name="add" /></span>}
+                {!group.staged && <span class="app-button"><Codicon name="discard" /></span>}
+              </span>
+            </div>
+          ))}
+        </div>
+      ))
+    }
+    <p class="sc-clean">No changes</p>
+  </div>
+  <div class="sc-commits">
+    <AppIcon name="chevronRight" size={14} />
+    <span class="sc-commits-title">COMMITS</span>
+    <span class="sc-commits-count" data-demo-node="d-sc-commit-count">12</span>
+    <span class="app-button app-button-boxed sc-commits-refresh"><AppIcon name="refresh" size={15} /></span>
+  </div>
+</div>

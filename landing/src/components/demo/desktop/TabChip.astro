@@ -1,0 +1,60 @@
+---
+import AppIcon from '../primitives/AppIcon.astro';
+import type { AppIconRole } from '../primitives/app-icons';
+import { concealedAttributes } from '../primitives/conceal';
+
+/**
+ * A workbench tab chip (workspace_workbench_tab_chips.dart): leading icon,
+ * the always-reserved 6 px status slot, a title capped at 92 px for
+ * terminals, the static loader shown while a title is being generated, and
+ * the close button. Tool chips have no status slot. The dot's `data-state`
+ * takes the agent states a chip colors (working is blue on a chip, unlike the
+ * amber sidebar spinner).
+ */
+interface Props {
+  title: string;
+  icon?: AppIconRole;
+  active?: boolean;
+  tool?: boolean;
+  node?: string;
+  concealed?: boolean;
+  class?: string;
+  dot?: 'none' | 'working' | 'waiting' | 'blocked' | 'done' | 'done-unviewed';
+  dotNode?: string;
+  titleNode?: string;
+  generatingNode?: string;
+}
+
+const {
+  title,
+  icon = 'terminal',
+  active = false,
+  tool = false,
+  node,
+  concealed,
+  class: className,
+  dot = 'none',
+  dotNode,
+  titleNode,
+  generatingNode,
+} = Astro.props;
+---
+
+<span
+  class:list={['tab-chip', className]}
+  data-state={active ? 'active' : 'idle'}
+  data-demo-node={node}
+  {...concealedAttributes(concealed)}
+>
+  <AppIcon name={icon} size={12} />
+  {!tool && <span class="tab-dot" data-state={dot} data-demo-node={dotNode} />}
+  <span class:list={['tab-title', tool && 'tab-title-tool']} data-demo-node={titleNode}>{title}</span>
+  {
+    generatingNode && (
+      <span class="tab-generating" data-demo-node={generatingNode} {...concealedAttributes(true)}>
+        <AppIcon name="loading" size={12} />
+      </span>
+    )
+  }
+  <span class="tab-close"><AppIcon name="close" size={12} /></span>
+</span>

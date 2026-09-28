@@ -1,0 +1,73 @@
+---
+import { APP_COPY } from '../../../data/demo/app-copy';
+import AppIcon from '../primitives/AppIcon.astro';
+import { concealedAttributes } from '../primitives/conceal';
+
+/**
+ * The Checks section (pull_request_check_list.dart): groups in the order
+ * failing, in progress, successful, labelled '$count <state> Check(s)'. Each
+ * variant below is one moment of the run; `d-pr-checks` picks which one
+ * shows through its `data-state`.
+ */
+type Status = 'running' | 'success' | 'failure';
+interface Group {
+  status: Status;
+  checks: readonly string[];
+}
+const LINT = 'ci / lint';
+const TYPECHECK = 'ci / typecheck';
+const TEST = 'ci / test (ubuntu-latest)';
+const PREVIEW = 'Vercel';
+const ALL = [LINT, TYPECHECK, TEST, PREVIEW];
+
+const VARIANTS: Record<string, readonly Group[]> = {
+  pending: [{ status: 'running', checks: ALL }],
+  failing: [
+    { status: 'failure', checks: [LINT] },
+    { status: 'running', checks: [TYPECHECK, TEST] },
+    { status: 'success', checks: [PREVIEW] },
+  ],
+  failed: [
+    { status: 'failure', checks: [LINT] },
+    { status: 'success', checks: [TYPECHECK, TEST, PREVIEW] },
+  ],
+  passed: [{ status: 'success', checks: ALL }],
+};
+
+const noun = (count: number) => (count === 1 ? 'Check' : 'Checks');
+const label = (group: Group) => {
+  const word = group.status === 'failure' ? 'failing' : group.status === 'running' ? 'in progress' : 'successful';
+  return `${group.checks.length} ${word} ${noun(group.checks.length)}`;
+};
+---
+
+<span class="pr-checks-head">
+  <span class="pr-section-title">Checks ({ALL.length})</span>
+  <span class="pr-fix-failed" data-demo-node="d-pr-fix-failed" {...concealedAttributes(true)}>{APP_COPY.fixFailedChecks.text}</span>
+</span>
+<span class="pr-checks" data-demo-node="d-pr-checks" data-state="pending">
+  {
+    Object.entries(VARIANTS).map(([key, groups]) => (
+      <span class="pr-check-variant" data-variant={key}>
+        {groups.map((group) => (
+          <span class="pr-check-group">
+            <span class="pr-check-group-head">
+              <AppIcon name="chevronDown" size={16} />
+              {label(group)}
+            </span>
+            {group.checks.map((name) => (
+              <span class="pr-check-row" data-status={group.status}>
+                {group.status === 'running' && <AppIcon name="loading" size={16} class="check-spinner" />}
+                {group.status === 'success' && <AppIcon name="success" size={16} />}
+                {group.status === 'failure' && <AppIcon name="cancel" size={16} />}
+                <span class="pr-check-name">{name}</span>
+                <span class="app-button"><AppIcon name="external" size={16} /></span>
+                <AppIcon name="chevronRight" size={16} class="pr-check-chevron" />
+              </span>
+            ))}
+          </span>
+        ))}
+      </span>
+    ))
+  }
+</span>

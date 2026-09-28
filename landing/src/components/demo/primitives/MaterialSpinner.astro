@@ -1,0 +1,36 @@
+---
+/**
+ * Flutter's indeterminate CircularProgressIndicator, used by job cards, AI
+ * Assist overlays and busy buttons: an arc that grows and shrinks while it
+ * turns. Both motions are paused CSS animations positioned by `--demo-t`, so
+ * a seek draws the same frame every time.
+ */
+interface Props {
+  size: number;
+  stroke?: number;
+  class?: string;
+}
+
+const { size, stroke = 2, class: className } = Astro.props;
+const radius = (size - stroke) / 2;
+---
+
+<svg
+  class:list={['material-spinner', className]}
+  width={size}
+  height={size}
+  viewBox={`0 0 ${size} ${size}`}
+  aria-hidden="true"
+  focusable="false"
+>
+  <circle
+    cx={size / 2}
+    cy={size / 2}
+    r={radius}
+    pathLength="100"
+    fill="none"
+    stroke="currentColor"
+    stroke-width={stroke}
+    stroke-linecap="square"
+  />
+</svg>

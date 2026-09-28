@@ -7,18 +7,63 @@ import type { Block, Line } from './terminal-lines';
  * bundled JetBrains Mono has (the fidelity tests check), so nothing falls back
  * to another font. Node ids are what the storyboard reveals or shows.
  */
-const WORKTREE = `~/.alera/workspaces/storefront-4e1b7c9a-2d3f-4a8b-9c6e-0f5d2a7b3e81/${SAMPLE.workspaces.webhooks.slug}`;
+const WORKSPACES_ROOT = '~/.alera/workspaces/storefront-4e1b7c9a-2d3f-4a8b-9c6e-0f5d2a7b3e81';
+const WORKTREE = `${WORKSPACES_ROOT}/${SAMPLE.workspaces.webhooks.slug}`;
 const blank: Line = [''];
 
-export const CLAUDE_SESSION: readonly Block[] = [
-  {
+function claudeHeader(directory: string): Block {
+  return {
     kind: 'claude-header',
+    art: [' ▐▛███▜▌ ', '▝▜█████▛▘', '  ▘▘ ▝▝  '],
+    lines: [[{ text: 'Claude Code', tone: 'bold' }], [{ text: directory, tone: 'dim' }]],
+  };
+}
+
+const CLAUDE_INPUT: readonly Block[] = [
+  { kind: 'claude-input', lines: [['> ', { text: ' ', tone: 'cursor' }]] },
+  { lines: [[{ text: '  ? for shortcuts', tone: 'dim' }]] },
+];
+
+/** The session already finished in the workspace the demo opens on. */
+export const RELEASE_SESSION: readonly Block[] = [
+  claudeHeader(`${WORKSPACES_ROOT}/release-notes`),
+  { lines: [blank] },
+  {
+    lines: [[{ text: '> Draft the release notes for v2.4 from the pull requests merged since v2.3', tone: 'claude-prompt' }], blank],
+  },
+  {
     lines: [
-      [{ text: ' ▐▛███▜▌ ', tone: 'claude' }, '  ', { text: 'Claude Code', tone: 'bold' }],
-      [{ text: '▝▜█████▛▘', tone: 'claude' }, '  ', { text: WORKTREE, tone: 'dim' }],
-      [{ text: '  ▘▘ ▝▝  ', tone: 'claude' }],
+      ['● ', "I'll collect the merged pull requests first."],
+      blank,
+      [{ text: '● ', tone: 'green' }, { text: 'Bash', tone: 'bold' }, '(gh pr list --state merged --search "merged:>2026-08-31")'],
+      [{ text: '  └ ', tone: 'dim' }, { text: 'Found 23 pull requests', tone: 'dim' }],
+      blank,
+      [{ text: '● ', tone: 'green' }, { text: 'Read', tone: 'bold' }, '(CHANGELOG.md)'],
+      [{ text: '  └ ', tone: 'dim' }, { text: 'Read 212 lines', tone: 'dim' }],
+      blank,
+      [{ text: '● ', tone: 'green' }, { text: 'Update', tone: 'bold' }, '(CHANGELOG.md)'],
+      [{ text: '  └ ', tone: 'dim' }, { text: 'Updated CHANGELOG.md with 41 additions', tone: 'dim' }],
+      blank,
+      ['● ', 'The v2.4 notes are in CHANGELOG.md: 6 features, 11 fixes and 2 breaking changes, each linked to its pull request.'],
+      blank,
     ],
   },
+  ...CLAUDE_INPUT,
+];
+
+/** The same blocks with node ids a second copy of a session can own, such as the phone's. */
+export function withNodePrefix(blocks: readonly Block[], prefix: string): Block[] {
+  return blocks.map((block) => ({
+    ...block,
+    node: block.node && `${prefix}${block.node}`,
+    lines: block.lines.map((line) =>
+      line.map((span) => (typeof span === 'string' || !span.node ? span : { ...span, node: `${prefix}${span.node}` })),
+    ),
+  }));
+}
+
+export const CLAUDE_SESSION: readonly Block[] = [
+  claudeHeader(WORKTREE),
   { lines: [blank] },
   {
     kind: 'plain',
@@ -41,8 +86,8 @@ export const CLAUDE_SESSION: readonly Block[] = [
       [{ text: '     24 ', tone: 'dim' }, { text: '+    const delay = Math.min(baseMs * 2 ** attempt, maxMs);', tone: 'diff-add' }],
       [{ text: '     25 ', tone: 'dim' }, { text: '+    await sleep(delay + jitter(delay));', tone: 'diff-add' }],
       blank,
-      [{ text: '● ', tone: 'green' }, { text: 'Write', tone: 'bold' }, '(src/webhooks/retry.test.ts)'],
-      [{ text: '  └ ', tone: 'dim' }, { text: 'Wrote 58 lines to src/webhooks/retry.test.ts', tone: 'dim' }],
+      [{ text: '● ', tone: 'green' }, { text: 'Update', tone: 'bold' }, '(src/webhooks/retry.test.ts)'],
+      [{ text: '  └ ', tone: 'dim' }, { text: 'Updated src/webhooks/retry.test.ts with 58 additions', tone: 'dim' }],
       blank,
     ],
   },
@@ -70,9 +115,7 @@ export const CLAUDE_SESSION: readonly Block[] = [
       [{ text: '     0 fail', tone: 'dim' }],
       [{ text: '    Ran 17 tests across 3 files. [412.00ms]', tone: 'dim' }],
       blank,
-      ['● ', 'All webhook tests pass. Failed deliveries now retry with'],
-      ['  exponential backoff and jitter: 1s base, capped at 60s,'],
-      ['  up to 6 attempts before the event is parked for review.'],
+      ['● ', 'All webhook tests pass. Failed deliveries now retry with exponential backoff and jitter: 1s base, capped at 60s, up to 6 attempts before the event is parked for review.'],
       blank,
     ],
   },
@@ -97,13 +140,7 @@ export const CLAUDE_SESSION: readonly Block[] = [
     concealed: true,
     lines: [[{ text: '✶ Weaving… ', tone: 'claude' }, { text: '(esc to interrupt)', tone: 'dim' }], blank],
   },
-  {
-    kind: 'claude-input',
-    lines: [['> ']],
-  },
-  {
-    lines: [[{ text: '  ? for shortcuts', tone: 'dim' }]],
-  },
+  ...CLAUDE_INPUT,
 ];
 
 /** The shell in the new split, where the user types the Codex command. */
@@ -135,8 +172,7 @@ export const CODEX_UI: readonly Block[] = [
   {
     node: 'codex-work',
     lines: [
-      ['• ', 'I\'ll add a test that sends the same event twice and'],
-      ['  checks that only one charge is recorded.'],
+      ['• ', 'I\'ll add a test that sends the same event twice and checks that only one charge is recorded.'],
       blank,
       [{ text: '• ', tone: 'green' }, { text: 'Explored', tone: 'bold' }],
       [{ text: '  └ ', tone: 'dim' }, 'Read handler.ts, idempotency.ts'],
@@ -149,8 +185,7 @@ export const CODEX_UI: readonly Block[] = [
       blank,
       [{ text: '─ Worked for 1m 12s ─────────────────────', tone: 'dim' }],
       blank,
-      ['• ', 'Added a regression test: a second delivery with the'],
-      ['  same event id is acknowledged without charging again.'],
+      ['• ', 'Added a regression test: a second delivery with the same event id is acknowledged without charging again.'],
       blank,
     ],
   },
@@ -166,3 +201,16 @@ export const CODEX_UI: readonly Block[] = [
     lines: [[{ text: '  ⏎ send   ⌃J newline   ⌃T transcript   ⌃C quit', tone: 'dim' }]],
   },
 ];
+
+/**
+ * Claude's session as the phone shows it once it attaches: the work so far
+ * is already on screen, and only the parts that change while the phone
+ * drives keep a node (with a `p-` prefix). The later pull request fix never
+ * reaches the phone, which has gone back to the list by then.
+ */
+export const PHONE_CLAUDE_SESSION: readonly Block[] = withNodePrefix(
+  CLAUDE_SESSION.filter((block) => block.node !== 'claude-fix').map((block) =>
+    block.node === 'claude-work' ? { ...block, node: undefined } : block,
+  ),
+  'p-',
+);

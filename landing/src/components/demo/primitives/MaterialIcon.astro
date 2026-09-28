@@ -1,0 +1,47 @@
+---
+import add from '../../../assets/demo/material-icons/add.svg?raw';
+import arrowBack from '../../../assets/demo/material-icons/arrow_back.svg?raw';
+import arrowUpward from '../../../assets/demo/material-icons/arrow_upward.svg?raw';
+import batteryFull from '../../../assets/demo/material-icons/battery_full.svg?raw';
+import close from '../../../assets/demo/material-icons/close.svg?raw';
+import closeFullscreen from '../../../assets/demo/material-icons/close_fullscreen.svg?raw';
+import keyboardAltOutlined from '../../../assets/demo/material-icons/keyboard_alt_outlined.svg?raw';
+import moreVert from '../../../assets/demo/material-icons/more_vert.svg?raw';
+import signalCellular from '../../../assets/demo/material-icons/signal_cellular_4_bar.svg?raw';
+import smartphone from '../../../assets/demo/material-icons/smartphone.svg?raw';
+import wifi from '../../../assets/demo/material-icons/wifi.svg?raw';
+
+/**
+ * The Material icons Flutter's `Icons` class draws where the apps use it
+ * instead of Lucide: the phone's app bars, chips, send button and input
+ * toggle, and the desktop's phone-driver banner, plus the Android status bar
+ * glyphs around the phone app. SVGs from
+ * @material-design-icons/svg (Apache-2.0).
+ */
+const ICONS = {
+  add,
+  arrow_back: arrowBack,
+  arrow_upward: arrowUpward,
+  battery_full: batteryFull,
+  close,
+  close_fullscreen: closeFullscreen,
+  keyboard_alt_outlined: keyboardAltOutlined,
+  more_vert: moreVert,
+  signal_cellular_4_bar: signalCellular,
+  smartphone,
+  wifi,
+} as const;
+
+interface Props {
+  name: keyof typeof ICONS;
+  size?: number;
+  class?: string;
+}
+
+const { name, size = 24, class: className } = Astro.props;
+const markup = ICONS[name]
+  .replace(/ width="24" height="24"/, '')
+  .replace('<svg ', `<svg width="${size}" height="${size}" fill="currentColor" class="material-icon${className ? ` ${className}` : ''}" aria-hidden="true" focusable="false" `);
+---
+
+<Fragment set:html={markup} />

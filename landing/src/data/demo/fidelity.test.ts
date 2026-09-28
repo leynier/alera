@@ -4,6 +4,7 @@ import landingPackage from '../../../package.json';
 import coverage from '../font-coverage.json';
 import { APP_COPY } from './app-copy';
 import { CODICONS } from './codicons';
+import { macKeys, SHORTCUTS } from './shortcuts';
 import { lineText, type Block } from './terminal-lines';
 import * as transcripts from './transcripts';
 
@@ -13,7 +14,13 @@ import * as transcripts from './transcripts';
  * Rust code and compared with what the demo draws. When one fails, update the
  * demo in the same change as the app.
  */
-const repoFile = (path: string) => new URL(`../../../../${path}`, import.meta.url);
+// Every app file read here is recorded, so the last test can check that the
+// fidelity workflow runs when any of them changes.
+const appFilesRead = new Set<string>();
+const repoFile = (path: string) => {
+  appFilesRead.add(path);
+  return new URL(`../../../../${path}`, import.meta.url);
+};
 const readRepo = (path: string) => readFileSync(repoFile(path), 'utf8');
 const readLanding = (path: string) => readFileSync(new URL(`../../../${path}`, import.meta.url), 'utf8');
 
@@ -68,6 +75,32 @@ describe('demo tokens', () => {
   });
 });
 
+describe('demo terminal theme', () => {
+  const css = cssVariables(readLanding('src/styles/demo/terminal.css'));
+
+  test('paint every Alera Dark role with the token the app uses', () => {
+    const catalog = readRepo('lib/src/features/settings/domain/terminal_theme_catalog.dart');
+    const theme = catalog.slice(catalog.indexOf('const TerminalThemeEntry _aleraTheme'));
+    const roles = [...theme.slice(0, theme.indexOf(');\n')).matchAll(/(\w+): AleraTokens\.(\w+),/g)].filter(
+      ([, role]) => !role!.startsWith('searchHit'),
+    );
+    expect(roles.length).toBe(20);
+    for (const [, role, token] of roles) {
+      // The app sets every bright color to its normal one, so the demo names each once.
+      const name = `--term-${kebab(role!.replace(/^bright(?!Black)(\w)/, (_, first: string) => first.toLowerCase()))}`;
+      expect({ role, value: css.get(name) }).toEqual({ role, value: `var(--app-${kebab(token!)})` });
+    }
+  });
+
+  test('use the default terminal font size, line height and padding', () => {
+    const settings = readRepo('lib/src/features/settings/domain/alera_settings.dart');
+    expect(css.get('--term-font-size')).toBe(`${settings.match(/fontSize: (\d+),/)?.[1]}px`);
+    expect(css.get('--term-line-height')).toBe(settings.match(/lineHeight: ([\d.]+),/)?.[1]);
+    expect(settings).toContain('this.paddingX = AleraTokens.space12');
+    expect(css.get('--term-padding')).toBe('12px');
+  });
+});
+
 describe('demo icons', () => {
   test('name every Lucide role the way alera_icons.dart does', () => {
     const roles = new Map(
@@ -76,7 +109,7 @@ describe('demo icons', () => {
       ),
     );
     // Lucide renamed these glyphs; the Flutter package keeps the old names.
-    const renamed: Record<string, string> = { home: 'house' };
+    const renamed: Record<string, string> = { home: 'house', history: 'rotate-ccw-clock' };
     const source = readLanding('src/components/demo/primitives/app-icons.ts');
     const imports = new Map(
       [...source.matchAll(/import (\w+) from '@lucide\/astro\/icons\/([\w-]+)';/g)].map((match) => [match[1]!, match[2]!]),
@@ -87,6 +120,23 @@ describe('demo icons', () => {
       const expected = roles.get(role!);
       expect({ role, known: expected !== undefined }).toEqual({ role, known: true });
       expect({ role, icon: imports.get(component!) }).toEqual({ role, icon: renamed[expected!] ?? expected });
+    }
+  });
+
+  test('name every phone icon the way the mobile registry does', () => {
+    const roles = new Map(
+      [...readRepo('mobile/lib/src/design_system/icons/alera_icons.dart').matchAll(/static const IconData (\w+) = LucideIcons\.(\w+);/g)].map(
+        (match) => [match[1]!, kebab(match[2]!)],
+      ),
+    );
+    const source = readLanding('src/components/demo/primitives/mobile-icons.ts');
+    const imports = new Map(
+      [...source.matchAll(/import (\w+) from '@lucide\/astro\/icons\/([\w-]+)';/g)].map((match) => [match[1]!, match[2]!]),
+    );
+    const entries = [...source.matchAll(/^ {2}(\w+): (\w+),$/gm)];
+    expect(entries.length).toBeGreaterThan(10);
+    for (const [, role, component] of entries) {
+      expect({ role, icon: imports.get(component!) }).toEqual({ role, icon: roles.get(role!) });
     }
   });
 
@@ -116,6 +166,11 @@ describe('demo icons', () => {
       expect({ mark, same: demo.equals(readFileSync(repoFile(`assets/agents/${mark}`))) }).toEqual({ mark, same: true });
     }
   });
+
+  test('draw the sidebar brand with the app logo', () => {
+    const demo = readFileSync(new URL('../../../public/demo/alera-logo-white.png', import.meta.url));
+    expect(demo.equals(readFileSync(repoFile('assets/logo/alera-logo-white.png')))).toBe(true);
+  });
 });
 
 describe('demo copy', () => {
@@ -128,7 +183,7 @@ describe('demo copy', () => {
 });
 
 describe('demo terminals', () => {
-  const blocks = Object.values(transcripts).flat() as Block[];
+  const blocks = Object.values(transcripts).filter(Array.isArray).flat() as Block[];
   const text = blocks.flatMap((block) => block.lines.map(lineText)).join('\n');
 
   test('only use glyphs the served JetBrains Mono subsets draw', () => {
@@ -143,5 +198,30 @@ describe('demo terminals', () => {
 
   test('never use an em dash', () => {
     expect(text.includes('\u2014')).toBe(false);
+  });
+});
+
+describe('demo shortcuts', () => {
+  test('press the macOS defaults the keyboard registry declares', () => {
+    const definitions = readRepo('lib/src/features/keyboard/domain/keyboard_action_definitions.dart');
+    for (const shortcut of Object.values(SHORTCUTS)) {
+      const start = definitions.indexOf(`label: '${shortcut.label}',`);
+      expect({ label: shortcut.label, found: start >= 0 }).toEqual({ label: shortcut.label, found: true });
+      const definition = definitions.slice(start, definitions.indexOf('KeybindingDefinition(', start));
+      const macos = definition.match(/macos: <String>\['([^']+)'\]/)?.[1] ?? definition.match(/\.uniform\(<String>\['([^']+)'\]\)/)?.[1];
+      expect({ label: shortcut.label, chord: macos }).toEqual({ label: shortcut.label, chord: shortcut.chord });
+      expect(macKeys(shortcut.chord)).toBe(shortcut.keys);
+    }
+  });
+});
+
+// Keep this block last: bun runs a file's tests in order, so every read above has happened.
+describe('demo fidelity workflow', () => {
+  test('runs when any app file these tests read changes', () => {
+    const workflow = readRepo('.github/workflows/landing-fidelity.yml');
+    const watched = [...workflow.matchAll(/^\s+- '([^']+)'$/gm)].map((match) => new Bun.Glob(match[1]!));
+    expect(watched.length).toBeGreaterThan(5);
+    const unwatched = [...appFilesRead].filter((path) => !path.startsWith('.github/') && !watched.some((glob) => glob.match(path)));
+    expect(unwatched).toEqual([]);
   });
 });

@@ -1,0 +1,219 @@
+/* The right panel frame, menus, split buttons, checkboxes and the AI Assist
+   overlay (workspace_context_sidebar.dart, alera_dropdown_entry.dart,
+   workspace_git_diff_panel_toolbar.dart). */
+
+[data-alera-demo] .rp {
+  position: relative;
+  flex: none;
+  width: 52px;
+  border-left: 1px solid var(--app-border-subtle);
+  background: var(--app-surface-variant);
+}
+
+[data-alera-demo] .rp[data-state='expanded'] {
+  width: calc(var(--panel-w) * 1px + 6px);
+}
+
+[data-alera-demo] .rp-collapsed {
+  display: flex;
+  justify-content: center;
+}
+
+[data-alera-demo] .rp-expanded,
+[data-alera-demo] .rp[data-state='expanded'] .rp-collapsed {
+  display: none;
+}
+
+[data-alera-demo] .rp[data-state='expanded'] .rp-expanded {
+  display: flex;
+  height: 100%;
+}
+
+[data-alera-demo] .rp-handle {
+  position: relative;
+  flex: none;
+  width: 6px;
+}
+
+[data-alera-demo] .rp-handle::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2.5px;
+  width: 1px;
+  background: var(--app-border-subtle);
+  content: '';
+}
+
+[data-alera-demo] .rp-handle[data-state='drag']::after {
+  left: 2px;
+  width: 2px;
+  background: var(--app-border);
+}
+
+[data-alera-demo] .rp-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+[data-alera-demo] .rp-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Menus ------------------------------------------------------------------ */
+
+[data-alera-demo] .menu {
+  position: absolute;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface-elevated);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
+}
+
+[data-alera-demo] .menu-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 4px 8px;
+  border-radius: var(--app-radius-lg);
+  color: var(--app-foreground);
+  font-size: 13px;
+  letter-spacing: 0.25px;
+  white-space: nowrap;
+}
+
+[data-alera-demo] .menu-row > .app-icon {
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .menu-row[data-state='hover'] {
+  background: rgb(245 245 245 / 0.08);
+}
+
+[data-alera-demo] .menu-divider {
+  height: 1px;
+  margin: 7px 0 8px;
+  background: var(--app-border);
+}
+
+[data-alera-demo] .rp-add-menu {
+  top: 40px;
+  left: 128px;
+  width: 168px;
+}
+
+/* Split button ------------------------------------------------------------ */
+
+[data-alera-demo] .split-button {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  border-radius: var(--app-radius-lg);
+  background: var(--app-accent);
+  color: var(--app-on-accent);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+}
+
+[data-alera-demo] .split-button-tall {
+  height: 34px;
+}
+
+[data-alera-demo] .split-button-label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-left: 34.5px;
+}
+
+[data-alera-demo] .split-button-separator {
+  width: 0.5px;
+  height: 18px;
+  background: rgb(16 16 16 / 0.18);
+}
+
+[data-alera-demo] .split-button-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+}
+
+[data-alera-demo] .split-button[data-state='busy'] {
+  opacity: 0.38;
+}
+
+/* Checkbox (alera_checkbox.dart). */
+[data-alera-demo] .app-checkbox {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin: 0 0 0 -4px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-sm);
+  background: var(--app-surface-variant);
+}
+
+[data-alera-demo] .app-checkbox[data-state='checked'] {
+  border-color: var(--app-accent);
+  background: var(--app-accent);
+  color: var(--app-on-accent);
+}
+
+[data-alera-demo] .app-checkbox:not([data-state='checked']) .app-icon {
+  display: none;
+}
+
+/* AI Assist working over a field. */
+[data-alera-demo] .ai-generating {
+  position: absolute;
+  inset: -1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-barrier-dark);
+}
+
+[data-alera-demo] .ai-generating-plain {
+  border-radius: var(--app-radius-md);
+}
+
+[data-alera-demo] .ai-generating-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface-elevated);
+  color: var(--app-foreground-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+[data-alera-demo] .sc-ai-busy,
+[data-alera-demo] [data-state='generating'] > .sc-ai-idle {
+  display: none;
+}
+
+[data-alera-demo] [data-state='generating'] > .sc-ai-busy {
+  display: block;
+}

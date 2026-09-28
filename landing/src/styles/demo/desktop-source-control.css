@@ -1,0 +1,251 @@
+/* The Source Control tool in the right panel. */
+
+[data-alera-demo] .sc {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  color: var(--app-foreground);
+}
+
+[data-alera-demo] .sc-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+}
+
+[data-alera-demo] .sc-title-row {
+  display: flex;
+  align-items: center;
+  height: 22px;
+}
+
+[data-alera-demo] .sc-title {
+  flex: 1 1 0;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+}
+
+/* Both halves of the title row are Expanded; the actions scroll from the
+   right, so at 280 px the leftmost ones (AI Assist first) fall out of view. */
+[data-alera-demo] .sc-actions {
+  display: flex;
+  flex: 1 1 0;
+  justify-content: flex-end;
+  min-width: 0;
+  overflow: hidden;
+}
+
+[data-alera-demo] .sc-actions-track {
+  display: flex;
+  flex: none;
+  gap: 2px;
+}
+
+[data-alera-demo] .sc-message {
+  position: relative;
+  min-height: 64px;
+  padding: 16px 48px 8px 8px;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface);
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  line-height: 1.33;
+}
+
+[data-alera-demo] .sc-message-hint {
+  position: absolute;
+  top: 16px;
+  left: 8px;
+  color: var(--app-foreground-faint);
+}
+
+[data-alera-demo] .sc-message[data-state='filled'] .sc-message-hint {
+  display: none;
+}
+
+[data-alera-demo] .sc-message-text {
+  white-space: pre-wrap;
+}
+
+[data-alera-demo] .sc-mic {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--app-radius-pill);
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .sc-variant {
+  display: none;
+  align-items: center;
+  gap: 8px;
+}
+
+[data-alera-demo] .sc-primary[data-state='publish'] .sc-variant-publish,
+[data-alera-demo] .sc-primary[data-state='commit'] .sc-variant-commit,
+[data-alera-demo] .sc-primary:is([data-state='busy'], [data-state='fetch']) .sc-variant-fetch {
+  display: flex;
+}
+
+[data-alera-demo] .sc-branch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  color: var(--app-foreground-faint);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+}
+
+[data-alera-demo] .sc-branch-button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+}
+
+[data-alera-demo] .sc-branch-button .app-icon:last-child {
+  margin-left: -2px;
+}
+
+[data-alera-demo] .sc-divider {
+  flex: none;
+  height: 1px;
+  margin-top: 8px;
+  background: var(--app-border-subtle);
+}
+
+[data-alera-demo] .sc-files {
+  flex: 1;
+  min-height: 0;
+  padding: 6px 0;
+  overflow: hidden;
+}
+
+[data-alera-demo] .sc-group,
+[data-alera-demo] .sc-clean {
+  display: none;
+}
+
+[data-alera-demo] .sc-files[data-state='unstaged'] .sc-group-unstaged,
+[data-alera-demo] .sc-files[data-state='staged'] .sc-group-staged {
+  display: block;
+  padding-bottom: 8px;
+}
+
+[data-alera-demo] .sc-files[data-state='clean'] .sc-clean {
+  display: block;
+  padding: 16px;
+  color: var(--app-foreground-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+[data-alera-demo] .sc-row {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  padding: 4px 8px 4px calc(8px + var(--depth) * 12px);
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .sc-group-label {
+  margin-left: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+}
+
+[data-alera-demo] .sc-folder-icon {
+  display: flex;
+  margin-left: 2px;
+}
+
+[data-alera-demo] .sc-spacer {
+  width: 16px;
+  flex: none;
+}
+
+[data-alera-demo] .sc-name {
+  flex: 1;
+  min-width: 0;
+  margin-left: 6px;
+  overflow: hidden;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-alera-demo] .sc-group-label + .sc-count {
+  margin-left: auto;
+}
+
+[data-alera-demo] .sc-count {
+  color: var(--app-foreground-faint);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+}
+
+[data-alera-demo] .sc-row-actions {
+  display: flex;
+  margin-left: 6px;
+}
+
+[data-alera-demo] .sc-status {
+  width: 12px;
+  color: var(--app-warning);
+  font-size: 10px;
+  font-weight: 500;
+  text-align: center;
+}
+
+[data-alera-demo] .sc-stats {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  width: 64px;
+  margin-right: -2px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+}
+
+[data-alera-demo] .sc-add { color: var(--app-success); }
+[data-alera-demo] .sc-del { color: var(--app-error); }
+
+[data-alera-demo] .sc-commits {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 45px;
+  padding: 0 8px;
+  border-top: 1px solid var(--app-border-subtle);
+  background: var(--app-surface);
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .sc-commits-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+}
+
+[data-alera-demo] .sc-commits-count {
+  flex: 1;
+  color: var(--app-foreground-faint);
+  font-size: 10px;
+  font-weight: 500;
+}

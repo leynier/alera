@@ -1,0 +1,84 @@
+---
+import AgentLogo from '../primitives/AgentLogo.astro';
+import MobileIcon from '../primitives/MobileIcon.astro';
+import StateGlyph from '../primitives/StateGlyph.astro';
+import { concealedAttributes } from '../primitives/conceal';
+import type { GlyphState } from '../primitives/glyph-state';
+
+/**
+ * A workspace row on the phone (workspace_row_widgets.dart): the most urgent
+ * state across the workspace's agents, the single main agent's logo, the
+ * name in the foreground color, metadata icons, the agent summary when two
+ * or more agents run, and the actions button.
+ */
+type Agent = 'claude' | 'codex';
+interface Part {
+  node?: string;
+  concealed?: boolean;
+}
+interface Props {
+  node?: string;
+  name: string;
+  concealed?: boolean;
+  glyph: { state: GlyphState; node?: string };
+  logo?: Part & { agent: Agent };
+  pullRequest?: Part;
+  watch?: Part;
+  tray?: Part & { variants: readonly (Part & { groups: readonly { state: GlyphState; agents: readonly Agent[] }[] })[] };
+}
+
+const { node, name, concealed, glyph, logo, pullRequest, watch, tray } = Astro.props;
+---
+
+<div class="m-row" data-demo-node={node} {...concealedAttributes(concealed)}>
+  <span class="m-row-slot"><StateGlyph state={glyph.state} node={glyph.node} phone /></span>
+  {
+    logo && (
+      <span class="m-row-logo" data-demo-node={logo.node} {...concealedAttributes(logo.concealed)}>
+        <AgentLogo agent={logo.agent} size={16} />
+      </span>
+    )
+  }
+  <span class="m-row-main">
+    <span class="m-row-name">{name}</span>
+    <span class="m-row-icon m-row-worktree"><MobileIcon name="split" size={12} /></span>
+    {
+      pullRequest && (
+        <span class="m-row-icon m-row-pr" data-demo-node={pullRequest.node} {...concealedAttributes(pullRequest.concealed)}>
+          <MobileIcon name="gitPullRequest" size={12} />
+        </span>
+      )
+    }
+    {
+      watch && (
+        <span class="m-row-icon" data-demo-node={watch.node} {...concealedAttributes(watch.concealed)}>
+          <MobileIcon name="visible" size={12} />
+        </span>
+      )
+    }
+  </span>
+  {
+    tray && (
+      <span class="m-row-tray" data-demo-node={tray.node} {...concealedAttributes(tray.concealed)}>
+        {tray.variants.map((variant) => (
+          <span class="run-variant" data-demo-node={variant.node} {...concealedAttributes(variant.concealed)}>
+            {variant.groups.map((group) => (
+              <span class="run-group">
+                <StateGlyph state={group.state} size={11} phone />
+                <span class="run-avatars">
+                  {group.agents.map((agent) => (
+                    <span class="run-avatar">
+                      <AgentLogo agent={agent} size={9} />
+                    </span>
+                  ))}
+                </span>
+              </span>
+            ))}
+          </span>
+        ))}
+        <MobileIcon name="chevronDown" size={12} />
+      </span>
+    )
+  }
+  <span class="m-row-more"><MobileIcon name="more" size={16} /></span>
+</div>

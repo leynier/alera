@@ -51,6 +51,7 @@ export async function mountDemo(root: HTMLElement, board: Storyboard): Promise<D
   const scrub = root.querySelector<HTMLInputElement>('[data-demo-scrub]');
   const clock = root.querySelector<HTMLElement>('[data-demo-time]');
   const chapterButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-demo-chapter]')];
+  const replayButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-demo-replay]')];
 
   // Every face the stage draws with must be loaded before layout is measured:
   // a late font changes text widths and would move the pointer's targets.
@@ -153,6 +154,13 @@ export async function mountDemo(root: HTMLElement, board: Storyboard): Promise<D
       play();
     }
   });
+  replayButtons.forEach((button) =>
+    button.addEventListener('click', () => {
+      userPaused = false;
+      seek(0);
+      play();
+    }),
+  );
   scrub?.addEventListener('input', () => {
     pause('user');
     seek(Number(scrub.value));

@@ -317,9 +317,17 @@ export function compileStoryboard(board: Storyboard): CompiledTimeline {
     const nextIndex = keys.findIndex((key) => key.at >= t);
     const previousIndex = nextIndex === -1 ? keys.length - 1 : nextIndex - 1;
     const previous = previousIndex >= 0 ? keys[previousIndex]! : null;
-    if (previous?.hide) return { device, x: 0, y: 0, pressed: 0, visible: false };
-
     const next = nextIndex === -1 ? null : keys[nextIndex]!;
+    if (previous?.hide) {
+      // A hidden pointer comes back at its next target for that key's lead-in,
+      // the way a finger lands before it taps.
+      const target = next && !next.hide ? centre(nextIndex) : null;
+      if (next && target && t >= next.at - (next.moveMs ?? DEFAULT_MOVE_MS)) {
+        return { device, x: target[0], y: target[1], pressed: 0, visible: true };
+      }
+      return { device, x: 0, y: 0, pressed: 0, visible: false };
+    }
+
     const from = previousIndex >= 0 ? centre(previousIndex) : null;
     const to = next ? centre(nextIndex) : null;
     let position = from;

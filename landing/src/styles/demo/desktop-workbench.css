@@ -1,0 +1,196 @@
+/* The center workbench (workspace_panel_*.dart): views, panes, the 44 px
+   strips, tab chips, the 8 px split handle, and the phone-driver banner. */
+
+[data-alera-demo] .center {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  background: var(--app-bg);
+}
+
+[data-alera-demo] .center-view {
+  position: absolute;
+  inset: 0;
+}
+
+[data-alera-demo] .panes {
+  display: flex;
+  height: 100%;
+}
+
+[data-alera-demo] .pane {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-width: 0;
+}
+
+[data-alera-demo] .pane-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+[data-alera-demo] .split-handle {
+  position: relative;
+  flex: none;
+  width: 8px;
+  background: var(--app-surface);
+}
+
+[data-alera-demo] .split-handle::after {
+  position: absolute;
+  inset: 0 2px;
+  background: var(--app-border);
+  content: '';
+}
+
+/* One tab in the center: no strip. Two or more: every pane has one. */
+[data-alera-demo] .panes[data-state='single'] .pane-strip,
+[data-alera-demo] .panes:not([data-state='split']) :is(.split-handle, .pane-codex),
+[data-alera-demo] .panes:not([data-state='merged']) .chip-merged {
+  display: none;
+}
+
+/* While a phone drives it, the PTY takes the phone's 51 columns. */
+[data-alera-demo] .pane-claude[data-state='driven'] .term-claude .term-content {
+  max-width: 51ch;
+}
+
+[data-alera-demo] .pane-strip {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: 44px;
+  background: var(--app-surface);
+}
+
+[data-alera-demo] .pane-strip-panel {
+  background: transparent;
+}
+
+[data-alera-demo] .pane-chips {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  padding: 6px 8px;
+  overflow: hidden;
+}
+
+[data-alera-demo] .tab-chip {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  margin-right: 8px;
+  padding: 6px;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface);
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .tab-chip[data-state='active'] {
+  border-color: var(--app-border);
+  background: var(--app-surface-elevated);
+  color: var(--app-foreground);
+}
+
+[data-alera-demo] .tab-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+[data-alera-demo] .tab-dot[data-state='working'] { background: var(--app-info); }
+[data-alera-demo] .tab-dot:is([data-state='waiting'], [data-state='done-unviewed']) { background: var(--app-warning); }
+[data-alera-demo] .tab-dot[data-state='blocked'] { background: var(--app-error); }
+[data-alera-demo] .tab-dot[data-state='done'] { background: var(--app-success); }
+
+[data-alera-demo] .tab-title {
+  max-width: 92px;
+  overflow: hidden;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  line-height: 1.33;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-alera-demo] .tab-generating,
+[data-alera-demo] .tab-close {
+  display: flex;
+  flex: none;
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .tab-close {
+  padding: 2px;
+  border-radius: var(--app-radius-sm);
+}
+
+[data-alera-demo] .pane-add {
+  border-radius: var(--app-radius-sm);
+}
+
+/* Phone-driver banner -------------------------------------------------- */
+
+[data-alera-demo] .driver {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 10;
+  width: max-content;
+  padding: 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface-elevated);
+  font-size: 13px;
+  letter-spacing: 0.25px;
+  line-height: 1.43;
+  transform: translateX(-50%);
+}
+
+[data-alera-demo] .driver-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+[data-alera-demo] .driver-phone {
+  color: var(--app-info);
+}
+
+[data-alera-demo] .driver-title {
+  font-weight: 600;
+}
+
+[data-alera-demo] .driver-collapse {
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .driver-paused {
+  margin-top: 4px;
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .driver-take-back {
+  margin-top: 12px;
+}
+
+[data-alera-demo] .app-filled-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 26px;
+  padding: 0 14px;
+  border-radius: var(--app-radius-lg);
+  background: var(--app-accent);
+  color: var(--app-on-accent);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+}

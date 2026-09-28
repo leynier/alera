@@ -1,0 +1,34 @@
+---
+import folderOpen from '../../../assets/demo/file-icons/folder-open.svg?raw';
+import folderSrcOpen from '../../../assets/demo/file-icons/folder-src-open.svg?raw';
+import folderSrc from '../../../assets/demo/file-icons/folder-src.svg?raw';
+import folder from '../../../assets/demo/file-icons/folder.svg?raw';
+import testTs from '../../../assets/demo/file-icons/test-ts.svg?raw';
+import typescript from '../../../assets/demo/file-icons/typescript.svg?raw';
+
+/**
+ * File and folder icons from the Material Icon Theme the app renders through
+ * `vscode_material_icon_theme` (AleraFileIcon). SVGs from material-icon-theme
+ * 5.37.0 (MIT), the version the app's package pins.
+ */
+const ICONS = {
+  typescript,
+  'test-ts': testTs,
+  folder,
+  'folder-open': folderOpen,
+  'folder-src': folderSrc,
+  'folder-src-open': folderSrcOpen,
+} as const;
+
+interface Props {
+  name: keyof typeof ICONS;
+  size?: number;
+}
+
+const { name, size = 15 } = Astro.props;
+const markup = ICONS[name]
+  .replace(' xml:space="preserve"', '')
+  .replace('<svg ', `<svg width="${size}" height="${size}" class="file-icon" aria-hidden="true" focusable="false" `);
+---
+
+<Fragment set:html={markup} />

@@ -1,0 +1,86 @@
+---
+import '../../styles/demo/tokens.css';
+import '../../styles/demo/primitives.css';
+import '../../styles/demo/terminal.css';
+import '../../styles/demo/desktop-shell.css';
+import '../../styles/demo/desktop-sidebar.css';
+import '../../styles/demo/desktop-workbench.css';
+import '../../styles/demo/desktop-panel.css';
+import '../../styles/demo/desktop-source-control.css';
+import '../../styles/demo/desktop-pull-request.css';
+import '../../styles/demo/desktop-status.css';
+import '../../styles/demo/desktop-overlays.css';
+import '../../styles/demo/mobile-device.css';
+import '../../styles/demo/mobile-list.css';
+import '../../styles/demo/mobile-workspace.css';
+import '../../styles/demo/player.css';
+import { STORYBOARD } from '../../data/demo/storyboard';
+import { compileStoryboard } from '../../scripts/demo/timeline';
+import DemoControls from './DemoControls.astro';
+import DemoOverlays from './DemoOverlays.astro';
+import DemoTranscript from './DemoTranscript.astro';
+import DesktopWindow from './desktop/DesktopWindow.astro';
+import PhoneDevice from './mobile/PhoneDevice.astro';
+
+/**
+ * "See Alera In Action": the desktop and Android apps redrawn from the app's
+ * own tokens, icons and copy, played by the deterministic engine in
+ * src/scripts/demo. The stage is decorative for assistive technology; the
+ * controls, captions and the transcript carry the same story as text.
+ */
+const timeline = compileStoryboard(STORYBOARD);
+---
+
+<div class="demo" data-demo-root data-alera-demo>
+  <div class="demo-frame">
+    <div class="demo-viewport" data-demo-viewport aria-hidden="true" inert>
+      <div class="demo-stage" data-demo-stage>
+        <DesktopWindow />
+        <PhoneDevice />
+        <DemoOverlays part="pointers" />
+      </div>
+      <DemoOverlays part="hud" />
+    </div>
+    <div class="demo-end-card">
+      <p class="demo-end-title">Run Every CLI Coding Agent In Parallel</p>
+      <div class="demo-end-actions">
+        <a href="/download" class="demo-end-primary">Download</a>
+        <a href="/docs" class="demo-end-secondary">Read The Docs</a>
+        <button type="button" class="demo-end-secondary" data-demo-replay>Replay</button>
+      </div>
+    </div>
+  </div>
+  <p class="demo-caption" data-demo-caption>{timeline.chapters[0]!.caption}</p>
+  <DemoControls chapters={timeline.chapters} duration={timeline.duration} />
+  <div class="demo-meta">
+    <p class="demo-disclosure">
+      Interactive recreation of the Alera desktop and Android apps, built from the app's own tokens, icons, and copy. Agent sessions are staged samples. Agent status hooks and push notifications are turned on here; both are opt-in in the app.
+    </p>
+    <DemoTranscript chapters={timeline.chapters} beats={STORYBOARD.beats ?? []} />
+  </div>
+</div>
+
+<script>
+  import { STORYBOARD } from '../../data/demo/storyboard';
+  import { mountDemo } from '../../scripts/demo/player';
+
+  const root = document.querySelector<HTMLElement>('[data-demo-root]');
+  if (root) {
+    const capture = new URLSearchParams(window.location.search).get('demo') === 'capture';
+    if (capture) {
+      void mountDemo(root, STORYBOARD);
+    } else {
+      // Measuring the scene means rendering its frames once, so wait until
+      // the demo is about to scroll into view.
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (!entries.some((entry) => entry.isIntersecting)) return;
+          observer.disconnect();
+          void mountDemo(root, STORYBOARD);
+        },
+        { rootMargin: '400px 0px' },
+      );
+      observer.observe(root);
+    }
+  }
+</script>

@@ -1,0 +1,322 @@
+/* Dialog, form fields, job card and toasts (prompt_workspace_dialog*.dart,
+   alera_segmented_button.dart, alera_job_card.dart, alera_toast_host.dart). */
+
+[data-alera-demo] .dialog-barrier {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  background: var(--app-barrier-dark);
+}
+
+[data-alera-demo] .dialog-center {
+  position: absolute;
+  inset: 32px;
+  z-index: 41;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+[data-alera-demo] .dialog {
+  display: flex;
+  flex-direction: column;
+  width: 680px;
+  max-height: 740px;
+  padding: 20px;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: var(--app-radius-xl);
+  background: var(--app-surface);
+}
+
+[data-alera-demo] .dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+[data-alera-demo] .dialog-header-icon {
+  color: var(--app-accent);
+}
+
+[data-alera-demo] .dialog-title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.15px;
+  line-height: 1.5;
+}
+
+[data-alera-demo] .dialog-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 32px;
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .segmented {
+  display: inline-grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  align-self: flex-start;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  overflow: hidden;
+}
+
+[data-alera-demo] .segment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 16px 0 12px;
+  color: var(--app-foreground-muted);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+}
+
+[data-alera-demo] .segment + .segment {
+  border-left: 1px solid var(--app-border);
+}
+
+[data-alera-demo] .segment[data-state='selected'],
+[data-alera-demo] .dialog-location[data-state='folder'] .segment-folder,
+[data-alera-demo] .dialog-location[data-state='worktree'] .segment-worktree {
+  background: var(--app-surface-elevated);
+  color: var(--app-foreground);
+}
+
+[data-alera-demo] .dialog-mode {
+  margin: 16px 0 20px;
+}
+
+[data-alera-demo] .dialog-location {
+  margin-top: 12px;
+}
+
+[data-alera-demo] .dialog-location .segment {
+  padding: 0 12px;
+}
+
+[data-alera-demo] .dialog-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+[data-alera-demo] .dialog-form {
+  display: flex;
+  flex-direction: column;
+  translate: 0 calc(var(--scroll, 0) * -1px);
+}
+
+[data-alera-demo] .dialog-source-branch {
+  display: flex;
+  flex-direction: column;
+  margin-top: 12px;
+}
+
+[data-alera-demo] .field-label {
+  margin-bottom: 4px;
+  color: var(--app-foreground-muted);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  line-height: 1.45;
+}
+
+[data-alera-demo] .field-gap {
+  margin-top: 12px;
+}
+
+[data-alera-demo] .dropdown-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+[data-alera-demo] .dropdown-value .app-icon {
+  color: var(--app-foreground);
+}
+
+[data-alera-demo] .field-helper {
+  margin-top: 8px;
+  color: var(--app-foreground-muted);
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  line-height: 1.33;
+}
+
+/* Material outlined text fields with the label inside until they are
+   focused or filled, when it floats onto the top border at 0.75. */
+[data-alera-demo] .text-field {
+  position: relative;
+  display: block;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface-variant);
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  line-height: 1.5;
+}
+
+[data-alera-demo] .text-field-single {
+  height: 48px;
+}
+
+[data-alera-demo] .text-field-prompt {
+  min-height: 83px;
+  margin-top: 12px;
+  padding: 10px 48px 10px 12px;
+}
+
+[data-alera-demo] .text-field-label {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  color: var(--app-foreground-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  transform: translateY(-50%);
+  transform-origin: 0 50%;
+}
+
+[data-alera-demo] .text-field-prompt:is([data-state='focused'], [data-state='typing']) {
+  border-color: var(--app-accent);
+}
+
+[data-alera-demo] .text-field-prompt:is([data-state='focused'], [data-state='typing']) .text-field-label {
+  top: 0;
+  left: 10px;
+  padding: 0 3px;
+  background: linear-gradient(var(--app-surface) 50%, var(--app-surface-variant) 50%);
+  color: var(--app-accent);
+  transform: translateY(-50%) scale(0.75);
+}
+
+[data-alera-demo] .text-field-hint {
+  display: none;
+}
+
+[data-alera-demo] .text-field-prompt[data-state='focused'] .text-field-hint {
+  display: inline;
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .text-field-value {
+  color: var(--app-foreground);
+}
+
+/* A focused Flutter field draws a 2 px caret in the cursor color. */
+[data-alera-demo] .text-field-prompt:is([data-state='focused'], [data-state='typing']) .text-field-value::after {
+  display: inline-block;
+  width: 2px;
+  height: 1.2em;
+  margin-left: 1px;
+  vertical-align: -0.2em;
+  background: var(--app-accent);
+  content: '';
+}
+
+[data-alera-demo] .text-field-mic {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--app-radius-pill);
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .dialog-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 4px 0 4px 4px;
+  font-size: 13px;
+  letter-spacing: 0.25px;
+}
+
+[data-alera-demo] .dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+/* Job card and toasts --------------------------------------------------- */
+
+[data-alera-demo] .job-card {
+  position: absolute;
+  right: 16px;
+  bottom: 48px;
+  z-index: 30;
+  width: max-content;
+  max-width: 380px;
+  padding: 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface-elevated);
+  box-shadow: 0 6px 16px var(--app-shadow-soft);
+}
+
+[data-alera-demo] .job-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.25px;
+}
+
+[data-alera-demo] .job-card-spinner {
+  color: var(--app-accent);
+}
+
+[data-alera-demo] .job-card-phase {
+  margin-top: 8px;
+  color: var(--app-foreground-muted);
+  font-size: 12px;
+  letter-spacing: 0.4px;
+}
+
+[data-alera-demo] .toasts {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+[data-alera-demo] .toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 380px;
+  padding: 8px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface-elevated);
+  box-shadow: 0 6px 16px var(--app-shadow-soft);
+  font-size: 13px;
+  letter-spacing: 0.25px;
+  opacity: calc(1 - var(--exit, 0));
+  transform: translateX(calc(var(--exit, 0) * 8%));
+}
+
+[data-alera-demo] .toast .app-icon {
+  color: var(--app-success);
+}

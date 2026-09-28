@@ -1,0 +1,20 @@
+---
+import { APP_COPY } from '../../../data/demo/app-copy';
+import MaterialIcon from '../primitives/MaterialIcon.astro';
+import { concealedAttributes } from '../primitives/conceal';
+
+/**
+ * The banner a desktop terminal shows while a paired phone holds its driver
+ * seat (mobile_driver_overlay.dart), 12 px from the top of the pane.
+ */
+---
+
+<div class="driver" data-demo-node="d-driver" {...concealedAttributes(true)}>
+  <div class="driver-row">
+    <MaterialIcon name="smartphone" size={16} class="driver-phone" />
+    <span class="driver-title">{APP_COPY.driverTitle.text}</span>
+    <MaterialIcon name="close_fullscreen" size={16} class="driver-collapse" />
+  </div>
+  <div class="driver-paused">{APP_COPY.driverPaused.text}</div>
+  <span class="app-filled-button driver-take-back" data-demo-node="d-driver-take-back">{APP_COPY.takeBackTerminal.text}</span>
+</div>
