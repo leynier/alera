@@ -1,36 +1,39 @@
 ---
-import type { BlogPost } from '../../lib/blog';
-import { formatBlogDate } from '../../lib/blog';
+import BlogTagChips from './BlogTagChips.astro';
+import { formatBlogDate, postHref, readingTimeLabel, type BlogPost } from '../../lib/blog';
 
+/**
+ * A post in the blog index. The title link stretches over the whole card, and
+ * the tag chips sit above that layer, so the card is one target without
+ * nesting links.
+ */
 interface Props {
   post: BlogPost;
+  featured?: boolean;
 }
 
-const { post } = Astro.props;
-const href = `/blog/${post.id}`;
+const { post, featured = false } = Astro.props;
 ---
 
-<a
-  href={href}
-  class="group block border-b border-border-subtle py-8 first:pt-0 last:border-b-0 transition-colors duration-fast"
+<article
+  class:list={[
+    'group relative flex flex-col rounded-xl border border-border-subtle bg-surface/40 transition-colors duration-fast hover:border-border hover:bg-surface focus-within:border-foreground-faint',
+    featured ? 'p-6 md:p-8' : 'p-5',
+  ]}
 >
-  <time
-    datetime={post.data.pubDate.toISOString()}
-    class="text-label-md uppercase tracking-wide text-foreground-faint"
-  >
-    {formatBlogDate(post.data.pubDate)}
-  </time>
-  <h2
-    class="mt-2 text-headline-sm text-foreground group-hover:text-accent transition-colors duration-fast"
-  >
-    {post.data.title}
+  <p class="font-mono text-label-md uppercase text-foreground-faint">
+    {featured && <span class="text-foreground-muted">Featured · </span>}
+    <time datetime={post.data.pubDate.toISOString()}>{formatBlogDate(post.data.pubDate)}</time>
+    <span aria-hidden="true"> · </span>
+    <span>{readingTimeLabel(post)}</span>
+  </p>
+  <h2 class:list={['mt-3 text-foreground', featured ? 'text-headline-md md:text-headline-lg' : 'text-title-lg']}>
+    <a href={postHref(post)} class="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none">
+      {post.data.title}
+    </a>
   </h2>
-  <p class="mt-2 text-[15px] text-foreground-muted leading-relaxed">
+  <p class:list={['mt-2 flex-1 leading-relaxed text-foreground-muted', featured ? 'text-[15px] md:max-w-2xl' : 'text-body-lg']}>
     {post.data.description}
   </p>
-  <span
-    class="mt-3 inline-block text-body-md text-foreground-faint group-hover:text-foreground transition-colors duration-fast"
-  >
-    Read Post
-  </span>
-</a>
+  <BlogTagChips tags={post.data.tags} class="relative z-10 mt-4" />
+</article>

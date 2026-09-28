@@ -1,0 +1,30 @@
+---
+import Footer from '../../../components/Footer.astro';
+import Navbar from '../../../components/Navbar.astro';
+import BlogIndex from '../../../components/blog/BlogIndex.astro';
+import Layout from '../../../layouts/Layout.astro';
+import { getPublishedBlogPosts } from '../../../lib/blog';
+import { tagCounts } from '../../../lib/blog-listing';
+import { TAG_DESCRIPTIONS, tagHref, tagSlug, type BlogTag } from '../../../lib/blog-tags';
+
+// Only tags with a published post get a page, so no tag link leads nowhere.
+export async function getStaticPaths() {
+  const posts = await getPublishedBlogPosts();
+  return tagCounts(posts).map(({ tag }) => ({ params: { tag: tagSlug(tag) }, props: { tag, posts } }));
+}
+
+interface Props {
+  tag: BlogTag;
+  posts: Awaited<ReturnType<typeof getPublishedBlogPosts>>;
+}
+
+const { tag, posts } = Astro.props;
+---
+
+<Layout title={`${tag} - Alera Blog`} description={TAG_DESCRIPTIONS[tag]} canonicalPath={tagHref(tag)}>
+  <Navbar current="blog" />
+  <main class="px-6 pt-24 pb-20">
+    <BlogIndex posts={posts} tag={tag} />
+  </main>
+  <Footer />
+</Layout>

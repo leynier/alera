@@ -1,8 +1,13 @@
 ---
 title: "A Native-First Agent Workbench"
-description: "Why we bet on Flutter, Rust, and Ghostty instead of shipping another Electron shell around CLI agents."
+description: "Why we bet on Flutter and Rust instead of shipping another Electron shell around CLI agents."
 pubDate: 2026-07-28
+updatedDate: 2026-09-28
+tags: ["Product", "Performance", "Terminals"]
+relatedDocs: ["index", "projects", "quotas"]
 ---
+
+> **Update, September 2026:** Terminal output is parsed and drawn by our maintained fork of the xterm2 terminal emulator, not by Ghostty's VTE as this post first said.
 
 Every few months someone asks us why Alera is not an Electron app. It is a fair question. Electron is the path of least resistance for a desktop tool, and if your product is essentially a chat window, the tradeoffs are easy to swallow.
 

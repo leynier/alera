@@ -2,7 +2,16 @@
 title: "Bring Your Own CLI Agent To Alera"
 description: "We did not want to invent another agent protocol. If it runs in a terminal, it runs in Alera - and the big ones get first-class treatment."
 pubDate: 2026-07-28T15:00:00.000Z
+updatedDate: 2026-09-28
+tags: ["Agents", "Orchestration"]
+relatedDocs: ["agents", "orchestration", "worktrees"]
 ---
+
+> **Update, September 2026:**
+>
+> - Live status for these agents is opt-in: every status hook is off by default until you turn it on under **Settings → Agents → Status Hooks** or with `alera runtime agents`.
+> - OpenCode 2 is now a separate first-class agent with its own `opencode2` adapter, and it can run side by side with OpenCode.
+> - Quota tracking covers a fixed set of providers (see [Quotas And Resources](/docs/quotas)), so other CLIs get worktree isolation, persistent sessions, and resource tracking, but no quota readout.
 
 Every few weeks a new coding agent CLI appears, and every few weeks someone asks whether Alera supports it. Our answer has become a reflex: does it run in a terminal? Then yes.
 

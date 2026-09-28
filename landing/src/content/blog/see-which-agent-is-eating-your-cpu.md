@@ -2,7 +2,15 @@
 title: "See Which Agent Is Eating Your CPU"
 description: "Five agents in parallel and the fans spin up. The Resource Manager names the culprit per tab - including the time it blamed us, 26 times over."
 pubDate: 2026-07-28T14:00:00.000Z
+updatedDate: 2026-09-28
+tags: ["Performance", "Terminals"]
+relatedDocs: ["quotas", "projects"]
 ---
+
+> **Update, September 2026:**
+>
+> - The panel puts memory in context as the share of the machine's RAM the listed processes hold. It does not show system load.
+> - Sampling stops while the Alera window is hidden. While it is visible, the status-bar chip keeps a light sweep running every 15 seconds, and the open panel samples every 2 seconds.
 
 The moment you run several coding agents at once, your machine turns into a mystery. The fans spin up, everything feels slightly sticky, and the question is always the same: which one of them is doing this?
 

@@ -1,36 +1,37 @@
 ---
+import BlogTagChips from './BlogTagChips.astro';
 import { formatBlogDate } from '../../lib/blog';
+import type { BlogTag } from '../../lib/blog-tags';
 
 interface Props {
   title: string;
   description: string;
   pubDate: Date;
   updatedDate?: Date;
+  readingTime: string;
+  tags: readonly BlogTag[];
 }
 
-const { title, description, pubDate, updatedDate } = Astro.props;
+const { title, description, pubDate, updatedDate, readingTime, tags } = Astro.props;
 ---
 
-<header class="mb-10 pb-8 border-b border-border-subtle">
-  <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-label-md uppercase tracking-wide text-foreground-faint mb-4">
+<header class="border-b border-border-subtle pb-8">
+  <p class="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-label-md uppercase text-foreground-faint">
     <time datetime={pubDate.toISOString()}>{formatBlogDate(pubDate)}</time>
+    <span aria-hidden="true">·</span>
+    <span>{readingTime}</span>
     {
       updatedDate && (
-        <span>
-          Updated{' '}
-          <time datetime={updatedDate.toISOString()}>
-            {formatBlogDate(updatedDate)}
-          </time>
-        </span>
+        <>
+          <span aria-hidden="true">·</span>
+          <span>
+            Updated <time datetime={updatedDate.toISOString()}>{formatBlogDate(updatedDate)}</time>
+          </span>
+        </>
       )
     }
-  </div>
-  <h1
-    class="text-headline-lg md:text-[32px] font-semibold tracking-tight text-foreground mb-4"
-  >
-    {title}
-  </h1>
-  <p class="text-[15px] text-foreground-muted leading-relaxed">
-    {description}
   </p>
+  <h1 class="mt-4 text-headline-lg font-semibold tracking-tight text-foreground md:text-[32px]">{title}</h1>
+  <p class="mt-4 text-[15px] leading-relaxed text-foreground-muted">{description}</p>
+  <BlogTagChips tags={tags} class="mt-5" />
 </header>

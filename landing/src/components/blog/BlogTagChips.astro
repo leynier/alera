@@ -1,0 +1,26 @@
+---
+import { tagHref, type BlogTag } from '../../lib/blog-tags';
+
+/** A post's tags as small pills that open the tag's page. */
+interface Props {
+  tags: readonly BlogTag[];
+  class?: string;
+}
+
+const { tags, class: className } = Astro.props;
+---
+
+<ul class:list={['flex flex-wrap gap-1.5', className]} aria-label="Tags">
+  {
+    tags.map((tag) => (
+      <li>
+        <a
+          href={tagHref(tag)}
+          class="inline-flex rounded-pill border border-border-subtle px-2.5 py-0.5 font-mono text-label-md text-foreground-muted transition-colors duration-fast hover:border-foreground-faint hover:text-foreground"
+        >
+          {tag}
+        </a>
+      </li>
+    ))
+  }
+</ul>

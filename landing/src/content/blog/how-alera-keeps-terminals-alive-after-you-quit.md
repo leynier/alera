@@ -2,7 +2,15 @@
 title: "How Alera Keeps Terminals Alive After You Quit"
 description: "Closing a window should never kill a three-hour agent run. The trick is who owns the PTY, and it is not the UI."
 pubDate: 2026-07-28T18:00:00.000Z
+updatedDate: 2026-09-28
+tags: ["Terminals"]
+relatedDocs: ["projects", "agents", "mobile"]
 ---
+
+> **Update, September 2026:**
+>
+> - With default settings, closing the window hides Alera to the tray, and quitting while terminals are running asks whether to leave the runtime open or stop it (**Quit And Leave Runtime Open** or **Force Stop And Quit**). Turn on **Keep Runtime Open When App Quits** to always detach.
+> - Agent status hooks are off by default. Turn them on per agent under **Settings → Agents → Status Hooks**, or with `alera runtime agents enable`, to see who finished, who is working, and who is waiting when you return.
 
 Everyone who runs CLI agents has the scar. You close a window out of habit, or the app updates itself, or you reboot for an unrelated reason, and a run that had been going for two hours is just gone. The agent was mid-refactor. The scrollback with its reasoning is gone too.
 
