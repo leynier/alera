@@ -1,0 +1,55 @@
+---
+title: Mobile Companion
+description: Pair an Android phone with your Alera runtime to watch agents, answer them, and review work away from the desk.
+updatedDate: 2026-09-28
+---
+
+The mobile companion is a window into your runtime host, not a phone IDE. Pair it when a long agent run would otherwise chain you to the desk.
+
+## Install And Pair
+
+The companion is a separate Flutter app, published as a single arm64 APK for 64-bit Android phones (see [Install](/docs/install)).
+
+<Steps>
+
+1. On the desktop, open **Settings → Mobile Devices** and, under **Link A Device**, choose **Generate Pairing QR**. The code expires after **Expires In**, ten minutes by default. From a terminal, `alera mobile --json pairing create` prints the same offer.
+2. On the phone, tap **Pair Host** and scan the code, or use **Enter Code Manually** to paste the pairing offer.
+3. Optionally name the phone, then tap **Pair**.
+
+</Steps>
+
+## Reaching Your Runtime
+
+The phone talks to the runtime host over a WebSocket. Plain `ws://` is accepted only for loopback, Tailscale, and NetBird addresses; every other address must use `wss://`. Tailscale is the recommended way to reach a machine at home from anywhere. [Remote Access](/docs/remote-access) has the exact rules and setup.
+
+If you sign in to an optional [Alera account](/docs/accounts) on both sides and turn on **Enable Remote Access**, the phone tries a direct connection first and falls back to an end-to-end encrypted relay only when the network blocks it. The relay is live only: nothing is queued while either side is offline. Each host card on the phone says which path is in use, such as **Ready via direct** or **Ready via relay**.
+
+## What The Phone Can Do
+
+- See every workspace with its agents' live state: working, waiting for input, blocked, or done.
+- Open a terminal and drive it, with a compose bar for prompts and **Terminal Quick Keys** for the keys a phone keyboard lacks (arrows, Esc, Tab, Ctrl combinations).
+- Start an agent profile with a starting prompt, or create a workspace **From Prompt**. A new workspace is created in the background and never opens by itself.
+- Browse files in **Explorer**, run **Search** with replace, and stage, commit, push, and pull in **Source Control**.
+- Leave comments on a diff line and send them to a running agent, which does not navigate away from what you were reading.
+- Create, review, and merge GitHub pull requests, and start or stop **Watch and Fix** when the runtime supports it.
+- Rename, pin, sleep, archive, and remove workspaces, and check agent quotas.
+
+When the phone opens a terminal, the terminal resizes to the phone and the desktop shows that the phone is driving it, with **Take Back This Terminal** to return control to the desktop keyboard.
+
+## What Stays On The Desktop
+
+The phone does not split panes, edit or delete files, or open non-terminal tabs other than Markdown. GitLab and Azure DevOps pull requests, SSH host administration, and account ownership (linking a sign-in provider, moving a runtime, deleting the account) stay on the desktop. The runtime only accepts requests on the mobile allowlist, so a lost phone is an inconvenience, not an incident. Device tokens live in the phone's secure storage.
+
+## The Desktop Does Not Have To Stay Open
+
+Sessions belong to the runtime host, not to the Flutter window. You can quit the desktop UI, keep the host running (including `alera runtime start` on a workstation or VPS), and still attach from the phone.
+
+Your agents keep working on a machine that is awake. You keep an eye on them from a device that is in your pocket.
+
+## Push Notifications
+
+Alera accounts are optional for every local feature. If you opt in, the phone can get a push when an agent is waiting or blocked, or when an orchestration decision needs you, even after the desktop UI closes. Pushes for finished agents and exited terminals are separate categories and start turned off.
+
+A push names the agent and the workspace, such as "Claude needs attention" for a workspace in a project. It never includes prompts, commands, terminal output, or source code; an automation push shows the summary its run reported. Tapping an agent push opens that workspace and terminal, a terminal push opens the host's workspace list, and an automation push opens the run. See [Accounts, Push, And Sync](/docs/accounts#push-notifications) for the setup and categories.
+
+[Download Alera](/download) on desktop, pair the phone, and let the next long run finish without you in the chair.

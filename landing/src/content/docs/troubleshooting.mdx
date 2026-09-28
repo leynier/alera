@@ -1,0 +1,76 @@
+---
+title: Troubleshooting
+description: Check the runtime, collect logs and a diagnostics bundle, and fix stuck agent states, stale quotas, phone connections, and first-launch warnings.
+updatedDate: 2026-09-28
+---
+
+Start with the runtime, the sidecar that owns your terminals. Collect logs when you need to report a problem.
+
+## Check The Runtime
+
+The chip at the right end of the status bar reads **Runtime** plus its version while the runtime runs, or **Runtime stopped**, **Runtime error**, or **Update available**. Hover it for a card with the running and bundled versions and the number of **Sessions** and **Agents**; click to pin the card.
+
+- **Start** launches the runtime bundled with the app.
+- **Stop** shuts it down. If terminals, agents, background jobs, or push subscriptions are active, Alera asks again with **Force Stop**, which ends them.
+- **Update Runtime** appears when the app carries a newer runtime than the one running, usually after an app update while your sessions stayed alive. It stops the old runtime, with the same confirmation, and starts the new one.
+
+Quitting with work in progress asks **Runtime Still Has Work**, with **Quit And Leave Runtime Open** or **Force Stop And Quit**. In **Settings → Application → Runtime**, **Keep Runtime Open When App Quits** skips that question, and **Detached Session Shutdown** sets how long the runtime keeps sessions alive once the app is gone: one hour by default, and indefinitely while mobile access is on. A runtime started with `alera runtime start` shows **Lifecycle: Persistent** and never stops on its own.
+
+From a terminal, `alera runtime status` says whether the runtime is running and how many sessions it has, and `--json` prints the full status. See [Alera CLI](/docs/cli).
+
+## Logs And Diagnostics Bundles
+
+Every machine keeps rotating logs. The app writes to `logs` inside its application data folder, and the runtime it launches to `terminal_host/logs` in the same folder:
+
+| Platform | Application data folder |
+| --- | --- |
+| macOS | `~/Library/Application Support/dev.leynier.alera/` |
+| Windows | `%APPDATA%\dev.leynier\Alera\` |
+| Linux | `~/.local/share/dev.leynier.alera/` |
+
+A runtime started from the CLI on a server logs to `~/.alera/runtime/logs/` by default. A [remote host](/docs/remote-hosts) keeps its logs on that machine, by default in `~/.alera/sidecar/data/logs/`, or `%LOCALAPPDATA%\Alera\runtime\data\logs\` on Windows.
+
+**Settings → Application → Diagnostics** has:
+
+- **Open Logs Folder**, which shows the app's logs.
+- **Export Diagnostics**, which saves `alera-diagnostics-<time>.zip` with the app and runtime logs plus a `meta.json` of app, platform, and runtime versions, noting whether the runtime was reachable.
+- **Log Level**: **Errors only**, **Warnings**, **Normal** (the default), or **Verbose**, for the app and the runtime.
+
+Secrets such as tokens are masked, but logs can still mention repository paths, branches, and commands, so read the zip before posting it.
+
+**Send Crash Reports**, in the same group, is off by default. When on, crashes from the app and its runtime go to Sentry, an external service, with the same masking and no IP addresses. On the phone, **Settings → Logs And Crash Reports** has its own switch and **Export Logs**.
+
+## Agent States Do Not Update
+
+- Status hooks are **off by default**. Turn each agent on under **Settings → Agents → Status Hooks**, or with `alera runtime agents enable <agent>`.
+- Restart agents that were already running; Codex keeps the hooks it started with.
+- Hooks only report from terminals inside Alera.
+- A working agent that prints nothing and sends no hook for 60 seconds shows as done until its next hook.
+- Inside `tmux`, `screen`, or `zellij`, only the agent's own hooks report its state.
+
+More in [CLI Agents](/docs/agents).
+
+## Quotas Look Stale
+
+A quota marked **Stale** kept its last good reading because a refresh failed, or that reading is over 30 minutes old. Quotas refresh every 15 minutes, and the refresh button at the end of the quota bar skips the cache. After changing a credential variable in your shell profile, use **Reload Shell Environment** in **Settings → Terminal → Advanced**, then refresh. See [Quotas And Resources](/docs/quotas).
+
+## The Phone Cannot Connect
+
+- The runtime must be running; the desktop window need not be.
+- In **Settings → Mobile Devices**, turn on **Enable Mobile Access**. **Connection Mode** starts at **This Device**, which only this computer can reach: pick **Tailscale**, **NetBird**, or **Manual**, then **Apply**. On Windows, allow Alera through Windows Firewall for the gateway port.
+- The relay needs an Alera account on both sides and **Enable Remote Access**; **Relay Status** shows whether it is connected.
+- A pairing code expires after its **Expires In** time, ten minutes by default.
+
+See [Mobile Companion](/docs/mobile) and [Remote Access](/docs/remote-access).
+
+## First Launch
+
+Windows and macOS builds are not signed yet, so SmartScreen reports an unknown publisher and Gatekeeper asks you to allow the app explicitly. The Homebrew cask clears the quarantine attribute for you. On Linux, the package repository installs every library Alera needs; a tarball needs GTK 3, json-glib, libsecret, SQLite, OpenSSL, the Vulkan loader, Ayatana AppIndicator, and ALSA. See [Install](/docs/install).
+
+## Keep Alive
+
+The **Keep Alive** chip in the status bar, the same switch as **Keep Computer Awake** in **Settings → Application → Runtime**, prevents idle and display sleep while Alera runs. Closing the lid still follows your power settings. If the system refuses, the chip changes color and its tooltip says why. **Keep Computer Awake While Agents Are Working** in **Settings → Agents** only applies while an agent with status hooks on is working.
+
+## Report A Bug
+
+Open an issue on [GitHub](https://github.com/leynier/alera/issues) with the **Bug report** form. Copy your version from **About Alera** in the application menu and attach the diagnostics zip. Report security problems privately, never in a public issue, and never paste tokens, terminal output, or private data.

@@ -1,0 +1,69 @@
+---
+title: Orchestration
+description: Coordinate several CLI agents in one Alera workspace with a durable coordinator run.
+updatedDate: 2026-09-28
+---
+
+Tabs full of agents are useful until they need to work together. Who owns this task? Did that worker finish or crash? Which agent is allowed to approve the risky step? Orchestration answers those questions inside the Rust runtime host. It does not replace your agent CLIs; it schedules and owns the work they accept.
+
+## What Ships Today
+
+- **Workspace-scoped coordinator runs.** A workspace has at most one active run. Unrelated workspaces can coordinate at the same time.
+- **Durable task ownership.** Tasks and dispatches persist in the runtime SQLite database, so a restart does not forget who was doing what.
+- **Atomic spawn, readiness, and acceptance.** Workers start through registered adapters and explicitly accept dispatches.
+- **Decision gates and messaging.** Blocking decisions and persistent messages between agents.
+- **Agent profiles.** User-declared launch configurations the coordinator may dispatch to.
+
+Mutations pass through the authenticated host actor. Authority comes from the run or task coordinator, not from whichever terminal happened to call a command.
+
+## Agent Profiles
+
+Profiles can be managed from **Settings → Agent Profiles** or the top-level `alera agent-profile` CLI. Each one has a name, an adapter from the built-in registry (`codex`, `claude`, `copilot`, `cursor`, `agy`, `opencode`, `opencode2`, `pi`, `amp`, `grok`, `fx`, and related defaults), a launch configuration, a description used as a routing signal, and an optional quota group.
+
+```bash
+alera orchestration --json agent-profiles
+alera agent-profile --json list
+alera agent-profile create --name "Codex Sol" --agent-type codex --launch-mode command --command "codex --search"
+```
+
+The administrative CLI also supports show, patch-style update, removal impact, confirmed removal, complete-catalog reorder, and launching a profile in a workspace. Managed profiles accept configuration as inline JSON, a file, or standard input. Changing the adapter of an existing Managed profile requires an explicit new configuration, and reduced-protection settings require an explicit confirmation flag. A coordinator only reads the closed catalog you approved, and Alera's own coordinator loop launches only those profiles or adapter defaults. `alera orchestration agent-spawn` still accepts an explicit `--command` from the coordinator that owns the task, so spawn with `--profile` to keep a worker inside the catalog.
+
+## A Minimal Loop
+
+```bash
+alera orchestration task-create --workspace <workspace-id> --spec "Review tests"
+alera orchestration run --workspace <workspace-id> --agent codex --spec "Audit the repository"
+alera orchestration run-list --workspace <workspace-id>
+alera orchestration run-show --id <run-id>
+```
+
+`task-create`, `agent-spawn`, and `run` default `--workspace` from `ALERA_WORKSPACE_ID`. Use `alera orchestration current` to inspect the current workspace and terminal identity.
+
+Workers accept, heartbeat, escalate, and complete through the orchestration CLI, with context inferred from the active terminal.
+
+## Execution Policies
+
+A run may carry a stage plan that you approve before dispatch: a preferred profile per stage, plus ordered fallbacks. Scheduling holds until you approve or reject the plan.
+
+```bash
+alera orchestration run-policy-propose --run <run-id> --policy-file plan.json
+alera orchestration run-policy-show --run <run-id>
+alera orchestration run-policy-approve --run <run-id>
+alera orchestration run-policy-reject --run <run-id> --reason "Wrong stage split"
+```
+
+Runs without a policy behave as they did before. Coordination you did not ask for does not change a workspace.
+
+Pending plans also surface through **Execution Plans** in the application menu, and the **Run Board** (also in the application menu) lists every run that needs attention, is active, or has finished.
+
+## Stopping A Run
+
+```bash
+alera orchestration run-stop --id <run-id> --reason "Stopped by coordinator"
+```
+
+`run-stop` is graceful by default: it stops new scheduling while active workers can finish. `--cancel-active` applies cooperative cancellation to active tasks. `--force` is reserved for audited administrative recovery.
+
+<Callout>
+Orchestration is for durable multi-agent coordination inside Alera-managed workspaces. The protocol will keep evolving as we run more of our own work through it.
+</Callout>

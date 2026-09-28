@@ -1,0 +1,319 @@
+/* The Pull Request tool in the right panel: the create form, then the
+   summary with its checks, the Ask Agent menu and the comment composer. */
+
+[data-alera-demo] .pr {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--app-surface-variant);
+  color: var(--app-foreground);
+}
+
+[data-alera-demo] .pr-header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--app-border-subtle);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+}
+
+[data-alera-demo] .pr-form,
+[data-alera-demo] .pr-summary {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px;
+}
+
+[data-alera-demo] .pr-scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+[data-alera-demo] .pr-label {
+  margin-bottom: 4px;
+  color: var(--app-foreground-muted);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+}
+
+[data-alera-demo] .pr-label-spaced {
+  margin-top: 12px;
+}
+
+[data-alera-demo] .pr-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 22px;
+  margin: 12px 0 4px;
+}
+
+[data-alera-demo] .pr-label-row .pr-label {
+  margin: 0;
+}
+
+
+[data-alera-demo] .pr-field {
+  position: relative;
+  display: block;
+  min-height: 32px;
+  padding: 8px 48px 8px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface);
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  line-height: 1.33;
+}
+
+[data-alera-demo] .pr-description {
+  min-height: 64px;
+}
+
+[data-alera-demo] .pr-hint {
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .pr-description-text {
+  white-space: pre-wrap;
+}
+
+[data-alera-demo] .pr-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+[data-alera-demo] .pr-outlined {
+  justify-content: center;
+  height: 28px;
+  padding: 0 16px;
+  color: var(--app-foreground);
+}
+
+[data-alera-demo] .pr-create-busy,
+[data-alera-demo] [data-state='busy'] .pr-create-icon {
+  display: none;
+}
+
+[data-alera-demo] [data-state='busy'] .pr-create-busy {
+  display: block;
+}
+
+[data-alera-demo] .pr-link-existing {
+  align-self: center;
+  margin-top: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+[data-alera-demo] .pr-summary-head {
+  display: flex;
+  align-items: center;
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .pr-number {
+  margin-left: 6px;
+  color: var(--app-foreground);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+[data-alera-demo] .pr-state {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: var(--app-radius-sm);
+  background: rgb(34 197 94 / 0.15);
+  color: var(--app-success);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+}
+
+[data-alera-demo] .pr-head-actions {
+  display: flex;
+  margin-left: auto;
+}
+
+[data-alera-demo] .pr-ask-watching,
+[data-alera-demo] .pr-ask[data-state='watching'] .pr-ask-idle {
+  display: none;
+}
+
+[data-alera-demo] .pr-ask[data-state='watching'] .pr-ask-watching {
+  display: block;
+}
+
+[data-alera-demo] .pr-summary-title {
+  margin-top: 8px;
+  font-size: 13px;
+  letter-spacing: 0.25px;
+  line-height: 1.43;
+}
+
+[data-alera-demo] .pr-watching {
+  margin-top: 4px;
+  color: var(--app-foreground-muted);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+}
+
+[data-alera-demo] .pr-byline {
+  margin-top: 4px;
+  color: var(--app-foreground-muted);
+  font-size: 12px;
+  letter-spacing: 0.4px;
+}
+
+[data-alera-demo] .pr-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface);
+}
+
+[data-alera-demo] .pr-stack-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+[data-alera-demo] .pr-stack-body,
+[data-alera-demo] .pr-muted {
+  color: var(--app-foreground-muted);
+  font-size: 12px;
+  letter-spacing: 0.4px;
+}
+
+[data-alera-demo] .pr-stack-button {
+  align-self: flex-start;
+  color: var(--app-foreground);
+}
+
+[data-alera-demo] .pr-checks-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+
+[data-alera-demo] .pr-section-title {
+  color: var(--app-foreground-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+[data-alera-demo] .pr-fix-failed {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+[data-alera-demo] .pr-checks {
+  margin-top: 8px;
+}
+
+[data-alera-demo] .pr-check-variant {
+  display: none;
+}
+
+[data-alera-demo] .pr-checks[data-state='pending'] [data-variant='pending'],
+[data-alera-demo] .pr-checks[data-state='failing'] [data-variant='failing'],
+[data-alera-demo] .pr-checks[data-state='failed'] [data-variant='failed'],
+[data-alera-demo] .pr-checks[data-state='passed'] [data-variant='passed'] {
+  display: block;
+}
+
+[data-alera-demo] .pr-check-group-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+  color: var(--app-foreground-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+[data-alera-demo] .pr-check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding-left: 8px;
+}
+
+[data-alera-demo] .pr-check-row[data-status='running'] > .app-icon:first-child { color: var(--app-warning); }
+[data-alera-demo] .pr-check-row[data-status='success'] > .app-icon:first-child { color: var(--app-success); }
+[data-alera-demo] .pr-check-row[data-status='failure'] > .app-icon:first-child { color: var(--app-error); }
+
+[data-alera-demo] .pr-check-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--app-foreground-muted);
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-alera-demo] .pr-check-chevron {
+  margin-left: -4px;
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .pr-section-title:not(.pr-checks-head > *) {
+  margin-top: 16px;
+}
+
+[data-alera-demo] .pr-comment-composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface);
+  color: var(--app-foreground-muted);
+  font-size: 12px;
+}
+
+[data-alera-demo] .pr-pinned {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+[data-alera-demo] .pr-ask-menu {
+  top: 76px;
+  right: 12px;
+  width: 224px;
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface);
+}

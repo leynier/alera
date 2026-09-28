@@ -1,0 +1,84 @@
+---
+import { ANDROID_ASSET, ANDROID_URL } from '../../data/install-channels';
+
+/**
+ * The "Your System" card. Rendered as a neutral chooser so it stays useful
+ * without JavaScript, then narrowed to the visitor's platform by the script.
+ * One list drives both the card and the section links, so they cannot
+ * disagree about what a platform offers.
+ */
+const platforms = [
+  { id: 'macos', name: 'macOS', summary: 'Install with Homebrew, or download the app.', action: 'See The Commands', href: '#macos', available: true },
+  { id: 'windows', name: 'Windows', summary: 'Install with Scoop or Chocolatey, or download the app.', action: 'See The Commands', href: '#windows', available: true },
+  { id: 'linux', name: 'Linux', summary: 'Install from the signed package repository.', action: 'See The Command', href: '#linux', available: true },
+  { id: 'android', name: 'Android', summary: `Download ${ANDROID_ASSET}.`, action: 'Download The APK', href: ANDROID_URL, available: true },
+  { id: 'ios', name: 'iOS', summary: 'Not available yet.', action: 'Coming Soon', href: null, available: false },
+];
+---
+
+<section
+  id="your-system"
+  data-platforms={JSON.stringify(platforms)}
+  class="mb-14 rounded-lg border border-border bg-surface-variant p-6"
+>
+  <p class="mb-2 text-label-md text-foreground-faint">Your System</p>
+  <p id="detected-name" class="mb-2 text-title-lg text-foreground">Choose Your Platform</p>
+  <p id="detected-summary" class="mb-5 text-body-md leading-relaxed text-foreground-muted">
+    Pick the platform you are installing on from the sections below.
+  </p>
+  <a
+    id="detected-action"
+    href="#macos"
+    class="inline-flex items-center gap-2 rounded-lg bg-accent px-3.5 py-1.5 text-body-md font-medium text-on-accent transition-opacity duration-fast hover:opacity-90"
+  >
+    See All Platforms
+  </a>
+  <span
+    id="detected-unavailable"
+    hidden
+    class="inline-flex items-center gap-2 rounded-lg border border-border px-3.5 py-1.5 text-body-md text-foreground-faint"
+  >
+    Coming Soon
+  </span>
+</section>
+
+<script>
+  import { browserPlatformHints, detectInstallPlatform } from '../../lib/install-platform';
+
+  interface DownloadPlatform {
+    id: string;
+    name: string;
+    summary: string;
+    action: string;
+    href: string | null;
+    available: boolean;
+  }
+
+  const card = document.getElementById('your-system');
+  const nameNode = document.getElementById('detected-name');
+  const summaryNode = document.getElementById('detected-summary');
+  const actionNode = document.getElementById('detected-action');
+  const unavailableNode = document.getElementById('detected-unavailable');
+
+  if (card && nameNode && summaryNode && actionNode && unavailableNode) {
+    const platforms: DownloadPlatform[] = JSON.parse(card.dataset.platforms ?? '[]');
+    const detected = detectInstallPlatform(browserPlatformHints());
+    const platform = platforms.find((entry) => entry.id === detected);
+    if (platform) {
+      nameNode.textContent = platform.name;
+      summaryNode.textContent = platform.summary;
+      if (platform.available && platform.href) {
+        actionNode.setAttribute('href', platform.href);
+        actionNode.textContent = platform.action;
+        if (platform.href.startsWith('http')) {
+          actionNode.setAttribute('target', '_blank');
+          actionNode.setAttribute('rel', 'noopener noreferrer');
+        }
+      } else {
+        // Never leave a call to action that implies an install we cannot deliver.
+        actionNode.hidden = true;
+        unavailableNode.hidden = false;
+      }
+    }
+  }
+</script>

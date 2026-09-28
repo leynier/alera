@@ -1,80 +1,100 @@
 ---
+import Gauge from '@lucide/astro/icons/gauge';
+import GitBranch from '@lucide/astro/icons/git-branch';
+import GitCommitHorizontal from '@lucide/astro/icons/git-commit-horizontal';
+import GitPullRequest from '@lucide/astro/icons/git-pull-request';
+import Server from '@lucide/astro/icons/server';
+import Smartphone from '@lucide/astro/icons/smartphone';
+import Sparkles from '@lucide/astro/icons/sparkles';
+import Terminal from '@lucide/astro/icons/terminal';
+import Workflow from '@lucide/astro/icons/workflow';
+
 const features = [
   {
-    icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />',
-    title: 'Native performance, no Electron',
-    description: 'Flutter for a fast, consistent desktop UI. Rust for the PTY and process layer via portable_pty. Ghostty\'s VTE for terminal parsing. No embedded browser, no JS event loop in the hot path. Just native rendering on macOS, Windows, and Linux.',
+    icon: GitBranch,
+    title: 'One Worktree Per Task',
+    description: 'Every task can get its own Git worktree, so Claude Code, Codex, Amp, and fx work side by side in tabs and split panes without stashing or stepping on each other.',
+    href: '/docs/worktrees',
   },
   {
-    icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 7v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2h-5l-2-2H6a2 2 0 00-2 2z M9 13h6" />',
-    title: 'Worktree-native multi-agent',
-    description: 'Every task gets its own Git worktree. Run Claude, Codex, Amp, fx, and friends side-by-side in tabs and split panes. No stashing, no branch juggling, no agents stepping on each other\'s files.',
+    icon: Terminal,
+    title: 'Persistent Terminals, Live Agent States',
+    description: 'Terminals live in the runtime, not the window. Close the window and come back to the same sessions. Status hooks show who is working, who is waiting, and who is done.',
+    href: '/docs/terminals',
   },
   {
-    icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7H4a2 2 0 00-2 2v8a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zM6 11h.01M10 11h.01M14 11h.01M18 11h.01" />',
-    title: 'Persistent terminals & live activity',
-    description: 'Close the app, reboot, come back, and your terminals, scrollback, and layouts are still there. Managed lifecycle hooks for the major CLI agents stream their state into Alera so you can see, at a glance, who\'s working and who\'s waiting on you.',
+    icon: Sparkles,
+    title: 'Start From A Prompt',
+    description: 'Describe the task in New Workspace. AI Assist names the workspace, and Alera creates it in the background, on the project folder or in a new worktree, and starts your agent with the prompt.',
+    href: '/docs/new-workspace',
   },
   {
-    icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM9 10h6M9 14h3" />',
-    title: 'Workspace search & explorer',
-    description: 'Browse workspace folders with dynamic filters for ignored files. Search and replace with regex queries and tree-based result controls, without ever leaving the workbench.',
+    icon: GitCommitHorizontal,
+    title: 'Review And Commit',
+    description: 'Read the diff, stage and commit visually, let AI Assist draft the commit message, and send line comments back to the agent that wrote the code.',
+    href: '/docs/source-control',
   },
   {
-    icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7v12m0 0l-4-4m4 4l4-4M16 17V5m0 0l-4 4m4-4l4 4" />',
-    title: 'Visual Git diff & actions',
-    description: 'Review structured diffs side-by-side or unified. Stage, commit, amend, stash, and discard changes visually, accompanied by AI-powered commit message suggestions.',
+    icon: GitPullRequest,
+    title: 'Pull Requests And Watch And Fix',
+    description: 'Create and merge pull requests on GitHub, GitLab, and Azure DevOps, follow CI checks, and let Watch and Fix hand failing checks and review comments back to an agent.',
+    href: '/docs/pull-requests',
   },
   {
-    icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 00-2 2zM9 9h6M9 13h6M9 17h3" />',
-    title: 'Rich asset & document previews',
-    description: 'Preview Markdown notes, PDF documents, standalone Mermaid diagrams, and image assets in secure tabs. Rendered natively alongside code for swift inspection.',
+    icon: Smartphone,
+    title: 'Answer From Your Phone',
+    description: 'The Android companion gets a push when an agent needs you, opens that terminal, and lets you reply with quick keys from wherever you can reach your runtime.',
+    href: '/docs/mobile',
   },
   {
-    icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />',
-    title: 'Pull requests & checks',
-    description: 'Create, edit, comment, and merge pull requests per worktree on GitHub and Azure DevOps. CI checks grouped by status with drill-down details, plus AI-generated PR titles and descriptions.',
+    icon: Server,
+    title: 'Remote SSH Hosts',
+    description: 'Create workspaces on machines you reach over SSH. A runtime on each host runs terminals, files, and Git where the code lives, while your desktop stays the hub.',
+    href: '/docs/remote-hosts',
   },
   {
-    icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v4m0 0a2 2 0 100 4 2 2 0 000-4zm-6 12a2 2 0 100-4 2 2 0 000 4zm0 0v-2a2 2 0 012-2h8a2 2 0 012 2v2m0 0a2 2 0 100-4 2 2 0 000 4z" />',
-    title: 'Inter-agent orchestration',
-    description: 'Agents coordinate through workspace-scoped coordinator runs: task dispatch with durable ownership, decision gates, structured results, and persistent messaging between agents.',
+    icon: Workflow,
+    title: 'Inter-Agent Orchestration',
+    description: 'Coordinator runs dispatch tasks to your agent profiles with durable ownership, decision gates, and messaging, and the Run Board shows every run that needs you.',
+    href: '/docs/orchestration',
   },
   {
-    icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6M15 19v-10M12 19v-3M4 19h16M4 5h16" />',
-    title: 'Agent quota tracking',
-    description: 'A status bar keeps provider quota usage in sight while agents run: Claude Code and CCS profiles, Codex, Kimi, Grok Build, Antigravity, MiniMax, and Z.ai, resolved locally or remotely.',
+    icon: Gauge,
+    title: 'Quotas And Resources',
+    description: 'Provider quota windows sit in the status bar, and the Resource Manager attributes CPU and memory to each project, workspace, and terminal tab.',
+    href: '/docs/quotas',
   },
 ];
 ---
 
-<section id="features" class="defer-offscreen-rendering py-24 px-6">
-  <div class="max-w-6xl mx-auto">
-    <div class="text-center mb-16">
-      <p class="text-label-md text-foreground-faint uppercase tracking-widest font-mono mb-4">Features</p>
-      <h2 class="text-headline-lg md:text-[32px] font-semibold tracking-tight text-foreground mb-4">
-        Built for how you actually work with agents
+<section id="features" class="defer-offscreen-rendering px-6 py-24">
+  <div class="mx-auto max-w-6xl">
+    <div class="mb-16 text-center">
+      <p class="mb-4 font-mono text-label-md uppercase tracking-widest text-foreground-faint">Features</p>
+      <h2 class="mb-4 text-headline-lg font-semibold tracking-tight text-foreground md:text-[32px]">
+        Built For How You Actually Work With Agents
       </h2>
-      <p class="text-[15px] text-foreground-muted max-w-lg mx-auto">
-        A native desktop workbench that puts terminals, worktrees, and CLI agents in one fast workspace, without locking you into one provider.
+      <p class="mx-auto max-w-lg text-[15px] text-foreground-muted">
+        A native workbench that puts terminals, worktrees, review, and CLI agents in one place, without locking you
+        into one provider.
       </p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-      {features.map((feature, i) => (
-        <div
-          class="group relative rounded-xl bg-surface border border-border p-7 transition-all duration-mid hover:bg-surface-variant hover:border-foreground-faint/20 opacity-0-initial animate-fade-in-up"
-          style={`animation-delay: ${300 + i * 100}ms`}
-        >
-          <div class="w-10 h-10 rounded-lg bg-accent-subtle flex items-center justify-center mb-5 transition-transform duration-mid group-hover:scale-110">
-            <svg class="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <Fragment set:html={feature.icon} />
-            </svg>
-          </div>
-          <h3 class="text-title-lg text-foreground mb-2.5">{feature.title}</h3>
-          <p class="text-body-md text-foreground-muted leading-relaxed">{feature.description}</p>
-        </div>
-      ))}
+    <div class="grid grid-cols-1 gap-5 md:grid-cols-3">
+      {
+        features.map((feature) => (
+          <a
+            href={feature.href}
+            class="group relative rounded-xl border border-border bg-surface p-7 transition-colors duration-mid hover:border-foreground-faint/30 hover:bg-surface-variant"
+          >
+            <span class="mb-5 inline-flex size-10 items-center justify-center rounded-lg bg-accent-subtle text-accent transition-transform duration-mid group-hover:scale-110">
+              <feature.icon size={20} stroke-width={1.5} />
+            </span>
+            <h3 class="mb-2.5 text-title-lg text-foreground">{feature.title}</h3>
+            <p class="text-body-md leading-relaxed text-foreground-muted">{feature.description}</p>
+          </a>
+        ))
+      }
     </div>
   </div>
 </section>

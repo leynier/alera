@@ -1,0 +1,66 @@
+---
+import Rss from '@lucide/astro/icons/rss';
+import BlogPostCard from './BlogPostCard.astro';
+import BlogTagBar from './BlogTagBar.astro';
+import type { BlogPost } from '../../lib/blog';
+import { featuredPost, tagCounts } from '../../lib/blog-listing';
+import { TAG_DESCRIPTIONS, type BlogTag } from '../../lib/blog-tags';
+
+/**
+ * The blog index and every tag page: the same header and tag bar over a grid
+ * of posts. Only the unfiltered index leads with a featured post.
+ */
+interface Props {
+  posts: BlogPost[];
+  tag?: BlogTag;
+}
+
+const { posts, tag } = Astro.props;
+const shown = tag ? posts.filter((post) => post.data.tags.includes(tag)) : posts;
+const lead = tag ? undefined : featuredPost(posts);
+const rest = shown.filter((post) => post !== lead);
+---
+
+<div class="mx-auto max-w-5xl">
+  <header class="mb-10">
+    <div class="flex items-end justify-between gap-4">
+      <div>
+        {tag && <p class="mb-2 font-mono text-label-md uppercase text-foreground-faint">Blog</p>}
+        <h1 class="text-headline-lg font-semibold tracking-tight text-foreground md:text-[32px]">{tag ?? 'Blog'}</h1>
+      </div>
+      <a
+        href="/rss.xml"
+        class="inline-flex shrink-0 items-center gap-1.5 text-body-md text-foreground-faint transition-colors duration-fast hover:text-foreground"
+      >
+        <Rss size={14} />
+        RSS
+      </a>
+    </div>
+    <p class="mt-4 max-w-2xl text-[15px] leading-relaxed text-foreground-muted">
+      {tag ? TAG_DESCRIPTIONS[tag] : 'What we are building, what broke along the way, and what we changed our minds about.'}
+    </p>
+  </header>
+
+  <div class="mb-10">
+    <BlogTagBar counts={tagCounts(posts)} total={posts.length} current={tag} />
+  </div>
+
+  {
+    shown.length === 0 ? (
+      <p class="text-[15px] text-foreground-muted">No Posts Yet.</p>
+    ) : (
+      <>
+        {lead && (
+          <div class="mb-6">
+            <BlogPostCard post={lead} featured />
+          </div>
+        )}
+        <div class="grid gap-6 md:grid-cols-2">
+          {rest.map((post) => (
+            <BlogPostCard post={post} />
+          ))}
+        </div>
+      </>
+    )
+  }
+</div>

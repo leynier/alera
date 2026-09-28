@@ -1,0 +1,164 @@
+/* Sidebar workspace rows (project_workbench_workspace_rows.dart), the compact
+   agent summary (workspace_agent_compact_summary.dart) and agent run rows
+   (project_workbench_agent_rows.dart). */
+
+[data-alera-demo] .ws-row {
+  padding: 2px 8px 2px 20px;
+}
+
+[data-alera-demo] .ws-pill {
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--app-radius-lg);
+}
+
+[data-alera-demo] .ws-row[data-state='active'] .ws-pill {
+  border-color: var(--app-border);
+  background: var(--app-accent-subtle);
+}
+
+[data-alera-demo] .ws-row[data-state='hover'] .ws-pill {
+  background: var(--app-surface);
+}
+
+[data-alera-demo] .ws-line {
+  display: flex;
+  align-items: center;
+}
+
+[data-alera-demo] .ws-slot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-right: 8px;
+}
+
+[data-alera-demo] .ws-logo {
+  display: flex;
+  flex: none;
+  margin-right: 6px;
+}
+
+[data-alera-demo] .ws-main {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+}
+
+[data-alera-demo] .ws-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--app-foreground-muted);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.25px;
+  line-height: 1.43;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-alera-demo] .ws-row:is([data-state='active'], [data-state='hover']) .ws-name {
+  color: var(--app-foreground);
+}
+
+[data-alera-demo] .ws-icon {
+  display: flex;
+  flex: none;
+  margin-left: 6px;
+  color: var(--app-foreground-muted);
+}
+
+/* AleraLinkedWorktreeIcon is Lucide split turned a quarter clockwise. */
+[data-alera-demo] .ws-worktree .app-icon {
+  transform: rotate(90deg);
+}
+
+/* The pull request badge sits in a 14 px box; an open one is green. */
+[data-alera-demo] .ws-pr {
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--app-success);
+}
+
+[data-alera-demo] .ws-tray {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  height: 18px;
+  margin-left: 8px;
+  padding: 2px 4px;
+  border-radius: var(--app-radius-sm);
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .run-variant {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+[data-alera-demo] .run-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+[data-alera-demo] .run-avatars {
+  display: flex;
+}
+
+[data-alera-demo] .run-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: 50%;
+  background: var(--app-surface-variant);
+}
+
+[data-alera-demo] .run-avatar + .run-avatar {
+  margin-left: -4px;
+}
+
+[data-alera-demo] .ws-tray .tray-chevron-up,
+[data-alera-demo] .ws-tray[data-state='expanded'] .tray-chevron-down {
+  display: none;
+}
+
+[data-alera-demo] .ws-tray[data-state='expanded'] .tray-chevron-up {
+  display: block;
+}
+
+[data-alera-demo] .ws-runs {
+  margin-top: 4px;
+  padding-left: 20px;
+}
+
+[data-alera-demo] .run-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: var(--app-radius-sm);
+}
+
+[data-alera-demo] .run-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--app-foreground-muted);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

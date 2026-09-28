@@ -1,0 +1,114 @@
+---
+import { SAMPLE } from '../../../data/demo/sample-workspace';
+import AppIcon from '../primitives/AppIcon.astro';
+import SidebarWorkspaceRow from './SidebarWorkspaceRow.astro';
+
+/**
+ * The expanded desktop sidebar at its default 300 px
+ * (project_workbench_sidebar_shell.dart): brand row, search, the Projects
+ * toolbar, the project groups sorted by name, and the footer.
+ */
+const { workspaces } = SAMPLE;
+const TRAY_VARIANTS = [
+  { node: 'd-tray-working-both', groups: [{ state: 'working', agents: ['claude', 'codex'] }] },
+  { node: 'd-tray-waiting-working', groups: [{ state: 'waiting', agents: ['claude'] }, { state: 'working', agents: ['codex'] }] },
+  { node: 'd-tray-waiting-done', groups: [{ state: 'waiting', agents: ['claude'] }, { state: 'done', agents: ['codex'] }] },
+  { node: 'd-tray-working-done', groups: [{ state: 'working', agents: ['claude'] }, { state: 'done', agents: ['codex'] }] },
+  { node: 'd-tray-done-both', groups: [{ state: 'done', agents: ['claude', 'codex'] }] },
+] as const;
+---
+
+<aside class="sb" data-demo-node="d-sidebar">
+  <div class="sb-brand">
+    <img src="/demo/alera-logo-white.png" alt="" width="16" height="16" />
+    <span class="sb-brand-name">Alera</span>
+    <span class="app-button"><AppIcon name="sidebarToggle" size={16} /></span>
+  </div>
+  <div class="sb-divider"></div>
+  <div class="sb-search">
+    <div class="app-search-field">
+      <AppIcon name="search" size={14} />
+      <span>Search workspaces</span>
+    </div>
+  </div>
+  <div class="sb-toolbar">
+    <span class="sb-toolbar-title">Projects</span>
+    <span class="sb-count" data-demo-node="d-projects-count">4</span>
+    <span class="sb-toolbar-actions">
+      <span class="sb-history">
+        <span class="app-button"><AppIcon name="back" size={16} /></span>
+        <span class="app-button"><AppIcon name="forward" size={16} /></span>
+      </span>
+      <span class="app-button"><AppIcon name="tune" size={16} /></span>
+      <span class="app-button"><AppIcon name="collapseAll" size={16} /></span>
+      <span class="app-button" data-demo-node="d-new-workspace-button"><AppIcon name="add" size={16} /></span>
+    </span>
+  </div>
+  <div class="sb-divider"></div>
+  <div class="sb-list">
+    <div class="sb-project">
+      <div class="sb-project-pill">
+        <AppIcon name="folder" size={14} />
+        <span class="sb-project-name">api-gateway</span>
+        <span class="sb-count">2</span>
+        <AppIcon name="chevronDown" size={14} />
+        <span class="app-button app-button-16"><AppIcon name="add" size={14} /></span>
+      </div>
+    </div>
+    <div class="sb-project">
+      <div class="sb-project-pill">
+        <AppIcon name="folderOpen" size={14} />
+        <span class="sb-project-name">{SAMPLE.project}</span>
+        <span class="sb-count" data-demo-node="d-storefront-count">2</span>
+        <AppIcon name="chevronUp" size={14} />
+        <span class="app-button app-button-16"><AppIcon name="add" size={14} /></span>
+      </div>
+    </div>
+    <SidebarWorkspaceRow
+      node="d-row-release"
+      name={workspaces.releaseNotes.name}
+      active
+      glyph={{ state: 'done' }}
+      logo={{ agent: 'claude' }}
+      pullRequest={{}}
+    />
+    <SidebarWorkspaceRow
+      node="d-row-search"
+      name={workspaces.searchPagination.name}
+      glyph={{ state: 'working' }}
+      logo={{ agent: 'codex' }}
+    />
+    <SidebarWorkspaceRow
+      node="d-row-webhooks"
+      name={workspaces.webhooks.name}
+      concealed
+      glyph={{ state: 'idle', node: 'd-row-webhooks-glyph' }}
+      logo={{ agent: 'claude', node: 'd-row-webhooks-logo', concealed: true }}
+      pullRequest={{ node: 'd-row-webhooks-pr', concealed: true }}
+      watch={{ node: 'd-row-webhooks-watch', concealed: true }}
+      tray={{
+        node: 'd-row-webhooks-tray',
+        concealed: true,
+        variants: TRAY_VARIANTS.map((variant, index) => ({ ...variant, concealed: index > 0 })),
+      }}
+      runs={{
+        node: 'd-row-webhooks-runs',
+        concealed: true,
+        rows: [
+          { agent: 'claude', state: 'working', stateNode: 'd-run-claude-glyph', label: 'Update: src/webhooks/retry.test.ts', labelNode: 'd-run-claude-label' },
+          { agent: 'codex', state: 'working', stateNode: 'd-run-codex-glyph', label: 'Codex · Working', labelNode: 'd-run-codex-label' },
+        ],
+      }}
+    />
+  </div>
+  <div class="sb-divider"></div>
+  <div class="sb-footer">
+    <span class="app-outlined-button">
+      <AppIcon name="newFolder" size={18} />
+      Add Project
+    </span>
+    <span class="sb-footer-spacer"></span>
+    <span class="app-button app-button-boxed"><AppIcon name="checks" size={15} /></span>
+    <span class="app-button app-button-boxed"><AppIcon name="settings" size={15} /></span>
+  </div>
+</aside>

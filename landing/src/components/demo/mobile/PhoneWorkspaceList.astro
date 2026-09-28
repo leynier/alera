@@ -1,0 +1,75 @@
+---
+import { SAMPLE } from '../../../data/demo/sample-workspace';
+import MaterialIcon from '../primitives/MaterialIcon.astro';
+import MobileIcon from '../primitives/MobileIcon.astro';
+import PhoneRow from './PhoneRow.astro';
+
+/**
+ * The workspace list for the paired host (runtime_workspaces_screen.dart):
+ * app bar titled with the host's name and its connection dot, the search
+ * toolbar, project sections sorted by name, and the New Workspace button.
+ */
+const { workspaces } = SAMPLE;
+const TRAY_VARIANTS = [
+  { node: 'p-tray-working-both', groups: [{ state: 'working', agents: ['claude', 'codex'] }] },
+  { node: 'p-tray-waiting-working', groups: [{ state: 'waiting', agents: ['claude'] }, { state: 'working', agents: ['codex'] }] },
+  { node: 'p-tray-waiting-done', groups: [{ state: 'waiting', agents: ['claude'] }, { state: 'done', agents: ['codex'] }] },
+  { node: 'p-tray-working-done', groups: [{ state: 'working', agents: ['claude'] }, { state: 'done', agents: ['codex'] }] },
+  { node: 'p-tray-done-both', groups: [{ state: 'done', agents: ['claude', 'codex'] }] },
+] as const;
+---
+
+<div class="m-screen m-list" data-demo-node="p-list">
+  <div class="m-appbar">
+    <span class="m-appbar-button"><MaterialIcon name="arrow_back" size={24} /></span>
+    <span class="m-appbar-title">
+      <span class="m-host">
+        {SAMPLE.host}
+        <span class="m-host-dot"></span>
+      </span>
+    </span>
+    <span class="m-appbar-button"><MaterialIcon name="more_vert" size={24} /></span>
+  </div>
+  <div class="m-search-bar">
+    <span class="m-search-field">
+      <MobileIcon name="search" size={14} />
+      <span>Search workspaces</span>
+    </span>
+    <span class="m-view-options"><MobileIcon name="tune" size={16} /></span>
+  </div>
+  <div class="m-list-body">
+    <div class="m-section">
+      <span class="m-section-box">
+        <MobileIcon name="folder" size={14} />
+        <span class="m-section-label">api-gateway</span>
+        <span class="m-section-count">2</span>
+        <MobileIcon name="chevronDown" size={14} />
+      </span>
+    </div>
+    <div class="m-section">
+      <span class="m-section-box">
+        <MobileIcon name="folderOpen" size={14} />
+        <span class="m-section-label">{SAMPLE.project}</span>
+        <span class="m-section-count" data-demo-node="p-storefront-count">2</span>
+        <MobileIcon name="chevronUp" size={14} />
+      </span>
+    </div>
+    <PhoneRow name={workspaces.releaseNotes.name} glyph={{ state: 'done' }} logo={{ agent: 'claude' }} pullRequest={{}} />
+    <PhoneRow name={workspaces.searchPagination.name} glyph={{ state: 'working' }} logo={{ agent: 'codex' }} />
+    <PhoneRow
+      node="p-row-webhooks"
+      name={workspaces.webhooks.name}
+      concealed
+      glyph={{ state: 'idle', node: 'p-row-webhooks-glyph' }}
+      logo={{ agent: 'claude', node: 'p-row-webhooks-logo', concealed: true }}
+      pullRequest={{ node: 'p-row-webhooks-pr', concealed: true }}
+      watch={{ node: 'p-row-webhooks-watch', concealed: true }}
+      tray={{
+        node: 'p-row-webhooks-tray',
+        concealed: true,
+        variants: TRAY_VARIANTS.map((variant, index) => ({ ...variant, concealed: index > 0 })),
+      }}
+    />
+  </div>
+  <span class="m-fab"><MobileIcon name="add" size={24} /></span>
+</div>

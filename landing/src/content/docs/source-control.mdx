@@ -1,0 +1,66 @@
+---
+title: Source Control
+description: Stage, commit, sync, and switch branches for a workspace, read its diffs and history, and send diff comments to an agent.
+updatedDate: 2026-09-28
+---
+
+Source Control is a tool in the right panel, scoped to the active workspace's checkout. **Show Source Control** (`Mod+Shift+G`) opens it, and `Mod+Alt+B` shows or hides the panel; `Mod` is ⌘ on macOS and Ctrl on Windows and Linux. It refreshes as files change.
+
+Without Git, the tool shows **Source Control Unavailable**. In a plain folder project, right-click a repository folder in Explorer and choose **Use As Source Control Root**.
+
+## The Title Row
+
+- The AI Assist button (**Generate commit message with AI**) drafts a message from the staged changes while AI Assist is on.
+- **All Changes** opens every change in one diff tab.
+- **Show Flat List** and **Show Tree** switch between full paths and a folder tree.
+- **Show All Changes** and **Group By Staged State** switch between one **Changes** list and **Staged**, **Unstaged**, and **Untracked** sections.
+- **Search Files** filters by path, **Collapse All** folds the list, and **Refresh** reloads it.
+
+The row keeps its right end in view: at the default panel width the first buttons, AI Assist included, are hidden. Widen the panel or scroll the row with the mouse wheel.
+
+## Committing And Syncing
+
+Type in the **Message** field or generate one; a generated message never overwrites your edits. Its agent and instructions live under **Settings → AI Assist → Commit Messages** (see [AI Assist](/docs/ai-assist)). The microphone in the field (**Start Dictation**) needs **Enable AI Dictation** under **Settings → AI Dictation**.
+
+The large button runs the next sensible step, in this order:
+
+1. **Commit**, when changes are staged, a message is typed, and nothing conflicts.
+2. **Fetch**, while the repository has conflicts.
+3. **Publish Branch**, when the branch has no upstream; it pushes to `origin`.
+4. **Sync** (pull, then push) when ahead and behind, else **Pull** when behind or **Push** when ahead.
+5. **Stage All** when files are unstaged or untracked, otherwise **Fetch**.
+
+Its chevron, **Source Control Actions**, lists **Commit**, **Commit & Push**, **Commit & Sync**, **Commit Amend**, **Stage All**, **Unstage All**, **Discard All**, **Fetch**, **Pull**, **Push**, **Sync**, **Publish Branch**, **Stash**, and **Stash Pop**. The commit entries use the text in the message field. **Commit Amend** folds the staged changes into the last commit and opens **Amend Commit** to edit its message. **Stash** saves changes to tracked files and leaves untracked files alone; **Stash Pop** asks which stash to apply.
+
+## Branches
+
+The row under the button shows the branch, its upstream, `ahead` and `behind` counts, and `conflicts`. Click the branch (**Switch Branch**) to search local and remote branches; picking a remote one creates a local tracking branch. **Create Branch** starts a branch at the current commit and keeps your uncommitted changes. A switch that would overwrite local changes is refused. On a workspace that uses the project folder itself, Alera first asks **Change Shared Branch**, since every workspace on that folder follows.
+
+## Staging And Discarding
+
+Each file shows its status letter and line counts. **Stage**, **Unstage**, and **Discard** act on a file, a folder in tree view, or a section header. Right-click a file for **Open File**, **Comment on Diff**, and **Reveal in Explorer**, or drag it onto a terminal to paste its path. Discard always asks first and only touches unstaged and untracked changes.
+
+## Diffs
+
+Clicking a file opens its diff in a preview tab; double-click keeps it, and `Mod`+click uses the other panel. An open file offers **View Diff** too. Text diffs are unified. Images (PNG, JPEG, GIF, WebP, BMP, ICO) show **Before** and **After** side by side; other binary files and untracked files over 256 KB are not previewed, and very long diffs are truncated.
+
+A changed submodule expands to list its own changes, read-only. When all its changes are inside it, the row reads **Inside**: manage them in the submodule.
+
+## Commits
+
+The **Commits** section at the bottom opens on demand. It graphs the latest 50 commits of your branch and its upstream and marks **Incoming Changes** and **Outgoing Changes** where they diverge. Click a commit for its author, date, and files; a file opens its diff and **Open All Changes** opens the whole commit. **Commit Actions** copies the hash or message.
+
+## Comments For An Agent
+
+Right-click or long-press a line in any diff tab, or use **Comment on Diff**, then describe the change and choose **Add Comment**. Comments collect in a bar above the file list and diff tabs. **Send to Agent** opens **Send Comments to Agent**: pick one of the **Running Agents** or a profile under **New Tab**, and all comments go as one prompt with their files and lines. Nothing is posted to your forge. Unsent comments do not survive an app restart.
+
+## Toasts
+
+Actions confirm in a toast such as "Committed", "Branch published", or "Switched to main". Failures show the reason: "Nothing to commit.", "Cannot push from detached HEAD.", "Remote origin was not found.", "Configure Git user.name and user.email before committing.", or git's own message.
+
+## Limits
+
+- Fetch, pull, and push run `git` with your credential helper and cannot answer a password prompt, so keep credentials in a helper or your SSH agent.
+- Commits are written by Alera's built-in Git library: hooks such as `pre-commit` do not run and commits are not signed. Commit from a terminal when you need either.
+- There is no conflict editor. Resolve conflicts in a terminal or hand them to an agent.
+- For a workspace on a [remote host](/docs/remote-hosts), everything runs on that host.

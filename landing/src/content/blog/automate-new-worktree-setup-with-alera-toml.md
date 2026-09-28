@@ -1,8 +1,18 @@
 ---
-title: "Automate New Worktree Setup With Alera.toml"
+title: "Automate New Worktree Setup With alera.toml"
 description: "Every new worktree needs the same ritual: copy the .env, install dependencies, bootstrap. We made the repo describe it once."
 pubDate: 2026-07-28T13:00:00.000Z
+updatedDate: 2026-09-28
+tags: ["Worktrees"]
+relatedDocs: ["alera-toml", "new-workspace", "worktrees"]
 ---
+
+> **Update, September 2026:**
+>
+> - On the desktop and the phone, setup now runs in a terminal named **Setup**, where a failing command does not stop the ones after it. From the CLI, `alera workspace add` and `alera workspace start` with `--worktree` still run setup inline and stop at the first non-zero exit.
+> - Alera keeps the new workspace for you to open from the sidebar, and a failed copy or setup step leaves the Setup terminal open with its output. A setup warning appears only for an invalid `alera.toml` or `.worktreeinclude`, or when the CLI runs setup inline.
+> - A `.worktreeinclude` file at the project root copies the gitignored files it lists, with .gitignore-style patterns including globs, even without an `alera.toml` and alongside a Settings override. The `copy` list itself still takes literal paths.
+> - Setup runs only for new worktree workspaces created on this machine. Workspaces that share the project folder never run it, and creating a workspace on a remote SSH host does not run copy rules or setup commands yet.
 
 You know the ritual. You create a fresh worktree for an agent, and before it can do anything useful you are copying `.env` from the main checkout, remembering which config files are gitignored but required, running install, running bootstrap. Ninety seconds of chores, every single time, multiplied by every agent you want in parallel.
 

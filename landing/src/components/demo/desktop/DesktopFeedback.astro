@@ -1,0 +1,37 @@
+---
+import { APP_COPY } from '../../../data/demo/app-copy';
+import AppIcon from '../primitives/AppIcon.astro';
+import MaterialSpinner from '../primitives/MaterialSpinner.astro';
+import { concealedAttributes } from '../primitives/conceal';
+
+/**
+ * Background job card (alera_job_card.dart), 16 px from the right and 48 px
+ * from the bottom, and the toast stack (alera_toast_host.dart), 16 px from
+ * both edges, newest at the bottom. The demo reuses three toast slots; the
+ * storyboard sets each one's text and brings it in and out.
+ */
+const TOAST_SLOTS = [
+  { node: 'd-toast-a', textNode: 'd-toast-a-text' },
+  { node: 'd-toast-b', textNode: 'd-toast-b-text' },
+  { node: 'd-toast-c', textNode: 'd-toast-c-text' },
+];
+---
+
+<div class="job-card" data-demo-node="d-job" {...concealedAttributes(true)}>
+  <div class="job-card-head">
+    <MaterialSpinner size={16} class="job-card-spinner" />
+    <span data-demo-node="d-job-title">{APP_COPY.jobCreatingFromPrompt.text}</span>
+  </div>
+  <div class="job-card-phase" data-demo-node="d-job-phase">{APP_COPY.phaseIdentity.text}</div>
+</div>
+
+<div class="toasts">
+  {
+    TOAST_SLOTS.map((slot) => (
+      <div class="toast" data-demo-node={slot.node} {...concealedAttributes(true)}>
+        <AppIcon name="success" size={16} />
+        <span data-demo-node={slot.textNode}>{APP_COPY.workspaceCreated.text}</span>
+      </div>
+    ))
+  }
+</div>

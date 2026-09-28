@@ -46,7 +46,7 @@ Tasks may independently carry [versioned role contracts](orchestration-role-cont
 An agent profile is a user-declared launch configuration a run can dispatch to. Each profile carries a unique name, an adapter type from the built-in registry, a launch mode, a custom prompt, a free-text description used as a routing signal, and an optional quota group. Profiles are user configuration, not run state: they live in the runtime schema next to `sshTargets`, so resetting orchestration state never destroys them.
 
 ```bash
-alera orchestration agent-profiles --json
+alera orchestration --json agent-profiles
 ```
 
 The coordinator-facing `orchestration agent-profiles` surface is read-only by design. A coordinator discovers what it may dispatch to and what each option is good for, while the user manages the approved catalog through Settings -> Agent Profiles or the top-level administrative CLI:

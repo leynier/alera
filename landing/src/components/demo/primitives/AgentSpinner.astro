@@ -1,0 +1,38 @@
+---
+/**
+ * The agent spinner from `AgentRunSpinnerPainter`: a 4.7 rad arc with round
+ * caps, inset by half its stroke, turning once per 1400 ms. The turn is a
+ * paused CSS animation positioned by `--demo-t`, so a seek draws the same
+ * angle every time.
+ */
+interface Props {
+  size: number;
+  stroke?: number;
+  class?: string;
+}
+
+const { size, stroke = 1.7, class: className } = Astro.props;
+const radius = (size - stroke) / 2;
+const sweep = 4.7 * radius;
+const centre = size / 2;
+---
+
+<svg
+  class:list={['agent-spinner', className]}
+  width={size}
+  height={size}
+  viewBox={`0 0 ${size} ${size}`}
+  aria-hidden="true"
+  focusable="false"
+>
+  <circle
+    cx={centre}
+    cy={centre}
+    r={radius}
+    fill="none"
+    stroke="currentColor"
+    stroke-width={stroke}
+    stroke-linecap="round"
+    stroke-dasharray={`${sweep.toFixed(3)} 999`}
+  />
+</svg>

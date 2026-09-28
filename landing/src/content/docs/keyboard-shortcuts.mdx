@@ -1,0 +1,32 @@
+---
+title: Keyboard Shortcuts
+description: Every default shortcut in the desktop app, how Mod maps to each platform, and how to change a binding.
+updatedDate: 2026-09-28
+---
+
+Every shortcut in the desktop app comes from one registry, so the tables below, **Settings → Keyboard**, and the **Command Palette** always agree. `Mod` is ⌘ on macOS and Ctrl on Windows and Linux; the tables print each chord the way the app does on that platform.
+
+## Find And Change A Shortcut
+
+Press `Mod+Shift+P` to open the **Command Palette**: it searches every command and shows the shortcut each one has right now, including the ones you changed.
+
+To change one, open **Settings → Keyboard** and find the action:
+
+<Steps>
+
+1. Click **Change Shortcut** next to it.
+2. Press the new combination. The row reads **Press keys… (Esc to cancel)** while it records.
+3. If another action already uses that combination, Alera asks whether to reassign it; confirm with **Reassign**.
+
+</Steps>
+
+**Reset to Default** puts a single action back, and **Disable Shortcut** removes its binding. A disabled action still runs from the **Command Palette**.
+
+## When A Terminal Has Focus
+
+Terminals want many of the same keys: on Windows and Linux, **Close Tab** is `Ctrl+W`, which also deletes a word in most shells. **Settings → Keyboard → When a Terminal Is Focused** decides who wins:
+
+- **App First**, the default, lets Alera capture its shortcuts before the shell sees them.
+- **Terminal First** hands the shell the few chords it has a use for, such as **Close Tab**, while a terminal has focus. The tables mark each of them; every other shortcut keeps working, since a shell has no meaning for chords like `Ctrl+Tab` or `Mod+1`.
+
+<ShortcutTable />

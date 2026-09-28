@@ -1,0 +1,134 @@
+/* Primitives shared by the desktop and phone scenes: icons, agent marks, the
+   state glyph and the spinners. Spinners are paused animations positioned by
+   `--demo-t` (the demo clock in ms), so every seek draws the same angle. */
+
+[data-alera-demo] .app-icon,
+[data-alera-demo] .agent-logo {
+  display: block;
+  flex: none;
+}
+
+[data-alera-demo] .agent-logo-tinted {
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .codicon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size);
+  height: var(--size);
+  font-family: 'Alera Codicons';
+  font-size: var(--size);
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1;
+}
+
+[data-alera-demo] .agent-spinner,
+[data-alera-demo] .check-spinner {
+  display: block;
+  flex: none;
+  transform-origin: 50% 50%;
+  animation-name: app-turn;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-play-state: paused;
+  animation-delay: calc(var(--demo-t, 0) * -1ms);
+}
+
+[data-alera-demo] .agent-spinner {
+  animation-duration: var(--app-agent-spin);
+}
+
+/* `PullRequestCheckIcon` turns the loader icon on durationSpin. */
+[data-alera-demo] .check-spinner {
+  animation-duration: var(--app-duration-spin);
+}
+
+@keyframes app-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+[data-alera-demo] .state-glyph {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--slot);
+  height: var(--slot);
+}
+
+[data-alera-demo] .state-glyph > * {
+  display: none;
+}
+
+[data-alera-demo] .glyph-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--app-foreground-faint);
+}
+
+[data-alera-demo] .state-glyph:is([data-state='idle'], [data-state='idle-active']) > .glyph-dot,
+[data-alera-demo] .state-glyph[data-state='working'] > .glyph-working,
+[data-alera-demo] .state-glyph[data-state='done'] > .glyph-done,
+[data-alera-demo] .state-glyph:is([data-state='waiting'], [data-state='blocked']) > .glyph-attention,
+[data-alera-demo] .state-glyph[data-state='interrupted'] > .glyph-interrupted {
+  display: block;
+}
+
+[data-alera-demo] .state-glyph[data-state='idle-active'] > .glyph-dot {
+  background: var(--app-success);
+}
+
+[data-alera-demo] .state-glyph:is([data-state='working'], [data-state='waiting']) {
+  color: var(--app-warning);
+}
+
+[data-alera-demo] .state-glyph[data-state='done'] {
+  color: var(--app-success);
+}
+
+[data-alera-demo] .state-glyph:is([data-state='blocked'], [data-state='interrupted']) {
+  color: var(--app-error);
+}
+
+/* Author `display` rules would otherwise beat the UA style for `hidden`, and
+   the storyboard hides and shows nodes through that attribute. */
+[data-alera-demo] [hidden] {
+  display: none !important;
+}
+
+/* Material's indeterminate spinner: the turn and the growing arc run on
+   their own periods, both positioned by the demo clock. */
+[data-alera-demo] .material-spinner {
+  display: block;
+  flex: none;
+  transform-origin: 50% 50%;
+  animation: app-turn 1568ms linear infinite paused;
+  animation-delay: calc(var(--demo-t, 0) * -1ms);
+}
+
+[data-alera-demo] .material-spinner circle {
+  animation: app-material-arc 1333ms ease-in-out infinite paused;
+  animation-delay: calc(var(--demo-t, 0) * -1ms);
+}
+
+@keyframes app-material-arc {
+  0% {
+    stroke-dasharray: 1 120;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 72 120;
+    stroke-dashoffset: -28;
+  }
+  100% {
+    stroke-dasharray: 72 120;
+    stroke-dashoffset: -99;
+  }
+}

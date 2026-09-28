@@ -24,6 +24,20 @@ void main() {
     );
   });
 
+  test('README media skip PR Checks heavy jobs, app assets do not', () {
+    expect(
+      selectCiJobs(const <String>[
+        'assets/product/alera-demo.webp',
+        'assets/product/demo-media.json',
+      ]),
+      CiJobs.none,
+    );
+    expect(
+      selectCiJobs(const <String>['assets/logo/alera-logo.png']),
+      CiJobs.all,
+    );
+  });
+
   test('landing-only and cloud-only changes skip PR Checks heavy jobs', () {
     expect(selectCiJobs(const <String>['landing/src/index.tsx']), CiJobs.none);
     expect(

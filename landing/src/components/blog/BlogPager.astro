@@ -1,0 +1,34 @@
+---
+import { postHref, type BlogPost } from '../../lib/blog';
+
+/** The newer and the older post, in the order the index lists them. */
+interface Props {
+  newer?: BlogPost;
+  older?: BlogPost;
+}
+
+const { newer, older } = Astro.props;
+const cardClass =
+  'group rounded-xl border border-border-subtle px-4 py-3 transition-colors duration-fast hover:border-border hover:bg-surface/60';
+---
+
+{
+  (newer || older) && (
+    <nav aria-label="Newer And Older Posts" class="mt-10 grid gap-3 sm:grid-cols-2">
+      {newer ? (
+        <a href={postHref(newer)} class={cardClass}>
+          <span class="block font-mono text-label-md uppercase text-foreground-faint">Newer Post</span>
+          <span class="mt-1 block text-title-md text-foreground-muted group-hover:text-foreground">← {newer.data.title}</span>
+        </a>
+      ) : (
+        <span />
+      )}
+      {older && (
+        <a href={postHref(older)} class:list={[cardClass, 'sm:text-right']}>
+          <span class="block font-mono text-label-md uppercase text-foreground-faint">Older Post</span>
+          <span class="mt-1 block text-title-md text-foreground-muted group-hover:text-foreground">{older.data.title} →</span>
+        </a>
+      )}
+    </nav>
+  )
+}

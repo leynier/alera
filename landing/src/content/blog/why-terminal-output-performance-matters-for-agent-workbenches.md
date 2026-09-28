@@ -2,7 +2,15 @@
 title: "Why Terminal Output Performance Matters For Agent Workbenches"
 description: "A chatty agent can stream output for an hour straight. That is a frame budget problem, and on Linux it is worse than you think."
 pubDate: 2026-07-28T11:00:00.000Z
+updatedDate: 2026-09-28
+tags: ["Performance", "Terminals"]
+relatedDocs: ["terminals", "quotas"]
 ---
+
+> **Update, September 2026:**
+>
+> - The desktop flush floor is now 50 ms, about 20 flushes per second, which cut the CPU cost of sustained output further. The 33 ms cadence remains only in the Android app.
+> - Terminal output is parsed and drawn by our maintained fork of the xterm2 terminal emulator, not by Ghostty's VTE as this post first said.
 
 Here is a workload most UI frameworks never have to survive: a process that writes to the terminal continuously, for an hour, while four of its siblings do the same in neighboring panes. That is a normal afternoon for a coding agent workbench, and it breaks the assumptions most desktop apps are built on.
 
@@ -25,7 +33,7 @@ The broader split stays as designed: Flutter renders, Rust owns PTYs and process
 
 ## Measure First, Claim Second
 
-Our rule for performance work is that it starts from a reproducible profile, not from vibes. The repo carries the harnesses (`make perf-linux`, `make app-profile`, resource benchmarks) and we change one bounded subsystem at a time so regressions have somewhere to hide.
+Our rule for performance work is that it starts from a reproducible profile, not from vibes. The repo carries the harnesses (`make perf-linux`, `make app-profile`, resource benchmarks) and we change one bounded subsystem at a time so regressions have nowhere to hide.
 
 It also disciplines what we say publicly. You will not see us claim "fastest IDE." You will see claims like "fewer wasted frames under sustained stream," because that is what we can measure. We would rather be boringly right than loudly wrong.
 

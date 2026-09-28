@@ -1,0 +1,48 @@
+---
+title: Worktrees
+description: Run CLI agents in parallel by giving each task its own Git worktree, locally or on a remote SSH host.
+updatedDate: 2026-09-28
+---
+
+Parallelism in Alera is not "open more tabs." Two agents sharing one working tree last about ten minutes before they trample each other. The isolation primitive is a Git worktree.
+
+## One Worktree Per Task
+
+When you create a workspace as a **New Worktree** on a Git-backed [project](/docs/projects), Alera creates a real Git worktree:
+
+- a new local branch from a source branch, or
+- an existing local branch you already have
+
+Each agent then sees only its own checkout. Diffs stay scoped. You can jump between contexts without stashing or remembering what was half-done.
+
+## Why This Changes How You Delegate
+
+When handing a task to an agent costs one worktree instead of a negotiation with your current branch, smaller tasks get easier to start. The tooling nudges you toward the workflow that actually works with several CLIs at once.
+
+## From Repo To Running Agents
+
+<Steps>
+
+1. Register a Git-backed project (local folder or clone).
+2. Open **New Workspace**, choose **New Worktree**, and pick the source branch. **From Prompt** also names the branch and starts your agent profile for you.
+3. Launch [Claude Code, Codex, Amp, fx, or any other CLI](/docs/agents) in that workspace's terminals.
+
+</Steps>
+
+The remaining chore used to be setup: every new worktree needs its `.env`, its gitignored config, its install. That ritual now lives in [`alera.toml`](/docs/alera-toml). When the work is done, pull requests and CI checks stay scoped to the same worktree, so what you review is what the agent produced.
+
+## Moving Work Between Checkouts
+
+Sometimes the work starts on the main checkout before you know it deserves its own branch. **Hand Off** (in the workspace menu, or `alera workspace hand-off`) moves the work in progress into a new child workspace, and **Hand On** (`alera workspace hand-on`) brings a child's work back onto the main checkout and removes the child, keeping its branch. Live shells follow the move, and running agents are told where the work went.
+
+## Worktrees On A Remote Host
+
+A workspace can also live on another machine you reach over SSH. Add the machine under **Settings → Remote Hosts**, bootstrap the Alera runtime sidecar there, then pick that host in **New Workspace**, or run `alera workspace add --project-id <project-id> --host-id <host-id> --worktree --branch <branch>` from the CLI once the project is on that host. The remote sidecar creates the worktree from the repository already on that host, and terminals, files, search, and source control for that workspace run there. Worktrees created on a remote host do not run [setup](/docs/alera-toml) yet. See [Remote Hosts](/docs/remote-hosts) for adding a machine and a project to it.
+
+Bootstrap only installs the sidecar; it does not create a worktree by itself. Authentication uses your SSH agent or key configuration.
+
+## What Is Not A Worktree
+
+Workspaces on the project folder point at the project path itself; use them for the default checkout. Linked workspaces are the extra checkouts.
+
+Non-Git projects cannot create linked workspaces. They still get terminals, agents, and persistence; they just share one tree.

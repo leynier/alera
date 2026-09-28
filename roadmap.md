@@ -108,7 +108,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| Quick Open / Command Palette | 3 | 5 | Planned | Fuzzy file search (Cmd+P) and command execution (Cmd+Shift+P) |
+| Quick Open / Command Palette | 3 | 5 | Shipped | Fuzzy file search in the active workspace (`Mod+P`) and a searchable list that runs Alera commands (`Mod+Shift+P`) |
 | Worktree navigation history | 2 | 4 | Shipped | Back/forward navigation stack between worktrees |
 | Worktree sleep/wake | 3 | 3 | Shipped | Sleep terminates terminals while keeping tabs/layout/branch/files for resume; desktop and mobile |
 | Worktree archiving | 3 | 4 | Shipped | Archive stops sessions and hides the workspace unless Show Archived Workspaces is on, preserving tabs/layout/branch/files; merged PRs default to Archive with Remove still offered; desktop, mobile, and CLI |
@@ -120,7 +120,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Workspace cleanup dialog | 2 | 3 | Planned | Bulk cleanup of stale worktrees |
 | Status bar | 2 | 4 | Partial | Agent quota and Resource Manager status-bar controls ship; general SSH/ports/disk status remains unavailable |
 | UI zoom controls | 1 | 3 | Planned | Zoom in/out/reset for the entire UI |
-| Global file drop | 2 | 3 | Partial | Terminal OS drop pastes absolute paths; explorer/editor/composer drops still planned |
+| Global file drop | 2 | 3 | Partial | Terminal drops paste paths, relative to the workspace when inside it, and composer drops attach the files; explorer/editor drops still planned |
 
 ---
 
@@ -154,7 +154,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| Agent quota status bar | 3 | 4 | Shipped | Bottom status bar with local/remote quota usage for Claude Code and CCS profiles, Codex, Kimi, Grok Build, Cursor, Antigravity, MiniMax, and Z.ai |
+| Agent quota status bar | 3 | 4 | Shipped | Bottom status bar with local/remote quota usage for Claude Code and CCS profiles, Codex, Kimi, Grok Build, Cursor, Antigravity, MiniMax, Z.ai, and OpenCode Go and Zen |
 | Per-agent usage charts | 3 | 4 | Planned | Daily usage visualization per agent provider |
 | Cost tracking | 3 | 4 | Planned | API cost monitoring and visualization |
 | Share/export usage | 2 | 2 | Planned | Export or share usage stats |
@@ -165,7 +165,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| Resource manage | 3 | 3 | Shipped | Status-bar Resource Manager: per-session CPU/memory attributed to Project -> Workspace -> Tab, orphan session detection and kill, host memory and load; local host only |
+| Resource manage | 3 | 3 | Shipped | Status-bar Resource Manager: per-session CPU/memory attributed to Project -> Workspace -> Tab, orphan session detection and kill, and the share of machine memory those sessions hold; sessions on attached remote hosts are relayed from their runtimes |
 | Space analyzer | 2 | 3 | Planned | Disk space tracking and compaction per workspace |
 | Port scanning & dev server management | 3 | 4 | Planned | Auto-detect open ports, panel listing active dev servers |
 
@@ -175,7 +175,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| SSH | 5 | 4 | Partial | SSH targets, signed remote runtime bootstrap, Settings → Remote Hosts, `alera ssh-target`, `workspace add --host-id`, and Desktop New Workspace host picker; source-control/search against remote paths and remote worktree setup copies remain follow-ups |
+| SSH | 5 | 4 | Partial | SSH targets, signed remote runtime bootstrap, Settings → Remote Hosts, `alera ssh-target`, `workspace add --host-id`, and Desktop New Workspace host picker; terminals, files, search, source control, pull requests, and AI Assist for a remote workspace run on its host over one SSH link per host; creating a workspace on a remote host does not run worktree setup (copy rules and setup commands) yet |
 | Mobile App | 5 | 3 | Shipped | Pairing and terminal foundation plus sidebar parity, secure multi-account enrollment, FCM receipt and tap routing, settings/hooks/quotas, and managed workspace actions; richer non-terminal tab surfaces planned |
 
 ---
@@ -243,7 +243,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Diffs per file | 3 | Shipped |
 | Git status with operations | 4 | Shipped |
 | Orchestration between agents | 5 | Shipped |
-| Quick Open / Command Palette | 3 | Planned |
+| Quick Open / Command Palette | 3 | Shipped |
 | Activity feed | 3 | Partial |
 
 ### Lowest difficulty with high utility (Difficulty ≤ 2, Utility ≥ 4)

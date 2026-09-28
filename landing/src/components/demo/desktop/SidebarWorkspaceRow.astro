@@ -1,0 +1,111 @@
+---
+import AgentLogo from '../primitives/AgentLogo.astro';
+import AppIcon from '../primitives/AppIcon.astro';
+import StateGlyph from '../primitives/StateGlyph.astro';
+import { concealedAttributes } from '../primitives/conceal';
+import type { GlyphState } from '../primitives/glyph-state';
+
+/**
+ * A workspace row in the desktop sidebar (project_workbench_workspace_rows.dart):
+ * status slot, the merged agent's logo when one agent runs in the main
+ * panel, the name, the tray icons that follow it, and on the right the
+ * compact summary of secondary agent runs with their expandable rows.
+ * Every part that changes during the demo takes a node id.
+ */
+type Agent = 'claude' | 'codex';
+interface Part {
+  node?: string;
+  concealed?: boolean;
+}
+interface RunGroup {
+  state: GlyphState;
+  agents: readonly Agent[];
+}
+interface Props {
+  node?: string;
+  name: string;
+  active?: boolean;
+  concealed?: boolean;
+  glyph: { state: GlyphState; node?: string };
+  logo?: Part & { agent: Agent };
+  pullRequest?: Part;
+  watch?: Part;
+  tray?: Part & { variants: readonly (Part & { groups: readonly RunGroup[] })[] };
+  runs?: Part & { rows: readonly { agent: Agent; state: GlyphState; stateNode?: string; label: string; labelNode?: string }[] };
+}
+
+const { node, name, active = false, concealed, glyph, logo, pullRequest, watch, tray, runs } = Astro.props;
+---
+
+<div class="ws-row" data-demo-node={node} data-state={active ? 'active' : 'idle'} {...concealedAttributes(concealed)}>
+  <div class="ws-pill">
+    <div class="ws-line">
+      <span class="ws-slot"><StateGlyph state={glyph.state} node={glyph.node} /></span>
+      {
+        logo && (
+          <span class="ws-logo" data-demo-node={logo.node} {...concealedAttributes(logo.concealed)}>
+            <AgentLogo agent={logo.agent} size={16} />
+          </span>
+        )
+      }
+      <span class="ws-main">
+        <span class="ws-name">{name}</span>
+        <span class="ws-icon ws-worktree"><AppIcon name="split" size={12} /></span>
+        <span class="ws-icon"><AppIcon name="gitBranch" size={12} /></span>
+        {
+          pullRequest && (
+            <span class="ws-icon ws-pr" data-demo-node={pullRequest.node} {...concealedAttributes(pullRequest.concealed)}>
+              <AppIcon name="gitPullRequest" size={12} />
+            </span>
+          )
+        }
+        {
+          watch && (
+            <span class="ws-icon" data-demo-node={watch.node} {...concealedAttributes(watch.concealed)}>
+              <AppIcon name="visible" size={12} />
+            </span>
+          )
+        }
+      </span>
+      {
+        tray && (
+          <span class="ws-tray" data-demo-node={tray.node} data-state="collapsed" {...concealedAttributes(tray.concealed)}>
+            {tray.variants.map((variant) => (
+              <span class="run-variant" data-demo-node={variant.node} {...concealedAttributes(variant.concealed)}>
+                {variant.groups.map((group) => (
+                  <span class="run-group">
+                    <StateGlyph state={group.state} size={11} />
+                    <span class="run-avatars">
+                      {group.agents.map((agent) => (
+                        <span class="run-avatar">
+                          <AgentLogo agent={agent} size={9} />
+                        </span>
+                      ))}
+                    </span>
+                  </span>
+                ))}
+              </span>
+            ))}
+            <AppIcon name="chevronDown" size={12} class="tray-chevron-down" />
+            <AppIcon name="chevronUp" size={12} class="tray-chevron-up" />
+          </span>
+        )
+      }
+    </div>
+    {
+      runs && (
+        <div class="ws-runs" data-demo-node={runs.node} {...concealedAttributes(runs.concealed)}>
+          {runs.rows.map((row) => (
+            <div class="run-row">
+              <StateGlyph state={row.state} size={12} node={row.stateNode} />
+              <AgentLogo agent={row.agent} size={13} />
+              <span class="run-label" data-demo-node={row.labelNode}>
+                {row.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      )
+    }
+  </div>
+</div>

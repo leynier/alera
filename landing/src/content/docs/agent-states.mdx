@@ -1,0 +1,65 @@
+---
+title: Agent States And Attention
+description: See at a glance which agents are working, waiting for you, or finished, and let Alera tell you when one needs attention.
+updatedDate: 2026-09-28
+---
+
+Alera shows what each agent is doing in the sidebar, the tab strip, the tray and Dock, desktop notifications, and on the phone. That state comes from the agent's status hook, and hooks are off by default: turn them on per agent under **Settings → Agents → Status Hooks** ([CLI Agents](/docs/agents#turning-on-status-hooks)). An agent without a hook still runs, but shows no state.
+
+## The States
+
+| State | Meaning | Sidebar glyph | Tab dot |
+| --- | --- | --- | --- |
+| Working | A turn is running | Amber spinner | Blue |
+| Waiting for input | The agent asked for an approval or an answer | Amber bell | Amber |
+| Blocked | The agent cannot go on until you act (GitHub Copilot and fx use it for prompts) | Red bell | Red |
+| Done | The turn finished | Green check | Amber until you view the tab, then green |
+| Interrupted | The turn ended through Ctrl+C, a cancellation, or an error | Red crossed circle | Same as done |
+| Idle | No agent is reporting on that terminal | Plain dot | None |
+
+Hover for the state's name. Done marks the end of a turn, not of a task: most agents report it after every reply.
+
+## In The Sidebar
+
+- **Workspace rows.** When a workspace has a single agent in its main panel, that agent's glyph replaces the leading dot and its icon sits before the name. Otherwise the dot is green when the workspace is selected or has terminals, gray when not.
+- **Compact agent summary.** Other agent runs collect at the right of the row, grouped by state: waiting, blocked, interrupted, working, done. Each group shows its glyph and up to three agent icons, with `+N` for the rest. Click it (**Show Agent Runs**) to expand.
+- **Agent run rows.** Each row shows the glyph, the agent's icon, and the current tool and input while working, otherwise the last reply. **Show Tab Titles in Sidebar** shows tab titles instead. Click a row to open its terminal; **Close Terminal** appears on hover.
+- **Sorting.** In **View Options**, sorting workspaces by **Agent Activity** puts those that need you first, then finished, then working ones, ignoring states older than 30 minutes. `Mod+Alt+ArrowDown` and `Mod+Alt+ArrowUp` walk that list (`Mod` is ⌘ on macOS and Ctrl on Windows and Linux).
+
+## In The Tab Strip
+
+Tab dots use the colors in the table. A finished tab stays amber, with "(unacked)" in its tooltip, until you view it; selecting the tab turns the dot green. The desktop remembers what you viewed until the app restarts.
+
+## Tray And Dock
+
+Alera counts the agents that need you: waiting, blocked, or interrupted, across every workspace. Finished agents do not count.
+
+- The tray icon's tooltip reads, for example, "3 agents need attention". A click shows the window; a right-click offers **Show Alera** and **Quit**.
+- **Show Dock Badge** puts the count on the Dock (macOS), the taskbar (Windows), or the Ubuntu Dock (Linux).
+- **Show Tray Badge** draws the count on the tray icon itself, on Linux only.
+
+These switches and **Show Tray Icon** live in **Settings → Application → Desktop** and start on.
+
+There is no separate mark-as-reviewed button; the count follows the agents. Answer a waiting agent and it returns to working. An interrupted run clears when its next turn starts, the agent exits, or the terminal closes. A finished tab's amber dot clears when you view it.
+
+## Desktop Notifications
+
+Two switches under **Settings → Agents → Behavior**, both off by default, cover agents with a status hook on:
+
+- **Agent Status Notifications** shows a native notification when an agent is waiting or blocked, such as "Claude needs attention" with the workspace and project. Clicking it brings Alera forward, opens that tab, and focuses the terminal.
+- **Agent Finished Notifications** also notifies when an agent finishes, which for most agents means every reply.
+
+A burst within a few seconds becomes one notification, such as "3 agents need attention". One terminal does not repeat the same state within a minute, and states already present when Alera starts are not announced.
+
+## On The Phone
+
+The [mobile companion](/docs/mobile) shows the same glyphs in its workspace list and tab strip. If you opt in with an Alera account, it can also get a push when an agent is waiting or blocked.
+
+## When An Agent Goes Quiet
+
+Hooks only report what an agent announces, so a crash or Ctrl+C could leave a tab stuck on working. Every five seconds the runtime host checks what it can observe:
+
+- **The agent exited.** Once no process is left in the agent's process group, its state is removed. Windows has no process groups, so there only Claude Code's reported process id is checked; other agents rely on their session-end hooks and the silence rule.
+- **The turn went silent.** A working agent with no terminal output and no hook for 60 seconds becomes done. Supported agents redraw a spinner or timer while they work, so a silent minute is a turn that ended without saying so.
+
+An inferred done never receives [orchestration](/docs/orchestration) messages automatically, because the agent may be sitting in a prompt no hook announced; the next real hook replaces it. Inside tmux, screen, or zellij, the host leaves the state to the agent's own hooks.

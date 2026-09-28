@@ -1,0 +1,207 @@
+---
+import Bot from '@lucide/astro/icons/bot';
+import Monitor from '@lucide/astro/icons/monitor';
+import Server from '@lucide/astro/icons/server';
+import Smartphone from '@lucide/astro/icons/smartphone';
+
+/**
+ * `#how-it-works`: the runtime model in one picture, then the three steps a
+ * new user takes. The diagram is HTML rather than SVG so it reflows into a
+ * single column on phones instead of shrinking into unreadable text.
+ */
+const agentLogos = [
+  { name: 'Claude Code', src: '/agents/claude.svg' },
+  { name: 'Codex', src: '/agents/codex.svg' },
+  { name: 'Amp', src: '/agents/amp.png' },
+  { name: 'Cursor', src: '/agents/cursor.png' },
+  { name: 'OpenCode', src: '/agents/opencode.svg' },
+];
+
+const steps = [
+  {
+    number: '01',
+    title: 'Register Your Projects',
+    description: 'Add a local folder or clone a Git repository. Open as many workspaces on it as you need, and give each one its own worktree when the project uses Git.',
+  },
+  {
+    number: '02',
+    title: 'Open A Workspace Per Task',
+    description: 'Each workspace can be its own Git worktree: one branch, one task. Describe it in a prompt and Alera names it and starts the agent.',
+  },
+  {
+    number: '03',
+    title: 'Run Agents Side By Side',
+    description: 'Launch Claude Code, Codex, Amp, fx, or any CLI in real terminals, and follow who is working and who needs you from the sidebar or your phone.',
+  },
+];
+
+const nodeClass = 'rounded-xl border border-border bg-surface p-4';
+const iconClass = 'inline-flex size-8 items-center justify-center rounded-md border border-border-subtle bg-surface-variant text-foreground-muted';
+---
+
+<section id="how-it-works" class="defer-offscreen-rendering border-t border-border-subtle/50 px-6 py-24">
+  <div class="mx-auto max-w-5xl">
+    <div class="mb-14 text-center">
+      <p class="mb-4 font-mono text-label-md uppercase tracking-widest text-foreground-faint">How It Works</p>
+      <h2 class="mb-4 text-headline-lg font-semibold tracking-tight text-foreground md:text-[32px]">One Runtime, Every Screen</h2>
+      <p class="mx-auto max-w-xl text-[15px] text-foreground-muted">
+        A Rust runtime owns every terminal. The desktop app and your phone are windows onto it, so your agents keep
+        running when you close the window.
+      </p>
+    </div>
+
+    <div class="runtime-diagram mb-16" role="group" aria-label="Alera Runtime Architecture">
+      <div class:list={[nodeClass, 'area-desktop']}>
+        <span class={iconClass}><Monitor size={16} /></span>
+        <p class="mt-3 text-title-md text-foreground">Desktop App</p>
+        <p class="mt-1 text-body-md text-foreground-muted">Flutter on macOS, Windows, and Linux. Tabs, splits, review, and pull requests.</p>
+      </div>
+      <div class="area-link-desktop runtime-link"><span>Local Socket</span></div>
+
+      <div class:list={[nodeClass, 'area-phone']}>
+        <span class={iconClass}><Smartphone size={16} /></span>
+        <p class="mt-3 text-title-md text-foreground">Android Companion</p>
+        <p class="mt-1 text-body-md text-foreground-muted">Get a push when an agent waits, open its terminal, and answer from anywhere.</p>
+      </div>
+      <div class="area-link-phone runtime-link"><span>Direct, Tailscale, Or Encrypted Relay</span></div>
+
+      <div class="area-runtime rounded-xl border border-foreground-faint/40 bg-surface-variant p-5">
+        <span class={iconClass}><Server size={16} /></span>
+        <p class="mt-3 text-title-lg text-foreground">Alera Runtime</p>
+        <p class="mt-1 text-body-md text-foreground-muted">
+          A Rust sidecar that owns every PTY, persists sessions and scrollback, tracks agent states, and runs
+          orchestration. Close the window and your sessions keep running.
+        </p>
+        <ul class="mt-4 flex flex-wrap gap-1.5" aria-label="Runtime Responsibilities">
+          {['Terminals', 'Worktrees', 'Agent States', 'Orchestration', 'Push'].map((item) => (
+            <li class="rounded-pill border border-border px-2.5 py-0.5 font-mono text-label-md text-foreground-muted">{item}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div class="area-link-agents runtime-link"><span>Real PTYs</span></div>
+      <div class:list={[nodeClass, 'area-agents']}>
+        <span class={iconClass}><Bot size={16} /></span>
+        <p class="mt-3 text-title-md text-foreground">Agents In Worktrees</p>
+        <p class="mt-1 text-body-md text-foreground-muted">Any CLI agent, each in its own checkout, in a real terminal.</p>
+        <div class="mt-3 flex items-center gap-1.5" aria-hidden="true">
+          {agentLogos.map((agent) => (
+            <span class="inline-flex size-7 items-center justify-center rounded-md border border-border-subtle bg-surface-variant">
+              <img src={agent.src} alt="" class="size-4" width="16" height="16" loading="lazy" />
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div class="area-link-remote runtime-link"><span>One SSH Link Per Host</span></div>
+      <div class:list={[nodeClass, 'area-remote']}>
+        <span class={iconClass}><Server size={16} /></span>
+        <p class="mt-3 text-title-md text-foreground">Remote SSH Hosts</p>
+        <p class="mt-1 text-body-md text-foreground-muted">A satellite runtime on each machine runs terminals, files, and Git where the code lives.</p>
+      </div>
+    </div>
+
+    <ol class="grid grid-cols-1 gap-8 md:grid-cols-3">
+      {
+        steps.map((step) => (
+          <li>
+            <span class="font-mono text-label-md text-foreground-faint">{step.number}</span>
+            <h3 class="mt-2 text-title-lg text-foreground">{step.title}</h3>
+            <p class="mt-2 text-body-md leading-relaxed text-foreground-muted">{step.description}</p>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</section>
+
+<style>
+  /* Named grid areas keep the diagram readable in source and let the phone
+     layout stack the same nodes in reading order. */
+  .runtime-diagram {
+    display: grid;
+    gap: 0.5rem;
+    grid-template-areas:
+      'desktop'
+      'phone'
+      'link-desktop'
+      'runtime'
+      'link-agents'
+      'agents'
+      'remote';
+  }
+
+  .area-desktop { grid-area: desktop; }
+  .area-phone { grid-area: phone; }
+  .area-runtime { grid-area: runtime; }
+  .area-agents { grid-area: agents; }
+  .area-remote { grid-area: remote; }
+  .area-link-desktop { grid-area: link-desktop; }
+  .area-link-phone { grid-area: link-phone; }
+  .area-link-agents { grid-area: link-agents; }
+  .area-link-remote { grid-area: link-remote; }
+
+  .runtime-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.5rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-label-md);
+    color: var(--color-foreground-faint);
+    text-align: center;
+  }
+
+  .runtime-link::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    border-left: 1px dashed var(--color-border);
+  }
+
+  .runtime-link span {
+    position: relative;
+    padding: 0.125rem 0.5rem;
+    background: var(--color-bg);
+  }
+
+  /* The phone layout draws one link per column pair; the second row's links
+     only exist side by side. */
+  .runtime-link.area-link-phone,
+  .runtime-link.area-link-remote {
+    display: none;
+  }
+
+  @media (min-width: 1024px) {
+    .runtime-diagram {
+      align-items: center;
+      column-gap: 0;
+      row-gap: 1.5rem;
+      grid-template-columns: minmax(0, 1fr) 8.5rem minmax(0, 1.15fr) 8.5rem minmax(0, 1fr);
+      grid-template-areas:
+        'desktop link-desktop runtime link-agents agents'
+        'phone link-phone runtime link-remote remote';
+    }
+
+    .runtime-link.area-link-phone,
+    .runtime-link.area-link-remote {
+      display: flex;
+    }
+
+    .runtime-link::before {
+      top: 50%;
+      bottom: auto;
+      left: 0;
+      right: 0;
+      border-left: 0;
+      border-top: 1px dashed var(--color-border);
+    }
+
+    .runtime-link span {
+      max-width: 7.5rem;
+    }
+  }
+</style>

@@ -1,0 +1,83 @@
+---
+import ArrowLeft from '@lucide/astro/icons/arrow-left';
+import { getEntries } from 'astro:content';
+import Footer from '../components/Footer.astro';
+import Navbar from '../components/Navbar.astro';
+import OnThisPage from '../components/OnThisPage.astro';
+import Prose from '../components/Prose.astro';
+import BlogPager from '../components/blog/BlogPager.astro';
+import BlogPostHeader from '../components/blog/BlogPostHeader.astro';
+import RelatedDocs from '../components/blog/RelatedDocs.astro';
+import { getPublishedBlogPosts, postHref, readingTimeLabel, type BlogPost } from '../lib/blog';
+import { adjacentPosts } from '../lib/blog-listing';
+import { frameCodeBlocks } from '../lib/code-block-frame';
+import { outlineHtml } from '../lib/heading-outline';
+import Layout from './Layout.astro';
+
+/**
+ * A blog post in the same reading frame as the docs: the outline and heading
+ * links come from the rendered headings, code blocks get the shared frame,
+ * and the post ends with the docs it points to and its neighbours.
+ */
+interface Props {
+  post: BlogPost;
+}
+
+const { post } = Astro.props;
+const { html, headings } = outlineHtml(await Astro.slots.render('default'));
+const body = frameCodeBlocks(html);
+const hasOutline = headings.length >= 2;
+const { newer, older } = adjacentPosts(await getPublishedBlogPosts(), post.id);
+const relatedDocs = await getEntries(post.data.relatedDocs);
+---
+
+<Layout
+  title={`${post.data.title} - Alera Blog`}
+  description={post.data.description}
+  canonicalPath={postHref(post)}
+  ogType="article"
+  publishedTime={post.data.pubDate}
+  modifiedTime={post.data.updatedDate}
+>
+  <a
+    href="#main-content"
+    class="sr-only z-[60] rounded-md bg-accent px-3 py-2 text-body-md text-on-accent focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+  >
+    Skip To Content
+  </a>
+  <Navbar current="blog" />
+
+  <div class:list={['mx-auto flex gap-12 px-6 pt-24 pb-20', hasOutline ? 'max-w-3xl xl:max-w-5xl' : 'max-w-3xl']}>
+    <main id="main-content" class="min-w-0 flex-1 [&_[id]]:scroll-mt-20">
+      <p class="mb-8">
+        <a
+          href="/blog"
+          class="inline-flex items-center gap-1.5 text-body-md text-foreground-faint transition-colors duration-fast hover:text-foreground"
+        >
+          <ArrowLeft size={14} />
+          Back To Blog
+        </a>
+      </p>
+      <article>
+        <BlogPostHeader
+          title={post.data.title}
+          description={post.data.description}
+          pubDate={post.data.pubDate}
+          updatedDate={post.data.updatedDate}
+          readingTime={readingTimeLabel(post)}
+          tags={post.data.tags}
+        />
+        {hasOutline && <OnThisPage headings={headings} variant="inline" />}
+        <div class="mt-10">
+          <Prose><Fragment set:html={body} /></Prose>
+        </div>
+      </article>
+      <RelatedDocs docs={relatedDocs} />
+      <BlogPager newer={newer} older={older} />
+    </main>
+
+    {hasOutline && <OnThisPage headings={headings} variant="aside" />}
+  </div>
+
+  <Footer />
+</Layout>

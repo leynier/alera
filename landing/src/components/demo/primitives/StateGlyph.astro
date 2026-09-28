@@ -1,0 +1,44 @@
+---
+import AgentSpinner from './AgentSpinner.astro';
+import AppIcon from './AppIcon.astro';
+import MobileIcon from './MobileIcon.astro';
+import type { GlyphState } from './glyph-state';
+
+/**
+ * `AgentRunStateIndicator`: one slot that shows the idle dot or the glyph for
+ * the run's state. Every variant is in the markup and `data-state` picks one,
+ * so the storyboard changes a state without replacing elements.
+ * States: `idle`, `idle-active`, `working`, `waiting`, `blocked`, `done`,
+ * `interrupted`. The phone draws attention with a plain bell, from its own
+ * icon registry.
+ */
+interface Props {
+  state?: GlyphState;
+  size?: number;
+  node?: string;
+  class?: string;
+  phone?: boolean;
+}
+
+const { state = 'idle', size = 13, node, class: className, phone = false } = Astro.props;
+---
+
+<span class:list={['state-glyph', className]} data-state={state} data-demo-node={node} style={`--slot: ${size}px`}>
+  <span class="glyph-dot"></span>
+  <AgentSpinner size={size - 2} class="glyph-working" />
+  {
+    phone ? (
+      <>
+        <MobileIcon name="success" size={size} class="glyph-done" />
+        <MobileIcon name="notifications" size={size} class="glyph-attention" />
+        <MobileIcon name="cancel" size={size} class="glyph-interrupted" />
+      </>
+    ) : (
+      <>
+        <AppIcon name="success" size={size} class="glyph-done" />
+        <AppIcon name="notifications" size={size} class="glyph-attention" />
+        <AppIcon name="cancel" size={size} class="glyph-interrupted" />
+      </>
+    )
+  }
+</span>

@@ -1,0 +1,66 @@
+---
+import { CLAUDE_SESSION, CODEX_SHELL, CODEX_UI, RELEASE_SESSION } from '../../../data/demo/transcripts';
+import TerminalBlocks from '../primitives/TerminalBlocks.astro';
+import TerminalPane from '../primitives/TerminalPane.astro';
+import { concealedAttributes } from '../primitives/conceal';
+import DriverBanner from './DriverBanner.astro';
+import PaneStrip from './PaneStrip.astro';
+import TabChip from './TabChip.astro';
+
+/**
+ * The center workbench for the two workspaces the demo visits. A workspace
+ * with one tab shows a chrome-less terminal; once the center holds two tabs
+ * every pane gets its strip (workspace_panel.dart, showsMainChrome). The
+ * webhook workspace's panes are `single`, `split` after Split Right, or
+ * `merged` after Close Split folds Codex's tab into Claude's pane.
+ */
+---
+
+<section class="center">
+  <div class="center-view" data-demo-node="d-view-release">
+    <div class="panes" data-state="single">
+      <div class="pane">
+        <div class="pane-body"><TerminalPane blocks={RELEASE_SESSION} /></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="center-view" data-demo-node="d-view-webhooks" {...concealedAttributes(true)}>
+    <div class="panes" data-demo-node="d-panes" data-state="single">
+      <div class="pane pane-claude" data-demo-node="d-pane-claude" data-state="own">
+        <PaneStrip>
+          <TabChip title="Payment Webhook Retries" active dot="working" dotNode="d-chip-claude-dot" />
+          <TabChip
+            title="Duplicate Delivery Test"
+            class="chip-merged"
+            dot="done"
+            node="d-chip-codex-merged"
+          />
+        </PaneStrip>
+        <div class="pane-body">
+          <TerminalPane blocks={CLAUDE_SESSION} class="term-claude" />
+          <DriverBanner />
+        </div>
+      </div>
+      <div class="split-handle"></div>
+      <div class="pane pane-codex">
+        <PaneStrip>
+          <TabChip
+            title="Terminal 1"
+            active
+            dotNode="d-chip-codex-dot"
+            titleNode="d-chip-codex-title"
+            generatingNode="d-chip-codex-generating"
+          />
+        </PaneStrip>
+        <div class="pane-body">
+          <TerminalPane blocks={CODEX_SHELL}>
+            <div data-demo-node="codex-ui" {...concealedAttributes(true)}>
+              <TerminalBlocks blocks={CODEX_UI} />
+            </div>
+          </TerminalPane>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,37 @@
+---
+import { tagHref, type BlogTag } from '../../lib/blog-tags';
+
+/** Every tag in use, with its post count; the current one is marked for assistive technology too. */
+interface Props {
+  counts: { tag: BlogTag; count: number }[];
+  total: number;
+  current?: BlogTag;
+}
+
+const { counts, total, current } = Astro.props;
+const pill = (active: boolean) => [
+  'inline-flex items-center gap-2 rounded-pill border px-3 py-1 text-body-md transition-colors duration-fast',
+  active
+    ? 'border-foreground-faint bg-surface-elevated text-foreground'
+    : 'border-border-subtle text-foreground-muted hover:border-border hover:text-foreground',
+];
+---
+
+<nav aria-label="Blog Tags">
+  <ul class="flex flex-wrap gap-2">
+    <li>
+      <a href="/blog" class:list={pill(current === undefined)} aria-current={current === undefined ? 'page' : undefined}>
+        All Posts <span class="font-mono text-label-md text-foreground-faint">{total}</span>
+      </a>
+    </li>
+    {
+      counts.map(({ tag, count }) => (
+        <li>
+          <a href={tagHref(tag)} class:list={pill(current === tag)} aria-current={current === tag ? 'page' : undefined}>
+            {tag} <span class="font-mono text-label-md text-foreground-faint">{count}</span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</nav>

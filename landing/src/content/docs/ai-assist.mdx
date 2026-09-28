@@ -1,0 +1,55 @@
+---
+title: AI Assist And Dictation
+description: Let an agent CLI you already use draft commit messages, pull request details, and workspace names, and dictate prompts with local or remote speech-to-text.
+updatedDate: 2026-09-28
+---
+
+AI Assist hands short writing jobs to an agent CLI you already use. Dictation turns speech into text in the fields where you write prompts. Neither needs an Alera account.
+
+## What AI Assist Writes
+
+- **Commit messages** from your staged changes: **Generate commit message with AI** in **Source Control**.
+- **Pull request titles and descriptions**: **Generate Title And Description With AI** in the pull request form, once a base branch is selected.
+- **Workspace names and branches** when you create a workspace **From Prompt** (see [New Workspace](/docs/new-workspace)), plus a section when **Auto Assign Section** is on. **Hand Off** suggests a branch name the same way.
+- **Agent titles**: new agent tabs are named from their first prompt while **Auto-Generate Agent Titles** is on. Right-click a tab for **Generate Title** or **Regenerate Title**.
+- **Reading diffs**: **Generate Reading Diff** in a diff tab writes a behavioral overview and a condensed diff. It asks first, because it spends quota, and it is not a code review.
+- **Speech messages**: optional cleanup or summary of dictated text.
+
+Commit messages and pull request details land in the form for you to edit, and are dropped if you change the field while the job runs.
+
+## Choosing The Agent
+
+Configure it in **Settings → AI Assist**. **Enable AI Assist** is on by default, and the **Agent** is **Codex**, which runs `codex exec` in a read-only sandbox. You can pick Claude Code, GitHub Copilot, Cursor, Antigravity, OpenCode, OpenCode 2, OpenCode Go, Pi, Amp, Grok Build, fx, or **Custom Command**, then a **Model** and, where the model supports it, a **Reasoning** level. **Refresh models** fetches the current list.
+
+Each job type (**Commit Messages**, **Pull Request Details**, **Reading Diffs**, **Workspace Identity**, **Agent Titles**, **Speech Messages**) has its own group where you can keep the **Global** agent and model or override them, and add **Instructions** such as your commit convention.
+
+A **Custom Command** receives the prompt on stdin, or as an argument wherever you write `{prompt}`, for example `llm --system commit-message`. It cannot process speech.
+
+The CLI must be on your `PATH` and signed in. If it is missing, the job names the command it looked for, and any job stops after two minutes.
+
+<Callout type="note" title="What Leaves Your Machine">
+The prompt, which holds a diff and commit list, your From Prompt text, a tab's first prompt or recent terminal output, or a transcript, goes to the CLI you chose, and that CLI talks to its own provider under your account. Alera adds no service of its own in between. OpenCode Go is the exception: the runtime calls the OpenCode Go API directly, with the key OpenCode saved on this machine. For a workspace on a [remote host](/docs/remote-hosts), the job runs on that host, with its CLI and credentials.
+</Callout>
+
+**Settings → Text Actions** uses the same agents: save an instruction with **New Action**, then apply it to selected text from the **Text Actions** entry of the right-click menu.
+
+## Dictation
+
+Turn on **Enable AI Dictation** in **Settings → AI Dictation**; it is off by default. Then use the microphone button in the Terminal Composer, an agent profile's starting prompt, **From Prompt**, the commit message, or the pull request title and description. Click **Start Dictation**, speak, and click **Stop Dictation** to insert the text.
+
+Pick a **Transcription Engine**:
+
+- **Local Whisper** (the default) keeps audio on this computer. Download a model under **Local Whisper Models** and choose **Use Model**: **Whisper Tiny**, **Whisper Base** (recommended), **Whisper Small**, or **Whisper Large V3 Turbo Q5_0**. Downloads come from the whisper.cpp model repository, run one at a time, resume after an interruption, and are checked against a pinned SHA-256 checksum before use.
+- **Codex Subscription (Experimental)** uses the realtime API included with a Codex subscription, through your signed-in `codex` CLI. Alera never reads your Codex credentials. **Realtime Model** is an optional override.
+- **OpenAI-Compatible API** sends the recording to any speech-to-text endpoint: set the **Base URL** (default `https://api.openai.com/v1`) and **Model** (default `gpt-4o-mini-transcribe`). The optional **API Token** goes to the system credential store (on Linux, a private file only you can read, if no keyring is available), is tied to that API's origin, and never enters Settings. Local servers that need no token work too.
+- **System On-Device** on macOS, offered only when the system recognizer can guarantee offline processing, and **System Recognition** on Windows, which may send audio to Microsoft and needs **Allow Online Speech Recognition**.
+
+Both remote engines need **Allow Remote Audio Processing**, and the recording is deleted locally after transcription. **Request Timeout** allows 5 to 300 seconds, 60 by default. Leave **Language** blank to detect it automatically.
+
+**Speech Processing → Automatic Processing** can **Clean Up** or **Summarize** the transcript with the agent set for **Speech Messages** in AI Assist. If that agent fails, the raw text is inserted.
+
+Test a configuration in the **Test AI Dictation** field. **Runtime Update Required** means the running runtime is older than the app; replace it with **Update Runtime** (see [Troubleshooting](/docs/troubleshooting)).
+
+## On The Phone
+
+The Android app has its own **AI Dictation** screen in Settings. Its **Processing Location** is **This Device**, with Whisper models, the system recognizers, and an OpenAI-compatible API whose token stays in the phone's secure storage, or **Paired Device**, which hands the recording to the computer's Whisper model, API token, or Codex subscription. Except with the system recognizers, you can play a recording back before choosing **Transcribe** or **Remove Recording**. See [Mobile Companion](/docs/mobile).

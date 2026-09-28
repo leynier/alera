@@ -1,0 +1,81 @@
+---
+import { APP_COPY } from '../../../data/demo/app-copy';
+import { SAMPLE } from '../../../data/demo/sample-workspace';
+import AppIcon from '../primitives/AppIcon.astro';
+import { concealedAttributes } from '../primitives/conceal';
+
+/**
+ * New Workspace in From Prompt mode (prompt_workspace_dialog_shell.dart and
+ * _form.dart): 680 px wide, at most 740 px tall, the header and mode switch
+ * fixed and the form scrolling under them. Source Branch only exists once
+ * New Worktree is chosen, which is what pushes the form past the limit.
+ */
+const dropdowns = [{ label: APP_COPY.parentWorkspace.text, value: APP_COPY.noParent.text }] as const;
+---
+
+<div class="dialog-barrier" data-demo-node="d-dialog-barrier" {...concealedAttributes(true)}></div>
+<div class="dialog-center">
+  <div class="dialog" data-demo-node="d-dialog" {...concealedAttributes(true)}>
+    <div class="dialog-header">
+      <AppIcon name="gitFork" size={24} class="dialog-header-icon" />
+      <span class="dialog-title">{APP_COPY.newWorkspace.text}</span>
+      <span class="dialog-close"><AppIcon name="close" size={24} /></span>
+    </div>
+    <div class="segmented dialog-mode">
+      <span class="segment" data-state="selected"><AppIcon name="agent" size={16} />{APP_COPY.fromPrompt.text}</span>
+      <span class="segment"><AppIcon name="gitBranch" size={16} />{APP_COPY.manual.text}</span>
+    </div>
+    <div class="dialog-scroll">
+      <div class="dialog-form" data-demo-node="d-dialog-form" style="--scroll: 0">
+        <span class="field-label">{APP_COPY.projectField.text}</span>
+        <span class="app-dropdown"><span>{SAMPLE.project}</span><AppIcon name="chevronDown" size={16} /></span>
+        <div class="segmented dialog-location" data-demo-node="d-dialog-location" data-state="folder">
+          <span class="segment segment-folder">{APP_COPY.projectFolder.text}</span>
+          <span class="segment segment-worktree" data-demo-node="d-dialog-new-worktree">{APP_COPY.newWorktree.text}</span>
+        </div>
+        <div class="dialog-source-branch" data-demo-node="d-dialog-source-branch" {...concealedAttributes(true)}>
+          <span class="field-label">{APP_COPY.sourceBranch.text}</span>
+          <span class="app-dropdown"><span>{SAMPLE.sourceBranch}</span><AppIcon name="chevronDown" size={16} /></span>
+        </div>
+        {
+          dropdowns.map((field) => (
+            <>
+              <span class="field-label field-gap">{field.label}</span>
+              <span class="app-dropdown">
+                <span>{field.value}</span>
+                <AppIcon name="chevronDown" size={16} />
+              </span>
+            </>
+          ))
+        }
+        <span class="field-label field-gap">{APP_COPY.hostField.text}</span>
+        <span class="app-dropdown">
+          <span class="dropdown-value"><AppIcon name="workspaceMain" size={14} />{APP_COPY.thisDevice.text}</span>
+          <AppIcon name="chevronDown" size={16} />
+        </span>
+        <span class="field-helper">{APP_COPY.hostHelper.text}</span>
+        <span class="field-label field-gap">{APP_COPY.agentProfile.text}</span>
+        <span class="app-dropdown"><span>Claude</span><AppIcon name="chevronDown" size={16} /></span>
+        <span class="text-field text-field-single field-gap">
+          <span class="text-field-label">{APP_COPY.issueUrl.text}</span>
+        </span>
+        <span class="text-field text-field-prompt" data-demo-node="d-dialog-prompt" data-state="idle">
+          <span class="text-field-label">{APP_COPY.initialPrompt.text}</span>
+          <span class="text-field-value" data-demo-node="d-dialog-prompt-text"></span>
+          <span class="text-field-hint">{APP_COPY.initialPromptHint.text}</span>
+          <span class="text-field-mic"><AppIcon name="mic" size={16} /></span>
+        </span>
+        <span class="dialog-checkbox">
+          <span class="app-checkbox"><AppIcon name="check" size={14} /></span>
+          {APP_COPY.createAnother.text}
+        </span>
+        <span class="dialog-footer">
+          <span class="app-filled-button" data-demo-node="d-dialog-create">
+            <AppIcon name="agent" size={16} />
+            {APP_COPY.createAndStartAgent.text}
+          </span>
+        </span>
+      </div>
+    </div>
+  </div>
+</div>

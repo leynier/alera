@@ -1,0 +1,14 @@
+---
+import { MOBILE_ICONS, type MobileIconRole } from './mobile-icons';
+
+interface Props {
+  name: MobileIconRole;
+  size?: number;
+  class?: string;
+}
+
+const { name, size = 12, class: className } = Astro.props;
+const Icon = MOBILE_ICONS[name];
+---
+
+<Icon width={size} height={size} class:list={['app-icon', className]} aria-hidden="true" focusable="false" />

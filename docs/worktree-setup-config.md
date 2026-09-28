@@ -59,7 +59,7 @@ Use setup commands when the workspace needs to install dependencies, generate fi
 
 ## New Workspace Prompt Append
 
-`new_workspace.prompt_append` is optional project-specific text added last to the prompt before Alera starts the selected agent profile from the **New Workspace** flow. When the profile has a Custom Prompt, the delivered order is the user prompt, the profile prompt, then this project prompt, with blank lines between non-empty sections. Alera does not send this append text through AI Assist and does not use it to generate the workspace name or branch.
+`new_workspace.prompt_append` is optional project-specific text added last to the prompt whenever Alera starts an agent profile in one of the project's workspaces: from the **New Workspace** flow, the tab menu, the phone, `alera agent-profile launch`, or an orchestration dispatch. Resumes and frozen workflow snapshots do not receive it. When the profile has a Custom Prompt, the delivered order is the user prompt, the profile prompt, then this project prompt, with blank lines between non-empty sections. Alera does not send this append text through AI Assist and does not use it to generate the workspace name or branch.
 
 Like the worktree settings, this value can be stored in `alera.toml` or edited under **Settings > Projects**. A UI override replaces the complete repository `alera.toml` config for that project, including this value. It does not disable `.worktreeinclude`.
 
@@ -88,7 +88,7 @@ Inside the Setup terminal:
 
 The command is delivered once. After it is on its way the host drops it from the tab record, so restarting the terminal, the app, or the host leaves a clean shell rather than reinstalling dependencies.
 
-`alera workspace add` keeps running the setup inline and reporting it, because the CLI has no terminal tab to show it in. `alera workspace setup --id <workspace>` applies a project's setup to an existing workspace, with `--copies-only` for just the copy actions. An older runtime host that does not understand `deferSetup` ignores it and runs the setup inline, which is the behavior described in the rest of this page.
+`alera workspace add` and `alera workspace start` with `--worktree` keep running the setup inline and reporting it, because the CLI has no terminal tab to show it in. `alera workspace setup --id <workspace>` applies a project's setup to an existing workspace, with `--copies-only` for just the copy actions. An older runtime host that does not understand `deferSetup` ignores it and runs the setup inline, which is the behavior described in the rest of this page.
 
 ## Automation declaration
 
@@ -117,4 +117,4 @@ GitHub native pull request stack mutations require the official `github/gh-stack
 
 GitLab review pagination requires `glab` 1.80.0 or newer.
 
-If a copy or setup action fails after the Git worktree is created, Alera keeps and opens the workspace. When the setup ran inline, a setup warning is surfaced so the user can fix the workspace in place; when it ran in the Setup terminal, the terminal itself is the report. An invalid `alera.toml` or `.worktreeinclude` is surfaced as a warning either way. The UI and `alera workspace add` both execute this setup through the runtime host.
+If a copy or setup action fails after the Git worktree is created, Alera keeps the workspace; the user opens it from the sidebar. When the setup ran inline, a setup warning is surfaced so the user can fix the workspace in place; when it ran in the Setup terminal, the terminal itself is the report. An invalid `alera.toml` or `.worktreeinclude` is surfaced as a warning either way. The UI and `alera workspace add` both execute this setup through the runtime host.

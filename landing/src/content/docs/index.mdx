@@ -1,0 +1,66 @@
+---
+title: Get Started
+description: Install Alera and run your first CLI coding agent in its own workspace.
+updatedDate: 2026-09-28
+---
+
+Alera is a native workbench for CLI coding agents. You run Claude Code, Codex, Amp, Antigravity, OpenCode, Cursor, Copilot, Pi, Grok Build, fx, or any other terminal agent in a real PTY, each in its own Git worktree when the project is Git-backed.
+
+It is not another AI IDE and it does not wrap a single chat backend. The desktop app is Flutter, and the runtime that owns your terminals is a Rust sidecar that keeps running when you close the window. There is no Electron and no bundled Chromium.
+
+<DocLinkButton href="/download">Download Alera</DocLinkButton>
+<DocLinkButton href="/docs/install" variant="secondary">See Install Options</DocLinkButton>
+
+## First Session
+
+<Steps>
+
+1. [Install Alera](/docs/install) for your platform, then open the app.
+2. Register a [project](/docs/projects): an existing local folder, or a Git clone from a URL. Its first workspace opens on the project folder.
+3. Open a [terminal tab](/docs/terminals) and launch an [agent CLI](/docs/agents) the same way you would in any shell.
+4. For the next task, save an [agent profile](/docs/agent-profiles) for your CLI and press `Mod+Shift+N` for [New Workspace](/docs/new-workspace) (`Mod` is ⌘ on macOS and Ctrl on Windows and Linux). Describe the task, pick the profile, and, in a Git project, choose **New Worktree** so the task gets [its own branch and folder](/docs/worktrees). AI Assist names the workspace, and the agent starts with your prompt.
+
+</Steps>
+
+That is the whole loop. Everything else in these docs is how to keep several of those loops running at once without collisions.
+
+## Find Your Way Around
+
+<DocCardGrid>
+  <DocCard title="New Workspace" href="/docs/new-workspace" icon="folder-git">
+    Start a task from a prompt or by hand, on the project folder or in its own worktree.
+  </DocCard>
+  <DocCard title="Terminals And Panes" href="/docs/terminals" icon="terminal">
+    Tabs, splits, the composer, and sessions that outlive the window.
+  </DocCard>
+  <DocCard title="CLI Agents" href="/docs/agents" icon="bot">
+    First-class integrations, status hooks, and the rule that any CLI still runs.
+  </DocCard>
+  <DocCard title="Source Control" href="/docs/source-control" icon="git-branch">
+    Stage, commit, and sync, read diffs, and send line comments to an agent.
+  </DocCard>
+  <DocCard title="Pull Requests And Checks" href="/docs/pull-requests" icon="git-pull-request">
+    Create and merge pull requests, follow checks, and let an agent watch and fix them.
+  </DocCard>
+  <DocCard title="Orchestration" href="/docs/orchestration" icon="workflow">
+    Coordinator runs that hand tasks to your agent profiles and wait for decisions.
+  </DocCard>
+  <DocCard title="Remote Hosts" href="/docs/remote-hosts" icon="server">
+    Run workspaces on machines you reach over SSH, with the desktop as the hub.
+  </DocCard>
+  <DocCard title="Mobile Companion" href="/docs/mobile" icon="smartphone">
+    Pair an Android phone and answer an agent from anywhere.
+  </DocCard>
+</DocCardGrid>
+
+The sidebar lists every page, and **Search Docs** (`Ctrl K`, or `⌘K` on macOS) finds the rest.
+
+## What These Docs Cover
+
+These pages are for people *using* Alera: install, the workbench, agents, review, coordination, remote hosts, and the companion app. They describe behavior that ships today.
+
+Contributor internals (architecture, CI, design-system rules, release signing) stay in the [GitHub repository](https://github.com/leynier/alera), not here.
+
+<Callout>
+Alera is in public beta. The core workflow is shipping: projects, worktree workspaces, multi-agent terminals, persistent sessions, live agent states, visual source control, pull requests and checks, remote SSH hosts, the Android companion, and agent quota tracking.
+</Callout>

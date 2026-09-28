@@ -1,0 +1,35 @@
+---
+import type { Beat, Chapter } from '../../scripts/demo/timeline';
+
+/**
+ * The demo as text, chapter by chapter, from the same captions the player
+ * shows, followed by the credits for the icon sets the scene draws with.
+ */
+interface Props {
+  chapters: readonly Chapter[];
+  beats: readonly Beat[];
+}
+
+const { chapters, beats } = Astro.props;
+const beatsIn = (chapter: Chapter) => beats.filter((beat) => beat.at >= chapter.start && beat.at < chapter.end);
+---
+
+<details class="demo-transcript">
+  <summary>Read The Demo As Text</summary>
+  <ol>
+    {
+      chapters.map((chapter) => (
+        <li>
+          <h3>{chapter.title}</h3>
+          <p>{chapter.caption}</p>
+          {beatsIn(chapter).map((beat) => (
+            <p>{beat.caption}</p>
+          ))}
+        </li>
+      ))
+    }
+  </ol>
+  <p class="demo-credits">
+    Drawn with Lucide icons (ISC), VS Code Codicons (CC BY 4.0), Material Icons (Apache 2.0) and the Material Icon Theme (MIT), the icon sets the apps use. Agent marks belong to their owners.
+  </p>
+</details>

@@ -1,0 +1,302 @@
+/* Status bar (agent_quota_status_bar_content.dart and its trailing controls)
+   and the Resource Manager hover card. */
+
+[data-alera-demo] .status-bar {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex: none;
+  align-items: stretch;
+  height: 30px;
+  border-top: 1px solid var(--app-border-subtle);
+  background: var(--app-surface);
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .status-segment {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+}
+
+[data-alera-demo] .status-host {
+  gap: 4px;
+}
+
+[data-alera-demo] .status-host .app-icon {
+  color: var(--app-foreground-faint);
+}
+
+[data-alera-demo] .status-gauge {
+  padding: 0 6px;
+}
+
+[data-alera-demo] .status-divider {
+  flex: none;
+  width: 1px;
+  background: var(--app-border-subtle);
+}
+
+[data-alera-demo] .status-mono {
+  font-family: var(--app-font-mono);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+[data-alera-demo] .status-tight {
+  margin-left: -2px;
+}
+
+[data-alera-demo] .status-quotas {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+  min-width: 0;
+}
+
+[data-alera-demo] .quota-chip {
+  display: flex;
+  flex: none;
+  align-items: center;
+  padding: 0 6px;
+  border-right: 1px solid var(--app-border-subtle);
+}
+
+[data-alera-demo] .quota-logo {
+  display: flex;
+  justify-content: center;
+  width: 14px;
+}
+
+[data-alera-demo] .quota-profile {
+  margin-left: 4px;
+  font-family: var(--app-font-mono);
+  font-size: 8px;
+  font-weight: 600;
+}
+
+[data-alera-demo] .quota-readings {
+  display: flex;
+  gap: 4px;
+  margin-left: 6px;
+}
+
+[data-alera-demo] .quota-reading {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+[data-alera-demo] .quota-label {
+  color: var(--app-foreground-faint);
+  font-family: var(--app-font-mono);
+  font-size: 8px;
+  font-weight: 500;
+}
+
+[data-alera-demo] .quota-value {
+  font-family: var(--app-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+[data-alera-demo] .quota-value[data-tone='success'] { color: var(--app-success); }
+[data-alera-demo] .quota-value[data-tone='warning'] { color: var(--app-warning); }
+[data-alera-demo] .quota-value[data-tone='error'] { color: var(--app-error); }
+
+[data-alera-demo] .status-refresh {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+}
+
+[data-alera-demo] .status-trailing {
+  display: flex;
+  flex: none;
+  align-items: stretch;
+}
+
+[data-alera-demo] .status-runboard {
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+}
+
+[data-alera-demo] .status-runboard .app-icon {
+  color: var(--app-foreground);
+}
+
+[data-alera-demo] .status-voice {
+  gap: 8px;
+  padding: 0 16px 0 12px;
+}
+
+[data-alera-demo] .status-voice span {
+  color: var(--app-foreground);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+}
+
+[data-alera-demo] .status-bordered {
+  border-left: 1px solid var(--app-border-subtle);
+}
+
+[data-alera-demo] .status-resources {
+  position: relative;
+}
+
+[data-alera-demo] .status-keep-alive,
+[data-alera-demo] .status-runtime {
+  color: var(--app-success);
+}
+
+/* Resource Manager ------------------------------------------------------ */
+
+[data-alera-demo] .res-card {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: 30;
+  display: block;
+  width: 417px;
+  margin-left: -208.5px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface-elevated);
+  color: var(--app-foreground);
+}
+
+[data-alera-demo] .res-card > span {
+  display: flex;
+  align-items: center;
+}
+
+[data-alera-demo] .res-header {
+  gap: 8px;
+  padding: 8px 8px 8px 12px;
+  border-bottom: 1px solid var(--app-border-subtle);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  line-height: 1.43;
+}
+
+[data-alera-demo] .res-header .app-icon {
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .res-totals {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--app-border-subtle);
+}
+
+[data-alera-demo] .res-total-label {
+  margin-right: 6px;
+  color: var(--app-foreground-faint);
+  font-size: 12px;
+}
+
+[data-alera-demo] .res-total-gap {
+  margin-left: 16px;
+}
+
+[data-alera-demo] .res-total-value {
+  font-family: var(--app-font-mono);
+  font-size: 11px;
+}
+
+[data-alera-demo] .res-total-share {
+  margin-left: auto;
+  color: var(--app-foreground-muted);
+  font-family: var(--app-font-mono);
+  font-size: 10px;
+}
+
+[data-alera-demo] .res-sort {
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--app-border-subtle);
+  color: var(--app-foreground-faint);
+  font-size: 12px;
+}
+
+[data-alera-demo] .res-sort-name {
+  flex: 1;
+}
+
+[data-alera-demo] .res-sort .res-sorted {
+  color: var(--app-foreground);
+}
+
+[data-alera-demo] .res-cell {
+  flex: none;
+  width: 68px;
+  text-align: right;
+}
+
+[data-alera-demo] .res-row .res-cell {
+  color: var(--app-foreground-muted);
+  font-family: var(--app-font-mono);
+  font-size: 10px;
+}
+
+[data-alera-demo] .res-action {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  width: 17px;
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .res-group {
+  flex-direction: column;
+  align-items: stretch !important;
+  padding: 4px 0;
+}
+
+[data-alera-demo] .res-group-divided {
+  border-top: 1px solid var(--app-border-subtle);
+}
+
+[data-alera-demo] .res-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 4px calc(12px + var(--indent) * 12px);
+  font-size: 12px;
+}
+
+[data-alera-demo] .res-bold .res-label {
+  font-weight: 600;
+}
+
+[data-alera-demo] .res-chevron {
+  color: var(--app-foreground-faint);
+}
+
+[data-alera-demo] .res-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--app-success);
+}
+
+[data-alera-demo] .res-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-alera-demo] .res-spark {
+  flex: none;
+  margin-right: 2px;
+  color: var(--app-foreground-muted);
+}

@@ -1,0 +1,13 @@
+---
+import { CODICONS, type CodiconName } from '../../../data/demo/codicons';
+
+interface Props {
+  name: CodiconName;
+  size?: number;
+  class?: string;
+}
+
+const { name, size = 16, class: className } = Astro.props;
+---
+
+<span class:list={['codicon', className]} style={`--size: ${size}px`} aria-hidden="true">{String.fromCodePoint(CODICONS[name])}</span>

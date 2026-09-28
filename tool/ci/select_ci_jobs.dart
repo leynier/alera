@@ -268,6 +268,8 @@ bool _isDocs(String path) {
     return true;
   }
   return path.startsWith('docs/') ||
+      // README media rendered from the landing demo; no app bundles them.
+      path.startsWith('assets/product/') ||
       path.startsWith('reference_projects/') ||
       path.startsWith('.github/ISSUE_TEMPLATE/') ||
       path == '.github/pull_request_template.md' ||

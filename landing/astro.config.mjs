@@ -1,7 +1,21 @@
 import { defineConfig } from 'astro/config';
+import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
-import starlight from '@astrojs/starlight';
 import tailwindcss from '@tailwindcss/vite';
+import { aleraCodeTheme } from './config/alera-code-theme.mjs';
+import { docsSearchIndex } from './config/docs-search-index.mjs';
+
+const unlistedPaths = new Set(['/404', '/signed-in']);
+
+// Canonical URLs on this site carry no trailing slash, so the sitemap drops
+// it too; otherwise search engines see two spellings of every page.
+function withoutTrailingSlash(url) {
+  const parsed = new URL(url);
+  if (parsed.pathname !== '/' && parsed.pathname.endsWith('/')) {
+    parsed.pathname = parsed.pathname.slice(0, -1);
+  }
+  return parsed.toString();
+}
 
 export default defineConfig({
   site: 'https://alera.build',
@@ -9,75 +23,18 @@ export default defineConfig({
   build: {
     inlineStylesheets: 'always',
   },
+  markdown: {
+    shikiConfig: {
+      theme: aleraCodeTheme,
+    },
+  },
   integrations: [
-    starlight({
-      title: 'Alera',
-      description:
-        'Learn how to run CLI coding agents in Alera: projects, worktrees, orchestration, mobile pairing, and quotas.',
-      favicon: '/favicon.svg',
-      logo: {
-        src: './src/assets/logo.png',
-        alt: 'Alera',
-      },
-      social: [
-        {
-          icon: 'github',
-          label: 'GitHub',
-          href: 'https://github.com/leynier/alera',
-        },
-      ],
-      editLink: {
-        baseUrl: 'https://github.com/leynier/alera/edit/main/landing/',
-      },
-      customCss: ['./src/styles/docs.css'],
-      components: {
-        Head: './src/components/docs/Head.astro',
-        SocialIcons: './src/components/docs/SocialIcons.astro',
-        ThemeProvider: './src/components/docs/ThemeProvider.astro',
-        ThemeSelect: './src/components/docs/ThemeSelect.astro',
-      },
-      expressiveCode: {
-        themes: ['github-dark'],
-        useStarlightDarkModeSwitch: false,
-        useStarlightUiThemeColors: false,
-        styleOverrides: {
-          borderRadius: '10px',
-          borderWidth: '1px',
-          borderColor: '#323232',
-          codeBackground: '#181818',
-        },
-      },
-      sidebar: [
-        {
-          label: 'Start',
-          items: [
-            { label: 'Get Started', slug: 'docs' },
-            { label: 'Install', slug: 'docs/install' },
-          ],
-        },
-        {
-          label: 'Workbench',
-          items: [
-            { label: 'Projects And Workspaces', slug: 'docs/projects' },
-            { label: 'CLI Agents', slug: 'docs/agents' },
-            { label: 'Worktrees', slug: 'docs/worktrees' },
-            { label: 'Alera.toml', slug: 'docs/alera-toml' },
-          ],
-        },
-        {
-          label: 'Coordinate',
-          items: [{ label: 'Orchestration', slug: 'docs/orchestration' }],
-        },
-        {
-          label: 'Stay In The Loop',
-          items: [
-            { label: 'Mobile Pairing', slug: 'docs/mobile' },
-            { label: 'Quotas And Resources', slug: 'docs/quotas' },
-          ],
-        },
-      ],
+    mdx(),
+    sitemap({
+      filter: (page) => !unlistedPaths.has(new URL(withoutTrailingSlash(page)).pathname),
+      serialize: (item) => ({ ...item, url: withoutTrailingSlash(item.url) }),
     }),
-    sitemap(),
+    docsSearchIndex(),
   ],
   vite: {
     plugins: [tailwindcss()],

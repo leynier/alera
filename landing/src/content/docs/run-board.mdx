@@ -1,0 +1,74 @@
+---
+title: Run Board And Workflows
+description: See every orchestration run across your projects, and run reviewed workflows whose tasks each get their own worktree.
+updatedDate: 2026-09-28
+---
+
+[Orchestration](/docs/orchestration) keeps coordinator runs, tasks, and decision gates in the runtime host. The Run Board is the desktop view of all of them: which runs need you, which are still working, and what finished. It is also where you start and steer reviewed workflows, the runs whose plan you approve before any worker starts.
+
+## Open The Run Board
+
+- Choose **Run Board** in the application menu: the Alera menu on macOS, or the **Application Menu** button beside the app name on Windows and Linux.
+- Click the Run Board counter in the status bar, which shows how many runs need attention.
+- Run **Open Run Board** from the **Command Palette** (`Mod+Shift+P`). It has no default shortcut; assign one in **Settings → Keyboard**. `Mod` is ⌘ on macOS and Ctrl on Windows and Linux.
+
+The Board takes over the main area until you choose **Return to Workspace**. Selecting a run never changes your active workspace; **Open Workspace**, **Open Terminal**, and **Open Diff** are the explicit ways back in.
+
+## What The Board Shows
+
+| Group | A run lands here when |
+| --- | --- |
+| **Attention** | It failed, its plan awaits approval or was rejected, a task failed, stalled, or is blocked, a decision gate is pending, or a workflow step needs inspection |
+| **Active** | It is running and nothing needs you |
+| **History** | It completed or was stopped |
+
+Search by objective, project, workspace, or run id, or filter by **Project**, **Workspace**, and **Status**.
+
+A run opens on its **Run Overview**: status, completed tasks, pending gates, objective, and origin, then **Stages & Tasks** with each task's dependencies. A task shows its profile, worktree, branch, base commit, result, artifacts, validation, and attempt history. Validation is what the worker reported, not an independent review.
+
+## Reviewed Workflows
+
+A workflow is a run built from a recipe. The coordinator proposes a concrete task plan, you approve it, every task runs in its own worktree, and results are integrated locally before anything that depends on them starts. Workflows use your [Agent Profiles](/docs/agent-profiles); a recipe never picks a provider or model.
+
+Recipes come from three origins that never override each other: **Built-in** (**Quick Fix**, and **Feature Delivery** with human Foundation and Product gates), **Personal** (stored in the runtime), and **Project** (YAML files in `.alera/workflows/` of a Git workspace, which you can commit). Browse them in **Settings → Workflows**, where **Copy To Personal**, **Edit Personal**, and **Export To Project** move a recipe between origins.
+
+### Start A Run
+
+<Steps>
+
+1. On the Board, choose **New Run** and pick a **Project / Workspace**. Only local Git workspaces are listed. The run starts from the exact **Source Commit** shown; uncommitted changes are excluded and left alone.
+2. Pick a **Recipe**, write the **Objective**, and choose a **Coordinator Profile**. Each role starts with the coordinator's profile; review them, then set **Concurrent Workers** (default 4, up to 16).
+3. Choose **Propose Plan**. Alera saves the proposal and starts the coordinator, which drafts the tasks; **Open Coordinator Terminal** shows it working. No worker starts yet.
+4. When the plan is ready, choose **Open Prepared Run**, then **Review Plan**. Check the stages, tasks, role contracts, and inputs, then choose **Approve Plan**, **Request Changes**, or **Reject**. The last two need a note.
+5. Choose **Start Workflow**. **Pause Workflow** stops new workers while active ones finish. The run continues with the Board closed.
+
+</Steps>
+
+### While It Runs
+
+- Each task attempt gets a fresh worktree on an `alera/workflows/<id>` branch, created from the current integration commit, with your project [setup](/docs/alera-toml) applied.
+- A finished task shows **Result Ready**. Results are squashed one at a time into the run's integration workspace and become **Integrated**; dependent tasks wait for that, not for the worker's report.
+- A **Conflict** leaves the integration workspace untouched; nothing is resolved or rebased for you. Inspect the worktrees, then use **Review Changes Needed** and **Prepare Correction** for a corrected plan.
+- **Review Foundation Gate** and **Review Product Gate** open once integrated evidence is ready. An approval covers exactly that evidence; if it changes, you review again.
+- **Prepare New Attempt** sets up a failed task again in a new worktree and keeps the old one, and **Retry Integration** retries an integration that needs attention. Then resume the run with **Start Workflow**.
+- **Cancel Workflow** stops the coordinator and worker terminals for good. Worktrees, branches, and results stay.
+
+Workflows never push, open pull requests, or merge remote branches. The integrated result stays on a local branch for you to review.
+
+### Clean Up
+
+Nothing is deleted automatically. **Manage Resources** lists a workflow's worktrees; once the run completes or is cancelled, select up to 25, opt into **Also Delete This Branch** per worktree, and choose **Review Cleanup** to see paths, branches, and changed files. Tick **Confirm Selection**, then **Clean Selected Resources**. A dirty, locked, or busy worktree stops the cleanup until you resolve it; nothing is forced.
+
+## From The CLI
+
+```bash
+alera orchestration --json recipes list --workspace <workspace-id>
+alera orchestration --json plans show --run <run-id>
+alera orchestration --json workspaces list --run <run-id>
+```
+
+The CLI can edit recipes and inspect plans and attempts; approving a workflow plan or gate is desktop-only. Stage plans proposed with `run-policy-propose` are a separate mechanism, reviewed in **Execution Plans** or from the CLI, as described in [Orchestration](/docs/orchestration#execution-policies).
+
+<Callout type="note">
+The Board needs an up-to-date runtime host; an older one shows **Update Required**. The phone cannot open the Board or approve workflows. Worktrees isolate Git changes, not access to your machine.
+</Callout>

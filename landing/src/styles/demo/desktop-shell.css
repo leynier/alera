@@ -1,0 +1,286 @@
+/* The desktop window: macOS frame, sidebar, status bar. Every size below is
+   what the Flutter widgets lay out (see the spec notes in docs/landing-demo.md);
+   Material 3 line heights and letter spacing are applied the way
+   Theme.of() merges them under the app's text styles. */
+
+[data-alera-demo] .desk {
+  position: absolute;
+  top: 20px;
+  left: 0;
+  width: 1280px;
+  height: 860px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--app-bg);
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.09),
+    0 34px 70px -24px rgb(0 0 0 / 0.75);
+  color: var(--app-foreground);
+  font-family: var(--app-font-sans);
+  font-optical-sizing: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A standard macOS title bar, as the app keeps it (no transparent title bar
+   or full-size content view), in dark appearance. */
+[data-alera-demo] .desk-titlebar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding-left: 12px;
+  border-bottom: 1px solid #0b0b0b;
+  background: #2a2a2a;
+}
+
+[data-alera-demo] .desk-lights {
+  display: flex;
+  gap: 8px;
+}
+
+[data-alera-demo] .desk-lights span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #4c4c4c;
+}
+
+[data-alera-demo] .desk-title {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #d4d4d4;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+[data-alera-demo] .desk-view {
+  position: absolute;
+  inset: 28px 0 0;
+  display: flex;
+  flex-direction: column;
+}
+
+[data-alera-demo] .desk-shell {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Sidebar ------------------------------------------------------------- */
+
+[data-alera-demo] .sb {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: 300px;
+  border-right: 1px solid var(--app-border-subtle);
+  background: var(--app-surface-variant);
+}
+
+/* The resize handle's hairline, drawn over the sidebar's inner edge. */
+[data-alera-demo] .sb::after {
+  position: absolute;
+  top: 0;
+  right: 1.5px;
+  bottom: 0;
+  width: 1px;
+  background: var(--app-border-subtle);
+  content: '';
+}
+
+[data-alera-demo] .sb-divider {
+  flex: none;
+  height: 1px;
+  background: var(--app-border-subtle);
+}
+
+[data-alera-demo] .sb-brand {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 12px;
+}
+
+[data-alera-demo] .sb-brand img {
+  width: 16px;
+  height: 16px;
+}
+
+[data-alera-demo] .sb-brand-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+}
+
+[data-alera-demo] .app-button {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--app-radius-md);
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .app-button-20 {
+  width: 20px;
+  height: 20px;
+}
+
+[data-alera-demo] .app-button-16 {
+  width: 16px;
+  height: 16px;
+}
+
+[data-alera-demo] .sb-search {
+  flex: none;
+  padding: 4px 12px 8px;
+}
+
+[data-alera-demo] .app-search-field {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding-left: 7px;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface);
+  color: var(--app-foreground-faint);
+}
+
+[data-alera-demo] .app-search-field span {
+  margin-left: 8px;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  line-height: 1.33;
+}
+
+[data-alera-demo] .sb-toolbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: 30px;
+  padding: 4px 12px;
+}
+
+[data-alera-demo] .sb-toolbar-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+}
+
+[data-alera-demo] .sb-count {
+  margin-left: 6px;
+  color: var(--app-foreground-faint);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+}
+
+[data-alera-demo] .sb-toolbar-actions {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+[data-alera-demo] .sb-toolbar-actions .sb-history {
+  display: flex;
+}
+
+[data-alera-demo] .sb-list {
+  flex: 1;
+  min-height: 0;
+  padding-top: 4px;
+  overflow: hidden;
+}
+
+[data-alera-demo] .sb-project {
+  padding: 2px 8px;
+}
+
+[data-alera-demo] .sb-project-pill {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: var(--app-radius-lg);
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .sb-project-name {
+  flex: 1;
+  min-width: 0;
+  margin-left: 6px;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  line-height: 1.43;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-alera-demo] .sb-project-pill .sb-count {
+  margin: 0 4px 0 6px;
+}
+
+[data-alera-demo] .sb-project-pill .app-button-16 {
+  margin-left: 2px;
+}
+
+[data-alera-demo] .sb-footer {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 4px 8px;
+  background: var(--app-surface);
+}
+
+[data-alera-demo] .app-outlined-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 26px;
+  padding: 0 24px 0 16px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-lg);
+  color: var(--app-accent);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+}
+
+[data-alera-demo] .sb-footer-spacer {
+  flex: 1;
+}
+
+[data-alera-demo] .app-button-boxed {
+  border: 1px solid var(--app-border-subtle);
+  background: var(--app-surface-variant);
+}
+
+[data-alera-demo] .app-dropdown {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface-variant);
+  font-size: 13px;
+  letter-spacing: 0.25px;
+}
+
+[data-alera-demo] .app-dropdown .app-icon {
+  color: var(--app-foreground-muted);
+}

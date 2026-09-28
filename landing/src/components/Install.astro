@@ -1,0 +1,168 @@
+---
+import CommandBlock from './CommandBlock.astro';
+import {
+  ANDROID_URL,
+  BREW_COMMAND,
+  CHOCO_COMMAND,
+  INSTALL_SCRIPT_COMMAND,
+  MACOS_URL,
+  REQUIREMENTS,
+  SCOOP_COMMAND,
+  WINDOWS_URL,
+} from '../data/install-channels';
+
+/**
+ * `#install`: the shortest path to a running app for each platform. The
+ * installer script writes this anchor into the package sources it creates,
+ * so it has to keep existing. The visitor's platform is preselected; every
+ * other one stays a tab away, and /download has the full detail.
+ */
+const tabs = [
+  {
+    id: 'macos',
+    label: 'macOS',
+    commands: [{ intro: 'Install with Homebrew:', command: BREW_COMMAND }],
+    requirement: REQUIREMENTS.macos,
+    action: { label: 'Download For macOS', href: MACOS_URL },
+  },
+  {
+    id: 'windows',
+    label: 'Windows',
+    commands: [
+      { intro: 'Install with Scoop, which needs no administrator rights:', command: SCOOP_COMMAND },
+      { intro: 'Or with Chocolatey, from an elevated prompt:', command: CHOCO_COMMAND },
+    ],
+    requirement: REQUIREMENTS.windows,
+    action: { label: 'Download For Windows', href: WINDOWS_URL },
+  },
+  {
+    id: 'linux',
+    label: 'Linux',
+    commands: [
+      {
+        intro: 'Install from the signed package repository. The same command installs and updates:',
+        command: INSTALL_SCRIPT_COMMAND,
+      },
+    ],
+    requirement: REQUIREMENTS.linux,
+    action: { label: 'Manual Repository Setup', href: '/download#manual-linux-setup' },
+  },
+  {
+    id: 'android',
+    label: 'Android',
+    commands: [],
+    requirement: REQUIREMENTS.android,
+    action: { label: 'Download The APK', href: ANDROID_URL },
+  },
+];
+---
+
+<section id="install" class="defer-offscreen-rendering border-t border-border-subtle/50 px-6 py-24">
+  <div class="mx-auto max-w-3xl">
+    <div class="mb-12 text-center">
+      <p class="mb-4 font-mono text-label-md uppercase tracking-widest text-foreground-faint">Install</p>
+      <h2 class="mb-4 text-headline-lg font-semibold tracking-tight text-foreground md:text-[32px]">Install In One Command</h2>
+      <p class="mx-auto max-w-lg text-[15px] text-foreground-muted">
+        Desktop builds for macOS, Windows, and Linux, plus an Android companion. Every other way to install is on the
+        download page.
+      </p>
+    </div>
+
+    <div data-install-tabs class="overflow-hidden rounded-xl border border-border bg-surface">
+      <div role="tablist" aria-label="Platform" class="flex gap-1 overflow-x-auto border-b border-border-subtle px-2 pt-2">
+        {
+          tabs.map((tab, index) => (
+            <button
+              type="button"
+              role="tab"
+              id={`install-tab-${tab.id}`}
+              aria-controls={`install-panel-${tab.id}`}
+              aria-selected={index === 0 ? 'true' : 'false'}
+              tabindex={index === 0 ? 0 : -1}
+              data-platform={tab.id}
+              class="shrink-0 rounded-t-md px-3.5 py-2 font-mono text-label-md text-foreground-faint transition-colors duration-fast hover:text-foreground aria-selected:bg-bg aria-selected:text-foreground"
+            >
+              {tab.label}
+            </button>
+          ))
+        }
+      </div>
+      {
+        tabs.map((tab, index) => (
+          <div
+            role="tabpanel"
+            id={`install-panel-${tab.id}`}
+            aria-labelledby={`install-tab-${tab.id}`}
+            hidden={index !== 0}
+            class="space-y-4 bg-bg p-5 sm:p-6"
+          >
+            {tab.commands.map((entry) => (
+              <div class="space-y-2">
+                <p class="text-body-md text-foreground-muted">{entry.intro}</p>
+                <CommandBlock command={entry.command} />
+              </div>
+            ))}
+            <p class="text-body-md text-foreground-faint">{tab.requirement}</p>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <a
+                href={tab.action.href}
+                class="inline-flex items-center rounded-lg bg-accent px-3.5 py-1.5 text-body-md font-medium text-on-accent transition-opacity duration-fast hover:opacity-90"
+              >
+                {tab.action.label}
+              </a>
+              <a href="/download" class="text-body-md text-foreground-muted underline underline-offset-4 transition-colors duration-fast hover:text-foreground">
+                All Options
+              </a>
+              <a href="/docs/install" class="text-body-md text-foreground-muted underline underline-offset-4 transition-colors duration-fast hover:text-foreground">
+                Install Guide
+              </a>
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<script>
+  import { browserPlatformHints, detectInstallPlatform } from '../lib/install-platform';
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-install-tabs]')) {
+    const tabs = [...root.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+
+    const select = (tab: HTMLButtonElement, focus: boolean) => {
+      for (const candidate of tabs) {
+        const selected = candidate === tab;
+        candidate.setAttribute('aria-selected', String(selected));
+        candidate.tabIndex = selected ? 0 : -1;
+        const panel = document.getElementById(candidate.getAttribute('aria-controls') ?? '');
+        if (panel) panel.hidden = !selected;
+      }
+      if (focus) tab.focus();
+    };
+
+    for (const tab of tabs) {
+      tab.addEventListener('click', () => select(tab, false));
+      tab.addEventListener('keydown', (event) => {
+        const index = tabs.indexOf(tab);
+        const target =
+          event.key === 'ArrowRight'
+            ? tabs[(index + 1) % tabs.length]
+            : event.key === 'ArrowLeft'
+              ? tabs[(index - 1 + tabs.length) % tabs.length]
+              : event.key === 'Home'
+                ? tabs[0]
+                : event.key === 'End'
+                  ? tabs[tabs.length - 1]
+                  : undefined;
+        if (!target) return;
+        event.preventDefault();
+        select(target, true);
+      });
+    }
+
+    const detected = detectInstallPlatform(browserPlatformHints());
+    const match = tabs.find((tab) => tab.dataset.platform === detected);
+    if (match) select(match, false);
+  }
+</script>

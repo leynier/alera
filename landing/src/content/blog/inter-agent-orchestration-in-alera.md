@@ -2,7 +2,18 @@
 title: "Inter-Agent Orchestration In Alera"
 description: "Tabs full of agents are useful until they need to coordinate. How orchestration protocol v2 adds ownership, gates, and a real coordinator."
 pubDate: 2026-07-28T17:00:00.000Z
+updatedDate: 2026-09-28
+tags: ["Orchestration", "Agents"]
+relatedDocs: ["orchestration", "run-board", "agent-profiles"]
 ---
+
+> **Update, September 2026:**
+>
+> - The adapter registry now also includes `opencode2` (OpenCode 2) and `fx`.
+> - A profile now has a launch mode: **Command**, where you write the launch line, or **Managed**, where you pick options such as model and permissions and Alera builds the launch. A profile can also carry a custom prompt.
+> - `--json` goes before the subcommand, so the listing command is `alera orchestration --json agent-profiles`. The example below is corrected.
+> - You can also manage profiles with the `alera agent-profile` CLI, and an agent with the optional Agent Profiles Skill can create or edit them when you ask it to. The coordinator's own `orchestration agent-profiles` view stays read-only.
+> - The built-in coordinator loop launches only catalog profiles or adapter defaults, but `alera orchestration agent-spawn` still accepts an explicit `--command` from the coordinator that owns the task. Spawning with `--profile` is what keeps a worker inside the catalog.
 
 Running five agents in parallel is a superpower right up until they need to work *together*. Who owns this task? Did that worker finish or crash? Which agent is allowed to approve the risky step? "A bunch of terminals" has no answers to those questions, and we learned that by watching our own multi-agent sessions dissolve into guesswork.
 
@@ -25,7 +36,7 @@ Profiles live in Settings → Agent Profiles. Each one has a name, an adapter fr
 The CLI can list them:
 
 ```bash
-alera orchestration agent-profiles --json
+alera orchestration --json agent-profiles
 ```
 
 Here is the part we care about: only you create or edit profiles. A coordinator picks from that closed catalog; it never invents a launch command. The moment a coordinator can compose its own commands, your approval flow is theater. We chose the boring, auditable option on purpose.

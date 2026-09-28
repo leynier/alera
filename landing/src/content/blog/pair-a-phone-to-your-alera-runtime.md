@@ -2,7 +2,15 @@
 title: "Pair A Phone To Your Alera Runtime"
 description: "The mobile companion is honest about what it is: a window into your runtime host, not a phone IDE. Here is what it does today."
 pubDate: 2026-07-28T10:00:00.000Z
+updatedDate: 2026-09-28
+tags: ["Mobile", "Terminals"]
+relatedDocs: ["mobile", "remote-access", "accounts"]
 ---
+
+> **Update, September 2026:**
+>
+> - The companion ships only for Android, as a single arm64 APK. An iOS build runs in CI but is not published.
+> - The phone now also browses files, searches and replaces, stages, commits, and pushes, sends diff comments to an agent, and creates, reviews, and merges GitHub pull requests. Only non-terminal tabs other than Markdown still stay on the desktop.
 
 Picture the usual moment: you kicked off a long agent run, stepped away, and now you are on the couch wondering whether it finished, stalled, or is waiting for a yes/no only you can give. Walking back to the desk to check feels silly. SSHing from your phone feels worse.
 

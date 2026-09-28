@@ -1,0 +1,95 @@
+---
+title: alera.toml
+description: Describe copy rules, setup commands, and New Workspace defaults so every new worktree is ready to work.
+updatedDate: 2026-09-28
+---
+
+Every new worktree used to need the same ritual: copy `.env`, restore gitignored config, install dependencies, bootstrap. `alera.toml` at the project root describes that ritual once.
+
+## What It Looks Like
+
+```toml
+[worktree]
+copy = [
+  { from = ".env", to = ".env", overwrite = false },
+  { from = ".claude/settings.local.json" }
+]
+setup = [
+  "pnpm install",
+  "make bootstrap"
+]
+
+[new_workspace]
+source_branch = "main"
+prompt_append = """
+Follow the project's contributor instructions.
+Run the focused tests before finishing.
+"""
+```
+
+- `copy` brings files or directories from the main project checkout into the new linked workspace. `to` defaults to `from`. `overwrite` defaults to `false`, so an existing file is never clobbered silently.
+- `setup` runs commands sequentially from the new workspace root.
+- `new_workspace.source_branch` is the branch pre-selected in the **Source Branch** pickers when it exists.
+- `new_workspace.prompt_append` is optional text added last to the prompt whenever Alera starts an agent profile in one of the project's workspaces: from **New Workspace**, the tab menu, the phone, `alera agent-profile launch`, or orchestration. Resuming a conversation does not send it.
+
+Paths are repo-relative literals. Absolute paths and `..` escapes are rejected. Globs and custom command environments are not part of the `copy` list.
+
+## Copying Ignored Files With .worktreeinclude
+
+Git worktrees only check out tracked files. A `.worktreeinclude` file at the repository root lists gitignored files to copy from the main checkout into each new linked workspace, in [`.gitignore` pattern syntax](https://git-scm.com/docs/gitignore): comments, root-anchored paths, nested globs, directory patterns, and negation with `!`. It is the same format Conductor and Claude Code read.
+
+```text
+.env.local
+config/secrets.json
+certs/local/**
+```
+
+A path is copied only when it exists in the main checkout, Git ignores it, and it is not tracked. The file holds patterns, not secret values, so it can usually be committed. It works alongside `copy`: explicit copy rules run first and win when they name the same source path.
+
+## When It Runs
+
+Setup applies only to **new linked worktree workspaces that Alera creates on this machine**. It does not run for workspaces that share the project folder, for workspaces found during reconcile, on removal, or, for now, for a workspace created on a remote SSH host.
+
+On desktop and mobile, Alera does not hold the New Workspace UI open until setup finishes. Creation completes when the Git worktree exists, and a terminal named **Setup** runs the copies and commands. You can keep working in the workspace's other tabs while that runs.
+
+Inside the Setup terminal:
+
+- copy rules run first, through `alera workspace setup --copies-only`, so symlink and path-escape validation stays in the runtime
+- each `setup` command then runs in order, preceded by a `> <command>` marker
+- a failing command does **not** stop the ones after it; the output stays on screen so you can see what broke
+- the host closes the Setup terminal after a successful run, and leaves it open if anything failed
+
+The command is delivered once. Restarting the terminal, the app, or the host leaves a clean shell rather than reinstalling dependencies.
+
+`alera workspace add` and `alera workspace start` with `--worktree` still run setup inline and stop on the first non-zero exit, because the CLI has no Setup tab. `alera workspace setup --id <workspace>` applies a project's setup to an existing workspace.
+
+If a copy or setup step fails after the Git worktree already exists, Alera keeps the workspace for you to open from the sidebar, and the Setup terminal stays open with the output. A half-configured worktree you can see beats a silent rollback.
+
+## Precedence
+
+Per-project settings in **Settings → Projects** are the source of truth when present. Choosing **Use Repo File** clears that override and falls back to `alera.toml`. When neither exists, there is no setup.
+
+A UI override replaces the complete repository config for that project, including `prompt_append`. It does not disable `.worktreeinclude`.
+
+## Git Hosting Provider
+
+The same file can declare how the Pull Request panel talks to your forge:
+
+```toml
+git_hosting_provider = "github" # or "gitlab" / "azureDevops"
+```
+
+When it is absent, Alera auto-detects GitHub.com, GitLab.com, and Azure DevOps from `origin`. Set it explicitly for self-hosted instances. Authentication stays with `gh`, `glab`, or `az`.
+
+`githubEnterprise` / `github_enterprise` / `github-enterprise` are accepted aliases for GitHub Enterprise Server. GitLab self-managed uses `gitlab`. Azure aliases `azure`, `azure_devops`, and `azure-devops` are also accepted.
+
+## Allowing Automations
+
+A repository must opt in before any [automation](/docs/automations) runs in it:
+
+```toml
+[automation]
+declared = true
+```
+
+Declaring it only allows runs. Each automation still needs an agent profile with **May Execute Automations** on and an approved revision.

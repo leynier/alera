@@ -1,0 +1,89 @@
+---
+title: Remote Hosts
+description: Run workspaces on another macOS, Linux, or Windows machine over SSH, with terminals, files, Git, and agents served by that host.
+updatedDate: 2026-09-28
+---
+
+A workspace can live on another machine, such as a build server or a Windows box. Your desktop keeps the projects, workspaces, and settings, and each host runs its own copy of the Alera runtime next to the code.
+
+## Before You Start
+
+- The host runs an OpenSSH server that this computer reaches with key or agent authentication. Alera runs your system `ssh` and `sftp` in batch mode, so nothing answers a password prompt: load passphrase-protected keys into your SSH agent.
+- macOS, Linux, and Windows hosts are supported, on x64 or arm64. macOS and Linux need `tar`. Windows needs Windows PowerShell and `tar.exe`, and its OpenSSH default shell must stay `cmd.exe`, or the host link cannot attach.
+- Git, your forge CLI (`gh`, `glab`, or `az`), and your agent CLIs are installed and signed in on the host.
+
+## Add A Host
+
+Open **Settings → Remote Hosts** (`Mod+Comma` opens Settings; `Mod` is ⌘ on macOS and Ctrl on Windows and Linux) and click **New Host**.
+
+- **Alias** is the display name. **Host**, **Username**, and **Port** (22 when blank) go to `ssh` as typed.
+- **Authentication** is **Agent** or **Key**. Both leave the key to your SSH agent and `~/.ssh/config`; Alera stores no key paths. **Password** is listed but cannot be selected.
+- **Platform** and **Architecture** default to **Auto**, which asks the host.
+- **Install Directory** defaults to `~/.alera/sidecar`, or `%LOCALAPPDATA%\Alera\runtime` on Windows.
+- **Projects Folder** is where the host clones projects when you give no path: `alera-projects` in the remote home unless set. `~` and `%VAR%` expand on the host.
+
+The first connection records the host's key; a key that later changes is refused.
+
+## Bootstrap The Runtime
+
+**Plan** previews the install without connecting. **Bootstrap** runs it:
+
+<Steps>
+
+1. Check SSH authentication and detect the platform and architecture.
+2. Download the signed runtime archive for your Alera release from GitHub Releases, verify its Ed25519 signature, and check the tarball's SHA-256 and size.
+3. Upload the tarball over SFTP, so the host never has to reach GitHub.
+4. Extract it under `versions/`, point `current` at it, and write the `bin/alera` wrapper (`bin\alera.cmd` on Windows). If this fails, the previous version stays current.
+5. Run the installed runtime's status check against its `data` directory.
+
+</Steps>
+
+The host then reads **Installed**. Run **Bootstrap** again to update it after updating Alera. Bootstrap installs no system service and creates no workspace; **Remove** forgets the host without uninstalling anything.
+
+A bootstrapped host also shows **Host Link**, the persistent SSH session that carries file, Git, and search requests for the host; each terminal gets its own SSH session. It opens on demand, so **Connect** and **Disconnect** are rarely needed.
+
+## Put A Project On The Host
+
+A Git project is registered once, then added to hosts. Right-click it in the sidebar, choose **Hosts**, and use **Add to Another Host**: enter an **Existing Path**, or leave it empty and the host clones the project's `origin` remote into its projects folder with its own Git credentials. Removing a project from a host never deletes files. Folder projects stay on one host.
+
+For a repository that exists only on a server, **Add Project** offers **Add Remote Project**, which registers or clones it on the host and copies nothing here.
+
+## Create A Workspace There
+
+In [New Workspace](/docs/new-workspace) (`Mod+Shift+N`), pick the machine under **Host**. Hosts that need attention read **(Not Bootstrapped)** or **(Unreachable)**, and a project not yet on that host shows **Add to Host** in place.
+
+- **New Worktree** creates a Git worktree under `~/.alera/workspaces` on the host (`%USERPROFILE%\.alera\workspaces` on Windows), from branches already in the host's repository. Alera does not fetch first.
+- **Project Folder** shares the host checkout's current branch and files.
+
+From the CLI:
+
+```bash
+alera ssh-target add --id build --alias "Build Box" --host build.example.com --username me
+alera ssh-target bootstrap --id build
+alera project hosts add --project-id <project-id> --host-id build
+alera workspace add --project-id <project-id> --host-id build --worktree --branch feature/login --source-branch main
+```
+
+With Alera running, `bootstrap` returns as soon as the job starts, and **Settings → Remote Hosts** shows its progress.
+
+## What Runs On The Host
+
+- Terminals and their agents. The [status hooks](/docs/agents) you enabled are installed on the host, and agent states flow back to your sidebar.
+- Explorer with edits, Search and replace, and Quick Open.
+- Source Control, from staging to push.
+- Pull requests and checks, through the host's forge CLI and credentials. Your desktop's environment and tokens are never sent.
+- AI Assist, using the agent CLI on the host.
+- [Agent quotas](/docs/quotas) while a workspace there is active, and per-terminal CPU and memory in the Resource Manager while the host is linked.
+
+In a terminal on the host, project and workspace commands such as `alera workspace list` reach your desktop, and a new workspace defaults to that host. Without a linked desktop they fail. Terminal, host, account, and settings commands never reach the desktop from a host.
+
+## What Stays On The Desktop
+
+Projects, workspaces, tabs, and settings live on your desktop; the host keeps disposable copies of the workspaces it serves. Notifications, [mobile push](/docs/accounts), and the Watch and Fix schedule run here, and **Open → In Browser** in the workspace menu opens your own browser. The sidebar and the [phone](/docs/mobile) mark remote workspaces with the host's operating system icon.
+
+## Limits Today
+
+- Worktree setup does not run for a workspace created on a remote host: no copy rules, no `.worktreeinclude`, no setup commands, no **Setup** terminal. See [alera.toml](/docs/alera-toml).
+- Explorer and Source Control do not watch a remote checkout. Use **Refresh** after an agent changes files.
+- A pasted image becomes a path to a temporary file on this computer, which the host cannot open.
+- Workspaces do not move between hosts, and checkouts on different hosts are never synced: Git is the only link.

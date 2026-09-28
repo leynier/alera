@@ -1,0 +1,91 @@
+---
+title: Alera CLI
+description: Script projects, workspaces, terminals, automations, and orchestration with alera, the same Rust runtime the desktop app runs as its sidecar.
+updatedDate: 2026-09-28
+---
+
+`alera` is the Rust binary the desktop app ships and runs as its runtime sidecar, the process that owns your terminals. The same binary is a command-line tool. Run from an Alera terminal or through the launcher below, it works on the app's own runtime profile, so a workspace you create from a script shows up in the sidebar and on the paired phone.
+
+## Get It On Your PATH
+
+Inside Alera terminals there is nothing to set up. Every terminal Alera starts puts the bundled `alera` first on `PATH` and sets `ALERA_RUNTIME_DIR` to the app's runtime profile, along with `ALERA_WORKSPACE_ID` and `ALERA_TERMINAL_HANDLE`, which many commands use as defaults.
+
+For any other shell, open **Settings → Agents → Alera CLI And Skills** and choose **Register** next to **Alera CLI Command** (it reads **Update** once registered). Alera writes a small launcher that points at the bundled binary and the app's runtime profile:
+
+- macOS and Linux: `~/.local/bin/alera`
+- Windows: `%LOCALAPPDATA%\Programs\Alera\bin\alera.cmd`
+
+Alera does not edit your `PATH`. If that folder is missing from it, the status reads **Registered, add to PATH**. **Registration conflict** means a file Alera did not write is already there, or another `alera` comes first on `PATH`. On the phone, a host's **Settings** screen offers the same **Register** button under **Host Tools**.
+
+<Callout type="caution">
+A copy of the binary run without the launcher uses `ALERA_RUNTIME_DIR` or `~/.alera/runtime`, a different profile from the desktop app's. Use the registered command, or pass `--runtime-dir`.
+</Callout>
+
+Commands that need the runtime host start one in the background when none is running. `alera runtime start` starts one that stays up after the app quits.
+
+## Command Groups
+
+Every group and subcommand answers `--help`.
+
+| Command | What it covers |
+| --- | --- |
+| `runtime` | `status`, `start`, `stop`, and `clear` the runtime profile; `agents` turns status hooks on or off |
+| `project` | `list`, `add` a local folder, `add-remote` on an SSH host, `hosts`, `remove` |
+| `workspace` | `list`, `add` (shared or `--worktree`), `start` with an agent profile, `remove`, `rename`, `pin`, `archive`, `section`, `hand-off`, `hand-on`, `issue`, `pr-watch`, and more |
+| `tag` | Global workspace tags |
+| `tab` | List, create, and remove workspace tabs |
+| `terminal` | `list`, `show`, `wait`, `prune`, `read`, and `write` live terminal sessions |
+| `ssh-target` | [Remote hosts](/docs/remote-hosts): `add`, `status`, `bootstrap` the sidecar, `link` |
+| `mobile` | The phone gateway, pairing offers, and paired devices |
+| `automation` | [Automations](/docs/automations) and their runs |
+| `agent-profile` | [Agent Profiles](/docs/agent-profiles), including `launch` |
+| `orchestration` | [Orchestration](/docs/orchestration) messages, tasks, gates, and runs, plus [workflow](/docs/run-board) `recipes`, `plans`, and `workspaces` |
+| `issue` | `show` an issue through `gh`, `glab`, or `az boards` |
+| `version` | CLI and runtime host versions |
+
+`runtime-host`, `terminal-host`, and `runtime-proxy` are entry points the app starts on its own.
+
+## Examples
+
+```bash
+alera runtime status
+alera workspace --json list --all
+alera workspace add --project-id <project-id> --worktree --branch fix-login --source-branch main
+alera agent-profile launch --profile "Claude Code" --workspace <workspace-id> --prompt "Fix the flaky login test"
+alera tab create --workspace-id <workspace-id> --title Tests --command "pnpm test" --spawn
+alera terminal read --handle <terminal-handle>
+alera terminal write --handle <terminal-handle> --text "Also run the linter" --submit
+alera runtime agents enable claude codex
+```
+
+`--submit` sends the text to an agent TUI as a bracketed paste followed by Enter; `--enter` only adds the Enter. Inside an Alera terminal, `agent-profile launch` targets the current workspace when you leave out `--workspace`.
+
+## JSON For Scripts
+
+Each group takes `--json` and `--runtime-dir` right after its name, before the subcommand: `alera workspace --json list --all` works, while `alera workspace list --all --json` is rejected. Without `--json`, most commands print a one-line confirmation such as `projects listed`. With it you get the full result, and lists come back in an envelope:
+
+```json
+{
+  "filters": {},
+  "items": [],
+  "kind": "projects"
+}
+```
+
+Errors go to standard error with a non-zero exit code; usage errors exit with 64.
+
+## Agent Skills
+
+Skills teach coding agents to drive Alera through the CLI:
+
+- `alera-cli`: projects, workspaces, worktrees, SSH hosts, automations, and recovery.
+- `alera-orchestration`: dispatching, coordinating, and completing tasks.
+- `alera-agent-profiles`, optional: researching, managing, and validating Agent Profiles.
+
+Install them from **Settings → Agents → Alera CLI And Skills**. **All Alera Skills** installs the CLI and orchestration skills and reapplies your selected status hooks, and **Alera CLI Skill** and **Alera Orchestration Skill** install one each. The profiles skill is under **Extra Skills → Agent Profiles Skill**. Every row has a runner menu (**Auto**, **npx**, or **bunx**), **Copy** for the command, and **Install / Update**, which runs it in a terminal dialog:
+
+```bash
+npx skills add https://github.com/leynier/alera --skill alera-cli --agent codex --global --yes
+```
+
+These buttons install the skills globally for Codex and need Node.js or Bun. **Host Tools** on the phone installs the CLI and orchestration skills on that host.

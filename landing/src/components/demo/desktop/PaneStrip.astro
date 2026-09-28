@@ -1,0 +1,25 @@
+---
+import AppIcon from '../primitives/AppIcon.astro';
+
+/**
+ * The 44 px strip above a pane (workspace_panel_pane.dart): the chips, the
+ * Add Tab button right after them, Pane Actions flush right, and on the right
+ * panel's top pane a Hide Panel button. The center strip is filled with the
+ * surface color; the right panel's sits on the panel background.
+ */
+interface Props {
+  panel?: boolean;
+  addNode?: string;
+}
+
+const { panel = false, addNode } = Astro.props;
+---
+
+<div class:list={['pane-strip', panel && 'pane-strip-panel']}>
+  <div class="pane-chips">
+    <slot />
+    <span class="app-button app-button-20 pane-add" data-demo-node={addNode}><AppIcon name="add" size={16} /></span>
+  </div>
+  <span class="app-button app-button-20"><AppIcon name="more" size={16} /></span>
+  {panel && <span class="app-button"><AppIcon name="chevronsRight" size={16} /></span>}
+</div>

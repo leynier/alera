@@ -2,7 +2,15 @@
 title: "Why Alera Is Terminal-First (Not Another AI IDE)"
 description: "The case for building around the CLIs you already use instead of wrapping one provider's chat in an Electron shell."
 pubDate: 2026-07-28T19:00:00.000Z
+updatedDate: 2026-09-28
+tags: ["Product", "Terminals", "Agents"]
+relatedDocs: ["index", "agents", "worktrees"]
 ---
+
+> **Update, September 2026:**
+>
+> - Terminal output is parsed and drawn by our maintained fork of the xterm2 terminal emulator, not by Ghostty's VTE as this post first said.
+> - First-class agents ship with icons and launch adapters, and every status hook is off by default until you turn it on under **Settings → Agents → Status Hooks**.
 
 Here is an opinion we hold strongly enough to build a product on: the CLI is the real interface for coding agents, and it will stay that way for a while.
 

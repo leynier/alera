@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import Analytics from '@vercel/analytics/astro';
+import releases from '../data/releases.json';
 
 interface Props {
   title: string;
@@ -21,9 +22,9 @@ const {
   modifiedTime,
 } = Astro.props;
 
-const defaultDescription = 'Run every CLI coding agent in parallel: Claude Code, Codex, Amp, Antigravity, OpenCode, Cursor, Copilot, Pi, Grok Build, fx, or any other CLI agent. Native performance with Flutter + Rust + Ghostty. No Electron, no Chromium. Available for macOS, Windows, and Linux.';
+const defaultDescription = 'Run every CLI coding agent in parallel: Claude Code, Codex, Amp, Antigravity, OpenCode, Cursor, Copilot, Pi, Grok Build, fx, or any other CLI agent. Native performance with Flutter + Rust. No Electron, no Chromium. Available for macOS, Windows, and Linux.';
 const description = Astro.props.description ?? defaultDescription;
-const shortDescription = 'Native, performance-first workbench for CLI coding agents. Built with Flutter + Rust + Ghostty. macOS, Windows, and Linux.';
+const shortDescription = 'Native, performance-first workbench for CLI coding agents. Built with Flutter + Rust. macOS, Windows, and Linux.';
 const siteUrl = 'https://alera.build';
 const canonicalUrl = new URL(canonicalPath, siteUrl).toString();
 const ogImage = `${siteUrl}/og-banner.jpg`;
@@ -37,10 +38,10 @@ const softwareJsonLd = {
   alternateName: 'Alera ADE',
   description: shortDescription,
   applicationCategory: 'DeveloperApplication',
-  operatingSystem: 'macOS, Windows, Linux',
+  operatingSystem: 'macOS, Windows, Linux, Android',
   url: siteUrl,
   downloadUrl: 'https://github.com/leynier/alera/releases',
-  softwareVersion: 'beta',
+  softwareVersion: releases.desktop.version,
   offers: {
     '@type': 'Offer',
     price: '0',
@@ -92,8 +93,9 @@ const jsonLd = articleJsonLd ?? softwareJsonLd;
   <head>
     <meta charset="UTF-8" />
     <meta name="description" content={description} />
-    <meta name="viewport" content="width=device-width" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#101010" />
+    <meta name="color-scheme" content="dark" />
 
     <!-- Canonical -->
     <link rel="canonical" href={canonicalUrl} />
@@ -145,35 +147,9 @@ const jsonLd = articleJsonLd ?? softwareJsonLd;
     <meta name="twitter:image" content={ogImage} />
     <meta name="twitter:image:alt" content={ogImageAlt} />
 
-    <!-- Preload the Latin fonts used on every route before the inline CSS is parsed. -->
-    <link
-      rel="preload"
-      href="/fonts/inter-400-latin.woff2"
-      as="font"
-      type="font/woff2"
-      crossorigin
-    />
-    <link
-      rel="preload"
-      href="/fonts/inter-500-latin.woff2"
-      as="font"
-      type="font/woff2"
-      crossorigin
-    />
-    <link
-      rel="preload"
-      href="/fonts/inter-600-latin.woff2"
-      as="font"
-      type="font/woff2"
-      crossorigin
-    />
-    <link
-      rel="preload"
-      href="/fonts/jetbrains-mono-500-latin.woff2"
-      as="font"
-      type="font/woff2"
-      crossorigin
-    />
+    <!-- Preload the Latin subsets every route uses before the inline CSS is parsed. -->
+    <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin />
 
     <!-- Structured data -->
     <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />

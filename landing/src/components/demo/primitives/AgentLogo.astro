@@ -1,0 +1,30 @@
+---
+import claude from '../../../assets/demo/agents/claude.svg?raw';
+import codex from '../../../assets/demo/agents/codex.svg?raw';
+
+/**
+ * The app's agent marks, inlined so tintable ones take `currentColor` the way
+ * `AgentIdentityIcon` tints them with `BlendMode.srcIn` (muted by default).
+ * Claude's mark keeps its own color, as in the app.
+ */
+const LOGOS = {
+  claude: { svg: claude, tintable: false },
+  codex: { svg: codex, tintable: true },
+} as const;
+
+interface Props {
+  agent: keyof typeof LOGOS;
+  size?: number;
+  class?: string;
+}
+
+const { agent, size = 14, class: className } = Astro.props;
+const logo = LOGOS[agent];
+const classes = ['agent-logo', logo.tintable && 'agent-logo-tinted', className].filter(Boolean).join(' ');
+const markup = logo.svg.replace(
+  '<svg ',
+  `<svg width="${size}" height="${size}" class="${classes}" aria-hidden="true" focusable="false" `,
+);
+---
+
+<Fragment set:html={markup} />

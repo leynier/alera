@@ -2,7 +2,12 @@
 title: "Track Coding Agent Quotas Without Leaving The Workbench"
 description: "Hitting a provider limit mid-run is the worst way to learn your quota. We put Claude, Codex, Kimi, Grok, Cursor, and more in the status bar."
 pubDate: 2026-07-28T16:00:00.000Z
+updatedDate: 2026-09-28
+tags: ["Agents", "Product"]
+relatedDocs: ["quotas", "agents", "worktrees"]
 ---
+
+> **Update, September 2026:** OpenCode is now covered too, with OpenCode Go usage windows and an estimated 30-day OpenCode Zen spend.
 
 There is a specific kind of frustration that only agent users know: a run dies mid-task, you dig through the output, and the cause is a rate limit you did not know you were near. The fix was never technical. You just needed to see the number before it hit zero.
 

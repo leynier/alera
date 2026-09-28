@@ -1,0 +1,38 @@
+---
+/**
+ * What the demo draws over the app: the two pointers (a mouse on the desktop,
+ * a touch on the phone) live inside the stage so the camera moves them with
+ * everything else; the shortcut HUD sits on the viewport at a fixed size.
+ */
+interface Props {
+  part: 'pointers' | 'hud';
+}
+
+const { part } = Astro.props;
+---
+
+{
+  part === 'pointers' ? (
+    <>
+      <div class="demo-pointer demo-pointer-mouse" data-demo-pointer="mouse">
+        <svg viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+          <path
+            d="M2.5 1.5v13.2l3.4-3.3 2.3 5.1 2.2-1-2.3-5h4.9z"
+            fill="#f5f5f5"
+            stroke="#101010"
+            stroke-width="1.1"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </div>
+      <div class="demo-pointer demo-pointer-touch" data-demo-pointer="touch">
+        <span />
+      </div>
+    </>
+  ) : (
+    <div class="demo-hud" data-demo-hud hidden>
+      <span class="demo-hud-keys" data-demo-hud-keys />
+      <span class="demo-hud-label" data-demo-hud-label />
+    </div>
+  )
+}

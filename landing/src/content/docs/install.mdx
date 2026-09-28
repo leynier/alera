@@ -1,0 +1,81 @@
+---
+title: Install
+description: Install Alera on Linux, macOS, and Windows, keep it updated, or run it from source.
+updatedDate: 2026-09-28
+---
+
+Pick the path for your operating system, then come back to [Get Started](/docs). The [download page](/download) has the same commands plus direct links to the current release artifacts.
+
+## Linux
+
+Alera installs from a signed package repository, so its system libraries resolve through your package manager: GTK 3, json-glib, libsecret, SQLite, OpenSSL, the Vulkan loader, Ayatana AppIndicator, and ALSA. The same command installs and updates:
+
+```bash
+curl -fsSL https://alera.build/install.sh | sh
+```
+
+The script detects apt or dnf, verifies the repository signing key against a fingerprint pinned inside the script, configures the repository, and installs the package. Pass `--dry-run` to see what it would do, or `--repo-only` to configure the repository without installing.
+
+Requires x86_64 and Ubuntu 24.04 or newer, Debian 13 or newer, or Fedora. On RHEL, Rocky Linux, and AlmaLinux, enable [EPEL](https://docs.fedoraproject.org/en-US/epel/) first, which is where `libayatana-appindicator-gtk3` comes from. openSUSE is not supported yet: the published RPM uses Fedora package names.
+
+On a distribution with no package of ours, download the Linux tarball from [GitHub Releases](https://github.com/leynier/alera/releases) and extract it somewhere you own, such as `~/.local/share/alera`. Install the libraries listed above through your own package manager first.
+
+Manual repository setup, the signing-key fingerprint, and current artifact names live on the [download page](/download).
+
+## macOS
+
+```bash
+brew tap leynier/tap
+brew install --cask alera
+```
+
+Requires Apple Silicon and macOS 14 (Sonoma) or newer. The cask clears the quarantine attribute after installing, because the macOS build is not notarized yet.
+
+You can also download the macOS tarball from [GitHub Releases](https://github.com/leynier/alera/releases) and move `Alera.app` to `/Applications`.
+
+## Windows
+
+```powershell
+scoop bucket add leynier https://github.com/leynier/scoop-bucket
+scoop install leynier/alera
+```
+
+```powershell
+choco install alera
+```
+
+Requires 64-bit Windows. Or download the Windows archive from [GitHub Releases](https://github.com/leynier/alera/releases) and extract it anywhere.
+
+## Updating
+
+Alera checks for a new release every 15 minutes while its window is visible, and announces each version once. How the update is applied depends on who owns the installation:
+
+- **Direct downloads on macOS and Windows** update themselves. Every update is verified against a signed manifest and a per-artifact SHA-256 before it is installed.
+- **A Linux tarball** replaces its own directory, but only after Alera proves it can write there.
+- **Homebrew and Scoop** installations update through that package manager: **Settings → Updates** runs its upgrade after Alera closes, then reopens the app.
+- **Linux packages and Chocolatey** need elevated permissions, so **Settings → Updates** shows the exact command. **Run Update** runs it in a terminal dialog where you can answer a prompt such as the `sudo` password, and **Copy Command** copies it instead.
+
+Local development builds never update themselves.
+
+## Mobile
+
+The Android companion is a separate app. Download the APK from the [mobile releases](https://github.com/leynier/alera/releases?q=mobile&expanded=true), then [pair it with your runtime](/docs/mobile). It is a single arm64 APK for 64-bit phones such as a Pixel 7a. An iOS build exists in CI but is not published.
+
+## From Source
+
+Alera is a Flutter desktop app with a Rust runtime. You need Flutter 3.47.2 (Dart 3.13.2), a Rust toolchain installed through `rustup` (the repository pins the version), [Zig](https://ziglang.org/download/) 0.16.0, Git, and the native compiler for your platform.
+
+```bash
+git clone https://github.com/leynier/alera.git
+cd alera
+make init-submodules
+make app-debug
+```
+
+`make app-debug` runs the desktop app against a development build of the Rust runtime. Linux source builds also need the system development packages listed in [Contributing](https://github.com/leynier/alera/blob/main/.github/CONTRIBUTING.md). On Windows, run `pwsh -File tool/development/setup_windows.ps1 -InstallMissingTools` first.
+
+A local build runs as **Alera Dev** by default, so it can coexist with an installed release without sharing user data.
+
+<Callout title="Code Signing">
+Free code signing provided by SignPath.io, certificate by SignPath Foundation. Linux packages are distributed through a signed repository. Windows and macOS builds are not signed yet, so SmartScreen and Gatekeeper may warn on first launch.
+</Callout>

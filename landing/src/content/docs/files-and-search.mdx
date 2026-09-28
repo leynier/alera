@@ -1,0 +1,62 @@
+---
+title: Files, Search, And Previews
+description: Browse and edit workspace files, search and replace across a checkout, preview Markdown, PDF, Mermaid, and images, and pick the panel a file opens in.
+updatedDate: 2026-09-28
+---
+
+File tools work on the active workspace's checkout, the files its agents change. They are made for reviewing agent work; the editor has no language server. The [paired phone](/docs/mobile) can browse and search files too.
+
+`Mod` is ⌘ on macOS and Ctrl on Windows and Linux.
+
+## Where The Tools Live
+
+**Explorer**, **Search**, **Source Control**, and **Pull Request** open as tabs in the right panel. Open one from **Add Tab** or an empty panel; drag it to the center panel if you prefer. `Mod+Shift+E` shows the Explorer and `Mod+Alt+B` hides or shows the panel. **Settings → Application → Desktop → New Workspace Tools** picks the tools a new workspace starts with.
+
+## Explorer
+
+The tree marks untracked, added, and modified files with **U**, **A**, and **M**. Git-ignored files stay hidden until you click **Show ignored files** in the toolbar, next to **New file**, **New folder**, **Save all files**, and **Refresh**.
+
+Right-click an item for **Copy**, **Cut**, **Paste**, **Duplicate**, **Rename**, **Delete**, **Copy path**, **Copy relative path**, and **Reveal in Finder** (**Reveal in Explorer** on Windows, **Reveal in File Manager** on Linux).
+
+- Drag a row onto a folder to move it, or onto a terminal to paste its path, relative to the workspace when the terminal belongs to it.
+- Open tabs follow a file you rename or move.
+- **Delete** asks first and moves the item to the trash when one is available.
+
+File operations and Search never touch `.git`, `.hg`, or `.svn` folders. A local workspace's tree refreshes as files change on disk; for a workspace on a [remote host](/docs/remote-hosts), click **Refresh**.
+
+## Quick Open
+
+`Mod+P` opens **Quick Open** for the active workspace: type part of a path and press Enter. It lists up to 50 matches, includes hidden files, skips git-ignored ones, and indexes at most 50,000 files.
+
+## Search Across The Workspace
+
+`Mod+Shift+F` (**Find in Files**) opens Search with the query focused; `Mod+Shift+H` (**Replace in Files**) also opens the replace field. Results update as you type. The query field toggles **Match case**, **Match whole word**, and **Use regular expression**. **Show details** adds **Files to include** and **Files to exclude**, which take comma-separated globs such as `src/**, *.test.ts`; a pattern without a `/` matches at any depth.
+
+Search follows `.gitignore` unless you turn on **Search ignored files**, and **View as tree** groups results by folder. It skips binary files, files over 5 MB, and symbolic links, and stops at 2,000 matches (100 per file). Click a result to open the file with the match selected.
+
+### Replacing
+
+Open **Show replace** and type the replacement to preview it on every result. **Preserve case** keeps each match's capitalization, and regular expressions can use capture groups such as `$1`. Apply it with **Replace match**, **Replace in file**, or **Replace all**, which needs results under the limit.
+
+A file with unsaved editor changes is refused until you save or discard them. A file that changed on disk since the search is skipped and reported, never overwritten.
+
+## The Editor
+
+UTF-8 text files up to 10 MB open in an editor tab with syntax highlighting, line numbers, a find and replace bar, and undo and redo. The bar above the text has **Comment on File**, **View Diff**, **Save File**, **Discard Changes**, and, for Markdown and Mermaid files, **Open Preview**. Save with `Mod+S`; closing a tab with unsaved changes asks first.
+
+**Settings → Editor** sets the **Theme Preset** (ten syntax themes, **Alera** by default) and the **Tab Size** (4 spaces; lines you do not edit keep their original tabs). **Autosave** is off by default, with an **Autosave Delay** of 1 to 60 seconds.
+
+An editor tab does not reload when an agent changes the file. If the file changed on disk since it was loaded, saving stops with **File changed on disk**, and **Overwrite** keeps your version; autosave pauses on the same question. Replace in Files reloads editors that have no unsaved changes. To see an agent's edits in a file you have not touched, close the tab and open the file again.
+
+## Previews
+
+- **Markdown**: `.md` files open rendered. Unsaved edits in an editor tab appear live, **Open source file** switches to the text, and web links open in your browser.
+- **PDF**: page count, zoom, **Show outline**, and **Search PDF** with previous and next match.
+- **Mermaid**: `.mmd` files open as text; **Open Preview** renders the saved diagram in its own tab with zoom, pan, and **Refresh**.
+- **Images**: PNG, JPEG, GIF, WebP, BMP, and ICO open in a tab you can zoom and pan.
+
+## Where A File Opens
+
+From the Explorer, Search, or Quick Open, a file opens as a preview tab, titled in italics, in the panel and split group you opened it from; the next file you open there replaces it. Editing the file, double-clicking it in the Explorer, or **Keep Open** in the tab's context menu makes it a regular tab. A file already open anywhere in the workspace is selected, not duplicated. For Quick Open, the origin is the tab that had focus.
+
+Hold `Mod` while you click to open a preview in the other panel instead: the center if you started on the right, the right if you started in the center. Splits inside one panel do not count, and a hidden right panel opens. This works from the Explorer, Search, **Source Control**, **Pull Request**, **View Diff**, and Quick Open (`Mod` held while pressing Enter), even when the file is already open where you started.

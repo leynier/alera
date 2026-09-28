@@ -1,0 +1,3 @@
+[test]
+# Playwright specs live in e2e/ and must not be collected by `bun test`.
+root = "./src"

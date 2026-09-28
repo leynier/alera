@@ -2,7 +2,13 @@
 title: "Run CLI Agents In Parallel With Git Worktrees"
 description: "Two agents sharing one working tree is a stash fight waiting to happen. Here is the model we use instead."
 pubDate: 2026-07-28T20:00:00.000Z
+updatedDate: 2026-09-28
+tags: ["Worktrees", "Agents"]
+relatedDocs: ["worktrees", "new-workspace", "agent-states"]
+featured: true
 ---
+
+> **Update, September 2026:** Any project, including a non-Git folder, can now hold several workspaces that share the project folder. Only Git projects can create a linked worktree, and **New Workspace** starts on **Project Folder**, so pick **New Worktree** for a separate checkout.
 
 The first time we ran two coding agents against the same checkout, they lasted about ten minutes before trampling each other. One was refactoring a module, the other was adding tests for it, and suddenly we were staring at a working tree full of half-related changes, doing git stash gymnastics to figure out what belonged to whom.
 

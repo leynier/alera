@@ -2,7 +2,16 @@
 title: "Welcome To Alera"
 description: "Why we started building a native workbench for CLI coding agents, and what you can do with it today."
 pubDate: 2026-07-28
+updatedDate: 2026-09-28
+tags: ["Product", "Agents", "Worktrees"]
+relatedDocs: ["index", "install", "agents"]
 ---
+
+> **Update, September 2026:**
+>
+> - Terminal output is parsed and drawn by our maintained fork of the xterm2 terminal emulator, not by Ghostty's VTE as this post first said.
+> - The install script is for x86_64 Linux with apt or dnf. On macOS, install with Homebrew, and on Windows with Scoop or Chocolatey, as the [download page](/download) shows.
+> - Agent states such as working and waiting appear once you turn on status hooks: every status hook is off by default until you turn it on under **Settings → Agents → Status Hooks**.
 
 This blog starts with a confession: we built Alera because we could not find the tool we wanted to use ourselves.
 
@@ -19,7 +28,7 @@ So Alera takes the opposite bet. It is a native, performance-first workbench for
 - See which agent is working, which is waiting on you, and which one is eating your CPU
 - Use the same workbench on macOS, Windows, and Linux, with a signed package repository on Linux
 
-We wrote up the details in follow-up posts, linked throughout this one. The short version: the boring infrastructure around agents (worktrees, PTYs, quotas, resources) is the part we think deserves real engineering.
+We wrote up the details in follow-up posts on [worktrees](/blog/run-cli-agents-in-parallel-with-git-worktrees), [persistent terminals](/blog/how-alera-keeps-terminals-alive-after-you-quit), [quotas](/blog/track-coding-agent-quotas-without-leaving-the-workbench), and [resources](/blog/see-which-agent-is-eating-your-cpu). The short version: the boring infrastructure around agents (worktrees, PTYs, quotas, resources) is the part we think deserves real engineering.
 
 ## Get Started
 

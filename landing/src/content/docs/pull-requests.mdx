@@ -1,0 +1,58 @@
+---
+title: Pull Requests And Checks
+description: Create, review, and merge a workspace's pull request, follow its checks, link issues, and let an agent watch and fix it.
+updatedDate: 2026-09-28
+---
+
+The Pull Request tool in the right panel follows the pull request for the workspace's branch. Alera works through each forge's own CLI and never holds a forge token.
+
+## Forges And CLIs
+
+| Forge | CLI | Sign In |
+|---|---|---|
+| GitHub and GitHub Enterprise Server | `gh` | `gh auth login` |
+| GitLab, including self-managed | `glab` | `glab auth login` |
+| Azure DevOps | `az` with the `azure-devops` extension | `az login` |
+
+Alera detects github.com, gitlab.com, and Azure DevOps from the `origin` remote. For GitHub Enterprise Server or a self-managed GitLab, pick the forge under **Hosting Provider** in **Settings → Projects**, or in [`alera.toml`](/docs/alera-toml). A missing or signed-out CLI shows **CLI not found** or **Not authenticated** with the command to run. A [remote host](/docs/remote-hosts) workspace uses that host's CLI and credentials.
+
+## Creating A Pull Request
+
+Without a pull request, the tool shows a form:
+
+- **Base Branch** defaults to the workspace's source branch, then `main` or `master`.
+- The AI Assist button (**Generate Title And Description With AI**) fills **Title**, which starts as the branch name, and **Description**, as set in **Settings → AI Assist → Pull Request Details**.
+- **Create Pull Request** pushes the branch, then creates and links the pull request. Its **Create Options** chevron switches to **Draft Pull Request**, and the choice sticks.
+- **Ship Changes** needs AI Assist: it commits staged or all changes with a generated message, then opens the pull request with a generated title and description. On the base branch, `main`, or `master`, it first moves the work to a new `ship/` branch.
+- **Restack Changes** asks an agent to rewrite everything since the merge base into logical commits, without pushing.
+- **Link Existing Pull Request** takes `#123` or a URL instead.
+
+## The Summary
+
+A linked pull request shows its number, its state (**Open**, **Draft**, **Merged**, or **Closed**), and four buttons: **Ask Agent**, **Edit Pull Request** for the title and base branch, **Open Pull Request Diff**, and **Open In Browser**. The diff tab compares against the merge base; `Mod`+click puts it in the other panel (`Mod` is ⌘ on macOS and Ctrl on Windows and Linux).
+
+**Checks** groups runs into failing, in progress, and successful. Expand a check for details, or open it on the forge with **Open Check**. GitLab reports the pipeline, and Azure DevOps its policy evaluations. When checks fail, **Fix Failed Checks** tells an agent you pick to fix them, without pasting logs.
+
+**Comments** lists the conversation, review summaries, and diff threads, with resolved threads folded and an unresolved count. **Post Comment** adds a top-level comment, and ticking a task-list box edits its comment on the forge.
+
+## Merging
+
+The button under an open pull request runs the action picked in its **Pull Request Actions** menu, after confirming. GitHub offers **Create Merge Commit**, **Squash and Merge**, and **Rebase and Merge** as the repository and its branch rules allow. GitLab offers **Merge Using Project Settings** and **Squash and Merge**; Azure DevOps offers **Create Merge Commit** and **Squash and Merge**. The menu also has **Mark Ready For Review** or **Convert To Draft**, **Close Pull Request**, and **Unlink Pull Request**, which only drops the link. Drafts and conflicting pull requests cannot merge. After a merge it offers **Archive Workspace** and **Remove Workspace**.
+
+### Stacks On GitHub
+
+On GitHub the summary adds a stack section: **Create From Workspaces** stacks this project's workspaces, creating missing pull requests, and **Link Existing Pull Requests** stacks numbers you list bottom to top. Merging then reads like **Squash and Merge Stack Through #42**: everything up to that pull request merges atomically, and the ones above stay open. Changing a stack needs `gh extension install github/gh-stack`.
+
+## Watch And Fix
+
+**Ask Agent** lists **Failed Checks**, **Review Comments**, and **Merge Conflicts** toggles, then **Watch and Fix** and **Watch, Fix and Merge**. Pick a running agent or a profile, and the watch prompts it about each new problem: failed checks, unresolved threads from anyone but the author, or conflicts with the base branch. It never repeats a request on the same commit. **Watch, Fix and Merge** also merges once the pull request is ready for review and mergeable, its checks have passed, and no watched thread is open. While it runs, the summary reads "Watching: Fix", an eye marks the workspace in the sidebar, and **Stop Watching** or a merged or closed pull request ends it.
+
+On GitHub, a current runtime checks every 30 seconds, even with the app closed, keeps the watch across restarts, and merges only the commit it checked. On GitLab and Azure DevOps the desktop app runs it, so it acts only while the app is open and resumes when it reopens. [`alera workspace pr-watch`](/docs/cli) starts and stops watches from a terminal.
+
+## Linked Issues
+
+Link an issue in [New Workspace](/docs/new-workspace) or later with **Link Issue** on a workspace's right-click menu, which then offers an **Issue** submenu to open, change, or unlink it. Alera reads GitHub, GitLab, and Azure DevOps issues through `gh`, `glab`, and `az boards` and shows their state in the sidebar. Other trackers' URLs stay plain links, and a failed read never blocks linking.
+
+## Settings
+
+Under **Settings → Application → Pull Requests**, **Show Pull Request Status** (on by default) shows each workspace's pull request and check state in the sidebar, and **Notify When Checks Fail** (off by default) sends one native notification when checks fail, even while Alera is hidden.

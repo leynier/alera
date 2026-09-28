@@ -1,0 +1,40 @@
+---
+import { APP_COPY } from '../../../data/demo/app-copy';
+import MaterialIcon from '../primitives/MaterialIcon.astro';
+import { concealedAttributes } from '../primitives/conceal';
+import PhoneWorkspaceList from './PhoneWorkspaceList.astro';
+import PhoneWorkspaceScreen from './PhoneWorkspaceScreen.astro';
+
+/**
+ * A 390x844 Android phone running the companion app edge to edge: the
+ * status bar shows through the app bar's color, the gesture area is the
+ * scaffold's. The heads-up notification and the snack bar sit above the
+ * app, as the system and the app's scaffold draw them.
+ */
+---
+
+<div class="phone" data-demo-node="p-device">
+  <div class="phone-screen" data-demo-node="p-screen">
+    <div class="phone-status">
+      <span class="phone-time">9:41</span>
+      <span class="phone-camera"></span>
+      <span class="phone-status-icons">
+        <MaterialIcon name="wifi" size={15} />
+        <MaterialIcon name="signal_cellular_4_bar" size={14} />
+        <MaterialIcon name="battery_full" size={15} />
+      </span>
+    </div>
+    <PhoneWorkspaceList />
+    <PhoneWorkspaceScreen />
+    <div class="phone-snackbar" data-demo-node="p-snackbar" {...concealedAttributes(true)}>{APP_COPY.desktopTookBack.text}</div>
+    <div class="phone-gesture"><span></span></div>
+    <div class="phone-notification" data-demo-node="p-notification" {...concealedAttributes(true)}>
+      <span class="phone-notification-icon"><img src="/demo/alera-logo-white.png" alt="" width="12" height="12" /></span>
+      <span class="phone-notification-body">
+        <span class="phone-notification-app">Alera · now</span>
+        <span class="phone-notification-title">{APP_COPY.pushTitle.text}</span>
+        <span class="phone-notification-text">{APP_COPY.pushBody.text}</span>
+      </span>
+    </div>
+  </div>
+</div>

@@ -2,7 +2,16 @@
 title: "Pull Requests And CI Checks Per Worktree"
 description: "Review belongs next to the work. How the Pull Requests panel keeps GitHub, GitLab, and Azure DevOps scoped to the worktree that produced the branch."
 pubDate: 2026-07-28T12:00:00.000Z
+updatedDate: 2026-09-28
+tags: ["Review", "Worktrees"]
+relatedDocs: ["pull-requests", "source-control", "worktrees"]
 ---
+
+> **Update, September 2026:**
+>
+> - The landing page's feature summary now lists GitLab alongside GitHub and Azure DevOps, so the caveat below no longer applies.
+> - The workspace tool is called **Pull Request** in the app.
+> - Watch and Fix can now hand failed checks, unresolved review threads, and merge conflicts back to an agent, and Watch, Fix and Merge merges once they are clear.
 
 Parallel agents produce parallel branches. That is the point of the whole worktree model. But it creates a review problem nobody talks about: when three agents ship three branches at once, where do you actually review them?
 

@@ -1,0 +1,124 @@
+---
+import { APP_COPY } from '../../../data/demo/app-copy';
+import { SAMPLE } from '../../../data/demo/sample-workspace';
+import AppIcon from '../primitives/AppIcon.astro';
+import MaterialSpinner from '../primitives/MaterialSpinner.astro';
+import { concealedAttributes } from '../primitives/conceal';
+import PullRequestChecks from './PullRequestChecks.astro';
+
+/**
+ * The Pull Request tool (pull_request_composer*.dart, pull_request_review_*.dart):
+ * the create form with its AI Assist button, then, once the pull request
+ * exists, the summary with checks, comments and the pinned actions. Ask
+ * Agent's menu lists the three problems to watch and the two watch modes.
+ */
+const { workspaces, pullRequest } = SAMPLE;
+---
+
+<div class="pr" data-demo-node="d-tool-pr" {...concealedAttributes(true)}>
+  <div class="pr-header">
+    <span>Pull Request</span>
+    <span class="app-button"><AppIcon name="refresh" size={16} /></span>
+  </div>
+
+  <div class="pr-form" data-demo-node="d-pr-form">
+    <div class="pr-scroll">
+      <span class="pr-label">Base Branch</span>
+      <span class="app-dropdown">
+        <span>main</span>
+        <AppIcon name="chevronDown" size={16} />
+      </span>
+      <span class="pr-label-row">
+        <span class="pr-label">Title</span>
+        <span class="app-button" data-demo-node="d-pr-ai" data-state="idle">
+          <AppIcon name="ai" size={16} class="sc-ai-idle" />
+          <MaterialSpinner size={16} class="sc-ai-busy" />
+        </span>
+      </span>
+      <span class="pr-field">
+        <span data-demo-node="d-pr-title">{workspaces.webhooks.branch}</span>
+        <span class="ai-generating ai-generating-plain" data-demo-node="d-pr-title-generating" {...concealedAttributes(true)}></span>
+      </span>
+      <span class="pr-label pr-label-spaced">Description</span>
+      <span class="pr-field pr-description">
+        <span class="pr-hint" data-demo-node="d-pr-description-hint">Description</span>
+        <span class="pr-description-text" data-demo-node="d-pr-description"></span>
+        <span class="ai-generating" data-demo-node="d-pr-generating" {...concealedAttributes(true)}>
+          <span class="ai-generating-chip">
+            <MaterialSpinner size={14} />
+            Generating with AI
+          </span>
+        </span>
+      </span>
+      <span class="pr-buttons">
+        <span class="app-outlined-button pr-outlined"><AppIcon name="restore" size={16} />Restack Changes</span>
+        <span class="app-outlined-button pr-outlined"><AppIcon name="send" size={16} />Ship Changes</span>
+        <span class="split-button" data-demo-node="d-pr-create" data-state="idle">
+          <span class="split-button-label">
+            <AppIcon name="gitPullRequest" size={15} class="pr-create-icon" />
+            <MaterialSpinner size={14} class="pr-create-busy" />
+            {APP_COPY.createPullRequest.text}
+          </span>
+          <span class="split-button-separator"></span>
+          <span class="split-button-chevron"><AppIcon name="chevronDown" size={17} /></span>
+        </span>
+      </span>
+    </div>
+    <span class="pr-link-existing">Link Existing Pull Request</span>
+  </div>
+
+  <div class="pr-summary" data-demo-node="d-pr-summary" {...concealedAttributes(true)}>
+    <div class="pr-scroll">
+      <span class="pr-summary-head">
+        <AppIcon name="gitPullRequest" size={16} />
+        <span class="pr-number">#{pullRequest}</span>
+        <span class="pr-state">Open</span>
+        <span class="pr-head-actions">
+          <span class="app-button pr-ask" data-demo-node="d-pr-ask" data-state="idle">
+            <AppIcon name="agent" size={16} class="pr-ask-idle" />
+            <AppIcon name="visible" size={16} class="pr-ask-watching" />
+          </span>
+          <span class="app-button"><AppIcon name="edit" size={16} /></span>
+          <span class="app-button"><AppIcon name="diff" size={16} /></span>
+          <span class="app-button"><AppIcon name="external" size={16} /></span>
+        </span>
+      </span>
+      <span class="pr-summary-title">{SAMPLE.pullRequestTitle}</span>
+      <span class="pr-watching" data-demo-node="d-pr-watching" {...concealedAttributes(true)}>{APP_COPY.watchingFix.text}</span>
+      <span class="pr-byline">{SAMPLE.user} · {workspaces.webhooks.branch} → main</span>
+      <span class="pr-stack">
+        <span class="pr-stack-title"><AppIcon name="gitGraph" size={14} />Stacked Pull Requests</span>
+        <span class="pr-stack-body">This pull request is not part of a native GitHub stack.</span>
+        <span class="app-outlined-button pr-stack-button">Link Existing Pull Requests</span>
+      </span>
+      <PullRequestChecks />
+      <span class="pr-section-title">Comments</span>
+      <span class="pr-muted">No comments yet</span>
+      <span class="pr-comment-composer"><AppIcon name="comment" size={14} />Start the conversation</span>
+    </div>
+    <span class="pr-pinned">
+      <span class="app-outlined-button pr-outlined"><AppIcon name="restore" size={16} />Restack Changes</span>
+      <span class="split-button split-button-tall">
+        <span class="split-button-label">Create Merge Commit</span>
+        <span class="split-button-separator"></span>
+        <span class="split-button-chevron"><AppIcon name="chevronDown" size={17} /></span>
+      </span>
+    </span>
+  </div>
+
+  <div class="menu pr-ask-menu" data-demo-node="d-ask-menu" {...concealedAttributes(true)}>
+    {
+      [APP_COPY.failedChecks, APP_COPY.reviewComments, APP_COPY.mergeConflicts].map((entry) => (
+        <span class="menu-row">
+          <span class="app-checkbox" data-state="checked">
+            <AppIcon name="check" size={14} />
+          </span>
+          {entry.text}
+        </span>
+      ))
+    }
+    <span class="menu-divider"></span>
+    <span class="menu-row" data-demo-node="d-menu-watch-fix"><AppIcon name="agent" size={16} />{APP_COPY.watchAndFix.text}</span>
+    <span class="menu-row"><AppIcon name="gitMerge" size={16} />{APP_COPY.watchFixAndMerge.text}</span>
+  </div>
+</div>

@@ -16,7 +16,7 @@ Describe the user-visible change.
 - [ ] Golden tests, if UI changed: `flutter test --tags golden`
 - [ ] Desktop E2E, if app-shell flow changed: `flutter test integration_test -d macos`
 - [ ] Relevant desktop build: `flutter build macos`, `flutter build windows`, or `flutter build linux`
-- [ ] Landing build, if applicable: `cd landing && bun run build`
+- [ ] Landing checks, if applicable: `cd landing && bun run check`
 - [ ] Added or updated tests that would catch regressions, or explained why tests were not needed
 
 ## AI Review Report

@@ -1,0 +1,180 @@
+/* The companion's workspace screen (workspace_tabs_screen.dart): tab chips, the
+   terminal, quick keys and the compose bar. */
+
+[data-alera-demo] .m-tabs {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: 48px;
+  background: var(--app-surface);
+}
+
+[data-alera-demo] .m-tab-chips {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 0 4px 8px;
+  overflow: hidden;
+}
+
+[data-alera-demo] .m-chip {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 35px;
+  padding: 0 8px;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: 8px;
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .m-chip[data-state='selected'] {
+  border-color: transparent;
+  background: var(--app-surface-elevated);
+  color: var(--app-foreground);
+}
+
+[data-alera-demo] .m-chip-label {
+  max-width: 92px;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-alera-demo] .m-tab-add {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+}
+
+[data-alera-demo] .m-terminal {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+/* The phone's terminal keeps xterm's default palette and metrics. */
+[data-alera-demo] .phone-term {
+  --term-foreground: #cccccc;
+  --term-cursor: #aeafadaa;
+  --term-black: #000000;
+  --term-red: #cd3131;
+  --term-green: #0dbc79;
+  --term-yellow: #e5e510;
+  --term-blue: #2472c8;
+  --term-magenta: #bc3fbc;
+  --term-cyan: #11a8cd;
+  --term-white: #e5e5e5;
+  --term-bright-black: #666666;
+  --term-font-size: 12px;
+  --term-line-height: 1.2;
+  --term-padding: 8px;
+}
+
+[data-alera-demo] .m-term-buttons {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 4px;
+}
+
+[data-alera-demo] .m-term-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface-elevated);
+  color: var(--app-foreground-muted);
+}
+
+[data-alera-demo] .m-keys {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 56px;
+  padding: 4px 8px;
+  overflow: hidden;
+  background: var(--app-surface);
+}
+
+[data-alera-demo] .m-keys::after {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 24px;
+  background: linear-gradient(to right, transparent, var(--app-surface));
+  content: '';
+}
+
+[data-alera-demo] .m-key {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  height: 48px;
+  padding: 0 12px;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: var(--app-radius-sm);
+  background: var(--app-surface-elevated);
+  font-family: var(--app-font-mono);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+[data-alera-demo] .m-key[data-state='pressed'] {
+  background: color-mix(in srgb, var(--app-accent) 10%, var(--app-surface-elevated));
+}
+
+[data-alera-demo] .m-compose {
+  display: flex;
+  flex: none;
+  align-items: flex-end;
+  gap: 8px;
+  height: 60px;
+  padding: 4px 8px 8px;
+  background: var(--app-surface);
+}
+
+[data-alera-demo] .m-compose-field {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  height: 48px;
+  padding-left: 12px;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: var(--app-radius-sm);
+  background: var(--app-surface-elevated);
+  color: var(--app-foreground-muted);
+  font-family: var(--app-font-mono);
+  font-size: 14px;
+  letter-spacing: 0.5px;
+}
+
+[data-alera-demo] .m-send {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--app-accent);
+  color: var(--app-on-accent);
+}

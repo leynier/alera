@@ -1,0 +1,96 @@
+---
+import ChevronDown from '@lucide/astro/icons/chevron-down';
+import type { OutlineHeading } from '../lib/heading-outline';
+
+/**
+ * The page outline, shared by the docs and the blog: a sticky column on wide
+ * screens (`aside`) and a collapsible block above the content otherwise
+ * (`inline`). Both variants are marked by the same scroll-spy.
+ */
+interface Props {
+  headings: OutlineHeading[];
+  variant: 'aside' | 'inline';
+}
+
+const { headings, variant } = Astro.props;
+const linkClass = (heading: OutlineHeading) => [
+  'outline-link -ml-px block border-l border-transparent py-1 text-body-md text-foreground-muted transition-colors duration-fast hover:text-foreground',
+  heading.depth === 3 ? 'pl-6' : 'pl-3',
+];
+---
+
+{
+  variant === 'aside' ? (
+    <aside aria-label="On This Page" class="hidden w-52 shrink-0 xl:block" data-pagefind-ignore>
+      <div class="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pb-6">
+        <p class="mb-3 font-mono text-label-md uppercase text-foreground-faint">On This Page</p>
+        <ul class="space-y-0.5 border-l border-border-subtle">
+          {headings.map((heading) => (
+            <li>
+              <a href={`#${heading.id}`} data-outline-link={heading.id} class:list={linkClass(heading)} set:html={heading.html} />
+            </li>
+          ))}
+        </ul>
+      </div>
+    </aside>
+  ) : (
+    <details class="group mt-8 rounded-xl border border-border bg-surface/40 xl:hidden" data-pagefind-ignore>
+      <summary class="flex list-none items-center justify-between px-4 py-3 text-title-md text-foreground [&::-webkit-details-marker]:hidden">
+        On This Page
+        <ChevronDown size={16} class="text-foreground-muted transition-transform duration-fast group-open:rotate-180" />
+      </summary>
+      <ul class="space-y-0.5 border-t border-border-subtle px-4 py-3">
+        {headings.map((heading) => (
+          <li class:list={[heading.depth === 3 && 'pl-4']}>
+            <a
+              href={`#${heading.id}`}
+              data-outline-link={heading.id}
+              class="block py-1 text-body-md text-foreground-muted transition-colors duration-fast hover:text-foreground"
+              set:html={heading.html}
+            />
+          </li>
+        ))}
+      </ul>
+    </details>
+  )
+}
+
+<script>
+  // Marks the section being read: the last heading that has crossed the top
+  // third of the viewport. One rAF per burst of scroll events.
+  const links = [...document.querySelectorAll<HTMLAnchorElement>('[data-outline-link]')];
+  const targets = [...new Set(links.map((link) => link.dataset.outlineLink))]
+    .map((id) => (id ? document.getElementById(id) : null))
+    .filter((element): element is HTMLElement => element !== null);
+
+  if (targets.length > 0) {
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const line = window.innerHeight / 3;
+      let currentId = targets[0]?.id;
+      for (const target of targets) {
+        if (target.getBoundingClientRect().top > line) break;
+        currentId = target.id;
+      }
+      for (const link of links) {
+        link.toggleAttribute('data-active', link.dataset.outlineLink === currentId);
+      }
+    };
+    window.addEventListener(
+      'scroll',
+      () => {
+        frame ||= requestAnimationFrame(update);
+      },
+      { passive: true },
+    );
+    update();
+  }
+</script>
+
+<style>
+  :global(.outline-link[data-active]) {
+    border-color: var(--color-foreground-muted);
+    color: var(--color-foreground);
+  }
+</style>

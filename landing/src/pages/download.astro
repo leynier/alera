@@ -1,103 +1,38 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import Navbar from '../components/Navbar.astro';
+import CommandBlock from '../components/CommandBlock.astro';
 import Footer from '../components/Footer.astro';
-import releases from '../data/releases.json';
-
-const installCommand = 'curl -fsSL https://alera.build/install.sh | sh';
-const keyFingerprint = '5DE97E7CFE234A1C5869EC54708DA940734CF23A';
-const releasesUrl = 'https://github.com/leynier/alera/releases/latest';
-const mobileReleasesUrl =
-  'https://github.com/leynier/alera/releases?q=mobile&expanded=true';
-const keyringUrl = 'https://updates.alera.build/linux/alera-archive-keyring.asc';
-
-// `releases.json` is rewritten by tool/release/update_landing_release_links.dart
-// inside the release commit, so these point at the exact files the cut just
-// published instead of dropping the visitor on a releases listing.
-const assetUrl = (tag: string, file: string) =>
-  `https://github.com/leynier/alera/releases/download/${tag}/${file}`;
-
-const macosAsset = `alera-${releases.desktop.version}-macos.tar.gz`;
-const windowsAsset = `alera-${releases.desktop.version}-windows.tar.gz`;
-const androidAsset = `alera-${releases.mobile.version}-android.apk`;
-
-// Package-manager commands. The manifests are pushed by the release cut from
-// the templates under packaging/, so these read exactly like what it publishes.
-const brewCommand = 'brew tap leynier/tap && brew install --cask alera';
-const scoopCommand =
-  'scoop bucket add leynier https://github.com/leynier/scoop-bucket\n' +
-  'scoop install leynier/alera';
-const chocoCommand = 'choco install alera';
-
-const macosUrl = assetUrl(releases.desktop.tag, macosAsset);
-const windowsUrl = assetUrl(releases.desktop.tag, windowsAsset);
-const androidUrl = assetUrl(releases.mobile.tag, androidAsset);
+import Navbar from '../components/Navbar.astro';
+import ManualLinuxSetup from '../components/download/ManualLinuxSetup.astro';
+import PlatformChooser from '../components/download/PlatformChooser.astro';
+import {
+  ANDROID_ASSET,
+  ANDROID_URL,
+  BREW_COMMAND,
+  CHOCO_COMMAND,
+  INSTALL_SCRIPT_COMMAND,
+  MACOS_ASSET,
+  MACOS_URL,
+  MOBILE_RELEASES_URL,
+  RELEASES_URL,
+  SCOOP_COMMAND,
+  WINDOWS_ASSET,
+  WINDOWS_URL,
+} from '../data/install-channels';
+import Layout from '../layouts/Layout.astro';
 
 // Wording mandated verbatim by the SignPath Foundation code of conduct. It is
 // kept as one contiguous string, with the links in a separate sentence, so a
 // reviewer searching the rendered page finds it intact.
-const signingAttribution =
-  'Free code signing provided by SignPath.io, certificate by SignPath Foundation';
+const signingAttribution = 'Free code signing provided by SignPath.io, certificate by SignPath Foundation';
 
-const aptSource = `Types: deb
-URIs: https://updates.alera.build/linux/apt
-Suites: stable
-Components: main
-Architectures: amd64
-Signed-By: /etc/apt/keyrings/alera-archive-keyring.asc`;
-
-const rpmRepo = `[alera]
-name=Alera
-baseurl=https://updates.alera.build/linux/rpm/x86_64
-enabled=1
-gpgcheck=0
-repo_gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-alera`;
-
-// Drives both the detected-system card and the section order, so the two can
-// never disagree about what a platform offers.
-const platforms = [
-  {
-    id: 'macos',
-    name: 'macOS',
-    summary: 'Install with Homebrew, or download the app.',
-    action: 'See the Commands',
-    href: '#macos',
-    available: true,
-  },
-  {
-    id: 'windows',
-    name: 'Windows',
-    summary: 'Install with Scoop or Chocolatey, or download the app.',
-    action: 'See the Commands',
-    href: '#windows',
-    available: true,
-  },
-  {
-    id: 'linux',
-    name: 'Linux',
-    summary: 'Install from the signed package repository.',
-    action: 'See the Command',
-    href: '#linux',
-    available: true,
-  },
-  {
-    id: 'android',
-    name: 'Android',
-    summary: `Download ${androidAsset}.`,
-    action: 'Download the APK',
-    href: androidUrl,
-    available: true,
-  },
-  {
-    id: 'ios',
-    name: 'iOS',
-    summary: 'Not available yet.',
-    action: 'Coming Soon',
-    href: null,
-    available: false,
-  },
-];
+const primaryLink =
+  'inline-flex items-center gap-2 rounded-lg bg-accent px-3.5 py-1.5 text-body-md font-medium text-on-accent transition-opacity duration-fast hover:opacity-90';
+const secondaryLink =
+  'text-body-md text-foreground-faint underline underline-offset-4 transition-colors duration-fast hover:text-foreground';
+const inlineLink = 'text-foreground underline underline-offset-4 transition-opacity duration-fast hover:opacity-80';
+const sectionTitle = 'mb-3 scroll-mt-20 text-headline-sm text-foreground';
+const body = 'mb-4 text-body-md leading-relaxed text-foreground-muted';
+const note = 'mb-4 text-body-md leading-relaxed text-foreground-faint';
 ---
 
 <Layout
@@ -108,433 +43,107 @@ const platforms = [
   <Navbar />
   <main class="px-6 pt-24 pb-20">
     <div class="mx-auto max-w-3xl">
-      <h1
-        class="text-headline-lg md:text-[32px] font-semibold tracking-tight text-foreground mb-4"
-      >
-        Download Alera
-      </h1>
-      <p class="text-[15px] text-foreground-muted mb-10 leading-relaxed">
-        The desktop workbench runs on macOS, Windows, and Linux. The companion
-        mobile app runs on Android.
+      <h1 class="mb-4 text-headline-lg font-semibold tracking-tight text-foreground md:text-[32px]">Download Alera</h1>
+      <p class="mb-10 text-[15px] leading-relaxed text-foreground-muted">
+        The desktop workbench runs on macOS, Windows, and Linux. The companion mobile app runs on Android.
       </p>
 
-      <!-- Detected system. Rendered as a neutral chooser so it stays useful
-           without JavaScript, then narrowed to one platform by the script. -->
-      <section
-        id="your-system"
-        data-platforms={JSON.stringify(platforms)}
-        class="rounded-lg border border-border bg-surface-variant p-6 mb-14"
-      >
-        <p class="text-label-md text-foreground-faint mb-2">Your System</p>
-        <p id="detected-name" class="text-title-lg text-foreground mb-2">
-          Choose Your Platform
-        </p>
-        <p
-          id="detected-summary"
-          class="text-body-md text-foreground-muted mb-5 leading-relaxed"
-        >
-          Pick the platform you are installing on from the sections below.
-        </p>
-        <a
-          id="detected-action"
-          href="#macos"
-          class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-accent text-on-accent text-body-md font-medium hover:opacity-90 transition-opacity duration-fast"
-        >
-          See All Platforms
-        </a>
-        <span
-          id="detected-unavailable"
-          hidden
-          class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-border text-body-md text-foreground-faint"
-        >
-          Coming Soon
-        </span>
-      </section>
+      <PlatformChooser />
 
-      <h2 id="macos" class="text-headline-sm text-foreground mb-3 scroll-mt-20">
-        macOS
-      </h2>
-      <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
-        Install with Homebrew. Requires Apple Silicon and macOS 14 or newer.
+      <h2 id="macos" class={sectionTitle}>macOS</h2>
+      <p class={body}>Install with Homebrew. Requires Apple Silicon and macOS 14 or newer.</p>
+      <div class="mb-4"><CommandBlock command={BREW_COMMAND} /></div>
+      <p class={note}>
+        The cask clears the quarantine attribute after installing, because the macOS build is not notarized yet. Or
+        unpack <span class="break-all font-mono">{MACOS_ASSET}</span> and move Alera.app to your Applications folder.
       </p>
-      <div class="rounded-lg border border-border bg-surface-variant p-4 mb-4">
-        <div class="flex items-start gap-4">
-          <code
-            id="alera-brew-command"
-            class="font-mono text-body-md text-foreground break-all leading-relaxed grow whitespace-pre-line"
-            >{brewCommand}</code
-          >
-          <button
-            type="button"
-            data-copy-target="alera-brew-command"
-            class="shrink-0 px-3 py-1.5 rounded-md border border-border text-body-md text-foreground-muted hover:border-foreground-faint hover:text-foreground transition-colors duration-fast"
-          >
-            Copy
-          </button>
-        </div>
-      </div>
-      <p class="text-body-md text-foreground-faint mb-4 leading-relaxed">
-        The cask clears the quarantine attribute after installing, because the
-        macOS build is not notarized yet. Or unpack <span
-          class="font-mono break-all">{macosAsset}</span
-        > and move Alera.app to your Applications folder.
-      </p>
-      <div class="flex flex-wrap items-center gap-3 mb-12">
-        <a
-          href={macosUrl}
-          class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-accent text-on-accent text-body-md font-medium hover:opacity-90 transition-opacity duration-fast"
-        >
-          Download for macOS
-        </a>
-        <a
-          href={releasesUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-body-md text-foreground-faint underline underline-offset-4 hover:text-foreground transition-colors duration-fast"
-        >
-          All Releases
-        </a>
+      <div class="mb-12 flex flex-wrap items-center gap-3">
+        <a href={MACOS_URL} class={primaryLink}>Download For macOS</a>
+        <a href={RELEASES_URL} target="_blank" rel="noopener noreferrer" class={secondaryLink}>All Releases</a>
       </div>
 
-      <h2
-        id="windows"
-        class="text-headline-sm text-foreground mb-3 scroll-mt-20"
-      >
-        Windows
-      </h2>
-      <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
-        Install with Scoop, which needs no administrator rights.
+      <h2 id="windows" class={sectionTitle}>Windows</h2>
+      <p class={body}>Install with Scoop, which needs no administrator rights.</p>
+      <div class="mb-4"><CommandBlock command={SCOOP_COMMAND} /></div>
+      <p class={body}>Or with Chocolatey, from an elevated prompt.</p>
+      <div class="mb-4"><CommandBlock command={CHOCO_COMMAND} /></div>
+      <p class={note}>
+        Requires 64-bit Windows. Or unpack <span class="break-all font-mono">{WINDOWS_ASSET}</span> anywhere and run
+        Alera.exe.
       </p>
-      <div class="rounded-lg border border-border bg-surface-variant p-4 mb-4">
-        <div class="flex items-start gap-4">
-          <code
-            id="alera-scoop-command"
-            class="font-mono text-body-md text-foreground break-all leading-relaxed grow whitespace-pre-line"
-            >{scoopCommand}</code
-          >
-          <button
-            type="button"
-            data-copy-target="alera-scoop-command"
-            class="shrink-0 px-3 py-1.5 rounded-md border border-border text-body-md text-foreground-muted hover:border-foreground-faint hover:text-foreground transition-colors duration-fast"
-          >
-            Copy
-          </button>
-        </div>
-      </div>
-      <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
-        Or with Chocolatey, from an elevated prompt.
-      </p>
-      <div class="rounded-lg border border-border bg-surface-variant p-4 mb-4">
-        <div class="flex items-start gap-4">
-          <code
-            id="alera-choco-command"
-            class="font-mono text-body-md text-foreground break-all leading-relaxed grow"
-            >{chocoCommand}</code
-          >
-          <button
-            type="button"
-            data-copy-target="alera-choco-command"
-            class="shrink-0 px-3 py-1.5 rounded-md border border-border text-body-md text-foreground-muted hover:border-foreground-faint hover:text-foreground transition-colors duration-fast"
-          >
-            Copy
-          </button>
-        </div>
-      </div>
-      <p class="text-body-md text-foreground-faint mb-4 leading-relaxed">
-        Requires 64-bit Windows. Or unpack <span class="font-mono break-all"
-          >{windowsAsset}</span
-        > anywhere and run Alera.exe.
-      </p>
-      <div class="flex flex-wrap items-center gap-3 mb-12">
-        <a
-          href={windowsUrl}
-          class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-accent text-on-accent text-body-md font-medium hover:opacity-90 transition-opacity duration-fast"
-        >
-          Download for Windows
-        </a>
-        <a
-          href={releasesUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-body-md text-foreground-faint underline underline-offset-4 hover:text-foreground transition-colors duration-fast"
-        >
-          All Releases
-        </a>
+      <div class="mb-12 flex flex-wrap items-center gap-3">
+        <a href={WINDOWS_URL} class={primaryLink}>Download For Windows</a>
+        <a href={RELEASES_URL} target="_blank" rel="noopener noreferrer" class={secondaryLink}>All Releases</a>
       </div>
 
-      <h2 id="linux" class="text-headline-sm text-foreground mb-3 scroll-mt-20">
-        Linux
-      </h2>
-      <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
-        Alera installs from a signed package repository so system dependencies
-        resolve through apt or dnf. The same command installs and updates.
+      <h2 id="linux" class={sectionTitle}>Linux</h2>
+      <p class={body}>
+        Alera installs from a signed package repository so system dependencies resolve through apt or dnf. The same
+        command installs and updates.
       </p>
-      <div class="rounded-lg border border-border bg-surface-variant p-4 mb-4">
-        <div class="flex items-start gap-4">
-          <code
-            id="alera-install-command"
-            class="font-mono text-body-md text-foreground break-all leading-relaxed grow"
-            >{installCommand}</code
-          >
-          <button
-            type="button"
-            data-copy-target="alera-install-command"
-            class="shrink-0 px-3 py-1.5 rounded-md border border-border text-body-md text-foreground-muted hover:border-foreground-faint hover:text-foreground transition-colors duration-fast"
-          >
-            Copy
-          </button>
-        </div>
-      </div>
-      <p class="text-body-md text-foreground-faint mb-12 leading-relaxed">
-        Requires x86_64 and Ubuntu 24.04 or newer, Debian 13 or newer, or
-        Fedora. On RHEL, Rocky, and AlmaLinux enable RPM Fusion first, which is
-        where <span class="font-mono">mpv-libs</span> comes from. openSUSE is not
-        supported yet: the published RPM declares Fedora package names that openSUSE
-        provides under different names.
+      <div class="mb-4"><CommandBlock command={INSTALL_SCRIPT_COMMAND} /></div>
+      <p class="mb-12 text-body-md leading-relaxed text-foreground-faint">
+        Requires x86_64 and Ubuntu 24.04 or newer, Debian 13 or newer, or Fedora. On RHEL, Rocky Linux, and AlmaLinux,
+        enable EPEL first, which is where <span class="font-mono">libayatana-appindicator-gtk3</span> comes from.
+        openSUSE is not supported yet: the published RPM declares Fedora package names that openSUSE provides under
+        different names.
       </p>
 
-      <h2
-        id="android"
-        class="text-headline-sm text-foreground mb-3 scroll-mt-20"
-      >
-        Android
-      </h2>
-      <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
-        The companion app pairs with a running desktop workbench over your own
-        network; it is not a standalone editor. Mobile ships on its own version
-        sequence, so its releases carry a <span class="font-mono">-mobile</span> tag
-        suffix. This is the 64-bit Android APK (<span class="font-mono break-all"
-          >{androidAsset}</span
-        >) for phones such as a Pixel 7a.
+      <h2 id="android" class={sectionTitle}>Android</h2>
+      <p class={body}>
+        The companion app pairs with the runtime on your desktop over your own network, or through the optional
+        encrypted relay; it is not a standalone editor. Mobile ships on its own version sequence, so its releases carry a
+        <span class="font-mono">-mobile</span> tag suffix. This is the 64-bit Android APK
+        (<span class="break-all font-mono">{ANDROID_ASSET}</span>) for phones such as a Pixel 7a.
       </p>
-      <div class="flex flex-wrap items-center gap-3 mb-3">
-        <a
-          href={androidUrl}
-          class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-accent text-on-accent text-body-md font-medium hover:opacity-90 transition-opacity duration-fast"
-        >
-          Download the APK
-        </a>
-        <a
-          href={mobileReleasesUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-body-md text-foreground-faint underline underline-offset-4 hover:text-foreground transition-colors duration-fast"
-        >
+      <div class="mb-3 flex flex-wrap items-center gap-3">
+        <a href={ANDROID_URL} class={primaryLink}>Download The APK</a>
+        <a href={MOBILE_RELEASES_URL} target="_blank" rel="noopener noreferrer" class={secondaryLink}>
           All Mobile Releases
         </a>
       </div>
-      <p class="text-body-md text-foreground-faint mb-12 leading-relaxed">
-        Sideloading an APK means Android asks you to allow installs from your
-        browser or file manager. There is no Play Store listing yet.
+      <p class="mb-12 text-body-md leading-relaxed text-foreground-faint">
+        Sideloading an APK means Android asks you to allow installs from your browser or file manager. There is no Play
+        Store listing yet. Then <a href="/docs/mobile" class={inlineLink}>pair the phone</a> with your desktop.
       </p>
 
-      <h2 id="ios" class="text-headline-sm text-foreground mb-3 scroll-mt-20">
-        iOS
-      </h2>
-      <div class="rounded-lg border border-border bg-surface-variant p-5 mb-14">
-        <span
-          class="inline-flex items-center px-2.5 py-1 rounded-pill border border-border text-label-md text-foreground-faint mb-3"
-        >
+      <h2 id="ios" class={sectionTitle}>iOS</h2>
+      <div class="mb-14 rounded-lg border border-border bg-surface-variant p-5">
+        <span class="mb-3 inline-flex items-center rounded-pill border border-border px-2.5 py-1 text-label-md text-foreground-faint">
           Coming Soon
         </span>
-        <p class="text-body-md text-foreground-muted leading-relaxed">
-          There is no iOS build to install yet. The companion app targets
-          Android today; iOS is planned and has no date.
+        <p class="text-body-md leading-relaxed text-foreground-muted">
+          There is no iOS build to install yet. The companion app targets Android today; iOS is planned and has no date.
         </p>
       </div>
 
-      <h2 class="text-headline-sm text-foreground mb-3">Manual Linux Setup</h2>
-      <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
-        To add the repository yourself instead of running the script, import the
-        signing key from <span class="font-mono break-all">{keyringUrl}</span> and
-        confirm its fingerprint is
-        <span class="font-mono break-all">{keyFingerprint}</span>, then write one
-        of these files.
-      </p>
-      <div class="grid gap-4 md:grid-cols-2 mb-4">
-        <div class="rounded-lg border border-border bg-surface-variant p-4">
-          <div class="flex items-start justify-between gap-3 mb-2">
-            <p class="text-label-md text-foreground-faint break-all">
-              /etc/apt/sources.list.d/alera.sources
-            </p>
-            <button
-              type="button"
-              data-copy-target="alera-apt-source"
-              class="shrink-0 px-2.5 py-1 rounded-md border border-border text-label-md text-foreground-muted hover:border-foreground-faint hover:text-foreground transition-colors duration-fast"
-            >
-              Copy
-            </button>
-          </div>
-          <div class="overflow-x-auto">
-            <pre
-              class="font-mono text-body-md text-foreground leading-relaxed"><code id="alera-apt-source">{aptSource}</code></pre>
-          </div>
-        </div>
-        <div class="rounded-lg border border-border bg-surface-variant p-4">
-          <div class="flex items-start justify-between gap-3 mb-2">
-            <p class="text-label-md text-foreground-faint break-all">
-              /etc/yum.repos.d/alera.repo
-            </p>
-            <button
-              type="button"
-              data-copy-target="alera-rpm-repo"
-              class="shrink-0 px-2.5 py-1 rounded-md border border-border text-label-md text-foreground-muted hover:border-foreground-faint hover:text-foreground transition-colors duration-fast"
-            >
-              Copy
-            </button>
-          </div>
-          <div class="overflow-x-auto">
-            <pre
-              class="font-mono text-body-md text-foreground leading-relaxed"><code id="alera-rpm-repo">{rpmRepo}</code></pre>
-          </div>
-        </div>
-      </div>
-      <p class="text-body-md text-foreground-faint mb-14 leading-relaxed">
-        The published packages carry no per-package signature yet, so
-        <span class="font-mono">gpgcheck</span> stays off while
-        <span class="font-mono">repo_gpgcheck</span> verifies the signed repository
-        metadata, which commits to the checksum of every package. That is the same
-        chain apt relies on.
-      </p>
+      <ManualLinuxSetup />
 
-      <h2
-        id="code-signing-policy"
-        class="text-headline-sm text-foreground mb-3 scroll-mt-20"
-      >
-        Code Signing Policy
-      </h2>
-      <p class="text-body-md text-foreground mb-4 leading-relaxed">
-        {signingAttribution}.
+      <h2 id="code-signing-policy" class={sectionTitle}>Code Signing Policy</h2>
+      <p class="mb-4 text-body-md leading-relaxed text-foreground">{signingAttribution}.</p>
+      <p class={body}>
+        <a href="https://about.signpath.io" target="_blank" rel="noopener noreferrer" class={inlineLink}>SignPath.io</a>
+        runs the signing service, and the
+        <a href="https://signpath.org" target="_blank" rel="noopener noreferrer" class={inlineLink}>SignPath Foundation</a>
+        issues the certificate to open source projects at no cost.
       </p>
-      <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
-        <a
-          href="https://about.signpath.io"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-foreground underline underline-offset-4 hover:opacity-80 transition-opacity duration-fast"
-          >SignPath.io</a
-        > runs the signing service, and the <a
-          href="https://signpath.org"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-foreground underline underline-offset-4 hover:opacity-80 transition-opacity duration-fast"
-          >SignPath Foundation</a
-        > issues the certificate to open source projects at no cost.
+      <p class={body}>
+        Alera is maintained by one person, who fills every role:
+        <a href="https://leynier.dev" target="_blank" rel="noopener noreferrer" class={inlineLink}>Leynier Gutiérrez González</a>
+        is the sole committer, reviewer, and approver of signing requests.
       </p>
-      <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
-        Alera is maintained by one person, who fills every role: <a
-          href="https://leynier.dev"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-foreground underline underline-offset-4 hover:opacity-80 transition-opacity duration-fast"
-          >Leynier Gutiérrez González</a
-        > is the sole committer, reviewer, and approver of signing requests.
+      <p class={body}>
+        Data handling is described in the <a href="/privacy" class={inlineLink}>Privacy Policy</a>. Alera is
+        local-first: your projects, terminals, and settings stay on your machine.
       </p>
-      <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
-        Data handling is described in the <a
-          href="/privacy"
-          class="text-foreground underline underline-offset-4 hover:opacity-80 transition-opacity duration-fast"
-          >Privacy Policy</a
-        >. Alera is local-first: your projects, terminals, and settings stay on
-        your machine.
-      </p>
-      <p class="text-body-md text-foreground-faint leading-relaxed">
-        Current status, so you know what to expect from your system: Linux
-        packages are distributed through a repository whose metadata is signed
-        with the key above. Windows and macOS builds are <strong
-          class="text-foreground-muted">not signed yet</strong
-        >, so Windows SmartScreen reports an unknown publisher and macOS
-        Gatekeeper asks you to allow the app explicitly. Windows signing through
-        SignPath begins once the certificate is issued.
+      <p class="text-body-md leading-relaxed text-foreground-faint">
+        Current status, so you know what to expect from your system: Linux packages are distributed through a
+        repository whose metadata is signed with the key above. Windows and macOS builds are
+        <strong class="text-foreground-muted">not signed yet</strong>, so Windows SmartScreen reports an unknown
+        publisher and macOS Gatekeeper asks you to allow the app explicitly. Windows signing through SignPath begins
+        once the certificate is issued.
       </p>
     </div>
   </main>
   <Footer />
 </Layout>
-
-<script>
-  document.querySelectorAll('[data-copy-target]').forEach((button) => {
-    button.addEventListener('click', async () => {
-      const targetId = button.getAttribute('data-copy-target');
-      const target = targetId ? document.getElementById(targetId) : null;
-      if (!target?.textContent) {
-        return;
-      }
-      await navigator.clipboard.writeText(target.textContent);
-      const original = button.textContent;
-      button.textContent = 'Copied';
-      setTimeout(() => {
-        button.textContent = original;
-      }, 2000);
-    });
-  });
-</script>
-
-<script>
-  // Narrow the "Your System" card to the visitor's platform. Without this the
-  // card stays a neutral chooser, so a no-JS visitor loses nothing.
-  interface DownloadPlatform {
-    id: string;
-    name: string;
-    summary: string;
-    action: string;
-    href: string | null;
-    available: boolean;
-  }
-
-  const card = document.getElementById('your-system');
-  const nameNode = document.getElementById('detected-name');
-  const summaryNode = document.getElementById('detected-summary');
-  const actionNode = document.getElementById('detected-action');
-  const unavailableNode = document.getElementById('detected-unavailable');
-
-  const detectPlatformId = (): string | null => {
-    const data = (
-      navigator as Navigator & {
-        userAgentData?: { platform?: string };
-      }
-    ).userAgentData;
-    const hint = `${data?.platform ?? ''} ${navigator.userAgent}`.toLowerCase();
-    // iPadOS reports a desktop user agent, so a touch-capable "mac" is an iPad.
-    const touchMac = hint.includes('mac') && navigator.maxTouchPoints > 1;
-    if (hint.includes('android')) {
-      return 'android';
-    }
-    if (hint.includes('iphone') || hint.includes('ipad') || touchMac) {
-      return 'ios';
-    }
-    if (hint.includes('win')) {
-      return 'windows';
-    }
-    if (hint.includes('mac')) {
-      return 'macos';
-    }
-    if (hint.includes('linux') || hint.includes('x11')) {
-      return 'linux';
-    }
-    return null;
-  };
-
-  if (card && nameNode && summaryNode && actionNode && unavailableNode) {
-    const platforms: DownloadPlatform[] = JSON.parse(
-      card.dataset.platforms ?? '[]',
-    );
-    const platform = platforms.find((entry) => entry.id === detectPlatformId());
-    if (platform) {
-      nameNode.textContent = platform.name;
-      summaryNode.textContent = platform.summary;
-      if (platform.available && platform.href) {
-        actionNode.setAttribute('href', platform.href);
-        actionNode.textContent = platform.action;
-        if (platform.href.startsWith('http')) {
-          actionNode.setAttribute('target', '_blank');
-          actionNode.setAttribute('rel', 'noopener noreferrer');
-        }
-      } else {
-        // Never leave a CTA that implies an install we cannot deliver.
-        actionNode.hidden = true;
-        unavailableNode.hidden = false;
-      }
-    }
-  }
-</script>
