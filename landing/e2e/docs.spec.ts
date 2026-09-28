@@ -21,6 +21,13 @@ test('lists every page in the sidebar, grouped, with the current one marked', as
   await expect(page.getByRole('navigation', { name: 'Previous And Next Page' }).getByRole('link')).toHaveCount(2);
 });
 
+test('opens the sidebar scrolled to the current page on a short screen', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 700 });
+  await page.goto('/docs/troubleshooting');
+  const sidebar = page.getByRole('navigation', { name: 'Documentation' }).last();
+  await expect(sidebar.locator('[aria-current="page"]')).toBeInViewport();
+});
+
 test('outlines the page from its own headings', async ({ page }) => {
   await page.goto('/docs/install');
   const outline = page.getByRole('complementary', { name: 'On This Page' });

@@ -48,7 +48,7 @@ const editUrl = `https://github.com/leynier/alera/edit/main/landing/${sourcePath
 
   <div class="mx-auto flex max-w-7xl gap-10 px-6 pt-8 pb-20 lg:pt-24 xl:gap-12">
     <nav aria-label="Documentation" class="hidden w-56 shrink-0 lg:block">
-      <div class="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pr-2 pb-6">
+      <div class="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pr-2 pb-6" data-docs-sidebar>
         <button
           type="button"
           data-docs-search-open
@@ -101,3 +101,12 @@ const editUrl = `https://github.com/leynier/alera/edit/main/landing/${sourcePath
   <DocsSearch />
   <Footer />
 </Layout>
+
+<script>
+  // The page list is taller than many screens, so a page further down opens with its own entry in view.
+  const sidebar = document.querySelector<HTMLElement>('[data-docs-sidebar]');
+  const current = sidebar?.querySelector<HTMLElement>('[aria-current="page"]');
+  if (sidebar && current && current.offsetTop + current.offsetHeight > sidebar.clientHeight) {
+    sidebar.scrollTop = current.offsetTop - (sidebar.clientHeight - current.offsetHeight) / 2;
+  }
+</script>
