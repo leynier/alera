@@ -400,7 +400,10 @@ fn claude_user_hooks_install_keeps_the_users_own_definitions() {
     assert!(settings["hooks"]["SessionStart"]
         .to_string()
         .contains("alera-runtime-agent-hook"));
-    assert!(!settings["hooks"]["SubagentStop"]
+    assert!(settings["hooks"]["SubagentStop"]
+        .to_string()
+        .contains("echo subagent"));
+    assert!(settings["hooks"]["SubagentStop"]
         .to_string()
         .contains("alera-runtime-agent-hook"));
 }

@@ -62,6 +62,7 @@ mod tests {
             turn_id: None,
             local_hook: false,
             inferred_idle: false,
+            claude_subagents: Default::default(),
         }
     }
 

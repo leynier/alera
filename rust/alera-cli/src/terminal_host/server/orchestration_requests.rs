@@ -626,6 +626,9 @@ impl ServerActor {
                     .get("inferredIdle")
                     .and_then(Value::as_bool)
                     .unwrap_or(false),
+                claude_subagents: previous
+                    .map(|value| value.claude_subagents.clone())
+                    .unwrap_or_default(),
             };
             let accepts_injection = presence.accepts_injection();
             self.agent_presence.update_full(handle, presence);

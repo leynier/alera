@@ -344,6 +344,35 @@ async fn sub_agents_ask_for_attention_but_never_end_or_reopen_the_turn() {
 }
 
 #[tokio::test]
+async fn claude_stays_working_while_background_sub_agents_run() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut actor = actor(&dir).await;
+    send(
+        &mut actor,
+        "claude",
+        "UserPromptSubmit",
+        json!({"session_id": "s"}),
+    )
+    .await;
+    let child = json!({"session_id": "s", "agent_id": "a1", "agent_type": "Explore"});
+    send(&mut actor, "claude", "SubagentStart", child.clone()).await;
+    send(&mut actor, "claude", "Stop", json!({"session_id": "s"})).await;
+    assert_eq!(state(&actor), Some(AgentPresenceState::Working));
+    assert!(!actor.agent_presence.is_injection_ready("session"));
+
+    let question = json!({"session_id": "s", "agent_id": "a1", "tool_name": "AskUserQuestion"});
+    send(&mut actor, "claude", "PreToolUse", question).await;
+    assert_eq!(state(&actor), Some(AgentPresenceState::Waiting));
+    let answered = json!({"session_id": "s", "agent_id": "a1", "tool_name": "AskUserQuestion"});
+    send(&mut actor, "claude", "PostToolUse", answered).await;
+    assert_eq!(state(&actor), Some(AgentPresenceState::Working));
+
+    send(&mut actor, "claude", "SubagentStop", child).await;
+    assert_eq!(state(&actor), Some(AgentPresenceState::Done));
+    assert!(actor.agent_presence.is_injection_ready("session"));
+}
+
+#[tokio::test]
 async fn grok_cancelled_turns_end_and_late_reports_for_older_turns_are_dropped() {
     let dir = tempfile::tempdir().unwrap();
     let mut actor = actor(&dir).await;

@@ -62,14 +62,23 @@ An agent that the tab's agent runs as a tool (`codex exec`, `claude -p`, a revie
 1. The hook script forwards Claude's `CLAUDE_PID`. When both the tab's status and the hook name a process, a hook from another process is nested for as long as the tab's agent process is alive, even after its turn ended. A relaunched agent (the old pid is gone) takes over.
 2. Otherwise, while the tab's turn is running and its process group is still alive, a hook from a different native conversation id is nested. A finished or stale (30 minutes) turn lets the next conversation take over.
 
-Sub-agents are part of the tab's agent: Claude and Codex keep the root `session_id` and add `agent_id`, Grok gives the child its own session tagged `subagentType`, and OpenCode and older Codex name the parent (`parent_session_id`, `parent_thread_id`). A sub-agent hook may ask for attention (`waiting`, `blocked`) and keep a running turn fresh, but it never ends the turn, reopens a finished one, closes the session or rebinds the conversation. Background sub-agents keep working after the main turn reported `done`.
+Sub-agents are part of the tab's agent: Claude and Codex keep the root `session_id` and add `agent_id`, Grok gives the child its own session tagged `subagentType`, and OpenCode and older Codex name the parent (`parent_session_id`, `parent_thread_id`). A sub-agent hook may ask for attention (`waiting`, `blocked`) and keep a running turn fresh, but it never ends the turn, closes the session or rebinds the conversation. For every agent but Claude it also never reopens a finished turn.
+
+Claude's background sub-agents keep working after the main turn fires `Stop`, and the main agent often stops only to wait for them. Alera installs `SubagentStart` and `SubagentStop` and the host keeps a roster of the tab's children by `agent_id` (`claude_subagent_roster.rs`, memory only), next to the state the main agent's own hooks reported:
+
+- The tab shows the main agent's `waiting` or `blocked` first, then `waiting` while any child waits for an answer (a permission prompt or `AskUserQuestion` inside the child), then `working` while the main turn or any child runs, and `done` only when the main turn ended and no child is left. That `done` is the one that accepts injection and push-on-idle.
+- A child's own tool activity clears the main agent's `waiting`, because Claude may announce a child's prompt only as a main-agent `permission_prompt` notification.
+- A child's id is remembered once it stops, so a hook that posts after its `SubagentStop` does not revive it. A later `SubagentStart` does (teammates reuse their id every turn).
+- On `Stop`, newer Claude releases list `background_tasks`: running `subagent` entries are adopted and unlisted ones are dropped, which recovers a lost `SubagentStop`. `teammate` entries never name lifecycle ids, so while one is listed an unlisted teammate-shaped id (`a<name>-<hex>`) stays. Without the field the roster is left to the lifecycle hooks.
+- An interrupted turn and a new conversation (`SessionStart`, `SessionEnd` for `clear`/`resume`) drop the roster: foreground children die with them, and a background child that survived reports again on its next hook.
+- Background shells and crons in `background_tasks` do not keep the tab working: a dev server would hold it open forever.
 
 ## Activity without hooks
 
 The runtime host reconciles presence every five seconds against what it can observe itself, for presence produced by its own hook receiver. Hooks a satellite relays to the hub are reconciled on the satellite:
 
 - **Agent exited.** Each hook records the PTY's foreground process group, which is the agent's while it runs. Once no process is left in that group (the agent quit, crashed or was killed with `Ctrl+C`), the tab's status is removed as if the agent had sent its session-end hook. Where there is no job control (Windows), the pid the agent reports stands in for the group (Claude's `CLAUDE_PID`); other agents there rely on their session-end hooks and the silence rule.
-- **Silent turn.** Every supported agent TUI redraws a spinner or an elapsed-time counter while a turn runs, tool calls included. A `working` status with no PTY output and no hook for 60 seconds becomes `done`.
+- **Silent turn.** Every supported agent TUI redraws a spinner or an elapsed-time counter while a turn runs, tool calls included. A `working` status with no PTY output and no hook for 60 seconds becomes `done`. While a Claude sub-agent holds a finished main turn open the TUI may sit still at its prompt, so that silence has to last 15 minutes instead (child hooks fire around every tool call and Claude caps one Bash call at ten minutes); after that the roster is dropped as lost.
 
 An inferred `done` (from the silence rule, or `idle_prompt` after `waiting`) never accepts orchestration or push-on-idle injection, because the agent may be sitting in a prompt no hook announced. `agentPresence.list` and `orchestration terminal list` report it as `inferredIdle: true`, `orchestration terminal show` does not call it `agent_ready`, and a hub mirrors the flag from its satellites. The next real hook replaces it.
 

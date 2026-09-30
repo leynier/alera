@@ -6,6 +6,7 @@ mod integration_hook_scripts;
 mod integration_plugins;
 mod launch_environment;
 mod normalize;
+mod normalize_claude_subagents;
 mod normalize_grok;
 mod normalize_lifecycle;
 
@@ -15,6 +16,7 @@ pub use identity::{resolve_agent_status_identity, AGENT_STATUS_IDENTITY_STALE_TH
 pub use integration_config::{reconcile_agent_integrations, start_agent_integrations};
 pub use launch_environment::prepare_launch_environment;
 pub use normalize::normalize_hook_event;
+pub use normalize_claude_subagents::normalize_claude_hook_event;
 pub use normalize_lifecycle::{
     event_agent_pid, event_runs_in_multiplexer, event_turn_id, hook_event_closes_session,
     hook_event_resets_session, hook_event_starts_unsaved_session, hook_identifies_child_agent,

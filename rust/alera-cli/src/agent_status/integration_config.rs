@@ -278,6 +278,8 @@ fn clear_legacy_runtime_state(runtime_dir: &Path) -> anyhow::Result<()> {
 // only be closed from `PostToolUseFailure.is_interrupt`, `StopFailure` and the
 // `idle_prompt` notification. `SessionStart`/`SessionEnd` bracket each
 // conversation so a resumed, cleared or exited agent does not keep its state.
+// `SubagentStart`/`SubagentStop` track background sub-agents that keep working
+// after the main turn's `Stop`.
 pub(super) const CLAUDE_HOOK_EVENTS: &[(&str, Option<&str>)] = &[
     ("SessionStart", None),
     ("SessionEnd", None),
@@ -285,6 +287,8 @@ pub(super) const CLAUDE_HOOK_EVENTS: &[(&str, Option<&str>)] = &[
     ("Stop", None),
     ("StopFailure", None),
     ("Notification", None),
+    ("SubagentStart", None),
+    ("SubagentStop", None),
     ("PreToolUse", Some("*")),
     ("PostToolUse", Some("*")),
     ("PostToolUseFailure", Some("*")),

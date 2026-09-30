@@ -23,6 +23,12 @@ const SWEEP_INTERVAL: Duration = Duration::from_secs(5);
 /// own `idle_prompt` delay.
 pub(super) const WORKING_SILENCE_THRESHOLD: Duration = Duration::from_secs(60);
 
+/// A Claude sub-agent can outlive the main turn while the main agent sits
+/// idle at its prompt, where nothing redraws. Its own hooks fire around every
+/// tool call and Claude caps a single Bash call at ten minutes, so this much
+/// silence means its `SubagentStop` was lost.
+pub(super) const SUBAGENT_SILENCE_THRESHOLD: Duration = Duration::from_secs(15 * 60);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum PresenceVerdict {
     Keep,
@@ -55,10 +61,15 @@ pub(super) fn presence_verdict(
         .signed_duration_since(presence.updated_at)
         .to_std()
         .unwrap_or_default();
+    let threshold = if presence.claude_subagents.holds_finished_turn_open() {
+        SUBAGENT_SILENCE_THRESHOLD
+    } else {
+        WORKING_SILENCE_THRESHOLD
+    };
     if presence.state == AgentPresenceState::Working
         && !presence.inferred_idle
-        && output_idle >= WORKING_SILENCE_THRESHOLD
-        && reported_for >= WORKING_SILENCE_THRESHOLD
+        && output_idle >= threshold
+        && reported_for >= threshold
     {
         return PresenceVerdict::SilentlyIdle;
     }
@@ -114,6 +125,10 @@ impl ServerActor {
                 presence.state_started_at = now;
                 presence.updated_at = now;
                 presence.inferred_idle = true;
+                presence.claude_subagents.clear_active();
+                presence
+                    .claude_subagents
+                    .set_lead(AgentPresenceState::Done, None, true);
             }
         }
         self.broadcast_agent_presence_changed();
@@ -142,6 +157,7 @@ mod tests {
             turn_id: None,
             local_hook: true,
             inferred_idle: false,
+            claude_subagents: Default::default(),
         }
     }
 
@@ -181,6 +197,26 @@ mod tests {
         assert_eq!(
             presence_verdict(&recent_hook, Some(true), LONG, Utc::now()),
             PresenceVerdict::Keep
+        );
+    }
+
+    #[test]
+    fn a_turn_held_open_by_a_sub_agent_waits_longer_before_reading_as_idle() {
+        let mut working = presence(AgentPresenceState::Working, LONG);
+        working
+            .claude_subagents
+            .set_lead(AgentPresenceState::Done, None, false);
+        working.claude_subagents.start("a1");
+        assert_eq!(
+            presence_verdict(&working, Some(true), LONG, Utc::now()),
+            PresenceVerdict::Keep
+        );
+        let silent = SUBAGENT_SILENCE_THRESHOLD + SHORT;
+        let mut lost = presence(AgentPresenceState::Working, silent);
+        lost.claude_subagents = working.claude_subagents.clone();
+        assert_eq!(
+            presence_verdict(&lost, Some(true), silent, Utc::now()),
+            PresenceVerdict::SilentlyIdle
         );
     }
 

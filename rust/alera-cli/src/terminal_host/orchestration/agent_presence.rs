@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
 
+use super::claude_subagent_roster::ClaudeSubagentRoster;
+
 /// Agent state as reported by the Flutter app's agent-status hooks.
 /// `Waiting` includes approval and user-input prompts, so it is not safe for
 /// auto-submitted injection. Only `Done` means the agent has returned to an
@@ -72,6 +74,9 @@ pub struct AgentPresence {
     /// the agent. It never accepts injection: the agent may be sitting in a
     /// prompt no hook announced.
     pub inferred_idle: bool,
+    /// Claude sub-agents still running or waiting, and the main agent's own
+    /// state underneath them. Host memory only, never sent to clients.
+    pub claude_subagents: ClaudeSubagentRoster,
 }
 
 impl AgentPresence {
@@ -126,6 +131,7 @@ impl AgentPresenceRegistry {
                 turn_id: None,
                 local_hook: false,
                 inferred_idle: false,
+                claude_subagents: ClaudeSubagentRoster::default(),
             },
         );
         state.accepts_injection() && !was_ready
