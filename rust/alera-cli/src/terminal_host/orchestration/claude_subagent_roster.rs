@@ -26,6 +26,16 @@ pub enum SubagentState {
     Waiting,
 }
 
+/// What `observe` did with a child's hook.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Observed {
+    Tracked,
+    /// The child already stopped: its hook is late and changes nothing.
+    Finished,
+    /// The roster is full, so the child is alive but not tracked.
+    Untracked,
+}
+
 #[derive(Debug, Clone)]
 pub struct ClaudeSubagentRoster {
     active: BTreeMap<String, SubagentState>,
@@ -37,6 +47,10 @@ pub struct ClaudeSubagentRoster {
     /// child finishes still says how the turn ended.
     lead_interrupted: Option<bool>,
     lead_inferred_idle: bool,
+    /// The main agent's `waiting`/`blocked` came from a notification or an
+    /// untracked child rather than from its own tool hook, so a child's
+    /// activity may answer it.
+    lead_attention_answerable_by_child: bool,
 }
 
 impl Default for ClaudeSubagentRoster {
@@ -47,6 +61,7 @@ impl Default for ClaudeSubagentRoster {
             lead: AgentPresenceState::Working,
             lead_interrupted: None,
             lead_inferred_idle: false,
+            lead_attention_answerable_by_child: false,
         }
     }
 }
@@ -74,18 +89,42 @@ impl ClaudeSubagentRoster {
         self.lead = state;
         self.lead_interrupted = interrupted;
         self.lead_inferred_idle = inferred_idle;
+        self.lead_attention_answerable_by_child = false;
     }
 
-    /// A child's own activity (a tool call, an approved permission) answers
-    /// the prompt that stopped it, which Claude may only have announced as a
-    /// main-agent notification. A finished main turn stays finished.
-    pub fn child_resumed_lead(&mut self) {
-        if matches!(
+    /// Attention Claude announces without naming a child: a permission
+    /// notification (which follows a child's prompt as well as the main
+    /// agent's) or a question from a child the full roster could not track.
+    /// A prompt the main agent's own tool hook already raised keeps its origin.
+    pub fn raise_attention_a_child_may_answer(&mut self, state: AgentPresenceState) {
+        let own_prompt = matches!(
             self.lead,
             AgentPresenceState::Waiting | AgentPresenceState::Blocked
-        ) {
-            self.lead = AgentPresenceState::Working;
+        ) && !self.lead_attention_answerable_by_child;
+        if own_prompt {
+            return;
         }
+        self.set_lead(state, None, false);
+        self.lead_attention_answerable_by_child = true;
+    }
+
+    /// A child's own activity answers the prompt that stopped it. Only
+    /// attention that may have been the child's is cleared: the main agent's
+    /// own approval prompt stays up, and a finished main turn stays finished.
+    pub fn child_resumed_lead(&mut self) {
+        if self.lead_attention_answerable_by_child {
+            self.set_lead(AgentPresenceState::Working, None, false);
+        }
+    }
+
+    /// The silence sweep gave up on the children. A main turn that really
+    /// ended keeps its confirmed `done`, so the next hook restores injection;
+    /// one that never reported an end is concluded idle.
+    pub fn settle_after_silence(&mut self) {
+        if self.lead != AgentPresenceState::Done {
+            self.set_lead(AgentPresenceState::Done, None, true);
+        }
+        self.clear_active();
     }
 
     /// `SubagentStart`. Teammates reuse their id for every turn, so an
@@ -95,13 +134,16 @@ impl ClaudeSubagentRoster {
         self.insert(id, SubagentState::Working);
     }
 
-    /// Activity from inside a child. Returns false when the id already
-    /// finished or cannot be tracked, so the caller can fall back.
-    pub fn observe(&mut self, id: &str, state: SubagentState) -> bool {
+    /// Activity from inside a child.
+    pub fn observe(&mut self, id: &str, state: SubagentState) -> Observed {
         if self.finished.iter().any(|finished| finished == id) {
-            return false;
+            return Observed::Finished;
         }
-        self.insert(id, state)
+        if self.insert(id, state) {
+            Observed::Tracked
+        } else {
+            Observed::Untracked
+        }
     }
 
     /// `SubagentStop`, or a child's interrupted tool call.
@@ -134,6 +176,7 @@ impl ClaudeSubagentRoster {
             .any(|state| *state == SubagentState::Waiting)
     }
 
+    #[cfg(test)]
     pub fn active_count(&self) -> usize {
         self.active.len()
     }
@@ -156,7 +199,7 @@ impl ClaudeSubagentRoster {
     }
 
     /// Reconciles against the `background_tasks` inventory newer Claude
-    /// releases attach to `Stop`, which recovers a `SubagentStop` that never
+    /// releases attach to `Stop` and `SubagentStop`, which recovers a `SubagentStop` that never
     /// arrived and a child that started before this host saw it. Only
     /// `subagent` entries name lifecycle ids. `teammate` entries never do and
     /// read as running forever, so while any is listed a teammate-shaped id

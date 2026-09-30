@@ -1,6 +1,6 @@
 use crate::terminal_host::orchestration::agent_presence::{AgentPresence, AgentPresenceState};
 use crate::terminal_host::orchestration::claude_subagent_roster::{
-    ClaudeSubagentRoster, SubagentState,
+    ClaudeSubagentRoster, Observed, SubagentState,
 };
 
 use super::normalize::{
@@ -18,41 +18,48 @@ pub fn normalize_claude_hook_event(
     roster: &mut ClaudeSubagentRoster,
 ) -> Option<NormalizedAgentStatus> {
     let name = normalized_event_name(event)?;
-    let child = first_string(&event.payload, &["agent_id"]);
-    if let Some(id) = child.as_deref() {
-        match name.as_str() {
-            "SubagentStart" => {
-                roster.start(id);
-                return Some(carried_status(roster, previous));
-            }
-            "SubagentStop" => {
-                roster.finish(id);
-                return previous.map(|_| carried_status(roster, previous));
-            }
-            _ => {}
-        }
-    }
-    let normalized = normalize_hook_event(event, previous)?;
-    let Some(id) = child else {
+    let Some(id) = first_string(&event.payload, &["agent_id"]) else {
+        let normalized = normalize_hook_event(event, previous)?;
         return Some(lead_status(event, &name, normalized, roster));
     };
-    match normalized.state {
+    // A child never creates the tab's presence: only the main agent's hooks
+    // record the process the exit and silence sweeps watch.
+    previous?;
+    match name.as_str() {
+        "SubagentStart" => {
+            roster.start(&id);
+            return Some(carried_status(roster, previous));
+        }
+        "SubagentStop" => {
+            roster.finish(&id);
+            // Finished first, so an inventory still listing it cannot revive it.
+            if event.payload.get("background_tasks").is_some() {
+                roster.reconcile_background_tasks(&event.payload);
+            }
+            return Some(carried_status(roster, previous));
+        }
+        _ => {}
+    }
+    let normalized = normalize_hook_event(event, previous)?;
+    let observed = match normalized.state {
         // Only an interrupted tool call inside the child reads as done: the
         // interrupt stopped it.
-        AgentPresenceState::Done => roster.finish(&id),
-        AgentPresenceState::Working => {
-            if roster.observe(&id, SubagentState::Working) {
-                roster.child_resumed_lead();
-            }
+        AgentPresenceState::Done => {
+            roster.finish(&id);
+            Observed::Tracked
         }
+        AgentPresenceState::Working => roster.observe(&id, SubagentState::Working),
         AgentPresenceState::Waiting | AgentPresenceState::Blocked => {
-            if !roster.observe(&id, SubagentState::Waiting) {
-                roster.set_lead(normalized.state, None, false);
-            }
+            roster.observe(&id, SubagentState::Waiting)
         }
-    }
-    if previous.is_none() && roster.active_count() == 0 {
-        return None;
+    };
+    match (observed, normalized.state) {
+        (Observed::Finished, _) => return None,
+        (_, AgentPresenceState::Working) => roster.child_resumed_lead(),
+        (Observed::Untracked, AgentPresenceState::Waiting | AgentPresenceState::Blocked) => {
+            roster.raise_attention_a_child_may_answer(normalized.state);
+        }
+        _ => {}
     }
     Some(NormalizedAgentStatus {
         state: roster.effective_state(),
@@ -76,11 +83,19 @@ fn lead_status(
             roster.clear_active();
         }
     }
-    roster.set_lead(
+    let attention = matches!(
         normalized.state,
-        normalized.interrupted,
-        normalized.inferred_idle,
+        AgentPresenceState::Waiting | AgentPresenceState::Blocked
     );
+    if attention && name == "Notification" {
+        roster.raise_attention_a_child_may_answer(normalized.state);
+    } else {
+        roster.set_lead(
+            normalized.state,
+            normalized.interrupted,
+            normalized.inferred_idle,
+        );
+    }
     NormalizedAgentStatus {
         state: roster.effective_state(),
         interrupted: shown_interrupted(roster),

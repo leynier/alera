@@ -335,7 +335,11 @@ async fn sub_agents_ask_for_attention_but_never_end_or_reopen_the_turn() {
     let sub = json!({"session_id": "s", "agent_id": "a1", "tool_name": "Bash"});
     send(&mut actor, "claude", "PreToolUse", sub.clone()).await;
     assert_eq!(state(&actor), Some(AgentPresenceState::Done));
+    // A late hook from the interrupted child cannot reopen the turn either.
     send(&mut actor, "claude", "PermissionRequest", sub).await;
+    assert_eq!(state(&actor), Some(AgentPresenceState::Done));
+    let live = json!({"session_id": "s", "agent_id": "a2", "tool_name": "Bash"});
+    send(&mut actor, "claude", "PermissionRequest", live).await;
     assert_eq!(state(&actor), Some(AgentPresenceState::Waiting));
 
     let grok_child = json!({"sessionId": "child", "subagentType": "explore"});

@@ -30,10 +30,16 @@ fn a_child_question_asks_for_attention_until_the_child_resumes() {
     let mut roster = done_lead();
     roster.start("a1");
     roster.start("a2");
-    assert!(roster.observe("a1", SubagentState::Waiting));
+    assert_eq!(
+        roster.observe("a1", SubagentState::Waiting),
+        Observed::Tracked
+    );
     assert_eq!(roster.effective_state(), AgentPresenceState::Waiting);
 
-    assert!(roster.observe("a1", SubagentState::Working));
+    assert_eq!(
+        roster.observe("a1", SubagentState::Working),
+        Observed::Tracked
+    );
     assert_eq!(roster.effective_state(), AgentPresenceState::Working);
 
     roster.observe("a2", SubagentState::Waiting);
@@ -49,8 +55,13 @@ fn main_agent_attention_wins_over_child_work() {
     roster.set_lead(AgentPresenceState::Waiting, None, false);
     assert_eq!(roster.effective_state(), AgentPresenceState::Waiting);
 
+    // The main agent's own approval prompt is not the child's to answer.
     roster.child_resumed_lead();
-    assert_eq!(roster.lead(), AgentPresenceState::Working);
+    assert_eq!(roster.lead(), AgentPresenceState::Waiting);
+    // A notification for that same prompt keeps it the main agent's.
+    roster.raise_attention_a_child_may_answer(AgentPresenceState::Waiting);
+    roster.child_resumed_lead();
+    assert_eq!(roster.lead(), AgentPresenceState::Waiting);
 
     roster.set_lead(AgentPresenceState::Done, None, false);
     roster.child_resumed_lead();
@@ -58,11 +69,39 @@ fn main_agent_attention_wins_over_child_work() {
 }
 
 #[test]
+fn a_child_answers_attention_announced_without_naming_it() {
+    let mut roster = done_lead();
+    roster.start("a1");
+    roster.raise_attention_a_child_may_answer(AgentPresenceState::Waiting);
+    assert_eq!(roster.effective_state(), AgentPresenceState::Waiting);
+    roster.child_resumed_lead();
+    assert_eq!(roster.lead(), AgentPresenceState::Working);
+}
+
+#[test]
+fn giving_up_on_silent_children_keeps_a_confirmed_main_done() {
+    let mut roster = done_lead();
+    roster.start("a1");
+    roster.settle_after_silence();
+    assert_eq!(roster.effective_state(), AgentPresenceState::Done);
+    assert!(!roster.lead_inferred_idle());
+
+    let mut running = ClaudeSubagentRoster::default();
+    running.start("a1");
+    running.settle_after_silence();
+    assert_eq!(running.effective_state(), AgentPresenceState::Done);
+    assert!(running.lead_inferred_idle());
+}
+
+#[test]
 fn a_late_hook_from_a_finished_child_does_not_revive_it() {
     let mut roster = done_lead();
     roster.start("a1");
     roster.finish("a1");
-    assert!(!roster.observe("a1", SubagentState::Working));
+    assert_eq!(
+        roster.observe("a1", SubagentState::Working),
+        Observed::Finished
+    );
     assert_eq!(roster.effective_state(), AgentPresenceState::Done);
 
     // A teammate's next turn starts explicitly and reuses its id.
@@ -83,8 +122,14 @@ fn the_stop_inventory_drops_lost_children_and_adopts_unseen_ones() {
         ]
     }));
     assert_eq!(roster.active_count(), 1);
-    assert!(!roster.observe("alost", SubagentState::Working));
-    assert!(!roster.observe("adone", SubagentState::Working));
+    assert_eq!(
+        roster.observe("alost", SubagentState::Working),
+        Observed::Finished
+    );
+    assert_eq!(
+        roster.observe("adone", SubagentState::Working),
+        Observed::Finished
+    );
     assert!(roster.has_working());
 
     roster.reconcile_background_tasks(&json!({"background_tasks": []}));
@@ -118,6 +163,10 @@ fn tracking_is_bounded() {
         roster.start(&format!("a{index}"));
     }
     assert_eq!(roster.active_count(), MAX_ACTIVE_SUBAGENTS);
+    assert_eq!(
+        roster.observe("aoverflow", SubagentState::Waiting),
+        Observed::Untracked
+    );
     for index in 0..(MAX_FINISHED_SUBAGENTS + 5) {
         roster.finish(&format!("b{index}"));
     }

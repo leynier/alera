@@ -136,10 +136,71 @@ fn a_late_hook_from_a_finished_child_does_not_reopen_the_turn() {
     tab.send("SubagentStop", json!({"agent_id": "a1"}));
     tab.send("Stop", json!({}));
     assert_eq!(tab.state(), Some(AgentPresenceState::Done));
+    assert!(tab
+        .send(
+            "PostToolUse",
+            json!({"agent_id": "a1", "tool_name": "Read"}),
+        )
+        .is_none());
+    assert!(tab
+        .send(
+            "PermissionRequest",
+            json!({"agent_id": "a1", "tool_name": "Bash"}),
+        )
+        .is_none());
+    assert_eq!(tab.state(), Some(AgentPresenceState::Done));
+}
+
+#[test]
+fn a_child_working_leaves_the_main_agents_own_prompt_up() {
+    let mut tab = Tab::new();
+    tab.send("UserPromptSubmit", json!({}));
+    tab.send("SubagentStart", json!({"agent_id": "a1"}));
+    tab.send("PermissionRequest", json!({"tool_name": "Bash"}));
+    tab.send(
+        "Notification",
+        json!({"notification_type": "permission_prompt"}),
+    );
     tab.send(
         "PostToolUse",
         json!({"agent_id": "a1", "tool_name": "Read"}),
     );
+    assert_eq!(tab.state(), Some(AgentPresenceState::Waiting));
+    tab.send("PostToolUse", json!({"tool_name": "Bash"}));
+    assert_eq!(tab.state(), Some(AgentPresenceState::Working));
+}
+
+#[test]
+fn a_question_from_a_child_the_full_roster_could_not_track_still_shows() {
+    let mut tab = Tab::new();
+    tab.send("UserPromptSubmit", json!({}));
+    for index in 0..40 {
+        tab.send("SubagentStart", json!({"agent_id": format!("a{index}")}));
+    }
+    tab.send(
+        "PreToolUse",
+        json!({"agent_id": "a39", "tool_name": "AskUserQuestion"}),
+    );
+    assert_eq!(tab.state(), Some(AgentPresenceState::Waiting));
+    tab.send(
+        "PostToolUse",
+        json!({"agent_id": "a39", "tool_name": "AskUserQuestion"}),
+    );
+    assert_eq!(tab.state(), Some(AgentPresenceState::Working));
+}
+
+#[test]
+fn a_sibling_stop_inventory_drops_a_child_whose_own_stop_was_lost() {
+    let mut tab = Tab::new();
+    tab.send("UserPromptSubmit", json!({}));
+    tab.send("SubagentStart", json!({"agent_id": "a1"}));
+    tab.send("SubagentStart", json!({"agent_id": "a2"}));
+    tab.send("Stop", json!({}));
+    let inventory = json!({
+        "agent_id": "a2",
+        "background_tasks": [{"id": "a2", "type": "subagent", "status": "running"}],
+    });
+    tab.send("SubagentStop", inventory);
     assert_eq!(tab.state(), Some(AgentPresenceState::Done));
 }
 
@@ -179,8 +240,11 @@ fn a_new_conversation_forgets_the_previous_ones_children() {
 }
 
 #[test]
-fn a_sub_agent_stop_with_nothing_shown_creates_no_presence() {
+fn a_sub_agent_hook_with_nothing_shown_creates_no_presence() {
     let mut tab = Tab::new();
+    assert!(tab
+        .send("SubagentStart", json!({"agent_id": "a1"}))
+        .is_none());
     assert!(tab
         .send("SubagentStop", json!({"agent_id": "a1"}))
         .is_none());
