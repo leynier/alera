@@ -335,12 +335,45 @@ async fn sub_agents_ask_for_attention_but_never_end_or_reopen_the_turn() {
     let sub = json!({"session_id": "s", "agent_id": "a1", "tool_name": "Bash"});
     send(&mut actor, "claude", "PreToolUse", sub.clone()).await;
     assert_eq!(state(&actor), Some(AgentPresenceState::Done));
+    // A late hook from the interrupted child cannot reopen the turn either.
     send(&mut actor, "claude", "PermissionRequest", sub).await;
+    assert_eq!(state(&actor), Some(AgentPresenceState::Done));
+    let live = json!({"session_id": "s", "agent_id": "a2", "tool_name": "Bash"});
+    send(&mut actor, "claude", "PermissionRequest", live).await;
     assert_eq!(state(&actor), Some(AgentPresenceState::Waiting));
 
     let grok_child = json!({"sessionId": "child", "subagentType": "explore"});
     send(&mut actor, "grok", "SessionEnd", grok_child).await;
     assert_eq!(state(&actor), Some(AgentPresenceState::Waiting));
+}
+
+#[tokio::test]
+async fn claude_stays_working_while_background_sub_agents_run() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut actor = actor(&dir).await;
+    send(
+        &mut actor,
+        "claude",
+        "UserPromptSubmit",
+        json!({"session_id": "s"}),
+    )
+    .await;
+    let child = json!({"session_id": "s", "agent_id": "a1", "agent_type": "Explore"});
+    send(&mut actor, "claude", "SubagentStart", child.clone()).await;
+    send(&mut actor, "claude", "Stop", json!({"session_id": "s"})).await;
+    assert_eq!(state(&actor), Some(AgentPresenceState::Working));
+    assert!(!actor.agent_presence.is_injection_ready("session"));
+
+    let question = json!({"session_id": "s", "agent_id": "a1", "tool_name": "AskUserQuestion"});
+    send(&mut actor, "claude", "PreToolUse", question).await;
+    assert_eq!(state(&actor), Some(AgentPresenceState::Waiting));
+    let answered = json!({"session_id": "s", "agent_id": "a1", "tool_name": "AskUserQuestion"});
+    send(&mut actor, "claude", "PostToolUse", answered).await;
+    assert_eq!(state(&actor), Some(AgentPresenceState::Working));
+
+    send(&mut actor, "claude", "SubagentStop", child).await;
+    assert_eq!(state(&actor), Some(AgentPresenceState::Done));
+    assert!(actor.agent_presence.is_injection_ready("session"));
 }
 
 #[tokio::test]

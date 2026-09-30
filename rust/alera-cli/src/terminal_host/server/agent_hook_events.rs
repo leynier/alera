@@ -2,11 +2,13 @@ use serde_json::json;
 
 use crate::agent_status::{
     event_agent_pid, event_runs_in_multiplexer, event_turn_id, hook_event_closes_session,
-    hook_event_resets_session, hook_identifies_child_agent, normalize_hook_event,
-    resolve_agent_status_identity, AgentHookEvent, AGENT_STATUS_IDENTITY_STALE_THRESHOLD,
+    hook_event_resets_session, hook_identifies_child_agent, normalize_claude_hook_event,
+    normalize_hook_event, resolve_agent_status_identity, AgentHookEvent,
+    AGENT_STATUS_IDENTITY_STALE_THRESHOLD,
 };
 use crate::terminal_host::orchestration::agent_presence::{AgentPresence, AgentPresenceState};
 use crate::terminal_host::orchestration::agent_session_resume::native_session_id;
+use crate::terminal_host::orchestration::claude_subagent_roster::ClaudeSubagentRoster;
 use crate::terminal_host::session::{
     process_alive, process_group_alive, process_is_terminal_multiplexer,
 };
@@ -152,12 +154,23 @@ impl ServerActor {
             return;
         }
         let previous = self.agent_presence.get(&event.terminal_session_id);
-        let Some(normalized) = normalize_hook_event(&event, previous) else {
+        let mut claude_subagents = (event.agent_type == "claude").then(|| {
+            previous
+                .filter(|entry| entry.agent_type == "claude")
+                .map(|entry| entry.claude_subagents.clone())
+                .unwrap_or_default()
+        });
+        let normalized = match claude_subagents.as_mut() {
+            Some(roster) => normalize_claude_hook_event(&event, previous, roster),
+            None => normalize_hook_event(&event, previous)
+                .filter(|normalized| !child || child_event_applies(previous, normalized.state)),
+        };
+        let Some(normalized) = normalized else {
+            if let Some(roster) = claude_subagents {
+                self.store_claude_subagents(&event.terminal_session_id, roster);
+            }
             return;
         };
-        if child && !child_event_applies(previous, normalized.state) {
-            return;
-        }
         if normalized.state == AgentPresenceState::Done && reports_an_older_turn(previous, &event) {
             return;
         }
@@ -194,11 +207,24 @@ impl ServerActor {
                 }],
             }))
             .await;
+        if let Some(roster) = claude_subagents {
+            self.store_claude_subagents(&event.terminal_session_id, roster);
+        }
         if !relayed && !child {
             self.record_local_hook_liveness(&event, normalized.state);
         }
         self.deliver_pending_agent_prompt(&event.terminal_session_id)
             .await;
+    }
+
+    fn store_claude_subagents(&mut self, handle: &str, roster: ClaudeSubagentRoster) {
+        if let Some(presence) = self
+            .agent_presence
+            .get_mut(handle)
+            .filter(|presence| presence.agent_type == "claude")
+        {
+            presence.claude_subagents = roster;
+        }
     }
 
     /// Remembers which conversation and which foreground process group the
@@ -296,8 +322,9 @@ fn closes_current_conversation(previous: Option<&AgentPresence>, event: &AgentHo
 }
 
 /// A sub-agent can ask for attention, and keeps a running turn fresh, but it
-/// can neither end the turn nor reopen one: background sub-agents keep
-/// working after the main turn reported `done`.
+/// can neither end the turn nor reopen one. Claude is the exception: its
+/// `SubagentStart`/`SubagentStop` say when a child is done, so
+/// `normalize_claude_hook_event` keeps the turn open for it instead.
 fn child_event_applies(previous: Option<&AgentPresence>, state: AgentPresenceState) -> bool {
     match state {
         AgentPresenceState::Done => false,

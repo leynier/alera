@@ -4,6 +4,7 @@ pub mod agent_prompt_injection;
 pub mod agent_registry;
 pub mod agent_session_resume;
 pub mod agent_startup_command;
+pub mod claude_subagent_roster;
 pub mod coordinator_loop;
 pub mod dispatch_preamble;
 pub mod group_resolution;

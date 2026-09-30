@@ -119,6 +119,7 @@ fn new_turn_clears_stale_tool_details() {
         turn_id: None,
         local_hook: false,
         inferred_idle: false,
+        claude_subagents: Default::default(),
     };
     let status = normalize_hook_event(
         &event("codex", "UserPromptSubmit", json!({"prompt": "New prompt"})),
@@ -176,6 +177,7 @@ fn claude_conversation_switches_keep_the_agent_but_only_bind_saved_conversations
             turn_id: None,
             local_hook: true,
             inferred_idle: false,
+            claude_subagents: Default::default(),
         })
         .unwrap();
     for (source, idle, unsaved) in [

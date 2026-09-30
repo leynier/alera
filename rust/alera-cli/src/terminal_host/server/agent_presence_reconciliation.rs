@@ -23,6 +23,12 @@ const SWEEP_INTERVAL: Duration = Duration::from_secs(5);
 /// own `idle_prompt` delay.
 pub(super) const WORKING_SILENCE_THRESHOLD: Duration = Duration::from_secs(60);
 
+/// A Claude sub-agent can outlive the main turn while the main agent sits
+/// idle at its prompt, where nothing redraws. Its own hooks fire around every
+/// tool call and Claude caps a single Bash call at ten minutes, so this much
+/// silence means its `SubagentStop` was lost.
+pub(super) const SUBAGENT_SILENCE_THRESHOLD: Duration = Duration::from_secs(15 * 60);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum PresenceVerdict {
     Keep,
@@ -55,10 +61,15 @@ pub(super) fn presence_verdict(
         .signed_duration_since(presence.updated_at)
         .to_std()
         .unwrap_or_default();
+    let threshold = if presence.claude_subagents.holds_finished_turn_open() {
+        SUBAGENT_SILENCE_THRESHOLD
+    } else {
+        WORKING_SILENCE_THRESHOLD
+    };
     if presence.state == AgentPresenceState::Working
         && !presence.inferred_idle
-        && output_idle >= WORKING_SILENCE_THRESHOLD
-        && reported_for >= WORKING_SILENCE_THRESHOLD
+        && output_idle >= threshold
+        && reported_for >= threshold
     {
         return PresenceVerdict::SilentlyIdle;
     }
@@ -71,26 +82,38 @@ impl ServerActor {
         let mut exited = Vec::new();
         let mut idle = Vec::new();
         for (handle, presence) in self.agent_presence.iter() {
-            // Relayed presence belongs to the host that owns the process.
-            if !presence.local_hook || self.voice.home_session_id.as_deref() == Some(handle) {
+            if self.voice.home_session_id.as_deref() == Some(handle) {
                 continue;
             }
-            let Some(session) = self
+            let session = self
                 .sessions
                 .get(handle)
-                .filter(|session| session.running())
-            else {
+                .filter(|session| session.running());
+            let verdict = if presence.local_hook {
+                let Some(session) = session else {
+                    continue;
+                };
+                // The process group is the Unix signal; where there is none
+                // (Windows), the pid an agent reports stands in for it.
+                let group_alive = presence
+                    .process_group
+                    .map(|group| {
+                        session.agent_process_group() == Some(group) || process_group_alive(group)
+                    })
+                    .or_else(|| presence.agent_pid.map(process_alive));
+                presence_verdict(presence, group_alive, session.output_idle_for(), now)
+            } else if presence.claude_subagents.holds_finished_turn_open() {
+                // Relayed presence belongs to the host that owns the process,
+                // which cannot hand back the roster this host keeps from the
+                // relayed hooks. Only the lost-child backstop applies here, and
+                // the local process group says nothing about a remote agent.
+                let output_idle =
+                    session.map_or(Duration::MAX, |session| session.output_idle_for());
+                presence_verdict(presence, None, output_idle, now)
+            } else {
                 continue;
             };
-            // The process group is the Unix signal; where there is none
-            // (Windows), the pid an agent reports stands in for it.
-            let group_alive = presence
-                .process_group
-                .map(|group| {
-                    session.agent_process_group() == Some(group) || process_group_alive(group)
-                })
-                .or_else(|| presence.agent_pid.map(process_alive));
-            match presence_verdict(presence, group_alive, session.output_idle_for(), now) {
+            match verdict {
                 PresenceVerdict::Keep => {}
                 PresenceVerdict::AgentExited => exited.push(handle.clone()),
                 PresenceVerdict::SilentlyIdle => idle.push(handle.clone()),
@@ -114,6 +137,7 @@ impl ServerActor {
                 presence.state_started_at = now;
                 presence.updated_at = now;
                 presence.inferred_idle = true;
+                presence.claude_subagents.settle_after_silence();
             }
         }
         self.broadcast_agent_presence_changed();
@@ -142,6 +166,7 @@ mod tests {
             turn_id: None,
             local_hook: true,
             inferred_idle: false,
+            claude_subagents: Default::default(),
         }
     }
 
@@ -180,6 +205,49 @@ mod tests {
         let recent_hook = presence(AgentPresenceState::Working, SHORT);
         assert_eq!(
             presence_verdict(&recent_hook, Some(true), LONG, Utc::now()),
+            PresenceVerdict::Keep
+        );
+    }
+
+    #[test]
+    fn a_turn_held_open_by_a_sub_agent_waits_longer_before_reading_as_idle() {
+        let mut working = presence(AgentPresenceState::Working, LONG);
+        working
+            .claude_subagents
+            .set_lead(AgentPresenceState::Done, None, false);
+        working.claude_subagents.start("a1");
+        assert_eq!(
+            presence_verdict(&working, Some(true), LONG, Utc::now()),
+            PresenceVerdict::Keep
+        );
+        let silent = SUBAGENT_SILENCE_THRESHOLD + SHORT;
+        let mut lost = presence(AgentPresenceState::Working, silent);
+        lost.claude_subagents = working.claude_subagents.clone();
+        assert_eq!(
+            presence_verdict(&lost, Some(true), silent, Utc::now()),
+            PresenceVerdict::SilentlyIdle
+        );
+    }
+
+    #[test]
+    fn relayed_presence_held_open_by_a_sub_agent_uses_hook_silence_alone() {
+        let silent = SUBAGENT_SILENCE_THRESHOLD + SHORT;
+        let mut relayed = presence(AgentPresenceState::Working, silent);
+        relayed.local_hook = false;
+        relayed.process_group = None;
+        relayed
+            .claude_subagents
+            .set_lead(AgentPresenceState::Done, None, false);
+        relayed.claude_subagents.start("a1");
+        assert_eq!(
+            presence_verdict(&relayed, None, Duration::MAX, Utc::now()),
+            PresenceVerdict::SilentlyIdle
+        );
+        let recent = presence(AgentPresenceState::Working, LONG);
+        let mut recent_relayed = relayed.clone();
+        recent_relayed.updated_at = recent.updated_at;
+        assert_eq!(
+            presence_verdict(&recent_relayed, None, Duration::MAX, Utc::now()),
             PresenceVerdict::Keep
         );
     }
