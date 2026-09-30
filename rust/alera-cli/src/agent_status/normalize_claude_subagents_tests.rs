@@ -112,6 +112,27 @@ fn a_sub_agent_question_shows_waiting_even_after_the_main_turn_ended() {
 }
 
 #[test]
+fn answering_a_childs_prompt_after_the_main_stop_still_ends_in_done() {
+    let mut tab = Tab::new();
+    tab.send("UserPromptSubmit", json!({}));
+    tab.send("SubagentStart", json!({"agent_id": "a1"}));
+    tab.send("Stop", json!({}));
+    tab.send(
+        "Notification",
+        json!({"notification_type": "permission_prompt"}),
+    );
+    assert_eq!(tab.state(), Some(AgentPresenceState::Waiting));
+    tab.send(
+        "PostToolUse",
+        json!({"agent_id": "a1", "tool_name": "Bash"}),
+    );
+    assert_eq!(tab.state(), Some(AgentPresenceState::Working));
+    let done = tab.send("SubagentStop", json!({"agent_id": "a1"})).unwrap();
+    assert_eq!(done.state, AgentPresenceState::Done);
+    assert!(!done.inferred_idle);
+}
+
+#[test]
 fn a_child_resuming_clears_the_notification_that_announced_its_prompt() {
     let mut tab = Tab::new();
     tab.send("UserPromptSubmit", json!({}));

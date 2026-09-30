@@ -47,10 +47,19 @@ pub struct ClaudeSubagentRoster {
     /// child finishes still says how the turn ended.
     lead_interrupted: Option<bool>,
     lead_inferred_idle: bool,
-    /// The main agent's `waiting`/`blocked` came from a notification or an
-    /// untracked child rather than from its own tool hook, so a child's
-    /// activity may answer it.
-    lead_attention_answerable_by_child: bool,
+    /// Set while the main agent's `waiting`/`blocked` came from a
+    /// notification or an untracked child rather than from its own tool hook,
+    /// so a child's activity may answer it. Holds the state underneath, which
+    /// answering restores: Claude announces a child's prompt this way after
+    /// the main turn stopped as well as during it.
+    lead_before_answerable_attention: Option<LeadReport>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct LeadReport {
+    state: AgentPresenceState,
+    interrupted: Option<bool>,
+    inferred_idle: bool,
 }
 
 impl Default for ClaudeSubagentRoster {
@@ -61,7 +70,7 @@ impl Default for ClaudeSubagentRoster {
             lead: AgentPresenceState::Working,
             lead_interrupted: None,
             lead_inferred_idle: false,
-            lead_attention_answerable_by_child: false,
+            lead_before_answerable_attention: None,
         }
     }
 }
@@ -89,7 +98,7 @@ impl ClaudeSubagentRoster {
         self.lead = state;
         self.lead_interrupted = interrupted;
         self.lead_inferred_idle = inferred_idle;
-        self.lead_attention_answerable_by_child = false;
+        self.lead_before_answerable_attention = None;
     }
 
     /// Attention Claude announces without naming a child: a permission
@@ -100,20 +109,31 @@ impl ClaudeSubagentRoster {
         let own_prompt = matches!(
             self.lead,
             AgentPresenceState::Waiting | AgentPresenceState::Blocked
-        ) && !self.lead_attention_answerable_by_child;
+        ) && self.lead_before_answerable_attention.is_none();
         if own_prompt {
             return;
         }
+        // A second announcement keeps what was underneath the first.
+        let underneath = self.lead_before_answerable_attention.unwrap_or(LeadReport {
+            state: self.lead,
+            interrupted: self.lead_interrupted,
+            inferred_idle: self.lead_inferred_idle,
+        });
         self.set_lead(state, None, false);
-        self.lead_attention_answerable_by_child = true;
+        self.lead_before_answerable_attention = Some(underneath);
     }
 
-    /// A child's own activity answers the prompt that stopped it. Only
-    /// attention that may have been the child's is cleared: the main agent's
-    /// own approval prompt stays up, and a finished main turn stays finished.
+    /// A child's own activity answers the prompt that stopped it and puts
+    /// back what the main agent reported before it. Only attention that may
+    /// have been the child's is cleared: the main agent's own approval prompt
+    /// stays up, and a main turn that had stopped is still stopped.
     pub fn child_resumed_lead(&mut self) {
-        if self.lead_attention_answerable_by_child {
-            self.set_lead(AgentPresenceState::Working, None, false);
+        if let Some(underneath) = self.lead_before_answerable_attention.take() {
+            self.set_lead(
+                underneath.state,
+                underneath.interrupted,
+                underneath.inferred_idle,
+            );
         }
     }
 

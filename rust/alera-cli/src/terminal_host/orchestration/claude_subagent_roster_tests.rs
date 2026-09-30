@@ -73,9 +73,17 @@ fn a_child_answers_attention_announced_without_naming_it() {
     let mut roster = done_lead();
     roster.start("a1");
     roster.raise_attention_a_child_may_answer(AgentPresenceState::Waiting);
+    roster.raise_attention_a_child_may_answer(AgentPresenceState::Waiting);
     assert_eq!(roster.effective_state(), AgentPresenceState::Waiting);
     roster.child_resumed_lead();
-    assert_eq!(roster.lead(), AgentPresenceState::Working);
+    assert_eq!(roster.lead(), AgentPresenceState::Done);
+    assert_eq!(roster.effective_state(), AgentPresenceState::Working);
+
+    let mut running = ClaudeSubagentRoster::default();
+    running.start("a1");
+    running.raise_attention_a_child_may_answer(AgentPresenceState::Waiting);
+    running.child_resumed_lead();
+    assert_eq!(running.lead(), AgentPresenceState::Working);
 }
 
 #[test]
