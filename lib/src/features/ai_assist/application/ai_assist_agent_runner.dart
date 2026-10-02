@@ -288,36 +288,35 @@ class CliAiAssistAgentRunner({
   Future<ProcessRunOutput> _collectProcess(StartedProcess process) async {
     final stdout = StringBuffer();
     final stderr = StringBuffer();
-    var totalBytes = 0;
-
-    Future<void> collect(Stream<List<int>> stream, StringBuffer buffer) async {
-      final counted = stream.map((chunk) {
-        totalBytes += chunk.length;
-        if (totalBytes > aiAssistAgentMaxOutputBytes) {
-          process.kill();
-          throw const _AiAssistAgentOutputLimitException();
-        }
-        return chunk;
-      });
-      await utf8.decoder.bind(counted).forEach(buffer.write);
-    }
-
-    final stdoutDone = collect(process.stdout, stdout);
-    final stderrDone = collect(process.stderr, stderr);
-    var exitCode = 0;
-    final exitDone = process.exitCode.then<void>((value) {
-      exitCode = value;
-    });
-    await Future.wait<void>(<Future<void>>[
-      stdoutDone,
-      stderrDone,
-      exitDone,
-    ], eagerError: true);
-    return ProcessRunOutput(
-      exitCode: exitCode,
-      stdout: stdout.toString(),
-      stderr: stderr.toString(),
+    final collector = _AiAssistProcessOutputCollector(
+      maxBytes: aiAssistAgentMaxOutputBytes,
     );
+    try {
+      final stdoutDone = collector.collect(process.stdout, stdout);
+      final stderrDone = collector.collect(process.stderr, stderr);
+      var exitCode = 0;
+      final exitDone = process.exitCode.then<void>((value) {
+        exitCode = value;
+      });
+      await Future.wait<void>(<Future<void>>[
+        stdoutDone,
+        stderrDone,
+        exitDone,
+      ], eagerError: true);
+      return ProcessRunOutput(
+        exitCode: exitCode,
+        stdout: stdout.toString(),
+        stderr: stderr.toString(),
+      );
+    } catch (error, stackTrace) {
+      // A decoder or stream error stops one reader before the child exits. Kill
+      // the process tree first, cancel the sibling reader, and reap the child
+      // before returning the original error to the caller.
+      _killProcess(process);
+      await collector.cancel();
+      await _waitForProcessExit(process.exitCode);
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 
   Future<String> _readBoundedOutputFile(File file) async {
@@ -361,6 +360,87 @@ class CliAiAssistAgentRunner({
 }
 
 class const _AiAssistAgentOutputLimitException() implements Exception;
+
+class _AiAssistProcessOutputCollector {
+  _AiAssistProcessOutputCollector({required this.maxBytes});
+
+  final int maxBytes;
+  var _totalBytes = 0;
+  final List<StreamSubscription<String>> _subscriptions =
+      <StreamSubscription<String>>[];
+  final List<Completer<void>> _completers = <Completer<void>>[];
+
+  Future<void> collect(Stream<List<int>> stream, StringBuffer buffer) {
+    final completer = Completer<void>();
+    final counted = stream.map((chunk) {
+      _totalBytes += chunk.length;
+      if (_totalBytes > maxBytes) {
+        throw const _AiAssistAgentOutputLimitException();
+      }
+      return chunk;
+    });
+    final decoded = utf8.decoder.bind(counted);
+    final subscription = decoded.listen(
+      buffer.write,
+      onError: (Object error, StackTrace stackTrace) {
+        if (!completer.isCompleted) {
+          completer.completeError(error, stackTrace);
+        }
+      },
+      onDone: () {
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
+      },
+      cancelOnError: true,
+    );
+    _subscriptions.add(subscription);
+    _completers.add(completer);
+    return completer.future;
+  }
+
+  Future<void> cancel() async {
+    await Future.wait<void>(<Future<void>>[
+      for (final subscription in _subscriptions)
+        _cancelSubscription(subscription),
+    ], eagerError: false);
+    for (final completer in _completers) {
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+    }
+    await Future.wait<void>(<Future<void>>[
+      for (final completer in _completers) _ignoreOutputError(completer.future),
+    ], eagerError: false);
+  }
+}
+
+Future<void> _cancelSubscription(
+  StreamSubscription<String> subscription,
+) async {
+  try {
+    await subscription.cancel().timeout(const Duration(seconds: 1));
+  } on Object {
+    // The process has already been terminated; a broken stream cancellation
+    // must not hide the original output error or keep the runner waiting.
+  }
+}
+
+Future<void> _ignoreOutputError(Future<void> future) async {
+  try {
+    await future;
+  } on Object {
+    // The first output error is rethrown by _collectProcess.
+  }
+}
+
+void _killProcess(StartedProcess process) {
+  try {
+    process.kill();
+  } on Object {
+    // Preserve the output or stream failure that caused the termination.
+  }
+}
 
 Future<void> _waitForProcessExit(Future<int>? processExit) async {
   if (processExit != null) {
