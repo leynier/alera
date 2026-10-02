@@ -2,7 +2,9 @@ import "dart:async";
 import "dart:convert";
 import "dart:io";
 
+import "package:desktop_updater/src/core/update_cancellation.dart";
 import "package:desktop_updater/src/core/update_retry_policy.dart";
+import "package:desktop_updater/src/io/composite_update_transport.dart";
 import "package:desktop_updater/src/io/file_update_transport.dart";
 import "package:desktop_updater/src/io/http_update_transport.dart";
 import "package:flutter_test/flutter_test.dart";
@@ -40,6 +42,114 @@ void main() {
       ),
       throwsUnsupportedError,
     );
+  });
+
+  test("immediate composite cancellation reaches a newly registered copy",
+      () async {
+    final tempDir = await Directory.systemTemp.createTemp("file_transport_");
+    final transport = CompositeUpdateTransport();
+    try {
+      final source = File(path.join(tempDir.path, "source.bin"));
+      await source.writeAsBytes(List<int>.filled(8 * 1024 * 1024, 3));
+      final destination = File(path.join(tempDir.path, "copy.bin"));
+
+      final download = transport.download(source.uri, destination);
+      final cancellation = transport.cancel();
+
+      await expectLater(
+        download,
+        throwsA(isA<UpdateCancelledException>()),
+      );
+      await cancellation;
+      expect(destination.existsSync(), isFalse);
+      expect(File("${destination.path}.part").existsSync(), isFalse);
+    } finally {
+      transport.close();
+      await tempDir.delete(recursive: true);
+    }
+  });
+
+  test("composite file transport cancels a large copy before rename", () async {
+    final tempDir = await Directory.systemTemp.createTemp("file_transport_");
+    final transport = CompositeUpdateTransport();
+    try {
+      final source = File(path.join(tempDir.path, "source.bin"));
+      await source.writeAsBytes(List<int>.filled(8 * 1024 * 1024, 7));
+      final destination = File(path.join(tempDir.path, "out", "copy.bin"));
+      final progress = <int>[];
+      Future<void>? cancellation;
+
+      final download = transport.download(
+        source.uri,
+        destination,
+        onProgress: (receivedBytes, _) {
+          progress.add(receivedBytes);
+          cancellation ??= transport.cancel();
+        },
+      );
+
+      await expectLater(
+        download,
+        throwsA(isA<UpdateCancelledException>()),
+      );
+
+      expect(progress, hasLength(1));
+      expect(destination.existsSync(), isFalse);
+      expect(File("${destination.path}.part").existsSync(), isFalse);
+
+      await transport.download(source.uri, destination);
+      expect(destination.lengthSync(), source.lengthSync());
+    } finally {
+      transport.close();
+      await tempDir.delete(recursive: true);
+    }
+  });
+
+  test("canceled file copy preserves destination and a later copy recovers",
+      () async {
+    final tempDir = await Directory.systemTemp.createTemp("file_transport_");
+    final transport = CompositeUpdateTransport();
+    try {
+      final source = File(path.join(tempDir.path, "source.bin"));
+      await source.writeAsBytes(List<int>.filled(8 * 1024 * 1024, 9));
+      final destination = File(path.join(tempDir.path, "copy.bin"));
+      await destination.writeAsString("previous artifact");
+      final progress = <int>[];
+      Future<void>? cancellation;
+
+      final download = transport.download(
+        source.uri,
+        destination,
+        onProgress: (receivedBytes, _) {
+          progress.add(receivedBytes);
+          cancellation ??= transport.cancel();
+        },
+      );
+
+      await expectLater(
+        download,
+        throwsA(isA<UpdateCancelledException>()),
+      );
+
+      expect(progress, hasLength(1));
+      expect(destination.readAsStringSync(), "previous artifact");
+      expect(
+        await destination.parent
+            .list()
+            .where((entity) => entity.path.contains(".previous."))
+            .isEmpty,
+        isTrue,
+      );
+
+      final recovery = transport.download(source.uri, destination);
+      await recovery;
+      await cancellation;
+      expect(destination.lengthSync(), source.lengthSync());
+      expect(destination.readAsBytesSync().first, 9);
+    } finally {
+      transport.close();
+      await tempDir.delete(recursive: true);
+    }
   });
 
   test("http transport retries transient statuses with backoff", () async {
@@ -304,4 +414,57 @@ void main() {
       await tempDir.delete(recursive: true);
     }
   });
+
+  test("composite HTTP cancellation completes after client close", () async {
+    final tempDir = await Directory.systemTemp.createTemp("http_transport_");
+    final body = StreamController<List<int>>();
+    final client = _NeverEndingHttpClient(body.stream);
+    final transport = CompositeUpdateTransport(
+      httpTransport: HttpUpdateTransport(client: client),
+    );
+    try {
+      final download = transport.download(
+        Uri.parse("https://updates.example.com/download.txt"),
+        File(path.join(tempDir.path, "download.txt")),
+      );
+      await client.requestStarted.future;
+
+      await transport.cancel().timeout(const Duration(seconds: 1));
+      expect(client.closed, isTrue);
+
+      await body.close();
+      await expectLater(download, throwsA(isA<Exception>()));
+    } finally {
+      if (!body.isClosed) {
+        await body.close();
+      }
+      transport.close();
+      await tempDir.delete(recursive: true);
+    }
+  });
+}
+
+class _NeverEndingHttpClient extends http.BaseClient {
+  _NeverEndingHttpClient(this._body);
+
+  final Stream<List<int>> _body;
+  final Completer<void> requestStarted = Completer<void>();
+  bool closed = false;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    if (!requestStarted.isCompleted) {
+      requestStarted.complete();
+    }
+    return http.StreamedResponse(
+      _body,
+      HttpStatus.ok,
+      request: request,
+    );
+  }
+
+  @override
+  void close() {
+    closed = true;
+  }
 }
