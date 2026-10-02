@@ -27,6 +27,7 @@ class CliAiAssistModelDiscoveryService({
   required final ProcessRunner processRunner,
   CommandEnvironmentResolver? commandEnvironmentResolver,
   this.hostCompleter,
+  this.chatGptCompleter,
 }) implements AiAssistModelDiscoveryService {
   this
     : commandEnvironmentResolver =
@@ -34,6 +35,7 @@ class CliAiAssistModelDiscoveryService({
 
   final CommandEnvironmentResolver commandEnvironmentResolver;
   final AiAssistHostCompleter? hostCompleter;
+  final AiAssistHostCompleter? chatGptCompleter;
 
   @override
   Future<AiAssistModelDiscoveryResult> discover(AiAssistAgent agent) async {
@@ -47,8 +49,8 @@ class CliAiAssistModelDiscoveryService({
         error: '${agent.label} does not support AI Assist.',
       );
     }
-    if (agent == AiAssistAgent.opencodeGo) {
-      return _discoverOpenCodeGo(spec);
+    if (agent == AiAssistAgent.opencodeGo || agent == AiAssistAgent.chatgpt) {
+      return _discoverDirectProvider(spec);
     }
     if (spec.modelsCommand == null) {
       return _staticResult(spec);
@@ -103,21 +105,24 @@ class CliAiAssistModelDiscoveryService({
     }
   }
 
-  Future<AiAssistModelDiscoveryResult> _discoverOpenCodeGo(
+  Future<AiAssistModelDiscoveryResult> _discoverDirectProvider(
     AiAssistAgentSpec spec,
   ) async {
-    final completer = hostCompleter;
+    final completer = spec.agent == AiAssistAgent.chatgpt
+        ? chatGptCompleter
+        : hostCompleter;
     if (completer == null) {
       return AiAssistModelDiscoveryResult(
         success: false,
         agent: spec.agent,
         models: spec.models,
         defaultModelId: spec.defaultModelId,
-        error: openCodeGoHostTooOldMessage,
+        error:
+            'The running terminal host does not support ${spec.label} AI Assist.',
       );
     }
     try {
-      final models = await completer.discoverOpenCodeGoModels();
+      final models = await completer.discoverModels();
       final defaultModelId =
           spec.defaultModelId != null &&
               models.any((model) => model.id == spec.defaultModelId)

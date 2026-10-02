@@ -93,6 +93,8 @@ class AiAssistAgentMapper extends EnumMapper<AiAssistAgent> {
   @override
   AiAssistAgent decode(dynamic value) {
     switch (value) {
+      case r'chatgpt':
+        return AiAssistAgent.chatgpt;
       case r'codex':
         return AiAssistAgent.codex;
       case r'claude':
@@ -127,6 +129,8 @@ class AiAssistAgentMapper extends EnumMapper<AiAssistAgent> {
   @override
   dynamic encode(AiAssistAgent self) {
     switch (self) {
+      case AiAssistAgent.chatgpt:
+        return r'chatgpt';
       case AiAssistAgent.codex:
         return r'codex';
       case AiAssistAgent.claude:

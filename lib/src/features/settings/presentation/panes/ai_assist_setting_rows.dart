@@ -6,6 +6,7 @@ import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_registry.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
+import 'package:alera/src/features/settings/presentation/panes/chatgpt_account_rows.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:flutter/material.dart';
 
@@ -60,7 +61,9 @@ class const AiAssistModelRow({
     return AleraSettingRow(
       title: 'Model',
       description: discoveryError == null
-          ? 'Model passed to ${agent.label}.'
+          ? agent == AiAssistAgent.chatgpt
+                ? '$chatGptPlanInUseLabel. Models follow the active account.'
+                : 'Model passed to ${agent.label}.'
           : discoveryError!,
       child: Row(
         children: <Widget>[
@@ -294,3 +297,8 @@ class _InstructionSettingRowState extends State<InstructionSettingRow> {
     );
   }
 }
+
+class const AiAssistModelDiscoveryState({
+  final bool loading = false,
+  final String? error,
+});

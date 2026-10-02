@@ -1,6 +1,7 @@
 use super::RuntimeTextActionsSettings;
 
-pub const AI_ASSIST_AGENTS: [&str; 13] = [
+pub const AI_ASSIST_AGENTS: [&str; 14] = [
+    "chatgpt",
     "codex",
     "claude",
     "copilot",

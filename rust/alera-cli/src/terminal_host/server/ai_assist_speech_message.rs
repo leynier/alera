@@ -112,7 +112,16 @@ async fn generate_speech_message(
         .map(String::as_str)
         .unwrap_or_default();
     let prompt = speech_message_prompt(text, mode, instructions);
-    let (output, label) = if is_opencode_go_agent(&settings, "speechMessage") {
+    let (output, label) = if agent == "chatgpt" {
+        super::ai_assist_generation::generate_ai_assist_output(
+            &settings,
+            "speechMessage",
+            &prompt,
+            &owner.workspace.path,
+            cancel_rx,
+        )
+        .await?
+    } else if is_opencode_go_agent(&settings, "speechMessage") {
         complete_configured_opencode_go(
             &settings,
             "speechMessage",

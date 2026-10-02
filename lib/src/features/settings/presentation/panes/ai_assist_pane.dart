@@ -9,6 +9,7 @@ import 'package:alera/src/features/ai_assist/application/ai_assist_model_discove
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/settings/presentation/panes/ai_assist_setting_rows.dart';
 import 'package:alera/src/features/settings/presentation/panes/ai_assist_custom_command_dialog.dart';
+import 'package:alera/src/features/settings/presentation/panes/chatgpt_account_settings.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,8 +37,9 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
         AiAssistOperation.speechMessage,
       ];
 
-  final Map<AiAssistAgent, _AiAssistModelDiscoveryState> _discovery =
-      <AiAssistAgent, _AiAssistModelDiscoveryState>{};
+  final Map<AiAssistAgent, AiAssistModelDiscoveryState> _discovery =
+      <AiAssistAgent, AiAssistModelDiscoveryState>{};
+  final Map<AiAssistAgent, int> _discoveryGeneration = {};
   final Set<AiAssistAgent> _autoDiscovered = <AiAssistAgent>{};
 
   @override
@@ -73,7 +75,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
       extraModels: discoveredModelsForAgent(settings, agent),
     );
     final thinkingLevels = model.thinkingLevels;
-    final discovery = _discovery[agent] ?? const _AiAssistModelDiscoveryState();
+    final discovery = _discovery[agent] ?? const AiAssistModelDiscoveryState();
     final canDiscoverModels = spec?.canDiscoverModels ?? false;
     return Column(
       crossAxisAlignment: .stretch,
@@ -82,7 +84,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
           key: widget.groupKeys['generation'],
           child: AleraSettingsGroup(
             title: 'Generation',
-            description: 'Local agent CLIs or the OpenCode Go API run short background jobs from source control and workspace context.',
+            description: 'Connected providers run short background jobs from source control and workspace context.',
             children: <Widget>[
               SettingsSwitchRow(
                 title: 'Enable AI Assist',
@@ -173,6 +175,14 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
             ],
           ),
         ),
+        const SizedBox(height: AleraTokens.space16),
+        KeyedSubtree(
+          key: widget.groupKeys['chatgpt'],
+          child: ChatGptAccountSettings(
+            onAccountChanged: _chatGptAccountChanged,
+          ),
+        ),
+        const SizedBox(height: AleraTokens.space16),
         for (final operation in _configuredOperations) ...<Widget>[
           KeyedSubtree(
             key: widget.groupKeys[operation.key],
@@ -191,6 +201,27 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
         ],
       ],
     );
+  }
+
+  void _chatGptAccountChanged() {
+    widget.onChanged(
+      (settings) => settings.copyWith(
+        selectedModelByAgent: {...settings.selectedModelByAgent}
+          ..remove(AiAssistAgent.chatgpt),
+        discoveredModelsByAgent: {...settings.discoveredModelsByAgent}
+          ..remove(AiAssistAgent.chatgpt),
+        discoveredDefaultModelByAgent: {
+          ...settings.discoveredDefaultModelByAgent,
+        }..remove(AiAssistAgent.chatgpt),
+        promptSettingsByOperation: {
+          for (final entry in settings.promptSettingsByOperation.entries)
+            entry.key: settings.agentFor(entry.key) == AiAssistAgent.chatgpt
+                ? AiAssistPromptSettings(agent: entry.value.agent)
+                : entry.value,
+        },
+      ),
+    );
+    unawaited(_discoverModels(AiAssistAgent.chatgpt));
   }
 
   List<Widget> _thinkingRows(
@@ -282,7 +313,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
       extraModels: discoveredModelsForAgent(settings, agent),
     );
     final spec = aiAssistAgentSpecs[agent];
-    final discovery = _discovery[agent] ?? const _AiAssistModelDiscoveryState();
+    final discovery = _discovery[agent] ?? const AiAssistModelDiscoveryState();
     return <Widget>[
       AiAssistPromptAgentRow(
         operation: operation,
@@ -411,8 +442,10 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
     if (spec == null || !spec.canDiscoverModels) {
       return;
     }
+    final generation = (_discoveryGeneration[agent] ?? 0) + 1;
+    _discoveryGeneration[agent] = generation;
     setState(() {
-      _discovery[agent] = const _AiAssistModelDiscoveryState(loading: true);
+      _discovery[agent] = const AiAssistModelDiscoveryState(loading: true);
     });
     final AiAssistModelDiscoveryResult result;
     try {
@@ -420,22 +453,22 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
           .read(aiAssistModelDiscoveryServiceProvider)
           .discover(agent);
     } catch (error) {
-      if (!mounted) {
+      if (!mounted || _discoveryGeneration[agent] != generation) {
         return;
       }
       setState(() {
-        _discovery[agent] = _AiAssistModelDiscoveryState(
+        _discovery[agent] = AiAssistModelDiscoveryState(
           error: error.toString(),
         );
       });
       return;
     }
-    if (!mounted) {
+    if (!mounted || _discoveryGeneration[agent] != generation) {
       return;
     }
     if (!result.success) {
       setState(() {
-        _discovery[agent] = _AiAssistModelDiscoveryState(error: result.error);
+        _discovery[agent] = AiAssistModelDiscoveryState(error: result.error);
       });
       return;
     }
@@ -459,12 +492,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
       );
     });
     setState(() {
-      _discovery[agent] = const _AiAssistModelDiscoveryState();
+      _discovery[agent] = const AiAssistModelDiscoveryState();
     });
   }
 }
-
-class const _AiAssistModelDiscoveryState({
-  final bool loading = false,
-  final String? error,
-});

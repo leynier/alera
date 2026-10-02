@@ -20,7 +20,8 @@ use super::host_service_requests::required_non_blank;
 use super::{ServerActor, ServerCommand};
 
 const MAX_ARGV_PROMPT_BYTES: usize = 24_000;
-pub(super) const SUPPORTED_AGENTS: [&str; 13] = [
+pub(super) const SUPPORTED_AGENTS: [&str; 14] = [
+    "chatgpt",
     "codex",
     "claude",
     "copilot",
@@ -232,6 +233,9 @@ pub(super) fn plan_command(
     let agent = resolved_agent(settings, operation);
     if agent == OPENCODE_GO_AGENT {
         return Err(HostError::format("OpenCode Go does not use a CLI command."));
+    }
+    if agent == "chatgpt" {
+        return Err(HostError::format("ChatGPT does not use a CLI command."));
     }
     if agent == "custom" {
         return plan_custom_command(&settings.custom_command, prompt);

@@ -270,6 +270,25 @@ aiAssistAgentSpecs = <AiAssistAgent, AiAssistAgentSpec>{
     binary: 'opencode2',
   ),
   AiAssistAgent.opencodeGo: openCodeGoAiAssistSpec,
+  AiAssistAgent.chatgpt: AiAssistAgentSpec(
+    agent: .chatgpt,
+    binary: '',
+    promptDelivery: .stdin,
+    modelsCommand: null,
+    parseModels: parseLineModels,
+    models: const <AiAssistModel>[
+      AiAssistModel(id: '', label: 'Account Default'),
+    ],
+    defaultModelId: '',
+    supportsRemoteDiscovery: true,
+    diffOnlyAccess: .toolFree,
+    buildArgs: ({
+      required prompt,
+      required model,
+      thinkingLevel,
+      required timeoutSeconds,
+    }) => const <String>[],
+  ),
   AiAssistAgent.pi: AiAssistAgentSpec(
     agent: .pi,
     binary: 'pi',

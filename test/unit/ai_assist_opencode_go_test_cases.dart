@@ -48,7 +48,7 @@ class _FakeOpenCodeGoCompleter implements AiAssistHostCompleter {
   }
 
   @override
-  Future<List<AiAssistModel>> discoverOpenCodeGoModels() async {
+  Future<List<AiAssistModel>> discoverModels() async {
     final thrown = discoverError;
     if (thrown != null) {
       throw thrown;

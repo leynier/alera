@@ -369,11 +369,27 @@ const List<SettingsSearchEntry> aiAssistSearchEntries = <SettingsSearchEntry>[
       'opencode2',
       'opencode go',
       'go',
+      'chatgpt',
       'pi',
       'amp',
       'custom',
     ],
     groupId: 'generation',
+  ),
+  SettingsSearchEntry(
+    title: 'ChatGPT Account',
+    description:
+        'Connect, switch, or sign out of ChatGPT accounts for AI Assist.',
+    keywords: <String>[
+      'chatgpt',
+      'openai',
+      'account',
+      'sign in',
+      'sign out',
+      'plan',
+      'usage',
+    ],
+    groupId: 'chatgpt',
   ),
   SettingsSearchEntry(
     title: 'AI Assist Commit Messages',

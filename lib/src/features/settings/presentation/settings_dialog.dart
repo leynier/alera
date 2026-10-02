@@ -185,6 +185,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     ];
     const aiAssistGroups = <SettingsGroupSpec>[
       SettingsGroupSpec(id: 'generation', title: 'Generation'),
+      SettingsGroupSpec(id: 'chatgpt', title: 'ChatGPT Account'),
       SettingsGroupSpec(id: 'commitMessage', title: 'Commit Messages'),
       SettingsGroupSpec(
         id: 'pullRequestDetails',

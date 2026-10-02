@@ -332,6 +332,17 @@ fn mobile_allowlist_still_excludes_raw_and_admin_mutations() {
     assert!(!mobile_request_allowed("account.status"));
     assert!(!mobile_request_allowed("account.signIn.start"));
     assert!(!mobile_request_allowed("account.signOut"));
+    for verb in [
+        "status",
+        "signIn",
+        "cancel",
+        "select",
+        "signOut",
+        "models",
+        "acknowledgePlan",
+    ] {
+        assert!(!mobile_request_allowed(&format!("aiAssist.chatgpt.{verb}")));
+    }
     assert!(!mobile_request_allowed("terminal.pulse.status"));
     assert!(!mobile_request_allowed("terminal.pulse.configure"));
 }

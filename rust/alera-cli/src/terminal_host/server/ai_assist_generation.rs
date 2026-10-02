@@ -35,6 +35,16 @@ pub(super) async fn generate_ai_assist_output(
     working_directory: &str,
     cancel_rx: oneshot::Receiver<()>,
 ) -> HostResult<(String, String)> {
+    if super::ai_assist_requests::resolved_agent(settings, operation) == "chatgpt" {
+        let text = super::chatgpt_inference::complete(
+            prompt,
+            &resolved_model(settings, operation),
+            Duration::from_secs(settings.timeout_seconds.max(1)),
+            cancel_rx,
+        )
+        .await?;
+        return Ok((text, "ChatGPT".to_string()));
+    }
     if is_opencode_go_agent(settings, operation) {
         return complete_configured_opencode_go(
             settings,

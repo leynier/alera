@@ -28,6 +28,7 @@ enum AiAssistOperation(this.key) {
 
 @MappableEnum()
 enum AiAssistAgent(this.key) {
+  chatgpt('chatgpt'),
   codex('codex'),
   claude('claude'),
   copilot('copilot'),
@@ -46,6 +47,7 @@ enum AiAssistAgent(this.key) {
   final String key;
 
   String get label => switch (this) {
+    AiAssistAgent.chatgpt => 'ChatGPT',
     AiAssistAgent.codex => 'Codex',
     AiAssistAgent.claude => 'Claude Code',
     AiAssistAgent.copilot => 'GitHub Copilot',
@@ -62,6 +64,7 @@ enum AiAssistAgent(this.key) {
   };
 
   AgentType? get agentType => switch (this) {
+    AiAssistAgent.chatgpt => null,
     AiAssistAgent.codex => AgentType.codex,
     AiAssistAgent.claude => AgentType.claude,
     AiAssistAgent.copilot => AgentType.copilot,

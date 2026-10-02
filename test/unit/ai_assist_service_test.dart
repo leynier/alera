@@ -25,6 +25,7 @@ part 'ai_assist_reading_diff_test_cases.dart';
 part 'ai_assist_reading_diff_lifecycle_test_cases.dart';
 part 'ai_assist_prompt_override_test_cases.dart';
 part 'ai_assist_opencode_go_test_cases.dart';
+part 'ai_assist_chatgpt_test_cases.dart';
 part 'ai_assist_test_harness.dart';
 
 void main() {
@@ -36,6 +37,7 @@ void main() {
     _registerAiAssistReadingDiffLifecycleTests();
     _registerAiAssistPromptOverrideTests();
     _registerOpenCodeGoAiAssistTests();
+    _registerChatGptAiAssistTests();
 
     test('builds commit prompts with staged context and instructions', () {
       final prompt = buildCommitMessagePrompt(
