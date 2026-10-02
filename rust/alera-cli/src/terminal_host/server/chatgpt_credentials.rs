@@ -33,6 +33,8 @@ pub(super) struct Tokens {
     pub id_token: String,
     pub scopes: Vec<String>,
     pub expires_at: i64,
+    #[serde(default)]
+    pub identity_pending: bool,
 }
 
 impl Tokens {
@@ -241,12 +243,14 @@ fn write_private(directory: &std::path::Path, contents: &[u8]) -> HostResult<()>
 mod tests {
     #[test]
     fn sealed_credentials_support_large_records_and_reject_tampering() {
-        let key = [42; 32];
+        let key = rand::random::<[u8; 32]>();
+        let mut wrong_key = key;
+        wrong_key[0] ^= 1;
         let text = "synthetic-credentials".repeat(1000);
         let sealed = super::seal(&text, &key).unwrap();
         assert!(!sealed.contains("synthetic-credentials"));
         assert_eq!(super::unseal(&sealed, &key).unwrap(), text);
-        assert!(super::unseal(&sealed, &[43; 32]).is_err());
+        assert!(super::unseal(&sealed, &wrong_key).is_err());
         let mut value: serde_json::Value = serde_json::from_str(&sealed).unwrap();
         value["nonce"] = serde_json::json!("invalid");
         assert!(super::unseal(&value.to_string(), &key).is_err());

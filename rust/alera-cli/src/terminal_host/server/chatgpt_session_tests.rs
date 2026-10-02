@@ -18,6 +18,7 @@ fn account(id: &str, subject: &str) -> Account {
             id_token: format!("secret-id-{id}"),
             scopes: vec!["chatgpt.tokens.use.direct".into()],
             expires_at: chrono::Utc::now().timestamp() + 3600,
+            identity_pending: false,
         }),
     }
 }
@@ -158,4 +159,127 @@ async fn inference_requires_granted_scope_and_welcome_is_persisted_once() {
     session.acknowledge_plan().await.unwrap();
     let restarted = session_for_test(dir.path());
     assert_eq!(restarted.status().await.unwrap()["showPlanNotice"], false);
+}
+
+fn renewal() -> Value {
+    json!({
+        "access_token": "replacement-access",
+        "refresh_token": "replacement-refresh",
+        "id_token": "replacement-id",
+        "token_type": "Bearer",
+        "expires_in": 3600,
+        "scope": "chatgpt.tokens.use.direct resource.invoke",
+    })
+}
+
+fn identity(subject: &str) -> oauth::Claims {
+    oauth::Claims {
+        sub: subject.into(),
+        email: None,
+        nonce: None,
+        aud: json!("a"),
+        azp: None,
+        iat: chrono::Utc::now().timestamp(),
+    }
+}
+
+async fn install_expired(session: &ChatGptSession) {
+    let mut expired = account("a", "subject-a");
+    let tokens = expired.tokens.as_mut().unwrap();
+    tokens.refresh_token = Some("previous-refresh".into());
+    tokens.expires_at = 0;
+    install(session, expired).await.unwrap();
+}
+
+#[tokio::test]
+async fn refresh_rotation_survives_key_fetch_failure_and_retries_identity_after_restart() {
+    let dir = tempfile::tempdir().unwrap();
+    let session = session_for_test(dir.path());
+    install_expired(&session).await;
+    let session_ref = &session;
+    let result = session
+        .access_with(
+            |client_id, token| {
+                Box::pin(async move {
+                    assert_eq!(client_id, "a");
+                    assert_eq!(token, "previous-refresh");
+                    Ok(renewal())
+                })
+            },
+            |id_token, client_id| {
+                Box::pin(async move {
+                    assert_eq!(id_token, "replacement-id");
+                    assert_eq!(client_id, "a");
+                    let saved = session_ref.store.load().await.unwrap();
+                    let tokens = saved.accounts[0].tokens.as_ref().unwrap();
+                    assert_eq!(tokens.refresh_token.as_deref(), Some("replacement-refresh"));
+                    assert_eq!(tokens.access_token, "replacement-access");
+                    assert!(tokens.expires_at > chrono::Utc::now().timestamp());
+                    assert_eq!(
+                        tokens.scopes,
+                        ["chatgpt.tokens.use.direct", "resource.invoke"]
+                    );
+                    assert!(tokens.identity_pending);
+                    Err(HostError::state("Signing keys temporarily unavailable."))
+                })
+            },
+        )
+        .await;
+    assert!(result.is_err());
+    let restarted = session_for_test(dir.path());
+    assert!(restarted
+        .access_with(
+            |_, _| panic!("must not reuse the old refresh token"),
+            |_, _| Box::pin(async { Err(HostError::state("Signing keys still unavailable.")) }),
+        )
+        .await
+        .is_err());
+    let (token, _) = restarted
+        .access_with(
+            |_, _| panic!("the replacement access token is still fresh"),
+            |token, client_id| {
+                Box::pin(async move {
+                    assert_eq!(token, "replacement-id");
+                    assert_eq!(client_id, "a");
+                    Ok(identity("subject-a"))
+                })
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(token, "replacement-access");
+    assert!(
+        !restarted.store.load().await.unwrap().accounts[0]
+            .tokens
+            .as_ref()
+            .unwrap()
+            .identity_pending
+    );
+}
+
+#[tokio::test]
+async fn refresh_identity_mismatch_clears_only_the_affected_registration() {
+    let dir = tempfile::tempdir().unwrap();
+    let session = session_for_test(dir.path());
+    install(&session, account("b", "subject-b")).await.unwrap();
+    install_expired(&session).await;
+    let changed = session.changed.subscribe();
+    assert!(session
+        .access_with(
+            |_, _| Box::pin(async { Ok(renewal()) }),
+            |_, _| Box::pin(async { Ok(identity("other-subject")) }),
+        )
+        .await
+        .is_err());
+    assert!(changed.has_changed().unwrap());
+    let saved = session.store.load().await.unwrap();
+    assert!(saved.accounts[1].tokens.is_none());
+    assert_eq!(
+        saved.accounts[0].tokens.as_ref().unwrap().access_token,
+        "secret-access-b"
+    );
+    let restarted = session_for_test(dir.path());
+    assert!(restarted.access().await.is_err());
+    restarted.select("b").await.unwrap();
+    assert_eq!(restarted.access().await.unwrap().0, "secret-access-b");
 }

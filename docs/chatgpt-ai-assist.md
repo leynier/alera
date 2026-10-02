@@ -10,6 +10,8 @@ The runtime owns loopback OAuth with PKCE and OIDC validation, protected credent
 
 Credentials are encrypted with ChaCha20-Poly1305 in an atomically replaced runtime file. The system credential store holds only its random encryption key, since a multi-account token record exceeds [Windows Credential Manager's 2560-byte limit](https://learn.microsoft.com/en-us/windows/win32/api/wincred/ns-wincred-credentiala). Linux can fall back to an owner-only file when Secret Service is unavailable. Credential I/O runs outside the server actor. Account changes cancel requests using the previous account; logout retains registration and host identity for reauthorization.
 
+A successful token refresh saves its rotated credentials before fetching signing keys. If a new ID token needs verification, a persisted pending flag blocks inference until that verification succeeds, including after a restart. Temporary key-fetch failures retain the replacement credentials for retry; an identity mismatch clears only the affected registration.
+
 ## Tasks
 
 - Completed: implement OAuth, protected registrations, refresh and disconnect.
@@ -23,7 +25,7 @@ Credentials are encrypted with ChaCha20-Poly1305 in an atomically replaced runti
 
 Validate callback state/client binding, signed ID-token issuer/audience/nonce, account isolation, credential permissions, refresh rotation and terminal errors. Verify request shape, catalog visibility/order, cancellation, incomplete/error streams and completion-only success. Check provider serialization, runtime routing and account controls without external inference.
 
-Verified locally: 147 Flutter unit/widget tests, 14 ChatGPT runtime tests, 69 existing AI Assist runtime tests, 3 mobile allowlist tests and 3 shared runtime settings tests. Flutter analysis, Rust Clippy with warnings denied, the 500-line ratchet and whitespace checks pass. Tests include discarding a stale model catalog after changing accounts. No live OAuth or inference call was performed.
+Verified locally: 147 Flutter unit/widget tests, 16 ChatGPT runtime tests, 69 existing AI Assist runtime tests, 3 mobile allowlist tests and 3 shared runtime settings tests. Flutter analysis, Rust Clippy with warnings denied, the 500-line ratchet and whitespace checks pass. Tests include discarding a stale model catalog after changing accounts, retaining rotated credentials across a temporary signing-key failure and restart, and clearing only the affected registration on an identity mismatch. No live OAuth or inference call was performed.
 
 ## Scope And Sources
 

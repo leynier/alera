@@ -311,6 +311,7 @@ pub(super) fn parse_tokens(value: &Value, previous: Option<&Tokens>) -> HostResu
             .map(|s| s.split_whitespace().map(str::to_string).collect())
             .unwrap_or_else(|| previous.map(|t| t.scopes.clone()).unwrap_or_default()),
         expires_at: chrono::Utc::now().timestamp() + expires,
+        identity_pending: false,
     };
     tokens.register_secrets();
     Ok(tokens)

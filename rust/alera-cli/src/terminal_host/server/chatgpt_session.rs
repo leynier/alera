@@ -1,3 +1,4 @@
+use futures_util::future::BoxFuture;
 use serde_json::{json, Value};
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
@@ -236,16 +237,42 @@ impl ChatGptSession {
     }
 
     pub async fn access(&self) -> HostResult<(String, watch::Receiver<u64>)> {
+        self.access_with(
+            |client_id, refresh_token| {
+                Box::pin(async move {
+                    oauth::token_request(&[
+                        ("grant_type", "refresh_token"),
+                        ("client_id", client_id.as_str()),
+                        ("refresh_token", refresh_token.as_str()),
+                        ("resource", RESOURCE),
+                    ])
+                    .await
+                })
+            },
+            |token, client_id| {
+                Box::pin(async move { oauth::verify_identity(&token, &client_id, None).await })
+            },
+        )
+        .await
+    }
+
+    async fn access_with<'a>(
+        &self,
+        refresh: impl Fn(String, String) -> BoxFuture<'a, HostResult<Value>> + Send + Sync,
+        verify: impl Fn(String, String) -> BoxFuture<'a, HostResult<oauth::Claims>> + Send + Sync,
+    ) -> HostResult<(String, watch::Receiver<u64>)> {
         let mut state = self.state.lock().await;
         self.load(&mut state).await?;
         let data = state.data.as_mut().unwrap();
-        let account = data
+        let index = data
             .accounts
-            .iter_mut()
-            .find(|a| Some(&a.client_id) == data.active.as_ref())
+            .iter()
+            .position(|a| Some(&a.client_id) == data.active.as_ref())
             .ok_or_else(|| {
                 HostError::state("Connect a ChatGPT account in Settings > AI Assist.")
             })?;
+        self.verify_pending_identity(data, index, &verify).await?;
+        let account = &mut data.accounts[index];
         let tokens = account
             .tokens
             .as_ref()
@@ -256,16 +283,10 @@ impl ChatGptSession {
             ));
         }
         if tokens.expires_at <= chrono::Utc::now().timestamp() + 60 {
-            let refresh = tokens.refresh_token.as_deref().ok_or_else(|| {
+            let refresh_token = tokens.refresh_token.as_deref().ok_or_else(|| {
                 HostError::state("ChatGPT session expired. Continue with ChatGPT to sign in again.")
             })?;
-            let result = oauth::token_request(&[
-                ("grant_type", "refresh_token"),
-                ("client_id", &account.client_id),
-                ("refresh_token", refresh),
-                ("resource", RESOURCE),
-            ])
-            .await;
+            let result = refresh(account.client_id.clone(), refresh_token.to_string()).await;
             let value = match result {
                 Ok(value) => value,
                 Err(error) => {
@@ -277,18 +298,13 @@ impl ChatGptSession {
                     return Err(error);
                 }
             };
-            let renewed = oauth::parse_tokens(&value, Some(tokens))?;
-            if value.get("id_token").is_some() {
-                let claims =
-                    oauth::verify_identity(&renewed.id_token, &account.client_id, None).await?;
-                if claims.sub != account.subject {
-                    return Err(HostError::state(
-                        "ChatGPT account identity changed during renewal.",
-                    ));
-                }
-            }
+            let mut renewed = oauth::parse_tokens(&value, Some(tokens))?;
+            renewed.identity_pending = value.get("id_token").is_some();
             account.tokens = Some(renewed);
+            // Rotation invalidates the previous refresh token. Persist its replacement
+            // before fetching signing keys, but withhold access until identity verifies.
             self.store.save(data).await?;
+            self.verify_pending_identity(data, index, &verify).await?;
         }
         let account = data
             .accounts
@@ -302,6 +318,29 @@ impl ChatGptSession {
             ));
         }
         Ok((tokens.access_token.clone(), self.changed.subscribe()))
+    }
+
+    async fn verify_pending_identity<'a>(
+        &self,
+        data: &mut Credentials,
+        index: usize,
+        verify: impl Fn(String, String) -> BoxFuture<'a, HostResult<oauth::Claims>> + Send + Sync,
+    ) -> HostResult<()> {
+        let account = &mut data.accounts[index];
+        let Some(tokens) = account.tokens.as_ref().filter(|t| t.identity_pending) else {
+            return Ok(());
+        };
+        let claims = verify(tokens.id_token.clone(), account.client_id.clone()).await?;
+        if claims.sub != account.subject {
+            account.tokens = None;
+            self.changed.send_modify(|version| *version += 1);
+            self.store.save(data).await?;
+            return Err(HostError::state(
+                "ChatGPT account identity changed during renewal.",
+            ));
+        }
+        account.tokens.as_mut().unwrap().identity_pending = false;
+        self.store.save(data).await
     }
 }
 
