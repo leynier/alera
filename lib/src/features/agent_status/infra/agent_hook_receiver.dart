@@ -115,13 +115,36 @@ class AgentHookReceiver._(
 
   Future<void> _stop() async {
     final shouldStopServer = _endpoint != null || _eventSubscription != null;
+    final eventSubscription = _eventSubscription;
     _endpoint = null;
     _eventGeneration++;
     _codexTranscriptStatusWatcher.clear();
-    await _eventSubscription?.cancel();
     _eventSubscription = null;
+
+    Object? firstError;
+    StackTrace? firstStackTrace;
     if (shouldStopServer) {
-      await _hookServer.stop();
+      try {
+        // The native producer owns the FRB stream sink. Stop it first so that
+        // cancelling the Dart subscription cannot wait for a sink that is
+        // still receiving events.
+        await _hookServer.stop();
+      } catch (error, stackTrace) {
+        firstError = error;
+        firstStackTrace = stackTrace;
+      }
+    }
+    try {
+      await eventSubscription?.cancel();
+    } catch (error, stackTrace) {
+      firstError ??= error;
+      firstStackTrace ??= stackTrace;
+    }
+    if (firstError != null) {
+      Error.throwWithStackTrace(
+        firstError,
+        firstStackTrace ?? StackTrace.current,
+      );
     }
   }
 

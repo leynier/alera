@@ -93,6 +93,34 @@ void main() {
       },
     );
 
+    test(
+      'stops the producer before cancelling its gated event subscription',
+      () async {
+        final stopGate = Completer<void>();
+        hookServer.stopGate = stopGate;
+        final stopFuture = receiver.stop();
+        try {
+          await hookServer.stopStarted.future.timeout(
+            const Duration(seconds: 1),
+          );
+          expect(hookServer.stopCount, 1);
+
+          final startFuture = receiver.start();
+          stopGate.complete();
+          await Future.wait(<Future<void>>[stopFuture, startFuture]);
+
+          expect(hookServer.startCount, 2);
+          expect(hookServer.watchCount, 2);
+        } finally {
+          if (!stopGate.isCompleted) {
+            stopGate.complete();
+          }
+          hookServer.releaseProducer();
+          await stopFuture;
+        }
+      },
+    );
+
     test('rejects bad tokens with 403', () async {
       final response = await _post(
         receiver.endpoint!.port,

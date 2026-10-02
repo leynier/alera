@@ -17,20 +17,28 @@ class _ThrowingStatusSink implements AgentStatusSink {
 }
 
 class _FakeAgentHookServer implements AgentHookServer {
-  final _batches = StreamController<AgentHookEventBatch>.broadcast();
+  StreamController<AgentHookEventBatch>? _batches;
   final _enabledAgents = <String>{};
   final stopStarted = Completer<void>();
 
   HttpServer? _server;
   String _token = '';
   Completer<void>? stopGate;
+  Completer<void>? _subscriptionCancelGate;
   var startCount = 0;
   var watchCount = 0;
+  var stopCount = 0;
 
   @override
   Stream<AgentHookEventBatch> watchEventBatches() {
     watchCount++;
-    return _batches.stream;
+    final subscriptionCancelGate = Completer<void>();
+    _subscriptionCancelGate = subscriptionCancelGate;
+    final batches = StreamController<AgentHookEventBatch>(
+      onCancel: () => subscriptionCancelGate.future,
+    );
+    _batches = batches;
+    return batches.stream;
   }
 
   @override
@@ -62,18 +70,30 @@ class _FakeAgentHookServer implements AgentHookServer {
 
   @override
   Future<void> stop() async {
+    stopCount++;
     if (!stopStarted.isCompleted) {
       stopStarted.complete();
     }
     await stopGate?.future;
     stopGate = null;
+    final subscriptionCancelGate = _subscriptionCancelGate;
+    if (subscriptionCancelGate != null && !subscriptionCancelGate.isCompleted) {
+      subscriptionCancelGate.complete();
+    }
     final server = _server;
     _server = null;
     await server?.close(force: true);
   }
 
+  void releaseProducer() {
+    final subscriptionCancelGate = _subscriptionCancelGate;
+    if (subscriptionCancelGate != null && !subscriptionCancelGate.isCompleted) {
+      subscriptionCancelGate.complete();
+    }
+  }
+
   void emit(AgentHookEventBatch batch) {
-    _batches.add(batch);
+    _batches?.add(batch);
   }
 
   Future<void> _serve(HttpServer server) async {
@@ -113,7 +133,7 @@ class _FakeAgentHookServer implements AgentHookServer {
       );
       final event = parseAgentHookRequest(agentType: agentType, body: decoded);
       if (event != null) {
-        _batches.add(AgentHookEventBatch(events: <AgentHookEvent>[event]));
+        _batches?.add(AgentHookEventBatch(events: <AgentHookEvent>[event]));
       }
     } catch (_) {}
     request.response.statusCode = HttpStatus.noContent;
