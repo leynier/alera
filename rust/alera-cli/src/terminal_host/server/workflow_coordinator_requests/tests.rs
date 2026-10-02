@@ -123,6 +123,8 @@ async fn workflow_coordinator_launch_replays_one_terminal_with_frozen_profile() 
     let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
     actor.runtime_store = fixture.store.clone();
     actor.runtime_dir = fixture.runtime.clone();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
+    actor.inbox = inbox.clone();
     let first = actor
         .launch_workflow_coordinator(draft.clone())
         .await
@@ -147,6 +149,23 @@ async fn workflow_coordinator_launch_replays_one_terminal_with_frozen_profile() 
     assert!(serialized.contains("echo workflow-coordinator-test"));
     assert!(!serialized.contains("must-not-run-edited-profile"));
     actor.handle_session_exit(tab.into(), 0).await;
+    // Exit checkpoints are asynchronous; drive the actor through durable completion.
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        while !actor.await_output_writes(tab).await
+            || actor
+                .store
+                .read(tab, 1024 * 1024)
+                .await
+                .unwrap()
+                .unwrap()
+                .running
+        {
+            let command = inbox.recv(&mut commands).await.unwrap();
+            actor.handle(command).await;
+        }
+    })
+    .await
+    .expect("the exited coordinator checkpoint must become durable");
     assert!(fixture
         .store
         .find_workspace_tab(tab)
