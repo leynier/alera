@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use tokio::net::TcpListener;
-use tokio::sync::mpsc::{self, UnboundedSender};
+use tokio::sync::mpsc;
 
 use super::{
     connection_loop, ClientFrame, ClientHandle, ClientKind, ServerCommand,
@@ -13,7 +13,7 @@ use super::{
 /// Accept local clients and hand each one to its own connection loop.
 pub(super) fn spawn_accept_loop(
     listener: TcpListener,
-    inbox: UnboundedSender<ServerCommand>,
+    inbox: crate::terminal_host::ServerInbox,
     next_client_id: Arc<AtomicU64>,
 ) {
     tokio::spawn(async move {
@@ -27,11 +27,12 @@ pub(super) fn spawn_accept_loop(
             // ClientConnected command is enqueued before the connection loop
             // (and thus any ClientLine) starts.
             if inbox
-                .send(ServerCommand::ClientConnected {
+                .send_wait(ServerCommand::ClientConnected {
                     id,
                     handle: ClientHandle::new(control_out_tx, terminal_out_tx),
                     kind: ClientKind::Local,
                 })
+                .await
                 .is_err()
             {
                 break;

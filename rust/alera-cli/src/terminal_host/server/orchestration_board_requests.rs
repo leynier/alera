@@ -66,12 +66,16 @@ impl ServerActor {
         Ok(())
     }
 
-    pub(super) async fn broadcast_orchestration_board_change(&self) {
+    pub(super) async fn broadcast_orchestration_board_change(&mut self) {
         match self.runtime_store.take_orchestration_board_change().await {
             Ok(Some(revision)) => {
-                let _ = self.inbox.send(super::ServerCommand::WorkflowLaunch(
+                // This method runs on the actor. Waking through its own inbox
+                // can deadlock behind a full admission queue, so use the
+                // existing busy/dirty coalescing state directly through the
+                // actor-local command handler.
+                self.wake_workflow_execution_command(
                     super::workflow_launch_requests::WorkflowLaunchCommand::ExecutionWake,
-                ));
+                );
                 let payload = event("orchestrationBoardChanged", json!({ "revision": revision }));
                 for client in self
                     .clients
@@ -85,6 +89,18 @@ impl ServerActor {
             }
             Ok(None) => {}
             Err(error) => tracing::warn!("could not read orchestration board revision: {error}"),
+        }
+    }
+
+    fn wake_workflow_execution_command(
+        &mut self,
+        command: super::workflow_launch_requests::WorkflowLaunchCommand,
+    ) {
+        match command {
+            super::workflow_launch_requests::WorkflowLaunchCommand::ExecutionWake => {
+                self.wake_workflow_execution()
+            }
+            _ => unreachable!("only an execution wake belongs on the actor-local path"),
         }
     }
 

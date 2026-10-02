@@ -18,7 +18,7 @@ async fn workflow_coordinator_lookup_uses_nonblocking_job_accounting() {
         HashMap::new(),
     )
     .await;
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
     actor
         .start_workflow_coordinator_request(1, 1, &json!({"id":"missing"}))

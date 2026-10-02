@@ -38,7 +38,7 @@ pub async fn run_terminal_host_server(
     let port = listener.local_addr()?.port();
     control_file::write_control_file(&control_file_path, port, &token, config.persistent)?;
 
-    let (inbox, mut rx) = mpsc::unbounded_channel::<ServerCommand>();
+    let (inbox, mut rx) = ServerInbox::channel();
     let shutdown_signal = spawn_termination_listener(inbox.clone());
     let watch_ticker = pull_request_watch_runtime::spawn(inbox.clone());
     let presence_sweep = agent_presence_reconciliation::spawn(inbox.clone());
@@ -95,7 +95,8 @@ pub async fn run_terminal_host_server(
         account_push,
         clients: HashMap::new(),
         mobile_prompt_file_uploads: HashMap::new(),
-        pending_output_writes: HashMap::new(),
+        pending_history_requests: HashMap::new(),
+        history_writers: HashMap::new(),
         agent_presence: AgentPresenceRegistry::default(),
         orchestration_waiters: MessageWaiterRegistry::default(),
         orchestration_delivery_in_flight: HashSet::new(),
@@ -109,7 +110,7 @@ pub async fn run_terminal_host_server(
         voice: Default::default(),
         codex: None,
         codex_starting: None,
-        inbox,
+        inbox: inbox.clone(),
         next_client_id,
         mobile_gateway: None,
         shutdown_gen: 0,
@@ -153,8 +154,8 @@ pub async fn run_terminal_host_server(
     // Lives with the loop rather than the actor: it describes the machine the
     // host is running on, not any of the state the actor owns.
     let mut sleep_detector = SleepDetector::default();
-    let mut exit = TerminalHostExit::Shutdown;
-    while let Some(command) = rx.recv().await {
+    let mut exit = None;
+    while let Some(command) = inbox.recv(&mut rx).await {
         if let Some(slept) = sleep_detector.observe() {
             // The first thing to happen after a wake says so, which is what
             // keeps a lid closed overnight from being read later as a freeze.
@@ -163,14 +164,13 @@ pub async fn run_terminal_host_server(
                 slept.as_secs()
             );
         }
-        if matches!(&command, ServerCommand::RequestedRestart) {
-            exit = TerminalHostExit::Restart(actor.config);
-        }
+        record_exit_intent(&mut exit, &command, actor.config);
         actor.handle(command).await;
         if actor.disposed {
             break;
         }
     }
+    inbox.close();
     watch_ticker.abort();
     let _ = watch_ticker.await;
     presence_sweep.abort();
@@ -183,13 +183,26 @@ pub async fn run_terminal_host_server(
     if let Ok(session) = chatgpt_session::session() {
         let _ = session.cancel().await;
     }
-    Ok(exit)
+    Ok(exit.unwrap_or(TerminalHostExit::Shutdown))
+}
+
+fn record_exit_intent(
+    exit: &mut Option<TerminalHostExit>,
+    command: &ServerCommand,
+    config: TerminalHostConfig,
+) {
+    if exit.is_some() {
+        return;
+    }
+    *exit = match command {
+        ServerCommand::RequestedShutdown => Some(TerminalHostExit::Shutdown),
+        ServerCommand::RequestedRestart => Some(TerminalHostExit::Restart(config)),
+        _ => None,
+    };
 }
 
 #[cfg(unix)]
-fn spawn_termination_listener(
-    inbox: mpsc::UnboundedSender<ServerCommand>,
-) -> Option<tokio::task::JoinHandle<()>> {
+fn spawn_termination_listener(inbox: ServerInbox) -> Option<tokio::task::JoinHandle<()>> {
     use tokio::signal::unix::{signal, SignalKind};
 
     let mut terminate = match signal(SignalKind::terminate()) {
@@ -206,8 +219,29 @@ fn spawn_termination_listener(
 }
 
 #[cfg(not(unix))]
-fn spawn_termination_listener(
-    _inbox: mpsc::UnboundedSender<ServerCommand>,
-) -> Option<tokio::task::JoinHandle<()>> {
+fn spawn_termination_listener(_inbox: ServerInbox) -> Option<tokio::task::JoinHandle<()>> {
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn first_shutdown_intent_survives_a_later_restart_request() {
+        let config = TerminalHostConfig::default();
+        let mut exit = None;
+        record_exit_intent(&mut exit, &ServerCommand::RequestedShutdown, config);
+        record_exit_intent(&mut exit, &ServerCommand::RequestedRestart, config);
+        assert!(matches!(exit, Some(TerminalHostExit::Shutdown)));
+    }
+
+    #[test]
+    fn first_restart_intent_survives_a_later_shutdown_request() {
+        let config = TerminalHostConfig::default();
+        let mut exit = None;
+        record_exit_intent(&mut exit, &ServerCommand::RequestedRestart, config);
+        record_exit_intent(&mut exit, &ServerCommand::RequestedShutdown, config);
+        assert!(matches!(exit, Some(TerminalHostExit::Restart(_))));
+    }
 }

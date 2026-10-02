@@ -36,7 +36,7 @@ async fn soft_shutdown_counts_a_queued_runtime_mutation() {
         std::collections::HashMap::new(),
     )
     .await;
-    let (inbox, mut inbox_receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut inbox_receiver) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
 
     actor
@@ -99,7 +99,7 @@ async fn stale_tab_removal_does_not_depend_on_remote_cleanup() {
         })
         .await
         .unwrap();
-    let (inbox, mut inbox_receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut inbox_receiver) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
 
     actor
@@ -144,7 +144,7 @@ async fn shutdown_response_precedes_disposal_marker() {
         std::collections::HashMap::new(),
     )
     .await;
-    let (inbox, mut inbox_receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut inbox_receiver) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
 
     actor
@@ -187,7 +187,7 @@ async fn authenticated_mobile_client_can_request_a_safe_runtime_restart() {
         std::collections::HashMap::new(),
     )
     .await;
-    let (inbox, mut inbox_receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut inbox_receiver) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
 
     actor

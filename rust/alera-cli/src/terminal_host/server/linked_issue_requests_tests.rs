@@ -119,7 +119,7 @@ async fn shared_workspace_creation_retains_the_issue_link_from_main() {
     let project_dir = dir.path().join("project");
     std::fs::create_dir(&project_dir).unwrap();
     let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
     let project = crate::project_management::register_project(
         &actor.runtime_store,

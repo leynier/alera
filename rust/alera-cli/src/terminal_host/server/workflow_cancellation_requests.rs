@@ -194,7 +194,9 @@ impl ServerActor {
                     || session.tab_id != target.terminal_handle
                     || session.workspace_id != target.workspace_id)
         }) {
-            return Err(HostError::state("The live terminal identity changed. Inspect the retained attempt before retrying cancellation."));
+            return Err(HostError::state(
+                "The live terminal identity changed. Inspect the retained attempt before retrying cancellation.",
+            ));
         }
         let shutdown = self
             .prepare_workflow_cancellation_shutdown(&target.terminal_handle, &target.workspace_id)
@@ -301,7 +303,7 @@ async fn settle_proposal(
 
 async fn finish_shutdown(
     store: &alera_core::runtime::RuntimeStore,
-    inbox: &tokio::sync::mpsc::UnboundedSender<ServerCommand>,
+    inbox: &crate::terminal_host::ServerInbox,
     tab: &str,
     workspace: &str,
     shutdown: CancellationShutdown,
@@ -359,7 +361,7 @@ mod tests {
             .begin_workflow_terminal_shutdown("tab", "owner")
             .await
             .unwrap();
-        let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+        let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
         actor.inbox = inbox.clone();
         let mut guard = WorkspaceShutdown::default();
         guard.fail_next_waits(1);

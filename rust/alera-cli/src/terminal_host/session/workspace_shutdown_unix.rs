@@ -62,7 +62,7 @@ impl ShutdownGuard {
                 _ => {
                     return Err(shutdown_error(
                         "command session identity cannot be verified",
-                    ))
+                    ));
                 }
             };
             let processes = capture_owned(&system, &[anchor], vec![anchor], true)?;

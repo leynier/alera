@@ -4,7 +4,6 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use futures_util::SinkExt;
 use serde_json::Value;
-use tokio::sync::mpsc::UnboundedSender;
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{
@@ -395,7 +394,7 @@ pub(super) fn interrupted_speak_drain_keeps_microphone(
 }
 
 pub(super) fn report(
-    inbox: &UnboundedSender<ServerCommand>,
+    inbox: &crate::terminal_host::ServerInbox,
     generation: u64,
     event: VoiceRealtimeEvent,
 ) {

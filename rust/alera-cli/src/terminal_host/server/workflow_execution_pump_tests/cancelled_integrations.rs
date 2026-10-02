@@ -1,11 +1,11 @@
 use super::*;
 use crate::managed_workspace::workflow::tests::completed;
-use crate::terminal_host::server::{ServerActor, ServerCommand};
+use crate::terminal_host::server::ServerActor;
 use alera_core::runtime::{RuntimeStore, WorkflowIntegrationState};
 
 async fn drain(
     actor: &mut ServerActor,
-    commands: &mut tokio::sync::mpsc::UnboundedReceiver<ServerCommand>,
+    commands: &mut crate::terminal_host::server::ServerInboxReceiver,
 ) {
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
     // Include queued ExecutionWake events even after CancellationFinished has
@@ -72,7 +72,7 @@ async fn cancelled_integration_attention_waits_for_explicit_retry_without_actor_
         actor.runtime_store = fixture.store.clone();
         actor.runtime_dir = fixture.runtime.clone();
         actor.workflow_execution.ready = true;
-        let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+        let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
         actor.inbox = inbox;
         actor.wake_workflow_execution();
         drain(&mut actor, &mut commands).await;

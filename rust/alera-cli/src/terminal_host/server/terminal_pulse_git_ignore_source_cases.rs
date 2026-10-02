@@ -48,7 +48,7 @@ fn fallback_xdg_config_watches_its_sibling_ignore_file() {
 #[test]
 fn changing_the_active_global_exclude_reconciles_pruned_directories() {
     let fixture = GlobalExcludeFixture::new("ignored/\n");
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     let _watcher = WorkspacePulseWatcher::start_blocking(
         "workspace-1".to_string(),
         fixture.workspace.clone(),
@@ -78,7 +78,7 @@ fn unignoring_an_existing_file_in_a_watched_directory_reports_a_change() {
         .set_str("core.excludesFile", exclude.to_str().unwrap())
         .unwrap();
     std::fs::write(workspace.join("visible.txt"), "existing").unwrap();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     let _watcher =
         WorkspacePulseWatcher::start_blocking("workspace-1".to_string(), workspace, 1, inbox)
             .unwrap();
@@ -95,7 +95,7 @@ fn repository_exclude_unignores_an_existing_root_file() {
     let exclude = repository.commondir().join("info/exclude");
     std::fs::write(&exclude, "visible.txt\n").unwrap();
     std::fs::write(root.path().join("visible.txt"), "existing").unwrap();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     let _watcher = WorkspacePulseWatcher::start_blocking(
         "workspace-1".to_string(),
         root.path().to_path_buf(),
@@ -123,7 +123,7 @@ fn ignore_source_keeps_its_watch_when_its_directory_becomes_ignored() {
         .set_str("core.excludesFile", "config/exclude")
         .unwrap();
     std::fs::write(root.path().join("visible.txt"), "existing").unwrap();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     let _watcher = WorkspacePulseWatcher::start_blocking(
         "workspace-1".to_string(),
         root.path().to_path_buf(),
@@ -158,7 +158,7 @@ fn equivalent_ignore_rule_changes_do_not_report_existing_dirt() {
         .unwrap();
     std::fs::write(workspace.join("ignored.txt"), "ignored").unwrap();
     std::fs::write(workspace.join("untracked.txt"), "existing dirt").unwrap();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     let _watcher =
         WorkspacePulseWatcher::start_blocking("workspace-1".to_string(), workspace, 1, inbox)
             .unwrap();
@@ -173,7 +173,7 @@ fn repointing_core_excludes_file_reconciles_the_new_rules() {
     let fixture = GlobalExcludeFixture::new("ignored/\n");
     let replacement = fixture.root.path().join("replacement-ignore");
     std::fs::write(&replacement, "").unwrap();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     let _watcher = WorkspacePulseWatcher::start_blocking(
         "workspace-1".to_string(),
         fixture.workspace.clone(),
@@ -226,7 +226,7 @@ fn shell_xdg_config_controls_ignore_discovery_and_reconciliation() {
         None,
         false,
     );
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     let _watcher = WorkspacePulseWatcher::start_blocking_with_environment(
         "workspace-1".to_string(),
         workspace.clone(),
@@ -272,7 +272,7 @@ fn changing_an_included_config_reconciles_its_exclude_file() {
         .unwrap()
         .set_str("include.path", "../../included-config")
         .unwrap();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     let _watcher = WorkspacePulseWatcher::start_blocking(
         "workspace-1".to_string(),
         workspace.clone(),
@@ -299,7 +299,7 @@ fn default_ignore_file_is_not_parsed_as_git_config() {
     std::fs::write(xdg.join("git/ignore"), "ignored/\n").unwrap();
     let environment =
         GitConfigEnvironment::new(Some(root.path().join("home")), Some(xdg), None, None, false);
-    let (inbox, _commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, _commands) = crate::terminal_host::ServerInbox::channel();
 
     let watcher = WorkspacePulseWatcher::start_blocking_with_environment(
         "workspace-1".to_string(),
@@ -328,7 +328,7 @@ fn future_exclude_source_is_observed_from_its_existing_ancestor() {
         .unwrap()
         .set_str("core.excludesFile", exclude.to_str().unwrap())
         .unwrap();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     let _watcher = WorkspacePulseWatcher::start_blocking(
         "workspace-1".to_string(),
         workspace.clone(),
@@ -364,7 +364,7 @@ fn replacing_an_ignore_source_directory_renews_its_watch() {
         .unwrap()
         .set_str("core.excludesFile", exclude.to_str().unwrap())
         .unwrap();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     let _watcher =
         WorkspacePulseWatcher::start_blocking("workspace-1".to_string(), workspace, 1, inbox)
             .unwrap();
@@ -386,7 +386,7 @@ fn watcher_setup_honors_an_existing_cancellation() {
     std::fs::create_dir(&workspace).unwrap();
     Repository::init(&workspace).unwrap();
     let cancelled = Arc::new(AtomicBool::new(true));
-    let (inbox, _commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, _commands) = crate::terminal_host::ServerInbox::channel();
 
     let result = WorkspacePulseWatcher::start_blocking_with_environment(
         "workspace-1".to_string(),
@@ -434,9 +434,7 @@ impl GlobalExcludeFixture {
 }
 
 fn assert_file_changed(
-    commands: &mut tokio::sync::mpsc::UnboundedReceiver<
-        crate::terminal_host::server::ServerCommand,
-    >,
+    commands: &mut crate::terminal_host::server::ServerInboxReceiver,
     context: &str,
 ) {
     let deadline = Instant::now() + Duration::from_secs(3);
@@ -465,18 +463,12 @@ fn wait_for_git_source_reconciliation() {
     std::thread::sleep(Duration::from_millis(400));
 }
 
-fn drain_commands(
-    commands: &mut tokio::sync::mpsc::UnboundedReceiver<
-        crate::terminal_host::server::ServerCommand,
-    >,
-) {
+fn drain_commands(commands: &mut crate::terminal_host::server::ServerInboxReceiver) {
     while commands.try_recv().is_ok() {}
 }
 
 fn assert_no_file_changed(
-    commands: &mut tokio::sync::mpsc::UnboundedReceiver<
-        crate::terminal_host::server::ServerCommand,
-    >,
+    commands: &mut crate::terminal_host::server::ServerInboxReceiver,
     context: &str,
 ) {
     let deadline = Instant::now() + Duration::from_millis(500);

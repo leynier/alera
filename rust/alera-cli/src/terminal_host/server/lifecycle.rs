@@ -8,7 +8,7 @@ use crate::terminal_host::protocol::TerminalHostConfig;
 use crate::terminal_host::session::Session;
 
 use super::{
-    ServerActor, ServerCommand, DURABLE_OUTPUT_BATCH_DELAY, OUTPUT_BATCH_DELAY,
+    ServerActor, ServerCommand, CHECKPOINT_DELAY, DURABLE_OUTPUT_BATCH_DELAY, OUTPUT_BATCH_DELAY,
     OUTPUT_RESYNC_RETRY_DELAY,
 };
 
@@ -34,22 +34,14 @@ impl ServerActor {
         let max_bytes = config.scrollback_bytes as usize;
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
         for session_id in &session_ids {
-            self.flush_all_output(session_id);
+            self.flush_all_output(session_id).await;
             if let Some(session) = self.sessions.get_mut(session_id) {
                 session.set_max_bytes(max_bytes);
             }
+            // Reuse the nonblocking checkpoint barrier so a configure trim
+            // cannot race an accepted history retry or another checkpoint.
+            self.immediate_checkpoint(session_id).await;
         }
-        // Applying the cap to what is on disk is housekeeping, and awaiting it
-        // parked the single actor behind two write barriers and a trim per
-        // session. The app sends `configure` at startup, so every attach after
-        // it queued behind that. A write landing after this trim just leaves
-        // the session briefly over the cap; the checkpoint tick trims again.
-        let store = self.store.clone();
-        tokio::spawn(async move {
-            for session_id in session_ids {
-                let _ = store.trim_session(&session_id, max_bytes).await;
-            }
-        });
         self.schedule_shutdown_if_idle();
     }
 
@@ -96,7 +88,9 @@ impl ServerActor {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             tokio::time::sleep(Duration::from_secs(seconds)).await;
-            let _ = inbox.send(ServerCommand::ShutdownTick { generation });
+            let _ = inbox
+                .send_wait(ServerCommand::ShutdownTick { generation })
+                .await;
         });
     }
 
@@ -104,10 +98,12 @@ impl ServerActor {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             tokio::time::sleep(OUTPUT_BATCH_DELAY).await;
-            let _ = inbox.send(ServerCommand::OutputBatchTick {
-                session_id,
-                generation,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::OutputBatchTick {
+                    session_id,
+                    generation,
+                })
+                .await;
         });
     }
 
@@ -115,26 +111,57 @@ impl ServerActor {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             tokio::time::sleep(OUTPUT_RESYNC_RETRY_DELAY).await;
-            let _ = inbox.send(ServerCommand::OutputResyncTick {
-                session_id,
-                client_id,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::OutputResyncTick {
+                    session_id,
+                    client_id,
+                })
+                .await;
         });
     }
 
-    pub(super) fn spawn_durable_output_batch_timer(&self, session_id: String, generation: u64) {
+    pub(super) fn spawn_durable_output_batch_timer(&mut self, session_id: String, generation: u64) {
+        if !self
+            .sessions
+            .get_mut(&session_id)
+            .is_some_and(|session| session.arm_durable_retry_timer(generation))
+        {
+            return;
+        }
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             tokio::time::sleep(DURABLE_OUTPUT_BATCH_DELAY).await;
-            let _ = inbox.send(ServerCommand::DurableOutputBatchTick {
-                session_id,
-                generation,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::DurableOutputBatchTick {
+                    session_id,
+                    generation,
+                })
+                .await;
         });
     }
 
     pub(super) fn cancel_shutdown_timer(&mut self) {
         self.shutdown_gen += 1;
+    }
+
+    pub(super) fn spawn_checkpoint_timer(&mut self, session_id: String, generation: u64) {
+        if !self
+            .sessions
+            .get_mut(&session_id)
+            .is_some_and(|session| session.arm_checkpoint_retry_timer(generation))
+        {
+            return;
+        }
+        let inbox = self.inbox.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(CHECKPOINT_DELAY).await;
+            let _ = inbox
+                .send_wait(ServerCommand::CheckpointTick {
+                    session_id,
+                    generation,
+                })
+                .await;
+        });
     }
 
     pub(super) async fn handle_shutdown_tick(&mut self, generation: u64) {

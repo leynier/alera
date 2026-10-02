@@ -12,7 +12,6 @@ use anyhow::Result;
 use serde_json::{json, Value};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::error::TrySendError;
-use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
@@ -148,6 +147,9 @@ mod declared_catalog_requests;
 mod deferred_requests;
 mod deferred_workspace_lifecycle;
 mod deferred_workspace_setup;
+mod history_persistence;
+mod history_request_retry;
+mod history_writer;
 mod host_link_requests;
 mod host_link_routing;
 mod host_process_requests;
@@ -234,6 +236,7 @@ mod runtime_mutation_queue;
 mod runtime_mutations;
 mod satellite_mirror_requests;
 mod server_command;
+mod server_command_inbox;
 #[path = "server_runner.rs"]
 mod server_runner;
 mod server_shutdown;
@@ -304,6 +307,9 @@ mod workspace_sidebar_requests_tests;
 mod workspace_sleep_requests;
 
 pub use server_command::ServerCommand;
+pub(crate) use server_command_inbox::ServerInbox;
+#[cfg(test)]
+pub(crate) use server_command_inbox::ServerInboxReceiver;
 
 /// Delay before a debounced checkpoint write fires.
 const CHECKPOINT_DELAY: Duration = Duration::from_secs(5);
@@ -311,7 +317,6 @@ const CHECKPOINT_DELAY: Duration = Duration::from_secs(5);
 const OUTPUT_BATCH_DELAY: Duration = Duration::from_millis(8);
 const OUTPUT_RESYNC_RETRY_DELAY: Duration = Duration::from_millis(16);
 const DURABLE_OUTPUT_BATCH_DELAY: Duration = Duration::from_millis(100);
-const OUTPUT_PERSISTENCE_BARRIER_TIMEOUT: Duration = Duration::from_secs(2);
 const TERMINAL_INPUT_BACKPRESSURE_CODE: &str = "terminal_input_backpressure";
 /// Cap coalesced PTY→client batches so a verbose agent/build cannot grow an
 /// unbounded `output_batch` between timer flushes (early flush when exceeded).
@@ -382,7 +387,9 @@ struct ServerActor {
     account_push: account_push_state::AccountPushState,
     clients: HashMap<u64, ClientState>,
     mobile_prompt_file_uploads: HashMap<u64, HashSet<String>>,
-    pending_output_writes: HashMap<String, Vec<JoinHandle<()>>>,
+    pending_history_requests: HashMap<(u64, i64), String>,
+    history_writers:
+        HashMap<String, history_writer::OrderedHistoryWriter<TerminalHostHistoryStore>>,
     agent_presence: AgentPresenceRegistry,
     orchestration_waiters: MessageWaiterRegistry,
     orchestration_delivery_in_flight: HashSet<String>,
@@ -396,7 +403,7 @@ struct ServerActor {
     voice: voice_session::VoiceSessionState,
     codex: Option<codex_app_server::CodexAppServer>,
     codex_starting: Option<codex_server_startup::CodexServerStartup>,
-    inbox: UnboundedSender<ServerCommand>,
+    inbox: crate::terminal_host::ServerInbox,
     next_client_id: Arc<AtomicU64>,
     mobile_gateway: Option<JoinHandle<()>>,
     shutdown_gen: u64,
@@ -631,6 +638,14 @@ impl ServerActor {
                 );
             }
             ServerCommand::ClientLine { id, line } => self.handle_line(id, line).await,
+            ServerCommand::HistoryRequestRetry {
+                client_id,
+                request_id,
+                line,
+            } => {
+                self.handle_history_request_retry(client_id, request_id, line)
+                    .await
+            }
             ServerCommand::ClientDisconnected { id } => {
                 self.account_push.relay_presence.remove(&id);
                 self.dispose_client(id).await;
@@ -654,8 +669,13 @@ impl ServerActor {
                 event,
                 handled,
             } => {
-                self.handle_pty_event(session_id, event).await;
-                let _ = handled.send(());
+                if self.handle_pty_event(session_id.clone(), event).await {
+                    let _ = handled.send(());
+                } else if let Some(session) = self.sessions.get_mut(&session_id) {
+                    session.hold_pty_ack(handled);
+                } else {
+                    let _ = handled.send(());
+                }
             }
             ServerCommand::OutputBatchTick {
                 session_id,
@@ -668,7 +688,13 @@ impl ServerActor {
             ServerCommand::DurableOutputBatchTick {
                 session_id,
                 generation,
-            } => self.handle_durable_output_batch_tick(session_id, generation),
+            } => {
+                self.handle_durable_output_batch_tick(session_id, generation)
+                    .await
+            }
+            ServerCommand::HistoryWriterReady { session_id } => {
+                self.handle_history_writer_ready(&session_id)
+            }
             ServerCommand::CheckpointTick {
                 session_id,
                 generation,
@@ -1348,17 +1374,6 @@ impl ServerActor {
         self.broadcast_authenticated(event("sshTargetBootstrapProgress", json!(progress)));
         self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
         Ok(target)
-    }
-
-    fn spawn_checkpoint_timer(&self, session_id: String, generation: u64) {
-        let inbox = self.inbox.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(CHECKPOINT_DELAY).await;
-            let _ = inbox.send(ServerCommand::CheckpointTick {
-                session_id,
-                generation,
-            });
-        });
     }
 }
 

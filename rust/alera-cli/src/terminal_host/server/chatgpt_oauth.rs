@@ -157,7 +157,10 @@ impl Attempt {
             } else {
                 "ChatGPT sign-in could not be verified. Return to Alera."
             };
-            let response = format!("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nCache-Control: no-store\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{message}", message.len());
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nCache-Control: no-store\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{message}",
+                message.len()
+            );
             let _ = socket.write_all(response.as_bytes()).await;
             let (code, client_id) = callback?;
             if self.account.is_none() {

@@ -201,7 +201,7 @@ async fn cancel(fixture: &Fixture) {
 
 async fn startup(actor: &mut super::super::ServerActor) {
     actor.workflow_execution.ready = false;
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
     actor.start_workflow_workspace_recovery();
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);

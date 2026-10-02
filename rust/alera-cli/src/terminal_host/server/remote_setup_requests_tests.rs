@@ -53,7 +53,7 @@ async fn ssh_setup_cancellation_reaches_owner_before_running_setup_finishes() {
     )
     .await;
     actor.runtime_store = store;
-    let (inbox, mut commands) = mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
     let attempt = uuid::Uuid::new_v4().to_string();
     let setup = RelocationSetupReceipt {

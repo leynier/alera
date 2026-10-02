@@ -36,7 +36,7 @@ pub(super) enum PresenceVerdict {
     SilentlyIdle,
 }
 
-pub(super) fn spawn(inbox: tokio::sync::mpsc::UnboundedSender<ServerCommand>) -> JoinHandle<()> {
+pub(super) fn spawn(inbox: crate::terminal_host::ServerInbox) -> JoinHandle<()> {
     tokio::spawn(async move {
         loop {
             tokio::time::sleep(SWEEP_INTERVAL).await;

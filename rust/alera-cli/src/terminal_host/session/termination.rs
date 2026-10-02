@@ -7,9 +7,33 @@ use super::shell_tree_termination::kill_shell_tree;
 use super::Session;
 
 impl Session {
+    pub fn hold_history_barrier(&mut self) {
+        self.history_barrier_held = true;
+    }
+    pub fn release_history_barrier(&mut self) {
+        self.history_barrier_held = false;
+    }
+    pub fn history_barrier_held(&self) -> bool {
+        self.history_barrier_held
+    }
+
+    pub fn request_termination(&mut self) {
+        self.termination_requested = true;
+    }
+
+    pub fn termination_requested(&self) -> bool {
+        self.termination_requested
+    }
+
     /// Terminate the session: kill the shell and everything it spawned, release
     /// the PTY, and either delete or finalize the checkpoint.
     pub async fn terminate(&mut self, remove_history: bool, store: &TerminalHostHistoryStore) {
+        // A reader may be paused on the actor's bounded history gate. Release
+        // it before tearing down the PTY so the reader can observe closure and
+        // no OS thread remains blocked behind a session that is being removed.
+        if let Some(ack) = self.pending_pty_ack.take() {
+            let _ = ack.send(());
+        }
         self.terminated = true;
         self.running = false;
         #[cfg(unix)]
@@ -50,6 +74,7 @@ impl Session {
         self.durable_output_batch.clear();
         self.durable_output_batch_armed = false;
         self.durable_output_batch_gen = self.durable_output_batch_gen.wrapping_add(1);
+        self.durable_output_failures.clear();
         if remove_history {
             if let Err(error) = store.delete(&self.id).await {
                 tracing::warn!(

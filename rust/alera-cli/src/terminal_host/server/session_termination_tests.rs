@@ -8,7 +8,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 use crate::terminal_host::client::{ClientFrame, ClientHandle};
 
 use super::actor_test_harness::{local_client, test_actor};
-use super::{ServerActor, ServerCommand};
+use super::ServerActor;
 
 fn workspace_tab(tab_id: &str, workspace_id: &str, kind: &str) -> WorkspaceTabRecord {
     let now = Utc::now();
@@ -50,7 +50,7 @@ async fn tab_exists(actor: &ServerActor, tab_id: &str) -> bool {
 async fn request(
     actor: &mut ServerActor,
     receiver: &mut UnboundedReceiver<ClientFrame>,
-    inbox_receiver: &mut UnboundedReceiver<ServerCommand>,
+    inbox_receiver: &mut crate::terminal_host::server::ServerInboxReceiver,
     request_type: &str,
     payload: Value,
 ) -> Value {
@@ -88,7 +88,7 @@ async fn tab_removal_deletes_the_record() {
     let dir = tempfile::tempdir().unwrap();
     let tab = workspace_tab("editor-tab", "workspace", "editor");
     let (mut actor, mut receiver) = actor_with_tab(&dir, &tab).await;
-    let (inbox, mut inbox_receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut inbox_receiver) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
 
     let response = request(

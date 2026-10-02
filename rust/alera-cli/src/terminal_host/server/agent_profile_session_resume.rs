@@ -45,7 +45,9 @@ pub(super) fn prepare_resume_snapshot(
             if !command_can_resume(command, shape)
                 || apply_resume_to_command(command, shape, id, "/bin/sh").is_none()
             {
-                return Err(HostError::format("This custom command cannot safely resume a session. Use a managed profile or a simple command without session selectors or shell operators."));
+                return Err(HostError::format(
+                    "This custom command cannot safely resume a session. Use a managed profile or a simple command without session selectors or shell operators.",
+                ));
             }
         }
     }

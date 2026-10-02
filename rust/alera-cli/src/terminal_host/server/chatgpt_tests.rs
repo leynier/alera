@@ -196,7 +196,12 @@ fn responses_require_a_completed_event_after_text() {
         .unwrap(),
         "hello"
     );
-    for suffix in ["", "data: [DONE]\n\n", "data: {\"type\":\"response.incomplete\"}\n\n", "data: {\"type\":\"response.failed\",\"response\":{\"error\":{\"code\":\"subscription_sharing_usage_limit_exceeded\"}}}\n\n"] {
+    for suffix in [
+        "",
+        "data: [DONE]\n\n",
+        "data: {\"type\":\"response.incomplete\"}\n\n",
+        "data: {\"type\":\"response.failed\",\"response\":{\"error\":{\"code\":\"subscription_sharing_usage_limit_exceeded\"}}}\n\n",
+    ] {
         assert!(inference::parse_stream(format!("{delta}{suffix}").as_bytes()).is_err());
     }
     assert!(inference::parse_stream(completed.as_bytes()).is_err());

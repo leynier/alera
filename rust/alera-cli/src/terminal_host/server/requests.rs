@@ -33,115 +33,10 @@ struct ProjectConfigUpsertRequest {
     updated_at: Option<DateTime<Utc>>,
 }
 
-impl ServerActor {
-    /// Parse and dispatch one client line, then write the response. Malformed
-    /// messages without a request id drop the connection because there is no
-    /// response target.
-    pub(super) async fn handle_line(&mut self, client_id: u64, line: String) {
-        let mut restart_after_response = false;
-        let mut shutdown_after_response = false;
-        let decoded: Value = match serde_json::from_str(&line) {
-            Ok(value) => value,
-            // jsonDecode threw: no request id is available, so drop the client.
-            Err(_) => {
-                self.dispose_client(client_id).await;
-                return;
-            }
-        };
-        let Some(obj) = decoded.as_object() else {
-            self.dispose_client(client_id).await;
-            return;
-        };
-        let request_id = obj.get("id").and_then(Value::as_i64);
-        let outcome: HostResult<Value> = match extract_request(obj) {
-            Ok((request_type, payload)) => {
-                restart_after_response = request_type == "host.restart";
-                shutdown_after_response = request_type == "host.shutdown";
-                if let Some(id) = request_id {
-                    if (self.mutation_queue.has_runtime_mutations()
-                        && conflicts_with_runtime_mutation(&request_type))
-                        || (self.has_blocking_managed_workspace_jobs()
-                            && (conflicts_with_runtime_mutation(&request_type)
-                                || super::runtime_mutation_barrier::is_serialized_runtime_mutation(
-                                    &request_type,
-                                )))
-                    {
-                        self.client_write(
-                            client_id,
-                            error_response(
-                                id,
-                                &HostError::state(
-                                    "A runtime mutation is in progress. Wait for it to finish and retry.",
-                                ),
-                            ),
-                        );
-                        return;
-                    }
-                    match self
-                        .try_start_deferred_request(client_id, id, &request_type, &payload)
-                        .await
-                    {
-                        Ok(true) => return,
-                        Ok(false) => {}
-                        Err(error) => {
-                            if let Some(id) = request_id {
-                                self.client_write(client_id, error_response(id, &error));
-                            } else {
-                                self.dispose_client(client_id).await;
-                            }
-                            return;
-                        }
-                    }
-                    if request_type.starts_with("orchestration.") {
-                        let result = self
-                            .handle_orchestration_request(client_id, id, &request_type, &payload)
-                            .await;
-                        self.broadcast_orchestration_board_change().await;
-                        match result {
-                            // A parked waiter answers later (wake or timeout).
-                            Ok(None) => return,
-                            Ok(Some(value)) => {
-                                self.client_write(client_id, ok_response(id, value));
-                            }
-                            Err(error) => {
-                                self.client_write(client_id, error_response(id, &error));
-                            }
-                        }
-                        return;
-                    }
-                }
-                self.handle_request(client_id, &request_type, &payload)
-                    .await
-            }
-            Err(error) => Err(error),
-        };
-        match outcome {
-            Ok(payload) => {
-                if let Some(id) = request_id {
-                    self.client_write(client_id, ok_response(id, payload));
-                    if restart_after_response {
-                        self.restart_runtime_after_client_write(client_id);
-                    }
-                    if shutdown_after_response {
-                        self.shutdown_runtime_after_client_write(client_id);
-                    }
-                } else if shutdown_after_response {
-                    // There is no response to order against for a malformed
-                    // request without an id, so preserve the legacy shutdown
-                    // behavior for that case.
-                    let _ = self.inbox.send(ServerCommand::RequestedShutdown);
-                }
-            }
-            Err(error) => {
-                if let Some(id) = request_id {
-                    self.client_write(client_id, error_response(id, &error));
-                } else {
-                    self.dispose_client(client_id).await;
-                }
-            }
-        }
-    }
+#[path = "client_request_dispatch.rs"]
+mod client_request_dispatch;
 
+impl ServerActor {
     pub(super) async fn handle_request(
         &mut self,
         client_id: u64,
@@ -366,13 +261,13 @@ impl ServerActor {
                     .get("paused")
                     .and_then(Value::as_bool)
                     .unwrap_or(false);
-                self.flush_all_output(&session_id);
+                self.flush_all_output(&session_id).await;
                 Ok(self.set_output_paused_for_client(&session_id, client_id, paused))
             }
             "detach" => {
                 self.require_auth(client_id)?;
                 let session_id = self.require_session(payload)?;
-                self.flush_all_output(&session_id);
+                self.flush_all_output(&session_id).await;
                 if let Some(session) = self.sessions.get_mut(&session_id) {
                     session.detach(client_id);
                 }

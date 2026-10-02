@@ -19,7 +19,9 @@ impl ServerActor {
             .values()
             .any(|session| session.workspace_id == workspace_id && session.running())
         {
-            return Err(HostError::state("Workspace has a live terminal or process. Stop it explicitly before retrying cleanup."));
+            return Err(HostError::state(
+                "Workspace has a live terminal or process. Stop it explicitly before retrying cleanup.",
+            ));
         }
         if self.mutation_queue.has_runtime_mutations()
             || self.has_blocking_managed_workspace_jobs()

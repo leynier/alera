@@ -202,11 +202,17 @@ impl ServerActor {
             return Ok(true);
         }
 
-        self.flush_all_output(handle);
-        self.await_output_writes(handle).await;
+        self.hold_history_barrier(handle);
+        self.flush_all_output(handle).await;
+        if !self.await_output_writes(handle).await {
+            return Err(HostError::state(
+                "Terminal history could not be persisted; the session remains open for retry.",
+            ));
+        }
         let Some(mut session) = self.sessions.remove(handle) else {
             return Ok(false);
         };
+        self.inbox.resume_pty_session(handle);
         session.terminate(true, &self.store).await;
         Ok(true)
     }

@@ -57,7 +57,7 @@ fn request(fixture: &Harness, command: String) -> OwnerAutomationPrecheckRequest
 
 async fn drain(
     fixture: &mut Harness,
-    inbox: &mut tokio::sync::mpsc::UnboundedReceiver<ServerCommand>,
+    inbox: &mut crate::terminal_host::server::ServerInboxReceiver,
 ) {
     let completed = tokio::time::timeout(Duration::from_secs(15), inbox.recv())
         .await
@@ -82,7 +82,7 @@ async fn owner_precheck_rpc_requires_declaration_and_retries_without_duplicating
         ),
     );
     let payload = serde_json::to_value(&request).unwrap();
-    let (sender, mut inbox) = tokio::sync::mpsc::unbounded_channel();
+    let (sender, mut inbox) = crate::terminal_host::ServerInbox::channel();
     fixture.actor.inbox = sender;
     fixture
         .actor
@@ -147,7 +147,7 @@ async fn owner_precheck_rpc_keeps_running_after_disconnect_and_cancels_with_veri
         ),
     );
     let payload = serde_json::to_value(&request).unwrap();
-    let (sender, mut inbox) = tokio::sync::mpsc::unbounded_channel();
+    let (sender, mut inbox) = crate::terminal_host::ServerInbox::channel();
     fixture.actor.inbox = sender;
     fixture
         .actor
@@ -308,7 +308,7 @@ async fn linked_owner_rpc_retains_storage_until_verified_command_closure() {
         repository_path: Some(origin.to_str().unwrap().into()),
     });
     let payload = serde_json::to_value(&request).unwrap();
-    let (sender, mut inbox) = tokio::sync::mpsc::unbounded_channel();
+    let (sender, mut inbox) = crate::terminal_host::ServerInbox::channel();
     fixture.actor.inbox = sender;
     fixture
         .actor

@@ -21,7 +21,7 @@ struct Fixture {
     _root: tempfile::TempDir,
     actor: ServerActor,
     responses: UnboundedReceiver<ClientFrame>,
-    commands: UnboundedReceiver<ServerCommand>,
+    commands: crate::terminal_host::server::ServerInboxReceiver,
     workspace: Workspace,
     events: Vec<Value>,
     fail_shutdown_waits: usize,
@@ -52,7 +52,7 @@ impl Fixture {
             HashMap::new(),
         )
         .await;
-        let (inbox, commands) = tokio::sync::mpsc::unbounded_channel();
+        let (inbox, commands) = crate::terminal_host::ServerInbox::channel();
         actor.inbox = inbox;
         let workspace_root = root.path().join("workspaces");
         std::fs::create_dir(&workspace_root).unwrap();
@@ -402,7 +402,6 @@ async fn managed_workspace_cleanup_holds_barrier_until_terminal_shutdown_and_del
         ServerCommand::PrepareRuntimeMutation { .. }
     ));
     fixture.actor.handle(prepare).await;
-    assert!(!fixture.actor.sessions.contains_key("terminal"));
     assert!(fixture.actor.mutation_queue.has_runtime_mutations());
     let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
     loop {
@@ -419,5 +418,6 @@ async fn managed_workspace_cleanup_holds_barrier_until_terminal_shutdown_and_del
             break;
         }
     }
+    assert!(!fixture.actor.sessions.contains_key("terminal"));
     assert!(!fixture.actor.mutation_queue.has_runtime_mutations());
 }

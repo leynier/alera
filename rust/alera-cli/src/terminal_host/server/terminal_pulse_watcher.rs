@@ -62,7 +62,7 @@ struct WorkspacePulseWorker {
     pending_event_sequence: Arc<AtomicU64>,
     reconcile_requested: Arc<AtomicBool>,
     cancelled: Arc<AtomicBool>,
-    inbox: tokio::sync::mpsc::UnboundedSender<ServerCommand>,
+    inbox: crate::terminal_host::ServerInbox,
     watcher: SharedPulseWatcher,
     repository: Repository,
     root: PathBuf,
@@ -81,7 +81,7 @@ impl WorkspacePulseWatcher {
         workspace_id: String,
         root: PathBuf,
         generation: u64,
-        inbox: tokio::sync::mpsc::UnboundedSender<ServerCommand>,
+        inbox: crate::terminal_host::ServerInbox,
     ) -> HostResult<Self> {
         Self::start_blocking_with_environment(
             workspace_id,
@@ -97,7 +97,7 @@ impl WorkspacePulseWatcher {
         workspace_id: String,
         root: PathBuf,
         generation: u64,
-        inbox: tokio::sync::mpsc::UnboundedSender<ServerCommand>,
+        inbox: crate::terminal_host::ServerInbox,
         git_config_environment: GitConfigEnvironment,
         cancelled: Arc<AtomicBool>,
     ) -> HostResult<Self> {
@@ -458,7 +458,7 @@ pub(super) fn event_is_relevant_with_identities(
 fn report_watcher_failure(
     identity: &WorkspacePulseWatcherIdentity,
     failure_reported: &AtomicBool,
-    inbox: &tokio::sync::mpsc::UnboundedSender<ServerCommand>,
+    inbox: &crate::terminal_host::ServerInbox,
     error: impl Into<String>,
 ) {
     if !failure_reported.swap(true, Ordering::Relaxed) {

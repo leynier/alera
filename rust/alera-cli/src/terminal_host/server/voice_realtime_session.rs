@@ -39,7 +39,7 @@ impl VoiceRealtimeHandle {
 pub(super) fn spawn_voice_realtime(
     config: VoiceRealtimeConfig,
     generation: u64,
-    inbox: UnboundedSender<ServerCommand>,
+    inbox: crate::terminal_host::ServerInbox,
 ) -> VoiceRealtimeHandle {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     let task = tokio::spawn(async move {
@@ -62,7 +62,7 @@ async fn run_voice_realtime(
     config: VoiceRealtimeConfig,
     generation: u64,
     mut rx: UnboundedReceiver<RealtimeClientMessage>,
-    inbox: UnboundedSender<ServerCommand>,
+    inbox: crate::terminal_host::ServerInbox,
 ) -> HostResult<()> {
     let (mut write, mut read) = connect_provider(&config).await?.split();
     let setup = match config.kind {

@@ -209,7 +209,7 @@ mod actor_tests {
             .register_project_checkout("remote-only", "ssh", "/srv/remote/repo")
             .await
             .unwrap();
-        let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+        let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
         actor.inbox = inbox;
 
         // Nothing cached yet: defaults, and one read starts in the background.

@@ -7,8 +7,6 @@ use std::collections::{HashMap, HashSet};
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
-use tokio::sync::mpsc;
-
 use crate::terminal_host::client::ClientHandle;
 use crate::terminal_host::history_store::TerminalHostHistoryStore;
 use crate::terminal_host::orchestration::agent_presence::AgentPresenceRegistry;
@@ -87,7 +85,7 @@ pub(super) async fn test_actor(
     let account_push = AccountPushState::new(dir.path().to_path_buf(), runtime_store.clone())
         .await
         .unwrap();
-    let (inbox, _rx) = mpsc::unbounded_channel();
+    let (inbox, _rx) = crate::terminal_host::ServerInbox::channel();
     ServerActor {
         runtime_dir: dir.path().to_path_buf(),
         control_file_path: dir.path().join("runtime-host.json"),
@@ -120,7 +118,8 @@ pub(super) async fn test_actor(
         account_push,
         clients,
         mobile_prompt_file_uploads: HashMap::new(),
-        pending_output_writes: HashMap::new(),
+        pending_history_requests: HashMap::new(),
+        history_writers: HashMap::new(),
         agent_presence: AgentPresenceRegistry::default(),
         orchestration_waiters: MessageWaiterRegistry::default(),
         orchestration_delivery_in_flight: HashSet::new(),

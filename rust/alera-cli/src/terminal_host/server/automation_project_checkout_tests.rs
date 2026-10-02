@@ -10,6 +10,9 @@ mod precheck_execution;
 #[path = "automation_checkout_stalled_ssh_tests.rs"]
 mod stalled_ssh;
 
+#[path = "automation_project_checkout_tests/removal.rs"]
+mod removal;
+
 async fn empty_project() -> (Harness, AutomationDefinition) {
     let fixture = harness().await;
     fixture
@@ -264,62 +267,6 @@ async fn runtime_reports_project_dependencies_and_rejects_removal_without_tasks(
 }
 
 #[tokio::test]
-async fn offline_cli_project_removal_refuses_dependencies_without_implicit_cancellation() {
-    use clap::Parser;
-    let (fixture, definition) = empty_project().await;
-    fixture
-        .actor
-        .runtime_store
-        .approve_automation(
-            &definition.id,
-            definition.revision,
-            definition.created_by.clone(),
-        )
-        .await
-        .unwrap();
-    let cli = crate::cli::Cli::try_parse_from([
-        "alera",
-        "project",
-        "--runtime-dir",
-        fixture._runtime_dir.path().to_str().unwrap(),
-        "remove",
-        "--id",
-        "project-1",
-    ])
-    .unwrap();
-    let crate::cli::Command::Project(command) = cli.command else {
-        panic!("project command expected");
-    };
-    assert_eq!(
-        tokio::time::timeout(
-            std::time::Duration::from_secs(10),
-            crate::run_project_command(command)
-        )
-        .await
-        .unwrap(),
-        1
-    );
-    assert!(fixture
-        .actor
-        .runtime_store
-        .find_project("project-1")
-        .await
-        .unwrap()
-        .is_some());
-    assert_eq!(
-        fixture
-            .actor
-            .runtime_store
-            .find_automation(&definition.id)
-            .await
-            .unwrap()
-            .unwrap()
-            .state,
-        AutomationState::Active
-    );
-}
-
-#[tokio::test]
 async fn deferred_checkout_preparation_keeps_actor_responsive_and_honors_cancellation() {
     deferred_preparation_rejection("cancel").await;
 }
@@ -382,7 +329,7 @@ async fn deferred_preparation_rejection(scenario: &'static str) {
     .await
     .unwrap();
     let (release, wait) = tokio::sync::oneshot::channel();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     fixture.actor.inbox = inbox;
     fixture.actor.defer_automation_checkout_preparation(
         definition.clone(),

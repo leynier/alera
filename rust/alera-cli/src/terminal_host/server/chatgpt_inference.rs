@@ -192,7 +192,7 @@ pub(super) fn parse_stream(bytes: &[u8]) -> HostResult<String> {
             Some("response.incomplete") => {
                 return Err(HostError::state(
                     "ChatGPT response was incomplete. Try again.",
-                ))
+                ));
             }
             _ => {}
         }

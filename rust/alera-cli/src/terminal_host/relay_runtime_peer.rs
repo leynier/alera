@@ -32,13 +32,13 @@ pub(super) struct PeerContext {
     pub account_id: String,
     pub verifier: GrantVerifier,
     pub output: Sender<socket_writer::Envelope>,
-    pub inbox: UnboundedSender<ServerCommand>,
+    pub inbox: crate::terminal_host::ServerInbox,
     pub budget: ClientBudget,
 }
 
 struct ConnectedGuard {
     id: u64,
-    inbox: UnboundedSender<ServerCommand>,
+    inbox: crate::terminal_host::ServerInbox,
     writer: JoinHandle<()>,
 }
 
@@ -271,7 +271,7 @@ mod tests {
     use super::*;
     #[tokio::test]
     async fn cancellation_releases_the_actor_client_and_aborts_its_writer() {
-        let (inbox, mut receiver) = mpsc::unbounded_channel();
+        let (inbox, mut receiver) = crate::terminal_host::ServerInbox::channel();
         let writer = tokio::spawn(std::future::pending::<()>());
         let abort = writer.abort_handle();
         let guard = ConnectedGuard {

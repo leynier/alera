@@ -129,7 +129,7 @@ impl ServerActor {
         if self.sessions.contains_key(&session_id) {
             let running = self.sessions.get(&session_id).is_some_and(Session::running);
             if running {
-                self.flush_all_output(&session_id);
+                self.flush_all_output(&session_id).await;
                 let session = self.sessions.get_mut(&session_id).expect("just checked");
                 session.attach(client_id);
                 return Ok(session.attachment_payload(false, restore_bytes));
@@ -137,7 +137,7 @@ impl ServerActor {
         }
         let (initial_scrollback, initial_output_stream_bytes) = self
             .take_terminal_restart_state(&session_id, &workspace_id, &tab_id, max_bytes)
-            .await;
+            .await?;
 
         let launch = TerminalHostLaunch::from_json(&Value::Object(
             require_object(payload.get("launch"), "launch")?.clone(),
@@ -209,13 +209,18 @@ impl ServerActor {
             "terminal was explicitly restarted",
         )
         .await;
-        self.flush_all_output(&session_id);
-        self.await_output_writes(&session_id).await;
+        self.hold_history_barrier(&session_id);
+        self.flush_all_output(&session_id).await;
+        if !self.await_output_writes(&session_id).await {
+            return Err(HostError::state(
+                "Terminal history could not be persisted; the session remains open for retry.",
+            ));
+        }
         let max_bytes = self.config.scrollback_bytes as usize;
         let restore_bytes = self.config.restore_snapshot_bytes as usize;
         let (initial_scrollback, initial_output_stream_bytes) = self
             .take_terminal_restart_state(&session_id, &workspace_id, &tab_id, max_bytes)
-            .await;
+            .await?;
         self.start_new_terminal_session(
             session_id.clone(),
             workspace_id,

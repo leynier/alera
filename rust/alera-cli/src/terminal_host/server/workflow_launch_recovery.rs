@@ -104,7 +104,7 @@ impl ServerActor {
                 .ok_or_else(|| HostError::state("The workflow agent did not produce a terminal checkpoint. Inspect its launch in the Run Board."))?;
             self.sessions.insert(terminal.into(), session);
         }
-        self.flush_all_output(terminal);
+        self.flush_all_output(terminal).await;
         let session = self
             .sessions
             .get_mut(terminal)

@@ -45,7 +45,7 @@ async fn relay_cross_language_fixture() {
         format!("{origin}/.well-known/jwks.json"),
     )
     .unwrap();
-    let (inbox, mut commands) = mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     let ids = Arc::new(AtomicU64::new(1));
     let mut backoff = RelayRetryBackoff::default();
     let transport = connect_and_serve(

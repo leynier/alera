@@ -14,6 +14,7 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 
 pub(super) struct WatchRuntime {
     pub active: bool,
+    tick_pending: bool,
     jobs: HashMap<String, (Uuid, JoinHandle<()>)>,
     polls: Arc<tokio::sync::Semaphore>,
 }
@@ -22,6 +23,7 @@ impl Default for WatchRuntime {
     fn default() -> Self {
         Self {
             active: false,
+            tick_pending: false,
             jobs: HashMap::new(),
             polls: Arc::new(tokio::sync::Semaphore::new(4)),
         }
@@ -44,10 +46,14 @@ impl Drop for WatchRuntime {
     }
 }
 
-pub(super) fn spawn(inbox: tokio::sync::mpsc::UnboundedSender<ServerCommand>) -> JoinHandle<()> {
+pub(super) fn spawn(inbox: crate::terminal_host::ServerInbox) -> JoinHandle<()> {
     tokio::spawn(async move {
         loop {
-            if inbox.send(ServerCommand::PullRequestWatchTick).is_err() {
+            if inbox
+                .send_wait(ServerCommand::PullRequestWatchTick)
+                .await
+                .is_err()
+            {
                 break;
             }
             tokio::time::sleep(Duration::from_secs(30)).await;
@@ -57,6 +63,7 @@ pub(super) fn spawn(inbox: tokio::sync::mpsc::UnboundedSender<ServerCommand>) ->
 
 impl ServerActor {
     pub(super) async fn poll_pull_request_watches(&mut self) {
+        self.pull_request_watches.tick_pending = false;
         let watches = match self.runtime_store.list_pull_request_watches().await {
             Ok(watches) => watches,
             Err(error) => {
@@ -103,11 +110,13 @@ impl ServerActor {
                     &watch.workspace_id,
                 )
                 .await;
-                let _ = inbox.send(ServerCommand::PullRequestWatchSnapshot {
-                    watch: Box::new(watch),
-                    generation,
-                    result,
-                });
+                let _ = inbox
+                    .send_wait(ServerCommand::PullRequestWatchSnapshot {
+                        watch: Box::new(watch),
+                        generation,
+                        result,
+                    })
+                    .await;
             });
             self.pull_request_watches.jobs.insert(id, (generation, job));
         }
@@ -170,11 +179,13 @@ impl ServerActor {
                 let id = watch.workspace_id.clone();
                 let job = tokio::spawn(async move {
                     let result = merge(&store, &links, &watch, &snapshot, &head, &method).await;
-                    let _ = inbox.send(ServerCommand::PullRequestWatchMerged {
-                        watch: Box::new(watch),
-                        generation,
-                        result,
-                    });
+                    let _ = inbox
+                        .send_wait(ServerCommand::PullRequestWatchMerged {
+                            watch: Box::new(watch),
+                            generation,
+                            result,
+                        })
+                        .await;
                 });
                 self.pull_request_watches.jobs.insert(id, (generation, job));
             }
@@ -206,13 +217,24 @@ impl ServerActor {
                         json!({"workspaceId": watch.workspace_id}),
                     ));
                     self.save_runtime_watch(watch).await;
-                    let _ = self.inbox.send(ServerCommand::PullRequestWatchTick);
+                    self.schedule_pull_request_watch_tick();
                 }
             }
             Err(error) => {
                 tracing::warn!(workspace_id = %watch.workspace_id, "pull request watch merge failed: {}", error.wire_message())
             }
         }
+    }
+
+    fn schedule_pull_request_watch_tick(&mut self) {
+        if self.pull_request_watches.tick_pending {
+            return;
+        }
+        self.pull_request_watches.tick_pending = true;
+        let inbox = self.inbox.clone();
+        tokio::spawn(async move {
+            let _ = inbox.send_wait(ServerCommand::PullRequestWatchTick).await;
+        });
     }
 
     fn watch_job_current(&self, workspace_id: &str, generation: Uuid) -> bool {

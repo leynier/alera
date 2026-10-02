@@ -3,7 +3,7 @@ use std::sync::Arc;
 use serde_json::Value;
 use tokio::io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
 use tokio::net::TcpStream;
-use tokio::sync::mpsc::{error::TryRecvError, Receiver, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{error::TryRecvError, Receiver, UnboundedReceiver};
 
 use crate::terminal_host::frame_codec::{encode_json_frame, encode_output_frame};
 use crate::terminal_host::protocol::BINARY_FRAMES_ENABLED_EVENT;
@@ -32,13 +32,13 @@ pub enum ClientFrame {
     /// queued before the marker. Restart uses it so disposing the actor cannot
     /// drop the successful response the caller needs before reconnecting.
     RestartRuntimeAfterWrite {
-        inbox: UnboundedSender<ServerCommand>,
+        inbox: crate::terminal_host::ServerInbox,
     },
     /// Re-enters the actor only after this connection has written every frame
     /// queued before the marker. Shutdown uses it so the caller receives the
     /// successful response before disposal drops the connection.
     ShutdownRuntimeAfterWrite {
-        inbox: UnboundedSender<ServerCommand>,
+        inbox: crate::terminal_host::ServerInbox,
     },
     /// Control frames carry the last terminal sequence accepted before them.
     /// The writer uses it as a causal barrier between snapshot replies and
@@ -176,7 +176,7 @@ impl ClientFrameOrdering {
 pub async fn connection_loop(
     stream: TcpStream,
     id: u64,
-    inbox: UnboundedSender<ServerCommand>,
+    inbox: crate::terminal_host::ServerInbox,
     mut control_out_rx: UnboundedReceiver<ClientFrame>,
     mut terminal_out_rx: Receiver<ClientFrame>,
 ) {
@@ -198,7 +198,9 @@ pub async fn connection_loop(
                     .await
                     .is_err()
                     {
-                        let _ = inbox.send(ServerCommand::ClientDisconnected { id });
+                        let _ = inbox
+                            .send_wait(ServerCommand::ClientDisconnected { id })
+                            .await;
                         break;
                     }
                     continue;
@@ -211,7 +213,9 @@ pub async fn connection_loop(
                         .await
                         .is_err()
                     {
-                        let _ = inbox.send(ServerCommand::ClientDisconnected { id });
+                        let _ = inbox
+                            .send_wait(ServerCommand::ClientDisconnected { id })
+                            .await;
                         break;
                     }
                     continue;
@@ -229,7 +233,9 @@ pub async fn connection_loop(
                     }
                     // EOF or read error: the client is gone.
                     _ => {
-                        let _ = inbox.send(ServerCommand::ClientDisconnected { id });
+                        let _ = inbox
+                            .send_wait(ServerCommand::ClientDisconnected { id })
+                            .await;
                         break;
                     }
                 }
@@ -247,7 +253,9 @@ pub async fn connection_loop(
                         .await
                         .is_err()
                         {
-                            let _ = inbox.send(ServerCommand::ClientDisconnected { id });
+                            let _ = inbox
+                                .send_wait(ServerCommand::ClientDisconnected { id })
+                                .await;
                             break;
                         }
                     }
@@ -279,7 +287,9 @@ pub async fn connection_loop(
                             Err(TryRecvError::Disconnected) => break,
                         };
                         if result.is_err() {
-                            let _ = inbox.send(ServerCommand::ClientDisconnected { id });
+                            let _ = inbox
+                                .send_wait(ServerCommand::ClientDisconnected { id })
+                                .await;
                             break;
                         }
                     }
@@ -337,11 +347,11 @@ async fn write_frame(
             Ok(())
         }
         ClientFrame::RestartRuntimeAfterWrite { inbox } => {
-            let _ = inbox.send(ServerCommand::RequestedRestart);
+            let _ = inbox.send_wait(ServerCommand::RequestedRestart).await;
             Ok(())
         }
         ClientFrame::ShutdownRuntimeAfterWrite { inbox } => {
-            let _ = inbox.send(ServerCommand::RequestedShutdown);
+            let _ = inbox.send_wait(ServerCommand::RequestedShutdown).await;
             Ok(())
         }
         ClientFrame::Json(value) if *binary => {
@@ -401,7 +411,7 @@ mod tests {
         let address = listener.local_addr().unwrap();
         let client = TcpStream::connect(address).await.unwrap();
         let (server, _) = listener.accept().await.unwrap();
-        let (inbox, _inbox_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (inbox, _inbox_rx) = crate::terminal_host::ServerInbox::channel();
         let (control_tx, control_rx) = tokio::sync::mpsc::unbounded_channel();
         let (terminal_tx, terminal_rx) =
             tokio::sync::mpsc::channel(CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);

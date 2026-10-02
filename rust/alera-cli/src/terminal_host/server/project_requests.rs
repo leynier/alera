@@ -275,7 +275,7 @@ impl ServerActor {
 
 async fn run_clone_job(
     store: alera_core::runtime::RuntimeStore,
-    inbox: tokio::sync::mpsc::UnboundedSender<ServerCommand>,
+    inbox: crate::terminal_host::ServerInbox,
     job: ProjectCloneJob,
     raw_url: String,
     mut cancel: oneshot::Receiver<()>,

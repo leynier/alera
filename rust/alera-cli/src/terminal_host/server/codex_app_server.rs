@@ -16,7 +16,7 @@ use alera_core::child_process::windowless_async_command;
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin};
-use tokio::sync::{mpsc::UnboundedSender, oneshot, Mutex};
+use tokio::sync::{oneshot, Mutex};
 
 use crate::login_shell_environment::apply_login_shell_path;
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -64,7 +64,7 @@ impl CodexAppServer {
     }
 
     pub(super) async fn start(
-        inbox: UnboundedSender<ServerCommand>,
+        inbox: crate::terminal_host::ServerInbox,
         cwd: Option<&str>,
     ) -> HostResult<Self> {
         let mut command = windowless_async_command("codex");
@@ -236,7 +236,7 @@ async fn read_codex_messages<R>(
     reader: R,
     pending: PendingRequests,
     session_state: Arc<CodexAppServerSessionState>,
-    inbox: UnboundedSender<ServerCommand>,
+    inbox: crate::terminal_host::ServerInbox,
 ) where
     R: AsyncBufRead + Unpin,
 {
@@ -332,7 +332,7 @@ mod tests {
     use crate::terminal_host::host_error::HostError;
     use serde_json::json;
     use tokio::io::{duplex, AsyncWriteExt, BufReader};
-    use tokio::sync::{mpsc, oneshot, Mutex};
+    use tokio::sync::{oneshot, Mutex};
 
     use crate::terminal_host::server::ServerCommand;
 
@@ -395,7 +395,7 @@ mod tests {
         let pending: PendingRequests = Arc::new(Mutex::new(std::collections::HashMap::new()));
         let (response_tx, response_rx) = oneshot::channel();
         pending.lock().await.insert(7, response_tx);
-        let (inbox, mut messages) = mpsc::unbounded_channel();
+        let (inbox, mut messages) = crate::terminal_host::ServerInbox::channel();
         let read_task = tokio::spawn(read_codex_messages(
             BufReader::new(reader),
             pending.clone(),
@@ -440,7 +440,7 @@ mod tests {
         let pending: PendingRequests = Arc::new(Mutex::new(std::collections::HashMap::new()));
         let (response_tx, _response_rx) = oneshot::channel();
         pending.lock().await.insert(7, response_tx);
-        let (inbox, mut messages) = mpsc::unbounded_channel();
+        let (inbox, mut messages) = crate::terminal_host::ServerInbox::channel();
         let read_task = tokio::spawn(read_codex_messages(
             BufReader::new(reader),
             pending.clone(),

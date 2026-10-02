@@ -1,7 +1,7 @@
 use std::sync::{Arc, OnceLock};
 
 use alera_core::runtime::RuntimeStore;
-use tokio::sync::{mpsc::UnboundedSender, Semaphore};
+use tokio::sync::Semaphore;
 
 use super::workflow_launch_requests::WorkflowLaunchCommand;
 use super::ServerCommand;
@@ -23,7 +23,7 @@ pub(super) fn cleanup_queue() -> Arc<Semaphore> {
 pub(super) async fn execute(
     store: &RuntimeStore,
     directory: &std::path::Path,
-    events: &UnboundedSender<ServerCommand>,
+    events: &crate::terminal_host::ServerInbox,
     id: &str,
     digest: &str,
     retry: bool,
@@ -75,7 +75,7 @@ pub(super) async fn execute(
 pub(super) async fn reconcile(
     store: &RuntimeStore,
     directory: &std::path::Path,
-    events: &UnboundedSender<ServerCommand>,
+    events: &crate::terminal_host::ServerInbox,
 ) -> anyhow::Result<()> {
     // An already-running explicit cleanup owns its recovery; never duplicate it.
     let Ok(_permit) = cleanup_queue().try_acquire_owned() else {
@@ -103,7 +103,7 @@ pub(super) async fn reconcile(
 pub(super) async fn abandon(
     store: &RuntimeStore,
     directory: &std::path::Path,
-    events: &UnboundedSender<ServerCommand>,
+    events: &crate::terminal_host::ServerInbox,
     id: &str,
     digest: &str,
 ) -> anyhow::Result<serde_json::Value> {

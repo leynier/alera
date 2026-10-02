@@ -4,7 +4,7 @@ use tokio::sync::mpsc::{Receiver, UnboundedReceiver};
 pub(super) struct PeerWriter {
     pub client_id: String,
     pub session: super::relay_crypto::RelaySession,
-    pub inbox: UnboundedSender<ServerCommand>,
+    pub inbox: crate::terminal_host::ServerInbox,
     pub output: Sender<socket_writer::Envelope>,
     pub lifetime: Arc<socket_writer::PeerLifetime>,
 }
@@ -96,7 +96,7 @@ mod tests {
     #[tokio::test]
     async fn restart_waits_for_the_response_write_receipt_and_cancellation_never_restarts() {
         for complete in [true, false] {
-            let (inbox, mut commands) = mpsc::unbounded_channel();
+            let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
             let (output, mut envelopes) = mpsc::channel(2);
             let local = IdentityKeyPair::generate();
             let ephemeral = IdentityKeyPair::generate();

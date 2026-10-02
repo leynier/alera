@@ -64,7 +64,7 @@ async fn stalled_ssh_dispatch(precheck: bool) {
         .unwrap();
     run.target_identity = Some(serde_json::from_value(json!({"profileId":"profile-1"})).unwrap());
     let run = store.save_automation_run(&run).await.unwrap();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     fixture.actor.inbox = inbox;
     tokio::time::timeout(
         Duration::from_secs(1),

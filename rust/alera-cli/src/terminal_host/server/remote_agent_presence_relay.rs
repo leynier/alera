@@ -307,7 +307,7 @@ mod tests {
         use super::super::checkout_buffer_guards_tests::fixture;
 
         let (_root, mut actor) = fixture().await;
-        let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+        let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
         actor.inbox = inbox;
         let published = json!({
             "terminalSessionId": "proxied", "workspaceId": "task", "tabId": "tab",

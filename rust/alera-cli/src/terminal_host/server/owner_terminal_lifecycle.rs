@@ -143,6 +143,17 @@ impl ServerActor {
                 "The owner terminal belongs to another task or tab",
             ));
         }
+        self.hold_history_barrier(&request.session_id);
+        self.flush_all_output(&request.session_id).await;
+        if !self.await_output_writes(&request.session_id).await {
+            return Err(HostError::state(
+                "Terminal history could not be persisted; the session remains open for retry.",
+            ));
+        }
+        let session = self
+            .sessions
+            .get(&request.session_id)
+            .expect("validated session");
         let natural = self
             .runtime_store
             .terminal_lifecycle_for_generation(
@@ -184,9 +195,8 @@ impl ServerActor {
             "terminal owner received an explicit lifecycle action",
         )
         .await;
-        self.flush_all_output(&request.session_id);
-        self.await_output_writes(&request.session_id).await;
         if let Some(mut session) = self.sessions.remove(&request.session_id) {
+            self.inbox.resume_pty_session(&request.session_id);
             let clients = session.clients.iter().copied().collect::<Vec<_>>();
             session.terminate(true, &self.store).await;
             for client in clients {

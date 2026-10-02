@@ -26,10 +26,16 @@ impl ServerActor {
         )
         .await;
         if !self.remove_terminal_session_tab(&session_id).await? {
-            self.flush_all_output(&session_id);
-            self.await_output_writes(&session_id).await;
+            self.hold_history_barrier(&session_id);
+            self.flush_all_output(&session_id).await;
+            if !self.await_output_writes(&session_id).await {
+                return Err(crate::terminal_host::host_error::HostError::state(
+                    "Terminal history could not be persisted; the session remains open for retry.",
+                ));
+            }
             let store = self.store.clone();
             if let Some(mut session) = self.sessions.remove(&session_id) {
+                self.inbox.resume_pty_session(&session_id);
                 session.terminate(true, &store).await;
             }
         }
@@ -65,6 +71,30 @@ impl ServerActor {
     ) -> crate::terminal_host::host_error::HostResult<WorkspaceShutdown> {
         use crate::terminal_host::host_error::HostError;
         let mut completions = Vec::new();
+        if request.close_sessions
+            && self
+                .mutation_queue
+                .pending_workspace_shutdowns
+                .contains_key(&request.id)
+            && self.sessions.values().any(|session| {
+                session.workspace_id == request.id && session.termination_requested()
+            })
+        {
+            self.terminate_terminal_sessions_for_workspace(&request.id)
+                .await;
+            if self
+                .sessions
+                .values()
+                .any(|session| session.workspace_id == request.id)
+            {
+                return Err(history_pending_error(&request.id));
+            }
+            return Ok(self
+                .mutation_queue
+                .pending_workspace_shutdowns
+                .remove(&request.id)
+                .expect("pending shutdown remains owned"));
+        }
         if let Some(workspace) = self
             .runtime_store
             .find_workspace(&request.id)
@@ -95,6 +125,16 @@ impl ServerActor {
             }
             self.terminate_terminal_sessions_for_workspace(&request.id)
                 .await;
+            if self
+                .sessions
+                .values()
+                .any(|session| session.workspace_id == request.id)
+            {
+                self.mutation_queue
+                    .pending_workspace_shutdowns
+                    .insert(request.id.clone(), shutdown);
+                return Err(history_pending_error(&request.id));
+            }
             return Ok(shutdown);
         } else if self
             .mutation_queue
@@ -352,25 +392,46 @@ impl ServerActor {
         self.terminate_sessions(session_ids).await;
     }
 
-    async fn terminate_sessions(&mut self, session_ids: Vec<String>) {
+    pub(super) async fn terminate_sessions(&mut self, session_ids: Vec<String>) {
         if session_ids.is_empty() {
             return;
         }
         let store = self.store.clone();
         for session_id in session_ids {
-            self.disarm_terminal_pulse(&session_id);
-            self.queue_terminal_exit_push(&session_id, None).await;
-            self.abandon_home_inject(&session_id);
-            self.cleanup_orchestration_for_closed_session(
-                &session_id,
-                "terminal was explicitly terminated",
-            )
-            .await;
-            self.flush_all_output(&session_id);
-            self.await_output_writes(&session_id).await;
+            let already_requested = self
+                .sessions
+                .get(&session_id)
+                .is_some_and(crate::terminal_host::session::Session::termination_requested);
+            if !already_requested {
+                self.disarm_terminal_pulse(&session_id);
+                self.queue_terminal_exit_push(&session_id, None).await;
+                self.abandon_home_inject(&session_id);
+                self.cleanup_orchestration_for_closed_session(
+                    &session_id,
+                    "terminal was explicitly terminated",
+                )
+                .await;
+            }
+            self.hold_history_barrier(&session_id);
+            self.flush_all_output(&session_id).await;
+            if !self.await_output_writes(&session_id).await {
+                if let Some(session) = self.sessions.get_mut(&session_id) {
+                    session.request_termination();
+                }
+                self.spawn_durable_output_batch_timer(
+                    session_id.clone(),
+                    self.sessions[&session_id].durable_output_batch_generation(),
+                );
+                tracing::error!(
+                    session_id,
+                    "skipping terminal removal because history persistence failed"
+                );
+                continue;
+            }
             let retained_workflow_history =
                 self.retains_workflow_terminal_history(&session_id).await;
             if let Some(mut session) = self.sessions.remove(&session_id) {
+                self.inbox.resume_pty_session(&session_id);
                 let clients: Vec<_> = session.clients.iter().copied().collect();
                 session.terminate(!retained_workflow_history, &store).await;
                 for client in clients {
@@ -388,4 +449,12 @@ impl ServerActor {
         }
         self.schedule_shutdown_if_idle();
     }
+}
+
+fn history_pending_error(workspace_id: &str) -> crate::terminal_host::host_error::HostError {
+    crate::terminal_host::host_error::HostError::conflict(
+        "terminalHistoryPending",
+        "Terminal history is still being persisted before workspace cleanup.",
+        json!({"workspaceId": workspace_id}),
+    )
 }

@@ -64,7 +64,7 @@ async fn workflow_launch_claim_restore_and_restart_never_duplicate_a_worker() {
     .await;
     actor.runtime_store = fixture.store.clone();
     actor.runtime_dir = fixture.runtime.clone();
-    let (inbox, mut events) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut events) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
     let frozen = launch::claim_and_validate(&fixture.store, &record)
         .await

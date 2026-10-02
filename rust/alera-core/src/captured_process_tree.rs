@@ -29,17 +29,17 @@ impl ProcessTreeGuard {
     pub fn attach(child: &Child) -> Result<Self, String> {
         #[cfg(unix)]
         {
-            return Ok(Self {
+            Ok(Self {
                 process_group_id: AtomicI32::new(
                     child.id().map(|pid| pid as i32).unwrap_or_default(),
                 ),
-            });
+            })
         }
         #[cfg(windows)]
         {
-            return Ok(Self {
+            Ok(Self {
                 job: WindowsProcessJob::attach(child)?,
-            });
+            })
         }
         #[cfg(not(any(unix, windows)))]
         {

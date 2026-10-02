@@ -485,7 +485,9 @@ impl ServerActor {
             if record.terminal_handle != session
                 || !permit.is_some_and(|permit| permit.allows(record, workspace, tab))
             {
-                return Err(HostError::state("workflow workers require a fresh approved attempt; automatic restart is disabled"));
+                return Err(HostError::state(
+                    "workflow workers require a fresh approved attempt; automatic restart is disabled",
+                ));
             }
             self.runtime_store
                 .require_workflow_launch_spawnable(&record.id)

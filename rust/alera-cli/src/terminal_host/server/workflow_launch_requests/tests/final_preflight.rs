@@ -2,9 +2,7 @@ use super::*;
 
 pub(super) async fn finish_spawn_validation(
     actor: &mut ServerActor,
-    commands: &mut tokio::sync::mpsc::UnboundedReceiver<
-        crate::terminal_host::server::ServerCommand,
-    >,
+    commands: &mut crate::terminal_host::server::ServerInboxReceiver,
 ) {
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
@@ -41,7 +39,7 @@ async fn reject_after_prepare(
     let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
     actor.runtime_store = fixture.store.clone();
     actor.runtime_dir = fixture.runtime.clone();
-    let (inbox, mut events) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut events) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
 
     actor
@@ -213,7 +211,7 @@ async fn workflow_launch_does_not_spawn_after_claim_is_cancelled() {
     let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
     actor.runtime_store = fixture.store.clone();
     actor.runtime_dir = fixture.runtime.clone();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
 
     actor
@@ -280,7 +278,7 @@ async fn workflow_launch_rechecks_attempt_commit_at_spawn_boundary() {
     let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
     actor.runtime_store = fixture.store.clone();
     actor.runtime_dir = fixture.runtime.clone();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
 
     actor
@@ -340,7 +338,7 @@ async fn workflow_launch_rechecks_dirty_attempt_at_spawn_boundary() {
     let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
     actor.runtime_store = fixture.store.clone();
     actor.runtime_dir = fixture.runtime.clone();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
 
     actor
