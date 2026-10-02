@@ -334,3 +334,6 @@ mod managed_completion_tests;
 #[cfg(test)]
 #[path = "server_command_inbox_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "server_command_inbox_wake_tests.rs"]
+mod wake_tests;

@@ -203,8 +203,9 @@ impl Admission {
             }
         }
         drop(state);
-        self.changed.notify_one();
-        self.async_changed.notify_one();
+        // Shared waiters have different capacity and PTY pause predicates.
+        // Waking only an ineligible sender can strand an available slot.
+        self.notify_waiters();
     }
 
     fn notify_waiters(&self) {

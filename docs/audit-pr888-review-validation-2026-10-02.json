@@ -113,5 +113,33 @@
     "manualMerge": false,
     "manualDeployment": false,
     "publication": false
+  },
+  "followUpAdmissionWake": {
+    "selectedThread": "PRRT_kwDORUczx86obHKC",
+    "reviewBaseline": "f87fb05346737257e5d2a97ff74169e51758490a",
+    "fix": "Notify all blocking and async capacity waiters after release; retain existing per-class predicates, budgets and accepted queue order",
+    "toolchain": "1.98.0",
+    "isolatedEnvironment": "All inherited ALERA_* variables excluded",
+    "focusedCommand": "cargo test --workspace --locked --lib --bins server_command_inbox -- --nocapture",
+    "focusedTestsPassed": 37,
+    "focusedTestsFailed": 0,
+    "newRegressions": 2,
+    "originalReleaseRegressionsFailed": 2,
+    "originalReleaseCommand": "cargo test --workspace --locked --lib --bins completion_release_wakes_ -- --nocapture",
+    "asyncRegistrationOrderDeterministic": true,
+    "originalBlockingWakeSelectionPlatformDependent": true,
+    "clippyCommand": "cargo clippy --workspace --all-targets --locked -- -D warnings",
+    "clippyPassed": true,
+    "formatPassed": true,
+    "maxLinesRatchetPassed": true,
+    "whitespacePassed": true,
+    "independentReviewClosed": true,
+    "fullWorkspaceSuiteRerun": false,
+    "generationRequired": false,
+    "resolveOnlyAfterPush": true,
+    "manualMerge": false,
+    "deployment": false,
+    "publication": false,
+    "capturedBeforePush": true
   }
 }
