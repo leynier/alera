@@ -12,12 +12,14 @@ use super::{ServerActor, ServerCommand, ServerInbox};
 async fn prepare_with_history_retry(
     inbox: &ServerInbox,
     request: &RuntimeMutationRequest,
+    mut captured_shutdown: Option<Box<WorkspaceShutdown>>,
 ) -> crate::terminal_host::host_error::HostResult<WorkspaceShutdown> {
     loop {
         let (completion, receiver) = tokio::sync::oneshot::channel();
         inbox
             .send_wait(ServerCommand::PrepareRuntimeMutation {
                 request: request.clone(),
+                captured_shutdown: captured_shutdown.take(),
                 completion,
             })
             .await
@@ -164,7 +166,7 @@ impl ServerActor {
                 | RuntimeMutationRequest::RemoveWorkspace { .. }
                 | RuntimeMutationRequest::RemoveProject { .. }
                 | RuntimeMutationRequest::RemoveProjectWorkspaces { .. } => {
-                    prepare_with_history_retry(&inbox, &request.mutation).await
+                    prepare_with_history_retry(&inbox, &request.mutation, None).await
                 }
                 _ => Ok(WorkspaceShutdown::default()),
             };
@@ -215,7 +217,14 @@ impl ServerActor {
                 .await;
                 match remote {
                     Ok(true) => {
-                        prepared = prepare_with_history_retry(&inbox, &request.mutation).await;
+                        let captured =
+                            prepared.expect("remote retirement has prepared local ownership");
+                        prepared = prepare_with_history_retry(
+                            &inbox,
+                            &request.mutation,
+                            Some(Box::new(captured)),
+                        )
+                        .await;
                     }
                     Ok(false) => {}
                     Err(error) => prepared = Err(error),

@@ -273,6 +273,8 @@ pub enum ServerCommand {
     },
     PrepareRuntimeMutation {
         request: runtime_mutations::RuntimeMutationRequest,
+        captured_shutdown:
+            Option<Box<crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown>>,
         completion: tokio::sync::oneshot::Sender<
             HostResult<crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown>,
         >,

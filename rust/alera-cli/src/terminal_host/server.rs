@@ -884,9 +884,15 @@ impl ServerActor {
             }
             ServerCommand::PrepareRuntimeMutation {
                 request,
+                captured_shutdown,
                 completion,
             } => {
-                let result = self.prepare_runtime_mutation(&request).await;
+                let result = self
+                    .prepare_runtime_mutation_with_shutdown(
+                        &request,
+                        captured_shutdown.map(|shutdown| *shutdown),
+                    )
+                    .await;
                 let _ = completion.send(result);
             }
             ServerCommand::OrchestrationWaitTimeout {

@@ -69,6 +69,16 @@ impl ServerActor {
         request: &crate::managed_workspace::ManagedWorkspaceRemoveRequest,
         cancel_owned_operations: bool,
     ) -> crate::terminal_host::host_error::HostResult<WorkspaceShutdown> {
+        self.prepare_workspace_session_shutdown_with_capture(request, cancel_owned_operations, None)
+            .await
+    }
+
+    pub(super) async fn prepare_workspace_session_shutdown_with_capture(
+        &mut self,
+        request: &crate::managed_workspace::ManagedWorkspaceRemoveRequest,
+        cancel_owned_operations: bool,
+        captured_shutdown: Option<WorkspaceShutdown>,
+    ) -> crate::terminal_host::host_error::HostResult<WorkspaceShutdown> {
         use crate::terminal_host::host_error::HostError;
         let mut completions = Vec::new();
         if request.close_sessions
@@ -109,12 +119,17 @@ impl ServerActor {
             }
         }
         if request.close_sessions {
-            let mut shutdown = WorkspaceShutdown::capture(
-                self.sessions
-                    .values()
-                    .filter(|session| session.workspace_id == request.id),
-            )
-            .await?;
+            let mut shutdown = match captured_shutdown {
+                Some(shutdown) => shutdown,
+                None => {
+                    WorkspaceShutdown::capture(
+                        self.sessions
+                            .values()
+                            .filter(|session| session.workspace_id == request.id),
+                    )
+                    .await?
+                }
+            };
             shutdown.wait_for_operations(completions);
             if let Some(pending) = self
                 .mutation_queue
