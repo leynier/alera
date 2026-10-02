@@ -307,9 +307,9 @@ mod workspace_sidebar_requests_tests;
 mod workspace_sleep_requests;
 
 pub use server_command::ServerCommand;
-pub(crate) use server_command_inbox::ServerInbox;
 #[cfg(test)]
 pub(crate) use server_command_inbox::ServerInboxReceiver;
+pub(crate) use server_command_inbox::{ServerClientDisconnect, ServerInbox};
 
 /// Delay before a debounced checkpoint write fires.
 const CHECKPOINT_DELAY: Duration = Duration::from_secs(5);

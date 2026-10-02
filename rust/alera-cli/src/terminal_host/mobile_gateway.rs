@@ -78,9 +78,6 @@ async fn mobile_websocket_loop(
                     .await
                     .is_err()
                     {
-                        let _ = inbox
-                            .send_wait(ServerCommand::ClientDisconnected { id })
-                            .await;
                         break;
                     }
                     continue;
@@ -93,9 +90,6 @@ async fn mobile_websocket_loop(
                         .await
                         .is_err()
                     {
-                        let _ = inbox
-                            .send_wait(ServerCommand::ClientDisconnected { id })
-                            .await;
                         break;
                     }
                     continue;
@@ -107,13 +101,13 @@ async fn mobile_websocket_loop(
             inbound = read.next() => {
                 match inbound {
                     Some(Ok(Message::Text(text))) => {
-                        if inbox.send(ServerCommand::ClientLine { id, line: text.to_string() }).is_err() {
+                        if inbox.send_wait(ServerCommand::ClientLine { id, line: text.to_string() }).await.is_err() {
                             break;
                         }
                     }
                     Some(Ok(Message::Binary(bytes))) => {
                         if let Ok(line) = String::from_utf8(bytes.to_vec()) {
-                            if inbox.send(ServerCommand::ClientLine { id, line }).is_err() {
+                            if inbox.send_wait(ServerCommand::ClientLine { id, line }).await.is_err() {
                                 break;
                             }
                         }
@@ -124,16 +118,10 @@ async fn mobile_websocket_loop(
                         }
                     }
                     Some(Ok(Message::Close(_))) | None => {
-                        let _ = inbox
-                            .send_wait(ServerCommand::ClientDisconnected { id })
-                            .await;
                         break;
                     }
                     Some(Ok(_)) => {}
                     Some(Err(_)) => {
-                        let _ = inbox
-                            .send_wait(ServerCommand::ClientDisconnected { id })
-                            .await;
                         break;
                     }
                 }
@@ -150,9 +138,6 @@ async fn mobile_websocket_loop(
                         )
                         .await
                         .is_err() {
-                            let _ = inbox
-                                .send_wait(ServerCommand::ClientDisconnected { id })
-                                .await;
                             break;
                         }
                     }
@@ -183,7 +168,6 @@ async fn mobile_websocket_loop(
                             Err(TryRecvError::Disconnected) => break,
                         };
                         if result.is_err() {
-                            let _ = inbox.send(ServerCommand::ClientDisconnected { id });
                             break;
                         }
                     }
@@ -192,6 +176,9 @@ async fn mobile_websocket_loop(
             }
         }
     }
+    let _ = inbox
+        .send_wait(ServerCommand::ClientDisconnected { id })
+        .await;
 }
 
 async fn send_mobile_control_frame(
@@ -253,6 +240,61 @@ mod tests {
     use super::*;
     use serde_json::{json, Value};
     use tokio_tungstenite::connect_async;
+
+    #[tokio::test]
+    async fn saturated_mobile_admission_preserves_binary_text_order_and_cleanup() {
+        let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
+        let mut admitted = 0;
+        while inbox
+            .send(ServerCommand::ClientDisconnected { id: admitted })
+            .is_ok()
+        {
+            admitted += 1;
+        }
+        assert!(admitted > 0);
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let (controls, control_rx) = mpsc::unbounded_channel();
+        let (_terminal, terminal_rx) = mpsc::channel(16);
+        let connection_inbox = inbox.clone();
+        let connection = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let socket = accept_async(stream).await.unwrap();
+            mobile_websocket_loop(socket, 900, connection_inbox, control_rx, terminal_rx).await;
+        });
+        let (mut client, _) = connect_async(format!("ws://{address}")).await.unwrap();
+        client
+            .send(Message::Binary(b"first".to_vec().into()))
+            .await
+            .unwrap();
+        client.send(Message::Text("second".into())).await.unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+        assert!(!connection.is_finished());
+        for _ in 0..admitted {
+            commands.try_recv().unwrap();
+        }
+        for expected in ["first", "second"] {
+            let command =
+                tokio::time::timeout(std::time::Duration::from_secs(2), inbox.recv(&mut commands))
+                    .await
+                    .unwrap()
+                    .unwrap();
+            assert!(
+                matches!(command, ServerCommand::ClientLine { id: 900, line } if line == expected)
+            );
+        }
+        drop(controls);
+        let command =
+            tokio::time::timeout(std::time::Duration::from_secs(2), inbox.recv(&mut commands))
+                .await
+                .unwrap()
+                .unwrap();
+        assert!(matches!(
+            command,
+            ServerCommand::ClientDisconnected { id: 900 }
+        ));
+        connection.await.unwrap();
+    }
 
     #[tokio::test]
     async fn control_response_stays_between_mobile_terminal_frames() {

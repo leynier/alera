@@ -38,6 +38,10 @@ impl ServerActor {
         line: String,
     ) -> bool {
         let key = (client_id, request_id);
+        if line.len() > super::server_command_inbox::SERVER_COMMAND_SMALL_LINE_BYTES {
+            self.release_request_history_barrier(&session_id);
+            return false;
+        }
         if !self.pending_history_requests.contains_key(&key)
             && self.pending_history_requests.len() >= MAX_PENDING_HISTORY_REQUESTS
         {

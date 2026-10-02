@@ -6,7 +6,9 @@ use std::path::Path;
 #[cfg(unix)]
 use std::path::PathBuf;
 
-use crate::terminal_host::server::{ServerCommand, ServerInbox};
+#[cfg(any(unix, test))]
+use crate::terminal_host::server::ServerCommand;
+use crate::terminal_host::server::ServerInbox;
 #[cfg(any(unix, test))]
 use serde_json::{json, Value};
 

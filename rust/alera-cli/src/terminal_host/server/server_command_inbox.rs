@@ -10,11 +10,16 @@ use tokio::sync::Notify;
 #[path = "server_command_inbox_admission.rs"]
 mod admission;
 use admission::{Admission, AdmissionClass};
+#[path = "server_client_disconnect.rs"]
+mod client_disconnect;
+pub(crate) use client_disconnect::ServerClientDisconnect;
 pub(crate) const SERVER_COMMAND_WORK_CAPACITY: usize = 256;
 pub(crate) const SERVER_COMMAND_WORK_BYTES: usize = 64 * 1024 * 1024;
 pub(crate) const SERVER_COMMAND_CONTROL_CAPACITY: usize = 128;
 pub(crate) const SERVER_COMMAND_CONTROL_BYTES: usize = 16 * 1024 * 1024;
-pub(crate) const SERVER_COMMAND_MAX_LINE_BYTES: usize = 1024 * 1024;
+// Base64 dictation carries up to 25 MiB of audio; large requests use work capacity.
+pub(crate) const SERVER_COMMAND_MAX_LINE_BYTES: usize = SERVER_COMMAND_WORK_BYTES;
+pub(crate) const SERVER_COMMAND_SMALL_LINE_BYTES: usize = 1024 * 1024;
 const REQUESTED_SHUTDOWN: u8 = 1;
 const REQUESTED_RESTART: u8 = 2;
 #[derive(Debug)]
@@ -257,10 +262,19 @@ fn command_admission_class(
     command: &ServerCommand,
 ) -> Result<AdmissionClass, ServerInboxSendError> {
     match command {
-        ServerCommand::ClientLine { line, .. }
-        | ServerCommand::RelayClientLine { line, .. }
-        | ServerCommand::HistoryRequestRetry { line, .. } => {
+        ServerCommand::ClientLine { line, .. } | ServerCommand::RelayClientLine { line, .. } => {
             if line.len() > SERVER_COMMAND_MAX_LINE_BYTES {
+                return Err(ServerInboxSendError::Oversized);
+            }
+            let bytes = line.len().max(1);
+            if bytes > SERVER_COMMAND_SMALL_LINE_BYTES {
+                Ok(AdmissionClass::Work { bytes })
+            } else {
+                Ok(AdmissionClass::Control { bytes })
+            }
+        }
+        ServerCommand::HistoryRequestRetry { line, .. } => {
+            if line.len() > SERVER_COMMAND_SMALL_LINE_BYTES {
                 return Err(ServerInboxSendError::Oversized);
             }
             Ok(AdmissionClass::Control {

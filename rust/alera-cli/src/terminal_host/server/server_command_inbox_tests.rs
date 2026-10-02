@@ -58,6 +58,31 @@ fn oversized_lines_are_rejected_before_admission() {
 }
 
 #[test]
+fn maximum_dictation_payload_uses_work_budget_and_preserves_control_capacity() {
+    use base64::Engine;
+    let (inbox, _receiver) = ServerInbox::channel();
+    let audio = base64::engine::general_purpose::STANDARD.encode(vec![0; 25 * 1024 * 1024]);
+    let line = serde_json::json!({"id": 1, "type": "aiDictation.mobileTranscribe", "payload": {"audioBase64": audio}}).to_string();
+    assert!(line.len() > SERVER_COMMAND_CONTROL_BYTES);
+    inbox
+        .send(ServerCommand::ClientLine {
+            id: 1,
+            line: line.clone(),
+        })
+        .expect("valid audio must be admitted");
+    assert_eq!(inbox.queued_counts().0, 1);
+    assert_eq!(inbox.queued_counts().2, 0);
+    assert_eq!(
+        inbox.send(ServerCommand::ClientLine { id: 2, line }),
+        Err(ServerInboxSendError::Full)
+    );
+    inbox
+        .send(client_line(3))
+        .expect("small controls must still be admitted");
+    assert_eq!(inbox.queued_counts().2, 1);
+}
+
+#[test]
 fn large_control_payloads_use_the_byte_budget() {
     let (inbox, _receiver) = ServerInbox::channel();
     assert_eq!(
@@ -319,4 +344,30 @@ async fn accepted_work_drains_before_first_control_request() {
             matches!(control, Some(ServerCommand::RequestedRestart))
         });
     }
+}
+
+#[tokio::test]
+async fn reserved_relay_disconnect_survives_full_control_admission() {
+    let (inbox, mut receiver) = ServerInbox::channel();
+    let disconnect = inbox.reserve_client_disconnect(999).await.unwrap();
+    for id in 0..SERVER_COMMAND_CONTROL_CAPACITY - 1 {
+        inbox
+            .send(ServerCommand::ClientDisconnected { id: id as u64 })
+            .unwrap();
+    }
+    assert_eq!(
+        inbox.send(ServerCommand::ClientDisconnected { id: 1000 }),
+        Err(ServerInboxSendError::Full)
+    );
+    drop(disconnect);
+    for id in 0..SERVER_COMMAND_CONTROL_CAPACITY - 1 {
+        assert!(
+            matches!(receiver.try_recv().unwrap(), ServerCommand::ClientDisconnected { id: actual } if actual == id as u64)
+        );
+    }
+    assert!(matches!(
+        receiver.try_recv().unwrap(),
+        ServerCommand::ClientDisconnected { id: 999 }
+    ));
+    assert_eq!(inbox.queued_counts(), (0, 0, 0));
 }

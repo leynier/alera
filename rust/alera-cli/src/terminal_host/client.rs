@@ -198,9 +198,6 @@ pub async fn connection_loop(
                     .await
                     .is_err()
                     {
-                        let _ = inbox
-                            .send_wait(ServerCommand::ClientDisconnected { id })
-                            .await;
                         break;
                     }
                     continue;
@@ -213,9 +210,6 @@ pub async fn connection_loop(
                         .await
                         .is_err()
                     {
-                        let _ = inbox
-                            .send_wait(ServerCommand::ClientDisconnected { id })
-                            .await;
                         break;
                     }
                     continue;
@@ -227,15 +221,12 @@ pub async fn connection_loop(
             line = lines.next_line() => {
                 match line {
                     Ok(Some(line)) => {
-                        if inbox.send(ServerCommand::ClientLine { id, line }).is_err() {
+                        if inbox.send_wait(ServerCommand::ClientLine { id, line }).await.is_err() {
                             break;
                         }
                     }
                     // EOF or read error: the client is gone.
                     _ => {
-                        let _ = inbox
-                            .send_wait(ServerCommand::ClientDisconnected { id })
-                            .await;
                         break;
                     }
                 }
@@ -253,9 +244,6 @@ pub async fn connection_loop(
                         .await
                         .is_err()
                         {
-                            let _ = inbox
-                                .send_wait(ServerCommand::ClientDisconnected { id })
-                                .await;
                             break;
                         }
                     }
@@ -287,9 +275,6 @@ pub async fn connection_loop(
                             Err(TryRecvError::Disconnected) => break,
                         };
                         if result.is_err() {
-                            let _ = inbox
-                                .send_wait(ServerCommand::ClientDisconnected { id })
-                                .await;
                             break;
                         }
                     }
@@ -298,6 +283,9 @@ pub async fn connection_loop(
             }
         }
     }
+    let _ = inbox
+        .send_wait(ServerCommand::ClientDisconnected { id })
+        .await;
 }
 
 async fn write_control_frame(
@@ -398,6 +386,10 @@ const _: () = assert!(
     MOBILE_CLIENT_TERMINAL_OUT_QUEUE_CAPACITY > CLIENT_TERMINAL_OUT_QUEUE_CAPACITY,
     "the mobile lane exists to be deeper than the local desktop one"
 );
+
+#[cfg(test)]
+#[path = "client_admission_tests.rs"]
+mod admission_tests;
 
 #[cfg(test)]
 mod tests {
