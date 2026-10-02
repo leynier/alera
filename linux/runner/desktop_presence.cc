@@ -247,7 +247,7 @@ static void method_call_cb(FlMethodChannel*,
   if (g_strcmp0(method, "setTray") == 0) {
     bool visible = false;
     const gchar* tooltip = "";
-    if (fl_value_get_type(args) == FL_VALUE_TYPE_MAP) {
+    if (args != nullptr && fl_value_get_type(args) == FL_VALUE_TYPE_MAP) {
       FlValue* visible_value = fl_value_lookup_string(args, "visible");
       if (visible_value != nullptr &&
           fl_value_get_type(visible_value) == FL_VALUE_TYPE_BOOL) {

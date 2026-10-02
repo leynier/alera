@@ -21,6 +21,7 @@ class Win32DesktopPresence {
       std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
   bool HandleMessage(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
   void Destroy();
+  void Detach();
 
  private:
   bool SetTray(bool visible, const std::wstring& tooltip);

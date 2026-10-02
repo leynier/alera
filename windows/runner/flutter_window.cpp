@@ -64,6 +64,9 @@ bool FlutterWindow::OnCreate() {
 
 void FlutterWindow::OnDestroy() {
   desktop_presence_.Destroy();
+  desktop_presence_.Detach();
+  desktop_presence_channel_.reset();
+  app_menu_channel_.reset();
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }
@@ -109,7 +112,9 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
       RefreshAleraMenuBarForDpi(hwnd);
       break;
     case WM_FONTCHANGE:
-      flutter_controller_->engine()->ReloadSystemFonts();
+      if (flutter_controller_) {
+        flutter_controller_->engine()->ReloadSystemFonts();
+      }
       break;
   }
 

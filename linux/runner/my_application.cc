@@ -19,6 +19,7 @@ struct _MyApplication {
   FlMethodChannel* app_menu_channel;
   DesktopPresence* desktop_presence;
   GtkWindow* window;
+  gboolean app_menu_actions_registered;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
@@ -225,8 +226,19 @@ static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
 }
 
+static void clear_window_services(MyApplication* self) {
+  // The channels use the Flutter engine owned by the window's FlView. Release
+  // their callbacks before a later activation creates a new engine, otherwise
+  // repeated window lifecycles retain stale messengers and tray callbacks.
+  desktop_presence_free(self->desktop_presence);
+  self->desktop_presence = nullptr;
+  g_clear_object(&self->clipboard_channel);
+  g_clear_object(&self->app_menu_channel);
+}
+
 static void on_window_destroy(GtkWidget*, gpointer user_data) {
   auto* self = MY_APPLICATION(user_data);
+  clear_window_services(self);
   self->window = nullptr;
 }
 
@@ -279,9 +291,12 @@ static void my_application_activate(GApplication* application) {
   g_object_set(gtk_settings_get_default(), "gtk-application-prefer-dark-theme",
                TRUE, nullptr);
 
-  g_action_map_add_action_entries(G_ACTION_MAP(application),
-                                  kAppMenuActionEntries,
-                                  G_N_ELEMENTS(kAppMenuActionEntries), self);
+  if (!self->app_menu_actions_registered) {
+    g_action_map_add_action_entries(G_ACTION_MAP(application),
+                                    kAppMenuActionEntries,
+                                    G_N_ELEMENTS(kAppMenuActionEntries), self);
+    self->app_menu_actions_registered = TRUE;
+  }
 
   GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
   gtk_widget_show(box);
@@ -367,9 +382,10 @@ static void my_application_startup(GApplication* application) {
 
 // Implements GApplication::shutdown.
 static void my_application_shutdown(GApplication* application) {
-  // MyApplication* self = MY_APPLICATION(object);
+  MyApplication* self = MY_APPLICATION(application);
 
   // Perform any actions required at application shutdown.
+  clear_window_services(self);
 
   G_APPLICATION_CLASS(my_application_parent_class)->shutdown(application);
 }
@@ -378,10 +394,7 @@ static void my_application_shutdown(GApplication* application) {
 static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
-  g_clear_object(&self->clipboard_channel);
-  g_clear_object(&self->app_menu_channel);
-  desktop_presence_free(self->desktop_presence);
-  self->desktop_presence = nullptr;
+  clear_window_services(self);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }
 
