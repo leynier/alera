@@ -1,10 +1,9 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, future::Future, time::Duration};
 
 use axum::{extract::State, http::HeaderMap, Json};
 use chrono::{TimeDelta, Utc};
 use serde_json::Value;
-use sha2::{Digest, Sha256};
-use sqlx::FromRow;
+use tokio::time::{timeout_at, Instant};
 use uuid::Uuid;
 
 use crate::{
@@ -14,28 +13,24 @@ use crate::{
     },
     auth::authenticate,
     error::ApiError,
-    fcm::{send_with_retry, FcmError, FcmMessage},
-    quota::reserve_push_delivery,
+    push_delivery::{
+        deliver_target, delivery_send_deadline, run_bounded_deliveries, DeliveryContext,
+        DeliveryTarget,
+    },
     state::AppState,
 };
 
-#[derive(FromRow)]
-struct DeliveryTarget {
-    mobile_device_id: String,
-    token: String,
-    attention: bool,
-    done: bool,
-    terminal_exit: bool,
-}
+// The runtime client waits 15 seconds; reserve time for SQL, audit writes and the response.
+const PUSH_DELIVERY_BUDGET: Duration = Duration::from_secs(12);
 
-struct DeliveryAttempt<'a> {
-    event_id: Uuid,
-    account_id: Uuid,
-    mobile_device_id: &'a str,
-    attempt: i32,
-    status: &'a str,
-    provider_message_id: Option<&'a str>,
-    error_code: Option<&'a str>,
+#[derive(sqlx::FromRow)]
+struct StoredRuntimeEvent {
+    id: Uuid,
+    category: String,
+    event_type: String,
+    title: String,
+    body: String,
+    data: Value,
 }
 
 pub async fn get_runtime_subscriptions(
@@ -62,6 +57,7 @@ pub async fn post_runtime_event(
     Json(request): Json<RuntimeEventRequest>,
 ) -> Result<Json<RuntimeEventResponse>, ApiError> {
     let auth = authenticate(&headers, &state, "push:send").await?;
+    let delivery_deadline = Instant::now() + PUSH_DELIVERY_BUDGET;
     validate_event(&request)?;
     if auth.client_kind != ClientKind::Runtime || auth.client_id != request.runtime_id {
         return Err(ApiError::forbidden(
@@ -69,12 +65,15 @@ pub async fn post_runtime_event(
             "The runtime event does not belong to this account session.",
         ));
     }
-    let runtime_owned = sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS(SELECT 1 FROM runtimes WHERE id = $1 AND account_id = $2)",
+    let runtime_owned = within_delivery_budget(
+        delivery_deadline,
+        sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM runtimes WHERE id = $1 AND account_id = $2)",
+        )
+        .bind(&request.runtime_id)
+        .bind(auth.account_id)
+        .fetch_one(&state.pool),
     )
-    .bind(&request.runtime_id)
-    .bind(auth.account_id)
-    .fetch_one(&state.pool)
     .await?;
     if !runtime_owned {
         return Err(ApiError::forbidden(
@@ -88,12 +87,16 @@ pub async fn post_runtime_event(
             "Push delivery is temporarily disabled.",
         ));
     }
-    let active_subscriptions =
-        active_subscription_count(&state, auth.account_id, &request.runtime_id).await?;
-
+    let active_subscriptions = within_delivery_budget(
+        delivery_deadline,
+        active_subscription_count(&state, auth.account_id, &request.runtime_id),
+    )
+    .await?;
     let database_event_id = Uuid::now_v7();
-    let inserted = sqlx::query_scalar::<_, Uuid>(
-        r#"
+    let inserted = within_delivery_budget(
+        delivery_deadline,
+        sqlx::query_scalar::<_, Uuid>(
+            r#"
         INSERT INTO runtime_events (
             id, account_id, runtime_id, event_id, category, event_type,
             title, body, data, occurred_at, created_at
@@ -101,31 +104,72 @@ pub async fn post_runtime_event(
         ON CONFLICT (runtime_id, event_id) DO NOTHING
         RETURNING id
         "#,
+        )
+        .bind(database_event_id)
+        .bind(auth.account_id)
+        .bind(&request.runtime_id)
+        .bind(&request.event_id)
+        .bind(request.category.as_str())
+        .bind(&request.event_type)
+        .bind(&request.title)
+        .bind(&request.body)
+        .bind(&request.data)
+        .bind(request.occurred_at)
+        .bind(Utc::now())
+        .fetch_optional(&state.pool),
     )
-    .bind(database_event_id)
-    .bind(auth.account_id)
-    .bind(&request.runtime_id)
-    .bind(&request.event_id)
-    .bind(request.category.as_str())
-    .bind(&request.event_type)
-    .bind(&request.title)
-    .bind(&request.body)
-    .bind(&request.data)
-    .bind(request.occurred_at)
-    .bind(Utc::now())
-    .fetch_optional(&state.pool)
     .await?;
-    if inserted.is_none() {
-        return Ok(Json(RuntimeEventResponse {
-            accepted: true,
-            duplicate: true,
-            deliveries_queued: 0,
-            active_subscriptions,
-        }));
-    }
+    let (database_event_id, duplicate, category, event_type, title, body, event_data) =
+        match inserted {
+            Some(id) => (
+                id,
+                false,
+                request.category,
+                request.event_type.clone(),
+                request.title.clone(),
+                request.body.clone(),
+                request.data.clone(),
+            ),
+            None => {
+                let Some(existing) = within_delivery_budget(
+                    delivery_deadline,
+                    sqlx::query_as::<_, StoredRuntimeEvent>(
+                        r#"
+                    SELECT id, category, event_type, title, body, data
+                    FROM runtime_events
+                    WHERE account_id = $1 AND runtime_id = $2 AND event_id = $3
+                    "#,
+                    )
+                    .bind(auth.account_id)
+                    .bind(&request.runtime_id)
+                    .bind(&request.event_id)
+                    .fetch_optional(&state.pool),
+                )
+                .await?
+                else {
+                    return Ok(Json(RuntimeEventResponse {
+                        accepted: true,
+                        duplicate: true,
+                        deliveries_queued: 0,
+                        active_subscriptions,
+                    }));
+                };
+                (
+                    existing.id,
+                    true,
+                    stored_category(&existing.category)?,
+                    existing.event_type,
+                    existing.title,
+                    existing.body,
+                    existing.data,
+                )
+            }
+        };
 
-    let targets = sqlx::query_as::<_, DeliveryTarget>(
-        r#"
+    let targets = within_delivery_budget(
+        delivery_deadline,
+        sqlx::query_as::<_, DeliveryTarget>(
+            r#"
         SELECT s.mobile_device_id, t.token, s.attention, s.done, s.terminal_exit
         FROM push_subscriptions s
         JOIN fcm_tokens t
@@ -138,114 +182,83 @@ pub async fn post_runtime_event(
           AND s.runtime_id = $2
           AND d.revoked_at IS NULL
         "#,
+        )
+        .bind(auth.account_id)
+        .bind(&request.runtime_id)
+        .fetch_all(&state.pool),
     )
-    .bind(auth.account_id)
-    .bind(&request.runtime_id)
-    .fetch_all(&state.pool)
     .await?;
-    let data = message_data(auth.account_id, &request)?;
-    let channel_id = match request.category {
+    let data = message_data(
+        auth.account_id,
+        &request.runtime_id,
+        &request.event_id,
+        &event_type,
+        category,
+        &event_data,
+    )?;
+    let channel_id = match category {
         PushCategory::Attention => "alera_attention",
         PushCategory::Done | PushCategory::TerminalExit => "alera_activity",
     };
-    let mut deliveries_queued = 0_usize;
-    for target in targets
+    let context = DeliveryContext {
+        account_id: auth.account_id,
+        event_id: database_event_id,
+        title,
+        body,
+        data,
+        channel_id: channel_id.to_owned(),
+        deadline: delivery_deadline,
+        send_deadline: delivery_send_deadline(delivery_deadline),
+    };
+    let tasks = targets
         .into_iter()
-        .filter(|target| category_enabled(target, request.category))
-    {
-        let quota = reserve_push_delivery(&state.pool, auth.account_id, &state.config.limits).await;
-        if let Err(error) = quota {
-            record_attempt(
-                &state,
-                DeliveryAttempt {
-                    event_id: database_event_id,
-                    account_id: auth.account_id,
-                    mobile_device_id: &target.mobile_device_id,
-                    attempt: 1,
-                    status: "quotaRejected",
-                    provider_message_id: None,
-                    error_code: Some("quota_exceeded"),
-                },
-            )
-            .await?;
-            tracing::info!(
-                account_id = %auth.account_id,
-                event_id = %request.event_id,
-                error = %error,
-                "push delivery skipped by quota"
-            );
-            continue;
-        }
-        deliveries_queued += 1;
-        let (attempt, result) = send_with_retry(
-            state.fcm.as_ref(),
-            FcmMessage {
-                token: target.token.clone(),
-                title: request.title.clone(),
-                body: request.body.clone(),
-                data: data.clone(),
-                channel_id: channel_id.to_owned(),
-            },
-        )
-        .await;
+        .filter(|target| category_enabled(target, category))
+        .map(|target| {
+            let state = state.clone();
+            let context = context.clone();
+            async move { deliver_target(&state, context, target).await }
+        })
+        .collect();
+    let mut deliveries_queued = 0_usize;
+    let mut delivery_error = None;
+    for result in run_bounded_deliveries(tasks).await {
         match result {
-            Ok(receipt) => {
-                record_attempt(
-                    &state,
-                    DeliveryAttempt {
-                        event_id: database_event_id,
-                        account_id: auth.account_id,
-                        mobile_device_id: &target.mobile_device_id,
-                        attempt,
-                        status: "delivered",
-                        provider_message_id: Some(&receipt.message_id),
-                        error_code: None,
-                    },
-                )
-                .await?;
-            }
-            Err(error) => {
-                record_attempt(
-                    &state,
-                    DeliveryAttempt {
-                        event_id: database_event_id,
-                        account_id: auth.account_id,
-                        mobile_device_id: &target.mobile_device_id,
-                        attempt,
-                        status: "failed",
-                        provider_message_id: None,
-                        error_code: Some(error.code()),
-                    },
-                )
-                .await?;
-                if matches!(error, FcmError::Unregistered) {
-                    remove_unregistered_token(
-                        &state,
-                        auth.account_id,
-                        &target.mobile_device_id,
-                        &target.token,
-                    )
-                    .await?;
-                }
-                tracing::warn!(
-                    account_id = %auth.account_id,
-                    event_id = %request.event_id,
-                    device_id = %target.mobile_device_id,
-                    error_code = error.code(),
-                    "FCM delivery failed"
-                );
-            }
+            Ok(queued) => deliveries_queued += usize::from(queued),
+            Err(error) if delivery_error.is_none() => delivery_error = Some(error),
+            Err(_) => {}
         }
     }
+    if let Some(error) = delivery_error {
+        return Err(error);
+    }
 
-    let active_subscriptions =
-        active_subscription_count(&state, auth.account_id, &request.runtime_id).await?;
+    let active_subscriptions = within_delivery_budget(
+        delivery_deadline,
+        active_subscription_count(&state, auth.account_id, &request.runtime_id),
+    )
+    .await?;
     Ok(Json(RuntimeEventResponse {
         accepted: true,
-        duplicate: false,
+        duplicate,
         deliveries_queued,
         active_subscriptions,
     }))
+}
+
+async fn within_delivery_budget<T, E, F>(deadline: Instant, operation: F) -> Result<T, ApiError>
+where
+    F: Future<Output = Result<T, E>>,
+    ApiError: From<E>,
+{
+    timeout_at(deadline, operation)
+        .await
+        .map_err(|_| {
+            ApiError::unavailable(
+                "push_delivery_deadline",
+                "Push delivery exceeded the request budget.",
+            )
+        })?
+        .map_err(ApiError::from)
 }
 
 pub(crate) async fn active_subscription_count(
@@ -281,6 +294,17 @@ fn category_enabled(target: &DeliveryTarget, category: PushCategory) -> bool {
         PushCategory::Attention => target.attention,
         PushCategory::Done => target.done,
         PushCategory::TerminalExit => target.terminal_exit,
+    }
+}
+
+fn stored_category(value: &str) -> Result<PushCategory, ApiError> {
+    match value {
+        "attention" => Ok(PushCategory::Attention),
+        "done" => Ok(PushCategory::Done),
+        "terminalExit" => Ok(PushCategory::TerminalExit),
+        _ => Err(ApiError::internal(anyhow::anyhow!(
+            "runtime event has unknown push category: {value}"
+        ))),
     }
 }
 
@@ -329,10 +353,14 @@ fn validate_event(request: &RuntimeEventRequest) -> Result<(), ApiError> {
 
 fn message_data(
     account_id: Uuid,
-    request: &RuntimeEventRequest,
+    runtime_id: &str,
+    event_id: &str,
+    event_type: &str,
+    category: PushCategory,
+    event_data: &Value,
 ) -> Result<BTreeMap<String, String>, ApiError> {
     let mut data = BTreeMap::new();
-    if let Some(object) = request.data.as_object() {
+    if let Some(object) = event_data.as_object() {
         for (key, value) in object {
             let encoded = match value {
                 Value::String(text) => text.clone(),
@@ -350,65 +378,11 @@ fn message_data(
         }
     }
     data.insert("accountId".to_owned(), account_id.to_string());
-    data.insert("runtimeId".to_owned(), request.runtime_id.clone());
-    data.insert("eventId".to_owned(), request.event_id.clone());
-    data.insert("eventType".to_owned(), request.event_type.clone());
-    data.insert("category".to_owned(), request.category.as_str().to_owned());
+    data.insert("runtimeId".to_owned(), runtime_id.to_owned());
+    data.insert("eventId".to_owned(), event_id.to_owned());
+    data.insert("eventType".to_owned(), event_type.to_owned());
+    data.insert("category".to_owned(), category.as_str().to_owned());
     Ok(data)
-}
-
-async fn record_attempt(state: &AppState, attempt: DeliveryAttempt<'_>) -> Result<(), ApiError> {
-    sqlx::query(
-        r#"
-        INSERT INTO delivery_attempts (
-            id, event_id, account_id, mobile_device_id, attempt, status,
-            provider_message_id, error_code, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        ON CONFLICT (event_id, mobile_device_id, attempt) DO NOTHING
-        "#,
-    )
-    .bind(Uuid::now_v7())
-    .bind(attempt.event_id)
-    .bind(attempt.account_id)
-    .bind(attempt.mobile_device_id)
-    .bind(attempt.attempt)
-    .bind(attempt.status)
-    .bind(attempt.provider_message_id)
-    .bind(attempt.error_code)
-    .bind(Utc::now())
-    .execute(&state.pool)
-    .await?;
-    Ok(())
-}
-
-async fn remove_unregistered_token(
-    state: &AppState,
-    account_id: Uuid,
-    device_id: &str,
-    token: &str,
-) -> Result<(), ApiError> {
-    let now = Utc::now();
-    let mut transaction = state.pool.begin().await?;
-    sqlx::query("DELETE FROM fcm_tokens WHERE account_id = $1 AND mobile_device_id = $2")
-        .bind(account_id)
-        .bind(device_id)
-        .execute(&mut *transaction)
-        .await?;
-    sqlx::query(
-        r#"
-        INSERT INTO abuse_tombstones (
-            id, subject_kind, subject_hash, reason, created_at, expires_at
-        ) VALUES ($1, 'fcm_token', $2, 'unregistered', $3, $4)
-        "#,
-    )
-    .bind(Uuid::now_v7())
-    .bind(Sha256::digest(token.as_bytes()).to_vec())
-    .bind(now)
-    .bind(now + TimeDelta::days(30))
-    .execute(&mut *transaction)
-    .await?;
-    transaction.commit().await?;
-    Ok(())
 }
 
 fn validate_text(value: &str, max: usize, field: &str) -> Result<(), ApiError> {
@@ -460,7 +434,14 @@ mod tests {
     #[test]
     fn adds_trusted_routing_fields() {
         let account_id = Uuid::now_v7();
-        let data = message_data(account_id, &event(json!({"workspaceId": "workspace-1"})));
+        let data = message_data(
+            account_id,
+            "runtime-1",
+            "event-1",
+            "agentWaiting",
+            PushCategory::Attention,
+            &json!({"workspaceId": "workspace-1"}),
+        );
         assert!(data.is_ok());
         let data = match data {
             Ok(value) => value,

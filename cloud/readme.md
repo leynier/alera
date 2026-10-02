@@ -18,7 +18,7 @@ cargo run
 
 Local mode uses a deterministic Ed25519 development seed and disables FCM. Neither setting is acceptable in production.
 
-The service applies `migrations/` at startup, runs retention cleanup once, and repeats cleanup every six hours while an instance is active.
+The service applies required schema migrations 0001-0004 before opening its listener, then starts the explicitly allowlisted performance-index migrations 0005-0020 in a bounded background task after `/health` is available. The online phase takes a non-blocking session lock, builds one index at a time with a generous per-index deadline, logs a failure, and retries on the next startup or guarded operator phase. A dirty SQLx migration row remains an operator error and is never cleared automatically. Retention cleanup runs once after bind and repeats every six hours while an instance is active.
 
 ## HTTP Contract
 
@@ -104,7 +104,7 @@ The PostgreSQL contract tests cover migrations, refresh rotation and replay revo
 
 ## Current Boundaries
 
-- Push sending and its bounded transient retries are synchronous. The final attempt is persisted, but a durable delayed retry worker is not part of this workspace yet.
+- Push sending and its bounded transient retries are synchronous. Each target is claimed in `delivery_attempts` before the provider call and finalized afterward, so a duplicate event request can resume a missing or stale claim without repeating a terminal outcome. Runtime transfer retains the event idempotency key; a new owner reusing an old event id gets a duplicate response with no delivery and never receives the prior owner's stored payload. A durable delayed retry worker is not part of this workspace.
 - Runtime transfer is owner-authorized and explicitly confirmed with the runtime id, but v1 does not require a second acceptance from the target account.
 - FCM is best effort. An accepted event or FCM message id is not proof that a device displayed a notification.
 - Relay is live-only. It has no offline queue, command history, frame persistence, or delivery guarantee when either endpoint is disconnected.

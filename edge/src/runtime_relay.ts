@@ -18,6 +18,7 @@ import {
 } from './index';
 const MAX_RELAY_FRAME_BYTES = 1024 * 1024;
 const MAX_RELAY_MOBILE_CONNECTIONS = 8;
+const MAX_RELAY_INGRESS_BYTES_PER_SECOND = 16 * 1024 * 1024;
 export class RuntimeRelayDurableObject {
   private readonly ctx: DurableObjectState;
   private readonly renewing = new WeakSet<WebSocket>();
@@ -121,13 +122,16 @@ export class RuntimeRelayDurableObject {
       socket.close(1009, 'relay frame too large');
       return;
     }
-    const sender = socket.deserializeAttachment() as RelayAttachment;
-    if (sender.suppressDisconnect) return;
+    const initialSender = socket.deserializeAttachment() as RelayAttachment;
+    if (initialSender.suppressDisconnect) return;
     const now = Math.floor(Date.now() / 1000);
-    if (sender.exp <= now) {
+    if (initialSender.exp <= now) {
       socket.close(4003, 'relay grant expired');
       return;
     }
+    const admitted = this.admitIngress(socket, initialSender, bytes.byteLength);
+    if (!admitted) return;
+    const sender = admitted;
     if (bytes.length >= 2 && bytes[0] === 0 && bytes[1] === 0) {
       if (sender.controlProtocol && sender.role === 'runtime' && bytes.length <= 16384) {
         try {
@@ -263,6 +267,8 @@ export class RuntimeRelayDurableObject {
         controlProtocol: true,
         connectionId: previous.connectionId ?? previous.jti,
         awaitingRuntime: previous.awaitingRuntime,
+        ingressWindowStartedAt: current.ingressWindowStartedAt,
+        ingressBytes: current.ingressBytes,
       });
       socket.send(
         controlFrame({
@@ -288,6 +294,28 @@ export class RuntimeRelayDurableObject {
     } finally {
       this.renewing.delete(socket);
     }
+  }
+
+  private admitIngress(
+    socket: WebSocket,
+    sender: RelayAttachment,
+    byteLength: number,
+  ): RelayAttachment | null {
+    const now = Date.now();
+    const windowStartedAt = sender.ingressWindowStartedAt ?? now;
+    const windowExpired = now - windowStartedAt >= 1000;
+    const bytes = windowExpired ? 0 : sender.ingressBytes ?? 0;
+    if (bytes + byteLength > MAX_RELAY_INGRESS_BYTES_PER_SECOND) {
+      socket.close(1013, 'relay ingress rate exceeded');
+      return null;
+    }
+    const updated = {
+      ...sender,
+      ingressWindowStartedAt: windowExpired ? now : windowStartedAt,
+      ingressBytes: bytes + byteLength,
+    };
+    socket.serializeAttachment(updated);
+    return updated;
   }
 
   webSocketClose(socket: WebSocket): void {

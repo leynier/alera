@@ -106,6 +106,25 @@ describe('Alera API edge', () => {
     expect(mobile.sent).toBeEmpty();
   });
 
+  test('bounds per-connection relay ingress before platform buffers grow without limit', () => {
+    const runtime = new TestSocket(relayAttachment('runtime', 'runtime-1'));
+    const relay = relayObject([runtime]);
+    const clientId = new TextEncoder().encode('mobile-1');
+    const frame = new Uint8Array(1024 * 1024);
+    frame[0] = 0;
+    frame[1] = clientId.length;
+    frame.set(clientId, 2);
+
+    for (let index = 0; index < 17; index += 1) {
+      relay.webSocketMessage(runtime as unknown as WebSocket, frame.buffer as ArrayBuffer);
+    }
+
+    expect(runtime.closed).toEqual({
+      code: 1013,
+      reason: 'relay ingress rate exceeded',
+    });
+  });
+
   test('notifies the runtime when a mobile disconnects', () => {
     const runtime = new TestSocket(relayAttachment('runtime', 'runtime-1'));
     const mobile = new TestSocket(relayAttachment('mobile', 'mobile-1'));

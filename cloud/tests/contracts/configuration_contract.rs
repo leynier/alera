@@ -8,7 +8,7 @@ async fn configuration_history_concurrency_ownership_and_deletion() -> anyhow::R
         .max_connections(6)
         .connect(&url)
         .await?;
-    sqlx::migrate!("./migrations").run(&pool).await?;
+    migrations::run(&pool).await?;
     let app = test_app(
         pool.clone(),
         url.clone(),

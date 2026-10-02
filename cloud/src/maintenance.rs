@@ -58,6 +58,9 @@ pub async fn run_once(pool: &PgPool) -> Result<(), sqlx::Error> {
 
 pub fn spawn(pool: PgPool) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
+        if let Err(error) = run_once(&pool).await {
+            tracing::warn!(error = %error, "initial database cleanup failed");
+        }
         let mut interval = tokio::time::interval(Duration::from_secs(6 * 60 * 60));
         interval.tick().await;
         loop {

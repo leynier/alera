@@ -22,6 +22,8 @@ export interface RelayAttachment extends RelayClaims {
   controlProtocol?: boolean;
   connectionId?: string;
   awaitingRuntime?: boolean;
+  ingressWindowStartedAt?: number;
+  ingressBytes?: number;
 }
 
 export const RELAY_CONTROL_PROTOCOL = 'alera-relay-control-v1';
