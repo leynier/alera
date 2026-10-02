@@ -131,6 +131,16 @@ async fn verified_action_retries_preserve_a_replacement_session_and_neighbor() {
                 actor.handle(command).await;
                 continue;
             }
+            if matches!(
+                &command,
+                ServerCommand::HistoryWriterReady { session_id } if session_id == "session"
+            ) {
+                // A writer completion can race the lifecycle result after the
+                // history barrier has drained. Keep the actor's normal
+                // completion path while waiting for the lifecycle result.
+                actor.handle(command).await;
+                continue;
+            }
             break command;
         };
         match &command {
@@ -138,7 +148,10 @@ async fn verified_action_retries_preserve_a_replacement_session_and_neighbor() {
             ServerCommand::OwnerTerminalLifecycleFinished {
                 result: Err(error), ..
             } => panic!("terminal lifecycle failed: {}", error.wire_message()),
-            _ => panic!("unexpected terminal lifecycle command"),
+            _ => panic!(
+                "unexpected terminal lifecycle command ({:?})",
+                std::mem::discriminant(&command)
+            ),
         }
         actor.handle(command).await;
         assert_eq!(actor.managed_workspace_jobs, 0);
