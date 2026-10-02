@@ -297,6 +297,8 @@ bool _isStaticDart(String path) {
 
 bool _isPackages(String path) {
   return path.startsWith('packages/') ||
+      path.startsWith('third_party/desktop_updater/') ||
+      path.startsWith('lib/src/features/updater/') ||
       path.startsWith('rust_builder/') ||
       path.startsWith('mobile/rust_builder/') ||
       path.startsWith('tool/release/runtime_packager/') ||
