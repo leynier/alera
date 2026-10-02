@@ -2,7 +2,7 @@
 
 ## Resultado
 
-La [segunda revisión](performance-stability-second-review.md), realizada sobre `1457a1072`, encontró cinco problemas prioritarios pendientes y mejoras adicionales. Los resultados de validación de este informe corresponden al alcance implementado inicialmente; no significan que esos nuevos hallazgos estén corregidos.
+La [segunda revisión](performance-stability-second-review.md), realizada sobre `1457a1072`, encontró cinco problemas prioritarios y mejoras adicionales. Las reparaciones posteriores del PR #888 corrigen tres de esos cinco problemas: cierre de hooks, pérdida de completions del runtime y procesos AI vivos tras salida inválida. El ACK de PTY y la clave del rate limiter de edge siguen pendientes, junto con los hallazgos adicionales que no están incluidos en los siete hilos seleccionados. Las validaciones del alcance inicial conservan su snapshot y no prueban automáticamente estas reparaciones posteriores.
 
 El usuario añadió después la implementación de modelos dinámicos, thinking effort y Normal/Fast para Sign-in with ChatGPT, guardada en el commit local `2e61577f6`. Ese alcance y su validación se documentan en [ChatGPT AI Assist](chatgpt-ai-assist.md#model-catalog-thinking-effort-and-speed-follow-up) y en [la evidencia de validación](audit-chatgpt-options-validation-2026-10-02.json). El build Windows y las suites completas reportados abajo corresponden a la fuente previa `3958cef7d`; no verifican esta ampliación posterior.
 
@@ -10,7 +10,7 @@ Se auditó el cliente Flutter de escritorio, el runtime Rust, el cliente móvil,
 
 Se implementaron correcciones locales para eliminar trabajo duplicado, acotar colas y streams, cancelar trabajo obsoleto, serializar transiciones de ciclo de vida y evitar fugas de recursos.
 
-Los cambios permanecen en la rama local de auditoría. Por instrucción del usuario no se hizo push, merge, despliegue, publicación, creación de release ni modificación de secretos o configuración externa.
+Los cambios están en la rama `perf/performance-stability-audit-release` del [PR #888](https://github.com/leynier/alera/pull/888). El usuario autorizó posteriormente subir las reparaciones de siete hilos de revisión y resolverlos después del push. Se mantiene la exclusión de merge manual, despliegue, publicación, creación de release y modificación de secretos o configuración externa; el runtime watch controla el merge cuando sea elegible.
 
 La rama es `perf/performance-stability-audit-release`, basada en `b32c1492d` (v0.99.0). El alcance inicial está organizado en seis commits locales; el updater ampliado y su validación CI están en `a4c540de4` y `13971116e`, y la captura nativa de procesos en `bcce04666`. El runtime ampliado está en `b35966c88`, la admisión compatible bajo presión en `fbb360f5e` y el fixture de checkpoint asíncrono en `cf8045175`. La conservación de identidad durante el retiro remoto está en `ab7ed92cb`; el reporte de pestañas cerradas después de persistir está en `3958cef7d`. El fixture relay fija el workspace Rust en `92b807243`. El reporte se conserva junto al código para su revisión.
 
@@ -33,6 +33,24 @@ Estos efectos corresponden a los cambios locales; aún no están activos en prod
 3. Descargar, extraer y cancelar actualizaciones deja el trabajo pesado fuera del isolate de UI y limpia los recursos propios. Los diagnósticos comprimen en segundo plano; no se midió una mejora global de FPS.
 4. En móvil, el cálculo sintético de atención de 1,024 workspaces es aproximadamente 50 veces más rápido conservando la salida. El backend inicia sin esperar los índices online y acota los envíos de notificaciones; su recepción sigue siendo best effort.
 5. Sign-in with ChatGPT recupera el catálogo al quedar lista la cuenta y mantiene visibles los errores de refresco. Permite seleccionar el effort global o por operación y solicitar Normal/Fast. Los modelos y la disponibilidad de Fast dependen de lo que OpenAI habilite para la cuenta; no se inventa una lista fija ni se cambia silenciosamente la elección.
+
+## Reparaciones de revisión del PR #888
+
+El alcance solicitado parte del head `ba192b1b0` y cubre los siete hilos seleccionados. La implementación mantiene la identidad de las respuestas, el orden de admisión aceptado y la compatibilidad de las APIs existentes. Los hilos solo se resuelven después de confirmar el push de sus fixes.
+
+| Área | Reparación | Regresión y validación |
+| --- | --- | --- |
+| Hooks | Detener el productor nativo antes de cancelar la suscripción FRB, preservando el primer error de cleanup y la serialización de start/stop. | 11 pruebas pasan. El test con cancelación realmente bloqueada falla con el orden anterior y pasa con el fix. |
+| Procesos AI | Matar el árbol, cancelar ambos lectores y esperar la salida ante UTF-8 inválido, error de stream o exceso de salida, antes de propagar el error original. | 72 pruebas AI pasan, incluidas regresiones con hijo vivo y stdout/stderr abiertos; análisis enfocado sin incidencias. |
+| Runtime y voz | Lane de completions de 128 mensajes y presupuesto ordinario de 16 MiB, independiente del control normal; productores esperan capacidad incluso tras cerrar la admisión de trabajo nuevo. PCM, turnos y síntesis consumen su presupuesto, con respuestas excesivas convertidas en errores. La metadata imprescindible de una operación ya comprometida se conserva y, si supera el presupuesto, se admite como único elemento en cola hasta retirarlo del inbox. | 42 pruebas enfocadas pasan, incluidos counter/client response, cleanup/ownership, guards, timers, ticker y fixtures de retiro/reinicio. El script completo de CI pasa 2,894 pruebas con 5 omisiones opt-in en 27 suites; Clippy del workspace pasa con warnings como errores. |
+| Cloud push | Claims frescos en curso devuelven 503 reintentable. Fallos de persistencia liberan el lease como `retryable` cuando es posible. La reserva y sus contadores quedan en la misma transacción y no se repiten al reclamar un intento. | 22 pruebas unitarias y 5 contratos con PostgreSQL pasan, incluidos crash/reclaim, reintento inmediato, concurrencia y migraciones; formato y Clippy con warnings como errores aprobados. |
+| Updater local | Cancelación inmediata y entre chunks; espera de cleanup, eliminación del parcial, preservación del destino anterior y reutilización de la siguiente descarga. HTTP conserva la finalización de cancelación previa sin esperar un body que no cierre. | 450 pruebas del paquete pasan y 10 quedan omitidas por entorno. El analyzer de CI termina con 0 errores y 376 infos existentes. El chequeo posterior al rename define el punto de commit del artefacto. |
+
+El audio realtime usa la lane de trabajo de 64 MiB y conserva el descarte de frames cuando esa lane se satura. Las completions de trabajos admitidos esperan capacidad hasta su entrega o el cierre real del receptor. Los timers de Enter diferido y pulses también conservan su entrega; el ticker de recursos reintenta después de presión transitoria.
+
+El análisis completo de Flutter, la conformance de spawns, el formato Dart y el ratchet de tamaño pasan. No hay cambios de superficies generadas ni de la API FRB que requieran regeneración. La validación usa fixtures locales, procesos simulados, sidecars/PTYs de prueba y PostgreSQL aislado; no hubo OAuth/inferencia ChatGPT, envíos reales FCM ni activación de la migración en producción.
+
+La fuente implementada y validada es `9107fb400`, que incluye los fixes de hooks `2606d31d5`, procesos AI `bf22bd662`, push/quota `7911aa6bc`, updater `d07b14ffe` y fixtures de historia `31fc8358c`. Los fixtures conservan las aserciones de reemplazo, vecino y ausencia de workers duplicados; ahora esperan la barrera durable y procesan la notificación legítima de historia. Rust usa el toolchain fijado 1.98.0 con todas las variables heredadas `ALERA_*` excluidas. Las 42 pruebas enfocadas son un subconjunto de la suite completa y no se suman de nuevo. El mapeo de los siete hilos a sus commits, comandos, resultados y límites está en [la evidencia de validación](audit-pr888-review-validation-2026-10-02.json), capturada antes del push.
 
 ## Mejoras implementadas
 
@@ -74,7 +92,7 @@ La entrega FCM ahora restringe concurrencia, reserva quota dentro del presupuest
 
 La revisión independiente detectó y permitió corregir tres carreras: reclaim stale no atómico bajo dos consumidores, finalización de un lease antiguo sobre un lease nuevo y reutilización de eventos persistidos después de transferir un runtime entre cuentas. Ahora solo un consumidor reclama cada pendiente, un resultado tardío no puede sobrescribir el lease nuevo y el lookup incluye la cuenta. Tras una transferencia, repetir un identificador antiguo devuelve duplicado sin entregas ni contenido de la cuenta anterior.
 
-Las migraciones obligatorias 0001-0004 se verifican antes de servir. Los 16 índices aditivos 0005-0020 se construyen en segundo plano, uno por uno, con espera de lock acotada a 30 segundos y presupuesto de 15 minutos por índice. Un build interrumpido se repara conservando el checksum original. Las versiones desconocidas se rechazan; un estado dirty requiere intervención operativa. Bajo CPU throttling, el lote online puede necesitar otro arranque o una fase operativa posterior, mientras el servicio continúa disponible con su esquema obligatorio.
+Las migraciones obligatorias 0001-0004 y 0021 se verifican antes de servir. La nueva 0021 registra la reserva de quota por intento de entrega; considera reservados los intentos históricos para evitar cobrarlos de nuevo, y los nuevos requieren una reserva transaccional. Los 16 índices aditivos 0005-0020 se construyen en segundo plano, uno por uno, con espera de lock acotada a 30 segundos y presupuesto de 15 minutos por índice. Un build interrumpido se repara conservando el checksum original. Las versiones desconocidas se rechazan; un estado dirty requiere intervención operativa. Bajo CPU throttling, el lote online puede necesitar otro arranque o una fase operativa posterior, mientras el servicio continúa disponible con su esquema obligatorio.
 
 Existe una ventana residual de duplicación si FCM confirma y el proceso cae antes de persistir el resultado. La entrega sigue siendo best effort, con reintentos acotados, y no garantiza exactly once ni la recepción de todas las notificaciones.
 

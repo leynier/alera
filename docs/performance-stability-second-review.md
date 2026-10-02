@@ -14,6 +14,8 @@ Las conclusiones distinguen entre pruebas dinámicas aisladas, revisión estáti
 
 El usuario autorizó investigar e implementar las opciones SIWC en paralelo, con alcance separado. Este documento describe el HEAD revisado y no supone que el código vaya a quedar sin cambios después de esa investigación.
 
+El seguimiento del [PR #888](https://github.com/leynier/alera/pull/888) implementa reparaciones posteriores para hooks, completions del runtime, procesos AI, contabilidad de voz, push retry/quota y cancelación local del updater. El estado y la validación actualizados están en [el reporte de implementación](performance-stability-report.md#reparaciones-de-revisión-del-pr-888); este documento conserva las observaciones y los probes del snapshot original, incluidos el ACK de PTY y el limiter edge que siguen pendientes.
+
 ## Cinco hallazgos P1
 
 | Hallazgo | Evidencia | Fuente y regresión requerida | Impacto y cierre requerido |
