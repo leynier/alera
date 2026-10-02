@@ -120,7 +120,15 @@ impl ServerActor {
         }
         if request.close_sessions {
             let mut shutdown = match captured_shutdown {
-                Some(shutdown) => shutdown,
+                Some(mut shutdown) => {
+                    shutdown.closed_tab_ids = self
+                        .sessions
+                        .values()
+                        .filter(|session| session.workspace_id == request.id)
+                        .map(|session| session.tab_id.clone())
+                        .collect();
+                    shutdown
+                }
                 None => {
                     WorkspaceShutdown::capture(
                         self.sessions

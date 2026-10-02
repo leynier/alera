@@ -10,6 +10,7 @@ async fn captured_shutdown_survives_history_retry_without_recapture() {
     let (release, wait) = tokio::sync::oneshot::channel();
     let mut session = Session::driver_test_stub("pointer", 80, 24);
     session.workspace_id = "task".into();
+    session.tab_id = "pointer-tab".into();
     assert!(session.begin_checkpoint_job(tokio::spawn(async move {
         wait.await.map_err(|error| error.to_string())
     })));
@@ -47,6 +48,7 @@ async fn captured_shutdown_survives_history_retry_without_recapture() {
     .await
     .expect("cleanup must resume after the checkpoint finishes");
     assert!(!actor.sessions.contains_key("pointer"));
+    assert_eq!(shutdown.closed_tab_ids, vec!["pointer-tab".to_string()]);
     let error = shutdown.wait().await.unwrap_err();
     assert!(
         error

@@ -70,12 +70,14 @@ impl ServerActor {
                 let Some(proof) = remote_retirement else {
                     // Retain local pointer identities before owner retirement can
                     // close the transport and let its reader reap the shell.
-                    return WorkspaceShutdown::capture(
+                    let mut shutdown = WorkspaceShutdown::capture(
                         self.sessions
                             .values()
                             .filter(|session| session.workspace_id == request.id),
                     )
-                    .await;
+                    .await?;
+                    shutdown.closed_tab_ids.clear();
+                    return Ok(shutdown);
                 };
                 proof
                     .verify(&workspace)
