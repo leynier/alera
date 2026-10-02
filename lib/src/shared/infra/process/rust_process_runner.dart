@@ -4,6 +4,19 @@ import 'dart:io';
 import 'package:alera/src/rust/api/process.dart' as rust;
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 
+const _stdinChunkBytes = 256 * 1024;
+const _stdinRetryDelays = <Duration>[
+  Duration(milliseconds: 2),
+  Duration(milliseconds: 5),
+  Duration(milliseconds: 10),
+  Duration(milliseconds: 20),
+  Duration(milliseconds: 50),
+  Duration(milliseconds: 100),
+];
+const _stdinMaxRetryAttempts = 100;
+const _stdinMaxQueuedBytes = 8 * 1024 * 1024;
+const _stdinMaxQueuedWrites = 64;
+
 /// [ProcessRunner] backed by the Rust crate through flutter_rust_bridge. This is
 /// the only place that knows about the generated bridge types.
 ///
@@ -71,6 +84,11 @@ class _ProcessSession(final String _executable, final List<String> _arguments) {
   /// overtaken by the close that follows it.
   Future<void> _stdinWrites = Future<void>.value();
   int? _sessionId;
+  bool _stdinWritable = true;
+  bool _stdinClosed = false;
+  bool _closed = false;
+  int _pendingStdinBytes = 0;
+  int _pendingStdinWrites = 0;
 
   Future<StartedProcess> get started => _started.future;
 
@@ -84,6 +102,9 @@ class _ProcessSession(final String _executable, final List<String> _arguments) {
   }
 
   void _onEvent(rust.ProcessEvent event) {
+    if (_closed) {
+      return;
+    }
     switch (event.kind) {
       case rust.ProcessEventKind.started:
         _sessionId = event.sessionId.toInt();
@@ -101,9 +122,11 @@ class _ProcessSession(final String _executable, final List<String> _arguments) {
 
   StartedProcess _startedProcess(int pid) {
     return StartedProcess(
-      stdinWrite: (data) =>
-          _enqueueStdin((id) => rust.processWriteStdin(id: id, data: data)),
-      stdinClose: () => _enqueueStdin((id) => rust.processCloseStdin(id: id)),
+      stdinWrite: _enqueueStdinWrite,
+      stdinClose: () {
+        _stdinClosed = true;
+        _enqueueStdin((id) => rust.processCloseStdin(id: id));
+      },
       stdout: _stdout.stream,
       stderr: _stderr.stream,
       pid: pid,
@@ -113,21 +136,113 @@ class _ProcessSession(final String _executable, final List<String> _arguments) {
         if (id == null) {
           return false;
         }
-        unawaited(rust.processKill(id: id));
+        _stdinWritable = false;
+        _killSession(id);
         return true;
       },
     );
   }
 
-  void _enqueueStdin(Future<void> Function(int id) call) {
-    final id = _sessionId;
-    if (id == null) {
+  void _enqueueStdinWrite(List<int> data) {
+    if (_stdinClosed) {
+      _fail('stdin is already closed.');
       return;
     }
-    _stdinWrites = _stdinWrites.then((_) => call(id)).catchError((Object _) {});
+    if (data.length > _stdinMaxQueuedBytes ||
+        _pendingStdinWrites >= _stdinMaxQueuedWrites ||
+        data.length > _stdinMaxQueuedBytes - _pendingStdinBytes) {
+      _fail(
+        'stdin input exceeded the bounded process queue '
+        '($_stdinMaxQueuedBytes bytes).',
+      );
+      return;
+    }
+    _pendingStdinBytes += data.length;
+    _pendingStdinWrites += 1;
+    _enqueueStdin(
+      (id) => _writeStdinChunks(id, data),
+      onDone: () {
+        _pendingStdinBytes -= data.length;
+        _pendingStdinWrites -= 1;
+      },
+    );
+  }
+
+  Future<void> _writeStdinChunks(int id, List<int> data) async {
+    for (var offset = 0; offset < data.length; offset += _stdinChunkBytes) {
+      final end = offset + _stdinChunkBytes < data.length
+          ? offset + _stdinChunkBytes
+          : data.length;
+      final chunk = data.length <= _stdinChunkBytes
+          ? data
+          : data.sublist(offset, end);
+      var retryAttempt = 0;
+      while (_stdinWritable) {
+        final accepted = await _writeStdinChunk(id, chunk);
+        if (accepted) {
+          break;
+        }
+        if (!_stdinWritable) {
+          return;
+        }
+        if (retryAttempt >= _stdinMaxRetryAttempts) {
+          _fail(
+            'stdin remained backpressured after '
+            '$_stdinMaxRetryAttempts retries.',
+          );
+          return;
+        }
+        final delayIndex = retryAttempt < _stdinRetryDelays.length
+            ? retryAttempt
+            : _stdinRetryDelays.length - 1;
+        await Future.pause(_stdinRetryDelays[delayIndex]);
+        retryAttempt += 1;
+      }
+      if (!_stdinWritable) {
+        return;
+      }
+    }
+  }
+
+  Future<bool> _writeStdinChunk(int id, List<int> chunk) async {
+    try {
+      return await rust.processWriteStdin(id: id, data: chunk);
+    } on Object catch (error) {
+      if (_stdinWritable && !_exitCode.isCompleted) {
+        _fail('failed to write stdin: $error');
+      }
+      return false;
+    }
+  }
+
+  void _killSession(int id) {
+    unawaited(rust.processKill(id: id).catchError((_) => false));
+  }
+
+  void _enqueueStdin(
+    Future<void> Function(int id) call, {
+    void Function()? onDone,
+  }) {
+    final id = _sessionId;
+    if (id == null) {
+      onDone?.call();
+      return;
+    }
+    _stdinWrites = _stdinWrites
+        .then((_) async {
+          try {
+            if (_stdinWritable) {
+              await call(id);
+            }
+          } finally {
+            onDone?.call();
+          }
+        })
+        .catchError((Object _) {});
   }
 
   void _finish(int exitCode) {
+    _stdinWritable = false;
     if (!_exitCode.isCompleted) {
       _exitCode.complete(exitCode);
     }
@@ -135,6 +250,11 @@ class _ProcessSession(final String _executable, final List<String> _arguments) {
   }
 
   void _fail(String message) {
+    if (_closed) {
+      return;
+    }
+    final id = _sessionId;
+    _stdinWritable = false;
     final failure = ProcessException(_executable, _arguments, message);
     if (!_started.isCompleted) {
       _started.completeError(failure);
@@ -142,10 +262,17 @@ class _ProcessSession(final String _executable, final List<String> _arguments) {
     if (!_exitCode.isCompleted) {
       _exitCode.completeError(failure);
     }
+    if (id != null) {
+      _killSession(id);
+    }
     _close();
   }
 
   void _close() {
+    if (_closed) {
+      return;
+    }
+    _closed = true;
     unawaited(_stdout.close());
     unawaited(_stderr.close());
   }

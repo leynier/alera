@@ -327,6 +327,86 @@ void main() {
       expect(event.payload['last_assistant_message'], 'Done.');
     });
 
+    test('reads large transcript growth in bounded passes', () async {
+      transcript.writeAsStringSync('');
+      watcher.observeHookEvent(
+        _event(
+          hookEventName: 'UserPromptSubmit',
+          payload: <String, Object?>{
+            'turn_id': 'turn-1',
+            'transcript_path': transcript.path,
+            'prompt': 'finish after a large transcript',
+          },
+        ),
+      );
+      await watcher.scanNowForTesting('session-1');
+
+      final padding = List<String>.filled(120, 'x').join();
+      final noiseLine =
+          '${jsonEncode(<String, Object?>{'type': 'ignored', 'padding': padding})}\n';
+      final noise = List<String>.filled(10000, noiseLine).join();
+      final completion =
+          '${jsonEncode(<String, Object?>{
+            'type': 'event_msg',
+            'payload': <String, Object?>{'type': 'task_complete', 'turn_id': 'turn-1', 'last_agent_message': 'Done after bounded scanning.'},
+          })}\n';
+      transcript.writeAsStringSync(noise + completion, mode: .append);
+
+      await watcher.scanNowForTesting('session-1');
+      await watcher.scanNowForTesting('session-1');
+      expect(sink.events, hasLength(1));
+      expect(sink.events.single.hookEventName, 'Stop');
+      expect(
+        sink.events.single.payload['last_assistant_message'],
+        'Done after bounded scanning.',
+      );
+    });
+
+    test('resets state when the transcript is truncated and recreated', () async {
+      transcript.writeAsStringSync(
+        '${jsonEncode(<String, Object?>{
+          'type': 'event_msg',
+          'payload': <String, Object?>{'type': 'task_started', 'turn_id': 'turn-1'},
+        })}\n'
+        '${List<String>.filled(1000, '{"type":"ignored"}').join('\n')}\n'
+        '{"type":"ignored","old":',
+      );
+      watcher.observeHookEvent(
+        _event(
+          hookEventName: 'UserPromptSubmit',
+          payload: <String, Object?>{
+            'turn_id': 'turn-1',
+            'transcript_path': transcript.path,
+          },
+        ),
+      );
+      await watcher.scanNowForTesting('session-1');
+
+      transcript.writeAsStringSync(
+        '${jsonEncode(<String, Object?>{
+          'type': 'event_msg',
+          'payload': <String, Object?>{'type': 'task_started', 'turn_id': 'turn-1'},
+        })}\n',
+      );
+      await watcher.scanNowForTesting('session-1');
+
+      transcript.writeAsStringSync(
+        '${jsonEncode(<String, Object?>{
+          'type': 'event_msg',
+          'payload': <String, Object?>{'type': 'task_complete', 'turn_id': 'turn-1', 'last_agent_message': 'Recreated transcript finished.'},
+        })}\n',
+        mode: .append,
+      );
+      await watcher.scanNowForTesting('session-1');
+
+      expect(sink.events, hasLength(1));
+      expect(sink.events.single.hookEventName, 'Stop');
+      expect(
+        sink.events.single.payload['last_assistant_message'],
+        'Recreated transcript finished.',
+      );
+    });
+
     test('clearTerminal drops the watch for a closed terminal', () async {
       transcript.writeAsStringSync('');
       watcher.observeHookEvent(

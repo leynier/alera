@@ -21,6 +21,10 @@ use crate::frb_generated::StreamSink;
 
 const READ_CHUNK_BYTES: usize = 64 * 1024;
 
+#[path = "process_stdin.rs"]
+mod process_stdin;
+use process_stdin::{StdinBudget, StdinChunk, PROCESS_STDIN_QUEUE_CAPACITY};
+
 /// How long output already in flight may take to drain once the child exited.
 const DRAIN_GRACE: std::time::Duration = std::time::Duration::from_millis(250);
 
@@ -30,7 +34,8 @@ const PROCESS_TREE_KILL_TIMEOUT: std::time::Duration = std::time::Duration::from
 /// A running command the Dart side still holds a handle to.
 struct Session {
     /// Dropped by `close_stdin`, which is what closes the child's stdin.
-    stdin: Option<mpsc::UnboundedSender<Vec<u8>>>,
+    stdin: Option<mpsc::Sender<StdinChunk>>,
+    stdin_budget: Arc<StdinBudget>,
     kill: Arc<Notify>,
 }
 
@@ -123,7 +128,8 @@ pub(super) fn start(
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
     let id = NEXT_SESSION_ID.fetch_add(1, Ordering::Relaxed);
-    let (writes, incoming) = mpsc::unbounded_channel();
+    let (writes, incoming) = mpsc::channel(PROCESS_STDIN_QUEUE_CAPACITY);
+    let stdin_budget = StdinBudget::new();
     let kill = Arc::new(Notify::new());
     match sessions().lock() {
         Ok(mut sessions) => {
@@ -131,12 +137,14 @@ pub(super) fn start(
                 id,
                 Session {
                     stdin: Some(writes),
+                    stdin_budget,
                     kill: kill.clone(),
                 },
             );
         }
         Err(_) => {
             emit_failure(&events, "process registry lock poisoned".to_string());
+            abort_unowned_child(child);
             return;
         }
     }
@@ -157,6 +165,7 @@ pub(super) fn start(
         .is_err()
     {
         forget_session(id);
+        abort_unowned_child(child);
         return;
     }
 
@@ -165,7 +174,7 @@ pub(super) fn start(
             let mut incoming = incoming;
             tokio::spawn(async move {
                 while let Some(chunk) = incoming.recv().await {
-                    if stdin.write_all(&chunk).await.is_err() {
+                    if stdin.write_all(&chunk.data).await.is_err() {
                         break;
                     }
                     let _ = stdin.flush().await;
@@ -189,6 +198,16 @@ pub(super) fn start(
     });
 }
 
+/// A process started before its session became observable has no caller that
+/// can issue `kill`. Reap it immediately instead of letting a dropped Tokio
+/// child continue as an untracked orphan.
+fn abort_unowned_child(mut child: Child) {
+    runtime().spawn(async move {
+        terminate_invocation(&child).await;
+        let _ = child.wait().await;
+    });
+}
+
 pub(super) fn write_stdin(id: i64, data: Vec<u8>) -> bool {
     let Ok(sessions) = sessions().lock() else {
         return false;
@@ -199,7 +218,12 @@ pub(super) fn write_stdin(id: i64, data: Vec<u8>) -> bool {
     let Some(stdin) = session.stdin.as_ref() else {
         return false;
     };
-    stdin.send(data).is_ok()
+    if !session.stdin_budget.try_reserve(data.len()) {
+        return false;
+    }
+    stdin
+        .try_send(StdinChunk::new(data, Arc::clone(&session.stdin_budget)))
+        .is_ok()
 }
 
 pub(super) fn close_stdin(id: i64) {
@@ -404,4 +428,58 @@ pub(super) fn wait_for_exit_in_tests(
         });
         wait_for_exit(&mut child, kill).await
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::process_stdin::PROCESS_STDIN_MAX_QUEUED_BYTES;
+    use super::*;
+
+    #[test]
+    fn stdin_queue_rejects_writes_after_its_bounded_capacity() {
+        let id = NEXT_SESSION_ID.fetch_add(1, Ordering::Relaxed);
+        let (sender, receiver) = mpsc::channel(PROCESS_STDIN_QUEUE_CAPACITY);
+        sessions().lock().expect("process registry lock").insert(
+            id,
+            Session {
+                stdin: Some(sender),
+                stdin_budget: StdinBudget::new(),
+                kill: Arc::new(Notify::new()),
+            },
+        );
+
+        for _ in 0..PROCESS_STDIN_QUEUE_CAPACITY {
+            assert!(write_stdin(id, vec![b'x']));
+        }
+        assert!(!write_stdin(id, vec![b'x']));
+
+        drop(receiver);
+        sessions()
+            .lock()
+            .expect("process registry lock")
+            .remove(&id);
+    }
+
+    #[test]
+    fn stdin_queue_rejects_a_chunk_that_exceeds_its_byte_budget() {
+        let id = NEXT_SESSION_ID.fetch_add(1, Ordering::Relaxed);
+        let (sender, receiver) = mpsc::channel(PROCESS_STDIN_QUEUE_CAPACITY);
+        sessions().lock().expect("process registry lock").insert(
+            id,
+            Session {
+                stdin: Some(sender),
+                stdin_budget: StdinBudget::new(),
+                kill: Arc::new(Notify::new()),
+            },
+        );
+
+        assert!(write_stdin(id, vec![b'x'; PROCESS_STDIN_MAX_QUEUED_BYTES]));
+        assert!(!write_stdin(id, vec![b'x']));
+
+        drop(receiver);
+        sessions()
+            .lock()
+            .expect("process registry lock")
+            .remove(&id);
+    }
 }

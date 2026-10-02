@@ -38,11 +38,11 @@ void _registerCodexRuntimeHomeServiceCoreTests() {
       contains('echo user-hook'),
     );
     expect(_managedCommandCount(runtimeHooks, 'alera-codex-hook.sh'), 6);
-    expect(
-      File(p.join(home.path, '.alera', 'agent-hooks', 'alera-codex-hook.sh'))
-          .existsSync(),
-      isTrue,
+    final hookScript = File(
+      p.join(home.path, '.alera', 'agent-hooks', 'alera-codex-hook.sh'),
     );
+    expect(hookScript.existsSync(), isTrue);
+    _expectPosixHookRetryScript(hookScript);
 
     final runtimeToml = File(p.join(preparation.runtimeHomePath, 'config.toml'))
         .readAsStringSync();
@@ -458,27 +458,6 @@ void _registerCodexRuntimeHomeServiceCoreTests() {
     expect(
       File(runtimeTomlPath).readAsStringSync(),
       isNot(contains('[hooks.state.')),
-    );
-  });
-
-  test('uses cmd runtime hooks on Windows', () async {
-    final windowsService = CodexRuntimeHomeService(
-      homeDirectory: home.path,
-      applicationSupportDirectory: () async => support,
-      platform: .windows,
-      environment: <String, String>{'USERPROFILE': home.path},
-    );
-
-    final preparation = await windowsService.prepareForTerminalLaunch();
-
-    final runtimeHooks = _hooks(
-      p.join(preparation.runtimeHomePath, 'hooks.json'),
-    );
-    expect(_managedCommandCount(runtimeHooks, 'alera-codex-hook.cmd'), 6);
-    expect(
-      File(p.join(home.path, '.alera', 'agent-hooks', 'alera-codex-hook.cmd'))
-          .readAsStringSync(),
-      contains('/hook/codex'),
     );
   });
 

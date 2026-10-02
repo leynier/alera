@@ -100,3 +100,19 @@ int _managedCommandCount(Map<String, Object?> hooks, String fileName) {
 String _escapeTomlString(String value) {
   return value.replaceAll(r'\', r'\\').replaceAll('"', r'\"');
 }
+
+void _expectPosixHookRetryScript(File hookScript) {
+  final source = hookScript.readAsStringSync();
+  expect(source, contains('httpCode'));
+  expect(source, contains('429'));
+  expect(source, contains('503'));
+  expect(source, contains('--connect-timeout 0.2'));
+  expect(source, contains('--max-time 0.5'));
+}
+
+void _expectWindowsHookRetryScript(File hookScript) {
+  final source = hookScript.readAsStringSync();
+  expect(source, contains('TimeoutSec 1'));
+  expect(source, contains('-eq 429'));
+  expect(source, contains('-eq 503'));
+}

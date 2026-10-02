@@ -137,12 +137,16 @@ void main() {
         _directCommandsFor(hooks, 'UserPromptSubmit').single,
         contains('ALERA_COPILOT_HOOK_EVENT'),
       );
-      expect(
-        File(
-          p.join(home.path, '.alera', 'agent-hooks', 'alera-copilot-hook.sh'),
-        ).readAsStringSync(),
-        contains('/hook/copilot'),
-      );
+      final script = File(
+        p.join(home.path, '.alera', 'agent-hooks', 'alera-copilot-hook.sh'),
+      ).readAsStringSync();
+      expect(script, contains('/hook/copilot'));
+      expect(script, contains('httpCode'));
+      expect(script, contains('429'));
+      expect(script, contains('503'));
+      expect(script, contains('--connect-timeout 0.2'));
+      expect(script, contains('--max-time 0.5'));
+      expect(script, isNot(contains('|| true')));
     });
 
     test('reports malformed JSON configs as errors', () {
@@ -329,6 +333,18 @@ void main() {
       expect(command, contains(r'$env:ALERA_COPILOT_HOOK_EVENT'));
       expect(command, contains("quoted''home"));
       expect(command, contains('alera-copilot-hook.ps1'));
+      final script = File(
+        p.join(
+          quotedHome.path,
+          '.alera',
+          'agent-hooks',
+          'alera-copilot-hook.ps1',
+        ),
+      ).readAsStringSync();
+      expect(script, contains('TimeoutSec 1'));
+      expect(script, contains('-eq 429'));
+      expect(script, contains('-eq 503'));
+      expect(script, contains('\$attempt -lt 2'));
     });
 
     test('installs and removes the managed OpenCode status plugin', () {

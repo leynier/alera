@@ -9,6 +9,8 @@ import 'package:alera/src/features/agent_status/infra/agent_hook_request_parser.
 import 'package:alera/src/features/agent_status/infra/agent_hook_receiver.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+part 'agent_hook_receiver_test_fakes.dart';
+
 void main() {
   group('AgentHookReceiver', () {
     late Directory tempDir;
@@ -52,6 +54,45 @@ void main() {
       );
     });
 
+    test(
+      'serializes a rapid stop and start and restores event delivery',
+      () async {
+        final stopGate = Completer<void>();
+        hookServer.stopGate = stopGate;
+        final stopFuture = receiver.stop();
+        await hookServer.stopStarted.future;
+
+        final startFuture = receiver.start();
+        await Future.pause(Duration.zero);
+        expect(hookServer.startCount, 1);
+
+        stopGate.complete();
+        await Future.wait(<Future<void>>[stopFuture, startFuture]);
+
+        expect(hookServer.startCount, 2);
+        expect(hookServer.watchCount, 2);
+        hookServer.emit(
+          AgentHookEventBatch(
+            events: <AgentHookEvent>[
+              AgentHookEvent(
+                terminalSessionId: 'session-rapid',
+                workspaceId: 'workspace-1',
+                tabId: 'tab-rapid',
+                agentType: AgentType.codex,
+                payload: const <String, Object?>{},
+              ),
+            ],
+          ),
+        );
+        await Future.pause(Duration.zero);
+
+        expect(
+          sink.events.map((event) => event.terminalSessionId),
+          contains('session-rapid'),
+        );
+      },
+    );
+
     test('rejects bad tokens with 403', () async {
       final response = await _post(
         receiver.endpoint!.port,
@@ -87,19 +128,25 @@ void main() {
         expect(failingReceiver.isRunning, isFalse);
 
         final supportCompleter = Completer<Directory>();
+        final resolverCalled = Completer<void>();
         final slowFailingReceiver = AgentHookReceiver(
           statusSink: sink,
-          applicationSupportDirectory: () => supportCompleter.future,
+          applicationSupportDirectory: () {
+            resolverCalled.complete();
+            return supportCompleter.future;
+          },
           token: 'token-1',
           hookServer: _FakeAgentHookServer(),
         );
         addTearDown(slowFailingReceiver.dispose);
 
         final startFuture = slowFailingReceiver.start();
+        final startExpectation = expectLater(startFuture, throwsStateError);
         final stopFuture = slowFailingReceiver.stop();
+        await resolverCalled.future;
         supportCompleter.completeError(StateError('no support'));
 
-        await expectLater(startFuture, throwsStateError);
+        await startExpectation;
         await stopFuture;
         expect(slowFailingReceiver.isRunning, isFalse);
       },
@@ -330,121 +377,4 @@ Future<HttpClientResponse> _post(
   request.headers.contentType = contentType;
   request.write(body);
   return request.close();
-}
-
-class _FakeStatusSink implements AgentStatusSink {
-  final events = <AgentHookEvent>[];
-
-  @override
-  void applyHookEvent(AgentHookEvent event) {
-    events.add(event);
-  }
-}
-
-class _ThrowingStatusSink implements AgentStatusSink {
-  @override
-  void applyHookEvent(AgentHookEvent event) {
-    throw StateError('sink failed');
-  }
-}
-
-class _FakeAgentHookServer implements AgentHookServer {
-  final _batches = StreamController<AgentHookEventBatch>.broadcast();
-  final _enabledAgents = <String>{};
-
-  HttpServer? _server;
-  String _token = '';
-
-  @override
-  Stream<AgentHookEventBatch> watchEventBatches() => _batches.stream;
-
-  @override
-  Future<int> start({
-    required String token,
-    required List<String> enabledAgents,
-  }) async {
-    _token = token;
-    _enabledAgents
-      ..clear()
-      ..addAll(enabledAgents);
-    final existing = _server;
-    if (existing != null) {
-      return existing.port;
-    }
-    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    _server = server;
-    unawaited(_serve(server));
-    return server.port;
-  }
-
-  @override
-  Future<void> setEnabledAgents(List<String> enabledAgents) async {
-    _enabledAgents
-      ..clear()
-      ..addAll(enabledAgents);
-  }
-
-  @override
-  Future<void> stop() async {
-    final server = _server;
-    _server = null;
-    await server?.close(force: true);
-  }
-
-  Future<void> _serve(HttpServer server) async {
-    await for (final request in server) {
-      await _handle(request);
-    }
-  }
-
-  Future<void> _handle(HttpRequest request) async {
-    final agentType = _agentTypeForPath(request.uri.path);
-    if (request.method != 'POST' || agentType == null) {
-      request.response.statusCode = HttpStatus.notFound;
-      await request.response.close();
-      return;
-    }
-    if (request.headers.value(aleraAgentHookTokenHeader) != _token) {
-      request.response.statusCode = HttpStatus.forbidden;
-      await request.response.close();
-      return;
-    }
-    if (!_enabledAgents.contains(agentType.key)) {
-      request.response.statusCode = HttpStatus.noContent;
-      await request.response.close();
-      return;
-    }
-    try {
-      final bodyBytes = <int>[];
-      await for (final chunk in request) {
-        bodyBytes.addAll(chunk);
-        if (bodyBytes.length > agentHookRequestMaxBytes) {
-          throw const FormatException('too large');
-        }
-      }
-      final decoded = decodeAgentHookRequestBody(
-        contentType: request.headers.contentType?.toString() ?? '',
-        bodyBytes: bodyBytes,
-      );
-      final event = parseAgentHookRequest(agentType: agentType, body: decoded);
-      if (event != null) {
-        _batches.add(AgentHookEventBatch(events: <AgentHookEvent>[event]));
-      }
-    } catch (_) {}
-    request.response.statusCode = HttpStatus.noContent;
-    await request.response.close();
-  }
-
-  AgentType? _agentTypeForPath(String path) {
-    if (!path.startsWith('/hook/')) {
-      return null;
-    }
-    final key = path.substring('/hook/'.length);
-    for (final agentType in AgentType.values) {
-      if (agentType.key == key) {
-        return agentType;
-      }
-    }
-    return null;
-  }
 }

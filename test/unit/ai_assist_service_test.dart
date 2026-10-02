@@ -103,6 +103,69 @@ Body line.
       expect(message, contains('Body line.'));
     });
 
+    test('kills an agent that exceeds the output budget', () async {
+      final chunk = List<int>.filled(64 * 1024, 120);
+      final runner = _FakeProcessRunner(
+        stdout: '',
+        stdoutStream: Stream<List<int>>.fromIterable(
+          Iterable<List<int>>.generate(
+            (aiAssistAgentMaxOutputBytes ~/ chunk.length) + 1,
+            (_) => chunk,
+          ),
+        ),
+      );
+      final agentRunner = CliAiAssistAgentRunner(
+        processRunner: runner,
+        commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(),
+      );
+
+      await expectLater(
+        agentRunner.run(
+          const AiAssistAgentRunRequest(
+            settings: AiAssistSettings(agent: .agy),
+            prompt: 'Summarize the staged changes.',
+            runId: 'output-budget',
+            workingDirectory: '/repo',
+          ),
+        ),
+        throwsA(
+          isA<AiAssistException>().having(
+            (error) => error.message,
+            'message',
+            contains('returned too much output'),
+          ),
+        ),
+      );
+      expect(runner.killed, isTrue);
+    });
+
+    test('preserves UTF-8 when agent output splits a code point', () async {
+      final bytes = utf8.encode('café\n');
+      final split = bytes.indexOf(0xC3) + 1;
+      final runner = _FakeProcessRunner(
+        stdout: '',
+        stdoutStream: Stream<List<int>>.fromIterable(<List<int>>[
+          bytes.sublist(0, split),
+          bytes.sublist(split),
+        ]),
+      );
+      final agentRunner = CliAiAssistAgentRunner(
+        processRunner: runner,
+        commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(),
+      );
+
+      final result = await agentRunner.run(
+        const AiAssistAgentRunRequest(
+          settings: AiAssistSettings(agent: .agy),
+          prompt: 'Summarize the staged changes.',
+          runId: 'utf8-output',
+          workingDirectory: '/repo',
+        ),
+      );
+
+      expect(result.text, 'café');
+    });
+
     test('generates pull request details from base range context', () async {
       final git = FakeGitBackend()
         ..gitRangeContextResult = const GitRangeContext(

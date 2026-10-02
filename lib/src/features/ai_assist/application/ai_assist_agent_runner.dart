@@ -19,6 +19,10 @@ enum AgentTaskAccessPolicy { repositoryReadOnly, diffOnly }
 
 enum AgentTaskOutputContract { plainText, readingDiffPlanV1 }
 
+/// Agent CLIs are user-configurable processes, so their output must not be
+/// allowed to grow without a bound while the desktop waits for completion.
+const int aiAssistAgentMaxOutputBytes = 4 * 1024 * 1024;
+
 class const AiAssistAgentRunRequest({
   required final AiAssistSettings settings,
   required final String prompt,
@@ -160,7 +164,7 @@ class CliAiAssistAgentRunner({
       }
       final rawOutput = plan.outputFile == null
           ? output.stdout
-          : await plan.outputFile!.readAsString();
+          : await _readBoundedOutputFile(plan.outputFile!);
       final text = request.outputContract == AgentTaskOutputContract.plainText
           ? request.cleanOutput(rawOutput)
           : _cleanStructuredOutput(request.cleanOutput(rawOutput));
@@ -168,6 +172,10 @@ class CliAiAssistAgentRunner({
         throw AiAssistException('${plan.label} returned no text.');
       }
       return AiAssistAgentRunResult(text: text, agentLabel: plan.label);
+    } on _AiAssistAgentOutputLimitException {
+      throw AiAssistException(
+        '${plan?.label ?? 'Agent'} returned too much output.',
+      );
     } finally {
       _pending.remove(request.runId);
       _running.remove(request.runId);
@@ -253,15 +261,49 @@ class CliAiAssistAgentRunner({
   Future<ProcessRunOutput> _collectProcess(StartedProcess process) async {
     final stdout = StringBuffer();
     final stderr = StringBuffer();
-    final stdoutDone = utf8.decoder.bind(process.stdout).forEach(stdout.write);
-    final stderrDone = utf8.decoder.bind(process.stderr).forEach(stderr.write);
-    final exitCode = await process.exitCode;
-    await Future.wait(<Future<void>>[stdoutDone, stderrDone]);
+    var totalBytes = 0;
+
+    Future<void> collect(Stream<List<int>> stream, StringBuffer buffer) async {
+      final counted = stream.map((chunk) {
+        totalBytes += chunk.length;
+        if (totalBytes > aiAssistAgentMaxOutputBytes) {
+          process.kill();
+          throw const _AiAssistAgentOutputLimitException();
+        }
+        return chunk;
+      });
+      await utf8.decoder.bind(counted).forEach(buffer.write);
+    }
+
+    final stdoutDone = collect(process.stdout, stdout);
+    final stderrDone = collect(process.stderr, stderr);
+    var exitCode = 0;
+    final exitDone = process.exitCode.then<void>((value) {
+      exitCode = value;
+    });
+    await Future.wait<void>(<Future<void>>[
+      stdoutDone,
+      stderrDone,
+      exitDone,
+    ], eagerError: true);
     return ProcessRunOutput(
       exitCode: exitCode,
       stdout: stdout.toString(),
       stderr: stderr.toString(),
     );
+  }
+
+  Future<String> _readBoundedOutputFile(File file) async {
+    final bytes = await file
+        .openRead(0, aiAssistAgentMaxOutputBytes + 1)
+        .fold<List<int>>(<int>[], (buffer, chunk) {
+          buffer.addAll(chunk);
+          return buffer;
+        });
+    if (bytes.length > aiAssistAgentMaxOutputBytes) {
+      throw const _AiAssistAgentOutputLimitException();
+    }
+    return utf8.decode(bytes, allowMalformed: true);
   }
 
   String _cleanStructuredOutput(String output) {
@@ -290,6 +332,8 @@ class CliAiAssistAgentRunner({
     return fenced?.group(1)?.trim() ?? trimmed;
   }
 }
+
+class const _AiAssistAgentOutputLimitException() implements Exception;
 
 Future<void> _waitForProcessExit(Future<int>? processExit) async {
   if (processExit != null) {

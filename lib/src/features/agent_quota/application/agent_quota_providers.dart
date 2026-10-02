@@ -104,6 +104,7 @@ class AgentQuotaService(
 ]) {
   final Map<String, AgentQuotaState> _cache = <String, AgentQuotaState>{};
   final Set<String> _forceRefreshHosts = <String>{};
+  final Map<String, int> _cacheMutationGenerations = <String, int>{};
 
   void requestForceRefresh(String hostId) {
     _forceRefreshHosts.add(hostId);
@@ -119,6 +120,7 @@ class AgentQuotaService(
     required AgentQuotaHostSettings settings,
     bool forceRefresh = false,
   }) async {
+    final generation = _beginCacheMutation(hostId);
     try {
       final environmentNames = <String>[
         settings.environment.kimiApiKey,
@@ -197,7 +199,11 @@ class AgentQuotaService(
         environment: _boolMap(payload['environment']),
         fetchedAt: DateTime.now().toUtc(),
       );
-      _cache[hostId] = state;
+      // Any cache mutation can start another read before this one returns. An
+      // older response must not replace the newer cache entry out of order.
+      if (_isCurrentCacheMutation(hostId, generation)) {
+        _cache[hostId] = state;
+      }
       return state;
     } catch (error) {
       final previous = _cache[hostId];
@@ -229,6 +235,7 @@ class AgentQuotaService(
     required String accountId,
     String? displayName,
   }) async {
+    final generation = _beginCacheMutation(hostId);
     final payload = hostId == 'local' && _runtimeClient != null
         ? _mapValue(
             await _runtimeClient.runtimeRequest(
@@ -265,7 +272,7 @@ class AgentQuotaService(
       );
     }
     final previous = _cache[hostId];
-    if (previous != null) {
+    if (previous != null && _isCurrentCacheMutation(hostId, generation)) {
       final snapshots = <AgentQuotaSnapshot>[
         for (final item in previous.snapshots)
           if (item.key == snapshot.key) snapshot else item,
@@ -288,6 +295,7 @@ class AgentQuotaService(
     required SshTarget? target,
     required String offerRevision,
   }) async {
+    final generation = _beginCacheMutation(hostId);
     final payload = hostId == 'local' && _runtimeClient != null
         ? _mapValue(
             await _runtimeClient.runtimeRequest(
@@ -313,13 +321,25 @@ class AgentQuotaService(
     if (!snapshots.any((snapshot) => snapshot.key == result.snapshot.key)) {
       snapshots.add(result.snapshot);
     }
-    _cache[hostId] = AgentQuotaState(
-      hostId: hostId,
-      snapshots: snapshots,
-      environment: previous?.environment ?? const <String, bool>{},
-      fetchedAt: DateTime.now().toUtc(),
-    );
+    if (_isCurrentCacheMutation(hostId, generation)) {
+      _cache[hostId] = AgentQuotaState(
+        hostId: hostId,
+        snapshots: snapshots,
+        environment: previous?.environment ?? const <String, bool>{},
+        fetchedAt: DateTime.now().toUtc(),
+      );
+    }
     return result;
+  }
+
+  int _beginCacheMutation(String hostId) {
+    final generation = (_cacheMutationGenerations[hostId] ?? 0) + 1;
+    _cacheMutationGenerations[hostId] = generation;
+    return generation;
+  }
+
+  bool _isCurrentCacheMutation(String hostId, int generation) {
+    return _cacheMutationGenerations[hostId] == generation;
   }
 }
 

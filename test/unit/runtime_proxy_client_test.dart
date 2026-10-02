@@ -444,7 +444,6 @@ class _RecordingRunner implements ProcessRunner {
   List<String>? arguments;
   Map<String, String>? environment;
   String stdin = '';
-
   @override
   Future<StartedProcess> start(
     String executable,

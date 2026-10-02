@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -60,6 +61,94 @@ void main() {
     expect(await process.exitCode, 0);
     // `git hash-object` only answers once stdin reaches EOF.
     expect(stdout.trim(), hasLength(40));
+  });
+
+  test('start chunks oversized stdin and retries a saturated writer', () async {
+    if (Platform.isWindows) {
+      return;
+    }
+    final process = await runner.start('sh', const <String>[
+      '-c',
+      'sleep 0.2; wc -c',
+    ]);
+    final payload = List<int>.filled(5 * 1024 * 1024, 65);
+    process.stdinWrite(payload);
+    process.stdinClose();
+
+    final stdout = await process.stdout.transform(utf8.decoder).join();
+    expect(await process.exitCode, 0);
+    expect(int.parse(stdout.trim()), payload.length);
+  });
+
+  test(
+    'start stops pending stdin retries when the process is killed',
+    () async {
+      if (Platform.isWindows) {
+        return;
+      }
+      final process = await runner.start('sh', const <String>['-c', 'sleep 5']);
+      process.stdinWrite(List<int>.filled(5 * 1024 * 1024, 65));
+      expect(process.kill(), isTrue);
+      expect(
+        await process.exitCode.timeout(const Duration(seconds: 2)),
+        isNot(0),
+      );
+    },
+  );
+
+  test('start reports Dart stdin queue overflow through exitCode', () async {
+    if (Platform.isWindows) {
+      return;
+    }
+    final process = await runner.start('sh', const <String>['-c', 'sleep 5']);
+    process.stdinWrite(List<int>.filled(8 * 1024 * 1024, 65));
+    process.stdinWrite(const <int>[65]);
+
+    await expectLater(process.exitCode, throwsA(isA<ProcessException>()));
+  });
+
+  test('stdin overflow ignores late native output events', () async {
+    if (Platform.isWindows) {
+      return;
+    }
+    final process = await runner.start('sh', const <String>[
+      '-c',
+      'printf first; dd if=/dev/zero bs=65536 count=64 2>/dev/null; sleep 5',
+    ]);
+    final firstOutput = Completer<void>();
+    var capturedBytes = 0;
+    final stdoutSubscription = process.stdout.listen((chunk) {
+      capturedBytes += chunk.length;
+      if (chunk.isNotEmpty && !firstOutput.isCompleted) {
+        firstOutput.complete();
+      }
+    });
+    final stderrDone = process.stderr.drain<void>();
+
+    await firstOutput.future.timeout(const Duration(seconds: 2));
+    process.stdinWrite(List<int>.filled(8 * 1024 * 1024, 65));
+    process.stdinWrite(const <int>[65]);
+
+    await expectLater(
+      process.exitCode.timeout(const Duration(seconds: 2)),
+      throwsA(isA<ProcessException>()),
+    );
+    await stdoutSubscription.asFuture<void>().timeout(
+      const Duration(seconds: 2),
+    );
+    await stderrDone.timeout(const Duration(seconds: 2));
+    expect(capturedBytes, greaterThan(0));
+  });
+
+  test('start reports a write after stdin close through exitCode', () async {
+    if (Platform.isWindows) {
+      return;
+    }
+    final process = await runner.start('sh', const <String>['-c', 'sleep 5']);
+    process.stdinClose();
+    process.stdinWrite(const <int>[65]);
+
+    await expectLater(process.exitCode, throwsA(isA<ProcessException>()));
   });
 
   test('kill ends a process that would otherwise keep running', () async {

@@ -9,6 +9,10 @@ import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+/// Runtime proxy responses are compact JSON messages. Keep a corrupt or
+/// misbehaving sidecar from making the desktop retain unbounded process output.
+const int runtimeProxyMaxResponseBytes = 1024 * 1024;
+
 class RuntimeProxyClient({
   required final ProcessRunner processRunner,
   final CommandEnvironmentResolver? _environmentResolver,
@@ -44,18 +48,43 @@ class RuntimeProxyClient({
       workingDirectory: invocation.workingDirectory,
       environment: environment,
     );
-    final stdout = process.stdout.transform(utf8.decoder).join();
-    final stderr = process.stderr.transform(utf8.decoder).join();
-    process.stdinWrite(
-      utf8.encode(
-        '${jsonEncode(<String, Object?>{'id': 1, 'type': type, 'payload': payload})}\n',
-      ),
-    );
-    process.stdinClose();
+    var outputBytes = 0;
+    final iterators = <StreamIterator<String>>[];
+
+    Future<String> collect(Stream<List<int>> stream) async {
+      final buffer = StringBuffer();
+      final counted = stream.map((chunk) {
+        outputBytes += chunk.length;
+        if (outputBytes > runtimeProxyMaxResponseBytes) {
+          throw const _RuntimeProxyOutputLimitException();
+        }
+        return chunk;
+      });
+      final iterator = StreamIterator<String>(utf8.decoder.bind(counted));
+      iterators.add(iterator);
+      while (await iterator.moveNext()) {
+        buffer.write(iterator.current);
+      }
+      return buffer.toString();
+    }
+
+    final stdout = collect(process.stdout);
+    final stderr = collect(process.stderr);
     try {
-      final exitCode = await process.exitCode.timeout(timeout);
-      final output = await stdout;
-      final diagnostic = await stderr;
+      process.stdinWrite(
+        utf8.encode(
+          '${jsonEncode(<String, Object?>{'id': 1, 'type': type, 'payload': payload})}\n',
+        ),
+      );
+      process.stdinClose();
+      final completed = await Future.wait<Object>(<Future<Object>>[
+        process.exitCode.timeout(timeout),
+        stdout,
+        stderr,
+      ], eagerError: true);
+      final exitCode = completed[0] as int;
+      final output = completed[1] as String;
+      final diagnostic = completed[2] as String;
       if (exitCode != 0) {
         throw StateError(
           diagnostic.trim().isEmpty
@@ -87,9 +116,32 @@ class RuntimeProxyClient({
       }
       return Map<String, Object?>.from(responsePayload);
     } on TimeoutException {
-      process.kill();
+      await _cleanupProcess(process, iterators);
       throw TimeoutException('Runtime proxy request timed out.', timeout);
+    } on _RuntimeProxyOutputLimitException {
+      await _cleanupProcess(process, iterators);
+      throw StateError(
+        'Runtime proxy returned too much data (limit $runtimeProxyMaxResponseBytes bytes).',
+      );
+    } catch (error, stackTrace) {
+      await _cleanupProcess(process, iterators);
+      Error.throwWithStackTrace(error, stackTrace);
     }
+  }
+
+  Future<void> _cleanupProcess(
+    StartedProcess process,
+    List<StreamIterator<String>> iterators,
+  ) async {
+    process.kill();
+    for (final iterator in iterators) {
+      try {
+        await iterator.cancel();
+      } catch (_) {}
+    }
+    try {
+      await process.exitCode.timeout(const Duration(seconds: 1));
+    } catch (_) {}
   }
 
   Future<Map<String, String>> resolveMissingLocalEnvironment(
@@ -196,3 +248,5 @@ class const _RuntimeProxyInvocation({
 });
 
 String _shellQuote(String value) => "'${value.replaceAll("'", "'\\''")}'";
+
+class const _RuntimeProxyOutputLimitException() implements Exception;

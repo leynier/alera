@@ -5,6 +5,8 @@ use std::sync::Arc;
 use super::{PtyEvent, PtyWrite};
 
 const READ_CHUNK_BYTES: usize = 64 * 1024;
+#[cfg(windows)]
+const WINDOWS_READER_EVENT_CAPACITY: usize = 16;
 
 /// Read the PTY on a dedicated thread, forwarding output and the final exit code.
 #[cfg(not(windows))]
@@ -67,7 +69,7 @@ pub(super) fn spawn_reader(
     mut child: Box<dyn portable_pty::Child + Send + Sync>,
     on_event: Arc<dyn Fn(PtyEvent) + Send + Sync>,
 ) {
-    let (event_tx, event_rx) = std::sync::mpsc::channel();
+    let (event_tx, event_rx) = std::sync::mpsc::sync_channel(WINDOWS_READER_EVENT_CAPACITY);
     let reader_tx = event_tx.clone();
     std::thread::Builder::new()
         .name("alera-pty-reader".to_string())

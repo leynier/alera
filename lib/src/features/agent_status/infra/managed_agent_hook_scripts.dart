@@ -70,15 +70,27 @@ extension _ManagedAgentHookScripts on ManagedAgentHookInstallService {
       'if [ -z "\$payload" ]; then',
       '  exit 0',
       'fi',
-      'curl -sS -X POST "http://127.0.0.1:\${ALERA_AGENT_HOOK_PORT}/hook/$source" \\',
-      '  -H "Content-Type: application/x-www-form-urlencoded" \\',
-      '  -H "$aleraAgentHookTokenHeader: \${ALERA_AGENT_HOOK_TOKEN}" \\',
-      '  --data-urlencode "terminalSessionId=\${ALERA_TERMINAL_SESSION_ID}" \\',
-      '  --data-urlencode "workspaceId=\${ALERA_WORKSPACE_ID}" \\',
-      '  --data-urlencode "tabId=\${ALERA_TAB_ID}" \\',
-      '  --data-urlencode "hookEventName=\${$eventEnvVar}" \\',
-      '  --data-urlencode "version=\${ALERA_AGENT_HOOK_VERSION}" \\',
-      '  --data-urlencode "payload=\${payload}" >/dev/null 2>&1 || true',
+      'attempt=0',
+      'while [ "\$attempt" -lt 3 ]; do',
+      '  httpCode=\$(curl -sS --connect-timeout 0.2 --max-time 0.5 -X POST "http://127.0.0.1:\${ALERA_AGENT_HOOK_PORT}/hook/$source" \\',
+      '    -H "Content-Type: application/x-www-form-urlencoded" \\',
+      '    -H "$aleraAgentHookTokenHeader: \${ALERA_AGENT_HOOK_TOKEN}" \\',
+      '    --data-urlencode "terminalSessionId=\${ALERA_TERMINAL_SESSION_ID}" \\',
+      '    --data-urlencode "workspaceId=\${ALERA_WORKSPACE_ID}" \\',
+      '    --data-urlencode "tabId=\${ALERA_TAB_ID}" \\',
+      '    --data-urlencode "hookEventName=\${$eventEnvVar}" \\',
+      '    --data-urlencode "version=\${ALERA_AGENT_HOOK_VERSION}" \\',
+      '    --data-urlencode "payload=\${payload}" --write-out "%{http_code}" --output /dev/null 2>/dev/null)',
+      '  curlStatus=\$?',
+      '  if [ "\$curlStatus" -eq 0 ] && [ "\$httpCode" != "429" ] && [ "\$httpCode" != "503" ]; then',
+      '    break',
+      '  fi',
+      '  if [ "\$attempt" -ge 2 ]; then',
+      '    break',
+      '  fi',
+      '  if [ "\$attempt" -eq 0 ]; then sleep 0.05; else sleep 0.1; fi',
+      '  attempt=\$((attempt + 1))',
+      'done',
       'exit 0',
       '',
     ].join('\n');
@@ -96,7 +108,7 @@ extension _ManagedAgentHookScripts on ManagedAgentHookInstallService {
         : emptyPayloadFallbackEvent == null
         ? 'if ([string]::IsNullOrWhiteSpace(\$inputData)) { exit 0 }; \$payload=(\$inputData | ConvertFrom-Json);'
         : 'if ([string]::IsNullOrWhiteSpace(\$inputData)) { if (\$env:$eventEnvVar -ieq \'${_powerShellSingleQuote(emptyPayloadFallbackEvent)}\') { \$payload=@{} } else { exit 0 } } else { \$payload=(\$inputData | ConvertFrom-Json) };';
-    return 'powershell -NoProfile -ExecutionPolicy Bypass -Command "\$utf8=[System.Text.UTF8Encoding]::new(\$false); [Console]::InputEncoding=\$utf8; [Console]::OutputEncoding=\$utf8; \$inputData=[Console]::In.ReadToEnd(); $inputScript try { \$body=@{ terminalSessionId=\$env:ALERA_TERMINAL_SESSION_ID; workspaceId=\$env:ALERA_WORKSPACE_ID; tabId=\$env:ALERA_TAB_ID; hookEventName=\$env:$eventEnvVar; version=\$env:ALERA_AGENT_HOOK_VERSION; payload=\$payload } | ConvertTo-Json -Depth 100 -Compress; \$bodyBytes=\$utf8.GetBytes(\$body); Invoke-WebRequest -UseBasicParsing -Method Post -Uri (\'http://127.0.0.1:\' + \$env:ALERA_AGENT_HOOK_PORT + \'/hook/$source\') -ContentType \'application/json; charset=utf-8\' -Headers @{ \'$aleraAgentHookTokenHeader\'=\$env:ALERA_AGENT_HOOK_TOKEN } -Body \$bodyBytes | Out-Null } catch {}"';
+    return 'powershell -NoProfile -ExecutionPolicy Bypass -Command "\$utf8=[System.Text.UTF8Encoding]::new(\$false); [Console]::InputEncoding=\$utf8; [Console]::OutputEncoding=\$utf8; \$inputData=[Console]::In.ReadToEnd(); $inputScript try { \$body=@{ terminalSessionId=\$env:ALERA_TERMINAL_SESSION_ID; workspaceId=\$env:ALERA_WORKSPACE_ID; tabId=\$env:ALERA_TAB_ID; hookEventName=\$env:$eventEnvVar; version=\$env:ALERA_AGENT_HOOK_VERSION; payload=\$payload } | ConvertTo-Json -Depth 100 -Compress; \$bodyBytes=\$utf8.GetBytes(\$body); for (\$attempt=0; \$attempt -lt 2; \$attempt++) { \$retry=\$false; try { \$response=Invoke-WebRequest -UseBasicParsing -Method Post -Uri (\'http://127.0.0.1:\' + \$env:ALERA_AGENT_HOOK_PORT + \'/hook/$source\') -ContentType \'application/json; charset=utf-8\' -Headers @{ \'$aleraAgentHookTokenHeader\'=\$env:ALERA_AGENT_HOOK_TOKEN } -Body \$bodyBytes -TimeoutSec 1; \$statusCode=[int]\$response.StatusCode; \$retry=\$statusCode -eq 429 -or \$statusCode -eq 503 } catch { \$statusCode=0; if (\$_.Exception.Response) { \$statusCode=[int]\$_.Exception.Response.StatusCode }; \$retry=\$statusCode -eq 0 -or \$statusCode -eq 429 -or \$statusCode -eq 503 }; if (-not \$retry -or \$attempt -eq 1) { break } } } catch {}"';
   }
 
   Map<String, Object?> _managedHookDefinition(

@@ -288,6 +288,7 @@ mod workflow_plan_tests;
 mod workflow_worker_context;
 mod workflow_workspace_requests;
 mod workspace_archive_requests;
+mod workspace_blocking;
 mod workspace_file_mutation_requests;
 mod workspace_git_requests;
 mod workspace_handoff_relocate;
