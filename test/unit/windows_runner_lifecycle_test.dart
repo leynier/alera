@@ -51,9 +51,8 @@ void main() {
   });
 
   test('Windows badge updates skip identical taskbar redraws', () {
-    final source = File(
-      'windows/runner/win32_desktop_presence.cpp',
-    ).readAsStringSync();
+    final source = File('windows/runner/win32_desktop_presence.cpp')
+        .readAsStringSync();
     final setter = source.indexOf('void Win32DesktopPresence::SetBadgeCount');
     final guard = source.indexOf('if (badge_count_ == clamped)', setter);
     final redraw = source.indexOf('UpdateOverlay();', guard);

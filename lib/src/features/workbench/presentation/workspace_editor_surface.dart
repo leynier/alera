@@ -70,6 +70,7 @@ class _WorkspaceEditorSurfaceState
   Object? _loadError;
   bool _loading = true;
   bool _saving = false;
+  bool _conflictResolutionActive = false;
   bool _lastBufferGuarded = false;
   bool _stateRefreshQueued = false;
   Offset? _lastSecondaryTapGlobalPosition;
@@ -255,10 +256,20 @@ class _WorkspaceEditorSurfaceState
                 ? () => unawaited(_openEditorComment(context))
                 : null,
             onViewDiff: !_loading ? () => unawaited(_openDiffForFile()) : null,
-            onSave: _document.isDirty && !_loading && !_saving && !guarded
+            onSave:
+                _document.isDirty &&
+                    !_loading &&
+                    !_saving &&
+                    !_conflictResolutionActive &&
+                    !guarded
                 ? () => unawaited(_save())
                 : null,
-            onDiscard: _document.isDirty && !_loading && !_saving && !guarded
+            onDiscard:
+                _document.isDirty &&
+                    !_loading &&
+                    !_saving &&
+                    !_conflictResolutionActive &&
+                    !guarded
                 ? () => unawaited(_discardChanges())
                 : null,
             onOpenPreview: _openPreviewActionFor(filePath),

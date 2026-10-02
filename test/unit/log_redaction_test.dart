@@ -48,6 +48,13 @@ void main() {
       expect(redactLogText(message), message);
     });
 
+    test('omits oversized input before running redaction patterns', () {
+      registerLogSecret('oversized-redaction-secret');
+      final input = '${'x' * (8 * 1024 + 1)} oversized-redaction-secret';
+
+      expect(redactLogText(input), '[oversized log field omitted]');
+    });
+
     test('masks a device token reported by the mobile transport', () {
       final redacted = redactLogText(
         '{"deviceToken":"kQ8f2mZp01xTuv","deviceId":"phone-1"}',

@@ -18,12 +18,17 @@ String formatLogRecordLine({
 }) {
   final record = <String, Object?>{
     'ts': timestamp.toUtc().toIso8601String(),
-    'level': level,
-    'source': source,
-    'logger': logger,
+    'level': redactLogText(level),
+    'source': redactLogText(source),
+    // Logger names are the context supplied by global error handlers. Apply
+    // the same bound as messages so context cannot defeat the record budget.
+    'logger': redactLogText(logger),
     'msg': redactLogText(message),
     // The previous logger dropped these even though call sites passed them,
     // which left every warning without the detail that made it actionable.
+    // Error and StackTrace expose only toString, so that conversion can be
+    // arbitrary for a custom object. Once a string exists, redactLogText
+    // bounds it before regex work and JSON serialization.
     if (error != null) 'error': redactLogText(error.toString()),
     if (stackTrace != null) 'stack': redactLogText(stackTrace.toString()),
   };

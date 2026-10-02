@@ -220,6 +220,10 @@ void main() {
       )['with']['if-no-files-found'],
       'error',
     );
+    expect(
+      step('build', 'Verify Run Board and capture native layouts')['run'],
+      contains('integration_test/workspace_editor_surface_native_test.dart'),
+    );
     final macos = step('build', 'Verify macOS startup and desktop presence');
     expect(macos['if'], "matrix.platform == 'macos'");
     expect(macos['env']['ALERA_FLAVOR'], 'dev');

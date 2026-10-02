@@ -33,6 +33,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'workspace_explorer_actions.dart';
 part 'workspace_explorer_refresh.dart';
+part 'workspace_explorer_refresh_queue.dart';
 part 'workspace_explorer_widgets.dart';
 part 'workspace_explorer_tree.dart';
 
@@ -75,7 +76,17 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
   native.WorkspaceExplorerTreeProjection? _projection;
   native.WorkspaceExplorerWatcherHandle? _watcherHandle;
   StreamSubscription<native.WorkspaceExplorerWatchBatch>? _watchSubscription;
-  Future<void> _watchRefreshQueue = Future<void>.value();
+  int _explorerGeneration = 0;
+  int _projectionRequestId = 0;
+  final Map<String, _PendingExplorerDirectoryReplacement>
+  _pendingDirectoryReplacements =
+      <String, _PendingExplorerDirectoryReplacement>{};
+  bool _directoryReplacementRunning = false;
+  _PendingExplorerWatcherUpdate? _pendingWatcherUpdate;
+  bool _watcherUpdateRunning = false;
+  int _watcherUpdateRequestId = 0;
+  Set<String>? _pendingWatchedRefreshPaths;
+  bool _watchedRefreshRunning = false;
   late final WorkspaceFileService _workspaceFiles;
   late final EditorSessionRegistry _editorSessions;
   late final WorkspaceFolderOpener _folderOpener;
@@ -101,7 +112,7 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
       data: _buildTreeData(),
       flattenStrategy: const _AleraFlattenStrategy(),
     );
-    unawaited(_bootstrapExplorer());
+    unawaited(_bootstrapExplorer(generation: _explorerGeneration));
   }
 
   @override
@@ -110,6 +121,8 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
     if (oldWidget.workspace.id != widget.workspace.id ||
         oldWidget.workspace.path != widget.workspace.path ||
         oldWidget.workspace.hostId != widget.workspace.hostId) {
+      final generation = ++_explorerGeneration;
+      _pendingWatchedRefreshPaths = null;
       _captureSession(oldWidget.workspace.id);
       _loading = true;
       _sessionReady = false;
@@ -123,9 +136,11 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
       if (_scrollController.hasClients) {
         _scrollController.jumpTo(0);
       }
-      unawaited(_restartExplorer());
+      unawaited(_restartExplorer(generation: generation));
     } else if (oldWidget.mode != widget.mode) {
-      unawaited(_reloadForModeChange());
+      final generation = ++_explorerGeneration;
+      _pendingWatchedRefreshPaths = null;
+      unawaited(_reloadForModeChange(generation: generation));
     }
   }
 
@@ -137,79 +152,28 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
 
   @override
   void dispose() {
+    _explorerGeneration += 1;
+    _pendingWatchedRefreshPaths = null;
     unawaited(_stopNativeWatcher());
     _scrollController.dispose();
     _controller.dispose();
     super.dispose();
   }
 
-  Future<void> _reloadRoot({bool restoreSession = false}) async {
-    setState(() => _loading = true);
-    try {
-      _resetExplorerProjection();
-      await _refreshGitStatusSnapshot();
-      await _syncWatchedDirectories();
-      await _loadDirectory('');
-      if (!mounted) {
-        return;
-      }
-      _rebuildTree();
-      if (restoreSession) {
-        await _restoreSession();
-      }
-    } catch (error) {
-      if (mounted) {
-        _rebuildTree(tryPreserveState: false);
-      }
-      _showError(error);
-    } finally {
-      _sessionReady = true;
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+  void _setLoading(bool loading) {
+    if (mounted) {
+      setState(() => _loading = loading);
     }
   }
 
-  Future<void> _reloadForModeChange() async {
-    final loadedDirectories =
-        _childrenByDirectory.keys
-            .where((relativePath) => relativePath.isNotEmpty)
-            .toList(growable: false)
-          ..sort(_compareDirectoryDepth);
-    setState(() => _loading = true);
-    try {
-      _resetExplorerProjection();
-      await _refreshGitStatusSnapshot();
-      await _syncWatchedDirectories();
-      await _loadDirectory('');
-      for (final relativePath in loadedDirectories) {
-        if (!mounted) {
-          return;
-        }
-        if (!_isDirectoryEntry(_entryByPath[relativePath])) {
-          continue;
-        }
-        await _loadDirectory(relativePath);
-      }
-      if (!mounted) {
-        return;
-      }
-      _rebuildTree();
-    } catch (error) {
-      if (mounted) {
-        _rebuildTree(tryPreserveState: false);
-      }
-      _showError(error);
-    } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+  Future<void> _loadDirectory(String relativePath, {int? generation}) async {
+    final operationGeneration = generation ?? _explorerGeneration;
+    if (!_isCurrentExplorerGeneration(operationGeneration)) {
+      return;
     }
-  }
-
-  Future<void> _loadDirectory(String relativePath) async {
+    final workspace = widget.workspace;
     final rawChildren = await _workspaceFiles.listWorkspaceChildren(
-      workspace: widget.workspace,
+      workspace: workspace,
       relativePath: relativePath,
       hideIgnored: widget.mode == WorkspaceExplorerMode.hideIgnored,
     );
@@ -217,19 +181,32 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
       rawChildren,
       _gitStatusSnapshot,
     );
-    if (!mounted) {
+    if (!_isCurrentExplorerGeneration(operationGeneration)) {
       return;
     }
-    await _replaceDirectoryChildren(relativePath, children);
+    await _replaceDirectoryChildren(
+      relativePath,
+      children,
+      generation: operationGeneration,
+    );
   }
 
-  Future<void> _refreshGitStatusSnapshot() async {
+  Future<void> _refreshGitStatusSnapshot({int? generation}) async {
+    final operationGeneration = generation ?? _explorerGeneration;
+    if (!_isCurrentExplorerGeneration(operationGeneration)) {
+      return;
+    }
+    final workspacePath = widget.workspace.path;
     try {
-      _gitStatusSnapshot = await _gitBackend.explorerStatusSnapshot(
-        widget.workspace.path,
-      );
+      final snapshot = await _gitBackend.explorerStatusSnapshot(workspacePath);
+      if (!_isCurrentExplorerGeneration(operationGeneration)) {
+        return;
+      }
+      _gitStatusSnapshot = snapshot;
     } catch (_) {
-      _gitStatusSnapshot = const GitExplorerStatusSnapshot.empty();
+      if (_isCurrentExplorerGeneration(operationGeneration)) {
+        _gitStatusSnapshot = const GitExplorerStatusSnapshot.empty();
+      }
     }
   }
 
@@ -321,6 +298,7 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
   }
 
   Future<void> _toggleDirectory(tree.VisibleNode node) async {
+    final generation = _explorerGeneration;
     final entry = _entryByNodeId[node.id];
     if (!_isDirectoryEntry(entry)) {
       if (!mounted) {
@@ -331,8 +309,8 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
     }
     final directory = entry!;
     if (!_childrenByDirectory.containsKey(directory.relativePath)) {
-      await _loadDirectory(directory.relativePath);
-      if (!mounted) {
+      await _loadDirectory(directory.relativePath, generation: generation);
+      if (!_isCurrentExplorerGeneration(generation)) {
         return;
       }
       _rebuildTree();

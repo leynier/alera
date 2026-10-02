@@ -3,7 +3,7 @@ part of 'workspace_editor_surface.dart';
 extension _WorkspaceEditorSave on _WorkspaceEditorSurfaceState {
   Future<void> _save() async {
     final filePath = widget.tab.filePath;
-    if (filePath == null || _loading || _saving) {
+    if (filePath == null || _loading || _saving || _conflictResolutionActive) {
       return;
     }
     final loadError = _loadError;
@@ -49,6 +49,7 @@ extension _WorkspaceEditorSave on _WorkspaceEditorSurfaceState {
         filePath == null ||
         _loading ||
         _saving ||
+        _conflictResolutionActive ||
         _loadError != null ||
         !_document.canSave) {
       return;
@@ -70,7 +71,10 @@ extension _WorkspaceEditorSave on _WorkspaceEditorSurfaceState {
 
   Future<void> _discardChanges() async {
     if (_editorSessions.isBufferGuarded(widget.tab.id)) return;
-    if (_loading || _saving || !_document.canSave) {
+    if (_loading ||
+        _saving ||
+        _conflictResolutionActive ||
+        !_document.canSave) {
       return;
     }
     final loadedText = _document.loadedText;
@@ -88,33 +92,47 @@ extension _WorkspaceEditorSave on _WorkspaceEditorSurfaceState {
   }
 
   Future<bool> _resolveSaveConflict() async {
-    final overwrite = await showDialog<bool>(
-      context: context,
-      builder: (context) => const AleraConfirmDialog(
-        title: 'File changed on disk',
-        message: 'Overwrite the file with the editor contents?',
-        confirmLabel: 'Overwrite',
-        destructive: true,
-      ),
-    );
-    if (overwrite != true || !mounted) {
+    if (_conflictResolutionActive) {
       return false;
     }
-    final contentBeingSaved = _controller.text;
+    _conflictResolutionActive = true;
+    if (mounted) {
+      _setEditorState(() {});
+    }
     try {
-      final saved = await _write(overwriteIfChanged: true);
-      if (!mounted) {
+      final overwrite = await showDialog<bool>(
+        context: context,
+        builder: (context) => const AleraConfirmDialog(
+          title: 'File changed on disk',
+          message: 'Overwrite the file with the editor contents?',
+          confirmLabel: 'Overwrite',
+          destructive: true,
+        ),
+      );
+      if (overwrite != true || !mounted) {
         return false;
       }
-      _acceptSavedIfUnchanged(saved, contentBeingSaved);
-      _autosave.resume();
-      _showToast('File overwritten');
-      return true;
-    } catch (error) {
-      if (mounted) {
-        _showToast(_messageFor(error), tone: .error);
+      final contentBeingSaved = _controller.text;
+      try {
+        final saved = await _write(overwriteIfChanged: true);
+        if (!mounted) {
+          return false;
+        }
+        _acceptSavedIfUnchanged(saved, contentBeingSaved);
+        _autosave.resume();
+        _showToast('File overwritten');
+        return true;
+      } catch (error) {
+        if (mounted) {
+          _showToast(_messageFor(error), tone: .error);
+        }
+        return false;
       }
-      return false;
+    } finally {
+      _conflictResolutionActive = false;
+      if (mounted) {
+        _setEditorState(() {});
+      }
     }
   }
 
@@ -178,7 +196,9 @@ extension _WorkspaceEditorSave on _WorkspaceEditorSurfaceState {
       widget.onKeepPreview?.call();
     }
     _autosave.notifyTextChanged();
-    _refreshStateSafely();
+    if (wasDirty != _document.isDirty) {
+      _refreshStateSafely();
+    }
   }
 
   void _handleAutosaveError(Object error, StackTrace stackTrace) {
@@ -188,7 +208,9 @@ extension _WorkspaceEditorSave on _WorkspaceEditorSurfaceState {
     if (error is native.WorkspaceFileError &&
         error.kind == native.WorkspaceFileErrorKind.conflict) {
       _showToast('Autosave paused because the file changed on disk.');
-      unawaited(_resolveSaveConflict());
+      if (!_conflictResolutionActive) {
+        unawaited(_resolveSaveConflict());
+      }
       return;
     }
     _showToast('Autosave paused: ${_messageFor(error)}', tone: .error);

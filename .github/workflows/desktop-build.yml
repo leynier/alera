@@ -196,7 +196,7 @@ jobs:
           ALERA_VISUAL_REVIEW_DIR: ${{ github.workspace }}/build/run-board-review
         run: |
           set -euo pipefail
-          for suite in integration_test/run_board_flow_test.dart integration_test/run_board_editor_flow_test.dart; do
+          for suite in integration_test/run_board_flow_test.dart integration_test/run_board_editor_flow_test.dart integration_test/workspace_editor_surface_native_test.dart; do
             if [[ "$PLATFORM" == "linux" ]]; then
               xvfb-run -a flutter test "$suite" -d linux --reporter expanded
             else

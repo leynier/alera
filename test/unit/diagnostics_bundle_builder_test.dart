@@ -133,6 +133,25 @@ void main() {
     );
   });
 
+  test(
+    'async build reads logs and compresses the bundle off the UI isolate',
+    () async {
+      File('${appLogs.path}/alera.log').writeAsStringSync('kept');
+      File('${runtimeLogs.path}/runtime.log').writeAsStringSync('runtime');
+
+      final archive = decode(
+        await const DiagnosticsBundleBuilder().buildAsync(
+          metadata: metadata(runtimeVersion: '0.1.0'),
+          appLogDirectory: appLogs,
+          runtimeLogDirectory: runtimeLogs,
+        ),
+      );
+
+      expect(readEntry(archive, 'app/alera.log'), 'kept');
+      expect(readEntry(archive, 'runtime/runtime.log'), 'runtime');
+    },
+  );
+
   test('suggested file name is filesystem safe', () {
     final name = DiagnosticsBundleBuilder.suggestedFileName(
       .utc(2026, 7, 28, 12, 30, 15),

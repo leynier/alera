@@ -1,9 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:desktop_updater/desktop_updater.dart';
 import 'package:http/http.dart' as http;
+import 'package:meta/meta.dart';
+import 'package:path/path.dart' as p;
+
+import 'bounded_update_transport.dart';
 
 class const DesktopUpdateIndexNotFound() implements Exception;
 
@@ -44,16 +50,47 @@ abstract interface class AleraDesktopUpdaterBackend {
   void dispose();
 }
 
-class DesktopUpdaterBackend({DesktopUpdater? updater, http.Client? client})
-    implements AleraDesktopUpdaterBackend {
-  this
-    : _updater = updater ?? DesktopUpdater(),
-      _client = client ?? http.Client(),
-      _ownsClient = client == null;
+class DesktopUpdaterBackend implements AleraDesktopUpdaterBackend {
+  DesktopUpdaterBackend({
+    DesktopUpdater? updater,
+    http.Client? client,
+    this.requestTimeout = const Duration(seconds: 20),
+    this.artifactTimeout = const Duration(seconds: 30),
+    @visibleForTesting
+    FutureOr<void> Function()? afterTransportCancelForTesting,
+  }) : _updater = updater ?? DesktopUpdater(),
+       _providedClient = client,
+       _client = client ?? http.Client(),
+       // Keep this testing seam separate from the runtime state.
+       // ignore: prefer_initializing_formals
+       _afterTransportCancel = afterTransportCancelForTesting {
+    if (requestTimeout <= Duration.zero) {
+      throw ArgumentError.value(
+        requestTimeout,
+        'requestTimeout',
+        'must be positive',
+      );
+    }
+    if (artifactTimeout <= Duration.zero) {
+      throw ArgumentError.value(
+        artifactTimeout,
+        'artifactTimeout',
+        'must be positive',
+      );
+    }
+  }
 
   final DesktopUpdater _updater;
-  final http.Client _client;
-  final bool _ownsClient;
+  final http.Client? _providedClient;
+  http.Client _client;
+  final Duration requestTimeout;
+
+  /// Header timeout and maximum idle gap between artifact body chunks.
+  /// Active transfers may exceed this duration while bytes continue arriving.
+  final Duration artifactTimeout;
+  final FutureOr<void> Function()? _afterTransportCancel;
+  BoundedUpdateTransport? _activeTransport;
+  bool _disposed = false;
   Uri? _archiveUrl;
   DesktopVersionInfo? _currentVersion;
   ReleaseDescriptor? _descriptor;
@@ -70,19 +107,21 @@ class DesktopUpdaterBackend({DesktopUpdater? updater, http.Client? client})
     required String publicKeyId,
     required String publicKeyBase64,
   }) async {
+    _ensureActive();
+    _clearSelection();
     final version = DesktopVersionInfo.fromParts(
       versionName: currentVersion,
       buildNumber: currentBuildNumber,
     );
-    final indexResponse = await _client.get(archiveUrl);
+    final indexResponse = await _get(archiveUrl);
+    _ensureActive();
     if (indexResponse.statusCode == HttpStatus.notFound) {
       _clearSelection();
       throw const DesktopUpdateIndexNotFound();
     }
     _requireSuccess(indexResponse, archiveUrl);
-    final index = ReleaseIndex.fromJson(
-      jsonDecode(indexResponse.body) as Map<String, dynamic>,
-    );
+    _checkMetadataSize(indexResponse, archiveUrl);
+    final index = ReleaseIndex.fromJson(_decodeMetadata(indexResponse));
     final item = selectReleaseIndexItem(
       index: index,
       platform: platform,
@@ -94,10 +133,12 @@ class DesktopUpdaterBackend({DesktopUpdater? updater, http.Client? client})
       return null;
     }
 
-    final descriptorResponse = await _client.get(item.release);
+    final descriptorResponse = await _get(item.release);
+    _ensureActive();
     _requireSuccess(descriptorResponse, item.release);
+    _checkMetadataSize(descriptorResponse, item.release);
     final descriptor = ReleaseDescriptor.fromJson(
-      jsonDecode(descriptorResponse.body) as Map<String, dynamic>,
+      _decodeMetadata(descriptorResponse),
     );
     _verifyDescriptorIdentity(
       descriptor: descriptor,
@@ -111,6 +152,7 @@ class DesktopUpdaterBackend({DesktopUpdater? updater, http.Client? client})
         publicKeyId: publicKeyId,
         publicKeyBase64: publicKeyBase64,
       );
+      _ensureActive();
     }
 
     final candidate = DesktopUpdaterReleaseCandidate(
@@ -136,6 +178,9 @@ class DesktopUpdaterBackend({DesktopUpdater? updater, http.Client? client})
     DesktopUpdaterReleaseCandidate candidate, {
     void Function(double progress)? onProgress,
   }) async {
+    if (_disposed) {
+      throw StateError('The desktop updater backend has been disposed.');
+    }
     final archiveUrl = _archiveUrl;
     final currentVersion = _currentVersion;
     final descriptor = _descriptor;
@@ -145,20 +190,49 @@ class DesktopUpdaterBackend({DesktopUpdater? updater, http.Client? client})
         !identical(candidate, _candidate)) {
       throw StateError('The selected desktop update is no longer active.');
     }
+    if (_activeTransport != null) {
+      throw StateError('An update download is already in progress.');
+    }
 
-    final result = await _updater.downloadZipFirstUpdate(
-      appArchiveUrl: archiveUrl,
-      currentVersion: currentVersion,
-      descriptor: descriptor,
-      onProgress: (receivedBytes, totalBytes) {
-        final expected = totalBytes ?? descriptor.artifact.length;
-        if (expected <= 0) {
-          return;
-        }
-        onProgress?.call((receivedBytes / expected).clamp(0, 1).toDouble());
-      },
+    final transport = BoundedUpdateTransport(
+      maxBytes: descriptor.artifact.length,
+      timeout: artifactTimeout,
     );
-    return result.stagingPath;
+    _activeTransport = transport;
+    late final String stagingPath;
+    try {
+      final result = await http.runWithClient(
+        () => _updater.downloadZipFirstUpdate(
+          appArchiveUrl: archiveUrl,
+          currentVersion: currentVersion,
+          descriptor: descriptor,
+          onProgress: (receivedBytes, totalBytes) {
+            final expected = totalBytes ?? descriptor.artifact.length;
+            if (expected <= 0) {
+              return;
+            }
+            onProgress?.call((receivedBytes / expected).clamp(0, 1).toDouble());
+          },
+        ),
+        () => transport,
+      );
+      stagingPath = result.stagingPath;
+    } finally {
+      try {
+        await transport.cancel();
+        await _afterTransportCancel?.call();
+      } finally {
+        transport.close();
+        if (identical(_activeTransport, transport)) {
+          _activeTransport = null;
+        }
+      }
+    }
+    if (_disposed) {
+      await _deleteStagedResult(stagingPath, descriptor);
+      throw StateError('The desktop updater backend has been disposed.');
+    }
+    return stagingPath;
   }
 
   @override
@@ -166,18 +240,99 @@ class DesktopUpdaterBackend({DesktopUpdater? updater, http.Client? client})
     required String stagingPath,
     required bool allowUnsignedMacOSUpdates,
   }) {
+    if (_disposed) {
+      throw StateError('The desktop updater backend has been disposed.');
+    }
     return _updater.installUpdate(
       stagingPath: stagingPath,
       allowUnsignedMacOSUpdates: allowUnsignedMacOSUpdates,
     );
   }
 
+  void _ensureActive() {
+    if (_disposed) {
+      throw StateError('The desktop updater backend has been disposed.');
+    }
+  }
+
   @override
   void dispose() {
+    _disposed = true;
     _clearSelection();
-    if (_ownsClient) {
+    final transport = _activeTransport;
+    if (transport != null) {
+      unawaited(transport.cancel());
+    }
+    if (_providedClient == null) {
       _client.close();
     }
+  }
+
+  Future<void> _deleteStagedResult(
+    String stagingPath,
+    ReleaseDescriptor descriptor,
+  ) async {
+    final staged = Directory(stagingPath);
+    final isMacOSApp =
+        descriptor.platform == 'macos' &&
+        (descriptor.artifact.kind == 'zip' ||
+            descriptor.artifact.kind == 'dmg');
+    final root = isMacOSApp ? staged.parent : staged;
+    if (!p.basename(root.path).startsWith('desktop_updater_stage_')) {
+      return;
+    }
+    try {
+      if (await root.exists()) {
+        await root.delete(recursive: true);
+      }
+    } on Object {
+      // The updater package already performs the same best-effort cleanup on
+      // errors.
+    }
+  }
+
+  Future<http.Response> _get(Uri uri) async {
+    try {
+      return await _readMetadata(uri).timeout(requestTimeout);
+    } on TimeoutException {
+      // A timed-out metadata request must not leave the recurring scheduler
+      // waiting forever. The owned client is closed to tear down its socket;
+      // replace it so a later foreground check can start cleanly.
+      if (_providedClient == null && !_disposed) {
+        _client.close();
+        _client = http.Client();
+      }
+      _clearSelection();
+      throw HttpException(
+        'Update metadata request timed out after $requestTimeout.',
+        uri: uri,
+      );
+    }
+  }
+
+  Future<http.Response> _readMetadata(Uri uri) async {
+    final streamed = await _client.send(http.Request('GET', uri));
+    final bytes = BytesBuilder(copy: false);
+    var length = 0;
+    await for (final chunk in streamed.stream) {
+      length += chunk.length;
+      if (length > _maxUpdateMetadataBytes) {
+        throw FormatException(
+          'Update metadata from $uri exceeds the '
+          '$_maxUpdateMetadataBytes byte limit.',
+        );
+      }
+      bytes.add(chunk);
+    }
+    return http.Response.bytes(
+      bytes.takeBytes(),
+      streamed.statusCode,
+      request: streamed.request,
+      headers: streamed.headers,
+      isRedirect: streamed.isRedirect,
+      persistentConnection: streamed.persistentConnection,
+      reasonPhrase: streamed.reasonPhrase,
+    );
   }
 
   void _clearSelection() {
@@ -186,6 +341,20 @@ class DesktopUpdaterBackend({DesktopUpdater? updater, http.Client? client})
     _descriptor = null;
     _candidate = null;
   }
+}
+
+const int _maxUpdateMetadataBytes = 1024 * 1024;
+
+void _checkMetadataSize(http.Response response, Uri uri) {
+  if (response.bodyBytes.length > _maxUpdateMetadataBytes) {
+    throw FormatException(
+      'Update metadata from $uri exceeds the $_maxUpdateMetadataBytes byte limit.',
+    );
+  }
+}
+
+Map<String, dynamic> _decodeMetadata(http.Response response) {
+  return jsonDecode(response.body) as Map<String, dynamic>;
 }
 
 void _requireSuccess(http.Response response, Uri uri) {

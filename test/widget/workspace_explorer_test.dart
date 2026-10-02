@@ -31,9 +31,11 @@ part 'workspace_explorer_git_snapshot_cases.dart';
 part 'workspace_explorer_reveal_cases.dart';
 part 'workspace_explorer_session_cache_cases.dart';
 part 'workspace_explorer_interaction_cases.dart';
+part 'workspace_explorer_watcher_cases.dart';
 part 'workspace_explorer_context_menu_cases.dart';
 part 'workspace_explorer_test_harness.dart';
 part 'workspace_explorer_fake_files.dart';
+part 'workspace_explorer_test_fixtures.dart';
 
 void main() {
   _registerWorkspaceExplorerContextSidebarTests();
@@ -42,5 +44,6 @@ void main() {
   _registerWorkspaceExplorerCursorTests();
   _registerWorkspaceExplorerSessionCacheTests();
   _registerWorkspaceExplorerInteractionTests();
+  _registerWorkspaceExplorerWatcherTests();
   _registerWorkspaceExplorerContextMenuTests();
 }

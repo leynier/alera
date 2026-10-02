@@ -25,9 +25,8 @@ void main() {
   });
 
   test('Linux fallback tray releases its GTK menu', () {
-    final source = File(
-      'linux/runner/appindicator_tray_fallback.cc',
-    ).readAsStringSync();
+    final source = File('linux/runner/appindicator_tray_fallback.cc')
+        .readAsStringSync();
     final cleanup = source.indexOf('void appindicator_tray_fallback_free');
     final destroy = source.indexOf('gtk_widget_destroy(tray->menu)', cleanup);
     final release = source.indexOf('g_clear_object(&tray->menu);', destroy);

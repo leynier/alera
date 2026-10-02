@@ -5,6 +5,7 @@ import 'package:alera/src/features/workbench/infra/runtime_workbench_repository.
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_change_coalescer.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_snapshot_stream.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const Duration _fastDebounce = Duration(milliseconds: 5);
@@ -15,6 +16,154 @@ RuntimeChangeCoalescer _coalescer() =>
     RuntimeChangeCoalescer(debounce: _fastDebounce, maxDelay: _fastMaxDelay);
 
 void main() {
+  test('events wait for the initial read instead of overlapping snapshots', () {
+    fakeAsync((async) {
+      final client = _FakeRuntimeHostClient();
+      final coalescer = _coalescer();
+      final pendingRead = Completer<int>();
+      var reads = 0;
+      final emitted = <int>[];
+      final subscription = runtimeSnapshotStream<int>(
+        client: client,
+        eventNames: const <String>{'changed'},
+        readSnapshot: () {
+          reads++;
+          return reads == 1 ? pendingRead.future : Future<int>.value(reads);
+        },
+        coalesceKey: 'key',
+        coalescer: coalescer,
+      ).listen(emitted.add);
+      async.flushMicrotasks();
+
+      for (var i = 0; i < 10; i++) {
+        client.emit(const RuntimeHostEvent('changed', <String, Object?>{}));
+      }
+      async.elapse(_fastMaxDelay);
+      expect(reads, 1);
+      expect(emitted, isEmpty);
+
+      pendingRead.complete(1);
+      async.flushMicrotasks();
+      async.elapse(_fastMaxDelay);
+      expect(reads, 2);
+      expect(emitted, <int>[1, 2]);
+
+      unawaited(subscription.cancel());
+      coalescer.dispose();
+      unawaited(client.close());
+      async.flushMicrotasks();
+    });
+  });
+
+  test('a successful event refresh cancels a pending retry', () {
+    fakeAsync((async) {
+      final client = _FakeRuntimeHostClient();
+      final coalescer = _coalescer();
+      var reads = 0;
+      final emitted = <int>[];
+      final subscription = runtimeSnapshotStream<int>(
+        client: client,
+        eventNames: const <String>{'changed'},
+        readSnapshot: () async {
+          if (++reads == 1) {
+            throw StateError('host unavailable');
+          }
+          return reads;
+        },
+        coalesceKey: 'key',
+        coalescer: coalescer,
+        retryDelay: _fastRetry,
+      ).listen(emitted.add);
+      async.flushMicrotasks();
+      client.emit(const RuntimeHostEvent('changed', <String, Object?>{}));
+      async.elapse(const Duration(milliseconds: 60));
+
+      expect(reads, 2);
+      expect(emitted, <int>[2]);
+      expect(async.pendingTimers, isEmpty);
+
+      unawaited(subscription.cancel());
+      coalescer.dispose();
+      unawaited(client.close());
+      async.flushMicrotasks();
+    });
+  });
+
+  for (final initialRead in <bool>[true, false]) {
+    test(
+      'cancellation stops retries when the ${initialRead ? 'initial' : 'event'} '
+      'read fails later',
+      () {
+        fakeAsync((async) {
+          final client = _FakeRuntimeHostClient();
+          final coalescer = _coalescer();
+          final pendingRead = Completer<int>();
+          var reads = 0;
+          final emitted = <int>[];
+          final subscription = runtimeSnapshotStream<int>(
+            client: client,
+            eventNames: const <String>{'changed'},
+            readSnapshot: () {
+              reads++;
+              if (!initialRead && reads == 1) {
+                return Future<int>.value(1);
+              }
+              return pendingRead.future;
+            },
+            coalesceKey: 'key',
+            coalescer: coalescer,
+            retryDelay: _fastRetry,
+          ).listen(emitted.add);
+          async.flushMicrotasks();
+          if (!initialRead) {
+            client.emit(const RuntimeHostEvent('changed', <String, Object?>{}));
+            async.elapse(_fastMaxDelay);
+          }
+          final readsBeforeCancel = reads;
+          unawaited(subscription.cancel());
+          async.flushMicrotasks();
+          pendingRead.completeError(StateError('host unavailable'));
+          async.flushMicrotasks();
+          async.elapse(const Duration(minutes: 1));
+
+          expect(reads, readsBeforeCancel);
+          expect(async.pendingTimers, isEmpty);
+          expect(emitted, initialRead ? isEmpty : <int>[1]);
+          coalescer.dispose();
+          unawaited(client.close());
+          async.flushMicrotasks();
+        });
+      },
+    );
+  }
+
+  test('cancellation discards an in-flight successful snapshot', () {
+    fakeAsync((async) {
+      final client = _FakeRuntimeHostClient();
+      final coalescer = _coalescer();
+      final pendingRead = Completer<int>();
+      final emitted = <int>[];
+      final subscription = runtimeSnapshotStream<int>(
+        client: client,
+        eventNames: const <String>{'changed'},
+        readSnapshot: () => pendingRead.future,
+        coalesceKey: 'key',
+        coalescer: coalescer,
+      ).listen(emitted.add);
+      async.flushMicrotasks();
+      unawaited(subscription.cancel());
+      async.flushMicrotasks();
+      pendingRead.complete(1);
+      async.flushMicrotasks();
+
+      expect(emitted, isEmpty);
+      expect(async.pendingTimers, isEmpty);
+      coalescer.dispose();
+      unawaited(client.close());
+      async.flushMicrotasks();
+    });
+  });
+
   test(
     'survives a failed snapshot read and recovers on host reconnect',
     () async {
@@ -314,4 +463,6 @@ final class _FakeRuntimeHostClient implements RuntimeHostClient {
   }
 
   void emit(RuntimeHostEvent event) => _events.add(event);
+
+  Future<void> close() => _events.close();
 }

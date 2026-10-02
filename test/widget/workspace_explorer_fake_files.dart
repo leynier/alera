@@ -5,7 +5,9 @@ class _FakeWorkspaceFileService({
   final Completer<void>? stopGate,
 }) extends WorkspaceFileService {
   final StreamController<native.WorkspaceExplorerWatchBatch> _watchController =
-      StreamController<native.WorkspaceExplorerWatchBatch>.broadcast();
+      StreamController<native.WorkspaceExplorerWatchBatch>.broadcast(
+        sync: true,
+      );
   final Map<String, List<native.WorkspaceFileEntry>> childrenByDirectory =
       <String, List<native.WorkspaceFileEntry>>{};
   final Map<String, Map<String, List<native.WorkspaceFileEntry>>>
@@ -22,6 +24,21 @@ class _FakeWorkspaceFileService({
   final List<_ListChildrenCall> listChildrenCalls = <_ListChildrenCall>[];
   final List<List<String>> watchedPathUpdates = <List<String>>[];
   final Map<String, String> writtenFiles = <String, String>{};
+  final Map<String, Completer<void>> listChildrenGatesByDirectory =
+      <String, Completer<void>>{};
+  Completer<void>? listChildrenGate;
+  bool _listChildrenGateUsed = false;
+  final List<Completer<void>> projectionGates = <Completer<void>>[];
+  final Map<String, Completer<void>> projectionGatesByDirectory =
+      <String, Completer<void>>{};
+  final List<String> projectionCallDirectories = <String>[];
+  int _projectionCallCount = 0;
+  final List<Completer<void>> watcherUpdateGates = <Completer<void>>[];
+  int watcherUpdateCallCount = 0;
+  int startWatcherCalls = 0;
+  int stopWatcherCalls = 0;
+  bool startCalledWhileStopPending = false;
+  bool _stopPending = false;
 
   void emitWatchBatch(List<String> directoryRelativePaths) {
     _watchController.add(
@@ -47,6 +64,15 @@ class _FakeWorkspaceFileService({
     if (failingListChildrenCalls.contains(call)) {
       throw StateError('Failed to list $relativePath');
     }
+    final directoryGate = listChildrenGatesByDirectory[relativePath];
+    if (directoryGate != null) {
+      await directoryGate.future;
+    }
+    final gate = listChildrenGate;
+    if (gate != null && !_listChildrenGateUsed) {
+      _listChildrenGateUsed = true;
+      await gate.future;
+    }
     final workspaceChildren = childrenByWorkspacePath[workspacePath];
     final workspaceShowAllChildren =
         showAllChildrenByWorkspacePath[workspacePath];
@@ -69,6 +95,21 @@ class _FakeWorkspaceFileService({
     required List<native.WorkspaceExplorerDirectoryChildren> directories,
     native.WorkspaceExplorerDirectoryChildren? replacement,
   }) async {
+    final projectionCall = _projectionCallCount;
+    _projectionCallCount += 1;
+    final replacementPath = replacement?.relativePath;
+    if (replacementPath != null) {
+      projectionCallDirectories.add(replacementPath);
+    }
+    final directoryGate = replacementPath == null
+        ? null
+        : projectionGatesByDirectory[replacementPath];
+    if (directoryGate != null) {
+      await directoryGate.future;
+    }
+    if (projectionCall < projectionGates.length) {
+      await projectionGates[projectionCall].future;
+    }
     return _projectExplorerTree(
       workspaceName: workspaceName,
       workspacePath: workspacePath,
@@ -81,7 +122,13 @@ class _FakeWorkspaceFileService({
   Future<native.WorkspaceExplorerWatcherHandle> startExplorerWatcher({
     required String workspacePath,
   }) async {
-    return const native.WorkspaceExplorerWatcherHandle(id: 'watcher-1');
+    startWatcherCalls += 1;
+    if (_stopPending) {
+      startCalledWhileStopPending = true;
+    }
+    return native.WorkspaceExplorerWatcherHandle(
+      id: 'watcher-$startWatcherCalls',
+    );
   }
 
   @override
@@ -89,6 +136,11 @@ class _FakeWorkspaceFileService({
     required native.WorkspaceExplorerWatcherHandle handle,
     required List<String> watchedRelativePaths,
   }) async {
+    final updateCall = watcherUpdateCallCount;
+    watcherUpdateCallCount += 1;
+    if (updateCall < watcherUpdateGates.length) {
+      await watcherUpdateGates[updateCall].future;
+    }
     watchedPathUpdates.add(watchedRelativePaths);
   }
 
@@ -103,7 +155,13 @@ class _FakeWorkspaceFileService({
   Future<void> stopExplorerWatcher({
     required native.WorkspaceExplorerWatcherHandle handle,
   }) async {
-    await stopGate?.future;
+    stopWatcherCalls += 1;
+    _stopPending = true;
+    try {
+      await stopGate?.future;
+    } finally {
+      _stopPending = false;
+    }
   }
 
   @override
@@ -344,104 +402,4 @@ void _appendProjectedChild(
   if (parent != null && !parent.childIds.contains(childId)) {
     parent.childIds.add(childId);
   }
-}
-
-class _FakeWorkspaceFolderOpener() extends WorkspaceFolderOpener {
-  this : super(processRunner: _NoopProcessRunner(), platform: .macos);
-
-  final List<String> revealedPaths = <String>[];
-
-  @override
-  Future<WorkspaceFolderOpenResult> reveal(String path) async {
-    revealedPaths.add(path);
-    return const WorkspaceFolderOpenResult.success();
-  }
-}
-
-class _NoopProcessRunner implements ProcessRunner {
-  @override
-  Future<ProcessRunOutput> run(
-    String executable,
-    List<String> arguments, {
-    String? workingDirectory,
-    Map<String, String>? environment,
-  }) async {
-    return const ProcessRunOutput(exitCode: 0, stdout: '', stderr: '');
-  }
-
-  @override
-  Future<StartedProcess> start(
-    String executable,
-    List<String> arguments, {
-    String? workingDirectory,
-    Map<String, String>? environment,
-    bool includeParentEnvironment = true,
-  }) {
-    throw UnimplementedError();
-  }
-}
-
-Workspace _workspace({
-  String id = 'workspace-1',
-  String name = 'alera',
-  String path = '/repo/alera',
-}) {
-  final now = DateTime.utc(2026);
-  return Workspace(
-    id: id,
-    projectId: 'project-1',
-    name: name,
-    path: path,
-    createdAt: now,
-    updatedAt: now,
-    kind: .main,
-    status: .active,
-  );
-}
-
-native.WorkspaceFileEntry _file(
-  String relativePath, {
-  native.WorkspaceFileGitStatus? gitStatus,
-}) {
-  return _entry(
-    relativePath: relativePath,
-    kind: native.WorkspaceFileKind.file,
-    hasChildrenHint: false,
-    gitStatus: gitStatus,
-  );
-}
-
-native.WorkspaceFileEntry _directory(
-  String relativePath, {
-  required bool hasChildrenHint,
-  native.WorkspaceFileGitStatus? gitStatus,
-}) {
-  return _entry(
-    relativePath: relativePath,
-    kind: native.WorkspaceFileKind.directory,
-    hasChildrenHint: hasChildrenHint,
-    gitStatus: gitStatus,
-  );
-}
-
-native.WorkspaceFileEntry _entry({
-  required String relativePath,
-  required native.WorkspaceFileKind kind,
-  required bool hasChildrenHint,
-  native.WorkspaceFileGitStatus? gitStatus,
-}) {
-  return native.WorkspaceFileEntry(
-    relativePath: relativePath,
-    name: relativePath.split('/').last,
-    kind: kind,
-    size: .zero,
-    modifiedMillis: 0,
-    contentToken: '$relativePath-token',
-    isIgnored: false,
-    isHidden: false,
-    isSymlink: false,
-    isProtected: false,
-    hasChildrenHint: hasChildrenHint,
-    gitStatus: gitStatus,
-  );
 }
