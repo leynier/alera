@@ -41,6 +41,99 @@ void main() {
     expect(result.stderr.toLowerCase(), contains('fatal'));
   });
 
+  test(
+    'runWithOutputBudget captures both streams under one native budget',
+    () async {
+      if (Platform.isWindows) {
+        return;
+      }
+      final result = await runner.runWithOutputBudget('sh', const <String>[
+        '-c',
+        'head -c 30000 /dev/zero; head -c 30000 /dev/zero >&2',
+      ], maxOutputBytes: 65536);
+
+      expect(result.exitCode, 0);
+      expect(result.stdout, hasLength(30000));
+      expect(result.stderr, hasLength(30000));
+    },
+  );
+
+  test('runWithOutputBudget rejects an overflowing native capture', () async {
+    if (Platform.isWindows) {
+      return;
+    }
+    await expectLater(
+      runner.runWithOutputBudget('sh', const <String>[
+        '-c',
+        'yes x',
+      ], maxOutputBytes: 4096),
+      throwsA(
+        isA<ProcessException>().having(
+          (error) => error.message,
+          'message',
+          contains('combined process output limit'),
+        ),
+      ),
+    );
+  });
+
+  test(
+    'runWithOutputBudget preserves lossy UTF8 decoding and exit status',
+    () async {
+      if (Platform.isWindows) {
+        return;
+      }
+      final result = await runner.runWithOutputBudget('sh', const <String>[
+        '-c',
+        r"printf '\377\376ok'; printf 'bad' >&2; exit 3",
+      ], maxOutputBytes: 1024);
+
+      expect(result.exitCode, 3);
+      expect(result.stdout, '��ok');
+      expect(result.stderr, 'bad');
+    },
+  );
+
+  test(
+    'runWithOutputBudget times out and cleans up a waiting child tree',
+    () async {
+      if (Platform.isWindows) {
+        return;
+      }
+      final stopwatch = Stopwatch()..start();
+      await expectLater(
+        runner.runWithOutputBudget(
+          'sh',
+          const <String>['-c', 'sleep 10 & wait'],
+          maxOutputBytes: 1024,
+          timeout: const Duration(milliseconds: 25),
+        ),
+        throwsA(
+          isA<ProcessException>().having(
+            (error) => error.message,
+            'message',
+            contains('timed out'),
+          ),
+        ),
+      );
+      stopwatch.stop();
+      expect(stopwatch.elapsed, lessThan(const Duration(seconds: 2)));
+    },
+  );
+
+  test('runWithOutputBudget allows a documented larger response', () async {
+    if (Platform.isWindows) {
+      return;
+    }
+    final result = await runner.runWithOutputBudget('sh', const <String>[
+      '-c',
+      'head -c 65536 /dev/zero',
+    ], maxOutputBytes: 65537);
+
+    expect(result.exitCode, 0);
+    expect(result.stdout, hasLength(65536));
+  });
+
   test('start streams stdout and completes with the exit code', () async {
     final process = await runner.start('git', const <String>['--version']);
 

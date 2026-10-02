@@ -1,4 +1,6 @@
 pub mod child_process;
+#[cfg(feature = "async-process")]
+pub mod captured_process;
 pub mod git;
 pub mod git_cli;
 pub mod reading_diff;

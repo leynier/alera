@@ -22,6 +22,26 @@ Future<ProcessRunResult> processRun({
   environment: environment,
 );
 
+/// Runs a command with a caller-selected combined output budget and optional
+/// wall-clock timeout. A null timeout preserves the historical no-timeout
+/// behavior. Output is drained and decoded in Rust, and any limit or timeout
+/// failure terminates and reaps the process before returning.
+Future<ProcessRunResult> processRunWithOutputLimit({
+  required String executable,
+  required List<String> arguments,
+  String? workingDirectory,
+  Map<String, String>? environment,
+  required int maxOutputBytes,
+  int? timeoutMillis,
+}) => RustLib.instance.api.crateApiProcessProcessRunWithOutputLimit(
+  executable: executable,
+  arguments: arguments,
+  workingDirectory: workingDirectory,
+  environment: environment,
+  maxOutputBytes: maxOutputBytes,
+  timeoutMillis: timeoutMillis,
+);
+
 /// Starts a command and streams its output until it exits. A spawn that fails
 /// reports a `Failure` event rather than an error, so callers only ever read the
 /// stream. The session id is valid until `Exit` or `Failure` arrives.
@@ -50,7 +70,8 @@ Future<bool> processWriteStdin({
 Future<void> processCloseStdin({required PlatformInt64 id}) =>
     RustLib.instance.api.crateApiProcessProcessCloseStdin(id: id);
 
-/// Kills the process. Reaches the direct child only, matching `Process.kill`.
+/// Kills the process and its descendants when the platform supports process
+/// tree termination.
 Future<bool> processKill({required PlatformInt64 id}) =>
     RustLib.instance.api.crateApiProcessProcessKill(id: id);
 

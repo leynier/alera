@@ -13,6 +13,9 @@ use crate::frb_generated::StreamSink;
 #[path = "process_session.rs"]
 mod process_session;
 
+#[path = "process_output.rs"]
+mod process_output;
+
 pub struct ProcessRunResult {
     pub exit_code: i32,
     pub stdout: String,
@@ -47,7 +50,29 @@ pub fn process_run(
     working_directory: Option<String>,
     environment: Option<HashMap<String, String>>,
 ) -> Result<ProcessRunResult, String> {
-    process_session::run(executable, arguments, working_directory, environment)
+    process_output::run(executable, arguments, working_directory, environment)
+}
+
+/// Runs a command with a caller-selected combined output budget and optional
+/// wall-clock timeout. A null timeout preserves the historical no-timeout
+/// behavior. Output is drained and decoded in Rust, and any limit or timeout
+/// failure terminates and reaps the process before returning.
+pub fn process_run_with_output_limit(
+    executable: String,
+    arguments: Vec<String>,
+    working_directory: Option<String>,
+    environment: Option<HashMap<String, String>>,
+    max_output_bytes: i32,
+    timeout_millis: Option<i32>,
+) -> Result<ProcessRunResult, String> {
+    process_output::run_with_limits(
+        executable,
+        arguments,
+        working_directory,
+        environment,
+        max_output_bytes,
+        timeout_millis,
+    )
 }
 
 /// Starts a command and streams its output until it exits. A spawn that fails
@@ -82,7 +107,8 @@ pub fn process_close_stdin(id: i64) {
     process_session::close_stdin(id);
 }
 
-/// Kills the process. Reaches the direct child only, matching `Process.kill`.
+/// Kills the process and its descendants when the platform supports process
+/// tree termination.
 pub fn process_kill(id: i64) -> bool {
     process_session::kill(id)
 }

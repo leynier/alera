@@ -34,3 +34,21 @@ abstract interface class ProcessRunner {
     bool includeParentEnvironment = true,
   });
 }
+
+/// Optional local capability for callers with a documented larger output
+/// contract. The base runner keeps its historical call shape; remote runners
+/// may intentionally expose only their host's fixed budget.
+abstract interface class ProcessRunnerWithOutputBudget {
+  Future<ProcessRunOutput> runWithOutputBudget(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    required int maxOutputBytes,
+
+    /// Null leaves timeout policy to the runner; local Rust keeps its
+    /// historical no-timeout behavior and fixed-policy hosts may reject an
+    /// override.
+    Duration? timeout,
+  });
+}

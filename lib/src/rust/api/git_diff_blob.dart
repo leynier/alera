@@ -8,12 +8,9 @@ import 'git.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `blob_bytes`, `index_blob_bytes`, `tree_blob_bytes`, `workdir_file_bytes`
-
 /// Raw bytes of one side of a diffed file, used for binary previews such as
 /// images. Returns `None` when that side does not exist (added or deleted
-/// files), the entry is not a blob, or the content exceeds
-/// [`MAX_DIFF_BLOB_BYTES`].
+/// files), the entry is not a blob, or the content exceeds the core limit.
 Future<Uint8List?> gitDiffBlobBytes({
   required String path,
   required String filePath,

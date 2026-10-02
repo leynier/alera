@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:alera/src/rust/api/process.dart' as rust;
 import 'package:alera/src/shared/infra/process/process_runner.dart';
+import 'package:alera/src/shared/infra/process/process_output.dart';
+import 'package:alera/src/rust/api/process.dart' as rust;
 
 const _stdinChunkBytes = 256 * 1024;
 const _stdinRetryDelays = <Duration>[
@@ -25,7 +26,8 @@ const _stdinMaxQueuedWrites = 64;
 /// child it starts would get a console window of its own and flash on screen.
 /// Failures are translated back into [ProcessException] so call sites keep
 /// seeing what `Process.run` used to throw.
-class const RustProcessRunner() implements ProcessRunner {
+class const RustProcessRunner()
+    implements ProcessRunner, ProcessRunnerWithOutputBudget {
   @override
   Future<ProcessRunOutput> run(
     String executable,
@@ -33,12 +35,32 @@ class const RustProcessRunner() implements ProcessRunner {
     String? workingDirectory,
     Map<String, String>? environment,
   }) async {
+    return runWithOutputBudget(
+      executable,
+      arguments,
+      workingDirectory: workingDirectory,
+      environment: environment,
+      maxOutputBytes: processRunDefaultMaxOutputBytes,
+    );
+  }
+
+  @override
+  Future<ProcessRunOutput> runWithOutputBudget(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    required int maxOutputBytes,
+    Duration? timeout,
+  }) async {
     try {
-      final result = await rust.processRun(
+      final result = await rust.processRunWithOutputLimit(
         executable: executable,
         arguments: arguments,
         workingDirectory: workingDirectory,
         environment: environment,
+        maxOutputBytes: maxOutputBytes,
+        timeoutMillis: timeout?.inMilliseconds,
       );
       return ProcessRunOutput(
         exitCode: result.exitCode,

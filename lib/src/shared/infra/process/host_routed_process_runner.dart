@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:alera/src/shared/infra/process/process_output.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 
 /// Resolves the runner for a working directory: the remote runner when the
@@ -16,7 +19,7 @@ typedef RemoteProcessRunnerResolver = ProcessRunner? Function(
 class const HostRoutedProcessRunner({
   required final ProcessRunner local,
   required final RemoteProcessRunnerResolver remoteFor,
-}) implements ProcessRunner {
+}) implements ProcessRunner, ProcessRunnerWithOutputBudget {
   ProcessRunner _for(String? workingDirectory) {
     if (workingDirectory == null || workingDirectory.trim().isEmpty) {
       return local;
@@ -36,6 +39,44 @@ class const HostRoutedProcessRunner({
     workingDirectory: workingDirectory,
     environment: environment,
   );
+
+  @override
+  Future<ProcessRunOutput> runWithOutputBudget(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    required int maxOutputBytes,
+    Duration? timeout,
+  }) {
+    final runner = _for(workingDirectory);
+    if (runner case final ProcessRunnerWithOutputBudget bounded) {
+      return bounded.runWithOutputBudget(
+        executable,
+        arguments,
+        workingDirectory: workingDirectory,
+        environment: environment,
+        maxOutputBytes: maxOutputBytes,
+        timeout: timeout,
+      );
+    }
+    if (maxOutputBytes != processRunDefaultMaxOutputBytes || timeout != null) {
+      return Future<ProcessRunOutput>.error(
+        ProcessException(
+          executable,
+          arguments,
+          'The selected process host cannot honor the requested output '
+          'budget or timeout.',
+        ),
+      );
+    }
+    return runner.run(
+      executable,
+      arguments,
+      workingDirectory: workingDirectory,
+      environment: environment,
+    );
+  }
 
   @override
   Future<StartedProcess> start(
