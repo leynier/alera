@@ -233,11 +233,15 @@ mod requests;
 mod resource_requests;
 mod runtime_change_broadcasts;
 mod runtime_mutation_barrier;
+#[path = "server/runtime_mutation_completion.rs"]
+mod runtime_mutation_completion;
 mod runtime_mutation_queue;
 mod runtime_mutations;
 mod satellite_mirror_requests;
 mod server_command;
 mod server_command_inbox;
+#[path = "server/server_command_payload_size.rs"]
+mod server_command_payload_size;
 #[path = "server_runner.rs"]
 mod server_runner;
 mod server_shutdown;
@@ -1218,12 +1222,14 @@ impl ServerActor {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             tokio::time::sleep(Duration::from_millis(DEFERRED_ENTER_DELAY_MS)).await;
-            let _ = inbox.send(ServerCommand::OrchestrationDeferredEnter {
-                session_id,
-                session_instance_id,
-                message_ids,
-                force_submit,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::OrchestrationDeferredEnter {
+                    session_id,
+                    session_instance_id,
+                    message_ids,
+                    force_submit,
+                })
+                .await;
         });
     }
 
@@ -1288,11 +1294,13 @@ impl ServerActor {
             } else {
                 SshBootstrapStatus::Failed
             };
-            let _ = inbox.send(ServerCommand::SshBootstrapFinished {
-                target_id: task_target_id,
-                job_id: task_job_id,
-                status,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::SshBootstrapFinished {
+                    target_id: task_target_id,
+                    job_id: task_job_id,
+                    status,
+                })
+                .await;
         });
         let job = SshBootstrapJobState {
             job_id: job_id.clone(),
@@ -1395,4 +1403,10 @@ mod server_actor_orchestration_tests;
 mod server_actor_test_support;
 
 #[cfg(test)]
+#[path = "server/orchestration_deferred_enter_admission_tests.rs"]
+mod orchestration_deferred_enter_admission_tests;
+#[cfg(test)]
 mod remote_automation_cleanup_runtime_tests;
+#[cfg(test)]
+#[path = "server/runtime_mutation_completion_budget_tests.rs"]
+mod runtime_mutation_completion_budget_tests;

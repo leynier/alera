@@ -208,13 +208,15 @@ impl ServerActor {
             .and_then(|value| {
                 serde_json::to_value(value).map_err(|error| HostError::state(error.to_string()))
             });
-            let _ = inbox.send(ServerCommand::HostToolFinished {
-                client_id,
-                request_id,
-                result,
-                operation_id: None,
-                skill: None,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::HostToolFinished {
+                    client_id,
+                    request_id,
+                    result,
+                    operation_id: None,
+                    skill: None,
+                })
+                .await;
         });
     }
 
@@ -265,13 +267,15 @@ impl ServerActor {
                     }
                 }
             }
-            let _ = inbox.send(ServerCommand::HostToolFinished {
-                client_id,
-                request_id,
-                result: value,
-                operation_id: Some(operation_for_task),
-                skill: Some(skill_for_task),
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::HostToolFinished {
+                    client_id,
+                    request_id,
+                    result: value,
+                    operation_id: Some(operation_for_task),
+                    skill: Some(skill_for_task),
+                })
+                .await;
         });
         Ok(())
     }

@@ -65,12 +65,14 @@ impl ServerActor {
                     .map_err(|error| HostError::state(error.to_string()))
             }
             .await;
-            let _ = inbox.send(ServerCommand::AgentQuotaFinished {
-                client_id,
-                request_id,
-                environment_signature,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::AgentQuotaFinished {
+                    client_id,
+                    request_id,
+                    environment_signature,
+                    result,
+                })
+                .await;
         });
         Ok(())
     }
@@ -113,12 +115,14 @@ impl ServerActor {
                 }))
             }
             .await;
-            let _ = inbox.send(ServerCommand::AgentQuotaClaudeTuiFinished {
-                client_id,
-                request_id,
-                environment_signature,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::AgentQuotaClaudeTuiFinished {
+                    client_id,
+                    request_id,
+                    environment_signature,
+                    result,
+                })
+                .await;
         });
         Ok(())
     }
@@ -141,12 +145,14 @@ impl ServerActor {
             let result = consume_codex_reset_credit(&store, payload)
                 .await
                 .map_err(|error| HostError::state(error.to_string()));
-            let _ = inbox.send(ServerCommand::AgentQuotaCodexResetFinished {
-                client_id,
-                request_id,
-                environment_signature,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::AgentQuotaCodexResetFinished {
+                    client_id,
+                    request_id,
+                    environment_signature,
+                    result,
+                })
+                .await;
         });
     }
 

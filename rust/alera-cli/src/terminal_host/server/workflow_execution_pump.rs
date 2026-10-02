@@ -32,10 +32,31 @@ impl ExecutionPump {
 }
 
 pub(crate) struct ExecutionPass {
-    cursor: Option<String>,
-    again: bool,
-    changed: bool,
-    error: Option<String>,
+    pub(super) cursor: Option<String>,
+    pub(super) again: bool,
+    pub(super) changed: bool,
+    pub(super) error: Option<String>,
+}
+
+#[cfg(test)]
+impl ExecutionPass {
+    pub(crate) fn from_test(
+        cursor: Option<String>,
+        again: bool,
+        changed: bool,
+        error: Option<String>,
+    ) -> Self {
+        Self {
+            cursor,
+            again,
+            changed,
+            error,
+        }
+    }
+
+    pub(crate) fn into_test_parts(self) -> (Option<String>, bool, bool, Option<String>) {
+        (self.cursor, self.again, self.changed, self.error)
+    }
 }
 
 impl ServerActor {

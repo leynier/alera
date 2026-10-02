@@ -56,7 +56,9 @@ impl ServerActor {
             if !matches!(&result, Ok(Ok(()))) {
                 tracing::warn!("workflow workspace recovery needs attention: {result:?}");
             }
-            let _ = inbox.send(ServerCommand::WorkflowWorkspaceRecoveryFinished);
+            let _ = inbox
+                .send_wait(ServerCommand::WorkflowWorkspaceRecoveryFinished)
+                .await;
         });
     }
 
@@ -174,13 +176,15 @@ impl ServerActor {
                         .map(Box::new)
                         .map_err(|error| HostError::state(error.to_string()))
                 });
-                let _ = inbox.send(ServerCommand::WorkflowLaunch(
-                    super::workflow_launch_requests::WorkflowLaunchCommand::Prepared {
-                        client_id,
-                        request_id,
-                        result,
-                    },
-                ));
+                let _ = inbox
+                    .send_wait(ServerCommand::WorkflowLaunch(
+                        super::workflow_launch_requests::WorkflowLaunchCommand::Prepared {
+                            client_id,
+                            request_id,
+                            result,
+                        },
+                    ))
+                    .await;
                 return;
             }
             // Disconnect/timeouts only lose the response. The operation retains
@@ -229,12 +233,14 @@ impl ServerActor {
             .await
             .map_err(|error| HostError::state(error.to_string()))
             .and_then(|result| result.map_err(|error| HostError::state(error.to_string())));
-            let _ = inbox.send(ServerCommand::WorkflowWorkspaceFinished {
-                client_id,
-                request_id,
-                result,
-                mutated,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::WorkflowWorkspaceFinished {
+                    client_id,
+                    request_id,
+                    result,
+                    mutated,
+                })
+                .await;
         });
         Ok(())
     }

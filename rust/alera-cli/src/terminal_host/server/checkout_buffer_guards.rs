@@ -288,7 +288,9 @@ impl ServerActor {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_secs(30)).await;
-            let _ = inbox.send(ServerCommand::BufferGuardExpired { id });
+            let _ = inbox
+                .send_wait(ServerCommand::BufferGuardExpired { id })
+                .await;
         });
         Ok(status)
     }

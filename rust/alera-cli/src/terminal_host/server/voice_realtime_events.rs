@@ -242,7 +242,9 @@ impl ServerActor {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             tokio::time::sleep(Duration::from_millis(350)).await;
-            let _ = inbox.send(ServerCommand::VoiceGeminiTranscriptSettle { generation, token });
+            let _ = inbox
+                .send_wait(ServerCommand::VoiceGeminiTranscriptSettle { generation, token })
+                .await;
         });
     }
 
@@ -284,7 +286,9 @@ impl ServerActor {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             tokio::time::sleep(delay).await;
-            let _ = inbox.send(ServerCommand::VoiceRealtimeReconnect { generation });
+            let _ = inbox
+                .send_wait(ServerCommand::VoiceRealtimeReconnect { generation })
+                .await;
         });
     }
 

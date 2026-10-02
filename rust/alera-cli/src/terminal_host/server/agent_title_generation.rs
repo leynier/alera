@@ -119,7 +119,9 @@ impl ServerActor {
             if automatic {
                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;
             }
-            let _ = inbox.send(ServerCommand::AgentTitleReady { tab_id, id });
+            let _ = inbox
+                .send_wait(ServerCommand::AgentTitleReady { tab_id, id })
+                .await;
         });
         Ok(())
     }
@@ -186,7 +188,9 @@ impl ServerActor {
                 parse_title(&output)
             }.await;
             let _ = tokio::fs::remove_dir_all(&directory).await;
-            let _ = inbox.send(ServerCommand::AgentTitleFinished { tab_id, id, result });
+            let _ = inbox
+                .send_wait(ServerCommand::AgentTitleFinished { tab_id, id, result })
+                .await;
         });
         Ok(())
     }

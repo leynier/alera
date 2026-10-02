@@ -149,11 +149,13 @@ impl ServerActor {
         tokio::spawn(async move {
             let result =
                 forward_generation(&store, &links, &request_type, &workspace, payload).await;
-            let _ = inbox.send(ServerCommand::AiAssistFinished {
-                client_id,
-                request_id,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::AiAssistFinished {
+                    client_id,
+                    request_id,
+                    result,
+                })
+                .await;
         });
     }
 

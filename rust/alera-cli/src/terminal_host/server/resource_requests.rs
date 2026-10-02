@@ -4,7 +4,8 @@ use std::time::Duration;
 
 use serde_json::Value;
 
-use super::{ServerActor, ServerCommand};
+use super::server_command_inbox::ServerInboxSendError;
+use super::{ServerActor, ServerCommand, ServerInbox};
 use crate::terminal_host::demand_driven_ticker::DemandDrivenTicker;
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::resources::{
@@ -139,7 +140,7 @@ impl ServerActor {
         self.resources
             .ticker
             .start(self.resources.interval, move || {
-                inbox.send(ServerCommand::ResourceSampleTick).is_ok()
+                send_resource_sample_tick(&inbox)
             });
     }
 
@@ -164,12 +165,16 @@ impl ServerActor {
         let host_pid = std::process::id();
         let app_pid = self.resources.app_pid;
         let inbox = self.inbox.clone();
-        tokio::task::spawn_blocking(move || {
-            let snapshot = match sampler.lock() {
+        tokio::spawn(async move {
+            let snapshot = tokio::task::spawn_blocking(move || match sampler.lock() {
                 Ok(mut sampler) => sampler.sample(&roots, host_pid, app_pid),
                 Err(_) => warming_snapshot(),
-            };
-            let _ = inbox.send(ServerCommand::ResourceSampleReady { snapshot });
+            })
+            .await
+            .unwrap_or_else(|_| warming_snapshot());
+            let _ = inbox
+                .send_wait(ServerCommand::ResourceSampleReady { snapshot })
+                .await;
         });
     }
 
@@ -188,6 +193,16 @@ impl ServerActor {
                 shell: session.shell(),
             })
             .collect()
+    }
+}
+
+/// A saturated control lane is temporary pressure, not a reason to retire the
+/// ticker. The next interval retries the sample after another command drains;
+/// only a closed inbox means the owning actor is gone.
+fn send_resource_sample_tick(inbox: &ServerInbox) -> bool {
+    match inbox.send(ServerCommand::ResourceSampleTick) {
+        Ok(()) | Err(ServerInboxSendError::Full) => true,
+        Err(ServerInboxSendError::Closed | ServerInboxSendError::Oversized) => false,
     }
 }
 
@@ -328,3 +343,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "resource_requests_ticker_tests.rs"]
+mod ticker_tests;

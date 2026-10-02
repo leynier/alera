@@ -65,12 +65,13 @@ impl ServerActor {
                 for target in proposals {
                     let (reply, done) = tokio::sync::oneshot::channel();
                     inbox
-                        .send(ServerCommand::WorkflowLaunch(
+                        .send_wait(ServerCommand::WorkflowLaunch(
                             WorkflowLaunchCommand::CancelProposalTerminal {
                                 target: target.clone(),
                                 reply,
                             },
                         ))
+                        .await
                         .map_err(|_| {
                             anyhow::anyhow!("runtime closed before proposal cancellation")
                         })?;
@@ -97,12 +98,13 @@ impl ServerActor {
                 for target in targets {
                     let (reply, done) = tokio::sync::oneshot::channel();
                     inbox
-                        .send(ServerCommand::WorkflowLaunch(
+                        .send_wait(ServerCommand::WorkflowLaunch(
                             WorkflowLaunchCommand::CancelTerminal {
                                 target: target.clone(),
                                 reply,
                             },
                         ))
+                        .await
                         .map_err(|_| {
                             anyhow::anyhow!("runtime closed before workflow cancellation")
                         })?;
@@ -146,9 +148,11 @@ impl ServerActor {
             }
             .await
             .map_err(|error| HostError::state(error.to_string()));
-            let _ = inbox.send(ServerCommand::WorkflowLaunch(
-                WorkflowLaunchCommand::CancellationFinished(result),
-            ));
+            let _ = inbox
+                .send_wait(ServerCommand::WorkflowLaunch(
+                    WorkflowLaunchCommand::CancellationFinished(result),
+                ))
+                .await;
         });
     }
 
@@ -322,13 +326,14 @@ async fn finish_shutdown(
     if result.is_err() {
         let (reply, done) = tokio::sync::oneshot::channel();
         inbox
-            .send(ServerCommand::WorkflowLaunch(
+            .send_wait(ServerCommand::WorkflowLaunch(
                 WorkflowLaunchCommand::RetainCancellationShutdown {
                     tab: tab.to_owned(),
                     shutdown: guard,
                     reply,
                 },
             ))
+            .await
             .map_err(|_| HostError::state("runtime closed before process shutdown was retained"))?;
         done.await
             .map_err(|_| HostError::state("runtime closed before process shutdown was retained"))?;

@@ -1,5 +1,6 @@
 use std::time::Instant;
 
+use super::super::ServerCommand;
 use super::*;
 
 #[test]
@@ -72,6 +73,7 @@ fn relevant_bursts_coalesce_without_an_event_queue_overflow() {
                 git_config_environment,
                 ignored_git_status_paths: HashSet::new(),
                 failure_reported: Arc::new(AtomicBool::new(false)),
+                runtime_handle: None,
             }
             .run()
         }

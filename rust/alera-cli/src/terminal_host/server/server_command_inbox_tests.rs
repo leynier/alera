@@ -1,4 +1,5 @@
 use super::*;
+use crate::terminal_host::session::PtyEvent;
 
 fn client_line(id: u64) -> ServerCommand {
     ServerCommand::ClientLine {

@@ -6,14 +6,25 @@ use std::sync::{Condvar, Mutex, MutexGuard};
 use tokio::sync::Notify;
 
 use super::{
+    SERVER_COMMAND_COMPLETION_BYTES, SERVER_COMMAND_COMPLETION_CAPACITY,
     SERVER_COMMAND_CONTROL_BYTES, SERVER_COMMAND_CONTROL_CAPACITY, SERVER_COMMAND_WORK_BYTES,
     SERVER_COMMAND_WORK_CAPACITY,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum AdmissionClass {
-    Work { bytes: usize },
-    Control { bytes: usize },
+    Work {
+        bytes: usize,
+    },
+    Control {
+        bytes: usize,
+    },
+    /// A result from work that was already admitted before shutdown or a
+    /// saturated control queue. Completion admission stays separate so a
+    /// result cannot be dropped after its job counter was incremented.
+    Completion {
+        bytes: usize,
+    },
 }
 
 #[derive(Debug, Default)]
@@ -22,7 +33,10 @@ pub(super) struct AdmissionState {
     work_bytes: usize,
     control_commands: usize,
     control_bytes: usize,
+    completion_commands: usize,
+    completion_bytes: usize,
     closed: bool,
+    receiver_closed: bool,
     paused_pty_sessions: HashSet<String>,
 }
 
@@ -63,6 +77,45 @@ impl Admission {
         Some(state)
     }
 
+    pub(super) fn try_acquire_completion(
+        &self,
+        class: AdmissionClass,
+    ) -> Option<MutexGuard<'_, AdmissionState>> {
+        let mut state = self.state.lock().expect("server inbox admission lock");
+        if state.receiver_closed || !Self::can_acquire_completion(&state, class) {
+            return None;
+        }
+        Self::acquire(&mut state, class);
+        Some(state)
+    }
+
+    pub(super) fn acquire_completion_blocking(
+        &self,
+        class: AdmissionClass,
+    ) -> Option<MutexGuard<'_, AdmissionState>> {
+        let mut state = self.state.lock().expect("server inbox admission lock");
+        while !state.receiver_closed && !Self::can_acquire_completion(&state, class) {
+            #[cfg(test)]
+            if let Some(hook) = self
+                .blocking_wait_hook
+                .lock()
+                .expect("server inbox blocking wait hook")
+                .take()
+            {
+                hook.wait();
+            }
+            state = self
+                .changed
+                .wait(state)
+                .expect("server inbox admission lock");
+        }
+        if state.receiver_closed {
+            return None;
+        }
+        Self::acquire(&mut state, class);
+        Some(state)
+    }
+
     pub(super) fn acquire_blocking(
         &self,
         class: AdmissionClass,
@@ -94,6 +147,14 @@ impl Admission {
     pub(super) fn close(&self) {
         let mut state = self.state.lock().expect("server inbox admission lock");
         state.closed = true;
+        drop(state);
+        self.notify_waiters();
+    }
+
+    pub(super) fn receiver_closed(&self) {
+        let mut state = self.state.lock().expect("server inbox admission lock");
+        state.closed = true;
+        state.receiver_closed = true;
         drop(state);
         self.notify_waiters();
     }
@@ -136,6 +197,10 @@ impl Admission {
                 state.control_commands = state.control_commands.saturating_sub(1);
                 state.control_bytes = state.control_bytes.saturating_sub(bytes);
             }
+            AdmissionClass::Completion { bytes } => {
+                state.completion_commands = state.completion_commands.saturating_sub(1);
+                state.completion_bytes = state.completion_bytes.saturating_sub(bytes);
+            }
         }
         drop(state);
         self.changed.notify_one();
@@ -170,6 +235,12 @@ impl Admission {
         )
     }
 
+    #[cfg(test)]
+    pub(super) fn completion_counts(&self) -> (usize, usize) {
+        let state = self.state.lock().expect("server inbox admission lock");
+        (state.completion_commands, state.completion_bytes)
+    }
+
     fn can_acquire(
         state: &AdmissionState,
         class: AdmissionClass,
@@ -187,7 +258,23 @@ impl Admission {
                 state.control_commands < SERVER_COMMAND_CONTROL_CAPACITY
                     && bytes <= SERVER_COMMAND_CONTROL_BYTES.saturating_sub(state.control_bytes)
             }
+            AdmissionClass::Completion { .. } => false,
         }
+    }
+
+    fn can_acquire_completion(state: &AdmissionState, class: AdmissionClass) -> bool {
+        let AdmissionClass::Completion { bytes } = class else {
+            return false;
+        };
+        if state.completion_commands >= SERVER_COMMAND_COMPLETION_CAPACITY {
+            return false;
+        }
+        // An already-committed job may need oversized cleanup metadata. Admit
+        // it alone so ownership is preserved without accumulating such items.
+        bytes <= SERVER_COMMAND_COMPLETION_BYTES.saturating_sub(state.completion_bytes)
+            || (state.completion_commands == 0
+                && state.completion_bytes == 0
+                && bytes > SERVER_COMMAND_COMPLETION_BYTES)
     }
 
     fn acquire(state: &mut AdmissionState, class: AdmissionClass) {
@@ -199,6 +286,10 @@ impl Admission {
             AdmissionClass::Control { bytes } => {
                 state.control_commands += 1;
                 state.control_bytes += bytes;
+            }
+            AdmissionClass::Completion { bytes } => {
+                state.completion_commands += 1;
+                state.completion_bytes += bytes;
             }
         }
     }

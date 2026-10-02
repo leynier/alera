@@ -180,9 +180,11 @@ impl ServerActor {
         let task_job = job.clone();
         tokio::spawn(async move {
             run_clone_job(store, inbox.clone(), task_job.clone(), raw_url, cancel_rx).await;
-            let _ = inbox.send(ServerCommand::ProjectCloneFinished {
-                job_id: task_job.id,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::ProjectCloneFinished {
+                    job_id: task_job.id,
+                })
+                .await;
         });
         self.broadcast_authenticated(event("projectCloneJobsChanged", json!({ "id": job.id })));
         serde_json::to_value(job).map_err(state_error)

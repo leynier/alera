@@ -46,13 +46,15 @@ impl ServerActor {
             .await
             .map_err(|error| HostError::state(format!("Prompt file operation failed: {error}")))
             .and_then(|result| result);
-            let _ = inbox.send(ServerCommand::MobilePromptFileFinished {
-                client_id,
-                request_id,
-                request_type: operation,
-                upload_id,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::MobilePromptFileFinished {
+                    client_id,
+                    request_id,
+                    request_type: operation,
+                    upload_id,
+                    result,
+                })
+                .await;
         });
     }
 

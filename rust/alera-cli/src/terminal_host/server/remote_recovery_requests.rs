@@ -29,11 +29,13 @@ impl ServerActor {
             }
             .await;
             let result = super::requests::json_result(result);
-            let _ = inbox.send(ServerCommand::RemoteRecoveryFinished {
-                client_id,
-                request_id,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::RemoteRecoveryFinished {
+                    client_id,
+                    request_id,
+                    result,
+                })
+                .await;
         });
     }
 

@@ -16,12 +16,14 @@ impl ServerActor {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_millis(STARTUP_INPUT_DELAY_MS)).await;
-            let _ = inbox.send(ServerCommand::TerminalStartupInput {
-                session_id,
-                session_instance_id,
-                interactive_shell,
-                command,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::TerminalStartupInput {
+                    session_id,
+                    session_instance_id,
+                    interactive_shell,
+                    command,
+                })
+                .await;
         });
     }
 
@@ -67,10 +69,12 @@ impl ServerActor {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_millis(STARTUP_SUBMIT_DELAY_MS)).await;
-            let _ = inbox.send(ServerCommand::TerminalStartupSubmit {
-                session_id,
-                session_instance_id,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::TerminalStartupSubmit {
+                    session_id,
+                    session_instance_id,
+                })
+                .await;
         });
     }
 

@@ -108,9 +108,11 @@ where
                 // queue. The actor also drains completions at barriers, so a
                 // dropped wake under control pressure cannot drop data or
                 // leave the worker waiting on the actor during shutdown.
-                let _ = inbox.send(ServerCommand::HistoryWriterReady {
-                    session_id: worker_session_id.clone(),
-                });
+                let _ = inbox
+                    .send_wait(ServerCommand::HistoryWriterReady {
+                        session_id: worker_session_id.clone(),
+                    })
+                    .await;
                 if failed {
                     // Once storage fails, return all accepted queued batches
                     // to the actor instead of writing later chunks out of
@@ -120,9 +122,11 @@ where
                             batch: request.batch,
                             error: anyhow!("history writer stopped after a storage failure"),
                         }));
-                        let _ = inbox.send(ServerCommand::HistoryWriterReady {
-                            session_id: worker_session_id.clone(),
-                        });
+                        let _ = inbox
+                            .send_wait(ServerCommand::HistoryWriterReady {
+                                session_id: worker_session_id.clone(),
+                            })
+                            .await;
                     }
                     break;
                 }

@@ -45,7 +45,7 @@ pub(super) async fn execute(
             }
             let (reply, done) = tokio::sync::oneshot::channel();
             events
-                .send(ServerCommand::WorkflowLaunch(
+                .send_wait(ServerCommand::WorkflowLaunch(
                     WorkflowLaunchCommand::InspectCleanupOwners {
                         cleanup_id: id.into(),
                         digest: digest.into(),
@@ -53,6 +53,7 @@ pub(super) async fn execute(
                         reply,
                     },
                 ))
+                .await
                 .map_err(|_| anyhow::anyhow!("runtime closed before cleanup inspection"))?;
             done.await
                 .map_err(|_| anyhow::anyhow!("runtime closed during cleanup inspection"))?
@@ -122,7 +123,7 @@ pub(super) async fn abandon(
             }
             let (reply, done) = tokio::sync::oneshot::channel();
             events
-                .send(ServerCommand::WorkflowLaunch(
+                .send_wait(ServerCommand::WorkflowLaunch(
                     WorkflowLaunchCommand::InspectCleanupOwners {
                         cleanup_id: id.into(),
                         digest: digest.into(),
@@ -130,6 +131,7 @@ pub(super) async fn abandon(
                         reply,
                     },
                 ))
+                .await
                 .map_err(|_| anyhow::anyhow!("runtime closed before cleanup inspection"))?;
             done.await
                 .map_err(|_| anyhow::anyhow!("runtime closed during cleanup inspection"))?

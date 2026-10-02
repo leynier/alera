@@ -207,7 +207,9 @@ impl ServerActor {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             tokio::time::sleep(deadline).await;
-            let _ = inbox.send(ServerCommand::HubReverseRequestExpired { reverse_id });
+            let _ = inbox
+                .send_wait(ServerCommand::HubReverseRequestExpired { reverse_id })
+                .await;
         });
         Ok(())
     }

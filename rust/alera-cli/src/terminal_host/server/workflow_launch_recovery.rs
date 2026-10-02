@@ -35,9 +35,11 @@ impl ServerActor {
         let id = id.to_owned();
         tokio::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_secs(120)).await;
-            let _ = inbox.send(super::ServerCommand::WorkflowLaunch(
-                super::workflow_launch_requests::WorkflowLaunchCommand::AcceptanceTimeout(id),
-            ));
+            let _ = inbox
+                .send_wait(super::ServerCommand::WorkflowLaunch(
+                    super::workflow_launch_requests::WorkflowLaunchCommand::AcceptanceTimeout(id),
+                ))
+                .await;
         });
     }
 

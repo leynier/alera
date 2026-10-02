@@ -59,12 +59,14 @@ impl ServerActor {
                 }
                 Err(error) => Err(error),
             };
-            let _ = inbox.send(ServerCommand::MobileWorkspaceFileFinished {
-                client_id,
-                request_id,
-                request_type: operation,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::MobileWorkspaceFileFinished {
+                    client_id,
+                    request_id,
+                    request_type: operation,
+                    result,
+                })
+                .await;
         });
         Ok(())
     }

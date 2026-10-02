@@ -280,7 +280,9 @@ async fn read_codex_messages<R>(
         let _ = sender.send(Err(HostError::state(reason.clone())));
     }
     drop(pending);
-    let _ = inbox.send(ServerCommand::CodexProcessExited { reason });
+    let _ = inbox
+        .send_wait(ServerCommand::CodexProcessExited { reason })
+        .await;
 }
 
 async fn read_codex_stderr<R>(reader: R)

@@ -37,7 +37,9 @@ impl ServerActor {
                     .await
                 }
                 .await;
-                let _ = inbox.send(ServerCommand::RemoteResourceSnapshot { host_id, result });
+                let _ = inbox
+                    .send_wait(ServerCommand::RemoteResourceSnapshot { host_id, result })
+                    .await;
             });
         }
     }

@@ -74,7 +74,9 @@ impl ServerActor {
                 .await
             }
             .await;
-            let _ = inbox.send(ServerCommand::RemoteAgentPresenceListed { host_id, result });
+            let _ = inbox
+                .send_wait(ServerCommand::RemoteAgentPresenceListed { host_id, result })
+                .await;
         });
     }
 

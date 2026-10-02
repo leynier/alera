@@ -103,11 +103,13 @@ impl ServerActor {
                     finish_outcome(&inbox, &workspace_id, outcome)
                 }
             };
-            let _ = inbox.send(ServerCommand::LinkedIssueRequestFinished {
-                client_id,
-                request_id,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::LinkedIssueRequestFinished {
+                    client_id,
+                    request_id,
+                    result,
+                })
+                .await;
         });
         Ok(())
     }

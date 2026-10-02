@@ -13,7 +13,10 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 use super::path_identities::{
     is_missing_ambiguous_rename, repository_path_from_bytes, PathIdentity, PathIdentityCache,
 };
-use super::ServerCommand;
+
+#[path = "terminal_pulse_failure.rs"]
+mod failure;
+use failure::report_watcher_failure;
 
 #[path = "terminal_pulse_event_scope.rs"]
 pub(super) mod event_scope;
@@ -73,6 +76,7 @@ struct WorkspacePulseWorker {
     git_config_environment: GitConfigEnvironment,
     ignored_git_status_paths: HashSet<PathBuf>,
     failure_reported: Arc<AtomicBool>,
+    runtime_handle: Option<tokio::runtime::Handle>,
 }
 
 impl WorkspacePulseWatcher {
@@ -153,6 +157,8 @@ impl WorkspacePulseWatcher {
         let failure_reported = Arc::new(AtomicBool::new(false));
         let callback_failure_reported = Arc::clone(&failure_reported);
         let callback_inbox = inbox.clone();
+        let runtime_handle = tokio::runtime::Handle::try_current().ok();
+        let callback_runtime_handle = runtime_handle.clone();
         let identity = WorkspacePulseWatcherIdentity {
             workspace_id,
             generation,
@@ -181,6 +187,7 @@ impl WorkspacePulseWatcher {
                             &callback_identity,
                             &callback_failure_reported,
                             &callback_inbox,
+                            callback_runtime_handle.as_ref(),
                             error.to_string(),
                         );
                         let _ = callback_wake_tx.try_send(());
@@ -196,6 +203,7 @@ impl WorkspacePulseWatcher {
                         &callback_identity,
                         &callback_failure_reported,
                         &callback_inbox,
+                        callback_runtime_handle.as_ref(),
                         "workspace root was removed or renamed",
                     );
                     let _ = callback_wake_tx.try_send(());
@@ -220,6 +228,7 @@ impl WorkspacePulseWatcher {
                                 &callback_identity,
                                 &callback_failure_reported,
                                 &callback_inbox,
+                                callback_runtime_handle.as_ref(),
                                 error.wire_message(),
                             );
                             let _ = callback_wake_tx.try_send(());
@@ -238,6 +247,7 @@ impl WorkspacePulseWatcher {
                         &callback_identity,
                         &callback_failure_reported,
                         &callback_inbox,
+                        callback_runtime_handle.as_ref(),
                         "filesystem requested a rescan after events may have been lost",
                     );
                     let _ = callback_wake_tx.try_send(());
@@ -262,6 +272,7 @@ impl WorkspacePulseWatcher {
                                 &callback_identity,
                                 &callback_failure_reported,
                                 &callback_inbox,
+                                callback_runtime_handle.as_ref(),
                                 error.wire_message(),
                             );
                             let _ = callback_wake_tx.try_send(());
@@ -349,6 +360,7 @@ impl WorkspacePulseWatcher {
                     git_config_environment,
                     ignored_git_status_paths,
                     failure_reported,
+                    runtime_handle,
                 }
                 .run()
             })
@@ -453,21 +465,6 @@ pub(super) fn event_is_relevant_with_identities(
         &mut HashSet::new(),
         path_identities,
     )
-}
-
-fn report_watcher_failure(
-    identity: &WorkspacePulseWatcherIdentity,
-    failure_reported: &AtomicBool,
-    inbox: &crate::terminal_host::ServerInbox,
-    error: impl Into<String>,
-) {
-    if !failure_reported.swap(true, Ordering::Relaxed) {
-        let _ = inbox.send(ServerCommand::TerminalPulseWatcherFailed {
-            workspace_id: identity.workspace_id.clone(),
-            watcher_generation: identity.generation,
-            error: error.into(),
-        });
-    }
 }
 
 fn git_query_error(error: git2::Error) -> HostError {

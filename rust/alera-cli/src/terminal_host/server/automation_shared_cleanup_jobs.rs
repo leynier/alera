@@ -139,10 +139,12 @@ impl ServerActor {
             .map_err(|_| anyhow!("Automatic task cleanup timed out; retirement must be verified"))
             .and_then(|result| result)
             .map_err(|error| error.to_string());
-            let _ = inbox.send(ServerCommand::AutomationSharedCleanupFinished {
-                attempt: Box::new(attempt),
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::AutomationSharedCleanupFinished {
+                    attempt: Box::new(attempt),
+                    result,
+                })
+                .await;
         });
     }
 

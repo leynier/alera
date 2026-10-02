@@ -23,11 +23,13 @@ impl ServerActor {
                 )
                 .await,
             );
-            let _ = inbox.send(ServerCommand::ProjectCheckoutRegistered {
-                client_id,
-                request_id,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::ProjectCheckoutRegistered {
+                    client_id,
+                    request_id,
+                    result,
+                })
+                .await;
         });
     }
 
@@ -52,11 +54,13 @@ impl ServerActor {
             )
             .await
             .map_err(|error| crate::terminal_host::host_error::HostError::state(error.to_string()));
-            let _ = inbox.send(ServerCommand::ProjectCheckoutRegistered {
-                client_id,
-                request_id,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::ProjectCheckoutRegistered {
+                    client_id,
+                    request_id,
+                    result,
+                })
+                .await;
         });
     }
 

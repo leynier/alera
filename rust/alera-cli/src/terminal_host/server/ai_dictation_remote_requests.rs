@@ -174,11 +174,13 @@ impl ServerActor {
             if let Ok(mut active) = active_requests().lock() {
                 active.remove(&request_id);
             }
-            let _ = inbox.send(ServerCommand::AiDictationFinished {
-                client_id,
-                request_id: response_id,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::AiDictationFinished {
+                    client_id,
+                    request_id: response_id,
+                    result,
+                })
+                .await;
         });
         Ok(())
     }

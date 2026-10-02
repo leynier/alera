@@ -1,5 +1,6 @@
 use std::time::Instant;
 
+use super::super::ServerCommand;
 use super::*;
 
 impl WorkspacePulseWorker {
@@ -98,6 +99,7 @@ impl WorkspacePulseWorker {
             &self.identity,
             &self.failure_reported,
             &self.inbox,
+            self.runtime_handle.as_ref(),
             error.wire_message(),
         );
     }

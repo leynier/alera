@@ -141,16 +141,18 @@ impl ServerActor {
                     .await
                     .map_err(|error| HostError::state(error.to_string()))
                     .and_then(|result| result);
-            let _ = inbox.send(ServerCommand::OrchestrationCompletionFinished(
-                OrchestrationCompletionFinished {
-                    client_id,
-                    request_id,
-                    dispatch_id,
-                    assignee,
-                    result,
-                    completion_sha,
-                },
-            ));
+            let _ = inbox
+                .send_wait(ServerCommand::OrchestrationCompletionFinished(
+                    OrchestrationCompletionFinished {
+                        client_id,
+                        request_id,
+                        dispatch_id,
+                        assignee,
+                        result,
+                        completion_sha,
+                    },
+                ))
+                .await;
         });
         Ok(())
     }

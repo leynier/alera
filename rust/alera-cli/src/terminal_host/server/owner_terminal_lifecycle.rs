@@ -234,13 +234,15 @@ impl ServerActor {
                 Ok(json!({"operation":completed,"processClosureVerified":true}))
             }
             .await;
-            let _ = inbox.send(ServerCommand::OwnerTerminalLifecycleFinished {
-                client_id,
-                request_id,
-                operation_id: operation.id,
-                shutdown,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::OwnerTerminalLifecycleFinished {
+                    client_id,
+                    request_id,
+                    operation_id: operation.id,
+                    shutdown,
+                    result,
+                })
+                .await;
         });
     }
 

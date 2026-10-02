@@ -393,12 +393,18 @@ pub(super) fn interrupted_speak_drain_keeps_microphone(
     }
 }
 
-pub(super) fn report(
+pub(super) async fn report(
     inbox: &crate::terminal_host::ServerInbox,
     generation: u64,
     event: VoiceRealtimeEvent,
 ) {
-    let _ = inbox.send(ServerCommand::VoiceRealtime { generation, event });
+    let audio = matches!(&event, VoiceRealtimeEvent::Audio { .. });
+    let command = ServerCommand::VoiceRealtime { generation, event };
+    if audio {
+        let _ = inbox.send(command);
+    } else {
+        let _ = inbox.send_wait(command).await;
+    }
 }
 
 #[cfg(test)]

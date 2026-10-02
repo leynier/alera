@@ -75,16 +75,20 @@ impl ServerActor {
                         .map_err(|error| HostError::state(error.to_string()))
                 });
             // The desktop's read is the freshest copy the launch cache can get.
-            let _ = inbox.send(ServerCommand::RemoteProjectConfigRead {
-                project_id: project.id.clone(),
-                result: result.clone(),
-            });
-            let _ = inbox.send(ServerCommand::MobileWorkspaceFileFinished {
-                client_id,
-                request_id,
-                request_type: EFFECTIVE_CONFIG_VERB.to_string(),
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::RemoteProjectConfigRead {
+                    project_id: project.id.clone(),
+                    result: result.clone(),
+                })
+                .await;
+            let _ = inbox
+                .send_wait(ServerCommand::MobileWorkspaceFileFinished {
+                    client_id,
+                    request_id,
+                    request_type: EFFECTIVE_CONFIG_VERB.to_string(),
+                    result,
+                })
+                .await;
         });
         Ok(true)
     }

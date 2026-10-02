@@ -119,12 +119,14 @@ impl ServerActor {
             .await
             .map_err(|error| HostError::state(error.to_string()))
             .and_then(|result| result.map_err(|error| HostError::state(error.to_string())));
-            let _ = inbox.send(ServerCommand::WorkflowWorkspaceFinished {
-                client_id,
-                request_id,
-                result,
-                mutated: true,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::WorkflowWorkspaceFinished {
+                    client_id,
+                    request_id,
+                    result,
+                    mutated: true,
+                })
+                .await;
         });
         Ok(())
     }

@@ -259,6 +259,7 @@ impl ServerActor {
                 Ok(()) => run_runtime_mutation(runtime_store, request.mutation).await,
                 Err(error) => RuntimeMutationOutcome {
                     result: Err(error),
+                    completion_on_error: None,
                     ended_pointer_tab_ids: Vec::new(),
                     closed_session_tab_ids: Vec::new(),
                     committed_tab_ids: Vec::new(),

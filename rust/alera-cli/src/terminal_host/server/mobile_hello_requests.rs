@@ -86,11 +86,13 @@ impl ServerActor {
                 tokio::join!(crate::tailscale::detect(), crate::netbird::detect());
             payload["tailscale"] = json!(tailscale);
             payload["netbird"] = json!(netbird);
-            let _ = inbox.send(ServerCommand::MobileStatusFinished {
-                client_id,
-                request_id,
-                payload,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::MobileStatusFinished {
+                    client_id,
+                    request_id,
+                    payload,
+                })
+                .await;
         });
         Ok(())
     }

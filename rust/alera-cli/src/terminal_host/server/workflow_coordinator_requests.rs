@@ -51,11 +51,13 @@ impl ServerActor {
                 .await
                 .map(Box::new)
                 .map_err(|error| HostError::state(error.to_string()));
-            let _ = inbox.send(ServerCommand::WorkflowLaunch(crate::terminal_host::server::workflow_launch_requests::WorkflowLaunchCommand::CoordinatorPrepared {
-                client_id,
-                request_id,
-                result,
-            }));
+            let _ = inbox
+                .send_wait(ServerCommand::WorkflowLaunch(crate::terminal_host::server::workflow_launch_requests::WorkflowLaunchCommand::CoordinatorPrepared {
+                    client_id,
+                    request_id,
+                    result,
+                }))
+                .await;
         });
         Ok(())
     }

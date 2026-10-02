@@ -8,6 +8,8 @@ use crate::managed_workspace_handoff::{
 };
 use crate::terminal_host::host_error::{HostError, HostResult};
 
+#[path = "runtime_mutation_budget.rs"]
+pub(super) mod budget;
 #[path = "runtime_mutation_hosted_review_retention.rs"]
 mod hosted_review_retentions;
 #[path = "runtime_remote_workspace_relocation.rs"]
@@ -93,6 +95,7 @@ pub(super) struct HandOnSessionRelocate {
 
 pub(crate) struct RuntimeMutationOutcome {
     pub(crate) result: HostResult<RuntimeMutationCompletion>,
+    pub(super) completion_on_error: Option<RuntimeMutationCompletion>,
     pub(super) ended_pointer_tab_ids: Vec<String>,
     pub(super) closed_session_tab_ids: Vec<String>,
     pub(super) committed_tab_ids: Vec<String>,
@@ -415,6 +418,7 @@ pub(super) async fn run_runtime_mutation(
     }
     RuntimeMutationOutcome {
         result,
+        completion_on_error: None,
         ended_pointer_tab_ids: Vec::new(),
         closed_session_tab_ids: Vec::new(),
         committed_tab_ids,

@@ -130,10 +130,12 @@ impl ServerActor {
                     serde_json::to_value(payload)
                         .map_err(|error| HostError::state(error.to_string()))
                 });
-            let _ = inbox.send(ServerCommand::RemoteProjectConfigRead {
-                project_id: project.id,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::RemoteProjectConfigRead {
+                    project_id: project.id,
+                    result,
+                })
+                .await;
         });
     }
 

@@ -65,9 +65,11 @@ impl ServerActor {
                                 );
                             }
                         }
-                        let _ = inbox.send(ServerCommand::OwnerAutomationPrecheckFinished {
-                            operation_id: operation.operation_id,
-                        });
+                        let _ = inbox
+                            .send_wait(ServerCommand::OwnerAutomationPrecheckFinished {
+                                operation_id: operation.operation_id,
+                            })
+                            .await;
                     });
                 }
             }

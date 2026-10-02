@@ -186,9 +186,11 @@ impl ServerActor {
             request_id,
             outcome,
         } = finished;
-        self.finish_checkout_buffer_guard(client_id, request_id, outcome.result.is_ok());
+        let mutation_committed = outcome.result.is_ok() || outcome.completion_on_error.is_some();
+        self.finish_checkout_buffer_guard(client_id, request_id, mutation_committed);
         let RuntimeMutationOutcome {
             result,
+            completion_on_error,
             ended_pointer_tab_ids,
             mut closed_session_tab_ids,
             committed_tab_ids,
@@ -224,25 +226,16 @@ impl ServerActor {
         closed_session_tab_ids.sort_unstable();
         closed_session_tab_ids.dedup();
         let _ = closed_session_tab_ids;
+        if let Some(completion) = completion_on_error {
+            let _ = self.apply_runtime_mutation_completion(completion).await;
+        }
         match result {
             Ok(completion) => {
-                let _ = completion.closed_tab_ids;
-                if let Some(relocate) = completion.hand_on_relocate {
-                    self.relocate_sessions_after_hand_on(
-                        &relocate.source_workspace_id,
-                        &relocate.destination_workspace_id,
-                        &relocate.source_path,
-                        &relocate.dest_path,
-                    );
-                    self.checkpoint_transferred_workspace(&relocate.destination_workspace_id)
-                        .await;
-                    self.broadcast_workspace_tabs_changed(Some(&relocate.destination_workspace_id));
-                }
-                self.apply_runtime_mutation_effect(completion.effect).await;
+                let response = self.apply_runtime_mutation_completion(completion).await;
                 if let Some(error) = stopped_tab_cleanup_error {
                     self.client_write(client_id, error_response(request_id, &error));
                 } else {
-                    self.client_write(client_id, ok_response(request_id, completion.response));
+                    self.client_write(client_id, ok_response(request_id, response));
                 }
             }
             Err(error) => {
@@ -261,7 +254,7 @@ impl ServerActor {
         self.schedule_shutdown_if_idle();
     }
 
-    async fn apply_runtime_mutation_effect(&mut self, effect: RuntimeMutationEffect) {
+    pub(super) async fn apply_runtime_mutation_effect(&mut self, effect: RuntimeMutationEffect) {
         match effect {
             RuntimeMutationEffect::SetupFinished => {}
             RuntimeMutationEffect::ProjectRemoved {
