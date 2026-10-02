@@ -1016,6 +1016,20 @@ jobs:
       contents: write
       id-token: write
       attestations: write
+    outputs:
+      desktop_assets_public: >-
+        ${{ needs.plan.outputs.desktop_should_release != 'true' ||
+          (steps.publish_desktop_release.outcome == 'success' &&
+            steps.publish_update_archive_r2.outcome == 'success') }}
+      mobile_assets_public: >-
+        ${{ needs.plan.outputs.mobile_should_release != 'true' ||
+          steps.publish_mobile_release.outcome == 'success' }}
+      landing_assets_ready: >-
+        ${{ (needs.plan.outputs.desktop_should_release != 'true' ||
+          (steps.publish_desktop_release.outcome == 'success' &&
+            steps.publish_update_archive_r2.outcome == 'success')) &&
+          (needs.plan.outputs.mobile_should_release != 'true' ||
+            steps.publish_mobile_release.outcome == 'success') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -1395,6 +1409,7 @@ jobs:
 
       - name: Publish update archive to R2
         if: needs.plan.outputs.desktop_should_release == 'true'
+        id: publish_update_archive_r2
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -1531,20 +1546,59 @@ jobs:
             exit 1
           fi
 
+  # The stable version commit updates landing's release pin before the
+  # artifacts exist. This job starts only after publish has made the relevant
+  # GitHub releases public and completed the desktop R2 sync when a desktop
+  # release is included. A failed Vercel hook leaves the already-public
+  # release intact and does not block package publication, which can still
+  # point at those valid release assets.
+  deploy_landing:
+    name: deploy stable landing
+    needs:
+      - plan
+      - publish
+    if: >-
+      always() &&
+      needs.plan.result == 'success' &&
+      needs.publish.result != 'cancelled' &&
+      needs.plan.outputs.channel == 'stable' &&
+      needs.plan.outputs.any_should_release == 'true' &&
+      needs.publish.outputs.landing_assets_ready == 'true'
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ needs.plan.outputs.target_sha }}
+          submodules: false
+
+      - name: Trigger production landing deployment
+        env:
+          CHANNEL: ${{ needs.plan.outputs.channel }}
+          VERCEL_PRODUCTION_DEPLOY_HOOK: ${{ secrets.VERCEL_PRODUCTION_DEPLOY_HOOK }}
+        run: bash tool/release/trigger_vercel_deploy_hook.sh "$CHANNEL"
+
   # The desktop packages are downstream of a release that is already public:
-  # they only ever point at assets `publish` uploaded, so they run after it and
-  # a failure here never rolls the release back. Release candidates are excluded
-  # for the same reason the Linux stable repositories exclude them.
+  # they only ever point at assets `publish` made public. Their gate uses the
+  # explicit asset outcome, so a later cleanup failure does not hide a valid
+  # release. Release candidates are excluded for the same reason the Linux
+  # stable repositories exclude them.
   publish_packages:
     name: publish brew and scoop
     needs:
       - plan
       - publish
     if: >-
+      always() &&
       !cancelled() &&
-      needs.publish.result == 'success' &&
+      needs.plan.result == 'success' &&
+      needs.publish.result != 'cancelled' &&
       needs.plan.outputs.desktop_should_release == 'true' &&
-      needs.plan.outputs.channel == 'stable'
+      needs.plan.outputs.channel == 'stable' &&
+      needs.publish.outputs.desktop_assets_public == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

@@ -16,6 +16,7 @@ export interface DemoPlayer {
   play(): void;
   pause(reason: PauseReason): void;
   seek(t: number): void;
+  destroy(): void;
 }
 
 declare global {
@@ -29,6 +30,9 @@ declare global {
 }
 
 const MAX_STEP_MS = 100;
+// A frame folds the storyboard and updates a scaled DOM scene; 30 FPS keeps
+// the long-running demo responsive while preserving the deterministic clock.
+const FRAME_INTERVAL_MS = 1000 / 30;
 const PLAY_RATIO = 0.35;
 const PAUSE_RATIO = 0.2;
 
@@ -73,7 +77,10 @@ export async function mountDemo(root: HTMLElement, board: Storyboard): Promise<D
   let inView = false;
   let frameRequest = 0;
   let lastTick = 0;
+  let lastRender = 0;
   let renderedChapter = -1;
+  let destroyed = false;
+  const lifecycle = new AbortController();
 
   const render = () => {
     const frame = timeline.frameAt(time, layout);
@@ -105,6 +112,7 @@ export async function mountDemo(root: HTMLElement, board: Storyboard): Promise<D
   };
 
   const tick = (now: number) => {
+    if (destroyed || !playing) return;
     const step = Math.min(now - lastTick, MAX_STEP_MS);
     lastTick = now;
     time = Math.min(timeline.duration, time + step);
@@ -112,16 +120,23 @@ export async function mountDemo(root: HTMLElement, board: Storyboard): Promise<D
       playing = false;
       setToggle();
     }
-    render();
-    if (playing) frameRequest = requestAnimationFrame(tick);
+    if (!playing || now - lastRender >= FRAME_INTERVAL_MS) {
+      lastRender = now;
+      render();
+    }
+    if (playing) {
+      frameRequest = requestAnimationFrame(tick);
+    }
   };
 
   const play = () => {
-    if (playing) return;
+    if (destroyed || playing) return;
     if (time >= timeline.duration) time = 0;
     playing = true;
     lastTick = performance.now();
+    lastRender = lastTick;
     setToggle();
+    render();
     frameRequest = requestAnimationFrame(tick);
   };
 
@@ -130,11 +145,13 @@ export async function mountDemo(root: HTMLElement, board: Storyboard): Promise<D
     if (!playing) return;
     playing = false;
     cancelAnimationFrame(frameRequest);
+    frameRequest = 0;
     setToggle();
     render();
   };
 
   const seek = (t: number) => {
+    if (destroyed) return;
     time = Math.min(Math.max(t, 0), timeline.duration);
     render();
     setToggle();
@@ -146,35 +163,51 @@ export async function mountDemo(root: HTMLElement, board: Storyboard): Promise<D
     play();
   };
 
-  toggle?.addEventListener('click', () => {
-    if (playing) {
-      pause('user');
-    } else {
-      userPaused = false;
-      play();
-    }
-  });
-  replayButtons.forEach((button) =>
-    button.addEventListener('click', () => {
-      userPaused = false;
-      seek(0);
-      play();
-    }),
-  );
-  scrub?.addEventListener('input', () => {
-    pause('user');
-    seek(Number(scrub.value));
-  });
-  chapterButtons.forEach((button, index) => {
-    button.addEventListener('click', () => {
-      const chapter = timeline.chapters[index]!;
-      // With motion reduced a chapter is its poster frame; otherwise it plays from the start.
-      seek(reducedMotion.matches ? chapter.poster : chapter.start);
-      if (!reducedMotion.matches && !capture) {
+  toggle?.addEventListener(
+    'click',
+    () => {
+      if (playing) {
+        pause('user');
+      } else {
         userPaused = false;
         play();
       }
-    });
+    },
+    { signal: lifecycle.signal },
+  );
+  replayButtons.forEach((button) =>
+    button.addEventListener(
+      'click',
+      () => {
+        userPaused = false;
+        seek(0);
+        play();
+      },
+      { signal: lifecycle.signal },
+    ),
+  );
+  scrub?.addEventListener(
+    'input',
+    () => {
+      pause('user');
+      seek(Number(scrub.value));
+    },
+    { signal: lifecycle.signal },
+  );
+  chapterButtons.forEach((button, index) => {
+    button.addEventListener(
+      'click',
+      () => {
+        const chapter = timeline.chapters[index]!;
+        // With motion reduced a chapter is its poster frame; otherwise it plays from the start.
+        seek(reducedMotion.matches ? chapter.poster : chapter.start);
+        if (!reducedMotion.matches && !capture) {
+          userPaused = false;
+          play();
+        }
+      },
+      { signal: lifecycle.signal },
+    );
   });
 
   const observer = new IntersectionObserver(
@@ -191,11 +224,31 @@ export async function mountDemo(root: HTMLElement, board: Storyboard): Promise<D
     { threshold: [0, PAUSE_RATIO, PLAY_RATIO, 0.6] },
   );
   observer.observe(root);
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) pause('hidden');
-    else maybeAutoplay();
+  const resizeObserver = new ResizeObserver(() => {
+    if (!destroyed) render();
   });
-  new ResizeObserver(() => render()).observe(root);
+  resizeObserver.observe(root);
+
+  document.addEventListener(
+    'visibilitychange',
+    () => {
+      if (document.hidden) pause('hidden');
+      else maybeAutoplay();
+    },
+    { signal: lifecycle.signal },
+  );
+  reducedMotion.addEventListener(
+    'change',
+    () => {
+      if (reducedMotion.matches) {
+        pause('offscreen');
+        seek(timeline.chapters[timeline.chapterAt(time)]!.poster);
+      } else {
+        maybeAutoplay();
+      }
+    },
+    { signal: lifecycle.signal },
+  );
 
   if (scrub) scrub.max = String(timeline.duration);
   if (reducedMotion.matches) time = timeline.chapters[0]!.poster;
@@ -217,6 +270,18 @@ export async function mountDemo(root: HTMLElement, board: Storyboard): Promise<D
     };
   }
 
+  const destroy = () => {
+    if (destroyed) return;
+    destroyed = true;
+    playing = false;
+    cancelAnimationFrame(frameRequest);
+    frameRequest = 0;
+    observer.disconnect();
+    resizeObserver.disconnect();
+    lifecycle.abort();
+    if (capture) delete window.__aleraDemo;
+  };
+
   return {
     timeline,
     get time() {
@@ -225,5 +290,6 @@ export async function mountDemo(root: HTMLElement, board: Storyboard): Promise<D
     play,
     pause,
     seek,
+    destroy,
   };
 }
