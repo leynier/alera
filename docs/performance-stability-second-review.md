@@ -6,7 +6,7 @@ Esta revisión es un análisis de solo lectura del HEAD `1457a1072`, con último
 
 Las seis áreas de la segunda revisión terminaron su análisis y el revisor independiente dejó cinco hallazgos accionables de prioridad P1. También se ejecutaron probes locales sobre hook nativo, PTY, explorer, AI, updater, diagnósticos, edge, mobile y contratos de FCM.
 
-No se editaron fuentes durante esta revisión, no se hicieron llamadas a AI externa, no se escribieron sistemas de producción y no se desplegó ni publicó ningún cambio.
+No se editaron fuentes durante esta revisión, no se hicieron inferencias con los providers de la aplicación ni se consumió cuota ChatGPT del usuario, no se escribieron sistemas de producción y no se desplegó ni publicó ningún cambio. La revisión independiente de código sí utilizó el CLI Codex configurado, como registra la evidencia.
 
 La evidencia completa de los probes está en [audit-second-review-evidence-2026-10-02.json](audit-second-review-evidence-2026-10-02.json).
 

@@ -33,7 +33,7 @@ Prefer eliminating unnecessary work, bounding queues, cancelling obsolete work a
 | Merge and deploy | Cancelled by user | No push or main merge; either can activate automatic Vercel or cloud deployment. |
 | Publish and verify | Cancelled by user | No new release, publication or production configuration change. |
 | Second performance and stability review | Completed; fixes pending | Six subsystem reviews, independent branch review and isolated probes found five P1 issues plus P2 improvements. See performance-stability-second-review.md. The review request did not authorize implementation of these new audit findings. |
-| ChatGPT models, thinking effort and speed | In progress | User explicitly authorized investigation and implementation in this PR. Preserve account-specific catalog, forward reasoning effort, add normal/fast selection and additive host capability; validate offline without deployment. |
+| ChatGPT models, thinking effort and speed | Completed locally; live acceptance pending | Dynamic refresh, global/per-operation effort and Normal/Fast are implemented with additive capability gates. Direct cold-cache requests resolve effort against the fresh account default, and remote gates include speech text cleanup. Initial migration preserves per-operation settings. 248 Flutter and 41 Rust regressions pass; full analysis, Clippy, format and source ratchet pass. Independent review is closed. No live OAuth/inference or deployment. See chatgpt-ai-assist.md. |
 | Implementation report | Completed | Spanish report, raw runtime and Windows validation, reproducible checks, remaining platform limits and activation dependencies are committed locally. |
 
 ## Validation

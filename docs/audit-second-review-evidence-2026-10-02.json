@@ -1,10 +1,10 @@
 {
   "date": "2026-10-02",
   "reviewedHead": "1457a1072",
-  "lastProductionCommit": "3958cef7d",
+  "lastAuditImplementationCommit": "3958cef7d",
   "base": "b32c1492d6f2d82b127e1444979444cd1b58e03a",
   "sourceEdits": false,
-  "externalAiCalls": false,
+  "applicationProviderInferenceCalls": 0,
   "productionWrites": false,
   "deployed": false,
   "branchReviewer": {
